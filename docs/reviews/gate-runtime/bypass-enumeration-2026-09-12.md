@@ -148,6 +148,7 @@ No new file, no new concept, one row-shaped edit per stage.
 | `tests/**` · `vitest.config*.ts` · `playwright*.config.ts` · `tsconfig*.json` | `tests:execution-membership` · `types:ownership` |
 | `tests/**/*.test-d.ts` | `types:testd` |
 | `packages/**/*.ts(x)` · `tooling/**/*.ts` | `lint:biome` · `lint:eslint` · `types:native` · `imports:depcruise` (the edit hook covers the first, third and fourth per-file — but only for Edit/Write, never for `sed -i`) |
+| `packages/**` · `tooling/**` implementation | `quality:cpd` |
 | an export added or removed under `packages/**` · `tooling/**` | `deps:knip` · `deps:orphan-ratchet` |
 | `packages/client/src/**` | `quality:boot-chunk` |
 | `docs/**/*.md` | `docs:format` · `docs:catalog` (both currently baseline-red; the owed action is "do not make it worse", not "go green") |

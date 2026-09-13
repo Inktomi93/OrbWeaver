@@ -145,7 +145,9 @@ export function slowdownLines(previous: RunHistoryEntry | undefined, advisories:
 // that lives only in prose is a wish (constitution §2.3): nothing on the machine could say how long it had
 // actually been, which is the same blindness one layer up.
 //
-// SO THE CADENCE BECOMES A READING. `reports/verify-history.jsonl` already records every verify-family run
+// SO THE CADENCE BECOMES A READING, NOT AN ENFORCEMENT. The ruling assigns the barrier runner, while this
+// module has no merge-train identity, schedule or pass/fail history from which it could enforce that duty.
+// `reports/verify-history.jsonl` already records every verify-family run
 // with its sha and its per-stage modes, so "when did the battery last RUN on this checkout" is answerable
 // from a store that already exists — no new artifact, no clock, no schedule. Every WHOLE-TREE run prints it.
 //
@@ -183,6 +185,7 @@ export function batteryCadenceLines(history: readonly RunHistoryEntry[], report:
     `[verify] ${BATTERY_STAGE} did NOT run here (it is --full-only, #1842): ${since}.`,
     "[verify]   A tests/tooling/** red is invisible until it does — four sat unobserved for five days (#1983). It is OWED ONCE PER MERGE TRAIN at the quiescent barrier.",
     "[verify]   This line reports when the battery last RAN, never that it passed — history records a stage's mode, not its exit.",
+    "[verify]   Cadence enforcement remains the quiescent-barrier procedure; this bounded per-checkout history cannot identify a merge train or prove a prior pass.",
   ];
 }
 

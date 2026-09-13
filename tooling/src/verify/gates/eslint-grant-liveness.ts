@@ -50,7 +50,7 @@ const RATIFIED: ExemptionTable<RatifiedRow> = {
     why: "local tools write derived, refetchable cache artifacts outside the tracked corpus, at the root and at every nesting depth. Delete this row when the cache root changes or the repository starts tracking authored files there.",
     cite: ".gitignore",
   },
-  // THE TABLE IS KEYED BY POSITION, so these two were APPENDED (#2281/#2282, 2026-09-13) — every key above
+  // THE TABLE IS KEYED BY POSITION, so these two were inserted at positions 6–7 (#2281/#2282, 2026-09-13) — every key above
   // is index 5 or lower and neither identity below existed before. An ignore inserted ABOVE index 5 would
   // silently RE-POINT every row beneath it: the keys would still resolve, just to different selectors, and
   // `sameValue` is the only thing that would catch it. Both rows below were ADDED BECAUSE THIS GATE CAUGHT

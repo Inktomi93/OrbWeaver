@@ -483,7 +483,8 @@ dodging.
 **Owed to the orchestrator at a QUIET barrier — no lane may run these, and never beside a `check:structure`
 (#2069: a planter and a reader on one tree is a NON-VERDICT):** `check-gates.repo.int.test.ts`,
 `gate-ignore-grammar.repo.int.test.ts`, `gate-conformance.repo.int.test.ts`, `gate-spelling-twins.int.test.ts`
-(all four plant `__g_` fixtures), then `check:structure` ONCE, then `ledgers:fresh`, then the doc-catalog
+(all four plant `__g_` fixtures), then `check:structure` ONCE, then `ledgers:fresh`,
+`config:biome-rule-liveness`, and `types:testd`, then the doc-catalog
 re-attest of every review doc a lane rewrote (a regeneration never attests a document nobody read), **then the
 `tests/tooling/**` battery ONCE PER MERGE TRAIN** (ruled 2026-09-12 on #1983 part 2: not on `push` — #1842 stands —
 and not nightly; the barrier is the only moment the box is quiet enough for the verdict to be about redness rather

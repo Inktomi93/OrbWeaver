@@ -55,7 +55,7 @@ export interface StageTrigger {
 
 /**
  * EVERY STAGE THAT RUNS ITS WHOLE COMMAND OR NOT AT ALL, with its trigger or its stated absence. That is
- * the eleven whole-only static rows plus `docs:catalog`, whose lone hand-rolled version of this mechanism
+ * the twelve whole-only static rows plus `docs:catalog`, whose lone hand-rolled version of this mechanism
  * moved in here so the accounting has ONE home. Repo-relative,
  * forward-slashed paths — the same shape `Selection.paths` carries.
  *
@@ -101,20 +101,21 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
     why: "every authored TS root, ambient and imported closure against its declared compiler owner. Broad ON PURPOSE and still not the identity: a docs-only, JSON-only or asset-only commit cannot move a compiler program's membership.",
   },
 
-  // ── the declined rows. Each one is a stage whose inputs CANNOT be over-approximated by a path set, so a
-  // trigger would convert "deferred" into a false "not owed". They keep deferring, exactly as before. ──
+  // ── the identity-triggered rows. No narrower path set completely over-approximates their inputs, so a
+  // non-empty changed selection runs the whole command. This is deliberate admission, not scoped analysis. ──
   "types:testd": {
-    paths: null,
-    why: "a `.test-d.ts` asserts against the TYPES of arbitrary source, so any `.ts`/`.tsx` edit anywhere can flip one. The only complete pattern is the identity, and an identity trigger is a trigger that says nothing.",
+    paths: /./u,
+    why: "a `.test-d.ts` asserts against the TYPES of arbitrary source, so no narrower path set is complete. The identity trigger deliberately runs the whole assertion lane for every non-empty changed selection.",
   },
   "config:biome-rule-liveness": {
-    paths: null,
-    why: "the subject is biome.json's GRANT TABLE plus every path those grants name — and whether a granted rule still FIRES depends on the content of the granted file, which no path pattern can predict. Its own header: a scoped fileset reports every grant it did not probe as dead.",
+    paths: /./u,
+    why: "the subject is biome.json's GRANT TABLE plus every path those grants name — and whether a granted rule still FIRES depends on the content of the granted file. The identity trigger is the only complete changed-path approximation, and still runs the whole command.",
   },
   "ledgers:fresh": {
-    paths: null,
-    why: "the caught-failure census is LINE-COUPLED and derived from a whole-repo ts-morph walk, so any `.ts` edit anywhere can re-stale a row; the doc ledgers add `docs/**` on top. Complete means the identity.",
+    paths: /./u,
+    why: "the caught-failure census is LINE-COUPLED and derived from a whole-repo ts-morph walk, so any source edit can re-stale a row; the doc ledgers add authored documents. The identity trigger is intentionally complete and runs the whole reconciler.",
   },
+  // Knip remains declined: it is materially different from the three cheap identity-triggered rows above.
   "deps:knip": {
     paths: null,
     why: "reachability over the WHOLE import graph — deleting the last importer of a file makes an unrelated module orphaned, so the trigger is every source file plus every manifest. Complete means the identity.",
@@ -138,6 +139,12 @@ const CHANGED: Tier = "changed";
  *  inline would put the accounting (which stages are covered, which are declined and why) in twelve places,
  *  which is how the lone `DOC_CATALOG_PATH_RE` stayed lone. */
 export function applyPathTriggers(stages: readonly StageDef[]): readonly StageDef[] {
+  const missing = stages.filter(
+    (stage) => stage.tiers.includes("static") && stage.scopedArgv === undefined && !Object.hasOwn(WHOLE_COMMAND_PATH_TRIGGERS, stage.name),
+  );
+  if (missing.length > 0) {
+    throw new Error(`whole-only static stage is absent from WHOLE_COMMAND_PATH_TRIGGERS: ${missing.map((stage) => stage.name).join(", ")}`);
+  }
   return stages.map((stage) => {
     const paths = triggerFor(stage);
     if (paths === undefined) {

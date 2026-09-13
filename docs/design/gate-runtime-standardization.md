@@ -2068,9 +2068,9 @@ population by roughly 48x. An on-disk count is not a lint population: ESLint app
 admits only what a config matches. **A smaller true number beats a large wrong one**, and the fix does not change:
 worktrees are still about HALF the entire linted population.
 
-**But COST is not the reason to fence** — fencing the worktrees moved the whole-repo run 246.7 s → 226 s, ~8%,
-because those files match no `files:` surface and no type-aware program ever ran on them. The reason is that the
-stage cannot return a VERDICT: a lane swept mid-run turns an enumerated path into ENOENT and it exits **2**.
+**But COST is not the reason to fence.** Whole-run timings were load-confounded and did not reproduce; discovery
+cost also changes materially with the number of live worktrees. The reason is that the stage cannot return a
+VERDICT: a lane swept mid-run turns an enumerated path into ENOENT and it exits **2**.
 **And the payload row above is load-bearing beyond this table:** 1.78 MB unfenced is over node's 1 MiB default,
 which is what #2211's `maxBuffer` ceiling was raised for, and 446 KB fenced is 2.35x under it. So the fence
 RETIRES that premise, and `eslint.int.test.ts`'s floor arm inverts — it stops pinning *the overflow still happens*

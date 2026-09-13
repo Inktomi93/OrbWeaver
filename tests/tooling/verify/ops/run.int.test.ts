@@ -752,7 +752,8 @@ test("types:native per --package runs every imported consumer exactly once", { t
 // unclassified"; "a policy's proofs are its own fixtures, not a property of any changed file".
 // `scopedArgv === undefined` was the PROXY for that ruling, not the ruling.
 //
-// #2277 gives six of them a PATH TRIGGER (../../../../tooling/src/verify/lib/registry-triggers.ts): at a
+// #2277 gives eight of them a PATH TRIGGER, plus `docs:catalog` whose original this generalises
+// (../../../../tooling/src/verify/lib/registry-triggers.ts): at a
 // scoped tier they now run their OWN WHOLE `argv` when the selection touches the paths that can change
 // their verdict, and `skip-empty` when it does not. The trigger changes WHEN a stage runs and never WHAT
 // it reads — so the ruling is untouched and the proxy is obsolete.
@@ -761,6 +762,8 @@ test("types:native per --package runs every imported consumer exactly once", { t
 // RULING ACTUALLY SAYS — a triggered run is BYTE-FOR-BYTE the whole-scope argv, never a narrowed fileset.
 // A future edit that hands one of these a partial file list reds here, which the old spelling could not
 // have caught (it would have gone green the moment `scopedArgv` became undefined again).
+// #2304 adds three identity-triggered whole commands below; their complete input cannot be narrowed, and
+// their measured cost admits running them for every non-empty changed selection.
 
 test("#2277 — a path-triggered stage runs its WHOLE argv or nothing: the no-honest-scoped-form ruling, pinned directly", {
   timeout: AFFECTED_PLAN_TIMEOUT,
@@ -801,8 +804,18 @@ test("#2277 — the DECLINED rows keep deferring: no path set over-approximates 
   // knip is reachability over the whole import graph; e2e is cross-cutting by nature), so they carry NO
   // trigger and keep deferring with the notice that names where they do run. `registry-triggers.ts` states
   // each reason beside its `null`, and this arm is what stops one being "fixed" into a false clean.
-  for (const name of ["types:testd", "config:biome-rule-liveness", "ledgers:fresh", "deps:knip", "browser:e2e-smoke", "browser:e2e"]) {
+  for (const name of ["deps:knip", "browser:e2e-smoke", "browser:e2e"]) {
     expect(stage(name).scopedArgv, `${name} must stay deferred, not skipped`).toBeUndefined();
+  }
+});
+
+test("#2304 — the cheap identity-triggered checks run their whole command for every changed selection", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
+  for (const name of ["types:testd", "config:biome-rule-liveness", "ledgers:fresh"]) {
+    const row = stage(name);
+    for (const path of ["README.md", "packages/kit/src/ids/index.ts"]) {
+      const selection = resolveSelection({ kind: "file", paths: [path] });
+      expect(row.scopedArgv?.(selection), `${name}: ${path}`).toEqual(row.argv);
+    }
   }
 });
 
