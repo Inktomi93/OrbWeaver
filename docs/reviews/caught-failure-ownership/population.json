@@ -7036,19 +7036,6 @@
       "markerLine": 339
     },
     {
-      "siteId": "tooling/src/verify/gates/bus-payload-allowlist.ts::catch::1",
-      "path": "tooling/src/verify/gates/bus-payload-allowlist.ts",
-      "line": 427,
-      "column": 5,
-      "grammar": "empty",
-      "position": "catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "the failure IS owned and surfaced — tuple-read THROWS to say \"I cannot establish this vocabulary\", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REPORTS `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this gate's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed report.",
-      "markerLine": 424
-    },
-    {
       "siteId": "tooling/src/verify/gates/depcruise-grant-liveness.ts::catch::1",
       "path": "tooling/src/verify/gates/depcruise-grant-liveness.ts",
       "line": 174,
@@ -7064,15 +7051,15 @@
     {
       "siteId": "tooling/src/verify/gates/devtools-frontend-assets.ts::error::1",
       "path": "tooling/src/verify/gates/devtools-frontend-assets.ts",
-      "line": 104,
-      "column": 14,
+      "line": 200,
+      "column": 16,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": "every validator failure is converted into this gate's asset-contract finding and zero-scan receipt. Ends if the catch stops reporting the failure detail.",
-      "markerLine": 100
+      "reason": "every adjudicator failure is converted into this policy's asset-contract finding, which is the D950 ruling — an unprovable vendored closure IS the violation, not a broken checker. Ends if this catch stops reporting the failure detail.",
+      "markerLine": 197
     },
     {
       "siteId": "tooling/src/verify/gates/no-nul-bytes-in-source.ts::catch::1",
@@ -7112,6 +7099,19 @@
       "verdict": "deliberate-absorb",
       "reason": "EPERM alone means a LIVE process this UID may not signal — still alive, still not ours to sweep; every other errno (ESRCH, a malformed pid) means the owner is gone and its probe is ours to clear. Ends if the probe name stops carrying its owner's pid.",
       "markerLine": 164
+    },
+    {
+      "siteId": "tooling/src/verify/lib/bus-payload-fact.ts::catch::1",
+      "path": "tooling/src/verify/lib/bus-payload-fact.ts",
+      "line": 373,
+      "column": 5,
+      "grammar": "empty",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure IS owned and surfaced — tuple-read THROWS to say \"I cannot establish this vocabulary\", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REFUSES `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this module's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed refusal.",
+      "markerLine": 370
     },
     {
       "siteId": "tooling/src/verify/lib/compiler-source-filename-overlay.ts::catch::1",
