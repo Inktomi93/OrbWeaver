@@ -4992,6 +4992,31 @@
         }
       ],
       "summary": "Full-read CSS train fix report preserved as reported evidence for #2292–#2294, with the author’s verification receipts, declared baseline failures and exclusions, and the separate #2297 regression left open."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-12a-2026-09-13.md",
+      "assignedSha256": "617d04309ce2cf02bf081972fca313c9753e27b6402aa97a95df14761ddb4307",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "617d04309ce2cf02bf081972fca313c9753e27b6402aa97a95df14761ddb4307",
+      "verifiedCommit": "3c685ce6a6ec03b8a8348362c1ab9a94487c642b",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full report read by codex-primary. Runtime receipts are the report author’s recorded evidence at9ad17fb5a; this catalog entry does not claim an independent rerun or current-tree closure."
+      ],
+      "claims": [
+        {
+          "claim": "The wave-12a report records eight issue verdicts, eight follow-up ledger rows, and explicit unverified scope including the instrument battery, whole structure run, and most bypass-stage measurements.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "summary": "Preserved wave-12a report and its eight follow-up rows. Historical verdicts and counts retain their stated base; #2302, #2303 and #2304 track the follow-ups and current resolution requires separate integration evidence."
     }
   ]
 }
