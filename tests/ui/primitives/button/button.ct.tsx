@@ -529,6 +529,63 @@ for (const pointer of [
   });
 }
 
+// #2301 — THE `inline` ARM'S HIT AREA OWES THE SAME HIT TEST AS THE GLYPH RAMP'S.
+//
+// `inline` is the OTHER arm whose hit area moved at #1843, and until now it was pinned only by COMPUTED
+// `::before` geometry at the default intent (the "inline size carries a ≥44px hit area" test far above).
+// A computed pseudo box is exactly the receipt #1843 proved insufficient: it kept reading 44px on the arm
+// whose tap the CTA ring had already swallowed, because the ring replaces the pseudo's OTHER properties
+// and says nothing about which layer answers a pointer. So the ring/overlay regression that #1843 fixed
+// could reproduce on a PRIMARY inline button — a tracker value, a beat line, a card row — with nothing
+// red. The receipt here is `elementFromPoint`, at both intents and both pointers.
+//
+// THE DEFAULT ARM IS THE RINGED ONE, which is the whole reason this gap mattered: `defaultVariants` sets
+// `intent: "primary"`, so a bare `<Button size="inline">` stamps `data-cta` and wears the ring. That is
+// asserted below rather than assumed, because if the default ever moves, this pair stops covering the
+// shape it was written for.
+const inlineTrio = (
+  <div style={{ display: "flex", flexDirection: "column", gap: 160, padding: 80, width: 320 }}>
+    <Button size="inline">Default datum</Button>
+    <Button intent="primary" size="inline">
+      Primary datum
+    </Button>
+    <Button intent="ghost" size="inline">
+      Ghost datum
+    </Button>
+  </div>
+);
+
+for (const pointer of [
+  { name: "fine pointer", hasTouch: false, target: 28 },
+  { name: "coarse pointer", hasTouch: true, target: TOUCH_FLOOR_PX },
+] as const) {
+  test.describe(`${pointer.name} — the inline arm's hit area at every intent (#2301)`, () => {
+    test.use({ hasTouch: pointer.hasTouch });
+
+    test(`inline answers a tap ${pointer.target / 2}px above and below its text box, ringed or not`, async ({ mount, page }) => {
+      await mount(inlineTrio);
+      const inside = pointer.target / 2 - 0.5;
+      const outside = pointer.target / 2 + 0.5;
+      // The default IS primary: same `data-cta`, same ring, so "default" and "primary" are one shape.
+      const cta = (name: string): Promise<string | null> => page.getByRole("button", { name }).getAttribute("data-cta");
+      expect(await cta("Default datum"), "the default intent is primary, so the default inline datum is ringed").not.toBeNull();
+      expect(await cta("Ghost datum"), "the ghost arm is the ringless control — without it a probe that sees nothing reads as a pass").toBeNull();
+
+      for (const name of ["Default datum", "Primary datum", "Ghost datum"] as const) {
+        const control = page.getByRole("button", { name });
+        const box = await control.boundingBox();
+        // The VISIBLE box stays text-height — the datum has to sit in prose. The hit area is the pseudo's job.
+        expect(box?.height ?? 0, `${name}: the inline box stays text-height`).toBeLessThan(pointer.target);
+        expect(await hitsSelf(control, 0, inside), `${name}: a tap ${inside}px below centre must hit the datum`).toBe(true);
+        expect(await hitsSelf(control, 0, -inside), `${name}: a tap ${inside}px above centre must hit the datum`).toBe(true);
+        // The boundary one pixel out — without it the arm above would pass on a hit area of ANY size,
+        // including one an ancestor happened to supply.
+        expect(await hitsSelf(control, 0, outside), `${name}: ${outside}px below centre is past the target and must NOT hit`).toBe(false);
+      }
+    });
+  });
+}
+
 // The CTA ring is a BRAND MARK and it has to survive the hit-area fix intact: the pseudo that paints it and
 // the pseudo that catches the tap are now different layers, so this asserts they coexist on the same button
 // rather than one having quietly replaced the other. Paint is read off `::after` (the ring's own layer) and
