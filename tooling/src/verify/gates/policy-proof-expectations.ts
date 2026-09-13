@@ -1,7 +1,7 @@
 // Policy: policy-proof-expectations — the §4.1 expectation half of the soundness enforcer (#1971; family
 // `policy-soundness`, reader `lib/policy-descriptor-read.ts`; work row #1968 — `hard`/`error` since the owner ruled
 // `hard` + `warning` a contradiction, #2025, 2026-09-12: its findings BLOCK, never downgraded back). `expectationFailure`
-// (`ops/policy-conformance.ts:184-216`) returns early once ONE effective finding exists, and `count` is the
+// in `ops/policy-conformance.ts` returns early once ONE effective finding exists, and `count` is the
 // only field it compares exactly; `line`/`token`/`messageIncludes` run through `findings.some(…)`. So:
 //
 //   C a `mustFlag` row with no `expect.count` asserts only "at least one finding" — it passes when the policy
