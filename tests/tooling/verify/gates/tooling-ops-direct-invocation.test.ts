@@ -1,4 +1,4 @@
-// The standing family floor for `tooling-ops-direct-invocation` (#1950, guide §12.6 "one hard policy"):
+// The standing family floor for `tooling-ops-direct-invocation` (#1950, docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments" "one hard policy"):
 // what its declared rows structurally cannot express.
 //
 //   §4.5 — the two program-entry HOMES are located and receipted one receipt each, so an absent home or a

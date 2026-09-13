@@ -22,13 +22,13 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that is missing/empty/unresolved/
 // malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`) THROW during the
 // POPULATION phase, and the receipt phase withholds every consumer, both before `create`/`evaluate` run
-// (guide §11 ruling 3). This module therefore owns no not-ready branch: it reads through
+// (guide §3's acquisition-refusal rule). This module therefore owns no not-ready branch: it reads through
 // `readyResourceValue`, whose throw is an assertion that the runtime's own refusal held. An in-module
 // `if (fact.status !== "ready") return;` here would be unreachable code AND would teach the next resource
 // conversion that a silent return is the correct answer to a broken resource. It is not. Every reachable
 // refusal (tree missing, tree empty, manifest missing, manifest malformed) and the complete run's receipt
 // pair are pinned through `runPolicyPass` in resource-layout-wave-1.test.ts, because no proof row can
-// express a refusal (guide §4.5b).
+// express a refusal (guide §6.3).
 // DECLARED LIMITS: none beyond the vocabulary itself — `mustPass[0]` is the complete legal root, and every
 // arm is pinned by a row whose count the §4.1 cut moves.
 import { defineGate } from "../contract/policy.ts";

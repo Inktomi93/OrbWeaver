@@ -34,7 +34,7 @@ export function loadJsonResource(reader: ResourceReader, id: JsonResourceId): Re
     };
   }
   // `members` is what the door MEASURED — one document — never the census inside it. A provider that
-  // receipts its findings preempts its own accuser (guide §12.3), and a resource whose top level is an empty
+  // receipts its findings preempts its own accuser (guide §3), and a resource whose top level is an empty
   // array or object is a real, policy-visible answer that its consumer judges, not a host-level refusal.
   return { status: "ready", value: { id, path, value }, paths: loaded.paths, members: 1 };
 }

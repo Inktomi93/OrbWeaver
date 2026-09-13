@@ -1,4 +1,4 @@
-// THE MIXED-CORPUS PROOF (docs/design/gate-runtime-standardization.md §5 item 4; the twelve assertions) at the
+// THE MIXED-CORPUS PROOF (docs/design/gate-runtime-standardization.md §1; the twelve assertions) at the
 // production door: `cli.ts structure` spawned over planted roots whose gates dir holds real final policies as
 // RE-EXPORT SHIMS (`baseui-render-prop-composition` ordinary, `no-raw-matchmedia` reviewed-grant,
 // `verify-registry-parity` hard/resource) beside ONE AUTHORED LEGACY DESCRIPTOR. A shim imports the real module by

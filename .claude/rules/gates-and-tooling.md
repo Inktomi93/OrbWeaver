@@ -15,92 +15,53 @@ paths:
 
 # Gates and instruments — before you edit one
 
-- **GATE-RUNTIME MIGRATION POSTURE (#1584; owner rulings 2026-09-11, binding until the atomic cutover).**
-  - **Read first, in this order, in full:** `docs/design/gate-runtime-standardization.md` (THE program guide:
-    mixed runtime, state of the tree, proof rules, order of work, per-conversion procedure, dispatch mechanics, and
-    the full `defineGate` contract in §12 — **§3's plane table is the copy set: one CONFIRMED exemplar per
-    evidence plane, verdict column authoritative**), `tooling/src/verify/contract/policy.ts` (+ `population.ts`,
-    `resource-declaration.ts`), then the exemplar modules §3 names and their family tests, then every assigned
-    gate and its legacy source via `git show <sha>:<path>`. **`docs/reviews/gate-runtime/exemplars-2026-09-11.md`
-    is HISTORICAL, not a shape source** — it now opens "REFUTED 2026-09-12 — NINE OF THESE TEN ARE NOT COPYABLE";
-    read only its banner and central-files table. **`tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY
-    descriptor guide** (`scanRoot`, `scopeSafety`, `run` hooks, `ExemptionRow` tables, `check-gates.int` fixtures,
-    the registered-gates count; it never mentions `defineGate`): read it only to understand a descriptor you are
-    replacing; never copy its shapes or satisfy its coupled-site checklist in a `defineGate` module.
-  - **Whole-tree checks are RED by construction mid-migration** (`pnpm check`/`verify`/`check:structure`,
-    the lefthook hooks, `check-gates.repo.int.test.ts` throwing in setup). That red is baseline, never your
-    defect, never laundered. **That list is EXHAUSTIVE: a SCOPED suite red is never baseline — re-derive it.** A scoped
-    family test is the verdict this posture promises stays trustworthy, so a red there is a real regression until you
-    prove otherwise on a clean tree, dated against the commit that broke it. Paid 2026-09-11:
-    `tests/tooling/verify/gates/registry-family.test.ts` sat at 4 failed / 4 passed on main for five days (95 refused
-    proof rows across eight policies, broken by `ab675b23b` on 2026-09-10, #1953) because `tests/tooling/**` is
-    `--full`-only (#1842) and any red near the migration read as ambient noise. Your verdict is the SCOPED floor: the family tests you name, `pnpm gate:contract`
-    before/after (the corpus total must not rise; zero for each converted module), biome/eslint on touched
-    files, `pnpm typecheck --config tsconfig.json`. Commit with `git -c core.hooksPath=/dev/null` and name
-    the floor in the message.
-  - **A CONVERSION'S FLOOR MUST ALSO RUN THE SUITES IT BREAKS THAT ARE NOT ITS OWN (measured 2026-09-11, #1983).**
-    `loadGates()` (`lib/loader.ts:190`) returns `corpus.legacy` ALONE, so **every conversion SHRINKS the legacy
-    roster** and reds any suite asserting the converted gate's membership. **So grep `tests/tooling/**` for the converted gate's id AS A STRING LITERAL and run
-    every suite that names it — INCLUDING ids inside committed ledger JSON.** The predicate is *any assertion whose
-    expected value derives from the legacy roster*, not just membership: `gate-spelling-twins.int.test.ts` compares a
-    two-sided SHRINK-ONLY ledger with `toEqual` and **54 of its 79 gate names have already converted**, so it is red
-    with no membership assertion in the file. **Never "optimize" that grep into a matcher-filtered one** — keying on
-    `toContain`/`toEqual`/any matcher shape reads FALSE-CLEAN on exactly the suite that costs the most. Where the id is
-    ORDINARY VOCABULARY (`population`, `registry`) the bare literal matches hundreds of files and is not a
-    measurement: narrow to the module SPECIFIER and say which predicate you ran. These suites sit in the seam the bullet above
-    does not cover — your floor names your OWN family test, they are not red-by-construction, they are in no scoped
-    floor, and `tests/tooling/**` is `--full`-only (#1842) — so the break is unobservable. **Three
-    instances in one five-day window:** the `registry-family.test.ts` case the bullet above dates,
-    `gate-ignore-grammar.repo.int.test.ts` (red from 2026-09-06, broken by a #1584 conversion), and
-    `gate-conformance.repo.int.test.ts:49` (found by this rule at zero
-    load). A carrier in such a suite is LEGACY BY REQUIREMENT, so those suites retire at the cutover rather than being
-    re-pointed forever. **Beware the false positive:** most `tests/tooling` files naming a converted gate are that
-    conversion's own family test and are fine — the ones that bite call `loadGates()`.
-  - **Every conversion records a FAMILY decision** in the module header and the report: the shared `lib/`
-    reader (module + function) or "singleton"; siblings that are two spellings of one concept MERGE (the
-    stronger identity reader wins, with a successor proof for the retired arm); arms that differ in
-    authority or severity SPLIT into an ordinary policy plus a hard `-health` sibling with the identical
-    `family` string. A theme is not a family.
-  - **NOTHING GETS TO REFUSE TO CONVERT (owner ruling, 2026-09-12 — retires the prior STOP-IF-MISSING-KIND
-    doctrine below; source: `gate-runtime-standardization.md` §"per-conversion procedure" + `gate-runtime-read-first.md`
-    §0).** Convert it or delete it; a missing capability with two-plus consumers is BUILD work, never a parked
-    module. The old exception survives ONLY for a resource kind serving exactly one consumer (that gate's
-    private reader wearing a contract's clothes), and even there the outcome is convert-or-delete, never park.
-    **#1930 (the capability freeze) is CLOSED** — do not cite it as open tracking. A read outside the
-    **eighteen** shipped `GateResourceRequest` kinds (FROZEN — re-derive from
-    `tooling/src/verify/contract/resource-declaration.ts`, never from a doc) is a decision point, not a stop:
-    report the exact read with file:line and either build the missing capability or delete the module, never a
-    private reader, walk, cache, scope predicate or exemption grammar behind `defineGate`.
-  - **A committed family test is owed only for what a ROW CANNOT EXPRESS** (stale since Phase A: the
-    conformance stage now runs every final policy's declared `mustFlag`/`mustPass`/`mustRefuse` rows on the
-    static tier, so the legacy six-arm carry-forward is proved there, not by a hand-written suite). Write one
-    under `tests/tooling/verify/gates/` for the §4.2 identity arm through `runPolicyPass`, §4.3 grant identity,
-    the §4.5 refusal/receipt pins, and the §4.6 differential — never to re-prove a row. `mustRefuse` (§4.5b) is
-    the OPTIONAL third proof arm for a designed refusal: never empty, and each row's `expect` is
-    `messageIncludes` ONLY (no `count`/`line`/`token`). Only a lane INVENTING a new property (a cross-file
-    index, an absent-subject arm) owes a planted-break receipt: break it in a scratch copy, show the row went
-    red, restore. For each ORDINARY policy the family test also carries the positive
-    identity arm (the correct marker at the reported position suppresses; shape
-    `ordinary-visitors-family.test.ts:187-196` — the POSITIVE arm ONLY. **`:198-205` beside it is a dead-position
-    NEGATIVE arm; §4.2 forbids copying a negative arm into a gate (under `knownPolicies: [policy]` it rides the
-    unknown-policy short-circuit and proves nothing), so a range ending at :205 tells you to copy the one shape the
-    same rule bans.** And do NOT copy the SIBLING pin at `:207-218` (`empty-state-has-action`): it asserts
-    `effectiveFindings` and `waivedFindings` but **omits `authorityAlarms`**, so it would pass an over-broad or
-    duplicate marker — both of which ALARM without changing the finding count. The §4.2 triple is all three
-    assertions or it is not the arm.) and a frozen-legacy differential for the conversion commit.
-    Retiring a private marker vocabulary for `@orb-waive` means COUNTING the live legacy markers (count /
-    files / trailing-position) and recording the census in the header; translation of product files is a
-    separate lane, never yours.
-  - **Contract facts that bit:** `report.node` token is an exact slice of the node text; population
-    `under: ["x/"]` matches nothing (use `"x/**"`); **a population fence cannot be falsified by a fixture that admits NOTHING — the run comes
-    back a `[population]` TOOL ERROR, not a finding.** A `notUnder` needs a SECOND admitted file beside the one inside
-    the subtraction (wave-4 audit), and the rule GENERALIZES to a ROOT fence: a `population: "@x"` falsifier holding
-    only the out-of-population file admits zero paths and tool-errors too, so **every population falsifier needs an
-    in-population ANCHOR file** (measured 2026-09-11 across four modules); state in `create`; `ctx.fact()` only in
-    evaluate/visitFile/visitors; every anchor inside the policy's own population; `facts: []` explicit;
-    direct walks are banned regardless of receiver.
-  - **Conversions are program work:** no board row per gate or batch; the orchestrator posts your receipt on
-    \#1584. Only defects, prerequisites and decisions get rows, and only the orchestrator files them.
+- **GATE-RUNTIME PROGRAM POSTURE (#1584; mixed legacy and final policies share one front door).**
+  - **Read the canonical router first:** `docs/design/gate-runtime-read-first.md` in full. It assigns the
+    standing law (`gate-runtime-standardization.md`), the operating procedure
+    (`gate-runtime-orchestrator-playbook.md`), and the current lookup sources. Read the standing law in full
+    before changing a gate; read the complete playbook sections governing the operation you perform. Then
+    read the relevant contract source (`policy.ts`, `population.ts`, `resource-declaration.ts`), the owning
+    module and family test, and the legacy source at its pre-conversion SHA when converting. The archived
+    exemplar review is historical evidence, never a copy source. `GATE-AUTHORING.md` documents the legacy
+    descriptor only; use it to understand code being removed, never to author a final policy.
+  - **Establish a current baseline; do not exempt new failures as migration noise.** Mixed-runtime work may
+    inherit known whole-program failures, but no command is red merely because conversion is active. Read
+    the finished artifact and distinguish pre-existing findings from new findings, tool errors, withheld
+    owners, and changed effective counts. A scoped suite failure is a regression until re-derived on a clean
+    tree. A whole-program failure is also owned when the current change introduced or changed it.
+  - **Run the floor that owns the changed behavior.** This includes the policy's declared proofs, its family
+    controls, `pnpm gate:contract` before and after conversion, lint on touched files, and every affected
+    native TypeScript program selected from the generated world/config intent—not a blanket root-tsconfig
+    substitute. Whole-corpus conformance and other serialized train checks belong to the orchestrator at a
+    quiescent merge boundary as the playbook specifies. Record the exact commands, results, and commit.
+  - **Sweep coupled legacy-roster assertions.** A conversion shrinks the legacy roster returned by `loadGates()`, so search
+    `tests/tooling/**` for the gate id as a string and run every assertion whose expected value derives from
+    that roster, including ledger-backed equality. Do not filter the search by matcher spelling: a `toEqual`
+    ledger and a membership assertion are the same coupling. For ordinary words such as `population` or
+    `registry`, narrow by module specifier and state the predicate used. Keep legacy-only harnesses while they still test remaining legacy owners; retire them when successor
+    evidence covers their final owner. Do not repoint them indefinitely.
+  - **Keep conversion ownership atomic.** The conversion commit records the family/reader or singleton
+    decision, carries or replaces every proof, and translates that gate's live product/test markers in the
+    same lane and commit after the owner becomes final. Reconcile marker counts per file and classify dead,
+    multi-finding, and unwaivable sites; never run a detached product-file translation lane. A stronger
+    existing detector means merge with a successor proof; authority or severity differences split into
+    siblings with the same family. Missing shared capability with multiple consumers is build work; a
+    one-consumer reading need uses an existing admissible shared capability or its gate is deleted. It does
+    not justify inventing a private resource kind behind a final gate.
+  - **Use the proof owner that can express the claim.** Declared `mustFlag`, `mustPass`, and `mustRefuse`
+    rows run through conformance. A family test owns the production-dispatched ordinary identity triple,
+    actual central permission and independent authority controls, grant-table/state/receipt assertions a row cannot express, conversion
+    differential, and family-specific controls. The reviewed-grant witness rule in the standing law owns the
+    synthetic exact-grant rerun of a declared row. A new-property row owes a scratch planted break. A
+    narrowing row owes a discriminating cut. `mustRefuse` is optional, nonempty, and matches the policy's
+    own refusal text; do not repeat the obsolete claim that proof rows cannot express refusals.
+  - **Preserve the fixture boundaries that prevent false proof.** `report.node` positions are authored source
+    slices. A population-fence falsifier includes an admitted anchor file; an outside-only or subtracted-only
+    fixture refuses for empty population and proves no fence. `under` uses a glob such as `x/**`, state is
+    created in `create`, `ctx.fact()` is read only in `evaluate`, every report anchor is
+    admitted, `facts: []` is explicit, and gate-local walks remain forbidden.
+  - **Conversions are program work:** do not create a board row per gate or batch. The orchestrator records
+    the program receipt; only concrete defects, prerequisites, and owner decisions receive their own items.
 - **NATIVE CONFIG OWNERSHIP — two mechanisms, do not confuse them (world program #1351).**
   - **GENERATED:** the TypeScript configs. `tooling/src/_shared/type-config-intent.ts` is the source;
     `verify baseline type-configs` writes the world templates and runnable configs, `--check` verifies freshness

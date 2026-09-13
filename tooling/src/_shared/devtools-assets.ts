@@ -9,7 +9,7 @@
 // SAME code: `verifyDevToolsAssetsSync` walks the real root for snap (and then reads the member BODIES,
 // which only the static server needs), and the `devtools-frontend-assets` policy takes it from the
 // `devtools-closure` + `installed-package` ResourceHost doors, because a final gate policy has no
-// filesystem at all (gate-runtime-standardization.md §12.3, §12.7). The split is deliberate and the
+// filesystem at all (gate-runtime-standardization.md §3, docs/history/gate-runtime-worked-cases-2026-09.md §"Archived world-program guarantee table"). The split is deliberate and the
 // signature above it is unchanged: the runtime path's independent regression proof is
 // tests/tooling/_shared/devtools-assets.test.ts, which drives `verifyDevToolsAssets` over real temp roots
 // for hash drift, tuple drift, a missing notice, an unexpected member and a symlink.

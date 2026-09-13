@@ -5,14 +5,11 @@
 // proven by the policies' own `mustFlag`/`mustPass` rows, which
 // `tests/tooling/verify/gates/grant-liveness-family.test.ts` runs through `verifyPolicyProofs`.
 //
-// What THIS file keeps is what a resource fixture structurally cannot show:
-//   1. an EMPTY ROSTER — no `tsconfig*.json` tracked anywhere — refuses the whole run as a TOOL ERROR.
-//      This is the successor to the legacy MISSING-CONFIG arm, and it is deliberately NOT a finding: with
-//      no config on the tree there is no subject to anchor one on, and a liveness verdict over an empty
-//      roster is vacuous rather than clean. The harness has no "expect a tool error" arm (guide §4.5b).
-//   2. an EMPTY TRACKED CORPUS refuses the same way, one layer earlier — a non-ready `tracked-files`
-//      resource, which `resolveResourceDeclarations` throws on before `create` runs. That is the successor
-//      to the legacy CORPUS-BLIND finding.
+// This integration file retains the runtime and real-root assertions around the refusal rows:
+//   1. an empty `tsconfig*.json` roster produces a tool error naming that census;
+//   2. an unresolved tracked corpus refuses at the population phase;
+//   3. the real-root twin proves both policies complete over the full inventory, with no carrier refusals,
+//      authority alarms, or effective findings (proof law §6.3).
 //   3. the pair RESOLVES AND RUNS at repository scope over the whole-inventory `tracked-files` population,
 //      and its verdict lands through the central grant table with zero alarms (#1947).
 import { execFileSync } from "node:child_process";

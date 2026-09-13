@@ -147,7 +147,7 @@ export const gate = defineGate({
     // The reported position is ALWAYS the declaration's own bare name node: it is guaranteed authored text
     // at that exact offset (unlike a synthetic "new Map()" token, which is absent from the source whenever
     // the constructor carries type arguments, e.g. `new Map<string, number>()`). The WHAT lives in the
-    // message, never the position (guide §3's `report.node` rule).
+    // message, never the position (guide §2.1's `report.node` rule).
     const report = (node: VariableDeclaration, detail: string): void => {
       const nameNode = node.getNameNode();
       ctx.report.node(node, { token: nameNode.getText(), offset: nameNode.getStart() - node.getStart(), message: `${MESSAGE} ${detail}.`, fix: FIX });

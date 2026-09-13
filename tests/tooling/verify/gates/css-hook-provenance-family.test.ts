@@ -174,7 +174,7 @@ test("neither -health sibling declares the fact", () => {
 // `hookCoordinate` (the twin of `css-family-policy.ts#selectorCoordinate`); none had a pin before this file.
 // One is REACHABLE from a constructible input — a committed `baseui-manifest` that is valid JSON but fails
 // `surfaceManifestFrom`'s schema — and gets the ordinary §4.5 shape below: a planted red input and its
-// healthy twin. The other three are TYPE OBLIGATIONS with NO CONSTRUCTIBLE FIXTURE (guide §4.1's fourth
+// healthy twin. The other three are TYPE OBLIGATIONS with NO CONSTRUCTIBLE FIXTURE (guide §6.1's fourth
 // outcome), each pinned as an INVARIANT DECLARATION against the real loader/predicate instead of a fake
 // refusal row:
 //   * the mode-mismatch branch (`installed.mode !== "ast"`) — `loadInstalledPackage`

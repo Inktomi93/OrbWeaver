@@ -303,7 +303,7 @@ test("the harness REFUSES a frozen legacy gate that reaches the real filesystem,
   // `baseui-surface-manifest`, which CONVERTED (#1584): a final policy reads its subjects through declared
   // ResourceHost doors and imports no `node:fs` at all, so it is no longer an example of the thing this
   // refusal refuses. `no-blanket-suppression` is the deliberate successor rather than the next name to
-  // hand: guide §12.4's first residual rules that its `git grep --cached` staged-blob read serves exactly
+  // hand: guide §4's first residual rules that its `git grep --cached` staged-blob read serves exactly
   // one consumer and therefore mints no resource kind, so it stays a legacy `GateDescriptor` — armed and
   // enforcing — to Phase F. Like every legacy carrier in this tree, the arm retires with the legacy
   // descriptor contract itself, not with one more re-pointing.

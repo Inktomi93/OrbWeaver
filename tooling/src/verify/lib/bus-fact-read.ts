@@ -43,7 +43,7 @@ export function busAnchor(context: GateFactContext, node: MorphNode): BusAnchor 
 
 /** The identity of a union alias. Its `path` is read through {@link declarationHome} because HALF the call
  *  sites hand it a RESOLVED alias — `canonicalTypeAlias(node.getType())` follows a `Record<SomeLibUnion, …>`
- *  key straight out of the population — and `ctx.relativePath` throws there (guide §12.3). `undefined` is not
+ *  key straight out of the population — and `ctx.relativePath` throws there (guide §3). `undefined` is not
  *  the alternative: a foreign alias keeps a real, comparable path, misses `byUnion` exactly as it always did,
  *  and the caller's existing refusal arm reports it. */
 export function busDeclarationIdentity(context: GateFactContext, declaration: TypeAliasDeclaration): BusDeclarationIdentity {
@@ -424,7 +424,7 @@ export function operationIdentity(context: GateFactContext, call: CallExpression
       kind: "module",
       module: {
         // The canonical source of a resolved callable is a RESOLUTION, not a visited node — the sharpest
-        // instance of the class in guide §12.3, and `ctx.relativePath` throws for the first one that lands
+        // instance of the class in guide §3, and `ctx.relativePath` throws for the first one that lands
         // in a dependency `.d.ts`.
         path: declarationHome(context, callable.value.target.canonical.sourceFile),
         exportName: callable.value.target.canonical.exportedName,

@@ -3,7 +3,7 @@
 // the closed client-feature ResourceHost tree rather than a gate-owned filesystem walk.
 // A broken declared resource refuses one phase EARLIER than this module: `resolveResourceDeclarations`
 // (`lib/resource-declaration.ts:182`) throws during the POPULATION phase and the receipt phase withholds
-// every consumer, both before `create`/`evaluate` (guide §11 ruling 3). So the read goes through
+// every consumer, both before `create`/`evaluate` (guide §3's acquisition-refusal rule). So the read goes through
 // `readyResourceValue` — a loud assertion that the runtime's refusal held — and never through an in-module
 // not-ready branch, which would be unreachable and would model a silent return as the right answer.
 

@@ -5,11 +5,11 @@
 // #2102: it emitted the LEGACY one. Until 2026-09-12 this scaffold wrote a `GateDescriptor` with an
 // `ExemptionTable`, a `scanRoot` predicate, `visit`/`finalize` hooks and a hand-rolled stale arm, and its
 // ritual sent the operator to `GATE-AUTHORING.md`, to a `check-gates.repo.int.test.ts` fixture and to the
-// legacy proof shape. §12.5 forbids an `ExemptionTable` in a final policy, so every gate minted from this
+// legacy proof shape. §5 forbids an `ExemptionTable` in a final policy, so every gate minted from this
 // template was born owing an authority migration — a generator that teaches the shape its own program
 // bans. The template below is a `defineGate` FINAL policy: it loads, validates, and its `mustFlag` /
 // `mustPass` rows pass `pnpm check:policy-conformance` on arrival, so a freshly scaffolded gate is green
-// until the author makes it mean something. Law: docs/design/gate-runtime-standardization.md §12.
+// until the author makes it mean something. Law: docs/design/gate-runtime-standardization.md §2.
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -51,7 +51,7 @@ export const gate = defineGate({
   family: "__NAME__",
   // "ordinary" is waivable at the reported position with an \`@orb-waive __NAME__(<pos>)\` marker;
   // "hard" is not; "reviewed-grant" means every exception is a row in the central grant table. There is
-  // no fourth option and NO private exemption table — §12.5 bans one in a final policy outright.
+  // no fourth option and NO private exemption table — §5 bans one in a final policy outright.
   authority: "ordinary",
   // "error" takes no workItem; "warning" REQUIRES one (the debt it is parked against).
   severity: "error",
@@ -130,7 +130,7 @@ export function runNewGate(root: string, argv: readonly string[]): number {
       "",
       `wrote ${rel}`,
       "",
-      `READ ${LAW} §12 IN FULL before filling it in — it is the \`defineGate\` contract, and`,
+      `READ ${LAW} IN FULL before filling it in — it is the \`defineGate\` contract, and`,
       "`tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide: read it only to",
       "understand a descriptor you are REPLACING, never to copy a shape into this file. The gate is ACTIVE",
       "from this moment — the loader IS the registry — so the coupled sites below are owed in THIS lane:",
@@ -156,7 +156,7 @@ export function runNewGate(root: string, argv: readonly string[]): number {
       "     holds the literal two-sided against the discovered roster and NAMES the right number when it reds.",
       "",
       "  5. FIX the live violations it finds, in THIS lane. There is no private exemption table in a final",
-      "     policy (§12.5): a permanent, reasoned exception is a row in the central reviewed-grant table with",
+      "     policy (§5): a permanent, reasoned exception is a row in the central reviewed-grant table with",
       '     its `why` AND its `endsWhen`, and `authority: "reviewed-grant"` on this policy. Never debt parking.',
       "",
     ].join("\n"),

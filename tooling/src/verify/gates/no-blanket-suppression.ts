@@ -15,13 +15,13 @@
 // an ungoverned third door (docs/design/962-blanket-suppression-control-plane.md §2.4). COMMENT POSTURE:
 // comments-INTENDED — the directive IS a comment; a spelling inside a string or mid-sentence is inert.
 // CONVERSION TO `defineGate` REFUSED 2026-09-11 (#1930), and the resource vocabulary is now FROZEN at 18
-// kinds (`docs/design/gate-runtime-standardization.md` §12.4), so this module stays on the legacy descriptor
+// kinds (`docs/design/gate-runtime-standardization.md` §4), so this module stays on the legacy descriptor
 // and stays fully armed — indefinitely, under the mixed runtime. ARM C reads THE GIT INDEX (`git grep
 // --cached` at `judgeIndex`, then `git show :<path>` per candidate blob) and no shipped kind serves a staged
 // blob: `TrackedResourceIndex` is `{ repoPaths }` only, which names the working-tree path set and can say
 // nothing about what is STAGED there. A staged-blob capability was considered and DELIBERATELY NOT MINTED:
 // re-derived across the whole verify tree, this gate is its ONLY consumer, and a capability serving one gate
-// is that gate's private reader wearing a contract's clothes (guide §11.5). The refusal is the success.
+// is that gate's private reader wearing a contract's clothes (guide §4). The refusal is the success.
 // REFUSAL RE-DERIVED AND RE-DATED 2026-09-12 (#2013), because a refusal that cites a capability is a
 // SNAPSHOT and this program has no mechanism that re-opens one when its blocker lands. What was measured
 // today, and the SCOPE of each measurement, so the next reader re-derives rather than inherits:
@@ -86,7 +86,7 @@ export const CONVERSION_REFUSAL = {
       kind: "missing-kind",
       why:
         "the OTHER half of the refusal, and the one #2013 is about: no shipped kind serves a STAGED BLOB. A staged-blob " +
-        "capability was considered and deliberately NOT minted (guide §11.5 — a kind serving one gate is that gate's private " +
+        "capability was considered and deliberately NOT minted (guide §4 — a kind serving one gate is that gate's private " +
         "reader wearing a contract's clothes), so the claim is that this name does not exist. The day it does, this refusal " +
         "has no ground left and the module converts or is re-derived, rather than sitting legacy the way " +
         "`runner-config-path-liveness` did after its own cited door shipped.",

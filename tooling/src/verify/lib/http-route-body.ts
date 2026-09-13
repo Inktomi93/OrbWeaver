@@ -2,7 +2,7 @@
 // (`public-route-body-cap` the ordinary occurrence policy, `public-route-body-cap-health` the hard
 // whole-population census tripwire). Every predicate here is a pure AST/same-file-symbol read — no
 // `getDescendantsOfKind`/`getDescendantsOfKind`-shaped subtree walk, so both policies stay within the
-// visitors-plus-ancestor-checks discipline (guide §12.3): a "does X occur anywhere inside this handler"
+// visitors-plus-ancestor-checks discipline (guide §3): a "does X occur anywhere inside this handler"
 // question is answered by visiting X's OWN kind everywhere in the file and walking ANCESTORS from each hit
 // back up to the enclosing route-registration call, never by descending into a handler's subtree.
 import type { CallExpression, Node } from "ts-morph";

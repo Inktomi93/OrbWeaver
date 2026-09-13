@@ -1,7 +1,7 @@
 // Policy: session-channel-boundary-health — the BLINDNESS TRIPWIRE (§4.6) for `session-channel-boundary`:
 // the sanctioned home (`packages/client/src/lib/session-channel.ts`) loaded and constructing NO
 // BroadcastChannel means the fence names a home that moved, or a home whose construction left, and the
-// occurrence policy would report ✓ forever. Split from the legacy descriptor (guide §12.6, #1950) because
+// occurrence policy would report ✓ forever. Split from the legacy descriptor (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950) because
 // this is a whole-tree HARD verdict — no author may waive "the fence is blind" — while the occurrence arm is
 // a per-file ordinary one; one `execution` and one authority cannot serve both.
 //

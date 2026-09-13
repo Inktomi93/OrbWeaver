@@ -4,2210 +4,358 @@ status: active
 updated: 2026-09-13
 ---
 
-# One ts-morph runtime for every Orb gate — the program guide (#1584)
+# Gate-runtime standardization law
 
-> **A COLD OR COMPACTED SESSION READS [`gate-runtime-read-first.md`](gate-runtime-read-first.md) BEFORE THIS FILE.** It is the ordered onboarding read list with its costs and its STOP rules, and it carries the standing rulings that override anything here. It exists because reading this doc's full citation set (~1.3 MB) consumed 60% of an orchestrator's context window on 2026-09-12, most of it on evidence whose headline findings were already closed.
+This file owns the standing contract and proof law for #1584. Procedure lives in
+[`gate-runtime-orchestrator-playbook.md`](gate-runtime-orchestrator-playbook.md); the bounded onboarding index lives in
+[`gate-runtime-read-first.md`](gate-runtime-read-first.md); dated measurements and incidents live in
+[`../history/gate-runtime-worked-cases-2026-09.md`](../history/gate-runtime-worked-cases-2026-09.md). The D-ledger wins
+every conflict. Code, types, tests, and file headers are evidence of current behavior; an implementation that violates
+the intended guarantee is a defect and does not weaken this law by existing.
 
-The single operating document for the gate-runtime standardization program: the transition model, the state of the tree, the proof rules, the order of work, the per-conversion procedure, the dispatch mechanics, and the contract itself. It supersedes [gate-config-system.md](gate-config-system.md) and every earlier resume or atomic-cutover order. Native Biome/ESLint/community rules continue to own generic ecosystem lint; every Orb-specific policy uses one ts-morph runtime and one capability contract. `tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide and is not an input to a conversion.
+## 1. Transition model
 
-**The review layer under [`docs/reviews/gate-runtime/`](../reviews/gate-runtime/) is not all one thing, and treating it as "evidence" cost a full session of re-deriving answers it already held.** Four of its documents are LIVE LAW this guide delegates to; the rest are completed-family evidence. **Before proposing a capability, a family, a table's disposition or a marker translation, read the one that owns the question:**
+The migration is a mixed-runtime transition. One production front door loads legacy `GateDescriptor` modules and final
+`GatePolicy` modules, dispatches each by exact contract identity, and reports one result. A malformed or unbranded
+lookalike is a tool error; every module is classified exactly once. Final policies contain no compatibility adapter.
 
-| Question | The document that already answers it |
+Every Orb-specific policy converges on the final ts-morph runtime. Native Biome, ESLint, and community rules retain
+generic ecosystem lint. Legacy retirement follows conversion of the last owner and its successor evidence; zero legacy
+descriptors is an end-state cleanup condition, not a prerequisite for useful conversions. `GATE-AUTHORING.md` describes
+the legacy descriptor and is not conversion authority.
+
+Mutable row state belongs on GitHub Project 1. Conversion landings are comments on #1584; defects, prerequisites, and
+owner decisions receive rows. Runtime rosters and proof counts come from `pnpm check:policy-conformance`; descriptor
+shape findings come from `pnpm gate:contract`. Neither prose nor a `defineGate` grep is a roster.
+
+## 2. Final policy contract
+
+Every final module exports one direct `defineGate({...})` object literal. `id` equals the filename. Required fields are
+`id`, `family`, `authority`, `severity`, `population`, `analysis`, `execution`, `facts`, `resources`, `message`, `create`,
+at least one `mustFlag`, and at least one `mustPass`. `facts` and `resources` are explicit empty arrays when unused.
+`workItem` is required and positive for `warning`, and forbidden for `error`; `fix` is required for ordinary policy
+usability; `mustRefuse` is optional and may not be empty.
+
+The vocabulary is data in `contract/policy.ts`: `POLICY_FIELD_TABLE`, `POLICY_FIELDS`, `POLICY_OPTIONAL_FIELDS`,
+`POLICY_PROOF_ARMS`, `POLICY_PROOF_KEYS`, `POLICY_EXPECTATION_KEYS`, and `POLICY_HOOK_KEYS`. Validators, generators,
+runners, stages, and family sweeps derive from it. A prose or template list that differs is stale.
+
+Use the smallest complete contract for the evidence plane:
+
+| Capability | Required use |
 | - | - |
-| what resource capability does the corpus need? | [`resource-gate-access-patterns.md`](../reviews/gate-runtime/resource-gate-access-patterns.md) §§1–8 — eight families with their required surfaces as TypeScript, a per-gate access/scan/proof table, a `__g_` fixture-replacement destination per row, a keep-vs-move-behind-host map for ten helpers, and nine numbered prerequisites |
-| what blocks THIS gate, and what family is it? | [`uncovered-gate-conversion-census.md`](../reviews/gate-runtime/uncovered-gate-conversion-census.md) — per-gate blocker class, family, population notation, authority and source-line receipts. **This is the Phase D ordering source**, not a filesystem grep: its blockers are shared readers and grant migration, which no `fs` test can see |
-| where does this exemption table / baseline / marker go? | [`exception-authority-census.md`](../reviews/gate-runtime/exception-authority-census.md) — 97 exemption tables, 319 rows, 25 sanctioned-home tables, 9 baselines and 11 duplicate grammars, each already classified as grant, waiver, warning debt, policy data or delete. **A table's NAME is not evidence of its nature** — `no-floorless-control-in-wrap`'s `JUDGMENT_DEFERRED` holds permanent rulings that belong under reviewed grants (`:113,142`) |
-| what is a marker, and what happens to this legacy grammar? | [`ordinary-waiver-source-migration.md`](../reviews/gate-runtime/ordinary-waiver-source-migration.md) §"Exact central grammar", §"Closed 11-grammar disposition", §"Explicit non-migrations". Its atomic-cutover framing is dead (see its banner); its grammar contract and per-grammar verdicts bind |
-| what shape do I copy? | [`exemplars-2026-09-11.md`](../reviews/gate-runtime/exemplars-2026-09-11.md) — one converted gate per capability, each read in full. Its "did not cover" section is part of the record: an exemplar marked unconfirmed is a lead, not a precedent. **REFUTED 2026-09-12 — NINE OF ITS TEN ARE NOT COPYABLE; read its banner FIRST.** A §5b audit refuted nine (two of the three it marked "Wart: none found" were refuted SEVERE) and found 12 of 30 narrowings unenforced; only `user-bus-deferred-member` survives. What still binds: its central-files table, the capability→shape mapping, and every §4.2 identity arm. Receipts: [`v-exemplar-audit-2026-09-12.md`](../reviews/gate-runtime/v-exemplar-audit-2026-09-12.md) |
-| **what does THIS gate actually enforce?** | **[`Core-Enforcement-Active-Gates.md`](../architecture/core/Core-Enforcement-Active-Gates.md) — **275** rows, one per gate module, and each "Enforces" cell is a dense SPECIFICATION, not a label.** **IT IS NOT THE ENFORCEMENT SURFACE, and absence from it is evidence of NOTHING** (owner correction, 2026-09-12): constitution §2.2 makes enforcement a LADDER — resolve-time package deps, compile-time branded types and exhaustive unions, lint-time biome/dep-cruiser/gates, test-time suites — and §2.3 requires a placement to name its enforcer at SOME tier. A control-flow-dependent or per-request property is routinely held by a BEHAVIOURAL suite BY DESIGN (`table-scoping-class`'s own row delegates its membership rung to `cross-tenant-sweep.suite.int.test.ts` in exactly those words), so "no gate of that name" never means unenforced. Ask which TIER holds it before filing a gap. The roster PAIR is 275 active + 28 deferred + 2 prebuilt + 3 dropped = 308 rows, and the deferred half is one-sided (#2008). `caught-failure-ownership`'s single row names its three arms with their position shapes (`promise:<work>`, `empty:<binding>`, `default:<binding>`), every owner-provenance rule and its lookalike traps, the success-discriminator refusal, that provenance dies on reassignment, the exact escape spelling, and **five DECLARED LIMITS each stated to have a `mustPass` row** — which is directly checkable, and exactly where this program keeps finding unpinned claims. **Read your gate's row before converting it.** It is also a COUPLED SITE: a conversion rewrites its row, a split adds and removes them. **WRITE THE ROW AS MECHANISMS, NEVER AS COORDINATES** (measured 2026-09-12): of eight false rows found in one family, SIX were false because they named a deleted helper, table, filename regex or reader path — `fileLoaded(compose/authed-app.tsx)` appearing zero times in its module, a `non-literal-copy` skip that is now a fail-closed finding, "the shared `registryDefinitionFact`" which does not exist singular. All greppable, all silently falsified by the conversion that deleted them. A row written with symbol names and BEHAVIOURS, carrying no `file:line` into a gate module, cannot be re-staled by the next edit. Wave 1 found four rows that were bare LABELS; wave 2 found five that were dense about the RETIRED implementation — the second is worse, because it reads authoritative |
-
-**THE STALENESS RULE, and it explains nearly every stale claim in that layer:** the gate program started BEFORE the type-worlds program (#1351), so every one of those documents is dated 2026-09-05/06 while #1351 completed 2026-09-10. **Anything they call blocked, required, or missing may have been built or retired by the world program rather than by us** — measured 2026-09-11: eight of `resource-gate-access-patterns`'s ~15 required facts are shipped, its §8 consumer no longer exists, and two of its nine prerequisites are closed. Their COUNTS rot by construction; their MECHANISM paragraphs are law. Re-derive every blocked/required claim against the tree before acting on it, and never quote a roster from them — the loader, `pnpm gate:contract` (what is CONVERTED) and `pnpm check:policy-conformance` (what is converted AND PROVEN) are the roster.
-
-## 1. The decision that changed everything: mixed runtime, not atomic cutover
-
-The integration branch was fast-forwarded onto `main` on 2026-09-11. The tree now carries both descriptor shapes in
-production, so the atomic-cutover invariant ("no production state supports old and new descriptors together") is moot
-and no longer an acceptance requirement. Purity guarantees such as zero legacy descriptors, zero legacy fields, or one
-runtime shape are NOT gates on progress. The transition has three phases:
-
-1. ~~**Legacy-only production path**~~ — OVER. `check:structure` used to load only `GateDescriptor`s and throw on a
-   `defineGate` module, so converted policies ran only where a committed family test imported them.
-2. **Mixed execution — WHERE WE ARE, landed 2026-09-11 (`d21ece8d8`).** One front door loads BOTH contracts, runs each
-   through its own dispatcher in one invocation, and reports them together. Every converted policy is a live gate the
-   moment it lands, and its declared proof rows run on the commit bar (§5). Conversion proceeds under this phase until
-   the legacy set is empty.
-3. **Legacy retirement** (future cleanup, not a prerequisite): delete the legacy loader, pass, markers, baselines,
-   `__g_` fixture suites, the census command and `GATE-AUTHORING.md`'s descriptor law once the final corpus and
-   acceptance evidence justify it.
-
-Consequences: the mixed loader is a compatibility boundary at the loader/dispatcher/report layer ONLY. No compatibility
-code enters a final policy module; no adapter makes a `defineGate` policy behave like a descriptor; classification is
-by exact contract identity (a branded `defineGate` result vs a validated `GateDescriptor`), never by filename, property
-name, or "try the old loader and catch". An unbranded or malformed lookalike is a tool error; every module is accounted
-for exactly once; nothing vanishes from the roster.
-
-## 2. Where the tree is (re-derive before dispatching; these are 2026-09-11 receipts)
-
-| Fact | Value | Source |
-| - | - | - |
-| gate modules / final / legacy | **re-derive at every session start** — 2026-09-12 evening: **297 / 237 / 60**; the same morning it was 275/171/104, so a number here is a snapshot with a date, never a fact | `pnpm check:policy-conformance` (the authoritative roster). **A bare `defineGate` grep OVERCOUNTS** — `gate-modernization` and `enforcement-registry-parity` carry it inside proof-fixture STRINGS. It used to overcount by THREE; `runner-config-path-liveness` was the third and it converted (#2013), which is the shape of every count in this file: **re-derive, never quote.** The honest shape test is `^export const gate = defineGate(` |
-| converted modules with NO committed test importing them | no longer the bar | `structure:policy-conformance` runs every final policy's declared rows on the static tier (§5). A module with no family test still lacks its §4.2/§4.3/§4.5/§4.6 pins. That list was measured 2026-09-11 and has NOT been re-derived since nine conversions landed — treat it as an upper bound and re-derive. As measured then, at least 12 were in that state — `baseui-render-prop-composition`, `bus-on-data-no-store-write`, `membership-fan-guard`, `no-caller-user-id`, `no-external-media-without-gate`, `no-color-literals`, `test-factory-contract`, `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`, `no-decorators`, `no-array-literal-querykey`, `no-if-is-group` |
-| ordinary policies with no positive `@orb-waive` identity arm | **0 of 86 — CLOSED** (#1952) | The last 22 landed 2026-09-11 across three lanes (`158c4993c`, `d660d6442`, `f52492f44`), every one an in-module `mustPass` so no lane touched a shared test file. A fresh-context verifier sampled seven across all three commits, flipped each marker to a dead token, and got the §4.2 `AUTHORITY ALARM … names a dead position` on all seven; each sampled fixture produces exactly one finding |
-| `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
-| working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
-| first MIXED baseline (both contracts, one door, real tree) | 270 modules · 635 findings = 200 legacy + 435 final; 4:01.81 wall / 6.57 GB peak RSS; parity 26 s | phase A lane §11.9, `d21ece8d8`. Supersedes the 119-policy wave-5 figure |
-| whole-corpus conformance | **re-derive** — 2026-09-12 evening: 237 final policies · ~2,690 rows · 0 failures · 131 grant rows, exit 0 · ~25 s quiet (the same morning 186 · 2,021) (2026-09-11 evening, measured on `main` after the #1971 merge). Rows rose from 1,567 on real reproduced-red-first proof, not on new policies alone. **The stage did NOT regress when the enforcer landed** — 12341ms before, 12283ms after, with four more policies | `pnpm check:policy-conformance` at `f5cfd6370`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
-| central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
-| shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with **18 closed kinds, FROZEN 2026-09-11** (§12.4), `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
-| NOT shipped | `jsonc` — §11.4 named it required; it was never built and is now RULED OUT with its reason (§12.4). The Phase C capability fork is CLOSED: the vocabulary is frozen at 18 kinds and the condition that reopens it is in §12.4. Still open: the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930 (freeze landed), checkpoint "runtime follow-ups" |
-| known red by construction | `check:structure` exit 1 (real product backlog: 315 `ONESHOT-OK`, 58 `@owner-scope*`, …), `gate-ignore-grammar.int.test.ts` (LEAKS `__g_gi` fixtures — never run on a shared tree), `check-gates.repo.int.test.ts` (not concurrency-safe with itself; orchestrator-only during a train), `check:doc-catalog` 34 inherited rows, 12 `types:graph` errors in five legacy-loader test files | phase A lane §"still red", 2026-09-11 |
-| NOT baselined red — treat as a real verdict | `structure:policy-conformance` and every SCOPED family test. The posture's red-by-construction list above is EXHAUSTIVE; a scoped suite red is a regression until reproduced on a clean tree and dated against the commit that broke it | `registry-family.test.ts` sat red five days because this was assumed the other way (#1953) |
-
-Open rows live on the board (`pnpm work:item overview`) and open defects in the refutation ledger; this document no longer lists either — every list it carried went stale within a day. Closed as superseded: #1608/#1609/#1637 (the ESLint-engine architecture; commits on `archive/codex-eslint-cutover/*`).
-Conversions themselves get no rows; they land as comments on #1584.
-
-## 3. The contract, and how much of it a given gate needs
-
-Every final policy MUST have (enforced by `tooling/src/verify/lib/policy-validation.ts`): `id` (= filename), `family`,
-`authority`, `severity`, `population`, `analysis`, `execution`, `facts` (providers or `[]`), `resources` (requests or
-`[]`), `message`, `create`, at least one `mustFlag` and one `mustPass` with explicit `mode`, `files` and `why` — and,
-OPTIONALLY, `mustRefuse` (§4.5b; never empty; each row carries `expect.messageIncludes` and nothing else in `expect`). The
-export is a direct `defineGate({...})` object literal; one policy per module.
-
-Gates do NOT all need every capability. Use the smallest complete contract for the gate's evidence plane:
-
-| Capability | Required when |
-| - | - |
-| `visitors` | the gate judges delivered AST node kinds (kind-indexed; the only walk) |
-| `visitFile` | one file-level callback is genuinely the shape (e.g. line counts, comment posture) |
-| `evaluate` | post-walk or cross-file reasoning, resource judgment, fact consumption, grant candidates |
-| `facts: [provider]` | it consumes a shared `defineFact` provider; read only via `ctx.fact()` in `evaluate` |
-| `resources: [{kind,id}]` | `analysis: "resource"` (or a declared hybrid); read via `ctx.resources.*` |
-| `ctx.checker()` | type identity or compiler-resolved semantics (`analysis: "types"`) |
-| `workItem` | `severity: "warning"` only (positive issue number; forbidden on `error`) |
-| `fix` naming the waiver spelling | `authority: "ordinary"` — the author needs the exact `@orb-waive <id>(<position>)` to type, and a policy whose reported token is a whole member chain (`no-form-state-in-useeffect` reports `node.getText()`, so `form.state.values` and `form["state"]["values"]` are different positions) is unusable without it |
-| `execution: "entire-population"` | the verdict cannot compose over a subset (liveness, completeness, grants, tripwires) — **and it owes an `evaluate` hook**: a policy declaring `entire-population` whose `create` returns no `evaluate` is refused at `create` (`POLICY_PASS_REFUSALS.entireWithoutEvaluate`, #2111), because per-file visitors alone compose a per-file verdict, which the declaration promised not to |
-| `-health` sibling | an arm that differs in authority or severity from the rest of the module (identical `family`) |
-
-**SHAPE BY PLANE — and this table was POISONED until 2026-09-12, so read the verdict column.** The §5b audit
-refuted SIX of the seven modules this paragraph used to name, including both it called "Wart: none found". A
-lane sent here picked a refuted shape and copied it, which is the transmission failure §5b exists to stop.
-**The bar for this program is therefore ONE CONFIRMED EXEMPLAR PER PLANE, named here — not a module count.**
-
-| Plane | Copy THIS | Audit verdict | Do NOT copy |
-| - | - | - | - |
-| pure syntax / name-by-law | `no-mutating-register-api.ts` | CONFIRMED (wave 5-6): its `mustPass[3]` `why` says *"the only row that dies without it"* and the cut proved that sentence TRUE | ~~`no-array-literal-querykey`~~ REFUTED — `fix` names no waiver spelling, name fence unenforced |
-| entire-population tripwire | `spacing-tier-home-health.ts` — **HARD tripwire only, and only once it lands its one §4.5 pin** | REFUTED minor; the ANCHOR self-guard IS enforced | its occurrence sibling's HEADER |
-| **closed resource (ResourceHost)** | `server-layout.ts` · `ui-exports-map-complete.ts` — **verifier REFUTED one cell; copy the PROOF shape, not the `kind === "file"` header claim** | Wave 1 refuted both SEVERELY; repaired at `0fab76771`, the #1979 class closed at `2bacd5ef9` (10 of 10 `analysis: "resource"` modules on `readyResourceValue`), and **confirmed to the §5b bar at `be4cdebcd`**: every `count` exact under a planted `count: 99` (`got=1,1,6` and `got=1,1,1,1,1,2`), every discriminator transplant-tested, and **§4.5 pins per declared resource per reachable status** in `resource-layout-wave-1.test.ts` — `ui-exports-map-complete` had NONE and gained four. **The contract a lane copies is [`resource-policy-contract.md`](resource-policy-contract.md)**, not this cell | do not copy the PRE-`0fab76771` shape from wave 1's receipts — **that audit is superseded**. And do not invent a `-health` sibling: §12.3 states why one is structurally impossible |
-| fact consumer (`defineFact`) | `db-enum-from-tuple.ts` | CONFIRMED (wave 3): *"the module to hand a conversion lane"* — 4 of 4 narrowings enforced, 10 exact counts, the strongest identity-counterfactual set in its family | ~~`schema-branding`~~ REFUTED minor — three arm narrowings unenforced |
-| reviewed-grant identity | `no-raw-matchmedia.ts` — **fix #1998 first** (header and roster row say "all four" grants; there are FIVE) | REFUTED SEVERE at wave 1, REPAIRED `b157bb9be`, **wave 7 re-audited and confirmed the repair HELD** — the only module in 26 whose #944 third answer is actually REACHED | — |
-| warning debt | `user-bus-deferred-member.ts` | **CONFIRMED TWICE** (wave 1's sole survivor; wave 10 re-audited it against all five new method rules and it survived). The densest honest header in the corpus | — |
-| split family | `bus-definition-belts.ts` | CONFIRMED (wave 10) — the bus headers are among the corpus's best | ~~`no-raw-spacing-in-features` + `-health`~~ REFUTED — both halves of the carrier-fence claim unenforced in both twins |
-| registry / completeness | `section-registry-completeness.ts` | CONFIRMED (wave 2): 4 of 4 narrowings enforced, both fence rows state their own cut result and both are TRUE, header AND roster row accurate | — |
-
-**ADDED 2026-09-12 evening by the standing audit over the 28 never-audited finals (`v-unaudited-finals-2026-09-12.md`,
-every module read in full on `c97de9d2f`; 10 of 28 REFUTED, rows on the ledger and the board):** for a **`-health`
-sibling**, copy **`windowed-infinite-query-health`** — it states the tripwire CUT DIRECTION, pins every acquitting
-fence with a `mustFlag`-goes-green row, receipts a CONSTANT, and carries FAMILY + POPULATION PORT + legacy SHA; for a
-**two-policy family**, copy **`external-id-single-writer` + `-health`** (a real shared `lib/` reader, a recorded
-population CORRECTION with its re-derivation, an absent-subject arm, `messageIncludes` rows naming WHICH carve-out
-died); for **TYPE IDENTITY**, copy **`section-factory-contribution-bundle`** (same-name/wrong-module and
-local-declaration counterfactuals, an eleven-hop alias row, per-arm anchors); for an **ordinary singleton**, copy
-`no-if-is-group` / `no-layout-context-props` / `infra-auth-no-userid`. Copy `ct-no-oneshot-live-read-assert`'s
-EXPECTATION-DISCRIMINATOR paragraph verbatim (why constant `token` + single `message` make those tautologies, so rows
-carry `count` + `line`), and `test-no-stubs`'s cross-file leak control. **Anti-patterns from the same audit, never
-point a lane at them:** `ct-story-single-import`'s `jsxTreeRoot` (a hand-listed JSX-kind climb that omits the
-opening-element kind — a false clean on a `hard` gate), `serde-core-seal-health`'s bare-`count` multi-arm row,
-`config-anchor-in-registry`'s `isAnchorCall` (an accusing identity predicate with no fail-closed branch),
-`component-size`'s proof set beside `component-size-ui`'s, and any header that uses `ordinary`/`hard` as English.
-
-**CORRECTION, 2026-09-12: this table's resource cell was written from wave 1's verdicts WITHOUT re-deriving
-against the tree, twelve hours after the repair landed.** That is the error the refutation ledger exists to
-prevent — an audit verdict is a claim about the tree ON ITS DATE. **Before citing any audit cell in this
-table, check the module.** The ledger (`docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md`) carries
-each defect's state; where it says UNADJUDICATED, you re-derive.
-
-**The §5b.5 caveat that applies to the whole column:** several confirmed modules still carry an INCOMPLETE
-header (no FAMILY line, no POPULATION PORT, no legacy SHA — #2005). Where that is so, tell the lane to copy
-the module's PROOF shape and take its HEADER from `section-registry-completeness`, which is complete.
-
-Non-negotiables inside a module: no `Project#getSourceFiles`, `getDescendants*`, `forEachDescendant`, `new Project`,
-private cache, private marker parser, gate-owned exemption table, scope predicate or filesystem read; state in
-`create`; every anchor inside the policy's own resolved population; population `under: ["x/**"]` (a `"x/"` matches
-nothing). A missing capability follows the convert-or-delete ruling below and the resource-kind boundary in §12.4.
-Keeping a private reader behind `defineGate` is not a conversion.
-
-**NOTHING GETS TO REFUSE TO CONVERT — owner ruling, 2026-09-12, and it is the stronger form of the paragraph
-above.** *"Convert or die, and we build what we need."* A gate that needs a capability the tree does not have is a
-reason to BUILD THE CAPABILITY, or — if it is not worth building — to DELETE THE GATE. It is not a reason to park
-the module and record a refusal. The refusal sentence above survives only in its ORIGINAL narrow subject (a
-resource KIND that would serve exactly one consumer, §11.5), and even there the outcome is convert-or-delete, not
-park-indefinitely: mixed runtime makes a legacy module tolerable forever, and *tolerating it forever is the skimp
-that produced this program* (§"Phase C"). **And a lane never makes this call by refusing: it ASKS** (§9's
-escalation model — SendMessage, state a DEFAULT, keep working).
-
-**A SHARED-READER GAP IS BUILD WORK AND WAS NEVER COVERED BY THAT DOCTRINE.** The refusal above exists because §12.4 FROZE the capability vocabulary, and a
-kind minted for a single consumer is that gate's private reader wearing a contract's clothes (§11.5). **A missing or
-refusing `lib/` READER is the opposite case and is BUILD work, not refusal work.** §12.4's own reopening condition
-says so from the other side — a read with **two or more independent consumers** reopens the set — and a shared
-reader has them by construction (`resolveModuleMemberOrigin` has 22 callers). The owner's words: *"legacy shit
-doesn't get to stay alive — it's a conversion process; if it doesn't have what you need then build it."*
-
-**The worked case, and it is the template.** `resolveModuleMemberOrigin` refused an OVERLOADED export as
-`ambiguous`, which closed `defineBusChannel.publish` for every channel on the tree and cost three families their
-precise verdict. The fix was NOT a per-gate workaround and NOT a recorded gap: it was
-`reference-fact-module.ts#overloadHome`, built in the SHARED reader, proven by an armed red-first spec, a
-**reached-arm census over the whole authored tree** (775 specifiers newly resolving, 182 still refusing as genuine
-merges) and a **composed pre/post over the same corpus** that was EMPTY in every direction — the census is what
-makes an empty diff evidence rather than a false clean. It also DELETED the two gate-local workarounds it
-superseded, with a byte-identical fact receipt as the receipt.
-
-**A REFUSAL IS A SNAPSHOT, NOT A STANDING VERDICT, and nothing re-opens one when its blocker lands** (#2013).
-`runner-config-path-liveness` refused citing a missing `authored-path` identity door; §12.4's `authored-path` row
-records that the kind was **specified BY that refusal** — it shipped, and the gate is still legacy. Same shape as
-the deferred roster's 8 entries still reading "not yet ported" after landing (#2008). **Before inheriting any
-recorded refusal, re-derive its condition against today's tree.**
-
-**The reported position, which is also the waiver position.** `report.node`'s token is an exact slice of the node
-text, and when a policy passes NO token the sink DERIVES one (`policy-pass-context.ts:109`): the first identifier,
-literal or keyword in the reported node's own text containing no paren or newline. That token is what an author must
-type in `@orb-waive <id>(<position>)`. **It is routinely NOT the thing a reader would call the offense** — a policy
-reporting the type argument `Registry<string, number> | null` is waived at `Registry`; `no-manual-autosave-flush` at
-`pushFieldValue` though `handleSubmit` is half the defect; `bounded-list-limit` at the field name rather than the
-unbounded chain, because both report a pair- or chain-level verdict anchored on one locus. A string-literal token
-INCLUDES its quotes. **Read the `report.node` call, never the message.** **AND `report.node` SPLITS THE CARRIER FROM THE COORDINATE, which resolves an apparent contradiction in this section (measured 2026-09-12).** The reported NODE is the CARRIER — a `getByTestId(…)` call, say — while `{token, offset}` is the COORDINATE, and the finding's `file:line:column` comes out at the coordinate rather than at the node's start. So *“report the literal, never the whole call”* and *“report the call”* are **both satisfiable at once**, which the contract does not make obvious and which is why two policies governing one site can share an anchor and report ONE position. Unguessable is the norm, which is why an
-ordinary policy's `fix` owes the spelling — and why a token containing a paren makes the policy UNWAIVABLE, since the
-marker grammar's position group is `[^()\r\n]+` and every marker against it parses as malformed.
-
-**AN ABSENCE VERDICT CANNOT ANCHOR ON ITS OWN SUBJECT, AND EVERY LEGACY “X IS MISSING” ARM HITS THIS (measured
-2026-09-12).** `ctx.report.file` REFUSES a path outside the effective population, so a legacy descriptor that
-reported *“X is missing”* **at X** becomes a runtime THROW the moment it converts — the subject is missing, so it
-is in no population. The rule has one home: **`tooling/src/verify/lib/absent-subject-anchor.ts#subjectAnchor`** —
-anchor on the subject when present, else the first present named subject, else the lowest admitted path, and move
-the missing name into the MESSAGE.
-
-**AND A NO-ANCHOR BRANCH MUST REPORT WITHOUT A TOKEN, NEVER `return` — an early return is a SILENT CATCH LOSS
-dressed as a position problem (measured 2026-09-12, caught by the lane in its own first draft).** When a policy
-supplies no token the sink DERIVES one (`policy-pass-context.ts:109`), so reporting is always available. Returning
-instead drops the finding entirely, and **no conformance row sees it, because the row that would catch it is the one
-nobody writes.** Pin it: a fixture whose subject spans multiple lines, reporting zero findings if the early return
-is restored.
-
-**AND A GATE'S OWN “pinned to X” COMMENT IS NOT ITS POPULATION.** `no-inline-union-redecl`'s header claimed
-packages-and-tests; its real legacy corpus was `_shared/ts-workspace.ts#harnessGlobs`, which already carried
-`tooling/src/**` and `scripts/**`. **Derive the legacy corpus from the harness globs ∩ `scanRoot`, and prove the
-port with a SET DIFF in both directions plus planted controls** — that lane measured 7,165 admitted on both sides
-with symmetric difference zero. Never port a population from the header's prose.
-
-**AND "ORDINARY" IS A CLAIM ABOUT THE DOOR, NOT A FIELD — CHECK IT AT EVERY CONVERSION. MEASURED **NINE OF TEN**
-ACROSS THREE INDEPENDENT LANES WITH DISJOINT SUBJECTS (five of five 2026-09-12; four of four and one COUNTEREXAMPLE
-2026-09-13).** A legacy
-policy can carry `authority: "ordinary"` while having **no working waiver door at all** under THIS contract.
-
-**AND THE REASON IS NOT THAT THE LEGACY GATES WERE BROKEN — read this before repeating the 9/9 number, because an
-earlier version of this paragraph implied it and that is FALSE (corrected 2026-09-13 on the owner's question).**
-The legacy engine asked a WEAKER question and got a correct answer. `lib/gate-ignore.ts:180` and `:196` are the
-whole mechanism:
-
-```ts
-marker.position === undefined || marker.position === token
-```
-
-Two consequences, and both make the legacy doors genuinely WORK:
-
-1. **The position was OPTIONAL.** A bare `// @orb-gate-ignore <gate>: <reason>` suppressed ANY finding from that
-   gate on that node or line.
-2. **When supplied it was PLAIN STRING EQUALITY against the finding's own reported token**, with nothing checking
-   that the token existed anywhere in the source. `gate-ignore.ts`'s own header says it: *“`token` is the finding's
-   own reported lexeme”.*
-
-**So a legacy position was a DISCRIMINATOR LABEL — a way to tell two arms of one gate apart — not a source
-coordinate.** `no-assertion`, `async-no-await`, `cancel_2`, `detached` were legal and functioning legacy positions.
-The corpus shape confirms it: `default:catch`, `empty:err`, `empty:error` are `<arm>:<token>` composites, and the
-finding's token was literally that whole composite string — a thing that by construction appears in no source file.
-
-**This contract redefines the position as a SOURCE COORDINATE.** `locateFinding` requires the token to be authored
-text at the finding's exact line and column, refusing first with *“does not point at its exact position token”* and
-then, after comment blanking, *“points into comment trivia rather than authored code”*. `report.node` additionally
-THROWS at report time rather than failing later.
-
-**So the honest statement of the 9/9 finding is: nine of nine ordinary modules carried positions that were valid
-under the old definition and are invalid under the new one.** That is a MIGRATION obligation the contract creates,
-not a latent defect it uncovered — and it is why the count is 9/9 rather than scattered: it is not a bug that
-happened to recur, it is a definition change applied to a corpus authored against the previous definition. Expect
-it on every ordinary conversion for that reason, and treat re-anchoring as ordinary conversion work rather than as
-a defect report against the legacy author.
-
-**The practical consequence is unchanged, which is why the checks below still bind:** under this contract those
-positions do not work, an author cannot waive with them, and `report.node` throws. Fix them. **At a 9/9 base rate this is not a hazard to check for — it is the DEFAULT EXPECTATION, and a
-conversion that reports an ordinary door working is the claim that owes evidence.** **AND THE COUNTEREXAMPLE IS WHY THAT SENTENCE SAYS “owes evidence” RATHER THAN “is wrong” (measured 2026-09-13, `testid-liveness`).** Its legacy positions were `indexOf` SLICES OF THE REPORTED NODE'S OWN TEXT — authored code at their offset, which WOULD have bound under this contract. So a legacy gate CAN have had a working door, and a lane that finds one records it rather than assuming it misread. The base rate stays the default and the check stays mandatory; what changes is that “my door works” is a REPORTABLE measurement, not a suspected error. That lane still moved its anchor — deliberately, to share one position with a sibling policy so a single marker waives both, and free because its marker census was 0 = 0 = 0. **A move for that reason is an improvement; a move to repair a door that already worked is churn, and the receipt distinguishing them is the marker census.** The second lane's four were: three
-reporting SYNTHETIC LABELS at `offset: 0` (`no-assertion`, `async-no-await`, `bare-expect`, and `cancel_2`/`detached`,
-strings appearing nowhere in any source so `locateFinding` could never bind them), one reporting an authored token at
-the wrong offset, and one file finding with a synthetic `column: 0`. THREE classes, all silent:
-
-1. **A position containing a paren.** `form-factory-for-multizfield` reported `` `${name} (${count} fields)` ``
-   (`KnobField (4 fields)`) and `no-form-reset-in-autosave` reported `reset()`. Every marker against either parses
-   MALFORMED — and `report.node` would additionally have **THROWN**, because the token is not authored text at the
-   reported offset.
-
-2. **A file-level finding with a synthetic or absent token.** `locateFinding` (`lib/ordinary-waiver.ts:394`) requires
-   an ordinary finding's token to be authored text at its EXACT line/column, so a file-anchored arm raises a binding
-   failure and alarms on the author's first real waiver. Three `state-files` arms and EVERY `context-definition-shape`
-   arm shipped that way.
-
-3. **A position inside COMMENT TRIVIA — and this one is a capability the conversion LOSES** (measured 2026-09-13 by
-   lane `p-doc-citation-three`, verified against the code). `locateFinding` blanks comments and requires the finding's
-   token to survive the blanking. A comment-resident token does not, so the finding raises
-   `ordinary finding <file>:<line>:<col> points into comment trivia rather than authored code`
-   (`lib/ordinary-waiver.ts:432`). **So a policy whose SUBJECT IS COMMENT TEXT — every citation gate, and anything
-   judging a comment, JSDoc or annotation — has no ordinary door at all and is `hard` by construction.**
-   What makes this different from classes 1 and 2: the legacy runtime **did** bind a line-adjacent `@orb-gate-ignore`
-   to a comment-resident finding. `lib/pass.ts:236-242`'s `findingSuppressedAt` is the finding overload's suppression
-   and binds to the line IMMEDIATELY ABOVE `finding.line` precisely because there is no node. So the honest outcome is
-   `hard` **with a header receipt stating that the legacy door existed and does not survive the conversion** — never
-   `hard` presented as though it were always the natural authority. The discriminator is where `report.node` POINTS,
-   not what the gate is about: a string literal is authored code and survives blanking, so a prose-in-a-string arm
-   keeps its ordinary door while a prose-in-a-comment arm has none.
-
-**AND THE FIX IS ALREADY BUILT — `lib/caught-failure.ts` OWNS THIS REPO'S ONE WAIVER-ANCHOR CONTRACT.**
-`anchorWithin` / `calleeAnchorCandidates` / `firstAnchor` / `catchAnchor`, with `isAnchorableToken` rejecting
-parens, newlines and solidus — since `f96f45fb4` (#1957) it is DERIVED from the grammar's one home
-(`isWaivablePosition(token) && !token.includes("/")`; the earlier `ANCHORABLE_TOKEN_RE` constant is gone) — i.e.
-it refuses exactly the shapes that make classes 1 and 3 unwaivable. **And a policy whose VALUE carries a paren
-(`oklch(0.5 0.2 30)`, `translateX(-0.5px)`, a bracketed Tailwind variant) does not need a wider grammar: it keeps
-the whole value as the CARRIER, hands its leading identifier as the COORDINATE, and states the value in the
-MESSAGE — ruled 2026-09-12 on #2107 (arm c), which is what makes those policies' `fix` strings true.** **A
-converting policy that needs an exact-slice position CONSUMES it rather than re-deriving one**, and the payoff is
-larger than convenience: when two policies govern the same site, sharing the anchor makes them report ONE position,
-so one marker can waive both instead of each needing its own and neither binding. **AND A POLICY THAT ANCHORS ON
-AN EXPRESSION THAT CAN BE PARENTHESIZED OWES THE UNWRAP** (measured 2026-09-12, #2197): `no-loose-id-cast` refused
-to mint a finding for `(async (a) => …) as never` because the operand's text STARTS with `(`, so `waivableCoordinate`
-has no paren-free leading slice and returns `undefined` — the refusal is correct (the helper's contract is the
-offset-0 leading slice, shared by four consumers, and is not the place to skip parens). The policy unwraps a
-`ParenthesizedExpression` operand to its inner expression and anchors there (head `async`), same violation, and pins
-it with a `mustFlag` whose operand is parenthesized (landed `fa8a6e15a`; the coordinate is the `async ` slice, counted
-as proof row 2943). **The declared limit, stated at the policy's helper:** the unwrap makes THIS class nameable, not
-every operand — an unwrapped expression whose own text still begins with `(` (a zero-arg arrow `() => x`, a
-parenthesized call receiver) has no leading slice either and still refuses, LOUDLY (`waivableCoordinate(raw) ?? raw`
-is the refusal path, never a fallback that hides one). A `waivableCoordinate` refusal on an expression-anchored policy
-is the tell that the unwrap is missing; a planted fixture for a DIFFERENT gate is how it surfaced (latent on the real
-tree), which is the planters doing their job.
-
-**The asymmetry that let classes 1 and 2 survive: `report.node` VALIDATES its token against the node text and throws; `report.file`'s
-token is unvalidated at report time and fails later as an authority ALARM.** So converting a file-anchored ordinary arm
-has exactly two honest outcomes — **re-anchor it on authored text, or split it to `hard`** (an ABSENCE verdict about an
-exact file has no node, therefore no position, therefore no ordinary door by construction). Move any count or name the
-message needs INTO the message; the position stays the authored token.
-
-Family = a shared `lib/` computation or subject reader (module + function), named in the header. Siblings that are two
-spellings of one concept MERGE (the stronger identity reader wins; the retired arm gets a successor proof). A policy
-with no proven sibling is a singleton family under its own id. A theme, a filename prefix or a shared topic is not a
-family.
-
-## 4. Proof rules
-
-1. **Carry the legacy rows.** The legacy `mustFlag`/`mustPass` examples are the founding, near-miss, alias/identity and
-   declared-limit cases. They translate one-to-one into `GatePolicyProof` rows (`mode`, `files` map, `why`), and they ARE
-   the bite proof once `verifyPolicyProofs` runs them through the production dispatcher. Do not replace them with a
-   few new happy paths; add rows only for behavior the conversion changed or the legacy suite lacked (an identity
-   variant the stronger reader now catches, an empty/unresolved-subject control where the verdict depends on a derived
-   population). **Every `mustFlag` row carries an `expect`.** `expectationFailure` returns early once one
-   finding exists, so a row without `expect` asserts only that the fixture produced at least one effective finding, and
-   passes when the gate flags the WRONG node or flags several where one was meant. Name `count` always, and `token`
-   (or `line`/`messageIncludes`) whenever the row's `why` claims WHICH node flags.
-
-   **THE ONE DECLARED EXEMPTION: `expect: { countFrom: "<DRIVER>" }`** (owner ruling 2026-09-12, #2001; landed with
-   nine live rows across `domain-freshness-plane`, `lifecycle-portability` and `verify-registry-parity`). Where the
-   finding count is driven by a MODULE-LEVEL registry the fixture cannot control — the domain roster,
-   `PORTABLE_CANON_TABLES`, `registryScriptNames()` — a literal `count` makes a legitimate registry addition a RED
-   PROOF, a rule whose effect is *"classifying a table correctly breaks the build"*. `countFrom` names the driver
-   instead. It is EXACT, not free text: the named binding must resolve at module scope in that very module, checked
-   BOTH statically (`policy-proof-expectations` ARM C) and at runtime (`verifyPolicyProofs`), and a name that resolves
-   nowhere is a hard failure. `count` and `countFrom` are mutually exclusive and the loader refuses both together.
-   **Implemented TIGHTER than ruled, deliberately:** the gate also requires a `countFrom` row to carry
-   `token`/`line`/`messageIncludes`. The ruling accepted `countFrom` and required only that the constant resolve; a
-   row with neither a count nor an identity field asserts nothing at all, which is strictly worse than the literal it
-   replaces, so the companion requirement is the gate's own and is recorded here as such. `token` is available on EVERY
-   node-reporting policy because the position is derived when not supplied (§3). The expectation shape has no
-   `column`, so `count + line + token` is the ceiling: add `line` when the derived token repeats inside the fixture
-   (a statement's first identifier is weak identity). Before reaching for `messageIncludes`, check that the module
-   emits more than one message — most converted modules pass a bare `report.*` and carry exactly one policy-level
-   message, which makes any row `why` promising a "distinct message" a defect rather than a pinnable claim.
-
-   **A NARROWING is a claim, and it owes a row that dies without it.** A carrier fence, an ancestor guard, a context
-   predicate — anything that makes the policy flag LESS than its population — is invisible to a proof set built only
-   from positives and near-misses, because deleting the narrowing only ever ADDS findings at sites no row visits.
-   Measured on the corpus (#1954): deleting `inClassCarrier` from `no-raw-spacing-in-features` and
-   `no-raw-typography-in-features` left EVERY pre-existing row green in both modules. The test is two commands — cut
-   the narrowing in a `cp`-backed copy, run the module's rows, restore — and the fix is a `mustPass` row placing the
-   same literal OUTSIDE the fence. This is the one place a conversion owes a planted break for a row it did not
-   invent: §4.7 covers new properties, and this covers an old property nothing was ever shown to enforce.
-
-   **BEFORE YOU TRUST ANY CLEAN CUT, CHECK THE HARNESS — TWO FAILURE MODES PRODUCE A FALSE CLEAN AND BOTH WERE
-   MEASURED 2026-09-12.** A cut that did not reach the code proves nothing, and it is indistinguishable from an
-   unenforced fence:
-
-   - **A gate module's own HEADER QUOTES its fences, and its `why` strings quote them AGAIN after the code.** A cut
-     harness doing `String.replace(from, to)` patches the COMMENT, the module behaves identically, and the sweep
-     reports "0 rows died". Five consecutive cuts read clean for this reason in one lane and **four of the five were
-     fully enforced.** `lastIndexOf` is not the fix either — the `why` strings come last. **Assert the anchor occurs
-     EXACTLY ONCE in the file and refuse otherwise.**
-
-   - **IN A SPLIT FAMILY, THE CUT MUST NAME THE POLICY IT WAS DRIVEN AGAINST — a patched `lib/` reader with the
-     WRONG SIBLING imported reads exactly like an unenforced fence (measured 2026-09-12).** A cut that patches a
-     shared reader has to re-import the GATE as well, and a split family has TWO. A lane drove the ORDINARY sibling
-     against a patched registry reader and its harness reported **`0 rows died` for both `-health` fences**; re-run
-     against the `-health` module, both reddened. This is the third false-clean in this harness and the only one
-     where **the cut reached the code and the wrong policy was driven** — the other two never reach it. **So a clean
-     cut in a split family owes the POLICY NAME it was driven against**, not just its result and direction.
-
-   - **AND A CLEAN CUT IS MORE OFTEN AN UNENFORCED FIXTURE THAN AN UNENFORCED FENCE (same lane, both of its clean
-     cells).** Each was a fixture that could not structurally reach the fence: one *declared* the helper but never
-     *called* it inside the axis home, and none handed a recipe IDENTIFIER to a non-door call, because
-     `cn(thingVariants({…}))` passes a CALL and so can never credit whatever the door set is. **Each fix was one
-     line and each turned the cut RED.** This is the mechanism behind §4.1's rule that UNFALSIFIABLE owes a
-     constructed row rather than an argument: the row you cannot think of is usually a fixture you have not written,
-     not a property that cannot be falsified.
-
-   - **Re-importing a rewritten module with a `?query` suffix returns the CACHED module**, so the run measures the
-     UNPATCHED policy while printing a population that still carries the fence you just deleted. Write the patched
-     source to a **sibling scratch module in the same directory** (so relative imports still resolve), import that,
-     `rmSync` it in a `finally`. Never mutate the real file.
-
-   **AND THE ARM OF A FALSIFIER ROW IS DECIDED BY THE FIXTURE'S VERDICT AT TIP, NEVER BY THE BRIEF.** A §4.1 row is
-   `mustPass` only when the fixture is SILENT at tip. `ui-exports-map-complete`'s directory-named-`index.ts` fixture
-   FLAGS at tip (one finding) and the cut merely changes WHICH message it carries — the count is 1 on both sides — so
-   it is a `mustFlag` whose discriminator is `messageIncludes`. A brief that says "land it as a `mustPass`" while
-   supplying an `expect` has already told you which arm it is. **Companion tell: when a cut preserves the finding COUNT
-   and changes only the MESSAGE, a bare `{ count: N }` row proves nothing** — the same shape as the fail-closed
-   third-answer rule below.
-
-   **A BLINDNESS TRIPWIRE'S CUT DIRECTION IS THE REVERSE, AND A LANE APPLYING THE STANDARD RULE READS EVERY
-   ONE OF ITS FENCES AS UNENFORCED (measured 2026-09-12 on `windowed-infinite-query-health`).** §4.1's rule is
-   "cut so the policy flags MORE" — that is correct for an OCCURRENCE policy, whose narrowings make it flag less.
-   **A tripwire's fences ACQUIT**: the receiver test, the name test, the population and the anchor each decide
-   what counts as a LIVE SUBJECT, so opening one makes the tripwire flag FEWER, and its falsifier is a
-   **`mustFlag` going GREEN**, not a `mustPass` going red. Four fences on that module, all enforced, all proven
-   that way. Ask which direction the policy's verdict runs BEFORE choosing the cut; a tripwire whose cells all
-   read clean is the tell that the direction was wrong.
-
-   **AND A CLEAN CUT PLUS A JOINT CUT THAT TOOL-ERRORS MEANS THE CLAUSE IS UNREACHABLE, NOT UNENFORCED.**
-   `zustand-selector-derived`'s `useShallow` early return sat ahead of an inline-function guard that already
-   rejected every `useShallow(...)` call — a `CallExpression` never reaches it. Cut alone: clean. Cut jointly
-   with the guard (§4.1's MUTUALLY REDUNDANT procedure): a TOOL ERROR, never a finding. **When the joint cut
-   tool-errors rather than flagging, the surviving clause is a TYPE OBLIGATION and the dead one is DELETED, not
-   documented as a limit.**
-
-   **A CLEAN CUT HAS THREE MEANINGS, AND ONLY ONE OF THEM IS "UNENFORCED" (measured 2026-09-12 across two fix
-   lanes — the naive sweep OVER-REPORTS, so classify every clean cut before counting it):**
-
-   - **UNENFORCED** — genuinely unpinned. The fix is a `mustPass` row placing the subject OUTSIDE the fence.
-   - **MUTUALLY REDUNDANT** — two fences guard ONE subject, so each is individually uncuttable because the sibling
-     catches it. `server-layout.topEntry` carried a `startsWith(SERVER_SOURCE/)` test AND a `relative.length > 0`
-     test, both aimed at the root entry; the sweep reported both unenforced and **the obvious fix was wrong** — no
-     fixture can produce that subject at all (the tree is rooted at the prefix, and `walk` emits children only), so
-     the answer was DELETING BOTH, not adding a row. **When two cuts in one function both come back clean, cut them
-     TOGETHER before concluding.**
-   - **WRONG-DIRECTION CUT** — the standard cut assumes removing a fence makes the policy flag MORE. That holds for a
-     carrier fence and FAILS for a fence that changes a DERIVED path, which exists to prevent a FALSE CLEAN.
-     `ui-exports-map-complete`'s `target.startsWith("./")` survived, because an unfenced non-`./` target still
-     resolves to a nonexistent path and is reported either way. Falsifying it needed a fixture whose UNFENCED
-     resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
-     path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
-
-   **READING A SEALED-ORIGIN VERDICT HAS THREE SHAPES, AND ONLY ONE IS THE BUG (measured 2026-09-12, #2006).**
-   `readSealedOrigin` returns a VERDICT; `sealedOriginReports(verdict, anchor)` is the DECISION. But **polarity
-   decides which applies**, and a mechanical sweep for the wrong call will weaken a security gate:
-
-   1. **ACCUSING direction, verdict used directly — THE BUG.** `kind !== "foreign"` reports, so a purely local object
-      whose KEY is spelled like the sealed export is accused. Five modules. Fix: call `sealedOriginReports`.
-   2. **ACCUSING direction, decision called — correct.** `empty-state-has-action` already does this.
-   3. **ACQUITTING direction — correct, and `sealedOriginReports` is NOT applicable.** `untrusted-regex-safe-exec`
-      computes `safe = kind === "sealed"`: **only a PROVEN sealed origin acquits and everything else reports.**
-      Scoping the refusal there would WEAKEN a security-adjacent gate, and its own `mustFlag[1]` pins the
-      local-helper case as MUST-FLAG. **Do not "fix" shape 3.**
-
-   **So the tell is not the call — it is which side of the comparison reports.** Check polarity before routing any
-   module into this class.
-
-   **AND A FOURTH POLARITY EXISTS, WHICH READS AS NONE OF THE THREE: an ACCUSING arm whose predicate is an identity
-   ACQUITTAL** — `table = kind === "sealed" ? name : null`, then report if non-null. It fails OPEN on `unreadable`
-   while a sibling arm in the same module fails closed, and the module header claimed both were "read the same way".
-   Worked case `vector-scope-derived` (#2057, `b36f782a8`). **#2006 was right to leave it**, because the
-   `!== "foreign"` comparison a mechanical sweep looks for is simply absent — which is why the per-ARM question above
-   is the only thing that finds this shape.
-
-   **EVERY fail-open → fail-closed REPAIR OWES A NAME PREFILTER, or it converts every unreadable node in the
-   population into an accusation.** `lib/origin-verdict.ts`'s header is the rule and carries its own measurement:
-   *prefilter on the name, resolve the identity, and fail closed only inside the candidate set.* An ACQUITTING branch
-   has no prefilter because it never needed one, so the requirement is invisible until the branch is flipped. **Two
-   lanes converged on that header independently on 2026-09-12**, neither knowing the other's work: one took
-   `tooling-instrument-proof` from **654 unsuppressible findings to 0** where the ruled global-first fix had reached
-   57 — all of them the same defect — (`960e21cf9`, lane `p-hooks-wave-refute`) and the other repaired
-   `vector-scope-derived` (`b36f782a8`). **Keep the
-   builtin/foreign row as the prefilter's §4.1 pin, never as a dead global-first branch:** under a name prefilter a
-   builtin never reaches the origin reader, so that branch is unreachable and its `mustPass` would be green for the
-   wrong reason (§4.5b's dead-arm class).
-
-   **§4.6'S FOUR CATEGORIES ARE INCOMPLETE — TWO MORE, AND THE FIRST IS THE COMMONEST DELTA IN THE CORPUS
-   (measured 2026-09-12 across all seven conversion records).**
-
-   **5. EXEMPTION-MECHANISM MOVE.** A site the legacy `scanRoot` subtraction, path allowlist or inline marker HID is
-   now REPORTED and licensed by a reviewed grant — so the differential reads `legacy 0 → final N raw → 0 effective`.
-   This is the DOMINANT delta in three records (+30, +40, +47) and fits none of the four; every record explains it in
-   prose because there was no name for it. **Its falsifier is different from the other four:** the question is not
-   *"does it still catch"* but **"did every hidden site become exactly ONE live, consumed row"** — which is what the
-   grant-liveness pass answers, not a replay.
-
-   **6. ANCHOR MOVE — and it is NOT metadata.** A conversion that moves a finding's reported position (receiver-start
-   → the actual dot; line-1-col-1 → the real column) changes what a **positioned waiver BINDS TO**, so it can silently
-   orphan or re-bind a marker. `mechanical-gates-1584.md` classified two of these as *"intentional metadata deltas"*.
-   **They owe a receipt**, not a bucket: confirm each moved anchor's markers still bind.
-
-   **AND A CATCH-ALL CELL IS ONE QUESTION WEARING A TABLE'S CLOTHES.** A per-policy differential table ending in
-   `every other policy | 0 | 0 | 0` has not asked N questions; it has asked one. Where those are 1:1 ports whose
-   legacy side actually RAN, that is fine and closable by rule. **Where one of them is a SPLIT ARM, the cell is
-   Tier 1's `-health` vacuity hiding in a table** — `ordinary-visitors-family-1584.md` swept four split arms into one
-   such cell, and `origin-server-family-1584.md` swept ten modules into another.
-
-   **So a close-by-rule must name what it closes on:** *a 1:1 port whose legacy side was **EXECUTED** and returned
-   zero.* That is true of 18 modules and **false of everything in `schema-fact`**, whose legacy side was never run.
-
-   **DIFFERENTIAL VACUITY HAS TWO SHAPES, AND THE SECOND IS THE ONE THAT LOOKS LIKE EVIDENCE (measured
-   2026-09-12 across all seven conversion records).** **Read the LEGACY-SIDE number FIRST**; a zero there downgrades
-   the record to a population/outcome receipt no matter how much prose follows.
-
-   1. **Both sides zero.** The classic — the clean verdict is evidence of nothing. 22 modules across
-      `ordinary-visitors`, `origin-server` and `home-client`, plus Tier 1's `-health` arms.
-   2. **The legacy side is zero BECAUSE the legacy exemption mechanism was a `scanRoot` SUBTRACTION.** The exempt
-      sites never entered the legacy population at all, so the new policy's nonzero raw count proves **liveness and
-      outcome parity** and still says **nothing about whether it catches what legacy caught.** This is the whole
-      sanctioned-home family, and it reads like a rich receipt.
-
-   **AND A THIRD FAILURE THAT IS WORSE THAN EITHER VACUITY SHAPE, BECAUSE IT FAKES A NONZERO SIDE (measured
-   2026-09-13 by `v-conversions-2026-09-13`, refuting a differential I had already published as a landing
-   receipt).** A differential harness that replays a policy **WITHOUT APPLYING THE POLICY'S OWN DECLARED
-   POPULATION** measures the policy's own PROOF FIXTURES. The worked case: `pd-citation-integrity`'s record
-   claimed **2 findings on both sides at columns 46 and 20**, read as the one piece of genuine catch-parity
-   evidence in its whole merge. Driven on the real workspace with a planted positive control, the true answer
-   is **0 on both sides**. Column 46 of `pd-citation-integrity.ts:152` is `PD-999` **inside the module's own
-   `mustFlag` fixture string**, and the module declares `notUnder: ["tooling/src/verify/gates/**"]` for exactly
-   that reason — with `:206` carrying the §4.1 narrowing row that proves the fence bites.
-
-   **So the module was right and the MEASUREMENT was wrong, and the module's own proof rows contradicted its own
-   differential with nobody noticing.** Three consequences worth carrying:
-
-   - **A differential is a claim about a POPULATION as much as about findings.** State which population each side
-     was driven over, and if the two sides differ, that is the finding.
-   - **A self-scanning gate is where this bites hardest** — a policy whose subject is the gate corpus keeps its
-     fixtures inside its own scan root by construction, so an unfenced replay is guaranteed to eat them. Check
-     the fence FIRST for anything reading `tooling/src/verify/**`, the docs corpus, or the ledgers.
-   - **A nonzero side is not self-validating.** The vacuity rules below teach you to distrust a ZERO; this teaches
-     you to distrust a SMALL NONZERO on a policy whose population excludes its own home. The tell is a count that
-     equals the number of fixture rows in the module.
-
-   **AND THE DIFFERENTIAL'S OWN HARNESS CAN CORRUPT BOTH ENGINES IDENTICALLY AND STILL READ “MATCHED”
-   (measured 2026-09-12).** A replay harness usually rewrites imports so the frozen legacy module resolves. Gate
-   modules **embed fixture SOURCE containing `import … from "../lib/…"`**, so an unanchored rewrite patches the
-   FIXTURE STRING too — both engines then judge against a broken specifier, both report an extra finding, and the
-   comparison table reads as a perfectly matched pair of WRONG numbers. **A count comparison cannot detect a fault
-   that is symmetric across the two engines.** Line-anchor the rewrite and assert no relative import survives it.
-
-   **AND THE SUBSTRATE IS PART OF THE METHOD: replay a filesystem-reading legacy gate on a REAL TMPDIR, never a
-   virtual root.** A legacy arm calling `existsSync` reports every registry row DEAD under a virtual root, which
-   manufactures a nonzero legacy side out of nothing and makes a vacuous replay look like evidence. Same family as
-   §4.8b: the substrate decides the verdict before the policy does.
-
-   **Only a FIXTURE-LEVEL method reaches catch parity** — extract the pre-conversion descriptors, shim their
-   contract import, and replay through the legacy `runPass` **over each proof's own file map**
-   (`origin-client-family-1584.md:151`). **Two of the seven 2026-09-05/06 records used it**; the other five are
-   real-corpus-only. A real-corpus replay is informative only where a side is nonzero.
-
-   **A POPULATION DIFFERENTIAL IS NOT A FINDING DIFFERENTIAL — it is ONE THIRD of what §4.6 asks, and records
-   call both “the differential” (measured 2026-09-12).** §4.6 requires comparing **findings, populations AND tool
-   errors**. A record headed *“Population equality, over one frozen 7,138-path candidate set”* proves only that the
-   admitted SET matches — it says nothing about what the gate REPORTS on that set, which is where a catch-regression
-   lives. `schema-fact-family-1584.md` is the worked case: its landing commit says *“and its differentials”*, that
-   claim resolves to a population table over **five** policies, and its other named policies have neither a
-   population nor a finding differential.
-
-   **So when crediting a record with parity evidence, read WHICH of the three it compared.** A population-only
-   comparison leaves the module in the backlog. And beware the inverse: the same doc carries an excellent finding
-   replay WITH a planted positive control — for a **retired** stage. Evidence being present in a document is not
-   evidence being present for the module you are asking about.
-
-   **AND A REVIEW'S CELL COUNT DECAYS THE MOMENT ANY OTHER LANE LANDS A FIX IN ITS SCOPE — a second,
-   independent staleness from the one below (paid 2026-09-11 on #1999).** Wave 6 reported 25 unenforced cells for
-   the origin-client family. By the time a fix lane started, a DIFFERENT lane closing #1989/#1990 had already landed
-   D1 (nine modules), D2 and all five of D5. **Fifteen were genuinely open, not 25.** The lane found this by reading
-   each module rather than trusting the doc, which predates those closures.
-
-   Distinguish the two: the rule below is that the CLASSIFICATION changed; this one is that the TREE changed. Either
-   alone makes a count stale, and they compound. **So re-derive a review's remaining-work count against the current
-   FILE, not only against the newer classification rules — and never dispatch a lane with a review's row count as its
-   scope without saying it is an upper bound.**
-
-   **A LATER WAVE'S VERDICT SUPERSEDES AN EARLIER WAVE'S CUT TABLE — check the most recent one before building a
-   row from an old cell (measured 2026-09-11; two audits of the same corpus disagreed and the LATER one was right).**
-   Wave 1 recorded the tier-home-health population fence as UNENFORCED, and the cut genuinely does come back clean.
-   Wave 4 read the same fence and did not list it as a narrowing at all, because `SANCTIONED_HOMES`' keys are
-   hardcoded under one package — **no fixture placed under an added population root can ever land on one, so no
-   discriminating fixture EXISTS.** That is a structural NON-narrowing, not a gap: §4.1's fourth outcome
-   (UNFALSIFIABLE, documented rather than faked), reached by a later reader with more context.
-
-   **A fix lane working from the older table would have invented a row that discriminates nothing** — which this
-   section already calls worse than recording the gap, because it converts an honest limit into a false pin. As the
-   method rules accumulate (cut direction, the prefilter shape, the reusable UNREADABLE falsifier), **an old cell can
-   dissolve rather than merely shrink.** Re-cut every cell yourself before building against it, and when two waves
-   disagree, read BOTH and prefer the one whose reasoning names a mechanism.
-
-   **A DECLARED PERFORMANCE PREFILTER CUTS CLEAN BY DESIGN — counting it is counting HONESTY as a defect
-   (measured 2026-09-11, and it is the single largest source of false UNENFORCED cells).** Where a candidate-name
-   prefilter sits in FRONT of an identity reader, cutting the whole prefilter comes back CLEAN, because the identity
-   fence behind it rejects everything the prefilter would have admitted. That is the prefilter working: it is a
-   speed optimisation, not a correctness fence, and the module usually says so in a comment. **Cut the
-   DISCRIMINATING HALF instead** — the alias arm of the identity check — and it REDs. Wave 7's naive sweep read 29
-   of 85 cuts clean and classified down to **17 (34% → 20%), an over-report of 71%**, almost entirely from this
-   shape. **So every wave's NAIVE number is an upper bound, and the earlier waves' figures (32%, 35%, 42%) were not
-   corrected for it.** When a clean cut sits in front of an identity check, say which half you cut.
-
-   **CUT IN THE RIGHT DIRECTION, OR YOU MANUFACTURE A FALSE “UNENFORCED” — the auditor's own failure mode
-   (measured 2026-09-11).** The cut must make the policy flag **MORE**. Replacing a predicate with a DIFFERENT wrong
-   value is not that cut, and it can leave every row green for a reason unrelated to the fence. Worked case: a wave-5
-   audit reported that not one of `persistence-boundary`'s six narrowings was individually enforced. A fix lane
-   re-cut `classifyOriginRefusal` in the §4.1 direction — fail it OPEN (`return "unreadable"` unconditionally) — and
-   **`mustPass[2]` and `[3]` both went red on the pre-existing row set**. The clause was enforced all along; the
-   audit had most likely cut it to `"other"`, a different wrong answer rather than an open one.
-   **So a clean cut owes its DIRECTION in the receipt**, not just its result: say what you replaced the predicate
-   WITH. And where a fence has several clauses, report the matrix — the same module's three-clause sweep showed one
-   clause singly enforced, one enforced only when the classifier is also open, and one reddening only in the triple.
-   A single-clause sweep over an interacting fence set is not a measurement.
-
-   **"UNFALSIFIABLE" IS A CLAIM YOU OWE A CONSTRUCTED FIXTURE ATTEMPT, NOT AN ARGUMENT (measured 2026-09-12;
-   TWO of them fell in ONE wave, both to a fixture built in under five minutes, and both were in modules §3
-   names as exemplars).** The fourth outcome below is legitimate and it is also the most comfortable place to
-   file a cell you could not think about hard enough — so the bar is a ROW YOU WROTE AND RAN, never a
-   sentence explaining why none could exist.
-
-   - `ui-exports-map-complete` recorded its `entry.kind === "file"` index fence as unfalsifiable because it
-     *"would matter only for a DIRECTORY named `index.ts`."* **A `mode: "resource"` fixture can create exactly
-     that** — a fixture file at `packages/ui/src/primitives/<a directory literally named index.ts>/x.ts` — and
-     with the fence cut, that row and only that row reds. (The angle brackets are deliberate: this path exists
-     only inside a proof fixture, and spelling it literally made `dangling-refs` report it as a phantom home.
-     A non-literal segment is the gate's own escape for prose that describes a shape rather than citing one.)
-   - `runner-config-path-liveness` recorded its real-tree `anchorOk` cut as unfalsifiable. It cut clean only
-     because **every existing row went through the module's own `configs()` helper**, which plants exact rows
-     and therefore never reaches the zero-exact branch below the anchor. A fixture that stops using that
-     helper discriminates immediately.
-
-   **The tell is the same in both, and it is the thing to look for:** every existing row reached the fence
-   through ONE fixture helper that structurally avoided the branch, so the clean cut measured THE HELPER, not
-   the fence. **Before recording UNFALSIFIABLE, write the row that would discriminate and RUN it.** If it
-   passes today and reds under the cut, the classification is UNENFORCED and you have just written its fix.
-   Reserve the fourth outcome for a property whose counterexample is structurally unconstructible — a depth-1
-   file has no children, so no fixture can give it one — and say WHICH construction you attempted.
-
-   **And a fourth outcome is legitimate: UNFALSIFIABLE, documented rather than faked.** For a reviewed-grant policy,
-   `reportReviewedGrantCandidates` dedupes by `(subject, operation)`, so any narrowing whose only counterexample sits
-   ABOVE an already-flagging node cannot change the finding count — `no-raw-matchmedia`'s `memberPath.length === 0`
-   is the worked case, measured identical with and without the clause. The clause stays (it is the shared reader's
-   contract) and the header says plainly that no fixture enforces it. **Inventing a row that does not discriminate is
-   worse than recording the gap**, because it converts an honest limit into a false pin.
-
-   **A DECLARED LIMIT ON AN IDENTITY BRANCH OWES ONE QUESTION, ANSWERED BY RUNNING IT: would this branch REPORT on an
-   UNREADABLE input, or PASS?** A limit that answers *pass* is a **fail-open wearing a limit's clothes**, and it is the
-   form that survives review — a declared limit is a sanctioned outcome, so a well-argued one reads as diligence.
-   Measured 2026-09-12 (`vector-scope-derived`'s write arm, `b36f782a8`): a `mustPass` whose `why` called the
-   acquittal a DECLARED LIMIT, and argued at length why the obvious repair would be wrong, was replaced by a
-   `mustFlag` on a **byte-identical fixture** — by the same lane, three hours later, once a fresh-context verifier
-   asked the question. **The tell is two arms of ONE policy answering the same unreadable input differently: ask per
-   ARM, never per module.** The fourth outcome guards against a lane that could not think of a fixture; this guards
-   against one that reasoned its way into the wrong outcome.
-
-   **A FAIL-CLOSED “THIRD ANSWER” OWES A `messageIncludes` ROW, OR IT IS DEAD CODE WITH A CONFIDENT PARAGRAPH
-   (#1990, measured 2026-09-12).** A policy's `unreadable` verdict — the #944 third answer, and the arm that is the
-   conversion's whole value over the legacy gate — produces the SAME finding count as the ordinary verdict and
-   differs only in `message`. So a row carrying `{ count: N }` and no `messageIncludes` passes identically whether
-   the arm fires or is unreachable. **9 of 12 modules in one family advertised the arm in their header and no
-   declared row reached it**; the three that proved theirs are exactly the three that wrote `messageIncludes`. This
-   is not a narrowing, so §4.1 does not catch it — a lane can satisfy §4.1 in full and still ship the arm dead. The
-   probe is one command: replace the branch's report call with `throw` and run the module's own rows; **0 failures
-   means unreached. RUN THE PROBE INSTEAD OF READING THE HEADER** — a module's DECLARED LIMIT paragraph is exactly
-   the thing that is wrong here. Measured 2026-09-11: `persistence-boundary`'s limit claimed a bare `localStorage`
-   “lands on the fail-closed unreadable finding”; it resolves as the ambient global with an empty member path and
-   takes the PRECISE message, so the arm the paragraph advertised was reached by no row at all. A confident header
-   is not evidence about which fixture hits which branch.
-
-   **THE REUSABLE FALSIFIER FOR AN UNREADABLE ARM — stop reverse-engineering one per module (measured
-   2026-09-11 across nine).** Where the branch sits behind an origin resolver (`resolveGlobalMemberOrigin`,
-   `resolveTypeMemberOrigin`, the `lib/react-origin.ts` readers), **an opaque `any`-typed receiver drives every one of
-   them into fail-closed territory**:
-
-   ```ts
-   declare function opaque(): any;
-   opaque().<member>   // no symbol, no declaration → the UNREADABLE arm
-   ```
-
-   **One documented exception, and it cost a probe cycle:** a module-level identifier bound purely in TYPE space (a
-   `ReturnType` alias). Forcing an unresolvable IMPORT there still binds a broken `ImportSpecifier` declaration, so the
-   reader judges it *provably non-ambient* and passes silently. The trigger that works is referencing the type-only
-   symbol in **value position**, which yields `getSymbol() === undefined` outright.
-
-   **AND THE IDIOM REACHES MEMBER-ORIGIN READERS ONLY (measured 2026-09-12, `persist-partialize-and-total-migrate`):**
-   against a package-export CALLEE check, `declare const persist` produces **0 findings**, because an ambient binding
-   is a *proven* non-module binding and `classifyOriginRefusal`'s case (a) PASSES it. The fixture that reaches a
-   callee check's fail-closed arm is an **unresolvable IMPORT**. A row built on the opaque idiom against a callee
-   check is green for the wrong reason.
-
-   **TO ENUMERATE WHAT A GATE SEES, DRIVE THE GATE'S OWN WALK OVER THE REAL FILESET** (paid 2026-09-12, `e7e3f083b`,
-   \#2181/#2101): a re-implementation of the walk over a convenient subset under-reports silently and in the
-   direction that looks like success — fewer findings. `css-length-tokens`' header had ruled its per-file budget
-   table un-narrowable because a four-file probe read `pager-chrome.ts` as ZERO against its row's 3; the probe had
-   re-implemented the walk, and the file's class strings resolve at their CONSUMERS, outside the subset. Driving the
-   module's own `walkStaticClassExpressions` over all 1,685 files reproduced every legacy count exactly, and the
-   ruling's mechanism (an under-reporting enumeration cannot found replacing rows) survived with its INPUT changed.
-   And an anchor row's `why` states a MECHANISM, never a cardinality only the planter can re-measure.
-
-   **A DECLARED LIMIT OWES A RUN ROW, the sibling of "UNFALSIFIABLE owes a constructed fixture" (measured twice
-   2026-09-12).** Write the row that states the limit, RUN it, read the verdict, then write the prose. A lane
-   drafted "spreads are invisible, accepted limit" as a `mustPass`, ran it, and `{ ...base }` with all three keys
-   present reported all three MISSING — not a limit, the policy accusing correct code. The repair unions each
-   resolvable spread and fails closed on the unresolvable half as a `mustFlag`, or `{ ...buildOptions() }` retires
-   the policy in one line. **And when a repair RETIRES an exception, land it as an ASSERTION, not an absence:** the
-   `mustPass` that admitted the exception becomes a `mustFlag` on the SAME fixture shape (#2148's lane, E4's
-   hand-off carve), so the removal is proven rather than merely gone.
-
-   **A §4.1 CUT HARNESS HAS A SECOND CACHE TRAP, the `?query` twin (measured 2026-09-12):** `import()` caches by
-   URL, so a harness that writes every cut to ONE scratch filename per module silently re-measures the FIRST cut —
-   four different cuts returned byte-identical failure lists before the lane noticed. One scratch module PER CUT,
-   with a serial in the name. Tell: several cuts of one module reporting identical rows.
-
-   Confirm the row DISCRIMINATES rather than passing by luck: `messageIncludes` must match text the UNREADABLE branch
-   alone emits — check by literal comparison that no ordinary `MESSAGE` string contains the fragment. If `UNREADABLE`
-   is built as `` `${MESSAGE} …` ``, no fragment can do this and the two messages must be made disjoint first. And when `UNREADABLE` is built as `` `${MESSAGE} …` `` the base text is a SUBSTRING of both,
-   so it can never discriminate in either direction — **keep the two messages disjoint or neither arm is pinnable.**
-
-2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position:
-   one POSITIVE arm, the correct `// @orb-waive <id>(<position>): <reason>` at the reported position, yielding 0
-   effective findings, 1 waived, 0 alarms. Two shapes are valid — a `mustPass` row in the module
-   (`schema-branding.ts:137`) or a `runPolicyPass` pin in a family test (`ordinary-visitors-family.test.ts:187-196`
-   — the POSITIVE arm ONLY; `:198-205` beside it is a dead-position NEGATIVE arm and the next sentence forbids copying
-   it, so the range must stop at :196). **Verified twice, once per direction: flipping `(Foo)`→`(Bar)` reds it with
-   `AUTHORITY ALARM … names a dead position`, so it DISCRIMINATES.** Its sibling at `:207-218`
-   (`empty-state-has-action`) is NOT the shape to copy — it omits the `authorityAlarms` assertion, so an over-broad
-   or duplicate marker (which alarms WITHOUT changing the finding count) would pass it. **The §4.2 arm is all three
-   assertions — `effectiveFindings []`, `waivedFindings 1`, `authorityAlarms []` — or it is not the arm.**
-   The negatives are the CENTRAL engine's proof, run once
-   (`tests/tooling/verify/lib/ordinary-waiver.test.ts`): wrong-policy, stale/dead position, malformed, missing reason,
-   over-broad, duplicate consumption, unknown policy, hard/reviewed refusal, incomplete-owner withholding and
-   consumption order. Never copy a negative arm into a gate; under `knownPolicies: [policy]` it rides the
-   unknown-policy short-circuit and proves nothing.
-
-   **The arm is self-checking, so write it without fear of the token.** `proofFailure` runs `toolFailure` before the
-   arm verdict and fails on any `authorityAlarms`. `reconcileMatch` (`ordinary-waiver.ts:608-620`) alarms
-   unconditionally on `malformed`, `unknown-policy` and `wrong-authority`, and alarms on `stale`, `dead-position`,
-   `unbound-trivia`, `ambiguous-trivia`, `over-broad` and `duplicate-target` once the policy has entered
-   `completedOrdinary` — which every ordinary policy does when it runs without a wrong-grant-authority condition
-   (`gate-authority.ts:286-291`). A proof row's owner must succeed or `toolFailure` fails first, so inside a proof row
-   every alarm is live: a wrong position, a foreign id, an over-broad match and a fixture that no longer flags each
-   FAIL the row. No separate test and no planted break are owed. A `mustPass` arm need not assert
-   `waivedFindings === 1`; naming the twin `mustFlag` row in its `why` is legibility, not correctness.
-   **Build the arm on a fixture that produces exactly ONE finding**, because one marker consumes one occurrence: a
-   founding row that fires twice (an import door plus its call site, as in `no-forward-ref`) leaves the second finding
-   effective and fails the row. Use the member or namespace arm instead and state the cardinality in the `why`. This is the arm-authoring face of a
-   standing rule — **finding granularity must match waiver granularity** — whose exact predicate is POSITION identity,
-   not statement identity. `ordinary-waiver.ts` narrows candidates TWICE: carrier containment, then exact
-   `finding.token === marker.position`. So two findings inside one statement are still separately waivable when their
-   position tokens DIFFER (`className="rounded-lg shadow-md"` takes two markers), and a site is unwaivable only when
-   two findings share the same carrier AND the same token — then every marker is `over-broad` and suppresses neither,
-   and adding markers makes it worse. `checkpoint-2026-09-05.md` states this as "two findings per statement", which is
-   the approximate form; the predicate above was measured against the corpus by planting real markers (#1954: 37 of 40
-   multi-finding rows waivable, 3 not). **The shape that produces it** is a report call inside a loop, or one shared
-   anchor spread into two report calls — both emit byte-identical findings. An ordinary policy with such a shape has no
-   working door and was mis-authored; fix by reporting once per call site or giving each finding its own subject
-   anchor. **Prove discrimination once per family with a two-command control:** flip the marker's position in a
-   `cp`-backed copy, run the family test, expect `AUTHORITY ALARM … names a dead position`, then `mv` the backup back.
-   That converts "my arm is green" into "my arm discriminates".
-
-   **Where the protection stops.** Completion-bound alarms are suppressed for a WITHHELD or wrong-grant-authority
-   owner, which never completes, so a real-tree run can hold a dead marker silently where the proof corpus cannot. And
-   `runPass` pins `knownPolicies: [policy]` with `reviewedGrants: []`, so a reviewed-grant policy cannot prove grant
-   consumption in a module row at all; that belongs in a family test with a real grant table (§4.3).
-
-   **Counting arms is a reading task.** A grep for `@orb-waive <id>(` overcounts: it matches sibling policies'
-   negative arms, live product-tree waivers, and a module's own header prose promising a spelling. A marker naming
-   your policy inside another policy's negative arm is not your arm.
-
-3. **Reviewed-grant policies** prove exact `(subject, operation)` identity beside the family: the intended row is
-   consumed exactly once; a wrong operation stays effective; a renamed/missing subject stales the row or withholds
-   (`home-client-family.test.ts`). Generic grant-table validation is `tests/tooling/verify/lib/reviewed-grants.test.ts`.
-
-4. **Hard policies** have no waiver arm. **Warning policies** keep their warning + `workItem` in proof and real run;
-   debt is never converted into a grant to make a run clean.
-   5b. **WHAT THE PROOF RUNTIME STRUCTURALLY CANNOT EXPRESS — three gaps measured 2026-09-11; the FIRST CLOSED
-   2026-09-12. Do not invent a `mustFlag`/`mustPass` row for any of them.**
-
-   - ~~**There is NO "must refuse" arm.**~~ **CLOSED at `f96f45fb4` (#1977, lane `p-proof-soundness`): `mustRefuse`
-     is the THIRD PROOF ARM.** The gap was real: `toolFailure` runs BEFORE the arm verdict and fails on a
-     non-success owner status, so an input whose CORRECT outcome is a refusal — a blindness tripwire firing, a
-     declared resource coming back broken, a receipt resolving zero members — was neither `mustFlag` (no finding)
-     nor `mustPass` (the owner did not succeed), and every pin for it lived in a vitest family test, which
-     `tests/tooling/**` being `--full`-only (#1842) keeps off the bar `pnpm check` runs. The arm's contract, read off
-     the code (`contract/policy.ts`, `lib/policy-validation.ts`, `ops/policy-conformance.ts#refusalFailure`,
-     `ops/policy-conformance-stage.ts`): **OPTIONAL** (a refusal is not a property every policy has; absent is
-     byte-identical to before) but **an EMPTY array is refused at load** (`mustRefuse: []` would read as "has a refusal
-     arm" while proving nothing); every row **REQUIRES `expect.messageIncludes` and FORBIDS `count`/`line`/`token`**
-     (there are no findings to describe, and a row not naming the refusal TEXT passes on ANY refusal — a fixture that
-     fails to parse, a population admitting nothing — which is the dead-arm shape the arm exists to end); the verdict
-     is the other arms' INVERTED — the row holds when the pass throws, tool-errors, alarms or returns a non-success
-     owner AND that text contains the substring; the stage prints refusal rows as their own count so a two-arm total
-     can never hide them; `gate-modernization` ARM D treats a ledger path inside a `mustRefuse` fixture as a fixture,
-     like the other two arms. **Worked case on the tree: `policy-soundness`'s own blindness tripwire** — its own path
-     carrying a descriptor the recognizer does not admit must REFUSE with `BLINDNESS`, not report zero.
-     **What is still owed:** the #1977 worked case (`warning-code-coverage`'s tuple planted outside its population →
-     `members: 0 / unresolved: 1`) still lives only as two hand-measured messages in its header, and the refusal pins in
-     `bus-pair.test.ts` / `bus-fact-health.test.ts` are still `runPolicyPass` pins off the bar — migrate each onto a
-     `mustRefuse` row (board #2109). A refusal a row CANNOT express (one needing `reviewedGrants` or a real grant table)
-     stays a family-test pin, and the header says which. **THE FOURTH `mustRefuse` RULE (#2109 item 3, #2111):** a row's
-     `messageIncludes` may not sit inside the runner's generic refusal ENVELOPE — `lib/policy-refusal-envelope.ts`,
-     DERIVED from `contract/policy-conformance.ts#POLICY_REFUSAL_PREFIXES`, `contract/policy-pass.ts#POLICY_PASS_REFUSALS`,
-     `contract/gate-authority.ts#GATE_AUTHORITY_ALARM_KINDS` and the phase/status tuples; the loader refuses such a row
-     (`"ERROR"`, `"OWNER"`, `"resolved zero members"` all refuse). Name the text the policy's OWN refusal emits — its
-     receipt source, its throw. The four rules are pinned per case in `tests/tooling/verify/lib/policy-loader.test.ts`.
-     **AND WHO OWES A REFUSAL PROOF (`policy-refusal-coverage`, #2184, at Verify):** a final policy that declares `facts`
-     or `resources` rests its verdict on a population it does not compute, so it owes one — a `mustRefuse` row, or a
-     family test under `tests/tooling/verify/gates/` that IMPORTS the module and drives it through `runPolicyPass`,
-     asserting what a row cannot express (an owner status, an empty finding set, the phase it refused in). One or the
-     other, never neither. A policy with `facts: []` and `resources: []` computes its population from the corpus and is
-     not asked.
-   - **CLOSED 2026-09-11 (#1966, `178ee3a4c`) — a policy that files NO semantic receipt now REFUSES.**
-     `policyReceiptFailures` (`lib/policy-pass.ts:701-732`) reds on `facts.length > 0 && receipts.length === 0`,
-     so the guarantee is enforced rather than held by per-family convention. The pin in
-     `tests/tooling/verify/lib/schema-fact.test.ts` is inverted to assert the refusal and keeps the old fail-open
-     shape quoted verbatim. **Blast radius was measured ZERO by RUNNING the dispatcher over all 167 final policies**
-     (35 declare facts; all 35 filed ≥ 1 receipt), which is also how the registry fact count was corrected from 7 to
-     **8** — `chrome-registry-completeness` declares both `registry-definitions-chrome` and `tuple-vocabularies`.
-     Three corollaries, each of which cost time:
-     1. **The arm keys off DECLARATION, not consumption** — strictly broader, free, and it does not need the failure
-        function to know whether a fact was actually consumed.
-     2. **A `-health` policy whose job is reporting an empty census must receipt a CONSTANT** (`members: 1` = *I
-        measured one fact*), never the census — otherwise `receiptFailures`' `count === 0` predicate turns its own
-        finding into a tool error and it never reaches its report. That is §12.3's provider-side inversion
-        relocated one layer out, to the consumer. Two such sites exist and BOTH literals are correct.
-     3. **Per-declared-fact CORRESPONDENCE is not buildable, at load time or run time** — and read that word
-        precisely. A receipt is a runtime call and its `source` is FREE TEXT with zero fact-id validation
-        (`policy-pass-context.ts:150,165`); measured 2026-09-11, **17 of the 35 fact-declaring policies already use a
-        source that is not their fact id**, so divergence is the NORM, not an edge (`bus-belt-total` declares
-        `bus-definitions` and receipts `bus-definition-fact`). Tying a receipt to a fact is therefore impossible
-        without a contract change. **What IS buildable and is deliberately not built: a weaker CARDINALITY rule**
-        (`receipts.length >= facts.length`), which reds 0 of 35 today — it would not tie a receipt to a fact, so it is
-        not the shape this section names. Do not read this row as *no stronger predicate exists at all*; read it as
-        *no predicate that establishes correspondence exists*. Nothing today distinguishes an honest constant
-        `members` from a lazy one (#1982).
-   - **A shared provider's population is the UNION of its consumers', so it hands every consumer nodes that consumer
-     may not NAME — and the prescription this bullet carried until 2026-09-12 had the direction BACKWARDS.**
-     `tupleVocabularyFact` declares `{ in: ["@client", "@server", "@contracts"] }`; its four consumers declare
-     `@client`, `@server`, `{ in: ["@server"], under: ["packages/server/src/domain/**"] }` and
-     `{ in: ["@server", "@contracts"] }` — every one a STRICT SUBSET, by construction, because a shareable index has
-     to cover all of them. The earlier text asked for a load-time check that the provider's population is a subset
-     of each consumer's; implemented as written it refuses all four. **The SYMPTOM is real** (`lib/policy-pass-context.ts`'s
-     `relativePath` throws *"source file is outside the effective population"* and `reportFile` throws the finding
-     twin), and the repair is on the CONSUMER side, not a population fence: a home question about a fact-delivered
-     declaration goes through `lib/declaration-home.ts#declarationHome` (the declaration's own path, §12.3), never
-     `ctx.relativePath`; and the refusal DIAGNOSES — when the refused file is admitted by one of the policy's own
-     declared facts, it names the fact and points at `declaration-home` — **BUILT at `f96f45fb4` (#1976)**: the throw
-     now ends *"; it IS inside the population of this policy's declared fact <id>, which is wider than the policy's own.
-     A declaration reached through a shared provider is named with `declarationHome(ctx, file)`"*. Three
-     hand-rolled escapes from this class already live in the corpus (`declarationHome` in two modules,
-     `vocabularyAtHome`'s absolute-path infix in two more), which is the argument for naming it centrally. Same family
-     as #1953 one axis over: there the provider's FAILURE granularity mismatched its consumers', here its POPULATION
-     does.
-
-   **The common shape: the runtime can PRODUCE a behaviour it cannot PROVE.** When you meet one, the honest output is
-   a measured pair of messages in the header plus a row on the board — never a proof row that does not discriminate.
-
-5. **Refusal and receipt controls** wherever correctness depends on a home, provider, resource or derived population,
-   and a proof row cannot express the failure: renamed/removed home, vanished subject, missing/empty/malformed/unresolved
-   resource, incomplete or inconsistent fact, entire-population under a narrowed request, absent or forged receipt.
-   **Since `f96f45fb4` the HOME for these is a `mustRefuse` row in the module (§4.5b) — it runs on the static bar with
-   the other two arms.** A `runPolicyPass` pin in the family test (`bus-pair.test.ts`, `bus-fact-health.test.ts`) is
-   the fallback only for a refusal a row cannot express (one that needs `reviewedGrants` or a real grant table), and
-   the header says which pins are which. A clean zero
-   from a detector that might be blind is not evidence.
-
-   **AND EVERY FINAL POLICY OWES ONE REAL-CORPUS LIVENESS PIN (ruled 2026-09-12, #2149): nothing else distinguishes
-   silent-because-clean from silent-because-dead, and on the clean structure slot that is 228 of 246 finals.** The pin
-   is a virtual overlay on the loaded Project (`project.createSourceFile`, the shared liveness helper) driven through
-   `runPolicyPass` and asserting the policy REPORTS on it — never a working-tree plant, never a fifth `__g_` planter,
-   never a `-health`-only subset or a ratchet. An enforcer arm reds a final policy with no such pin under
-   `tests/tooling/verify/gates/**`; the corpus migrates by family in chunks. The audit that first sized this class at
-   "8 modules" read a VOIDED structure slot (`main-2930600`, 650 planted `__g_` findings taken as controls); a
-   published slot carries no tombstone yet (#2167), so **until it does, check a slot id against the voids in the notes
-   and the board before reading it, and treat any `__g_`/`__dc_` path inside a slot as proof the run overlapped a
-   planter.**
-
-6. **Conversion differential — AND ITS EVIDENCE MAY NO LONGER VANISH (#2000).** This section used to end
-   *“conversion evidence for the landing commit, not standing law”*, which permitted the differential to be run and
-   then retired. **Measured 2026-09-11: of 171 converted policies, ~18 carry a differential in a committed test and
-   19 of 95 conversion commits mention one — and there is no way to tell “ran it and retired it” from “never ran
-   it.”** A rule whose evidence is allowed to disappear and whose execution is unrecorded is indistinguishable from
-   a rule nobody follows. **So a conversion now does ONE of two things, and §8.8 names it in the floor:** land the
-   differential as a committed test, OR state in the commit message that it ran and **what it found** (identical, or
-   the classified differences). Silence is no longer compliance.
-
-   **Why this check is not redundant with the rest of §4.** Every other rule asks whether the new gate is internally
-   sound. The differential asks whether conversion **silently changed what the gate CATCHES**. A narrowed population,
-   a retired arm with no successor, or a stronger reader that no longer matches an old shape produces a module that
-   is sound by every other check and has quietly stopped catching something. **The conformance stage is structurally
-   blind to it** — a proof row rewritten after conversion only proves the new code agrees with itself. It has already
-   happened at the worst possible scale: `caught-failure-ownership`, the program's largest conversion at 336 files,
-   shipped with no differential (#1970).
-
-   **A LEGACY GATE'S CODE WAS OFTEN STRICTER THAN ITS OWN MESSAGE — convert the PREDICATE, then fix the message
-   (measured 2026-09-11, #2000 Tier 1, and it produced the program's first real catch-regression).**
-   `injected-op-caller-param`'s legacy `seenOps.add(…)` sat INSIDE the visitor, behind the entity-id trigger, so a
-   `CALLER_FREE_OPS` row whose op no longer took a branded entity id was reported STALE. Its own message said only
-   *"no domain contract declares an op function type of that name"* — which describes a WEAKER predicate. The
-   conversion implemented the message, and the row now survives forever: a standing caller-free exemption on an op
-   that reaches no tenant data, which is the rot the two-sided ratchet exists to kill.
-
-   **So when a conversion's predicate disagrees with the legacy predicate, the MESSAGE is the thing to fix, not the
-   predicate.** Reading the message instead of the code is how a catch gets lost while every check stays green.
-   General form: **a tripwire must apply the same predicate as the thing it guards, or it is weaker than the
-   exemption it polices.**
-
-   **A CLEAN DIFFERENTIAL OVER AN ARM THE LEGACY SUITE NEVER EXERCISED IS EVIDENCE OF NOTHING — and this is
-   exactly where a SPLIT is riskiest (measured 2026-09-11, #2000 Tier 1).** Four of the eight `-health` split arms
-   guard their `finalize` verdict on a REAL-TREE ANCHOR, and **not one legacy `mustFlag`/`mustPass` example loads
-   that anchor.** So replaying the legacy rows exercises the arm zero times and comes back green whatever the split
-   did to it.
-
-   The assumption this inverts is the dangerous one: the differential feels strongest on a split, because a split is
-   the biggest behavioural change. It is **weakest** there, because **the arms that get carved into a `-health`
-   sibling are the awkward ones nobody wrote proof rows for in the first place** — that is often WHY they were
-   carved out.
-
-   **So a split's differential owes a coverage statement, not just a verdict.** Where a moved arm has no legacy
-   coverage: say so **PER EXAMPLE in the test rather than in prose**, and CONSTRUCT the successor proof from the
-   arm's own trigger conditions instead of replaying. Asserting the zero-coverage fact is what stops the next reader
-   mistaking a vacuous replay for a passing one.
-
-   **This is not hypothetical.** The same Tier 1 pass found a real catch-regression in the one split whose arm WAS
-   exercised: `injected-op-caller-param` populated its census INSIDE the visitor, after the entity-id trigger, so an
-   exemption row whose op no longer took a branded entity id was reported STALE. The `-health` sibling counts every
-   Promise-returning op function type with no entity-id condition, so that row now survives silently — a standing
-   caller-free exemption on an op that reaches no tenant data, which is the rot the two-sided ratchet exists to kill.
-   **A tripwire must apply the same predicate as the thing it guards, or it is weaker than the exemption it polices.**
-
-6b. **The original procedure.** For a converted policy, load the legacy descriptor from the pre-conversion SHA, replay
-every original example through the legacy dispatcher and the same bytes through the final policy, compare findings,
-populations and tool errors, and CLASSIFY each intended difference (split, retired arm, marker vocabulary, stronger
-reader). A retired or merged arm needs a successor proof (`simple-visitors-wave-2.test.ts`, `-wave-4.test.ts`).
-This is conversion evidence for the landing commit, not standing law.
-
-7. **Invented rows owe a planted-break receipt.** Only when a lane adds a NEW row for a NEW property (a per-file index,
-   an absent-subject arm) must it break that property in a scratch copy, show the row went red, and restore. A header that says "this row proves X" for a row never shown to
-   catch X is a defect; a cross-file row whose fixture offsets never overlap is the worked example.
-
-8. **Fixtures — where a proof's files actually go, and why a final policy CANNOT plant in the working tree.**
-   A proof row declares `mode` plus a `files` map of path → content. **The MODULE never chooses the substrate; the
-   runtime does**, from `mode` (`ops/policy-conformance.ts`):
-
-   - `mode: "source"` / `"types"` → `runVirtualExample`. Files are created with `Project#createSourceFile` under the
-     synthetic root `/orb-policy-conformance-<n>` in a project built `useInMemoryFileSystem: true`. **Nothing is
-     written to disk anywhere** — there is no file, not merely no file in the repo. Sources are removed before and
-     after each example, so rows cannot see each other's fixtures.
-   - `mode: "resource"` → `runResourceExample`. A real directory under the OS tmpdir
-     (`mkdtempSync(join(tmpdir(), "orb-policy-conformance-"))`), OUTSIDE the checkout, deleted in a `finally` with
-     `rmSync(root, { recursive: true, force: true })` whether the row passes, fails or throws.
-   - Real-corpus controls are virtual overlays on the loaded Project, never edits to tracked files.
-
-   So **"no planting in the working tree" is enforced by construction, not by author discipline.** A final policy has
-   no filesystem access at all (§12.3 bans reads; there are zero writes across the corpus), and its proof rows cannot
-   reach the checkout even deliberately. The legacy runtime did the opposite — it planted `__g_`/`__dc_` fixtures in
-   the working tree, which is why `check-gates.repo.int.test.ts` is still not concurrency-safe with itself, why it
-   stays the orchestrator's to run during a merge train, and why a live probe was once swept into a commit and shipped
-   a BLINDED gate. Those hazards retire with the legacy suites, not with a rule.
-
-   **The paths in a `files` map are population coordinates, not locations.** `"packages/client/src/features/a/data.ts"`
-   places that fixture inside the policy's declared population; change the path and you change whether the policy sees
-   it at all. That is how a row proves a population fence.
-
-   **This does not change how you probe a REAL file.** Fixtures are for proof rows; probing live behaviour still uses
-   a throwaway scratch path, or `cp f f.bak` … `mv f.bak f` — never `git stash`/`checkout`/`restore` (constitution §4).
-
-   A fixture's relative import that resolves to nothing makes every identity row pass by fail-closure while
-   conformance stays green, so a specifier-resolution control is part of every family floor.
-
-8b. **A PROOF ROW CAN BE GREEN FOR THE WRONG REASON, BECAUSE THE VIRTUAL PROJECT RESOLVES A REAL PACKAGE DOOR
-DIFFERENTLY THAN THE TREE DOES (measured 2026-09-12, and it nearly shipped a repair that killed a live
-policy).** §5 already says conformance runs on `useInMemoryFileSystem: true` with no `node_modules`. The
-consequence nobody had drawn: a fixture naming a package specifier resolves to NOTHING, which the origin
-readers classify as `external-door` — **a clean, resolvable answer**. On the real tree the same specifier
-resolves into the installed package's own `.d.ts`, whose declaration shape may be one the reader REFUSES.
-
-Worked case: `no-raw-id`'s Zod door. zod 4.4.3's `index.d.cts:1,3` is
-`import * as z from "./v4/classic/external.cjs";` then `export { z };` — a namespace-forwarding export
-specifier that `reference-fact-module.ts:185` refuses as
-`unsupported | local export z forwards an imported binding without a proven canonical export`. Routing the
-policy's door through the shared reader took it from **21 real-tree findings to 0** in `packages/contracts`
-alone, corroborated by 21 `stale ordinary waiver … no live finding bound` alarms proving it used to bite
-there. **Every conformance row stayed green**, because in the virtual project "zod" resolves to nothing and
-lands as `external-door`.
-
-**So an identity row that names a REAL package door proves nothing about that door until it is driven
-against the real program.** Two rules follow:
-
-- **Plant the package** (`gates/_proof/react.ts`, `client-vendors.ts`, `zustand.ts` are the shape) so the
-  specifier resolves to a declaration whose SHAPE matches what the installed package actually ships — not a
-  convenience stub with a simpler shape than the real thing.
-- **Before crediting a door-identity claim, measure it once against the real tree**, the way §8.8's
-  `check:structure` line exists for the withheld-policy class. The same blindness, one layer over.
-
-**AND THE AMBIENT-GLOBAL SIBLING — SAME BLINDNESS, AND THE CLASS IS TWO ROWS, NOT THE CORPUS (#2030, CLOSED at
-`e0b83327c`).** `lib/reference-fact-global.ts:63-69` trusts a global declaration ONLY when it lives under
-`node_modules/typescript/lib/lib.*` or `node_modules/@types/`. The proof workspace has no `@types/node`, so a bare
-`process` in a fixture binds nothing, the resolver takes its FAIL-CLOSED `unreadable` arm, and the policy reports — the
-same outcome and the same finding COUNT as the precise ambient branch the row was written to exercise.
-
-**THE FIRST VERSION OF THIS PARAGRAPH SAID “every AMBIENT-spelling proof row in the corpus” AND THAT WAS FALSE.**
-Measured off the LOADED corpus by two independent methods with planted controls: **2 defect rows, both in
-`sole-env-reader`, out of 2,185.** The reason the blast radius is small is the sharp part — **the proof workspace's
-in-memory project DOES load `lib.dom`/`lib.es`, and TypeScript's own lib files ARE one of the two trusted homes**, so
-`window`, `localStorage`, `Math`, `Intl` and `matchMedia` rows reach the precise branch for real. **Only NODE globals
-fail, because `@types/node` is the one missing declaration.** The class is `@types/node`-shaped, never ambient-shaped.
-
-Note the shape: this is NOT §4.1 (nothing is over-narrow) and NOT the #1990 dead arm in its usual form. It is a row that
-names one branch and exercises another, invisible to `check:policy-conformance` by construction because **both branches
-report**. In `sole-env-reader` a three-way throw probe showed the precise ambient arm reached by **ZERO** rows.
-
-**SIZE A CLASS LIKE THIS BY INSTRUMENTATION, NEVER BY GREPPING FIXTURES — the two methods disagreed by 6.5×.** A
-SPELLING sweep over fixture text found **13** candidates; instrumenting `resolveGlobalMemberOriginWith` and running the
-FULL conformance pass — **293 resolver calls attributed across 202 rows, 0 unattributed** — found **2**. Spelling
-LOCATES; the resolver DECIDES. Attribute calls to rows through the per-row virtual root
-(`/orb-policy-conformance-<N>`).
-
-**The fix is to plant the declaration, never to widen the trust rule.** Widening
-`reference-fact-global.ts`'s trust rule so fixtures resolve would weaken a real identity fence for test convenience and
-is forbidden. Keep the UNDECLARED spelling as its own row proving fail-closure, and pin the name comparison with a
-planted lookalike global. **A single row that passes under both branches proves neither.**
-
-**AND THE PLANT MUST MATCH THE PACKAGE'S REAL SHAPE — THIS RULE WAS BROKEN INSIDE ITS OWN FIX (#2037).** The first
-`gates/_proof/node-types.ts` declared a script-global `declare var process` and its header asserted that matched what
-`@types/node` ships. It does not: `@types/node@26.1.1`'s `process.d.ts` declares it as a **global augmentation inside
-`declare module`** (`:1`, `:139-140`, `:2212`, `:2214`). `isAmbientGlobalDeclaration` has TWO acceptance branches, so
-the simpler stub resolved cleanly through the branch the live tree never uses — again invisible to conformance, because
-both branches resolve. **The tell: a stub that is easier to write than the real declaration is usually taking a
-different branch.** The landed plant carries the augmentation form for the SUBJECT and leaves the lookalikes
-script-global on purpose.
-
-**AND THE "BOTH BRANCHES" HALF OF THAT SENTENCE WAS ITSELF FALSE — corrected 2026-09-12 (#2037).** The predicate is
-`trusted && isDeclFile && (scriptGlobal || isGlobalAugmentation)` and `||` **short-circuits**. The planted subject,
-both lookalikes AND the installed `@types/node/process.d.ts` all carry **zero top-level import/export declarations**
-(the package's imports sit inside `declare module`), so `scriptGlobal` is true for every one of them and the
-augmentation branch is **never evaluated by any proof row**. The plant's SHAPE claim is correct and stands; the branch
-claim was not, and a branch nothing reaches is a branch that rots silently. A declaration file reaches the augmentation
-branch only when a **TOP-LEVEL import** makes it a module, and that fixture is now pinned where the claim belongs — on
-the reader, at `tests/tooling/verify/lib/reference-fact-origin.suite.test.ts`, with an untrusted-path control beside
-it. **Writing "this fixture exercises branch B" is a claim that owes a control that dies without branch B**, exactly
-like a §4.1 narrowing.
-
-9. **One family test may cover several siblings**; a file per gate is unnecessary. **A conversion no longer owes a
-   family test for its DECLARED rows** — the conformance stage (§5) runs every final policy's `mustFlag`/`mustPass` on
-   the static tier. A family test is owed only for what a row cannot express: the §4.2 identity arm through
-   `runPolicyPass` (which asserts `waivedFindings === 1` and `authorityAlarms === []`, neither of which a `mustPass`
-   row separately asserts), §4.3 grant identity, the §4.5 refusal/receipt pins a `mustRefuse` row cannot carry (those
-   that need a grant table), and the §4.6 differential. Several
-   converted modules have no family test at all and therefore no home for those pins; that is the remaining debt, not
-   the declared rows. **The proof arms are iterated through `lib/policy-proof-rows.ts#policyProofRows`** — the runner,
-   the stage and every family-test sweep; a hand-rolled `[...mustFlag, ...mustPass]` is a sweep that silently skips the
-   third arm (nine were widened 2026-09-12, #2111).
-
-## 5. The runtime you have (Phase A landed 2026-09-11, `d21ece8d8`)
-
-This is no longer work; it is the substrate every lane now builds on. What it guarantees:
-
-- **One front door.** `pnpm check:structure` and the scoped door load BOTH contracts in one invocation over one
-  Project, classify each module by exact contract identity (a branded `defineGate` result vs a validated
-  `GateDescriptor`; a lookalike or duplicate id is a tool error), and emit ONE artifact that `check:show` renders.
-  Exit classes unchanged: 0 clean, 1 violations, 2 tool error, 3 misuse.
-- **A converted policy is LIVE the moment it lands.** It no longer runs only where a family test imports it.
-- **Its proof rows run on the commit bar.** `structure:policy-conformance` is a STATIC stage (in `pnpm verify --list`,
-  under changed/static/push/full, whole-only) that runs `verifyPolicyProofs` over every final policy — 1,510 rows
-  across 162 policies in ~11 s at landing; re-derive, and since `f96f45fb4` the stage prints THREE arms
-  (`mustFlag`/`mustPass` proof rows and `mustRefuse` refusal rows, counted separately). **So a conversion no longer
-  owes a family test for its DECLARED rows, refusals included.** A family test is still owed for what the rows cannot
-  express: the §4.2 identity arm driven through `runPolicyPass`, §4.3 grant identity, a §4.5 refusal/receipt pin that
-  needs a grant table, and the §4.6 conversion differential.
-- **Marker routing is fenced:** legacy `@orb-gate-ignore` reaches only legacy owners, `@orb-waive` only final ordinary
-  policies, reviewed grants only final reviewed-grant policies.
-
-**Read the conformance stage's exit as a real verdict — it is GREEN as of `097958302`.** It was never baselined red
-the way the whole-tree checks are; it exited 2 only while fact-provider defects were open, and those are closed. A red
-here is a regression.
-
-**But green is a FLOOR, not the bar — see §5b.** The stage proves that each module's DECLARED rows execute and pass.
-It cannot tell you the module declared the RIGHT rows, used the smallest complete contract, named its family honestly,
-or told the truth in its `message`. A module with two trivial rows and a lying message sits at 0 failures. Three did
-(#1954).
-
-**AND IT IS STRUCTURALLY BLIND TO A WHOLE DEFECT CLASS — a policy at 0 failures can be FULLY WITHHELD on the real
-tree.** Proof rows run on virtual projects (`useInMemoryFileSystem: true`, `ops/policy-conformance.ts`) with no
-`node_modules` and no real repo layout, so **no fixture can resolve an import into an installed `.d.ts`, express a
-symlink, or reach a real absolute path.** Any defect whose trigger is one of those is invisible to this stage by
-construction — and this stage is what lanes use as their verdict. Measured 2026-09-11: `freeze-provenance-write-pairing`
-sat at 0 conformance failures while reporting NOTHING on every real-tree run (#1972).
-
-**The only instrument that asks is `pnpm check:structure`, and the answer is two numbers in its tail:**
-`N tool error(s)` and `N withheld`, plus the per-policy `⚠ … owner incomplete … WITHHELD by authority` line. The
-cheap habit for a converted module is to read those two numbers once, before and after. §8.8 names that run in the
-per-conversion floor; it costs ~4 min / 6.5 GB, no lane was executing it, and that economy is exactly what let a dead
-gate ship (#1973, and #1964 for the gate-scoped door that would make it affordable).
-
-**A fresh-context verifier's "what I did NOT cover" section is therefore load-bearing, not a footnote.** The batch
-verifier declared *"I did not run `pnpm check:structure` … the real-tree finding delta is therefore UNMEASURED by me"*
-— and the defect landed precisely there. A CONFIRMED verdict covers what its report says it measured, and nothing
-its own not-covered list disclaims.
-
-## 5b. PRISTINE — the bar a converted module is actually held to (owner, 2026-09-11)
-
-> *"Pristine does not mean the number goes to 0. It means the gates that are new all need to maximally be set, and
-> proper, and not violate the rules that we set forth — so when we convert legacy shit we can point to them and say:
-> see, go look how they do it."*
-
-**The test is not "does it pass." The test is "can I point a conversion lane at this module and tell it to copy?"**
-A module that passes conformance but cannot survive that sentence is NOT done, whatever the verdict says. This matters
-more than it sounds: the exemplars are the transmission mechanism for the whole remaining corpus, so a defect in a
-converted module does not stay in that module — it gets copied 106 times.
-
-A converted module is pristine when all seven hold. The first six are the contract; the seventh is why the bar exists.
-
-1. **Smallest complete contract for its evidence plane** (§3's table). Nothing declared that it does not use: no
-   `facts:` entry it never reads, no `ctx.checker()` on a pure-syntax gate, no `execution: "entire-population"` where
-   the verdict composes over a subset. An over-declared contract teaches the next lane to over-declare.
-2. **The `message` is TRUE of what the code flags.** Every context clause is a claim — "in `className`", "in a feature
-   surface", "at a call site" — and it must match the population, the carrier and the report call. Three modules
-   claimed "in className" and did not mean it (#1954); each was green.
-3. **`fix` names the exact waiver spelling**, for every ordinary policy, read off the `report.node` call and never off
-   the message. The position is routinely not what a reader would call the offense (§3), so a missing or guessed `fix`
-   makes the policy unusable by the person it fires on.
-4. **The family is a real shared `lib/` reader** (module + function, named in the header) or a declared singleton with
-   its reason. A theme, a filename prefix and a shared topic are not families. **THE IMPORT HALF IS NOW MECHANIZED**
-   (#2187, `policy-family-readers`): a member of a multi-member family that imports no `tooling/src/verify/lib/`
-   module at least one SIBLING imports is a live finding at its own `family` property — 11 members across 6 families
-   at mint. The reader's FUNCTION, whether the header names it, and whether a singleton's reason is a reason remain
-   the hand read this item describes; the policy holds the half a machine can hold and nothing more.
-5. **The header records the decisions**: the family and its reader, the population port (byte-identical, or the
-   intentional correction and why), and the marker census if a private vocabulary was retired. **Censusing this
-   criterion is a HAND READ over the header span, because every instrument tried lies in one direction or the
-   other** (measured 2026-09-12, ledger rows `:189`/`:238`/`:268`): a word-match over the whole file OVER-reports
-   legacy-SHA carriers by 78% (incident cross-cites and ruling shas read as port citations); a bare
-   `[0-9a-f]{7,40}` UNDER-reports because it EATS the rev-spec caret — `section-registry-completeness`'s
-   `(dd862e988^)` is the measured miss — and a length-pinned pattern drops whichever of the 9-char and 40-char
-   spellings it was not written for. Teaching one direction of a two-directional failure is the defect; state both,
-   plant a control for each, and read the field by hand.
-6. **The proofs meet §4 in full**: legacy rows carried; `expect` on every `mustFlag`; a row that dies without each
-   narrowing (§4.1); the positive identity arm for every ordinary policy (§4.2); refusal/receipt pins where the verdict
-   depends on a derived population (§4.5).
-7. **Nothing forbidden survives behind the contract** — no private reader, walk, cache, exemption table, scope
-   predicate or filesystem read, and none smuggled into a `lib/` helper that only this module calls. A private reader
-   wearing a shared reader's clothes is the same rot with a better address.
-
-**Measuring this is a READING task and a script can only bound it.** Items 1, 4, 6 and 7 are partly greppable; items 2,
-3 and 5 are judgment about whether prose matches behavior, which is exactly where a mechanical sweep returns a false
-clean (playbook §5). Audit it with `verifier`-class lanes at family granularity, requiring a per-module verdict line so
-a miss surfaces as a missing row rather than hiding inside "none found". Gaps are defects and get rows; they are not
-conversion debt to be carried forward, because every one of them propagates.
-
-**THE SOUNDNESS FAMILY IS SIX FINAL MODULES (#2111, `a1c848001`; two more at Verify under #2184/#2185):**
-`policy-soundness` (E1–E7 — closed classes held at zero by the family's real-corpus pin; E5's import member is the one
-that lives in `policy-legacy-imports`, corrected by the fresh verifier against the audit's own §8 text),
-`policy-proof-expectations`, `policy-waiver-identity`, `policy-waiver-spelling` (all `hard`/`error` since #2025),
-`policy-legacy-imports` (the open IMPORT classes) and `policy-binding-resolution` (the open RESOLUTION class). **An open
-class lives in its own module so the closed-class pin stays honest**; each open module's live findings are compared
-against a second opinion the arm did not compute — and that second opinion is SYNTACTIC (a call in code position),
-never a regex over module text, which counts the arm's own fixture strings. **The family's real-corpus arm is a
-CLASSIFICATION COMPLETENESS CHECK, never a per-member assertion list** (`bba5101db`, 2026-09-12): every member of
-`FAMILY` must be in `openWithOpinion` (an open class, held against its second opinion) or `closedAtZero` (a closed
-class pinned at zero), and a member in NEITHER fails the test. The per-member list is what rotted: two new
-members joined the family behind a 12/12 green because the arm asserted on only one of them, and both carried a
-gap (`policy-refusal-coverage` with no `fix` spelling and no §4.2 arm; `policy-fixture-substrate` blind to a bracket
-respelling of its own fixture). The durable fix for a partially-covering arm is a completeness check over the
-membership. The ordinary member's positive §4.2 arm lives in its module; its NEGATIVE arm lives in the family test on
-purpose — inside a gate's own rows `knownPolicies: [policy]` rides the unknown-policy short-circuit and proves nothing.
-
-## 6. What is done and what remains
-
-**Done (see the family records for receipts):** the 14 mechanical singletons; id-brand flow (`schema-branding`,
-`brand-in-name-position`, 73 markers translated); schema-fact consumers (`db-enum-from-tuple`, `nullable-column-
-inequality`, `ownerid-registry`, `schema-banned-shapes` + `contract-banned-shapes`; `asset-refs-fk-coverage` retired
-into `check:asset-refs`); registry family (9 → 11, two reviewed-grant splits); canonical-origin client (12) and
-server/test (14) families with seven shared readers; sanctioned-home server (10 → 11, 40 grant rows) and client (14, 30
-rows) families; the bus pair (`user-bus-coverage` + `bus-definition-belts` → 6 hard policies, generic
-`bus-producer-coverage`, the overload-aware origin reader); ordinary visitors (10 → 15); resource layout/size (6:
-`feature-owns-definition`, `package-layout`, `ui-exports-map-complete`, `server-layout`, both `component-size`);
-2026-09-10/11 waves: `tooling-size`, `commented-code`, `types-in-contract`, `verb-naming`, `test-determinism`,
-`member-card-clamped`, raw-CSS-literal family (spacing/typography + `-health` siblings), ui-token-surface (3), contract
-shape (6 incl. `injected-op-caller-param` split), tenancy family (`table-scoping-class` + 3 owner-scoped), CT/story
-harness (4 incl. `ct-poll-schedule-and-paint` split), `verify-registry-parity`, `depcruise/eslint-grant-liveness`,
-`external-id-single-writer` pair, and the four simple visitors of 2026-09-11 (`no-default-props`, `test-no-stubs`,
-`no-form-state-in-useeffect`, `persist-partialize-and-total-migrate` with its ARM A retired into
-`no-raw-zustand-persist`).
-
-**Remaining: 60 modules at the 2026-09-12 evening roster, 58 after `97e68be91` converted the config-liveness pair (re-derive with `pnpm check:policy-conformance`, never quote this). The "two are `O`, the rest `X`" letters this sentence carried were a RESIDUAL of the 2026-09-05 census, which lettered only 27 of the 60; measured per row on 2026-09-12 by `cb-v-authority-census` (`../reviews/gate-runtime/v-authority-census-2026-09-12.md`): 3 `O` · 8 `H` (no gate-owned exemption artifact — see §7's notation) · 4 `MI` · 6 `B` · the rest `X`, with the denominator stated as CONVERTIBLE + REFUSED (`no-blanket-suppression` is the one standing refusal). The `X` majority converts through AUTHORITY MIGRATION (#1922), read per row from `exception-authority-census.md` re-derived against the tree and priced from that report's §5 chunks C0–C9. THE PER-GATE BLOCKER IS NOT LISTED HERE — it is in
-[`uncovered-gate-conversion-census.md`](../reviews/gate-runtime/uncovered-gate-conversion-census.md), one row per gate,
-and that document is the Phase D ordering source.** The shape below is for dispatch planning only; no bucket count in
-it is current.
-
-| Bucket | Lane class | |
-| - | - | - |
-| resource-backed (`fsBacked`) run/visit/file gates: CSS family, config liveness, Base UI + installed/generated, documents/registries/ledgers, `db-structure`, the test-presence trio, `tooling-instrument-proof` | executor per family, as each capability lands (#1930) | |
-| run-only whole-population evaluators | executor (Opus) — most want `evaluate` on a provider that already exists | |
-| direct-walking visitors and file hooks | executor — inversion into visitors + ancestor checks, state into `create`, markers translated in-commit | |
-| ~~the 13 ruled mixed-hook modules~~ **ALL CONVERTED 2026-09-12** (32 policies; two ruled arities amended on the tree's evidence — `ui-variant-axes-stamped`'s baseline was `{}`, `no-inline-union-redecl`'s exemption table was `{}`) | done; see §12.6 | coupled sites |
-| self-policing gates that read the gate corpus (`enforcement-registry-parity`, `gate-ignore-inventory`, `finding-overload-provenance`, `gate-modernization`, `dangling-refs`) | runtime lane; two of them retire at legacy deletion rather than converting | |
-
-**A FILESYSTEM TEST IS NOT A CONVERTIBILITY TEST, and neither is `gate:contract`.** Measured 2026-09-11: 60 of the 108
-import no `node:fs`, reference no `node_modules`, and reach no fs-touching `lib/` reader — and that says nothing about
-whether they can convert. The census's blockers are SHARED READERS and GRANT MIGRATION, which no `fs` probe and no
-shape check can see: a module marked `X` there carries a gate-local table, sanction, deferred row, stale arm or custom
-marker, and its conversion needs a grant home before it needs a lane. `gate:contract`'s simple tier shape-matches the
-descriptor literal and is blind to what a gate READS. **Route Phase D families from the census, never from a grep.**
-Its own rule is the one that binds: *a row remains blocked when the required reader or ResourceHost fact does not yet
-exist.*
-
-## 7. What constrains any order
-
-**The SEQUENCE is not here.** It lives in [gate-runtime-orchestrator-playbook.md](gate-runtime-orchestrator-playbook.md)
-§2, which is the one home for phase order and moves as the owner rules on it. This section carries only the hard
-dependencies that constrain ANY sequence, because they are law rather than scheduling:
-
-- The mixed front door (§5) precedes everything. Until it lands, a converted policy runs only where a committed family
-  test imports it, so "converted" does not mean "enforcing".
-
-- **No gate converts on a resource kind before that kind lands** (#1930). Each kind ships as a provider with
-  ready/missing/empty/unresolved receipts and its own controls.
-
-- A conversion lane translates its own legacy markers in the SAME commit — comment-only edits under `packages/**` and
-  `tests/**` are inside that lane's fence — so the converted gate is green on the live tree at landing. Marker
-  translation is conversion work, never a separate final-launch lane. Grammar and binding:
-  `ordinary-waiver-source-migration.md` §"Exact central grammar".
-
-- **A GRAMMAR'S MARKERS TRANSLATE ONLY WHEN ITS OWNING GATE IS ALREADY FINAL, and the runtime will not tell you
-  otherwise.** Marker routing is fenced (§5): the legacy grammars reach only LEGACY owners, `@orb-waive` only FINAL
-  ordinary policies. Translating a marker whose gate has not converted loses the legacy suppression AND binds the new
-  marker to nothing — silent in both directions, because neither engine reports a marker addressed to the other's
-  world. This is why marker translation rides WITH a conversion rather than running ahead of it, and why a standalone
-  backlog lane must check each grammar's owner before touching a site. Measured 2026-09-11: five of the eleven custom
-  grammars still had LEGACY owners (`@swallowed-ok`, `@sub-floor-ok`, `@surface-focus-elsewhere`, `@first-boot-only`,
-  `@over-art-plate-ok`), and `@finding-overload-ok`'s delete-with-the-gate disposition means its 24 sites cannot be
-  removed ahead of that gate either.
-
-- **"THE MARKERS" IS NOT ONE THING — THERE ARE NINE KINDS OF IGNORE, AND EACH LEGACY GATE OWNS ITS OWN PASS.** This is
-  the single most miscounted thing in the program (owner correction 2026-09-11, after the orchestrator measured TWO
-  spellings and reported the backlog closed on #1584). A census of one grammar tells you nothing about the others,
-  because **a legacy gate implements its own marker parser, its own consumption map and its own stale sweep** — the
-  disposition table in `../reviews/gate-runtime/ordinary-waiver-source-migration.md` §"Closed 11-grammar disposition"
-  names each one by `file:line`, and `exception-authority-census.md` names each parser receipt again. The whole point of
-  the final contract is that this per-gate ownership **ends**: §12.5, no gate-specific exemption grammar, gate modules
-  receive neither grant tables nor marker parsers.
-
-  **The `uncovered-gate-conversion-census.md` authority notation is the per-gate classification: `O` ordinary shared
-  marker · `X` gate-local table, sanction, deferred row, stale arm OR custom marker · `MI` marker-immune · `B` baseline
-  ratchet · `H` HARD — no gate-owned exemption artifact of any kind (no table, no zone, no custom grammar, no
-  baseline, no marker door; added 2026-09-12 because the four-letter set forced eight such modules into `X` and
-  priced them as authority work they do not owe).** A gate marked `X` has something gate-owned that must find a
-  central home before it converts. Read your gate's row — and read the MODULE, because a comment-justified bare
-  `readonly string[]` path subtraction (`test-presence-client.ts:20`, `data/trpc.ts` by name, no stale arm) is
-  invisible to both censuses and to a skeleton read.
-
-  | # | Kind | Spelling / home | Reaches | Disposition |
-  | -: | - | - | - | - |
-  | 1 | central LEGACY marker | `@orb-gate-ignore <gate>`; parser `lib/gate-ignore.ts:10-43`, consumption `lib/pass.ts:192-234`, auditor `gate-ignore-inventory.ts` | LEGACY owners ONLY | translate per converted owner; parser + auditor delete at Phase F |
-  | 2 | central FINAL waiver | `@orb-waive <policy-id>(<position>): <reason>`; `contract/ordinary-waiver.ts` + `lib/ordinary-waiver.ts` | FINAL **ordinary** policies ONLY | the one surviving vocabulary |
-  | 3 | TWELVE gate-owned CUSTOM grammars (eleven in both censuses; the twelfth, `no-test-fabrication`'s `FABRICATION-OK`, was in NEITHER and carries ~424 live anchored markers in 197 files — 2.7× the other eleven together, found 2026-09-12) | each gate's own regex + maps + stale loop (receipts in both censuses) | that gate only | 7 CENTRALIZE · 3 DELETE EMPTY · 1 DELETE WITH ITS GATE · 1 TRANSLATE WITH ITS GATE as its own lane (C8), positions derived from the converted policy's reported `token` — the grammar has no `(position)` |
-  | 4 | `markerImmune` (`MI`) | `contract/gate.ts:181-194`, a legacy DESCRIPTOR door | refuses every marker | deletes with `GateDescriptor` — authority is required data on `GatePolicy`, so a hard policy has no parser door BY CONSTRUCTION |
-  | 5 | reviewed grants | typed central `(policy, subject, operation)` + `why`/`endsWhen` | FINAL **reviewed-grant** policies ONLY | 97 `ExemptionTable` decls / 73 files / 319 rows · 20 equivalent non-`ExemptionTable` collections / 79 rows · 25 `SANCTIONED_HOMES` tables / 42 rows (#1922) |
-  | 6 | baseline ratchets (`B`) | 9 tracked `*.baseline.json` | their own gate | retire to a fix, an exact grant, or `workItem` warning debt |
-  | 7 | **native tool directives — NOT an Orb waiver** | `biome-ignore` / `eslint-disable` / `@ts-expect-error`; parsed by `suppressions.ts:20-35`, shared carriers with `no-blanket-suppression` | neither engine | **EXPLICIT NON-MIGRATION.** 274 file rows / 572 occurrences. Do NOT route these through `ordinary-waiver.ts` |
-  | 8 | `@public` | push-tier reader for `orphan-export-ratchet` | that ratchet | **OUTSIDE this migration.** A hard semantic fact, not a waiver |
-  | 9 | the AST lens's own `@swallowed-ok` | `tooling/src/ast/ops/swallowed.ts:32-43,149-193` — a SECOND consumer of a spelling a gate also reads | the lens, on demand | **explicitly NOT an alias.** Translating the six shared source files can silently change the LENS verdict; resolve it as its own migrate-or-retire decision |
-
-  **So a marker census names its grammar, its carrier test and its universe, or it is not a census — and it ships a
-  positive AND a negative control in the same invocation.** Measured 2026-09-12: a loose `grep -F "// @opener"`
-  reports **86** central markers where the anchored predicate reports **10**; the 76 are fixture strings inside gate
-  proofs. The honest
-  marker-form predicate is a comment whose CONTENT BEGINS with the opener (`^\s*(//|/\*|\{/\*)\s*<opener>`) — the same
-  fence §"Exact central grammar" states as *"a spelling inside a string, template, JSX text, regular expression, or
-  later in explanatory prose is a mention, not a marker."* Counting mentions instead of markers inflates every
-  grammar, because each converted gate's header PROSE names the retired spelling it no longer parses, its `fix` names
-  the new one, and its proof fixtures carry both as strings.
-
-  **Live custom-grammar census, marker-form, measured 2026-09-11 evening (re-derive; never quote).** Baseline is the
-  census vector `70, 2, 24, 20, 31, 0, 0, 8, 2, 1, 0` = 158 custom openers + 633 central = 791.
-
-  | Grammar | live | census | owner FINAL? | state |
-  | - | -: | -: | - | - |
-  | `@foreign-id-ok` | **0** | 70 | yes | CENTRALIZED |
-  | `@owner-scope-ok` + `@owner-scope-write-ok` | **0** | 51 | yes | CENTRALIZED |
-  | `@nullable-cmp-ok` | **0** | 1 | yes | CENTRALIZED |
-  | `@sub-floor-ok` | 0 | 2 | yes (`sub-floor-disclosure`, split at `6563946a0`) | CENTRALIZED 2026-09-12 (2 = 2 bind) |
-  | `@swallowed-ok` | 0 | 8 | yes (`detached-work-traced`, split at `1e81658b4`) | CENTRALIZED 2026-09-12 (5 bind); kind 9 (the AST lens) is a separate consumer and was left untouched — its own migrate-or-retire decision |
-  | `@surface-focus-elsewhere` | re-derive | 2 | yes (`surface-a11y-focus`, converted at `ff07e1302`) | translated with its gate; verifier `cb-v-night-conversions` confirmed the family — re-derive the count |
-  | `@finding-overload-ok` | 21 | 24 | n/a | DELETE with its gate; never translate |
-  | `@owner-scope-upsert-ok` · `@over-art-plate-ok` | 0 | 0 | — | delete the empty grammar at Phase F (`@first-boot-only` already deleted at `6563946a0`) |
-
-  **What is parked today (re-derived 2026-09-12 evening; the earlier "12 parked, four owners still legacy" sentence
-  is refuted — `sub-floor-disclosure`, `detached-work-traced` and `surface-a11y-focus` are all FINAL and their
-  grammars measure 0 / 3 / 0):** `@finding-overload-ok` (21, DELETE with its gate), `@swallowed-ok`'s 3 survivors
-  (kind 9 — the AST lens's own consumer, its own migrate-or-retire decision, NOT a parked translation), and
-  `FABRICATION-OK` (row 3 above, translates with `no-test-fabrication` as chunk C8). The fence above is still the
-  reason a grammar waits for its owner: translating ahead loses the legacy suppression AND binds the new marker to
-  nothing, silently in both directions.
-
-- **THE MARKER BACKLOG IS NOT A BACKLOG — it is one conversion.** Measured 2026-09-11 over the tracked `.ts`/`.tsx`
-  universe: **681** central `@orb-gate-ignore` markers name **36** distinct gates, and **578 of them name one gate,
-  `caught-failure-ownership`** (126 files under `tooling/src`, 112 under `packages/server`, 78 under
-  `packages/client`). Every other legacy gate's markers together are **28**; **38** are translatable today because
-  their owner is already final; **37** are deliberate negative-control fixtures naming gates that do not exist
-  (`no-such-gate`, `real-gate`, `line-scan-probe`, `dormant-gate`) which live in `gate-ignore.test.ts` and
-  `gate-ignore-inventory.ts` and retire with the legacy engine rather than translating. So do not plan marker lanes:
-  plan the conversions, and the markers ride with them.
-
-- **Translation is not a text codemod, but it is not opaque either — a legacy position is `<arm>:<token>`.** An earlier
-  version of this paragraph called the legacy vocabulary "a taxonomy of the site's shape"; that was an overstatement
-  and is withdrawn. The PREFIX is the arm, the SUFFIX is a real source identifier: the enforcement roster's row for
-  `caught-failure-ownership` states its arms as `promise:<work>`, `empty:<binding>`, `default:<binding>`, so
-  `empty:err` is arm `empty`, binding `err`. The corpus shape is `default:catch` (138), `empty:catch` (112),
-  `empty:error` (83), `empty:err` (47), `promise:run`; the prefix spellings are not fully consistent (`empty:err` /
-  `empty:error` / `empty:e`), but the suffix is joinable data.
-  It is still not a rewrite, for two reasons that survive: the final position must EXACTLY equal `finding.token`, an
-  exact slice of the reported node's text, so a suffix is a CANDIDATE and never a guarantee; and a splitting module
-  means the legacy gate name is NOT the final policy id (`ordinary-waiver-source-migration.md:125`).
-  **So derive every position from what the CONVERTED policy actually reports**: run it over the real tree, dump
-  effective findings (`file:line:column` + `token` + `policyId`), join each legacy marker's LOCATION to the finding(s)
-  there, carry the legacy reason verbatim, and use the suffix to CHECK the join rather than to skip it. Then classify
-  the three exceptions rather than guessing — DEAD (a marker with no finding: list it, never invent a waiver), MULTI
-  (N findings need N markers with distinct tokens), UNWAIVABLE (two findings sharing carrier AND token).
-
-- Authority reconciliation (#1922, the nine baseline JSON ledgers, decisions #1939 and #1921) needs the central grant
-  table stable, so it follows the conversions that feed it. Per-row dispositions: `exception-authority-census.md`.
-
-- Legacy retirement runs only when `gate:contract` shows zero legacy modules. The deletion list is
-  `ordinary-waiver-source-migration.md` §"Atomic cutover checklist" (legacy parser/pass accounting, `markerImmune`, the
-  two retired auditors, `__g_` suites, baselines, census command), plus rewriting `gate-modernization` against
-  `defineGate`, an idle composed-pass remeasurement, and a catalog re-attest. **`GATE-AUTHORING.md` and `gate:new` are
-  PULLED FORWARD (owner, 2026-09-12: "start completely rewriting the legacy gates docs and fix the gate new command to
-  build in the new shape") — #2126, blocked only on the policing matrix #2111, which is their spec.** A gate born
-  from a scaffold that emits an `ExemptionTable` is born owing an authority migration (#2102), and a lane reading the
-  legacy guide as "the guide" copies a shape the enforcers red; neither waits for retirement.
-
-## 8. Per-conversion procedure (the decision rule every lane follows)
-
-1. Re-derive: is the module legacy or final (`gate:contract` row, not the filename)? Read it in full, plus §12's
-   contract sections, the exemplar for its plane, and any world-program carry-forward row naming it (re-read the CURRENT
-   implementation on `main`, never an older branch copy).
-2. Trace every read, one `lib/` hop included. For a missing resource capability or shared reader, report the exact
-   `file:line`, ask the orchestrator with a proposed default, and continue independent work. Resolve the gap under
-   §12.4 and the convert-or-delete ruling; a missing capability does not authorize parking the conversion.
-3. Check already-converted siblings for the same rule (`pnpm ast` on the module's core literal): a stronger detector
-   elsewhere means MERGE with a successor proof, not a second gate.
-4. Name the family and its `lib/` reader, or declare a singleton. Split arms that differ in authority or severity into
-   `-health` siblings with the identical `family`.
-5. Port the population losslessly (named roots + `under`/`notUnder`); prove the admitted set byte-identical or record
-   the intentional correction in the header. Resource gates declare `{ of: "none", why }` plus their resource requests.
-6. Move state into `create`; invert walks into kind-indexed visitors plus ancestor checks judged in `evaluate`;
-   replace a private marker grammar with `@orb-waive` and TRANSLATE the live markers in the same commit (count them:
-   markers / files / trailing-position sites; a trailing marker moves to the line above; a marker with no finding is
-   dead text you list, never invent a waiver for an unmarked finding).
-
-   **THE PER-FILE COUNT RECONCILIATION IS PART OF THIS STEP, NOT A LATER SWEEP (owner, 2026-09-11).** Markers are the
-   conversion lane's own in-commit work (§7: *do not plan marker lanes*), so the lane PROVES it did not drop one,
-   in the same commit, per file:
-
-   ```
-   legacy  = git show <pre-conversion-sha>:<path> | grep -c '<legacy opener>'
-   current = grep -c '@orb-waive <policy-id>' <path>
-   ```
-
-   **THE ALARM CONDITION IS DIRECTIONAL** (measured 2026-09-11 by the reconciliation lane; this is the refined form —
-   an earlier version of this paragraph said "any file where the two differ", which over-reports badly):
-
-   - **`current > legacy`** → an expected **MULTI** split: one legacy marker became N markers with distinct tokens.
-     This is the rule working. Confirm each new token binds, then move on. On the caught-failure conversion **four of
-     the five mismatches were this**, so a wave of correct splits would otherwise read as forty suspected drops.
-   - **`current == legacy`** → clean.
-   - **`current < legacy`** → **the only shape that can be a LOST SUPPRESSION.** Classify every one: **DEAD** (the
-     legacy marker named a site the converted policy no longer flags — list it, never invent a waiver), **UNWAIVABLE**
-     (two findings share a carrier AND a token, so every marker is `over-broad` and suppresses neither — that site
-     gets a comment stating the measured placements, not a marker), or a real drop to repair.
-
-   A lane's "N pre-existing debt" line CANNOT distinguish a real drop from a dead marker — which is the whole reason
-   this is arithmetic and not judgement.
-
-   **Close the arithmetic, do not just diff the files.** The reconciliation is complete when total real legacy markers
-   equals total real waives equals the census's `deliberate-absorb` count. On the caught-failure conversion that was
-   572 = 572 = 572, with zero unbound or dead markers, every residual hit accounted for as prose. A per-file diff finds
-   the drop; only the closed total proves nothing else is hiding.
-
-   **Why it is mandatory and why a position sample does not substitute:** a WRONG position alarms loudly through the
-   central engine (`AUTHORITY ALARM … names a dead position`); a DELETED marker is silent in BOTH directions, because
-   neither engine reports a marker addressed to the other's world, and it simply reappears in the census as
-   indistinguishable "pre-existing debt". Measured 2026-09-11 on the caught-failure conversion: a verifier sampled 15
-   translated positions across four directory classes and **all 15 bound correctly**, then one file-count comparison
-   found `tooling/src/stack/ops/engines-ctl.ts` had gone 2 → 1 — its `safeUsername` marker deleted while its
-   `healthOk` sibling translated correctly. One command found what the sample structurally could not.
-
-   Exclude gate self-quotes and engine fixtures from the count (`verify/gates/**`, `verify/lib/**`,
-   `tests/tooling/gate-ignore-grammar*`, `tests/tooling/verify/lib/**`) — a module's header prose, its `fix` string and
-   its proof fixtures all name both grammars. The caught-failure lane's own header records that correction as
-   "576 raw − 2 prose = 574".
-7. Proofs per §4: carry every legacy row; add the positive identity arm if ordinary; add refusal/receipt pins where the
-   verdict depends on a derived population; conversion differential; planted-break receipt only for invented rows.
-8. Lane floor: touched family tests; `pnpm gate:contract` before/after with per-module results; Biome and ESLint on
-   touched files; every affected native TypeScript program via repeated `pnpm typecheck --config <config>` arguments;
-   affected product behavior; the step-6 marker reconciliation; and the §4.6 differential. Engine-plus-spec changes
-   commonly require both `tooling/tsconfig.json` and root `tsconfig.json`; actual compiler membership determines the set.
-
-   The orchestrator/verifier owns the coordinated post-fold floor: whole-only `pnpm check:policy-conformance`,
-   serialized `pnpm check:structure` before/after, and `pnpm check:structure-delta`. Follow the playbook's load and
-   publishing constraints. Read each policy's raw/waived/granted/effective findings, authority alarms, tool errors and
-   withheld status; an inherited aggregate red does not excuse a new failure. Use explicit comparison run IDs when
-   the default baseline has not been verified. These coordinated checks are not ordinary lane-local scoped checks.
-
-   **A SPLIT ALSO BREAKS A SUITE THE ID-GREP CANNOT FIND (measured 2026-09-12).** The roster carries a
-   literal "N registered gates" count line, and `tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts`
-   holds it two-sided against the live corpus. **A 1:1 conversion leaves that number alone; a SPLIT adds a module
-   and REDS it.** The grep rule below finds `gate-spelling-twins` and `check-gates` because those name gate ids
-   as string literals — **this suite names none, so no id-grep can reach it.** A lane whose conversion SPLITS
-   runs `enforcement-registry-parity` and bumps the count line; a lane that does not split, does not.
-
-   **THE ROSTER COUPLED SITE — a conversion breaks suites that are not its own (measured 2026-09-11).**
-   `loadGates()` (`tooling/src/verify/lib/loader.ts:190`) returns `corpus.legacy` ALONE — its own comment says
-   *the legacy descriptor list alone* — so **every conversion SHRINKS that roster**. The predicate is NOT merely
-   “asserts membership”; it is **any assertion whose expected value is DERIVED from the legacy roster**. Membership
-   (`toContain`) is one shape; a two-sided SHRINK-ONLY ledger compared with `toEqual` is another and is worse —
-   `gate-spelling-twins.int.test.ts:117` holds 79 gate names of which **54 have converted**, so every conversion
-   orphans a row and reds the suite with no membership assertion anywhere in the file. Worse than red: its #1506
-   spelling control now covers **only legacy gates, no converted policy at all** — uninformative while looking
-   authoritative. A grep filtered on membership-shaped matchers MISSES it (paid 2026-09-11, by the orchestrator's
-   own census, which reported a population of 2 and was wrong). A lane's floor names its OWN family test and therefore never sees this.
-   So: **grep `tests/tooling/**` for the converted gate's id AS A STRING LITERAL, and run every suite that names
-   it.** Cheap, mechanical, complete.
-
-   This is the one gap the migration posture does not cover. `.claude/rules/gates-and-tooling.md` declares the
-   baseline-red list EXHAUSTIVE and a scoped red never-baseline, but these suites are in NEITHER set: not
-   red-by-construction, and not in any lane's scoped floor. Because `tests/tooling/**` is `--full`-only (#1842)
-   and nothing runs `--full` on a cadence, the break is unobservable. **It has now happened three times in one
-   five-day window** — `registry-family.test.ts` (#1953), `gate-ignore-grammar.repo.int.test.ts` (red from
-   2026-09-06, broken by a #1584 conversion commit), and `gate-conformance.repo.int.test.ts:49` (found by this
-   rule, at zero load, the day `no-off-token-radius-shadow` converted). Tracked as #1983.
-
-   **A carrier in such a suite is LEGACY BY REQUIREMENT, so re-pointing it is a treadmill with an end:** at the
-   atomic cutover the legacy roster is EMPTY and there is no carrier for any arm. Those suites RETIRE with the
-   legacy `@orb-gate-ignore` grammar they exist to test. Say that in the suite header rather than per carrier.
-9. One commit, `git -c core.hooksPath=/dev/null commit` (owner-authorized until `check:structure` is green), the floor
-   named in the message, `git status --short` empty, `git show --stat` in the report.
-10. Report: per-module population port, authority/severity, family + reader, proof rows added, differential result,
-    marker census, refusals with `file:line`, deviations with tree evidence, proposed lessons as text. The orchestrator
-    posts it on #1584, merges by fast-forward from an isolated worktree, and dispatches one Opus verifier per wave;
-    nothing is Done before CONFIRMED.
-
-## 9. Dispatch mechanics (orchestrator)
-
-- Lanes run in isolated worktrees off `main` (`isolation: "worktree"`; the hook installs deps and links memory) and
-  land by orchestrator fast-forward with the hook path nulled; a lane rebases in its worktree if `main` moved.
-- Roles and models: runtime/architecture lanes and the 13 splits → forge (#1950, RULED 2026-09-11); families where a
-  reader must be added → Opus executor; fully-specified conversions on existing readers and marker translation →
-  Sonnet executor / mech-executor (owner test 2026-09-11: mechanical work and header honesty consistently good;
-  self-checking of an INVENTED proof's discriminating power consistently absent, so §4.7 is briefed explicitly); every
-  verifier → Opus, one per wave, read-only, probes announced by SendMessage and prefixed with the lane name.
-- Cap: **5 while this program is the work, 3 otherwise** (the base cap was restored to 3 at `faed86039` on
-  2026-09-11 09:19 and the owner raised it again later the same day, conditioned on this program — the later word wins;
-  `.claude/rules/orchestration.md` is the cap's one home). The §5 runtime lane runs alone; whole-tree runs never alongside lanes; engines stopped and
-  prod down for the program's duration.
-- A brief carries: this document and the exemplars by path; the exact module list with legacy SHAs for
-  the differential; the family hypothesis (a hypothesis until the lane names the reader); the fence (files it owns,
-  sibling lanes' files it must not touch); the floors above; the hazards (`vitest list --json=`, rg `-r`, never
-  `git stash`/`checkout`/`restore`, no whole-tree runs, runs over ten minutes report and stop, `GATE-AUTHORING.md` is
-  the LEGACY guide); the report shape. Nothing else.
-- Board: conversions are #1584 landing comments; only defects, prerequisites and decisions get rows; `--evidence`
-  under ~700 characters (#1920); `done` only after the Opus verifier CONFIRMED.
-
-## 10. What is no longer required
-
-Zero legacy descriptors or legacy fields before the final cleanup; deleting the legacy loader, pass or marker parsers
-now; proving old and new can never coexist; a green `check:structure` before the mixed front door exists; a test file per
-gate; copying the central negative marker cases into every gate; treating every whole-tree red as a conversion defect;
-deferring marker translation to a separate final-launch lane; a board row per converted gate; a SELF bridge map at
-every dispatch. The mixed runtime still requires honest reporting and explicit failure ownership: no silent skipping,
-no name-based dispatch, no false-clean receipt, no undocumented behavior difference.
-
-## 11. Rulings ledger (owner, dated)
-
-- **2026-09-12 (the day of the first full verification sweep) — the operating rulings, each paid for once:**
-  1. **Nothing gets to refuse to convert**: convert or delete; a missing capability with two-plus consumers is BUILD
-     work; a lane ASKS with a stated default and keeps working (read-first §0).
-  2. **Two accounts, one split**: claude-b orchestrates (verify lens ≤3 verifiers, board, rulings); primary is the
-     worker-orchestrator (five lanes at once, ff-only merges, the only committer on main's checkout). Blocks of work
-     and blocks of results — no staggering, no one-off dispatches or notes; every row pre-filed and pre-claimed.
-  3. **No frontier roles** (`forge`, `stickler`) unless the owner says so.
-  4. **Every verifier-found defect is a refutation-ledger row AND a board row**; verifier reports carry
-     `## LEDGER ROWS (N rows)`; the lane that closes a row flips it in its fixing commit; the rollup is barrier-only.
-  5. **A "superseded / held at another tier / delete" ruling owes a tree read of the other tier's predicate plus a
-     planted control that reds** — `tsconfig-entry-liveness` was wrongly ruled superseded from the archived
-     type-worlds doc; the membership stage never names a config entry.
-  6. **A declared limit on an identity branch owes the question "would this branch REPORT on an unreadable input,
-     or pass?"** answered by running it (§4.1); **every fail-open → fail-closed repair owes a NAME PREFILTER**
-     (§4.6; `lib/origin-verdict.ts`'s header); the fourth polarity is checked per ARM, never per module.
-  7. **`check:structure` legs are serialized box-wide and never overlap a fixture-planting suite on `main`**
-     (#2069); an overlapped run is a NON-VERDICT.
-  8. **§5b.5 censuses run over the HEADER SPAN with planted controls** (a whole-file grep over-reports present);
-     the legacy-SHA field is read by hand (three under-report modes, one over-report mode).
-  9. **A conversion whose gate had live markers and whose diff touches no `packages/**` has translated nothing**
-     — the §8.6 reconciliation runs once per marker KIND the module owns (its table AND the central markers).
-  10. **Worktree teardown is never defaulted**: contained ∧ not live ∧ not awaiting a verifier ∧ not wanted for a
-      warm leg, the last two answered by the orchestrator.
-  11. **#1988** → verdict types move to `verify/contract/`; **#2001** → declared `expect: { countFrom }` rows, a
-      contract change owing every coupled site; **#2002** → the renderer prints `finding.message` when it differs;
-      **#2021** → not superseded, expose raw `include`/`exclude` with positions through the shared compiler reader
-      and convert; **#2066** (a §4.1 cut harness) parked pending an owner price.
-  12. **Evening rulings (owner, via the question tool, "do it right once even if it means more work"):**
-      **#2025** → `hard` + `warning` REFUSED at load; the three soundness enforcers become `error` (§12.5).
-      **#2096** → a gate module never imports another gate module; shared predicates move to `lib/` (§12.3, 14
-      families). **#2097** → gate-local binding/origin resolution is FORBIDDEN; ~25 sites migrate to the shared
-      readers (§12.3). **#2142** → `test-layout`'s 51 real findings PARKED behind a test-mirror revamp the owner
-      wants first. **#2144** → the docs formatter AND its guards widen to every tracked markdown file, class by
-      class, rules and agents first. **ADMITTING A CLASS ASKS FOUR QUESTIONS, NOT THREE (#2175, #2161):** is the file
-      hand-authored · is it VENDORED · is it GENERATED · **and is it a SOURCE A GENERATOR READS.** The fourth is the one
-      that bites, because a generator's INPUT looks hand-authored at every door: reformatting `.claude/agents/*.md`
-      staled their `.codex/agents/*.toml` mirrors and left `check:agents` (`registry.ts:170`) RED on main from
-      `e6994a62f` to `f46be1ebe`. A class whose files feed a generator is admitted only together with that generator's
-      emitter — root `AGENTS.md` needed `agents:sync` taught to emit the two blank lines the formatter wants
-      (`b4fc76e62`) before its `GENERATED_BLOCK` deadlock fence could be deleted and the file admitted WHOLE to both
-      doors. **#2146** → the trailing-unnamed-column arm is BUILT and the ~19 tables it reds
-      are narrowed in one barrier-window commit (width only, never content; the leading-label idiom admitted). And
-      the policing matrix lane (#2111, an owner-authorized forge) owns every enforcement gap it names, with its
-      `policy-legacy-imports` arm ruled `hard`/`error` — nine final modules red by design, their tables retiring
-      into grants under #1922.
-
-- **2026-09-11 — PHASE C: THE DESIGN ALREADY EXISTS; ONLY THE DELTA IS RULED HERE (#1930).**
-  **[`resource-gate-access-patterns.md`](../reviews/gate-runtime/resource-gate-access-patterns.md) §§1–8 IS the Phase C
-  design** — eight resource families with their required surfaces written as TypeScript, a per-gate access/scan/proof
-  table, a `__g_` live-probe replacement table with a destination per fixture, a keep-vs-move-behind-host map for ten
-  helpers, and nine numbered prerequisites. **Read it before proposing any capability.** An earlier version of this
-  ruling re-derived a worse subset of it from scratch; that is withdrawn. Its COUNTS are stale (255-module corpus,
-  atomic premise); its ENGINEERING binds. What is ruled here is only what that document could not know:
-
-  1. **Eight of its ~15 typed facts are SHIPPED** (`contract/resource-host.ts`): `authoredTree`, `authoredCss`,
-     `productCss`, `cssInventory`, `packageMetadata`, `staticConfig`, `nativeConfig`, `trackedFiles`. In particular
-     §2's "preserve the static reader's algorithm, put its loading behind `staticConfig`" is DONE, and §1's
-     `authoredTree` carries 12 closed ids covering every identity §1 names. **Genuinely absent:** `json`, `jsonc`,
-     `exactFiles`, `mirrorIndex`, `vendorCssSurface`, `documents`, `ledger`, `baseUiSurface`, `tokenContract`,
-     `devtoolsClosure`, `installedReactCompiler`. **The ruling stands as the dated record; §12.4 states what it became.**
-     Every one of those shipped EXCEPT `jsonc`, which §12.4 now rules out with its reason — and the set is FROZEN there
-     at 18 kinds, so this list is no longer a work queue.
-  2. **§8 is STRUCK, and BLOCKED #5 with it.** `tsconfigPrograms()` existed only for `tsconfig-routing-parity`, which
-     no longer exists — the world program retired it in phase 6 (#1896), successor at `ops/tests-type-membership.ts`,
-     and §12.7 forbids resurrecting it.
-  3. **BLOCKED #2 and #3 are CLOSED.** #2: the status union is `ready | missing | empty | unresolved | malformed`
-     (`contract/resource.ts:3-4`), `resolveResourceDeclarations` throws on any non-ready declaration and on an empty
-     fact, and `factReceiptFailures`/`withholdFactDependents` withhold every consumer before `evaluate`. #3: the
-     overlay question is answered — `ResourceReaderOptions.overlay` feeds the resource reader, `mergeOverlay` merges
-     overlay entries into tree walks, and `runResourceExample` hands the SAME map to both substrates in one call.
-  4. **`biome.json` is a strict `json()` read, never a native loader** (§2 already says so: *"Strict JSON remains
-     distinct for `biome.json` …"*). Biome ships an executable, not a config API — `@biomejs/biome` 2.5.1 has no
-     `main`, no `exports`, no `@biomejs/js-api`, and no subcommand emits a resolved configuration. `tsconfig` is
-     `jsonc()` plus `extends` FOLDING, also per §2. **No `CONFIG_SNAPSHOT_RUNNERS` member is added for either.**
-  5. **OWNER RULING — one `installed-package` kind with a closed three-mode return shape** (`ast` | `metadata` |
-     `text`), each receipted, rather than §6/§7's three narrow facts. A capability serving one gate is that gate's
-     private reader wearing a contract's clothes, and three kinds cost three passes over the four policing surfaces
-     instead of one. This is the one place the ruling deliberately overrides the document.
-  6. **An authored-path identity door**, plus absolute-selector normalization, specified by a measured refusal at
-     `runner-config-path-liveness.ts:23-39`: `exists · file|directory · symlink-resolves-outside` for a repo-relative
-     selector, and a way to relate an ABSOLUTE selector to the repo at all (`GatePolicyContext` carries no root).
-     Without it an in-repo symlink pointing outside the tree silently PASSES. **`ResourceFileSnapshot`'s `symlink`
-     variant does NOT satisfy this — it is internal and never reaches a policy.** `runResourceExample` needs the
-     matching fixture-side expression. **`runner-config-path-liveness` is NOT a converted precedent**: it is a legacy
-     `GateDescriptor` (`:306`) that REFUSED conversion citing this row.
-  7. **The carrier-demand hazard is one KIND's defect, not a property of resource declarations.** `native-config`'s
-     fact paths are the whole repository inventory, so an ordinary consumer's waiver-carrier demand throws on tracked
-     symlinks; both shipped consumers are `authority: "hard"` and hard policies never demand carriers. An ORDINARY
-     policy CAN carry a resource declaration — `no-raw-color-in-css` is the worked exemplar (`ordinary` + `resource` +
-     `authored-css`).
-  8. **No CSS census `defineFact`.** `authored-css` already IS that corpus and `cssInventory` already parses it, so
-     the four duplicating modules declare `authored-css` as `no-raw-color-in-css` does. A fifth CSS home is the rot.
-
-- 2026-09-05: final AST source populations are `.ts`/`.tsx` only; `.mts/.cts/.mjs/.cjs` are cleanup.
-
-- 2026-09-06: sanctioned homes convert as exact reviewed grants with liveness, never population subtraction; the
-  `chatsChanged` conditional publisher is modeled, not parked; a compact map is written only when a sentinel fires.
-
-- 2026-09-10: `--dod` is optional; red instruments are expected mid-migration and are baselined, never laundered.
-
-- 2026-09-11 (night): #1939 — `duplicate-action-doors` converts as a HARD cardinality policy (the algorithm owns
-  "one door per action per surface"); its six ratified surfaces become exact `(surface, action)` reviewed grants and
-  the ratchet JSON is deleted. #1921 — no third receipt kind; a counter is a field on a ready fact/resource receipt.
-  The lefthook hooks come back on when the mixed `check:structure` is green on `main`, not before and not later.
-  \#1948 (`schema-fact-health` proof red) is fixed inside the phase A runtime lane.
-
-- 2026-09-11 (evening): forge runs the mixed-runtime lane alone, and forge runs the 13 mixed-hook splits (#1950 ruled);
-  conversion lanes translate their own markers in-commit and the pre-existing 370-marker backlog is one resumed
-  mech-executor lane; the #1947 lane's two real-tree zero-findings arms stay until the mixed front door lands, then are
-  deleted; executors run Opus by definition (Sonnet only where the owner names it). The orchestrator's step list is
-  [gate-runtime-orchestrator-playbook.md](gate-runtime-orchestrator-playbook.md).
-
-- 2026-09-11: main is the integration tree (ff of `codex/world-gate-integration`); mixed runtime replaces atomic cutover;
-  lanes in isolated worktrees, orchestrator merges, hooks bypassed until `check:structure` is green; cap 3; Sonnet
-  executors for fully-specified gate work, Opus on judgment-heavy work and every verifier; conversions are #1584
-  comments; `GATE-AUTHORING.md` is the legacy guide; proofs carry the legacy rows, prove identity once with the positive
-  arm, and owe a planted-break receipt only for invented rows; conversion lanes translate their own markers in-commit.
-
-## 12. The contract
-
-### 12.1 Final descriptor
-
-```ts
-defineGate({
-  id,
-  family,
-  authority: "hard" | "ordinary" | "reviewed-grant",
-  severity: "error" | "warning",
-  workItem: 1584, // required positive issue number for warning; forbidden for error
-  population,
-  analysis: "syntax" | "types" | "resource",
-  execution: "selected-files" | "entire-population",
-  facts: [sharedFactProvider], // explicit [] when none
-  resources: [{ kind, id }], // explicit [] when none
-  message,
-  fix,
-  create(context) {
-    return { visitors, visitFile, evaluate };
-  },
-  mustFlag,
-  mustPass,
-  mustRefuse, // OPTIONAL third arm (§4.5b, f96f45fb4): never empty; each row's expect is messageIncludes ONLY
-});
-```
-
-**THE FIELD VOCABULARY IS DATA (#2111, `a1c848001`):** `contract/policy.ts#POLICY_FIELDS` (from `POLICY_FIELD_TABLE`,
-two-sided against `GatePolicy` by `satisfies Record<keyof GatePolicy, true>`), `POLICY_OPTIONAL_FIELDS` (`workItem`,
-`fix`, `mustRefuse`), `POLICY_PROOF_ARMS`, `POLICY_PROOF_KEYS`, `POLICY_EXPECTATION_KEYS`, `POLICY_HOOK_KEYS`; the
-validator, the runner, the stage and the family tests derive from them, and THE BLOCK ABOVE is a hand restatement — a
-generator target, with `ops/new-gate.ts`'s template and the roster rows (#2126). "The export is a direct
-`defineGate({...})` object literal" is ENFORCED by `policy-soundness` E7 through
-`lib/policy-descriptor-read.ts#finalRegistrationOf`: the loader brands the object it receives and cannot see the call
-site, so a lookalike callee registers nothing and `gate-modernization` ARM A names it.
-
-- `population` replaces `scopeSafety` plus `scanRoot`. It is declared data resolved once into a manifest; file, folder,
-  package, project, changed, whole, check and family selection all use the same manifest algebra.
-- `execution` states whether a verdict composes over an arbitrary selected subset or requires the gate's entire declared
-  population. A narrowed request defers an `entire-population` gate, or refuses under strict scope.
-- `create` runs once per invocation and closes over mutable state; `begin`, module-global accumulators and re-entry
-  cleanup disappear. `create` receives only the resolved files/resources, the lazy checker, shared query services,
-  report/receipt sinks and invocation metadata — never a `Project`. Its `visitors`, optional `visitFile` and optional
-  `evaluate` run in that order; `evaluate` is the post-walk phase for cross-file judgments and stale-grant
-  reconciliation, and runs BEFORE central waiver/grant liveness reconciliation.
-- `visitors` are the one kind-indexed walk. A gate module cannot call descendant/project traversal APIs.
-- Central post-processing owns inline waiver lookup, typed-grant consumption/liveness, severity, sorting, completeness
-  and reporting. Gate order cannot change suppression/grant reconciliation.
-- One authority and one severity per descriptor; an old multi-arm module whose arms differ on either axis splits into
-  separate policy ids under one `family`. `id` equals the filename; the live family set is derived from loaded
-  descriptors (no family registry); `docRow` and the hand-counted enforcement-roster row disappear.
-- Every self-proof row declares its fixture mode and paths explicitly; no default path inferred from population and no
-  fake real-tree anchor decides the substrate.
-
-### 12.2 Standard capabilities every gate gets without implementing them
-
-One sanctioned `pnpm` command with tier plus file/folder/package/project/changed/whole scope; explicit `--check`,
-`--family`, strict-scope refusal, list/explain, JSON report, stable exit codes; requested and effective population
-manifests including deleted/renamed semantic paths; compiler-derived program membership and one lazy checker per
-workspace; error/warning severity with **opt-in warning promotion — BUILT END TO END, and pinned OFF at every shipped entrypoint** (`failOnWarnings`; §12.5 and #2025). **This list's ORIGINAL wording was substantially TRUE and `ad5d5fd14` replaced it with an inverted claim; the original is restored**; hard unsuppressible policy, exact ordinary occurrence
-waivers, exact reviewed subject/operation grants; missing/empty/unresolved population refusal and failed-owner
-reconciliation withholding; per-gate files/members/resources/timing receipts; one pass-local shared-fact registry (one
-collector over an exact population, read-only sibling consumers); one fixture runtime for `mustFlag`/`mustPass`/`mustRefuse`.
-
-### 12.3 Shared query boundary
-
-Gate modules may inspect the node delivered to a visitor, iterate their resolved `ctx.files`, request a canonical source
-file, request the shared checker, and call shared readers. They may not call `Project#getSourceFiles`,
-`SourceFile#getDescendants*`, `forEachDescendant`, `new Project`, or maintain their own workspace cache.
-
-**TWO MORE BANS, RULED BY THE OWNER 2026-09-12 (each was "allowed by silence" until then, and each has an enforcer arm
-being built by the policing-matrix lane, #2111):**
-
-- **A gate module never imports another gate module** (#2096). A split family's shared predicate lives in
-  `lib/<family>.ts` and BOTH siblings import it from there; a `-health` sibling reading its twin's export was two homes
-  for one reader wearing a family's clothes, and 14 families did it (13 after `d9d1e3524` moved
-  `contract-derives-not-respells`'s). Migration by module, lane `p-family-readers`. **The predicate is "the imported
-  module REGISTERS a gate" (the loader's registration test on the target), never "the path is under `gates/`":
-  `gates/_proof/**` holds shared proof surfaces and planted package doors (§4.8b) that gate modules legitimately
-  import, and a bare `defineGate` token grep over it overcounts by one — the stub-string overcount this guide already
-  records for the two meta-gates.**
-- **No gate-local binding or origin resolution** (#2097). `getDefinitionNodes()` and hand-rolled
-  `getSymbol().getDeclarations()` chains inside a gate module are the private-reader shape one member at a time; the
-  sanctioned route is the shared readers (`resolveStableExpression`, `lib/reference-fact*`, `lib/origin-verdict.ts`).
-  About 25 sites in 21 modules migrate by module, lane `p-binding-readers`. "Binding identity is a shared primitive" is
-  now enforced, not prose.
-
-**ENFORCED (#2111, `a1c848001`):** `policy-legacy-imports` (hard/error) ARM A reports a FINAL module's import of
-`contract/gate.ts`, `lib/pass.ts`, `lib/gate-ignore.ts`, `lib/reviewed-grants.ts`, `lib/ordinary-waiver.ts`,
-`lib/gate-authority.ts`, `lib/policy-pass.ts`, `lib/loader.ts`, `lib/policy-loader.ts` — resolved by import origin
-(an alias path to the same module reds; a same-named module elsewhere does not), fail-closed on an unresolvable
-relative candidate; ARM B reports (#2096) any relative `import`/`export … from` whose target REGISTERS a gate under
-either contract (`lib/policy-descriptor-read.ts#gateRegistrationOf`) — `gates/_proof/**` surfaces and `lib/` readers
-pass by REGISTRATION, never by directory (a directory-keyed predicate accuses correct code; the planted cut proved it).
-`policy-binding-resolution` (hard/error) reports (#2097) a call to `getDefinitionNodes` · `getDefinitions` ·
-`findReferences` · `findReferencesAsNodes` · `getImplementations` on a ts-morph node, or `getDeclarations` ·
-`getValueDeclaration(OrThrow)` · `getAliasedSymbol(OrThrow)` on a ts-morph `Symbol` (owner identity —
-`VariableStatement#getDeclarations` is a syntax accessor and passes); `getSymbol()` alone is not a member. Both are
-RED on the tree by design (the migration rows) and are held two-sided against text second opinions in the family
-test. Two blind spots the fresh verifier found the same night, both open rows: a ONE-HOP `lib/` re-export shim
-defeats both arms (#2201 — `judgeDoor` resolves only the direct target), and the optional-chained ELEMENT-access
-spelling `getSymbol()?.["getDeclarations"]()` escapes the shared reader (#2202 — closed at `bea887b49`: `Type#getProperty`
-returns `undefined` for ANY union receiver and an optional chain mints one, so both doors of `isTsMorphMember` closed
-together and answered a confident silent `false`; latent for every policy asking it, now pinned in the reader).
-**RECOGNITION AND CONFORMANCE ARE TWO QUESTIONS, and narrowing the wrong one deletes a rule** (paid 2026-09-12,
-`bea887b49`, E7's namespace blindness): the obvious fix — widening `lib/gate-contract.ts#usesDefineGate` to accept a
-namespace-spelled `defineGate` call — would have deleted the recorded ruling that the namespace spelling is a
-`descriptor-wrapper` violation ON PURPOSE (`gate-contract.test.ts:113`). The lane widened REGISTRATION recognition
-(`finalRegistrationOf`) instead, so the module is recognised and the violation is REPORTED, where before it was judged
-by no arm at all. When a gate goes blind on a FORBIDDEN spelling, the fix is almost never "accept the spelling in the
-conformance reader"; it is "recognise the module so the violation gets reported" — the ruling survives, its input
-changed.
-
-**`ctx.relativePath` IS PARTIAL — IT THROWS, AND IT KILLED A CONVERTED EXEMPLAR FOR AN ENTIRE RUN** (measured
-2026-09-11). `lib/policy-pass-context.ts:211-217` raises `source file is outside the effective population: …` for any
-file not in the resolved population. That is safe for a node the policy VISITED, and unsafe for a declaration reached
-by RESOLUTION — `canonical.sourceFile`, `symbol.declaration.getSourceFile()` — because an imported `.d.ts` is in the
-ts-morph Project but in no policy's population. `freeze-provenance-write-pairing` asked it about every named import in
-`@packages`; the first `import { useQuery } from "@tanstack/react-query"` resolved into a `node_modules` `.d.ts`, threw,
-and the policy reported NOTHING on every real-tree run while sitting at 0 conformance failures.
-
-**The total house idiom is the declaration's own path** — `lib/id-brand.ts:88` and `lib/sealed-origin.ts:27` both use
-`canonical.sourceFile.getFilePath().replaceAll("\\","/")`. Use it for any home question about a resolved declaration.
-**Do NOT substitute membership in `ctx.files`:** `policy-pass.ts:316` intersects `run.files` with a scoped run's
-requested paths, so that test reads silently clean under every `--scope`/`--changed` run — a false clean, strictly
-worse than the loud throw it replaces. Class census 2026-09-12: seven call sites in six modules, live once and latent
-six times, because whether a resolution escapes the population is a property of what the SUBJECT imports, not of the
-policy (#1972).
-
-**A RESOURCE FACT IS A DISCRIMINATED UNION, so consuming one is a TYPE obligation, not a style choice.**
-`ResourceLoad<T>` (`contract/resource.ts:3-4`) carries `value` only on the `ready` arm; the other four carry `reason`.
-So a policy cannot read `.value` without narrowing, and the narrowing CANNOT be deleted — only written correctly.
-§11 ruling 3 settles what a non-ready fact MEANS (`resolveResourceDeclarations` throws at the POPULATION phase and
-withholds every consumer before `evaluate`), which makes one reaching a policy a broken runtime guarantee: **a TOOL
-ERROR, never a reportable finding and never a silent zero.** So the branch THROWS; it does not `return`.
-
-```ts
-/** Populated declarations are checked before `create`; unpopulated resources acquire at the call.
- *  Neither path permits a top-level non-ready resource to become a policy finding. */
-readyResourceValue(fact) // lib/resource-declaration.ts — the module that owns the refusal law at :182
-```
-
-**ENFORCED since `f96f45fb4` by `policy-soundness` ARM E4 (#2019):** every `ctx.resources.<door>(…)` in a final module
-must sit directly inside `readyResourceValue(...)` resolved BY IMPORT ORIGIN to `lib/resource-declaration.ts` (a local
-function of that name is accused, not acquitted), and binding `ctx.resources` to a name or passing it as an argument is
-the same finding one hop out. Censused at zero on the corpus when the arm landed; the arm holds it there.
-
-**TOP-LEVEL RESOURCE FAILURE IS NEVER REPORTABLE POLICY HEALTH.** For populated resource kinds,
-`resolveResourceDeclarations` refuses `missing`, `empty`, `unresolved`, or `malformed` loads—and ready loads
-with no admitted paths or members—during population, before policy `create`. `installed-package`,
-`authored-path`, and `authored-text` are unpopulated kinds and acquire at the call site; a non-ready load
-can therefore reach `readyResourceValue` during `create` or `evaluate`, where it throws. A caught or
-ignored acquisition failure still files an unresolved receipt and leaves the owner incomplete. Authority
-reconciliation withholds that owner rather than publishing its findings.
-
-A resource-using `-health` sibling is valid when it reports a semantic condition encoded inside a **ready**
-resource value, such as an empty derived census or per-member refusals. It must still wrap every
-ResourceHost door in `readyResourceValue`; it does not inspect or report a top-level non-ready
-`ResourceFact`. `biome-grant-liveness-health` and `tsconfig-entry-liveness-health` are existing examples.
-A fact-health sibling may inspect a domain status delivered inside a ready shared-fact value; that is a
-separate contract. These distinctions follow `lib/resource-declaration.ts`, `lib/resource-policy.ts`, and
-`lib/policy-pass.ts`; the former blanket prohibition on resource health siblings was incorrect.
-
-**A `-health` POLICY REPORTS DOMAIN HEALTH INSIDE DELIVERED EVIDENCE.** A health sibling must receive the
-ready evidence needed to establish the semantic condition it reports. Do not turn that domain condition
-into an acquisition failure or a receipt failure that withholds the accuser. This does not exempt health
-policies from ResourceHost acquisition or receipt requirements. Three measured instances:
-
-1. **A provider must not receipt its own findings** (§12.3 below) — an empty census would become a fact TOOL ERROR
-   instead of reaching the `-health` policy whose job is to report it (#1953, #1955).
-2. **A `-health` consumer receipts a CONSTANT `members: 1`, never its census** — otherwise `receiptFailures`'
-   `count === 0` turns its own finding into a receipt refusal (#1966, §4.5b).
-3. **A `-health` consumer REPORTS a non-ready domain status inside a ready shared-fact value.** `bus-fact-health.ts:24-30` does
-   exactly this while its siblings `bus-producer-coverage` and `user-bus-deferred-member` throw through
-   `recordReadyBusFact` — and that asymmetry is the design, not a defect. **Do not "fix" a `-health` policy to
-   throw**; it throws only on a genuinely broken guarantee (an empty effective population), which is a different
-   condition from the one it reports.
-
-**The tell that you are looking at this shape**: the policy's `family` matches an ordinary sibling's, its authority
-is `hard`, and the branch you are about to "correct" is the only thing that would ever report the failure.
-
-Measured 2026-09-12 morning: **nine of ten resource policies answered a broken resource with a silent `return`**, and
-`depcruise-grant-liveness.ts:157-164` was the only one that refused loudly. A silent return there is a policy
-reporting CLEAN on a run it could not perform — and the exemplars document was teaching it as a headline virtue, so it
-was propagating into every future resource conversion. **CLOSED the same day (#1979, `2bacd5ef9`), and re-measured
-2026-09-12 evening on `c97de9d2f`: 29 policies declare `analysis: "resource"`, 49 `ctx.resources` reads, 49 of 49
-wrapped in `readyResourceValue`, ZERO silent returns.** The only bare `status !== "ready"` branch left in `gates/` is
-`bus-fact-health`, the FACT-family accuser, which is correct by the paragraph above; the other three matches are
-comments saying an in-module return would be unreachable. The morning sentence is kept as the dated incident, not
-as the state of the tree.
-
-Shared whole-population work is a branded `defineFact` provider with its own id, population, analysis, resources,
-collector, finish hook, receipts, timing and errors. Policies declare provider tokens in `facts` and read them only via
-`ctx.fact(provider)` during `evaluate`. The dispatcher instantiates each unique provider once, feeds it in the same
-physical walk, finishes it before policy evaluation, and withholds every dependent policy on failure. **A provider's
-RECEIPT granularity must match its consumers' DEPENDENCY granularity.** A provider covering N subjects that files one
-summed receipt withholds all N subjects' consumers when any one subject fails, including consumers that read only a
-healthy subject. `registry-fact.ts:300-304` sums `members` and `unresolved` across six kinds while every consumer reads
-one kind through `forKind`, which is why a fixture proving one kind is refused for the other five (#1953). Do not
-"fix" such a case by treating an unresolved subject as absent: §12.3's own rule is that unsupported syntax returns an
-unresolved fact or a tool error and NEVER returns absence, and collapsing the two silently blinds the consumer.
-
-**A provider's receipt states what it MEASURED, never what it FOUND.** `members` is the denominator the provider
-actually walked — the authored sources admitted by its population — and `unresolved` is reserved for syntax the
-provider could not read. It is NOT the census the provider built. The reason is mechanical: the predicate is
-`receiptFailures` (`lib/policy-pass.ts:628-639` — `count === 0` at `:631`, `unresolved > 0` at `:635`), flat-mapped by
-`factReceiptFailures` (`:641`), and `withholdFactDependents` (`:679`) drops every consumer BEFORE `evaluate` runs
-(`finishFactRuns` → `withholdFactDependents` → `evaluateRuns`, `:821-822`).
-
-**Two different things are called a receipt; do not confuse them.** The PROVIDER's semantic receipt is what the
-refusal above judges, and **no policy can reach it at all** — `$X.receipts` appears zero times across `gates/`
-(control: the same pattern in `lib/policy-pass.ts` returns 8). What several consumers DO read is `fact.receipt.<field>`
-on the fact VALUE, a plain data field the provider publishes for its consumers (e.g. `bus-definition-fact.ts:330-340`,
-source `"bus-definition-fact"`), which is a different object from the provider's own receipt (`:372`, source
-`"bus-definition-sources"`). The discriminator below means the consumer's `ctx.receipt` call and its fail-closed throw,
-never the fact value's data field. So a provider that receipts its findings preempts its own designated accuser —
-an empty or holed census becomes a FACT TOOL ERROR instead of reaching the `-health` policy whose whole job is to
-report it, and that policy's empty-corpus `mustFlag` arm can never execute. That was both of the last two conformance
-failures: `bus-producers` and `bus-definitions` each receipted their census (#1955), exactly as `registry-fact.ts` had
-summed six kinds' (#1953). The discriminator is cheap and mechanical — read every consumer's own `ctx.receipt` and its
-fail-closed throw; **if no consumer expresses its dependency through the provider's `unresolved`, the provider must
-not publish one.** Emptiness and holes belong in the fact's own `status`/`unresolved` FIELDS, which are delivered to
-consumers and judged by them. The refusal does not weaken: it moves to the provider's POPULATION phase (zero admitted
-paths), which is per-provider and fires strictly earlier. And a family with two providers has the defect twice — the
-`bus-definitions` twin only became visible once `bus-producers` was fixed, having until then swallowed the
-`bus rosters disagree` message a hard pin asserts. Early/undeclared
-reads, duplicate provider ids, selected-file consumers, unused dependencies, missing receipts and unconsumed resources
-refuse. The registry is invocation-local.
-
-The shared reader layer owns: stable local binding resolution until write/cycle/dynamic ambiguity (no hop cap);
-import/export/namespace/destructuring/computed-literal symbol origin; static string/number/object/tuple/Zod value
-resolution; class/JSX/DOM writer provenance; schema, finite-shape, bus, section, Base UI, tenancy, CSS and resource facts;
-sanctioned-home and exact grant liveness. A unique policy algorithm may live in `verify/lib`, but repository walking,
-binding identity, static-value unwrapping and resource loading are shared primitives. Unsupported syntax returns an
-unresolved fact or tool error; it never returns absence. API guidance: `tooling/src/verify/gates/TS-MORPH-CAPABILITIES.md`
-and `NODE-26-FILESYSTEM-CAPABILITIES.md`.
-
-### 12.4 Population vocabulary
-
-Named roots exist only for independently selectable workspace packages and top-level authored trees (`@client`, `@ui`,
-`@server`, `@db`, `@contracts`, `@kit`, `@tooling`, `@tests`, `@scripts`). Nested directories use `under`/`notUnder`
-(end-anchored globs; `"x/**"`, never `"x/"`); they do not get another hand-maintained root alias. Sanctioned homes are
-exact reviewed grants with rename/deletion liveness, never population subtraction. Resource gates declare
-`{ of: "none", why }` for TS dispatch plus their explicit resource population. A predicate that cannot be represented
-without loss blocks that conversion until the algebra gains one reviewed, tested operator or the change is classified;
-there is no custom-resolver escape hatch. Generic Orb policies apply to `tooling/src` and `tests/tooling` too. The
-source universe is authored `.ts`/`.tsx` only; JSON/JSONC, CSS, Markdown, SQL enter only through the closed
-ResourceHost declarations frozen below; a hybrid's dual role is explicit and receipted.
-
-#### THE RESOURCE VOCABULARY IS CLOSED — 18 kinds, frozen 2026-09-11 (#1930)
-
-**A capability set that is still moving cannot be policed.** The §5b soundness enforcer (#1971) is blocked on this
-freeze, and every kind added costs a mandatory pass over the policing surfaces below, forever. Phase C is over: the set
-is CLOSED and conversions proceed against a vocabulary that no longer moves.
-
-**The roster is `GATE_RESOURCE_REQUEST_KINDS` in `tooling/src/verify/contract/resource-declaration.ts` — DATA, never
-this table.** The table is the PROVENANCE record: why each member is in a closed set. A vocabulary a reader cannot
-audit member-by-member is not closed, it is merely finished.
-
-| Kind | What it serves | Authorized by |
-| - | - | - |
-| `authored-tree` | 14 closed tree ids (`AUTHORED_TREE_PATHS`) — the directory/liveness family: feature/package/server/ui/db/test/gate layout, plus `docs` and `scripts` as the ADMITTING population for `authored-text` | §11.1 (shipped pre-ruling); `docs`/`scripts` ids added by the `authored-text` wave |
-| `authored-css` | the authored stylesheet corpus; `cssInventory("authored")` rides this declaration | §11.1 · §11.8 (no separate CSS census fact — a fifth CSS home is the rot) |
-| `product-css` | the exact five-home product CSS identity; `cssInventory("product")` rides this declaration | §11.1 · §11.8 |
-| `package-metadata` | `package.json` manifests by closed id (root, tooling, the workspace packages) | §11.1 |
-| `static-config` | statically-evaluated JS/TS configs (eslint, depcruise, the three runner configs) behind `config-static-read`'s preserved evaluator | §11.1 (access-patterns §2's "preserve the algorithm, host the loading" — DONE) |
-| `native-config` | native loader observations (eslint `ConfigArray`, dependency-cruiser). **Carrier-demand hazard, ONE kind's property:** its fact paths are the whole repository inventory, so an ORDINARY consumer's waiver-carrier demand throws on tracked symlinks. Both shipped consumers are `authority: "hard"`, which is why they work | §11.1 · §12.7 (#1351) · §11.4 (no member for biome or tsconfig) |
-| `tracked-files` | the one `git ls-files` inventory behind the grant-liveness family | §11.1 · access-patterns §3 |
-| `json` | STRICT JSON over five closed ids (biome, migration journal, token vault, doc catalog, Base UI manifest). Missing / empty / unparseable stay three distinct facts; none becomes `{}` | §11.1 (named genuinely absent; built `4f9726e78`) |
-| `installed-package` | ONE kind, three receipted modes (`ast` \| `metadata` \| `text`) over five closed ids, resolved through NODE's own algorithm because pnpm reaches every installed package through a store symlink the authored reader refuses by design | **§11.5, the ruling that deliberately overrides access-patterns §6/§7** — it absorbs `baseUiSurface`, `installedReactCompiler` and the narrow installed facts |
-| `mirror-index` | the derived source↔test mirror membership (`package-test`, `tooling-test`) — membership, not the mirror RULE | §11.1 (named genuinely absent; built `899ec74a7`) |
-| `documents` | the living-document corpus + catalog status, for the citation/dangling families | §11.1 · access-patterns §5 |
-| `ledger` | four named registries by closed id (`core-path-registry`, `core-audits-debt`, `gate-enforcement-roster`, `ratchet-baselines`). Two doors beside `documents` because a corpus tolerates a refused member and an IDENTITY does not | §11.1 · access-patterns §5 |
-| `exact-file` | exact named files by closed id (db baseline SQL, client/CSS/CT entries, the app-shell surface). **ONE declaration PER ID** even though the door takes a list, so a policy that declared one file cannot read a second by widening its argument | §11.1 (named genuinely absent; built `899ec74a7`) |
-| `vendor-css-surface` | the committed-mirror ↔ installed-vendor comparison surface (Base UI mirror, Streamdown selector sources) | §11.1 · access-patterns §4 |
-| `token-contract` | the canonical generated token bundle (vault, themes, resolver, removed) behind the preserved `validateTokenContract` | §11.1 · access-patterns §7 |
-| `devtools-closure` | the exact DevTools pin/closure/licence tuple behind the preserved `verifyDevToolsAssetsSync` | §11.1 · access-patterns §7 |
-| `authored-path` | the DEMAND identity door: `file \| directory \| absent \| outside \| unresolved` for a repo-relative or ABSOLUTE selector, with absolute-selector normalization. Catches an in-repo symlink resolving outside the tree, which `trackedFiles()` structurally cannot see | **§11.6**, specified by the measured refusal at `runner-config-path-liveness.ts:23-39` |
-| `authored-text` | the DEMAND text door: comment-aware snapshots of exactly the demanded paths, TOTAL over them where the private door silently dropped unknown formats | **NOT a §11 ruling — an EXPOSURE.** `ResourceInvocation.ordinaryWaiverCarriers` was already built and private; this publishes it under the declaration fence. Recorded here rather than left unexplained, because a closed set whose provenance a reader cannot trace is not auditable |
-
-Two kind CLASSES are named in the contract rather than applied as a silent downstream skip, because a silently skipped
-declaration is exactly how a request that resolved nothing reads as a clean zero. **UNPOPULATED** (`installed-package`,
-`authored-path`, `authored-text`) contribute no authored path, so the empty-fact refusal that is correct for every other
-kind is skipped BY NAME. **DEMAND** (`authored-path`, `authored-text`, a strict subset) take their subject at the call,
-so the population-membership fence does not apply and the DECLARATION fence is the only thing between the door and an
-undeclared filesystem read.
-
-`cssInventory` is a HOST DOOR with no kind of its own (it rides `authored-css` / `product-css`): **19 doors, 18 kinds**,
-and that is deliberate, not an omission.
-
-##### What a new kind costs — MEASURED, and it is why the set is closed
-
-Re-derived 2026-09-11 against `899ec74a7` (the 7-door wave) and `4f9726e78` (json + installed-package + the two demand
-kinds). **Four mandatory edits, plus two new files, plus one conditional:**
-
-| Surface | Always | Why |
-| - | - | - |
-| `contract/resource-declaration.ts` | yes | the union arm + the UNPOPULATED/DEMAND tuples |
-| `contract/resource-host.ts` | yes | the door |
-| `lib/resource-policy.ts` | yes | the binding, the declaration fence, the receipt |
-| `lib/policy-validation.ts` | yes | the id vocabulary and the exact key-set shape |
-| `contract/resource-<family>.ts` + `ops/resource-<family>.ts` | yes (new files) | the closed ids and the provider |
-| `ops/policy-conformance.ts` | ONLY when the fixture substrate cannot express the subject | `authored-path` needed real symlinks (`links` + `symlinkSync`); the 7-door wave did not touch it |
-
-**Two modules are NOT policing surfaces for this vocabulary, despite appearances.** `gates/enforcement-registry-parity`
-reads the gate ROSTER, never the resource vocabulary. `gates/gate-modernization` contains zero references to it — its
-hunk in `4f9726e78` was ARM E (#1958, the `analysis`-token honesty arm) and is unrelated. An earlier count of FIVE
-surfaces came from reading those two commits' file lists without reading the hunks.
-
-And the proofs: a kind ships with `ready | missing | empty | unresolved | malformed` receipts and controls in BOTH
-directions — `resolveResourceDeclarations` throws on any non-ready declaration and on an empty fact, so a planted
-control must REFUSE and a planted control must be ADMITTED.
-
-##### The three residuals, closed
-
-1. **A STAGED-BLOB / git-index read — no dedicated resource kind.** `no-blanket-suppression` arm C shells
-   `git grep --cached` + `git show :<path>` (`:330`, `:342`) to re-judge STAGED blobs, so a stale staged blob cannot
-   commit while every working-tree check reads clean (the #954 shape). `TrackedResourceIndex` is `{ repoPaths }` only,
-   and no shipped kind serves it. **It has exactly ONE consumer in the whole verify tree** (re-derived 2026-09-11:
-   every other git call under `verify/**` is `ls-files` / `diff` / `rev-parse` / `merge-base` / `log`, and the only
-   other `--cached` mention is `lib/repo-paths.ts:61-62`'s inventory of the verbs this tree runs, which names this
-   gate). §11.5's own principle governs: *a capability serving one gate is that gate's private reader wearing a
-   contract's clothes.* Preserve the staged-index guarantee while resolving its conversion. The historical
-   one-consumer measurement does not authorize permanent legacy retention: use a suitable existing boundary or
-   obtain a conversion/deletion ruling with the successor proof required by §4.6.
-2. **`jsonc` — RULED REQUIRED IN §11.4, NEVER BUILT, AND NOW RULED OUT.** This is the one real diff between the ruling
-   and the tree, and it is stated rather than quietly dropped. §11.4 says *"`tsconfig` is `jsonc()` plus `extends`
-   FOLDING"*; `contract/resource-json.ts`'s own header still describes a `jsonc` door beside `json`. Two measurements
-   close it: (a) the whole gate corpus contains exactly ONE JSONC parse — `tsconfig-entry-liveness.ts:233` — so the
-   kind would serve one gate, the §11.5 test again; (b) the FOLDING half §11.4 names is already owned by the world
-   program's shared compiler reader (`lib/policy-program-membership.ts:78-85`, `readConfigFile` +
-   `parseJsonConfigFileContent`, #1351, completed 2026-09-10 — AFTER the inputs §11.4 was drafted against, so THE
-   STALENESS RULE applies). A `jsonc` resource kind would therefore be one gate's private reader AND a second home for
-   config folding. **`tsconfig-entry-liveness`'s conversion route was a shared-READER question — the compiler reader
-   exposing per-config RAW `include`/`exclude` entries, unfolded and unexpanded, which is what that gate actually
-   judges — not a capability question. CONVERTED 2026-09-12 at `97e68be91` by exactly that route (#2021, ruled NOT
-   superseded; it split into `tsconfig-entry-liveness` + `-health`), with `biome-grant-liveness` + `-health` in the
-   same commit. Biome rule liveness is now owned by the registered `config:biome-rule-liveness` verification
-   stage (`tooling/src/verify/ops/biome-rule-liveness.ts`), separately from selector liveness.** The `jsonc` ruling stands. `biome.json` does not reopen this: §11.4 ruled it a strict `json()`
-   read and that shipped.
-3. **`authored-text`'s provenance** — see its row above.
-
-##### Is `node_modules` traversal declarable? — RULED: YES, and ONLY through `installed-package`
-
-Answered in practice by §11.5 and ruled here. The installed tree is deliberately not the authored transaction: the
-authored reader REFUSES every symlink traversal by design, and under pnpm every installed package is reached through a
-store symlink, so an installed read cannot come through it at all. It is declarable through exactly one kind, resolved
-by NODE's own algorithm from a declared base, over a closed id set, in one of three receipted modes. Everything else
-about `node_modules` stays undeclarable: no path glob, no directory walk, no id a gate supplies. Adding an installed
-SUBJECT is an id row with a named consumer (cheap, and inside the freeze); adding an installed READING SHAPE would be a
-fourth mode and is a reopening under the condition below.
-
-##### What reopens the set
-
-Exactly one condition, and it is a RULING, not a lane's call: a CONVERSION that is blocked by a read no shipped kind
-serves, **and** whose read has TWO OR MORE independent consumers after read-tracing the remaining legacy corpus one
-`lib/` hop deep. A one-consumer read does not justify a new kind: the orchestrator resolves its conversion or deletion
-without weakening the existing guarantee. A new id inside an existing kind is not a reopening — it is a contract edit with a named consumer, which
-is what keeps `json`/`exact-file`/`ledger` from becoming `readFile(path)`.
-
-##### OPEN, proposal only — one directory-tier population operator (#1922)
-
-Not built, and `population.ts`'s algebra is untouched by this freeze. Recorded because the freeze forces the question:
-the algebra has named roots plus `under`/`notUnder`, and a SANCTIONED HOME ("this concept lives in exactly these
-directories") is expressed today as 25 `SANCTIONED_HOMES` tables / 42 rows plus per-gate path liveness. **Arm A — add
-one reviewed, tested directory-tier operator**: shrinks path-liveness and #1922 together, and a home becomes declared
-data rather than a gate-local table. Cost: it is a POPULATION operator, so it prices in against §12.4's own rule that a
-predicate which cannot be represented blocks a conversion — every existing policy's resolved population must be proven
-byte-identical, and the operator needs its own two-sided proofs. Risk: a home expressed as population SUBTRACTION is
-exactly what the 2026-09-06 ruling forbade (*"sanctioned homes convert as exact reviewed grants with liveness, never
-population subtraction"*), so the operator must be an ADMISSION tier, never a subtraction, or it reverses a standing
-ruling. **Arm B — no operator; homes stay exact reviewed grants** per that ruling, and #1922 lands as grant rows.
-**Default if unruled: ARM B**, because it is the arm the 2026-09-06 ruling already took and arm A cannot be evaluated
-without measuring how many of the 42 rows are genuinely directory-tier rather than file-exact. **That measurement
-belongs to #1922's lane, not to this one** — whoever takes #1922 should produce the directory-tier-vs-file-exact split
-as a by-product of converting the tables, and the operator question is answerable only after it. Until then this stays
-recorded, not scheduled.
-
-### 12.5 Exceptions and authority
-
-**A REVIEWED GRANT IS STRICTLY ONE-TO-ONE (re-read 2026-09-12, `lib/gate-authority.ts#processReviewed` / `#reconcileAuthority`):** a grant whose identity matches exactly one candidate GRANTS it; a grant matching N > 1 candidates suppresses NOTHING — every candidate stays effective and the run alarms `over-broad-reviewed-grant`. So a class-level legacy exemption (an allowlist, a sanctioned-home list, a count ratchet) cannot be migrated as one grant row over N findings. The shape that works, #1939's precedent generalised: **the POLICY reports ONE aggregate finding per class** (one subject, one operation), so the grant is 1:1 by construction and the central `stale-reviewed-grant` alarm replaces the gate's own stale sweep. `exception-authority-census.md:177`'s older sentence ("suppresses every finding with that identity and merely increments a count") described a retired engine and is corrected there; #1922's plan is priced on this paragraph, never on that sentence.
-
-No gate-specific exemption grammar and no count ratchet. **The retired grammars are DATA —
-`contract/policy-descriptor-read.ts#RETIRED_MARKER_OPENERS` (sixteen: `@orb-gate-ignore`, the twelve gate-owned openers,
-`FABRICATION-OK`, `ONESHOT-OK`, `PROSE-OK`); `policy-soundness` E6 reports a regex literal, a `new RegExp(<static>)` or
-a `.includes/.startsWith/.test/.exec/.indexOf` argument carrying one inside a final module; a mention in a `why`, a
-`message` or a `fix` is prose and passes (#2111).** `hard` findings have no suppression door. `ordinary` findings
-may consume the one central inline marker `// @orb-waive <policy-id>(<position>): <reason>` (also `/* … */` and
-`{/* … */}` carriers), bound to the exact policy and position with a mandatory reason; a node finding binds to leading
-trivia on the node or its ancestors up to the enclosing statement; a file/resource finding binds only to the line
-immediately above; one marker consumes exactly one occurrence; unused, malformed and over-broad markers are central
-reconciliation findings. `reviewed-grant` findings may consume only a typed central grant keyed by policy id, subject and
-operation, with `why` and `endsWhen`; after a complete owner run zero consumption is stale and more than one match is
-over-broad and suppresses none. `error` blocks. **`warning` does NOT block on the FINAL side, and the promotion mechanism EXISTS — this paragraph claimed the opposite from 2026-09-12 until 2026-09-13 and the claim was FALSE (refuted by `v-wave-2026-09-13`, re-derived line by line by the orchestrator).** The partition is `lib/gate-authority.ts:404`, `blocking: errors + alarmErrors + (input.failOnWarnings ? warnings : 0)`; `ops/structure.ts` read `failOnWarnings: false` as a hardcode until #2025; it now reads `const failOnWarnings = parseWarningPromotion(argv)` (arrives from the operator, DEFAULTS false — the default is unchanged); `ops/structure.ts:199-200` builds `total = legacyTotal + finalBlocking` from `authority.verdict.blocking`; `:241` is `ok: total === 0 && !legacyBroken && !finalBroken`; `lib/policy-plan.ts:421` returns `blocking > 0 ? 1 : 0`. **So a final `warning` contributes 0 to `blocking`, 0 to `total`, 0 to `ok` and 0 to the exit code.** Driven, not read: the same policy at `failOnWarnings=false` gives `BLOCKING=0 exit=0` and at `true` gives `BLOCKING=4 exit=1`.
-
-**HOW THE FALSE CLAIM GOT HERE, because it is the most instructive thing in this section.** The retracted text quoted `ops/structure.ts` computing `ok: violations.length === 0` with no severity partition. That expression is real and quoted accurately — it is **`ops/structure.ts:46`, the per-gate LEGACY ROW**, not the run verdict. A per-row field was read as the exit computation, one hop short of `gate-authority.ts`. It then propagated into a commit message, an issue's evidence field, this law doc and a report to the owner before anything checked it. ***Partial reads LOCATE, they do not CONCLUDE*** is already law in this repo's recon standards; this is what breaking it costs when the result is written into the document lanes copy from.
-
-**The old "severity is read in exactly four places corpus-wide" census was also FALSE** — those four (`render.ts:196`, `show-policy.ts:97`, `policy-plan.ts:42`, `structure-report.ts:74`) are the DISPLAY-ONLY readers, and naming only them erased the verdict-affecting/display-only distinction that decides the whole question. At minimum `gate-authority.ts:404`, `pass.ts:434`, `gate-authority.ts:75`, `show-policy.ts:20`, `render.ts:203` and `ops/gen/caught-failure-population.ts:108-110` are also readers. **A corrected full census is owed and is being derived; do not quote the four.**
-
-**THERE IS NO LEGACY HALF — SEVERITY DOES NOT EXIST ON THE LEGACY SIDE AT ALL** (driven 2026-09-13). `lib/pass.ts:434` looks like a second switch and is not: it sits inside `stripProbePolicyFindings` (`:419-437`), a FINAL-side recompute after probe findings are dropped so `policyPassExitCode` keeps one spelling of the exit rule, and it inherits `failOnWarnings` off `result.authority.verdict`. The real legacy `runPass` returns a `PassResult` (`contract/pass.ts:117-122`) with **no `authority` and no `verdict`**; per-gate `ok` is `findings.length === 0` (`lib/pass.ts:404`) and `legacyTotal` sums `violations.length` (`ops/structure.ts:198`). Measured off `loadMixedGateCorpus`: **0 of 85 legacy descriptors carry a `severity` key.** A legacy gate cannot declare `warning`, so there is nothing to partition and no before/after disagreement at the conversion boundary.
-
-**SO THE REMAINING WORK IS A DOOR, NOT A BUILD.** The partition is typed end to end (`contract/policy-pass.ts:90`, `contract/gate-authority.ts:137,146`, `contract/policy-plan.ts:30,75`), honored at its one computation site plus the recompute twin, and even carries an argv grammar — `--fail-on-warnings` at `lib/policy-command.ts:23,226` → `lib/policy-plan.ts:369,531`. What was missing was anything that sets it TRUE: all three shipped entrypoints hardcoded `false` and `planPolicyArgv` was exported but reached by no `cli.ts` verb, so the flag was unreachable from any shipped command.
-
-**THE DOOR LANDED 2026-09-12 (#2025), AND IT CHANGED NO DEFAULT.** `--fail-on-warnings` — the SAME token, imported from `lib/policy-command.ts` (`FAIL_ON_WARNINGS_FLAG`) rather than re-spelled — is now the whole tail of the `structure` verb (`pnpm check:structure --fail-on-warnings`; `lib/verb-tail.ts` rules it `"own"`, zero or one, refused before the run slot opens) and a legal companion to any `scoped` selector. **Absent, both doors pass `false` exactly as before**, proven byte-for-byte: the same planted mixed tree under HEAD and under the door produced an identical exit code and an identical `check-structure.json` modulo run identity and clocks. The two-sided pin is `tests/tooling/verify/ops/warning-promotion.suite.int.test.ts` — a planted warning policy is `blocking: 0 · total: 0 · ok: true · exit 0` without the flag and `blocking: 1 · total: 1 · ok: false · exit 1` with it, reporting the IDENTICAL finding either way. **No new verb was added**: `planner-cli-integration.md` rules that pointing the CLI at the final loader belongs to the atomic cutover, and when the cutover points `structure` at `planPolicyArgv` the flag an operator already types is the flag that planner already parses. `ops/policy-conformance.ts` deliberately keeps its literal `false`: that stage's verdict reads `effectiveFindings` and the authority alarms, never `verdict.blocking`, so promotion there would be an inert knob.
-
-**WHAT IS CURRENTLY NON-BLOCKING, from the loader (positive control: 188 error + 5 warning = 193).** Five policies declare `warning`, and **FOUR of them are `authority: "hard"`** (the loader, 2026-09-12 — an earlier count said three) — an unsuppressible policy whose findings block nothing, which is a sharper contradiction than the ordinary case:
-
-| policy | authority | `workItem` |
-| - | - | -: |
-| `over-art-plate-arm` | ordinary | 2024 |
-| `policy-proof-expectations` | **hard** | 1968 |
-| `policy-waiver-identity` | **hard** | 1952 |
-| `policy-waiver-spelling` | **hard** | 1978 |
-| `user-bus-deferred-member` | **hard** | 1822 |
-
-**And the production artifact says it plainly** (`reports/check-structure.json` → `runs/structure/main-152313-2026-09-12T02-44-32-393Z/`): `verdict: { errors: 66, warnings: 12, blocking: 66, failOnWarnings: false }` — **12 warning findings, `blocking` equals errors alone.** Per-policy, every row `ok: true`: `policy-proof-expectations` **11 violations**, `policy-waiver-identity` 1. Adding `over-art-plate-arm`'s 4 (driven directly: `findings=4 alarms=0 BLOCKING=0 exit=0`) gives **16 warning findings, none blocking**. Note what that means for this program's own claims: **the §5b soundness enforcer (#1971) "reports its own worklist on the commit bar" and its 11 findings stop nothing.**
-
-**RULED 2026-09-12 (#2025, owner): `hard` + `warning` is a CONTRADICTION and the validator REFUSES it at load** — a policy that is unsuppressible and non-blocking at once means neither word. The three §5b soundness enforcers (`policy-proof-expectations`, `policy-waiver-identity`, `policy-waiver-spelling`) become `severity: "error"` and their findings BLOCK from the day the flip lands; the work they report is fixed or granted honestly, never downgraded back. `over-art-plate-arm` (ordinary + warning) keeps its warning with a LIVE `workItem` (#2070). The door's other two halves stand: entrypoint defaults `false`, reach through `--fail-on-warnings`. **BUILT (#2111, `a1c848001`): `lib/policy-validation.ts` refuses the pair at load
-(*descriptor.severity "warning" contradicts authority "hard" (#2025) … use severity "error", or carry the debt under an
-authority whose findings a marker or grant can settle*). FOUR carriers flipped to `error`, not three: the census counted
-FINDINGS and `user-bus-deferred-member` had none — it was `hard` + `warning` with `workItem: 1822` and is `hard`/`error`
-now, its tracking item in prose. The transitional shape for a NEW enforcer that reds a large class on arrival is
-`ordinary` + `warning` + `workItem` over the WHOLE population (never narrowed per chunk), flipping to `hard`/`error` as
-a checkable header event in the commit that closes the last migration chunk (#2184's ruling).** Unresolved
-debt is a warning tied to a positive `workItem`. Reconciliation runs only after every selected owner completed its
-population; a thrown, incomplete, empty or unresolved owner withholds liveness rather than falsely staling grants. Gate
-modules receive neither grant tables nor marker parsers. Current-population declaration counts, every-file manifests and
-`*.baseline.json` debt retire (dispositions per row: `exception-authority-census.md`).
-
-### 12.6 The 13 mixed-hook modules — ALL CONVERTED 2026-09-12 (the ruled mappings, kept as the record)
-
-> **A RULED ARITY IS STILL A CLAIM ABOUT THE TREE (amended 2026-09-12, `tooling-argv-front-door`).** The
-> mappings below were ruled 2026-09-11 against that day's tree. The forge lane building them found one whose
-> ARMS are right and whose ARITY is unbuildable — two policies over ONE predicate double-report every site,
-> and the only separator is the grant table §12.5 forbids a module to read. **Where a ruled row disagrees with
-> the tree, the lane escalates with receipts and the ROW is amended; it does not implement a mapping that
-> cannot exist.** Check each row's predicate count against its module before building it.
-
-| Current module | Final mapping |
-| - | - |
-| `agent-bridge-lock` | visitors plus exact-file `visitFile`; all cross-file reconciliation in `evaluate`; one hard policy |
-| `design-audit-rule-proof` | registry/proof visitors plus `evaluate`; one hard policy |
-| `no-inline-union-redecl` | ordinary union/respell policy, reviewed SDK-mirror grant policy, and hard grant-health policy under one family |
-| `query-boundary-reservation` | ordinary unreserved-boundary policy plus hard duplicate/seam-health policies |
-| `session-channel-boundary` | ordinary construction policy plus hard home-health policy |
-| `sub-floor-disclosure` | ordinary occurrence policy plus hard vocabulary-health policy |
-| `testid-liveness` | ordinary dead-consumer/row policy plus hard registry-health policy |
-| `tooling-argv-front-door` | ordinary illegal-reader, reviewed entry-grant, and hard population-health policies |
-| `tooling-front-door` | ordinary import-boundary policy plus reviewed root-config grant policy |
-| `tooling-instrument-proof` | syntax/resource visitors plus `evaluate`; one hard policy |
-| `tooling-ops-direct-invocation` | canonical exported-function/module-call facts plus `evaluate`; one hard policy |
-| `tooling-shared-plumbing` | separate family ids for Project home, browser doors, artifact/run-slot, exit/CLI, child-process priority, ports, and clock budgets; each id has one authority |
-| `ui-variant-axes-stamped` | hard recipe/duplicate/blindness policies plus work-item-linked warning debt; baseline deleted |
-
-### 12.7 World-program guarantees that must survive (re-read the current implementation before converting a named policy)
-
-The completed world/test program (#1351, phase 4 #1862) repaired the production legacy path while this program
-remained incomplete. Its changes are INPUTS to conversion, not disposable transitional behavior. Before converting a
-touched policy, re-read its current implementation and proofs on `main`; never restore an older gate-branch copy. The
-comparison anchor is tinker commit `6c8424806704ac9322cc2ff5fe0334801b3d1801`, an ancestor of the integrated tree:
-re-derive the complete delta with `git diff 6c8424806 HEAD -- <the policy and its readers>`, including shared readers,
-native configs, hooks, moved source owners and tests. The per-row SHAs below are the evidence to read, not a roster.
-
-**WHAT #1351 ACTUALLY BUILT — read this before proposing any config, path, program or liveness work, because this
-program does NOT own these and has repeatedly tried to rebuild them.** Its own record is
-[`docs/history/type-worlds-program-2026-09-10.md`](../history/type-worlds-program-2026-09-10.md); the table below is
-the map, not a substitute for it. Note the dates: the gate program STARTED FIRST, so every gate-runtime review
-document predates this and describes a tree where none of it existed.
-
-| What #1351 built | Mechanism, and what it means for a conversion |
-| - | - |
-| **Program purity** — every authored TS file has an intended world and explicit compiler ownership | `_shared/project-worlds.ts` (intent) + `ops/tests-type-membership.ts` (enforcement). A file being IN some program is not being in the CORRECT program, and a correct root does not prove its imported closure is compatible. `types: []` disables ambient inclusion but does NOT stop imported declarations adding Node globals — ISO acceptance inspects the real declaration closure |
-| **Derived paths and programs** | The shared compiler reader (`lib/policy-program-membership.ts`) is the one parser: authored roots, imported closures, ambient worlds and references all come from it. **No directory heuristic and no hand-maintained per-program command table is authoritative.** `pnpm typecheck` discovers every runnable program; scoped verification forwards the affected set as repeated `--config` |
-| **Generated tsconfigs** | `verify baseline type-configs` WRITES the world templates and runnable configs from `_shared/type-config-intent.ts`; `--check` verifies freshness without writing. Package worlds, test kinds, helper homes and ambient scopes determine the generated fields. **Never hand-edit a generated field — change the intent.** Abstract templates carry `files: []` |
-| **vitest / playwright / CT liveness** | `verify config-snapshot vitest <config>` loads selector fields through Vitest's PUBLIC config loader; `runner-config-path-liveness` consumes that observation instead of interpreting imported JS. Exact paths keep field-specific file/directory semantics and repo containment; glob rows are explicitly reported as UNJUDGED |
-| **eslint liveness** | `ops/config-snapshot.ts` + `gates/eslint-grant-liveness.ts` (`084991033` / #1895). Real `ConfigArray` evaluation — default selection, local ignores/basePath, ordering and per-entry identities preserved. Whole execution is `pnpm lint:eslint`; a separate native discovery pass enumerates the same files with rules disabled, and that is DISCOVERY DATA, never a lint verdict |
-| **dependency-cruiser liveness** | `gates/depcruise-grant-liveness.ts`, same `native-config` shape as eslint. Both are `authority: "hard"` — which is WHY they work: a `native-config` declaration drags the whole repo inventory into the policy's resource population, and an ORDINARY consumer's waiver-carrier demand then throws on tracked symlinks |
-| **biome** | **No loader exists and none is coming** — `@biomejs/biome` ships `bin/biome` plus a schema, no `main`, no `exports`, no `@biomejs/js-api`, and no subcommand emits a resolved configuration. Biome is a strict JSON read. It is also a policy HOST, not only a lint config: `1bf7ff7d9` moved D12's import ban INTO biome's `noRestrictedImports`, and `0df3fa9d6` (#1245) ruled that **biome checking ZERO files is a REFUSAL, never a clean lint** |
-| **stryker** | `_shared/stryker-config.ts` composes both configs natively (`a24feaadb` / #1897). Derivation stays PURE — importing it cannot mutate the base Vitest config — and a native dry run proves loading and test execution but NEVER substitutes for mutation-score calibration |
-| **vite** | Not a liveness surface. The dev stack self-heals on source changes; workspace packages are source-consumed. It appears here only so nobody adds a vite gate looking for symmetry |
-
-**WHAT EACH LINTER ACTUALLY SEES, AND WHY ESLINT IS THE ODD ONE — measured 2026-09-13, and it is here so nobody
-re-derives seven tools again.** Three gitignored directories have now been silently linted
-(`playwright/.cache` #2213, `.claude/worktrees` #2281, `scripts/probes/st-goldens` #2282), all one mechanism:
-
-> **FLAT-CONFIG ESLINT READS NO VCS IGNORE FILE.** `.gitignore` fences nothing in `eslint.config.js`. Biome is
-> fenced TWICE (`vcs.useIgnoreFile: true` PLUS an explicit `"!.claude"` in `files.includes`) — which is exactly
-> why the sibling tool always looks fine and this keeps going unnoticed.
-
-| tool | how it is invoked | reaches a gitignored tree? | fenced by |
-| - | - | - | - |
-| biome (`lint`, `format`) | `biome check .` — repo ROOT | no | `useIgnoreFile` + `"!.claude"` — **and NESTED `.gitignore` files, whose NEGATIONS it does not honour** (#2299) |
-| **eslint** (`lint:eslint`) | `eslint.lintFiles(["."])`, `ops/eslint-discovery.ts:49` — its OWN walk | **YES** | *nothing* — the `ignores` block is the only fence |
-| dependency-cruiser | `depcruise packages tooling <helpers>` | no | explicit roots, by construction |
-| knip | workspace-scoped | no | a worktree is not a workspace member |
-| vitest | `packages/*/src/**`, `tooling/src/**` | no | anchored globs cannot match a nested copy |
-| tsc / `pnpm typecheck` | explicit `--config` per program | no | tsconfig root lists |
-| **the gates** | declared populations | no | **verified empirically in the published slot: 0 worktree paths, 0 of 376 violation files** |
-
-The gate row was checked against `reports/check-structure.json` rather than reasoned from the population algebra:
-the gate corpus is NOT inflated by worktrees.
-
-**AND BIOME'S FENCE IS NOT ONLY THE ROOT `.gitignore` — a NESTED one fences too, and biome ignores its
-NEGATIONS, which is how a deliberate exemption ends up riding another tool's semantics (#2299, measured
-2026-09-13 on biome 2.5.1).** Census of `scripts/probes`: **32 tracked `.ts`, 19 CHECKED AND CLEAN**
-(the flat `sdk-*` set, `impersonate/`, `st-goldens/`, `transcript-census.ts`) and **13 invisible** — the nine
-under `openrouter/` and the four under `rpg-extraction/`, the only two directories carrying a `.gitignore`
-that starts `*/`. `rpg-extraction`'s `!*.ts` re-include was INERT. Two corrections, to the row above and to
-the text of #2299 itself: a scoped `pnpm exec biome check <ignored path>` **exits 1** with *"These paths were provided
-but ignored"* — biome REFUSES loudly and is NOT the `ESLint.isPathIgnored` false-clean shape; exit 0 needs
-`--no-errors-on-unmatched`, which is the EDIT HOOK's spelling. And the hook DISAGREED with the shipping gate
-because `tooling/biome.edit.jsonc`'s `files.experimentalScannerIgnores` **suppresses nested ignore-file
-discovery** — isolated by driving an otherwise identical extends-root config with the scanner ignores
-removed. Both are now fenced by two explicit `files.includes` negations that `biome.edit.jsonc` inherits, and
-the reason plus END CONDITION per directory are data in
-`tests/tooling/biome-scripts-probe-scope.int.test.ts`: neither `biome-grant-liveness` (override `includes`)
-nor `config:biome-rule-liveness` (rule-off grants) has `files.includes` in its population, so that test is
-the only thing holding the rows live.
-
-**THE SCALE — AND READ THE UNITS, BECAUSE THE FIRST VERSION OF THIS PARAGRAPH GOT THEM WRONG (corrected
-2026-09-13 by `p-eslint-fence`, which replicated discovery exactly with rules and programs off).** The numbers
-that matter are ESLint's LINTABLE population, not files on disk. Measured on `main`:
-
-| | files | discovery payload |
-| - | -: | -: |
-| unfenced (today) | **15,994** — of which **7,896** are worktree copies and **353** the ST parity rig | **1,782,584 B** |
-| both fences applied | **7,746** — worktree 0, ST rig 1 (its one tracked file) | **446,162 B** |
-
-**The retracted version said "294,065 in 39 worktrees and 17,059 under the ST rig".** Those were `find` counts
-over the DISK, and for the ST rig it failed to exclude that runtime's own `node_modules` — overstating its linted
-population by roughly 48x. An on-disk count is not a lint population: ESLint applies its own default ignores and
-admits only what a config matches. **A smaller true number beats a large wrong one**, and the fix does not change:
-worktrees are still about HALF the entire linted population.
-
-**But COST is not the reason to fence.** Whole-run timings were load-confounded and did not reproduce; discovery
-cost also changes materially with the number of live worktrees. The reason is that the stage cannot return a
-VERDICT: a lane swept mid-run turns an enumerated path into ENOENT and it exits **2**.
-**And the payload row above is load-bearing beyond this table:** 1.78 MB unfenced is over node's 1 MiB default,
-which is what #2211's `maxBuffer` ceiling was raised for, and 446 KB fenced is 2.35x under it. So the fence
-RETIRES that premise, and `eslint.int.test.ts`'s floor arm inverts — it stops pinning *the overflow still happens*
-and starts pinning *the fix still holds*, which reds if a future unfenced tree re-inflates the population.
-
-**A NATIVE-CONFIG EDIT OWES ITS LIVENESS GATE, DRIVEN BEFORE AND AFTER — never reasoned about (paid twice in one
-hour, 2026-09-13, once in each direction).** Every config in the rows above carries a gate that reads it natively,
-and the discriminator between a safe edit and a breaking one is **POPULATION vs SPELLING**:
-
-- **BREAKING — a selector POPULATION moved.** Adding one `ignores` entry to `eslint.config.js` redded
-  `eslint-grant-liveness` (hard/error) immediately: it flags any evaluated selector with ZERO members in the
-  TRACKED corpus, so a gitignored fence owes a `RATIFIED` row with a reason, an end condition and a live cite —
-  which is why `node_modules`, `dist`, `.stryker-tmp` and `.cache` each carry one, and why `reports/**` does not
-  (it holds one tracked file, so its selector is live). It also broke four `grant-liveness-family` proof rows,
-  whose fixtures hand-spell the ignores array to mirror the real config, and it tripped a THIRD pin —
-  `eslint.int.test.ts`'s payload floor, whose message reads *"#2211's PREMISE HAS MOVED"*. That ceiling had been
-  sized against the unfenced population, which is what a tripwire is for.
-- **SAFE — only a SPELLING moved.** `playwright-ct.config.ts:48` was respelled from
-  `path.resolve(CLIENT_PACKAGE_ROOT, …)` to the whole repo-relative path so `playwright-css-topology`, which has
-  no compiler program for a root config and matches on the file's TEXT, could see it. It folds to an identical
-  absolute path, so the native observation is unchanged: `runner-config-path-liveness` stayed EXIT 0 (it reads
-  `static-config:ct` and `static-config:playwright`), with its `.int` 4/4 and `config-snapshot.int` 24/24.
-
-**AND THE `RATIFIED` TABLES ARE KEYED BY POSITIONAL INDEX** (`config[0].ignores[5]`), so **an entry inserted ABOVE
-an existing key silently re-points every row beneath it** — they still resolve, just to the wrong selectors. That
-is the #2213 coupled-site trap one turn further on.
-
-**BUT "APPEND IT" IS WRONG, AND THIS PARAGRAPH SAID SO UNTIL 2026-09-13 — the correct placement is IMMEDIATELY
-AFTER THE LAST RATIFIED INDEX, never at the array's end** (measured by `p-eslint-fence`, which was briefed with the
-wrong advice and caught it while building). Two facts make the end of the array the more expensive choice:
-the `ignores` array carries **unratified live entries after the last ratified one** (`**/*.gen.ts` and two token
-paths sit past index 5 today), so a true append lands at index 9 or 10; and **the proof fixtures spell the ignores
-array as a PREFIX**, so a row at index 9 forces every fixture to also carry 6, 7 and 8 — which are zero-member in a
-fixture repo and each report as a DEAD SELECTOR. Land new fences at the first indices after the last ratified key
-and let the unratified live entries shift down; nothing references them by position.
-
-**AND THE FIXTURES ARE IN THE GATE MODULE, NOT IN THE FAMILY TEST.** `grant-liveness-family.test.ts` drives
-`verifyPolicyProofs` and needed no edit at all; the four `mustFlag`/`mustPass` fixtures that hand-spell the array
-live in `gates/eslint-grant-liveness.ts` itself. A brief that sends a lane to the family test for this sends it to
-the wrong file.
-
-**AND `ESLint.isPathIgnored` ANSWERS "WOULD ESLINT LINT THIS", NOT "DOES AN IGNORES GLOB MATCH IT"** — so a file
-matching no `files:` surface reads IGNORED whether or not any fence exists. **Every `.ts` under `scripts/` is in
-that state today**, which makes a `.ts` control there UNFAILABLE: green before the fix, after the fix, and under a
-deliberately over-broad fence. An ignore-fence control must use a default-linted extension (`.js`/`.cjs`/`.mjs`).
-The same measurement exposed a real coverage hole that is NOT a fence question: `scripts/dev/**` and
-`scripts/probes/**` TypeScript is in no lint surface at all.
-
-**The rule that binds every row above** (#1351's own words): *"Preserve and adapt native-config liveness checks when
-selectors move behind imports or generated layers. A static reader that cannot follow the new form must REFUSE or be
-replaced by an effective-config witness, never silently pass."* The converted `runner-config-path-liveness` must
-preserve that native-observation guarantee; its historical refusal is not a current migration rule. And #1351 scoped itself explicitly: *"the remaining
-gate conversions are not bundled into this program by default … the gate program remains a subsequent work queue."*
-So these are OUTPUTS we inherit and must convert without breaking — never evidence that the gate contract can already
-express them.
-
-| Guarantee | Current owners / evidence | Required proof |
-| - | - | - |
-| Test-kind registration and source mirroring | `_shared/test-kinds.ts`; `gates/test-layout.ts`; a8c4461db, #1862 follow-ups | registered DOM/runtime/type/suite kinds keep distinct meaning; unsupported test-shaped names fail, including in helper trees |
-| Presence and mutation/execution population semantics | `gates/test-presence*.ts`, `verify/ops/tests-execution-membership.ts`, `verify/lib/ct-view.ts`, `mutation-probe/lib/mirror.ts`; aefec8d9a | persistence requires integration coverage, schema contracts require contract tests, type-only files cannot satisfy runtime presence, native collection stays independent |
-| Current source ownership and exact grant identities | forms/editor, rendered components, appearance/session and scroll ownership; 1a77f8d83, 370243fe7, b849e7add | updated subjects and grants resolve at current homes; no stale old-path permission survives |
-| Actual compiler roots and post-transform diagnostics | shared compiler reader and codemod; 708e709a1, f2d3f1ddc | native post-transform roots and full affected-program diagnostics detect wrong/missing owners AND broken unchanged consumers |
-| Shared file routing and independent native parity | `verify/lib/program-routing.ts`, `verify/ops/tests-type-membership.ts`, the post-edit hook; dc8ccbd0b / #1893 | primary roots and affected closures keep separate meaning; native TS7 independently checks the shared parser; main-registered hooks check the EDITED worktree with its own dependencies, and malformed/skipped/failed checks stay explicit non-verdicts |
-| Native executable-config observations | `verify/ops/config-snapshot.ts`, `gates/runner-config-path-liveness.ts`; dc8ccbd0b | Vitest selectors from its public loader incl. imported/called/spread config; exact selector containment and file/directory semantics survive the resource-host conversion; unjudged globs stay visible |
-| Predictive ownership and ambient/library closure enforcement | `verify/ops/tests-type-membership.ts`, `_shared/type-config-intent.ts`; phase 6 #1896 | required/exclusive roots, exact ambient roots and closure sets, unknown intent, ISO/Node library leaks keep independent negative controls; native/shared root parity runs in THIS stage, so do not resurrect the retired `tsconfig-routing-parity` gate and do not drop its successor check |
-| Native ESLint scoped grant populations | `verify/ops/config-snapshot.ts`, `gates/eslint-grant-liveness.ts`; 084991033 / #1895 | preserve default selection, local ignores/basePath, ordering and per-entry identities; local-ignore counterfactual measurements must not widen unrelated selector populations; keep native comparison controls and do not restore the former static evaluator |
-| Unified native type execution | `verify/ops/typecheck.ts`, `verify/lib/registry.ts`, `scripts/ts7.cjs`; cfb9cea2f | every selected affected program executes; empty/refused selections and abnormal exits explicit; do not restore removed graph/browser stage flags or aliases |
-| Native mutation config composition | `_shared/stryker-config.ts`, both Stryker configs; a24feaadb / #1897 | preserve profile options, mutable branches, worker eligibility, calibrated thresholds; native dry runs prove loading and test execution and NEVER substitute for mutation-score calibration |
-| Native snapshot startup cost | `verify/ops/config-snapshot-entry.ts`, `verify/lib/config-snapshot.ts`; native-loader diagnosis 2026-09-10 | synchronous gates stay behind the narrow private worker instead of eagerly loading every verify operation (measured 1.75 s / 435,320 KiB RSS down to 0.55 s / 154,412 KiB with equivalent snapshots; the 108-test native regression set passes at ordinary timeouts); preserve JSON/error/root semantics and independent loader controls |
-| Browser contracts require the real DOM world | `gates/test-world-browser-contracts.ts`, `verify/lib/browser-contract-reader.ts`, their gate tests and the real InputProps fixture | canonical browser components, aliases and React DOM contracts reject in Node-intent tests, while pure data, ReactNode and genuine Node globals stay LEGAL; preserve unreadable-origin refusal and migrate the real-corpus proof to the final overlay fixture runtime |
-| Pass-local semantic reader performance | `verify/lib/pass.ts`, `reference-fact.ts`; 763ddf019 | the shared reference cache lasts exactly one dispatcher invocation; repeated queries reuse it and later invocations cannot reuse stale answers; compare identical findings AND populations as well as timing |
-| Fresh type verdicts | `scripts/ts7.cjs`, both Vitest type projects; 7d9cd503e / #1892 | warm/changed/restored produce green/red/green without deleting caches; long and short forced incremental flags cannot bypass the wrapper |
-| Owned fixture resources | `check-gates.repo.int.test.ts`, `gate-ignore-grammar.repo.int.test.ts`, `tests/server/entry/lifecycle.int.test.ts`; #1862, 27126f77e | concurrent proof instances cannot delete or observe each other's fixtures; per-instance db/assets roots; lifecycle uses an OS-assigned port and independently proves its security and concurrency properties |
-| Honest abnormal-run artifacts | `tests/tooling/verify/ops/structure.int.test.ts`; #1862, c8ff56723 | kill/OOM controls reach the intended execution state BEFORE failure and verify the incomplete-run artifact and exit class; a startup failure is not equivalent evidence |
-
-A final mechanism may replace an implementation (virtual overlays for live-tree sentinels) but must retain the behavior
-and its independent regression proof; record the successor proof when retiring an old harness test. **Inherited from the
-world program:** the owner deferred live-tree gate-fixture redesign/retirement INTO this program, and the two legacy
-fixture writers still share paths, so this table does not claim they are isolated or safe to parallelize.
-
-**RE-READ 2026-09-12 by the orchestrator (the archived record in full + every module in the table above + the four
-converted liveness gates and `lib/config-grant-rows.ts`) on the owner's question "are we messing that up?": NO —
-and three COUPLED SITES the gate program owns, stated so nobody trips them.** (1) The gate program's one addition to
-the world program's reader was placed INSIDE it (`policy-program-membership.ts#readCompilerConfigEntries` +
-`compilerConfigRoster`, `97e68be91`): the raw `include`/`exclude` entries with positions, through TypeScript's own
-JSON parser, no second grammar — that is the shared-reader route §12.4 residual 2 named, and the liveness gates
-judge the QUESTION (an entry naming nothing) while the reader keeps owning the ANSWER (which files). (2) The
-`__g_` sentinel that Phase F retires with the legacy planting suites has FIVE coupled sites outside the gate corpus:
-`_shared/type-config-intent.ts` `TYPE_CONFIG_EXCLUDES` (every generated tsconfig's `exclude`),
-`ops/tests-type-membership.ts` `SENTINEL_RE`, `eslint.config.js`'s `**/__g_*` ignore with its
-`eslint-grant-liveness` RATIFIED row, `.dependency-cruiser.cjs`'s `(^|/)__g_` with its `depcruise-grant-liveness`
-RATIFIED row, and `tsconfig-entry-liveness`'s `fix` prose. Retire them TOGETHER: the two RATIFIED rows are two-sided
-and red the moment the config drops the pattern, and the intent change regenerates every config. (3) Both RATIFIED
-rows `cite` `tooling/src/verify/gates/GATE-AUTHORING.md` by PATH with a dead-cite arm, so #2126's rewrite keeps the
-filename or re-points both cites in the same commit. Two things the re-read confirms are NOT ours to touch: the
-routing-parity comparison (native TS7 `--showConfig` vs the shared parser) lives in `tests-type-membership` and
-`tsconfig-entry-liveness` is not its resurrection; and the native-config observations (Vitest's public
-`resolveConfig`, ESLint's `ConfigArray` counterfactual populations, dependency-cruiser's public extractor) are consumed
-by the gates exactly as shipped — a missing or unparseable config is a population-phase TOOL ERROR, never a silent
-pass, pinned in each gate's `.int.test.ts`.
-
-### 12.8 Acceptance for the program (unchanged from the design)
-
-Every current policy has one live owner or explicit retirement; zero `scanRoot`, `scopeSafety`, `begin`, `finalize`,
-free-form `run`, direct walk, gate-owned Project or mutable module state in gate modules; zero gate-owned glob, path
-regex, comment parser, binding resolver, static-value parser, resource loader or workspace cache; every registered policy
-supports all declared command/scope/severity/report/authority capabilities; all source/helper/tests/exemptions read in
-full and every world-program delta re-attested with successor proofs; alias/namespace/re-export/destructure/computed/
-wrapper/shadow/write/cycle/dynamic variants planted wherever identity matters; no baseline JSON or parallel registry;
-full structure, focused behavior, differential, failure/re-entry, broad CPD and performance/RSS artifacts read before
-owner review.
+| `visitors` | kind-indexed AST judgments; this is the only walk |
+| `visitFile` | a true file-level callback such as a line or comment posture |
+| `evaluate` | post-walk, cross-file, resource, fact, or grant judgment |
+| `facts: [provider]` | consume a shared `defineFact` provider through `ctx.fact()` in `evaluate` |
+| `resources: [{kind,id}]` | consume a declared ResourceHost input through `ctx.resources` |
+| `ctx.checker()` | compiler-resolved identity or type semantics |
+| `execution: "entire-population"` | the verdict cannot compose over a subset; it must provide `evaluate` |
+| `-health` sibling | an arm requires different authority or severity; retain the same `family` |
+
+`population` is declared manifest algebra used by every selection mode. `execution` declares whether a subset is
+sound; a narrowed request defers an entire-population policy or refuses under strict scope. `create` runs once per
+invocation and may close over pass-local state. Hooks run as `visitors`, `visitFile`, then `evaluate`; central
+post-processing then owns waivers, grants, severity, sorting, completeness, and reporting.
+
+Every policy supports the common command contract: tier plus file, folder, package, project, changed, and whole scopes;
+explicit `--check` and `--family`; strict-scope refusal; list and explain; JSON reporting; stable exit classes; requested
+and effective population manifests including deleted and renamed semantic paths; compiler-derived program membership;
+one lazy checker per workspace; and per-owner file/member/resource/timing receipts. These are explicit acceptance
+dimensions, not implied by a generic “all capabilities” claim. The canonical live shapes are the contract files and
+their headers under `tooling/src/verify/contract/`.
+
+One descriptor has one authority, severity, and execution mode. Split a multi-arm legacy module when any axis differs.
+Siblings share one real reader in `lib/` and one family. A family is a shared computation or subject reader, never a
+theme, filename prefix, or topic. A singleton names why no shared reader exists.
+
+A ruled split arity is a claim about the current predicates, not permission to force code into an old mapping. Before
+conversion, count the independent authority, severity, execution, and semantic predicate arms in the actual module.
+Escalate and amend the ruling with source and proof receipts when the old arity would double-report one predicate or
+would require a policy to read grants or exception state forbidden by the final contract. An empty exemption table or
+baseline remains evidence about the arm's shape; it is not evidence that the arm is absent.
+
+### 2.1 Proof rows, reporting, and population ports
+
+Every `mustFlag`, `mustPass`, and `mustRefuse` row explicitly declares `mode`, a `files` map, and `why`; no default path
+is inferred from population. `why` states the mechanism the row distinguishes, not only its expected cardinality.
+
+`report.node` separates the waiver carrier from the source coordinate. The carrier is the AST node
+whose trivia can hold a waiver; the position token is an exact authored slice at the reported line and column. When a
+policy omits the token, the sink derives a waivable identifier, literal, or keyword from the carrier through `lib/policy-pass-context.ts`. A policy may not synthesize a
+token, include presentation text or parentheses that do not occur at the coordinate, or treat a legacy discriminator
+label as a final position.
+
+An absence verdict cannot anchor on the missing subject. `ctx.report.file` accepts only an admitted path. Use the
+shared `subjectAnchor(ctx.files, preferredPaths)` fallback to choose a deterministic admitted source, or use the
+declared resource anchor when the contract exposes one. A missing token does not justify returning clean: report through the admitted carrier and let the sink derive the
+token. A missing admitted file is a different condition; never invent an outside-population anchor, and preserve the
+empty-population refusal.
+
+Any converting policy needing an exact-slice position consumes the canonical anchors in `lib/caught-failure.ts`:
+`anchorWithin`, `calleeAnchorCandidates`, and `firstAnchor`. Expression anchors unwrap parentheses before choosing the
+authored subject. A conversion does not clone or reinterpret these helpers locally.
+
+Legacy gate-ignore positions were optional discriminator strings compared to the legacy finding token. Final ordinary
+positions are exact source coordinates. Conversion therefore re-derives every position from the final report call and
+proves the new door; it never copies a legacy label by spelling. When the legacy subject exists only in comment trivia,
+the final AST policy cannot preserve that suppression door: convert the rule to `hard`, retain the catch, and record the
+door loss honestly in the differential. Do not manufacture a nearby code coordinate or silently delete the subject.
+
+Every population port is a bidirectional set comparison over the legacy and final admitted paths: record
+`legacy − final` and `final − legacy` separately and classify every member. Plant an inside control and an outside
+control so equality cannot pass because both sides admitted nothing. A header saying “byte-identical population”
+without the two differences and controls is not evidence.
+
+## 3. Query and resource boundary
+
+A gate may inspect its delivered node, iterate resolved `ctx.files`, request a canonical source file or lazy checker,
+and call shared readers. It may not call project-wide or descendant traversal APIs, create a Project, keep a workspace
+cache, import another registered gate module, or implement binding/origin resolution locally. Shared predicates live in
+`lib/`; recognition of a registered gate is by contract registration, not directory name.
+
+`ctx.relativePath` is partial and throws outside the effective population. Use the declaration's normalized source-file
+path for home questions about a resolved declaration. Membership in `ctx.files` is not a substitute because scoped
+runs narrow that collection.
+
+Every `ctx.resources` acquisition is immediately consumed through the import-origin-verified
+`readyResourceValue(...)`. A top-level `missing`, `empty`, `unresolved`, or `malformed` resource is a tool failure and
+withholds its owner; it is never a finding or a silent zero. A health policy may report a semantic domain condition
+inside a ready value, but does not report acquisition failure.
+
+A fact provider runs once over the union required by its consumers and withholds dependents on failure. Its receipts
+are per dependency granularity and state what the provider measured, not what it found. `members` is the admitted
+denominator; `unresolved` is unreadable syntax. Domain emptiness or holes belong in delivered fact data when a health
+consumer must judge them. A consumer asking the home of a fact-delivered declaration uses `declarationHome`, because a
+provider population may be wider than the consumer population.
+
+A health consumer receipts constant `members: 1` to attest that it consumed the ready fact, never the domain census it
+is judging; otherwise a zero domain census becomes a receipt failure and cannot reach its accuser. Unsupported syntax
+becomes an unresolved fact or tool error and never collapses to absence. Shared binding/origin resolution follows the
+canonical chain without a gate-local hop cap.
+
+The runtime refuses early or undeclared fact reads, duplicate provider ids, a selected-file consumer of a fact that
+requires its full declared population, unused declared dependencies, missing semantic receipts, and acquired resources
+that remain unconsumed. These are contract failures, not optional review advice.
+
+Provider semantic receipts and receipt-shaped fields inside a fact value are distinct. A policy cannot read provider
+semantic receipts. A final policy declaring any fact or resource must prove refusal through a `mustRefuse` row or a
+family test that imports the policy and asserts the stronger condition a row cannot express.
+
+## 4. Resource vocabulary
+
+The ResourceHost vocabulary is closed. The tuple and contract files own its current members; prose never hand-counts
+them. A new kind requires two or more independent consumers, a capability matrix proving no existing kind can serve
+them, runtime and fixture implementations, discriminated status/receipt handling, validator and planner wiring, and
+positive, negative, empty, malformed, unresolved, overlay, and isolation controls. A one-consumer kind is a private
+reader in contract clothing and is refused.
+
+`installed-package` has the closed `ast | metadata | text` modes. Authored-path identity must distinguish missing,
+file, directory, and a symlink resolving outside the tree, including absolute-selector normalization. `biome.json` is
+strict JSON; tsconfig is JSONC plus extends folding; neither gains a native snapshot runner. Resource declarations do
+not imply the carrier-demand hazard: that depends on a kind's population and ordinary authority.
+
+Installed traversal is available only through `installed-package`, resolved by Node from a declared base with a closed
+request id and mode. A policy does not glob or walk `node_modules`, choose an arbitrary caller id, or resolve from an
+undeclared base. A new request id may name a new consumer under an existing mode. A fourth installed-package mode or
+any other new reading shape reopens the closed vocabulary and must satisfy the full reopening condition; similarity to
+an existing evidence contract does not authorize it. A different status, value, or receipt contract is a new kind and
+pays the same full admission cost.
+
+Population named roots are only independently selectable packages or top-level trees. A nested `under`/`notUnder`
+constraint refines a declared root and does not mint an alias. Authored source populations admit `.ts` and `.tsx`;
+other module extensions remain cleanup rather than silent expansion. A resource policy declares why ordinary source
+dispatch is `of: none`. Generic policies include tooling and test-tooling unless an explicit, proven population rule
+excludes them.
+
+Any ResourceHost successor for staged-index or candidate-index reading preserves the existing staged/worktree
+divergence guarantee and its discriminating controls. The complete historical proof-owner row remains in the archived
+§12.7 table; conversion re-reads the current implementation before retiring that harness.
+
+## 5. Authority and exceptions
+
+`hard` rejects every suppression. `ordinary` consumes exact `@orb-waive <policy-id>(<position>): <reason>` occurrences.
+`reviewed-grant` consumes exact typed `(policy-id, subject, operation)` rows. One grant matching more than one candidate finding suppresses
+none of those findings and raises an over-broad authority alarm. Duplicate grant identities are refused separately. A class-level exemption migrated from a broader mechanism must still aggregate
+to one finding if a single exact grant is meant to consume it. A policy may use only one authority. Gate-local
+allowlists, path subtractions, custom markers, baselines, and exemption tables do not survive conversion; classify and
+migrate their meaning to the central authority before conversion.
+
+Central waiver/grant reconciliation runs only after every selected owner completes. A failed, incomplete, empty, or
+unresolved owner withholds its findings and its waiver/grant liveness result; no partial owner may make an exception
+look live or stale.
+
+Hard plus warning is invalid. Warning findings carry positive work items and are not converted into grants to clean a
+run. Warning promotion is opt-in and remains disabled at shipped entry points unless explicitly selected.
+
+A newly policed large class may transition as `ordinary` + `warning` with a live `workItem` over its whole declared population while
+its findings are retired in bounded chunks. At the final chunk it becomes `hard` + `error`. The transition never narrows
+population to manufacture a clean result, and does not authorize a permanent warning or waiver door.
+
+Numeric ratchets are forbidden when the value is derivable from source, generated output, a tuple, registry, or native
+tool result. Hold derivable relationships directly. The required `theme.css` guarantee is byte identity with
+`renderThemeCss` in the `ledgers:fresh` baseline path, with no policy or fixture spelling an expected declaration count.
+This is an implementation obligation from #2230, not a claim that the check is already present: until its owning change
+lands, `EXPECTED_DIRECT_THEME_DECLARATIONS` and its fixture spellings are known noncompliance with this rule.
+
+The only sanctioned non-derivable cardinality guard is `depcruise-grant-liveness.BACKREF_BUDGET = 16`. It covers the
+sixteen `$1` backreference dependency-cruiser rules whose bound member set exists only at cruise time and cannot be
+derived by a static reader. This named exception guards silent growth of an unreviewable population; it is not a
+generic ratchet license. A new numeric exception requires an owner ruling and proof that no source-derived equality is
+possible.
+
+## 6. Proof law
+
+### 6.1 Preserve behavior
+
+Before acting on an inherited audit cell, re-read and re-cut it against current source. Historical counts are upper
+bounds on remaining work. When waves disagree, read both and resolve the cell through the current mechanism and its
+discriminating control; a later date alone does not settle the verdict.
+
+Carry every legacy `mustFlag` and `mustPass` example one-to-one into explicit `GatePolicyProof` fixtures. Preserve
+founding positives, near misses, aliases and identity variants, declared limits, and world-program guarantees. Add a
+row only for changed behavior or missing proof. A retired or merged arm receives a successor proof.
+
+Every invented row asserting a new property owes a scratch-copy break of that property: demonstrate that the row fails,
+then restore exactly. This obligation does not require re-inventing one-to-one carried legacy rows.
+
+Every `mustFlag` has an `expect` with `count` or `countFrom`, plus `token`, `line`, or `messageIncludes` when identity
+matters. `countFrom` is restricted to an exact module-scope registry driver, is mutually exclusive with `count`, and
+still requires an identity field. A count-only row cannot prove a branch distinguished only by message.
+
+A narrowing owes a row that goes red when the narrowing is opened. Assert a cut anchor occurs exactly once, import the
+specific sibling being exercised, write each cut to a unique sibling scratch module so imports resolve and caches do
+not alias, state the cut direction, and restore in `finally`. For a tripwire, fences acquit subjects: opening a fence
+can make a `mustFlag` go green. Jointly cut interacting clauses before classifying an individually clean cut.
+
+A clean cut is classified as unenforced, mutually redundant, wrong-direction, performance-only, unreachable, or
+structurally unfalsifiable. `UNFALSIFIABLE` requires a constructed fixture attempt. A joint cut that tool-errors may
+identify an unreachable clause and a surviving type obligation; delete the unreachable clause. A declared limit also
+requires a run row. Ask per arm whether unreadable input reports or passes; a fail-open result is not a declared limit.
+
+Every fail-open-to-fail-closed identity repair has a name prefilter. Check the polarity per arm: accusing direct
+verdict use, accusing decision use, acquitting sealed-only use, and identity-acquittal arms are distinct. An unreadable
+branch needs a discriminator unique to its message. Opaque `any` reaches member-origin unreadability; an unresolvable
+import reaches package-callee unreadability. Drive the gate's actual walk over its full fileset when enumerating what it
+sees.
+
+### 6.2 Authority proof
+
+Every ordinary policy has one positive identity arm proving zero effective findings, one waived finding, and zero
+authority alarms at the exact reported position. The fixture produces exactly one finding. Central negative marker
+cases remain in the ordinary-waiver engine suite; do not copy them into gate rows. Finding granularity must match
+waiver granularity: identical carrier and token positions are not independently waivable. Once per family, change the
+positive marker position, require the authority alarm that it names a dead position, and restore it exactly. The green
+positive counts alone do not prove that the authored position controls consumption.
+
+Every warning policy retains its warning and positive `workItem` in both fixture evidence and a production-dispatched
+real run; schema-valid metadata alone does not prove the emitted pair.
+
+Every reviewed-grant policy annotates at least one existing `mustFlag` row with its authored subject/operation witness.
+The baseline run must flag the ungranted case; a production rerun injects the matching exact synthetic grant and must
+consume one grant, leave zero effective findings and zero alarms, complete the owner receipt, and produce no errors.
+Wrong authority or proof arm is rejected. The exact witness field name is contract data, not prose, and lands with the
+P7 checkpoint; until that checkpoint and corpus adoption land, this paragraph is the required end state rather than a
+claim that the current empty-grant row runner enforces it. Central wrong-identity, duplicate, and stale controls remain
+family-owned. Hard policies have no waiver arm.
+
+### 6.3 Refusal and receipts
+
+`mustRefuse` is optional, never empty, and reverses the other arms' verdict: it succeeds only when the pass refuses and
+the text contains `expect.messageIncludes`. Its expectation contains exactly `messageIncludes`; every other key, including `countFrom`, is forbidden. The substring names the
+policy's own refusal and may not be part of the generic refusal envelope. When a refusal requires a real grant table,
+retain it in an importing family test.
+
+Every final policy owes one real-corpus liveness pin: a virtual overlay on the loaded Project driven through
+`runPolicyPass` and asserting a report. It is never a working-tree plant, a health-only subset, or a ratchet. Until the
+corresponding enforcement manifest and discriminating controls land, this is a review obligation rather than a claim
+that every policy is mechanically rejected for omission.
+
+### 6.4 Differential
+
+Every conversion compares the pre-conversion descriptor and final policy over the same bytes, recording findings,
+populations, and tool errors. Convert the legacy predicate, not a weaker message. Classify each difference as a split,
+retired arm, marker vocabulary move, stronger reader, exemption-mechanism move, or anchor move. Evidence is either a
+committed test or a commit-message receipt stating what ran and what it found.
+
+Use fixture-level replay for catch parity. Apply each side's declared population, use a real tmpdir for a
+filesystem-reading legacy gate, line-anchor rewritten imports, and assert no relative import survived. A real-corpus
+zero is a population/outcome receipt unless a planted positive control proves liveness. A nonzero result is not
+self-validating when it equals embedded fixture rows or comes from an excluded self-home.
+
+A split differential states coverage per moved example. If legacy rows never exercised the moved arm, construct a
+successor fixture from its trigger conditions and record the zero-coverage fact in the test. An exemption-mechanism
+move proves every formerly hidden site becomes exactly one live consumed grant. An anchor move proves existing markers
+still bind.
+
+### 6.5 Fixture substrate
+
+`source` and `types` rows use an isolated in-memory Project; `resource` rows use an auto-cleaned OS tmpdir. `files` map
+paths are population coordinates. Real-corpus controls use virtual overlays. Final policies never plant in the checkout.
+
+Every family floor includes a control proving its fixture import specifiers resolve as intended; fail-closure on an
+unresolved import must not impersonate a tested identity branch. Each installed package-door identity claim also owes
+one measurement through the real program, in addition to its declaration plant.
+
+Plant package declarations with the real installed declaration shape. A convenience stub can exercise a different
+branch while producing the same verdict. The in-memory project includes TypeScript lib files but not `@types/node`;
+plant Node globals in the package's real augmentation shape and retain a separate undeclared fail-closed row. Any
+claimed reader branch requires a control that dies when that branch is removed.
+
+### 6.6 Proof ownership
+
+Declared rows run through `policyProofRows` on the static `structure:policy-conformance` stage. A family test may
+cover several siblings. Family tests carry properties beyond an individual declared row, including production-envelope,
+baseline/corpus, integration, shared-family, central grant-table, and conversion-differential controls. Use declared rows
+for fixture-expressible verdicts; retain family controls when they establish additional behavior or evidence. Synthetic
+reviewed-grant witnesses do not replace proof of the actual central grant table and its authority boundaries.
+Never hand-roll `[...mustFlag, ...mustPass]`; it omits the refusal arm.
+
+Green conformance proves declared rows only. It does not prove the correct row set, truthful message, smallest contract,
+real family, package-door behavior, symlink/absolute-path behavior, or real-tree non-withholding. Read whole-tree owner
+status, tool errors, and withheld counts through coordinated structure evidence.
+
+## 7. Pristine conversion contract
+
+A final module is reusable as an exemplar only when all conditions hold:
+
+1. It declares the smallest complete contract.
+2. Its `message` describes the actual population, carrier, predicate, and report site.
+3. An ordinary `fix` gives the exact waiver spelling and reported position.
+4. Its family names a real shared reader and function, or gives a valid singleton reason.
+5. Its header records family/reader, population port or intentional correction, and retired private-marker census.
+6. Its proofs satisfy §6, including each narrowing, identity, refusal/receipt, liveness, and differential obligation.
+7. No private reader, walk, cache, exemption table, scope predicate, filesystem read, or single-consumer helper survives.
+
+Header verification is a hand read with planted controls. Whole-file word or SHA greps can overcount prose and
+under-count rev-spec spellings. Gaps are defects; do not transmit them as migration debt.
+
+## 8. Ordering constraints
+
+- The mixed front door precedes conversions.
+- Check converted siblings for the same rule before adding a detector. If a stronger existing detector owns it, merge
+  into that owner with a successor proof rather than adding a second gate.
+- A resource-backed gate waits for its required kind, but the program builds a capability needed by multiple consumers.
+- A gate's markers translate only in the same commit after its owner becomes final. Each private grammar is a separate
+  parser, consumption map, and stale sweep; a census of one grammar proves nothing about another.
+- A gate-local authority artifact receives a central home before conversion. A name does not classify a table; read its
+  rows and rationale.
+- A filesystem test and `gate:contract` are not convertibility tests. Shared-reader and authority-migration blockers
+  are invisible to both. Route work from the current conversion census, and keep a row blocked while its required
+  shared reader or ResourceHost fact does not exist.
+- A ruling that another tier supersedes a gate requires reading that tier's live predicate and planting a control that
+  goes red before retiring the gate.
+- World-program guarantees in the prior §12.7 table survive through their current implementation and successor proofs.
+  The authoritative worked mapping is retained in the dated history file; re-read current source before conversion.
+
+## 9. Program acceptance
+
+Every current policy has one live owner or explicit retirement. Final gate modules contain no legacy `scanRoot`,
+`scopeSafety`, `begin`, `finalize`, free-form `run`, direct walk, Project ownership, mutable module state, gate-owned
+glob/path/comment/binding/static/resource reader, workspace cache, baseline JSON, or parallel registry. Every declared
+capability works through all selected command, scope, severity, report, and authority paths.
+
+Every source, helper, test, and exemption is read before conversion; every inherited world-program guarantee has a
+successor proof. Identity-sensitive policies plant alias, namespace, re-export, destructure, computed, wrapper, shadow,
+write, cycle, and dynamic variants as applicable. Acceptance includes focused behavior, differential, failure/re-entry,
+whole-structure and structure-delta evidence, plus performance/RSS evidence when the change touches those properties.

@@ -4,15 +4,15 @@ status: active
 updated: 2026-09-13
 ---
 
-# The resource-policy contract — what a closed-ResourceHost policy OWES (#2011, guide §3's resource plane)
+# The resource-policy contract — what a closed-ResourceHost policy OWES (#2011, [gate-runtime-standardization.md](gate-runtime-standardization.md) §2 resource plane)
 
 The one written answer to the question the gate-runtime program (#1584) had answered in pieces and never
 synthesized: **given that the runtime refuses a non-ready populated-kind declaration before policy creation, while
 demand-owned and installed-package declarations acquire through bound policy doors, what does a resource policy owe?** The pieces are on the tree (`lib/resource-declaration.ts`,
-`lib/resource-policy.ts`, `lib/policy-pass.ts`, guide §11 ruling 3 and §12.3); this document is the synthesis,
+`lib/resource-policy.ts`, `lib/policy-pass.ts`, [gate-runtime-standardization.md](gate-runtime-standardization.md) §3); this document is the synthesis,
 the alternatives it rejected, and the measured proof rules a conversion lane copies. It binds every
 `analysis: "resource"` policy. Where it disagrees with a module, the module is wrong; where it disagrees with
-[`gate-runtime-standardization.md`](gate-runtime-standardization.md) §12, the guide wins and this document is
+[gate-runtime-standardization.md](gate-runtime-standardization.md) in full, the guide wins and this document is
 stale — say so on the row.
 
 Lessons consulted from the shared memory store before designing: `gate-migration-1584-lessons-hub.md`,
@@ -160,15 +160,15 @@ RED, and the one that is prose-only is called out as the gap.
    error, never a finding or silent zero. That does not classify domain-invalid content inside a **ready**
    resource: a policy may legitimately report such semantic invalidity as a finding when that is the verdict it
    owns. The provider/reader decides whether bytes are non-ready; the policy judges the ready value it receives.
-7. **The §5b.5 header.** FAMILY (the shared `lib/` reader by module + function, or `singleton` with its reason)
+7. **The [gate-runtime-standardization.md](gate-runtime-standardization.md) §7 item 5 header.** FAMILY (the shared `lib/` reader by module + function, or `singleton` with its reason)
    · POPULATION PORT (the legacy SHA, the read it replaced, byte-identical or each intentional delta) · WHERE
    THE REFUSAL LIVES (the runtime, with the pin that proves it) · DECLARED LIMITS, each naming the row that
-   holds it · UNFALSIFIABLE fences documented rather than faked (guide §4.1's fourth outcome).
+   holds it · structurally unfalsifiable fences documented rather than faked ([gate-runtime-standardization.md](gate-runtime-standardization.md) §6.1).
 
 ## 4. Where the refusal lives — and what resource health may accuse
 
 The fact-provider accuser pattern works because a provider's non-ready state is DELIVERED to its consumers: a
-provider must not receipt its own census (guide §12.3), so `bus-fact-health` receives `status !== "ready"` and
+provider must not receipt its own census ([gate-runtime-standardization.md](gate-runtime-standardization.md) §3), so `bus-fact-health` receives `status !== "ready"` and
 reports it as ONE finding instead of crashing every bus policy. That asymmetry is designed and is not touched
 by this contract — `bus-fact-health` is `analysis: "types"`, `facts: [busProducerFact]`, `resources: []`; it is
 not a resource policy, and the `2bacd5ef9` lane was right to leave its branch alone.
@@ -190,10 +190,10 @@ policy owns semantic judgments over ready values, not a second provider-failure 
 | - | - | - |
 | **A** — in-module `if (fact.status !== "ready") return;` | REJECTED (was live in 9 of 10; closed) | Unreachable (fact 2) AND it teaches the next lane that a silent return answers a broken resource — the #1979 class. Proven dead by deleting a fixture's manifest: `PASS TOOL ERROR [population] … is missing`, never a green zero |
 | **B** — in-module `throw` re-spelled per policy | REJECTED | Same semantics as the helper with 16 copies of the refusal law; the first copy someone writes as `return` is the defect back. One home, beside the refusal it asserts |
-| **C** — compile-time narrowing: type `ctx.resources` as a READY-ONLY host (`ResourceFact<T>` → `T`), throw inside `bindPolicyResources` | REJECTED for THIS lane; RECORDED as fork 1 | The strongest ladder tier (§2.2) and it makes the silent return unrepresentable. Cost: `contract/policy.ts` (`GatePolicyContext.resources`), a mapped host type, the binding, all ten modules, the conformance runner's types — a contract edit mid-program with five lanes live, against a shape guide §12.3 RULED on 2026-09-12. The union on the policy-visible surface is dead information for policies, but the same `ResourceHost` type is what `resolveResourceDeclarations` reads. Default: keep the ruled helper; land a `policy-soundness` arm that REDs a `ctx.resources.<door>(…)` result not passed straight to `readyResourceValue` (lint-tier, cheap, catches the return shape and the re-spelled throw) |
-| **D** — declare `ui-source` instead of `packages` for `ui-exports-map-complete` (§5b.1 smallest contract) | REJECTED with receipt | `"./token-contract": "./token-contract.ts"` lives outside `src`; the A3 arm would false-RED the real manifest. `packages` is the smallest CLOSED id (frozen vocabulary). The header records this so the next reader does not "fix" it |
+| **C** — compile-time narrowing: type `ctx.resources` as a READY-ONLY host (`ResourceFact<T>` → `T`), throw inside `bindPolicyResources` | REJECTED for THIS lane; RECORDED as fork 1 | The strongest ladder tier (§2.2) and it makes the silent return unrepresentable. Cost: `contract/policy.ts` (`GatePolicyContext.resources`), a mapped host type, the binding, all ten modules, the conformance runner's types — a contract edit mid-program with five lanes live, against a shape [gate-runtime-standardization.md](gate-runtime-standardization.md) §3 RULED on 2026-09-12. The union on the policy-visible surface is dead information for policies, but the same `ResourceHost` type is what `resolveResourceDeclarations` reads. Default: keep the ruled helper; land a `policy-soundness` arm that REDs a `ctx.resources.<door>(…)` result not passed straight to `readyResourceValue` (lint-tier, cheap, catches the return shape and the re-spelled throw) |
+| **D** — declare `ui-source` instead of `packages` for `ui-exports-map-complete` ([gate-runtime-standardization.md](gate-runtime-standardization.md) §7 item 1 smallest contract) | REJECTED with receipt | `"./token-contract": "./token-contract.ts"` lives outside `src`; the A3 arm would false-RED the real manifest. `packages` is the smallest CLOSED id (frozen vocabulary). The header records this so the next reader does not "fix" it |
 | **E** — a `mustFlag` row for a refusal | REJECTED | A refusal is neither `mustFlag` nor `mustPass`. Use optional `mustRefuse` when the proof grammar can express the bad state; retain `runPolicyPass` pins for states it cannot |
-| **F** — repair one incumbent and declare the plane covered | REJECTED (owner framing correction 2026-09-12) | The deliverable is fixing refuted modules, not filling a cell. Both incumbents are repaired to the same bar; the one with the weaker pin set (`ui-exports-map-complete`, no §4.5 pin) gets the fuller pin set |
+| **F** — repair one incumbent and declare the plane covered | REJECTED (owner framing correction 2026-09-12) | The deliverable is fixing refuted modules, not filling a cell. Both incumbents are repaired to the same bar; the one with the weaker pin set (`ui-exports-map-complete`, no [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 pin) gets the fuller pin set |
 
 ## 6. Coupled-site inventory for this lane
 
@@ -201,9 +201,9 @@ policy owns semantic judgments over ready values, not a second provider-failure 
 | - | - |
 | `tooling/src/verify/gates/server-layout.ts` | header: POPULATION PORT + legacy SHA + declared limits with rows; one new `mustFlag` (six missing tiers, `count: 6`) |
 | `tooling/src/verify/gates/ui-exports-map-complete.ts` | delete the dead `path.length > 0` fence (mutually redundant with the `startsWith(prefix)` filter — cut clean); SPLIT the dead-target message so a non-`./` specifier and a vanished target are message-discriminable; one new `mustFlag` (absent `exports` key → per-module A1, `count: 2`); header as above |
-| `tests/tooling/verify/gates/resource-layout-wave-1.test.ts` | §4.5 pins for `ui-exports-map-complete` (complete + receipts, manifest missing, manifest malformed, `exports` non-string) and the two tree-side pins for `server-layout` (missing, empty) plus its receipt pair |
+| `tests/tooling/verify/gates/resource-layout-wave-1.test.ts` | [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 pins for `ui-exports-map-complete` (complete + receipts, manifest missing, manifest malformed, `exports` non-string) and the two tree-side pins for `server-layout` (missing, empty) plus its receipt pair |
 | `docs/architecture/core/Core-Enforcement-Active-Gates.md:111` | the A3 split and the absent-vs-non-string `exports` verdicts, as mechanisms |
-| guide §3 plane table, `exemplars-2026-09-11.md` §3, playbook #1979 row | NOT this lane's: CONFIRMED is the verifier's word and the cell is the orchestrator's write; proposed text in the report |
+| [gate-runtime-standardization.md](gate-runtime-standardization.md) §2 plane table, `exemplars-2026-09-11.md` §3, playbook #1979 row | NOT this lane's: CONFIRMED is the verifier's word and the cell is the orchestrator's write; proposed text in the report |
 | `lib/resource-declaration.ts`, `contract/resource.ts`, `lib/reviewed-grants.ts`, any `fix:` string | untouched (fence) |
 
 ## 7. The measured proof tables (2026-09-12, worktree at `831576613`, every variant minted from the LIVE module with exact-count anchors and run through `verifyPolicyProofs`)
@@ -213,7 +213,7 @@ policy owns semantic judgments over ready values, not a second provider-failure 
 `server-layout.topEntry` leaves all rows green: the tree walk never emits the root (`ops/resource-reader.ts`
 `walk` emits `childPath` only), which is the header's "children only" claim, proven rather than read.
 
-### §4.1 cuts — direction is always "flag MORE"; a clean cut is classified, never counted
+### §6.1 cuts — direction is always "flag MORE"; a clean cut is classified, never counted
 
 | Module | Narrowing | Replaced with | Rows that died | Bucket |
 | - | - | - | - | - |
@@ -246,7 +246,7 @@ after the build, receipt in the report). `server-layout`'s two discriminators re
 2. **This document's catalog receipt.** A new `docs/**` file owes a receipt commit citing the doc's sha
    (memory: `new-doc-catalog-two-commit-stack`), against a one-commit lane law. Precedent on the tree:
    `v-exemplar-audit-2026-09-12.md` landed uncatalogued at `8929f53fb` while `check:doc-catalog` sits on the
-   known-red list (guide §2). Default: land the doc in the lane's one commit, report the owed receipt, let the
+   known-red list (then-current known-red inventory). Default: land the doc in the lane's one commit, report the owed receipt, let the
    orchestrator's batch receipt pass adopt it (the `c5a6733e4` shape).
 3. **The absent-`exports`-key verdict.** `{}` → per-module A1 findings is the PROVIDER's normalization
    (`stringMap(undefined) → {}`), shared with `scripts` and the dependency maps; a policy cannot and should not

@@ -96,7 +96,7 @@ const MESSAGE =
   "a #1584 conversion refusal must be DATA whose blocker is re-derivable, and its blocker must still be true — a refusal is a SNAPSHOT and nothing else re-opens one when its blocker lands (#2013, #2017).";
 
 const FIX =
-  "declare `export const CONVERSION_REFUSAL` (contract/conversion-refusal.ts) beside the descriptor, with a `sole-consumer` blocker naming the read's code spellings, the scope it was censused over, and the modules that carried it; re-derive the consumer list when this reds, and CONVERT or DELETE the gate when the list grows past one (guide §12.4's reopen bar).";
+  "declare `export const CONVERSION_REFUSAL` (contract/conversion-refusal.ts) beside the descriptor, with a `sole-consumer` blocker naming the read's code spellings, the scope it was censused over, and the modules that carried it; re-derive the consumer list when this reds, and CONVERT or DELETE the gate when the list grows past one (guide §4's reopen bar).";
 
 interface ModuleFacts {
   readonly path: string;

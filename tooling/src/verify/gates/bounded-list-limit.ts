@@ -11,7 +11,7 @@
 // is `lib/reference-fact.ts` (`resolveModuleMemberOrigin` for the chain root, `readMemberReference` per hop,
 // `resolveStableExpression` for a named schema), `lib/sealed-origin.ts`'s `originModuleSpecifier`, and
 // `lib/property-assignment-name.ts` for the field key — consuming four shared readers is not a family
-// (guide §3, §5b.4), so it declares itself rather than inventing one around "wire schemas".
+// (guide §2, §7 item 4), so it declares itself rather than inventing one around "wire schemas".
 //
 // POPULATION PORT: byte-identical, legacy at `0d83d99f1^`. That descriptor's `scanRoot` was
 // `p.startsWith("packages/server/src/transport/trpc/routers/") || p.startsWith("packages/contracts/src/")`;

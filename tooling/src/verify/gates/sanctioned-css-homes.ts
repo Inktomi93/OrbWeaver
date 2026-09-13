@@ -23,7 +23,7 @@
 //     missing all six homes (`mustFlag[4]`, count 6). The legacy `mustPass` asserting the opposite of that
 //     last row was the anchor guard's proof and is retired WITH it, as an assertion rather than an absence.
 // (2) THE MISSING-HOME ANCHOR MOVED off this gate's own source file. `tooling/src/verify/gates/…` is in no
-//     resource population this policy declares, so `ctx.report.file` would THROW on it (guide §3's
+//     resource population this policy declares, so `ctx.report.file` would THROW on it (guide §2.1's
 //     absent-verdict rule). The anchor is now `lib/absent-subject-anchor.ts#subjectAnchor` — the missing
 //     home's own path when it is present-but-not-a-file, else the first present sanctioned home, else the
 //     lowest admitted path — and the missing NAME moved into the message, where it was always the
@@ -38,7 +38,7 @@
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. A missing/empty declared tree makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create`
-// runs (guide §11 ruling 3), so this module owns no not-ready branch and reads through
+// runs (guide §3's acquisition-refusal rule), so this module owns no not-ready branch and reads through
 // `readyResourceValue`. THE REACHABLE STATUS SET IS A PROPERTY OF THE READER, enumerated FROM it: this
 // sentence said "BOTH reachable statuses" through #2294, which repaired its OTHER half (both-are-rows)
 // and left the completeness claim standing — there are THREE, because

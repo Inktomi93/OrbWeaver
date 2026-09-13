@@ -9,7 +9,7 @@
 // (Knowledge-Cluster.md's stats fence) named by ONE home, and the only machinery it shares is
 // `lib/sealed-origin.ts` (`readSealedOrigin` for the verdict, `sealedOriginReports` for the decision) with
 // its near-twin `membership-enforcer` and with `providers-runner-seal`/`turn-identity`/`vector-scope-derived`.
-// A shared READER is not a family (guide §3): those five seal different homes for different laws and share
+// A shared READER is not a family (guide §2): those five seal different homes for different laws and share
 // no computation beyond the reader itself.
 //
 // POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^` (`scanRoot: (p) => SCAN_DIR.test(p)` over the
@@ -40,7 +40,7 @@ const FIX =
 
 /** THE FAIL-CLOSED THIRD ANSWER (#944), a SEPARATE text rather than a `${MESSAGE} …` suffix: the unreadable
  *  arm reports the same single finding the sealed verdict does and differs ONLY in message, so a shared
- *  prefix would leave both arms unpinnable in either direction (guide §4.1). The two texts are disjoint. */
+ *  prefix would leave both arms unpinnable in either direction (guide §6.1). The two texts are disjoint. */
 const UNREADABLE =
   "a rollup table NAME reached through a door the shared readers cannot place — whether this binds the stats schema's own table CANNOT be established, so a seam an unreadable barrel can walk through is reported rather than admitted. The spelling alone is not the identity.";
 

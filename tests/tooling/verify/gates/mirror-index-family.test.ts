@@ -5,7 +5,7 @@
 // The three share ONE subject reader: `ops/resource-mirror.ts` `loadMirrorIndex`, reached through the
 // `mirrorIndex` host door. This lane is what WIRED that kind — it shipped frozen with zero gate consumers.
 //
-// WHAT LIVES HERE AND WHAT DOES NOT (guide §4.9). The declared `mustFlag`/`mustPass` rows run on the static
+// WHAT LIVES HERE AND WHAT DOES NOT (guide §6.6). The declared `mustFlag`/`mustPass` rows run on the static
 // tier through `check:policy-conformance`, so they are NOT re-asserted here beyond the one-line receipt.
 // What a proof row structurally CANNOT express is the §4.5 REFUSAL and RECEIPT set: `toolFailure` precedes
 // the arm verdict, so an arm whose correct outcome is a refusal is neither `mustFlag` nor `mustPass`. Those
@@ -282,7 +282,7 @@ test("state store mirrors are NOT all .ct.tsx — the false premise that made cl
  *  wave-8c's 53 (`docs/reviews/gate-runtime/v-wave-12b-2026-09-13.md` §2), but the INSTRUMENT was the
  *  defect: this program mints one more member of this exact class PER CONVERSION — all six post-park
  *  members landed on a single day, 2026-09-12 — so exact set equality makes a legitimate family-test
- *  addition a RED PIN. That is guide §4.1's `countFrom` ruling one level up ("a literal `count` makes a
+ *  addition a RED PIN. That is guide §6.1's `countFrom` ruling one level up ("a literal `count` makes a
  *  legitimate registry addition a RED PROOF"), and it reds where the author cannot see it: `pnpm check`
  *  runs no tests and `tests/tooling/**` is `--full`-only (#1842). Planted control at the time of the
  *  refutation: an `export {};` file at `tests/tooling/verify/gates/<name>-family.test.ts` took the drive
@@ -404,7 +404,7 @@ test("the park is not empty — when the class empties, #2142's park and this pi
  *  then asks `inParkedClass` about the finding the gate actually produced — so the class predicate is
  *  judged against real gate output, never against a hand-written finding record. `PARKED_CLASS_TREE` is
  *  the in-population ANCHOR set both mirror families need: a fixture that admits nothing comes back a
- *  `[population]` TOOL ERROR rather than a finding (guide §12.4). */
+ *  `[population]` TOOL ERROR rather than a finding (guide §4). */
 const PARKED_CLASS_TREE = {
   "packages/ui/src/primitives/example.tsx": "export const example = 1;\n",
   "tests/ui/primitives/example.ct.tsx": "export const x = 1;\n",

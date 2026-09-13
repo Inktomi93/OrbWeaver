@@ -8,7 +8,7 @@
 // for an entire run: `freeze-provenance-write-pairing` asked it about every named import in `@packages`, the
 // first `import { useQuery } from "@tanstack/react-query"` resolved into a node_modules `.d.ts`, and the
 // policy reported NOTHING on every real-tree run while sitting at 0 conformance failures (2026-09-11,
-// guide §12.3). Whether a resolution escapes is a property of what the SUBJECT imports, never of the policy,
+// guide §3). Whether a resolution escapes is a property of what the SUBJECT imports, never of the policy,
 // so every such site is one import away from going dark.
 //
 // AND THE IMPORT DOES NOT HAVE TO BE A VENDOR ONE. Measured 2026-09-12

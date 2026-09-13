@@ -4,7 +4,7 @@
 // body-reading routes among them, means the census the occurrence policy depends on is blind — either the
 // population fence has drifted off the real route tree, or the route/body-read shape detectors have
 // stopped recognizing the house patterns. This is an ABSENCE verdict about the WHOLE population, not one
-// authored node, so it cannot carry an ordinary position token (guide §3: a file-level finding with a
+// authored node, so it cannot carry an ordinary position token (guide §2.1: a file-level finding with a
 // synthetic/absent token raises an authority-binding failure on the author's first real waiver) — hence
 // `authority: "hard"`, no suppression door, and the split (one authority per policy, §12.1).
 //
@@ -15,7 +15,7 @@
 // !fileLoaded(ctx, HTTP_ANCHOR)` short-circuit, `mutatingRoutes === 0 || bodyReadingRoutes === 0`
 // condition). The `fileLoaded`/`ctx.scope.kind` guard is now subsumed by population resolution itself: a
 // population resolving to zero admitted paths from a nonempty candidate set is a TOOL ERROR at
-// resolve-time (guide §3/§12.4), a LOUDER signal than the legacy silent no-op.
+// resolve-time (guide §2/§4), a LOUDER signal than the legacy silent no-op.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { findEnclosingRouteArg, isBodyReadCall, isRawBodyPropertyAccess, routeMethod } from "../lib/http-route-body.ts";

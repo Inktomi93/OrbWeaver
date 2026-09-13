@@ -4,7 +4,7 @@
 // reasoned waiver — the recurring defect this closes was the floor arm silently not taken (the this-chat
 // 411×40 collapsible; #850's class).
 //
-// THE SPLIT (guide §12.6, #1950): the legacy descriptor carried the per-file occurrence (arm A), a
+// THE SPLIT (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950): the legacy descriptor carried the per-file occurrence (arm A), a
 // gate-owned two-sided marker grammar (`@sub-floor-ok`, arm B) and a whole-tree vocabulary tripwire (arm C).
 // Arm A is this policy — ordinary, `selected-files`. Arm B RETIRES into the central `@orb-waive` engine:
 // malformed, stale and over-broad markers are central reconciliation alarms, never a gate's own findings.
@@ -17,7 +17,7 @@
 // THE REPORTED POSITION is the `"text"` STRING LITERAL of the `size` attribute — authored code, quotes
 // included (the house convention), so the ordinary door is real: `@orb-waive sub-floor-disclosure("text")`.
 // The legacy reported the attribute with a bare `text` token (§4.6 POSITION delta). The marker is a comment,
-// but the FINDING is on the element, which is why this arm keeps ordinary authority (guide §3's third door
+// but the FINDING is on the element, which is why this arm keeps ordinary authority (guide §2's third door
 // class — a finding on comment TEXT — does not apply).
 //
 // POPULATION PORT: byte-identical — the legacy `scanRoot` admitted `packages/client/src/` and
@@ -28,7 +28,7 @@
 // class every size gate shares); the tag is matched by NAME — a wrapped or re-exported trigger under another
 // tag name is invisible, and the identity upgrade is deferred with its receipt: the tag resolves through the
 // `@orb/ui` package door on the real tree and to nothing in the proof workspace, so an identity row would
-// pass as `external-door` (guide §4.8b) until an `@orb/ui` proof plant exists.
+// pass as `external-door` (guide §6.5) until an `@orb/ui` proof plant exists.
 //
 // MARKER CENSUS AT CONVERSION (§8.6): `@sub-floor-ok` had exactly 2 live marker-form sites —
 // `packages/client/src/features/rpg/components/turn-tool-calls-disclosure.tsx` (a `{/* */}` JSX carrier,
@@ -112,7 +112,7 @@ export const gate = defineGate({
           '// @sub-floor-ok: the retired grammar\nexport const G = <CollapsibleTrigger size="text">Advanced</CollapsibleTrigger>;\n',
       },
       expect: { count: 1, token: '"text"' },
-      why: "THE RETIRED GRAMMAR IS INERT TEXT: a legacy `@sub-floor-ok` marker exempts nothing any more — the finding stands. This is what makes same-commit translation load-bearing (guide §7): an untranslated marker is a silently lost suppression",
+      why: "THE RETIRED GRAMMAR IS INERT TEXT: a legacy `@sub-floor-ok` marker exempts nothing any more — the finding stands. This is what makes same-commit translation load-bearing (guide §8): an untranslated marker is a silently lost suppression",
     },
   ],
   mustPass: [

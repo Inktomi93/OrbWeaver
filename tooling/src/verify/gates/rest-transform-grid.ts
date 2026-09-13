@@ -38,7 +38,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts:182`)
 // THROW during the POPULATION phase, and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready branch: it reads the CSS
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule). This module owns no not-ready branch: it reads the CSS
 // inventory through `readyResourceValue`, whose throw asserts the runtime's own refusal already held. That
 // also RETIRED the legacy "zero stylesheets read" blindness reason — an empty CSS corpus is now a
 // population-phase TOOL ERROR, which is strictly louder than the finding it replaces.
@@ -296,7 +296,7 @@ function reportCssTransforms(ctx: GatePolicyContext, file: AuthoredCssFile, decl
       continue;
     }
     if (FRACTIONAL_PX_RE.test(declaration.value) || PERCENTAGE_RE.test(declaration.value)) {
-      // THE CARRIER / COORDINATE SPLIT (#2107 arm c, guide §3). `translateX(-0.5px)` carries parentheses the
+      // THE CARRIER / COORDINATE SPLIT (#2107 arm c, guide §2.1). `translateX(-0.5px)` carries parentheses the
       // `@orb-waive` grammar cannot hold. This policy is `hard` so the trap is LATENT rather than live — a hard
       // finding has no waiver door at all — but authority is a field an owner can flip, and a position minted
       // under `hard` becomes silently unanswerable the day it does. The value is named in the message.

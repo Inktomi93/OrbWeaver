@@ -19,10 +19,10 @@
 // POPULATION PORT: byte-identical. The legacy descriptor (d6f36904f, the parent of 99b7429e2 — its
 // `no-raw-spacing-in-features.ts` carried BOTH arms in one `GateDescriptor`) scoped with
 // `scanRoot: (p) => /\/packages\/(?:client|ui)\/src\//u.test(`/${p}`)`; `["@client", "@ui"]` is the same set.
-// The population is a STRUCTURAL non-narrowing, not an unenforced fence (guide §4.1's fourth outcome, wave 4):
+// The population is a STRUCTURAL non-narrowing, not an unenforced fence (guide §6.1's structurally-unfalsifiable classification, wave 4):
 // `SANCTIONED_HOMES`' keys are hardcoded under one package, so no fixture placed under an added population
 // root can ever land on one and no discriminating row EXISTS.
-// CUT DIRECTION IS INVERTED HERE (guide §4.1) — this is a tripwire, so its fences ACQUIT and opening one
+// CUT DIRECTION IS INVERTED HERE (guide §6.1) — this is a tripwire, so its fences ACQUIT and opening one
 // makes it flag FEWER. The ANCHOR self-guard's falsifier is `mustPass[1]` going RED; the resolution reader's
 // is `mustFlag[0]` going GREEN. A lane applying the occurrence direction reads both as unenforced.
 // §4.5 and §4.6 live in `tests/tooling/verify/gates/tier-home-health-family.int.test.ts`: the narrowed-request

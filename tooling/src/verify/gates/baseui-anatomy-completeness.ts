@@ -28,7 +28,7 @@
 // AUTHORITY — `hard`, and that is forced rather than chosen. Every arm reports a FILE anchor: arm A at the
 // ledger row, arm B at the seal's render site, arm C at the ledger. A file-anchored ORDINARY finding has no
 // authored token at its coordinate, so `locateFinding` raises an authority ALARM on the author's first real
-// waiver (guide §3, door-failure class 2) — the measurement is quoted in `baseui-state-data-attributes.ts`,
+// waiver (guide §2.1's authored-coordinate rule) — the measurement is quoted in `baseui-state-data-attributes.ts`,
 // which had the arm refused on exactly those grounds. The legacy descriptor declared no exemption grammar
 // and a marker census over the whole tree finds ZERO `@orb-gate-ignore baseui-anatomy-completeness` and
 // ZERO `@orb-waive baseui-anatomy-completeness`, so no door is being closed: there was none.
@@ -45,10 +45,10 @@
 // the fail-open shape §4.6 exists to catch, and its own `mustPass[3]` enshrined it. The ledger is now a
 // DECLARED `json:baseui-manifest` resource, so `resolveResourceDeclarations` throws at the POPULATION phase
 // on missing/empty/unparseable and this policy is WITHHELD — exit 2, "this run is not a verdict", never a
-// green zero (`resource-policy-contract.md` §4). No proof row can express a refusal (guide §4.5b); the pins
-// are `runPolicyPass` drives in `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts` —
-// a MISSING, an UNPARSEABLE and an EMPTY ledger, each asserting `toolErrors[0].phase === "population"`, an
-// `incomplete` owner, zero effective findings and this policy's id in `withheldPolicyIds`.
+// green zero (`resource-policy-contract.md` §4). The family `runPolicyPass` drives retain the complete
+// runtime outcome beyond refusal-text matching: missing, unparseable, and empty ledgers each produce a
+// population-phase tool error, leave the owner incomplete with zero effective findings, and withhold this
+// policy; the healthy twin pins the `json:baseui-manifest` receipt with `unresolved: 0` (proof law §6.3).
 //
 // A ready-but-DEGENERATE ledger (valid JSON, wrong shape) is a FINDING rather than a refusal, and
 // `baseui-surface-manifest` OWNS it — `hard`, file-anchored, single owner of every "the ledger is wrong"

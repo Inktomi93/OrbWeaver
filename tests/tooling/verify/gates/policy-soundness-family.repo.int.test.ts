@@ -1,10 +1,10 @@
-// Conformance entry for the `policy-soundness` family (#1971, #2111) — the six final policies that enforce the
-// mechanizable half of gate-runtime-standardization.md §5b over the gate corpus itself. Every declared row runs
-// through the production dispatcher on an isolated population (`verifyPolicyProofs`); the pins below cover
-// what a row structurally cannot express: the BLINDNESS refusals (a throw and a zero-count receipt are tool
-// errors, not findings), the fixture-specifier resolution control, and the REAL-corpus control — a meta-policy
+// Conformance entry for the `policy-soundness` family (#1971, #2111) — the final policies that enforce the
+// mechanizable half of gate-runtime-standardization.md §7 over the gate corpus itself. Every declared row runs
+// through the production dispatcher on an isolated population (`verifyPolicyProofs`). The family pins add
+// the BLINDNESS refusal's withheld-owner and seeing-twin assertions, the fixture-specifier resolution
+// control, and the REAL-corpus control — a meta-policy
 // over the gate corpus is exactly the shape that can sit at 0 conformance failures while reading nothing on
-// the live tree (guide §5), so the recognizer's live count is checked against a second opinion.
+// the live tree (guide §6.6), so the recognizer's live count is checked against a second opinion.
 //
 // AND A SECOND OPINION CAN BE GREEN FOR THE WRONG REASON (#2274). `policy-refusal-coverage`'s was one-sided
 // containment — "every module whose text owes a pin is accused" — which held TRIVIALLY for a week because the

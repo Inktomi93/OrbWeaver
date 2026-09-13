@@ -5,7 +5,7 @@
 // FAMILY `surface-composition`, and this is a SPLIT rather than an arm of its sibling. `surface-in-a-container`
 // is `ordinary` — its finding anchors on a surface's exported component and an author can waive one. This
 // verdict is an ABSENCE claim about an exact PATH: it has no node, therefore no position, therefore no
-// ordinary door by construction (guide §3, door-failure class 2: *"re-anchor on authored text, or split to
+// ordinary door by construction (guide §2.1's authored-coordinate rule: *"re-anchor on authored text, or split to
 // `hard`"*), and there is nothing a site-local waiver could correctly say about a directory that is not
 // there. One authority per descriptor (§12.1) makes that a separate policy id under the shared family string.
 //

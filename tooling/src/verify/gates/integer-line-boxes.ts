@@ -27,7 +27,7 @@
 //     it is now the declared `json:tokens` resource, whose path is that exact file
 //     (`contract/resource-json.ts`). BYTE-IDENTICAL SUBJECT, different refusal — see below.
 //
-// EXEMPTION-MECHANISM MOVE (guide §4.6 category 5). The legacy `CSS_LINE_HEIGHT_EXEMPTIONS` table held ONE
+// EXEMPTION-MECHANISM MOVE (guide §6.4's EXEMPTION-MECHANISM MOVE classification). The legacy `CSS_LINE_HEIGHT_EXEMPTIONS` table held ONE
 // row, `packages/client/src/styles/globals.css::var(--reading-line-height)`, plus a hand-rolled two-sided
 // STALE arm that reported at the gate's own source file. Both are retired: the site carries an
 // `@orb-waive integer-line-boxes(--reading-line-height)` marker, and the central engine's dead-position
@@ -35,7 +35,7 @@
 // outside the policy's own population. Census: 1 legacy row → 1 marker → 1 live consumed waiver, verified
 // on the real tree (1 raw / 1 waived / 0 effective / 0 alarms).
 //
-// RETIRED BY THE RUNTIME, not dropped (guide §4.6): the legacy blindness reasons "tokens.json missing" and
+// RETIRED BY THE RUNTIME, not dropped (guide §6.4): the legacy blindness reasons "tokens.json missing" and
 // "zero stylesheets read", and the `readTypeScale` branch that returned `undefined` and silenced the whole
 // gate on a mini-project. A missing, empty or unparseable declared resource now makes
 // `resolveResourceDeclarations` (`lib/resource-declaration.ts:182`) THROW during the POPULATION phase, the

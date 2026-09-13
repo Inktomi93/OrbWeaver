@@ -45,7 +45,7 @@
 // THE #883 ANCHOR MOVE, and it is the one non-mechanical thing in this conversion. The legacy arm reported
 // "the standing CT is missing" AT the missing CT's own path. `ctx.report.file` REFUSES a path outside the
 // effective population, and a file that does not exist is in no population — so that arm becomes a runtime
-// THROW on conversion (guide §3, "an absence verdict cannot anchor on its own subject"). It now consumes
+// THROW on conversion (guide §2.1, "an absence verdict cannot anchor on its own subject"). It now consumes
 // `lib/absent-subject-anchor.ts` `subjectAnchor`: anchor on the CT when present, else on the first present
 // named subject (the room source, then the client entry), else on the lowest admitted path — with the
 // missing filename in the MESSAGE, where it was always the load-bearing half. §4.6 category 6 (ANCHOR
@@ -56,7 +56,7 @@
 // §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273), AND IT IS A POPULATION + OUTCOME RECEIPT, NOT CATCH
 // PARITY. `aecbc6c6c` landed a population/refusal receipt and no findings comparison for this policy:
 //   · FINDINGS. FINAL side through `runPolicyPass` over the real workspace at `5045a6a68`: 0 findings,
-//     owner `success`. The LEGACY side was never EXECUTED for findings, so this is guide §4.6 VACUITY
+//     owner `success`. The LEGACY side was never EXECUTED for findings, so this is guide §6.4 VACUITY
 //     SHAPE 1 and is NOT closable by rule; the fixture-level replay is what would close it. The port is
 //     also not 1:1 — `CLIENT_EXCLUDE_NESTED` and `CLIENT_EXCLUDE_FILES` were deleted (above), which the
 //     §4.1 rows carry from the other side.
@@ -72,13 +72,10 @@
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. A non-ready declared resource makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and the owner is withheld before `create`
-// runs (guide §11 ruling 3); this module owns no not-ready branch and reads through `readyResourceValue`,
-// whose throw asserts that refusal. `authored-text` is an UNPOPULATED DEMAND kind whose declaration admits
-// no path, so the door MUST be called on every run or the receipt phase refuses the unconsumed
-// declaration — which is why `evaluate` demands text even when the store set is empty. The reachable
-// refusals and the receipt set are pinned through `runPolicyPass` in
-// `tests/tooling/verify/gates/mirror-index-family.test.ts` (guide §4.5b: no proof row can express a
-// refusal).
+// runs (§3); this module owns no not-ready branch and reads through `readyResourceValue`. The family
+// `runPolicyPass` controls retain the full runtime outcome beyond refusal-text matching: an absent mirror
+// produces no findings, a named population-phase tool error, an incomplete owner, and this policy withheld;
+// the healthy twin pins both the mirror receipt and per-call `authored-text` receipt (§6.3).
 //
 // DECLARED LIMIT ON THE `authored-text` DECLARATION (#2130): it has NO pinnable non-ready status, and the
 // reason is structural rather than an unwritten test. Every subject this policy demands comes out of

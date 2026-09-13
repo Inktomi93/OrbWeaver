@@ -3,7 +3,7 @@
 // second channel is a second cross-tab protocol nobody versions (and the seam a server-truth payload would
 // leak through, forking the ONE invalidation router).
 //
-// THE SPLIT (guide §12.6, #1950): the legacy descriptor carried two arms of different authority — (A) a
+// THE SPLIT (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950): the legacy descriptor carried two arms of different authority — (A) a
 // construction outside the home, a per-file occurrence an author may waive with a reason, and (B) the
 // blindness tripwire, a whole-tree HARD verdict that the home still constructs the channel. One `execution`
 // and one authority cannot serve both, so arm B is `session-channel-boundary-health` (same family) and this

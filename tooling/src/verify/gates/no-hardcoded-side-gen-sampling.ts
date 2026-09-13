@@ -8,7 +8,7 @@
 // FAMILY `no-hardcoded-side-gen-sampling` — a declared SINGLETON. Its verdict is a VOCABULARY judgement with
 // an object-level corroboration rule (`maxTokens` is a sampling knob only beside an unambiguous one), which
 // nothing else in the corpus computes. It consumes `lib/reference-fact.ts` (static numbers, module origin)
-// and `lib/property-assignment-name.ts`; a shared reader is not a family (guide §3).
+// and `lib/property-assignment-name.ts`; a shared reader is not a family (guide §2).
 //
 // POPULATION PORT: byte-identical, legacy at `0d83d99f1^` — that `scanRoot` admitted
 // `packages/server/src/domain/**` and `packages/server/src/entry/**` minus every `*.test.ts`/`*.test.tsx`

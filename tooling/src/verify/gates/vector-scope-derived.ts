@@ -16,7 +16,7 @@
 //
 // FAMILY `vector-scope-derived` — a declared SINGLETON. It is a THREE-ARM policy (import · write · cosine)
 // over one substrate, and no sibling shares an arm; `lib/sealed-origin.ts` and `lib/reference-fact.ts` are
-// shared readers, which guide §3 says is not a family.
+// shared readers, which guide §2 says is not a family.
 //
 // POPULATION PORT: byte-identical, legacy at `0d83d99f1^` (`scanRoot: (p) => SERVER_SRC.test(\`/\${p}\`)` —
 // the `@server` root exactly). The sanctioned homes stay IN the population and are decided per arm, so a
@@ -69,7 +69,7 @@ const MESSAGE =
 /** THE FAIL-CLOSED THIRD ANSWER (#944) on the WRITE arm, a SEPARATE text rather than a `${MESSAGE} …`
  *  suffix: the unreadable arm reports the SAME single finding under the SAME token as the sealed verdict
  *  and differs ONLY in message, so a shared prefix would leave both arms unpinnable in either direction
- *  (guide §4.1). The two texts share no fragment — `MESSAGE` contains no "CANNOT be established". */
+ *  (guide §6.1). The two texts share no fragment — `MESSAGE` contains no "CANNOT be established". */
 const UNREADABLE_WRITE =
   "an insert/update/delete is aimed at an argument SPELLED like one of the six vector tables whose declaration cannot be read, so whether this write lands on the vector substrate CANNOT be established. Reported rather than admitted by a broken door: a chokepoint an unreadable barrel can walk through is not one (D20; Knowledge-Cluster.md inv 1-2).";
 

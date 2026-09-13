@@ -8,7 +8,7 @@
 // FAMILY: SINGLETON under its own id, and the reason is the READER, not the topic. It shares
 // `../lib/ledger-banned-shapes.ts` with `schema-banned-shapes`, but that module is a shared VOCABULARY —
 // the (location, forbidden shape, D-cite) rows plus `bannedMessage`/`contractBanHome`, which exist so one
-// D-cite has one spelling — and guide §3 decides a family on a shared SUBJECT READER or computation. The
+// D-cite has one spelling — and guide §2 decides a family on a shared SUBJECT READER or computation. The
 // two policies' subject readers are disjoint: the schema partition consumes `lib/schema-fact.ts`'s
 // `drizzleSchemaFact` and is `family: "drizzle-schema"`; this one reads AUTHORED contract declarations
 // through `lib/reference-fact.ts#readMemberReference` and `lib/schema-fact-value.ts#objectEntries`, and
@@ -138,7 +138,7 @@ const missingSubject = (subject: string, home: string): string =>
 
 /** DELIBERATELY DISJOINT from `missingSubject`, and it must stay that way. The two blindness arms differ
  *  only in message, so a `messageIncludes` row can discriminate them ONLY if neither text is a substring of
- *  the other (guide §4.1's fail-closed third-answer rule). This message used to interpolate
+ *  the other (guide §6.1's fail-closed third-answer rule). This message used to interpolate
  *  `missingSubject(...)` verbatim, which put "SILENT NO-OP" in BOTH texts and left `mustFlag[6]` green when
  *  its own arm stopped executing (wave 3 D2). Each arm now carries its own verdict phrase — "SILENT NO-OP"
  *  here means the home file was READ and the subject was absent; "DEAD ROW" means the home file itself is

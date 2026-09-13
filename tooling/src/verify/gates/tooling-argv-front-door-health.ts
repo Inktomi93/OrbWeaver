@@ -1,7 +1,7 @@
 // Policy: tooling-argv-front-door-health — the §4.6 BLINDNESS TRIPWIRE for `tooling-argv-front-door`:
 // seventeen tool `cli.ts` files front this tree and every one of them reads `process.argv`; if NONE is seen
 // reading it on a run over the real tree, the read matcher stopped recognising the shape and every arm of
-// the sibling is vacuously green. Split from the legacy descriptor (guide §12.6, #1950) because this is a
+// the sibling is vacuously green. Split from the legacy descriptor (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950) because this is a
 // whole-tree HARD verdict — nobody may license "the matcher is blind" — while the sibling's findings are
 // reviewed permissions; one authority per policy.
 //

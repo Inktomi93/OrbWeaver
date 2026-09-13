@@ -156,7 +156,7 @@ function isMapperReturn(statement: MorphNode): boolean {
  *  SHARED provider whose population (`@client` + `@server` + `@contracts`) is strictly wider than this
  *  policy's (`@server` + `@contracts`), so the declaration this binding check exists to catch — the tuple
  *  that moved out of its home — is exactly the one `ctx.relativePath` refuses. It would have THROWN and
- *  withheld the policy instead of reporting the move (guide §12.3).
+ *  withheld the policy instead of reporting the move (guide §3).
  *
  *  NO CONFORMANCE ROW CAN HOLD THIS, and that is a property of the arm rather than a missing proof: a home
  *  mismatch returns `unresolved`, `tupleVocabularyReceipt` scores that `members: 0, unresolved: 1`, and the

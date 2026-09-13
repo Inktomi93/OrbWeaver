@@ -49,7 +49,7 @@ import { idCastProofModule } from "./_proof/id-brand.ts";
 const MESSAGE = "an id-named Zod field is a raw string — use `typeIdSchema(ID_PREFIX.x)` or `brandedId<T>()` so the validated output preserves identity.";
 /** THE FAIL-CLOSED THIRD ANSWER (#944, added #2041), textually DISJOINT from `MESSAGE` rather than a
  *  `${MESSAGE} …` suffix: the unreadable arm reports the same single finding under the same token as the
- *  zod verdict and differs ONLY in message, so a shared prefix leaves both arms unpinnable (guide §4.1).
+ *  zod verdict and differs ONLY in message, so a shared prefix leaves both arms unpinnable (guide §6.1).
  *
  *  Until #2041 `isZodString` answered an unresolved builder root with `false` — an id field whose schema the
  *  checker COULD NOT READ was silently admitted. The refusal now routes through the shared classifier, which

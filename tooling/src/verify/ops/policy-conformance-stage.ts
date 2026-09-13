@@ -1,5 +1,5 @@
 // `pnpm check:policy-conformance` → `cli.ts policy-conformance` — THE WHOLE-CORPUS CONFORMANCE STAGE (#1941;
-// docs/design/gate-runtime-standardization.md §5 item 3). It loads every gate module through the ONE mixed loader
+// docs/design/gate-runtime-standardization.md §6.6). It loads every gate module through the ONE mixed loader
 // and runs every FINAL policy's own `mustFlag`/`mustPass` rows through the production dispatcher
 // (`verifyPolicyProofs`), so a converted policy's bite is proven on every `pnpm check` whether or not a committed
 // family test imports it — the 21 modules no test imported at the fold are covered by construction. Family tests

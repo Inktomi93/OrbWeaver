@@ -52,25 +52,21 @@
 // `@orb-gate-ignore dangling-doc-cite` markers, measured repo-wide at the conversion commit — so the
 // marker reconciliation closes at 0 legacy = 0 waives = 0 dead, and the table and its two-sided stale arm
 // are DELETED rather than re-homed. A gate-owned exemption table is forbidden behind `defineGate`
-// (guide §3); if a deliberate absent-doc cite ever appears, the answer is to fix the comment.
+// (guide §2); if a deliberate absent-doc cite ever appears, the answer is to fix the comment.
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`)
 // THROW during the POPULATION phase and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §11 ruling 3, `docs/design/resource-policy-contract.md` §4). This module
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/design/resource-policy-contract.md` §4). This module
 // owns no not-ready branch. The refusal pins are in
 // `tests/tooling/verify/gates/text-citation-family.test.ts`.
 //
 // TWO IN-POLICY REFUSALS, BOTH TOOL ERRORS RATHER THAN FINDINGS, BECAUSE BOTH MEAN "I COULD NOT JUDGE".
-// (1) A demanded arm-B member the text door will not serve — dropping it is absence, and absence is
-// exactly how this gate reports a corpus it never read; `empty` is the one exception, since a file with
-// no text carries no comment. (2) The BLINDNESS TRIPWIRE: a tracked inventory from which the
-// root-config + public-asset derivation resolves ZERO members means arm B was not judged at all. The
-// legacy descriptor said that with a `line: 0` finding because a finding was the only vocabulary it had,
-// and guarded it on a real-tree anchor so a mini-project would not false-fire it; a resource fixture owns
-// its whole inventory, so the guard is gone and the verdict is a refusal. Neither is expressible as a
-// proof row (guide §4.5b — `toolFailure` precedes the arm verdict), so both are `runPolicyPass` pins in
-// `tests/tooling/verify/gates/text-citation-family.test.ts`.
+// (1) A demanded arm-B member the text door will not serve. (2) A tracked inventory from which the
+// root-config + public-asset derivation resolves zero members. The family `runPolicyPass` controls retain
+// the complete runtime outcome beyond refusal-text matching: no effective findings, an exact policy/phase/
+// message tool error, an incomplete owner, and this policy withheld. The complete-population twin also
+// pins every declared receipt (proof law §6.3).
 import type { SourceFile } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { blankTsComments } from "../lib/comment-spans.ts";
@@ -273,11 +269,9 @@ export const gate = defineGate({
         const tracked = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
         const members = tracked.filter(isArmBMember);
         if (members.length === 0) {
-          // THE BLINDNESS TRIPWIRE, and it is a TOOL ERROR rather than a finding. A derivation that
-          // resolved nothing means arm B could not be judged at all — "I could not perform this run", not
-          // "the tree is clean" — and the legacy `line: 0` finding said that in the only vocabulary the
-          // legacy runtime had. A refusal is not expressible as a proof row (guide §4.5b), so its pin is a
-          // `runPolicyPass` arm in the family test.
+          // THE BLINDNESS TRIPWIRE. A derivation that resolved nothing means arm B was not judged: this
+          // is an evaluate-phase refusal, not a clean finding verdict. The family test pins the refusal
+          // text together with zero findings, an incomplete owner, and this policy withheld (§6.3).
           throw new Error(BLIND_MESSAGE);
         }
         readArmB(members);

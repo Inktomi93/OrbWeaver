@@ -34,7 +34,7 @@ export type ReportSiteMessage =
 export const DISCRIMINATIONS = ["discriminates", "tautology", "shared", "unjudged"] as const;
 export type Discrimination = (typeof DISCRIMINATIONS)[number];
 
-/** The marker GRAMMARS the final contract retired (gate-runtime-standardization.md §7 kinds 1 and 3, plus the
+/** The marker GRAMMARS the final contract retired (gate-runtime-standardization.md §8 kinds 1 and 3, plus the
  *  three the census found parsed gate-locally): the central legacy `@orb-gate-ignore` and every gate-owned custom
  *  opener. A FINAL module has exactly one waiver vocabulary, the central `@orb-waive`, and receives no marker
  *  parser (§12.5) — so a regex literal, a `new RegExp(…)` or a membership test that names one of these is a

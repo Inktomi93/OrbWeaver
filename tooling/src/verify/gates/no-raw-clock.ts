@@ -55,7 +55,7 @@ const MESSAGE =
 const FIX = "take the injected clock (`@orb/kit/time`'s `nowMs`/`createClock`, threaded from the composition root) instead of reading the ambient clock.";
 /** THE FAIL-CLOSED THIRD ANSWER (#944), and it is a SEPARATE text rather than a `${MESSAGE} …` suffix on
  *  purpose: the unreadable arm produces the SAME finding count as the ambient verdict and differs only in
- *  message, so a shared prefix would make neither arm pinnable in either direction (guide §4.1). Nothing in
+ *  message, so a shared prefix would make neither arm pinnable in either direction (guide §6.1). Nothing in
  *  `MESSAGE` occurs here and nothing here occurs in `MESSAGE`. */
 const UNREADABLE =
   "a call spelled like the ambient clock has a callee the shared readers cannot place, so whether it asks the runtime for the current instant CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";

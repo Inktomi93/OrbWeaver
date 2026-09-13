@@ -155,7 +155,7 @@ function isChromeHome(repoRelativePath: string): boolean {
 
 /** A finding's anchor: the DISCRIMINATING MEMBER — the key, id or zone that makes this literal a parallel
  *  map — expressed as the token/offset pair the waiver position is derived from. Anchoring on the member
- *  rather than on the literal keeps two findings in one statement separately waivable (guide §4.2) and
+ *  rather than on the literal keeps two findings in one statement separately waivable (guide §6.2) and
  *  makes the reported position the thing a reader would point at. */
 function anchorOn(node: MorphNode, member: MorphNode): { readonly token: string; readonly offset: number } {
   return { token: member.getText(), offset: member.getStart() - node.getStart() };

@@ -5,7 +5,7 @@
 // directly. The lane-speed AST arm; the .dependency-cruiser.cjs tooling stanzas are the whole-graph
 // resolved-edge backstop. Comment posture: comment-SAFE (ImportDeclaration nodes only).
 //
-// THE SPLIT (guide §12.6, #1950): the legacy descriptor carried three arms under one authority plus a
+// THE SPLIT (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950): the legacy descriptor carried three arms under one authority plus a
 // gate-owned `ROOT_CONFIG_IMPORTS` table with its own stale sweep. The two tooling-INTERNAL arms — a
 // cross-tool deep import and a cli.ts reaching past its own index.ts — are per-file occurrences an author may
 // waive with a reason, and they are this policy. The relative ESCAPE out of `tooling/src/` is NOT an arm

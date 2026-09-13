@@ -7,7 +7,7 @@
 //
 // FAMILY `providers-runner-seal` — a declared SINGLETON. `lib/sealed-origin.ts` is a shared READER used by
 // five policies that seal five different homes under five different laws; a reader is not a family
-// (guide §3). Nothing else judges the infra/providers boundary.
+// (guide §2). Nothing else judges the infra/providers boundary.
 //
 // POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^` (`scanRoot: (p) => CONSUMER.test(\`/\${p}\`)`, the
 // `domain|transport|entry` alternation); the final `CONSUMER_POPULATION` admits exactly that set. Both halves

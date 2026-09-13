@@ -7,7 +7,7 @@
 //
 // FAMILY `test-mock-doctrine` — a declared SINGLETON. Its subject is ONE doctrine rule about ONE runner API;
 // it consumes `lib/reference-fact.ts` and `lib/sealed-origin.ts`'s `originModuleSpecifier`, and sharing those
-// with the rest of the canonical-origin corpus is not a family (guide §3). "Test-tree policies" is a theme.
+// with the rest of the canonical-origin corpus is not a family (guide §2). "Test-tree policies" is a theme.
 //
 // POPULATION PORT: byte-identical, legacy at `ef2251957^` (`scanRoot: (p) => p.includes("tests/")` — every
 // authored `tests/` tree, including the nested ones); the final `TEST_POPULATION` is that expression, pinned

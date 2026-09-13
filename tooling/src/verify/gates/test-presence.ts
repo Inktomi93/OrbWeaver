@@ -13,7 +13,7 @@
 // THE BASELINE IS RETIRED, AND ITS TWO ROWS TURNED OUT TO BE A DEMAND THIS POLICY SHOULD NEVER HAVE MADE
 // (#2062). `test-presence.baseline.json` carried `domain/chat/substrate/{assembly-access,turn-access}.ts`,
 // citing board item #772 as their burn-down. #772 is CLOSED while both subjects were still live debt, and
-// guide §12.5 permits a retiring baseline exactly three dispositions: a fix, an exact grant, or warning debt
+// guide §5 permits a retiring baseline exactly three dispositions: a fix, an exact grant, or warning debt
 // tied to a POSITIVE LIVE issue. A closed issue is none of them — and the warning arm is not expressible
 // here at all, because `severity` is per-POLICY: parking two rows as warning debt would take all seven arms
 // of this policy to a severity that contributes 0 to `blocking` at every shipped entrypoint.
@@ -68,7 +68,7 @@
 //
 // THE TRIPWIRE ANCHOR MOVE. Both blindness tripwires reported at this gate's OWN source file, which sits in
 // `tooling/` — outside this policy's population AND outside its resource population, so `ctx.report.file`
-// would THROW on it (guide §3's absent/foreign-subject class). They now anchor through
+// would THROW on it (guide §2.1's absent/foreign-subject class). They now anchor through
 // `lib/absent-subject-anchor.ts` `subjectAnchor` on the real-tree anchor they are already gated on, with
 // the diagnosis unchanged in the MESSAGE. §4.6 category 6 owes a marker receipt for an anchor move; the
 // live `@orb-gate-ignore test-presence` census is ZERO, measured with a planted positive control, so
@@ -102,14 +102,10 @@
 // private parser, and every finding is FILE-anchored with no position token, so under this contract no
 // ordinary door exists BY CONSTRUCTION. `hard` is the honest declaration.
 //
-// WHERE A BROKEN RESOURCE REFUSES — not here. A non-ready declared resource makes
-// `resolveResourceDeclarations` THROW at the POPULATION phase and the owner is withheld before `create`
-// runs (guide §11 ruling 3); this module owns no not-ready branch and reads through `readyResourceValue`,
-// whose throw asserts that refusal. That is also the capability this conversion BUYS: `existsSync` could
-// not tell "no mirror here" from "there is no tests/ tree", and the second read as full coverage. The
-// reachable refusals and the receipt are pinned through `runPolicyPass` in
-// `tests/tooling/verify/gates/mirror-index-family.test.ts` (guide §4.5b: no proof row can express one).
-//
+// WHERE A BROKEN RESOURCE REFUSES — not here. The policy reads the ready mirror through
+// `readyResourceValue`; the family `runPolicyPass` controls retain the complete runtime outcome for missing,
+// empty, and unresolved mirrors: no findings, a named population-phase tool error, an incomplete owner, and
+// this policy withheld. Healthy twins prove success and the unresolved-zero mirror receipt (§§3, 6.3).
 // DECLARED LIMITS, each naming the row that holds it: the zero-logic `service.ts` / `context.ts` feature
 // roots (`mustPass[4]`, `[5]`), the error-declaration-only `contract/` file (`mustPass[6]`), the D58 stub
 // runner (`mustPass[2]`), the tier pass-through / DI-bundle / router-shell / curried-factory / `.d.ts`

@@ -177,7 +177,7 @@ test("one kind's blind provider withholds only ITS consumers — the other kinds
 });
 
 // ---------------------------------------------------------------------------------------------------
-// THE SUCCESSOR PROOF for `home-tile-registry-completeness`'s RETIRED anti-god-map arm (guide §8.3 MERGE).
+// THE SUCCESSOR PROOF for `home-tile-registry-completeness`'s RETIRED anti-god-map arm (guide §8 MERGE rule).
 // The legacy gate flagged a `createContributorRegistry("home-tiles", …)` outside the door by CALLEE
 // SPELLING, justifying the overlap in its header as catching "the shape G8's file allowlist would miss".
 // That sentence described the LEGACY `registry-assembly-at-door-only` and became false at its conversion:

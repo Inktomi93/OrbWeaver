@@ -1,5 +1,5 @@
 // The structural-gate orchestrator (`pnpm check:structure` → `cli.ts structure`) — THE MIXED FRONT DOOR
-// (docs/design/gate-runtime-standardization.md §5 item 2; docs/reviews/gate-runtime/mixed-runtime-front-door.md).
+// (docs/design/gate-runtime-standardization.md §1; docs/reviews/gate-runtime/mixed-runtime-front-door.md).
 // One loader classifies every tooling/src/verify/gates/*.ts module by exact contract identity (lib/loader.ts), ONE
 // shared ts-morph Project is built, and each contract runs through its OWN dispatcher in this one invocation: the
 // legacy single-pass machine (`runPass`) over the legacy descriptors and the final policy dispatcher

@@ -1,6 +1,6 @@
 // The INSTALLED tree — the one resource family that is deliberately not the authored transaction.
 //
-// ONE KIND WITH DECLARED MODES, NEVER THREE NARROW KINDS (owner ruling, 2026-09-11, guide §11). Three gates
+// ONE KIND WITH DECLARED MODES, NEVER THREE NARROW KINDS (owner ruling, 2026-09-11, guide §4). Three gates
 // read three different things out of `node_modules`: a parsed `.d.ts` surface, a version tuple, and one raw
 // bundled file. Giving each its own resource kind would make each capability serve exactly one gate — which
 // is that gate's private reader wearing a contract's clothes — and would cost three passes over the four

@@ -1,7 +1,7 @@
 // CONVERSION-TIME EVIDENCE for the two `drizzle-schema`-family registry conversions of #1584 —
 // `lifecycle-portability` and `domain-freshness-plane` — written to the
 // `simple-visitors-wave-2.test.ts` recipe. It is NOT a standing regression gate: it freezes the legacy
-// source at one commit and RETIRES once the differential is trusted (design guide §4.6 — "conversion
+// source at one commit and RETIRES once the differential is trusted (design guide §6.4 — "conversion
 // evidence for the landing commit, not standing law"). Delete it with the legacy loader.
 //
 // What it proves, in three assertions:

@@ -118,7 +118,7 @@ const DYNAMIC = "dynamic";
 
 const MESSAGE =
   "a family test under `tests/tooling/verify/gates/**` performs a filesystem WRITE at a path rooted in the CHECKOUT " +
-  "(gate-runtime-standardization.md §4.8; the probe rule, constitution §4). A fixture is an in-memory ts-morph `Project` or a " +
+  "(gate-runtime-standardization.md §6.5; the probe rule, constitution §4). A fixture is an in-memory ts-morph `Project` or a " +
   "runner-owned temp dir — never the repository. Paid 2026-08-24: a probe written into the tree was swept into a commit by the " +
   "next broad `git add` and the gate shipped BLINDED, which reports green forever. The token names the repo anchor the write " +
   "resolved through.";
@@ -247,7 +247,7 @@ function judgeWrite(ctx: GatePolicyContext, call: CallExpression): void {
     const anchor = found.carrier;
     // THE COORDINATE IS PAREN-FREE, and that is a hard requirement rather than a nicety: the `@orb-waive`
     // position grammar admits no parenthesis, CR or LF, so a token of `process.cwd()` would make the finding
-    // PERMANENTLY UNWAIVABLE (`lib/ordinary-waiver.ts waivableCoordinate`, guide §3, #2107) — measured here as a
+    // PERMANENTLY UNWAIVABLE (`lib/ordinary-waiver.ts waivableCoordinate`, guide §2.1, #2107) — measured here as a
     // conformance TOOL ERROR before the slice was narrowed. `process.cwd()` hands back its callee `process.cwd`,
     // which is a leading slice at the same offset; every other anchor is already a bare name.
     const coordinate = Node.isCallExpression(anchor) ? anchor.getExpression() : anchor;

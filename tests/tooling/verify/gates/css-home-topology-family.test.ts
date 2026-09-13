@@ -14,7 +14,7 @@ test("the css-home-topology pair keeps its three-arm proofs", () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
 });
 
-/** THE §4.5 RECEIPT AND REFUSAL PINS a proof row cannot express (guide §4.5b, `resource-policy-contract.md`
+/** THE §6.3 RECEIPT AND REFUSAL PINS a proof row cannot express (guide §6.3, `resource-policy-contract.md`
  *  §3.6). Both members are `hard` resource policies with no waiver door, so there is no §4.2 identity arm to
  *  carry here; what rows CANNOT carry is the RECEIPT PAIR of a complete run — one `kind: "resource"` receipt
  *  per declaration with `unresolved: 0` — and an EMPTY declared tree, which no `files` map can express

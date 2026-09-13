@@ -13,7 +13,7 @@
 // `portLiteralOf` / `fixedClockOf` are pure readers over ONE delivered node — no walk, no Project, no
 // filesystem. `runnerConfigLiteralFacts` is the one reader that WALKS, and it walks a SCRATCH parse of text a
 // declared resource fact delivered (`lib/config-static-read.ts#parseStaticSourceText`, the one parser),
-// never the shared workspace — the walk lives here so that no gate module walks (guide §12.5).
+// never the shared workspace — the walk lives here so that no gate module walks (guide §5).
 //
 // SINGLE-CONSUMER TODAY, and why `lib/` is still right (orchestrator ruling 2026-09-12, #1950 group 4):
 // `runnerConfigLiteralFacts` has one consumer, `tooling-runner-config-literals`. The natural second is

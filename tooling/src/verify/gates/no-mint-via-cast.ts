@@ -55,7 +55,7 @@ import { idCastProofModule } from "./_proof/id-brand.ts";
 const MESSAGE = "castId wraps a fresh-id generator — use `mintTypeId(ID_PREFIX.x)` for TypeIDs or `newId<T>()` for deliberately prefixless brands.";
 /** THE FAIL-CLOSED THIRD ANSWER, kept DISJOINT from `MESSAGE` on purpose: the unreadable arm emits the
  *  same finding COUNT as the ordinary verdict and differs only here, so a shared prefix would leave both
- *  arms unpinnable in either direction (guide §4.1). No fragment of either text occurs in the other. */
+ *  arms unpinnable in either direction (guide §6.1). No fragment of either text occurs in the other. */
 const UNREADABLE =
   "a cast seam or its argument enters through a door the shared readers cannot place, so whether this launders a fresh-id generator into a brand CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 const MODULE_GENERATORS: Readonly<Record<string, ReadonlySet<string>>> = {
@@ -83,7 +83,7 @@ function isGenerator(target: ReferenceOrigin): boolean {
 /** The RECEIVER a method call hangs off, when that receiver is itself a call — `gen().slice(…)`'s `gen()`.
  *  `undefined` ends the walk, which is what makes the walk total on any expression shape.
  *
- *  THE `isCallExpression` TEST IS A TYPE OBLIGATION, NOT AN UNPINNED FENCE (guide §4.1's unreachable-clause
+ *  THE `isCallExpression` TEST IS A TYPE OBLIGATION, NOT AN UNPINNED FENCE (guide §6.1's unreachable-clause
  *  class): `resolveCallableOrigin` takes a `CallExpression`, so cutting the test does not widen the policy,
  *  it fails to compile. No row is owed for it and none is written. */
 function receiverCall(call: CallExpression): CallExpression | undefined {

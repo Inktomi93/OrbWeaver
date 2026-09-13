@@ -4,13 +4,10 @@
 // sibling's classifier-rot tripwire — is proven by the policies' own `mustFlag`/`mustPass` rows, which
 // `tests/tooling/verify/gates/grant-liveness-family.test.ts` runs through `verifyPolicyProofs`.
 //
-// What THIS file keeps is what a resource fixture structurally cannot show: the arms that are now the
-// RUNTIME's refusal rather than a finding. A MISSING or UNPARSEABLE `biome.json` makes the `json` resource
-// non-ready, `resolveResourceDeclarations` throws at the POPULATION phase, and the whole run is withheld as
-// a TOOL ERROR — louder than the finding each used to be, and unexpressible as a proof row because the
-// harness has no "expect a tool error" arm (guide §4.5b). Plus the runnability arm: this pair declares
-// `tracked-files`, whose fact paths are the whole repository inventory, so "it resolves and runs at
-// repository scope" is a real property with a real failure mode (#1947).
+// This integration file pins runtime refusal shape and repository-scope runnability beyond the policy's
+// declared rows. Missing or unparseable `biome.json` and an empty tracked corpus produce population-phase
+// tool errors; the live-root twin proves both policies complete, traverse the real inventory, consume the
+// grant table without alarms, and leave no effective findings (proof law §6.3).
 //
 // ONE REFUSAL IS NOT PINNED HERE AND CANNOT BE, recorded rather than faked (#2121). The policy now THROWS
 // when `authoredText([biome.json])` refuses a config whose owning `json` declaration already resolved —

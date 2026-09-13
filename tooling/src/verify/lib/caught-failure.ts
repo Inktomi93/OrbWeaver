@@ -62,7 +62,7 @@
 // policy's declaration, not this reader's.
 //
 // Descendant reads here are bounded SUBTREE analysis of a delivered node plus same-file binding identity —
-// the shared-reader layer's own job (gate-runtime-standardization.md §12.3: "binding identity, static-value
+// the shared-reader layer's own job (gate-runtime-standardization.md §3: "binding identity, static-value
 // unwrapping ... are shared primitives"). No Project, no workspace cache, no filesystem, no marker parser.
 import type { BindingElement, Block, CallExpression, CatchClause, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";

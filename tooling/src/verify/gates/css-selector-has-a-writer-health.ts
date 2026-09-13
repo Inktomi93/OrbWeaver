@@ -3,7 +3,7 @@
 // a vendor emission contract whose two sides have drifted apart.
 //
 // FAMILY `css-hook-provenance`, identical to `css-selector-has-a-writer`'s. THE SPLIT IS AUTHORITY, not
-// severity (guide §3): its twin's findings anchor on an authored selector slice and take an ordinary
+// severity (guide §2): its twin's findings anchor on an authored selector slice and take an ordinary
 // waiver, while every finding here is a verdict about the TOOL — "I measured nothing" and "the committed
 // contract disagrees with what is installed" are not sites an author absolves, and neither has an authored
 // subject to anchor a marker on. `hard` is EARNED here rather than forced by a coordinate problem.
@@ -15,7 +15,7 @@
 //
 //   1. THE SUBJECT IS NOT CSS. "The committed Base UI record disagrees with the installed package" is
 //      `baseui-surface-manifest`'s whole subject — the version-bump tripwire — and a second gate asking it
-//      one aggregate over is guide §8 step 3's MERGE case, not a second detector.
+//      one aggregate over is guide §8 MERGE rule's MERGE case, not a second detector.
 //   2. THE SUCCESSOR IS STRICTLY STRONGER. This module compared a SET OF ATTRIBUTE NAMES aggregated across
 //      every component, so a state that vanished from one part while surviving on another produced no
 //      difference at all. `baseui-surface-manifest#identity()` compares PER PART, and once `part.state`
@@ -98,7 +98,7 @@ export const gate = defineGate({
     evaluate: () => {
       const inventory = readyResourceValue(ctx.resources.cssInventory("product"));
       const hooks = selectorHookIdentities(inventory.selectorHooks);
-      // An ABSENCE verdict cannot anchor on its own subject (guide §3). The sheets are declared, read and
+      // An ABSENCE verdict cannot anchor on its own subject (guide §2.1). The sheets are declared, read and
       // present whenever the resource resolved, so the anchor is the first present product stylesheet.
       const anchor = subjectAnchor(new Set(inventory.files.map(({ path }) => path)), [...PRODUCT_STYLESHEETS]);
       const sheet = anchor(THEME);

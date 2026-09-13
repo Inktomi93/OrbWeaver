@@ -17,11 +17,10 @@ test("the text-citation family keeps its two-sided proofs", () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
 });
 
-/** The §4.5 refusal and receipt pins for the three text-citation policies
- *  (`docs/design/resource-policy-contract.md` §3.6). No proof row can carry any of them: the conformance
- *  runner's `toolFailure` runs BEFORE the arm verdict, so an arm whose correct outcome is a refusal is
- *  neither `mustFlag` (nothing is reported) nor `mustPass` (the owner did not succeed). Two classes live
- *  here. The first is the RUNTIME's refusal — a declared resource that is missing, empty or unresolved
+/** The complete refusal and receipt outcomes for the three text-citation policies (standing proof law §6.3).
+ *  A `mustRefuse` row can prove refusal text; these family controls additionally assert the phase, owner
+ *  completeness, withheld status, absence of findings, and complete-run receipts. Two classes live here.
+ *  The first is the RUNTIME's refusal — a declared resource that is missing, empty or unresolved
  *  makes `resolveResourceDeclarations` throw at the POPULATION phase, the owner is marked incomplete and
  *  WITHHELD, and no finding survives; that is what rules out "the fixture simply had nothing to find", and
  *  it is why none of the three modules owns a not-ready branch. The second is a policy's OWN in-evaluate

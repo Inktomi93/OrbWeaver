@@ -49,11 +49,11 @@
 // here" from "the test tree is not there at all" — and the second read as a clean corpus, which is why
 // the legacy descriptor needed no blindness tripwire and had none. `loadMirrorIndex` refuses a family
 // whose bounded space holds zero files (`ops/resource-mirror.ts`), `resolveResourceDeclarations` THROWS at
-// the POPULATION phase, and the owner is withheld before `create` runs (guide §11 ruling 3). So this
+// the POPULATION phase, and the owner is withheld before `create` runs (guide §3's acquisition-refusal rule). So this
 // module owns no not-ready branch: it reads through `readyResourceValue`, whose throw asserts that
 // refusal. Every reachable refusal and the complete run's receipt pair are pinned through `runPolicyPass`
 // in `tests/tooling/verify/gates/mirror-index-family.test.ts`, because no proof row can express a refusal
-// (guide §4.5b).
+// (guide §6.3).
 //
 // DECLARED LIMITS: the exemption classes themselves, each of which carries the row that holds it —
 // `mustPass[0]` (e2e home), `[5]` (suite kind), `[7]` (flat tooling tier), and the §4.1 cut rows — plus ONE

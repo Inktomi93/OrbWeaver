@@ -20,11 +20,11 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here (mirrors `server-layout.ts`'s header). A declared resource
 // that comes back missing/empty/unresolved/malformed makes `resolveResourceDeclarations`
 // (`lib/resource-declaration.ts:182`) THROW during the POPULATION phase, and the receipt phase withholds
-// every consumer, both before `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready
+// every consumer, both before `create`/`evaluate` run (guide §3's acquisition-refusal rule). This module owns no not-ready
 // branch: it reads the CSS inventory through `readyResourceValue`, whose throw is an assertion that the
 // runtime's own refusal already held.
 //
-// THE CARRIER / COORDINATE SPLIT (#2107 arm c, ruled 2026-09-12; guide §3). A functional color's own text
+// THE CARRIER / COORDINATE SPLIT (#2107 arm c, ruled 2026-09-12; guide §2.1). A functional color's own text
 // carries parentheses, and the `@orb-waive` position grammar admits none — so until this commit the `fix`
 // string below instructed a reader to write a marker that the parser rejects as `malformed`, and every
 // `oklch(…)`/`rgb(…)` finding was PERMANENTLY UNWAIVABLE while reading like an ordinary one. The repair is

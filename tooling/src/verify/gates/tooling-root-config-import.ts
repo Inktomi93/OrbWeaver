@@ -4,7 +4,7 @@
 // (P4 of #393: `ast/ops/prodonly` derives its entry closure from the one knip workspace-entry config —
 // re-spelling the globs is the one-home violation this rule exists to kill).
 //
-// AUTHORITY IS reviewed-grant, and that is the whole reason this arm has its own policy id (guide §12.6,
+// AUTHORITY IS reviewed-grant, and that is the whole reason this arm has its own policy id (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments",
 // #1950). The exception is not a per-occurrence mistake an author waives with a reason — it is a recurring
 // repository PERMISSION: one exact `(subject, operation)` row in the central reviewed-grant table
 // (`tooling-root-config-import:prodonly-knip`) with its own `why` and `endsWhen`. After a complete run a
@@ -120,7 +120,7 @@ export const gate = defineGate({
         "tooling/src/aa/ops/x.ts":
           'import { kit } from "@orb/kit";\nimport { posix } from "node:path";\nimport { b } from "#bb";\nexport const x = [kit, posix, b];\n',
       },
-      why: "package, node: and `#<tool>` specifiers are not relative and are owned by the resolver and the cruiser — the reader answers null for them. UNFALSIFIABLE for THIS policy, documented rather than faked (guide §4.1's fourth outcome): with the non-relative short-circuit deleted, `posix.join(dirname, \"#bb\")` lands INSIDE the importing directory and is never an escape, so no fixture can red this row through that cut — measured with `#bb`, `node:path` and `@orb/kit`. The fence is pinned by the ordinary sibling's cli.ts row, where the same unfenced join reads as cli internals",
+      why: "package, node: and `#<tool>` specifiers are not relative and are owned by the resolver and the cruiser — the reader answers null for them. UNFALSIFIABLE for THIS policy, documented rather than faked (guide §6.1's structurally-unfalsifiable classification): with the non-relative short-circuit deleted, `posix.join(dirname, \"#bb\")` lands INSIDE the importing directory and is never an escape, so no fixture can red this row through that cut — measured with `#bb`, `node:path` and `@orb/kit`. The fence is pinned by the ordinary sibling's cli.ts row, where the same unfenced join reads as cli internals",
     },
   ],
 });

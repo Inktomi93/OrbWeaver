@@ -102,7 +102,7 @@ const SHARED_BY = 2;
 
 const MESSAGE =
   "a FAMILY MEMBER SHARES NO READER WITH ITS SIBLINGS — this module carries a `family` string that another final policy also " +
-  "carries, and it imports no `tooling/src/verify/lib/` module any sibling imports (gate-runtime-standardization.md §5b criterion 4: " +
+  "carries, and it imports no `tooling/src/verify/lib/` module any sibling imports (gate-runtime-standardization.md §7 item 4: " +
   "*a theme, a filename prefix and a shared topic are not families*). A family whose members compute their subjects from separate " +
   "private walks answers its shared question two ways, and the word `family` is what the next lane trusts when it asks who else " +
   "answers it the same way. Measured at mint: 11 members across 6 families.";

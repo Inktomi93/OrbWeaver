@@ -10,7 +10,7 @@
 //
 // AUTHORITY: `ordinary`, and the door is NEW. The legacy descriptor's findings came out of
 // `cssFamilyFinding`, which minted `column: 1` with a SYNTHETIC composite token (`class:shell-wrapper`,
-// `data-density="birdie"`) — guide §3's class 2, where `locateFinding` requires the token to be authored
+// `data-density="birdie"`) — guide §2.1's authored-coordinate rule, where `locateFinding` requires the token to be authored
 // text at the finding's exact line and column and a synthetic label is authored nowhere. Under the legacy
 // engine that worked, because a position was a plain string compared against the finding's own reported
 // lexeme (`lib/gate-ignore.ts:180,196`) rather than a source coordinate; under this contract it does not.
@@ -38,12 +38,12 @@
 // (`server-layout` precedent). Legacy sha `1692583d6`.
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. `resolveResourceDeclarations` acquires every declared
-// resource at the POPULATION phase and withholds this owner before `create` runs (guide §11 ruling 3), so
+// resource at the POPULATION phase and withholds this owner before `create` runs (guide §3's acquisition-refusal rule), so
 // this module owns no not-ready branch and reads through `readyResourceValue`. `mustRefuse[0]` pins it.
 //
 // DECLARED LIMITS, each with its row:
 //   * `hookCoordinate`'s refusal branch is a TYPE OBLIGATION with NO CONSTRUCTIBLE FIXTURE, and the
-//     construction was attempted rather than argued (guide §4.1's fourth outcome). `waivableCoordinate`
+//     construction was attempted rather than argued (guide §6.1's structurally-unfalsifiable classification). `waivableCoordinate`
 //     returns the value whole when the grammar can hold it and its leading paren-free run otherwise; every
 //     authored hook slice begins with `.` or `[`, neither of which the grammar excludes, so the run is never
 //     empty and `undefined` is unreachable. MEASURED: a `[data-probe="a(b)"]` fixture written as a
@@ -256,7 +256,7 @@ export const gate = defineGate({
         "a text node, and its `properties` bag paints nothing. This row exists because the FIRST sweep " +
         "misclassified the fence: cut alone it killed nothing, and the JOINT cut with both " +
         "`isPropertyAssignment` guards TOOL-ERRORS (`Cannot read properties of undefined (reading " +
-        "'getInitializer')`) rather than flagging — which is guide §4.1's TYPE-OBLIGATION shape and NOT " +
+        "'getInitializer')`) rather than flagging — which is guide §6.1's TYPE-OBLIGATION shape and NOT " +
         "evidence of redundancy. §4.1 then binds: write the row that would discriminate and RUN it. It passes " +
         "at tip and reds under the cut, so the fence is UNENFORCED-now-pinned, never mutually redundant " +
         "(refuted by `v-css-family-2026-09-13.md` ledger row 2, #2305)",
@@ -377,7 +377,7 @@ export const gate = defineGate({
         [SOURCE_ANCHOR]: 'const prose = ".shell-wrapper";\nexport const probe = prose;\n',
       },
       why:
-        // THE §4.2 IDENTITY ARM, in its `mustPass`-row shape (guide §4.2 names both homes; `schema-branding.ts:137`
+        // THE §6.2 IDENTITY ARM, in its `mustPass`-row shape (guide §6.2 names both homes; `schema-branding.ts:137`
         // is the precedent). It is SELF-CHECKING: `proofFailure` runs `toolFailure` before the arm verdict and
         // fails on ANY `authorityAlarms`, so a wrong position (`dead-position`), a foreign id (`unknown-policy`),
         // an over-broad match and a fixture that stopped flagging each RED this row. A resource finding's marker

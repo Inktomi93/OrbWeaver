@@ -1,4 +1,4 @@
-// The MIXED loader's identity law (docs/design/gate-runtime-standardization.md §1/§5 item 1; lib/loader.ts
+// The MIXED loader's identity law (docs/design/gate-runtime-standardization.md §1; lib/loader.ts
 // header): every corpus module is classified by EXACT contract identity — a branded `defineGate` result is final,
 // a validated `GateDescriptor` is legacy, an unbranded or malformed lookalike REFUSES, a module exporting no
 // `gate` is recorded as unregistered — and lands in exactly one roster row. The three views derive from that one

@@ -62,7 +62,7 @@
 //     THE PLANTED POSITIVE CONTROL for that zero: the same frozen source with `EXEMPT` and `RATIFIED`
 //     emptied (each cut anchor asserted to occur exactly once in the file) reports **36** — 34 dead globs
 //     plus 2 dead file-exacts. So the legacy reader was LIVE and its zero came from the EXEMPTION
-//     SUBTRACTION, which is guide §4.6 **category 5, EXEMPTION-MECHANISM MOVE**, the exemption-table twin
+//     SUBTRACTION, which is guide §6.4's EXEMPTION-MECHANISM MOVE classification, the exemption-table twin
 //     of vacuity shape 2. Catch parity is NOT proven and is not claimed.
 //     THE 36 → 8 ACCOUNTING, which is what category 5's own falsifier asks ("did every hidden site become
 //     exactly ONE live, consumed row"): the 36 sites carry 8 DISTINCT subjects — `**/__g_*` and

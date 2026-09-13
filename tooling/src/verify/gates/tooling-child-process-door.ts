@@ -6,7 +6,7 @@
 // on or that IS the workload) is legal only for a reviewed caller (arm F2). Comment posture: comment-SAFE
 // (node kinds only).
 //
-// AUTHORITY IS reviewed-grant (guide §12.6, #1950 group 4): the legacy `HOMES` row for proc.ts and the
+// AUTHORITY IS reviewed-grant (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4): the legacy `HOMES` row for proc.ts and the
 // four-row `FULL_PRIORITY_CALLERS` census are recurring repository PERMISSIONS with stated end conditions —
 // five exact rows: `(proc.ts, child-process-import)` and four `(caller, full-priority-spawn)`; the legacy
 // two-sided stale sweep is central grant liveness. Both arms share one policy because they share one

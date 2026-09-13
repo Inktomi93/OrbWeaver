@@ -10,9 +10,9 @@
 //        vocabulary: its HONOURED half is now the central engine's, and its three refusal halves
 //        (MALFORMED · STALE · OVER-EXEMPTING) are the central engine's too, proven once in
 //        `tests/tooling/verify/lib/ordinary-waiver.test.ts` rather than re-proven per gate.
-//   §4.5 the REFUSAL for the declared resource. A missing/empty `authored-css` is a population-phase TOOL
-//        ERROR with the owner WITHHELD — never a finding and never a clean zero. `toolFailure` precedes a
-//        proof row's arm verdict, so no row can carry it (guide §4.5b).
+//   §6.3 the REFUSAL for `authored-css`. The family drive pins no effective findings, the named
+//        population-phase tool error, an incomplete owner, and this policy withheld; its healthy twin also
+//        pins the resource receipt with `unresolved: 0`.
 //   ARM D on a REAL-TREE-ANCHORED corpus: a whole-tree claim guarded on the anchor stylesheet, so no
 //        conformance fixture reaches it and cutting it comes back clean for that reason alone.
 //   THE WARNING-DEBT SHAPE. `gate:contract` refuses a gate-owned `*.baseline.json` outright, so the four
@@ -131,7 +131,7 @@ test("ARM D — a real-tree corpus with ZERO recognised glass rules is BLIND, no
 
 test("WARNING DEBT — the four mint surfaces are REPORTED every run at warning severity, never budgeted into silence", ({ scratch }) => {
   // The ratchet this replaces made them SILENT. `gate:contract` refuses a gate-owned `*.baseline.json`
-  // ("use exact grants or warning debt"), and guide §4.4 refuses turning measured debt into a grant, so the
+  // ("use exact grants or warning debt"), and guide §6.2 refuses turning measured debt into a grant, so the
   // honest successor reports them and a live issue owns them. If a future lane restores silence, this reds.
   //
   // THE ISSUE NUMBER IS NOT THE PROPERTY, and pinning it as a literal is what rotted here (#2053):
@@ -151,7 +151,7 @@ test("WARNING DEBT — the four mint surfaces are REPORTED every run at warning 
 });
 
 test("§4.6 differential — the converted reader's live set over the REAL tree is the legacy ledger's four keys, verbatim", ({ repoRoot }) => {
-  // READ THE LEGACY SIDE FIRST (guide §4.6). The legacy descriptor's live set is what its committed ledger
+  // READ THE LEGACY SIDE FIRST (guide §6.4). The legacy descriptor's live set is what its committed ledger
   // budgeted — that ledger WAS the legacy side's recorded output, and it was NOT zero (four rows, quoted
   // below from `over-art-plate-arm.baseline.json` at `6977b977b` before this conversion deleted it).
   // Replaying the same corpus through the converted reader must produce the same keys, which is the

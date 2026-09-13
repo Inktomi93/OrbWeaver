@@ -19,7 +19,7 @@
 // equality reds only when the two engines actually disagree, which is the thing worth knowing.
 //
 // This file replays the LEGACY `GateDescriptor` dispatcher, so it retires with the legacy runtime at the
-// atomic cutover (gate-runtime-standardization.md §8) — not per carrier, the whole file.
+// atomic cutover (gate-runtime-standardization.md §1) — not per carrier, the whole file.
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";

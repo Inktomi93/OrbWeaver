@@ -23,7 +23,7 @@ test("a valid document is ready, with exactly ONE measured member", ({ scratch }
   }
   expect(fact.value).toEqual({ id: "biome", path: BIOME, value: { overrides: [{ includes: ["a.ts"] }] } });
   // `members` is what the door MEASURED — one document — never the census inside it. A provider that
-  // receipts its findings preempts its own accuser (guide §12.3).
+  // receipts its findings preempts its own accuser (guide §3).
   expect(fact.members).toBe(1);
   expect(fact.paths).toEqual([BIOME]);
 });
@@ -56,7 +56,7 @@ test("an EMPTY file is its own refusal, distinct from both", ({ scratch }) => {
 test("an empty top-level collection is a POLICY-VISIBLE answer, not a host refusal", ({ scratch }) => {
   // The line the door must not cross. An empty document parsed fine; whether "zero override rows" is a
   // defect is the consuming policy's judgment, and turning it into a host-level refusal would withhold the
-  // very policy whose job is to report it (guide §12.3).
+  // very policy whose job is to report it (guide §3).
   const fact = load(scratch, { [BIOME]: "{}" });
 
   expect(fact.status).toBe("ready");

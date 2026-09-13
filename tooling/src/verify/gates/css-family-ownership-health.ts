@@ -1,7 +1,7 @@
 // Gate: css-family-ownership-health — the INSTRUMENT half of the six-home declaration wall. Every ownership
 // verdict its twin reports rests on a census, and a census that read nothing is not a clean tree.
 //
-// FAMILY `css-hook-provenance`, identical to `css-family-ownership`'s. THE SPLIT IS AUTHORITY (guide §3): a
+// FAMILY `css-hook-provenance`, identical to `css-family-ownership`'s. THE SPLIT IS AUTHORITY (guide §2): a
 // blind sheet, a `@theme` block that resolved no direct declaration, a generated-output parity break and an
 // incomplete runtime-writer seam are verdicts about the MEASUREMENT and the GENERATOR. No author absolves
 // one, and none has an authored coordinate a marker could bind to.

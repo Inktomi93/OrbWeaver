@@ -1,5 +1,5 @@
-// The ONE central home for typed reviewed grants (docs/design/gate-runtime-standardization.md §"Exceptions
-// and debt"). A row licenses exactly one `(policyId, subject, operation)` identity of one `reviewed-grant`
+// The ONE central home for typed reviewed grants (docs/design/gate-runtime-standardization.md §5).
+// A row licenses exactly one `(policyId, subject, operation)` identity of one `reviewed-grant`
 // policy; `why` and `endsWhen` are mandatory; after a complete owner run zero consumption is STALE and more
 // than one matching finding is OVER-BROAD and licenses nothing (lib/gate-authority.ts owns reconciliation).
 // Gate modules never import this table; the command runner hands it to `runPolicyPass` as `reviewedGrants`.

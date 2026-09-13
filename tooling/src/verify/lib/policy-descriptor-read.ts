@@ -54,7 +54,7 @@ const REPORT_METHODS: ReadonlySet<string> = new Set(["node", "file"]);
  *  `report.*(_, { message })` (policy-pass-context.ts) and `text.unreadableMessage` (reviewed-grant-findings.ts:57). */
 const MESSAGE_PROPERTY_NAMES: ReadonlySet<string> = new Set(["message", "unreadableMessage"]);
 const WAIVE_OPENER = "@orb-waive ";
-/** A marker-form line: a comment whose CONTENT BEGINS with the opener (guide §7 — a spelling later in prose,
+/** A marker-form line: a comment whose CONTENT BEGINS with the opener (guide §8 — a spelling later in prose,
  *  inside a string or a regex is a MENTION, never a marker). The id group is the contract's kebab-case. */
 const MARKER_LINE_RE = /^[ \t]*(?:\/\/|\/\*|\{\/\*)[ \t]*@orb-waive ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\(/u;
 

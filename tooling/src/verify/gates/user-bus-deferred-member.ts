@@ -46,7 +46,7 @@
 // descriptor declared `scopeSafety: "whole-project"` with no `scanRoot` and walked `ctx.project`, so its
 // effective population was the entire tree. The final is `{ in: ["@contracts", "@server"] }` — and that set
 // is NOT a free choice: it must EQUAL `busProducerFact`'s own population (lib/bus-fact.ts:651), because
-// nothing checks that a provider's population is a subset of its consumers' (guide §4.5b) and a consumer
+// nothing checks that a provider's population is a subset of its consumers' (guide §3) and a consumer
 // narrower than its provider is handed nodes it may not NAME, which is the `ctx.relativePath` throw. So
 // narrowing this to `@contracts` alone — the only package this policy's own arms NAME — is the tempting
 // simplification that must not be made. The worked receipt for that failure mode is the twin family's

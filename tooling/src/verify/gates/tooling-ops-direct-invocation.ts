@@ -4,12 +4,12 @@
 // tooling/src/<tool>/ops/** module must call the refusal at MODULE SCOPE, or BE a program (a module-scope
 // call to the one entry runner — stack.sh's node halves). Posture: comment-SAFE (statement nodes only).
 //
-// ONE HARD POLICY (guide §12.6, #1950). Every finding is an ABSENCE — no module-scope guard statement — so
+// ONE HARD POLICY (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950). Every finding is an ABSENCE — no module-scope guard statement — so
 // there is no node to anchor a waiver on and no ordinary door by construction; the legacy findings were
 // line 0/column 0 and unmarkable for the same reason. The escape from this policy is BEING an entry, never
 // a suppression. The legacy §4.6 blindness arm (a home whose export no longer derives) is not a finding any
 // more: the homes are LOCATED and RECEIPTED, one receipt per home, so an absent or renamed home refuses the
-// run at the receipt phase — the runtime is the accuser (guide §4.5; pinned through `runPolicyPass` in
+// run at the receipt phase — the runtime is the accuser (guide §6.3; pinned through `runPolicyPass` in
 // tests/tooling/verify/gates/tooling-ops-direct-invocation.test.ts, because conformance has no must-refuse
 // arm). Two receipts rather than one summed pair, because a sum lets one absent home read as `members: 1`.
 //

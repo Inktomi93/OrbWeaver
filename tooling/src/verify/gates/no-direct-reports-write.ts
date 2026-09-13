@@ -10,7 +10,7 @@
 // (§3.7's published `latest` pointer) at ONE call shape, and no sibling policy judges a write target. The
 // machinery is shared rather than private: `lib/reference-fact.ts` (member identity, binding stability,
 // member-write inspection), `lib/template-static-text.ts` for the authored path, and
-// `lib/property-assignment-name.ts` for the option key. A shared hazard TOPIC is not a family (guide §3).
+// `lib/property-assignment-name.ts` for the option key. A shared hazard TOPIC is not a family (guide §2).
 //
 // POPULATION PORT: byte-identical, legacy at `ef2251957^` (`scanRoot: (p) => p.startsWith("tests/")`); the
 // final `TESTS_POPULATION` is the `@tests` root, which is that prefix exactly.

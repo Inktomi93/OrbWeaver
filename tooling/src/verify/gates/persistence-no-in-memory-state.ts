@@ -20,7 +20,7 @@
 // FAMILY `persistence-no-in-memory-state` — a declared SINGLETON. It is the only policy whose subject is an
 // AMBIENT GLOBAL constructor; the readers it consumes (`lib/reference-fact.ts`'s global and module origin
 // resolvers, `lib/origin-verdict.ts`'s `classifyOriginRefusal`) are shared with policies asking entirely
-// different questions, and a shared reader is not a family (guide §3).
+// different questions, and a shared reader is not a family (guide §2).
 //
 // POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^`
 // (`scanRoot: (p) => p.includes("/persistence/") && !p.includes(".test.") && !p.startsWith("tests/")`); the
@@ -56,7 +56,7 @@ const FIX =
 
 /** THE FAIL-CLOSED THIRD ANSWER (#944), a SEPARATE text rather than a `${MESSAGE} …` suffix: the unreadable
  *  arm reports the same single finding under the same token as the ambient verdict and differs ONLY in
- *  message, so a shared prefix would leave both arms unpinnable in either direction (guide §4.1). */
+ *  message, so a shared prefix would leave both arms unpinnable in either direction (guide §6.1). */
 const UNREADABLE =
   "a collection constructor spelled like an ambient global enters through a door with no reachable target, so whether it is the runtime's own Map/Set/WeakMap/WeakSet CANNOT be established. Reported rather than admitted by a broken door: the spelling alone is not the identity.";
 

@@ -39,7 +39,7 @@
 // refusals — exit 2, "not a verdict", never a green zero. That is strictly louder than the two findings it
 // replaces AND it deletes the anchor heuristic, which existed only because the legacy substrate could not
 // tell "the package is not installed" from "this example is about something else". No proof row can
-// express a refusal (guide §4.5b); the pins are `runPolicyPass` drives in
+// express a refusal (guide §6.3); the pins are `runPolicyPass` drives in
 // `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts` — the LEDGER's three reachable
 // non-ready statuses (missing · unparseable · empty, all population-phase withholds, in the loop over this
 // family's four ledger consumers) and the INSTALLED doors' three (the whole package missing, `metadata`
@@ -270,7 +270,7 @@ export const gate = defineGate({
   family: "baseui-read",
   // HARD by construction, not by preference: every arm reports a FILE-anchored verdict about a generated
   // artifact, and a file-anchored ordinary finding has no authored token at its coordinate, so it has no
-  // waiver door at all (guide §3, door-failure class 2 — measured on the sibling and quoted in its header).
+  // waiver door at all (guide §2.1's authored-coordinate rule — measured on the sibling and quoted in its header).
   authority: "hard",
   severity: "error",
   population: { of: "none", why: "the installed package surface and the committed ledger are closed ResourceHost facts; this policy reads no authored source" },

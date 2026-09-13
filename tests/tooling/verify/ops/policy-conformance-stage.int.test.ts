@@ -1,4 +1,4 @@
-// The WHOLE-CORPUS CONFORMANCE STAGE (#1941; docs/design/gate-runtime-standardization.md §5 item 3) at the door
+// The WHOLE-CORPUS CONFORMANCE STAGE (#1941; docs/design/gate-runtime-standardization.md §6.6) at the door
 // it is driven through — `cli.ts policy-conformance` over planted roots — so the exit classes and the failure lines
 // are proven where a reader meets them. Three arms, each the other's control: a REAL final policy re-exported into
 // a planted corpus proves clean (0); a planted policy whose founding row cannot bite proves exit 2 naming policy,

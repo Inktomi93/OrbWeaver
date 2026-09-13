@@ -48,7 +48,7 @@ const MESSAGE =
 const FIX = "take an injected PRNG (the seeded generator threaded from the composition root) instead of drawing from the ambient `Math.random`.";
 /** THE FAIL-CLOSED THIRD ANSWER (#944), a SEPARATE text rather than a `${MESSAGE} …` suffix: the unreadable
  *  arm produces the SAME finding count as the ambient verdict and differs only in message, so a shared
- *  prefix leaves neither arm pinnable in either direction (guide §4.1). The two texts are disjoint. */
+ *  prefix leaves neither arm pinnable in either direction (guide §6.1). The two texts are disjoint. */
 const UNREADABLE =
   "a call spelled like the ambient generator has a callee the shared readers cannot place, so whether it draws entropy from the runtime CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 

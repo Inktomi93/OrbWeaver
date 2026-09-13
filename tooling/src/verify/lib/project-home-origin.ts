@@ -5,7 +5,7 @@
 // consuming policy's population, so it matches on an absolute-path infix and has no liveness of its own. The
 // sanctioned-home family needs the other half: their home is a single FILE inside the policy's own
 // population, and the whole point of the migration is that a home which moves must go RED rather than
-// silently stop matching (`docs/design/gate-runtime-standardization.md` §"Population vocabulary"). So the
+// silently stop matching (`docs/design/gate-runtime-standardization.md` §"Resource vocabulary"). So the
 // home is LOCATED in `ctx.files` and receipted — zero members refuses the run — and a reference is judged by
 // the canonical declaring FILE plus the canonical export name, never by the consuming file's own exports
 // (`export function estimateTokens` in the consumer is the self-exemption door that shape opens).

@@ -4,7 +4,7 @@
 // supplies the policy id and position the central waiver engine binds to — one POSITIVE arm, the correct
 // `@orb-waive <id>(<position>): <reason>` at the reported position, yielding 0 effective findings and 1 waived.
 // Without it every waiver in the tree against that policy is a silent no-op. Two shapes are valid
-// (gate-runtime-standardization.md §4.2), and this policy accepts BOTH — the trap the brief named, because an
+// (gate-runtime-standardization.md §6.2), and this policy accepts BOTH — the trap the brief named, because an
 // arm that lives in a different file is invisible to any single-file read:
 //
 //   • an in-module `mustPass` row whose fixture text carries a MARKER-FORM line naming this policy
@@ -17,7 +17,7 @@
 //     policy inside another policy's negative arm is not your arm" (§4.2) — which is exactly how
 //     `no-form-state-in-useeffect` had no arm while a grep counted one.
 //
-// MARKER-FORM, not mention: a line whose comment content BEGINS with the opener (guide §7's honest census
+// MARKER-FORM, not mention: a line whose comment content BEGINS with the opener (guide §8's honest census
 // predicate). A `fix` string, a header comment and a `messageIncludes` all MENTION the spelling and none is
 // an arm — three of the four live findings at mint are exactly header prose.
 //
@@ -64,7 +64,7 @@ const WAIVED_FINDINGS = "waivedFindings";
 const STRING_KINDS = [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral, SyntaxKind.TemplateExpression] as const;
 
 const MESSAGE =
-  "an ORDINARY policy has no positive §4.2 identity arm (gate-runtime-standardization.md): no `mustPass` fixture carrying a " +
+  "an ORDINARY policy has no positive §6.2 identity arm (gate-runtime-standardization.md): no `mustPass` fixture carrying a " +
   "marker-form `@orb-waive <id>(<position>): <reason>` line, and no family test under tests/tooling/verify/gates/ that imports the " +
   "module and drives such a fixture inside a `test(…)` asserting `waivedFindings`. Without the arm, nothing proves the report's " +
   "policy id and position are what the central engine binds a waiver to — every waiver against it may be a silent no-op.";

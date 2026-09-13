@@ -15,7 +15,7 @@
 //     parser's 203, and 109 rule declarations against the fixture's `themeRules: 109`.
 //
 // `cssFamilyFinding` retires with them. It minted a legacy `Finding` at a synthetic `column: 1` with a
-// composite token (`class:x`, `<selector> { <prop>: <value> }`) — guide §3's class-2 shape, where
+// composite token (`class:x`, `<selector> { <prop>: <value> }`) — guide §2.1's authored-coordinate rule, where
 // `locateFinding` cannot bind because the token is not authored text at that coordinate. Every surviving
 // finding is re-anchored on the AUTHORED SLICE at its real column, which is what gives the ordinary door
 // a position an author can type.

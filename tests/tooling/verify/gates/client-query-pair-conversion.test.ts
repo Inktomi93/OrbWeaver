@@ -1,6 +1,6 @@
 // Conformance entry for the CLIENT QUERY/STORE PAIR of #1584: two legacy `GateDescriptor` modules
 // (`zustand-selector-derived`, `windowed-infinite-query`) converted into THREE final policies. They are
-// grouped by CONVERSION WAVE and nothing else — §5b.4 of docs/design/gate-runtime-standardization.md is
+// grouped by CONVERSION WAVE and nothing else — §7 item 4 of docs/design/gate-runtime-standardization.md is
 // explicit that a theme is not a family. Two families are represented:
 //
 //   zustand-selector-derived   — a declared SINGLETON. Its subject is the callee's TEXT; its converted

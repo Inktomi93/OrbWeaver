@@ -33,14 +33,10 @@
 // #1947: the demand is HARD-owner-exempt, and this policy is `authority: "hard"` exactly like its two
 // converted siblings. Neither ground survives; a re-refusal on them would be inherited, not measured.
 //
-// WHAT THE CONVERSION MOVED OUT OF THIS MODULE, deliberately (each was a legacy `mustFlag` row, and each is
-// now the RUNTIME's own loud refusal rather than this policy's finding — the `depcruise-grant-liveness`
-// precedent, where the same three arms became population-phase tool errors):
-//   MISSING-CONFIG · UNPARSEABLE-CONFIG · UNREADABLE-SHAPE. A declared `static-config`/`native-config`
-//   resource that is missing, does not parse, or carries a shape the evaluator refuses comes back non-ready,
-//   and `resolveResourceDeclarations` throws during the POPULATION phase — before `create`. The proof
-//   harness has no "expect a tool error" arm (guide §4.5b), so those three are pinned in
-//   `tests/tooling/verify/gates/runner-config-path-liveness.int.test.ts` instead of by a row here.
+// WHAT THE CONVERSION MOVED OUT OF THIS MODULE, deliberately: MISSING-CONFIG, UNPARSEABLE-CONFIG, and
+// UNREADABLE-SHAPE are now population-phase refusals. The integration drive retains their runtime envelope
+// and real-root twin: each failure names its status and phase, while the live repository run completes the
+// owner, files a resource receipt, and has no tool errors or carrier refusals (§6.3).
 //
 // DECLARED LIMITS: (1) glob rows (`tests/**/*.int.test.ts`) are declared skips; (2) `testMatch` is NOT
 // judged — playwright takes a glob or a RegExp there and the per-mode values are computed from
@@ -52,7 +48,7 @@
 // `ops/resource-path.ts` returns `unresolved` for a tree node that is neither file nor directory (a socket,
 // FIFO or device node) or for a `stat` failure behind a link, and the proof runtime can create only files
 // and symlinks (`GatePolicyProof.files` / `.links`). The arm is fail-closed and carries its own message; no
-// row is invented for it, per guide §4.1's fourth outcome.
+// row is invented for it, per guide §6.1's structurally-unfalsifiable classification.
 // §4.1 NARROWING CUTS, measured 2026-09-12 in the guide's direction (make the policy flag MORE), each run
 // against this module's own rows through `grant-liveness-family.test.ts`:
 //   · the field fence (`FILE_ONLY_FIELDS`) → widened to every directory identity: RED across both arms.
@@ -65,7 +61,7 @@
 //     FALSELY, which is the failure mode a blindness tripwire cannot have. Recorded UNFALSIFIABLE until
 //     2026-09-12; the cut came back clean only because EVERY row then in the module went through `configs()`,
 //     which plants two exact playwright `testDir` values and so never reaches the zero-exact branch the anchor
-//     guards. The clean cut measured THE HELPER, not the fence (guide §4.1) — `mustPass[5]` stops using it.
+//     guards. The clean cut measured THE HELPER, not the fence (guide §6.1) — `mustPass[5]` stops using it.
 //     (`EXEMPT`'s two arms also read the anchor; that table is an empty #1922 carry-forward tracked
 //     separately and is NOT part of this row's claim.)
 // MEASURED INTERACTION worth knowing before you write a fixture: a TRACKED symlink whose target escapes the

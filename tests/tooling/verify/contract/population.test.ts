@@ -1,7 +1,7 @@
 // THE WORKSPACE ↔ `POPULATION_ROOTS` RECONCILIATION (#2267).
 //
 // `contract/population.ts` says named roots exist "only for independently selectable workspace packages and
-// top-level authored trees" (guide §12.4), and `AUTHORED_MEMBERSHIP` made the `@authored` half tsc-enforced
+// top-level authored trees" (guide §4), and `AUTHORED_MEMBERSHIP` made the `@authored` half tsc-enforced
 // (#1980). The ROOT LIST ITSELF had no such enforcer: it is hand-typed, and nothing compared it with the
 // workspace. A new `packages/foo` therefore joins no root, is admitted by no population, is judged by no
 // policy — and no instrument reports a package that fell outside every population. That is the same shape
@@ -51,7 +51,7 @@ const MEMBERS_WITHOUT_A_ROOT: readonly ExclusionRow[] = [
   },
 ];
 
-/** Population roots that deliberately name NO workspace member — guide §12.4's "top-level authored trees". */
+/** Population roots that deliberately name NO workspace member — guide §4's "top-level authored trees". */
 const ROOTS_WITHOUT_A_MEMBER: readonly ExclusionRow[] = [
   {
     key: "@tests",

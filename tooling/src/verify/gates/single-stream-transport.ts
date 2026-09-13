@@ -50,7 +50,7 @@ const MESSAGE =
 /** THE FAIL-CLOSED THIRD ANSWER (#944), a SEPARATE text rather than a `${MESSAGE} …` suffix: the unreadable
  *  arm reports the same single finding on the same node under the same `(subject, operation)` grant key as
  *  the tRPC verdict and differs ONLY in message, so a shared prefix would leave both arms unpinnable in
- *  either direction (guide §4.1). The two texts are disjoint; both carry the proc tail, which is the grant
+ *  either direction (guide §6.1). The two texts are disjoint; both carry the proc tail, which is the grant
  *  grain and belongs to the finding rather than to either arm. */
 const UNREADABLE =
   "a `.subscription(` on a builder whose TYPE the shared readers cannot place — whether this opens a tRPC SSE socket CANNOT be established, so a socket budget an unreadable module can walk through is reported rather than admitted. The spelling alone is not the identity.";

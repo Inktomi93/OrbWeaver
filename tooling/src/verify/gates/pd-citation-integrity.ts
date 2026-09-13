@@ -35,14 +35,14 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`)
 // THROW during the POPULATION phase and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §11 ruling 3, `docs/design/resource-policy-contract.md` §4). This module
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/design/resource-policy-contract.md` §4). This module
 // owns no not-ready branch: it reads the ledger through `readyResourceValue`, whose throw is an assertion
 // that the runtime's own refusal already held. The registry is a `ledger` and not a `documents` member
 // precisely because it is an IDENTITY: reading half of it is how a LIVE id reads as an orphan cite, so an
 // absent member must refuse rather than yield a smaller row set (`contract/resource-document.ts`). The
 // refusal pins are in `tests/tooling/verify/gates/text-citation-family.test.ts`.
 //
-// ANCHOR MOVE (guide §4.6 category 6, receipted). The legacy duplicate-id finding anchored at the ACTIVE
+// ANCHOR MOVE (guide §6.4's ANCHOR MOVE classification, receipted). The legacy duplicate-id finding anchored at the ACTIVE
 // registry's line 1; it now anchors on the SECOND authored occurrence of the id — the collision site.
 // With zero markers on the tree nothing can be orphaned by the move.
 //
@@ -138,7 +138,7 @@ export const gate = defineGate({
         reportOrphans(rows, label);
         // What the run MEASURED — the ledger documents read — never the row census it FOUND. A registry
         // with zero rows is a verdict, and a zero receipt would turn it into a refusal instead
-        // (`lib/policy-pass.ts` receiptFailures, `count === 0`; guide §12.3).
+        // (`lib/policy-pass.ts` receiptFailures, `count === 0`; guide §3).
         ctx.receipt({ kind: "population", source: "pd-registry-documents", members: ledger.documents.length });
       },
     };

@@ -42,7 +42,7 @@ export const BASE_UI_SEAL_FIXTURES = {
   /** The same seal, additionally RENDERING the non-Root `Select.Value` part.
    *
    *  This exists because the ROOT-ONLY fence is otherwise UNREACHABLE BY FIXTURE, which reads exactly like
-   *  an unenforced fence and is not one (guide §4.1: a clean cut is more often an unreachable fixture than
+   *  an unenforced fence and is not one (guide §6.1: a clean cut is more often an unreachable fixture than
    *  an unenforced fence). `foldPart` is only called for a part that is the Root OR whose tag the file
    *  renders, so with `<BaseSelect.Value />` absent the `Value` part is never folded at all and cutting the
    *  `isRoot` early return changes nothing. Measured: with the plain `seal` fixture the cut came back clean;
