@@ -49,7 +49,8 @@
 // with the substrate, and re-read as a fresh finding on every verifier pass. Lowering the constant buys
 // one batch and re-breaks. The intent was never "at least N": it was "the harness actually compared the
 // corpus rather than silently skipping it", so the floor is now EXACTLY that — the sweep's own count must
-// equal the corpus's example count, derived independently, and the corpus must be non-empty. That
+// equal the eligible corpus count computed outside the sweep, and the corpus must be non-empty. The
+// final count shares the sweep's proof selector: this detects skipped execution, not selector omissions. That
 // property holds identically at 749 legacy examples, at 2,400 mixed ones, and on the day the legacy
 // roster empties.
 import { join } from "node:path";
@@ -417,10 +418,11 @@ test(
     const legacy = sweep(corpus.legacy, loadInMemoryExample);
     const final = policySweep(corpus.final);
 
-    // THE FLOOR IS A PROPERTY, NOT A NUMBER (#1969). What this asserts is "the sweep compared EVERY example
+    // THE FLOOR IS A PROPERTY, NOT A NUMBER (#1969). What this asserts is "the sweep compared EVERY eligible example
     // the corpus offers, and the corpus offered something" — a bare zero is "I could not measure", and a
-    // count below the corpus's own is a silently skipped gate. Both halves are derived here independently
-    // of the sweeps' own traversals, so a `continue` that swallowed a policy goes red instead of quiet.
+    // count below the eligible corpus's own is silently skipped execution. These counts do not depend on
+    // the sweeps' counters, so skipping an eligible proof inside a sweep is detected. The final count and sweep both use
+    // `virtualProofsOf`: this assertion does not independently verify that selector's membership.
     const legacyExamples = corpus.legacy.filter((g) => g.fsBacked !== true).reduce((n, g) => n + g.mustFlag.length + g.mustPass.length, 0);
     const finalExamples = corpus.final.reduce((n, p) => n + virtualProofsOf(p).length, 0);
     expect(
