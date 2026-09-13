@@ -2054,7 +2054,7 @@ re-derives seven tools again.** Three gitignored directories have now been silen
 
 | tool | how it is invoked | reaches a gitignored tree? | fenced by |
 | - | - | - | - |
-| biome (`lint`, `format`) | `biome check .` — repo ROOT | no | `useIgnoreFile` + `"!.claude"` |
+| biome (`lint`, `format`) | `biome check .` — repo ROOT | no | `useIgnoreFile` + `"!.claude"` — **and NESTED `.gitignore` files, whose NEGATIONS it does not honour** (#2299) |
 | **eslint** (`lint:eslint`) | `eslint.lintFiles(["."])`, `ops/eslint-discovery.ts:49` — its OWN walk | **YES** | *nothing* — the `ignores` block is the only fence |
 | dependency-cruiser | `depcruise packages tooling <helpers>` | no | explicit roots, by construction |
 | knip | workspace-scoped | no | a worktree is not a workspace member |
@@ -2064,6 +2064,23 @@ re-derives seven tools again.** Three gitignored directories have now been silen
 
 The gate row was checked against `reports/check-structure.json` rather than reasoned from the population algebra:
 the gate corpus is NOT inflated by worktrees.
+
+**AND BIOME'S FENCE IS NOT ONLY THE ROOT `.gitignore` — a NESTED one fences too, and biome ignores its
+NEGATIONS, which is how a deliberate exemption ends up riding another tool's semantics (#2299, measured
+2026-09-13 on biome 2.5.1).** Census of `scripts/probes`: **32 tracked `.ts`, 19 CHECKED AND CLEAN**
+(the flat `sdk-*` set, `impersonate/`, `st-goldens/`, `transcript-census.ts`) and **13 invisible** — the nine
+under `openrouter/` and the four under `rpg-extraction/`, the only two directories carrying a `.gitignore`
+that starts `*/`. `rpg-extraction`'s `!*.ts` re-include was INERT. Two corrections, to the row above and to
+the text of #2299 itself: a scoped `pnpm exec biome check <ignored path>` **exits 1** with *"These paths were provided
+but ignored"* — biome REFUSES loudly and is NOT the `ESLint.isPathIgnored` false-clean shape; exit 0 needs
+`--no-errors-on-unmatched`, which is the EDIT HOOK's spelling. And the hook DISAGREED with the shipping gate
+because `tooling/biome.edit.jsonc`'s `files.experimentalScannerIgnores` **suppresses nested ignore-file
+discovery** — isolated by driving an otherwise identical extends-root config with the scanner ignores
+removed. Both are now fenced by two explicit `files.includes` negations that `biome.edit.jsonc` inherits, and
+the reason plus END CONDITION per directory are data in
+`tests/tooling/biome-scripts-probe-scope.int.test.ts`: neither `biome-grant-liveness` (override `includes`)
+nor `config:biome-rule-liveness` (rule-off grants) has `files.includes` in its population, so that test is
+the only thing holding the rows live.
 
 **THE SCALE — AND READ THE UNITS, BECAUSE THE FIRST VERSION OF THIS PARAGRAPH GOT THEM WRONG (corrected
 2026-09-13 by `p-eslint-fence`, which replicated discovery exactly with rules and programs off).** The numbers
