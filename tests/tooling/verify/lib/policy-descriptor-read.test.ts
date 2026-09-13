@@ -7,6 +7,7 @@ import { Project, SyntaxKind } from "ts-morph";
 import type { StaticSegments } from "../../../../tooling/src/verify/contract/policy-descriptor-read.ts";
 import {
   contextParameterOf,
+  descriptorArrayPresence,
   descriptorProperty,
   descriptorValue,
   discriminationOf,
@@ -372,6 +373,48 @@ test("contextParameterOf and isContextRooted see the context through members, de
 test("policyIdOfPath strips exactly the corpus directory and the extension, and refuses anything else", () => {
   expect(policyIdOfPath("tooling/src/verify/gates/no-inline-types.ts")).toBe("no-inline-types");
   expect(() => policyIdOfPath("tooling/src/verify/lib/no-inline-types.ts")).toThrow("not a gate corpus path");
+});
+
+test("declaration arrays distinguish absent, empty, opaque elements and unreadable present properties", () => {
+  const source = moduleOf(`${CANONICAL_HEAD} const EMPTY = []; const INPUTS = [provider()]; export const gate = defineGate({
+    facts: EMPTY, resources: INPUTS, get mustRefuse() { return []; }
+  });`);
+  const descriptor = finalDescriptorOf(source);
+  if (descriptor === undefined) {
+    throw new Error("fixture must register");
+  }
+  const values = descriptorArrayPresence([descriptor], ["facts", "resources", "mustRefuse", "missing"]).get(descriptor);
+  expect(values?.get("facts")).toMatchObject({ kind: "resolved", value: "empty" });
+  const resources = values?.get("resources");
+  expect(resources?.kind).toBe("resolved");
+  expect(resources).toMatchObject({ kind: "resolved", value: "nonempty" });
+  expect(values?.get("mustRefuse")).toMatchObject({ kind: "unresolved", reason: "unsupported" });
+  expect(values?.get("missing")).toBeUndefined();
+});
+
+test("array-use endpoints require canonical descriptors, never same-named properties or local defineGate lookalikes", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/shared.ts": "export const VALUES = [];",
+    "tooling/src/verify/gates/probe.ts": `${CANONICAL_HEAD} import { VALUES } from "../lib/shared.ts"; export const gate = defineGate({ facts: VALUES });`,
+    "tooling/src/verify/gates/other.ts":
+      'import { VALUES } from "../lib/shared.ts"; function defineGate(value) { return value; } export const gate = defineGate({ facts: VALUES });',
+  });
+  const source = project.getSourceFileOrThrow("/repo/tooling/src/verify/gates/probe.ts");
+  const descriptor = finalDescriptorOf(source);
+  const other = project.getSourceFileOrThrow("/repo/tooling/src/verify/gates/other.ts");
+  const lookalike = other.getFirstDescendantByKindOrThrow(SyntaxKind.ObjectLiteralExpression);
+  if (descriptor === undefined) {
+    throw new Error("fixture must register");
+  }
+  const values = descriptorArrayPresence([descriptor, lookalike], ["facts"]);
+  expect(values.has(lookalike)).toBe(false);
+  expect(values.get(descriptor)?.get("facts")).toMatchObject({ kind: "unresolved", reason: "dynamic" });
+  other.replaceWithText(`${CANONICAL_HEAD} import { VALUES } from "../lib/shared.ts"; export const gate = defineGate({ facts: VALUES });`);
+  const sibling = finalDescriptorOf(other);
+  if (sibling === undefined) {
+    throw new Error("sibling must register");
+  }
+  expect(descriptorArrayPresence([descriptor, sibling], ["facts"]).get(descriptor)?.get("facts")).toMatchObject({ kind: "resolved", value: "empty" });
 });
 
 test("descriptor property anchors retain shorthand values without accepting methods or accessors", () => {

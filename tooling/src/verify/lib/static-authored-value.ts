@@ -1,10 +1,10 @@
 // Recursive authored scalar/object/tuple facts built on the one stable-binding resolver.
-import type { Identifier, Node as MorphNode } from "ts-morph";
+import type { Identifier, Node as MorphNode, SpreadElement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "../contract/reference-fact.ts";
 import type { StaticAuthoredObjectValue, StaticAuthoredProperty, StaticAuthoredScalar, StaticAuthoredValue } from "../contract/static-authored-value.ts";
 import { inspectReferenceWrites, readStaticNumber, readStaticString, resolveStableExpression } from "./reference-fact.ts";
-import { invokedMemberThroughAliases } from "./reference-fact-writes.ts";
+import { invokedMemberThroughAliases, unprovenReferenceUse } from "./reference-fact-writes.ts";
 
 interface ReadState {
   readonly active: Set<object>;
@@ -193,30 +193,130 @@ function readObject(node: import("ts-morph").ObjectLiteralExpression, target: Re
   return { kind: "resolved", value: { kind: "object", properties, node }, trace: { declarations: [...target.declarations], origin: node } };
 }
 
-function readArray(node: import("ts-morph").ArrayLiteralExpression, target: ReadState): ReferenceFact<StaticAuthoredValue> {
-  const elements: StaticAuthoredValue[] = [];
+/** Known elements are a lower bound when unknownSpreads is nonempty, never an exact element list. */
+interface ArrayRead<Value> {
+  readonly elements: readonly Value[];
+  readonly unknownSpreads: readonly UnresolvedReferenceFact[];
+}
+
+function exactElements<Value>(fact: ReferenceFact<ArrayRead<Value>>): ReferenceFact<readonly Value[]> {
+  if (fact.kind === "unresolved") {
+    return fact;
+  }
+  return fact.value.unknownSpreads[0] ?? { kind: "resolved", value: fact.value.elements, trace: fact.trace };
+}
+
+/** One ordering/hole/spread grammar for exact values and presence. Partial spreads do not stop the
+ *  sibling scan: a later hole, cycle or binding refusal must still invalidate a known nonempty prefix. */
+function arrayEntries<Value>(
+  node: import("ts-morph").ArrayLiteralExpression,
+  target: ReadState,
+  readElement: (node: MorphNode) => ReferenceFact<Value>,
+  readSpread: (node: SpreadElement) => ReferenceFact<ArrayRead<Value>>,
+): ReferenceFact<ArrayRead<Value>> {
+  const elements: Value[] = [];
+  const unknownSpreads: UnresolvedReferenceFact[] = [];
   for (const element of node.getElements()) {
     if (Node.isOmittedExpression(element)) {
       return unresolved("unsupported", element, target, "array holes are not authored tuple values");
     }
     if (Node.isSpreadElement(element)) {
-      const spread = readValue(element.getExpression(), target);
+      const spread = readSpread(element);
       if (spread.kind === "unresolved") {
         return spread;
       }
-      if (spread.value.kind !== "tuple") {
-        return unresolved("unsupported", element, target, `array spread ${element.getText()} does not resolve to an authored tuple`);
-      }
       elements.push(...spread.value.elements);
+      unknownSpreads.push(...spread.value.unknownSpreads);
       continue;
     }
-    const value = readValue(element, target);
+    const value = readElement(element);
     if (value.kind === "unresolved") {
       return value;
     }
     elements.push(value.value);
   }
-  return { kind: "resolved", value: { kind: "tuple", elements, node }, trace: { declarations: [...target.declarations], origin: node } };
+  return { kind: "resolved", value: { elements, unknownSpreads }, trace: { declarations: [...target.declarations], origin: node } };
+}
+
+function readArray(node: import("ts-morph").ArrayLiteralExpression, target: ReadState): ReferenceFact<StaticAuthoredValue> {
+  const elements = exactElements(
+    arrayEntries(
+      node,
+      target,
+      (element) => readValue(element, target),
+      (element) => {
+        const spread = readValue(element.getExpression(), target);
+        if (spread.kind === "unresolved") {
+          return spread;
+        }
+        return spread.value.kind === "tuple"
+          ? { kind: "resolved", value: { elements: spread.value.elements, unknownSpreads: [] }, trace: spread.trace }
+          : unresolved("unsupported", element, target, `array spread ${element.getText()} does not resolve to an authored tuple`);
+      },
+    ),
+  );
+  return elements.kind === "unresolved" ? elements : { kind: "resolved", value: { kind: "tuple", elements: elements.value, node }, trace: elements.trace };
+}
+
+function shallowArray(node: MorphNode, target: ReadState, accepted: ReadonlySet<MorphNode>, spread = false): ReferenceFact<ArrayRead<MorphNode>> {
+  const read = resolveAuthoredComposite(node);
+  if (read.kind === "unresolved") {
+    // A runtime expression is an unknown contribution, whereas a dynamic USE of an authored array
+    // is a hard refusal. Ask the binding resolver to distinguish them; do not copy its terminal grammar
+    // or infer provenance from a diagnostic string. Destructured bindings are not expression terminals.
+    const stable = spread && read.reason === "dynamic" ? resolveStableExpression(node) : undefined;
+    if (stable?.kind === "unresolved" && stable.reason === "dynamic" && Node.isExpression(stable.node)) {
+      appendDeclarations(target, stable.trace.declarations);
+      return { kind: "resolved", value: { elements: [], unknownSpreads: [stable] }, trace: stable.trace };
+    }
+    return mergeRefusal(read, target);
+  }
+  appendDeclarations(target, read.trace.declarations);
+  const terminal = read.value;
+  if (!Node.isArrayLiteralExpression(terminal)) {
+    const refusal = unresolved("unsupported", terminal, target, "declaration does not resolve to an authored array");
+    return spread ? { kind: "resolved", value: { elements: [], unknownSpreads: [refusal] }, trace: read.trace } : refusal;
+  }
+  for (const binding of compositeBindings(terminal, read.trace.declarations)) {
+    const use = unprovenReferenceUse(binding, accepted);
+    if (use !== undefined) {
+      return unresolved("dynamic", use, target, "an array use has an unproven effect on its cardinality");
+    }
+  }
+  if (target.active.has(terminal.compilerNode)) {
+    return unresolved("cycle", terminal, target, "authored array contains a spread cycle");
+  }
+  target.active.add(terminal.compilerNode);
+  const elements = arrayEntries(
+    terminal,
+    target,
+    (element) => ({ kind: "resolved", value: element, trace: { declarations: [], origin: element } }),
+    (element) => shallowArray(element.getExpression(), target, accepted, true),
+  );
+  target.active.delete(terminal.compilerNode);
+  return elements;
+}
+
+/** Exact shallow array elements through stable aliases/spreads and proven uses. Element values remain
+ *  opaque: a fact provider can be a call/import without becoming an unreadable JSON-like value.
+ *  Unlike readStaticAuthoredValue, every array identity use must be accounted for by the query. */
+export function readAuthoredArrayElements(node: MorphNode, accepted: ReadonlySet<MorphNode>): ReferenceFact<readonly MorphNode[]> {
+  return exactElements(shallowArray(node, state(), accepted));
+}
+
+/** Presence on successful array construction, not exact cardinality or validity of opaque elements.
+ *  An unknown spread cannot remove an authored element; unknown-only spreads cannot prove emptiness.
+ *  Root/binding/effect refusals and malformed authored arrays are checked before this projection.
+ *  As with the exact source reader, modified built-in prototypes and external host mutation are not modeled. */
+export function readAuthoredArrayPresence(node: MorphNode, accepted: ReadonlySet<MorphNode>): ReferenceFact<"empty" | "nonempty"> {
+  const read = shallowArray(node, state(), accepted);
+  if (read.kind === "unresolved") {
+    return read;
+  }
+  if (read.value.elements.length > 0) {
+    return { kind: "resolved", value: "nonempty", trace: read.trace };
+  }
+  return read.value.unknownSpreads[0] ?? { kind: "resolved", value: "empty", trace: read.trace };
 }
 
 function readValue(node: MorphNode, target: ReadState): ReferenceFact<StaticAuthoredValue> {

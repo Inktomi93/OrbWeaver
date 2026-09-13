@@ -2,12 +2,89 @@
 
 import { descendantsOfKind } from "@orb/tooling/_shared/ts-workspace";
 import type { Identifier, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 
 /** Shorthand references denote their value binding, not the synthesized object-property symbol. */
 export function lexicalReferenceSymbol(identifier: Identifier): MorphSymbol | undefined {
   const parent = identifier.getParent();
   return Node.isShorthandPropertyAssignment(parent) && parent.getNameNode() === identifier ? parent.getValueSymbol() : identifier.getSymbol();
+}
+
+function transparentUse(node: MorphNode): MorphNode {
+  let current = node;
+  for (let parent = current.getParent(); parent !== undefined && isTransparentWrapper(parent, current); parent = current.getParent()) {
+    current = parent;
+  }
+  return current;
+}
+
+function aliasName(reference: MorphNode): MorphNode | undefined {
+  const parent = reference.getParent();
+  let name: MorphNode | undefined;
+  if (Node.isImportSpecifier(reference) || Node.isExportSpecifier(reference)) {
+    name = reference.getAliasNode() ?? reference.getNameNode();
+  } else if (Node.isVariableDeclaration(parent) && (parent.getInitializer() === reference || parent.getNameNode() === reference)) {
+    name = parent.getNameNode();
+  } else if (Node.isImportSpecifier(parent) || Node.isExportSpecifier(parent)) {
+    name = parent.getAliasNode() ?? parent.getNameNode();
+  } else if (Node.isImportClause(parent)) {
+    name = parent.getDefaultImport();
+  }
+  return name;
+}
+
+/** The first use not proven to preserve this value's identity/cardinality, in the loaded Project.
+ *  Caller endpoints are exact value nodes, never property names or permission paths. Const aliases and
+ *  compiler-resolved import/re-export references are followed; a spread copies an array's elements but
+ *  does not alias its length. Opaque arguments, member calls (including callbacks), storage and returns
+ *  refuse. This does not model consumers outside the loaded Project or external host mutation.
+ *  The older source-local write/member queries below intentionally retain their weaker contracts. */
+export function unprovenReferenceUse(identifier: Identifier, accepted: ReadonlySet<MorphNode>): MorphNode | undefined {
+  const pending: Identifier[] = [identifier];
+  const seen = new Set<object>();
+  let refusal: MorphNode | undefined;
+  for (const name of pending) {
+    if (refusal !== undefined) {
+      break;
+    }
+    const symbol = lexicalReferenceSymbol(name);
+    if (symbol === undefined) {
+      refusal = name;
+      continue;
+    }
+    if (seen.has(symbol.compilerSymbol)) {
+      continue;
+    }
+    seen.add(symbol.compilerSymbol);
+    const declaration = name.getParent();
+    if (
+      Node.isVariableDeclaration(declaration) &&
+      declaration.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() !== VariableDeclarationKind.Const
+    ) {
+      refusal = name;
+      continue;
+    }
+    refusal = name.findReferencesAsNodes().find((reference) => {
+      if (reference === name || reference.getAncestors().some(Node.isTypeNode)) {
+        return false;
+      }
+      const wrapped = transparentUse(reference);
+      if (accepted.has(wrapped)) {
+        return false;
+      }
+      const parent = wrapped.getParent();
+      const alias = aliasName(wrapped);
+      if (alias === undefined) {
+        return !(Node.isSpreadElement(parent) && parent.getExpression() === wrapped && Node.isArrayLiteralExpression(parent.getParent()));
+      }
+      if (!Node.isIdentifier(alias)) {
+        return true;
+      }
+      pending.push(alias);
+      return false;
+    });
+  }
+  return refusal;
 }
 
 function isDeclarationName(node: MorphNode): boolean {

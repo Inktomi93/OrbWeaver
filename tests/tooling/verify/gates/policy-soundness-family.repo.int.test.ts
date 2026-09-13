@@ -57,11 +57,6 @@ const FORBIDDEN_HOME_IMPORT_RE =
  *  the sibling REGISTERS is read off its text with the registration shapes below. */
 const SIBLING_IMPORT_RE = /^(?:import|export) (?:type )?\{[^}]*\} from "\.\/([^/"]+)\.ts";$/gmu;
 const REGISTERS_RE = /^export const gate(?::| =)/mu;
-/** `policy-refusal-coverage`'s second opinion (#2184): a descriptor whose `facts`/`resources` array is NOT the
- *  empty literal DERIVES its population, and one carrying no `mustRefuse` key owes a pin. Text, not types —
- *  deliberately, so the opinion is computed by something other than the arm it judges. */
-const DERIVES_POPULATION_RE = /^ {2}(?:facts|resources): \[[^\]]/mu;
-const MUST_REFUSE_RE = /^ {2}mustRefuse: \[/mu;
 /** The PIN half of that opinion (#2274), also text: the family-test tree, the dispatcher's name, and the gate
  *  modules a test file imports. Deliberately a regex over the specifier rather than the module graph — the arm
  *  it judges walks the graph, so an opinion that walked it too would agree with the reader by construction. */
@@ -301,6 +296,196 @@ test("policy-refusal-coverage: the REPORTED position suppresses, a DEAD position
   expect(dead.authority.effectiveFindings).toHaveLength(1);
 });
 
+// #2342: array syntax cannot stand in for the declared dependency/refusal value. These are selected
+// production passes with authored expected outcomes; the static reader never computes its own oracle.
+interface RefusalArrayProbe {
+  readonly resourceDeclaration?: string;
+  readonly resources?: string;
+  readonly facts?: string;
+  readonly mustRefuse?: string;
+  readonly prelude?: string;
+  readonly files?: Readonly<Record<string, string>>;
+  readonly familyPin?: boolean;
+}
+const REFUSAL_ARRAY_RESOURCE = '[{ kind: "tracked-files" }]';
+const REFUSAL_ARRAY_ROW =
+  '[{ mode: "source", files: { "packages/client/src/probe.ts": "x" }, expect: { messageIncludes: "probe dependency missing" }, why: "refusal" }]';
+
+function refusalArrayFiles(shape: RefusalArrayProbe): Readonly<Record<string, string>> {
+  const fields = ORDINARY_TRUNK.replace("resources: [],", shape.resourceDeclaration ?? `resources: ${shape.resources ?? "[]"},`).replace(
+    "facts: [],",
+    `facts: ${shape.facts ?? "[]"},`,
+  );
+  const refusal = shape.mustRefuse === undefined ? "" : `mustRefuse: ${shape.mustRefuse},`;
+  const files: Record<string, string> = {
+    [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
+    [`${GATES_DIR}${policyRefusalCoverage.id}.ts`]: CANONICAL(policyRefusalCoverage.id),
+    [`${GATES_DIR}probe.ts`]: finalProbeModule(
+      `${fields}\n fix: "f",\n mustPass: [{ mode: "source", files: { "packages/client/src/b.ts": "y" }, why: "w" }],\n${refusal}`,
+      shape.prelude,
+    ),
+    ...shape.files,
+  };
+  if (shape.familyPin === true) {
+    files["tests/tooling/verify/gates/probe-family.test.ts"] =
+      'import { gate as probe } from "../../../../tooling/src/verify/gates/probe.ts";\n' +
+      "declare function runPolicyPass(input: { policies: readonly unknown[] }): unknown;\nrunPolicyPass({ policies: [probe] });\n";
+  }
+  return files;
+}
+
+function refusalArrayResult(shape: RefusalArrayProbe): readonly { readonly token: string | undefined; readonly unreadable: boolean }[] {
+  const result = passOf(policyRefusalCoverage, refusalArrayFiles(shape));
+  expect(result.toolErrors).toEqual([]);
+  expect(result.factErrors).toEqual([]);
+  expect(result.authority.toolErrors).toEqual([]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.policies.map(({ owner }) => owner)).toEqual([{ status: "success", population: "complete" }]);
+  return result.authority.effectiveFindings.map(({ token, message }) => ({ token, unreadable: message?.includes("not statically readable") === true }));
+}
+
+for (const [name, shape] of [
+  ["direct", { resources: REFUSAL_ARRAY_RESOURCE }],
+  ["const", { prelude: `const INPUTS = ${REFUSAL_ARRAY_RESOURCE};\n`, resources: "INPUTS" }],
+  ["wrapped const", { prelude: `const INPUTS = ${REFUSAL_ARRAY_RESOURCE} as const;\n`, resources: "(INPUTS satisfies readonly unknown[])" }],
+  ["spread", { prelude: `const INPUTS = ${REFUSAL_ARRAY_RESOURCE};\n`, resources: "[...INPUTS]" }],
+  [
+    "import through re-export",
+    {
+      prelude: 'import { RENAMED as INPUTS } from "../lib/refusal-array-barrel.ts";\n',
+      resources: "INPUTS",
+      files: {
+        "tooling/src/verify/lib/refusal-array-source.ts": `export const INPUTS = ${REFUSAL_ARRAY_RESOURCE};\n`,
+        "tooling/src/verify/lib/refusal-array-barrel.ts": 'export { INPUTS as RENAMED } from "./refusal-array-source.ts";\n',
+      },
+    },
+  ],
+] as const) {
+  test(`policy-refusal-coverage reads nonempty ${name} dependencies (#2342)`, () =>
+    expect(refusalArrayResult(shape)).toEqual([{ token: "resources", unreadable: false }]));
+  test(`policy-refusal-coverage credits the real family pin for ${name} dependencies (#2342)`, () =>
+    expect(refusalArrayResult({ ...shape, familyPin: true })).toEqual([]));
+}
+
+for (const [name, shape] of [
+  ["direct", {}],
+  ["const", { prelude: "const EMPTY = [];\n", resources: "EMPTY" }],
+  ["spread", { prelude: "const EMPTY = [];\n", resources: "[...EMPTY]" }],
+  [
+    "import",
+    {
+      prelude: 'import { EMPTY } from "../lib/refusal-array-source.ts";\n',
+      resources: "EMPTY",
+      files: { "tooling/src/verify/lib/refusal-array-source.ts": "export const EMPTY = [];\n" },
+    },
+  ],
+] as const) {
+  test(`policy-refusal-coverage leaves empty ${name} dependencies unaccused (#2342)`, () => expect(refusalArrayResult(shape)).toEqual([]));
+}
+
+for (const [name, mustRefuse, prelude] of [
+  ["direct", REFUSAL_ARRAY_ROW, ""],
+  ["const", "ROWS", `const ROWS = ${REFUSAL_ARRAY_ROW};\n`],
+  ["spread", "[...ROWS]", `const ROWS = ${REFUSAL_ARRAY_ROW};\n`],
+] as const) {
+  test(`policy-refusal-coverage credits nonempty ${name} refusal rows (#2342)`, () =>
+    expect(refusalArrayResult({ resources: REFUSAL_ARRAY_RESOURCE, mustRefuse, prelude })).toEqual([]));
+}
+
+test("policy-refusal-coverage never credits an empty spread as a refusal row (#2342)", () =>
+  expect(refusalArrayResult({ resources: REFUSAL_ARRAY_RESOURCE, prelude: "const EMPTY = [];\n", mustRefuse: "[...EMPTY]" })).toEqual([
+    { token: "resources", unreadable: false },
+  ]));
+
+for (const resources of ['[{ kind: "tracked-files" }, ...inputs()]', '[...inputs(), { kind: "tracked-files" }]']) {
+  test(`policy-refusal-coverage proves partial array presence for ${resources} (#2342)`, () => {
+    const shape = { prelude: "declare function inputs(): readonly unknown[];\n", resources };
+    expect(refusalArrayResult(shape)).toEqual([{ token: "resources", unreadable: false }]);
+    expect(refusalArrayResult({ ...shape, familyPin: true })).toEqual([]);
+  });
+}
+
+for (const [name, shape] of [
+  ["unknown only", { prelude: "declare function inputs(): readonly unknown[];\n", resources: "[...inputs()]" }],
+  ["known head and hole", { resources: '[{ kind: "tracked-files" }, ,]' }],
+  ["unknown prefix and later hole", { prelude: "declare function inputs(): readonly unknown[];\n", resources: '[...inputs(), { kind: "tracked-files" }, ,]' }],
+  ["known head and cycle", { prelude: 'const INPUTS = [{ kind: "tracked-files" }, ...INPUTS];\n', resources: "INPUTS" }],
+  ["effectful authored spread", { prelude: "const TAIL = []; TAIL.forEach(() => 1);\n", resources: '[{ kind: "tracked-files" }, ...TAIL]' }],
+  ["known head and missing import", { prelude: 'import { MISSING } from "../lib/missing-array.ts";\n', resources: '[{ kind: "tracked-files" }, ...MISSING]' }],
+  [
+    "opaque partial alias",
+    {
+      prelude: 'declare function inputs(): readonly unknown[];\nconst INPUTS = [{ kind: "tracked-files" }, ...inputs()];\nopaque(INPUTS);\n',
+      resources: "INPUTS",
+    },
+  ],
+  [
+    "mutable partial alias",
+    { prelude: 'declare function inputs(): readonly unknown[];\nlet INPUTS = [{ kind: "tracked-files" }, ...inputs()];\n', resources: "INPUTS" },
+  ],
+] as const) {
+  test(`policy-refusal-coverage never hides ${name} behind partial presence (#2342)`, () =>
+    expect(refusalArrayResult({ ...shape, familyPin: true })).toEqual([{ token: "resources", unreadable: true }]));
+}
+
+for (const [name, shape] of [
+  ["dynamic call", { prelude: "declare function inputs(): readonly unknown[];\n", resources: "inputs()" }],
+  ["opaque empty input", { prelude: "const INPUTS = [];\ndeclare function opaque(value: unknown): void;\nopaque(INPUTS);\n", resources: "INPUTS" }],
+  ["callback mutation", { prelude: 'const INPUTS = [];\nINPUTS.forEach(() => INPUTS.push({ kind: "tracked-files" }));\n', resources: "INPUTS" }],
+  ["explicit write", { prelude: "const INPUTS = [];\nINPUTS.length = 1;\n", resources: "INPUTS" }],
+  ["spread cycle", { prelude: "const INPUTS = [...INPUTS];\n", resources: "INPUTS" }],
+  ["hole", { resources: "[,]" }],
+] as const) {
+  test(`policy-refusal-coverage refuses unreadable ${name} despite a family pin (#2342)`, () =>
+    expect(refusalArrayResult({ ...shape, familyPin: true })).toEqual([{ token: "resources", unreadable: true }]));
+}
+
+test("policy-refusal-coverage refuses unreadable refusal rows despite a family pin (#2342)", () =>
+  expect(
+    refusalArrayResult({
+      resources: REFUSAL_ARRAY_RESOURCE,
+      prelude: "declare function rows(): readonly unknown[];\n",
+      mustRefuse: "rows()",
+      familyPin: true,
+    }),
+  ).toEqual([{ token: "mustRefuse", unreadable: true }]));
+
+for (const declaration of ["get resources() { return []; },", "resources() { return []; },"]) {
+  test(`policy-refusal-coverage does not lose a present accessor/method declaration: ${declaration} (#2342)`, () =>
+    expect(refusalArrayResult({ resourceDeclaration: declaration, familyPin: true })).toEqual([{ token: "resources", unreadable: true }]));
+}
+
+test("policy-refusal-coverage reads an imported refusal array and a shorthand dependency (#2342)", () =>
+  expect(
+    refusalArrayResult({
+      prelude: `import { ROWS } from "../lib/refusal-array-source.ts";\nconst resources = ${REFUSAL_ARRAY_RESOURCE};\n`,
+      resourceDeclaration: "resources,",
+      mustRefuse: "ROWS",
+      files: { "tooling/src/verify/lib/refusal-array-source.ts": `export const ROWS = ${REFUSAL_ARRAY_ROW};\n` },
+    }),
+  ).toEqual([]));
+
+test("policy-refusal-coverage keeps canonical fact-provider elements opaque and attributes facts (#2342)", ({ repoRoot }) => {
+  const path = "tooling/src/verify/contract/fact.ts";
+  expect(
+    refusalArrayResult({
+      prelude:
+        'import { defineFact } from "../contract/fact.ts";\n' +
+        'const provider = defineFact({ id: "probe-fact", population: "@client", analysis: "syntax", resources: [], create: () => ({ finish: () => 1 }) });\n' +
+        "const INPUTS = [provider];\n",
+      facts: "INPUTS",
+      files: { [path]: readFileSync(join(repoRoot, path), "utf8") },
+    }),
+  ).toEqual([{ token: "facts", unreadable: false }]);
+});
+
+test("policy-refusal-coverage rejects a same-spelled field on an unrelated object as an array-use endpoint (#2342)", () =>
+  expect(
+    refusalArrayResult({
+      prelude: "const INPUTS = [];\nconst unrelated = { resources: INPUTS };\n",
+      resources: "INPUTS",
+    }),
+  ).toEqual([{ token: "resources", unreadable: true }]));
 // The §4.2 DISCRIMINATION CONTROL for `policy-family-readers` (#2187), the same shape and for the same
 // reason: its POSITIVE arm is a `mustPass` in the module, and the negative half cannot live there because
 // `knownPolicies: [policy]` short-circuits an unknown position. Three members so exactly ONE is isolated —
@@ -508,9 +693,15 @@ test(
     // so NOTHING was ever discharged and one-sided containment held trivially. Repairing the reader discharged
     // 43 modules and this arm went red — correctly. The fix is not to weaken it but to compute the OTHER half
     // the same way: as TEXT over the family-test tree, which this project already loads.
-    const refusalOpinion = finals
-      .filter((sourceFile) => DERIVES_POPULATION_RE.test(sourceFile.getFullText()) && !MUST_REFUSE_RE.test(sourceFile.getFullText()))
-      .map(relative)
+    // #2342: the independent dependency denominator is now the runtime loader's actual arrays, not
+    // another literal-only source census that shares the defect under review. Paths come from its roster.
+    const corpus = await loadMixedGateCorpus(repoRoot);
+    const owingRefusal = new Set(
+      corpus.final.filter((policy) => (policy.facts.length > 0 || policy.resources.length > 0) && (policy.mustRefuse?.length ?? 0) === 0).map(({ id }) => id),
+    );
+    const refusalOpinion = corpus.roster
+      .filter((entry) => entry.contract === "final" && entry.id !== null && owingRefusal.has(entry.id))
+      .map(({ path }) => path)
       .toSorted();
     const refusalAccused = new Set(accusedBy(policyRefusalCoverage.id));
     // A family test that mentions the dispatcher AND imports gate modules pins the ones it imports. Where it

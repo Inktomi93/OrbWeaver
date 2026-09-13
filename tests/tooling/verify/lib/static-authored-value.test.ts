@@ -4,7 +4,13 @@ import { Project, SyntaxKind } from "ts-morph";
 import type { ReferenceFact, ResolvedReferenceFact } from "../../../../tooling/src/verify/contract/reference-fact.ts";
 import type { StaticAuthoredValue } from "../../../../tooling/src/verify/contract/static-authored-value.ts";
 import { resolveStableExpression } from "../../../../tooling/src/verify/lib/reference-fact.ts";
-import { readStaticAuthoredScalar, readStaticAuthoredValue, resolveAuthoredComposite } from "../../../../tooling/src/verify/lib/static-authored-value.ts";
+import {
+  readAuthoredArrayElements,
+  readAuthoredArrayPresence,
+  readStaticAuthoredScalar,
+  readStaticAuthoredValue,
+  resolveAuthoredComposite,
+} from "../../../../tooling/src/verify/lib/static-authored-value.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
@@ -30,6 +36,86 @@ function expectResolved(fact: ReferenceFact<StaticAuthoredValue>): ResolvedRefer
   expect(fact.kind).toBe("resolved");
   return fact;
 }
+
+function shallow(source: string): ReferenceFact<readonly Node[]> {
+  const sf = sourceOf(source);
+  const use = initializer(sf, "use");
+  return readAuthoredArrayElements(use, new Set([use]));
+}
+
+test("shallow arrays preserve opaque elements, order, duplicates and ordinary nested-array cardinality", () => {
+  const result = shallow("const TAIL = [provider(), provider]; const VALUES = [1, ...TAIL, 1, [2, 3]]; const use = VALUES;");
+  expect(result.kind).toBe("resolved");
+  if (result.kind === "unresolved") {
+    throw new Error(result.detail);
+  }
+  expect(result.value.map((element) => element.getText())).toEqual(["1", "provider()", "provider", "1", "[2, 3]"]);
+});
+
+test("empty spread composition stays empty and full authored tuple interpretation remains unchanged", () => {
+  const sf = sourceOf("const EMPTY = []; const VALUES = [...EMPTY, ...EMPTY]; const use = VALUES;");
+  const use = initializer(sf, "use");
+  expect(readAuthoredArrayElements(use, new Set([use]))).toMatchObject({ kind: "resolved", value: [] });
+  expect(readStaticAuthoredValue(use)).toMatchObject({ kind: "resolved", value: { kind: "tuple", elements: [] } });
+  expect(readAuthoredArrayPresence(use, new Set([use]))).toMatchObject({ kind: "resolved", value: "empty" });
+});
+
+test("the full authored reader preserves an unsupported spread's original source anchor", () => {
+  const sf = sourceOf("const use = [...1];");
+  const read = readStaticAuthoredValue(initializer(sf, "use"));
+  expect(read.kind).toBe("unresolved");
+  expect(read.kind === "unresolved" ? { reason: read.reason, text: read.node.getText(), detail: read.detail } : undefined).toEqual({
+    reason: "unsupported",
+    text: "...1",
+    detail: "array spread ...1 does not resolve to an authored tuple",
+  });
+});
+
+for (const expression of ["[provider(), ...unknown()]", "[...unknown(), provider()]", "[...[provider(), ...unknown()]]"]) {
+  test(`presence can project ${expression} without making either exact reader claim a complete value`, () => {
+    const sf = sourceOf(`const VALUES = ${expression}; const use = VALUES;`);
+    const use = initializer(sf, "use");
+    expect(readAuthoredArrayPresence(use, new Set([use]))).toMatchObject({ kind: "resolved", value: "nonempty" });
+    expect(readAuthoredArrayElements(use, new Set([use]))).toMatchObject({ kind: "unresolved" });
+    expect(readStaticAuthoredValue(use)).toMatchObject({ kind: "unresolved" });
+  });
+}
+
+for (const source of [
+  "const VALUES = [...unknown()]; const use = VALUES;",
+  "const VALUES = [provider(), ,]; const use = VALUES;",
+  "const VALUES = [provider(), ...VALUES]; const use = VALUES;",
+  'import { MISSING } from "./missing.ts"; const VALUES = [provider(), ...MISSING]; const use = VALUES;',
+  "const VALUES = [provider(), ...unknown()]; opaque(VALUES); const use = VALUES;",
+  "let VALUES = [provider(), ...unknown()]; const use = VALUES;",
+]) {
+  test(`presence preserves root/shape/use refusal: ${source}`, () => {
+    const sf = sourceOf(source);
+    const use = initializer(sf, "use");
+    expect(readAuthoredArrayPresence(use, new Set([use]))).toMatchObject({ kind: "unresolved" });
+  });
+}
+
+for (const [name, source] of [
+  ["opaque effect", "const VALUES = []; opaque(VALUES); const use = VALUES;"],
+  ["callback", "const VALUES = []; VALUES.forEach(() => 1); const use = VALUES;"],
+  ["hole", "const VALUES = [,]; const use = VALUES;"],
+  ["cycle", "const VALUES = [...VALUES]; const use = VALUES;"],
+  ["unknown spread", "const VALUES = [...unknown()]; const use = VALUES;"],
+  ["non-array", "const VALUES = { value: 1 }; const use = VALUES;"],
+  ["mutable binding", "let VALUES = []; const use = VALUES;"],
+] as const) {
+  test(`shallow arrays refuse ${name} rather than yielding a known empty population`, () => {
+    expect(shallow(source)).toMatchObject({ kind: "unresolved" });
+  });
+}
+
+test("the stronger shallow query does not tighten unrelated authored-object consumers", () => {
+  const sf = sourceOf("const VALUES = []; opaque(VALUES); const use = VALUES;");
+  const use = initializer(sf, "use");
+  expect(readAuthoredArrayElements(use, new Set([use]))).toMatchObject({ kind: "unresolved", reason: "dynamic" });
+  expect(readStaticAuthoredValue(use)).toMatchObject({ kind: "resolved", value: { kind: "tuple", elements: [] } });
+});
 
 test("reads wrapped scalar aliases and keeps scalar source anchors", () => {
   const sf = sourceOf(`
