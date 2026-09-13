@@ -50,7 +50,7 @@ const ATTACH_OPERATION = "browser-attach";
 const MESSAGE =
   "a second Playwright door — a browser is LAUNCHED only by `launchProbeSession` and ATTACHED only by `attachProbeSession` (_shared/browser.ts); a `<engine>.launch(` elsewhere is a second bootstrap that misses the marked args/env and the run-marker, and a `<engine>.connect(`/`connectOverCDP(` elsewhere is a second ProbeSession shape reaching a session daemon's browser around the one door (docs/architecture/core/Core-Tooling-Law.md §4.4; docs/design/1208-instrument-substrate.md §3.4).";
 const UNREADABLE =
-  "a call spelled like a Playwright browser-type door whose receiver the shared readers cannot place, so whether it launches or attaches a Playwright browser CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "a call spelled like a Playwright browser-type door whose receiver the shared readers cannot place, so whether it launches or attaches a Playwright browser CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "take the session from `launchProbeSession`/`attachProbeSession`/`withProbeSession` (_shared/browser.ts) instead of reaching a browser type directly; the home itself carries the two exact reviewed grants `(browser.ts, browser-launch)` and `(browser.ts, browser-attach)`.";
 

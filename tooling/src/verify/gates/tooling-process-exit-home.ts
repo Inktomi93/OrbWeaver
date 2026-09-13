@@ -44,7 +44,7 @@ const OPERATION = "process-exit";
 const MESSAGE =
   "a bare process.exit outside the exit-honesty runner — `process.exit()` drops unflushed stdout (a large report truncates mid-line) AND dodges the runner's crash≠verdict / never-downgrade classification; the ONE exit lives in _shared/run-tool.ts, and every other path sets `process.exitCode` or returns its EXIT member and lets the loop drain (docs/architecture/core/Core-Tooling-Law.md §4.4).";
 const UNREADABLE =
-  "a call spelled like process.exit whose receiver the shared readers cannot place, so whether it exits the real process CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "a call spelled like process.exit whose receiver the shared readers cannot place, so whether it exits the real process CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "return the EXIT member (or set `process.exitCode`) and let `runTool` (_shared/run-tool.ts) own the exit; a genuine hard exit belongs in the runner, which carries the exact reviewed grant `(run-tool.ts, process-exit)`.";
 

@@ -63,7 +63,7 @@ const MESSAGE =
   "`Intl.DateTimeFormat`/`Intl.RelativeTimeFormat` bypasses the one seam for time display and zone " +
   "resolution. Time is epoch-ms UTC everywhere, rendered through one helper (Spine-TypeScript-and-Patterns.md).";
 const UNREADABLE =
-  "this expression is spelled like a raw Intl formatter or a `.toLocale*` call, but the shared readers cannot place its binding, so whether it is the ECMAScript api CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this expression is spelled like a raw Intl formatter or a `.toLocale*` call, but the shared readers cannot place its binding, so whether it is the ECMAScript api CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "use @orb/kit/time's createTimeLib — client: timeLib.formatDate/formatDateTime/formatTime/formatRelative; the seam's own construction is licensed by an exact reviewed grant.";
 

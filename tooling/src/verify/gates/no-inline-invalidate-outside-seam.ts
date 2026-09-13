@@ -37,7 +37,7 @@ const MESSAGE =
   "`createEntityMutation`. A loose call recreates neo's 81-site invalidation sprawl " +
   "(UI-Gates-and-Lessons.md §11.3).";
 const UNREADABLE =
-  "this call names `invalidateQueries` on a receiver the checker cannot place, so whether it is TanStack Query's client CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this call names `invalidateQueries` on a receiver the checker cannot place, so whether it is TanStack Query's client CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "call invalidate(event)/invalidateUser(event) from data/invalidation.ts, or pass `invalidates` filters to createEntityMutation; the seam's own call is licensed by an exact reviewed grant.";
 

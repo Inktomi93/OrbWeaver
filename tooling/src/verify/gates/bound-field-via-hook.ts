@@ -32,7 +32,7 @@ const MESSAGE =
   "touch-gated error and `<Field>` prop bundle live in ONE home. Use `useBoundField<T>(shell)` from " +
   "./use-bound-field instead (derive-modernization-audit.md §W3 G28; D72 — a machine ships WITH its seal).";
 const UNREADABLE =
-  "a bound field names `useFieldContext` through a binding the shared readers cannot place, so whether it is the form toolkit's own context hook CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "a bound field names `useFieldContext` through a binding the shared readers cannot place, so whether it is the form toolkit's own context hook CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "replace the raw `useFieldContext<T>()` + hand `touchedFieldError`/`<Field>` bundle with `useBoundField<T>(shell)` from ./use-bound-field; the hook's own home is licensed by an exact reviewed grant.";
 

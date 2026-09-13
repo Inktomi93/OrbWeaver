@@ -41,7 +41,7 @@ const OPERATION = "reports-path-literal";
 const MESSAGE =
   'a hand-rolled reports/<kind> path — the artifact root is spelled ONCE, in _shared/artifacts.ts (`reportsPath`/`reportsRelPath`/`ensureReportsDir`), and a `"reports"`/`"reports/…"` literal fed to a path call anywhere else is a second answer to "where do runs live" that the run-slot layout (#1029/#1164) never sees (docs/architecture/core/Core-Tooling-Law.md §4.4; UNIFIED-VERIFICATION-DESIGN.md §3.3b).';
 const UNREADABLE =
-  'a `"reports"` literal fed to a call spelled like a path/fs door whose callee the shared readers cannot place, so whether it builds an artifact path CANNOT be established. Reported rather than passed: the spelling alone is not the identity.';
+  'a `"reports"` literal fed to a call spelled like a path/fs door whose callee the shared readers cannot place, so whether it builds an artifact path CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).';
 const FIX =
   "build the path with `reportsPath(root, …)` / `ensureReportsDir(root, …)` from _shared/artifacts.ts, or file the artifact through `artifactFile`/`artifactDir` (_shared/artifact-out.ts) so it lands in the run slot; the home itself carries the exact reviewed grant `(artifacts.ts, reports-path-literal)`.";
 
