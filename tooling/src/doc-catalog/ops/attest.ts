@@ -6,9 +6,11 @@
 // WHY IT CANNOT SWEEP. A receipt asserts that a human READ the document (D139), so a helper that makes
 // re-attesting cheap makes attesting-WITHOUT-reading cheap by the same stroke. The selection is therefore
 // EXPLICIT document paths and nothing else: no pattern, no directory, no "--all-stale", no default. The
-// refusals below are the feature, not its error handling, and `tests/tooling/doc-catalog/attest.test.ts`
+// refusals below are the feature, not its error handling, and `tests/tooling/doc-catalog/ops/attest.test.ts`
 // pins each one — including that a single refusal writes NOTHING, so a mixed selection can never land a
-// partial sweep beside the row the caller actually read.
+// partial sweep beside the row the caller actually read. Those arms are PURE (they drive `planAttestation`
+// with hand-built data); the DRIVER's own wiring is pinned separately by `ops/attest.int.test.ts`, which
+// cuts the call rather than the branch (#2238).
 //
 // The plan is PURE (`planAttestation`): every tree and git fact arrives as data and the clock arrives as
 // `today`, so the whole verb is testable with hand-built inputs and no repository.
@@ -19,7 +21,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
-import type { AttestInput, AttestPlan, AttestRefusal, Doc, Lane, LaneConfig, Receipt, ReceiptEntry } from "../contract/types.ts";
+import type { AttestEvidenceResolver, AttestInput, AttestPlan, AttestRefusal, Doc, Lane, LaneConfig, Receipt, ReceiptEntry } from "../contract/types.ts";
 import { receiptEvidenceErrors } from "../lib/receipt-rules.ts";
 import { LANES_PATH } from "../lib/vocab.ts";
 import {
@@ -179,7 +181,11 @@ function receiptPathOf(config: LaneConfig, laneId: string): string {
  *  check is silent on one by contract, not by omission. Worth knowing before probing: a first end-to-end
  *  probe of this arm aimed at `docs/history/README.md`, whose row is `archive`, and read the correct write
  *  as a missing refusal. */
-function resolveEvidenceErrors(selection: readonly string[], docs: readonly Doc[], receipts: readonly Receipt[]): ReadonlyMap<string, readonly string[]> {
+export function resolveEvidenceErrors(
+  selection: readonly string[],
+  docs: readonly Doc[],
+  receipts: readonly Receipt[],
+): ReadonlyMap<string, readonly string[]> {
   const selected = new Set(selection);
   const rows = receipts.flatMap((receipt) => receipt.entries.filter((entry) => selected.has(entry.path)));
   if (rows.length === 0) {
@@ -210,8 +216,14 @@ function resolveEvidenceErrors(selection: readonly string[], docs: readonly Doc[
 }
 
 /** `pnpm doc-catalog:attest <doc-path…>`. Exit 3 = the selection is not an explicit document list;
- *  1 = a named row cannot be re-attested (and NOTHING was written); 0 = every named row re-attested. */
-export function runAttest(selection: readonly string[]): ExitCode {
+ *  1 = a named row cannot be re-attested (and NOTHING was written); 0 = every named row re-attested.
+ *
+ *  `resolveEvidence` is the tree-reading half, INJECTED with the production reader as its default (#2238).
+ *  It is a seam because the alternative is unprovable: the plan is pure and its spec hands the map in as
+ *  data, so replacing this call with an empty map left every one of the suite's 68 tests green — the verb
+ *  kept refusing everything the ROW rules refuse and silently stopped refusing moved EVIDENCE. The spec
+ *  cuts the call through this parameter; `ops/attest.int.test.ts` is the pin. */
+export function runAttest(selection: readonly string[], resolveEvidence: AttestEvidenceResolver = resolveEvidenceErrors): ExitCode {
   const config = json<LaneConfig>(LANES_PATH);
   const docs = documents();
   const commit = headCommit();
@@ -226,7 +238,7 @@ export function runAttest(selection: readonly string[]): ExitCode {
     headCommit: commit,
     today: today(),
     unstagedDocuments,
-    evidenceErrors: resolveEvidenceErrors(selection, docs, receipts),
+    evidenceErrors: resolveEvidence(selection, docs, receipts),
   });
   if (plan.refusals.length > 0) {
     warn(`doc-catalog:attest — NOTHING WRITTEN; ${plan.refusals.length} refusal(s):\n${plan.refusals.map(({ message }) => `  ${message}`).join("\n")}`);

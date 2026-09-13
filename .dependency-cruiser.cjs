@@ -65,7 +65,7 @@ const TEST_FILES = `(?:${TEST_KIND_SUFFIXES.map((suffix) => suffix.replaceAll(".
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
 
-/** Domain fixed-slot subdirs (the uniform 8-slot template, structure.md §4). Anything ELSE under a
+/** Domain fixed-slot subdirs (the uniform 8-slot template, Core-0-Architecture-and-Structure.md §4). Anything ELSE under a
  *  feature dir is a named SUBSYSTEM (engine/ assembly/ memory/ themes/ …) — substrate-mediated. */
 const FIXED_SLOTS = "(contract|verbs|persistence|substrate)";
 
@@ -99,7 +99,7 @@ module.exports = {
     {
       name: "kit-no-node-builtins",
       comment:
-        "@orb/kit must not import node:* — it is browser-safe (isomorphic). The node:vm ReDoS guard and any other Node-only-pure helper live in @orb/server/kit, not here. (shared-dissolution.md §0/§2.)",
+        "@orb/kit must not import node:* — it is browser-safe (isomorphic). The node:vm ReDoS guard and any other Node-only-pure helper live in @orb/server/kit, not here. (Core-Shared-Dissolution.md §0; per-symbol map: history/Shared-Drawer-Dissolution-Map.md §2.)",
       severity: "error",
       from: { path: KIT },
       to: { dependencyTypes: ["core"] },
@@ -107,7 +107,7 @@ module.exports = {
     {
       name: "contracts-cake",
       comment:
-        "@orb/contracts (the wire: cross-boundary types + zod) deps only @orb/kit. It must never import @orb/db, @orb/server, or @orb/client. (structure.md §2 cake.)",
+        "@orb/contracts (the wire: cross-boundary types + zod) deps only @orb/kit. It must never import @orb/db, @orb/server, or @orb/client. (Core-0-Architecture-and-Structure.md §2 cake.)",
       severity: "error",
       from: { path: CONTRACTS },
       to: { path: [DB, "^packages/server/", CLIENT] },
@@ -123,7 +123,7 @@ module.exports = {
     {
       name: "db-cake",
       comment:
-        "@orb/db (drizzle schema + libSQL) deps only kit + contracts. A db→server or db→client import is impossible by the cake; the OTel wrapper is INJECTED into createDb, never imported. (tiers/db.md.)",
+        "@orb/db (drizzle schema + libSQL) deps only kit + contracts. A db→server or db→client import is impossible by the cake; the OTel wrapper is INJECTED into createDb, never imported. (Tier-1-DB.md.)",
       severity: "error",
       from: { path: DB },
       to: { path: ["^packages/server/", CLIENT] },
@@ -154,7 +154,7 @@ module.exports = {
     {
       name: "client-no-backend-runtime",
       comment:
-        "The browser bundle must never pull @orb/server or @orb/db RUNTIME code. The one server-owned tRPC contract crosses as a type-only edge governed separately by client-backend-types-only-through-trpc and client-trpc-type-target. (structure.md §2.)",
+        "The browser bundle must never pull @orb/server or @orb/db RUNTIME code. The one server-owned tRPC contract crosses as a type-only edge governed separately by client-backend-types-only-through-trpc and client-trpc-type-target. (Core-0-Architecture-and-Structure.md §2.)",
       severity: "error",
       from: { path: CLIENT },
       to: { path: ["^packages/server/", DB], dependencyTypesNot: ["type-only"] },
@@ -432,7 +432,7 @@ module.exports = {
     {
       name: "foundation-reaches-up-to-nothing",
       comment:
-        "foundation (env · config · observability) is read DOWN by every tier and reaches UP to none. No foundation→entry/transport/domain/infra import. It MAY import @orb/db (the /_debug probes read schema down — db is a lower package) + @orb/contracts + @orb/kit + server/kit. The killed DEFAULT_*_MODEL_ID foundation→infra edge is the canary. (tiers/foundation.md invariant #2.)",
+        "foundation (env · config · observability) is read DOWN by every tier and reaches UP to none. No foundation→entry/transport/domain/infra import. It MAY import @orb/db (the /_debug probes read schema down — db is a lower package) + @orb/contracts + @orb/kit + server/kit. The killed DEFAULT_*_MODEL_ID foundation→infra edge is the canary. (Tier-2-Foundation.md invariant #2.)",
       severity: "error",
       from: { path: `${SRV}foundation/` },
       to: { path: `${SRV}(entry|transport|domain|infra)/` },
@@ -440,7 +440,7 @@ module.exports = {
     {
       name: "infra-below-domain",
       comment:
-        "infra is a sealed I/O executor BELOW domain. A providers/auth/crypto/network/storage/image adapter must not import a domain, the transport drivers, or entry — the db-dependent steps a domain needs are INJECTED in, never imported. (tiers/infra.md sealed-executor invariant.)",
+        "infra is a sealed I/O executor BELOW domain. A providers/auth/crypto/network/storage/image adapter must not import a domain, the transport drivers, or entry — the db-dependent steps a domain needs are INJECTED in, never imported. (Tier-3-Infra.md sealed-executor invariant.)",
       severity: "error",
       from: { path: `${SRV}infra/` },
       to: { path: `${SRV}(entry|transport|domain)/` },
@@ -448,7 +448,7 @@ module.exports = {
     {
       name: "infra-no-db",
       comment:
-        "infra is db-free physics: NO @orb/db import. The proof case is oidc-store.ts — because it imports @orb/db it CANNOT live in sealed infra (it moved to domain/sessions/persistence). Storage/crypto/network/auth all stay db-free; the db steps arrive via injected ResolveDeps. (tiers/infra.md invariant #1; tiers/db.md: infra does not read the schema.)",
+        "infra is db-free physics: NO @orb/db import. The proof case is oidc-store.ts — because it imports @orb/db it CANNOT live in sealed infra (it moved to domain/sessions/persistence). Storage/crypto/network/auth all stay db-free; the db steps arrive via injected ResolveDeps. (Tier-3-Infra.md invariant #1; Tier-1-DB.md: infra does not read the schema.)",
       severity: "error",
       from: { path: `${SRV}infra/` },
       to: { path: DB },
@@ -456,14 +456,15 @@ module.exports = {
     {
       name: "domain-below-drivers",
       comment:
-        "domain (business logic) is below the drivers + entry. A domain must not import transport/ or entry/ — drivers call DOWN into domain front doors, never the reverse. (structure.md §3.)",
+        "domain (business logic) is below the drivers + entry. A domain must not import transport/ or entry/ — drivers call DOWN into domain front doors, never the reverse. (Core-0-Architecture-and-Structure.md §3.)",
       severity: "error",
       from: { path: `${SRV}domain/` },
       to: { path: `${SRV}(entry|transport)/` },
     },
     {
       name: "transport-below-entry",
-      comment: "transport (the tRPC + jobs drivers) is below entry (the composition root). A driver must not import entry/. (structure.md §3.)",
+      comment:
+        "transport (the tRPC + jobs drivers) is below entry (the composition root). A driver must not import entry/. (Core-0-Architecture-and-Structure.md §3.)",
       severity: "error",
       from: { path: `${SRV}transport/` },
       to: { path: `${SRV}entry/` },
@@ -471,7 +472,7 @@ module.exports = {
     {
       name: "drivers-through-domain",
       comment:
-        "Drivers stay THIN: tRPC routers + job workers reach the database and infra adapters THROUGH a domain front door at RUNTIME, never directly. Type-only imports ARE allowed (a driver may declare `db: Db` as a param type — a contract, not coupling). EXEMPT: transport/rate-limit.ts — the DB-backed limiter primitive legitimately imports the @orb/db PACKAGE (a cake dep below server; instances are constructed at entry/). (tiers/transport.md: routers import no @orb/db/infra; the limiter is the one exception.)",
+        "Drivers stay THIN: tRPC routers + job workers reach the database and infra adapters THROUGH a domain front door at RUNTIME, never directly. Type-only imports ARE allowed (a driver may declare `db: Db` as a param type — a contract, not coupling). EXEMPT: transport/rate-limit.ts — the DB-backed limiter primitive legitimately imports the @orb/db PACKAGE (a cake dep below server; instances are constructed at entry/). (Tier-4-Transport.md: routers import no @orb/db/infra; the limiter is the one exception.)",
       severity: "error",
       from: { path: `${SRV}transport/`, pathNot: `${SRV}transport/rate-limit\\.ts$` },
       to: { path: [DB, `${SRV}infra/`], dependencyTypesNot: ["type-only"] },
@@ -479,7 +480,7 @@ module.exports = {
     {
       name: "no-cross-driver",
       comment:
-        "transport/trpc and transport/jobs are independent drivers — neither imports the other. Shared work lives in the domain layer they both call down into. (tiers/transport.md.)",
+        "transport/trpc and transport/jobs are independent drivers — neither imports the other. Shared work lives in the domain layer they both call down into. (Tier-4-Transport.md.)",
       severity: "error",
       from: { path: `${SRV}transport/(trpc|jobs)/` },
       to: { path: `${SRV}transport/(trpc|jobs)/`, pathNot: `${SRV}transport/$1/` },
@@ -487,7 +488,7 @@ module.exports = {
     {
       name: "server-kit-reaches-up-to-nothing",
       comment:
-        "@orb/server/kit is the server-only-pure bottom tier (node-only-pure: post-process, serde, content-hash, the node:vm regex guard). It may use node:* + @orb/db + @orb/contracts + @orb/kit (all at/below it), but must reach UP to nothing in server — no entry/transport/domain/infra import. (shared-dissolution.md §2.)",
+        "@orb/server/kit is the server-only-pure bottom tier (node-only-pure: post-process, serde, content-hash, the node:vm regex guard). It may use node:* + @orb/db + @orb/contracts + @orb/kit (all at/below it), but must reach UP to nothing in server — no entry/transport/domain/infra import. (history/Shared-Drawer-Dissolution-Map.md §2 — the per-symbol map; the surviving law is Core-Shared-Dissolution.md.)",
       severity: "error",
       from: { path: `${SRV}kit/` },
       to: { path: `${SRV}(entry|transport|domain|infra|foundation)/` },
@@ -497,7 +498,7 @@ module.exports = {
     {
       name: "domain-no-cross-feature",
       comment:
-        "Domain features stay independent: a module in domain/<a>/ must not import another feature's internals at RUNTIME. There is NO domain/_shared in orbweaver (principle #3) — cross-feature primitives are @orb/kit, cross-feature services are their own feature. TYPE-ONLY imports across features ARE allowed (a verb declaring the SHAPE of an injected cross-feature op — wired at the composition root). (structure.md §4; domains.md.)",
+        "Domain features stay independent: a module in domain/<a>/ must not import another feature's internals at RUNTIME. There is NO domain/_shared in orbweaver (principle #3) — cross-feature primitives are @orb/kit, cross-feature services are their own feature. TYPE-ONLY imports across features ARE allowed (a verb declaring the SHAPE of an injected cross-feature op — wired at the composition root). (Core-0-Architecture-and-Structure.md §4; AGENTS.md §6 domain map.)",
       severity: "error",
       from: { path: `${SRV}domain/([^/]+)/` },
       to: {
@@ -509,7 +510,7 @@ module.exports = {
     {
       name: "domain-feature-front-door",
       comment:
-        "Enter a domain feature through its PUBLIC API (domain/<feature>/index.ts), not its internals — so a feature can refactor freely. Callers above (transport, entry) import the index only. (structure.md §4; the one sanctioned barrel.)",
+        "Enter a domain feature through its PUBLIC API (domain/<feature>/index.ts), not its internals — so a feature can refactor freely. Callers above (transport, entry) import the index only. (Core-0-Architecture-and-Structure.md §4; the one sanctioned barrel.)",
       severity: "error",
       from: { pathNot: `${SRV}domain/` },
       to: {
@@ -520,7 +521,7 @@ module.exports = {
     {
       name: "domain-sibling-front-door",
       comment:
-        "A domain reaching a SIBLING domain enters through its PUBLIC API (domain/<sibling>/index.ts) — NEVER a deep import of the sibling's internals (../../embeddings/contract/service). The front door re-exports every legal cross-feature shape, so a deep path buys nothing and breaks silently on the sibling's internal renames. Distinct from domain-feature-front-door (which fires only for callers OUTSIDE domain/); this is the sibling arm. Crucially NO type-only exemption — domain-no-cross-feature already exempts type-only, so a type-only deep import (the injected-op SHAPE) would otherwise bypass the front door ungated. The one-directional-flow front-door law is a SHAPE rule, not a value-vs-type rule: even an injected-op type crosses via the door. Intra-module relative imports (a verb reaching its own contract/) stay legal via the $1 self-match. (structure.md §4; audit F9.)",
+        "A domain reaching a SIBLING domain enters through its PUBLIC API (domain/<sibling>/index.ts) — NEVER a deep import of the sibling's internals (../../embeddings/contract/service). The front door re-exports every legal cross-feature shape, so a deep path buys nothing and breaks silently on the sibling's internal renames. Distinct from domain-feature-front-door (which fires only for callers OUTSIDE domain/); this is the sibling arm. Crucially NO type-only exemption — domain-no-cross-feature already exempts type-only, so a type-only deep import (the injected-op SHAPE) would otherwise bypass the front door ungated. The one-directional-flow front-door law is a SHAPE rule, not a value-vs-type rule: even an injected-op type crosses via the door. Intra-module relative imports (a verb reaching its own contract/) stay legal via the $1 self-match. (Core-0-Architecture-and-Structure.md §4; audit F9.)",
       severity: "error",
       from: { path: `${SRV}domain/([^/]+)/` },
       to: {
@@ -531,7 +532,7 @@ module.exports = {
     {
       name: "domain-no-cross-verb",
       comment:
-        "GENERIC verb isolation (every feature with a verbs/ dir). A verb file must not import another verb file's VALUE — verb-to-verb deps are wired EXPLICITLY at service.ts via factory injection (createSend(ctx, { runCompaction })). Type-only imports between verbs ARE allowed (declare an injected dep's typed shape). Group barrels (verbs/<group>/index.ts) are the composition point — exempt both sides. (structure.md §4; verb-naming gate is its sibling.)",
+        "GENERIC verb isolation (every feature with a verbs/ dir). A verb file must not import another verb file's VALUE — verb-to-verb deps are wired EXPLICITLY at service.ts via factory injection (createSend(ctx, { runCompaction })). Type-only imports between verbs ARE allowed (declare an injected dep's typed shape). Group barrels (verbs/<group>/index.ts) are the composition point — exempt both sides. (Core-0-Architecture-and-Structure.md §4; verb-naming gate is its sibling.)",
       severity: "error",
       from: { path: `${SRV}domain/([^/]+)/verbs/.+\\.ts$`, pathNot: "/index\\.ts$" },
       to: {
@@ -543,7 +544,7 @@ module.exports = {
     {
       name: "domain-no-reach-up-into-verbs",
       comment:
-        "GENERIC substrate-below-verbs. Any non-verbs subdir of a feature (substrate/ persistence/ + named subsystems) sits BELOW the verbs that consume it and must not import them. persistence is called BY verbs, a subsystem is dispatched BY a verb — never the reverse. Feature-root files (service/context/index) are out of scope (not in a subdir). (structure.md §4.)",
+        "GENERIC substrate-below-verbs. Any non-verbs subdir of a feature (substrate/ persistence/ + named subsystems) sits BELOW the verbs that consume it and must not import them. persistence is called BY verbs, a subsystem is dispatched BY a verb — never the reverse. Feature-root files (service/context/index) are out of scope (not in a subdir). (Core-0-Architecture-and-Structure.md §4.)",
       severity: "error",
       from: { path: `${SRV}domain/([^/]+)/(?!verbs/)[^/]+/` },
       to: { path: `${SRV}domain/$1/verbs/`, dependencyTypesNot: ["type-only"] },
@@ -551,7 +552,7 @@ module.exports = {
     {
       name: "domain-substrate-mediates-subsystems",
       comment:
-        "A feature's verbs + root files reach a NAMED SUBSYSTEM (any subdir that is NOT a fixed slot: contract/verbs/persistence/substrate) ONLY through substrate/. A verb importing ./memory/generate directly bypasses the DI seam, making the dep invisible at the composition root + the subsystem refactor-unsafe. Generic because orbweaver's template is uniform (the fixed-slot set is global — no per-feature map). Type-only exempt (declare an injected shape). service.ts/index.ts/context.ts (composition surfaces) are exempt FROM — and so is workload-contributions.ts, the ratified cross-domain root slot that is itself a composition surface (a compose-built factory over the domain's own ops; the workloads junk-drawer exit). (structure.md §4; the orbweaver-clean form of neo's substrate-only-subsystem-access.)",
+        "A feature's verbs + root files reach a NAMED SUBSYSTEM (any subdir that is NOT a fixed slot: contract/verbs/persistence/substrate) ONLY through substrate/. A verb importing ./memory/generate directly bypasses the DI seam, making the dep invisible at the composition root + the subsystem refactor-unsafe. Generic because orbweaver's template is uniform (the fixed-slot set is global — no per-feature map). Type-only exempt (declare an injected shape). service.ts/index.ts/context.ts (composition surfaces) are exempt FROM — and so is workload-contributions.ts, the ratified cross-domain root slot that is itself a composition surface (a compose-built factory over the domain's own ops; the workloads junk-drawer exit). (Core-0-Architecture-and-Structure.md §4; the orbweaver-clean form of neo's substrate-only-subsystem-access.)",
       severity: "error",
       from: {
         path: `${SRV}domain/([^/]+)/(verbs/)?[^/]+\\.ts$`,
@@ -574,7 +575,7 @@ module.exports = {
     {
       name: "domain-no-cross-subsystem",
       comment:
-        "A feature's named subsystems stay independent: a file in subsystem A can't import subsystem B (same feature, different non-fixed-slot subdir). Cross-subsystem coordination goes through substrate/ (the DI seam) — exempt both sides, along with the fixed slots (substrate split across files, not subsystems). (structure.md §4.)",
+        "A feature's named subsystems stay independent: a file in subsystem A can't import subsystem B (same feature, different non-fixed-slot subdir). Cross-subsystem coordination goes through substrate/ (the DI seam) — exempt both sides, along with the fixed slots (substrate split across files, not subsystems). (Core-0-Architecture-and-Structure.md §4.)",
       severity: "error",
       from: {
         path: `${SRV}domain/([^/]+)/([^/]+)/`,
@@ -591,12 +592,12 @@ module.exports = {
     {
       name: "providers-public-surface-only",
       comment:
-        "Code outside infra/providers may import ONLY the public surface — the front door (providers/index.ts), the role dispatchers (roles/), and the contract barrel (contract/). Reaching INTO a sealed family (backends/<x>) or the local engine (vllm/) is RED — the family boundary is internal, and the agent-sdk credential firewall must not leak through a deep import. Wildcard match means new families inherit the seal. tests/support is exempt (mock runners instantiate family shapes). (tiers/providers.md invariants #1/#4.)",
+        "Code outside infra/providers may import ONLY the public surface — the front door (providers/index.ts), the role dispatchers (roles/), and the contract barrel (contract/). Reaching INTO a sealed family (backends/<x>) or the local engine (vllm/) is RED — the family boundary is internal, and the agent-sdk credential firewall must not leak through a deep import. Wildcard match means new families inherit the seal. tests/support is exempt (mock runners instantiate family shapes). (Tier-3b-Providers.md invariants #1/#4.)",
       severity: "error",
       from: { pathNot: [`${SRV}infra/providers/`, "^tests/support/", "^tooling/"] },
       to: {
         // Sealed: the families (backends/<x>), the local engine (vllm/), AND the contract internals —
-        // outside callers reach contract/index.ts (the barrel), never contract/<file> (providers.md #4).
+        // outside callers reach contract/index.ts (the barrel), never contract/<file> (Tier-3b-Providers.md invariant #4).
         path: `${SRV}infra/providers/(backends|vllm|contract)/`,
         pathNot: `${SRV}infra/providers/contract/index\\.ts$`,
       },
@@ -604,7 +605,7 @@ module.exports = {
     {
       name: "infra-strategy-isolation",
       comment:
-        "Strategy-pattern infra (providers/backends/<family>, auth/modes/<mode>) stays independent: a module in <group>/<strategy>/ must not import a SIBLING strategy's internals. Cross-strategy work goes through the role/mode contract or a shared pure helper — never a direct reach. One generic rule covers both groups + every future member. (tiers/providers.md invariant #2; tiers/infra.md MODE_RESOLVERS.)",
+        "Strategy-pattern infra (providers/backends/<family>, auth/modes/<mode>) stays independent: a module in <group>/<strategy>/ must not import a SIBLING strategy's internals. Cross-strategy work goes through the role/mode contract or a shared pure helper — never a direct reach. One generic rule covers both groups + every future member. (Tier-3b-Providers.md invariant #2; Tier-3-Infra.md MODE_RESOLVERS.)",
       severity: "error",
       from: { path: `${SRV}infra/(providers/backends|auth/modes)/([^/]+)/` },
       to: {
@@ -615,7 +616,7 @@ module.exports = {
     {
       name: "vllm-surface-isolation",
       comment:
-        "The vLLM engine's five role surfaces are independent: surfaces/<a> must not import surfaces/<b>. Surfaces register against engine/ (down); changing one surface never touches another. (tiers/providers.md invariant #7.)",
+        "The vLLM engine's five role surfaces are independent: surfaces/<a> must not import surfaces/<b>. Surfaces register against engine/ (down); changing one surface never touches another. (Tier-3b-Providers.md invariant #7.)",
       severity: "error",
       from: { path: `${SRV}infra/providers/vllm/surfaces/([^/]+)` },
       to: {
@@ -626,7 +627,7 @@ module.exports = {
     {
       name: "credential-firewall-openrouter-not-agent-sdk",
       comment:
-        "TRANSITIVE credential firewall (CLAUDE.md hard-won fact: the Max-sub OAuth credential must NEVER leak into the OpenRouter paths — token extraction is what got an account banned). strategy-isolation blocks the DIRECT edge; `reachable: true` closes the transitive hole — no openrouter module may reach agent-sdk through ANY chain (e.g. via a backends/kit helper). (tiers/providers.md §7.1 firewall; shared-dissolution.md §9.)",
+        "TRANSITIVE credential firewall (CLAUDE.md hard-won fact: the Max-sub OAuth credential must NEVER leak into the OpenRouter paths — token extraction is what got an account banned). strategy-isolation blocks the DIRECT edge; `reachable: true` closes the transitive hole — no openrouter module may reach agent-sdk through ANY chain (e.g. via a backends/kit helper). (Tier-3b-Providers.md §7.1 firewall; Core-Shared-Dissolution.md §9.)",
       severity: "error",
       from: { path: `${SRV}infra/providers/backends/openrouter/` },
       to: { path: `${SRV}infra/providers/backends/agent-sdk/`, reachable: true },
@@ -644,7 +645,7 @@ module.exports = {
     {
       name: "stats-no-vector-tables",
       comment:
-        "stats is ECONOMICS (tokens/cost/cache/timing) — it touches ZERO vector tables. discovery is SEMANTICS (themes/hubness/facets). The line is type-enforced: domain/stats must not import the embeddings vector schema. (domains.md 'stats/discovery line as a type'; knowledge-cluster.md §11.7.) LIVE since db/schema/embeddings landed (was a forward rule; regex-liveness verified 2026-08-03).",
+        "stats is ECONOMICS (tokens/cost/cache/timing) — it touches ZERO vector tables. discovery is SEMANTICS (themes/hubness/facets). The line is type-enforced: domain/stats must not import the embeddings vector schema. (AGENTS.md §6 domain map, stats vs discovery; Knowledge-Cluster.md invariant 5.) LIVE since db/schema/embeddings landed (was a forward rule; regex-liveness verified 2026-08-03).",
       severity: "error",
       from: { path: `${SRV}domain/stats/` },
       to: { path: `${DB}schema/embeddings` },
@@ -705,7 +706,7 @@ module.exports = {
     {
       name: "not-to-test",
       comment:
-        "Production code (packages/*/src) must not import the centralized tests/ tree or any test/spec file. Src holds no test files (they all live in tests/), so the rule is the TO half. (structure.md §5.)",
+        "Production code (packages/*/src) must not import the centralized tests/ tree or any test/spec file. Src holds no test files (they all live in tests/), so the rule is the TO half. (Core-0-Architecture-and-Structure.md §5.)",
       severity: "error",
       from: { path: "^packages/[^/]+/src/" },
       to: { path: ["^tests/", TEST_FILES] },

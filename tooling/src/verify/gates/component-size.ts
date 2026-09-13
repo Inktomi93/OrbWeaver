@@ -20,8 +20,12 @@ const CAP_ROUTE = 500;
 /** Comfortably past BOTH caps, so a `notNamed` fixture's excluded siblings are silent only because they are
  *  outside the subject — never because they happened to fit under one of the two caps. */
 const OVER_CAP_LINES = CAP_ROUTE + CAP_ROUTE;
-const MESSAGE =
-  "a client source file exceeds the hard line cap (default 450, routes 500) — split it into sub-files or extract pure logic; a god-component is a UI-Architecture-and-Layout.md §2.1 smell.";
+/** ONE LINE OVER TODAY'S ROUTE CAP, SPELLED AS A LITERAL — never `CAP_ROUTE + 1`. A fixture sized from the
+ *  constant under test moves WITH every cut, so it can never discriminate (the trap `mustPass[2]` documents,
+ *  and the one `mustFlag[1]` fell into until 2026-09-12). Cutting `CAP_ROUTE` is therefore a COUPLED-SITE
+ *  edit: this number moves by hand, which is what makes both halves of `mustFlag[1]`'s expectation bite. */
+const ROUTE_OVER_CAP_LINES = 501;
+const MESSAGE = `a client source file exceeds the hard line cap (default ${CAP_DEFAULT}, routes ${CAP_ROUTE}) — split it into sub-files or extract pure logic; a god-component is a UI-Architecture-and-Layout.md §2.1 smell.`;
 
 export const gate = defineGate({
   id: "component-size",
@@ -58,9 +62,9 @@ export const gate = defineGate({
     },
     {
       mode: "source",
-      files: { [`${ROUTES_PREFIX}big.tsx`]: "export const x = 1;\n".repeat(CAP_ROUTE + 1) },
-      expect: { count: 1, line: CAP_ROUTE + 1, messageIncludes: "cap 500" },
-      why: "THE ROUTE CAP, in the flagging direction: a route file one line over 500. `line` and `messageIncludes` both name the ROUTE cap LITERALLY, so this row dies on ANY change to `CAP_ROUTE` in EITHER direction — measured at 450 (the finding moves to `line 451` / `cap 450`) and at 900 (`line 901` / `cap 900`). The `mustPass` twin below carries the other half and dies on LOWERING ONLY: its 451-line fixture goes MORE silent as the cap rises, so the two rows TOGETHER pin the branch, not this one alone. Until 2026-09-12 no row placed a file under `packages/client/src/routes/` at all, so `CAP_ROUTE = 500 → 450` AND `→ 1` were both CLEAN and the 500-line cap this message advertises was enforced by nothing (cb-v-unaudited-finals L7)",
+      files: { [`${ROUTES_PREFIX}big.tsx`]: "export const x = 1;\n".repeat(ROUTE_OVER_CAP_LINES) },
+      expect: { count: 1, line: ROUTE_OVER_CAP_LINES, messageIncludes: "cap 500" },
+      why: "THE ROUTE CAP, in the flagging direction: a route file one line over 500, and BOTH halves of the expectation are literal in `CAP_ROUTE` — the fixture, the finding line and the message text are all hand-spelled numbers, so each one discriminates on its own. LOWERING kills it twice over (`CAP_ROUTE → 450`: the 501-line fixture still flags, but at `line 451` / `cap 450`, and `line` AND `messageIncludes` both miss). RAISING kills it on `count` (`→ 900`: 501 lines is under the cap, so there is no finding at all). THE ROW SAID THIS BEFORE IT WAS TRUE (#2239): the fixture and `line` were `CAP_ROUTE + 1`, so a cut moved the EXPECTATION in lockstep with the finding — measured at 900, where the row's own expectation became `line=901` and matched, leaving `messageIncludes` the single live discriminator. The `mustPass` twin below carries the silent direction and dies on LOWERING ONLY. Until 2026-09-12 no row placed a file under `packages/client/src/routes/` at all, so `CAP_ROUTE = 500 → 450` AND `→ 1` were both CLEAN and the 500-line cap this message advertises was enforced by nothing (cb-v-unaudited-finals L7)",
     },
   ],
   mustPass: [
