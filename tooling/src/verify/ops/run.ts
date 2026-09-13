@@ -45,11 +45,11 @@ import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
 import { aggregateExit } from "../lib/exit-classifiers.ts";
 import { appendHistory, historyEntry, previousAtTier, readHistory, slowdownLines, slowdowns } from "../lib/history.ts";
-import { REGISTRY, stagesForTier } from "../lib/registry.ts";
+import { stagesForTier } from "../lib/registry.ts";
 import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
 import { stageHangCeilingBaseMs } from "../lib/stage-budget.ts";
-import { resolveStageCommand, unresolvableCommandTranscript } from "../lib/stage-command.ts";
+import { refuseUnrunnableRows, resolveStageCommand, unresolvableCommandTranscript } from "../lib/stage-command.ts";
 import { enterWholeRunQueue } from "../lib/whole-run-queue.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
@@ -138,13 +138,6 @@ function writeFileAtomic(absPath: string, content: string): void {
   const tmp = `${absPath}.tmp.${process.pid}.${atomicWriteSeq}`;
   writeFileSync(tmp, content);
   renameSync(tmp, absPath);
-}
-
-/** The PATH a stage child will be spawned with. The resolver must search the SAME list the child gets, or
- *  it would answer about a search path the child never sees; `stage.env` may override it, which is why this
- *  takes the composed env rather than reading the process's. */
-function pathEnvOf(env: Readonly<Record<string, string | undefined>>): string {
-  return env["PATH"] ?? "";
 }
 
 const EXCERPT_LINES = 8; // failure excerpt: the last N non-blank output lines (where tools print the verdict).
@@ -273,8 +266,10 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   // ARGV[0] IS RESOLVED FROM EVIDENCE, AND AN UNRESOLVABLE ONE IS REFUSED WITHOUT SPAWNING (#2220/#2225):
   // the old name allowlist sent `bash` to `node_modules/.bin/bash` and made `lint:hook-syntax` an exit-2
   // every static run since it landed. A refusal settles as `code: null`, which every classifier maps to a
-  // TOOL ERROR (2) — the run is not a verdict — never to a violation (1) wearing the same costume.
-  const resolved = resolveStageCommand(root, cmd, pathEnvOf(env));
+  // TOOL ERROR (2) — the run is not a verdict — never to a violation (1) wearing the same costume. The PATH
+  // handed to the resolver is the COMPOSED one the child will actually get (`stage.env` may override it),
+  // never the parent's — otherwise it would answer about a search path the child never sees.
+  const resolved = resolveStageCommand(root, cmd, env["PATH"] ?? "");
   const result =
     resolved.kind === "unresolvable"
       ? { code: null, transcript: unresolvableCommandTranscript(stage.name, resolved) }
@@ -408,39 +403,6 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
     failed: results.filter((s) => !s.ok).length,
     stages: results,
   };
-}
-
-/** EVERY REGISTRY ROW WHOSE WHOLE-SCOPE `argv[0]` RESOLVES TO NOTHING on this checkout — the static half
- *  of #2225. `--list` is the ONE home for tier membership, and a row printed there reads as runnable; a row
- *  that can never spawn is a tier claiming coverage it does not have. Only the whole-scope `argv` is
- *  statically answerable (a `scopedArgv` needs a Selection), which is exactly what `--list` prints. */
-export function unrunnableRegistryRows(root: string, pathEnv: string): readonly { readonly name: string; readonly transcript: string }[] {
-  const rows: { readonly name: string; readonly transcript: string }[] = [];
-  for (const stage of REGISTRY) {
-    const resolved = resolveStageCommand(root, stage.argv[0], pathEnv);
-    if (resolved.kind === "unresolvable") {
-      rows.push({ name: stage.name, transcript: unresolvableCommandTranscript(stage.name, resolved) });
-    }
-  }
-  return rows;
-}
-
-/** `--list`'s verdict. The listing still PRINTS (it is the reader's map), and then an unrunnable row is
- *  REFUSED rather than left looking like a stage that merely has not run yet — exit 2, because a registry
- *  the runner cannot execute is a broken instrument, never a finding about the repo. */
-function refuseUnrunnableRows(root: string): number {
-  // biome-ignore lint/style/noProcessEnv: `--list` has no stage env to inherit, and the PATH this process was given IS the PATH a stage child would get — reading it here is the measurement, not configuration.
-  const rows = unrunnableRegistryRows(root, process.env["PATH"] ?? "");
-  if (rows.length === 0) {
-    return EXIT.clean;
-  }
-  process.stdout.write(
-    `\n[verify] REFUSED: ${rows.length} registry row(s) name a command this checkout cannot run — they are listed above as if runnable and are not.\n`,
-  );
-  for (const row of rows) {
-    process.stdout.write(row.transcript);
-  }
-  return EXIT.toolError;
 }
 
 /** The `verify` verb: run a tier, write reports/verify.json, retain the run's timings, print the

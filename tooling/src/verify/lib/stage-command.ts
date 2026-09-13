@@ -29,7 +29,10 @@
 // among thirty rows is what let this one live for a day.
 import { statSync } from "node:fs";
 import { delimiter, isAbsolute, join, resolve, sep } from "node:path";
+import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { REGISTRY } from "./registry.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm verify");
 
@@ -101,4 +104,37 @@ export function unresolvableCommandTranscript(stageName: string, unresolved: Ext
     "[verify] Fix the row's argv in tooling/src/verify/lib/registry.ts, or install the command this checkout is missing.",
     "",
   ].join("\n");
+}
+
+/** EVERY REGISTRY ROW WHOSE WHOLE-SCOPE `argv[0]` RESOLVES TO NOTHING on this checkout — the static half
+ *  of #2225. `--list` is the ONE home for tier membership, and a row printed there reads as runnable; a row
+ *  that can never spawn is a tier claiming coverage it does not have. Only the whole-scope `argv` is
+ *  statically answerable (a `scopedArgv` needs a Selection), which is exactly what `--list` prints. */
+export function unrunnableRegistryRows(root: string, pathEnv: string): readonly { readonly name: string; readonly transcript: string }[] {
+  const rows: { readonly name: string; readonly transcript: string }[] = [];
+  for (const stage of REGISTRY) {
+    const resolved = resolveStageCommand(root, stage.argv[0], pathEnv);
+    if (resolved.kind === "unresolvable") {
+      rows.push({ name: stage.name, transcript: unresolvableCommandTranscript(stage.name, resolved) });
+    }
+  }
+  return rows;
+}
+
+/** `--list`'s verdict. The listing still PRINTS (it is the reader's map), and then an unrunnable row is
+ *  REFUSED rather than left looking like a stage that merely has not run yet — exit 2, because a registry
+ *  the runner cannot execute is a broken instrument, never a finding about the repo. */
+export function refuseUnrunnableRows(root: string): number {
+  // biome-ignore lint/style/noProcessEnv: `--list` has no stage env to inherit, and the PATH this process was given IS the PATH a stage child would get — reading it here is the measurement, not configuration.
+  const rows = unrunnableRegistryRows(root, process.env["PATH"] ?? "");
+  if (rows.length === 0) {
+    return EXIT.clean;
+  }
+  process.stdout.write(
+    `\n[verify] REFUSED: ${rows.length} registry row(s) name a command this checkout cannot run — they are listed above as if runnable and are not.\n`,
+  );
+  for (const row of rows) {
+    process.stdout.write(row.transcript);
+  }
+  return EXIT.toolError;
 }
