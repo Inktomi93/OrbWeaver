@@ -12,7 +12,13 @@
 // `css-length-tokens`, `css-family-ownership` and `css-selector-has-a-writer` — and the name that family
 // should take when its SECOND member converts is `static-class-ink`. This is the `no-raw-color-in-css`
 // precedent verbatim: re-declare the shared family in the same commit that converts the second member.
-// `lib/seed-theme-ink.ts` is this policy's own reader (one importer) and is a private helper, not a family.
+// `lib/seed-theme-ink.ts` is this policy's own ALGORITHM (one importer) — a private helper, not a family,
+// and since #2293 it reads NOTHING: its `DECLARATION`/`THEME_BLOCK`/`SEED_BLOCK` regexes and its
+// hand-rolled balanced-brace scan over `theme.css` TEXT are DELETED, and `readSeedPalettes` now takes the
+// `product-css` declaration FACTS this policy already declares. What survives there is judgment the
+// resource cannot make (which grounds an ink rests on, the self-tint composite, the ink utility grammar),
+// which §12.3 permits in `verify/lib`; what left was repository CSS reading behind `defineGate`, which it
+// does not.
 //
 // A DECLARED HYBRID (§12.4: "a hybrid's dual role is explicit and receipted"):
 //   RESOURCE half — `product-css`, for `theme.css`. There is no `theme-css` `exact-file` id and the kind
@@ -32,7 +38,7 @@
 // CENTRAL `stale-reviewed-grant` alarm rather than `reportStaleExemptions`, which is §12.5's whole point.
 //
 // AUTHORITY: `reviewed-grant`, and this is the one decision the §5b audit did not price. The audit ruled
-// `hard` on the strength of `reportFailure`'s `@finding-overload-ok` reason ("a seed palette failing AA is a
+// `hard` on the strength of `reportFailure`'s finding-overload-ok reason ("a seed palette failing AA is a
 // ledger verdict, not a site an author may absolve") — which is TRUE and survives: there is no marker door
 // here and an author cannot absolve anything inline. But the module also carried
 // `DECORATIVE_STROKE_CARRIERS`, a NINE-ROW `ExemptionTable`, and §12.5 bans a gate-owned exemption grammar
@@ -49,10 +55,18 @@
 // its message. The legacy rows asserted `{ token }` with no count, so the proof set ports unchanged and
 // gains the counts §4.1 owes.
 //
-// THE `@finding-overload-ok` MARKER IS DELETED, NOT TRANSLATED, and that is the guide's own disposition for
+// THE finding-overload-ok MARKER IS DELETED, NOT TRANSLATED, and that is the guide's own disposition for
 // its grammar (§7 kind 3: "DELETE with its gate; never translate"). Its subject was the legacy `ctx.report`
 // OVERLOAD — reporting a coordinate the walk did not hand back — and the final contract has no overload:
 // `report.file` IS the file sink. Its REASON was load-bearing and is kept, as the authority paragraph above.
+//
+// BOTH mentions of that marker in this
+// header are spelled WITHOUT their `@` opener on purpose (#2293, and this file is inside the corpus
+// `finding-overload-provenance` polices): its `markersIn` reader matches the marker form in the file's
+// FULL TEXT and exempts only string/template/regex spans, so a `//` comment naming the opener is read as a
+// MALFORMED marker. Two sentences of explanation took that live legacy gate from 0 findings in this file
+// to 2, masked by the standing whole-tree red. Never write the opener in prose here — the gate's own
+// module does the same thing for the same reason (`finding-overload-provenance.ts:9-10`).
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. An unloadable product CSS identity makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create` runs
@@ -61,6 +75,12 @@
 // DECLARED LIMITS, each with its row: a `-foreground` PAIR ink is judged on its own fill by
 // `palette-contrast.suite.test.ts`, never against neutral chrome (`mustPass[2]`); and a theme.css carrying
 // no `--color-*` declaration REFUSES as instrument blindness rather than reading clean (`mustFlag[4]`).
+//
+// THE THREE BLINDNESS ARMS EACH HAVE A ROW, and the third was owed (#2293): zero palettes (`mustFlag[4]`),
+// zero inks (`mustFlag[5]`), and — new — a ground the sheet DECLARES but no reader can turn into a colour
+// (`mustFlag[8]`). The third was measured UNENFORCED because every other fixture completes its grounds on
+// purpose, so nothing could ever reach it; the row makes exactly one ground unresolvable in an otherwise
+// clean corpus, and cutting `for (const miss of unresolved)` turns it green.
 
 import { NORMAL_MIN_RATIO } from "../../_shared/wcag.ts";
 import { THEME } from "../contract/css-family.ts";
@@ -258,7 +278,8 @@ export const gate = defineGate({
   fix: "give the token a polarity-aware light-dark() arm in the family's own band, lower the self-tint alpha, or paint the text with an ink token instead of a surface/mark token",
   create: (ctx) => ({
     evaluate: () => {
-      const sheets = readyResourceValue(ctx.resources.cssInventory("product")).files;
+      const css = readyResourceValue(ctx.resources.cssInventory("product"));
+      const sheets = css.files;
       const report: Report = (file, details) => {
         ctx.report.file(file, details);
       };
@@ -267,7 +288,9 @@ export const gate = defineGate({
       // in no resource population this policy declares, so `ctx.report.file` would THROW on it (guide §3's
       // absent-verdict rule). The sheet is declared, read and present whenever the resource resolved.
       const anchor = theme?.path ?? sheets[0]?.path ?? THEME;
-      const palettes = theme === undefined ? [] : readSeedPalettes(theme.text);
+      // The palettes come from the DECLARATION FACTS of the theme sheet — the resource this policy already
+      // declares — never from a private parse of its text (#2293, §5b.7).
+      const palettes = theme === undefined ? [] : readSeedPalettes(css.declarations.filter((declaration) => declaration.file === theme.path));
       if (palettes.length === 0) {
         reportBlind(report, anchor, "zero-palettes", "resolved zero seed palettes from theme.css");
         return;
@@ -322,7 +345,9 @@ export const gate = defineGate({
         // THE COMPLETE EIGHT-GROUND SET, in dark values, for the same reason `server-layout`'s `mustFlag[0]`
         // supplies the whole legal root: a fixture short of a ground raises an `unresolved-colour` blindness
         // finding, and the count would then be ratifying two arms under a one-finding claim (measured: this
-        // row produced SEVEN before the grounds were completed, six of them blindness).
+        // row produced SEVEN before the grounds were completed, six of them blindness). The arm those six
+        // came from is pinned on its own by `mustFlag[8]`, which isolates ONE unresolvable ground in a
+        // corpus with nothing else to report — completing the grounds here is what made that row owed.
         "packages/ui/src/styles/theme.css":
           "@theme {\n--color-background: oklch(0.145 0.004 60);\n--color-card: oklch(0.205 0.006 60);\n--color-popover: oklch(0.22 0.006 60);\n--color-surface-raised: oklch(0.24 0.007 60);\n--color-sidebar: oklch(0.19 0.005 60);\n--color-muted: oklch(0.26 0.008 60);\n--color-secondary: oklch(0.25 0.008 60);\n--color-accent: oklch(0.285 0.009 60);\n--color-destructive: oklch(0.65 0.19 25);\n}\n:root { color-scheme: dark; }\n",
         "packages/ui/src/styles/globals.css": "@layer base {}\n",
@@ -433,6 +458,29 @@ export const gate = defineGate({
       // existed: the founding-defect row fails bare as well, so it could never isolate the tint.
       expect: { count: 1, token: "text-primary", messageIncludes: "under its own 45% tint" },
       why: "the self-tint is the composition, not a decoration: the same shipped arm that clears every ground bare fails under a heavy wash of its own hue",
+    },
+    {
+      mode: "resource",
+      files: {
+        // `mustPass[0]`'s corpus with ONE GROUND made unresolvable. Every other ground resolves and the
+        // shipped 0.50 arm clears all seven, so the only thing this row can report is the SHEET-level
+        // blindness verdict — which is exactly what makes it the falsifier.
+        "packages/ui/src/styles/theme.css":
+          "@theme {\n--color-background: oklch(0.98 0.004 75);\n--color-card: oklch(0.995 0.003 75);\n--color-popover: var(--nope);\n--color-surface-raised: oklch(0.965 0.005 75);\n--color-sidebar: oklch(0.955 0.006 72);\n--color-muted: oklch(0.95 0.006 70);\n--color-secondary: oklch(0.94 0.008 70);\n--color-accent: oklch(0.93 0.01 70);\n--color-primary: oklch(0.5 0.16 50);\n}\n:root { color-scheme: light; }\n",
+        "packages/ui/src/styles/globals.css": "@layer base {}\n",
+        "packages/ui/src/styles/tiers.css": "@layer utilities {}\n",
+        "packages/client/src/styles/globals.css": "@layer base {}\n",
+        "packages/client/src/features/app-shell/surfaces/shell.css": ".shell {}\n",
+        "packages/ui/src/primitives/badge/variants.ts":
+          "import { tv } from 'tailwind-variants';\nexport const badge = tv({ base: 'bg-primary/8 text-primary' });",
+      },
+      // THE SHEET-LEVEL UNRESOLVED-GROUND ARM, measured UNENFORCED before this row existed (#2293): cut k08
+      // (`for (const miss of unresolved)` → an empty array) killed no row, because every other fixture
+      // COMPLETES its grounds precisely so this arm cannot fire beside the finding that row is about — see
+      // `mustFlag[1]`'s comment. It is a BLINDNESS arm, so its falsifier runs in the tripwire direction: the
+      // cut makes the policy flag FEWER and this `mustFlag` goes green.
+      expect: { count: 1, messageIncludes: "could not resolve a colour for --color-popover @ hearth" },
+      why: "a ground the sheet declares but no reader can turn into a colour is a claim about the SHEET — every ink judged against it was judged on seven grounds, not eight, and a bare zero from an instrument is 'I could not measure', never 'clean'",
     },
   ],
   mustPass: [
