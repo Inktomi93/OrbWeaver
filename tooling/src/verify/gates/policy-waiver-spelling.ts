@@ -134,6 +134,17 @@ export const gate = defineGate({
       expect: { count: 1, token: "fix" },
       why: "a spelling naming ANOTHER policy is a marker the central engine binds to nothing (unknown-policy short-circuit) — the id half of the spelling is the identity",
     },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${ORDINARY_TRUNK}\n  fix,\n  mustPass: [{ mode: "source", files: { "packages/client/src/b.ts": "y" }, why: "w" }],`,
+          'const fix = "move it to contract/.";\n',
+        ),
+      ),
+      expect: { count: 1, token: "fix" },
+      why: "a shorthand fix is an authored property too: missing waiver spelling must report at that property rather than disappear when the reader narrows to assignments",
+    },
   ],
   mustPass: [
     {
@@ -176,6 +187,16 @@ export const gate = defineGate({
       mode: "types",
       files: familyFixture('export const gate = { name: "probe", docRow: "x", message: "m", fix: "move it.", mustFlag: [1], mustPass: [1] };\n'),
       why: "SCOPE: a legacy descriptor's markers are `@orb-gate-ignore`, judged by its own runtime; this family reads the final contract only",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${ORDINARY_TRUNK}\n  fix,\n  mustPass: [{ mode: "source", files: { "packages/client/src/b.ts": "y" }, why: "w" }],`,
+          'const fix = "waive with @orb-waive probe(<position>): <reason>";\n',
+        ),
+      ),
+      why: "the same shorthand property containing this policy's correct waiver spelling passes; shorthand syntax alone is never a finding",
     },
   ],
 });
