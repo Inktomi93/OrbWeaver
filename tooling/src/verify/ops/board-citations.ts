@@ -158,8 +158,16 @@ export function runControls(states: BoardStates): readonly ControlReceipt[] {
     claim: "open",
     context: "a warning policy whose workItem names the permanently-closed control row",
   };
+  // Missing and off-board rows also cross. They prove resolution failure, not CLOSED state.
+  const closedControl = states.get(CLOSED_CONTROL_ISSUE);
+  if (closedControl === undefined || !closedControl.onBoard) {
+    throw new Error(
+      `board-citations: the policy-workitem control #${String(CLOSED_CONTROL_ISSUE)} is ${closedControl === undefined ? "missing" : "off-board"}; ` +
+        "it cannot prove CLOSED state, so this run is not a verdict.",
+    );
+  }
   const policyCrossed = crossedCitations([policyControl], states);
-  if (policyCrossed.length !== 1) {
+  if (closedControl.state !== "CLOSED" || policyCrossed.length !== 1) {
     throw new Error(
       `board-citations: the policy-workitem control did not fire — #${String(CLOSED_CONTROL_ISSUE)} came back ${String(states.get(CLOSED_CONTROL_ISSUE)?.state)}, not CLOSED. ` +
         "Either the control row was reopened (move CLOSED_CONTROL_ISSUE to another permanently-closed row and say why) or this board read cannot tell OPEN from CLOSED; the run is not a verdict either way.",
