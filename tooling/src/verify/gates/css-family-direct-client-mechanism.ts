@@ -30,10 +30,10 @@
 // `1692583d6`. MARKER CENSUS 0 = 0 = 0 (2026-09-12, N=7,725, control 1,196).
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here (`mustRefuse[0]`).
-import { CLIENT_GLOBALS } from "../contract/css-family.ts";
+import { CLIENT_GLOBALS, THEME } from "../contract/css-family.ts";
 import { defineGate } from "../contract/policy.ts";
 import { reportDirectClientMechanisms } from "../lib/css-family-policy.ts";
-import { OWNERSHIP_FIXTURE, THEME_AT_PARITY } from "../lib/css-family-proof-fixtures.ts";
+import { OWNERSHIP_FIXTURE, THEME_FAMILIES } from "../lib/css-family-proof-fixtures.ts";
 import { cssHookProvenanceFact } from "../lib/css-family-source-provenance.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
@@ -148,7 +148,7 @@ export const gate = defineGate({
   mustRefuse: [
     {
       mode: "resource",
-      files: { "packages/ui/src/styles/theme.css": THEME_AT_PARITY, "packages/client/src/features/probe.tsx": "export const probe = null;\n" },
+      files: { [THEME]: THEME_FAMILIES, "packages/client/src/features/probe.tsx": "export const probe = null;\n" },
       expect: { messageIncludes: "product-css" },
       why: "an incomplete product CSS identity REFUSES at the population phase; a reviewed-grant policy that reported zero candidates on an unreadable corpus would stale every one of its rows",
     },

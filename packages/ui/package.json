@@ -9,6 +9,7 @@
   "sideEffects": ["**/*.css"],
   "exports": {
     "./token-contract": "./token-contract.ts",
+    "./tokens-build": "./tokens.build.ts",
     "./accordion": "./src/primitives/accordion/index.ts",
     "./alert-dialog": "./src/primitives/alert-dialog/index.ts",
     "./aria-announcer": "./src/primitives/aria-announcer/index.ts",

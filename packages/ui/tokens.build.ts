@@ -26,7 +26,6 @@ import { assertTokenContract, REQUIRED_SEED_VALUE_SET_PATHS } from "./token-cont
 import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const TOKENS_JSON = join(HERE, "src/tokens/tokens.json");
 const THEME_CSS = join(HERE, "src/styles/theme.css");
 const TOKENS_TS = join(HERE, "src/tokens/index.ts");
 const THEMES_TS = join(HERE, "src/tokens/themes.gen.ts");
@@ -501,10 +500,10 @@ function renderSeedThemesTs(themes: readonly SeedTheme[]): string {
   return lines.join("\n");
 }
 
-export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs: string; themesTs: string }> {
-  const source = JSON.parse(readFileSync(TOKENS_JSON, "utf8")) as DesignTokens;
-  const lightSource = JSON.parse(readFileSync(join(HERE, "src/tokens/themes/light.json"), "utf8")) as Record<string, unknown>;
-  const contract = assertTokenContract(HERE, join(HERE, "../.."));
+export async function generateArtifacts(uiRoot = HERE): Promise<{ themeCss: string; tokensTs: string; themesTs: string }> {
+  const source = JSON.parse(readFileSync(join(uiRoot, "src/tokens/tokens.json"), "utf8")) as DesignTokens;
+  const lightSource = JSON.parse(readFileSync(join(uiRoot, "src/tokens/themes/light.json"), "utf8")) as Record<string, unknown>;
+  const contract = assertTokenContract(uiRoot, join(uiRoot, "../.."));
   // Runs on RAW sources, before resolution: references remain distinguishable from independent literals,
   // and the split polarity values can still be judged as one two-arm decision.
   assertNoNearDuplicateColors(source as unknown as Record<string, unknown>, { lightSource });

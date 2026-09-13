@@ -1,6 +1,7 @@
-export const THEME = "packages/ui/src/styles/theme.css";
-export const UI_GLOBALS = "packages/ui/src/styles/globals.css";
-export const TIERS = "packages/ui/src/styles/tiers.css";
+export const UI_PACKAGE_ROOT = "packages/ui";
+export const THEME = `${UI_PACKAGE_ROOT}/src/styles/theme.css`;
+export const UI_GLOBALS = `${UI_PACKAGE_ROOT}/src/styles/globals.css`;
+export const TIERS = `${UI_PACKAGE_ROOT}/src/styles/tiers.css`;
 export const CLIENT_GLOBALS = "packages/client/src/styles/globals.css";
 export const SHELL = "packages/client/src/features/app-shell/surfaces/shell.css";
 

@@ -2,9 +2,8 @@
 // verdict its twin reports rests on a census, and a census that read nothing is not a clean tree.
 //
 // FAMILY `css-hook-provenance`, identical to `css-family-ownership`'s. THE SPLIT IS AUTHORITY (guide §2): a
-// blind sheet, a `@theme` block that resolved no direct declaration, a generated-output parity break and an
-// incomplete runtime-writer seam are verdicts about the MEASUREMENT and the GENERATOR. No author absolves
-// one, and none has an authored coordinate a marker could bind to.
+// blind sheet, a `@theme` block that resolved no direct declaration, or an incomplete runtime-writer
+// seam concerns the MEASUREMENT. No author absolves one, and none has an authored marker coordinate.
 //
 // THE THREE ARMS THE §5b AUDIT MEASURED UNREACHED, and what changed. `zero-declarations` (cut f02) and
 // `zero-theme-values` (cut f03) were reached by ZERO committed proof rows, and `reportClosedSeamDrift`
@@ -25,38 +24,29 @@
 // LITERAL naming no vocabulary — so a third legitimate `:root` carrier, changing nothing declared anywhere,
 // reddened five rows. The arm now asks PRESENCE: every member of a seam's declared vocabulary must be
 // written AT LEAST ONCE, occurrences are never counted, ADDITIONAL legitimate carriers are silent, and the
-// finding names the member nothing writes. `mustPass[5]` is the carrier row and it carries THREE `:root`
+// finding names the member nothing writes. The additional-carrier mustPass carries THREE `:root`
 // blur carriers deliberately — six declarations, against the retired `CLIENT_BLUR_FILL.size * 2` = four — so
 // that it discriminates rather than merely illustrating; at two carriers it sat exactly ON the retired
 // expectation and proved nothing. `mustFlag[3]`, `mustFlag[4]` and `mustFlag[5]` are the missing members of
 // the three seams, one row each, because a sweep that pins two of three vocabularies and generalises is a
 // sample rather than a measurement.
 //
-// `EXPECTED_DIRECT_THEME_DECLARATIONS` IS READ, NEVER MOVED. Its disposition is owner-pending (#2230); the
-// audit measured it DERIVABLE from `tokens.build.ts#renderThemeCss` and escalated whether a hand-copied
-// literal earns the name "generated-output parity". What this conversion DOES close is the coupled site
-// (audit ledger row 13): the two fixture spellings now DERIVE from the constant, so the number has one home.
+// #2230 ARM B: generated theme byte identity is held by ledgers:fresh through the same emitter as
+// tokens:build. The copied declaration count and its coupled fixtures are retired.
 //
 // POPULATION PORT: `{ of: "none" }`. Unlike its twin this policy reads no TypeScript — the census, the
-// parity arm and the seam completeness are all questions about the five-home CSS identity. Legacy sha
+// namespace and seam completeness are all questions about the five-home CSS identity. Legacy sha
 // `1692583d6`; the legacy `existsSync(package.json)` real-tree anchor retires with the walk it guarded.
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here (`mustRefuse[0]`).
 import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
 import { defineGate } from "../contract/policy.ts";
 import { reportCssFamilyHealth } from "../lib/css-family-policy.ts";
-import {
-  BLUR_SEAM_COMPLETE,
-  CLIENT_SEAMS_COMPLETE,
-  COLORIZATION_SEAM_COMPLETE,
-  HEALTHY_HOMES,
-  THEME_AT_PARITY,
-  THEME_ONE_SHORT,
-} from "../lib/css-family-proof-fixtures.ts";
+import { BLUR_SEAM_COMPLETE, CLIENT_SEAMS_COMPLETE, COLORIZATION_SEAM_COMPLETE, HEALTHY_HOMES, THEME_FAMILIES } from "../lib/css-family-proof-fixtures.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const MESSAGE =
-  "the six-home CSS census is BLIND, or the generated output no longer matches its manifest — every ownership verdict resting on it is vacuous (tooling/src/verify/gates/css-family-ownership-health.ts)";
+  "the six-home CSS census is BLIND, or a runtime writer seam is incomplete — every ownership verdict resting on it is vacuous (tooling/src/verify/gates/css-family-ownership-health.ts)";
 
 export const gate = defineGate({
   id: "css-family-ownership-health",
@@ -94,14 +84,14 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: { ...HEALTHY_HOMES, [THEME]: ":root { color-scheme: dark; }\n" },
-      expect: { count: 2, messageIncludes: "ZERO direct declarations" },
-      why: "THE SECOND UNREACHED ARM (cut f03). A theme.css with no `@theme` block at all resolves no generated namespace, so token-family ownership cannot be derived. The count is 2 because the parity arm speaks about the same sheet in the same breath — which is exactly why both messages are disjoint",
+      expect: { count: 1, messageIncludes: "ZERO direct declarations" },
+      why: "THE SECOND UNREACHED ARM (cut f03). A theme.css with no `@theme` block at all resolves no generated namespace, so token-family ownership cannot be derived.",
     },
     {
       mode: "resource",
-      files: { ...HEALTHY_HOMES, [THEME]: THEME_ONE_SHORT },
-      expect: { count: 1, messageIncludes: "the generated-output manifest expects" },
-      why: "THE PARITY ARM, and its fixture is DERIVED from the constant rather than spelling it (audit ledger row 13, three homes for one number). One declaration short of the manifest reds; the row proves the arm BITES without becoming a fourth place the number is written",
+      files: { ...HEALTHY_HOMES, [THEME]: "@theme { color-scheme: dark; }\n:root { --color-probe: black; }\n" },
+      expect: { count: 1, messageIncludes: "ZERO direct declarations" },
+      why: "neither a non-custom declaration inside @theme nor a custom property outside it mints a generated namespace; both parser fences must hold before seam coverage is meaningful",
     },
     {
       mode: "resource",
@@ -144,8 +134,13 @@ export const gate = defineGate({
   mustPass: [
     {
       mode: "resource",
+      files: { ...HEALTHY_HOMES, [THEME]: "@theme { --color-probe: black; --blur-probe: 1px; --spacing-probe: 1px; }\n" },
+      why: "all runtime seam namespaces are measurable without matching a current token count; generator byte identity is enforced by baseline theme-css --check and ledgers:fresh",
+    },
+    {
+      mode: "resource",
       files: { ...HEALTHY_HOMES },
-      why: "the complete healthy shape: five non-empty homes, a `@theme` block at exactly the manifest count, and every declared runtime-writer seam written in full. The instrument says nothing",
+      why: "the complete healthy shape: five non-empty homes, a `@theme` block minting the runtime seam namespaces, and every declared runtime-writer seam written in full. The instrument says nothing",
     },
     {
       mode: "resource",
@@ -159,13 +154,13 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
-      files: { ...HEALTHY_HOMES, [THEME]: `${THEME_AT_PARITY}:root {\n  --extra-probe: 0;\n}\n` },
-      why: "CUT f25: only declarations authored DIRECTLY in the `@theme` block count toward parity. A custom property in an ordinary style rule of the same sheet is not generated output, and without the at-rule fence this row reports 204 against a manifest of 203",
+      files: { ...HEALTHY_HOMES, [THEME]: `${THEME_FAMILIES}:root {\n  --extra-probe: 0;\n}\n` },
+      why: "a custom property outside @theme leaves the existing generated namespace measurable; the empty-namespace mustFlag row independently holds the at-rule fence",
     },
     {
       mode: "resource",
-      files: { ...HEALTHY_HOMES, [THEME]: THEME_AT_PARITY.replace("\n}\n", "\n  color-scheme: dark;\n}\n") },
-      why: "CUT f26: parity counts CUSTOM PROPERTIES, which is the predicate the retired hand parser implemented (`^\\s*(--[\\w-]+)\\s*:`) and the one the generator emits. A plain declaration inside the same block is not a token, and without the fence this row reports 204",
+      files: { ...HEALTHY_HOMES, [THEME]: THEME_FAMILIES.replace("\n}\n", "\n  color-scheme: dark;\n}\n") },
+      why: "a non-custom declaration inside @theme leaves its existing custom-property namespace measurable; the empty-namespace mustFlag row independently holds the custom-property fence",
     },
     {
       mode: "resource",
@@ -198,7 +193,7 @@ export const gate = defineGate({
   mustRefuse: [
     {
       mode: "resource",
-      files: { [THEME]: THEME_AT_PARITY, [UI_GLOBALS]: ":root { --probe: 0; }\n" },
+      files: { [THEME]: THEME_FAMILIES, [UI_GLOBALS]: ":root { --probe: 0; }\n" },
       expect: { messageIncludes: "product-css" },
       why: "three of the five homes absent: the identity REFUSES at the population phase and withholds this owner, rather than the completeness fence quietly skipping every arm — which is what `fullHomeSet` did when the walk could not find a sheet",
     },
