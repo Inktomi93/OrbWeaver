@@ -2,7 +2,7 @@
 // matching the verification shape (check*|test*|lint*|typecheck*|depcruise*|e2e*|cpd*|format*|knip*) must
 // be reachable from the `pnpm verify` stage registry (tooling/src/verify/lib/registry.ts) — either it IS
 // a registry stage's `pnpm <script>` argv, or it's on the small alias/writer allowlist. The mirror arm:
-// every registry stage's argv must name a script that exists in package.json. RESOURCE (GATE-AUTHORING
+// every registry stage argv and non-stage exception must name a script that exists in package.json. RESOURCE (GATE-AUTHORING
 // migration): the root `package.json` comes from the closed `package-metadata` ResourceHost fact;
 // `REGISTRY` is a plain in-memory module import, not a filesystem read.
 // WHERE A BROKEN RESOURCE REFUSES — not here (mirrors `server-layout.ts`'s header). A declared resource
@@ -63,6 +63,11 @@ function registryScriptNames(): ReadonlySet<string> {
   return names;
 }
 
+/** Complete script membership for isolated root-manifest proofs, derived from both production sets. */
+function fixtureScripts(names: Iterable<string> = new Set([...registryScriptNames(), ...NON_STAGE_ALLOWLIST])): Record<string, string> {
+  return Object.fromEntries([...names].map((name) => [name, "x"]));
+}
+
 const MISSING_ROW = (script: string): string =>
   `package.json script "${script}" is verification-shaped but is not a \`pnpm verify\` stage — place it ` +
   "in a tier in tooling/src/verify/lib/registry.ts (even `manual` with a reason), or add it to the gate's " +
@@ -71,6 +76,9 @@ const MISSING_ROW = (script: string): string =>
 const DEAD_ROW = (script: string): string =>
   `the \`pnpm verify\` registry names a stage \`pnpm ${script}\` but package.json has no "${script}" ` +
   "script — remove the registry row or restore the script (tooling/src/verify/lib/registry.ts).";
+
+const STALE_EXCEPTION = (script: string): string =>
+  `stale NON_STAGE_ALLOWLIST entry "${script}": package.json has no such script — remove the exception from verify-registry-parity.ts or restore the script.`;
 
 export const gate = defineGate({
   id: "verify-registry-parity",
@@ -83,8 +91,8 @@ export const gate = defineGate({
   facts: [],
   resources: [{ kind: "package-metadata", id: "root" }],
   message:
-    "a package.json verification-shaped script (check*/test*/lint*/typecheck*/depcruise*/e2e*/cpd*/format*/knip*) has no `pnpm verify` tier — or a registry stage points at a deleted script. Every verification surface must be reachable from tooling/src/verify/lib/registry.ts (the ledger that makes a forgotten script structurally impossible). Core-Enforcement-Active-Gates.md.",
-  fix: "place the script in a tier in tooling/src/verify/lib/registry.ts (even `manual` + a reason), or add it to the gate's NON_STAGE_ALLOWLIST if it is a writer/artifact-generator; for a dead row, remove it or restore the script.",
+    "a package.json verification-shaped script (check*/test*/lint*/typecheck*/depcruise*/e2e*/cpd*/format*/knip*) has no `pnpm verify` tier — or a registry stage or non-stage exception points at a deleted script. Every verification surface must be reachable from tooling/src/verify/lib/registry.ts (the ledger that makes a forgotten script structurally impossible). Core-Enforcement-Active-Gates.md.",
+  fix: "place the script in a tier in tooling/src/verify/lib/registry.ts (even `manual` + a reason), or add it to the gate's NON_STAGE_ALLOWLIST if it is a writer/artifact-generator; for a dead registry row or stale non-stage exception, remove it or restore the script.",
   create: (ctx) => ({
     evaluate: () => {
       reconcile(ctx, readyResourceValue(ctx.resources.packageMetadata("root")));
@@ -94,7 +102,25 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "package.json": '{ "name": "orbweaver", "scripts": { "test:visual-regression": "playwright test --grep @visual" } }\n',
+        "package.json": JSON.stringify({
+          name: "orbweaver",
+          scripts: fixtureScripts([...new Set([...registryScriptNames(), ...NON_STAGE_ALLOWLIST])].filter((name) => name !== "format")),
+        }),
+      },
+      expect: {
+        count: 1,
+        messageIncludes:
+          'stale NON_STAGE_ALLOWLIST entry "format": package.json has no such script — remove the exception from verify-registry-parity.ts or restore the script.',
+      },
+      why: "a non-stage exception whose subject script was deleted must accuse independently of missing registry stages; every other required script remains present",
+    },
+    {
+      mode: "resource",
+      files: {
+        "package.json": JSON.stringify({
+          name: "orbweaver",
+          scripts: { ...fixtureScripts(), "test:visual-regression": "playwright test --grep @visual" },
+        }),
       },
       expect: { count: 1, messageIncludes: "not a `pnpm verify` stage" },
       why: "a verification-shaped script (test:*) with no registry tier — the forgotten-script failure the gate exists to make impossible",
@@ -102,22 +128,21 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        // A `verify` script (arm-2's real-package.json guard) but NONE of the registry's stage scripts —
-        // every registered `pnpm <script>` argv is then a DEAD_ROW. `verify` is allowlisted so arm 1 stays clean.
-        "package.json": '{ "name": "orbweaver", "scripts": { "verify": "tsx tooling/src/verify/ops/run.ts" } }\n',
+        // Every non-stage exception remains live; only the registry-stage scripts are absent.
+        "package.json": JSON.stringify({ name: "orbweaver", scripts: fixtureScripts(NON_STAGE_ALLOWLIST) }),
       },
       expect: { countFrom: "registryScriptNames", messageIncludes: "but package.json has no" },
-      why: "arm 2 DEAD_ROW: the `verify` guard is present so arm 2 activates, but the registry names stages absent from this package.json — a registry row pointing at a missing script. `countFrom: registryScriptNames` (#2001): arm 2 emits one DEAD_ROW per registered stage, so the count is the stage registry's cardinality and a new stage would otherwise turn this row red; `messageIncludes` pins WHICH arm",
+      why: "arm 2 DEAD_ROW: every registry stage is absent while every non-stage exception remains live. The finding count follows registryScriptNames; the message distinguishes registry rows from stale exceptions",
     },
     {
       mode: "resource",
       files: {
-        // The `verify` host activates arm 3; a runtime `dependencies` entry on the private monorepo root is
+        // A runtime `dependencies` entry on the resource-identified private monorepo root is
         // the category error (tonight's tsx lesson). Every registry stage script is also present so arm 2
         // stays clean and only the root-dep arm fires.
         "package.json": JSON.stringify({
           name: "orbweaver",
-          scripts: Object.fromEntries([...registryScriptNames()].map((s) => [s, "x"]).concat([["verify", "x"]])),
+          scripts: fixtureScripts(),
           dependencies: { tsx: "^4.0.0" },
         }),
       },
@@ -129,26 +154,26 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        // Only NON-verification-shaped scripts (dev/build) + BOTH allowlisted species — a WRITER (`format`)
-        // and an INSPECTOR (`check:show`, verification-SHAPED but read-only) → nothing to reconcile against
-        // the real registry, so this passes. (A registry-registered script name here would need the real
-        // package.json's whole script set; the empty-of-verify-scripts case is the honest near-miss.)
-        "package.json":
-          '{ "name": "orbweaver", "scripts": { "dev": "vite", "format": "biome format --write .", "check:show": "node tooling/src/verify/cli.ts show" } }\n',
+        // The complete required membership plus an unrelated dev script: writers and inspectors
+        // remain non-stages, and unrelated inputs do not acquire a verification obligation.
+        "package.json": JSON.stringify({
+          name: "orbweaver",
+          scripts: { ...fixtureScripts(), dev: "vite", format: "biome format --write .", "check:show": "node tooling/src/verify/cli.ts show" },
+        }),
       },
       why: "no unplaced verification-shaped script: the allowlisted WRITER (`format`) and the allowlisted INSPECTOR (`check:show` — verification-shaped by name, read-only by nature) both pass, which is the no-over-bite half of arm 1",
     },
     {
       mode: "resource",
       files: {
-        // arm 3 activates (the `verify` host is present) but there is NO `dependencies` key — the correct
+        // There is NO `dependencies` key on the resource-identified root — the correct
         // shape for the private monorepo root. Every registry stage script is present so arm 2 is clean too.
         "package.json": JSON.stringify({
           name: "orbweaver",
-          scripts: Object.fromEntries([...registryScriptNames()].map((s) => [s, "x"]).concat([["verify", "x"]])),
+          scripts: fixtureScripts(),
         }),
       },
-      why: "arm 3 pass: the `verify` host is present (arm 3 active) but the root declares no `dependencies` — the correct never-prod-installed shape",
+      why: "arm 3 pass: all required scripts are present and the root declares no `dependencies` — the correct never-prod-installed shape",
     },
   ],
 });
@@ -168,23 +193,22 @@ function reconcile(ctx: GatePolicyContext, pkg: PackageMetadata): void {
     }
   }
 
-  // Arm 2: every registry stage's `pnpm <script>` argv must resolve to a real package.json script.
-  // GUARDED on the REAL package.json — a synthetic conformance/parity example package.json (which lists
-  // only a couple scripts) would otherwise flag every registry script as a "dead row". The `verify` script
-  // is the registry's own host — its presence means this IS the real root package.json (the fileLoaded /
-  // registry-loaded guard pattern the ratchet gates use). A synthetic example omits it → arm 2 no-ops.
-  if ("verify" in scripts) {
-    for (const name of registered) {
-      if (!(name in scripts)) {
-        ctx.report.file(PKG_REL, { line: 1, column: 1, message: DEAD_ROW(name) });
-      }
+  // Every non-stage exception must still name a live script, including the verify entry itself.
+  for (const name of NON_STAGE_ALLOWLIST) {
+    if (!(name in scripts)) {
+      ctx.report.file(PKG_REL, { line: 1, column: 1, message: STALE_EXCEPTION(name) });
     }
   }
 
-  // Arm 3: the root manifest's `dependencies` must be empty/absent (same real-root `verify` guard as arm 2).
-  if ("verify" in scripts) {
-    for (const name of Object.keys(pkg.dependencies.runtime)) {
-      ctx.report.file(PKG_REL, { line: 1, column: 1, message: ROOT_DEP(name) });
+  // The resource declaration establishes root identity even when its verify script is missing.
+  for (const name of registered) {
+    if (!(name in scripts)) {
+      ctx.report.file(PKG_REL, { line: 1, column: 1, message: DEAD_ROW(name) });
     }
+  }
+
+  // The root manifest's runtime dependencies must be empty/absent.
+  for (const name of Object.keys(pkg.dependencies.runtime)) {
+    ctx.report.file(PKG_REL, { line: 1, column: 1, message: ROOT_DEP(name) });
   }
 }

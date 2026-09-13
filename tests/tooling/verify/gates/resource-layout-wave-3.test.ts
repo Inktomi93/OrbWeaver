@@ -65,15 +65,18 @@ function populationRefusal(fragment: string): Record<string, unknown> {
   };
 }
 
-/** Every registry stage script plus the allowlisted `verify` host — the manifest that keeps BOTH product
- *  arms silent, so the healthy twin's clean verdict is a read that happened rather than a read that found
- *  nothing to say. Derived from `REGISTRY` for the same reason `mustFlag[1]` uses `countFrom`: a new stage
- *  must not turn this pin red. */
+/** Any passing root-resource proof must contain every registered script and every non-stage exception:
+ *  the policy checks both sets unconditionally. The proof suite above establishes that contract; the
+ *  healthy-twin test below checks it again through this family driver. Thus any such proof supplies the
+ *  complete membership, independent of row order or why text, without a second hand-maintained roster.
+ *  Only the input is reused: each regression keeps its own independent finding expectations. */
 function manifest(extraScripts: Readonly<Record<string, string>>): string {
-  const registered = REGISTRY.filter((stage) => stage.argv[0] === "pnpm" && typeof stage.argv[1] === "string").map(
-    (stage) => [String(stage.argv[1]), "x"] as const,
-  );
-  return JSON.stringify({ name: "orbweaver", scripts: { ...Object.fromEntries(registered), verify: "x", ...extraScripts } });
+  const healthy = verifyRegistryParity.mustPass.at(0);
+  if (healthy === undefined) {
+    throw new Error("verify-registry-parity has no healthy root-manifest proof");
+  }
+  const base = JSON.parse(healthy.files["package.json"]) as { name: string; scripts: Record<string, string> };
+  return JSON.stringify({ ...base, scripts: { ...base.scripts, ...extraScripts } });
 }
 
 test("verify-registry-parity: a MISSING root manifest refuses at the population phase rather than passing over no scripts", ({ scratch }) => {
@@ -120,4 +123,27 @@ test("verify-registry-parity: the twin's silence is a READ, not an empty denomin
 
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "verify-registry-parity" }]);
+});
+
+test("verify-registry-parity: deleting verify cannot hide missing stages or root runtime dependencies", ({ scratch }) => {
+  const base = JSON.parse(manifest({})) as { name: string; scripts: Record<string, string> };
+  const stage = REGISTRY.find((entry) => entry.argv[0] === "pnpm" && typeof entry.argv[1] === "string")?.argv[1];
+  if (stage === undefined) {
+    throw new Error("the verification registry has no pnpm script stage");
+  }
+  const scripts = Object.fromEntries(Object.entries(base.scripts).filter(([name]) => name !== "verify" && name !== stage));
+  const result = parityPass(scratch, {
+    "package.json": JSON.stringify({ ...base, scripts, dependencies: { "fixture-runtime-dep": "1" } }),
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.authority.effectiveFindings).toHaveLength(3);
+  expect(result.authority.effectiveFindings.map(({ message }) => message)).toEqual(
+    expect.arrayContaining([
+      'stale NON_STAGE_ALLOWLIST entry "verify": package.json has no such script — remove the exception from verify-registry-parity.ts or restore the script.',
+      `the \`pnpm verify\` registry names a stage \`pnpm ${stage}\` but package.json has no "${stage}" script — remove the registry row or restore the script (tooling/src/verify/lib/registry.ts).`,
+      expect.stringContaining('declares a runtime dependency "fixture-runtime-dep"'),
+    ]),
+  );
 });

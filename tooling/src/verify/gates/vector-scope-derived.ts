@@ -20,8 +20,8 @@
 //
 // POPULATION PORT: byte-identical, legacy at `0d83d99f1^` (`scanRoot: (p) => SERVER_SRC.test(\`/\${p}\`)` —
 // the `@server` root exactly). The sanctioned homes stay IN the population and are decided per arm, so a
-// re-home reds at its new path instead of carrying its exemption silently; all FIVE `IMPORT_SANCTIONED`
-// entries now carry a row each, which is what stops a future re-home deleting one silently.
+// re-home reds at its new path instead of inheriting the old role. Every import role has a proof;
+// membership grants no write or cosine privilege, which those arms decide independently.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -39,7 +39,12 @@ const VECTOR_TABLE_HOME: SealedHome = {
 const WRITE_METHODS = new Set(["insert", "update", "delete"]);
 const COSINE = "vector_distance_cos";
 
-const IMPORT_SANCTIONED = [
+// Architectural import roles, not exception debt: embeddings owns storage, search owns retrieval,
+// memory reads indexing/bookkeeping facets, discovery reads analytics inputs, and debug counts rows.
+// These roots define who may name the substrate (Core-Enforcement-Active-Gates, vector-scope-derived);
+// no live-site count can retire a role. WRITE_SANCTIONED and COSINE_SANCTIONED enforce the narrower
+// operation owners even inside these roots. Temporary site exceptions use the positioned waiver below.
+const IMPORT_ROLE_ROOTS = [
   "packages/server/src/domain/embeddings/",
   "packages/server/src/domain/search/persistence/",
   "packages/server/src/domain/chat/memory/persistence/",
@@ -156,7 +161,7 @@ export const gate = defineGate({
           kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
           visit: (node) => {
             const candidate = vectorCandidate(node);
-            if (candidate === null || IMPORT_SANCTIONED.some((home) => path.startsWith(home))) {
+            if (candidate === null || IMPORT_ROLE_ROOTS.some((home) => path.startsWith(home))) {
               return;
             }
             // FAIL-CLOSED THROUGH THE SHARED DECISION: a vector-table NAME whose IMPORT DOOR cannot be
@@ -349,7 +354,7 @@ export const gate = defineGate({
         "packages/server/src/domain/chat/memory/persistence/digests.ts":
           'import { chatDigests } from "../../../../../../db/src/schema/embeddings.ts";\nexport const t = chatDigests;\n',
       },
-      why: "SANCTIONED HOME 3 of 5 — chat/memory's own persistence does the digest BOOKKEEPING (which segments are indexed), so it names the table while delegating every vector read to the injected `searchDigests` op. Each `IMPORT_SANCTIONED` entry now owns a row: an unexercised list entry is a §5b.1 declaration the module does not use, and the one a future re-home deletes silently (w9 :262, #2046)",
+      why: "SANCTIONED HOME 3 of 5 — chat/memory's own persistence does the digest BOOKKEEPING (which segments are indexed), so it names the table while delegating every vector read to the injected `searchDigests` op. Each import role owns a row so removing its root rejects the role it defines",
     },
     {
       mode: "types",

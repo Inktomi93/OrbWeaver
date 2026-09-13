@@ -15,12 +15,9 @@
 // very symbol. `hasStaleArm` is per-SOURCE-FILE, so the ordinary half read as one-sided and was accused of
 // a promise its family keeps one file over.
 //
-// Measured over all 300 corpus modules on 2026-09-12, before the fix: arm B accused FOUR, and three were
-// exactly this shape — their `-health` siblings import the collection AND carry the stale arm. The fourth
-// (`vector-scope-derived`'s `IMPORT_SANCTIONED`) is NOT exported, so nothing can reach it and it is a REAL
-// finding this door deliberately leaves standing. Those names are the measurement and live in this comment
-// only: a count or a name list in an assertion is a perishable ledger, which is the failure this program
-// has already paid for twice.
+// The real-corpus pin rejects one-sided exemption collections. Architectural role roots define an
+// arm's subjects; they are not expiring debt rows. The vector policy's import roles are pinned in its
+// own proofs, alongside the independent write and cosine restrictions.
 //
 // The door is the IMPORT, never the `family` string — a shared family name would excuse ANY table in the
 // family, while an import of THIS collection by a stale-armed module is evidence about THIS collection.
@@ -113,23 +110,9 @@ function importedBySibling(rel: string, name: string, corpus: ReadonlyMap<string
   );
 }
 
-test("no accusation on the real corpus is of the RETIRED split-family shape (#2219)", { timeout: CORPUS_WALK_BUDGET }, ({ repoRoot }) => {
-  // THE LIVENESS THAT MATTERS ONCE THE EXCUSE IS GONE — and it is deliberately NOT "zero accusations".
-  //
-  // The ruling's parenthetical said the corpus would show zero, meaning every shared collection had moved
-  // to `lib/` under #2096. MEASURED 2026-09-12 it showed TWO, and MEASURED 2026-09-13 it shows ONE:
-  // `vector-scope-derived`'s `IMPORT_SANCTIONED`. The other was `list-row-adoption`'s `ALLOWED_ROOTS`,
-  // which was never a table at all — a subject-VOCABULARY set that arm B's name test accused after
-  // `b5490a02a` removed the module's stale arm; it is spelled `ROW_ROOT_NAMES` since #2268 and arm B has
-  // nothing to say about it. Neither was ever caused by retiring the carve: both are module-local,
-  // UNEXPORTED, and have no importing sibling, so `coveringSibling` could never have reached them and arm
-  // B accused them before this change too (`vector-scope-derived` is named as exactly that standing
-  // finding in this file's own #2093 history). That one is someone's row, not this test's business.
-  //
-  // So the assertion is the PROPERTY the inversion owns, not a census: the arrangement #2096 forbade and
-  // #2219 turned into a `mustFlag` must be ABSENT from the corpus — no accused collection may have a
-  // sibling gate importing it. A name list would be the perishable ledger this file's header warns about;
-  // `toEqual([])` on the raw accusations would be a false claim about today's tree.
+test("the real corpus has no one-sided exemption collections or retired split-family tables", { timeout: CORPUS_WALK_BUDGET }, ({ repoRoot }) => {
+  // Keep the split-family invariant and the complete arm-B verdict: a private one-sided table must
+  // not disappear from this check merely because no sibling imports it.
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   const dir = join(repoRoot, GATES_REL);
   const corpus = new Map(
@@ -139,6 +122,9 @@ test("no accusation on the real corpus is of the RETIRED split-family shape (#22
   );
   // The anti-vacuum floor: a corpus that failed to load has zero collections and would pass vacuously.
   expect(corpus.size, "the gate corpus did not load — the reader, not the tree, is the finding").toBeGreaterThan(200);
+
+  const accusations = [...corpus.keys()].flatMap((rel) => accusedCollections(rel, corpus).map((name) => `${rel}:${name}`));
+  expect(accusations, "an exemption collection has no reverse-liveness arm").toEqual([]);
 
   const splitFamily = [...corpus.keys()].flatMap((rel) =>
     accusedCollections(rel, corpus)
