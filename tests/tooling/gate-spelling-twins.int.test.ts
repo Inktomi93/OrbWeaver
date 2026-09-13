@@ -272,7 +272,7 @@ for (const phase of ["baseline", "grant"] as const) {
     expect(failures[0]).toMatchObject({ arm: "mustFlag", exampleIndex: 0 });
     expect(() => spellingTwinCensus({ legacy: [], final: [broken] }, scratchParser())).toThrow(
       expect.objectContaining({
-        message: expect.stringContaining("supporting grant witness"),
+        message: expect.stringContaining("supporting proof"),
         cause: expect.objectContaining({ policyId: broken.id, arm: "mustFlag", exampleIndex: 1, detail: failures[0]?.detail }),
       }),
     );
@@ -286,3 +286,45 @@ test("reviewed-grant twins: a missing authored witness remains an invalid descri
   expect(() => verifyPolicyProofs([missing])).toThrow("carries no grant identity witness");
   expect(() => spellingTwinCensus({ legacy: [], final: [missing] }, scratchParser())).toThrow("carries no grant identity witness");
 });
+
+for (const arm of ["mustPass", "mustRefuse"] as const) {
+  test(`final twins: a broken inherited ${arm} row refuses even when the detector sees the twin`, () => {
+    const base = controlPolicy(
+      `twin-inherited-${arm.toLowerCase()}`,
+      [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+      (text) => text.endsWith(".forbidden") || text.endsWith('["forbidden"]'),
+    );
+    const refusal = "the twin control requires a readable subject";
+    const refusalProof: GatePolicyProof = {
+      mode: "source",
+      files: { "packages/ui/src/refusal.ts": CONTROL_MUST_PASS },
+      expect: { messageIncludes: refusal },
+      why: "the policy deliberately refuses its unreadable subject",
+    };
+    const valid = defineGate({
+      ...base,
+      create: (ctx) => {
+        if (ctx.files.some((file) => ctx.relativePath(file) === "packages/ui/src/refusal.ts")) {
+          throw new Error(refusal);
+        }
+        return base.create(ctx);
+      },
+      mustRefuse: [refusalProof],
+    } as GatePolicy);
+    expect(verifyPolicyProofs([valid])).toEqual([]);
+    expect(spellingTwinCensus({ legacy: [], final: [valid] }, scratchParser())).toEqual({ blind: {}, examined: 1, skipped: [] });
+
+    const broken = defineGate({
+      ...valid,
+      ...(arm === "mustPass"
+        ? { mustPass: [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_FLAG }, why: "a finding contradicts this passing proof" }] }
+        : { mustRefuse: [{ ...refusalProof, files: { "packages/ui/src/x.ts": CONTROL_MUST_PASS } }] }),
+    } as GatePolicy);
+    const failures = verifyPolicyProofs([broken]);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({ policyId: broken.id, arm, exampleIndex: 0 });
+    expect(() => spellingTwinCensus({ legacy: [], final: [broken] }, scratchParser())).toThrow(
+      expect.objectContaining({ message: expect.stringContaining("supporting proof"), cause: failures[0] }),
+    );
+  });
+}

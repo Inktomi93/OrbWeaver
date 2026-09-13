@@ -153,16 +153,21 @@ function legacyBlindArms(gate: GateDescriptor): readonly SpellingTwinArm[] {
 /** The supporting proof's failure is an instrument failure, regardless of which conformance phase failed. */
 function finalTwinIsBlind(policy: GatePolicy): boolean {
   const failures = verifyPolicyProofs([policy]);
-  const witnessFailure = failures.find((failure) => failure.arm === "mustFlag" && failure.exampleIndex === 1);
-  if (witnessFailure !== undefined) {
-    throw new Error(`Spelling-twin census: supporting grant witness failed for ${policy.id}: ${witnessFailure.detail}`, { cause: witnessFailure });
+  const supportFailure = failures.find((failure) => failure.arm !== "mustFlag" || failure.exampleIndex !== 0);
+  if (supportFailure !== undefined) {
+    throw new Error(
+      `Spelling-twin census: supporting proof ${supportFailure.arm}[${supportFailure.exampleIndex}] failed for ${policy.id}: ${supportFailure.detail}`,
+      {
+        cause: supportFailure,
+      },
+    );
   }
   return failures.some((failure) => failure.arm === "mustFlag" && failure.exampleIndex === 0);
 }
 
-/** Keep the final descriptor valid: its passing rows and an unchanged authored grant witness ride along,
+/** Keep the final descriptor valid: its passing/refusal rows and an unchanged authored grant witness ride along,
  *  and `defineGate` restores the identity-based brand. Only the detection-only twin at mustFlag[0]
- *  measures spelling blindness; a broken supporting witness refuses the census. Reusing the original
+ *  measures spelling blindness; any broken supporting proof refuses the census. Reusing the original
  *  witness also covers unannotated source rows without inventing an identity for their twins (#2189). */
 function finalBlindArms(policy: GatePolicy, reachable: readonly GatePolicyProof[]): readonly SpellingTwinArm[] {
   const blind = new Set<SpellingTwinArm>();
