@@ -1,6 +1,7 @@
 // CSS selector lexical provenance for hooks and shell roots. Attribute bodies are consumed as one token,
 // so class-looking text inside an attribute value never becomes a class selector.
 
+import type { CssSelectorHookFact } from "../contract/resource-css.ts";
 import { blankCssComments } from "./comment-spans.ts";
 import { KEYFRAME_STEP_RE } from "./css-family-census.ts";
 import { splitSelectorList } from "./css-rules.ts";
@@ -110,10 +111,123 @@ export function selectorHooks(selector: string): readonly string[] {
       }
       recordSelectorAttribute(hooks, attribute);
       index = attribute.close;
-      continue;
     }
   }
   return [...hooks];
+}
+
+/** ONE authored selector hook, deduplicated across every occurrence in the product corpus.
+ *
+ *  THE IDENTITY IS THE UNIT OF JUDGEMENT AND OF THE WAIVER. `[data-density="compact"]` written in three
+ *  sheets is ONE question ("does anything write it") and must be ONE finding, or a single site is reported
+ *  three times and a marker over any one of them leaves the other two effective. The FIRST occurrence in
+ *  corpus order anchors it, which is what makes `authored`/`line`/`column` a usable waiver position. */
+export interface SelectorHookIdentity {
+  readonly kind: "class" | "data";
+  readonly name: string;
+  readonly operator: SelectorAttributeHook["operator"];
+  readonly value: string | undefined;
+  readonly file: string;
+  readonly line: number;
+  readonly column: number;
+  /** The exact authored slice at `(line, column)` — the ordinary waiver position. */
+  readonly authored: string;
+}
+
+function identityKey(hook: CssSelectorHookFact): string {
+  return hook.kind === "class" ? `class:${hook.name}` : `data:${hook.name}:${hook.operator}:${hook.value ?? ""}`;
+}
+
+/** Fold the corpus's hook facts into one row per identity, first occurrence winning. */
+export function selectorHookIdentities(hooks: readonly CssSelectorHookFact[]): readonly SelectorHookIdentity[] {
+  const out = new Map<string, SelectorHookIdentity>();
+  for (const hook of hooks) {
+    const key = identityKey(hook);
+    if (out.has(key)) {
+      continue;
+    }
+    out.set(key, {
+      kind: hook.kind,
+      name: hook.name,
+      operator: hook.kind === "data" ? hook.operator : "presence",
+      value: hook.kind === "data" ? hook.value : undefined,
+      file: hook.file,
+      line: hook.line,
+      column: hook.column,
+      authored: hook.authored,
+    });
+  }
+  return [...out.values()];
+}
+
+/** CSS attribute-selector matching semantics, over the exact value set a writer was proven to emit. The
+ *  one home for the operator table: the acquittal (a vendor writes it) and the accusation (nothing does)
+ *  must ask the identical question or a hook is both written and missing. */
+export function hookValueMatches(operator: SelectorAttributeHook["operator"], expected: string | undefined, values: ReadonlySet<string>): boolean {
+  if (operator === "presence") {
+    return true;
+  }
+  if (expected === undefined) {
+    return false;
+  }
+  if (operator === "=") {
+    return values.has(expected);
+  }
+  if (operator === "^=") {
+    return [...values].some((value) => value.startsWith(expected));
+  }
+  if (operator === "$=") {
+    return [...values].some((value) => value.endsWith(expected));
+  }
+  if (operator === "*=") {
+    return [...values].some((value) => value.includes(expected));
+  }
+  if (operator === "~=") {
+    return [...values].some((value) => value.split(/\s+/u).includes(expected));
+  }
+  return [...values].some((value) => value === expected || value.startsWith(`${expected}-`));
+}
+
+/** ONE hook of the ownership vocabulary, WITH the authored slice and offset that make it waivable. */
+export interface SelectorHookSite {
+  /** The ownership vocabulary spelling — `class:x`, `slot:x`, `attr:data-shell-x`. */
+  readonly hook: string;
+  /** Zero-based offset of the hook's first character INSIDE the selector text. */
+  readonly offset: number;
+  /** The exact authored slice at `offset` — `.rail`, `[data-slot="dialog"]`, `[data-shell-rail]`. */
+  readonly authored: string;
+}
+
+/** {@link selectorHooks} with positions. The vocabulary is identical and derived from the same two lexers,
+ *  so a hook this returns and a hook `selectorHooks` returns are the same string by construction — the
+ *  positions exist because an ORDINARY finding's token must be authored text at its exact coordinate. */
+export function selectorHookSites(selector: string): readonly SelectorHookSite[] {
+  const sites: SelectorHookSite[] = [];
+  for (const classHook of selectorClassHooks(selector)) {
+    sites.push({
+      hook: `class:${classHook.name}`,
+      offset: classHook.offset,
+      authored: selector.slice(classHook.offset, classHook.offset + 1 + classHook.name.length),
+    });
+  }
+  for (let index = 0; index < selector.length; index += 1) {
+    if (selector[index] !== "[") {
+      continue;
+    }
+    const attribute = selectorAttributeAt(selector, index);
+    if (attribute === undefined) {
+      break;
+    }
+    const authored = selector.slice(attribute.open, attribute.close + 1);
+    if (attribute.name === "data-slot" && attribute.value !== undefined) {
+      sites.push({ hook: `slot:${attribute.value}`, offset: attribute.open, authored });
+    }
+    if (attribute.name.startsWith("data-shell-")) {
+      sites.push({ hook: `attr:${attribute.name}`, offset: attribute.open, authored });
+    }
+    index = attribute.close;
+  }
+  return sites;
 }
 
 export function hasClientMechanismCarrier(selector: string): boolean {

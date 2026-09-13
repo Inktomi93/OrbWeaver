@@ -25,13 +25,23 @@ export interface CssSelectorFact extends CssSourcePosition {
   readonly selectorList: string;
 }
 
+/** ONE selector hook, positioned at its own first character.
+ *
+ *  `authored` IS THE EXACT SOURCE SLICE AT `offset` — `.rail-shell` for a class, `[data-density="compact"]`
+ *  for an attribute, brackets and quotes included. It exists because the position is the WAIVER POSITION:
+ *  `lib/ordinary-waiver.ts#locateFinding` re-reads the finding's token out of comment-blanked source and
+ *  requires it to be authored text at the exact line and column, so an ordinary policy anchoring on a hook
+ *  needs the slice, not the name. Without it the attribute's CLOSING bracket is unrecoverable from the
+ *  fact (only `offset`, the `[`, is published) and every consumer re-derives one — which is the private-
+ *  reader shape §12.3 bans, at the one place a wrong answer mints an unwaivable finding. */
 export type CssSelectorHookFact =
-  | (CssSourcePosition & { readonly kind: "class"; readonly name: string })
+  | (CssSourcePosition & { readonly kind: "class"; readonly name: string; readonly authored: string })
   | (CssSourcePosition & {
       readonly kind: "data";
       readonly name: string;
       readonly operator: "presence" | "=" | "^=" | "$=" | "*=" | "~=" | "|=";
       readonly value: string | undefined;
+      readonly authored: string;
     });
 
 /** ONE BLOCKLESS at-rule, positioned in its sheet — the sheet's `@import`/`@source`/`@charset` topology.

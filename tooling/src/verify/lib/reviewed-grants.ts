@@ -230,6 +230,38 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     endsWhen:
       "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
   },
+  // THE THREE BOUNDED DIRECT-SKIN RECIPES (#2181, #1584). They replace `EXPECTED_DIRECT_CLIENT_UI_MECHANISMS`
+  // — three hand-spelled COUNTS in `lib/css-family-census.ts` that §12.5 bans and that the §5b audit measured
+  // reached by ZERO proof rows (cut f07) and unmoved by a changed number (cut f08). The exemption is real and
+  // survives; its cardinality is now the 1:1 grant identity, and its STALENESS is the central
+  // `stale-reviewed-grant` alarm rather than a literal nobody re-measured.
+  {
+    id: "css-family-direct-client-mechanism:alert-dialog-popup",
+    policyId: "css-family-direct-client-mechanism",
+    subject: "packages/client/src/styles/globals.css",
+    operation: "direct-client-mechanism:slot:alert-dialog-popup",
+    why: "the alert dialog's popup is positioned against the DOCUMENT, not against a component ancestor: the rule is `html `-rooted because the portal target is the document body, and a `tv()` variant on the primitive cannot express a document-rooted carrier.",
+    endsWhen:
+      "the alert dialog stops portalling to the document body, or `@orb/ui` gains a document-carrier variant slot — either way client globals stops selecting this hook, the row is consumed zero times and reds STALE.",
+  },
+  {
+    id: "css-family-direct-client-mechanism:dialog-popup",
+    policyId: "css-family-direct-client-mechanism",
+    subject: "packages/client/src/styles/globals.css",
+    operation: "direct-client-mechanism:slot:dialog-popup",
+    why: "same document-rooted portal seam as the alert dialog, for the plain dialog. The `html ` prefix is the whole reason the recipe is legitimate and is enforced by the policy rather than by this row.",
+    endsWhen:
+      "the dialog stops portalling to the document body, or `@orb/ui` gains a document-carrier variant slot; the row then consumes zero candidates and reds STALE.",
+  },
+  {
+    id: "css-family-direct-client-mechanism:message-list-scroll",
+    policyId: "css-family-direct-client-mechanism",
+    subject: "packages/client/src/styles/globals.css",
+    operation: "direct-client-mechanism:slot:message-list-scroll",
+    why: "the message list's scroll container is a CLIENT scroll mechanism wearing a UI primitive's slot — the pinning/overflow behaviour belongs to the chat surface that owns the scroll position, not to the primitive that renders the box.",
+    endsWhen:
+      "the chat surface stops driving the scroll container from client globals (it moves onto a capability carrier or into the primitive), and the row consumes zero candidates and reds STALE. It is ONE row for however many selectors express the recipe: the policy reports one finding per (carrier, hook) class precisely so a reviewer's decision stays 1:1.",
+  },
   {
     id: "no-direct-useform:contexts",
     policyId: "no-direct-useform",

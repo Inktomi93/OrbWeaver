@@ -1,34 +1,142 @@
-// Shared builders for the gate's exact-census and shell-producer controls.
+// Shared `mode: "resource"` fixture MATERIAL for the css-family policies.
+//
+// WHY IT EXISTS. `resolveResourceDeclarations` acquires EVERY declared resource at the population phase and
+// throws on the first non-ready one, so a proof row that omits a declared resource is a `[population]` TOOL
+// ERROR rather than the finding it was written to prove (resource-policy-contract.md §3.5 — the reason
+// `depcruise-grant-liveness` spreads `PACKAGE_FIXTURE_FILES` into every row). Five policies × ~14 rows ×
+// four resource identities is not a per-row hand write.
+//
+// EVERY CONSTANT BELOW IS INERT BY CONSTRUCTION: the five product sheets carry legal declarations, the
+// vendor surface carries an empty manifest against an empty installed surface, and the Base UI mini package
+// publishes exactly the declaration file its `ast` door needs. A row that wants an arm to FIRE overrides one
+// entry; nothing fires from the spread alone. That is what makes `count` exact in the rows that use it.
 import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
+import { EXPECTED_DIRECT_THEME_DECLARATIONS } from "./css-family-census.ts";
 
-interface CensusControlCounts {
-  readonly themeDirect: number;
-  readonly themeRules: number;
-  readonly ui: number;
-  readonly tiers: number;
-  readonly client: number;
-  readonly shell: number;
+/** A generated `@theme` block of exactly `count` direct custom-property declarations, minting the THREE
+ *  token families the runtime-writer seams live in (`--color-`, `--blur-`, `--spacing-`). The families
+ *  matter as much as the count: `themeFamilyPrefixes` derives the generated namespace from this block, and a
+ *  seam declaration outside a minted family is invisible to the arm that counts it. */
+function themeDeclaration(index: number): string {
+  if (index === 0) {
+    return "  --blur-probe-0: 1px;";
+  }
+  return index === 1 ? "  --spacing-probe-1: 1px;" : `  --color-probe-${String(index)}: black;`;
 }
 
-function controlDeclarations(prefix: string, count: number): string {
-  return Array.from({ length: count }, (_, index) => `  --${prefix}-${index}: 0;`).join("\n");
+export function themeBlock(count: number): string {
+  return `@theme {\n${Array.from({ length: count }, (_, index) => themeDeclaration(index)).join("\n")}\n}\n`;
 }
 
-/** A complete five-home fixture with independently specified declaration counts. The controls below spell
- * the production baseline as literals instead of deriving their oracle from the gate's manifest. */
+/** THE GENERATED-OUTPUT PARITY FIXTURES, DERIVED rather than hand-spelled — and that is a deliberate change
+ *  from the legacy `censusControlFiles({ themeDirect: 203 })`.
+ *
+ *  The legacy fixture spelled `203` as a literal so a manifest bump "could not launder its own proof", which
+ *  made ONE number live in THREE places (`css-family-audit-2026-09-12.md` ledger row 13) and left the arm red
+ *  for five days across four commits that each paid only one half (#1956). What a §4.1 row owes is that the
+ *  arm BITES — a corpus one declaration off must red — and the pair below proves exactly that while the
+ *  number keeps its ONE home in `lib/css-family-census.ts`. Whether the constant itself must DERIVE from the
+ *  generator is #2230 and is owner-pending; this lane reads it and moves nothing. */
+export const THEME_AT_PARITY = themeBlock(EXPECTED_DIRECT_THEME_DECLARATIONS);
+export const THEME_ONE_SHORT = themeBlock(EXPECTED_DIRECT_THEME_DECLARATIONS - 1);
+
+/** The five product stylesheets, each legal and silent. A row overrides the one home it is about. */
+export const CLEAN_PRODUCT_CSS: Readonly<Record<string, string>> = {
+  [THEME]: "@theme {\n  --color-background: black;\n}\n",
+  [UI_GLOBALS]: ":root { font-size: 100%; }\n",
+  // A tier selector rather than `:root`, because the tier grammar admits only the closed carrier set — and
+  // its hook is WRITTEN by `TIER_WRITER` below, so the selector census reads it as owned.
+  [TIERS]: '[data-surface-tier="base"] { color: red; }\n',
+  [CLIENT_GLOBALS]: ":root { --probe-client: 0; }\n",
+  [SHELL]: ":root { view-transition-name: none; }\n",
+};
+
+/** An admitted `@client`/`@ui` source. A hybrid policy's population is `@client` + `@ui`, and a population
+ *  admitting NOTHING is a `[population]` tool error rather than a falsifier — every row needs an anchor. */
+export const SOURCE_ANCHOR = "packages/client/src/features/probe.tsx";
+
+/** The writer for the clean tiers sheet's one hook. It lives in its OWN file rather than in the anchor,
+ *  because a row that overrides `SOURCE_ANCHOR` to prove an inert spelling must not silently un-write the
+ *  fixture's own baseline selector — which reads as an extra finding in every one of that row's counts. */
+const TIER_WRITER = "packages/ui/src/primitives/tier-probe.tsx";
+export const INERT_SOURCE: Readonly<Record<string, string>> = {
+  [SOURCE_ANCHOR]: "export const probe = null;\n",
+  [TIER_WRITER]: 'export const tier = <div data-surface-tier="base" />;\n',
+};
+
+const BASE_UI_PKG = "packages/ui/node_modules/@base-ui/react";
+const STREAMDOWN_PKG = "packages/ui/node_modules/streamdown";
+
+/** The committed Base UI surface manifest, describing an EMPTY installed surface. */
+export const EMPTY_BASE_UI_MANIFEST = '{ "version": "9.9.9", "components": {} }\n';
+
+/** The `vendor-css-surface` identity: the committed mirror WITH its version banner (an absent banner is a
+ *  refusal by design — "a version comparison with an absent left side PASSES"), the installed Base UI
+ *  metadata + at least one `*CssVars.d.ts`, and at least one Streamdown `dist/` bundle. `styles.css` is not
+ *  decoration: it is `streamdown`'s declared `directoryAnchor`, because the real package's `exports` map
+ *  refuses `./package.json`. */
+export const VENDOR_SURFACE_FIXTURE: Readonly<Record<string, string>> = {
+  "docs/vendor/base-ui/INDEX.md": "# Base UI mirror\n\nversion 9.9.9\n",
+  "packages/ui/package.json": '{ "name": "@orb/ui", "version": "0.0.0" }\n',
+  [`${BASE_UI_PKG}/package.json`]: '{ "name": "@base-ui/react", "version": "9.9.9" }\n',
+  [`${BASE_UI_PKG}/select/SelectCssVars.d.ts`]: "export type SelectCssVars = never;\n",
+  [`${STREAMDOWN_PKG}/package.json`]: '{ "name": "streamdown", "version": "9.9.9" }\n',
+  [`${STREAMDOWN_PKG}/styles.css`]: ".streamdown {}\n",
+  [`${STREAMDOWN_PKG}/dist/bundle.js`]: "export const inert = {};\n",
+};
+
+/** The Streamdown bundle path a row overrides to make the vendor EMIT the contracted hook. */
+export const STREAMDOWN_BUNDLE = `${STREAMDOWN_PKG}/dist/bundle.js`;
+/** The emission spelling the installed bundles carry. */
+export const STREAMDOWN_EMITTING_BUNDLE = 'export const vendor = {"data-streamdown":"code-block"};\n';
+
+/** The committed manifest path, for a row that overrides it. */
+export const BASE_UI_MANIFEST_PATH = "tooling/src/verify/gates/baseui-surface.manifest.json";
+
+/** Every resource identity the selector policies declare, all inert. */
+export const SELECTOR_FIXTURE: Readonly<Record<string, string>> = {
+  ...CLEAN_PRODUCT_CSS,
+  ...INERT_SOURCE,
+  ...VENDOR_SURFACE_FIXTURE,
+  [BASE_UI_MANIFEST_PATH]: EMPTY_BASE_UI_MANIFEST,
+};
+
+/** Every resource identity the ownership policies declare, all inert. */
+export const OWNERSHIP_FIXTURE: Readonly<Record<string, string>> = { ...CLEAN_PRODUCT_CSS, ...INERT_SOURCE };
+
+/** THE COMPLETE RUNTIME-WRITER SEAMS, at the cardinality the DECLARED vocabularies require: density is
+ *  `DENSITY_SPACING.size * DENSITY_SELECTORS.size` = 8, reduced-transparency is `CLIENT_BLUR_FILL.size * 2`
+ *  = 4, colorization is `CLIENT_COLORIZATION.size * 2` = 4. A health row that wants ONE seam incomplete
+ *  overrides ONE of these; every other row spreads them so the completeness arm is silent and whatever else
+ *  the row exercises is the only thing its count can be about. */
+const DENSITY_ARM = (selector: string): string =>
+  `${selector} { --spacing-field: 0.25rem; --spacing-row: 0.375rem; --spacing-block: 0.5rem; --spacing-section: 1rem; }\n`;
+export const DENSITY_COMPLETE = `[data-surface-tier="base"] { color: red; }\n${DENSITY_ARM('[data-density="comfortable"]')}${DENSITY_ARM('[data-density="compact"]')}`;
+export const BLUR_SEAM_COMPLETE = ":root { --blur-fill-chrome: 1px; --blur-fill-dense: 1px; }\n:root { --blur-fill-chrome: 2px; --blur-fill-dense: 2px; }\n";
+export const COLORIZATION_SEAM_COMPLETE =
+  "[data-theme-colorization] { --color-border: color-mix(in oklab, black, white); --color-sidebar-border: color-mix(in oklab, black, white); }\n" +
+  "[data-theme-colorization][data-x] { --color-border: color-mix(in oklab, black, white); --color-sidebar-border: color-mix(in oklab, black, white); }\n";
+export const CLIENT_SEAMS_COMPLETE = `${BLUR_SEAM_COMPLETE}${COLORIZATION_SEAM_COMPLETE}`;
+
+/** Five homes at generated-output parity WITH every runtime-writer seam complete: the shape in which the
+ *  health policy is silent, so a row that adds one defect measures exactly that defect. */
+export const HEALTHY_HOMES: Readonly<Record<string, string>> = {
+  ...CLEAN_PRODUCT_CSS,
+  [THEME]: THEME_AT_PARITY,
+  [TIERS]: DENSITY_COMPLETE,
+  [CLIENT_GLOBALS]: CLIENT_SEAMS_COMPLETE,
+};
+
+/** Five homes carrying NO class and NO data-attribute selector at all — the zero-hook census. */
+export const HOOKLESS_HOMES: Readonly<Record<string, string>> = {
+  [THEME]: "@theme {\n  --color-background: black;\n}\n",
+  [UI_GLOBALS]: ":root { font-size: 100%; }\n",
+  [TIERS]: ":root { --probe-tier: 0; }\n",
+  [CLIENT_GLOBALS]: ":root { --probe-client: 0; }\n",
+  [SHELL]: ":root { view-transition-name: none; }\n",
+};
+
+/** A live client JSX class producer, for a row that must give a shell hook a real writer. */
 export function shellClassProducer(...classes: readonly string[]): string {
   return `export const shellProbe = <div className=${JSON.stringify(classes.join(" "))} />;\n`;
-}
-
-export function censusControlFiles(counts: CensusControlCounts): Record<string, string> {
-  return {
-    [THEME]:
-      `@theme {\n${controlDeclarations("theme-probe", counts.themeDirect)}\n}\n` +
-      `:root {\n${controlDeclarations("theme-rule-probe", counts.themeRules)}\n}\n`,
-    [UI_GLOBALS]: `:root {\n${controlDeclarations("ui-probe", counts.ui)}\n}\n`,
-    [TIERS]: `[data-surface-tier="base"] {\n${controlDeclarations("tier-probe", counts.tiers)}\n}\n`,
-    [CLIENT_GLOBALS]: `:root {\n${controlDeclarations("client-probe", counts.client)}\n}\n`,
-    [SHELL]: `.shell-grid {\n${controlDeclarations("shell-probe", counts.shell)}\n}\n`,
-    "packages/client/src/features/app-shell/probe.tsx": shellClassProducer("shell-grid"),
-  };
 }

@@ -304,6 +304,7 @@ const PARKED_TEST_LAYOUT_MISSES: readonly string[] = [
   "tests/tooling/verify/gates/contract-and-serde-seal-split.test.ts",
   "tests/tooling/verify/gates/contract-shape-wave-1.test.ts",
   "tests/tooling/verify/gates/css-home-topology-family.test.ts",
+  "tests/tooling/verify/gates/css-hook-provenance-family.test.ts",
   "tests/tooling/verify/gates/disclosure-reservation-family.test.ts",
   "tests/tooling/verify/gates/drizzle-registry-conversion.test.ts",
   "tests/tooling/verify/gates/external-id-single-writer-family.test.ts",
