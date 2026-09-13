@@ -1,7 +1,7 @@
 // The PERMANENT PIN for the `eslint-grant-liveness` policy, migrated to the final `defineGate` contract
 // (#1930). Every native-population shape (a dead file selector, a local ignore with no member inside its
-// parent scope, both live twins) is proven through the policy's own `mustFlag`/`mustPass` rows against
-// `verifyPolicyProofs`, which the family conformance test
+// parent scope, the value-and-position identity, the live twin) is proven through the policy's own
+// `mustFlag`/`mustPass` rows against `verifyPolicyProofs`, which the family conformance test
 // `tests/tooling/verify/gates/grant-liveness-family.test.ts` runs. (#1932 correction: this header used to
 // cite `tests/tooling/verify/ops/policy-conformance.test.ts` as that harness. It is not — that file proves
 // `verifyPolicyProofs` ITSELF against synthetic policies and imports no gate module, so until the family
@@ -18,12 +18,11 @@
 // real root threw `ordinary waiver resource population has no exact text carrier: .codex/agent-doctrine.md`
 // after ~4.2s and the plan classified exit 2. The MEASUREMENT was right and the DIAGNOSIS was right; the
 // RULING ("no `native-config` policy can run at repository scope") was a defect in `lib/policy-pass.ts`,
-// which demanded an ordinary-waiver text carrier from EVERY completed owner's resource population. A HARD
-// policy has no waiver door, so it can demand none. The whole-inventory observation window stays exactly as
-// `ops/resource-native-config.ts` declares it. The old test's ASSERTION ("only the five ratified zero
-// populations") is NOT restored here: real-tree finding correctness for a resource policy is the
-// ORCHESTRATOR's `pnpm check:structure` floor. What this file pins is that the policy RESOLVES AND RUNS at
-// repository scope at all — the exact thing that was dead.
+// which demanded an ordinary-waiver text carrier from EVERY completed owner's resource population. Only an
+// ORDINARY policy has a waiver door, so only it can demand one. The whole-inventory observation window stays
+// exactly as `ops/resource-native-config.ts` declares it. Real-tree finding correctness for a resource
+// policy is the ORCHESTRATOR's `pnpm check:structure` floor; this file pins that the policy RESOLVES AND
+// RUNS at repository scope at all — the exact thing that was dead.
 //
 // THE REAL-TREE VERDICT MOVED TO THE FRONT DOOR (#1584 mixed runtime, 2026-09-11). While the production
 // loader was legacy-only this arm also asserted `effectiveFindings` empty, because nothing else executed the
@@ -35,28 +34,32 @@
 // is in the commit that deleted the line. The runnability arms below stay: they are what a planted temp root
 // cannot show.
 //
-// AND THE RATIFIED VALUE-AT-INDEX IS BACK, NARROWLY (#2302's residual, 2026-09-13). The ruling above stands
-// and its INPUT changed. What it ruled — "real-tree finding correctness for a resource policy is the
-// ORCHESTRATOR's `pnpm check:structure` floor" — still owns the BLANKET verdict, and this file still does
-// not assert `effectiveFindings` empty over the whole corpus. What the reconciliation of 2026-09-13 found
-// (`docs/reviews/gate-runtime/adj-ledger-reconcile-2026-09-13.md`, its #2302 section) is that the deferral
-// swallowed a NARROWER property with it: `RATIFIED` is keyed by POSITION, so nothing scoped ever asked
-// whether today's table names today's `eslint.config.js` VALUES — the module's own `mustFlag` rows prove the
-// re-pointing hazard on a SYNTHETIC config only. The four arms at the bottom of this file assert exactly
-// that property and nothing wider: value-at-index per RATIFIED key, the stale-arm token set, and two
-// counterfactuals of the REAL config through the production overlay door. Finding correctness for every
-// NON-RATIFIED selector stays with the front door, unchanged.
+// THE GRANT ARMS (#1922 / #2147, 2026-09-13) REPLACE THE RATIFIED VALUE-AT-INDEX ARMS (#2302's residual). The
+// ruling above stands and its INPUT changed: the gate-local positional `RATIFIED` table is gone, its seven
+// rows are exact `(policy, subject, operation)` rows in `lib/reviewed-grants.ts`, and the stale half of the
+// retired table is the central engine's `stale-reviewed-grant` alarm. The #2302 properties survive one for
+// one, now driven through the SHIPPED grant rows and the production authority path rather than through an
+// in-module `MSG_STALE`: every grant names today's zero-member selector at its recorded index; each formerly
+// suppressed site is consumed by exactly one grant; an index-0 insert stales every grant; an in-place value
+// change stales exactly one; an append stales none; a wrong operation or a renamed subject licenses nothing.
+// Finding correctness for every NON-GRANTED selector stays with the front door, unchanged — no arm here
+// asserts the blanket effective set.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Project } from "ts-morph";
+import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate, MSG_STALE, RATIFIED, selectorIdentity } from "../../../../tooling/src/verify/gates/eslint-grant-liveness.ts";
+import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import { gate, selectorIdentity, selectorOperation } from "../../../../tooling/src/verify/gates/eslint-grant-liveness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { readyResourceValue, resolveResourceDeclarations } from "../../../../tooling/src/verify/lib/resource-declaration.ts";
+import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { createResourceHost } from "../../../../tooling/src/verify/ops/resource-host.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+
+const CONFIG_REL = "eslint.config.js";
 
 test("a MISSING eslint.config.js refuses the whole run as a population-phase TOOL ERROR", ({ scratch }) => {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -66,40 +69,20 @@ test("a MISSING eslint.config.js refuses the whole run as a population-phase TOO
   expect(result.toolErrors[0]?.message).toContain("is missing");
 });
 
-// The mechanism and its receipt live at `lib/policy-pass.ts#ordinaryWaiverAcquisition`.
-// The real inventory read plus the native ESLint config load measures ~4.0s on a quiet box, so this arm carries an
-// explicit load-scaled budget rather than sitting one contention spike away from vitest's 5s default.
-test("the REAL repository root: this hard policy resolves and runs to a receipted, successful owner", { timeout: scaledBudget(60_000) }, ({ repoRoot }) => {
-  const project = new Project({ useInMemoryFileSystem: true });
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
+// ── THE SHIPPED GRANTS AGAINST THE REAL CONFIG ───────────────────────────────────────────────────────
+// Every pass below runs the REAL config through the PRODUCTION resource selection: the counterfactuals go
+// through `resourceOptions.overlay`, which stages the real authored transaction and runs the native ESLint
+// loader inside it. Nothing here edits a tracked file.
 
-  expect(result.toolErrors).toEqual([]);
-  expect(result.policies[0]?.owner).toMatchObject({ status: "success" });
-  // The population IS the whole authored transaction; a scoped subset here would mean the deliberate
-  // `resource-native-config.ts` observation window had silently narrowed.
-  expect(result.policies[0]?.population.effectiveResourcePaths.length).toBeGreaterThan(1000);
-  expect(result.policies[0]?.receipts.some(({ kind }) => kind === "resource")).toBe(true);
-  // A hard policy has no waiver door, so its population demands no ordinary-waiver text carrier.
-  expect(result.waiverCarrierRefusals).toEqual([]);
-  // The BLANKET real-tree verdict (zero effective findings over every selector) is still not asserted here:
-  // the mixed front door runs this policy on the real corpus on every `pnpm check:structure` and owns
-  // finding correctness for the NON-RATIFIED selectors — see the header. What the four arms below add is
-  // the narrower property that ruling never covered: RATIFIED value-at-index against the real config.
-});
+/** This policy's rows of the ONE central table — never a re-spelled copy, which would assert its own hazard. */
+const GRANTS: readonly ReviewedGateGrant[] = reviewedGrantsFor([gate]);
+const GRANT_IDS = GRANTS.map(({ id }) => id).toSorted();
 
-// ── THE SCOPED REAL-CONFIG PROOF (#2302's residual, 2026-09-13) ───────────────────────────────────────
-// `RATIFIED` is keyed by POSITION. The module's own `mustFlag` rows prove that an index-0 insert re-points
-// every key beneath it — but they prove it on a SYNTHETIC config, so nothing scoped ever asked whether
-// TODAY'S table names TODAY'S `eslint.config.js` values. That question is what the row asked for and what
-// the four arms below answer, all four driven over the REAL config through the PRODUCTION resource
-// selection: the paths come from `resolveResourceDeclarations` over the policy's OWN `resources`
-// declaration, and the counterfactuals go through `resourceOptions.overlay`, which stages the real
-// authored transaction and runs the native ESLint loader inside it. Nothing here edits a tracked file.
-const CONFIG_REL = "eslint.config.js";
-// A UNIQUE anchor, asserted unique before use: `    ignores: [` alone occurs TWICE in the real config, and
-// a cut harness that patches the wrong one measures nothing (§4's own false-clean rule).
+// UNIQUE anchors, asserted unique before use: `    ignores: [` alone occurs more than once in the real config,
+// and a cut harness that patches the wrong one measures nothing (§6.1's own false-clean rule).
 const INDEX_ZERO_ANCHOR = '      "**/node_modules/**",\n';
 const CACHE_SELECTOR = '      "**/.cache/**",\n';
+const ARRAY_END_ANCHOR = '      "packages/ui/src/styles/theme.css",\n    ],\n';
 
 function realConfig(repoRoot: string, from: string, to: string): string {
   const text = readFileSync(join(repoRoot, CONFIG_REL), "utf8");
@@ -107,65 +90,152 @@ function realConfig(repoRoot: string, from: string, to: string): string {
   return text.replace(from, to);
 }
 
-function staleTokens(repoRoot: string, overlay?: string): { readonly stale: readonly string[]; readonly findings: number } {
+interface Drive {
+  readonly result: PolicyPassResult;
+  /** `subject operation` of every effective finding this policy produced. */
+  readonly effective: readonly string[];
+  readonly granted: readonly string[];
+  readonly stale: readonly string[];
+  readonly overBroad: readonly string[];
+}
+
+function identity(subject: string | undefined, operation: string | undefined): string {
+  return `${subject ?? "<no subject>"} ${operation ?? "<no operation>"}`;
+}
+
+function drive(repoRoot: string, grants: readonly ReviewedGateGrant[], overlay?: string): Drive {
   const result = runPolicyPass({
     knownPolicies: [gate],
     policies: [gate],
     root: repoRoot,
     project: new Project({ useInMemoryFileSystem: true }),
-    reviewedGrants: [],
+    reviewedGrants: grants,
     failOnWarnings: false,
     ...(overlay === undefined ? {} : { resourceOptions: { overlay: { [CONFIG_REL]: overlay } } }),
   });
   expect(result.toolErrors, "a counterfactual that tool-errors measures the harness, not the policy").toEqual([]);
   expect(result.policies[0]?.owner).toMatchObject({ status: "success" });
-  const findings = result.policies[0]?.findings ?? [];
-  expect(findings.every(({ file }) => file === CONFIG_REL)).toBe(true);
+  const { authority } = result;
+  expect([...authority.effectiveFindings, ...authority.grantedFindings.map(({ finding }) => finding)].every(({ file }) => file === CONFIG_REL)).toBe(true);
   return {
-    stale: findings.filter(({ message }) => message === MSG_STALE).flatMap(({ token }) => (token === undefined ? [] : [token])),
-    findings: findings.length,
+    result,
+    effective: authority.effectiveFindings.map(({ subject, operation }) => identity(subject, operation)),
+    granted: authority.grantedFindings.map(({ grantId }) => grantId).toSorted(),
+    stale: authority.authorityAlarms.flatMap((alarm) => (alarm.kind === "stale-reviewed-grant" ? [alarm.grantId] : [])).toSorted(),
+    overBroad: authority.authorityAlarms.flatMap((alarm) => (alarm.kind === "over-broad-reviewed-grant" ? [alarm.grantId] : [])).toSorted(),
   };
 }
 
-test("every RATIFIED index names the RECORDED selector in the REAL eslint.config.js", { timeout: scaledBudget(120_000) }, ({ repoRoot }) => {
+// The mechanism and its receipt live at `lib/policy-pass.ts#ordinaryWaiverAcquisition`. The real inventory read
+// plus the native ESLint config load measures ~4.0s on a quiet box, so every real-root arm carries an explicit
+// load-scaled budget rather than sitting one contention spike away from vitest's 5s default.
+test("the REAL repository root resolves and runs to a receipted, successful owner, consuming EVERY shipped grant exactly once", {
+  timeout: scaledBudget(120_000),
+}, ({ repoRoot }) => {
+  // An empty table would satisfy every assertion below by vacuity, and the table is the subject.
+  expect(GRANTS.length).toBeGreaterThan(0);
+
+  const { result, granted, stale, overBroad } = drive(repoRoot, GRANTS);
+
+  // The population IS the whole authored transaction; a scoped subset here would mean the deliberate
+  // `resource-native-config.ts` observation window had silently narrowed.
+  expect(result.policies[0]?.population.effectiveResourcePaths.length).toBeGreaterThan(1000);
+  expect(result.policies[0]?.receipts.some(({ kind }) => kind === "resource")).toBe(true);
+  // Only an ordinary policy has a waiver door, so this population demands no ordinary-waiver text carrier.
+  expect(result.waiverCarrierRefusals).toEqual([]);
+  expect({ granted, stale, overBroad }).toEqual({ granted: GRANT_IDS, stale: [], overBroad: [] });
+});
+
+test("every shipped grant names the RECORDED zero-member selector at its index, and without grants each is exactly one raw finding", {
+  timeout: scaledBudget(120_000),
+}, ({ repoRoot }) => {
+  // RED-FIRST FOUND THIS ARM VACUOUS: with no shipped rows both maps below are `[]` and the loop never runs.
+  expect(GRANTS.length).toBeGreaterThan(0);
   const invocation = createResourceHost({ root: repoRoot });
   // The policy's OWN declaration decides what is reachable; this is the production selection, not a read.
   expect(resolveResourceDeclarations(invocation.host, gate.resources)).toContain(CONFIG_REL);
-  const selectors = readyResourceValue(invocation.host.nativeConfig("eslint")).selectors;
-  const live = new Map(selectors.map((row) => [selectorIdentity(row), row]));
-  const ratified = Object.entries(RATIFIED);
-  // An empty table would satisfy every assertion below by vacuity, and the table is the subject.
-  expect(ratified.length).toBeGreaterThan(0);
+  const live = new Map(readyResourceValue(invocation.host.nativeConfig("eslint")).selectors.map((row) => [selectorIdentity(row), row]));
 
-  expect(ratified.map(([key, row]) => ({ key, value: row.value, members: 0 }))).toEqual(
-    ratified.map(([key]) => ({ key, value: live.get(key)?.value, members: live.get(key)?.members })),
+  expect(GRANTS.map(({ subject, operation }) => ({ subject, operation, members: 0 }))).toEqual(
+    GRANTS.map(({ subject }) => {
+      const row = live.get(subject);
+      return { subject, operation: row === undefined ? undefined : selectorOperation(row.value), members: row?.members };
+    }),
   );
-  // …and the policy AGREES on the unmodified config: no RATIFIED identity is stale. Narrower than the
-  // blanket verdict the header assigns to `check:structure`, and it is the arm the two controls falsify.
-  expect(staleTokens(repoRoot).stale).toEqual([]);
+
+  // THE PER-ROW PERMISSION DIFFERENTIAL (§6.4 exemption-mechanism move): each site the retired table hid
+  // is one raw finding carrying exactly its grant's identity — never zero (a dead grant), never two (an
+  // over-broad one).
+  const { effective } = drive(repoRoot, []);
+  for (const grant of GRANTS) {
+    expect(
+      effective.filter((row) => row === identity(grant.subject, grant.operation)),
+      grant.id,
+    ).toHaveLength(1);
+  }
 });
 
-test("an ignore inserted at index 0 of the REAL config re-points EVERY ratified key, and the policy names them", { timeout: scaledBudget(180_000) }, ({
+test("an ignore inserted at index 0 of the REAL config re-points EVERY granted subject, and every grant goes stale", { timeout: scaledBudget(180_000) }, ({
   repoRoot,
 }) => {
+  // Non-vacuity: `stale: []` equals `GRANT_IDS` when there are no rows (red-first measured it passing).
+  expect(GRANTS.length).toBeGreaterThan(0);
   const shifted = realConfig(repoRoot, INDEX_ZERO_ANCHOR, `      "__cbx_index0_control/**",\n${INDEX_ZERO_ANCHOR}`);
 
-  const { stale } = staleTokens(repoRoot, shifted);
+  const { granted, stale } = drive(repoRoot, GRANTS, shifted);
 
-  expect(stale.toSorted()).toEqual(Object.keys(RATIFIED).toSorted());
+  expect({ granted, stale }).toEqual({ granted: [], stale: GRANT_IDS });
 });
 
-test("changing ONE ratified selector's text IN PLACE stales exactly that key", { timeout: scaledBudget(180_000) }, ({ repoRoot }) => {
-  // Index 5 keeps its position and its zero population; only its VALUE moves — the #2213 coupled site,
-  // now driven against the real config instead of a fixture copy of it.
+test("changing ONE granted selector's text IN PLACE stales exactly that grant and leaves its selector effective", { timeout: scaledBudget(180_000) }, ({
+  repoRoot,
+}) => {
+  // Index 5 keeps its position and its zero population; only its VALUE moves — the #2213 coupled site.
   const moved = realConfig(repoRoot, CACHE_SELECTOR, '      "**/.cache-cbx-control/**",\n');
 
-  const { stale, findings } = staleTokens(repoRoot, moved);
+  const { effective, granted, stale } = drive(repoRoot, GRANTS, moved);
 
-  expect(stale).toEqual(["config[0].ignores[5]"]);
-  // TWO findings on one identity, exactly as `mustFlag[2]` records: the value no longer matches, so the
-  // selector is also reported as an ordinary UNRATIFIED dead selector. Asserting one would let the other rot.
-  expect(findings).toBe(2);
+  expect(stale).toEqual(["eslint-grant-liveness:cache"]);
+  expect(granted).toEqual(GRANT_IDS.filter((id) => id !== "eslint-grant-liveness:cache"));
+  expect(effective.filter((row) => row.startsWith("config[0].ignores[5] "))).toEqual([
+    identity("config[0].ignores[5]", selectorOperation("**/.cache-cbx-control/**")),
+  ]);
+});
+
+test("an ignore APPENDED at the array's end re-points nothing: every grant is still consumed and only the new selector is effective", {
+  timeout: scaledBudget(180_000),
+}, ({ repoRoot }) => {
+  const appended = realConfig(repoRoot, ARRAY_END_ANCHOR, '      "packages/ui/src/styles/theme.css",\n      "__cbx_append_control/**",\n    ],\n');
+  const baseline = drive(repoRoot, GRANTS);
+
+  const { effective, granted, stale } = drive(repoRoot, GRANTS, appended);
+
+  expect({ granted, stale }).toEqual({ granted: GRANT_IDS, stale: [] });
+  const added = effective.filter((row) => !baseline.effective.includes(row));
+  expect(added).toHaveLength(1);
+  expect(added[0]?.endsWith(` ${selectorOperation("__cbx_append_control/**")}`)).toBe(true);
+});
+
+test("a WRONG operation or a RENAMED subject on the shipped rows licenses nothing: every finding stays effective and every row goes stale", {
+  timeout: scaledBudget(180_000),
+}, ({ repoRoot }) => {
+  // Non-vacuity, as above: with no rows every mutation maps nothing and both runs trivially agree.
+  expect(GRANTS.length).toBeGreaterThan(0);
+  const wrongOperation = drive(
+    repoRoot,
+    GRANTS.map((grant) => ({ ...grant, operation: `${grant.operation}-cbx-wrong` })),
+  );
+  const renamedSubject = drive(
+    repoRoot,
+    GRANTS.map((grant) => ({ ...grant, subject: grant.subject.replace("config[0]", "config[99]") })),
+  );
+
+  for (const run of [wrongOperation, renamedSubject]) {
+    expect({ granted: run.granted, stale: run.stale }).toEqual({ granted: [], stale: GRANT_IDS });
+    for (const grant of GRANTS) {
+      expect(run.effective, grant.id).toContain(identity(grant.subject, grant.operation));
+    }
+  }
 });
 
 test("a NARROWED declaration cannot hide the config: dropping `native-config` REFUSES instead of passing", ({ repoRoot }) => {

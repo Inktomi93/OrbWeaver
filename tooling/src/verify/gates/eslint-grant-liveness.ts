@@ -1,4 +1,4 @@
-// Gate: eslint-grant-liveness — every native `eslint.config.js` files/ignores selector keeps at least
+// Policy: eslint-grant-liveness — every native `eslint.config.js` files/ignores selector keeps at least
 // one member in its actual global or entry-local scope. Executable config is observed through the
 // `native-config` ResourceHost fact (config-snapshot child + @eslint/config-array); imported values,
 // basePath, negation, directories and AND selectors retain ESLint semantics. Findings use config-entry/field
@@ -6,98 +6,72 @@
 // (missing/malformed eslint.config.js) makes population resolution itself throw — the fail-LOUD requirement
 // is the runtime's own refusal now, not a reportable arm of this policy (see the permanent-pin test).
 // COMMENT POSTURE: comment-SAFE — the policy reads evaluated config data, never source text.
-// THREE EXPORTS BESIDE `gate`, all for the permanent pin and none for a second reader (#2302, 2026-09-13):
-// `RATIFIED`, `selectorIdentity` and `MSG_STALE`. `tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts`
-// drives this table against the REAL `eslint.config.js` through the production resource selection and
-// asserts the VALUE AT EACH RATIFIED INDEX — the `mustFlag` rows below prove the positional re-pointing
-// hazard on synthetic configs, and that pin is what proves the live table still names the live values.
+//
+// FAMILY: `grant-liveness`, with the `biome-grant-liveness` and `tsconfig-entry-liveness` pairs,
+// `depcruise-grant-liveness` and `runner-config-path-liveness`. Reader: the `native-config` resource's
+// executable-config snapshot (`contract/config-snapshot.ts` `EslintSelectorSnapshot`, produced by
+// `ops/config-snapshot.ts`), the same subject reader `depcruise-grant-liveness` consumes.
+//
+// AUTHORITY — REVIEWED GRANT, MIGRATED FROM A GATE-LOCAL TABLE (#1922 / #2147, 2026-09-13). This policy
+// landed `hard` carrying a positional `RATIFIED` ExemptionTable that SKIPPED a zero-member selector whose
+// key and value both matched, plus two in-policy arms policing the table itself (STALE: the key no longer
+// names the same zero-member value; DEAD-CITE: the row's `cite` stopped resolving). §5 forbids a gate-owned
+// exemption table, so the seven rows are now exact `(policy, subject, operation)` rows in
+// `lib/reviewed-grants.ts` and this policy reports EVERY zero-member selector. The identity keeps both halves
+// of the retired row:
+//   · SUBJECT = the positional selector identity (`config[0].ignores[5]`), byte-for-byte the retired key.
+//   · OPERATION = `eslint-zero-member-selector:<JSON value>`, the retired row's `value`, JSON-rendered so a
+//     string selector and an AND selector can never spell the same operation.
+// So an ignore inserted ABOVE a granted index re-points every subject beneath it to a different value: each
+// shifted finding stays effective and each grant is consumed zero times and alarms `stale-reviewed-grant`
+// centrally. An in-place value change stales exactly that grant. That is the #2302 positional hazard, now
+// held by the central engine instead of `sameValue` in this file; the real-config pins in
+// `tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts` drive the SHIPPED grant rows through it.
+//   · STALE → central `stale-reviewed-grant` (zero consumption after a complete owner run). Stronger: it
+//     cannot be forgotten by a module.
+//   · DEAD-CITE → NO SUCCESSOR. A grant has no `cite` field and a policy never reads grants, so nothing
+//     re-checks that the decision a grant cites still exists — the same retired property
+//     `biome-grant-liveness.ts`'s header records. Each grant's `why` carries its former cite path verbatim
+//     so the successor citation check (#2349) has something to read. Per row, the cite that
+//     lost its liveness check: `node-modules`, `dist`, `cache`, `claude-worktrees`, `st-goldens-runtime` →
+//     `.gitignore`; `g-fixture` → `tooling/src/verify/gates/GATE-AUTHORING.md`; `stryker-tmp` →
+//     `tooling/src/_shared/stryker-config.ts`.
+//
+// POPULATION PORT: `{ of: "none" }` and the `native-config:eslint` declaration are unchanged. The
+// `tracked-files` declaration left with DEAD-CITE, its only reader. The other removed behavior is the
+// SUBTRACTION (§6.4 exemption-mechanism move): the seven formerly hidden selectors are now raw findings,
+// each consumed by exactly one grant.
 import type { EslintSelectorSnapshot, EslintSelectorValue } from "../contract/config-snapshot.ts";
-import type { ExemptionTable } from "../contract/gate.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { GrantExemption } from "../lib/grant-liveness.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const CONFIG_REL = "eslint.config.js";
-const GATE_FIXTURE_LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
-
-type RatifiedRow = GrantExemption & { readonly value: EslintSelectorValue };
-
-/** EXPORTED for the scoped real-config proof (#2302's residual), never for a second reader: the
- *  permanent pin drives this table against the REAL `eslint.config.js` through the production resource
- *  selection and asserts the VALUE AT EACH RATIFIED INDEX. The table is keyed by POSITION, so a test that
- *  re-spelled these rows would be asserting its own copy of the hazard instead of this one. */
-export const RATIFIED: ExemptionTable<RatifiedRow> = {
-  "config[0].ignores[0]": {
-    value: "**/node_modules/**",
-    why: "installed dependencies are absent from the tracked corpus by design. Delete this row when ESLint stops ignoring node_modules.",
-    cite: ".gitignore",
-  },
-  "config[0].ignores[1]": {
-    value: "**/dist/**",
-    why: "build output is absent from the tracked corpus by design. Delete this row when packages stop emitting dist/.",
-    cite: ".gitignore",
-  },
-  "config[0].ignores[3]": {
-    value: "**/__g_*",
-    why: "check-gates materialises the reserved __g_ fixtures only transiently. Delete this row when that sentinel is retired.",
-    cite: GATE_FIXTURE_LAW,
-  },
-  "config[0].ignores[4]": {
-    value: ".stryker-tmp/**",
-    why: "Stryker writes rewritten copies and generated runner setup outside the authored corpus. Delete this row when its sandbox directory changes or mutation execution is retired.",
-    cite: "tooling/src/_shared/stryker-config.ts",
-  },
-  "config[0].ignores[5]": {
-    // `**/.cache/**`, NOT `.cache/**` (#2213, 2026-09-12). A flat-config glob is anchored at the config
-    // DIRECTORY, so the bare spelling covered only the ROOT cache and `playwright/.cache` was linted; the
-    // config was re-pointed in `c57e3c9b9` and this row was not, which is the coupled site that left a
-    // RATIFIED identity naming a selector that no longer exists. The value here is matched BYTE-FOR-BYTE
-    // against the evaluated config (`sameValue`), so it is a literal this gate references and it owes the
-    // repo-wide grep of the old spelling whenever eslint.config.js moves it again.
-    value: "**/.cache/**",
-    why: "local tools write derived, refetchable cache artifacts outside the tracked corpus, at the root and at every nesting depth. Delete this row when the cache root changes or the repository starts tracking authored files there.",
-    cite: ".gitignore",
-  },
-  // THE TABLE IS KEYED BY POSITION, so these two were inserted at positions 6–7 (#2281/#2282, 2026-09-13) — every key above
-  // is index 5 or lower and neither identity below existed before. An ignore inserted ABOVE index 5 would
-  // silently RE-POINT every row beneath it: the keys would still resolve, just to different selectors, and
-  // `sameValue` is the only thing that would catch it. Both rows below were ADDED BECAUSE THIS GATE CAUGHT
-  // THEM: the two ignores landed alone first and the policy redded 2 (`config[0].ignores[6]`,
-  // `config[0].ignores[7]`), which is the measurement, not the pattern — #2282's own row body predicted its
-  // selector might be member-LIVE because the rig has 9 tracked files, and it is not: those 9 sit at the
-  // rig's top level, while the ignore names only `sillytavern-runtime/**` beneath them.
-  "config[0].ignores[6]": {
-    value: "**/.claude/worktrees/**",
-    why: "agent worktrees are transient checkouts the repository never tracks, and ESLint cannot see .gitignore (flat config reads no VCS ignore file), so this selector is the only fence. Delete this row when worktrees stop living inside the repository or the harness stops creating them under .claude/.",
-    cite: ".gitignore",
-  },
-  "config[0].ignores[7]": {
-    value: "scripts/probes/st-goldens/sillytavern-runtime/**",
-    why: "the st-parity rig's captured SillyTavern runtime is vendored third-party source the repository deliberately does not track; its own 9 files sit ABOVE this path, stay tracked, and stay outside the fence. Delete this row when the rig stops materialising a runtime under scripts/probes/ or the repository starts tracking it.",
-    cite: ".gitignore",
-  },
-};
 
 const MESSAGE =
   "an evaluated ESLint files/ignores selector has ZERO members in its native scope — the rule block or " +
   "grant is dead, and a later file can inherit policy nobody re-approved. Re-point or delete the selector; " +
-  "only a by-construction absent population may be ratified with a reason, end condition, and live cite.";
-/** EXPORTED so the permanent pin discriminates the STALE arm by identity rather than by re-spelling a
- *  substring of it — the two arms report at the same anchor and differ only in message. */
-export const MSG_STALE = "an eslint-grant-liveness RATIFIED identity no longer names the same zero-member selector — delete or re-derive the row.";
-const MSG_DEAD_CITE = "an eslint-grant-liveness RATIFIED cite no longer resolves — the decision that justified it is gone.";
+  "only a by-construction absent population may be granted, with a reason and an end condition.";
 
-/** The finding token AND the `RATIFIED` key are this one spelling — EXPORTED so the permanent pin speaks
- *  the same identity language instead of re-deriving `owner.field[position]` beside it. */
-export function selectorIdentity(row: EslintSelectorSnapshot): string {
+const FIX =
+  "delete or re-point the zero-member selector in eslint.config.js. If its population is absent BY DESIGN " +
+  "(installed dependencies, build output, a transient sandbox), it is a REVIEWED GRANT: add a row to " +
+  "tooling/src/verify/lib/reviewed-grants.ts keyed on this policy id, the finding's subject and its operation, " +
+  "with its `why` and its `endsWhen`.";
+
+/** The licensed act. The authored selector value is part of the OPERATION so a grant binds the value it
+ *  reviewed and nothing that later occupies the same position. */
+const OPERATION_PREFIX = "eslint-zero-member-selector:";
+
+/** The positional identity — the finding token and the grant subject are this one spelling. EXPORTED so
+ *  the permanent pin speaks the same identity language instead of re-deriving `owner.field[position]`. */
+export function selectorIdentity(row: Pick<EslintSelectorSnapshot, "owner" | "field" | "position">): string {
   return `${row.owner}.${row.field}[${String(row.position)}]`;
 }
 
-function sameValue(left: EslintSelectorValue, right: EslintSelectorValue): boolean {
-  return typeof left === "string" || typeof right === "string"
-    ? left === right
-    : left.length === right.length && left.every((value, index) => value === right[index]);
+/** The grant operation for one selector value. EXPORTED for the same reason as `selectorIdentity`. */
+export function selectorOperation(value: EslintSelectorValue): string {
+  return `${OPERATION_PREFIX}${JSON.stringify(value)}`;
 }
 
 function reportDeadSelectors(ctx: GatePolicyContext, selectors: readonly EslintSelectorSnapshot[]): void {
@@ -105,72 +79,55 @@ function reportDeadSelectors(ctx: GatePolicyContext, selectors: readonly EslintS
     if (row.members > 0) {
       continue;
     }
-    const key = selectorIdentity(row);
-    const allowance = RATIFIED[key];
-    if (allowance !== undefined && sameValue(row.value, allowance.value)) {
-      continue;
-    }
-    ctx.report.file(CONFIG_REL, { line: 1, column: 1, token: key, message: MESSAGE });
-  }
-}
-
-function reportRatifiedArms(ctx: GatePolicyContext, byIdentity: ReadonlyMap<string, EslintSelectorSnapshot>, trackedSet: ReadonlySet<string>): void {
-  for (const [key, allowance] of Object.entries(RATIFIED)) {
-    const row = byIdentity.get(key);
-    if (row === undefined || row.members !== 0 || !sameValue(row.value, allowance.value)) {
-      ctx.report.file(CONFIG_REL, { line: 1, column: 1, token: key, message: MSG_STALE });
-    } else if (!trackedSet.has(allowance.cite)) {
-      ctx.report.file(CONFIG_REL, { line: 1, column: 1, token: allowance.cite, message: MSG_DEAD_CITE });
-    }
+    const subject = selectorIdentity(row);
+    const operation = selectorOperation(row.value);
+    ctx.report.file(CONFIG_REL, {
+      line: 1,
+      column: 1,
+      token: subject,
+      subject,
+      operation,
+      message: `${MESSAGE} Subject: ${subject}, operation: ${operation}.`,
+      fix: FIX,
+    });
   }
 }
 
 export const gate = defineGate({
   id: "eslint-grant-liveness",
   family: "grant-liveness",
-  authority: "hard",
+  authority: "reviewed-grant",
   severity: "error",
   population: { of: "none", why: "the executable ESLint config and the tracked corpus are closed ResourceHost facts" },
   analysis: "resource",
   execution: "entire-population",
   facts: [],
-  resources: [{ kind: "native-config", id: "eslint" }, { kind: "tracked-files" }],
+  // `tracked-files` LEFT with the retired DEAD-CITE arm, its only reader: `native-config` already carries each
+  // selector's member count, and the runtime reds a declared resource that is never acquired.
+  resources: [{ kind: "native-config", id: "eslint" }],
   message: MESSAGE,
-  fix: "delete or re-point the zero-member selector in eslint.config.js; ratify only a population absent by construction.",
+  fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const native = readyResourceValue(ctx.resources.nativeConfig("eslint"));
-      const tracked = readyResourceValue(ctx.resources.trackedFiles());
-      const trackedSet = new Set(tracked.repoPaths);
-      const selectors = native.selectors;
-      const byIdentity = new Map(selectors.map((row) => [selectorIdentity(row), row]));
-      reportDeadSelectors(ctx, selectors);
-      reportRatifiedArms(ctx, byIdentity, trackedSet);
+      reportDeadSelectors(ctx, readyResourceValue(ctx.resources.nativeConfig("eslint")).selectors);
     },
   }),
   mustFlag: [
     {
       mode: "resource",
+      grant: { subject: "config[1].files[0]", operation: 'eslint-zero-member-selector:"packages/ui/src/gone.ts"' },
       files: {
-        [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**"] }, { files: ["packages/ui/src/gone.ts"] }];\n',
+        [CONFIG_REL]: 'export default [{ ignores: ["reports/**"] }, { files: ["packages/ui/src/gone.ts"] }];\n',
         "reports/README.md": "reports\n",
-        ".gitignore": "node_modules/\ndist/\n",
-        [GATE_FIXTURE_LAW]: "fixture law\n",
-        "tooling/src/_shared/stryker-config.ts": "export const live = 1;\n",
       },
       expect: { count: 1, token: "config[1].files[0]" },
-      why: "the founding shape — a dead file selector, found by config-entry identity",
+      why: "the founding shape — a dead file selector, found by config-entry identity; the grant witness binds its exact (position, value) pair",
     },
     {
       mode: "resource",
       files: {
-        [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**"] }, { files: ["packages/client/src/**/*.ts"], ignores: ["**/*.test.ts"] }];\n',
+        [CONFIG_REL]: 'export default [{ ignores: ["reports/**"] }, { files: ["packages/client/src/**/*.ts"], ignores: ["**/*.test.ts"] }];\n',
         "reports/README.md": "reports\n",
-        ".gitignore": "node_modules/\ndist/\n",
-        [GATE_FIXTURE_LAW]: "fixture law\n",
-        "tooling/src/_shared/stryker-config.ts": "export const live = 1;\n",
         "packages/client/src/live.ts": "export const live = 1;\n",
         "tests/client/outside.test.ts": "export const live = 1;\n",
       },
@@ -178,95 +135,47 @@ export const gate = defineGate({
       why: "a local ignore with no member inside its parent files scope — the parent-scoped-population arm the corpus-wide reader missed",
     },
     {
-      // THE #2213 COUPLED-SITE ARM, red forever. The config here carries the PRE-`c57e3c9b9` spelling
-      // `.cache/**` at the identity the RATIFIED table ratifies as `**/.cache/**`. The identity still
-      // resolves and the selector is still zero-member, so nothing about LIVENESS has changed — what
-      // changed is the VALUE, and that is exactly the shape that reached main on 2026-09-12: the config
-      // was re-pointed and this table was not. `MSG_STALE` is the accusation; the `mustPass` twin below
-      // holds the same config at the CURRENT spelling and is silent. Two directions on one literal.
+      // THE #2213 COUPLED SITE, successor form. `c57e3c9b9` re-pointed the real config from `.cache/**` to
+      // `**/.cache/**` and the retired table was not re-pointed with it. The OPERATION carries the authored
+      // value byte-for-byte, so the shipped grant for `**/.cache/**` cannot license this spelling — the
+      // stale half of that accusation is the central engine's, driven against the real config in the int test.
       mode: "resource",
       files: {
-        [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", ".cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
+        [CONFIG_REL]: 'export default [{ ignores: ["reports/**", ".cache/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
         "reports/README.md": "reports\n",
-        ".gitignore": "node_modules/\ndist/\n",
-        [GATE_FIXTURE_LAW]: "fixture law\n",
-        "tooling/src/_shared/stryker-config.ts": "export const live = 1;\n",
         "packages/ui/src/live.ts": "export const live = 1;\n",
       },
-      // TWO findings, not one, and the pair IS the real-tree number (`raw 0 → 2`, `check:structure-delta`,
-      // 2026-09-12): `reportDeadSelectors` sees a zero-member selector whose ratified value does not match
-      // and reports it UNRATIFIED, while `reportRatifiedArms` sees a ratified identity whose value moved and
-      // reports it STALE. Both are correct and both are the same coupled site — asserting only one would
-      // let half the accusation rot.
-      expect: { count: 2, token: "config[0].ignores[5]", messageIncludes: "no longer names the same zero-member selector" },
-      why: "the RATIFIED value and the config's value DISAGREE — the coupled site #2213 left behind, pinned so a future re-point of eslint.config.js cannot strand this row silently again",
+      expect: { count: 1, token: "config[0].ignores[1]", messageIncludes: 'operation: eslint-zero-member-selector:".cache/**".' },
+      why: "the selector VALUE is part of the grant identity — a grant reviewed for one spelling cannot consume a re-spelled selector at the same position",
     },
     {
-      // THE #2302 POSITIONAL RE-POINTING ARM (2026-09-13). `RATIFIED` is keyed by POSITIONAL INDEX
-      // (`config[0].ignores[N]`), never by the selector's own value, so an `ignores` entry inserted ABOVE
-      // index 5 shifts every key beneath it to a DIFFERENT selector — the keys still resolve, they just name
-      // the wrong thing. This fixture inserts one new zero-member entry at index 0; every one of the SEVEN
-      // RATIFIED rows (indices 0, 1, 3, 4, 5, 6, 7 — index 2 and the tail are unratified) below it now names
-      // the selector that used to sit one position earlier. RED-FIRST
-      // receipt (docs/reviews/gate-runtime/x-eslint-grant-pin-2026-09-13.md): before this row existed,
-      // `verifyPolicyProofs([gate])` returned `[]` for the UNMODIFIED gate — the harness only drives the
-      // rows a module declares, so it was structurally blind to this fixture until it was written as a row.
+      // THE #2302 POSITIONAL RE-POINTING HAZARD, successor form. An ignore inserted at index 0 shifts
+      // `**/dist/**` from index 1 to index 2; the finding now pairs SUBJECT `config[0].ignores[2]` with the
+      // dist VALUE, which a grant reviewed for `config[0].ignores[1]` cannot match. The live `reports/**` at
+      // index 1 stays silent, so the count is the probe entry plus the shifted dist entry.
       mode: "resource",
       files: {
-        [CONFIG_REL]:
-          'export default [{ ignores: ["__probe_index0_insert/**", "**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
+        [CONFIG_REL]: 'export default [{ ignores: ["__probe_index0_insert/**", "reports/**", "**/dist/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
         "reports/README.md": "reports\n",
-        ".gitignore": "node_modules/\ndist/\n",
-        [GATE_FIXTURE_LAW]: "fixture law\n",
-        "tooling/src/_shared/stryker-config.ts": "export const live = 1;\n",
         "packages/ui/src/live.ts": "export const live = 1;\n",
       },
-      // 15 = 8 dead-selector findings + 7 stale findings, not 8-RATIFIED-keys arithmetic: of the SEVEN
-      // RATIFIED keys, six land on ANOTHER zero-member selector after the shift (each contributes one
-      // dead-selector MESSAGE plus one STALE MSG_STALE — 2 findings each = 12), and one
-      // (`config[0].ignores[3]`, ratified as `**/__g_*`) lands on the now-live shifted-in `reports/**`
-      // selector (members != 0, so only the STALE arm fires = 1). That is 7 stale findings total (6 + 1) and
-      // 6 of the 8 dead-selector findings. The remaining 2 dead-selector findings are the two positions the
-      // shift pushes OUTSIDE the RATIFIED table entirely — the true `**/dist/**` landing in the previously
-      // unratified `ignores[2]` slot, and the tail entry pushed past the roster into `ignores[8]` — each an
-      // ordinary unratified dead selector with no stale twin. 8 dead + 7 stale = 15, the exact real-tree
-      // count this row was filed against (#2302).
-      expect: { count: 15, token: "config[0].ignores[1]", messageIncludes: "no longer names the same zero-member selector" },
-      why: "an index-0 insert re-points every RATIFIED row beneath it — this is the hazard itself, not a coupled-site symptom of it",
-    },
-    {
-      // THE CONTROL FOR THE CONTROL: an APPEND at the array's END re-points NOTHING, because every existing
-      // RATIFIED index keeps its own value. Only the appended row itself is new and unratified, so it reports
-      // its own ordinary dead-selector finding and nothing else. This discriminates the re-pointing arm above
-      // from "any edit to eslint.config.js finds something" — a mere append is safe by construction.
-      mode: "resource",
-      files: {
-        [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**", "__probe_append_end/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
-        "reports/README.md": "reports\n",
-        ".gitignore": "node_modules/\ndist/\n",
-        [GATE_FIXTURE_LAW]: "fixture law\n",
-        "tooling/src/_shared/stryker-config.ts": "export const live = 1;\n",
-        "packages/ui/src/live.ts": "export const live = 1;\n",
+      expect: {
+        count: 2,
+        token: "config[0].ignores[2]",
+        messageIncludes: 'Subject: config[0].ignores[2], operation: eslint-zero-member-selector:"**/dist/**".',
       },
-      expect: { count: 1, token: "config[0].ignores[8]", messageIncludes: "ZERO members in its native scope" },
-      why: "an append at the array's end never re-points a RATIFIED key — only the appended row's own dead-selector finding appears",
+      why: "the SUBJECT is the position — a shifted selector changes its subject, so a grant keyed on the old index goes stale instead of silently licensing whatever moved into it",
     },
   ],
   mustPass: [
     {
       mode: "resource",
       files: {
-        [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
+        [CONFIG_REL]: 'export default [{ ignores: ["reports/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
         "reports/README.md": "reports\n",
-        ".gitignore": "node_modules/\ndist/\n",
-        [GATE_FIXTURE_LAW]: "fixture law\n",
-        "tooling/src/_shared/stryker-config.ts": "export const live = 1;\n",
         "packages/ui/src/live.ts": "export const live = 1;\n",
       },
-      why: "every ratified row resolves and the file selector has a member — the sanctioned shape, silent",
+      why: "the global ignore and the file selector both have a member — the sanctioned shape, silent",
     },
   ],
 });
