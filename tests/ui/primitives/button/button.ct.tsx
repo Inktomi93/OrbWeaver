@@ -4,6 +4,7 @@
 import { Button } from "@orb/ui/button";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const TOUCH_FLOOR_PX = 44;
@@ -46,13 +47,13 @@ test.describe("coarse pointer — the touch floor", () => {
   });
 
   // D62 axis 3 for the `inline` arm: its VISIBLE box is deliberately text-height (that is the whole point
-  // — it stands in for the datum it edits), so the floor is met by the hit-area ::after, not the box. The
+  // — it stands in for the datum it edits), so the floor is met by the hit-area ::before, not the box. The
   // receipt is the pseudo's own computed geometry under a coarse pointer, read off the live element.
-  test("inline size carries a ≥44px hit area in the ::after pseudo while its own box stays text-height", async ({ mount }) => {
+  test("inline size carries a ≥44px hit area in the ::before pseudo while its own box stays text-height", async ({ mount }) => {
     const button = await mount(<Button size="inline">Bruised</Button>);
     const box = await button.boundingBox();
     const hit = await button.evaluate((el) => {
-      const style = getComputedStyle(el, "::after");
+      const style = getComputedStyle(el, "::before");
       return { height: Number.parseFloat(style.height), width: Number.parseFloat(style.width) };
     });
     // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
@@ -418,12 +419,12 @@ test("every converted glyph site paints the SAME box on the arm as it did on its
 });
 
 // The glyph box is a POINTER-INDEPENDENT display size and sits BELOW the tap floor at three of its four
-// steps — exactly the `inline` arm's situation, so it carries the same hit-area ::after. Before this arm the
+// steps — exactly the `inline` arm's situation, so it carries the same hit-area ::before. Before this arm the
 // 13 converted sites had no hit area at all beyond their 16–24px box.
 test.describe("coarse pointer — the glyph hit area", () => {
   test.use({ hasTouch: true });
 
-  test("every glyph step carries a ≥44px square ::after hit area while its own box stays sub-control", async ({ mount, page }) => {
+  test("every glyph step carries a ≥44px square ::before hit area while its own box stays sub-control", async ({ mount, page }) => {
     await mount(
       <div style={{ display: "flex", gap: 4 }}>
         {GLYPH_STEPS.map((s) => (
@@ -437,7 +438,7 @@ test.describe("coarse pointer — the glyph hit area", () => {
         const [box, hit] = await Promise.all([
           control.boundingBox(),
           control.evaluate((el) => {
-            const s = getComputedStyle(el, "::after");
+            const s = getComputedStyle(el, "::before");
             return { height: Number.parseFloat(s.height), width: Number.parseFloat(s.width), position: s.position };
           }),
         ]);
@@ -453,6 +454,92 @@ test.describe("coarse pointer — the glyph hit area", () => {
       expect(m?.box?.height ?? 0, `${step.size}: the visible box stays the glyph size`).toBeLessThan(TOUCH_FLOOR_PX);
     }
   });
+});
+
+// #1843 — THE HIT AREA MUST SURVIVE THE CTA RING, AT EVERY INTENT.
+//
+// The two pseudos used to be the SAME one. The hit area was an `::after` (the `after:size-touch-target`
+// utilities on the `inline`/`glyph-*` arms) and so is the CTA's gradient ring
+// (globals.css `[data-slot="button"][data-cta]::after`) — which is UNLAYERED, so it beat every Tailwind
+// utility regardless of specificity, replaced the 44/28px centred square with its own `inset: 0` ring, and
+// carried `pointer-events: none`. A `data-cta` glyph button therefore had NO touch target at all beyond its
+// 16px visible box, at either pointer, while its ghost twin had the full one. Measured by
+// `cb-config-grammar-2` while settling #1829 (2026-09-06).
+//
+// The receipt is HIT-TESTING, not a computed pseudo box: reading `::after`'s width would have kept passing
+// on the ghost arm and says nothing about which layer answers a tap. `elementFromPoint` at offsets from the
+// centre is the only thing that measures the affordance the user has (doctrine: "hit areas need
+// elementFromPoint at offsets from the centre, never a bounding box"). PAIRED primary-vs-ghost on purpose —
+// the ghost arm is the control that proves the probe can see a hit area at all, so a regression that kills
+// BOTH cannot read as a clean run.
+const GLYPH_XS_BOX_PX = 16;
+
+/** Is the point `dx/dy` from the button's centre answered by the BUTTON (its own box or a hit pseudo)? */
+async function hitsSelf(control: Locator, dx: number, dy: number): Promise<boolean> {
+  const box = await control.boundingBox();
+  if (box === null) {
+    return false;
+  }
+  const x = box.x + box.width / 2 + dx;
+  const y = box.y + box.height / 2 + dy;
+  return await control.evaluate(
+    (el: Element, point: { x: number; y: number }) => {
+      const hit = document.elementFromPoint(point.x, point.y);
+      return hit !== null && (hit === el || el.contains(hit));
+    },
+    { x, y },
+  );
+}
+
+// Spaced far enough apart that a probe past one button's hit area lands on the wrapper, never on its
+// neighbour's — otherwise the "outside" arm would be answered by the wrong control and read as a pass.
+const glyphPair = (
+  <div style={{ display: "flex", gap: 160, padding: 80 }}>
+    <Button aria-label="Primary glyph" intent="primary" size="glyph-xs" />
+    <Button aria-label="Ghost glyph" intent="ghost" size="glyph-xs" />
+  </div>
+);
+
+for (const pointer of [
+  // `--spacing-touch-target` is POINTER-CONDITIONAL: 44px coarse, 28px fine. Both arms are real
+  // affordances, so both are pinned — a fix that only lands on one pointer is half a fix.
+  { name: "fine pointer", hasTouch: false, target: 28 },
+  { name: "coarse pointer", hasTouch: true, target: TOUCH_FLOOR_PX },
+] as const) {
+  test.describe(`${pointer.name} — a glyph button's hit area at every intent (#1843)`, () => {
+    test.use({ hasTouch: pointer.hasTouch });
+
+    test(`glyph-xs answers a tap out to the ${pointer.target}px touch target on BOTH primary and ghost`, async ({ mount, page }) => {
+      await mount(glyphPair);
+      const inside = pointer.target / 2 - 0.5;
+      const outside = pointer.target / 2 + 0.5;
+      for (const name of ["Primary glyph", "Ghost glyph"] as const) {
+        const control = page.getByRole("button", { name });
+        const box = await control.boundingBox();
+        expect(box?.width, `${name}: the VISIBLE box stays the glyph size — the hit area is the pseudo's job`).toBeCloseTo(GLYPH_XS_BOX_PX, 0);
+        expect(await hitsSelf(control, inside, 0), `${name}: a tap ${inside}px right of centre must hit the button`).toBe(true);
+        expect(await hitsSelf(control, -inside, 0), `${name}: a tap ${inside}px left of centre must hit the button`).toBe(true);
+        expect(await hitsSelf(control, 0, inside), `${name}: a tap ${inside}px below centre must hit the button`).toBe(true);
+        expect(await hitsSelf(control, 0, -inside), `${name}: a tap ${inside}px above centre must hit the button`).toBe(true);
+        // The boundary one pixel out — without it the assertion above would pass on a hit area of ANY size,
+        // including one the ring accidentally stretched to the whole row.
+        expect(await hitsSelf(control, outside, 0), `${name}: ${outside}px out is past the target and must NOT hit`).toBe(false);
+      }
+    });
+  });
+}
+
+// The CTA ring is a BRAND MARK and it has to survive the hit-area fix intact: the pseudo that paints it and
+// the pseudo that catches the tap are now different layers, so this asserts they coexist on the same button
+// rather than one having quietly replaced the other. Paint is read off `::after` (the ring's own layer) and
+// the hit off `elementFromPoint`, in one mount.
+test("a primary glyph button paints the CTA ring AND answers a tap outside its visible box (#1843)", async ({ mount, page }) => {
+  await mount(glyphPair);
+  const primary = page.getByRole("button", { name: "Primary glyph" });
+  const ghost = page.getByRole("button", { name: "Ghost glyph" });
+  expect(await primary.evaluate((el) => getComputedStyle(el, "::after").backgroundImage), "the CTA ring still paints").not.toBe("none");
+  expect(await ghost.evaluate((el) => getComputedStyle(el, "::after").backgroundImage), "a ghost glyph stays ringless").toBe("none");
+  expect(await hitsSelf(primary, 13.5, 0), "the ringed button still has its touch target").toBe(true);
 });
 
 // The CTA's gradient-border ring (globals.css `[data-slot="button"][data-cta]::after`) pairs a

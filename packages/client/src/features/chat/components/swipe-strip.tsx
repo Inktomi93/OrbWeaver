@@ -77,7 +77,18 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
   const current = idx + 1;
   const busy = swipe.isPending || selectVariant.isPending;
 
-  const prevVariantId = current > 1 ? history.get(idx - 1) : undefined;
+  // THE BACK EDGE WRAPS; THE FORWARD EDGE DOES NOT (#1874 Finding B, owner-reported 2026-09-07: "you
+  // can't hit left swipe arrow when at 1 out of X to loop back around to X"). Both ends used to be
+  // hard-stopped, so at `1 / X` the ‹ was a control the reader reaches for that refuses to move.
+  //
+  // THE ASYMMETRY IS DELIBERATE AND MUST SURVIVE A LATER TIDY-UP: at `X / X` the › is the GENERATE verb,
+  // not a step, so wrapping it would silently replace "make a new variant" with "jump to variant 1" — the
+  // one act on this strip that costs a model call, swapped for the cheapest one. Cyclic navigation is the
+  // ordinary idiom for a bounded pager; a generate button is not part of that cycle. Paired pins in
+  // `swipe-strip.ct.tsx` hold both halves, the forward one specifically so "fix the other end for
+  // consistency" fails loudly.
+  const prevIdx = current > 1 ? idx - 1 : total - 1;
+  const prevVariantId = total > 1 ? history.get(prevIdx) : undefined;
   const nextVariantId = current < total ? history.get(idx + 1) : undefined;
   const canStepBack = prevVariantId !== undefined;
 

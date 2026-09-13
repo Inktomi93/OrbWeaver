@@ -334,3 +334,94 @@ test("D159: the form-control EDGE clears 1.4.11's 3:1 against its own composited
   }
   expect(failures, `D159 framebuffer matrix:\n  ${rows.join("\n  ")}`).toEqual([]);
 });
+
+// ── #1871 item 1 — #1868's DEFERRED BEHAVIOURAL PIN: the field type step, BOTH pointer arms ──────────
+//
+// #1868 shipped `text.field` / `text.field-dense` as POINTER-CONDITIONAL tokens and landed no test: the
+// test trees carried unrelated in-flight work at the time. The defect it closes is a platform one — iOS
+// Safari ZOOMS THE VIEWPORT IN when a focused control's type is under 16px and never zooms back out, which
+// the owner reported as three symptoms (pinch-to-recover, a tab bar below the fold, sideways panning) that
+// are one cause.
+//
+// BOTH ARMS ARE REAL AND BOTH ARE PINNED. A one-armed test proves half of a pointer-conditional token: the
+// coarse arm is the platform floor, the fine arm is the design's own step, and a "fix" that floored BOTH
+// would pass a coarse-only pin while silently enlarging every desktop form. The fine arm below is what
+// makes this pin discriminate.
+//
+// IT MUST COME FROM THE CT BROWSER. `snap --viewport WxH` reports `pointer: fine` and
+// `snap --mobile --viewport WxH` silently DROPS coarse (open as #1668), so a snap measuring "390 coarse" is
+// measuring a layout no phone renders. `hasTouch: true` flips `matchMedia("(pointer: coarse)")` in chromium
+// (the `touch-target-floor.suite.ct.tsx` precedent), which is what the emitted `@media(pointer:fine)`
+// override keys off.
+//
+// 16 IS A PLATFORM CONSTANT, NOT OUR TOKEN, which is why it is spelled here as a literal with its reason
+// while everything else is read off the RESOLVED token: the assertion is both "the platform floor holds"
+// and "the token is what delivers it", so a hardcoded `font-size: 16px` bolted onto the seal would satisfy
+// the first and fail the second.
+const IOS_FOCUS_ZOOM_FLOOR_PX = 16;
+
+/** The px `--text-field` / `--text-field-dense` resolve to IN THIS DOCUMENT, under whatever pointer the
+ *  context is emulating — never a number copied out of `tokens.json`, which cannot see the media query. */
+async function resolvedTypeStep(page: Page, cssVar: string): Promise<number> {
+  return await page.evaluate((name) => {
+    const probe = document.createElement("div");
+    probe.style.fontSize = `var(${name})`;
+    document.body.append(probe);
+    const size = Number.parseFloat(getComputedStyle(probe).fontSize);
+    probe.remove();
+    return size;
+  }, cssVar);
+}
+
+function fieldArms(): ReactElement {
+  return (
+    <div style={{ width: 260 }}>
+      <Input aria-label="field type step" />
+      <Input aria-label="dense type step" layout="inline" />
+    </div>
+  );
+}
+
+test.describe("coarse pointer — the field type step clears iOS's focus-zoom floor (#1871/#1868)", () => {
+  test.use({ hasTouch: true });
+
+  test("both field arms paint at or above 16px, and it is the pointer-conditional token that delivers it", async ({ mount, page }) => {
+    await mount(fieldArms());
+    const read = (name: string): Promise<number> => page.getByLabel(name).evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+    const [field, dense, fieldToken, denseToken] = await Promise.all([
+      read("field type step"),
+      read("dense type step"),
+      resolvedTypeStep(page, "--text-field"),
+      resolvedTypeStep(page, "--text-field-dense"),
+    ]);
+    expect(field, "a coarse-pointer field under 16px re-arms the iOS focus zoom").toBeGreaterThanOrEqual(IOS_FOCUS_ZOOM_FLOOR_PX);
+    expect(dense, "the DENSE arm is floored too — a platform floor is not negotiable by density").toBeGreaterThanOrEqual(IOS_FOCUS_ZOOM_FLOOR_PX);
+    expect(field, "the floor must come from --text-field, not from a hardcoded size on the seal").toBeCloseTo(fieldToken, 1);
+    expect(dense, "…and the dense arm from --text-field-dense").toBeCloseTo(denseToken, 1);
+    // The two arms CONVERGE at a coarse pointer — that convergence is the token's own stated design, and
+    // asserting it is what stops a "fix" that floored only the non-dense half.
+    expect(dense).toBeCloseTo(field, 1);
+  });
+});
+
+test.describe("fine pointer — the field type step keeps the design's own steps (#1871/#1868)", () => {
+  test.use({ hasTouch: false });
+
+  test("the fine arm is BELOW the platform floor and the two steps diverge — the token is conditional, not floored", async ({ mount, page }) => {
+    await mount(fieldArms());
+    const read = (name: string): Promise<number> => page.getByLabel(name).evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+    const [field, dense, fieldToken, denseToken] = await Promise.all([
+      read("field type step"),
+      read("dense type step"),
+      resolvedTypeStep(page, "--text-field"),
+      resolvedTypeStep(page, "--text-field-dense"),
+    ]);
+    expect(field).toBeCloseTo(fieldToken, 1);
+    expect(dense).toBeCloseTo(denseToken, 1);
+    // THIS is the half that would die under a blanket `max(16px, …)` floor: a mouse user's forms would all
+    // grow, and the dense step — which exists so a list pane's search box does not outshout the 13px row
+    // titles it filters — would stop being dense at all.
+    expect(field, "a fine pointer keeps the design's body step, not the platform floor").toBeLessThan(IOS_FOCUS_ZOOM_FLOOR_PX);
+    expect(dense, "the dense step is a step BELOW the field step at a fine pointer").toBeLessThan(field);
+  });
+});

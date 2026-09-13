@@ -55,7 +55,6 @@ import { ApplyOutcome } from "../components/apply-outcome.tsx";
 import type { OutcomeState } from "../components/apply-row.tsx";
 import { ApplyRow } from "../components/apply-row.tsx";
 import { LaneRunControl, SessionPreflightWarn } from "../components/lane-run-control.tsx";
-import type { ManualTarget } from "../components/manual-rewrite-dialog.tsx";
 import { ManualRewriteDialog } from "../components/manual-rewrite-dialog.tsx";
 import { PayloadLane } from "../components/payload-lane.tsx";
 import { RefineryStartPane } from "../components/refinery-start-pane.tsx";
@@ -66,6 +65,7 @@ import { SessionMasthead } from "../components/session-masthead.tsx";
 import { useIterateRefinery, useRunRefineryStage, useSubmitManualRewrite, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns } from "../hooks/use-refinery-sessions.ts";
+import { manualTargetsOf } from "../lib/manual-targets.ts";
 import { preflightViewOf } from "../lib/preflight-warn.ts";
 import { reviewEntriesOf } from "../lib/review-entries.ts";
 import { scorePayloadOf } from "../lib/run-views.ts";
@@ -399,53 +399,4 @@ function keptAcceptsOf(rewriteEntries: ReturnType<typeof reviewEntriesOf>, decid
       },
     ];
   });
-}
-
-type ManualCard = Parameters<typeof manualTextOf>[0] & { greetings: readonly { text: string }[] };
-
-/** The hand-edit dialog's targets: exactly the SELECTION's addressable fields with their CURRENT live
- *  text (out-of-range greeting indexes are dropped — the dialog never offers a slot that cannot land). */
-function manualTargetsOf(selection: RefinerySelection, card: ManualCard): ManualTarget[] {
-  return selection.fields.flatMap((field): ManualTarget[] => {
-    if (field === "greetings") {
-      const indexes = selection.greetingIndexes ?? card.greetings.map((_, i) => i);
-      return indexes.filter((i) => i < card.greetings.length).map((i) => ({ field, greetingIndex: i, text: card.greetings[i]?.text ?? "" }));
-    }
-    return [{ field, text: manualTextOf(card, field) }];
-  });
-}
-
-function manualTextOf(
-  card: {
-    description: string | null;
-    personality: string | null;
-    scenario: string | null;
-    exampleMessages: string | null;
-    systemPrompt: string | null;
-    postHistoryInstructions: string | null;
-    creatorNotes: string | null;
-    depthPrompt: { prompt: string } | null;
-  },
-  field: string,
-): string {
-  switch (field) {
-    case "description":
-      return card.description ?? "";
-    case "personality":
-      return card.personality ?? "";
-    case "scenario":
-      return card.scenario ?? "";
-    case "exampleMessages":
-      return card.exampleMessages ?? "";
-    case "systemPrompt":
-      return card.systemPrompt ?? "";
-    case "postHistoryInstructions":
-      return card.postHistoryInstructions ?? "";
-    case "depthPrompt":
-      return card.depthPrompt === null ? "" : card.depthPrompt.prompt;
-    case "creatorNotes":
-      return card.creatorNotes ?? "";
-    default:
-      return "";
-  }
 }
