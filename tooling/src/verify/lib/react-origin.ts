@@ -66,12 +66,25 @@ function namedReactExport(origin: ModuleMemberOrigin): string | undefined {
   return origin.memberPath.length === 1 && origin.exportedName === "default" ? origin.memberPath[0] : undefined;
 }
 
+/** The complete React export path named by an origin. Named imports start at the exported name; the
+ * default object starts at its first member. This is the shared answer for policies that judge a
+ * namespace member such as `React.Children.toArray`, rather than only a direct call target. */
+export function reactExportPath(origin: ModuleMemberOrigin): readonly string[] {
+  return origin.exportedName === "default" ? origin.memberPath : [origin.exportedName, ...origin.memberPath];
+}
+
+/** Whether a resolved module-member origin belongs to React. Kept separate from the export-path
+ * interpretation so consumers cannot accidentally accept a same-named member from another package. */
+export function isReactOrigin(origin: ModuleMemberOrigin): boolean {
+  const { canonical } = origin;
+  return canonical.kind === "external-door" ? canonical.moduleSpecifier === REACT_MODULE : declaredByAnyPackage([canonical.declaration], REACT_TYPE_HOMES);
+}
+
 function isReactExport(origin: ModuleMemberOrigin, exportedName: string): boolean {
   if (namedReactExport(origin) !== exportedName) {
     return false;
   }
-  const { canonical } = origin;
-  return canonical.kind === "external-door" ? canonical.moduleSpecifier === REACT_MODULE : declaredByAnyPackage([canonical.declaration], REACT_TYPE_HOMES);
+  return isReactOrigin(origin);
 }
 
 function verdictOf(fact: ReferenceFact<ModuleMemberOrigin>, exportedName: string, node: MorphNode): ReactOriginVerdict {
