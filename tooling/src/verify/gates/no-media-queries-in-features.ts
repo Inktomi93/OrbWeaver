@@ -80,7 +80,7 @@ export const gate = defineGate({
         visit: (node) => {
           const hits = readTailwindClassTokens(node.getText()).filter(({ token }) => MEDIA_QUERY_RE.test(token));
           for (const hit of hits) {
-            ctx.report.node(node, hit);
+            ctx.report.node(node, { token: hit.token, offset: hit.offset });
           }
         },
       },
