@@ -1,6 +1,7 @@
 import type { Finding } from "../../../../tooling/src/verify/contract/gate.ts";
+import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/contract-verb-presence.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor } from "../../_support.ts";
 
@@ -13,15 +14,11 @@ function findings(testSource: string, extraFiles: Readonly<Record<string, string
     [TEST]: testSource,
     ...extraFiles,
   });
-  return (
-    runPass([gate], {
-      root,
-      project,
-      scope: { kind: "project" },
-      files: project.getSourceFiles(),
-      checker: () => project.getTypeChecker(),
-    }).gates[0]?.findings ?? []
-  );
+  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.factErrors).toEqual([]);
+  expect(result.policies[0]?.owner.status).toBe("success");
+  return result.authority.effectiveFindings;
 }
 
 test("a same-named bare helper call is not service coverage", () => {
@@ -81,18 +78,12 @@ test("the verb factory invocation is coverage", () => {
 // all five behavioral schedule tests left the gate GREEN.
 const BASE = "packages/server/src/domain/hub/contract/verbs.ts";
 
-function passOf(files: Readonly<Record<string, string>>): ReturnType<typeof runPass> {
+function passOf(files: Readonly<Record<string, string>>): PolicyPassResult {
   const { project, root } = ctxFor(files);
-  return runPass([gate], {
-    root,
-    project,
-    scope: { kind: "project" },
-    files: project.getSourceFiles(),
-    checker: () => project.getTypeChecker(),
-  });
+  return runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
 }
 
-function inheritedCase(testSource: string, baseMember = "inherited(): void;"): ReturnType<typeof runPass> {
+function inheritedCase(testSource: string, baseMember = "inherited(): void;"): PolicyPassResult {
   return passOf({
     [BASE]: `export interface HubVerbService {\n  ${baseMember}\n}\n`,
     [CONTRACT]: 'import type { HubVerbService } from "./verbs.ts";\nexport interface HubService extends HubVerbService {\n  local(): void;\n}\n',
@@ -101,22 +92,22 @@ function inheritedCase(testSource: string, baseMember = "inherited(): void;"): R
 }
 
 test("a verb inherited from an imported base is still an obligation, and the finding names its declaring interface", () => {
-  const found = inheritedCase("const service = createHubService(ctx);\nservice.local();\n").gates[0]?.findings ?? [];
+  const found = inheritedCase("const service = createHubService(ctx);\nservice.local();\n").authority.effectiveFindings;
   expect(found).toHaveLength(1);
   expect(found[0]?.message).toContain("hub.inherited (declared on HubVerbService)");
 });
 
 test("an inherited verb WITH behavioral coverage passes — resolving members widens the obligation, not the accusation", () => {
-  expect(inheritedCase("const service = createHubService(ctx);\nservice.local();\nservice.inherited();\n").gates[0]?.findings).toEqual([]);
+  expect(inheritedCase("const service = createHubService(ctx);\nservice.local();\nservice.inherited();\n").authority.effectiveFindings).toEqual([]);
 });
 
 test("an inherited member that is not verb-shaped contributes nothing to the denominator", () => {
-  expect(inheritedCase("const service = createHubService(ctx);\nservice.local();\n", "readonly notAVerb: string;").gates[0]?.findings).toEqual([]);
+  expect(inheritedCase("const service = createHubService(ctx);\nservice.local();\n", "readonly notAVerb: string;").authority.effectiveFindings).toEqual([]);
 });
 
 test("the local/inherited/total population rides the scan line, so a base that stopped resolving is visible", () => {
-  const declared = inheritedCase("const service = createHubService(ctx);\nservice.local();\nservice.inherited();\n").gates[0]?.scan.declared;
-  expect(declared?.unit).toBe("service verb [interfaces=1 local=1 inherited=1 total=2]");
+  const receipts = inheritedCase("const service = createHubService(ctx);\nservice.local();\nservice.inherited();\n").policies[0]?.receipts;
+  expect(receipts).toContainEqual({ kind: "population", source: "service-verbs[interfaces=1;local=1;inherited=1]", members: 2, unresolved: 0 });
 });
 
 test("an `extends` clause that resolves to no interface REFUSES loudly instead of judging a smaller member set", () => {
@@ -124,5 +115,9 @@ test("an `extends` clause that resolves to no interface REFUSES loudly instead o
     [CONTRACT]: "export interface HubService extends MissingBase {\n  local(): void;\n}\n",
     [TEST]: "export const q = 1;\n",
   });
-  expect(pass.toolErrors[0]?.message).toContain("resolves to no interface declaration");
+  expect(pass.toolErrors).toContainEqual(
+    expect.objectContaining({ policyId: gate.id, phase: "evaluate", message: expect.stringContaining("resolves to no interface declaration") }),
+  );
+  expect(pass.authority.effectiveFindings).toEqual([]);
+  expect(pass.authority.withheldPolicyIds).toEqual([gate.id]);
 });

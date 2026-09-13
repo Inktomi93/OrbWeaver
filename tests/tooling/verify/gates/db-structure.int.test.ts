@@ -1,22 +1,17 @@
-// The PERMANENT PIN for `db-structure`'s schema-dir read (tooling/src/verify/gates/db-structure.ts) — the
-// #751 caught-failure-ownership campaign. The gate USED to `catch { return [] }` over EVERY readdirSync
-// failure with a stale "pre-Phase-3, nothing to assert" justification: a permission error (EACCES) or a
-// broken symlink on the always-present schema dir was swallowed into a CLEAN gate verdict — a LYING GATE.
-// The fix narrows the swallow to the ONE benign code (ENOENT = genuinely absent) and RE-THROWS everything
-// else, so the harness turns it into a per-gate tool-error (exit 2) instead of a false ✓.
-//
-// Both directions are pinned here — conformance never exercises the read failure (every fsBacked example
-// plants a real schema dir, so readdirSync always succeeds there). This drives the REAL descriptor's `run`
-// with `readdirSync` faulted, and asserts: EACCES REFUSES (throws), ENOENT is benign (empty, no throw).
+// The PERMANENT refusal pin for db-structure's authored schema evidence plane. The legacy descriptor
+// performed its own readdirSync and once swallowed every failure into a clean verdict. The final split puts
+// schema/module parity on the compiler population and producer-home parity on two runtime-owned authored
+// trees. This test drives that production dispatcher boundary: an unreadable or absent schema tree makes
+// the resource owner incomplete and withheld; neither state can become a clean policy verdict.
+
 import type * as Fs from "node:fs";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { Project } from "ts-morph";
 import { vi } from "vitest";
-import type { Finding, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SCHEMA_DIR_SUFFIX = "packages/db/src/schema";
-const ROOT = "/planted-db-root";
-
 const fault = vi.hoisted(() => ({ kind: "" as "" | "eacces" | "enoent" }));
 
 vi.mock("node:fs", async (importOriginal) => {
@@ -37,38 +32,50 @@ vi.mock("node:fs", async (importOriginal) => {
   };
 });
 
-const { gate } = await import("../../../../tooling/src/verify/gates/db-structure.ts");
+const [{ gate }, { runPolicyPass }] = await Promise.all([
+  import("../../../../tooling/src/verify/gates/db-structure-producer-home.ts"),
+  import("../../../../tooling/src/verify/lib/policy-pass.ts"),
+]);
 
-/** Drive the real descriptor's whole-project `run`, collecting any reported findings. The ts-morph Project
- *  is in-memory so the mocked `node:fs` governs only the gate's own schema-dir read. */
-function runGate(): readonly Finding[] {
-  const project = new Project({ useInMemoryFileSystem: true });
-  const findings: Finding[] = [];
-  const ctx: GateRunCtx = {
-    root: ROOT,
-    project,
-    scope: { kind: "project" },
-    files: [],
-    checker: () => project.getTypeChecker(),
-    report: (arg) => {
-      if ("file" in arg) {
-        findings.push(arg);
-      }
-    },
-    scan: () => undefined,
-  };
-  gate.run?.(ctx);
-  return findings;
+function runGate(root: string): ReturnType<typeof runPolicyPass> {
+  return runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root,
+    project: new Project({ useInMemoryFileSystem: true }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
-test("a non-ENOENT schema-dir read failure (EACCES) REFUSES as a tool-error, never a clean empty verdict", () => {
+function refusal(result: ReturnType<typeof runPolicyPass>): Record<string, unknown> {
+  return {
+    findings: result.authority.effectiveFindings,
+    errors: result.toolErrors.map(({ policyId, phase, message }) => ({ policyId, phase, message })),
+    owner: result.policies[0]?.owner.status,
+    withheld: result.authority.withheldPolicyIds,
+  };
+}
+
+test("an unreadable schema tree (EACCES) refuses at the final resource boundary, never false-cleans", ({ scratch }) => {
+  mkdirSync(join(scratch, "packages/db/src/schema"), { recursive: true });
+  mkdirSync(join(scratch, "packages/server/src/domain"), { recursive: true });
   fault.kind = "eacces";
-  // The narrowed catch re-throws; the harness (lib/pass.ts `guard`) turns this into a per-gate ToolError
-  // (exit 2). The OLD `catch { return [] }` swallowed it and returned zero findings — a false ✓.
-  expect(() => runGate()).toThrow("planted EACCES");
+  expect(refusal(runGate(scratch))).toEqual({
+    findings: [],
+    errors: [expect.objectContaining({ policyId: gate.id, phase: "population", message: expect.stringContaining("planted EACCES") })],
+    owner: "incomplete",
+    withheld: [gate.id],
+  });
 });
 
-test("a genuinely-absent schema dir (ENOENT) is the documented benign case — empty result, no throw", () => {
+test("an absent schema tree (ENOENT) is a visible missing-resource refusal, never an empty verdict", ({ scratch }) => {
+  mkdirSync(join(scratch, "packages/server/src/domain"), { recursive: true });
   fault.kind = "enoent";
-  expect(runGate()).toEqual([]);
+  expect(refusal(runGate(scratch))).toEqual({
+    findings: [],
+    errors: [expect.objectContaining({ policyId: gate.id, phase: "population", message: expect.stringContaining("authored-tree:db-schema is missing") })],
+    owner: "incomplete",
+    withheld: [gate.id],
+  });
 });
