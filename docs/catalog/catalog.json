@@ -30670,9 +30670,9 @@
       "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1299,
-      "bytes": 541623,
-      "sha256": "a87761c404f17426cee4a8cfd42224be8c67c61b521e8049a8eb567c9e385a1d",
+      "lines": 1305,
+      "bytes": 542863,
+      "sha256": "ce42c3e31e3c67e0bf331f32c0f71773519d057593c759e2dcd589f2e3e054d6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -30685,28 +30685,28 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
-        "assignedSha256": "a87761c404f17426cee4a8cfd42224be8c67c61b521e8049a8eb567c9e385a1d",
+        "assignedSha256": "ce42c3e31e3c67e0bf331f32c0f71773519d057593c759e2dcd589f2e3e054d6",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "a87761c404f17426cee4a8cfd42224be8c67c61b521e8049a8eb567c9e385a1d",
-        "verifiedCommit": "083276748443e1c99320081afac875d2f3efa487",
+        "verifiedSha256": "ce42c3e31e3c67e0bf331f32c0f71773519d057593c759e2dcd589f2e3e054d6",
+        "verifiedCommit": "3ef7cfad0077454198adbffa96d1c1e567f62e00",
         "verifiedAt": "2026-09-13",
         "evidence": [
-          "Full prior read plus exact cde165d7d..083276748 delta review. The current bytes preserve the dated finding text and fold eleven adjudicated state cells plus two report cross-references; the rollup is 515 total, 399 CLOSED, 80 OPEN, and 26 FIXED."
+          "Full prior reads plus complete 083276748..3ef7cfad0 delta review. The ledger closes the three stale #2223 rows, closes #2302's scoped proof, folds its one config-snapshot row, and derives 516 total / 404 CLOSED / 76 OPEN / 26 FIXED."
         ],
         "claims": [
           {
-            "claim": "At 083276748, this dated ledger records 515 rows: 399 CLOSED, 80 OPEN, and 26 FIXED. Two hit-geometry rows remain FIXED pending current-main CT, and #2197 remains OPEN; these per-row states do not establish whole-program closure or freshness of every contributing report.",
+            "claim": "At 3ef7cfad0, this dated ledger records 516 rows: 404 CLOSED, 76 OPEN, and 26 FIXED. The three old #2223 defects and both #2302 rows carry bounded closure receipts; #2329 remains a separate repair and this row-level index does not establish whole-program closure or freshness of every historical report.",
             "evidence": [
               {
                 "kind": "provenance",
-                "target": "git:083276748443e1c99320081afac875d2f3efa487"
+                "target": "git:3ef7cfad0077454198adbffa96d1c1e567f62e00"
               }
             ]
           }
         ],
-        "summary": "Current dated refutation ledger at 083276748, with 515 bounded row dispositions and explicit remaining OPEN and FIXED work; Project 1 still owns mutable lifecycle."
+        "summary": "Current dated refutation ledger at 3ef7cfad0 with 516 bounded row dispositions, including reconciled #2223 and #2302 evidence; mutable lifecycle remains external."
       },
       "receiptCurrent": true
     },
@@ -42314,6 +42314,50 @@
           }
         ],
         "summary": "Corrected refutation-repair record with its two ledger rows folded and remaining #2197/#2142 limits preserved."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-config-scoped-proof-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 237,
+      "bytes": 25862,
+      "sha256": "c8a7f9b593023c73c93371f21bbfc987d4f6daea8aeebfaff095a30c2f3862de",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-config-scoped-proof-2026-09-13.md",
+        "assignedSha256": "c8a7f9b593023c73c93371f21bbfc987d4f6daea8aeebfaff095a30c2f3862de",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "c8a7f9b593023c73c93371f21bbfc987d4f6daea8aeebfaff095a30c2f3862de",
+        "verifiedCommit": "3ef7cfad0077454198adbffa96d1c1e567f62e00",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Full builder report and complete appended independent review read. Its one ledger row is folded; lane 33/33 and current-main 49/49 receipts remain separately attributed, with whole-program conformance and combined native barrier explicitly owed."
+        ],
+        "claims": [
+          {
+            "claim": "The report supports #2302's real-config RATIFIED value-at-index proof and the config-snapshot constructibility repair: containment still refuses escape and absence, contained non-files are named and excluded, and four current-main focused suites passed 49/49 at c739f3544. It does not claim blanket non-RATIFIED verdict ownership, whole-program conformance, or the combined native barrier.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:3ef7cfad0077454198adbffa96d1c1e567f62e00"
+              }
+            ]
+          }
+        ],
+        "summary": "Full #2302 repair, independent review, ledger fold, and current-main 49/49 focused receipt with broader barriers explicitly retained as owed."
       },
       "receiptCurrent": true
     }
