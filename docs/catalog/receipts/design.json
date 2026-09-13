@@ -1216,12 +1216,12 @@
     },
     {
       "path": "docs/design/gate-runtime-standardization.md",
-      "assignedSha256": "45c58b4328c4195304daff94b00c2cb22529d84894d537563976726ce1edbdfc",
+      "assignedSha256": "fd1175e788c6670fdb1d65b28bcd5f36003226d32d19517bdbfae511fba2b5cc",
       "disposition": "repaired",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "45c58b4328c4195304daff94b00c2cb22529d84894d537563976726ce1edbdfc",
-      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
+      "verifiedSha256": "fd1175e788c6670fdb1d65b28bcd5f36003226d32d19517bdbfae511fba2b5cc",
+      "verifiedCommit": "7ba66a34eb8d8baca96cf717852dfdd106c51b2b",
       "verifiedAt": "2026-09-13",
       "claims": [
         {
@@ -1254,7 +1254,8 @@
         "2026-09-13 preservation checkpoint d71bd65545a2ff09534eeb6ae8050b41435379d9: full author reads and scoped four-document check:docs passed; native read-first-costs regenerated after checkpoint. Fresh-context Sol/high conservation review confirmed after restoring ignored-class filesystem checks and staged-diff inspection. Whole ledgers:fresh was not run by this lane; primary closing review and consolidated acceptance remain owed.",
         "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed.",
         "Q11 current claim evidence: immutable284dedcee deriveThemeCss and ledgers-fresh read in full; generator/validator and namespace-health functions read completely at their selected spans. ff25a067f independent theme review read in full, with its scoped/cut results attributed. Primary integrated-main1ef220c20 three-arm whole-stage JSON read in full: same-count1 with theme/census, cut-edge1 without theme and with census, malformed2 without freshness verdict. Canonical validation including required history is retained for this baseline, and scratch roots supply data rather than alternate generator code.",
-        "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification."
+        "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification.",
+        "2026-09-13 Q08 integration truth follow-up at 7ba66a34eb8d8baca96cf717852dfdd106c51b2b: guide and standing family law now describe canonical production dependencies from create, including method roots, callable/fact identities and subject/vocabulary data, with unused-import, proof-only and erased-type exclusions and explicit source-reach limits. Source and production-consumption review pinned to integrated main 735a86d0c; this isolated docs lane does not contain or claim to test that source. Warm independent review APPROVE, preserving its prior dated report byte-for-byte; all three changed Markdown format checks and diff whitespace check passed. Prior evidence and claims remain attributed to their original trees. Final latest-main read-cost reconciliation and integrated verification remain coordinator-owned."
       ]
     },
     {
