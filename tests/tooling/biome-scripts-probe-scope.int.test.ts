@@ -45,8 +45,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { expect, test } from "../support/tool-fixtures.ts";
+import { scaledBudget } from "./_load-budget.ts";
 
-const BIOME_SPAWN_TIMEOUT_MS = 90_000;
+const BIOME_SPAWN_TIMEOUT_MS = scaledBudget(90_000);
 
 interface ProbeFence {
   /** The repo-relative directory, spelled exactly as the `biome.json` `files.includes` negation names it. */

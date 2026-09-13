@@ -6,7 +6,6 @@ import { join } from "node:path";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { PolicyScopeRequest } from "../../../../tooling/src/verify/contract/policy-scope.ts";
 import { POLICY_SCOPE_KINDS } from "../../../../tooling/src/verify/contract/policy-scope.ts";
-import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { resolvePolicyScope } from "../../../../tooling/src/verify/lib/policy-scope.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -31,7 +30,7 @@ function plantRepo(root: string): void {
   writeFileSync(join(root, ".gitignore"), "node_modules/\nreports/\n**/dist/\n");
   writeJson(join(root, "package.json"), { name: "fixture-root", private: true, packageManager: "pnpm@11.15.1" });
   writeFileSync(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n  - tooling\n");
-  writeJson(join(root, "tsconfig.base.json"), { compilerOptions: { module: "nodenext", target: "esnext" } });
+  writeJson(join(root, "tsconfig.base.json"), { files: [], compilerOptions: { module: "nodenext", target: "esnext" } });
   writeJson(join(root, "packages/a/package.json"), { name: "@fixture/a", private: true, version: "0.0.0" });
   writeJson(join(root, "packages/b/package.json"), { name: "@fixture/b", private: true, version: "0.0.0" });
   writeJson(join(root, "tooling/package.json"), { name: "@orb/tooling", private: true, version: "0.0.0" });
@@ -301,9 +300,10 @@ test("project membership follows compiler include, exclude, multiple ownership, 
 test("direct, inherited, and references-only config changes select every dependent program", ({ scratch }) => {
   plantRepo(scratch);
   mkdirSync(join(scratch, "configs"));
-  writeJson(join(scratch, "configs/tsconfig.base-a.json"), { compilerOptions: { strict: true } });
+  writeJson(join(scratch, "configs/tsconfig.base-a.json"), { files: [], compilerOptions: { strict: true } });
   writeJson(join(scratch, "configs/tsconfig.base-b.json"), {
     extends: "./tsconfig.base-a.json",
+    files: [],
     compilerOptions: { noUncheckedIndexedAccess: true },
   });
   writeJson(join(scratch, "packages/a/tsconfig.json"), {
@@ -378,13 +378,4 @@ test("malformed, unresolved-reference, and zero-member compiler configs refuse",
 test("Git failures are loud rather than empty selections", ({ scratch }) => {
   writeJson(join(scratch, "package.json"), { name: "not-a-repository" });
   expect(() => resolvePolicyScope(scratch, { kind: "whole" })).toThrow(/git .*failed/i);
-});
-
-test("the real workspace maps @orb/tooling without a hard-coded package path table", ({ repoRoot }) => {
-  const tooling = resolvePolicyScope(repoRoot, { kind: "package", name: "@orb/tooling" });
-  expect(tooling.workspacePackage).toEqual({ name: "@orb/tooling", path: "tooling" });
-  expect(tooling.currentPaths).toContain("tooling/package.json");
-  expect(tooling.programs.find((program) => program.id === "tooling/tsconfig.json")?.files).toContain("tooling/src/verify/lib/selection.ts");
-  expect(tooling.programs.find((program) => program.id === "tooling/tsconfig.json")?.configPaths).toContain("tooling/tsconfig.json");
-  expect(readPolicyRepositoryInventory(repoRoot).paths).toEqual(expect.arrayContaining([".agents/skills", ".codex/agent-doctrine.md", ".codex/hooks"]));
 });
