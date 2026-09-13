@@ -11,7 +11,14 @@ import { gate as familyOwnershipHealth } from "../../../../tooling/src/verify/ga
 import { gate as selectorWriter } from "../../../../tooling/src/verify/gates/css-selector-has-a-writer.ts";
 import { gate as selectorWriterHealth } from "../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
 import { installedPackageRootOf } from "../../../../tooling/src/verify/lib/baseui-read.ts";
-import { BASE_UI_MANIFEST_PATH, EMPTY_BASE_UI_MANIFEST, SELECTOR_FIXTURE } from "../../../../tooling/src/verify/lib/css-family-proof-fixtures.ts";
+import {
+  BASE_UI_MANIFEST_PATH,
+  CLEAN_PRODUCT_CSS,
+  EMPTY_BASE_UI_MANIFEST,
+  INERT_SOURCE,
+  SELECTOR_FIXTURE,
+  VENDOR_SURFACE_FIXTURE,
+} from "../../../../tooling/src/verify/lib/css-family-proof-fixtures.ts";
 import { cssHookProvenanceFact } from "../../../../tooling/src/verify/lib/css-family-source-provenance.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { ROOT } from "../../../../tooling/src/verify/lib/repo-paths.ts";
@@ -299,4 +306,57 @@ test("PRODUCTION PATH: every REAL derived selector-hook slice — parenthesis-wr
   expect(tokens).toEqual(
     expect.arrayContaining([".shell-wrapper", ".other-wrapper", ".tier-wrapper", ".excluded-wrapper", '[data-slot="dialog', '[data-mode="a', "[data-x]"]),
   );
+});
+
+// LEG 3 (#2318, warm leg): `css-selector-has-a-writer` is a SIXTH `json:baseui-manifest` consumer with no
+// §4.5 refusal pin — reachable, and outside #2297's fence (that fix pinned the four-consumer derives loop
+// plus `baseui-state-data-attributes`; this policy's own declaration was never touched). `json` is a
+// POPULATED resource kind, so a non-ready `json:baseui-manifest` withholds the OWNER at the POPULATION
+// phase, before `evaluate` ever runs — the same shape `baseui-and-surface-family.repo.int.test.ts:256-294`
+// pins for the other five consumers. `resource-policy-contract.md` §3.6: one pin per declared resource per
+// REACHABLE non-ready status. `ops/resource-json.ts`'s header states the closed set: `missing | empty |
+// unresolved` (the third being an unparseable-but-present file) — never a fourth.
+//
+// RED-FIRST: `grep 'baseui-manifest' tests/tooling/verify/gates/css-hook-provenance-family.test.ts` before
+// this block returns exactly one hit — LEG 1's own comment about the SEMANTICALLY-invalid-but-parseable-JSON
+// case (a different defect, already pinned above) — never a missing/empty/unresolved assertion. Nothing here
+// today plants an empty manifest and checks that `css-selector-has-a-writer`'s owner goes incomplete.
+const WITHOUT_MANIFEST = { ...CLEAN_PRODUCT_CSS, ...INERT_SOURCE, ...VENDOR_SURFACE_FIXTURE };
+
+test("json:baseui-manifest MISSING withholds css-selector-has-a-writer's owner at population — never a finding, never a clean pass", ({ scratch }) => {
+  const result = passResource(selectorWriter, scratch, WITHOUT_MANIFEST);
+
+  expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
+  expect(result.toolErrors[0]?.message).toContain("resource declaration json:baseui-manifest is missing");
+  expect(result.authority.withheldPolicyIds).toContain(selectorWriter.id);
+});
+
+test("json:baseui-manifest EMPTY withholds css-selector-has-a-writer's owner at population — the third status, and it is not 'missing'", ({ scratch }) => {
+  const result = passResource(selectorWriter, scratch, { ...SELECTOR_FIXTURE, [BASE_UI_MANIFEST_PATH]: "" });
+
+  expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
+  expect(result.toolErrors[0]?.message).toContain("resource declaration json:baseui-manifest is empty");
+  expect(result.authority.withheldPolicyIds).toContain(selectorWriter.id);
+});
+
+test("json:baseui-manifest UNPARSEABLE withholds css-selector-has-a-writer's owner at population — missing and malformed stay separate facts", ({
+  scratch,
+}) => {
+  const result = passResource(selectorWriter, scratch, { ...SELECTOR_FIXTURE, [BASE_UI_MANIFEST_PATH]: "{ not json\n" });
+
+  expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
+  expect(result.toolErrors[0]?.message).toContain("resource declaration json:baseui-manifest is unresolved");
+  expect(result.toolErrors[0]?.message).toContain("did not parse as strict JSON");
+  expect(result.authority.withheldPolicyIds).toContain(selectorWriter.id);
+});
+
+test("the healthy twin — the same substrate with a schema-valid manifest present — judges cleanly, no refusal, normal findings", ({ scratch }) => {
+  const result = passResource(selectorWriter, scratch, { ...SELECTOR_FIXTURE, [BASE_UI_MANIFEST_PATH]: EMPTY_BASE_UI_MANIFEST });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies.map((owner) => owner.owner.status)).toEqual(["success"]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  // SELECTOR_FIXTURE's baseline sheets are inert (no unwritten hooks), so the healthy twin reports nothing —
+  // the exact "normal findings" shape for THIS substrate is zero, matching the other healthy-twin pin above.
+  expect(result.authority.effectiveFindings).toEqual([]);
 });
