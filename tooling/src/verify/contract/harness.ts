@@ -1,6 +1,12 @@
-// The pre-single-pass `Check` vocabulary that survived the machine rewrite: the shared Violation /
-// CheckContext / Check shapes still consumed by the injectable-baseline factories and the retained
-// `monotonicTests` Check, plus `GateResult` — the per-gate record the check-structure.json writer emits.
+// The pre-single-pass `Check` vocabulary that survived the machine rewrite: `Violation` and
+// `CheckContext` are still consumed by the legacy gate modules, plus `GateResult` — the per-gate record
+// the check-structure.json writer emits.
+//
+// `Check` ITSELF NOW HAS NO IMPLEMENTER. Its last one was `monotonic-tests`, deleted whole with the
+// test-baseline manifest (#2217, owner ruling) — `pnpm ast refs Check --in tooling/src/verify` answers 2
+// hits in 2 files, the declaration below and the re-export in `index.ts`. Stated rather than deleted here:
+// whether the shape retires with the mixed runtime or survives the cutover is the loader's call, not this
+// module's, and a header that claims a live consumer is the lie this note exists to stop.
 import type { Project } from "ts-morph";
 import type { GateSeverity } from "./gate-authority.ts";
 import type { GateScan, GateTiming } from "./pass.ts";

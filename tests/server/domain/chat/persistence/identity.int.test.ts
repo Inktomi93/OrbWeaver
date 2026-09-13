@@ -1,7 +1,8 @@
 // persistence/identity — proves the ONE kind-polymorphic IDENTITY producer loader (D137, Chat-Macro-Resolution.md
 // §1) against a real libSQL db. Ports the coverage assertions of the two per-kind loaders it replaced
-// (macro-names.int.test.ts + roster-avatars.int.test.ts — assertions intact, re-pointed; see the
-// test-baseline `deletions` ledger): member-gated coverage (participants' seat/active-persona ids UNION a
+// (macro-names.int.test.ts + roster-avatars.int.test.ts — assertions intact, re-pointed; the deletions
+// ledger that recorded the pair died with the test-baseline manifest in #2217, so git history is the
+// record now): member-gated coverage (participants' seat/active-persona ids UNION a
 // loaded set of message rows' stamps), dedup across the two sources, the `assets` LEFT JOIN (an entity
 // with no avatar resolves `avatarHash: null`, never dropped), the removed-character portrait floor, the
 // empty-input no-query floor, and the multi-human member-not-owner gating.

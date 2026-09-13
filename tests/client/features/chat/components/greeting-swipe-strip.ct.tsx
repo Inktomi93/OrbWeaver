@@ -1,7 +1,9 @@
 // CT: the seeded-greeting swipe strip (R3, chat-creation-draft-mode-replacement.md §4.8 / fork F6).
 //
 // RESTORED, NOT RESURRECTED. This path existed before R1 over a client draft store and was deleted with it
-// (ledgered in docs/test-baseline/manifest.json's `deletions`, entry removed with this file's return). The
+// (the deletion was ledgered in the test-baseline manifest, which was itself deleted with `monotonic-tests`
+// in #2217 — test presence is DERIVED now, so a returning path is judged by `test-presence`/`test-layout`,
+// never by a ledger entry). The
 // CHROME is the same — that is deliberate, a greeting should page like any other row — but the subject is
 // new: the strip now drives a host-gated server verb by INDEX, and its position is derived from the row's
 // current text rather than from a store it also writes.
