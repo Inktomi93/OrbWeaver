@@ -1023,7 +1023,7 @@ Current adjudication: the second independent lens confirms the two ordinary poli
 
 | subject | found by | defect | class | state | receipt |
 | - | - | - | - | - | - |
-| `no-loose-id-cast` | Codex gap probes · `tooling/src/verify/gates/no-loose-id-cast.ts:45-51,79-84` | A legal parenthesized const-asserted operand in `("" as const) as unknown as UserId` causes a visit-phase unwaivable-coordinate tool error rather than a finding. The immediate operand is an AsExpression, so the parenthesis-only anchor unwrap never reaches its nameable carrier. | coordinate refusal on a supported cast shape | **OPEN (board #2325)** | Independent in-memory production-conformance probe and root replay at `83215b816` reproduce the error; the unparenthesized const assertion reports, single casts pass, and satisfies wrappers retain their existing behavior. Repair and permanent regression controls are assigned; no fix receipt is claimed. |
+| `no-loose-id-cast` | Codex gap probes · `tooling/src/verify/gates/no-loose-id-cast.ts:45-51,79-84` | A legal parenthesized const-asserted operand in `("" as const) as unknown as UserId` causes a visit-phase unwaivable-coordinate tool error rather than a finding. The immediate operand is an AsExpression, so the parenthesis-only anchor unwrap never reaches its nameable carrier. | coordinate refusal on a supported cast shape | **CLOSED (board #2325; `1769f8ac9`; independent corrective ACCEPT, [repair and full review](x-cast-anchor-2026-09-13.md))** | Independent in-memory production-conformance probe and root replay at `83215b816` reproduce the error; the unparenthesized const assertion reports, single casts pass, and satisfies wrappers retain their existing behavior. Repair and permanent regression controls are assigned; no fix receipt is claimed. |
 
 ### cb-adj-closures — production-default and false-receipt follow-ups · 2 rows ([full review](adj-closure-review-2026-09-13.md))
 
@@ -1076,8 +1076,8 @@ verification receipts so the historical defect can be joined to its disposition.
 | **§5b.7** | 10 | 8 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 17 | 15 | 2 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 315 | 199 | 94 | 1 | 2 | 1 | 0 | 18 |
-| **TOTAL** | 511 | 353 | 125 | 6 | 3 | 1 | 0 | 23 |
+| **other** | 315 | 200 | 93 | 1 | 2 | 1 | 0 | 18 |
+| **TOTAL** | 511 | 354 | 124 | 6 | 3 | 1 | 0 | 23 |
 
 **DATED HAND CENSUS — 2026-09-12 (taken at the 23:01Z barrier, `64fd349e8`), not re-derived since.** The sub-table below is a historical partition of the `other` bin by hand-read phrases. Its rows sum to its snapshot TOTAL (176); it makes no current-population claim. The current derived population is the CLASS ROLLUP table above.
 
@@ -1280,6 +1280,6 @@ accounting is linked below; a clean rollup alone cannot establish that completen
   boundaries or were covered by later waves and barriers. Remaining conversion-replay work is tracked by
   \#2319, #2273, #1970 and #2033; proven authority/shared-reader work is tracked by #1922/#2147/#2320 and
   \#2163. Targeted probes cleared the stated FK spread and alias/satisfies cases and filed the parenthesized
-  cast-coordinate failure as #2325. The authorization zero-instance census remains with the security
-  reviewer. No new defect rows were justified solely by the omissions; the new row rests on reproduced
+  cast-coordinate failure as #2325. The [completed security census](adj-role-authority-census-2026-09-13.md) confirmed zero instances
+  for the three exact header-defined shapes, with planted controls. No new defect rows were justified solely by the omissions; the new row rests on reproduced
   behavior recorded in the linked probe report.
