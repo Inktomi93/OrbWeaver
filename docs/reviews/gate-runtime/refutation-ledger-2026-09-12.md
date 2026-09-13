@@ -1058,6 +1058,33 @@ Current adjudication: the second independent lens confirms the two ordinary poli
 | - | - | - | - | - | - |
 | `compiler-program-discovery` | W1 · `tooling/src/verify/lib/policy-program-membership.ts` | An `extends` edge removes a concrete parent from discovery and explicit native execution | reader population omission · P2 | **CLOSED** — #2335; integrated `2b6df2a29`; independent review and main verification in the linked report | Native scratch parent TS2322 while discovered child passes; integrated 36-test, ownership/parity and all-program receipts in the report |
 
+### Q08 production dependency repair — #2337 ([`v-q08-production-consumption-2026-09-13.md`](v-q08-production-consumption-2026-09-13.md)); 1 row
+
+| id | module | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| Q08-METHOD-ROOT | policy-descriptor-read / policy-family-readers | Legal method-form create hooks had no production dependency root, falsely accusing shared-reader families. | other (false positive) | **CLOSED** — #2337; `65190f0af`, `0cb85a8db`, `735a86d0c` | Independent author-checkpoint review and 40 tests confirmed; integrated 40/40 at main-2541679-2026-09-13T13-20-02-693Z, all eleven native programs and scoped lint passed. Source reach is not runtime branch execution or semantic fitness. |
+
+### Workboard byte-limit repair — #1906 / #1920 ([`v-workboard-evidence-2026-09-13.md`](v-workboard-evidence-2026-09-13.md)); 2 rows
+
+| id | module | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| WB-EVIDENCE-1 | workboard help / CLI test | Help and its assertion described the measured UTF-8 byte cap as characters. | other (operator guidance) | **CLOSED** — `197ccce1c` | Independent warm review confirmed; integrated workboard floor 73/73 at main-2510712-2026-09-13T13-16-05-269Z, all eleven native programs and scoped lint/docs passed. |
+| WB-EVIDENCE-2 | orchestrator-runbook | The skill prescribed the superseded #1920 workaround after the byte-budget fix. | other (operator guidance) | **CLOSED** — `197ccce1c` | Dated correction preserves the earlier failure and states the measured split behavior; independent warm review and integrated docs check passed. |
+
+### Replay continuation repairs — #2319 ([`v-2319-continuation-review-2026-09-13.md`](v-2319-continuation-review-2026-09-13.md)); 3 rows
+
+| id | module | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| V-2319-C1 | registry-definitions-legacy-replay.test.ts | Broad regex accepted any unclassified reason despite the exact-name claim. | other (proof blind spot) | **CLOSED** — `b6d116e6b` | Exact unclassified label asserted; independent warm review confirmed and integrated seven-importer floor passed 50/50 at main-2520958-2026-09-13T13-17-05-683Z. |
+| V-2319-C2 | x-legacy-replay-2026-09-13.md | Recipe required prepend while the working twin also repointed existing imports. | other (stale procedure) | **CLOSED** — `b6d116e6b` | Recipe distinguishes both operations; independent review confirmed report consistency. |
+| V-2319-C3 | modal opener replay | An unresolved dependency impersonated a stronger-reader differential. | other (fixture artifact) | **CLOSED** — `b6d116e6b` | Completed dependency proves zero to zero, preserving old bytes and the original eleven findings; independent review and integrated 50-test importer floor confirmed. |
+
+### Replay exact-arm repair — #2338 ([`v-2319-integration-review-2026-09-13.md`](v-2319-integration-review-2026-09-13.md)); 1 row
+
+| id | module | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| R-2319-1 | registry-definitions-legacy-replay.test.ts | Imported modal definition observed a common prefix and mislabeled its resolved placeholder arm as an anchor move. | other (proof blind spot) | **CLOSED** — #2338; `45d520e73` | Exact Placeholder body successor and same-coordinate wrong-arm control; independent source closing review confirmed; integrated 50/50 importer tests and scoped lint/docs passed. All 51 examples remain; four subsequent modules and whole #2319 completion remain outside this closure. |
+
 ## CLASS ROLLUP
 
 **REBUILT FROM THE BODY, 2026-09-11 (`v-ledger-sweep`, `64dfbf349`). The previous table read
@@ -1102,8 +1129,8 @@ verification receipts so the historical defect can be joined to its disposition.
 | **§5b.7** | 10 | 8 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 17 | 16 | 1 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 321 | 255 | 47 | 1 | 2 | 1 | 0 | 15 |
-| **TOTAL** | 517 | 426 | 61 | 6 | 3 | 1 | 0 | 20 |
+| **other** | 328 | 262 | 47 | 1 | 2 | 1 | 0 | 15 |
+| **TOTAL** | 524 | 433 | 61 | 6 | 3 | 1 | 0 | 20 |
 
 **DATED HAND CENSUS — 2026-09-12 (taken at the 23:01Z barrier, `64fd349e8`), not re-derived since.** The sub-table below is a historical partition of the `other` bin by hand-read phrases. Its rows sum to its snapshot TOTAL (176); it makes no current-population claim. The current derived population is the CLASS ROLLUP table above.
 

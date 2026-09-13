@@ -104,7 +104,7 @@ both `tooling/tsconfig.json` and root `tsconfig.json` passed (`/tmp/codex-2319-c
 logs but did not execute the commands, so they are author receipts rather than independent runtime evidence. The
 repair is tracked by #2338 (`codex-replay-continuation`).
 
-## Finding row
+## LEDGER ROWS (1 row)
 
 | id | class | module | what | state |
 | - | - | - | - | - |
