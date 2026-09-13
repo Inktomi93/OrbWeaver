@@ -48,7 +48,7 @@ export const dialogRootImportFact = defineFact({
         },
       ],
       finish: () => {
-        ctx.receipt({ kind: "population", source: "client feature TSX modules", members: ctx.files.length });
+        ctx.receipt({ kind: "population", source: "client source modules", members: ctx.files.length });
         return { sources: ctx.files.length, occurrences };
       },
     };
