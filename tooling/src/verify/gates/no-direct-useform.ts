@@ -30,7 +30,7 @@ const MESSAGE =
   "`useForm`/`createFormHook`/`createFormHookContexts` directly bypasses the bound fields and drifts every " +
   "editor surface apart (UI-Lib-TanStack-Form.md).";
 const UNREADABLE =
-  "this call is spelled like a TanStack Form mint but the shared readers cannot place its binding, so whether it is the vendor's own export CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this call is spelled like a TanStack Form mint but the shared readers cannot place its binding, so whether it is the vendor's own export CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX = "build the form with `useAppForm` from #forms/editor; the shared toolkit's own mints are licensed by exact reviewed grants.";
 
 /** The callee's leaf name across bare, member and computed-literal spellings. */

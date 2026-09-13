@@ -37,7 +37,7 @@ const MESSAGE =
   "`applyChatBusEvent` only, and components read via `useTurnSlot`/`useTurnPhase`. A second writer into the " +
   "turn surface is the drift UI-Gates-and-Lessons.md §11.1 exists to stop.";
 const UNREADABLE =
-  "this module names `chatStream` through a binding the shared readers cannot place, so whether it is the stream store's write api CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this module names `chatStream` through a binding the shared readers cannot place, so whether it is the stream store's write api CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "raise a bus event and let data/bus/ apply it (or read with useTurnSlot/useTurnPhase); the bus applier itself is licensed by an exact reviewed grant.";
 

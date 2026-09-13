@@ -63,7 +63,7 @@ const MESSAGE =
   "join, or a structural write-guard re-emit that forwards issues with their paths, takes an exact " +
   "reviewed grant instead.";
 const UNREADABLE =
-  "this reference is spelled like a zod `issues` read but the shared readers cannot place the property's declaration, so whether it flattens a ZodError CANNOT be established. Reported rather than passed.";
+  "this reference is spelled like a zod `issues` read but the shared readers cannot place the property's declaration, so whether it flattens a ZodError CANNOT be established. Reported rather than passed. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "render user-facing refusals with `z.prettifyError(result.error)` (see packages/contracts/src/preset/index.ts `parsePresetFile`); a model-facing join or a structural re-emit takes an exact reviewed grant with its reason.";
 

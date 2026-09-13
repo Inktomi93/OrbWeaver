@@ -36,7 +36,7 @@ const MESSAGE =
   "`createEntityMutation`. A loose cache call here recreates neo's 81-site invalidation sprawl " +
   "(UI-Gates-and-Lessons.md §11.3).";
 const UNREADABLE =
-  "this call names an imperative cache method whose receiver the checker cannot place, so whether it is TanStack Query's client CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this call names an imperative cache method whose receiver the checker cannot place, so whether it is TanStack Query's client CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "route the write through data/invalidation.ts or createEntityMutation; a genuine seam-owned call is licensed by an exact reviewed grant row keyed on (file, operation).";
 

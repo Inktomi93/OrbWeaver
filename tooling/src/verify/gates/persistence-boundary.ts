@@ -81,7 +81,7 @@ const MESSAGE =
   "`createPersistedStore` / `createEntityDraftStore`, which force version/partialize/migrate. A boot or " +
   "dev-tooling home that must touch the api directly takes an exact reviewed grant naming the store.";
 const UNREADABLE =
-  "this reference is spelled like a raw browser store but the shared readers cannot place its binding, so whether it is the storage api CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this reference is spelled like a raw browser store but the shared readers cannot place its binding, so whether it is the storage api CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "mint the state through createPersistedStore/createEntityDraftStore, or home the preference in the synced user_settings blob; a boot/dev-tooling home takes an exact reviewed grant.";
 

@@ -31,7 +31,7 @@ const MESSAGE =
   "ONE shape. Mint it with `createDrillSelectionStore(name, { secondary? })` instead " +
   "(derive-modernization-audit.md §W3 G27; D72 — a machine ships WITH its seal).";
 const UNREADABLE =
-  "this selection store calls something spelled `createGatedStore` whose binding the shared readers cannot place, so whether it is the raw store door CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this selection store calls something spelled `createGatedStore` whose binding the shared readers cannot place, so whether it is the raw store door CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "replace the raw `createGatedStore(...)` plus its hand actions/selectors with a `createDrillSelectionStore(name, { secondary? })` mint; a factory or a genuinely non-drill store is licensed by an exact reviewed grant.";
 

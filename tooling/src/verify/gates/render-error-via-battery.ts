@@ -39,7 +39,7 @@ const MESSAGE =
   "`renderError={(_error, retry) => <QueryErrorState label=… onRetry={retry} />}` or drop the prop " +
   "(derive-modernization-audit.md §W4 G29; D72 — a machine ships WITH its seal).";
 const UNREADABLE =
-  "this `renderError` arm sits on something spelled like QueryBoundary whose binding the shared readers cannot place, so whether the battery contract applies CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this `renderError` arm sits on something spelled like QueryBoundary whose binding the shared readers cannot place, so whether the battery contract applies CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "render <QueryErrorState label=… onRetry={retry} /> from the arm, or omit the prop for the default; a genuinely custom error surface needs an exact reviewed grant.";
 

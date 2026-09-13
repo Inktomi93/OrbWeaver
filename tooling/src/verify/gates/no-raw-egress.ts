@@ -49,7 +49,7 @@ const MESSAGE =
   "egress is licensed one FILE at a time by an exact reviewed grant, never by a directory. See " +
   "Core-Path-Registry.md D61 (B5a).";
 const UNREADABLE =
-  "this reference is spelled like the ambient `fetch` but the shared readers cannot place its binding, so whether it is the network api CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this reference is spelled like the ambient `fetch` but the shared readers cannot place its binding, so whether it is the network api CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "call `safeFetch` from infra/network with an explicit allowedHosts set (or the declared ANY_HOST escape); a NEW credentialed/loopback egress home needs an exact reviewed grant, never a directory zone.";
 
