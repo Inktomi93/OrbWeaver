@@ -1081,7 +1081,8 @@ function writeFixtures(): void {
 // policy is partitioned out by the mixed roster, and leaving its name here would fail the two-sided arm that
 // refuses a row naming a converted policy. Its bite is `structure:policy-conformance` running its own rows,
 // plus tests/tooling/verify/gates/{grant-liveness-family.test.ts,runner-config-path-liveness.int.test.ts}.
-// tokens-contract CONVERTED 2026-09-13 (#2183) and its row is GONE from the set below: a final policy is
+// tokens-contract CONVERTED 2026-09-13 (#2182 — `a97454714`'s own subject line; this comment cited #2183,
+// its NEIGHBOUR's issue, until #2294) and its row is GONE from the set below: a final policy is
 // partitioned out by the mixed roster, so a row naming one fails the two-sided arm. It still reads the seven
 // exact canonical JSON/schema paths, which a throwaway `__g_` file could never perturb without mutating the
 // live vault; its bite is `structure:policy-conformance` running its own three arms plus

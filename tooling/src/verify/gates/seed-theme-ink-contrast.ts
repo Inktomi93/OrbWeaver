@@ -71,6 +71,10 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. An unloadable product CSS identity makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create` runs
 // (guide §11 ruling 3), so this module owns no not-ready branch and reads through `readyResourceValue`.
+// BOTH reachable statuses of `product-css` are `mustRefuse` rows: `missing` (a vanished theme.css) and
+// `malformed` (one the shared parser refuses before parsing, #2294 — which matters more here since the
+// fold, because a half-read sheet would reach this policy as ZERO seed palettes and be reported as
+// instrument blindness about the TREE instead of a refusal about the SHEET).
 //
 // DECLARED LIMITS, each with its row: a `-foreground` PAIR ink is judged on its own fill by
 // `palette-contrast.suite.test.ts`, never against neutral chrome (`mustPass[2]`); and a theme.css carrying
@@ -546,6 +550,25 @@ export const gate = defineGate({
       // anchor could retire.
       expect: { messageIncludes: "product-css is missing" },
       why: "a vanished theme.css refuses the five-home product identity at the population phase rather than returning a clean tree",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/ui/src/styles/theme.css": "@theme {\n--color-background: oklch(0.98 0.004 75);\n",
+        "packages/ui/src/styles/globals.css": "@layer base {}\n",
+        "packages/ui/src/styles/tiers.css": "@layer utilities {}\n",
+        "packages/client/src/styles/globals.css": "@layer base {}\n",
+        "packages/client/src/features/app-shell/surfaces/shell.css": ".shell {}\n",
+        "packages/client/src/features/x.tsx": 'export const X = <span className="text-card">x</span>;',
+      },
+      // `product-css`'s SECOND reachable status (#2294), and this policy needs it named more than its
+      // sibling does: since the fold (#2293) the palettes come from the sheet's DECLARATION FACTS, so a
+      // sheet the shared parser cannot read would resolve zero palettes and this gate would report
+      // "resolved zero seed palettes" — an instrument-blindness verdict about the TREE — where the honest
+      // answer is a population-phase refusal about the SHEET. `ops/resource-tree.ts#blockProblem` catches
+      // the unclosed block before the parse, so the refusal fires first and the arms never disagree.
+      expect: { messageIncludes: "product-css is malformed: unsupported or malformed CSS in packages/ui/src/styles/theme.css" },
+      why: "a theme.css the shared CSS parser cannot read refuses at the population phase, rather than reaching this policy as a sheet with zero seed palettes and being reported as instrument blindness",
     },
   ],
 });

@@ -39,8 +39,12 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A missing/empty declared tree makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create`
 // runs (guide §11 ruling 3), so this module owns no not-ready branch and reads through
-// `readyResourceValue`. Both reachable statuses are pinned by `mustRefuse` rows; the receipt pair is
-// pinned in tests/tooling/verify/gates/css-home-topology-family.test.ts, which a row cannot express.
+// `readyResourceValue`. Both reachable statuses are pinned, in DIFFERENT HOMES, and the split is
+// structural rather than a gap (corrected #2294 — this sentence used to claim both were rows): `missing`
+// is `mustRefuse[0]`; `empty` CANNOT be a row, because a proof row's substrate is a `files` MAP and a map
+// has no way to spell a directory that exists with no members. Its pin is therefore a `runPolicyPass` arm
+// over a real `mkdtemp` root (`css-home-topology-family.test.ts:103-115`, with `:17-23` stating the same
+// reason from the test side), which is where the receipt pair lives too.
 //
 // DECLARED LIMITS: the closed list itself is the rule, not a fence, so every arm is carried by a row whose
 // count the §4.1 cut moves. No arm of this policy is unfalsifiable.
