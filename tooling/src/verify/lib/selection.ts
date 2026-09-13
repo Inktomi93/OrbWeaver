@@ -1,6 +1,6 @@
 // The ONE scope-selection resolver (UNIFIED-VERIFICATION-DESIGN.md §3.4) shared by every tier: a
 // `verify --changed/--file/--package/--scope` selection derives, once, exactly which files each tool
-// should see. The honest floor per tool: biome/eslint/docs = file; tsc = the owning package (file-scoped
+// should see. The honest floor per tool: biome/eslint/docs = file; tsc = every affected native program (file-scoped
 // tsc is unsound); depcruise = file. A stage a scope can't honestly run is DEFERRED, never silently skipped.
 // The program algebra lives in ./program-routing.ts and the CT view in ./ct-view.ts (five-slot split, P6).
 
@@ -109,16 +109,15 @@ function resolveChanged(kind: "changed" | "file", explicit: readonly string[], r
   };
 }
 
-/** Resolve a `--package <name>` selection. The check:scope side uses --package natively; the tool views
- *  use the package src prefix (a package run is whole-package, so no explicit file list is threaded to
- *  biome/eslint here — they run over the package via check:scope's fileset only for structure; biome/
- *  eslint/tsc take the package prefix as a folder arg). */
+/** Resolve a `--package <name>` selection. Structure uses --package natively and direct-file tools
+ *  receive the package prefix. Runtime and native compiler selection expand that prefix to authored
+ *  files; typechecking then includes every program affected through their native import closures. */
 function resolvePackage(name: string, root: string): Selection {
   const dir = packageDir(name);
   // @orb/tooling is a ROOT-tree workspace package (docs/architecture/core/Core-Tooling-Law.md §2.1), not packages/*.
   const prefix = dir === "tooling" ? "tooling/" : `packages/${dir}/`;
-  // A package selection's "paths" is the prefix itself — biome/eslint accept a directory arg, tsc uses the
-  // owning tsconfig, depcruise takes the prefix. The concrete file enumeration is left to each tool.
+  // Direct-file views retain the prefix; runtime subjects and affected compiler programs use the
+  // concrete authored-file enumeration below.
   const runtimeSubjects = authoredPathsUnder(prefix.replace(/\/$/u, ""), root);
   if (runtimeSubjects.length === 0) {
     throw new Error(`package scope selected zero authored paths: ${name}`);
