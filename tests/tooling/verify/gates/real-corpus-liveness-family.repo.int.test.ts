@@ -19,8 +19,7 @@
 // helper groups arms by glob-set and builds each corpus ONCE. Measured here: two corpora (`@server`, and
 // `@server`+`@db`) cost ~9s of test time, which blew the fast `tooling` project's 7.2s timeout on the first
 // run. A real-corpus arm belongs in the INTEGRATION project beside its siblings
-// (`no-blanket-suppression.repo.int.test.ts`, `policy-soundness-family.repo.int.test.ts`,
-// `conversion-refusal-liveness.repo.int.test.ts`) — landing one in the unit project makes it a load-shaped
+// (`no-blanket-suppression.repo.int.test.ts`, `policy-soundness-family.repo.int.test.ts`) — landing one in the unit project makes it a load-shaped
 // flake. **That ~4.5s-per-corpus figure is the planning input for chunking the remaining ~220: group by
 // POPULATION, not by family name, or the chunk pays for a corpus per module.**
 //

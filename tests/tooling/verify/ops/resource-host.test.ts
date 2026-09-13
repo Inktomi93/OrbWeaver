@@ -19,6 +19,7 @@ test("the host has closed resource doors and acquires only requested facts", ({ 
     "authoredPaths",
     "authoredText",
     "authoredTree",
+    "candidateIndexDelta",
     "cssInventory",
     "devtoolsClosure",
     "documents",

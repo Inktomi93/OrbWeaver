@@ -122,6 +122,14 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     staticConfig: (id) => accept({ kind: "static-config", id }, () => host.staticConfig(id)),
     nativeConfig: (id) => accept({ kind: "native-config", id }, () => host.nativeConfig(id)),
     trackedFiles: () => accept({ kind: "tracked-files" }, () => host.trackedFiles()),
+    candidateIndexDelta: (paths) => {
+      const outside = paths.find((path) => !allowedPaths.has(path));
+      if (outside !== undefined) {
+        context.receipt({ kind: "resource", source: "candidate-index-delta", resources: 0, unresolved: 1 });
+        throw new Error(`candidate index path ${outside} ${POLICY_PASS_REFUSALS.resourceOutsidePopulation}`);
+      }
+      return accept({ kind: "tracked-files" }, () => host.candidateIndexDelta(paths));
+    },
     json: (id) => accept({ kind: "json", id }, () => host.json(id)),
     installedPackage: (request) => accept({ kind: "installed-package", ...request }, () => host.installedPackage(request)),
     mirrorIndex: (id) => accept({ kind: "mirror-index", id }, () => host.mirrorIndex(id)),

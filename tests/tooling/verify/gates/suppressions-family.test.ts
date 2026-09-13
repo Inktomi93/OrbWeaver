@@ -1,7 +1,6 @@
 // The standing conformance net for the `suppressions` policy — a declared SINGLETON family whose shared
-// reader is `lib/suppression-directive.ts` `suppressionSites` (co-consumed by the still-LEGACY
-// `no-blanket-suppression`, which judges the same grammar for the opposite reason and therefore cannot
-// appear here until it converts).
+// reader is `lib/suppression-directive.ts` `suppressionSites` (co-consumed by the independent
+// `no-blanket-suppression` singleton, which judges the same grammar for the opposite reason).
 //
 // WHAT ONLY THIS FILE CAN PROVE. `verifyPolicyProofs` runs the module's declared rows, which the static
 // conformance stage already does. Three things it CANNOT express, and all three are the load-bearing half of

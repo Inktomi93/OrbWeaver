@@ -1,3 +1,6 @@
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { execNicedSync } from "@orb/tooling/_shared/proc";
 import { Project } from "ts-morph";
 import { PRODUCT_STYLESHEETS } from "../../../../tooling/src/verify/contract/css-family.ts";
 import type { GatePolicyContext } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -178,4 +181,21 @@ test("the exact-file door is fenced PER ID, so a widened argument cannot reach a
   expect(() => bound.exactFiles(["ct-boot", "ct-extension-css"])).toThrow("exact-file:ct-extension-css is undeclared");
   expect(() => bound.exactFiles([])).toThrow("zero ids");
   expect(receipts.at(-1)).toEqual({ kind: "resource", source: "exact-file", resources: 0, unresolved: 1 });
+});
+
+test("candidate-index text cannot widen beyond the tracked paths in this policy's effective population", ({ scratch }) => {
+  execNicedSync("git", ["init", "--quiet", scratch]);
+  writeFileSync(join(scratch, "allowed.ts"), "export const allowed = true;\n");
+  writeFileSync(join(scratch, "sibling.ts"), "export const sibling = true;\n");
+  execNicedSync("git", ["-C", scratch, "add", "allowed.ts", "sibling.ts"]);
+  const invocation = createResourceHost({ root: scratch });
+  const receipts: GatePolicyReceipt[] = [];
+  const bound = bindPolicyResources({
+    host: invocation.host,
+    context: { resourcePaths: ["allowed.ts"], receipt: (receipt) => receipts.push(receipt) },
+    declarations: [{ kind: "tracked-files" }],
+  });
+
+  expect(() => bound.candidateIndexDelta(["sibling.ts"])).toThrow(/outside the effective resource population/);
+  expect(receipts).toEqual([{ kind: "resource", source: "candidate-index-delta", resources: 0, unresolved: 1 }]);
 });

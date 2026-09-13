@@ -6,7 +6,7 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ResourceLoad, ResourceSubprocessReceipt, TrackedResourceIndex } from "../contract/resource.ts";
 import { normalizePathSet } from "../lib/policy-validation.ts";
-import { repoGitEnvironment } from "../lib/repo-paths.ts";
+import { candidateIndexGitEnvironment } from "./resource-index.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -17,7 +17,9 @@ const GIT_INDEX_MAX_BYTES = 16_777_216;
 export function loadTrackedFiles(root: string): ResourceLoad<TrackedResourceIndex> {
   const result = runNicedSync("git", ["ls-files", "-z", "--full-name"], {
     cwd: resolve(root),
-    env: repoGitEnvironment(),
+    // Membership and staged bytes must describe the same candidate transaction. The shared environment
+    // selector preserves a hook's GIT_INDEX_FILE only at the real invocation root.
+    env: candidateIndexGitEnvironment(root),
     timeout: GIT_INDEX_TIMEOUT_MS,
     maxBuffer: GIT_INDEX_MAX_BYTES,
   });
