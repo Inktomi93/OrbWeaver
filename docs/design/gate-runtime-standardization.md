@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-12
+updated: 2026-09-13
 ---
 
 # One ts-morph runtime for every Orb gate — the program guide (#1584)
@@ -2035,6 +2035,53 @@ document predates this and describes a tree where none of it existed.
 | **biome** | **No loader exists and none is coming** — `@biomejs/biome` ships `bin/biome` plus a schema, no `main`, no `exports`, no `@biomejs/js-api`, and no subcommand emits a resolved configuration. Biome is a strict JSON read. It is also a policy HOST, not only a lint config: `1bf7ff7d9` moved D12's import ban INTO biome's `noRestrictedImports`, and `0df3fa9d6` (#1245) ruled that **biome checking ZERO files is a REFUSAL, never a clean lint** |
 | **stryker** | `_shared/stryker-config.ts` composes both configs natively (`a24feaadb` / #1897). Derivation stays PURE — importing it cannot mutate the base Vitest config — and a native dry run proves loading and test execution but NEVER substitutes for mutation-score calibration |
 | **vite** | Not a liveness surface. The dev stack self-heals on source changes; workspace packages are source-consumed. It appears here only so nobody adds a vite gate looking for symmetry |
+
+**WHAT EACH LINTER ACTUALLY SEES, AND WHY ESLINT IS THE ODD ONE — measured 2026-09-13, and it is here so nobody
+re-derives seven tools again.** Three gitignored directories have now been silently linted
+(`playwright/.cache` #2213, `.claude/worktrees` #2281, `scripts/probes/st-goldens` #2282), all one mechanism:
+
+> **FLAT-CONFIG ESLINT READS NO VCS IGNORE FILE.** `.gitignore` fences nothing in `eslint.config.js`. Biome is
+> fenced TWICE (`vcs.useIgnoreFile: true` PLUS an explicit `"!.claude"` in `files.includes`) — which is exactly
+> why the sibling tool always looks fine and this keeps going unnoticed.
+
+| tool | how it is invoked | reaches a gitignored tree? | fenced by |
+| - | - | - | - |
+| biome (`lint`, `format`) | `biome check .` — repo ROOT | no | `useIgnoreFile` + `"!.claude"` |
+| **eslint** (`lint:eslint`) | `eslint.lintFiles(["."])`, `ops/eslint-discovery.ts:49` — its OWN walk | **YES** | *nothing* — the `ignores` block is the only fence |
+| dependency-cruiser | `depcruise packages tooling <helpers>` | no | explicit roots, by construction |
+| knip | workspace-scoped | no | a worktree is not a workspace member |
+| vitest | `packages/*/src/**`, `tooling/src/**` | no | anchored globs cannot match a nested copy |
+| tsc / `pnpm typecheck` | explicit `--config` per program | no | tsconfig root lists |
+| **the gates** | declared populations | no | **verified empirically in the published slot: 0 worktree paths, 0 of 376 violation files** |
+
+The gate row was checked against `reports/check-structure.json` rather than reasoned from the population algebra:
+the gate corpus is NOT inflated by worktrees. Scale, for why this matters at all: 7,571 authored `.ts`/`.tsx`
+against **294,065** inside 39 worktrees and **17,059** under the ST parity rig.
+**But COST is not the reason to fence** — fencing the worktrees moved the whole-repo run 246.7 s → 226 s, ~8%,
+because those files match no `files:` surface and no type-aware program ever ran on them. The reason is that the
+stage cannot return a VERDICT: a lane swept mid-run turns an enumerated path into ENOENT and it exits **2**.
+
+**A NATIVE-CONFIG EDIT OWES ITS LIVENESS GATE, DRIVEN BEFORE AND AFTER — never reasoned about (paid twice in one
+hour, 2026-09-13, once in each direction).** Every config in the rows above carries a gate that reads it natively,
+and the discriminator between a safe edit and a breaking one is **POPULATION vs SPELLING**:
+
+- **BREAKING — a selector POPULATION moved.** Adding one `ignores` entry to `eslint.config.js` redded
+  `eslint-grant-liveness` (hard/error) immediately: it flags any evaluated selector with ZERO members in the
+  TRACKED corpus, so a gitignored fence owes a `RATIFIED` row with a reason, an end condition and a live cite —
+  which is why `node_modules`, `dist`, `.stryker-tmp` and `.cache` each carry one, and why `reports/**` does not
+  (it holds one tracked file, so its selector is live). It also broke four `grant-liveness-family` proof rows,
+  whose fixtures hand-spell the ignores array to mirror the real config, and it tripped a THIRD pin —
+  `eslint.int.test.ts`'s payload floor, whose message reads *"#2211's PREMISE HAS MOVED"*. That ceiling had been
+  sized against the unfenced population, which is what a tripwire is for.
+- **SAFE — only a SPELLING moved.** `playwright-ct.config.ts:48` was respelled from
+  `path.resolve(CLIENT_PACKAGE_ROOT, …)` to the whole repo-relative path so `playwright-css-topology`, which has
+  no compiler program for a root config and matches on the file's TEXT, could see it. It folds to an identical
+  absolute path, so the native observation is unchanged: `runner-config-path-liveness` stayed EXIT 0 (it reads
+  `static-config:ct` and `static-config:playwright`), with its `.int` 4/4 and `config-snapshot.int` 24/24.
+
+**AND THE `RATIFIED` TABLES ARE KEYED BY POSITIONAL INDEX** (`config[0].ignores[5]`). Every key today is index 5
+or lower, so APPENDING is safe — **an entry inserted ABOVE silently re-points every row beneath it**, and they
+still resolve, just to the wrong selectors. That is the #2213 coupled-site trap one turn further on.
 
 **The rule that binds every row above** (#1351's own words): *"Preserve and adapt native-config liveness checks when
 selectors move behind imports or generated layers. A static reader that cannot follow the new form must REFUSE or be

@@ -778,6 +778,25 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   reader takes it for. So a claim that a tree carries no planted or scratch state names the class and runs `find`
   over it; and the inverse control matters just as much, because `git ls-files` is the only thing that tells a
   leaked fixture from a committed one before you delete 277 files.
+- **A NATIVE-CONFIG EDIT OWES ITS LIVENESS GATE, DRIVEN BEFORE AND AFTER — and "it is only config" is the tell you
+  are about to skip it** (paid twice in one hour, 2026-09-13, once in each direction). `eslint.config.js`, the CT and
+  playwright configs, `.dependency-cruiser.cjs` and `biome.json` are all #1351 surfaces with a gate reading them
+  NATIVELY. **The mechanism table, the per-tool fences and both worked cases live in guide §12.7** — read the row, do
+  not re-derive seven tools; that table exists because this session re-derived them from scratch. The orchestrator's
+  half is just this: **a config edit is dispatched with `check:structure --check <its liveness gate>` in the floor,
+  before AND after, and a lane that reports a config change without that pair has not finished.** The discriminator
+  worth carrying in your head is POPULATION vs SPELLING — moving a selector's population reds the gate (and its
+  `RATIFIED` table is keyed by POSITIONAL INDEX, so an entry inserted above index 5 silently re-points every row
+  beneath it), while a respelling that folds to the same resolved value does not.
+- **RE-DERIVE A ROW BEFORE PRE-CLAIMING IT INTO A CHUNK, not just before dispatching it** (2026-09-13: a queue of
+  eight rows led with two P1s that were already closed on the tree — `#2229` at `37caa7980`, `#2220` at `6d62ad8ab` —
+  one of them carrying the line *"nothing on the tree closes it"*). A pre-claimed closed row costs a lane slot, reads
+  as work remaining on every subsequent board read, and is indistinguishable from live work until someone opens the
+  file. Same family as the stale refusal (#2013), the one-sided roster (#2008) and the Verify row nothing re-checked
+  (#2005) — which makes it four instances of *a recorded state outliving the tree it described*. **The cheap guard is
+  the one the rules already name: `git log --oneline -5 -- <the row's primary path>` plus a read of the cited
+  `file:line`, per row, at QUEUE time.** And tell a lane explicitly that finding a row already closed is a SUCCESS it
+  should report with the sha — otherwise it will build something to justify the slot.
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
 - **CLAIM AT DISPATCH. It bit TWICE on 2026-09-11 and the second time was after I had already named it.** A row
   dispatched without `claim` sits at **Ready with no Lane while an agent builds it** — invisible in-flight work, and
