@@ -6,7 +6,28 @@ updated: 2026-09-13
 
 # #2067 — source-side nested-template refusal and current-population census
 
-## Repair
+## Integrated result
+
+The four repair commits are integrated through `b6c1065b3`. Independent review accepted the final
+node-associated serializer and the cumulative corrections; its focused production-door suite passed
+17/17. Root's complete doc-catalog run passed 69/70 runtime tests and all three type assertions; the sole
+failure was a pre-existing noncanonical Unicode representation in `reviews.json`. Normalizing that file
+through the production `stableJson` writer preserved its parsed value, and the affected catalog suite
+then passed 8/8. Native tooling typechecking and the seven generated agent manifests also pass.
+
+The integrated production-reader census covered **367 tracked formatter targets**. It found zero nested
+single-delimiter template candidates, 25 classified escaped-backtick carrier files, and one intentional
+refusal: `v-fix-wave-4-2026-09-12.md` preserves the historical lossy output used to establish the defect.
+The current core-law expressions and the five ledger corruption sites named by #2067 are repaired;
+retained escaped spellings are literal examples or attributed historical evidence. Existing controls
+cover both bare-pipe overflow and equal-width pipe loss, as well as malformed nested templates and their
+content-preserving canonical forms.
+
+This closes the bounded loss/refusal repair. It does not establish whole-population canonical formatting:
+**149 non-refused documents still differ from formatter output**. That backlog remains separate from the
+lossy-shape repair and is not a green formatting receipt.
+
+## Initial repair (superseded by the corrective legs below)
 
 `formatMarkdown` now refuses the exact stable-misparse class the prospective-write guards cannot see: two
 single-delimited inline-code nodes, contiguous through non-whitespace template content carrying `${…}`.
@@ -21,7 +42,7 @@ refused and left byte-identical. Its canonical ` `startsWith(`${EXEMPT_DIR}/`)` 
 `left` / `right` spans pass. The existing overflow, equal-width bare-pipe, escaped-pipe, and literal-backtick
 controls remain intact.
 
-## Current target census and dispositions
+## Initial target census and dispositions
 
 Re-resolved through `formatTargets([])` on `cc4f60581`: **360 tracked targets**. The union locator was:
 

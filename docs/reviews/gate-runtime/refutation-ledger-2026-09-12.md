@@ -9,7 +9,8 @@ updated: 2026-09-12
 Program #1584's §5b audit ran **ten waves** and refuted roughly 100 of 112 audited modules across ~430 KB of
 review prose. Nobody could say which of those refutations were still open, so the audit could not be used as a
 work queue and every fix pass re-read the whole corpus to discover its own scope. **This file is the index:
-one row per NAMED DEFECT, with the wave that found it, its class, and its state against TODAY's `main`.**
+one row per named defect extracted into this ledger, with the wave that found it, its class, and its
+last reconciled state against `main`.** Project 1 controls current ownership and lifecycle.
 
 ## SWEEP 2026-09-11 — every UNADJUDICATED row re-derived (`v-ledger-sweep`)
 
@@ -21,8 +22,8 @@ unambiguous key and every verdict below carries one. Read a bare date here as "t
 **Tree: `64dfbf349`** (`feat(verify): make warning promotion reachable`), 24 commits into
 `tooling/src/verify/gates/**` past this ledger's own baseline `831576613`.
 
-**THE ROLLUP BELOW IS STALE BY EVERY `###` SECTION APPENDED SINCE THIS SWEEP AND BY EVERY ROW A FIX LANE HAS
-FLIPPED IN PLACE. Do not read its numbers — re-derive with the method under `## CLASS ROLLUP`.** The line that
+**Historical staleness warning from this sweep.** Appended sections and changed states require a new
+rollup derivation. Use the production check under `## CLASS ROLLUP` to determine current freshness. The line that
 stood here read *"+3 OPEN rows in a new section; the rollup is STALE by exactly those three"*, which was true
 for about an hour and then silently was not: nine more verifier sections landed on top of it. **A hardcoded
 staleness delta is the same defect as a hardcoded count**, in the file that exists to stop it.
@@ -1120,7 +1121,10 @@ instead of being restated 25 times in the table.
 | **#944 third answer unreached** | ~~wave 7: 10 still OPEN~~ → **wave 6: 9 CLOSED · wave 7: 12 CLOSED · wave 8: 3 OPEN · wave 9: 3 OPEN · wave 10: 5 OPEN** | **OPEN ON THE SERVER AND BUS PLANES ONLY.** Re-censused 2026-09-11 (`v-ledger-sweep`): every `home-client` module now carries `messageIncludes: "CANNOT be established"` — `client-cache-surgery-only-in-data` 2, `no-inline-invalidate-outside-seam` 2, `no-direct-useform` 2, `bound-field-via-hook` 3, `chat-stream-writes-in-bus-only` 2, `selection-store-via-factory` 2, `render-error-via-battery` 2, `no-raw-intl-time` 2, `no-raw-zustand-persist` 2, `registry-context-via-mint` 2, `no-effect-on-shared-selection` 3 (`0a550c91c`, #2014). Still **0** in `single-stream-transport`, `no-raw-clock`, `no-raw-random`, `membership-enforcer`, `discovery-no-stats-rollups`, `persistence-no-in-memory-state`, `no-await-db-in-loop`, and all five of `id-brand-flow`. `no-untrusted-html-in-main-dom` is 0 and is a separate row. **The proven fix has now been applied twice and never to the server or bus plane** |
 | **unenforced §4.1 narrowing cells** | ~~\~110 cells across ~55 modules~~ → **re-derived 2026-09-11: roughly 60**, and the aggregates were the worst offenders | **OPEN and MEASURABLY SMALLER.** Wave 6's 25 → ~1 (`2aba9c0ed`/#1999 landed 15 pinned-fence rows, `a54394df6`/#1990 the third answers); wave 5's 33 → 10 (`8ad418868` closed `no-inline-types` 9 of 9 and `zod-modern-spellings` 6 of 6); wave 4's 10 → 4; wave 3's 4 → 1. Waves 8/9/10 are UNTOUCHED (34 + 14 + 11 cells, modules byte-identical). **The decay is entirely on the CLIENT planes; the server and bus planes have had no fix pass at all** |
 
-## THE FIVE HIGHEST-VALUE OPEN DEFECTS, ranked
+## DATED PRIORITY SNAPSHOT FROM THE 2026-09-11 SWEEP
+
+This ranking preserves the sweep's historical prioritization. Inline closure annotations record later
+outcomes; Project 1 controls current ownership and ordering.
 
 Ranked by *a correct gate accusing correct code* first, then by blast radius, then by cost-to-close.
 
@@ -1149,11 +1153,11 @@ Ranked by *a correct gate accusing correct code* first, then by blast radius, th
    `@client` + `@ui`, and NEITHER `mustPass` dies when it is cut (`:91-95` has no JSX attribute at all,
    `:96-102` is a plain-object property in a `.ts` file). One row closes it and no board row exists.
 
-3. ~~**`no-effect-on-shared-selection` FAILS OPEN on the shared reader's third answer**~~ **CLOSED 2026-09-12 (#2016, `eae36a2b8`); the class recurs at `persisted-store-registry` — #2022.** — **CLOSED 2026-09-13, `1a97c17ab`.** Fixed as a THIRD `unreadable` ARM, not as re-attribution to a door: the door decides WHICH ARGUMENT holds the store name (bare arg 0 for persist vs an options bag for draft), so attributing an unreadable callee to either door reads the wrong argument and emits a message about the NAME when the unknown is the DECLARATION — and on a HARD policy the message IS the fix instruction. Proven doors are answered BEFORE the fallback, or an absent home file swallows a sibling door's proven match. **Real-corpus RAW 0 → 0, latent again**, so this is copy-trap containment rather than a live escape. The acquitting `mustPass` was proven NON-DUPLICATE by cutting the SHARED reader (`project-home-origin.ts:82`, resolved non-home → `unreadable`), which kills it while the pre-existing local-function counterfactual SURVIVES — and the complementary cut at `:76` (refusal classifier → `other`) kills `mustFlag[5]` instead, so the two rows are pinned by DISJOINT code paths. **CORRECTED 2026-09-13: an earlier version of this line said the cut kills “only that row across the family”. It does not — it kills FOUR rows corpus-wide** (`bound-field-via-hook.mustPass[1]`, `chat-stream-writes-in-bus-only.mustPass[2]`, `persisted-store-registry.mustPass[2]`, `selection-store-via-factory.mustPass[1]`), all same-name-different-module counterfactuals resolving through the same line. **A cut in a SHARED reader is family-wide BY CONSTRUCTION**, so exclusivity was never what made the row non-vacuous — survival of the sibling is. The honest form is *“exactly one row inside the MODULE, and the sibling survives”*; a lane copying “a shared-reader cut kills exactly my row” as a method will be surprised. Verifier `v-wave-2026-09-13` in flight. Original text: (wave 7 D1, `:337`;
+3. ~~**`no-effect-on-shared-selection` FAILS OPEN on the shared reader's third answer**~~ **CLOSED 2026-09-12 (#2016, `eae36a2b8`); the class recurs at `persisted-store-registry` — #2022.** — **CLOSED 2026-09-13, `1a97c17ab`.** Fixed as a THIRD `unreadable` ARM, not as re-attribution to a door: the door decides WHICH ARGUMENT holds the store name (bare arg 0 for persist vs an options bag for draft), so attributing an unreadable callee to either door reads the wrong argument and emits a message about the NAME when the unknown is the DECLARATION — and on a HARD policy the message IS the fix instruction. Proven doors are answered BEFORE the fallback, or an absent home file swallows a sibling door's proven match. **Real-corpus RAW 0 → 0, latent again**, so this is copy-trap containment rather than a live escape. The acquitting `mustPass` was proven NON-DUPLICATE by cutting the SHARED reader (`project-home-origin.ts:82`, resolved non-home → `unreadable`), which kills it while the pre-existing local-function counterfactual SURVIVES — and the complementary cut at `:76` (refusal classifier → `other`) kills `mustFlag[5]` instead, so the two rows are pinned by DISJOINT code paths. **CORRECTED 2026-09-13: an earlier version of this line said the cut kills “only that row across the family”. It does not — it kills FOUR rows corpus-wide** (`bound-field-via-hook.mustPass[1]`, `chat-stream-writes-in-bus-only.mustPass[2]`, `persisted-store-registry.mustPass[2]`, `selection-store-via-factory.mustPass[1]`), all same-name-different-module counterfactuals resolving through the same line. **A cut in a SHARED reader is family-wide BY CONSTRUCTION**, so exclusivity was never what made the row non-vacuous — survival of the sibling is. The honest form is *“exactly one row inside the MODULE, and the sibling survives”*; a lane copying “a shared-reader cut kills exactly my row” as a method will be surprised. Original text: (wave 7 D1, `:337`;
    `:186` unchanged). It is the program's named ANTI-pattern: eleven siblings write `!== "other"` and report,
    this one writes `=== "home"` and drops the verdict. Measured pinned in NEITHER direction — flipping the
    predicate changes no declared row — so a future edit moves it between fail-open and fail-closed invisibly.
-   It is a security-adjacent selection-taint policy, and it currently has no board row of its own.
+   It is a security-adjacent selection-taint policy; the subsequent #2022 disposition is recorded above.
 
 4. **§5b.5 — the header gap across 48+ modules (#2005), because it BLOCKS #2000.** Not prose polish: wave 9
    states the mechanical consequence outright — no converted module records the legacy pre-conversion SHA its
@@ -1196,7 +1200,9 @@ Ranked by *a correct gate accusing correct code* first, then by blast radius, th
 
 ## WHAT I DID NOT COVER
 
-This section is load-bearing. Treat anything below as unmeasured.
+These bullets preserve what the original sweep did not measure. Later receipts and corrections in this
+document supersede their historical boundaries; they are not current queue claims. The unextracted
+report gaps remain a separate accounting obligation, not something a clean rollup can prove complete.
 
 - ~~**48 of 91 rows are UNADJUDICATED**~~ — **superseded by the 2026-09-11 sweep: 1 of 100.** The one that
   remains is wave 5's real-tree `no-inline-types` count. The heaviest OPEN block is still the §4.1 narrowing
@@ -1229,11 +1235,10 @@ This section is load-bearing. Treat anything below as unmeasured.
   (`lib/policy-descriptor-read.ts:137-148` handles literal / template / `+` / conditional / identifier, and a
   `CallExpression` template span yields no static text). That is why `contract-banned-shapes`' `mustFlag[6]`
   is OPEN under a green enforcer. Nobody has filed it.
-- **I ran no `check:structure`, no `gate:contract`, no `check:policy-conformance`, and no test suite** — four
-  lanes were live and the brief fenced them. **So no state in this ledger is a LIVE-INSTRUMENT verdict.** Every
-  CLOSED row is a source-shape receipt (the code no longer has the shape the wave described); every live number
-  is a RECORDED receipt from a wave or the playbook and is labelled as such. In particular I cannot say how many
-  of #1978's 51 `fix` strings survive today, nor which 11 rows #2001 exempts.
+- **The initial pass had no live-instrument verdict.** The later dated `gate:contract` and
+  `check:policy-conformance` receipts in the opening sweep supersede that blanket limitation. Each row's
+  own receipt still determines whether its verdict rests on source inspection or an executed control;
+  a later whole-instrument pass does not retroactively execute every historical cut.
 - **I did not re-run a single §4.1 cut.** A CLOSED verdict on a narrowing cell here means "a row now exists that
   the cut would kill", not "I cut it and the row died". That is the standard the brief set and it is weaker than
   the wave's own receipt.
@@ -1245,17 +1250,18 @@ This section is load-bearing. Treat anything below as unmeasured.
 - **Roster-row defects are under-adjudicated** (4 of 8 rows). Wave 2's D2 alone is eight independent
   noun-of-art claims against `Core-Enforcement-Active-Gates.md`, and the honest check is a per-clause grep of
   the converted module, which I did not do. Wave 4's D7 (seven of nine rows wrong) is in the same state.
-- **Wave 10's rows are adjudicated against MAIN's tree, but its document is not merged** (worktree
-  `agent-a6a5469bbfac5b55d` at `fca7c9b42`; the playbook's §2 AUDIT STATE table already cites it). If that
-  worktree's tree diverges from main for the `id-brand-flow` modules, my `no-raw-id` and
-  `brand-in-name-position` receipts describe main, not wave 10's base.
+- **Wave 10's initial adjudication used main while its report was still in a worktree**
+  (`agent-a6a5469bbfac5b55d` at `fca7c9b42`). The report is now present at
+  `v-audit-wave10-2026-09-12.md`; the original source receipts describe their stated main revision, not
+  an implicit equivalence with that worktree's base.
 - **Two suites the waves flagged are fenced to the orchestrator and were not run:**
   `gate-conformance.repo.int.test.ts` (wave 4 D5 reproduced it RED on a quiet tree) and
   `gate-ignore-grammar.repo.int.test.ts` (wave 4 proved all three of its carriers went final, statically). The
   actual failure mode of the second — red vs vacuously green — remains UNMEASURED by anyone.
-- **I did not adjudicate any §4.6 differential row, because there are none to adjudicate.** No wave ran a
-  conversion differential; waves 1, 2, 3, 5, 6, 7, 8, 9 and 10 each declare it in their own "did not cover".
-  That whole axis is #2000's and the §5b.5 SHA gap is why it cannot start.
+- **The initial waves did not run conversion differentials.** Waves 1, 2, 3, 5, 6, 7, 8, 9 and 10
+  record that omission. Later §4.6 records and #2000's bounded repair supersede the claim that the axis
+  cannot start; they do not establish that every legacy replay is complete. #2319 tracks that separate
+  replay backlog, and individual differential rows retain their own receipts.
 - **The per-wave "did not cover" sections are themselves un-indexed here.** Nine of the ten waves declare gaps
   in their own method (wave 3 did not run the §4.2 dead-position control; wave 7 built 8 of 17 falsifiers;
   wave 8 left origin-server's §4.1 uncovered, which wave 9 then closed). A second pass over those sections would

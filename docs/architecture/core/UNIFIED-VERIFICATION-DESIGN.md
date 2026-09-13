@@ -57,7 +57,7 @@ hand-maintained package, graph or DOM command roster.
 ### 2.4 Stage GROUPS
 
 Stages are presented in groups (`lint`/`types`/`structure`/`imports`/`deps`/`docs`/`tests`/`browser`/
-`quality` — the `StageGroup` union in `registry.ts`). Two groups carry more than one stage on purpose:
+`quality` — the `StageGroup` union in `contract/stage.ts`). Two groups carry more than one stage on purpose:
 
 - **lint** = biome + eslint. Biome is the whole-repo fast linter; eslint carries the type-aware rules
   (`no-deprecated`, `tsdoc/syntax`, the react-surface gates) over the typed-API packages + the react test
@@ -300,7 +300,7 @@ not one of ours.
 resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads from. Each stage decides how
 (if at all) it runs over that selection:
 
-- **The honest per-tool floor:** biome/eslint/docs = the file; tsc = the OWNING PACKAGE (file-scoped tsc is
+- **The honest per-tool floor:** biome/eslint/docs = the file; tsc = every affected native compiler program (file-scoped tsc is
   unsound, §2.1); depcruise = the file; structure = the walk scoped via `tooling/src/verify/ops/scoped.ts`.
 - **CT (Playwright component tests) = mirror + declared sweeps — the ONE deliberately-open edge**
   (owner-ratified 2026-07-17). A changed `packages/{ui,client}/src/<p>.<ext>` selects its test-layout
@@ -322,10 +322,11 @@ resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads 
     its surface); the stage is a no-op this run.
   - ABSENT `scopedArgv` ⇒ the stage is whole-only (deferred at a scoped tier) by default.
 - **Browser-test type consumers:** production package source, tooling source, and shared test helpers can
-  enter `tsconfig.tests-dom.json` through imports without being roots. Their edits conservatively run that
-  program, as do package scopes, until the complete closure router can narrow the population honestly.
-- **Deletions:** a git-changed set KEEPS deleted paths — the structure walk + the deleted file's owning
-  per-package tsc legitimately reason about a deletion — but the per-tool file-list views (eslint/depcruise/
+  enter browser-test compiler programs through imports without being roots. The affected planner reads
+  native compiler import closures and selects every program containing each changed source. Package and
+  folder scopes expand to authored files before using the same planner.
+- **Deletions:** a git-changed set KEEPS deleted paths — the structure walk retains the deletion and native typechecking
+  conservatively selects every runnable program — but the per-tool file-list views (eslint/depcruise/
   docs, which hand CONCRETE file args to a child that hard-errors on a gone path) DROP them.
 - **`--strict-scope`:** a whole-only stage at a scoped tier REFUSES (exit 3) instead of deferring — for a
   caller who wants a scoped run to fail loudly rather than silently skip the whole-project gates.
