@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-09-11
+updated: 2026-09-13
 ---
 
 # ts-morph capabilities for Orb gate authors
@@ -71,7 +71,9 @@ A symbol is evidence, not automatically a unique origin.
 Use:
 
 - `lib/reference-fact.ts` for stable expressions, members, module origins, and declaration traces;
-- `lib/reference-fact-call.ts` and `lib/gate-contract-origin.ts` for callable origins and member aliases;
+- `lib/reference-fact-call.ts` for callable origins (`resolveCallableOrigin`, "which module export") and callable
+  DECLARATIONS (`resolveCallableDeclaration`, "which declaration/body", module-first then lexical), and
+  `lib/gate-contract-origin.ts` for member aliases;
 - `lib/reference-fact-writes.ts` for assignment, destructuring, and argument-effect invalidation;
 - `lib/authored-key-set.ts` for the UNION of authored property names across branches, spreads of calls, and every
   expression a factory returns — a KEY-SET question, which the value readers above structurally cannot answer.
@@ -82,13 +84,23 @@ Use:
    correct for a VALUE reader — a call's value is not statically known — but those nodes are COMPOSITION points for a
    reader asking about structure rather than value. The right move is to continue the walk at the refusal's own
    `.node`, never to re-implement the alias hop below it; binding identity stays entirely the shared resolver's.
-2. **`resolveCallableOrigin` / `resolveModuleMemberOrigin` cannot reach a MODULE-LOCAL factory.** They answer "which
-   module EXPORT is this", so a non-exported `function f() {}` refuses as *"FunctionDeclaration is not a supported
-   module-member binding"*, and a local arrow resolves only through `resolveStableExpression` — which then refuses the
-   call per limit 1. Real code is full of module-local factories; all three in `domain/chat/persistence/canon-write.ts`
-   are. The fallback is the shared `lexicalReferenceSymbol(identifier).getDeclarations()` — exactly one declaration, or
-   `ambiguous`. Try the module-origin reader FIRST (it is what resolves cross-module factories, aliases and re-export
-   renames) and fall back only for the local case.
+2. **`resolveCallableOrigin` / `resolveModuleMemberOrigin` cannot reach a MODULE-LOCAL factory** — and since #2163
+   **you do not write the fallback yourself.** They answer "which module EXPORT is this", so a non-exported
+   `function f() {}` refuses as *"FunctionDeclaration is not a supported module-member binding"*, and a local arrow
+   resolves only through `resolveStableExpression` — which then refuses the call per limit 1. Real code is full of
+   module-local factories; all three in `domain/chat/persistence/canon-write.ts` are.
+
+   **Ask `lib/reference-fact-call.ts#resolveCallableDeclaration` instead.** It IS the module-first-then-lexical
+   sequence this entry used to prescribe by hand, and it returns ONE proven declaration plus its body and file, or one
+   precise refusal — never a declaration list. It resolves a local function, a const alias, a const-held arrow, an
+   import, an import rename and a re-export rename; it refuses a reassigned or mutable binding (`write`), an alias or
+   export cycle (`cycle`) and a genuine multi-declaration merge (`ambiguous`), while an OVERLOAD SET resolves to its
+   implementation through the same `overloadHome` the module axis uses. A bodyless declaration (`declare function`, an
+   overload signature) RESOLVES with `body: undefined`, because identity and body are different questions.
+   **The hand-written `lexicalReferenceSymbol(identifier).getDeclarations()` fallback this entry used to recommend is
+   now a `policy-binding-resolution` finding inside a gate module** (owner ruling #2097, guide §12.3): the three
+   modules that carried it — `audit-client-tests`, `class-token-splice`, `plugin-dump-guard` — each answered
+   multiplicity, reassignment and cycles differently, which is the whole reason the question has one home.
 
 ## Types and signatures
 
