@@ -1018,3 +1018,52 @@ Chrome's legacy fixtures already declare their zone tuple. The twin adds one sha
 Home-tile's twin likewise adds one shared exported target. Its dormant expectations distinguish empty reason, missing teaser and forbidden action, rather than accepting the common policy message. The two assembly-only examples contain no tile definition: their original and parent-twin withholding remains explicit. A separately completed factory import drives their actual successor, `registry-assembly-at-door-only`, proving one prohibited assembly and a clean main-door assembly, each without tool errors and with legacy inertness. Prerequisites alone also complete cleanly and manufacture no finding.
 
 Validation is recorded in the continuation commit; scoped suite baseline is twelve passing tests. The next queue members are no-parallel-section-map, section-factory-contribution-bundle, config-group-completeness and section-registry-completeness. This checkpoint is not completion of #2319 or the gate program.
+
+## 9. Codex continuation: vocabulary and factory replay
+
+After the independently reviewed #2338 correction (`3e2be854e`), the next two assigned owners carry all
+36 frozen examples. The seven non-split tables now contain **87 legacy rows**; the prior 51 and their
+constructed controls remain present. The shared harness, gate implementations and eleven-row ledger are unchanged.
+
+| Owner / frozen base | Legacy rows | Classification |
+| - | -: | - |
+| no-parallel-section-map / 614b2cb55 | 21 (10 flag, 11 pass) | Ten anchor moves, eleven explicitly zero/zero |
+| section-factory-contribution-bundle / f16cde889 | 15 (7 flag, 8 pass) | Five anchor moves, two runtime refusals, six explicitly zero/zero, two population-unadmittable |
+
+The vocabulary twin takes prerequisite bytes from the final owner's `mustFlag[0]`. It retains each
+original tuple declaration at its original home and adds only absent names, including the imported rail
+spread prerequisite. The Record example's imported `SectionId` alias is completed at the end of its
+existing tuple home; no subject line moves. The final expectations name both the vocabulary and the exact
+shape: object map, object-element array, bare string array, typed Record or chrome list. The ten position
+changes therefore belong to final anchors, not a prepend. All four independently missing vocabulary names
+are pinned by constructed rename controls that withhold the entire populated owner. Unlike registry targets,
+these tuple prerequisites alone complete the policy's population and must pass without findings or errors.
+
+The factory twin supplies the canonical registry and exported section targets from the final owner's
+`mustFlag[0]`, preserving any existing canonical bytes and importing the target into each annotated subject.
+The two distinct arms remain `ContributorRegistry parameters` and `callable render-prop parameters`, with
+the mixed example reporting at both excess parameters. Import prepends are line artifacts; the factory-to-
+parameter anchor changes are the conversion deltas. The canonical-registry rename and absent-factory
+examples retain separate named runtime refusals. The unresolved `ForeignSeam` and undeclared bundle
+annotation stay explicitly scoped zero/zero observations; a separately resolved named-bundle fixture pins
+the actual remedy.
+
+Factory `mustPass[5]` and `[6]` contain no section factory. Adding the two canonical homes alone awakens
+legacy's finalize finding, so those are **rejected, non-inert candidate twins**, explicitly tested. Their
+minimal noncanonical exported section target keeps the original admission limit visible without awakening
+that legacy tripwire. Neither row is called preservation. The final owner's separate `mustPass[3]` and
+`[4]` put each excluded function beside a real admitted factory and complete without findings or errors.
+
+The scoped replay passed **17/17** before deliberate cuts. Removing prerequisite exports failed three
+tests, including legacy inertness and independently named refusals; exchanging the expected map shape and
+factory arm failed exactly those two final-arm assertions while preserving count and carrier. All cuts
+were restored. Logs: `/tmp/codex-2319-next-two-second.log`,
+`/tmp/codex-2319-next-two-prereq-red.log`, `/tmp/codex-2319-next-two-arm-red.log`.
+The final restored importer floor passed **7 files / 54 tests**; the exact-file rerun passed **17/17**.
+Both native configs and ESLint passed after const assertions retained literal fixture keys and indices.
+Final logs use `/tmp/codex-2319-next-two-` with suffixes `seven.log`, `final.log`, `types-final.log` and
+`eslint-final.log`; adjacent `-receipt.txt` files record the command and terminal status, including the
+otherwise empty successful ESLint output. Documentation checks are recorded with the checkpoint commit.
+
+Remaining assigned work: config-group-completeness and section-registry-completeness, including their
+split siblings' per-example coverage, explicit zero-legacy coverage and constructed successor proofs.

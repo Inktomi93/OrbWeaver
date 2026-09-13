@@ -146,15 +146,63 @@ changing the initializer to an unresolved builder, proves that the former 46-cha
 and proves that the exact successor rejects `Unreadable definition`. No runtime test was executed in this recheck;
 the primary retains that floor.
 
+## No-parallel and factory follow-up
+
+**CONFIRMED.** The current diff after C4 checkpoint `3e2be854e`
+adds only replay proof to `registry-definitions-legacy-replay.test.ts`; the shared differential harness and both gate
+implementations remain unchanged.
+
+`no-parallel-section-map` preserves all 21 frozen rows at `614b2cb55` in descriptor order: ten flags followed by
+eleven passes. The completed twin carries exactly one declaration of each required vocabulary, retains an existing
+tuple at its authored home, supplies `RAIL_ZONES` for the chrome spread, and adds the frozen `SectionId` alias without
+moving its subject. Its prerequisite-only run is correctly declared complete because the four tuples are this
+policy's population; requiring a refusal there would contradict the tuple-only evidence plane. Original-byte
+withholding names the missing subset in the runtime's source-sorted order, and the constructed loop independently
+renames each of `SECTION_IDS`, `MODAL_SLOT_IDS`, `CONFIG_GROUP_IDS`, and `CHROME_ZONES`, requiring that one named
+denominator and no partial finding. Every flag expectation names both its vocabulary and its shape, so the shared
+policy prefix cannot alias section/modal/config/chrome arms.
+
+`section-factory-contribution-bundle` preserves all 15 frozen rows at `f16cde889`: seven flags and eight passes. The
+first five catches retain their legacy arms while moving to the final policy's excess-parameter anchors; the combined
+row requires both registry and callable findings separately. The registry-rename and no-factory flags become named
+runtime refusals. Passes 5 and 6 remain explicitly population-unadmittable on their original bytes and minimally
+completed twins: adding canonical homes would wake the frozen finalize tripwire, which the constructed rejection
+proves for both examples. Their actual twin instead adds a harmless exported `SectionDefinition` at a noncanonical
+client path, keeping legacy inertness,
+giving the prerequisite-alone run a real source population, and retaining both final named refusals with population
+1 to 2. The already-canonical no-factory flag uses its original two home files as the prerequisite-only input and
+correctly retains only `SectionDefinition factory` as missing. Finally, current-policy `mustPass[1]`, `[3]`, and `[4]`
+are dispatched unchanged as constructed controls: a resolved named-field bundle passes, while a different return type
+and an unannotated return remain outside the factory subject beside a real admitted factory. All three require no
+finding and no tool error.
+
+No new classification defect like R-2319-1 remains in these rows. No-parallel's catches preserve the same semantic
+arm and declare their token/line changes as successor-anchor moves. Factory's imported aliases are caught by both
+readers, so that row is also an anchor move rather than a stronger-reader claim. The two factory blindness catches
+have nonempty legacy findings and explicit final receipt errors, satisfying `runtime-refusal`; the excluded rows
+decline classification by the exact closed population-unadmittable reason.
+
+The primary's complete receipts corroborate these assertions. Restored focused replay passed 17/17
+(`/tmp/codex-2319-next-two-second.log`). Removing prerequisite exports failed three tests while fourteen passed,
+including no-parallel legacy inertness, the independently named tuple refusal, and factory legacy inertness
+(`/tmp/codex-2319-next-two-prereq-red.log`). Swapping one no-parallel shape expectation and one factory arm
+expectation failed exactly those two final-arm assertions while fifteen tests passed
+(`/tmp/codex-2319-next-two-arm-red.log`). After restoration and Biome's argument-grouping/extracted-helper formatting,
+the seven-importer floor passed 7 files / 54 tests (`/tmp/codex-2319-next-two-seven.log`) and Biome had no remaining
+diagnostic. On the exact current source, the focused replay passed 17/17
+(`/tmp/codex-2319-next-two-final.log`), ESLint exited zero (`/tmp/codex-2319-next-two-eslint-final.log`), and both the
+tooling and root TypeScript configurations passed
+(`/tmp/codex-2319-next-two-types-final.log`). I read these logs and their explicit exit-status receipts in full but
+did not execute their commands.
+
 ## Precise limits
 
-This reviewer did not independently run tests because the primary retained the serial verification floor. I read the
-complete parent-produced 12/12 baseline and three planted-control logs, but treat those as corroboration rather than
-independent execution evidence. This review therefore confirms the repaired source proof and its discriminating
-assertions, not the primary's seven-policy, lint, typecheck, docs, or real-tree gate claims. It does not review
-the shared replay-harness repair commits preceding `ade6f50ed`, the four
-untabled non-split owners, either split owner, ledger states outside #2319, or any product behavior. It reviewed only
-the three requested commits and the source needed to judge their replay claims.
+This reviewer did not independently run tests because the primary retained the serial verification floor. Parent-run
+green and planted-control logs are corroboration rather than independent execution evidence. This review confirms the
+repaired source proofs and their discriminating assertions; it does not independently certify the primary's suite,
+lint, typecheck, documentation, or real-tree gate commands. It does not review the shared replay-harness repair commits
+preceding `ade6f50ed`, either split owner, the two remaining assigned modules, ledger states outside #2319, or product
+behavior.
 
 ## LEDGER ROWS (3 rows)
 

@@ -42,7 +42,7 @@
 // `@client`, and an unfenced real-corpus drive would eat the whole client tree).
 //
 // ── SCOPE ─────────────────────────────────────────────────────────────────────────────────────────────
-// The two remaining non-split members retain their original-byte withholding receipts. Split siblings
+// All seven non-split members now carry per-example replay receipts. Split siblings
 // require per-example coverage statements and constructed controls for arms their legacy corpus never ran.
 import { posix } from "node:path";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -300,6 +300,15 @@ const FINAL_ARMS: readonly string[] = [
   "declares an empty `reason`",
   "declares no `teaser`",
   "declares an `action`",
+  ...["SectionId", "ModalSlotId", "ConfigGroupId"].flatMap((vocabulary) => [
+    `A per-id object literal re-declares ≥2 ${vocabulary}s outside the sanctioned homes.`,
+    `An array of \`{ id: … }\` elements covers ≥2 ${vocabulary}s outside the sanctioned homes.`,
+    `A bare array of id strings covers ≥2 ${vocabulary}s outside the sanctioned homes.`,
+    `A \`Record<${vocabulary}, …>\` annotation declares a per-id map outside the sanctioned homes.`,
+  ]),
+  "A hand-maintained chrome list re-declares ≥2 CHROME_ZONES-zoned entries outside the door.",
+  "ContributorRegistry parameters",
+  "callable render-prop parameters",
 ];
 
 /** TOTAL, like `toolErrorCode`: a final finding whose ARM this table cannot name is a row no reader can
@@ -368,6 +377,7 @@ interface Table {
   readonly target: string;
   readonly rows: readonly ReplayRow[];
   readonly prepare?: (files: Files) => { readonly add: Files; readonly twin: Files };
+  readonly aloneCompletes?: boolean;
 }
 
 /** The verdict's own checks, as ONE list so the row asserts unconditionally: a CHECKED classification, or a
@@ -410,7 +420,7 @@ async function driveTable(scratch: string, table: Table): Promise<number> {
 
     const alone = differential.finalReplay([table.policy], add, armLabel);
     expect(alone.findings, `${tag} — the twin ALONE manufactures nothing`).toEqual([]);
-    expect(alone.toolErrors.length, `${tag} — and it cannot even resolve a population without the subject`).toBeGreaterThan(0);
+    expect(alone.toolErrors.length === 0, `${tag} — prerequisites alone have the declared admission state`).toBe(table.aloneCompletes ?? false);
 
     const after = differential.finalReplay([table.policy], twin, armLabel);
     expect(after.findings, `${tag} — FINAL findings on the twin`).toEqual(row.finalOnTwin);
@@ -1008,9 +1018,449 @@ test("§4.6 — home-tile anti-god-map and legal door are exercised by their suc
   }
 });
 
-// ── REMAINING MEMBERS retain their original-byte withheld receipt ───────────────────────────────────
+// The tuple-only owner needs all four vocabularies, not a registry member. Preserve the original
+// declaration wherever it lives; adding a second declaration of that name would make it ambiguous.
+const VOCAB_HOMES = [
+  ["SECTION_IDS", "section-ids.ts"],
+  ["MODAL_SLOT_IDS", "modal-slot-ids.ts"],
+  ["CONFIG_GROUP_IDS", "config-group-ids.ts"],
+  ["RAIL_ZONES", "section-registry.ts"],
+  ["CHROME_ZONES", "chrome-registry.ts"],
+] as const;
 
-test("§4.6 — the two remaining non-split members are WITHHELD on their descriptor-era examples, by named population", {
+function vocabularyTwin(files: Files): { readonly add: Files; readonly twin: Files } {
+  const add: Record<string, string> = {};
+  for (const [name, basename] of VOCAB_HOMES) {
+    const existing = Object.entries(files).find(([, source]) => source.includes(`export const ${name} =`));
+    if (existing !== undefined) {
+      add[existing[0]] = existing[1];
+    } else {
+      const home = `packages/client/src/state/${basename}` as const;
+      add[home] = noParallelSectionMap.mustFlag[0].files[home] as string;
+    }
+  }
+  // The original Record fixture imports this alias from an existing tuple home. Complete that binding
+  // at the end of the prerequisite file, so the subject's authored line/column positions do not move.
+  const shellHome = "packages/client/src/state/shell-store.ts";
+  if (Object.values(files).some((source) => source.includes("import type { SectionId }"))) {
+    add[shellHome] = `${add[shellHome]}export type SectionId = typeof SECTION_IDS[number];\n`;
+  }
+  return { add, twin: { ...files, ...add } };
+}
+
+const PARALLEL_ID = "no-parallel-section-map";
+const PARALLEL_PREFIX = "a hardcoded map (object literal / `{ id }` array".slice(0, 46);
+const PARALLEL_MISSING = {
+  section: ["CHROME_ZONES", "CONFIG_GROUP_IDS", "MODAL_SLOT_IDS"],
+  modal: ["CHROME_ZONES", "CONFIG_GROUP_IDS", "SECTION_IDS"],
+  config: ["CHROME_ZONES", "MODAL_SLOT_IDS", "SECTION_IDS"],
+  chrome: ["CONFIG_GROUP_IDS", "MODAL_SLOT_IDS", "SECTION_IDS"],
+  sectionModal: ["CHROME_ZONES", "CONFIG_GROUP_IDS"],
+} as const;
+
+/** Full arm text preserves BOTH shape and vocabulary, which the common policy-message prefix cannot. */
+function parallelFlag({
+  why,
+  file,
+  legacyToken,
+  line,
+  token,
+  arm,
+  missing,
+  legacyPopulation = 2,
+}: {
+  readonly why: string;
+  readonly file: string;
+  readonly legacyToken: string;
+  readonly line: number;
+  readonly token: string;
+  readonly arm: string;
+  readonly missing: readonly string[];
+  readonly legacyPopulation?: number;
+}): ReplayRow {
+  const path = `${FEATURE_ROOT}/x/lib/${file}.ts`;
+  return {
+    why: `${why}; no subject prepend, token/line delta belongs to the successor anchor`,
+    legacy: [`legacy | ${path}:${legacyToken === "SectionId-record-type" ? 3 : 1} | ${legacyToken} | ${PARALLEL_PREFIX}`],
+    legacyPopulation,
+    finalOnTwin: [`${PARALLEL_ID} | ${path}:${line} | ${token} | ${arm}`],
+    twinPopulation: 6,
+    originalErrors: [`${PARALLEL_ID}/receipt: zero-member population(s): ${missing.join(", ")}`],
+    verdict: { kind: "classified", claim: { classification: "anchor-move", successor: arm } },
+  };
+}
+
+const PARALLEL_ROWS: readonly ReplayRow[] = [
+  parallelFlag({
+    why: "mustFlag[0] section object",
+    file: "panel-defaults",
+    legacyToken: "SectionId-object-map",
+    line: 2,
+    token: "chats",
+    arm: "A per-id object literal re-declares ≥2 SectionIds outside the sanctioned homes.",
+    missing: PARALLEL_MISSING.section,
+  }),
+  parallelFlag({
+    why: "mustFlag[1] section object array",
+    file: "rail-sections",
+    legacyToken: "SectionId-object-array",
+    line: 2,
+    token: '"chats"',
+    arm: "An array of `{ id: … }` elements covers ≥2 SectionIds outside the sanctioned homes.",
+    missing: PARALLEL_MISSING.section,
+  }),
+  parallelFlag({
+    why: "mustFlag[2] typed record",
+    file: "labels",
+    legacyToken: "SectionId-record-type",
+    line: 3,
+    token: "LABELS",
+    arm: "A `Record<SectionId, …>` annotation declares a per-id map outside the sanctioned homes.",
+    missing: PARALLEL_MISSING.section,
+  }),
+  parallelFlag({
+    why: "mustFlag[3] modal object",
+    file: "you-rows",
+    legacyToken: "ModalSlotId-object-map",
+    line: 2,
+    token: "theme",
+    arm: "A per-id object literal re-declares ≥2 ModalSlotIds outside the sanctioned homes.",
+    missing: PARALLEL_MISSING.modal,
+  }),
+  parallelFlag({
+    why: "mustFlag[4] modal object array",
+    file: "rail-actions",
+    legacyToken: "ModalSlotId-object-array",
+    line: 2,
+    token: '"theme"',
+    arm: "An array of `{ id: … }` elements covers ≥2 ModalSlotIds outside the sanctioned homes.",
+    missing: PARALLEL_MISSING.modal,
+  }),
+  parallelFlag({
+    why: "mustFlag[5] modal strings",
+    file: "you-modal-ids",
+    legacyToken: "ModalSlotId-string-array",
+    line: 1,
+    token: '"account"',
+    arm: "A bare array of id strings covers ≥2 ModalSlotIds outside the sanctioned homes.",
+    missing: PARALLEL_MISSING.modal,
+  }),
+  parallelFlag({
+    why: "mustFlag[6] wrapped modal strings",
+    file: "you-modal-ids",
+    legacyToken: "ModalSlotId-string-array",
+    line: 1,
+    token: '"account" as const',
+    arm: "A bare array of id strings covers ≥2 ModalSlotIds outside the sanctioned homes.",
+    missing: PARALLEL_MISSING.modal,
+  }),
+  parallelFlag({
+    why: "mustFlag[7] config object",
+    file: "config-labels",
+    legacyToken: "ConfigGroupId-object-map",
+    line: 2,
+    token: "personas",
+    arm: "A per-id object literal re-declares ≥2 ConfigGroupIds outside the sanctioned homes.",
+    missing: PARALLEL_MISSING.config,
+  }),
+  parallelFlag({
+    why: "mustFlag[8] chrome list",
+    file: "hand-list",
+    legacyToken: "chrome-array",
+    line: 2,
+    token: '"rail.end"',
+    arm: "A hand-maintained chrome list re-declares ≥2 CHROME_ZONES-zoned entries outside the door.",
+    missing: PARALLEL_MISSING.chrome,
+  }),
+  parallelFlag({
+    why: "mustFlag[9] imported rail spread",
+    file: "hand-rail",
+    legacyToken: "chrome-array",
+    line: 2,
+    token: '"rail.nav"',
+    arm: "A hand-maintained chrome list re-declares ≥2 CHROME_ZONES-zoned entries outside the door.",
+    missing: PARALLEL_MISSING.chrome,
+    legacyPopulation: 3,
+  }),
+  ...(
+    [
+      ["mustPass[0] derived map", "section", 2, 6],
+      ["mustPass[1] mixed object array", "section", 2, 6],
+      ["mustPass[2] tuple home", "sectionModal", 1, 4],
+      ["mustPass[3] foreign string", "modal", 2, 6],
+      ["mustPass[4] group home", "config", 2, 6],
+      ["mustPass[5] config tuple home", "config", 1, 5],
+      ["mustPass[6] chrome definition home", "chrome", 2, 6],
+      ["mustPass[7] foreign zones", "chrome", 2, 6],
+      ["mustPass[8] section compose door", "section", 2, 6],
+      ["mustPass[9] chrome compose door", "chrome", 2, 6],
+      ["mustPass[10] spread plus foreign zones", "chrome", 3, 6],
+    ] as const
+  ).map(
+    ([why, missing, legacyPopulation, twinPopulation]): ReplayRow => ({
+      why,
+      legacy: [],
+      legacyPopulation,
+      finalOnTwin: [],
+      twinPopulation,
+      originalErrors: [`${PARALLEL_ID}/receipt: zero-member population(s): ${PARALLEL_MISSING[missing].join(", ")}`],
+      verdict: { kind: "classified", claim: { classification: "vacuous-both-zero", successor: null } },
+    }),
+  ),
+];
+
+test("§4.6 — no-parallel-section-map: all 21 rows retain shape, vocabulary and four receipts", { timeout: scaledBudget(300_000) }, async ({ scratch }) => {
+  expect(
+    await driveTable(scratch, {
+      id: PARALLEL_ID,
+      base: "614b2cb55",
+      policy: noParallelSectionMap,
+      typeName: "four vocabulary tuples",
+      target: "",
+      prepare: vocabularyTwin,
+      aloneCompletes: true,
+      rows: PARALLEL_ROWS,
+    }),
+  ).toBe(21);
+});
+
+test("§4.6 — each vocabulary independently withholds the populated parallel-map owner", { timeout: scaledBudget(300_000) }, async ({ scratch }) => {
+  const differential = createDifferential("/registry-parallel-refusals", toolErrorCode);
+  const legacy = await frozenLegacyGate(scratch, "614b2cb55", `tooling/src/verify/gates/${PARALLEL_ID}.ts`);
+  const twin = vocabularyTwin(legacyScenarios(legacy, FALLBACK)[0] as Files).twin;
+  for (const [name] of VOCAB_HOMES.filter(([candidate]) => candidate !== "RAIL_ZONES")) {
+    const broken = Object.fromEntries(
+      Object.entries(twin).map(([path, source]) => [path, source.replace(`export const ${name} =`, `export const RENAMED_${name} =`)]),
+    );
+    const run = differential.finalReplay([noParallelSectionMap], broken, armLabel);
+    expect(run.findings, `${name}: a partial verdict is withheld`).toEqual([]);
+    expect(run.toolErrors, `${name}: independently named refusal`).toEqual([`${PARALLEL_ID}/receipt: zero-member population(s): ${name}`]);
+  }
+});
+
+const FACTORY_ID = "section-factory-contribution-bundle";
+const REGISTRY_TYPE_HOME = "packages/client/src/lib/registry.ts";
+const SECTION_TYPE_HOME = "packages/client/src/state/section-registry.ts";
+const FACTORY_BOTH_MISSING = `${FACTORY_ID}/receipt: zero-member population(s): ContributorRegistry, SectionDefinition factory`;
+const FACTORY_ONLY_MISSING = `${FACTORY_ID}/receipt: zero-member population(s): SectionDefinition factory`;
+
+function excludedFactoryTwin(files: Files): { readonly add: Files; readonly twin: Files } {
+  if (files[SECTION_TYPE_HOME] !== undefined) {
+    return { add: files, twin: files };
+  }
+  const add: Files = {
+    "packages/client/src/state/__replay-factory-target.ts": sectionFactoryContributionBundle.mustFlag[0].files[SECTION_TYPE_HOME] as string,
+  };
+  return { add, twin: { ...files, ...add } };
+}
+
+function factoryTwin(files: Files): { readonly add: Files; readonly twin: Files } {
+  // Neither excluded function is a factory. Introducing canonical homes here would awaken legacy's
+  // finalize tripwire and fail inertness. Keep that admission limit explicit; constructed controls below
+  // put the excluded function beside an admitted factory, as the final policy's own examples do.
+  if (!Object.values(files).some((source) => source.includes(": SectionDefinition"))) {
+    return excludedFactoryTwin(files);
+  }
+  const add: Files = {
+    [REGISTRY_TYPE_HOME]: files[REGISTRY_TYPE_HOME] ?? (sectionFactoryContributionBundle.mustFlag[0].files[REGISTRY_TYPE_HOME] as string),
+    [SECTION_TYPE_HOME]: files[SECTION_TYPE_HOME] ?? (sectionFactoryContributionBundle.mustFlag[0].files[SECTION_TYPE_HOME] as string),
+  };
+  const prepend: Record<string, string> = {};
+  for (const [path, source] of Object.entries(files)) {
+    if (path === REGISTRY_TYPE_HOME || path === SECTION_TYPE_HOME) {
+      continue;
+    }
+    const imports: string[] = [];
+    if (source.includes(": SectionDefinition")) {
+      imports.push(`import type { SectionDefinition } from "${targetSpecifier(path, SECTION_TYPE_HOME)}";`);
+    }
+    if (source.includes("ContributorRegistry<") && !source.includes("import type { ContributorRegistry }")) {
+      imports.push(`import type { ContributorRegistry } from "${targetSpecifier(path, REGISTRY_TYPE_HOME)}";`);
+    }
+    if (imports.length > 0) {
+      prepend[path] = `${imports.join("\n")}\n`;
+    }
+  }
+  return { add, twin: repairedFiles(files, { add, prepend }) };
+}
+
+function factoryCatch({
+  feature,
+  stem,
+  name,
+  line,
+  parameter,
+  kind,
+}: {
+  readonly feature: string;
+  readonly stem: string;
+  readonly name: string;
+  readonly line: number;
+  readonly parameter: string;
+  readonly kind: "registry" | "callable";
+}): readonly [string, string] {
+  const path = `${FEATURE_ROOT}/${feature}/lib/${stem}-section.tsx`;
+  const legacyMessage = kind === "registry" ? `\`${name}\` takes 2 \`ContributorRegistry\` parameters` : `\`${name}\` takes 2 render-prop parameters (`;
+  const arm = kind === "registry" ? "ContributorRegistry parameters" : "callable render-prop parameters";
+  return [`legacy | ${path}:1 | - | ${legacyMessage.slice(0, 46)}`, `${FACTORY_ID} | ${path}:${line} | ${parameter} | ${arm}`];
+}
+
+const FACTORY_FLAG_ROWS = [
+  [
+    "mustFlag[0] positional registries",
+    [factoryCatch({ feature: "chat", stem: "chats", name: "makeChatsSection", line: 5, parameter: "regions", kind: "registry" })],
+    1,
+    3,
+  ],
+  [
+    "mustFlag[1] arrow registries",
+    [factoryCatch({ feature: "chat", stem: "chats", name: "makeChatsSection", line: 5, parameter: "b", kind: "registry" })],
+    1,
+    3,
+  ],
+  [
+    "mustFlag[2] imported aliases",
+    [factoryCatch({ feature: "chat", stem: "chats", name: "makeChatsSection", line: 3, parameter: "b", kind: "registry" })],
+    2,
+    4,
+  ],
+  [
+    "mustFlag[3] render props",
+    [factoryCatch({ feature: "character", stem: "characters", name: "makeCharactersSection", line: 4, parameter: "notesPane", kind: "callable" })],
+    1,
+    3,
+  ],
+  [
+    "mustFlag[4] independent arms",
+    [
+      factoryCatch({ feature: "x", stem: "x", name: "makeXSection", line: 5, parameter: "b", kind: "registry" }),
+      factoryCatch({ feature: "x", stem: "x", name: "makeXSection", line: 7, parameter: "q", kind: "callable" }),
+    ],
+    1,
+    3,
+  ],
+] as const;
+
+const FACTORY_ROWS: readonly ReplayRow[] = [
+  ...FACTORY_FLAG_ROWS.map(
+    ([why, findings, legacyPopulation, twinPopulation], index): ReplayRow => ({
+      why: `${why}; import prepend is an artifact, each arm moves to its own excess parameter`,
+      legacy: findings.map(([before]) => (index === 2 ? before.replace(":1 |", ":2 |") : before)),
+      legacyPopulation,
+      finalOnTwin: findings.map(([, after]) => after),
+      twinPopulation,
+      originalErrors: [FACTORY_BOTH_MISSING],
+      verdict: { kind: "classified", claim: { classification: "anchor-move", successor: findings[0][1] } },
+    }),
+  ),
+  {
+    why: "mustFlag[5] canonical registry rename; original missing export is preserved",
+    legacy: [`legacy | tooling/src/verify/gates/${FACTORY_ID}.ts:1 | - | ${"this gate is keyed on the type name `ContributorRegistry`".slice(0, 46)}`],
+    legacyPopulation: 3,
+    finalOnTwin: [],
+    twinPopulation: 3,
+    originalErrors: [FACTORY_BOTH_MISSING],
+    twinErrors: [`${FACTORY_ID}/receipt: zero-member population(s): ContributorRegistry`],
+    verdict: { kind: "classified", claim: { classification: "runtime-refusal", successor: "ContributorRegistry" } },
+  },
+  {
+    why: "mustFlag[6] canonical homes without a factory; named runtime refusal succeeds legacy blindness finding",
+    legacy: [`legacy | tooling/src/verify/gates/${FACTORY_ID}.ts:1 | - | ${"no exported `SectionDefinition`-returning factory exists".slice(0, 46)}`],
+    legacyPopulation: 2,
+    finalOnTwin: [],
+    twinPopulation: 2,
+    originalErrors: [FACTORY_ONLY_MISSING],
+    twinErrors: [FACTORY_ONLY_MISSING],
+    verdict: { kind: "classified", claim: { classification: "runtime-refusal", successor: "SectionDefinition factory" } },
+  },
+  ...(
+    [
+      ["mustPass[0] one aliased registry and one render prop", 2, 4],
+      ["mustPass[1] unresolved ForeignSeam is the declared reach limit", 1, 3],
+      ["mustPass[2] one destructured parameter; its undeclared bundle type needs the separate resolved remedy control", 1, 3],
+      ["mustPass[3] one registry and one render prop", 1, 3],
+      ["mustPass[4] one registry", 1, 3],
+    ] as const
+  ).map(
+    ([why, legacyPopulation, twinPopulation]): ReplayRow => ({
+      why,
+      legacy: [],
+      legacyPopulation,
+      finalOnTwin: [],
+      twinPopulation,
+      originalErrors: [FACTORY_BOTH_MISSING],
+      verdict: { kind: "classified", claim: { classification: "vacuous-both-zero", successor: null } },
+    }),
+  ),
+  ...["mustPass[5] different return type", "mustPass[6] unannotated return"].map(
+    (why): ReplayRow => ({
+      why: `${why}; canonical-home-only candidate is not inert, so original admission limit remains explicit`,
+      legacy: [],
+      legacyPopulation: 1,
+      finalOnTwin: [],
+      twinPopulation: 2,
+      originalErrors: [FACTORY_BOTH_MISSING],
+      twinErrors: [FACTORY_BOTH_MISSING],
+      verdict: { kind: "unclassified", label: "UNCLASSIFIED-POPULATION-UNADMITTABLE" },
+    }),
+  ),
+  {
+    why: "mustPass[7] canonical exports plus one factory earns the legacy tripwire",
+    legacy: [],
+    legacyPopulation: 3,
+    finalOnTwin: [],
+    twinPopulation: 3,
+    originalErrors: [FACTORY_ONLY_MISSING],
+    verdict: { kind: "classified", claim: { classification: "vacuous-both-zero", successor: null } },
+  },
+];
+
+test("§4.6 — section-factory-contribution-bundle: all 15 legacy rows retain separate arms and refusal identities", { timeout: scaledBudget(300_000) }, async ({
+  scratch,
+}) => {
+  expect(
+    await driveTable(scratch, {
+      id: FACTORY_ID,
+      base: "f16cde889",
+      policy: sectionFactoryContributionBundle,
+      typeName: "ContributorRegistry, SectionDefinition factory",
+      target: SECTION_TYPE_HOME,
+      prepare: factoryTwin,
+      rows: FACTORY_ROWS,
+    }),
+  ).toBe(15);
+});
+
+test("§4.6 — factory excluded functions reject a non-inert twin and have admitted successor controls", { timeout: scaledBudget(300_000) }, async ({
+  scratch,
+}) => {
+  const differential = createDifferential("/registry-factory-scope", toolErrorCode);
+  const legacy = await frozenLegacyGate(scratch, "f16cde889", `tooling/src/verify/gates/${FACTORY_ID}.ts`);
+  const examples = legacyScenarios(legacy, FALLBACK);
+  const homes: Files = {
+    [REGISTRY_TYPE_HOME]: sectionFactoryContributionBundle.mustFlag[0].files[REGISTRY_TYPE_HOME] as string,
+    [SECTION_TYPE_HOME]: sectionFactoryContributionBundle.mustFlag[0].files[SECTION_TYPE_HOME] as string,
+  };
+  for (const index of [12, 13]) {
+    const base = examples[index] as Files;
+    expect(differential.legacyReplay(legacy, base, label).findings).toEqual([]);
+    expect(
+      differential.legacyReplay(legacy, { ...base, ...homes }, label).findings,
+      "adding only homes awakens the legacy finalize tripwire; rejected twin",
+    ).toEqual([`legacy | tooling/src/verify/gates/${FACTORY_ID}.ts:1 | - | ${"no exported `SectionDefinition`-returning factory exists".slice(0, 46)}`]);
+  }
+  // These are CONSTRUCTED successors, not evidence that a zero-denominator original passed. The final
+  // fixtures place a real factory beside each excluded function and resolve the named bundle remedy.
+  for (const index of [1, 3, 4] as const) {
+    const run = differential.finalReplay([sectionFactoryContributionBundle], sectionFactoryContributionBundle.mustPass[index].files, armLabel);
+    expect(run.toolErrors, `constructed final mustPass[${index}] admits a factory`).toEqual([]);
+    expect(run.findings).toEqual([]);
+  }
+});
+
+// ── FOUNDING DENOMINATOR receipts retained beside the expanded tables ───────────────────────────────────
+
+test("§4.6 — the vocabulary and factory founding examples retain their named original-byte withholding", {
   timeout: scaledBudget(300_000),
 }, async ({ scratch }) => {
   const witnessed: string[] = [];
@@ -1029,7 +1479,7 @@ test("§4.6 — the two remaining non-split members are WITHHELD on their descri
     ]);
     witnessed.push(id);
   }
-  expect(witnessed, "both remaining members, so the blocker is the FAMILY's shape and not one awkward module").toEqual(
+  expect(witnessed, "both founding examples retain the original admission boundary").toEqual(
     MEMBERS.filter(([memberId]) => memberId === "section-factory-contribution-bundle" || memberId === "no-parallel-section-map").map(([id]) => id),
   );
 });
