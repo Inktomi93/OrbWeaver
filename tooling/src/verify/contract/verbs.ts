@@ -23,6 +23,7 @@ export const VERIFY_VERBS = [
   "orphan-ratchet",
   "boot-chunk",
   "ledgers-fresh",
+  "ledger-claims",
   "debt",
   "ratchet-gate",
   "config-snapshot",

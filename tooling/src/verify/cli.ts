@@ -18,6 +18,8 @@
 //   check:orphan-ratchet     → cli.ts orphan-ratchet [--update]
 //   check:boot-chunk         → cli.ts boot-chunk
 //   check:ledgers-fresh      → cli.ts ledgers-fresh  (the committed-ledger freshness tripwire, #817)
+//   check:ledger-claims      → cli.ts ledger-claims --since <rev> [--until <rev>]  (the BARRIER check on
+//                              commit-message ledger claims, #2195 — an operator-stated range, never a default)
 //   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
 //   test:ratchets            → cli.ts ratchet-gate  (the VITEST-tier train-gate aggregate, #667)
 //   config-snapshot          → cli.ts config-snapshot <runner> <config>  (native-config observation)
@@ -32,6 +34,7 @@ import type { VerifyVerb } from "./index.ts";
 import {
   BASELINE_HELP,
   CONFIG_SNAPSHOT_HELP,
+  LEDGER_CLAIMS_HELP,
   parse,
   refuseVerbTail,
   runAssetRefsCoverage,
@@ -43,6 +46,7 @@ import {
   runDebtWalk,
   runEslint,
   runGateContract,
+  runLedgerClaims,
   runLedgersFresh,
   runNewGate,
   runOrphanRatchet,
@@ -103,6 +107,7 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "boot-chunk": "usage: node tooling/src/verify/cli.ts boot-chunk\n  Measures the client boot chunk against its committed ceiling.",
   "ledgers-fresh":
     "usage: node tooling/src/verify/cli.ts ledgers-fresh\n  Reds when a committed single-writer ledger (the caught-failure census and its siblings) differs from a fresh derivation. Writes nothing; names the differing rows and the regen command.",
+  "ledger-claims": LEDGER_CLAIMS_HELP,
   debt: "usage: node tooling/src/verify/cli.ts debt [--gate <substr>] [--age]\n  A LENS over the ratchet ledgers — reports parked rows, oldest first with --age.",
   "ratchet-gate": "usage: node tooling/src/verify/cli.ts ratchet-gate\n  The vitest-tier train-gate aggregate over the ratchets (#667).",
   "config-snapshot": CONFIG_SNAPSHOT_HELP,
@@ -164,6 +169,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runBootChunkRatchet(root);
     case "ledgers-fresh":
       return runLedgersFresh(root);
+    case "ledger-claims":
+      return runLedgerClaims(root, rest);
     case "biome-rule-liveness":
       return runBiomeRuleLiveness(root);
     case "debt":

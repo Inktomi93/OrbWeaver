@@ -27,6 +27,7 @@ import {
   unresolvedOperands,
   unresolvedRefusal,
 } from "@orb/tooling/_shared/scoped-run-paths";
+import { VITEST_TYPECHECK_GROUP_PREFIX } from "@orb/tooling/_shared/test-kinds";
 import type { ScopedTestCollection, ScopedTestRunner } from "../contract/scoped-test.ts";
 import { SCOPED_TEST_RUNNERS } from "../contract/scoped-test.ts";
 import { acquireCtRunnerSlots } from "../lib/ct-runner-lock.ts";
@@ -47,6 +48,8 @@ const MS_PER_SECOND = 1000;
 
 const CT_CONFIG = "playwright-ct.config.ts";
 const NODE_RELATED = "--related";
+/** The supervisor's own flag (scripts/vitest-supervised.mjs), which swaps in vitest.runtime.config.ts. */
+const RUNTIME_ONLY = "--runtime-only";
 
 function vitestBin(root: string): string {
   return join(root, "node_modules", "vitest", "vitest.mjs");
@@ -75,13 +78,19 @@ function collectNode(root: string, rest: readonly string[]): ScopedTestCollectio
       return { error: "`vitest list --filesOnly` did not produce an array" };
     }
     const files: string[] = [];
+    const projects = new Set<string>();
     for (const entry of parsed) {
       const file = readField(entry, "file");
       if (file !== undefined) {
         files.push(toRepoRelative(root, file));
       }
+      // `projectName` is the NATIVE attribution and the #2232 door's whole input — see the type's header.
+      const project = readField(entry, "projectName");
+      if (project !== undefined) {
+        projects.add(project);
+      }
     }
-    return { files };
+    return { files, projects: [...projects].sort() };
   } catch (err) {
     return { error: `\`vitest list --filesOnly\` produced no readable listing: ${String(err)}` };
   } finally {
@@ -153,7 +162,9 @@ function collectCt(root: string, rest: readonly string[]): ScopedTestCollection 
   const rootDir = readField(report["config"], "rootDir") ?? root;
   const files = new Set<string>();
   walkSuiteFiles(report["suites"], rootDir, root, files);
-  return { files: [...files] };
+  // Playwright's suite tree carries no project attribution this door needs; the CT arm has one config and
+  // no typecheck projects, so the #2232 runtime-only question does not arise for it.
+  return { files: [...files], projects: [] };
 }
 
 function collect(runner: ScopedTestRunner, root: string, rest: readonly string[]): ScopedTestCollection {
@@ -176,14 +187,49 @@ function spawnCt(root: string, rest: readonly string[], lease: { readonly cacheD
   return ct.status ?? EXIT.toolError;
 }
 
+/** THE RUNTIME-ONLY DOOR (#2232). A scoped node run passed NO config-mode flag, so `vitest-supervised.mjs`
+ *  took the ROOT config — which carries the two `types-*` typecheck projects — and every `pnpm test:scoped`
+ *  invocation ran a cold ts7 typecheck of the whole `tsconfig.json` program beside the tests the caller
+ *  named. Two costs, one of them a lie: every scoped run paid the pass, and a PARSE ERROR anywhere in that
+ *  program exited the run 1 with every named test GREEN — a red verdict about a file the caller never
+ *  mentioned, wearing the caller's own exit code. `test:node` and `test:tooling` already passed
+ *  `--runtime-only`; the scoped door was the one that did not.
+ *
+ *  THE SELECTION IS READ, NEVER GUESSED. `collected` is the vitest listing's own per-file `projectName`
+ *  attribution, so a DIRECTORY operand holding a `.test-d.ts` is classified by the same authority that
+ *  would run it — a filename test would have missed exactly that case. Three arms:
+ *
+ *  - no `types-*` project in the selection → `--runtime-only`. The typecheck projects are absent BEFORE
+ *    any `--project` filter applies, which is why `--project=!types-*` is not the same thing (vitest
+ *    UNIONS a negative selector with the positives and widens the run).
+ *  - the selection is ENTIRELY `types-*` → the claimed projects by name, and NO `--runtime-only`: the two
+ *    are mutually exclusive by construction (the runtime config has no typecheck project to select).
+ *  - MIXED → neither flag. Today's behaviour, deliberately: the caller named both halves and narrowing
+ *    either one would drop tests they claimed.
+ *
+ *  `--related` is runtime-only unconditionally: its operands are SOURCE files, and the type-assertion lane
+ *  has its own door (`pnpm test:types` → the `types-*` projects). A caller wanting a source's type-test
+ *  dependents runs that. */
+export function nodeConfigModeArgs(collectedProjects: readonly string[], mode: "run" | "related"): readonly string[] {
+  if (mode === "related") {
+    return [RUNTIME_ONLY];
+  }
+  const typeProjects = collectedProjects.filter((name) => name.startsWith(VITEST_TYPECHECK_GROUP_PREFIX));
+  if (typeProjects.length === 0) {
+    return [RUNTIME_ONLY];
+  }
+  return typeProjects.length === collectedProjects.length ? typeProjects.map((name) => `--project=${name}`) : [];
+}
+
 /** The node run always enters the watchdog supervisor. Related-source emptiness is explicit and local to
  * that mode; direct test claims retain the repo-wide zero-match refusal. */
-function spawnNode(root: string, rest: readonly string[], mode: "run" | "related"): number {
+function spawnNode(root: string, rest: readonly string[], mode: "run" | "related", collectedProjects: readonly string[]): number {
   const nodeArgs = mode === "related" ? ["related", ...rest, "--run", "--passWithNoTests"] : ["run", ...rest];
-  const node = runNicedSync(process.execPath, [join(root, "scripts", "vitest-supervised.mjs"), ...nodeArgs, "--reporter=default", "--reporter=json"], {
-    cwd: root,
-    stdio: "inherit",
-  });
+  const node = runNicedSync(
+    process.execPath,
+    [join(root, "scripts", "vitest-supervised.mjs"), ...nodeArgs, ...nodeConfigModeArgs(collectedProjects, mode), "--reporter=default", "--reporter=json"],
+    { cwd: root, stdio: "inherit" },
+  );
   return node.status ?? EXIT.toolError;
 }
 
@@ -192,8 +238,8 @@ function runNodeScoped(root: string, rawRest: readonly string[]): number {
   const rest = related ? rawRest.slice(1) : rawRest;
   if (!related) {
     const operands = rest.filter(isPathShaped).map((arg) => resolveOperand(root, arg));
-    const refused = preflight("node", root, rest, operands);
-    return refused ?? spawnNode(root, rest, "run");
+    const verdict = preflight("node", root, rest, operands);
+    return "refused" in verdict ? verdict.refused : spawnNode(root, rest, "run", verdict.projects);
   }
   const firstFlag = rest.findIndex((arg) => arg.startsWith("-"));
   const sourceArgs = firstFlag === -1 ? rest : rest.slice(0, firstFlag);
@@ -212,11 +258,16 @@ function runNodeScoped(root: string, rawRest: readonly string[]): number {
   if (operands.length === 0) {
     throw new UsageError("--related needs at least one source path");
   }
-  return spawnNode(root, rest, "related");
+  return spawnNode(root, rest, "related", []);
 }
 
-/** The preflight verdict: `undefined` = cleared to run, otherwise the exit code to return instead. */
-function preflight(runner: ScopedTestRunner, root: string, rest: readonly string[], operands: readonly ScopedOperand[]): number | undefined {
+/** The preflight verdict: an exit code to return INSTEAD of running, or the runner's own project
+ *  attribution for the selection it cleared. The projects travel out because the node arm's config-mode
+ *  door is decided by what the runner said it would SELECT, never by a filename (#2232) — and a bare
+ *  `--grep` run clears with an EMPTY attribution, which `nodeConfigModeArgs` reads as "no type claim". */
+type PreflightVerdict = { readonly refused: number } | { readonly projects: readonly string[] };
+
+function preflight(runner: ScopedTestRunner, root: string, rest: readonly string[], operands: readonly ScopedOperand[]): PreflightVerdict {
   const unresolved = unresolvedOperands(operands, "runner");
   if (unresolved.length > 0) {
     // The ARGV is wrong — misuse (3), the same verdict `verify --file` gives this class. Thrown rather
@@ -224,19 +275,19 @@ function preflight(runner: ScopedTestRunner, root: string, rest: readonly string
     throw new UsageError(unresolvedRefusal(unresolved));
   }
   if (operands.length === 0) {
-    return; // no path claims to audit (a bare `--grep` run) — nothing to certify, nothing to refuse
+    return { projects: [] }; // no path claims to audit (a bare `--grep` run) — nothing to certify, nothing to refuse
   }
   const collected = collect(runner, root, rest);
   if ("error" in collected) {
     warn(`TOOL ERROR   the scoped-test preflight could not ask the runner what it would collect:\n${collected.error}`);
-    return EXIT.toolError;
+    return { refused: EXIT.toolError };
   }
   const barren = barrenOperands(operands, collected.files);
   if (barren.length === 0) {
-    return;
+    return { projects: collected.projects };
   }
   warn(`UNFED PATH   ${barrenRefusal(barren, collected.files)}`);
-  return EXIT.toolError;
+  return { refused: EXIT.toolError };
 }
 
 /** `cli.ts scoped-test <runner> …` — preflight the caller's path claims, then delegate to the runner.
@@ -288,8 +339,8 @@ export async function runScopedTest(root: string, argv: readonly string[]): Prom
     warn(`CT RUNNER SLOTS   host slot ${String(lock.lease.hostSlot)} acquired after ${String(Math.round(hostWaitedMs / MS_PER_SECOND))}s of queueing.`);
   }
   try {
-    const refused = preflight(tier, root, rest, operands);
-    return refused ?? spawnCt(root, rest, lock.lease);
+    const verdict = preflight(tier, root, rest, operands);
+    return "refused" in verdict ? verdict.refused : spawnCt(root, rest, lock.lease);
   } finally {
     lock.lease.release();
   }

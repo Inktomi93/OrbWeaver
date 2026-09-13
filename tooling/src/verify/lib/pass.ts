@@ -376,6 +376,29 @@ export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunC
   }
 }
 
+/** A GATE'S `ok` IS A TWO-TERM VERDICT: nothing to report AND nothing broken (#2234, cb-v-wave-5).
+ *
+ *  It used to be `findings.length === 0` alone, so a gate whose `run` phase THREW came back
+ *  `{ ok: true, findings: [] }` with the failure visible only in the SIBLING `result.toolErrors` array — and
+ *  a consumer reading `ok`/`findings`, which is the obvious read, could not tell "nothing to report" from
+ *  "could not report". Measured 2026-09-12 driving `css-length-tokens` over 1,685 real files:
+ *  `{ name: "css-length-tokens", ok: true, n: 0 }` beside
+ *  `toolErrors: [{ gate: "css-length-tokens", phase: "run", message: "Maximum call stack size exceeded" }]`.
+ *  It silently converted two of that verifier's own runs into false cleans.
+ *
+ *  THE PRODUCTION FRONT DOOR IS UNCHANGED BY THIS, DELIBERATELY. `ops/structure.ts:83` recomputes its own
+ *  per-gate row as `violations.length === 0` and reads brokenness from `pass.toolErrors` at `:344`, so the
+ *  run verdict and the exit code are byte-identical before and after. What changes is every OTHER reader —
+ *  `lib/render.ts:106` now prints `✗` rather than `✓` for a gate that could not run, and
+ *  `lib/population.ts:33`'s unresolved alarm (deliberately raised only BEHIND a green verdict) stops firing
+ *  for a gate whose verdict is no longer green, which is the same rule it already states.
+ *
+ *  It retires with Phase F: the final side has no equivalent hole (`gate-authority.ts` partitions a
+ *  non-success owner before any verdict is computed). */
+function gateOk(name: string, findingCount: number, errors: readonly ToolError[]): boolean {
+  return findingCount === 0 && !errors.some((error) => error.gate === name);
+}
+
 function runWithReferenceCache(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunCtx, "report" | "scan">): PassResult {
   gateIgnoreUses.clear();
   gateIgnoreLateUse = false;
@@ -401,7 +424,13 @@ function runWithReferenceCache(gates: readonly GateDescriptor[], ctxBase: Omit<G
 
   const results: GatePassResult[] = runs.map((run) => {
     const findings = canonicalSort(run.sink);
-    return { name: run.gate.name, ok: findings.length === 0, findings, scan: finishScan(run.scan, ctxBase.files.length), timing: run.clock.finish() };
+    return {
+      name: run.gate.name,
+      ok: gateOk(run.gate.name, findings.length, errors),
+      findings,
+      scan: finishScan(run.scan, ctxBase.files.length),
+      timing: run.clock.finish(),
+    };
   });
   return { gates: results, toolErrors: errors, timing: passTiming(passStartedAt, results) };
 }
@@ -440,7 +469,11 @@ export function stripProbePolicyFindings(result: PolicyPassResult): PolicyPassRe
 export function stripProbeFindings(pass: PassResult): PassResult {
   const gates = pass.gates.map((g) => {
     const findings = g.findings.filter((f) => !PROBE_ARTIFACT_RE.test(f.file));
-    return findings.length === g.findings.length ? g : { name: g.name, ok: findings.length === 0, findings, scan: g.scan, timing: g.timing };
+    // ONE SPELLING of the two-term verdict (#2234): recomputing `findings.length === 0` here would have
+    // laundered a BROKEN gate back to green the moment a probe finding was stripped from it.
+    return findings.length === g.findings.length
+      ? g
+      : { name: g.name, ok: gateOk(g.name, findings.length, pass.toolErrors), findings, scan: g.scan, timing: g.timing };
   });
   return { gates, toolErrors: pass.toolErrors, timing: pass.timing };
 }

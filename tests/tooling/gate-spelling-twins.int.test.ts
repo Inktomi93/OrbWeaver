@@ -36,8 +36,19 @@
 //     `lib/tenancy-read.ts#tableTargetOf` stopped requiring an Identifier node: a table named through
 //     `import * as schema from "@orb/db"` now resolves by its EXPORTED MEMBER NAME (`namespacedTableName`),
 //     and the acquitting half moved with it (`predicatesTableColumn` compares the receiver by TEXT, so a
-//     correctly scoped namespace-spelled write is not falsely accused). Pinned by that gate's own new
-//     namespace mustFlag row, not by this ledger.
+//     correctly scoped namespace-spelled write is not falsely accused). Pinned by that gate's own
+//     `mustPass` row at `tooling/src/verify/gates/owner-scoped-writes.ts:320-329` — the namespace-spelled,
+//     CORRECTLY SCOPED write the gate must stay SILENT on — not by this ledger. **CORRECTED 2026-09-13
+//     (#2233, cb-v-wave-5): this sentence read "that gate's own new namespace `mustFlag` row" and was
+//     FALSE. A `mustFlag` can only ever make a gate LOUDER, so it structurally cannot pin an ACQUITTAL;
+//     the row's own `why` says exactly that ("cut it and no mustFlag row moves, while this row reds"). The
+//     commit credited with the repair, `eb51d4313`, never touched THIS file (4-file stat) — its last
+//     toucher `a7d88287b` predates it — which is how a shrink receipt kept naming the wrong proof.
+//
+// THIS SUITE IS LEGACY BY REQUIREMENT AND RETIRES AT THE #1584 CUTOVER, not at the next conversion. It calls
+// `loadGates()`, which returns `corpus.legacy` ALONE, so every conversion SHRINKS its subject; re-pointing it
+// forever would be maintaining a census of a set the program exists to empty. Fix its receipts while it
+// lives (a false receipt is a false receipt), and delete it with the legacy loader.
 //   • `owner-scoped-upserts` ["bracket","namespace"] → ["bracket"] — the SAME reader change, inherited: the
 //     upsert half calls the same `tableTargetOf`. It was not a subject of the fix and is recorded here so the
 //     shrink is not read as an unexplained disappearance.
