@@ -267,3 +267,36 @@ test("INVARIANT: every authored selector-hook slice yields a defined waivable co
     expect(waivableCoordinate(authored)).toBeDefined();
   }
 });
+
+// LEG 2 (review 21bf17a9f, warm leg): the invariant above only proved `waivableCoordinate` never returns
+// `undefined` for HAND-AUTHORED literals — it never drove the PRODUCER (`selectorClassHooks`/
+// `selectorDataAttributes` here, folded through `css-resource-facts.ts#hookFacts` into the `authored` field
+// `selectorHookIdentities` reads). A regressed producer emitting an empty or paren-leading slice would reach
+// `hookCoordinate`'s throw at `css-selector-has-a-writer.ts:93` while that pin stayed green. This test drives
+// the REAL production path instead: `selectorWriter` end to end through `passResource`, over a fixture
+// carrying every parenthesis shape the corpus can hold (class hooks wrapped in `:is()`/`:where()`/`:not()`,
+// an attribute VALUE carrying parens, and a bracket sitting at column 0 of its own selector) plus an unwaived
+// baseline so every one of these unwritten hooks actually reaches `ctx.report.file` → `hookCoordinate`.
+const PAREN_CASES_CSS =
+  ":is(.shell-wrapper, .other-wrapper) { display: grid; }\n" +
+  ":where(.tier-wrapper) { color: red; }\n" +
+  ":not(.excluded-wrapper) { color: blue; }\n" +
+  '[data-slot="dialog(popup)"] { color: green; }\n' +
+  '[data-mode="a(b)c"] { color: red; }\n' +
+  "[data-x] { color: red; }\n";
+
+test("PRODUCTION PATH: every REAL derived selector-hook slice — parenthesis-wrapped classes, an attribute value carrying parens, a bracket at column 0 — reaches a coordinate with no evaluate-phase throw", ({
+  scratch,
+}) => {
+  const result = passResource(selectorWriter, scratch, { ...SELECTOR_FIXTURE, "packages/client/src/styles/globals.css": PAREN_CASES_CSS });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies.map((owner) => owner.owner.status)).toEqual(["success"]);
+  // Every hook above is unwritten (SELECTOR_FIXTURE's source anchor is inert), so each one reports — proving
+  // `hookCoordinate` ran to completion for every REAL derived slice rather than the whole evaluate silently
+  // stopping partway through on an upstream throw.
+  const tokens = result.authority.effectiveFindings.map((finding) => finding.token);
+  expect(tokens).toEqual(
+    expect.arrayContaining([".shell-wrapper", ".other-wrapper", ".tier-wrapper", ".excluded-wrapper", '[data-slot="dialog', '[data-mode="a', "[data-x]"]),
+  );
+});
