@@ -11,9 +11,16 @@
 // `StaticClassCollector` over `@ui` + `@client` and walks it once (measured on the real tree at
 // `1692583d6`: 23.9s of gate-hook time for the selector gate's visit, 16.7s for the ownership gate's
 // finalize, ONE collector between them). The final contract owns state in `create`, which is PER POLICY —
-// and this module now has FIVE consumers (`css-selector-has-a-writer` + `-health`, `css-family-ownership`
-// + `-health`, `css-family-direct-client-mechanism`), so `create`-owned state would build the collector
-// three times over and triple the walk that the legacy sharing existed to avoid.
+// and this fact now has THREE consumers — `css-selector-has-a-writer`, `css-family-ownership` and
+// `css-family-direct-client-mechanism` — so `create`-owned state would build the collector three times over
+// and triple the walk that the legacy sharing existed to avoid.
+//
+// THREE, NOT FIVE, AND THE COUNT IS PINNED (#2305, `v-css-family-2026-09-13.md` ledger row 5). Four prose
+// homes said FIVE by counting the FAMILY rather than the consumers: both `-health` siblings declare
+// `facts: []` and never call `ctx.fact`, because their subjects are the CSS identity and the vendor surface
+// rather than the TS writer census. `tests/tooling/verify/gates/css-hook-provenance-family.test.ts` now
+// holds the declared consumer set two-sided against a literal census of `ctx.fact(cssHookProvenanceFact)`
+// call sites under `gates/`, with a planted control, so the prose cannot overstate again.
 //
 // §12.3 names the home for exactly this: "Shared whole-population work is a branded `defineFact` provider
 // with its own id, population, analysis, resources, collector, finish hook, receipts, timing and errors …
@@ -408,7 +415,7 @@ function finishProvenance(
   return { owners, writers, sources: ctx.files.length, work: collectorWork() };
 }
 
-/** THE ONE ENTRY POINT. One collector, one walk, five consumers — the sharing the module-global `hookPass`
+/** THE ONE ENTRY POINT. One collector, one walk, three consumers — the sharing the module-global `hookPass`
  *  hand-rolled, expressed as the contract's own mechanism. */
 export const cssHookProvenanceFact = defineFact({
   id: "css-hook-provenance",

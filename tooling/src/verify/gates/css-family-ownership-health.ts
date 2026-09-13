@@ -93,14 +93,14 @@ export const gate = defineGate({
         [TIERS]:
           '[data-surface-tier="base"] { color: red; }\n[data-density="compact"] { --spacing-field: 0.25rem; --spacing-row: 0.375rem; --spacing-block: 0.5rem; --spacing-section: 1rem; }\n',
       },
-      expect: { count: 1, messageIncludes: "runtime writer seam density matched 4" },
-      why: "THE THIRD UNREACHED ARM (cut f07: `reportClosedSeamDrift` was reached by zero rows; cut f08: moving a count killed nothing). One density arm without its symmetric counterpart writes 4 of the 8 declarations the DECLARED vocabulary requires — a completeness claim, not the population count that retired beside it",
+      expect: { count: 4, messageIncludes: 'runtime writer seam density never writes [data-density="comfortable"]' },
+      why: "THE THIRD UNREACHED ARM (cut f07: `reportClosedSeamDrift` was reached by zero rows; cut f08: moving a count killed nothing). One density arm without its symmetric counterpart leaves FOUR of the eight declared `(selector, intent)` pairs unwritten, and the arm names each one — a coverage claim over `DENSITY_SELECTORS × DENSITY_SPACING`, which is the cross-product of two declared sets and the only one of the three seams whose old cardinality was honestly derived",
     },
     {
       mode: "resource",
       files: { ...HEALTHY_HOMES, [CLIENT_GLOBALS]: `:root { --blur-fill-chrome: 1px; }\n${COLORIZATION_SEAM_COMPLETE}` },
-      expect: { count: 1, messageIncludes: "runtime writer seam blur matched 1" },
-      why: "the reduced-transparency seam is incomplete on its own axis while density is whole — two seams, two independent verdicts, which is what makes the per-seam message the discriminator rather than the count",
+      expect: { count: 1, messageIncludes: "runtime writer seam blur never writes --blur-fill-dense" },
+      why: "the reduced-transparency seam is incomplete on its own axis while density is whole — two seams, two independent verdicts, and the arm names the MEMBER rather than a total, which is what makes a per-member message the discriminator",
     },
   ],
   mustPass: [
@@ -128,6 +128,18 @@ export const gate = defineGate({
       mode: "resource",
       files: { ...HEALTHY_HOMES, [THEME]: THEME_AT_PARITY.replace("\n}\n", "\n  color-scheme: dark;\n}\n") },
       why: "CUT f26: parity counts CUSTOM PROPERTIES, which is the predicate the retired hand parser implemented (`^\\s*(--[\\w-]+)\\s*:`) and the one the generator emits. A plain declaration inside the same block is not a token, and without the fence this row reports 204",
+    },
+    {
+      mode: "resource",
+      files: { ...HEALTHY_HOMES, [CLIENT_GLOBALS]: `${CLIENT_SEAMS_COMPLETE}:root { --blur-fill-chrome: 2px; --blur-fill-dense: 2px; }\n` },
+      why:
+        "THE COUNT-RATCHET DISCRIMINATOR (#2305, `v-css-family-2026-09-13.md` ledger row 4), committed as a " +
+        "row because it is the exact planted control that refuted the first leg's claim: a THIRD legitimate " +
+        "`:root` blur carrier, changing NO vocabulary anywhere. Under the retired " +
+        "`CLIENT_BLUR_FILL.size * 2` cardinality this reddened FIVE rows with `matched 6 … requires exactly " +
+        "4`; under COVERAGE it is silent, because every declared member is still written and nothing counts " +
+        "occurrences. A `SET.size * <literal>` expectation is a current-population count however it is " +
+        "spelled, and this row is what stops one coming back",
     },
   ],
   mustRefuse: [

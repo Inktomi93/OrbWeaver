@@ -4,7 +4,8 @@
 //
 // FAMILY `css-hook-provenance` — the shared reader is `lib/css-family-source-provenance.ts`'s
 // `cssHookProvenanceFact`, the ONE collector over `@ui` + `@client` that the legacy module-global `hookPass`
-// hand-rolled and that four other policies in this family also consume. The CSS-side identity reader is
+// hand-rolled and that TWO other policies in this family also consume (`css-family-ownership` and
+// `css-family-direct-client-mechanism`; both `-health` siblings declare `facts: []`). The CSS-side reader is
 // `lib/css-family-selector-provenance.ts#selectorHookIdentities`.
 //
 // AUTHORITY: `ordinary`, and the door is NEW. The legacy descriptor's findings came out of
@@ -241,6 +242,24 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "[data-inert-properties]" },
       why: "an arbitrary object named properties is not a HAST element writer without the rendered element shape",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...SELECTOR_FIXTURE,
+        "packages/client/src/styles/globals.css": '[data-hast-probe="on"] { color: red; }\n',
+        [SOURCE_ANCHOR]: 'const node = { type: "text", tagName: "div", properties: { "data-hast-probe": "on" } };\nexport const probe = node;\n',
+      },
+      expect: { count: 1, token: '[data-hast-probe="on"]' },
+      why:
+        'CUT f28: a HAST-shaped object whose `type` is NOT `"element"` is not a rendered element writer — it is ' +
+        "a text node, and its `properties` bag paints nothing. This row exists because the FIRST sweep " +
+        "misclassified the fence: cut alone it killed nothing, and the JOINT cut with both " +
+        "`isPropertyAssignment` guards TOOL-ERRORS (`Cannot read properties of undefined (reading " +
+        "'getInitializer')`) rather than flagging — which is guide §4.1's TYPE-OBLIGATION shape and NOT " +
+        "evidence of redundancy. §4.1 then binds: write the row that would discriminate and RUN it. It passes " +
+        "at tip and reds under the cut, so the fence is UNENFORCED-now-pinned, never mutually redundant " +
+        "(refuted by `v-css-family-2026-09-13.md` ledger row 2, #2305)",
     },
     {
       mode: "resource",

@@ -49,15 +49,12 @@ export const KEYFRAME_STEP_RE = /^(?:from|to|\d+%(?:\s*,\s*\d+%)*)$/u;
 export const KNOWN_DENSITY_FLOOR = '[data-slot="list-row-subtitle"][data-subtitle-step="label"]';
 const CLASS_TOKEN_RE = /^[A-Za-z_][\w-]*$/u;
 
-/** The closed runtime-writer seams and how many declarations each MUST carry. Every surviving row is a
- *  product of this module's own declared vocabularies, so it states a COMPLETENESS property rather than a
- *  population count: adding a density intent changes `DENSITY_SPACING` and the expectation together. The
- *  retired fourth row (`fade: 12`) had no such derivation and was the count ratchet §12.5 bans. */
-export const EXPECTED_RUNTIME_WRITERS = {
-  density: DENSITY_SPACING.size * DENSITY_SELECTORS.size,
-  blur: CLIENT_BLUR_FILL.size * 2,
-  colorization: CLIENT_COLORIZATION.size * 2,
-} as const;
+// `EXPECTED_RUNTIME_WRITERS` IS GONE (#2305). It survived the first conversion leg as three "derived"
+// cardinalities, and two of the three were not derived at all: `blur` and `colorization` multiplied a
+// declared set by a BARE LITERAL `2` that named no vocabulary, so a third legitimate carrier reddened the
+// gate with no vocabulary edit — the current-population ratchet §12.5 bans, under a derivation's name. The
+// seams keep their VOCABULARIES (the four sets above) and `lib/css-family-policy.ts` now asks COVERAGE of
+// them: every declared member written at least once, no occurrence counted anywhere.
 
 const SOURCE_OWNERS = [
   { prefix: "packages/ui/src/", owner: "ui" },

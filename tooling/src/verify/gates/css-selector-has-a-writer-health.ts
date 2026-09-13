@@ -26,6 +26,15 @@
 // difference zero in both directions), so the retirement removes no live catch. The receipt for the
 // successor is `baseui-surface-manifest`'s own row, not this module's.
 //
+// AND THE SUCCESSOR'S PROOF IS NOT YET AS STRONG AS ITS CODE — cite #2297, do not claim closure
+// (`v-css-family-2026-09-13.md` ledger row 3, #2305). The `state` term IS proven: cutting
+// `|${part.state.join(",")}` out of `identity()` reds `baseui-surface-manifest:mustFlag[2]` alone. But that
+// gate's VANISHED-PART and VANISHED-COMPONENT directions — the direct analogue of the `baseUiManifestOnly`
+// arm retired here — are themselves measured unenforced by any proof row under OPEN #2297. So the mechanism
+// is strictly stronger (per part, state-carrying, two-sided, green on the real tree) while the evidence for
+// that one direction is, today, no stronger than the arm it replaced. Nothing is lost and nothing is
+// double-counted; the row that closes it is #2297's, not this module's.
+//
 // AUTHORITY: `hard`. No marker door, and the legacy bare `@orb-gate-ignore` door had none in use — marker
 // census 0 = 0 = 0, measured 2026-09-12 over 7,725 tracked files with a 1,196-hit positive control.
 //

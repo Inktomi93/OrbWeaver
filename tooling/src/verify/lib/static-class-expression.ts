@@ -49,6 +49,31 @@ interface MutableWork {
   rootEvaluations: number;
 }
 
+/** HOW MANY COLLECTORS HAVE BEEN BUILT IN THIS PROCESS — the one thing an instance-level counter cannot
+ *  say (#2305, `v-css-family-2026-09-13.md` ledger row 1).
+ *
+ *  `StaticClassCollector` already publishes `work.evaluators`, and that reads off ONE instance. A second
+ *  collector built beside it therefore has the same `work`, produces byte-identical findings, and is
+ *  INVISIBLE — measured: handing `createSelectorWriterPass` its own `ClassCollector` left the
+ *  css-hook-provenance suite green and `check:structure` byte-identical. Verdict-neutral and purely a cost
+ *  regression, which matters exactly here: the `defineFact`-over-`create` deviation was priced on NOT
+ *  duplicating a ~14 s walk, and that was the one property with no pin.
+ *
+ *  A MODULE COUNTER IS THE ONLY THING THAT SEES IT, because the duplicate is a different object. It counts
+ *  CONSTRUCTIONS, never mutation of a shared value, so it is an instrument rather than state a verdict
+ *  depends on — nothing in this module reads it. Its test seam is `__resetStaticClassCollectorMints`. */
+let collectorMints = 0;
+
+/** Constructions so far. A pass that claims "one collector, N consumers" asserts this moved by exactly 1. */
+export function staticClassCollectorMints(): number {
+  return collectorMints;
+}
+
+/** Test seam: zero the construction counter before a measured pass. */
+export function __resetStaticClassCollectorMints(): void {
+  collectorMints = 0;
+}
+
 /** One resolver graph over an exact source set; callers either stream nodes through visit or call walk. */
 export class StaticClassCollector {
   private readonly files: readonly SourceFile[];
@@ -62,6 +87,7 @@ export class StaticClassCollector {
   private walked: StaticClassWalk | undefined;
 
   constructor(files: readonly SourceFile[]) {
+    collectorMints += 1;
     this.files = files;
     this.sourceSet = new Set(files);
     this.sourceIndex = staticClassSourceIndex(files);

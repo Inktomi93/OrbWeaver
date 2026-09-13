@@ -24,7 +24,6 @@ import {
   DENSITY_SELECTORS,
   DENSITY_SPACING,
   EXPECTED_DIRECT_THEME_DECLARATIONS,
-  EXPECTED_RUNTIME_WRITERS,
   LOCAL_FADE_STOP_RE,
   lineAt,
   MESSAGE,
@@ -164,20 +163,64 @@ function reportDensityPlacement(sheet: SheetCensus, inventory: CssFacts, report:
 /** THE CLOSED RUNTIME-WRITER SEAMS, as a table rather than a chain: the keys ARE the vocabulary
  *  `EXPECTED_RUNTIME_WRITERS` derives its cardinalities from, so a seam cannot be added to one and
  *  forgotten in the other. */
-const RUNTIME_WRITER_SEAMS: Readonly<
-  Record<"density" | "blur" | "colorization", (rel: string, selectorList: string, declaration: CssDeclarationFact) => boolean>
-> = {
-  density: (rel, selectorList, declaration) => rel === TIERS && DENSITY_SELECTORS.has(selectorList) && DENSITY_SPACING.has(declaration.property),
-  blur: (rel, selectorList, declaration) => rel === CLIENT_GLOBALS && selectorList === ":root" && CLIENT_BLUR_FILL.has(declaration.property),
-  colorization: (rel, selectorList, declaration) =>
-    rel === CLIENT_GLOBALS &&
-    selectorList.includes("[data-theme-colorization]") &&
-    CLIENT_COLORIZATION.has(declaration.property) &&
-    declaration.value.startsWith("color-mix("),
+/** THE CLOSED RUNTIME-WRITER SEAMS, as MEMBER SETS rather than counts — and the difference is the whole
+ *  §12.5 question (#2305, `v-css-family-2026-09-13.md` ledger row 4).
+ *
+ *  THE CONVERSION'S FIRST ATTEMPT KEPT THREE CARDINALITIES and called all three "derived from declared
+ *  vocabularies". Only `density` was: `DENSITY_SPACING.size * DENSITY_SELECTORS.size` is a genuine
+ *  cross-product of two declared sets. `blur: CLIENT_BLUR_FILL.size * 2` and
+ *  `colorization: CLIENT_COLORIZATION.size * 2` multiplied a declared set by a BARE LITERAL that named no
+ *  vocabulary at all — the blur predicate admits exactly one selector (`:root`) and the colorization
+ *  predicate declares no selector set — so the `2` encoded how many carriers happen to write those
+ *  properties TODAY. MEASURED: adding a third legitimate `:root` blur carrier, changing no vocabulary
+ *  anywhere, reddened five rows. That is the current-population ratchet §12.5 bans, wearing a derivation's
+ *  clothes, and "retire the count" was half done.
+ *
+ *  THE HONEST PROPERTY IS COVERAGE, and it derives ENTIRELY from the declared sets: every member of a
+ *  seam's vocabulary must be written AT LEAST ONCE. A legitimate new carrier adds writes and changes no
+ *  coverage, so it is silent; a member that stops being written is named. Nothing counts occurrences, so
+ *  there is no number for a population to drift against — and the arm got STRONGER, because it now says
+ *  WHICH member is missing where the count only said the total moved. A stray carrier writing a seam
+ *  property OUTSIDE its seam position is not this arm's business at all: it is a generated-family write
+ *  with no seam, which `reportGeneratedWriters` reports at the declaration in the ORDINARY policy. */
+interface RuntimeWriterSeam {
+  /** Every member the declared vocabulary requires, each spelled as this seam's coverage key. */
+  readonly members: () => readonly string[];
+  /** The member this declaration covers, or `undefined` when it is not this seam's write. */
+  readonly covers: (rel: string, selectorList: string, declaration: CssDeclarationFact) => string | undefined;
+}
+
+const RUNTIME_WRITER_SEAMS: Readonly<Record<"density" | "blur" | "colorization", RuntimeWriterSeam>> = {
+  density: {
+    members: () => [...DENSITY_SELECTORS].flatMap((selector) => [...DENSITY_SPACING].map((property) => `${selector} ${property}`)),
+    covers: (rel, selectorList, declaration) =>
+      rel === TIERS && DENSITY_SELECTORS.has(selectorList) && DENSITY_SPACING.has(declaration.property) ? `${selectorList} ${declaration.property}` : undefined,
+  },
+  blur: {
+    members: () => [...CLIENT_BLUR_FILL],
+    covers: (rel, selectorList, declaration) =>
+      rel === CLIENT_GLOBALS && selectorList === ":root" && CLIENT_BLUR_FILL.has(declaration.property) ? declaration.property : undefined,
+  },
+  colorization: {
+    members: () => [...CLIENT_COLORIZATION],
+    covers: (rel, selectorList, declaration) =>
+      rel === CLIENT_GLOBALS &&
+      selectorList.includes("[data-theme-colorization]") &&
+      CLIENT_COLORIZATION.has(declaration.property) &&
+      declaration.value.startsWith("color-mix(")
+        ? declaration.property
+        : undefined,
+  },
 };
 
-function runtimeWriter(rel: string, selectorList: string, declaration: CssDeclarationFact): string | undefined {
-  return Object.entries(RUNTIME_WRITER_SEAMS).find(([, matches]) => matches(rel, selectorList, declaration))?.[0];
+/** The seam and the member one declaration covers, or `undefined` for a write no seam sanctions. */
+function runtimeWriter(rel: string, selectorList: string, declaration: CssDeclarationFact): { readonly seam: string; readonly member: string } | undefined {
+  let found: { readonly seam: string; readonly member: string } | undefined;
+  for (const [seam, { covers }] of Object.entries(RUNTIME_WRITER_SEAMS)) {
+    const member = covers(rel, selectorList, declaration);
+    found ??= member === undefined ? undefined : { seam, member };
+  }
+  return found;
 }
 
 /** THE LOCAL FADE-STOP SEAM. It is still a sanctioned runtime writer and still acquits; what retired is the
@@ -199,12 +242,13 @@ function isGeneratedFamily(prop: string, prefixes: ReadonlySet<string>): boolean
 interface GeneratedWriterScan {
   readonly inventory: CssFacts;
   readonly prefixes: ReadonlySet<string>;
-  readonly runtimeCounts: Map<string, number>;
+  /** seam → the members this corpus was proven to write. */
+  readonly covered: Map<string, Set<string>>;
   readonly report: CssFamilyReport;
 }
 
 function reportGeneratedWriters(sheet: SheetCensus, scan: GeneratedWriterScan): void {
-  const { inventory, prefixes, runtimeCounts, report } = scan;
+  const { inventory, prefixes, covered, report } = scan;
   if (sheet.rel === THEME) {
     return;
   }
@@ -215,7 +259,9 @@ function reportGeneratedWriters(sheet: SheetCensus, scan: GeneratedWriterScan): 
     const selectorList = declaration.owner.kind === "style-rule" ? declaration.owner.selectorList : declaration.owner.prelude;
     const writer = runtimeWriter(sheet.rel, selectorList, declaration);
     if (writer !== undefined) {
-      runtimeCounts.set(writer, (runtimeCounts.get(writer) ?? 0) + 1);
+      const seen = covered.get(writer.seam) ?? new Set<string>();
+      seen.add(writer.member);
+      covered.set(writer.seam, seen);
       continue;
     }
     if (isLocalFadeStop(sheet.rel, declaration)) {
@@ -376,13 +422,13 @@ function reportTierGrammar(sheet: SheetCensus, inventory: CssFacts, report: CssF
 export function reportCssFamilyOwnership({ inventory, owners, report }: CssOwnershipInput): number {
   const sheets = census(inventory);
   const prefixes = themeFamilyPrefixes(sheets.find((sheet) => sheet.rel === THEME)?.directTheme ?? []);
-  const runtimeCounts = new Map<string, number>();
+  const covered = new Map<string, Set<string>>();
   for (const sheet of sheets) {
     reportAuthoredLayers(sheet, report);
     reportDensityPlacement(sheet, inventory, report);
     reportTierGrammar(sheet, inventory, report);
     reportShellGrammar(sheet, inventory, owners, report);
-    reportGeneratedWriters(sheet, { inventory, prefixes, runtimeCounts, report });
+    reportGeneratedWriters(sheet, { inventory, prefixes, covered, report });
   }
   reportUiDependencyDirection(inventory, owners, report);
   reportClientComponentSkins(inventory, owners, report);
@@ -472,18 +518,20 @@ function reportClosedSeamDrift(sheets: readonly SheetCensus[], inventory: CssFac
   if (prefixes.size === 0) {
     return;
   }
-  const runtimeCounts = new Map<string, number>();
+  const covered = new Map<string, Set<string>>();
   for (const sheet of sheets) {
-    reportGeneratedWriters(sheet, { inventory, prefixes, runtimeCounts, report: NO_REPORT });
+    reportGeneratedWriters(sheet, { inventory, prefixes, covered, report: NO_REPORT });
   }
-  for (const [writer, expected] of Object.entries(EXPECTED_RUNTIME_WRITERS)) {
-    const actual = runtimeCounts.get(writer) ?? 0;
-    if (actual !== expected) {
-      report(THEME, {
-        line: 1,
-        column: 1,
-        message: `runtime writer seam ${writer} matched ${String(actual)} declarations, and its declared vocabulary requires exactly ${String(expected)}; either a sanctioned runtime mechanism moved or the seam is incomplete.`,
-      });
+  for (const [seam, { members }] of Object.entries(RUNTIME_WRITER_SEAMS)) {
+    const seen = covered.get(seam) ?? new Set<string>();
+    for (const member of members()) {
+      if (!seen.has(member)) {
+        report(THEME, {
+          line: 1,
+          column: 1,
+          message: `runtime writer seam ${seam} never writes ${member}, which its declared vocabulary requires; either a sanctioned runtime mechanism moved or the seam is incomplete.`,
+        });
+      }
     }
   }
 }

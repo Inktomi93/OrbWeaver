@@ -112,10 +112,13 @@ export const OWNERSHIP_FIXTURE: Readonly<Record<string, string>> = { ...CLEAN_PR
 const DENSITY_ARM = (selector: string): string =>
   `${selector} { --spacing-field: 0.25rem; --spacing-row: 0.375rem; --spacing-block: 0.5rem; --spacing-section: 1rem; }\n`;
 export const DENSITY_COMPLETE = `[data-surface-tier="base"] { color: red; }\n${DENSITY_ARM('[data-density="comfortable"]')}${DENSITY_ARM('[data-density="compact"]')}`;
-export const BLUR_SEAM_COMPLETE = ":root { --blur-fill-chrome: 1px; --blur-fill-dense: 1px; }\n:root { --blur-fill-chrome: 2px; --blur-fill-dense: 2px; }\n";
+// ONE CARRIER EACH, and the shrink is the point (#2305). While the health arm counted DECLARATIONS these
+// fixtures had to invent a second arbitrary carrier apiece — a duplicate `:root` block and a made-up
+// `[data-theme-colorization][data-x]` — purely to reach a factor that named no vocabulary. The arm now asks
+// COVERAGE of the declared member sets, so one honest carrier writing every member is the complete seam.
+export const BLUR_SEAM_COMPLETE = ":root { --blur-fill-chrome: 1px; --blur-fill-dense: 1px; }\n";
 export const COLORIZATION_SEAM_COMPLETE =
-  "[data-theme-colorization] { --color-border: color-mix(in oklab, black, white); --color-sidebar-border: color-mix(in oklab, black, white); }\n" +
-  "[data-theme-colorization][data-x] { --color-border: color-mix(in oklab, black, white); --color-sidebar-border: color-mix(in oklab, black, white); }\n";
+  "[data-theme-colorization] { --color-border: color-mix(in oklab, black, white); --color-sidebar-border: color-mix(in oklab, black, white); }\n";
 export const CLIENT_SEAMS_COMPLETE = `${BLUR_SEAM_COMPLETE}${COLORIZATION_SEAM_COMPLETE}`;
 
 /** Five homes at generated-output parity WITH every runtime-writer seam complete: the shape in which the

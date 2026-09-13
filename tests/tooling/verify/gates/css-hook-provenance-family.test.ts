@@ -1,11 +1,16 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
+import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as directClientMechanism } from "../../../../tooling/src/verify/gates/css-family-direct-client-mechanism.ts";
 import { gate as familyOwnership } from "../../../../tooling/src/verify/gates/css-family-ownership.ts";
 import { gate as familyOwnershipHealth } from "../../../../tooling/src/verify/gates/css-family-ownership-health.ts";
 import { gate as selectorWriter } from "../../../../tooling/src/verify/gates/css-selector-has-a-writer.ts";
 import { gate as selectorWriterHealth } from "../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
+import { cssHookProvenanceFact } from "../../../../tooling/src/verify/lib/css-family-source-provenance.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -102,4 +107,51 @@ test("every direct-client-mechanism grant names a slot operation on the client g
   expect(rows).toHaveLength(3);
   expect(rows.every(({ operation }) => operation.startsWith("direct-client-mechanism:slot:"))).toBe(true);
   expect(rows.every(({ subject }) => subject === CLIENT_GLOBALS)).toBe(true);
+});
+
+/** THE CONSUMER COUNT, HELD TWO-SIDED — #2305, `v-css-family-2026-09-13.md` ledger row 5.
+ *
+ *  Four prose homes said the `css-hook-provenance` fact had FIVE consumers by counting the FAMILY: both
+ *  `-health` siblings declare `facts: []` and never call `ctx.fact`, so the real number is THREE. A prose
+ *  count nothing holds is a §5b item-5 defect, and it recurs — so this pins BOTH halves and requires them to
+ *  agree:
+ *
+ *    - the DECLARED half, off the loaded descriptors (`policy.facts`), which is what the runtime binds; and
+ *    - the CALL half, a literal census of `ctx.fact(cssHookProvenanceFact)` over the whole gates directory,
+ *      which is what the prose describes.
+ *
+ *  Either side moving without the other reds. The census carries its own PLANTED CONTROL in the same
+ *  invocation — a bare zero from a text sweep is "I could not measure", never "it is not there". */
+const GATES_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../../tooling/src/verify/gates");
+const CONSUMERS = ["css-family-direct-client-mechanism", "css-family-ownership", "css-selector-has-a-writer"];
+
+test("the css-hook-provenance fact has exactly THREE consumers, declared and called, held two-sided", () => {
+  // Typed as the CONTRACT rather than as the five literal descriptors: tsc narrows a `-health` module's
+  // `facts` to `readonly []`, and `includes` on that takes `never` — the identity check is the point, so the
+  // widening is where it belongs.
+  const family: readonly GatePolicy[] = [familyOwnership, familyOwnershipHealth, directClientMechanism, selectorWriter, selectorWriterHealth];
+  const declared = family
+    .filter((policy) => policy.facts.includes(cssHookProvenanceFact))
+    .map((policy) => policy.id)
+    .toSorted((left, right) => left.localeCompare(right));
+
+  expect(declared).toEqual(CONSUMERS);
+
+  const modules = readdirSync(GATES_DIR).filter((name) => name.endsWith(".ts"));
+  const called = modules
+    .filter((name) => readFileSync(join(GATES_DIR, name), "utf8").includes("ctx.fact(cssHookProvenanceFact)"))
+    .map((name) => name.replace(/\.ts$/u, ""))
+    .toSorted((left, right) => left.localeCompare(right));
+  // PLANTED POSITIVE CONTROL, same invocation: the sweep can see a `ctx.fact(` call at all.
+  const anyFactCall = modules.filter((name) => readFileSync(join(GATES_DIR, name), "utf8").includes("ctx.fact(")).length;
+
+  expect(modules.length).toBeGreaterThan(200);
+  expect(anyFactCall).toBeGreaterThan(CONSUMERS.length);
+  expect(called).toEqual(CONSUMERS);
+});
+
+/** Both `-health` siblings read the CSS identity ALONE — the half the overstated prose kept getting wrong. */
+test("neither -health sibling declares the fact", () => {
+  expect(familyOwnershipHealth.facts).toEqual([]);
+  expect(selectorWriterHealth.facts).toEqual([]);
 });

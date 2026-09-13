@@ -3,7 +3,8 @@
 //
 // FAMILY `css-hook-provenance` — the shared reader is `lib/css-family-source-provenance.ts`'s
 // `cssHookProvenanceFact`, the one hook-owner collector over `@ui` + `@client` that the legacy module-global
-// `hookPass` hand-rolled and that four sibling policies also consume. The CSS-side readers are
+// `hookPass` hand-rolled and that TWO sibling policies also consume (`css-selector-has-a-writer` and
+// `css-family-direct-client-mechanism`; both `-health` siblings declare `facts: []`). The CSS-side readers are
 // `lib/css-family-selector-provenance.ts` and `lib/css-rules.ts` (5 gate importers).
 //
 // AUTHORITY: `ordinary`, and the door is NEW. Every finding here is a claim about an AUTHORED coordinate —
@@ -376,6 +377,22 @@ export const gate = defineGate({
       files: { ...OWNERSHIP_FIXTURE, [SHELL]: ":root { color-scheme: dark; }\n" },
       expect: { count: 1, token: "color-scheme" },
       why: "the one document-root declaration in shell is the view-transition reset, not a general global-mechanism door",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...OWNERSHIP_FIXTURE,
+        [THEME]: "@theme { --color-background: black; --blur-seed: 0; }\n",
+        [CLIENT_GLOBALS]: ".stray-carrier { --blur-fill-chrome: 1px; }\n",
+      },
+      expect: { count: 1, token: "--blur-fill-chrome", messageIncludes: "closed runtime writer seams" },
+      why:
+        "THE STRAY-CARRIER HALF of the seam contract, and it belongs HERE rather than in the `-health` " +
+        "sibling (#2305). A seam member written OUTSIDE its seam position — the reduced-transparency " +
+        "property under a class rather than `:root` — is a generated-family write no seam sanctions, so it " +
+        "is an ORDINARY finding at the declaration an author can move. The `-health` arm asks the opposite " +
+        "question (is every declared member written AT ALL) and is silent here; between them a member can " +
+        "neither vanish nor be written somewhere it does not belong",
     },
   ],
   mustPass: [

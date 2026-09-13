@@ -4,6 +4,7 @@ import { defineGate } from "../../tooling/src/verify/contract/policy.ts";
 import type { CssHookProvenance } from "../../tooling/src/verify/lib/css-family-source-provenance.ts";
 import { cssHookProvenanceFact } from "../../tooling/src/verify/lib/css-family-source-provenance.ts";
 import { runPolicyPass } from "../../tooling/src/verify/lib/policy-pass.ts";
+import { __resetStaticClassCollectorMints, StaticClassCollector, staticClassCollectorMints } from "../../tooling/src/verify/lib/static-class-expression.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 // THE SUCCESSOR PROOF for the retired `beginHookOwnerCollection` lifecycle test (#1584, 2026-09-13).
@@ -22,6 +23,15 @@ import { expect, test } from "../support/tool-fixtures.ts";
 //     both consumers subscribed.
 //   * `projectArrays` is unchanged and is now enforced twice over: a final policy cannot reach a `Project`
 //     at all (`GatePolicyContext` has none), so the counter proves the RUNTIME does not either.
+//
+// AND THE COLLECTOR COUNT IS ITS OWN ASSERTION, added 2026-09-13 (#2305). `seen[0] === seen[1]` and
+// `evaluators: 1` prove the two CONSUMERS share a value; they say NOTHING about how many collectors the
+// PROVIDER built, because `work` is read off the published instance and a sibling collector is a different
+// object. Measured by a fresh verifier: handing `createSelectorWriterPass` its own `ClassCollector` left
+// this suite GREEN and `check:structure --check css-selector-has-a-writer` byte-identical — verdict-neutral,
+// and a straight doubling of the ~14 s walk the `defineFact`-over-`create` deviation was justified on.
+// `staticClassCollectorMints()` counts CONSTRUCTIONS process-wide, which is the only signal a duplicate
+// cannot hide from, and the control below proves the counter can see one.
 
 /** The policy runtime derives every source path RELATIVE TO ITS ROOT and refuses one outside it
  *  (`policy-pass.ts#sourcePath`), so the in-memory project is rooted at the test's own scratch directory
@@ -90,9 +100,20 @@ function consumer(id: string, seen: CssHookProvenance[]): GatePolicy {
     // `runPolicyPass` executes hooks, not proofs. The two placeholders exist to satisfy the SHAPE the
     // validator enforces on every policy it is handed, which is itself part of what this test drives.
     mustFlag: [
-      { mode: "source", files: { "packages/ui/src/probe.ts": "export const probe = 1;\n" }, expect: { count: 1 }, why: "unexecuted placeholder: this probe drives hooks, never its own proof rows" },
+      {
+        mode: "source",
+        files: { "packages/ui/src/probe.ts": "export const probe = 1;\n" },
+        expect: { count: 1 },
+        why: "unexecuted placeholder: this probe drives hooks, never its own proof rows",
+      },
     ],
-    mustPass: [{ mode: "source", files: { "packages/ui/src/probe.ts": "export const probe = 1;\n" }, why: "unexecuted placeholder: this probe drives hooks, never its own proof rows" }],
+    mustPass: [
+      {
+        mode: "source",
+        files: { "packages/ui/src/probe.ts": "export const probe = 1;\n" },
+        why: "unexecuted placeholder: this probe drives hooks, never its own proof rows",
+      },
+    ],
   });
 }
 
@@ -111,6 +132,7 @@ test("one invocation gives two consumers ONE collector doing identical work, and
   }) as typeof workspace.getSourceFiles;
 
   const seen: CssHookProvenance[] = [];
+  __resetStaticClassCollectorMints();
   const policies = [consumer("probe-static-class-a", seen), consumer("probe-static-class-b", seen)];
   const drive = (): ReturnType<typeof runPolicyPass> =>
     runPolicyPass({
@@ -150,6 +172,10 @@ test("one invocation gives two consumers ONE collector doing identical work, and
     "class:probe-forwarded",
   ]);
   expect(seen[0]?.work).toEqual({ evaluators: 1, dispatchedNodes: 37, rootEvaluations: 7 });
+  // THE COLLECTOR COUNT. One invocation, two consumers, ONE construction — the claim `evaluators` cannot
+  // make. A sibling pass handed its own collector moves this to 2 while every other assertion here stays
+  // green, which is exactly how the gap was found.
+  expect(staticClassCollectorMints()).toBe(1);
 
   // A LATER invocation cannot reuse the earlier evaluator: the fact's `create` runs once per invocation and
   // the collector dies with it, so a value that changed between passes is seen.
@@ -167,4 +193,26 @@ test("one invocation gives two consumers ONE collector doing identical work, and
     "class:probe-child-base",
     "class:probe-forwarded",
   ]);
+  // A SECOND INVOCATION IS A SECOND COLLECTOR, and that is the honest number: the fact's `create` runs once
+  // per invocation. Two drives, two constructions — the counter tracks the provider rather than the process.
+  expect(staticClassCollectorMints()).toBe(2);
+});
+
+/** THE PLANTED CONTROL for the assertion above, committed rather than probed: a bare zero from a counter
+ *  nobody has seen move is "I could not measure". Building a collector the way a sibling pass would proves
+ *  the instrument sees a duplicate — which is the whole defect `evaluators: 1` was blind to. */
+test("the collector mint counter SEES a second collector — the control the work counters cannot be", () => {
+  const workspace = project("/probe");
+  __resetStaticClassCollectorMints();
+
+  expect(staticClassCollectorMints()).toBe(0);
+  const first = new StaticClassCollector(workspace.getSourceFiles());
+  expect(staticClassCollectorMints()).toBe(1);
+
+  // The duplicate a sibling pass would build. Its OWN `work` is indistinguishable from the shared one's at
+  // this point — `evaluators: 1` on both — which is precisely why the count is the pin and `work` is not.
+  const duplicate = new StaticClassCollector(workspace.getSourceFiles());
+
+  expect(staticClassCollectorMints()).toBe(2);
+  expect(duplicate.work).toEqual(first.work);
 });
