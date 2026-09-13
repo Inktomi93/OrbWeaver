@@ -146,8 +146,26 @@ const DEFAULT_CEILING_BYTES = 1024 * 1024;
  *     with ENOBUFS at a 1MiB buffer (`5ee1149a9`), and a buffer overflow IS a measurement that the payload
  *     exceeded it. A re-measurement of main's checkout from this lane was attempted and abandoned after ten
  *     minutes under a live barrier; the assertion below therefore first EXECUTES when this lands on main.
- *     If it reds there, that red is the finding this row asked for: the premise moved. */
+ *     If it reds there, that red is the finding this row asked for: the premise moved.
+ *
+ *  THE PREMISE MOVED, AND THIS ARM MOVED WITH IT (#2281/#2282, 2026-09-13). It asked for that red and it got
+ *  it, from the fence rather than from drift, so the arm is INVERTED rather than deleted: what it now pins is
+ *  that the FIX HOLDS. Main's checkout was measured directly this time — discovery replicated with rules and
+ *  typed programs off, cwd at main's root, one run per config variant:
+ *   • MAIN, UNFENCED: 1,782,584 bytes across 15,994 files — #2211's condition, still real on the day it was
+ *     removed, and 7,896 of those files were other lanes' worktrees while 353 were the vendored SillyTavern
+ *     runtime. `eslint.config.js` now ignores both, and it is the CONFIG that changed, not this checkout;
+ *   • MAIN, BOTH FENCES: 446,162 bytes across 7,746 files — 2.35x under node's default.
+ *  Both figures were taken on main at `1692583d6`, 2026-09-13. They are RECORDED, never asserted: an
+ *  assertion on a number that tracks corpus growth turns a legitimate addition into a red proof. The
+ *  THRESHOLD is the claim; the numbers are the observation that justified flipping it.
+ *  So the floor became a CEILING and the conditional went away with it: the population fits node's own
+ *  default in EVERY checkout now, which is a property of the config, and the next unfenced gitignored tree
+ *  that re-inflates it reds this row instead of quietly restoring the ENOBUFS the door's 64MiB ceiling is
+ *  there to survive. The door's ceiling is untouched and is still asserted separately below. */
 const RECORDED_WORKTREE_BYTES = 441_978;
+const RECORDED_MAIN_UNFENCED_BYTES = 1_782_584;
+const RECORDED_MAIN_FENCED_BYTES = 446_162;
 
 test("the discovery payload is MEASURED against the ceilings, and the number is recorded (#2212)", { timeout: MEASURE_BUDGET }, async () => {
   // WHY THIS ARM EXISTS AND WHAT IT DOES NOT PROMISE. #2211 was a KILLED discovery child: the payload had
@@ -178,15 +196,16 @@ test("the discovery payload is MEASURED against the ceilings, and the number is 
   // number has moved; it is deliberately not asserted (a worktree's population is whatever its branch
   // holds), and `RECORDED_WORKTREE_BYTES` is printed beside the live one for exactly that comparison.
   process.stderr.write(`[#2212] recorded worktree baseline: ${String(RECORDED_WORKTREE_BYTES)} bytes (2026-09-12)\n`);
-  // CHECKOUT-DEPENDENT, expressed as a THRESHOLD rather than a conditional assertion: on main the payload
-  // must still exceed node's 1MiB default (#2211's premise — the reason the door names its own ceiling at
-  // all); in a worktree the population is a different, smaller set, so the only honest floor is that a
-  // payload exists. One assertion either way, so the arm cannot silently stop asserting.
-  const premiseFloorBytes = isMainCheckout() ? DEFAULT_CEILING_BYTES : 0;
+  process.stderr.write(`[#2212] recorded main: ${String(RECORDED_MAIN_UNFENCED_BYTES)} unfenced / ${String(RECORDED_MAIN_FENCED_BYTES)} fenced (2026-09-13)\n`);
+  // NO LONGER CHECKOUT-DEPENDENT (#2281/#2282): the ignore fences live in `eslint.config.js`, so "the
+  // admitted population fits node's own default stdout ceiling" is now a property of the CONFIG and holds in
+  // main and in a worktree alike. Asserting it unconditionally is what turns #2211's retired premise into a
+  // standing ratchet — an unfenced gitignored tree walking back into the population reds HERE, at the
+  // measurement, rather than as an ENOBUFS kill in a production run.
   expect(
     bytes,
-    `the discovery payload (${String(bytes)} bytes) fell below the floor for this checkout — on main that means #2211's PREMISE HAS MOVED: the population no longer overflows node's 1MiB default, so re-derive whether the named ceiling is still load-bearing`,
-  ).toBeGreaterThan(premiseFloorBytes);
+    `the discovery payload (${String(bytes)} bytes) outgrew node's 1MiB default again. A RED HERE IS NOT A CEILING QUESTION: an unfenced directory has re-inflated the admitted population — find it and fence it in eslint.config.js, the way \`**/.claude/worktrees/**\` (#2281) and \`scripts/probes/st-goldens/sillytavern-runtime/**\` (#2282) fenced the two that did it before. The door's 64MiB ceiling (#2211) is asserted separately above and is not what moved`,
+  ).toBeLessThan(DEFAULT_CEILING_BYTES);
 });
 
 // ─── #2213: a NESTED tool cache is a derived artifact too ────────────────────────────────────────────
@@ -229,4 +248,51 @@ test("a nested tool cache is IGNORED while authored sources stay linted (#2213)"
   expect(await ignored("packages/client/src/main.tsx"), "authored client source must stay linted").toBe(false);
   expect(await ignored("packages/ui/src/index.ts"), "authored ui source must stay linted").toBe(false);
   expect(await ignored("tooling/src/verify/ops/eslint.ts"), "authored tooling source must stay linted").toBe(false);
+});
+
+// ─── #2281 / #2282: the same class twice more, and the fences are pinned the same way ────────────────
+//
+// Both directories are GITIGNORED and both were walked anyway, because flat config reads no VCS ignore file
+// — the identical mechanism as `playwright/.cache` above, which is why these arms live beside it rather than
+// in a file of their own. They differ in EVERY other respect, and the difference is what each arm pins:
+//   • `.claude/worktrees/**` gets ZERO rules (a `files:` glob anchored at the config dir cannot match
+//     `.claude/worktrees/<id>/tooling/src/x.ts`), so it never produced a finding — it produced EXIT 2. A lane
+//     swept mid-run turns an enumerated path into ENOENT and the stage returns a tool error instead of a
+//     verdict. Measured 2026-09-13 on main: 7,896 of the 15,994 admitted files were other lanes' worktrees.
+//   • `scripts/probes/st-goldens/sillytavern-runtime/**` DOES get rules, because it sits under `scripts/`.
+//     Its 353 admitted files were the entire content of the stage's exit 1: four `Unused eslint-disable
+//     directive` errors against SillyTavern's own directives, read under our config.
+// THE NEGATIVE CONTROLS ARE THE POINT HERE. The rig's own scripts sit one level ABOVE the runtime and are
+// tracked, authored and linted; an ignore spelled `scripts/probes/st-goldens/**` would have swallowed them
+// and satisfied every positive arm. That over-broad spelling is the mistake this test exists to catch.
+test("the worktree and st-goldens fences ignore exactly their own trees (#2281, #2282)", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const ignored = async (rel: string): Promise<boolean> => eslint.isPathIgnored(join(repoRoot, rel));
+
+  // This first arm is a DEMONSTRATION, not a control: it was already true before the fence, because a
+  // `files:` glob anchored at the config dir cannot match a worktree path — which is the "zero rules apply"
+  // half of #2281 stated as an assertion. The arm below it is the one that FAILS without the fence (verified
+  // by re-running this file against `HEAD:eslint.config.js`, 2026-09-13): `.mjs` is a default-linted
+  // extension, so that path was admitted, and it is the exact file whose mid-run disappearance exit-2'd the
+  // stage.
+  expect(await ignored(".claude/worktrees/agent-1/packages/client/src/main.tsx"), "a lane's worktree is a transient checkout").toBe(true);
+  expect(await ignored(".claude/worktrees/agent-1/.claude/hooks/tool-guard.mjs"), "the exact ENOENT path that exit-2'd the stage").toBe(true);
+  // The `**/` prefix is load-bearing (#2213): a worktree carries a `.claude/` of its own, so a nested
+  // worktree is structurally possible and root anchoring would miss it.
+  expect(await ignored(".claude/worktrees/agent-1/.claude/worktrees/agent-2/packages/ui/src/x.ts"), "a nested worktree is reachable and fenced").toBe(true);
+  expect(await ignored("scripts/probes/st-goldens/sillytavern-runtime/public/scripts/i18n.js"), "vendored SillyTavern source is not ours to lint").toBe(true);
+
+  // NEGATIVE CONTROLS — the authored neighbours each fence must NOT reach. EVERY ONE IS A `.cjs`/`.mjs`, and
+  // that is forced, not stylistic: `isPathIgnored` answers "would ESLint lint this", so a file matching no
+  // config `files:` surface reads IGNORED for a reason that has nothing to do with the ignores array. Under
+  // this config EVERY `.ts` under `scripts/` is in that state (`scripts/dev/stack.ts` included, measured
+  // 2026-09-13), so a `.ts` control here would be green before the fence, green after it, and green under an
+  // over-broad fence too — a control that cannot fail. The rig's `write-v2-png.cjs` is the one tracked file
+  // it actually admits, which makes it the only honest subject for "the fence did not swallow the rig".
+  expect(
+    await ignored("scripts/probes/st-goldens/write-v2-png.cjs"),
+    "the rig's own tracked script stays linted — an ignore spelled st-goldens/** would swallow it",
+  ).toBe(false);
+  expect(await ignored("scripts/probes/other-probe/run.js"), "the fence is scoped to the rig's runtime, not to scripts/probes").toBe(false);
+  expect(await ignored(".claude/hooks/tool-guard.mjs"), "the repository's OWN .claude tree is authored and stays linted").toBe(false);
 });
