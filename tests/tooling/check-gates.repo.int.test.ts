@@ -1115,7 +1115,12 @@ function writeFixtures(): void {
 // legacy descriptor held with a `tooling/src/snap/cli.ts` anchor no fixture could satisfy.
 const UNFIXTURABLE_GATES = new Set([
   "enforcement-registry-parity",
-  "bus-payload-allowlist",
+  // "bus-payload-allowlist" removed 2026-09-13 (#2296) — the conversion at `a196a35d7` rewrote the comment
+  // block above to say this row was GONE and then left the ENTRY here, so the two-sided arm below read
+  // `legacy=false, final=true` and this suite went red on `main`. The commit could not see it: the suite is
+  // orchestrator-only (it plants `__g_` fixtures and is not concurrency-safe with itself), so the lane
+  // correctly did not run it, and nothing else reads this set. **A conversion that edits this file owes the
+  // ENTRY deletion, not just the comment** — and the entry is the half the arm checks.
   "knob-wire-coverage",
   "css-family-ownership",
   "css-selector-has-a-writer",
