@@ -27,8 +27,14 @@
 // authored `.ts`/`.tsx` only (§12.4), `_proof/` stays IN exactly as legacy had it, and no other tree
 // contains that prefix. The legacy `scanRoot` existed to keep the four whole-project scanners from also
 // reading this gate's example strings; the population field now IS that fence and the four are unaffected.
-// LEGACY SHA `1e81658b4^` — this is the ONE member of the nine-module `policy-soundness` family that is a
-// CONVERSION rather than a module born final; the other eight have no legacy population and say so. Read
+// LEGACY SHA `1e81658b4^` — this is the ONE member of the ten-module `policy-soundness` family that is a
+// CONVERSION rather than a module born final; the other NINE have no legacy population and say so.
+// (Both counts corrected 2026-09-13, LD-2319-3: the sentence said "nine-module" and "the other eight",
+// written before a tenth member joined. Re-derived, not adjusted:
+// `rg --files-with-matches 'family: "policy-soundness"' tooling/src/verify/gates` lists ten files —
+// diagnostic-legibility · policy-binding-resolution · policy-family-readers · policy-fixture-substrate ·
+// policy-legacy-imports · policy-proof-expectations · policy-refusal-coverage · policy-soundness ·
+// policy-waiver-identity · policy-waiver-spelling.) Read
 // by the three-question test rather than inherited: the introducing commit is `1e81658b4`
 // (`git log -S 'defineGate({' --reverse -- <this file>`), the cited sha is its parent by construction, and
 // the blob there is legacy (`git show 1e81658b4^:<this file>` has `defineGate` count 0).

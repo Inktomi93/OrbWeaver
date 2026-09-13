@@ -384,7 +384,12 @@ that reference.
 **Outcome:** the two shared WRITE boundaries codex's security review of `df2cda4c8` held the commit for
 are CLOSED, and the frozen-closure extraction that arm (a) added at `57349c1dc` is folded into the same
 guarded path. `tests/support/legacy-differential.ts` now has exactly ONE `writeFileSync` and ONE
-`mkdirSync`, both inside `writeStagedReplayFile`.
+`mkdirSync`, both inside `writeStagedReplayFile` — independently re-counted 2026-09-13 by the security
+review with two methods (`grep -nE` over 14 mutating spellings and `ast-grep` per primitive, 1 file
+scanned, both agreeing), and UNCHANGED by §8's follow-up repairs, which add no write. The one indirect
+write destination that is not through the site is `initRepository`'s `git init`/`git add --all`
+materializing `.git/` inside the root: module-private, both callers pass `materialize`'s own mkdtemp
+root, so the claim is exactly "one FILE write site".
 
 ### 7.1 The two mechanisms
 
@@ -487,19 +492,147 @@ reachable backlog shrank every time the program consolidated a reader. The first
 errors about MEMBERSHIP; this one is about REACHABILITY, it was invisible to any header grep, and it is the
 only one of the three that is now CLOSED rather than mitigated.
 
-## LEDGER ROWS (7 rows)
+## 8. The independent security review's three rows, repaired (cb-x-replay-boundary, follow-up)
+
+`docs/reviews/gate-runtime/sec-replay-review-2026-09-13.md` (lane `cb-sec-replay-review`) drove the whole
+stack from cherry-picked commits, declared it **INTEGRABLE**, and filed three rows. All three are repaired
+here at the ROOT CAUSE — the review's suggested regex was a candidate, not the acceptance contract — plus
+the arms it drove that this suite lacked, and the coupled census corrections codex assigned with them.
+
+### 8.1 LD-2319-8 — the header/body boundary, and a correction to the review's own reachability call
+
+**Mechanism.** `IMPORT_BLOCK_OPEN` was `/^(?:import|export)\s[^"]*\{\s*$/u`, which also matches
+`export const gate: GateDescriptor = {`, `export function f(a: string) {`, `export interface X {` and
+`export type T = {`. The first such line put the scanner in block mode for the REST of the module, so the
+body byte-identity assertion compared `""` to `""`, and any column-0 `} from "…";` in the swallowed region —
+including one inside an authored FIXTURE TEMPLATE LITERAL — was rewritten to an absolute URL. Both engines
+then judge the same corrupted fixture and agree on a WRONG number, which is the failure a count comparison
+structurally cannot see and the one this module's header claims the line-anchored shim prevents.
+
+**THE VACUITY WAS LIVE, NOT LATENT — the review's screen covered the wrong population.** Its reachability
+call ("latent … all 22 frozen blobs the seven suites load are clean") screened the ENTRY blobs. The shim
+also runs over every member of the frozen relative-import CLOSURE, which is the wider population — and a
+replica of the PRE-FIX scanner over the closures of four entries (`biome-grant-liveness@c97de9d2f`,
+`tsconfig-entry-liveness@c97de9d2f`, `no-color-literals@d6f36904f`, `placeholder-copy-registry@f5b222e10`;
+**26 members scanned**) finds **5 member loads whose body-identity proof was VACUOUS** — four of
+`contract/gate.ts` (line 10, `export interface Finding {`) and `lib/ast-read.ts@f5b222e10` (line 15,
+`export function unwrapExpression(node: Node): Node {`). So on every one of those loads the proof compared
+`""` to `""`. The CORRUPTION half stays latent (zero column-0 `} from "…";` lines in the swallowed regions,
+so nothing was rewritten and no committed table is wrong) — but "the assertion was live and vacuous" is a
+strictly stronger statement than the row records, and it is the half that made the defect invisible.
+
+**Repair — the boundary, not just the regex.** Three parts, and each is load-bearing:
+
+1. **The opener is the exact grammar.** `import {` · `import type {` · `export {` · `export type {`, plus
+   the default-plus-named `import Default, {`. Measured over `tooling/src/verify/gates/*.ts`
+   (**309 files**): **14** real wrapped openers, every one terminated, and **329 lines** the loose
+   expression opens on that this one does not. Zero default-form instances today — the arm is carried
+   anyway because the harness reads HISTORY, the form is valid TypeScript, and the asymmetry runs one way:
+   a MISSING opener fails loudly (`Cannot find module`), a spurious one corrupts silently.
+2. **The scanner cannot cross a line that is not part of the header.** Inside a block, a line that is
+   neither the closing `} from "…";` nor a brace-list member (`isBraceListInterior` — names, `type`, `as`,
+   commas) is a REFUSAL naming both lines, and a block that reaches EOF is a refusal too. Measured: the
+   member rule rejects **zero** of the 14 real openers' interiors.
+3. **The identity proof names its boundary and cannot be vacuous.** `shimHeaderImports` asserts the body is
+   NON-EMPTY, and both assertion messages carry `line N (<the boundary line>)`.
+
+`shimHeaderImports` was split (`scanHeader` · `scanBlockLine` · `carryHeaderLine`) because the repaired
+scanner scored 27 on cognitive complexity against a ceiling of 15 — refactored, never suppressed, and the
+split is also the honest fix for a defect that hid in one over-long branch.
+
+**Controls, non-vacuous by construction** (`grant-liveness-legacy-replay.test.ts`):
+
+- a synthetic frozen module — real header import, then `export const gate: GateDescriptor = {`, then an
+  authored fixture template literal carrying a column-0 `} from "../lib/authored-fixture-only.ts";` —
+  asserts the fixture line is byte-identical, the body from the opener down is byte-identical, the REAL
+  header import WAS rewritten, and that **exactly one** specifier was rewritten. It cannot pass by the shim
+  doing nothing;
+- the two refusals: a block whose next line is not a member, and a block that reaches EOF.
+
+**Planted break (probe C, restored `cp`/`mv`, `git status --short` clean after).** Reverting the opener to
+the loose expression turns **7 of the then-13** arms in the family-1 suite RED, the fixture-preservation control
+among them — and the two whole-corpus replays red with
+`opened a wrapped import at line 10 ("export interface Finding {")`, which is the closure-member vacuity
+above, now loud instead of silent.
+
+### 8.2 LD-2319-9 — the frozen reads are pinned to this repository
+
+All three `git show` reads go through one `frozenShow(base, repoPath, quiet)`: `-C <cwd>` names the
+repository, `repoGitEnvironment()` strips every inherited `GIT_*` (the posture `lib/repo-paths.ts` states
+for exactly this), and `GIT_READ_PREFIX` keeps the reader off `.git/index.lock`. This matters because the
+bytes it returns are WRITTEN into scratch and `import()`ed, so the object store they come from is the store
+whose code executes; the review's named scenario is `pnpm verify --full` under a git hook, where git exports
+`GIT_DIR`/`GIT_INDEX_FILE`. `quiet` preserves the one caller that reads a failure as "absent at this SHA".
+
+**Control:** `GIT_DIR` poisoned in the parent environment does not steer the read — driven below.
+
+### 8.3 LD-2319-10 — the root guard names the boundary it protects
+
+`assertReplayRootIsScratch` now asks three questions IN ORDER, and the order is the design: does the root
+RESOLVE (an absent path or a dangling symlink refuses here, not as a raw ENOENT from the first write) · is
+it OUTSIDE the checkout · is it a DIRECTORY. Identity answers before kind deliberately, so a regular file
+INSIDE the checkout still refuses with the live-tree sentence the existing controls pin; the directory test
+catches what the review drove — a regular file OUTSIDE the checkout used to pass the guard and refuse one
+call later as a bare `ENOTDIR` naming no boundary. `containedSegment`'s non-`ENOENT` rethrow is wrapped in
+the door's own sentence for the same reason (the `{ "a": …, "a/b.ts": … }` file/dir collision).
+
+The `statSync(...).isDirectory()` test is spelled here rather than imported: the equivalent
+`policy-repo-inventory.ts#rootDirectory` the review pointed at is module-private. One predicate, not a
+grammar — the imported-never-re-spelled rule is about the path GRAMMAR, which is still imported.
+
+### 8.4 The review's arms, persisted as committed controls
+
+| arm | why it was not already pinned |
+| - | - |
+| a symlink planted at the loader's EXACT staged filename, driven through the MUTATOR, victim bytes asserted unchanged | the committed symlink table drove the PURE resolver only; this is the one path on which `writeFileSync` would actually have followed a link |
+| the four non-authored fixture keys (`node_modules/x.ts`, `.git/config`, `dist/x.ts`, `.cache/x.ts`) through BOTH legs, with the no-root-created receipt | the semantic fence had **no** committed control at all (the review's grep found zero) |
+| the same test asserts `stagedReplayTarget(scratch, "node_modules/x.ts")` does NOT throw | the two refusals are SEPARATE and neither implies the other; pinning that keeps a future lane from folding the semantic fence into the grammar |
+| the root-kind arms: regular file · dangling symlink · absent path · and a file INSIDE the checkout still refusing with the live-tree sentence | LD-2319-10's own controls, including the precedence |
+| a poisoned `GIT_DIR` in the parent environment, with an unpinned `git show` of the same ref as the positive control that the poison is real | LD-2319-9's control; it also caught its own bug — the first draft handed `frozenClosureOf` a staging dir it never created, and the NEW root refusal named it (`must be an existing directory … does not resolve at all`) where the old code would have surfaced a raw ENOENT |
+
+### 8.5 The coupled census corrections
+
+- **`grant-liveness-legacy-replay.test.ts:45-49`** — the header said stronger-reader "(7 rows)" and "two
+  exemption-HONOURED examples … (3 rows)". Re-derived from the executable rows, not copied:
+  `rg --only-matching 'classification: "([a-z-]+)"' --replace '$1' <file> | sort | uniq -c` → **5
+  stronger-reader · 4 vacuous-both-zero · 4 retired-arm · 3 split · 3 runtime-refusal · 3 identical · 3
+  exemption-mechanism-move = 25**. Corrected in place, dated, and the header now states the DERIVATION
+  rather than a number, because that is what rotted.
+- **`tooling/src/verify/gates/diagnostic-legibility.ts:30-31`** (LD-2319-3) — "the nine-module
+  `policy-soundness` family" → **ten**, "the other eight" → **nine**. Re-derived by listing the members
+  (`rg --files-with-matches 'family: "policy-soundness"'` → 10 files, named in the corrected comment).
+  Comment-only; `pnpm check:structure --check diagnostic-legibility` re-run below.
+- **This report** — LD-2319-4's `: NONE` sentence, LD-2319-7's ENOTDIR parenthetical, and §7's write-site
+  count, each corrected in place with the date beside the original claim.
+
+### 8.6 Floor executed (follow-up)
+
+| Check | Result |
+| - | - |
+| the seven suites importing the shared harness | **7 files / 41 tests passed** (family 1 is 14: 4 table/refusal + 4 containment + 6 new; the other six unchanged at 27 — 35 → 41, every pre-existing check preserved) |
+| `pnpm exec biome check` on the four touched files | clean (one scoped `--write` for formatting; the complexity red was refactored, not suppressed) |
+| `pnpm exec eslint` on the four touched files | exit 0 |
+| `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | `PASS` both |
+| `pnpm check:docs` on this report | exit 0 |
+| `pnpm check:structure --check diagnostic-legibility` | exit 1, `raw 92 = waived 0 + granted 0 + effective 92`, 0 alarms, 0 tool errors — **92, UNCHANGED** by the two-number comment edit and the same count §5b.5 recorded. Zero of the 92 name `diagnostic-legibility.ts` itself or any file this lane touched (control: `zod-error-issues-home.ts` returns 3). Whole-tree debt, reported not claimed |
+| residue | `find /tmp`: zero `orb-legacy-differential-*`, zero sentinels, zero `escaped.txt`, zero control fixtures; nothing planted in either checkout |
+
+## LEDGER ROWS (10 rows)
 
 | id | class | module | what | state |
 | - | - | - | - | - |
 | `LD-2319-1` | instrument-blind | `tests/support/legacy-differential.ts` | `shimHeaderImports` rewrote a NODE BUILTIN specifier into `file:///node:fs` (`createRequire.resolve` returns `node:fs` unchanged), so any frozen descriptor importing `node:*` died at import. Unreachable through the in-memory door, which refuses every disk-reading blob — the refusal hid a defect in the code path the refusal made unreachable. | **FIXED** in `df2cda4c8`; `resolveSpecifier` returns `null` for a `node:` specifier |
 | `LD-2319-2` | instrument-blind | `tests/support/legacy-differential.ts` | `shimHeaderImports` treated a MULTI-LINE named import's opening brace as the first BODY line, so the `} from "…"` carrying the specifier was never shimmed and the frozen module failed to resolve. Any wrapped import block (7+ names) hits it. | **FIXED** in `df2cda4c8`; `IMPORT_BLOCK_OPEN`/`IMPORT_BLOCK_CLOSE` |
 | `LD-2319-3` | drifted-count | `tooling/src/verify/gates/diagnostic-legibility.ts:31` | The header reads *"CONVERSION rather than a module born final; **the other eight** have no legacy population and say so."* The tree says **NINE**: the `policy-soundness` family has ten members and nine are born final (`rg 'family: "policy-soundness"'` → 10 files; the `git log -S` receipt in §5b.1). A tenth member joined after the sentence was written. | **OPEN** — one-line header fix, deliberately NOT taken by this lane (orchestrator ruling 2026-09-13: the row is the deliverable, the fix is a routed follow-up) |
-| `LD-2319-4` | census-blind | this report §3 | The replay-owed census keys on the `POPULATION PORT` header spelling, which MATCHES a module whose line reads *"POPULATION PORT: NONE — BORN FINAL"*. So "199 ports" counts born-final modules as replay-owed. Measured in family 2: 10 → 1, a 90% over-count in one family. | **OPEN, MITIGATED** — every family report now opens with the `git log -S "gate: GateDescriptor"` pre-check + positive control (§5b.1), and §5b.6 states the band is an upper bound. A full re-derivation of §3 with the pre-check is owed once the families drain. |
+| `LD-2319-4` | census-blind | this report §3 | The replay-owed census keys on the `POPULATION PORT` header spelling, which MATCHES a module whose line reads *"POPULATION PORT: NONE — BORN FINAL"*. So "199 ports" counts born-final modules as replay-owed. Measured in family 2: 10 → 1, a 90% over-count in one family. **CORRECTED 2026-09-13 (independent security review):** the row understated its own mechanism — only **6** of the 199 matching files carry the `POPULATION PORT: NONE` spelling this row cites, while all NINE born-final `policy-soundness` modules match the census key, three of them through `POPULATION PORT: NO legacy population`. An exclusion keyed on `: NONE` would still over-count. | **OPEN, MITIGATED** — every family report now opens with the `git log -S "gate: GateDescriptor"` pre-check + positive control (§5b.1), and §5b.6 states the band is an upper bound. A full re-derivation of §3 with the pre-check is owed once the families drain. |
 | `LD-2319-5` | instrument-blind | `tests/support/legacy-differential.ts` | `resolveSpecifier` sent a frozen module's RELATIVE imports to TODAY's tree, so a descriptor whose `lib/` dependency was later deleted or renamed could not be LOADED AT ALL — and it failed as `Cannot find module`, which reads as a broken test rather than as a missing capability. WHICH modules were replayable was therefore decided by an accident of which `lib/` refactors happened AFTER each conversion, and the backlog shrank silently every time the program consolidated a reader. Measured on `placeholder-copy-registry` at `f5b222e10`, whose `../lib/section-defs.ts` exists at that SHA and is gone today. | **FIXED** in `57349c1dc`; `extractFrozenClosure` fetches the whole relative-import closure at the SAME frozen SHA, memoised so a cycle or diamond terminates, and refuses loudly when a dep is absent at the SHA too. Receipts: the `section-defs` row asserted in `closure.extracted` with `depth > 0`, and the `does not exist at that SHA either` refusal, both in `registry-definitions-legacy-replay.test.ts`. Its writes were folded into the guarded write site by `cb-x-replay-boundary` (below) |
 | `LD-2319-6` | boundary-open | `tests/support/legacy-differential.ts` `materialize` | A fixture KEY is an unvalidated path. `materialize` filtered keys for four non-authored segment names and nothing else, so `{ "../escaped.txt": … }` — a syntactically valid `GateExample` map, and `Files` refines nothing — normalized to a SIBLING of the mkdtemp root and was written there, outside everything the `finally` reaps. The ResourceHost's own refusal fires later, on the overlay, after the bytes have landed. Measured in a throwaway parent before the repair: the escaping key OVERWROTE a sentinel with `escape-control` and the sentinel SURVIVED removal of the root. Found by codex's security review of `df2cda4c8` (F1, HIGH host-integrity). | **OPEN** — repaired by `cb-x-replay-boundary` on branch `wt/agent-a2913d5f5cb4656c2`: every key is judged by the imported strict repo-relative POSIX grammar (`lib/policy-repo-inventory.ts#assertPolicyRepoPath`) BEFORE the mkdtemp, every write resolves through `stagedReplayTarget`, and a partial materialize reaps its own root. Pinned by four controls in `grant-liveness-legacy-replay.test.ts`. Integrator flips this row with the landing sha |
-| `LD-2319-7` | boundary-open | `tests/support/legacy-differential.ts` `loadFrozenGate` | The frozen loader wrote the extracted module into whatever staging directory a CALLER handed it, and `assertReplayRootIsScratch` — the door's own advertised anti-live-tree refusal — was bound to nothing: it had exactly one caller, inside `materialize`, on a root that function had just made itself. `frozenFilesystemLegacyGate(process.cwd(), …)` would have written a frozen `.ts` module into the CHECKOUT; a `scratch` symlink resolving into the checkout does the same. Only every current caller's choice to pass Vitest's `scratch` kept the tree clean. Found by codex's security review of `df2cda4c8` (F2, MEDIUM host-integrity). | **OPEN** — repaired by `cb-x-replay-boundary`: the guard is bound at the top of `loadFrozenGate` (before `git show`, before the first byte) AND inside `stagedReplayTarget`, which every staged write and the pre-`import()` containment check go through. Pinned by a mutator arm whose red side is structurally unwriteable (a root that is a regular FILE ⇒ ENOTDIR, measured). Integrator flips this row with the landing sha |
+| `LD-2319-7` | boundary-open | `tests/support/legacy-differential.ts` `loadFrozenGate` | The frozen loader wrote the extracted module into whatever staging directory a CALLER handed it, and `assertReplayRootIsScratch` — the door's own advertised anti-live-tree refusal — was bound to nothing: it had exactly one caller, inside `materialize`, on a root that function had just made itself. `frozenFilesystemLegacyGate(process.cwd(), …)` would have written a frozen `.ts` module into the CHECKOUT; a `scratch` symlink resolving into the checkout does the same. Only every current caller's choice to pass Vitest's `scratch` kept the tree clean. Found by codex's security review of `df2cda4c8` (F2, MEDIUM host-integrity). | **OPEN** — repaired by `cb-x-replay-boundary`: the guard is bound at the top of `loadFrozenGate` (before `git show`, before the first byte) AND inside `stagedReplayTarget`, which every staged write and the pre-`import()` containment check go through. Pinned by a mutator arm whose red side is structurally unwriteable. **CORRECTED 2026-09-13:** the original parenthetical read *"(a root that is a regular FILE ⇒ ENOTDIR, measured)"*, which describes the BROKEN tree, not this one — on the repaired tree a regular file inside the checkout refuses with the NAMED root-identity refusal before any byte, and it is only under §7.2's planted break that the same arm falls through to ENOTDIR, which is what proves the arm reaches the real staging write. Since LD-2319-10 a regular file OUTSIDE the checkout is named too, by the guard's own directory test. Integrator flips this row with the landing sha |
+| `LD-2319-8` | instrument-blind | `tests/support/legacy-differential.ts` `shimHeaderImports` | `IMPORT_BLOCK_OPEN` (`/^(?:import\|export)\s[^"]*\{\s*$/u`) recognised far more than a wrapped named import — `export const gate: GateDescriptor = {`, `export function f(a: string) {`, `export interface X {`, `export type T = {` all match — so the first such line put the scanner in block mode for the REST of the module: the body byte-identity assertion compared `""` to `""`, and any column-0 `} from "…";` in the swallowed region, INCLUDING one inside an authored FIXTURE TEMPLATE LITERAL, was rewritten to an absolute URL. Both engines then agree on a WRONG number, which is the one failure a count comparison cannot see. Filed by the independent security review of `6144f3183`. **The review called it latent on a screen of the 22 ENTRY blobs; the shim also runs over every frozen CLOSURE member, and there the VACUITY was LIVE** — a pre-fix replica over 4 entries' closures (26 members) finds 5 loads with `body === ""`: `contract/gate.ts:10` (`export interface Finding {`) at each of `c97de9d2f`/`d6f36904f`/`f5b222e10`, and `lib/ast-read.ts:15@f5b222e10`. The CORRUPTION half stays latent (zero column-0 `} from` lines in the swallowed regions), so no committed table is wrong. | **REPAIRED, pending the integrator's sha** — by `cb-x-replay-boundary` on `wt/agent-a2913d5f5cb4656c2`: the opener is the exact grammar (4 real openers + the `import Default, {` form; measured 309 files, 14 real openers, 329 lines the loose form opened on that this one does not), a line inside a block that is neither the closing nor a brace-list member REFUSES naming both lines, an unterminated block refuses, and the identity proof asserts a NON-EMPTY body and names its boundary line. Driven: reverting the opener alone reds 7 of 13 arms including the fixture-preservation control (§8.1) |
+| `LD-2319-9` | boundary-open | `tests/support/legacy-differential.ts` the three frozen `git show` reads | The frozen reads inherited the ambient `GIT_*` environment and named no repository, unlike `initRepository` which passes `repoGitEnvironment()`. The bytes are WRITTEN into scratch and `import()`ed, so the object store they resolve against is the store whose code executes — steerable by a caller's environment. Concrete case named by the review: `pnpm verify --full` (the tier `tests/tooling/**` lives in) run from inside a git HOOK, where git exports `GIT_DIR`/`GIT_INDEX_FILE`. Violates the posture `tooling/src/verify/lib/repo-paths.ts` states for exactly this. No live instance — nothing in the suites sets `GIT_*`. | **REPAIRED, pending the integrator's sha** — one `frozenShow(base, repoPath, quiet)` for all three sites: `-C <cwd>` names the repository, `repoGitEnvironment()` strips every inherited `GIT_*`, `GIT_READ_PREFIX` keeps the read off `.git/index.lock`. Driven: a poisoned `GIT_DIR` in the parent environment does not steer the read (§8.2) |
+| `LD-2319-10` | instrument-blind | `tests/support/legacy-differential.ts` `assertReplayRootIsScratch` · `containedSegment` | The root guard decided IDENTITY (outside the checkout, realpath'd) but never that the root IS A DIRECTORY, so a regular file OUTSIDE the checkout was ACCEPTED and the refusal arrived one call later as a bare `ENOTDIR` rethrown raw from the segment walk — naming no boundary. Same for a fixture map whose keys collide as file/dir (`{ "a": …, "a/b.ts": … }`). No containment breach on any arm; the defect is that "it threw eventually" is not the claim "the guard holds". | **REPAIRED, pending the integrator's sha** — the guard asks resolve → outside-the-checkout → is-a-DIRECTORY, in that order (identity before kind, so a file INSIDE the checkout keeps the live-tree sentence its controls pin), and the segment walk's non-`ENOENT` rethrow is wrapped in the door's own sentence. Pinned by four root-kind arms plus the precedence arm (§8.3, §8.4) |
 
-**ledger rows OWED: 0.** Rows 1-2 and 5 are this instrument's own defects, found and fixed with executed
+**ledger rows OWED: 0.** Rows 8-10 come from the INDEPENDENT security review (`sec-replay-review-2026-09-13.md`), are repaired in this lane's follow-up commit, and are written **REPAIRED, pending the integrator's sha** for the same reason rows 6-7 are: naming a closing sha is the integrator's write, not the repairer's. Row 8 additionally carries a CORRECTION to the review that filed it — its reachability call screened the entry blobs, and the vacuity was live in the closure members (§8.1). Rows 1-2 and 5 are this instrument's own defects, found and fixed with executed
 receipts. Row 3 is a drifted count this lane MEASURED and is routed rather than fixed, per the
 orchestrator's ruling. Row 4 is this report's own census, mitigated in the same commit that found it.
 **Rows 6-7 are written OPEN on purpose**: both are repaired and pinned on this branch, but the fixing sha

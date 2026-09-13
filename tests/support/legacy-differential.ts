@@ -53,7 +53,7 @@
 //   after symlink resolution. See the CONTAINMENT band below for the two boundaries this closed and the
 //   measured escape behind each.
 import { execFileSync } from "node:child_process";
-import { lstatSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, sep } from "node:path";
@@ -68,7 +68,7 @@ import { runPass } from "../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../tooling/src/verify/lib/policy-pass.ts";
 import { assertPolicyRepoPath } from "../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { isPolicySourceCandidate } from "../../tooling/src/verify/lib/policy-source-candidate.ts";
-import { repoGitEnvironment } from "../../tooling/src/verify/lib/repo-paths.ts";
+import { GIT_READ_PREFIX, repoGitEnvironment } from "../../tooling/src/verify/lib/repo-paths.ts";
 import { expect } from "./tool-fixtures.ts";
 
 const REQUIRE = createRequire(join(process.cwd(), "package.json"));
@@ -201,16 +201,48 @@ const IMPORT_LINE = /^(?<head>(?:import|export)\s.*?\sfrom\s)"(?<specifier>[^"]+
  *  including the `} from "../lib/…"` that carries the specifier, was left unshimmed and the frozen module
  *  died at import. Found by #2319's first real replay: `tsconfig-entry-liveness` imports seven names from
  *  `lib/grant-liveness.ts`, which is exactly wide enough for the formatter to wrap it. */
-const IMPORT_BLOCK_OPEN = /^(?:import|export)\s[^"]*\{\s*$/u;
+// THE OPENER IS THE EXACT GRAMMAR, AND THE LOOSE ONE WAS A LATENT CORRUPTION (LD-2319-8, found by the
+// independent security review of `6144f3183`). `/^(?:import|export)\s[^"]*\{\s*$/u` also matches
+// `export const gate: GateDescriptor = {`, `export function f(a: string) {`, `export interface X {` and
+// `export type T = {`. The FIRST such line put the scanner in block mode for the REST of the module, and
+// two things followed: the body byte-identity assertion went VACUOUS (everything was "header", so
+// `body === ""` and the check compared "" to ""), and any column-0 `} from "…";` in the swallowed region —
+// INCLUDING one inside an authored FIXTURE TEMPLATE LITERAL — was rewritten to an absolute `file:///` URL.
+// That is precisely the failure this file's header says the line-anchored shim exists to prevent: both
+// engines then judge the same corrupted fixture and report a matching pair of WRONG numbers.
+//
+// MEASURED over `tooling/src/verify/gates/*.ts` (309 files): 14 real wrapped-import openers, every one
+// terminated, and **329 lines** the loose expression opens on that this one does not. No CURRENT table was
+// wrong (the 22 frozen blobs the suites load are clean), which is exactly why it had to be fixed before
+// family 3 walks ~133 more examples.
+//
+// These four are the whole grammar: `import {`, `import type {`, `export {`, `export type {`, plus the
+// default-plus-named form `import Default, {` — zero instances in today's corpus, but the harness reads
+// HISTORY, the form is valid TypeScript, and a missing opener fails LOUDLY (`Cannot find module`) while a
+// spurious one corrupts silently. That asymmetry is why this list errs strict and carries the one extra arm.
+const IMPORT_BLOCK_OPEN = /^(?:import\s+(?:type\s+)?|import\s+[A-Za-z_$][\w$]*\s*,\s*|export\s+(?:type\s+)?)\{\s*$/u;
+/** ONE member of a brace list: a name, optionally `type`-prefixed, optionally `as`-aliased. A line inside a
+ *  block that is not a comma-separated list of these is not a brace-list interior at all, and the scanner
+ *  REFUSES rather than swallowing it — that refusal is what stops a mis-opened block from consuming the
+ *  module. Measured: it rejects zero of the 14 real openers' interiors in today's corpus. */
+const IMPORT_BLOCK_MEMBER = /^(?:type\s+)?[A-Za-z_$][\w$]*(?:\s+as\s+[A-Za-z_$][\w$]*)?$/u;
 const IMPORT_BLOCK_CLOSE = /^(?<head>\}\s+from\s)"(?<specifier>[^"]+)";$/u;
 const HEADER_LINE = /^(?:\/\/|\/\*|\s*\*|$)/u;
 
-/** One header line's disposition. `shimmed` is set only when a SPECIFIER was rewritten — a node builtin and
- *  a brace-list interior are carried verbatim and owe no absolute-URL assertion. */
+/** Is this line the INTERIOR of a wrapped brace list? The trailing comma is allowed; a blank line, a quote,
+ *  a brace or anything else is not a member and ends the scanner's patience. */
+function isBraceListInterior(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed !== "" && trimmed.split(",").every((piece) => piece.trim() === "" || IMPORT_BLOCK_MEMBER.test(piece.trim()));
+}
+
+/** One matched import line's disposition. `shimmed` is set only when a SPECIFIER was rewritten — a node
+ *  builtin is carried verbatim and owes no absolute-URL assertion. Whether a line CLOSES a wrapped block is
+ *  no longer carried here: the scanner asks the closing matcher directly, so a `null` from it is now a
+ *  question about the brace-list interior rather than a silent "carry on". */
 interface ShimmedLine {
   readonly text: string;
   readonly shimmed: string | null;
-  readonly closesBlock: boolean;
 }
 
 /** How one frozen module's specifiers resolve. `shimHeaderImports` defaults to TODAY's tree; the frozen
@@ -229,43 +261,110 @@ function shimSpecifierLine(line: string, pattern: RegExp, resolve: SpecifierReso
   }
   const resolved = resolve(groups["specifier"] as string);
   if (resolved === null) {
-    return { text: line, shimmed: null, closesBlock: true };
+    return { text: line, shimmed: null };
   }
   const text = `${groups["head"] as string}"${resolved}";`;
-  return { text, shimmed: text, closesBlock: true };
+  return { text, shimmed: text };
+}
+
+/** What the header scan has accumulated so far. `end` is the index of the first BODY line — every line
+ *  below it is carried byte-for-byte — and `openedAt` is the line a wrapped import block began on, or
+ *  `null` outside a block. Mutable and passed by reference so the per-line dispositions below stay small
+ *  enough to read: this scanner's last defect (LD-2319-8) hid in one over-long branch. */
+interface HeaderScan {
+  readonly rewritten: string[];
+  readonly imports: string[];
+  end: number;
+  openedAt: number | null;
+}
+
+/** Carry one matched header line, recording a rewritten specifier for the absolute-URL proof. */
+function carryHeaderLine(scan: HeaderScan, index: number, carried: ShimmedLine): void {
+  scan.rewritten.push(carried.text);
+  if (carried.shimmed !== null) {
+    scan.imports.push(carried.shimmed);
+  }
+  scan.end = index + 1;
+}
+
+/** One line INSIDE a wrapped import block: its closing `} from "…";`, or a brace-list interior — or a
+ *  REFUSAL. THE SCANNER CANNOT CROSS A LINE THAT IS NOT PART OF THE HEADER: a "block" whose next line is
+ *  neither is not a block at all, and carrying on is exactly how a mis-opened block swallowed a module,
+ *  rewrote a specifier inside an authored FIXTURE STRING, and left the body identity proof with nothing to
+ *  compare (LD-2319-8). */
+function scanBlockLine(scan: HeaderScan, index: number, lines: readonly string[], resolve: SpecifierResolver): void {
+  const openedAt = scan.openedAt ?? 0;
+  const line = lines[index] ?? "";
+  const closing = shimSpecifierLine(line, IMPORT_BLOCK_CLOSE, resolve);
+  if (closing !== null) {
+    carryHeaderLine(scan, index, closing);
+    scan.openedAt = null;
+    return;
+  }
+  if (!isBraceListInterior(line)) {
+    throw new Error(
+      `the frozen module's header scan opened a wrapped import at line ${String(openedAt + 1)} ` +
+        `(${JSON.stringify(lines[openedAt] ?? "")}) and line ${String(index + 1)} (${JSON.stringify(line)}) is ` +
+        'neither a brace-list member nor its closing `} from "…";`. The scan REFUSES rather than treating the ' +
+        "rest of the module as header: that is how a mis-opened block rewrites a specifier inside an authored " +
+        "FIXTURE STRING and makes the body identity proof vacuous (tests/support/legacy-differential.ts).",
+    );
+  }
+  carryHeaderLine(scan, index, { text: line, shimmed: null });
+}
+
+/** Walk the header, stopping at the first line that cannot belong to it. Returns the accumulated scan; the
+ *  identity proof is the caller's. */
+function scanHeader(lines: readonly string[], resolve: SpecifierResolver): HeaderScan {
+  const scan: HeaderScan = { rewritten: [], imports: [], end: 0, openedAt: null };
+  for (const [index, line] of lines.entries()) {
+    if (scan.openedAt !== null) {
+      scanBlockLine(scan, index, lines, resolve);
+      continue;
+    }
+    const shim = shimSpecifierLine(line, IMPORT_LINE, resolve);
+    if (shim !== null) {
+      carryHeaderLine(scan, index, shim);
+      continue;
+    }
+    if (IMPORT_BLOCK_OPEN.test(line)) {
+      carryHeaderLine(scan, index, { text: line, shimmed: null });
+      scan.openedAt = index;
+      continue;
+    }
+    if (HEADER_LINE.test(line)) {
+      scan.rewritten.push(line);
+      continue;
+    }
+    scan.end = index;
+    break;
+  }
+  if (scan.openedAt !== null) {
+    throw new Error(
+      `the frozen module's header scan opened a wrapped import at line ${String(scan.openedAt + 1)} ` +
+        `(${JSON.stringify(lines[scan.openedAt] ?? "")}) and reached the end of the module without its closing ` +
+        '`} from "…";`. An unterminated block means the opener matched something that is not an import ' +
+        "(tests/support/legacy-differential.ts).",
+    );
+  }
+  return scan;
 }
 
 /** Rewrite ONLY the header import block, and prove it. See this file's header for the failure it prevents.
  *  `resolve` defaults to TODAY's tree; `frozenClosureGate` supplies the era-matched one. */
 export function shimHeaderImports(source: string, resolve: SpecifierResolver = resolveSpecifier): string {
   const lines = source.split("\n");
-  let end = 0;
-  const rewritten: string[] = [];
-  const imports: string[] = [];
-  let inBlock = false;
-  for (const [index, line] of lines.entries()) {
-    const shim = shimSpecifierLine(line, inBlock ? IMPORT_BLOCK_CLOSE : IMPORT_LINE, resolve);
-    const carried: ShimmedLine | null = shim ?? (inBlock || IMPORT_BLOCK_OPEN.test(line) ? { text: line, shimmed: null, closesBlock: false } : null);
-    if (carried !== null) {
-      rewritten.push(carried.text);
-      if (carried.shimmed !== null) {
-        imports.push(carried.shimmed);
-      }
-      inBlock = !carried.closesBlock;
-      end = index + 1;
-      continue;
-    }
-    if (HEADER_LINE.test(line)) {
-      rewritten.push(line);
-      continue;
-    }
-    end = index;
-    break;
-  }
-  const body = lines.slice(end).join("\n");
-  const out = `${rewritten.slice(0, end).join("\n")}\n${body}`;
-  expect(out.slice(out.length - body.length), "the frozen module's BODY must be byte-identical after the header shim").toBe(body);
-  for (const line of imports) {
+  const scan = scanHeader(lines, resolve);
+  const boundary = `line ${String(scan.end + 1)} (${JSON.stringify(lines[scan.end] ?? "(end of module)")})`;
+  const body = lines.slice(scan.end).join("\n");
+  const out = `${scan.rewritten.slice(0, scan.end).join("\n")}\n${body}`;
+  // THE IDENTITY PROOF NAMES ITS BOUNDARY, so it can never again pass by having nothing to compare. When the
+  // scan over-ran, `body` was `""` and the assertion below compared "" to "" — green, while every rewritten
+  // fixture line inside the swallowed region went unnoticed.
+  const stopped = `the header scan must STOP at the module BODY; it stopped at ${boundary}, leaving nothing below it to prove identical`;
+  expect(body.length, stopped).toBeGreaterThan(0);
+  expect(out.slice(out.length - body.length), `the frozen module's BODY must be byte-identical after the header shim (boundary: ${boundary})`).toBe(body);
+  for (const line of scan.imports) {
     expect(line, "every shimmed import must resolve to an absolute file URL").toMatch(/ from "file:\/\/\//u);
   }
   return out;
@@ -344,7 +443,23 @@ function containedIn(root: string, target: string): boolean {
  *  `stagedReplayTarget`, which calls this first. Exported so its own controls can drive it both ways
  *  without materializing anything. */
 export function assertReplayRootIsScratch(root: string): void {
-  const resolved = realpathSync(root);
+  // THE THREE QUESTIONS, IN THIS ORDER, AND THE ORDER IS THE DESIGN. Does it resolve · is it outside the
+  // checkout · is it a DIRECTORY. Identity answers BEFORE kind so a regular file INSIDE the checkout still
+  // refuses with the live-tree sentence — that is the higher-severity boundary and the one the controls pin.
+  // Kind is asked at all because of LD-2319-10: without it a regular file OUTSIDE the checkout passed this
+  // guard and refused one call later as a bare `ENOTDIR` naming no boundary, and "it threw eventually" is
+  // not the same claim as "the guard holds".
+  let resolved: string;
+  try {
+    resolved = realpathSync(root);
+  } catch (error) {
+    throw new Error(
+      `a real-tmpdir replay root must be an existing directory, and ${root} does not resolve at all — an absent ` +
+        "path or a DANGLING symlink. Every staged write is resolved under this root, so it is refused here " +
+        "rather than as a raw ENOENT from the first write (tests/support/legacy-differential.ts).",
+      { cause: error },
+    );
+  }
   const checkout = realpathSync(process.cwd());
   if (containedIn(checkout, resolved)) {
     throw new Error(
@@ -352,6 +467,14 @@ export function assertReplayRootIsScratch(root: string): void {
         "a frozen legacy descriptor's existsSync/readdirSync arm driven there answers about THIS repository " +
         "rather than about the fixture, which is the wrong-substrate differential #2119 refuses in the other " +
         "direction (tests/support/legacy-differential.ts).",
+    );
+  }
+  if (!statSync(resolved).isDirectory()) {
+    throw new Error(
+      `a real-tmpdir replay root must be a DIRECTORY, and ${resolved} is not one. Staged writes resolve segment ` +
+        "by segment under this root, so a regular file, a socket or a device node here would surface as a bare " +
+        "ENOTDIR from the first write — a refusal that names no boundary and proves nothing about this guard " +
+        "(tests/support/legacy-differential.ts).",
     );
   }
 }
@@ -379,10 +502,21 @@ function containedSegment(canonicalRoot: string, target: string, relativePath: s
   try {
     link = lstatSync(target);
   } catch (error) {
+    // ENOENT is the ORDINARY case — the segment does not exist yet and will be created inside a parent this
+    // walk has already contained. Anything else is a refusal of THIS write and says so in the door's own
+    // words: a raw rethrow here is where the `{ "a": …, "a/b.ts": … }` file/dir collision used to surface as
+    // a bare ENOTDIR naming no boundary (LD-2319-10).
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return target;
     }
-    throw error;
+    throw new Error(
+      `the replay harness cannot walk the staging path ${JSON.stringify(relativePath)} at ${target}: ` +
+        `${error instanceof Error ? error.message : String(error)}. A staged write resolves segment by segment ` +
+        "from the root, so a non-ENOENT failure here — an existing FILE where a directory is needed, or a " +
+        "permission wall — refuses this write; it is not a containment verdict " +
+        "(tests/support/legacy-differential.ts).",
+      { cause: error },
+    );
   }
   if (!link.isSymbolicLink()) {
     return target;
@@ -440,10 +574,28 @@ function writeStagedReplayFile(root: string, relativePath: string, contents: str
   return target;
 }
 
+/** THE FROZEN READ, PINNED TO THIS REPOSITORY (LD-2319-9). `git show` is a read, but until this helper the
+ *  three frozen reads inherited the ambient `GIT_*` environment and named no repository — and the bytes it
+ *  returns are WRITTEN into scratch and `import()`ed, so the object store they come from is the store whose
+ *  code executes. A run under a git HOOK is the concrete case: git exports `GIT_DIR`/`GIT_INDEX_FILE` to
+ *  hooks, and `tests/tooling/**` runs on the `--full` tier. `-C` names the repository, `repoGitEnvironment()`
+ *  strips every inherited `GIT_*` (the posture `lib/repo-paths.ts` states for exactly this: *"Explicit
+ *  repository roots must not inherit a caller's alternate repository or index"*), and `GIT_READ_PREFIX` keeps
+ *  the reader from taking `.git/index.lock` while an operator works. `initRepository` below already does the
+ *  environment half; this is the same rule at the other three call sites.
+ *
+ *  `quiet` drops the child's stderr — the ONE caller that treats a failure as "absent at this SHA" wants no
+ *  noise; the callers that THROW keep the default pipe so git's own message survives into the error. */
+function frozenShow(base: string, repoPath: string, quiet: boolean): string {
+  const argv = ["-C", process.cwd(), ...GIT_READ_PREFIX, "show", `${base}:${repoPath}`];
+  const options = { encoding: "utf8", maxBuffer: FROZEN_BLOB_CEILING, env: repoGitEnvironment() } as const;
+  return quiet ? execFileSync("git", argv, { ...options, stdio: ["ignore", "pipe", "ignore"] }) : execFileSync("git", argv, options);
+}
+
 /** Read one repo-relative path AT a frozen SHA, or `null` when the blob does not exist there. */
 function frozenBlob(base: string, repoPath: string): string | null {
   try {
-    return execFileSync("git", ["show", `${base}:${repoPath}`], { encoding: "utf8", maxBuffer: FROZEN_BLOB_CEILING, stdio: ["ignore", "pipe", "ignore"] });
+    return frozenShow(base, repoPath, true);
   } catch {
     return null;
   }
@@ -540,7 +692,7 @@ async function loadFrozenGate(
   // that takes a staging directory from a CALLER, and a caller that hands it the checkout must be refused
   // before `git show` has produced anything to write.
   assertReplayRootIsScratch(scratch);
-  const source = execFileSync("git", ["show", `${base}:${legacyPath}`], { encoding: "utf8", maxBuffer: FROZEN_BLOB_CEILING });
+  const source = frozenShow(base, legacyPath, false);
   const { entryFile, closure } = extractFrozenClosure(scratch, base, legacyPath);
   // THE IMPORT IS THE MOMENT FROZEN CODE RUNS, so the last thing established before it is WHERE that code
   // came from. `stagedReplayTarget` already contained every extracted file; this re-states the invariant at
@@ -562,7 +714,7 @@ export function frozenClosureOf(scratch: string, base: string, legacyPath: strin
 
 /** The pre-conversion descriptor, extracted at its frozen SHA and shimmed so it runs from `scratch`. */
 export async function frozenLegacyGate(scratch: string, base: string, legacyPath: string): Promise<GateDescriptor> {
-  const source = execFileSync("git", ["show", `${base}:${legacyPath}`], { encoding: "utf8", maxBuffer: FROZEN_BLOB_CEILING });
+  const source = frozenShow(base, legacyPath, false);
   const reach = filesystemReach(source);
   if (reach.length > 0) {
     throw new Error(
