@@ -195,3 +195,56 @@ test("a construct target refuses with the gap NAMED — a class body this reader
   expect(fact).toMatchObject({ kind: "unresolved", reason: "unsupported" });
   expect(fact.kind === "unresolved" ? fact.detail : "").toContain("constructor body is not modelled");
 });
+
+test("an imported const arrow retains its callable body through re-export, import and local aliases", () => {
+  const value = resolvedOf({
+    "api.ts": 'export const read = (): string => "leaf";\n',
+    "barrel.ts": 'export { read as renamed } from "./api.ts";\n',
+    "use.ts": 'import { renamed as imported } from "./barrel.ts";\nconst alias = imported;\nexport const out = alias();\n',
+  });
+  expect(value.declaration.getKind()).toBe(SyntaxKind.ArrowFunction);
+  expect(value.sourceFile.getBaseName()).toBe("api.ts");
+  expect(value.body?.getText()).toBe('"leaf"');
+});
+
+test("an imported const function expression resolves to the function rather than its export binding", () => {
+  const value = resolvedOf({
+    "api.ts": 'export const read = function (): string { return "leaf"; };\n',
+    "use.ts": 'import * as api from "./api.ts";\nexport const out = api.read();\n',
+  });
+  expect(value.declaration.getKind()).toBe(SyntaxKind.FunctionExpression);
+  expect(value.body?.getText()).toContain('return "leaf"');
+});
+
+test("a mutable exported callable refuses through an import alias", () => {
+  expect(
+    verdictOf({
+      "api.ts": 'export let read = (): string => "leaf";\n',
+      "use.ts": 'import { read as alias } from "./api.ts";\nexport const out = alias();\n',
+    }),
+  ).toMatchObject({ kind: "unresolved", reason: "write" });
+});
+
+test("an exported function reassigned in its declaring module refuses through a namespace", () => {
+  expect(
+    verdictOf({
+      "api.ts": 'export function read(): string { return "before"; }\nread = (): string => "after";\n',
+      "use.ts": 'import * as api from "./api.ts";\nexport const out = api.read();\n',
+    }),
+  ).toMatchObject({ kind: "unresolved", reason: "write" });
+});
+
+test("an imported declaration must be callable, and writes to a shadowing binding do not taint its identity", () => {
+  expect(
+    verdictOf({
+      "api.ts": "export const value = 1;\n",
+      "use.ts": 'import { value } from "./api.ts";\nexport const out = value();\n',
+    }),
+  ).toMatchObject({ kind: "unresolved", reason: "dynamic" });
+  const stable = resolvedOf({
+    "api.ts": 'export function read(): string { return "leaf"; }\nfunction otherScope(): void { let read = () => "local"; read = () => "changed"; }\n',
+    "use.ts": 'import { read } from "./api.ts";\nexport const out = read();\n',
+  });
+  expect(stable.declaration.getKind()).toBe(SyntaxKind.FunctionDeclaration);
+  expect(stable.body?.getText()).toContain('return "leaf"');
+});

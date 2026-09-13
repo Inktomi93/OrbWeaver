@@ -389,6 +389,16 @@ export const gate = defineGate({
       files: familyFixture(
         PROBE("twin")
           .replace('family: "twin",', "family: chooseFamily(),")
+          .replace("import { defineGate }", 'function chooseFamily(): string { return "other"; }\nchooseFamily = (): string => "twin";\nimport { defineGate }'),
+      ),
+      expect: { messageIncludes: "family census cannot resolve the declared family" },
+      why: "A reassigned text function does not prove its original family value. The production family census must withhold instead of trusting the body of a declaration the call may no longer denote.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        PROBE("twin")
+          .replace('family: "twin",', "family: chooseFamily(),")
           .replace("import { defineGate }", "declare function chooseFamily(): string;\nimport { defineGate }"),
       ),
       expect: { messageIncludes: "family census cannot resolve the declared family" },

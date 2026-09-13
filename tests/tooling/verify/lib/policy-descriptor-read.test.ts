@@ -111,9 +111,9 @@ test("staticSegments joins what is certain and breaks where text is dynamic", ()
 
 // #2040: a message composed by a CALL was text the census could not see. A same-file function or arrow whose
 // body is ONE string-valued return expression is authored text and is read through; its parameters stay dynamic
-// exactly like an inline span. Everything else — a method, an import, several statements, recursion — keeps
+// exactly like an inline span. A method, a bodyless declaration, several statements or recursion keeps
 // returning the empty incomplete read the census counts as UNREADABLE, never as absence.
-test("staticSegments reads through a module-local text function and refuses every other call", () => {
+test("staticSegments reads one-return text functions and refuses unreadable callees", () => {
   const sf = moduleOf(
     [
       'const plain = (): string => "the entry is missing.";',
@@ -348,4 +348,27 @@ test("descriptor property anchors retain shorthand values without accepting meth
   expect(descriptorProperty(object, "missing")).toBeUndefined();
   expect(descriptorProperty(object, "method")).toBeUndefined();
   expect(descriptorProperty(object, "computed")).toBeUndefined();
+});
+
+test("static text calls share callable identity across imported and local aliases", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/text.ts": 'export const text = (): string => "shared text";\n',
+    "tooling/src/verify/gates/probe.ts": 'import { text as imported } from "../lib/text.ts";\nconst alias = imported;\nconst result = alias();\n',
+  });
+  const sf = project.getSourceFileOrThrow("/repo/tooling/src/verify/gates/probe.ts");
+  expect(staticText(initializer(sf, "result"))).toBe("shared text");
+});
+
+test("static text never certifies the body of a mutable or reassigned callable", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/text.ts": 'export let imported = (): string => "before";\n',
+    "tooling/src/verify/gates/probe.ts":
+      'import { imported } from "../lib/text.ts";\nlet local = (): string => "before";\nfunction written(): string { return "before"; }\nwritten = (): string => "after";\nconst a = local();\nconst b = written();\nconst c = imported();\n',
+  });
+  const sf = project.getSourceFileOrThrow("/repo/tooling/src/verify/gates/probe.ts");
+  expect(["a", "b", "c"].map((name) => staticSegments(initializer(sf, name)))).toEqual([
+    { segments: [], complete: false },
+    { segments: [], complete: false },
+    { segments: [], complete: false },
+  ]);
 });

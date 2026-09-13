@@ -130,19 +130,29 @@ function lexicalCallable(identifier: Identifier, state: CallableWalk): Reference
       ? refuse(state, "missing", identifier, `the symbol for ${identifier.getText()} has no declaration`)
       : refuse(state, "ambiguous", identifier, `the symbol for ${identifier.getText()} has ${declarations.length} declarations with no single callable home`);
   }
+  return callableHome(home, state, identifier);
+}
+
+function callableBindingName(home: MorphNode): Identifier | undefined {
+  const name = Node.isFunctionDeclaration(home) || Node.isVariableDeclaration(home) ? home.getNameNode() : undefined;
+  return Node.isIdentifier(name) ? name : undefined;
+}
+
+/** Local and exported declarations owe the same stability and callable-shape proof. Import resolution
+ *  establishes a home; it does not prove that the binding is immutable or normalize its initializer. */
+function callableHome(home: MorphNode, state: CallableWalk, reference?: Identifier): ReferenceFact<CallableDeclaration> {
+  const identifier = reference ?? callableBindingName(home);
   if (!record(state, home)) {
-    return refuse(state, "cycle", home, `callable alias cycle at ${identifier.getText()}`);
+    return refuse(state, "cycle", home, `callable alias cycle at ${identifier?.getText() ?? home.getKindName()}`);
   }
-  const unstable = unstableBinding(identifier, home, state);
+  const unstable = identifier === undefined ? undefined : unstableBinding(identifier, home, state);
   if (unstable !== undefined) {
     return unstable;
   }
-  if (Node.isFunctionDeclaration(home)) {
+  if (Node.isFunctionDeclaration(home) || Node.isArrowFunction(home) || Node.isFunctionExpression(home)) {
     return accept(state, home);
   }
   if (Node.isClassDeclaration(home)) {
-    // A construct target IS a callable declaration, but its BODY is a constructor this reader does not
-    // model and no consumer asks for. A precise refusal naming the gap beats half an answer.
     return refuse(state, "unsupported", home, `class ${home.getName() ?? "(anonymous)"} is a construct target whose constructor body is not modelled`);
   }
   if (Node.isVariableDeclaration(home)) {
@@ -152,10 +162,10 @@ function lexicalCallable(identifier: Identifier, state: CallableWalk): Reference
       : callableOfExpression(initializer, state);
   }
   if (Node.isParameterDeclaration(home)) {
-    return refuse(state, "missing", home, `parameter ${identifier.getText()} has no authored callable declaration`);
+    return refuse(state, "missing", home, `parameter ${home.getName()} has no authored callable declaration`);
   }
   if (Node.isBindingElement(home)) {
-    return refuse(state, "dynamic", home, `destructured binding ${identifier.getText()} depends on its runtime receiver`);
+    return refuse(state, "dynamic", home, `destructured binding ${home.getName()} depends on its runtime receiver`);
   }
   return refuse(state, "unsupported", home, `${home.getKindName()} is not a callable declaration`);
 }
@@ -198,7 +208,7 @@ function callableOfExpression(raw: MorphNode, state: CallableWalk): ReferenceFac
     // (contract/reference-fact.ts `external-door`), so it is not an answer to this question.
     const canonical = moduleFact.value.canonical;
     return canonical.kind === "project"
-      ? accept(state, canonical.declaration)
+      ? callableHome(canonical.declaration, state)
       : refuse(state, "unsupported", expression, `${canonical.moduleSpecifier} is an unresolved package door, which proves no callable declaration`);
   }
   return Node.isIdentifier(expression)
