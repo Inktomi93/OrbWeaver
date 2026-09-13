@@ -87,6 +87,17 @@ export interface AttestInput {
   readonly evidenceErrors: ReadonlyMap<string, readonly string[]>;
 }
 
+/** The driver's tree-reading half of `AttestInput.evidenceErrors`, as a type so the wiring is
+ *  INJECTABLE and therefore provable (#2238). `planAttestation` is pure and was handed this map as
+ *  hand-built data, which pins the PLAN and never the CALL: neutering the driver's resolution left the
+ *  whole doc-catalog suite green (68/68, measured 2026-09-12). The seam is what lets a spec cut the call
+ *  instead of the branch. */
+export type AttestEvidenceResolver = (
+  selection: readonly string[],
+  docs: readonly Doc[],
+  receipts: readonly Receipt[],
+) => ReadonlyMap<string, readonly string[]>;
+
 /** A named reason re-attestation did not happen. `misuse` = the SELECTION was not an explicit document
  *  list (exit 3); `violation` = a named row cannot be re-attested (exit 1). Either way nothing is written. */
 export interface AttestRefusal {

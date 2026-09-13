@@ -9,24 +9,34 @@
 //      • rules-of-hooks + exhaustive-deps + the full Rules-of-React correctness set (purity,
 //        immutability, refs, set-state-in-{effect,render}, static-components, use-memo, …).
 //      • This IS the recommended set — every rule is rules-of-hooks-adjacent or a Compiler diagnostic
-//        (a CORRECTNESS bundle, not a style bundle) — so we spread it, and `--max-warnings=0` (see the
-//        `lint:eslint` script) turns its warn-level rules (exhaustive-deps, …) into hard gates.
+//        (a CORRECTNESS bundle, not a style bundle) — so we spread it, and `--max-warnings 0` turns its
+//        warn-level rules (exhaustive-deps, …) into hard gates. THE FLAG DOES NOT LIVE IN A SCRIPT: it is
+//        `CHILD_FLAGS` in `tooling/src/verify/ops/eslint.ts` (what `pnpm lint:eslint` runs) and the scoped
+//        argv in `tooling/src/verify/lib/registry-argv.ts`; `package.json`'s `lint:eslint` carries no flag.
 //
-//   2. @tanstack/eslint-plugin-query — queryKey/queryFn discipline (client only; dormant until tRPC lands)
+//   2. @tanstack/eslint-plugin-query — queryKey/queryFn discipline (client only; LIVE since the
+//      client-foundation wave landed Query code — NOT dormant).
 //      • exhaustive-deps · no-unstable-deps · no-void-query-fn · stable-query-client · prefer-query-options
+//      • mutation-property-order · infinite-query-property-order — once dropped here as "ordering →
+//        Biome", turned ON at the wave (2026-07-03): Biome has no TanStack-aware ordering rule and both
+//        are TYPE-INFERENCE correctness per their own meta. The block's own comment states it.
 //
-//   3. @tanstack/eslint-plugin-router — code-based route discipline (client only; dormant until routes land)
+//   3. @tanstack/eslint-plugin-router — code-based route discipline (client only; LIVE — the hand-written
+//      createRoute tree lives in `packages/client/src/routes/`)
 //      • create-route-property-order ONLY. Its meta: "define route options in a specific order to ensure
 //        the type inference works correctly" — a TYPE-INFERENCE correctness rule (not ergonomic; Biome
 //        can't do it) that applies to the hand-written createRoute/createRootRoute tree we DO use.
 //
 //   4. eslint-plugin-better-tailwindcss — validates class strings against the classes the v4 engine
-//      ACTUALLY registers for our @theme (entryPoint: @orb/ui globals.css). ui NOW.
+//      ACTUALLY registers for our @theme (entryPoint: the package's own globals.css). TWO blocks: @orb/ui,
+//      and @orb/client since 2026-08-19 — not ui-only.
 //      • no-unknown-classes · enforce-consistent-variable-syntax(shorthand) · no-deprecated-classes
 //
 //   5. @typescript-eslint/no-deprecated (type-aware) — makes the doctrine's `@deprecated` tag a gate.
 //
-//   6. Custom no-restricted-syntax — zustand escape-hatch guard (client only; dormant until state/ lands).
+//   6. Custom no-restricted-syntax — client only, LIVE (`packages/client/src/state/` is populated). Two
+//      selector sets: the zustand escape-hatch guard, and the COMPOSE-ONLY KEYSTONE (no className/style on
+//      a raw intrinsic element). Flat config REPLACES this rule per file, so the keystone block re-lists.
 //
 //   7. eslint-plugin-react-web-api — eslint-react's LEAK family: a Web-API subscription created in a
 //      component that outlives it (listener/interval/timeout/fetch/IntersectionObserver/ResizeObserver
@@ -43,9 +53,13 @@
 //        "a plugin upgrade can't silently add a gate" property above is held by the PIN rather than by
 //        enumeration. See the TRIPWIRE at the block itself for what the pin is load-bearing for.
 //
+//  10. eslint-plugin-tsdoc — `tsdoc/syntax`, the official TSDoc parser: malformed doc comments and
+//      non-standard tags are a gate, which is how Documentation-Law's comment grammar is enforced.
+//      ON for shipped source (ui/client), the typed-API packages, and tooling/src + tests/tooling.
+//
 // What we INTENTIONALLY DROP (Biome owns them, or ergonomic-only):
-//   • query/{infinite-query-property-order, mutation-property-order} — property ordering → Biome.
-//   • query/no-rest-destructuring — destructure style → ergonomic.
+//   • query/no-rest-destructuring — destructure style → ergonomic. (The two query property-order rules
+//     were once dropped here; they are ON — see item 2. Do not re-drop them.)
 //   • router/route-param-names — file-based `$param`↔useParams naming; we hand-write a code-based tree
 //     (UI-Arch §6.1) so there are no `$param` route files for it to match → pure no-op.
 //   • better-tailwindcss stylistic rules (enforce-consistent-class-order/-line-wrapping/-variant-order,
@@ -344,8 +358,9 @@ export default tseslint.config(
   {
     // A stale `eslint-disable` can never rot silently: a directive that suppresses nothing is itself an
     // ERROR. No `files` key ⇒ this applies to every linted file. ESLint's own default here is "warn", which
-    // only bites where `--max-warnings 0` is passed (the lint:eslint script and the verify registry's scoped
-    // argv do; an ad-hoc `npx eslint <file>` does not) — "error" makes the verdict the same everywhere. A
+    // only bites where `--max-warnings 0` is passed (the verify `eslint` op's CHILD_FLAGS, which
+    // `pnpm lint:eslint` runs, and the verify registry's scoped argv both do; an ad-hoc `npx eslint <file>`
+    // does not) — "error" makes the verdict the same everywhere. A
     // suppression that stops matching a real diagnostic is exactly the comment the doctrine wants deleted,
     // and this is what turns "should be deleted" into "must be deleted".
     linterOptions: { reportUnusedDisableDirectives: "error" },
@@ -548,7 +563,8 @@ export default tseslint.config(
       // CORRECTLY skips compiling a component that wraps a third-party API it can't memoize — i.e. our
       // sealed satellites (virtual-list wraps TanStack Virtual's `useVirtualizer`, which returns
       // non-memoizable functions by design). Un-sealing to satisfy it is impossible + wrong. Stays at
-      // "warn" HERE so a NEW seal still surfaces — and with `--max-warnings=0` (the lint:eslint script) a
+      // "warn" HERE so a NEW seal still surfaces — and with `--max-warnings 0` (every lint run passes it —
+      // the verify `eslint` op's CHILD_FLAGS) a
       // new one is a HARD gate that must be explicitly acked (off-by-path) in the block below, exactly like
       // the three known seals. This keeps the tree warning-free while forcing every seal to be a conscious
       // architectural ack rather than silent noise.
@@ -634,7 +650,8 @@ export default tseslint.config(
     // is an audited CORRECTNESS bundle (33 rules at 6.10.2; `recommended` carries 34 and `strict` adds no
     // rule name it lacks — the two differ by severity and options), and the "a plugin upgrade can't
     // silently add a gate" property is held by an EXACT catalog pin (`eslint-plugin-jsx-a11y: 6.10.2` in
-    // pnpm-workspace.yaml), not by enumeration. `lint:eslint` runs `--max-warnings 0`, so a rule a 6.x
+    // pnpm-workspace.yaml), not by enumeration. Every lint run passes `--max-warnings 0` (the verify
+    // `eslint` op's CHILD_FLAGS, which `pnpm lint:eslint` runs), so a rule a 6.x
     // MINOR added to `strict` would land as a hard `pnpm check` gate with no config change and no review.
     // THE PIN IS WHAT MAKES THE ACK HONEST: loosen it back to `^6.10.2` and this spread becomes the
     // unguarded door again — enumerate the 33 rules by name instead if the pin ever has to float.
