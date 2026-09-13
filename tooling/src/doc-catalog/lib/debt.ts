@@ -36,17 +36,23 @@ export function migrationMetrics(docs: readonly Doc[], receipts: readonly Receip
   };
 }
 
-/** Regressions only: a debt path the allowance does not carry. */
-export function newDebtPathErrors(current: DebtPaths, allowed: DebtPaths | undefined): readonly string[] {
+/** Keep the canonical document owner beside the text: scoped writers must not infer ownership from
+ *  messages whose prefix is a debt category (#2339). Null names a corpus-wide state refusal. */
+interface DebtFinding {
+  readonly path: string | null;
+  readonly message: string;
+}
+
+function newDebtPathFindings(current: DebtPaths, allowed: DebtPaths | undefined): readonly DebtFinding[] {
   if (allowed === undefined) {
-    return [`${STATE_PATH}: legacy count-only state must be upgraded with pnpm doc-catalog:ratchet`];
+    return [{ path: null, message: `${STATE_PATH}: legacy count-only state must be upgraded with pnpm doc-catalog:ratchet` }];
   }
-  const errors: string[] = [];
+  const errors: DebtFinding[] = [];
   for (const key of Object.keys(current) as (keyof Floors)[]) {
     const accepted = new Set(allowed[key]);
     for (const path of current[key]) {
       if (!accepted.has(path)) {
-        errors.push(`${key}: new debt path ${path} is not in the ratchet allowance`);
+        errors.push({ path, message: `${key}: new debt path ${path} is not in the ratchet allowance` });
       }
     }
   }
@@ -55,18 +61,27 @@ export function newDebtPathErrors(current: DebtPaths, allowed: DebtPaths | undef
 
 /** Both directions — regressions AND paid-but-still-allowed rows (the ratchet only clicks one way if
  *  stale allowances are swept). */
-export function debtPathErrors(current: DebtPaths, allowed: DebtPaths | undefined): readonly string[] {
+export function debtPathFindings(current: DebtPaths, allowed: DebtPaths | undefined): readonly DebtFinding[] {
   if (allowed === undefined) {
-    return newDebtPathErrors(current, allowed);
+    return newDebtPathFindings(current, allowed);
   }
-  const errors = [...newDebtPathErrors(current, allowed)];
+  const errors = [...newDebtPathFindings(current, allowed)];
   for (const key of Object.keys(current) as (keyof Floors)[]) {
     const actual = new Set(current[key]);
     for (const path of allowed[key]) {
       if (!actual.has(path)) {
-        errors.push(`${key}: stale debt path ${path} remains in the ratchet allowance`);
+        errors.push({ path, message: `${key}: stale debt path ${path} remains in the ratchet allowance` });
       }
     }
   }
   return errors;
+}
+
+/** Existing whole-corpus callers retain the same ordered diagnostic text. */
+export function newDebtPathErrors(current: DebtPaths, allowed: DebtPaths | undefined): readonly string[] {
+  return newDebtPathFindings(current, allowed).map((finding) => finding.message);
+}
+
+export function debtPathErrors(current: DebtPaths, allowed: DebtPaths | undefined): readonly string[] {
+  return debtPathFindings(current, allowed).map((finding) => finding.message);
 }
