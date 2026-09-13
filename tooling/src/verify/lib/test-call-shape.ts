@@ -10,8 +10,15 @@
 // `test` whose origin varies per suite (`vitest` globals, a Playwright `test.extend` fixture), so the root is
 // read by NAME. The member directly after the root decides admission: a modifier (`test.only`,
 // `test.concurrent.each(…)`) declares a test, while any other member (`test.describe`, `test.step`,
-// `test.extend`, `it.next`) is not one. Intermediate calls in the chain are walked THROUGH, which is what
-// makes the call-returning `each` / `for` / `runIf` / `skipIf` factories visible at all.
+// `test.extend`, `it.next`) is not one — including when a modifier follows that member, so Playwright's
+// `test.describe.only(…)` is a suite, not a test. Intermediate calls AND tagged templates in the chain are
+// walked THROUGH, which is what makes the call-returning `each` / `for` / `runIf` / `skipIf` factories and
+// Vitest's table form ``test.each`a | b`(name, fn)`` visible at all.
+//
+// DECLARED LIMITS, each a run row in `tests/tooling/verify/lib/test-call-shape.test.ts`: the root is a NAME, so
+// a chain rooted in anything but a bare identifier is not a shape — an element access (`fixtures['test']`), a
+// parenthesized callee (`(test.only)(…)`) or a namespace/qualified root (`vitest.test(…)`) — and an aliased
+// import (`import { test as t }`) is unjudged, while a same-named local `test` is read as one.
 import type { CallExpression, Identifier, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 
@@ -33,6 +40,9 @@ function walkChain(expression: MorphNode, member: string | undefined): ChainShap
   }
   if (Node.isPropertyAccessExpression(expression)) {
     return walkChain(expression.getExpression(), expression.getName());
+  }
+  if (Node.isTaggedTemplateExpression(expression)) {
+    return walkChain(expression.getTag(), member);
   }
   return Node.isCallExpression(expression) ? walkChain(expression.getExpression(), member) : undefined;
 }

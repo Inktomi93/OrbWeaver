@@ -22,14 +22,20 @@
 // paths are load-bearing and not decoration.
 //
 // RECOGNIZER (#2027): a test declaration is the shared `lib/test-call-shape.ts#isTestCallShape` — the bare
-// `test`/`it` root or a chain whose first member is a Vitest modifier (`only`, `concurrent`, `each`, `for`,
-// `runIf`, `skipIf`, …), walked THROUGH the call-returning factories so `test.each(table)(name, fn)` is
-// judged. It used to be the literal text set `{test, it, test.skip, it.skip}`, which left every other modifier
-// form unjudged here while `audit-client-tests` judged them — a coverage that would have vanished silently the
-// day that arm was retired as "redundant". Every MODIFIER form must carry a callback to count (the bare root
-// keeps its legacy unconditional verdict): that one clause separates a declaration from Playwright's in-body
-// `test.skip(condition, reason)` guard AND from the inner `test.each(table)` factory call, which has the same
-// shape and would otherwise read as a second, assertion-less test.
+// `test`/`it` root or a chain whose member read directly off the root is a Vitest modifier (`only`,
+// `concurrent`, `each`, `for`, `runIf`, `skipIf`, …), walked THROUGH call-returning factories
+// (`test.each(table)(name, fn)`) and tagged-template tables (``test.each`a | b`(name, fn)``). That covers every
+// modifier chain spelled off the bare `test`/`it` NAME; the reader's by-name limits (element-access,
+// parenthesized, qualified or aliased roots) are declared and run in its mirror test. It used to be the literal
+// text set `{test, it, test.skip, it.skip}`, which left every other modifier form unjudged here. (Through the
+// same reader `audit-client-tests` now REPORTS a tagged-table stub, on the token ``test.each`a | b` ``; for a
+// call-returning stub it reports the token `test.each([1])`, which the waiver sink refuses, so that policy
+// WITHHOLDS — a pre-existing tool error recorded outside this module, measured 2026-09-13.)
+// Every MODIFIER form must carry a callback to count, while the bare root keeps its legacy unconditional
+// verdict (`test("x")` with no body is still a stub — pinned by its own row): that one clause separates a
+// declaration from Playwright's in-body `test.skip(condition, reason)` guard AND from the inner
+// `test.each(table)` factory call, which has the same shape and would otherwise read as a second,
+// assertion-less test.
 //
 // FAMILY `test-no-stubs`, shared with `audit-client-tests` through `lib/test-call-shape.ts#isTestCallShape`:
 // both policies judge the SAME subject — which calls declare a test — and read it from one vocabulary. They
@@ -63,7 +69,8 @@ function hasCallback(call: CallExpression): boolean {
   return call.getArguments().some((arg) => arg.isKind(SyntaxKind.ArrowFunction) || arg.isKind(SyntaxKind.FunctionExpression));
 }
 
-/** A test DECLARATION: the shared test-call shape (#2027 — every Vitest modifier, not a literal text set).
+/** A test DECLARATION: the shared test-call shape (#2027 — every modifier chain off the `test`/`it` name,
+ *  not a literal text set).
  *  The bare root keeps the legacy verdict unconditionally (`test("x")` with no body still reads as a stub).
  *  Every MODIFIER form must also carry a callback, which is what separates a declaration from the two
  *  callback-less calls with the same shape: Playwright's in-body runner-status guard
@@ -183,7 +190,19 @@ export const gate = defineGate({
       mode: "source",
       files: { "tests/tooling/chained.test.ts": 'test.concurrent.each([1])("stub", () => {\n  const x = 1;\n});\n' },
       expect: { count: 1, token: "test" },
-      why: "A TWO-MODIFIER CHAIN through a factory (#2027): admission is decided by the member read DIRECTLY off the root (`concurrent`), and the walk passes through `.each(...)` to get there; a recognizer keyed on the callee's dotted text never reaches this form at all",
+      why: "A TWO-MODIFIER CHAIN through a factory (#2027): the walk passes through `.each(...)` to the root, and a recognizer keyed on the callee's dotted text never reaches this form at all. That admission reads the member DIRECTLY off the root (`concurrent`) rather than the outermost one is pinned by the `test.describe.only` mustPass row, not here — both keyings admit this chain",
+    },
+    {
+      mode: "source",
+      files: { "tests/tooling/table.test.ts": 'test.each`a | b`("stub", () => {\n  const x = 1;\n});\n' },
+      expect: { count: 1, line: 1, token: "test" },
+      why: "THE TAGGED-TEMPLATE TABLE (#2027, verifier LR-1): Vitest's ``test.each`a | b`(name, fn)`` declares through a TaggedTemplateExpression, not a call, so a walk that passed only through calls returned no shape and a stub in this documented form was judged by NEITHER test policy. The token is the chain root, the exact authored slice at the callee's offset",
+    },
+    {
+      mode: "source",
+      files: { "tests/tooling/bare.test.ts": 'test("a declaration with no body at all");\n' },
+      expect: { count: 1, line: 1, token: "test" },
+      why: "THE BARE-ROOT CLAUSE (verifier LR-3): the bare `test(name)` keeps the legacy unconditional verdict — no body means no assertion, so it is a stub — while every MODIFIER form must carry a callback. Require a callback of the bare root too and this row goes green-to-red: the call stops being a declaration and the stub disappears",
     },
     {
       mode: "source",
@@ -228,6 +247,13 @@ export const gate = defineGate({
           'test("clicks through", async () => {\n  await test.step("open the menu", async () => {\n    await open();\n  });\n  expect(1).toBe(1);\n});\n',
       },
       why: "THE MODIFIER FENCE (#2027): `test.step(name, fn)` carries a callback and a `test` root but `step` is not a test modifier, so it is not a nested declaration — its body asserting nothing is legitimate. Admit any member off the root and this row reds on the step",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/e2e/suite.spec.ts": 'test.describe.only("a focused suite", () => {\n  test.beforeEach(() => {\n    seed();\n  });\n});\n',
+      },
+      why: "ADMISSION READS THE MEMBER DIRECTLY OFF THE ROOT (verifier LR-4): Playwright's `test.describe.only(name, fn)` ends in the modifier `only`, but the member read off the root is `describe`, so it is a SUITE, not a test — and a suite whose body only registers a hook asserts nothing legitimately. Key admission on the outermost member instead and `only` admits this call as a declaration with a callback and no `expect` in its range, so this row reds",
     },
   ],
 });

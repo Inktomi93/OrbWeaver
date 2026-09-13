@@ -42,9 +42,11 @@ test("the bare roots and every modifier chain read as a test-call shape", () => 
   ]);
 });
 
-test("a call-returning factory is walked THROUGH: both the outer declaration and the inner factory carry the shape", () => {
+test("a call-returning factory and a tagged-template table are walked THROUGH to the root", () => {
   expect(
-    verdicts("test.each([1])('a', () => {});\nit.for([1])('b', () => {});\ntest.runIf(true)('c', () => {});\ntest.concurrent.each([1])('d', () => {});"),
+    verdicts(
+      "test.each([1])('a', () => {});\nit.for([1])('b', () => {});\ntest.runIf(true)('c', () => {});\ntest.concurrent.each([1])('d', () => {});\ntest.each`a | b`('e', () => {});",
+    ),
   ).toEqual([
     ["test.each([1])('a', () => {})", true],
     ["test.each([1])", true],
@@ -54,6 +56,8 @@ test("a call-returning factory is walked THROUGH: both the outer declaration and
     ["test.runIf(true)", true],
     ["test.concurrent.each([1])('d', () => {})", true],
     ["test.concurrent.each([1])", true],
+    // The tagged template is not a CallExpression, so the table form yields exactly one call: the declaration.
+    ["test.each`a | b`('e', () => {})", true],
   ]);
 });
 
@@ -68,6 +72,9 @@ test("a non-modifier member, another root, or a non-identifier root is NOT a tes
         "describe('c', () => {});",
         "expect(1).toBe(1);",
         "fixtures['test']('d', () => {});",
+        "test.describe.only('e', () => {});",
+        "(test.only)('f', () => {});",
+        "vitest.test('g', () => {});",
       ].join("\n"),
     ),
   ).toEqual([
@@ -78,7 +85,12 @@ test("a non-modifier member, another root, or a non-identifier root is NOT a tes
     ["describe('c', () => {})", false],
     ["expect(1).toBe(1)", false],
     ["expect(1)", false],
+    // DECLARED LIMITS, run here rather than stated: a non-identifier root is not a shape.
     ["fixtures['test']('d', () => {})", false],
+    // Admission reads the member DIRECTLY off the root: `describe`, not the trailing `only`.
+    ["test.describe.only('e', () => {})", false],
+    ["(test.only)('f', () => {})", false],
+    ["vitest.test('g', () => {})", false],
   ]);
 });
 
