@@ -3,8 +3,8 @@
 // say, and does the committed `## CLASS ROLLUP` table agree" — and the three counting rules below are the
 // ledger's own, each one paid for by a disagreement between two implementations.
 
+import { admitLedgerTables, ledgerHeadingSpan, readLedgerMarkdown } from "./ledger-table-admission.ts";
 import type { MarkdownTable, MarkdownTableRow } from "./markdown-tables.ts";
-import { markdownTables } from "./markdown-tables.ts";
 
 /** The heading whose table SUMMARISES the ledger body, and the fence its body rows live inside. */
 const CLASS_ROLLUP_HEADING = "## CLASS ROLLUP";
@@ -82,14 +82,6 @@ function emptyStates(): Record<string, number> {
   return Object.fromEntries(STATE_BINS.map((state) => [state, 0]));
 }
 
-/** The in-fence body tables: everything between `## THE LEDGER` and `## CLASS ROLLUP`. */
-function inFenceLines(text: string): readonly string[] {
-  const lines = text.split("\n");
-  const start = lines.findIndex((line) => line.trim() === LEDGER_FENCE);
-  const end = lines.findIndex((line) => line.trim() === CLASS_ROLLUP_HEADING);
-  return start === -1 || end === -1 || end < start ? [] : lines.slice(start, end);
-}
-
 /** The mutable accumulator one body table at a time folds into. Named rather than inlined so the
  *  derivation reads as "fold every table, then project", which is what it is. */
 interface RollupTally {
@@ -124,7 +116,9 @@ function tallyTable(table: MarkdownTable, tally: RollupTally): void {
 }
 
 export function deriveClassRollup(text: string): ClassRollup {
-  const tables = markdownTables(inFenceLines(text));
+  const markdown = readLedgerMarkdown(text);
+  const span = ledgerHeadingSpan(markdown, LEDGER_FENCE.slice("## ".length));
+  const tables = span === undefined ? [] : admitLedgerTables(markdown, span).map(({ table }) => table);
   const tally: RollupTally = { states: new Map(), counts: new Map(), unbinned: [], statelessTables: [] };
   for (const table of tables) {
     tallyTable(table, tally);
@@ -167,12 +161,15 @@ export interface CommittedClassRollup {
  *  whose first column is also a class name, and requiring the full bin set would report a short-schema
  *  table as ABSENT, which is a true-sounding message about the wrong defect. */
 export function committedClassRollup(text: string): CommittedClassRollup | undefined {
-  const lines = text.split("\n");
-  const start = lines.findIndex((line) => line.trim() === CLASS_ROLLUP_HEADING);
-  if (start === -1) {
+  const markdown = readLedgerMarkdown(text);
+  const span = ledgerHeadingSpan(markdown, CLASS_ROLLUP_HEADING.slice("## ".length));
+  if (span === undefined) {
     return;
   }
-  const table = markdownTables(lines.slice(start)).find((candidate) => candidate.columns[0] === "class" && candidate.columns.includes("rows"));
+  const table = markdown.tables
+    .filter(({ startLine, endLine }) => startLine > span.start && endLine < span.end)
+    .map(({ table: candidate }) => candidate)
+    .find((candidate) => candidate.columns[0] === "class" && candidate.columns.includes("rows"));
   if (table === undefined) {
     return;
   }
@@ -229,15 +226,16 @@ function cellNumber(cell: string): number {
 }
 
 export function committedOtherClassCensus(text: string): OtherClassCensus | undefined {
-  const lines = text.split("\n");
-  const start = lines.findIndex((line) => line.trim() === CLASS_ROLLUP_HEADING);
-  if (start === -1) {
+  const markdown = readLedgerMarkdown(text);
+  const span = ledgerHeadingSpan(markdown, CLASS_ROLLUP_HEADING.slice("## ".length));
+  if (span === undefined) {
     return;
   }
   const TwoColumns = 2;
-  const table = markdownTables(lines.slice(start), start + 1).find(
-    (candidate) => candidate.columns.length === TwoColumns && candidate.columns[1] === "rows" && totalRowOf(candidate) !== undefined,
-  );
+  const table = markdown.tables
+    .filter(({ startLine, endLine }) => startLine > span.start && endLine < span.end)
+    .map(({ table: candidate }) => candidate)
+    .find((candidate) => candidate.columns.length === TwoColumns && candidate.columns[1] === "rows" && totalRowOf(candidate) !== undefined);
   const total = table === undefined ? undefined : totalRowOf(table);
   if (table === undefined || total === undefined) {
     return;

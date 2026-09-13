@@ -24,11 +24,11 @@
 // no baseline number and no threshold. Measured on the configured ledger 2026-09-13: 63 in-fence tables,
 // ALL carrying both, contributing 356 citations; zero tables carry one without the other.
 //
-// WHAT REMAINS UNCOVERED, said here rather than implied: a table inside the fence whose `defect` AND
-// `state` headers BOTH drift is indistinguishable from prose — there is no in-band invariant left to key
-// on, and this module states that limit rather than inventing a count threshold for it.
+// A top-level row-shaped paragraph is refused by the shared ledger admission reader. Actual tables retain
+// their authored cell bytes; examples nested in code, quotes, or lists do not enter the evidence plane.
 
 import { subjectKey } from "./citation-subject.ts";
+import { admitLedgerTables, ledgerHeadingSpan, readLedgerMarkdown } from "./ledger-table-admission.ts";
 import type { MarkdownTable } from "./markdown-tables.ts";
 import { markdownTables } from "./markdown-tables.ts";
 
@@ -84,12 +84,7 @@ const STATE_COLUMN = "state";
  *  next `## ` heading's line (or one past the last line when the ledger is the final section).
  *  `undefined` when the document carries no fence at all — which `assertLedgerSource` refuses by name. */
 export function ledgerSpan(lines: readonly string[]): { readonly start: number; readonly end: number } | undefined {
-  const index = lines.findIndex((line) => line.startsWith(LEDGER_FENCE));
-  if (index < 0) {
-    return;
-  }
-  const after = lines.findIndex((line, at) => at > index && line.startsWith(SECTION_HEADING));
-  return { start: index + 1, end: after < 0 ? lines.length + 1 : after + 1 };
+  return ledgerHeadingSpan(readLedgerMarkdown(lines.join("\n")), LEDGER_FENCE.slice(SECTION_HEADING.length));
 }
 
 function context(text: string): string {
@@ -107,8 +102,8 @@ function columnNames(table: MarkdownTable): ReadonlySet<string> {
 
 /** Every table with at least one row inside the defect-row span, paired with the schema verdict the
  *  admission and the drift refusal both key off. */
-function inFenceTables(lines: readonly string[], span: { readonly start: number; readonly end: number }): readonly MarkdownTable[] {
-  return markdownTables(lines, 1).filter((table) => table.rows.some((row) => row.line > span.start && row.line < span.end));
+function inFenceTables(doc: CitedDocument, span: { readonly start: number; readonly end: number }): readonly MarkdownTable[] {
+  return admitLedgerTables(readLedgerMarkdown(doc.text, doc.rel), span).map(({ table }) => table);
 }
 
 /** Every `#N` in a ledger's STATE cells, inside the defect-row span, with the cell's verdict word.
@@ -122,7 +117,7 @@ export function ledgerCitations(doc: CitedDocument): readonly LedgerCitation[] {
   if (span === undefined) {
     return [];
   }
-  return inFenceTables(lines, span)
+  return inFenceTables(doc, span)
     .filter((table) => {
       const names = columnNames(table);
       return names.has(DEFECT_COLUMN) && names.has(STATE_COLUMN);
@@ -183,7 +178,7 @@ export function assertLedgerSource(doc: CitedDocument): number {
   if (span === undefined) {
     throw new Error(`board-citations: ${doc.rel} carries no \`${LEDGER_FENCE}\` fence, so no table in it can be read as a defect row.`);
   }
-  const tables = inFenceTables(lines, span);
+  const tables = inFenceTables(doc, span);
   const drifted = tables.filter((table) => {
     const names = columnNames(table);
     return names.has(DEFECT_COLUMN) !== names.has(STATE_COLUMN);

@@ -12,20 +12,17 @@
 // had already had and the same one it will need next week; the durable answer is that the numbers stop
 // being authored.
 //
-// MARKDOWN, NOT A PARSER. Every read here is line-shaped on purpose — an ATX heading, a table body row, a
-// fenced code line — because these documents are edited by hand all day and a reader that needed a real
-// Markdown AST would refuse more often than it answered. The costs of that choice are stated at each
-// function rather than discovered: an indented table, a table inside a fence, and a `|` inside a cell that
-// is not escaped are all misread, and the roster's own header carries the MERGE-BOMB warning about that
-// last one for an unrelated reason.
+// Ledger sections use Markdown provenance for headings and tables, then retain the established line reader
+// for authored cells. Other program-document readers in this module remain deliberately line-shaped.
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { admitLedgerTables, ledgerHeadingSpan, readLedgerMarkdown } from "./ledger-table-admission.ts";
 import type { MarkdownTable } from "./markdown-tables.ts";
 // The generic GFM table reader moved to ./markdown-tables.ts and the CLASS ROLLUP to
 // ./gate-program-rollup.ts at the 450-line cap (#2242). Neither is re-exported from here: biome's
 // `lint/performance/noBarrelFile` forbids it, so every caller — including `verify/index.ts`, which
 // publishes `markdownTables` — names the module that authors what it uses.
-import { markdownTables, tableRowCount } from "./markdown-tables.ts";
+import { tableRowCount } from "./markdown-tables.ts";
 
 export interface LedgerSection {
   /** The `###` heading text, without the marker. */
@@ -41,10 +38,11 @@ export interface LedgerSection {
   readonly columns: readonly string[];
 }
 
-const H3_MARKER_LENGTH = "### ".length;
 /** The ONE spelling of the ledger fence, shared by the section scanner and the stray scanner — two readers
  *  disagreeing about where the fence is would reintroduce #2166 from the other side. */
 const LEDGER_FENCE = "## THE LEDGER";
+const LEDGER_SECTION_DEPTH = 3;
+const MAX_STRAY_HEADING_DEPTH = 4;
 /** Where the body ENDS. Shares the fence's reasoning: the section scanner, the stray scanner and the
  *  rollup deriver must agree on both edges or they measure different files (#2166, #2207). */
 const BYTES_PER_KIB = 1024;
@@ -59,48 +57,29 @@ const REPORT_CITE = /`([a-z0-9][a-z0-9.-]*\.md)`/;
  *  than silently extending it. Within that body the rows are `markdownTables`'s, so the header is excluded
  *  by SHAPE and no section's schema is assumed (#2075). */
 export function ledgerSections(text: string): readonly LedgerSection[] {
-  const lines = text.split("\n");
-  const sections: LedgerSection[] = [];
-  let inLedger = false;
-  let current: { heading: string; report: string | undefined; line: number; body: string[] } | undefined;
-  const flush = (): void => {
-    if (current !== undefined) {
-      const tables = markdownTables(current.body);
-      sections.push({
-        heading: current.heading,
-        report: current.report,
-        line: current.line,
-        rows: tables.reduce((total, table) => total + table.rows.length, 0),
-        columns: tables[0]?.columns ?? [],
-      });
-      current = undefined;
-    }
-  };
-  // A plain indexed loop rather than a callback: biome's flow analysis narrows a `let … | undefined`
-  // captured by a closure to non-optional, and then calls the guard that IS needed unnecessary.
-  for (const [index, line] of lines.entries()) {
-    if (line.startsWith("## ")) {
-      flush();
-      inLedger = line.trim() === LEDGER_FENCE;
-      continue;
-    }
-    if (!inLedger) {
-      continue;
-    }
-    if (line.startsWith("#")) {
-      flush();
-      if (line.startsWith("### ")) {
-        const heading = line.slice(H3_MARKER_LENGTH).trim();
-        current = { heading, report: REPORT_CITE.exec(heading)?.[1], line: index + 1, body: [] };
-      }
-      continue;
-    }
-    if (current !== undefined) {
-      current.body.push(line);
-    }
+  const markdown = readLedgerMarkdown(text);
+  const span = ledgerHeadingSpan(markdown, LEDGER_FENCE.slice("## ".length));
+  if (span === undefined) {
+    return [];
   }
-  flush();
-  return sections;
+  const tables = admitLedgerTables(markdown, span);
+  const headings = markdown.headings.filter(({ line }) => line > span.start && line < span.end);
+  return headings.flatMap((heading, index) => {
+    if (heading.depth !== LEDGER_SECTION_DEPTH) {
+      return [];
+    }
+    const end = headings[index + 1]?.line ?? span.end;
+    const own = tables.filter(({ startLine, endLine }) => startLine > heading.line && endLine < end);
+    return [
+      {
+        heading: heading.text,
+        report: REPORT_CITE.exec(heading.text)?.[1],
+        line: heading.line,
+        rows: own.reduce((total, candidate) => total + candidate.table.rows.length, 0),
+        columns: own[0]?.table.columns ?? [],
+      },
+    ];
+  });
 }
 
 /** A ledger-row table by SCHEMA: it names both a `defect` and a `state`. Schema-keyed and not first-column
@@ -167,58 +146,34 @@ export interface StrayLedgerSection {
 /** An ATX heading of depth 2-4 — the containers a ledger section can land in. Depth 1 is the document
  *  title and depth 5+ has never carried a table here; both would widen the scan without widening what it
  *  can catch. The capture is the marker so the depth is readable at the call site. */
-const CONTAINER_HEADING = /^(#{2,4}) (.*)$/;
-
 export function strayLedgerSections(text: string): readonly StrayLedgerSection[] {
-  const lines = text.split("\n");
+  const markdown = readLedgerMarkdown(text);
   const strays: StrayLedgerSection[] = [];
   let inLedger = false;
   let enclosing = "(top of file)";
-  let current: { heading: string; line: number; enclosing: string; body: string[] } | undefined;
-  const flush = (): void => {
-    if (current === undefined) {
-      return;
+  for (const [index, heading] of markdown.headings.entries()) {
+    if (heading.depth === 2) {
+      enclosing = `## ${heading.text}`;
+      inLedger = heading.text === LEDGER_FENCE.slice("## ".length);
     }
-    const tables = markdownTables(current.body).filter(isLedgerRowTable);
+    if (heading.depth < 2 || heading.depth > MAX_STRAY_HEADING_DEPTH || inLedger) {
+      continue;
+    }
+    const end = markdown.headings[index + 1]?.line ?? markdown.lineCount + 1;
+    const tables = markdown.tables
+      .filter(({ startLine, endLine }) => startLine > heading.line && endLine < end)
+      .map(({ table }) => table)
+      .filter(isLedgerRowTable);
     if (tables.length > 0) {
       strays.push({
-        heading: current.heading,
-        line: current.line,
-        enclosing: current.enclosing,
-        report: REPORT_CITE.exec(current.heading)?.[1],
+        heading: heading.text,
+        line: heading.line,
+        enclosing,
+        report: REPORT_CITE.exec(heading.text)?.[1],
         rows: tables.reduce((total, table) => total + table.rows.length, 0),
       });
     }
-    current = undefined;
-  };
-  for (const [index, line] of lines.entries()) {
-    const container = CONTAINER_HEADING.exec(line);
-    if (container === null) {
-      // A heading this scan does not model (h1, h5+) still ENDS the open candidate — a table after it is
-      // not in the section above it — but opens nothing.
-      if (line.startsWith("#")) {
-        flush();
-        continue;
-      }
-      if (current !== undefined) {
-        current.body.push(line);
-      }
-      continue;
-    }
-    flush();
-    const heading = (container[2] ?? "").trim();
-    if (container[1] === "##") {
-      enclosing = line.trim();
-      inLedger = line.trim() === LEDGER_FENCE;
-    }
-    if (!inLedger) {
-      // A `##` encloses ITSELF: rows appended under it with no subheading are inside its body, which is
-      // the headingless shape. Every other depth carries the `##` it landed under, which is what the
-      // drift line tells the author to move the section out of.
-      current = { heading, line: index + 1, enclosing, body: [] };
-    }
   }
-  flush();
   return strays;
 }
 
