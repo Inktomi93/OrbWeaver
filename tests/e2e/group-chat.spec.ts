@@ -30,6 +30,7 @@
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
+import { HOST_BAND, openContextSections } from "../support/node/open-context-sections.ts";
 import {
   characterChipNames,
   characterChips,
@@ -98,6 +99,11 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
     expect(await characterChips(page).count()).toBe(0);
     await expect(page.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Members", exact: true })).toBeVisible();
     await openContextTab(page, "This chat");
+    // OPEN THE HOST BAND BEFORE CLAIMING THE SECTION IS ABSENT (#1851). The tab is an index of disclosures
+    // (#830) and a closed panel is REMOVED from the DOM, so this count was 0 for a solo room and a group
+    // room alike — a negative that could not fail. With the band open the claim is about `showGroup`, which
+    // is what this line was always meant to pin.
+    await openContextSections(page, HOST_BAND);
     await expect(page.getByRole("heading", { name: "Group behavior" })).toHaveCount(0);
 
     // The conversion itself — the server-side seat insert; the open room must learn about it off the

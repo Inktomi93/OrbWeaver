@@ -10,7 +10,7 @@
 // read ("Documents" → "Documents 1"), so an exact name would race the chip. `aria-expanded` (Base UI owns
 // it on the trigger) is the settle barrier — never a bare click followed by a body read.
 
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 /** The host-ops band. Its own children are open by default, so ONE press reaches all of them. */
@@ -23,10 +23,14 @@ export const HOST_BAND = "Host controls";
  * page finds the sections it opened already open — an unconditional click there would CLOSE them, which is
  * a defect the test would then blame on the subject. The visibility barrier before the state read is the
  * mount race (a trigger inside a band that was itself just opened).
+ *
+ * THE E2E SIDE WALKS THE SAME DISCLOSURES (#1851), so the root is a `Page` there and a mounted component
+ * `Locator` in a CT. Both spell `getByRole` identically; widening the parameter is what keeps this the ONE
+ * walker rather than minting a second, drifting copy under `tests/e2e/support/`.
  */
-export async function openContextSections(component: Locator, ...kickers: readonly string[]): Promise<void> {
+export async function openContextSections(root: Locator | Page, ...kickers: readonly string[]): Promise<void> {
   for (const kicker of kickers) {
-    const trigger = component.getByRole("button", { name: new RegExp(`^${kicker}`, "u") });
+    const trigger = root.getByRole("button", { name: new RegExp(`^${kicker}`, "u") });
     await expect(trigger).toBeVisible();
     if ((await trigger.getAttribute("aria-expanded")) !== "true") {
       await trigger.click();

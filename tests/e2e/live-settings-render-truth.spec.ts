@@ -21,13 +21,21 @@ import { waitForAppReady } from "./support/chat-room.ts";
 import { getAppearanceTheme, listThemes, updateSettingsSection } from "./support/trpc.ts";
 
 const SETTINGS_SAVE = "/api/trpc/settings.updateUserSettingsSection";
-const SEED_THEME_NAME = "Mocha"; // a seed theme → paints a `[data-theme="mocha"]` block (app-shell.tsx)
+const SEED_THEME_NAME = "Mocha"; // a seed theme → `html[data-theme="mocha"]` once APPLIED (see APPLIED_THEME)
 const SEEDED_BG_OPTION = "Misty highlands"; // a REAL seeded background (list-seeded-backgrounds.ts catalog)
 const SEEDED_BG_ID = "misty-highlands"; // that option's stored id (backgroundSeededId), for the server-truth poll
 
-/** The shell root carries the render-truth attributes: `data-theme` (seed theme name, lowercased) is on the
- *  ThemeScope, and `data-has-bg-image` lands on `.shell-grid` when a background resolves. */
+/** The render-truth attributes: `data-has-bg-image` lands on `.shell-grid` when a background resolves, and
+ *  the APPLIED seed theme lands on the DOCUMENT ELEMENT — `use-appearance-root-effects.ts` sets
+ *  `data-theme` on `document.documentElement`, nowhere else.
+ *
+ *  IT IS `html`, NOT "the ThemeScope", AND THAT MATTERED (#2245). This file asserted a bare
+ *  `[data-theme="mocha"]` and took `.first()`, which matched the Mocha CARD'S OWN PREVIEW BOX
+ *  (`theme-mini-surface.tsx` stamps the seed's block on each swatch so it paints itself) — an element that
+ *  is in the DOM whatever theme is applied. The spec is NAMED for render truth and that one assertion never
+ *  measured any: it passed while no theme had been applied at all. Anchor on `html`. */
 const SHELL_GRID = ".shell-grid";
+const APPLIED_THEME = 'html[data-theme="mocha"]';
 
 /** Count settings-save POSTs seen since the counter was installed — the oscillation tell. A network
  *  listener (not the trpc helper) so it observes the BROWSER's own client traffic, self-triggered included.
@@ -73,10 +81,17 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Appearance" }).click();
     // The shipped looks render as CARDS; picking one applies it (the `selectedThemeId` patch).
-    await page.getByRole("button", { name: SEED_THEME_NAME }).click();
-    // The active theme applies globally — the shell paints a `[data-theme="mocha"]` scope IMMEDIATELY
-    // (server truth flows through the getUserSettings query invalidation the mutation drives).
-    await expect(page.locator('[data-theme="mocha"]').first()).toBeVisible({ timeout: 10_000 });
+    // THE CARD IS A RADIO, NOT A BUTTON (#2245). The looks collection is a `RadioGroupPicker`
+    // (appearance-looks-section.tsx) whose items carry the theme name; the only BUTTON carrying "Mocha" is
+    // that card's own ⋯, accessible-named "Actions for Mocha". A substring role=button lookup therefore
+    // resolved UNIQUELY — to the kebab — so this line opened a modal `ThemeRowMenu` instead of applying the
+    // theme, and Base UI's `InternalBackdrop` (fixed, inset-0, cut out only over the 32px trigger) then ate
+    // every later click in the pane, which is how the background gridcell below timed out for 17s.
+    await page.getByRole("radio", { name: SEED_THEME_NAME, exact: true }).click();
+    // The active theme applies globally — `use-appearance-root-effects.ts` stamps `data-theme` on the
+    // DOCUMENT ELEMENT (server truth flows through the getUserSettings query invalidation the mutation
+    // drives). Asserted on `html` only: see APPLIED_THEME.
+    await expect(page.locator(APPLIED_THEME)).toHaveCount(1, { timeout: 10_000 });
 
     // ── 2. Change the BACKGROUND through the real appearance settings — the R-BG thumbnail grid (#866
     //       S4): one gridcell per plate, named by its label; the KIND derives from the tapped tile. ──
@@ -133,8 +148,11 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // layer shadowed server truth, the change would vanish here (the original bug). It must NOT. ──
     await page.reload();
     await waitForAppReady(page);
-    // Still the Mocha theme, still the background — rendered from server truth, no manual clear.
-    await expect(page.locator('[data-theme="mocha"]').first()).toBeVisible({ timeout: 15_000 });
+    // Still the Mocha theme, still the background — rendered from server truth, no manual clear. This is the
+    // assertion the whole spec exists for, so it reads the APPLIED carrier (`html`) and not a card's swatch:
+    // after a reload the settings pane is not even mounted, so the old bare `[data-theme]` lookup here was
+    // load-bearing AND vacuous at different moments of the same run.
+    await expect(page.locator(APPLIED_THEME)).toHaveCount(1, { timeout: 15_000 });
     await expect(page.locator(`${SHELL_GRID}[data-has-bg-image]`)).toHaveCount(1, { timeout: 15_000 });
     const bgAfterReload = await page.locator('[data-slot="theme-background-layer"]').evaluate((el: Element) => getComputedStyle(el).backgroundImage);
     expect(bgAfterReload).toContain("url(");

@@ -35,10 +35,18 @@ const RENDER_TIMEOUT_MS = 20_000;
 // viewport. Anything under these is a collapsed/undocked panel, which is the failure this guards.
 const PANEL_MIN_WIDTH_PX = 200;
 const PANEL_MIN_HEIGHT_PX = 200;
-const HOST_VIEWER_ROW = / — host, you$/u;
-const MEMBER_ROW = / — member$/u;
-const HOST_ROW = / — host$/u;
-const MEMBER_VIEWER_ROW = / — member, you$/u;
+// THE PRESENCE CLAUSE IS PART OF THE NAME AND MAY OR MAY NOT BE THERE (#1039, `ff6f460b8`):
+// `rowAccessibleName` (member-rows.ts) appends ", online"/", offline" — and NOTHING when the presence read
+// has not resolved, which is its own honest third state. These four were `$`-anchored on the role clause and
+// were never swept when that landed, so every one of them stopped matching against a live stack (#1851). The
+// anchor is KEPT — dropping it would let ", nominated as host" or ", limited history" slip past a pin whose
+// whole job is to say which state each viewer sees — and the optional clause is spelled out rather than
+// wildcarded, so a fourth presence word would still red these.
+const PRESENCE = "(?:, online|, offline)?";
+const HOST_VIEWER_ROW = new RegExp(` — host, you${PRESENCE}$`, "u");
+const MEMBER_ROW = new RegExp(` — member${PRESENCE}$`, "u");
+const HOST_ROW = new RegExp(` — host${PRESENCE}$`, "u");
+const MEMBER_VIEWER_ROW = new RegExp(` — member, you${PRESENCE}$`, "u");
 
 interface CreatedCharacter {
   readonly id: CharacterId;
