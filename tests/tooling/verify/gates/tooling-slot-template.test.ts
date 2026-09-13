@@ -7,7 +7,15 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor, withTree } from "../../_support.ts";
 
+const CLASSIFIED_HOMES = {
+  "tooling/src/stack/index.ts": "export {};\n",
+  "tooling/src/stack/stack.sh": "#!/bin/sh\n",
+  "tooling/src/verify/index.ts": "export {};\n",
+  "tooling/src/verify/cli.ts": "export {};\n",
+  "tooling/src/verify/gates/example.ts": "export {};\n",
+};
 const ENGINE = {
+  ...CLASSIFIED_HOMES,
   "tooling/src/enginetool/index.ts": "export const engine = 1;\n",
   "tooling/src/enginetool/lib/walk.ts": "export const walk = 1;\n",
   "tooling/src/snap/cli.ts": "export {};\n",
@@ -24,7 +32,7 @@ function findings(files: Record<string, string>): ReturnType<typeof runPolicyPas
   let out: ReturnType<typeof runPolicyPass>["authority"]["effectiveFindings"] = [];
   withTree(files, (root) => {
     const { project } = ctxFor(files, root);
-    out = runPolicyPass({
+    const result = runPolicyPass({
       knownPolicies: [gate],
       policies: [gate],
       root,
@@ -32,7 +40,10 @@ function findings(files: Record<string, string>): ReturnType<typeof runPolicyPas
       resourceOptions: { overlay: files },
       reviewedGrants: [],
       failOnWarnings: false,
-    }).authority.effectiveFindings;
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    out = result.authority.effectiveFindings;
   });
   return out;
 }
@@ -52,4 +63,20 @@ test("an engine dir still needs its index.ts — the clause never widens arm B's
   const { "tooling/src/enginetool/index.ts": _dropped, ...withoutIndex } = files;
   const found = findings({ ...withoutIndex, "tooling/src/enginetool/lib/walk.ts": "export const walk = 1;\n" });
   expect(found.filter((f) => (f.message ?? "").includes("no index.ts")).map((f) => f.file)).toEqual(["tooling/src/enginetool"]);
+});
+
+test("the corpus classification permits only verify/gates, never another sixth slot", () => {
+  const found = findings({ ...CLASSIFIED_HOMES, "tooling/src/verify/anything/x.ts": "export {};\n" });
+  expect(found.filter((f) => f.message.includes("is not a slot")).map((f) => f.file)).toEqual(["tooling/src/verify/anything"]);
+});
+
+test("classification liveness needs no unrelated exit-contract sentinel", () => {
+  const { "tooling/src/stack/index.ts": _index, "tooling/src/stack/stack.sh": _shell, ...withoutStack } = CLASSIFIED_HOMES;
+  expect(findings(withoutStack).some((f) => f.message.includes('stale BASH_FRONTED_TOOLS row "stack"'))).toBe(true);
+  const { "tooling/src/verify/gates/example.ts": _gate, ...withoutCorpus } = CLASSIFIED_HOMES;
+  const found = findings({ ...withoutCorpus, "tooling/src/verify/anything/x.ts": "export {};\n" });
+  expect(found.some((f) => f.message.includes('stale CORPUS_SLOTS row "verify"'))).toBe(true);
+  expect(
+    findings({ ...CLASSIFIED_HOMES, "tooling/src/stack/cli.ts": "export {};\n" }).some((f) => f.message.includes('BASH_FRONTED_TOOLS row "stack" is stale')),
+  ).toBe(true);
 });

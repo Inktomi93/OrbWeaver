@@ -13,7 +13,6 @@
 // import identity. Both are whole-population inputs, so a missing/empty tooling tree refuses before evaluation.
 import { dirname, join, normalize, relative, sep } from "node:path";
 import type { SourceFile } from "ts-morph";
-import type { ExemptionTable } from "../contract/gate.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
@@ -25,7 +24,7 @@ const TOOL_SLOT_DIRS = new Set(["contract", "ops", "lib"]);
 
 /** Tools whose ENTRYPOINT is bash (`.sh` at the tool root, no cli.ts required). Stale arm E reds a row
  *  naming a dead dir or a dir that has grown a cli.ts (the row then exempts nothing and must go). */
-const BASH_FRONTED_TOOLS: ExemptionTable = {
+const BASH_FRONTED_TOOLS: Readonly<Record<string, { readonly why: string }>> = {
   stack: {
     why: "the pgid/setsid/process-group choreography IS the tool (stack.sh · dev.sh · engines.sh, plus the two shells they call: multi-user-fixture.sh · vllm-setup.sh); the TS half under ops/ holds only the decisions the shell asks for. Ends if stack grows a cli.ts or the shells leave the tool root",
   },
@@ -35,8 +34,9 @@ const BASH_FRONTED_TOOLS: ExemptionTable = {
  *  the tool loads rather than code the tool calls. Stale arm F reds a row whose tool or slot dir is gone.
  *  Deliberately keyed tool → slot name (never a bare "allow any extra dir"): the exemption names exactly
  *  which corpus is sanctioned, so a second stray dir under the same tool is still RED. */
-const CORPUS_SLOTS: ExemptionTable = {
+const CORPUS_SLOTS: Readonly<Record<string, { readonly slot: string; readonly why: string }>> = {
   verify: {
+    slot: "gates",
     why: "`gates/` is a 219-module DESCRIPTOR CORPUS the loader globs (it IS the registry) — not a command family (ops/) and not tool-internal helpers (lib/); docs/architecture/core/Core-Tooling-Law.md §4.3 pre-declares the path as the size-cap carve. Ends if the corpus stops being fs-discovered (a hand-written registry would make the gates ordinary lib/ modules) or the dir moves.",
   },
 };
@@ -102,7 +102,7 @@ function toolDirViolations(entries: readonly ResourceTreeEntry[], tool: string, 
   for (const entry of members) {
     const name = entry.path.slice(rel.length + 1);
     if (entry.kind === "directory") {
-      if (!(TOOL_SLOT_DIRS.has(name) || CORPUS_SLOTS[tool] !== undefined)) {
+      if (!(TOOL_SLOT_DIRS.has(name) || CORPUS_SLOTS[tool]?.slot === name)) {
         out.push({
           file: entry.path,
           message: `"${name}/" is not a slot — a tool dir holds only contract/ ops/ lib/ (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
@@ -160,16 +160,15 @@ function staleCorpusRows(entries: readonly ResourceTreeEntry[]): readonly FsViol
     const dir = `${TOOLING_SRC}/${tool}`;
     if (!hasPath(entries, dir, "directory")) {
       out.push({
-        file: `${TOOLING_SRC}/${tool}`,
+        file: entries[0]?.path ?? TOOLING_SRC,
         message: `stale CORPUS_SLOTS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
       });
       continue;
     }
-    const extras = children(entries, dir).filter((entry) => entry.kind === "directory" && !TOOL_SLOT_DIRS.has(entry.path.slice(dir.length + 1)));
-    if (extras.length === 0) {
+    if (!hasPath(entries, `${dir}/${row.slot}`, "directory")) {
       out.push({
-        file: `${TOOLING_SRC}/${tool}`,
-        message: `stale CORPUS_SLOTS row "${tool}" — the tool carries no extra slot dir any more (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
+        file: entries[0]?.path ?? TOOLING_SRC,
+        message: `stale CORPUS_SLOTS row "${tool}" — the declared ${row.slot}/ slot is gone (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
       });
     }
   }
@@ -182,7 +181,7 @@ function staleBashRows(entries: readonly ResourceTreeEntry[]): readonly FsViolat
     const dir = `${TOOLING_SRC}/${tool}`;
     if (!hasPath(entries, dir, "directory")) {
       out.push({
-        file: `${TOOLING_SRC}/${tool}`,
+        file: entries[0]?.path ?? TOOLING_SRC,
         message: `stale BASH_FRONTED_TOOLS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
       });
     } else if (hasPath(entries, `${dir}/cli.ts`, "file")) {
@@ -194,6 +193,15 @@ function staleBashRows(entries: readonly ResourceTreeEntry[]): readonly FsViolat
   }
   return out;
 }
+
+// Every proof includes the classified homes: liveness is part of the policy on every corpus.
+const CLASSIFIED_HOMES = {
+  "tooling/src/stack/index.ts": "export {};\n",
+  "tooling/src/stack/stack.sh": "#!/bin/sh\n",
+  "tooling/src/verify/index.ts": "export {};\n",
+  "tooling/src/verify/cli.ts": "export {};\n",
+  "tooling/src/verify/gates/example.ts": "export {};\n",
+};
 
 export const gate = defineGate({
   id: "tooling-slot-template",
@@ -214,11 +222,6 @@ export const gate = defineGate({
       for (const violation of scanTree(entries, engineTools(ctx.files, ctx.relativePath))) {
         ctx.report.file(violation.file, { line: 1, column: 1, message: violation.message });
       }
-      // Arm E/F stay real-tree anchored: the examples intentionally plant only the subject under test, so
-      // module-owned rows are reconciled only when the shared floor proves this is the production corpus.
-      if (!hasPath(entries, `${TOOLING_SRC}/${SHARED}/exit-contract.ts`, "file")) {
-        return;
-      }
       for (const violation of [...staleBashRows(entries), ...staleCorpusRows(entries)]) {
         ctx.report.file(violation.file, { line: 1, column: 1, message: violation.message });
       }
@@ -228,6 +231,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
+        ...CLASSIFIED_HOMES,
         "tooling/src/enginetool/index.ts": "export const engine = 1;\n",
         "tooling/src/snap/cli.ts": "export {};\n",
         "tooling/src/snap/index.ts": "export {};\n",
@@ -238,25 +242,26 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
-      files: { "tooling/src/badtool/stray.ts": "export const x = 1;\n" },
+      files: { ...CLASSIFIED_HOMES, "tooling/src/badtool/stray.ts": "export const x = 1;\n" },
       expect: { messageIncludes: "no index.ts" },
       why: "a tool dir with neither front door and a stray root file — the founding shape",
     },
     {
       mode: "resource",
-      files: { "tooling/src/loose.ts": "export const x = 1;\n" },
+      files: { ...CLASSIFIED_HOMES, "tooling/src/loose.ts": "export const x = 1;\n" },
       expect: { messageIncludes: "loose file" },
       why: "a loose file at tooling/src root — every entry is a tool directory",
     },
     {
       mode: "resource",
-      files: { "tooling/src/_shared/sub/x.ts": "export const x = 1;\n" },
+      files: { ...CLASSIFIED_HOMES, "tooling/src/_shared/sub/x.ts": "export const x = 1;\n" },
       expect: { messageIncludes: "FLAT modules" },
       why: "a subdir under _shared/ — the plumbing floor is flat by design",
     },
     {
       mode: "resource",
       files: {
+        ...CLASSIFIED_HOMES,
         "tooling/src/othertool/cli.ts": "export {};\n",
         "tooling/src/othertool/index.ts": "export {};\n",
         "tooling/src/othertool/corpus/x.ts": "export const x = 1;\n",
@@ -269,6 +274,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
+        ...CLASSIFIED_HOMES,
         "tooling/src/enginetool/index.ts": "export const engine = 1;\n",
         "tooling/src/snap/cli.ts": "export {};\n",
         "tooling/src/snap/index.ts": "export {};\n",
@@ -279,6 +285,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
+        ...CLASSIFIED_HOMES,
         "tooling/src/goodtool/cli.ts": "export {};\n",
         "tooling/src/goodtool/index.ts": "export {};\n",
         "tooling/src/goodtool/ops/run.ts": "export const r = 1;\n",
@@ -289,6 +296,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
+        ...CLASSIFIED_HOMES,
         "tooling/src/verify/cli.ts": "export {};\n",
         "tooling/src/verify/index.ts": "export {};\n",
         "tooling/src/verify/gates/x.ts": "export const gate = 1;\n",
