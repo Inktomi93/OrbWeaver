@@ -6,7 +6,7 @@ import type { CoordinatedGateFinding, GateAuthorityAlarm } from "../contract/gat
 import type { Violation } from "../contract/harness.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import type { GateFactOwnerResult, PolicyOwnerResult, PolicyPassResult, PolicyPopulationReceipt } from "../contract/policy-pass.ts";
-import type { FinalPolicyRow, PopulationCounts, StructureFactRow, StructurePolicyReport } from "../contract/structure-report.ts";
+import type { FinalPolicyRow, PopulationCounts, StructureCountReconciliation, StructureFactRow, StructurePolicyReport } from "../contract/structure-report.ts";
 
 /** The FINAL side of one mixed run, in the THREE shapes its consumers need — the raw pass result (the exit
  *  rule and the timing ledger read it), the artifact's rows, and the artifact's aggregate. Homed here rather
@@ -17,6 +17,34 @@ export interface FinalSide {
   readonly result: PolicyPassResult | null;
   readonly rows: readonly FinalPolicyRow[];
   readonly report: StructurePolicyReport | null;
+}
+
+interface FindingRow {
+  readonly contract: "legacy" | "final";
+  readonly violations: readonly unknown[];
+}
+
+/** ONE derivation of the mixed headline. `blocking` deliberately reads the authority verdict rather than
+ *  restating its severity policy; the other four fields expose the equivalent human-readable equation. */
+export function structureCountReconciliation(rows: readonly FindingRow[], policy: StructurePolicyReport | null): StructureCountReconciliation {
+  const legacyFindings = rows.filter(({ contract }) => contract === "legacy").reduce((sum, entry) => sum + entry.violations.length, 0);
+  const finalEffectiveFindings = rows.filter(({ contract }) => contract === "final").reduce((sum, entry) => sum + entry.violations.length, 0);
+  const verdict = policy?.authority.verdict;
+  return {
+    legacyFindings,
+    finalEffectiveFindings,
+    nonblockingWarnings: verdict === undefined || verdict.failOnWarnings ? 0 : verdict.warnings,
+    authorityAlarms: policy?.authority.alarms.length ?? 0,
+    blocking: legacyFindings + (verdict?.blocking ?? 0),
+  };
+}
+
+/** The same equation emitted by the live console and by `check:show`. */
+export function structureCountLine(counts: StructureCountReconciliation): string {
+  return (
+    `${counts.blocking} blocking = ${counts.legacyFindings} legacy + ${counts.finalEffectiveFindings} final effective` +
+    ` - ${counts.nonblockingWarnings} nonblocking warning(s) + ${counts.authorityAlarms} authority alarm(s)`
+  );
 }
 
 export function finalSide(selectedFinal: readonly GatePolicy[], result: PolicyPassResult | null): FinalSide {

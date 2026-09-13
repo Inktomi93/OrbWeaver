@@ -9,9 +9,11 @@ import type { GateDescriptor } from "../contract/gate.ts";
 import type { SelectedGateCorpus } from "../contract/gate-corpus.ts";
 import type { PassResult } from "../contract/pass.ts";
 import type { RunManifest } from "../contract/run-manifest.ts";
+import type { StructureCountReconciliation } from "../contract/structure-report.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
 import { renderPass, renderPolicyPass } from "./render.ts";
 import type { FinalSide } from "./structure-report.ts";
+import { structureCountLine } from "./structure-report.ts";
 import { policyTimingLine, timingLine } from "./timing.ts";
 
 export interface StructureConsoleInput {
@@ -19,6 +21,7 @@ export interface StructureConsoleInput {
   readonly gatesByName: ReadonlyMap<string, GateDescriptor>;
   readonly selected: SelectedGateCorpus;
   readonly final: FinalSide;
+  readonly reconciliation: StructureCountReconciliation;
   readonly run: RunManifest;
   readonly slotRelDir: string;
 }
@@ -43,13 +46,14 @@ function nonVerdictBanner(run: RunManifest): string {
  *
  *  `zeroScanAlarm` is set HERE and nowhere else — the mixed front door is the only entrypoint whose fileset
  *  is the real whole tree, so it is the only one where "this gate read nothing" means the checker is blind. */
-export function structureConsole({ pass, gatesByName, selected, final, run, slotRelDir }: StructureConsoleInput): string {
+export function structureConsole({ pass, gatesByName, selected, final, reconciliation, run, slotRelDir }: StructureConsoleInput): string {
   const banner = run.nonVerdictReason !== null ? nonVerdictBanner(run) : "";
   return [
     banner,
     renderPass(pass, gatesByName, { zeroScanAlarm: true }),
     final.report === null ? "" : `\n${renderPolicyPass(final.rows, final.report, selected.final)}`,
     banner,
+    `\nfinding count: ${structureCountLine(reconciliation)}\n`,
     `\n${completenessLine(run)}\n`,
     `${timingLine(pass.timing, pass.gates, `${slotRelDir}/${STRUCTURE_REPORT_NAME}`)}\n`,
     final.result === null ? "" : `${policyTimingLine(final.result.timing, final.rows)}\n`,

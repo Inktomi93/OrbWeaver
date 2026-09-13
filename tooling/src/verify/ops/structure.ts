@@ -68,7 +68,7 @@ import { isSelectionFailure, resolveMixedSelection } from "../lib/policy-selecti
 import { populationAlarms } from "../lib/population.ts";
 import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
 import { structureConsole } from "../lib/structure-console.ts";
-import { finalSide, finalToolErrorCount } from "../lib/structure-report.ts";
+import { finalSide, finalToolErrorCount, structureCountReconciliation } from "../lib/structure-report.ts";
 import { parseStructureTail, tailRefusal, VOID_FLAG } from "../lib/structure-tail.ts";
 import { policyTimingAlarms, timingAlarms } from "../lib/timing.ts";
 
@@ -147,6 +147,7 @@ function writeInFlight(slot: RunSlot, run: RunManifest): void {
     populationAlarms: [],
     timing: { totalMs: 0, gateMs: 0 },
     policy: null,
+    reconciliation: { legacyFindings: 0, finalEffectiveFindings: 0, nonblockingWarnings: 0, authorityAlarms: 0, blocking: 0 },
     total: 0,
     ok: false,
   });
@@ -320,9 +321,9 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   // suppression and without weakening the guard (the house answer for biome's cross-module narrowing).
   const finalResult: PolicyPassResult | null = final.result;
   const legacyRows = toLegacyRows(pass, gatesByName);
-  const legacyTotal = legacyRows.reduce((n, g) => n + g.violations.length, 0);
-  const finalBlocking = finalResult?.authority.verdict.blocking ?? 0;
-  const total = legacyTotal + finalBlocking;
+  const allRows = [...legacyRows, ...final.rows];
+  const reconciliation = structureCountReconciliation(allRows, final.report);
+  const total = reconciliation.blocking;
   const scanAlarms = zeroScanGates(pass);
   const populations = populationAlarms(pass);
   // Every count below is a denominator over what this run was ASKED about. On the default run the selection
@@ -347,18 +348,19 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   };
 
   // THE ONE console write — the text is composed in lib/structure-console.ts and lands here, once.
-  process.stdout.write(structureConsole({ pass, gatesByName, selected, final, run, slotRelDir: slot.relDir }));
+  process.stdout.write(structureConsole({ pass, gatesByName, selected, final, reconciliation, run, slotRelDir: slot.relDir }));
 
   const legacyBroken = pass.toolErrors.length > 0 || scanAlarms.length > 0 || populations.length > 0 || incompleteReasons.length > 0;
   const finalBroken = final.result !== null && finalToolErrorCount(final.result) > 0;
   writeReport(slot, {
     run,
-    gates: [...legacyRows, ...final.rows],
+    gates: allRows,
     toolErrors: pass.toolErrors,
     scanAlarms,
     populationAlarms: populations,
     timing: pass.timing,
     policy: final.report,
+    reconciliation,
     total,
     ok: total === 0 && !legacyBroken && !finalBroken,
   });
@@ -380,7 +382,7 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   // severity: in all of them the run is not a verdict. The final side's exit rule has ONE home
   // (`policyPassExitCode`, the planner's) and is composed here by max, never re-spelled.
   const finalExit = final.result === null ? EXIT.clean : policyPassExitCode(final.result);
-  return Math.max(legacyExit(legacyBroken, legacyTotal), finalExit);
+  return Math.max(legacyExit(legacyBroken, reconciliation.legacyFindings), finalExit);
 }
 
 /** END THE RUN: publish the pointer when this run may speak for the corpus, and CLOSE the slot either way.

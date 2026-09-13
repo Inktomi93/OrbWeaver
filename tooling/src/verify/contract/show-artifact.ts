@@ -1,6 +1,6 @@
 // `check:show` reads current and historical structure artifacts through this reader-view contract. These
 // shapes remain more optional than the writer contract because old artifacts predate current fields.
-import type { FinalPolicyRow, StructurePolicyReport } from "./structure-report.ts";
+import type { FinalPolicyRow, StructureCountReconciliation, StructurePolicyReport } from "./structure-report.ts";
 
 export interface Violation {
   readonly file: string;
@@ -80,6 +80,8 @@ export interface StructureReport {
   /** Optional: absent in pre-mixed artifacts; null when the corpus held no final policy. The final side's
    * refusals/alarms live here and are rendered beside the legacy tool errors for the same read-here reason. */
   readonly policy?: StructurePolicyReport | null;
+  /** Absent on pre-#2276 artifacts. When present, this is the writer's explicit arithmetic behind `total`. */
+  readonly reconciliation?: StructureCountReconciliation;
   readonly total: number;
   readonly ok: boolean;
 }
