@@ -99,7 +99,7 @@ Primary filed and claimed [#2335](https://github.com/Inktomi93/orbweaver/issues/
 
 | module | wave/path | defect | class | state | receipt |
 | - | - | - | - | - | - |
-| `compiler-program-discovery` | W1 · `tooling/src/verify/lib/policy-program-membership.ts` | An `extends` edge removes a concrete parent from discovery and explicit native execution | reader population omission · P2 | #2335; independently reviewed repair; integration verification owed | Native scratch parent TS2322 while discovered child passes; permanent reader, executor, and routing controls below |
+| `compiler-program-discovery` | W1 · `tooling/src/verify/lib/policy-program-membership.ts` | An `extends` edge removes a concrete parent from discovery and explicit native execution | reader population omission · P2 | **CLOSED** — #2335; integrated `2b6df2a29`; independent review and main verification in the linked report | Native scratch parent TS2322 while discovered child passes; integrated 36-test, ownership/parity and all-program receipts in the report |
 
 ## Original audit delivery and remaining verification
 
@@ -126,3 +126,9 @@ Independent `verifier` (`gpt-5.6-sol`, medium, fresh context) returned CONFIRMED
 Required gate-program reads: read-first and standardization were fully read during the audit and verified unchanged through reconciliation; the current 152-line orchestrator playbook was subsequently read in full on primary instruction. All three remain unchanged through observed main `1ef220c20`. No new conversion was adopted.
 
 The reviewer also completed the three required gate-program documents in full, plus the archived world-program contract, and reaffirmed CONFIRMED. The shared ledger had no matching #2335 row at this lane’s read; primary owns recording it. Scoped docs/whitespace checks passed. Commit uses the standing #1584 exception; no push, all-program integration proof and catalog reconciliation remain owed.
+
+## Integrated verification — 2026-09-13
+
+Primary integrated the reviewed stack as `0b80b8bb8` and `2b6df2a29`, without conflicts. At the latter revision, all four focused suites passed: 36 tests, zero failures (`reports/runs/test/main-2320806-2026-09-13T12-43-30-738Z/test-report.json`). Scoped Biome and ESLint passed for the four changed TypeScript files.
+
+The production `pnpm check:type-ownership` completed successfully over 7,619 authored TypeScript files, including 2,965 test/harness files, and eleven programs: 7,611 predicted owners and eight ambient files, with zero drift, import-only, unowned or unclassified results. Native/shared-parser root parity, ambient distribution, declaration-library boundaries and test escapee checks passed. `pnpm typecheck` then passed all eleven discovered runnable programs. These integrated checks discharge the compiler repair's ownership/parity and all-program floor; they do not establish whole gate-program acceptance. The independent review confirmed the stable source/test diff and separately exercised production discovery and explicit selection in an OS-temp repository.

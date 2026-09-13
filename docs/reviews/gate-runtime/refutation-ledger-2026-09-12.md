@@ -1052,6 +1052,12 @@ Current adjudication: the second independent lens confirms the two ordinary poli
 | - | - | - | - | - | - |
 | `config-snapshot` | cb-x-config-scoped-proof · `tooling/src/verify/ops/config-snapshot.ts:574-590` (at `0276b6a57`) | Inventory and overlay branches disagreed about the same tracked paths: the supplied branch rejected contained directory symlinks, making real-root ESLint overlays refuse before evaluating the config. | instrument refuses a legitimate input (one function, two rules) | **CLOSED — `a19a119c2` (#2302)** | One containment-first partition now governs both callers; absent/escaping paths refuse, contained files stay admitted, contained non-files are excluded and named. Lane red-first 2 failed/25 passed then 27/27; 114 selector rows unchanged, excluded set `.agents/skills` and `.codex/hooks`. Current-main integration at `c739f3544`: four focused suites, 49/49 passed, `reports/runs/test/main-1275330-2026-09-13T09-48-28-239Z/test-report.json`. Independent lane review separately passed 33/33. |
 
+### Compiler-program discovery — #2335 ([`v-world-type-config-preservation-2026-09-13.md`](v-world-type-config-preservation-2026-09-13.md)); 1 row
+
+| module | wave/path | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| `compiler-program-discovery` | W1 · `tooling/src/verify/lib/policy-program-membership.ts` | An `extends` edge removes a concrete parent from discovery and explicit native execution | reader population omission · P2 | **CLOSED** — #2335; integrated `2b6df2a29`; independent review and main verification in the linked report | Native scratch parent TS2322 while discovered child passes; integrated 36-test, ownership/parity and all-program receipts in the report |
+
 ## CLASS ROLLUP
 
 **REBUILT FROM THE BODY, 2026-09-11 (`v-ledger-sweep`, `64dfbf349`). The previous table read
@@ -1096,8 +1102,8 @@ verification receipts so the historical defect can be joined to its disposition.
 | **§5b.7** | 10 | 8 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 17 | 16 | 1 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 320 | 243 | 54 | 1 | 2 | 1 | 0 | 19 |
-| **TOTAL** | 516 | 411 | 71 | 6 | 3 | 1 | 0 | 24 |
+| **other** | 321 | 244 | 54 | 1 | 2 | 1 | 0 | 19 |
+| **TOTAL** | 517 | 412 | 71 | 6 | 3 | 1 | 0 | 24 |
 
 **DATED HAND CENSUS — 2026-09-12 (taken at the 23:01Z barrier, `64fd349e8`), not re-derived since.** The sub-table below is a historical partition of the `other` bin by hand-read phrases. Its rows sum to its snapshot TOTAL (176); it makes no current-population claim. The current derived population is the CLASS ROLLUP table above.
 
