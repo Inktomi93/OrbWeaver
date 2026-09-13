@@ -13,9 +13,9 @@
 // a broken injection that no-op'd every script would pass the ReDoS case vacuously. Runs over the REAL
 // composition root (`createServices`, vLLM disabled — the `app`/`services` fixture).
 //
-// THE TRIPWIRE is the scoped 10s test timeout: an unwired watchdog hangs the catastrophic backtrack
-// over REDOS_INPUT for MINUTES, so the run dies red on that alone. #831 additionally restores an EXPLICIT
-// elapsed assertion (the sub-second ceiling below) so the test does not rely solely on the outer timeout
+// THE TRIPWIRE is the scoped timeout at `budget(REDOS_TRIPWIRE_BASE_MS)`: an unwired watchdog hangs the
+// catastrophic backtrack over REDOS_INPUT for MINUTES, so the run dies red on that alone. #831 also restores
+// an EXPLICIT elapsed assertion (the sub-second ceiling below) so the test does not rely solely on the outer timeout
 // to notice a slow-but-not-hung regression — Date.now/performance.now are banned under tests/ by
 // test-determinism and the frozen fixture clock can't measure wall time, so the assertion uses
 // `process.hrtime()` under the shared `@orb-waive test-determinism(process.hrtime)` marker (#828). Direct timing
@@ -144,8 +144,9 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
     return { host, chatId, messageId, principal };
   }
 
-  // The scoped 10s timeout is the HARD tripwire: an unwired watchdog hangs the catastrophic backtrack
-  // over REDOS_INPUT for minutes → the run dies red (see the file header for the standalone timing evidence).
+  // The scoped timeout at `budget(REDOS_TRIPWIRE_BASE_MS)` is the HARD tripwire: an unwired watchdog hangs
+  // the catastrophic backtrack over REDOS_INPUT for minutes → the run dies red (see the file header for the
+  // standalone timing evidence).
   test("the ReDoS pattern is interrupted by the composed watchdog: content UNCHANGED", { timeout: budget(REDOS_TRIPWIRE_BASE_MS) }, async ({
     db,
     services,
