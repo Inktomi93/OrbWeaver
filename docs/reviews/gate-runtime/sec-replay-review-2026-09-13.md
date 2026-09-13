@@ -433,3 +433,237 @@ work; nothing on the released branch `wt/agent-a2913d5f5cb4656c2` was modified. 
 §6 is a dangling commit object (`3e00b0ae18a354fdbbee8de28f707bf24f062290`) created with
 `hash-object`/`mktree`/`commit-tree`; it is unreferenced and will be pruned by any `git gc`, which is
 correct — it is a receipt of a run, not a durable artifact.
+
+---
+
+## Recheck (7d2d2c502) — 2026-09-13
+
+The security owner repaired all three rows on top of `6144f3183`. Applied here by
+`git cherry-pick 7d2d2c502` (clean); the diff between `7d2d2c502` and my HEAD over the four touched paths is
+EMPTY, so the bytes I drove are the released bytes. Everything below is read-only against my own worktree.
+
+**Verdict for the six-commit stack: INTEGRABLE.** All three rows are repaired at the root cause, not at the
+symptom, and the repair is materially better than the fix I suggested. One sub-item is REFUTED (§R6b, an
+avoidable lint suppression), and one of my own claims is REFUTED BY THE AUTHOR — I concede it, and my own
+census makes their correction an order of magnitude larger than they measured.
+
+### R1 — LD-2319-8, the header/body boundary — **CONFIRMED**
+
+**The opener is the exact grammar.** Driven line by line through the real `shimHeaderImports` (a candidate
+is an opener iff the `} from "./x";` beneath it gets rewritten):
+
+| line | verdict | line | verdict |
+| - | - | - | - |
+| `import {` | **OPENER** | `export const gate: GateDescriptor = {` | not an opener |
+| `import type {` | **OPENER** | `export function f(a: string) {` | not an opener |
+| `export {` | **OPENER** | `export interface X {` | not an opener |
+| `export type {` | **OPENER** | `export type T = {` | not an opener |
+| `import Default, {` | **OPENER** | `export default {` · `export class C {` | not an opener |
+| `import React , {` | **OPENER** | `export const gate = defineGate({` | not an opener |
+
+`import type{` (no space before the brace) is **not** recognised — valid TypeScript, formatter-abnormal, and
+it fails the SAFE way the author's own asymmetry argument names: an unrecognised opener leaves the `} from`
+in the body, the specifier goes unshimmed, and the module dies loudly at `Cannot find module`. Correct
+direction; noted, not filed.
+
+**The interior rule and the unterminated block refuse, naming both lines.** Driven:
+
+- a blank line inside a block → `opened a wrapped import at line 1 ("import {") and line 3 ("") is neither a
+  brace-list member nor its closing …`
+- a block reaching EOF → `… reached the end of the module without its closing …`
+- `  type Alpha as Beta,` → accepted (the member grammar's `type`/`as` arms work)
+
+**The identity proof asserts a non-empty body and names its boundary.** Driven on a pure re-export barrel:
+`the header scan must STOP at the module BODY; it stopped at line 3 (""), leaving nothing below it to prove
+identical`.
+
+**Planted break — reverting the opener ALONE** (`cp f f.bak` → one-line revert to
+`/^(?:import|export)\s[^"]*\{\s*$/u` → run → `mv f.bak f`; the harness diff against HEAD is EMPTY afterwards
+and the tree is clean). Family 1 goes **8 of 14 RED**, including:
+
+- the fixture-preservation control — `opened a wrapped import at line 4 ("export const gate: GateDescriptor = {")`
+  — so that control is NON-VACUOUS, measured;
+- **both whole-corpus replays** — `opened a wrapped import at line 10 ("export interface Finding {")`, which
+  is the exact message the recheck brief named and is the closure-member vacuity below, now LOUD.
+
+The mutator-symlink arm and the root-kind arm stay GREEN under the break, so they are independent pins. The
+author's report says "7 of the then-13 arms"; the released tree gives **8 of 14** (their count predates one
+arm). Same direction, same messages — a stale prose count, not a defect.
+
+The break also shows parts 1 and 2 of the repair are independently load-bearing: with the loose opener
+restored but the interior rule still in place, the previously SILENT swallow becomes a loud refusal.
+
+### R1b — ADJUDICATING THE AUTHOR'S CORRECTION TO MY REVIEW — **THEY ARE RIGHT; I CONCEDE, AND IT IS BIGGER**
+
+My row called the defect *latent* on a screen of the **22 entry blobs**. That screen was scoped to the wrong
+population: the shim also runs over every member of the frozen relative-import CLOSURE. This is the
+"an ABSENCE receipt owes its SCOPE as well as its method" failure, and it is mine.
+
+I re-derived it independently with a faithful replica of the pre-fix scanner (the boundary is
+resolution-independent in the old code, so no resolver is needed), over **every** closure member of **all 22**
+entries rather than the author's four:
+
+```
+entries=22   closure members scanned=108
+PRE-FIX vacuous body-identity proofs = 46
+CURRENT shim refusals over the same population = 0
+```
+
+**46 of 108 member loads (43%) had a vacuous body-identity proof before this repair** — the author's replica
+found 5 over 26 members from 4 entries; the full population is an order of magnitude larger. Eight distinct
+member paths across the SHAs, opened by `export interface Finding {` (`contract/gate.ts:10`),
+`export interface Violation {` (`contract/harness.ts`), `export interface DeclaredScan {`
+(`contract/pass.ts`), `export function repoRel(…) {` (`lib/pass.ts`),
+`export function unwrapExpression(…) {` (`lib/ast-read.ts`) and
+`export function lexicalReferenceSymbol(…) {` (`lib/reference-fact-writes.ts`).
+
+The corruption half stays latent — zero column-0 `} from "…";` lines in any swallowed region, so no
+committed table was ever wrong. But "the assertion was live and vacuous on 43% of loads" is strictly
+stronger than "latent", and it is the half that made the defect invisible.
+
+**Corrected LD-2319-8 state cell (mine to correct, since I wrote it wrong):**
+
+> **REPAIRED at 7d2d2c502, pending the integrator's sha.** The filing review called the defect *latent*;
+> **CORRECTED 2026-09-13 by the repairer and re-derived independently over the full population: the VACUITY
+> half was LIVE.** That review screened the 22 ENTRY blobs; the shim also runs over every frozen-CLOSURE
+> member, and a replica of the pre-fix scanner over all 22 entries' closures (**108 members**) finds **46
+> loads whose body-identity proof compared `""` to `""`** — eight distinct member paths, opened by
+> `export interface Finding {` (`contract/gate.ts:10`) and five siblings. The CORRUPTION half remains latent
+> (zero column-0 `} from "…";` in any swallowed region, so no committed table was wrong). The repair is
+> three parts, not the filing review's suggested regex alone: the exact opener grammar (14 real openers,
+> against 329 lines the loose form opened on, over 309 files), a scanner that REFUSES a block interior that
+> is neither the closer nor a brace-list member and refuses an unterminated block, and an identity proof
+> that asserts a NON-EMPTY body and names its boundary line. Planted break (opener alone reverted): 8 of 14
+> family-1 arms red, both whole-corpus replays with
+> `opened a wrapped import at line 10 ("export interface Finding {")`.
+
+### R2 — LD-2319-9, the frozen reads are pinned — **CONFIRMED (driven, all three call sites)**
+
+`frozenShow(base, repoPath, quiet)` carries `-C <cwd>`, `repoGitEnvironment()` and `GIT_READ_PREFIX`, and is
+the only `git show` in the module. Driven with `GIT_DIR` **and** `GIT_OBJECT_DIRECTORY` **and**
+`GIT_INDEX_FILE` all poisoned at a foreign repository:
+
+| arm | result |
+| - | - |
+| positive control — an UNPINNED `git show` of the same ref | **THREW** (the poison is real) |
+| `frozenBlob` (the closure read, `quiet`) via `frozenClosureOf` | OK — 12 members |
+| `loadFrozenGate` (the tmpdir door) via `frozenFilesystemLegacyGate` | OK — `biome-grant-liveness` |
+| `frozenLegacyGate` (the in-memory door) | OK — `no-color-literals` |
+
+`quiet` correctly preserves the one caller that reads a failure as "absent at this SHA". The committed
+control pins the same property with its own positive control.
+
+### R3 — LD-2319-10, the guard's three questions and their ORDER — **CONFIRMED (driven)**
+
+| root | refusal |
+| - | - |
+| a real directory outside the checkout | **ACCEPTED** (positive control) |
+| a regular FILE outside the checkout | `must be a DIRECTORY` — the named refusal, no longer ENOTDIR |
+| a regular FILE inside the checkout | `must live OUTSIDE the running checkout` — identity still answers first |
+| a SYMLINK to a file inside the checkout | `must live OUTSIDE the running checkout` |
+| a directory inside the checkout | `must live OUTSIDE the running checkout` |
+| an absent path · a DANGLING symlink | `must be an existing directory … does not resolve at all` |
+
+The guard created nothing on any arm. `containedSegment`'s non-`ENOENT` rethrow is now wrapped in the door's
+own sentence, which closes the `{ "a": …, "a/b.ts": … }` bare-ENOTDIR half.
+
+**The imported-grammar question — HONOURED.** `policy-repo-inventory.ts#rootDirectory` is module-private (no
+`export`), so it is not importable; the path GRAMMAR (`assertPolicyRepoPath`) is exported and still imported.
+A one-line `statSync(...).isDirectory()` predicate is not a grammar, and my original suggestion to "import it
+rather than re-spell" was wrong about what is exported. The author's spelling is correct.
+
+### R4 — the persisted arms are present and non-vacuous — **CONFIRMED**
+
+- **fixture-string preservation** asserts four things: the fixture line is byte-identical, the body from the
+  opener down is byte-identical, the REAL header import WAS rewritten, and **exactly one** specifier changed.
+  Proven non-vacuous by the planted break (it goes red).
+- **the mutator symlink arm** at the loader's exact staged filename, victim bytes asserted — present, and
+  green independently of the shim under the break.
+- **the four non-authored keys through both legs**, plus the no-root-created receipt, plus the pin that
+  `stagedReplayTarget` does NOT refuse them (the two fences stay separate). One observability note, not a
+  finding: that arm's setup calls `frozenFilesystemLegacyGate`, so it also reds on any loader regression — it
+  is a pin of the fence, not an isolated one.
+- **the root-kind arms** including the identity-before-kind precedence — present, green under the break.
+
+### R5 — the coupled corrections — **CONFIRMED (each re-derived, not read)**
+
+- `grant-liveness-legacy-replay.test.ts:46-56` now reads "5 rows, corrected 2026-09-13 from '7 rows'" and
+  "THREE exemption-HONOURED examples … (3 rows, corrected 2026-09-13 …)", and states the DERIVING COMMAND
+  plus the full census instead of a bare number. My own re-derivation agrees: 5 · 4 · 4 · 3 · 3 · 3 · 3 = 25.
+- `diagnostic-legibility.ts:30-31` now reads "the **ten**-module `policy-soundness` family" and "the other
+  **NINE**", with the ten members named in the comment. Re-derived by listing:
+  `rg --files-with-matches 'family: "policy-soundness"'` → **10** files, matching the named list exactly.
+- The report carries both dated in-place corrections (LD-2319-4's `: NONE` sentence, LD-2319-7's ENOTDIR
+  parenthetical) in the form I proposed, plus a dated §7 write-site sentence.
+
+### R6 — the floor — **CONFIRMED, with one REFUTED sub-item**
+
+- **7 files / 41 tests passed**, exit 0. Family 1 is **14** (was 8: 8 pre-existing + 6 new); the other six
+  suites total **27**, the same count as before (4 · 9 · 3 · 2 · 3 · 6). No pre-existing arm was dropped or
+  renamed — all eight originals appear by name in the run.
+- `pnpm check:structure --check diagnostic-legibility` → exit 1,
+  `raw 92 = waived 0 + granted 0 + effective 92 (92 error, 0 warning) · 0 alarm(s) · 0 tool error(s)` —
+  **92, unchanged** by the comment-only edit, spread over 65 distinct files, and **0** of the 92 name
+  `diagnostic-legibility.ts` itself.
+
+**R6b — the `biome-ignore lint/style/noProcessEnv` on the GIT_DIR restore line is an ESCAPE HATCH, not a
+justified suppression. REFUTED.** The stated reason — *"`exportProcessEnv` (the sanctioned writer, used
+above) can set a key but not delete one"* — is true of `exportProcessEnv` and false of its module. The SAME
+file, `tooling/src/_shared/process-env.ts:44-58`, exports `withProcessEnv(key, value, run)`, whose whole job
+is set-then-restore **including the delete branch**:
+
+```ts
+const wasPresent = Object.hasOwn(environment, key);
+…
+if (wasPresent) { environment[key] = previous; } else { delete environment[key]; }
+```
+
+The control's body already sits in an arrow the test could make `async` (sibling arms in this file are
+`async` already), and the test already imports from that exact path. So the suppression is avoidable by
+swapping `processEnvValue` + `exportProcessEnv` + the `Reflect.deleteProperty` finally for one
+`await withProcessEnv("GIT_DIR", join(foreign, ".git"), async () => { … })`, and the constitution's bar is
+"suppress only a genuine false positive". Not a security defect and not a merge blocker — but it is the one
+banned-escape-hatch shape in the follow-up, and the fix is four lines. Filed as **LD-2319-11** below.
+
+### R7 — the three declared limits, each with a RUN row — **CONFIRMED (all three driven)**
+
+| declared limit | driven verdict | reachability over the real population |
+| - | - | - |
+| the zero-instance `import Default, {` arm | `import Default, {` and `import React , {` both open a block; it closes and the specifier is rewritten | 0 instances today, as declared; the arm works |
+| the brace-list interior rule rejects a TRAILING COMMENT | `  alpha, // why` → **REFUSED**: `opened a wrapped import at line 1 ("import {") and line 2 ("  alpha, // why") is neither a brace-list member nor its closing` | **0 of 108** closure members refuse under the current shim |
+| the non-empty-body assertion refuses a PURE RE-EXPORT BARREL | `export { a } from "./a";` + `export { b } from "./b";` → **REFUSED**: `the header scan must STOP at the module BODY; it stopped at line 3 (""), leaving nothing below it to prove identical` | **0 of 108** closure members refuse; and the limit is narrower than it reads — a barrel with any trailing COMMENT line is ACCEPTED (the comment becomes the body), so only a module whose last non-blank line is an import/export-from trips it |
+
+`CURRENT shim refusals over the same population = 0` is the single number that prices all three limits: the
+repaired scanner refuses nothing the harness actually loads today. Each is a real forward-looking limit for
+family 3's backlog, each now has a run row, and none needs a code change.
+
+### Ledger rows from this recheck
+
+| id | class | module | what | state |
+| - | - | - | - | - |
+| `LD-2319-11` | banned-escape-hatch | `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts` (the GIT_DIR control's `finally`) | The `GIT_DIR` restore uses `Reflect.deleteProperty(process.env, …)` under a `biome-ignore lint/style/noProcessEnv`, justified as *"`exportProcessEnv` … can set a key but not delete one"*. True of that function, false of its module: `tooling/src/_shared/process-env.ts:44-58` exports `withProcessEnv(key, value, run)`, which is exactly set-then-restore-or-DELETE and is the sanctioned door for this pattern. The suppression is therefore avoidable, and the constitution's bar is a genuine false positive. | **OPEN** — cosmetic; no security weight and not a merge blocker. Minimal fix: replace `processEnvValue`/`exportProcessEnv` plus the `finally` with one `await withProcessEnv("GIT_DIR", join(foreign, ".git"), async () => { … })` from the already-imported module, and drop the suppression |
+
+**ledger rows OWED from the recheck: 1** (`LD-2319-11`). Plus one CORRECTION to a row I wrote: LD-2319-8's
+latency cell, restated above in full — the vacuity was LIVE on 46 of 108 closure-member loads, which is my
+error to fix, not the repairer's.
+
+### Recheck floor
+
+| check | result |
+| - | - |
+| the seven importer suites, on the cherry-picked six-commit stack | **7 files / 41 tests passed**, exit 0 |
+| reviewer probe module 3 (opener grammar · interior and limits · the 108-member vacuity census · poisoned `GIT_*` · root-kind order) | exit 0, 5 tests; module deleted afterwards |
+| planted break (opener reverted alone, `cp`/`mv`) | **8 of 14** family-1 arms red with the named messages; restored, the harness diff against HEAD EMPTY |
+| `pnpm check:structure --check diagnostic-legibility` | exit 1, effective **92**, 0 alarms, 0 tool errors, 0 findings in that file |
+| `pnpm check:docs` on this report | exit 0 |
+
+The tree is clean after the probe module was removed and the planted break restored. The break touched a
+real file in **my own** worktree only; nothing on `wt/agent-a2913d5f5cb4656c2`, `main`, the refutation
+ledger, the catalog or the board was modified.
+
+### What the recheck did NOT cover
+
+No whole-tree battery, no `pnpm verify`, no mutation run. I did not re-review families 1–3's semantics (my
+first pass' exclusions still stand), did not re-drive the write-site census (the repair adds no write —
+verified by reading the diff, which touches no `writeFileSync`/`mkdirSync` call site), and did not exercise
+the out-of-stack conformance-runner finding, which is still open and still routed rather than filed.
