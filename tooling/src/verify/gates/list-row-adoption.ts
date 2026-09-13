@@ -1,3 +1,6 @@
+// Conversion from e9d9fd232: shared dispatch collects imports, callbacks and returns; no private AST walk.
+// All six legacy proofs retained. The legacy lexical import/tag vocabulary and same-file alias fence
+// remain explicit limits. Composed differential, authority and population checks are deferred.
 // Gate: list-row-adoption (client-architecture-lockdown.md §14/§16 G6) — a LIST-region surface file (one
 // importing LibrarySurfaceShell/LibraryListLayout/createCollectionSurface) whose `.map()` callback OR
 // renderItem/renderRow prop returns interactive JSX (onClick/role/href) must root that JSX in
@@ -14,9 +17,10 @@
 // grant, never a resurrected gate-local table.
 // BINDING RESOLUTION (#2163): a `renderItem={renderRow}` alias resolves through the shared
 // `resolveStableExpression` reader, then this policy retains its same-file callback fence.
-import type { SourceFile } from "ts-morph";
+import type { ReturnStatement, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
+import { firstAnchor } from "../lib/caught-failure.ts";
 import { resolveStableExpression } from "../lib/reference-fact.ts";
 
 const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
@@ -44,18 +48,6 @@ const ROW_ROOT_NAMES: ReadonlySet<string> = new Set(["ListRow", "LibraryRow"]);
 
 /** JSX prop names a virtualized/collection list uses to render each row — the non-`.map()` row form. */
 const RENDER_PROP_NAMES: ReadonlySet<string> = new Set(["renderItem", "renderRow"]);
-
-/** A file "is" a LIST-region surface when it imports one of the three list-surface primitives. */
-function isListSurfaceFile(sf: SourceFile): boolean {
-  for (const imp of sf.getImportDeclarations()) {
-    for (const named of imp.getNamedImports()) {
-      if (LIST_SURFACE_IMPORTS.has(named.getName())) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
 
 /** A JSX element/self-closing element's opening-tag attribute list, or `[]` for anything else. */
 function jsxAttributes(node: Node): readonly Node[] {
@@ -85,8 +77,14 @@ function unwrapParens(node: Node): Node {
 }
 
 /** The single top-level `return`'s expression inside a callback body, unwrapped — undefined if none. */
-function firstReturnExpression(callback: Node): Node | undefined {
-  const ret = callback.getDescendantsOfKind(SyntaxKind.ReturnStatement).find((r) => r.getExpression() !== undefined);
+function firstReturnExpression(callback: Node, returns: readonly ReturnStatement[]): Node | undefined {
+  const ret = returns.find(
+    (r) =>
+      r.getSourceFile() === callback.getSourceFile() &&
+      r.getStart() >= callback.getStart() &&
+      r.getEnd() <= callback.getEnd() &&
+      r.getExpression() !== undefined,
+  );
   const expr = ret?.getExpression();
   return expr === undefined ? undefined : unwrapParens(expr);
 }
@@ -94,8 +92,8 @@ function firstReturnExpression(callback: Node): Node | undefined {
 /** The root JSX element of a `.map()` callback's returned expression (arrow-expression body or a single
  *  top-level `return`), or undefined when the callback doesn't return JSX at all (a plain data transform
  *  — `.map((p) => ({...}))` — is out of scope: G6 is about ROW RENDERING, not any `.map()`). */
-function mapReturnRoot(callback: Node): Node | undefined {
-  const candidate = Node.isArrowFunction(callback) ? unwrapParens(callback.getBody()) : firstReturnExpression(callback);
+function mapReturnRoot(callback: Node, returns: readonly ReturnStatement[]): Node | undefined {
+  const candidate = Node.isArrowFunction(callback) ? unwrapParens(callback.getBody()) : firstReturnExpression(callback, returns);
   if (candidate === undefined) {
     return;
   }
@@ -120,29 +118,6 @@ function resolveRenderCallback(expr: Node): Node | undefined {
   return Node.isArrowFunction(callback) ? callback : undefined;
 }
 
-/** Every `renderItem={…}`/`renderRow={…}` JSX attribute's value expression in the file. */
-function renderPropCallbacks(sf: SourceFile): Node[] {
-  const callbacks: Node[] = [];
-  for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
-    if (!RENDER_PROP_NAMES.has(attr.getNameNode().getText())) {
-      continue;
-    }
-    const init = attr.getInitializer();
-    if (!Node.isJsxExpression(init)) {
-      continue;
-    }
-    const value = init.getExpression();
-    if (value === undefined) {
-      continue;
-    }
-    const callback = resolveRenderCallback(value);
-    if (callback !== undefined) {
-      callbacks.push(callback);
-    }
-  }
-  return callbacks;
-}
-
 function jsxElementName(node: Node): string {
   if (Node.isJsxSelfClosingElement(node)) {
     return node.getTagNameNode().getText();
@@ -153,118 +128,175 @@ function jsxElementName(node: Node): string {
   return "";
 }
 
-export const gate: GateDescriptor = {
-  name: "list-row-adoption",
-  docRow: "client-architecture-lockdown.md §14/§16 G6",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "a LIST-region surface file's `.map()` callback or renderItem/renderRow prop returns interactive JSX " +
-    "(onClick/role/href) not rooted in ListRow/LibraryRow/an allowlisted composite " +
-    "(client-architecture-lockdown.md §14 — the row primitive law).",
-  fix: "root the row in @orb/ui's ListRow or the tier-2 LibraryRow (RowActionsMenu composes the row's actions).",
-  scanRoot: (p) => p.includes("packages/client/src/") && p.endsWith(".tsx"),
-  visitFile: (sf, ctx) => {
-    if (!isListSurfaceFile(sf)) {
-      return;
-    }
-    const checkCallback = (callback: Node): void => {
-      const jsxRoot = mapReturnRoot(callback);
-      if (jsxRoot === undefined || !isInteractiveJsx(jsxRoot)) {
-        return;
-      }
-      const rootName = jsxElementName(jsxRoot);
-      if (ROW_ROOT_NAMES.has(rootName)) {
-        return;
-      }
-      ctx.report(jsxRoot, { token: rootName, offset: 0 });
+const MESSAGE = "a LIST-region row render returns interactive JSX outside ListRow/LibraryRow; root the row in the shared row primitive.";
+
+export const gate = defineGate({
+  id: "list-row-adoption",
+  family: "list-row-adoption",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@client"], ext: ["tsx"] },
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: "root the row in @orb/ui ListRow or LibraryRow; RowActionsMenu composes its actions.",
+  create: (ctx) => {
+    const surfaces = new Set<SourceFile>();
+    const callbacks: Node[] = [];
+    const returns: ReturnStatement[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.ImportDeclaration],
+          visit: (node) => {
+            if (Node.isImportDeclaration(node) && node.getNamedImports().some((named) => LIST_SURFACE_IMPORTS.has(named.getName()))) {
+              surfaces.add(node.getSourceFile());
+            }
+          },
+        },
+        {
+          kinds: [SyntaxKind.ReturnStatement],
+          visit: (node) => {
+            if (Node.isReturnStatement(node)) {
+              returns.push(node);
+            }
+          },
+        },
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node) => {
+            if (!Node.isCallExpression(node)) {
+              return;
+            }
+            const expr = node.getExpression();
+            if (Node.isPropertyAccessExpression(expr) && expr.getName() === "map") {
+              const [callback] = node.getArguments();
+              if (callback !== undefined) {
+                callbacks.push(callback);
+              }
+            }
+          },
+        },
+        {
+          kinds: [SyntaxKind.JsxAttribute],
+          visit: (node) => {
+            if (!(Node.isJsxAttribute(node) && RENDER_PROP_NAMES.has(node.getNameNode().getText()))) {
+              return;
+            }
+            const init = node.getInitializer();
+            const value = Node.isJsxExpression(init) ? init.getExpression() : undefined;
+            const callback = value === undefined ? undefined : resolveRenderCallback(value);
+            if (callback !== undefined) {
+              callbacks.push(callback);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        for (const callback of callbacks) {
+          if (!surfaces.has(callback.getSourceFile())) {
+            continue;
+          }
+          const root = mapReturnRoot(callback, returns);
+          if (root === undefined || !isInteractiveJsx(root)) {
+            continue;
+          }
+          const name = jsxElementName(root);
+          if (!ROW_ROOT_NAMES.has(name)) {
+            ctx.report.node(root, { ...firstAnchor(root, [name]), message: MESSAGE });
+          }
+        }
+      },
     };
-    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      const expr = call.getExpression();
-      if (!Node.isPropertyAccessExpression(expr) || expr.getName() !== "map") {
-        continue;
-      }
-      const [callback] = call.getArguments();
-      if (callback !== undefined) {
-        checkCallback(callback);
-      }
-    }
-    for (const callback of renderPropCallbacks(sf)) {
-      checkCallback(callback);
-    }
   },
   mustFlag: [
     {
-      files:
-        'import { LibrarySurfaceShell } from "#components";\n' +
-        "export const X = () => (\n" +
-        "  <LibrarySurfaceShell>\n" +
-        "    {items.map((item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>)}\n" +
-        "  </LibrarySurfaceShell>\n" +
-        ");\n",
-      at: "packages/client/src/features/demo/surfaces/demo-library-surface.tsx",
+      mode: "types",
+      files: {
+        "packages/client/src/features/demo/surfaces/demo-library-surface.tsx":
+          'import { LibrarySurfaceShell } from "#components";\n' +
+          "export const X = () => (\n" +
+          "  <LibrarySurfaceShell>\n" +
+          "    {items.map((item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>)}\n" +
+          "  </LibrarySurfaceShell>\n" +
+          ");\n",
+      },
+      expect: { count: 1, token: "div" },
       why: "a LIST-surface file's `.map()` row rooted in a plain `<div onClick>` — not ListRow/LibraryRow, flags",
     },
     {
-      files:
-        'import { LibraryListLayout } from "#components";\n' +
-        'import { VirtualList } from "@orb/ui/virtual-list";\n' +
-        "const renderRow = (item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>;\n" +
-        "export const X = () => (\n" +
-        "  <LibraryListLayout>\n" +
-        "    <VirtualList items={items} renderItem={renderRow} getItemKey={(i) => i.id} estimateSize={() => 40} />\n" +
-        "  </LibraryListLayout>\n" +
-        ");\n",
-      at: "packages/client/src/features/demo/surfaces/demo-virtual-surface.tsx",
+      mode: "types",
+      files: {
+        "packages/client/src/features/demo/surfaces/demo-virtual-surface.tsx":
+          'import { LibraryListLayout } from "#components";\n' +
+          'import { VirtualList } from "@orb/ui/virtual-list";\n' +
+          "const renderRow = (item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>;\n" +
+          "export const X = () => (\n" +
+          "  <LibraryListLayout>\n" +
+          "    <VirtualList items={items} renderItem={renderRow} getItemKey={(i) => i.id} estimateSize={() => 40} />\n" +
+          "  </LibraryListLayout>\n" +
+          ");\n",
+      },
+      expect: { count: 1, token: "div" },
       why: "a LIST-surface file's `renderItem` prop resolves to a local `renderRow` rooted in a plain `<div onClick>` — the renderItem/renderRow hole, flags",
     },
   ],
   mustPass: [
     {
-      files:
-        'import { LibraryRow } from "#components";\n' +
-        'import { LibraryListLayout } from "#components";\n' +
-        "export const X = () => (\n" +
-        "  <LibraryListLayout>\n" +
-        "    {items.map((item) => <LibraryRow key={item.id} title={item.name} onClick={() => select(item)} />)}\n" +
-        "  </LibraryListLayout>\n" +
-        ");\n",
-      at: "packages/client/src/features/demo/surfaces/demo-library-surface.tsx",
+      mode: "types",
+      files: {
+        "packages/client/src/features/demo/surfaces/demo-library-surface.tsx":
+          'import { LibraryRow } from "#components";\n' +
+          'import { LibraryListLayout } from "#components";\n' +
+          "export const X = () => (\n" +
+          "  <LibraryListLayout>\n" +
+          "    {items.map((item) => <LibraryRow key={item.id} title={item.name} onClick={() => select(item)} />)}\n" +
+          "  </LibraryListLayout>\n" +
+          ");\n",
+      },
       why: "a `.map()` row rooted in LibraryRow — the legal composite, passes",
     },
     {
-      files:
-        'import { LibraryRow } from "#components";\n' +
-        'import { LibraryListLayout } from "#components";\n' +
-        'import { VirtualList } from "@orb/ui/virtual-list";\n' +
-        "const renderRow = (item) => <LibraryRow key={item.id} title={item.name} onClick={() => select(item)} />;\n" +
-        "export const X = () => (\n" +
-        "  <LibraryListLayout>\n" +
-        "    <VirtualList items={items} renderItem={renderRow} getItemKey={(i) => i.id} estimateSize={() => 40} />\n" +
-        "  </LibraryListLayout>\n" +
-        ");\n",
-      at: "packages/client/src/features/demo/surfaces/demo-virtual-surface.tsx",
+      mode: "types",
+      files: {
+        "packages/client/src/features/demo/surfaces/demo-virtual-surface.tsx":
+          'import { LibraryRow } from "#components";\n' +
+          'import { LibraryListLayout } from "#components";\n' +
+          'import { VirtualList } from "@orb/ui/virtual-list";\n' +
+          "const renderRow = (item) => <LibraryRow key={item.id} title={item.name} onClick={() => select(item)} />;\n" +
+          "export const X = () => (\n" +
+          "  <LibraryListLayout>\n" +
+          "    <VirtualList items={items} renderItem={renderRow} getItemKey={(i) => i.id} estimateSize={() => 40} />\n" +
+          "  </LibraryListLayout>\n" +
+          ");\n",
+      },
       why: "a `renderItem` prop resolving to a local `renderRow` rooted in LibraryRow — the legal composite, passes",
     },
     {
-      files:
-        "export const X = () => (\n" +
-        "  <div>\n" +
-        "    {items.map((item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>)}\n" +
-        "  </div>\n" +
-        ");\n",
-      at: "packages/client/src/features/demo/surfaces/demo-plain-list.tsx",
+      mode: "types",
+      files: {
+        "packages/client/src/features/demo/surfaces/demo-plain-list.tsx":
+          "export const X = () => (\n" +
+          "  <div>\n" +
+          "    {items.map((item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>)}\n" +
+          "  </div>\n" +
+          ");\n",
+      },
       why: "a hand-rolled interactive `.map()` row, but the file imports none of the 3 list-surface primitives — not a LIST-surface file, passes",
     },
     {
-      files:
-        'import { createCollectionSurface } from "#data";\n' +
-        "export const useX = createCollectionSurface({});\n" +
-        "export const X = () => (\n" +
-        '  <div data-slot="setting-row" onClick={() => toggle()}>{label}</div>\n' +
-        ");\n",
-      at: "packages/client/src/features/settings/components/theme-setting-row.tsx",
+      mode: "types",
+      files: {
+        "packages/client/src/features/settings/components/theme-setting-row.tsx":
+          'import { createCollectionSurface } from "#data";\n' +
+          "export const useX = createCollectionSurface({});\n" +
+          "export const X = () => (\n" +
+          '  <div data-slot="setting-row" onClick={() => toggle()}>{label}</div>\n' +
+          ");\n",
+      },
       why: "a settings *-row.tsx: a bare interactive div, but NO `.map()` at all in this file — the carve-out species pass (message/facet/setting rows use none of the 3 primitives in a list rendering loop)",
     },
   ],
-};
+});
