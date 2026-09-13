@@ -6,7 +6,7 @@ import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import type { CatalogMode, CatalogWriteRequest, Doc, FormatMode, Lane, LaneConfig, Receipt, State } from "../contract/types.ts";
-import { migrationMetrics } from "../lib/debt.ts";
+import { debtPathFindings, migrationDebt, migrationMetrics } from "../lib/debt.ts";
 import { CATALOG_DIR, LANES_PATH, OUTPUT_PATH, STATE_PATH } from "../lib/vocab.ts";
 import {
   bootstrap,
@@ -82,9 +82,15 @@ function runScopedWrite(input: {
   readonly paths: readonly string[];
   readonly errors: readonly string[];
   readonly assignments: ReadonlyMap<string, Lane>;
+  readonly state: State;
 }): ExitCode {
   const named = new Set(input.paths);
-  const blocking = input.errors.filter((error) => named.has(error.slice(0, error.indexOf(":"))));
+  const selectedDebt = new Set(
+    debtPathFindings(migrationDebt(input.docs, input.receipts), input.state.allowed)
+      .filter((finding) => finding.path === null || named.has(finding.path))
+      .map((finding) => finding.message),
+  );
+  const blocking = input.errors.filter((error) => selectedDebt.has(error) || named.has(error.slice(0, error.indexOf(":"))));
   const scoped = scopedCatalog({
     base: readCatalog(),
     named: input.paths,
@@ -139,7 +145,7 @@ export function runCatalog(mode: CatalogMode, request: CatalogWriteRequest = { p
   const worktreePaths = worktreeIndexChangedPaths();
   const errors = [...validate({ config, docs, assignments, receipts, state, changedIndexPaths, worktreeIndexChangedPaths: worktreePaths })];
   if (mode === "--write" && request.paths.length > 0) {
-    return runScopedWrite({ config, docs, receipts, paths: request.paths, errors, assignments });
+    return runScopedWrite({ config, docs, receipts, paths: request.paths, errors, assignments, state });
   }
   if (mode === "--write" && !request.barrier && wholeWriteIsRefused(changedIndexPaths, worktreePaths)) {
     return EXIT.violations;
