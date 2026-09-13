@@ -18,8 +18,26 @@ import type { GateDescriptor } from "../contract/gate.ts";
 
 const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
 
-/** The composite root names a LIST-surface `.map()`/renderItem/renderRow row may legally return. */
-const ALLOWED_ROOTS: ReadonlySet<string> = new Set(["ListRow", "LibraryRow"]);
+/** The composite root names a LIST-surface `.map()`/renderItem/renderRow row may legally return — this
+ *  gate's own SUBJECT VOCABULARY, the sibling of `LIST_SURFACE_IMPORTS` and `RENDER_PROP_NAMES` below, and
+ *  not an exemption artifact of any kind: it has no per-file rows, licenses no site, and nothing in it can
+ *  go stale.
+ *
+ *  IT WAS SPELLED `ALLOWED_ROOTS` UNTIL 2026-09-13 (#2268), AND THE SPELLING WAS THE DEFECT. `b5490a02a`
+ *  deleted this module's genuinely empty `ALLOWLIST` together with its stale arm (correctly — the arm was
+ *  vacuous), and `gate-modernization` arm B, whose identity test is the const NAME, then accused this
+ *  vocabulary set as a one-sided exemption table: measured with the gate's own predicates,
+ *  `hasStaleArm` went true → false and the accusation list went `[]` → `["ALLOWED_ROOTS"]`. A NEW
+ *  standing corpus red introduced by a commit that deleted the right thing.
+ *
+ *  THE ARM IS NOT THE DEFECT AND WAS NOT TOUCHED. Arm B's identity test is a NAME test BY DESIGN and it
+ *  says so at its own vocabulary — *"Deliberately NARROW … The name is the signal: if a collection is
+ *  scope, name it scope"* — and its `fix` string names this exact remedy: *"if the collection is a
+ *  scan-SCOPE decision rather than an exemption, rename it out of the exemption vocabulary."* Widening it
+ *  to read a collection's NATURE is not available: a two-member `ReadonlySet<string>` of vocabulary is
+ *  structurally identical to a two-row allowlist, so a nature test would have to guess where the name is
+ *  a declaration. The ruling survives; its INPUT changed. */
+const ROW_ROOT_NAMES: ReadonlySet<string> = new Set(["ListRow", "LibraryRow"]);
 
 /** JSX prop names a virtualized/collection list uses to render each row — the non-`.map()` row form. */
 const RENDER_PROP_NAMES: ReadonlySet<string> = new Set(["renderItem", "renderRow"]);
@@ -155,7 +173,7 @@ export const gate: GateDescriptor = {
         return;
       }
       const rootName = jsxElementName(jsxRoot);
-      if (ALLOWED_ROOTS.has(rootName)) {
+      if (ROW_ROOT_NAMES.has(rootName)) {
         return;
       }
       ctx.report(jsxRoot, { token: rootName, offset: 0 });

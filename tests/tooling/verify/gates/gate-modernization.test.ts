@@ -117,12 +117,14 @@ test("no accusation on the real corpus is of the RETIRED split-family shape (#22
   // THE LIVENESS THAT MATTERS ONCE THE EXCUSE IS GONE — and it is deliberately NOT "zero accusations".
   //
   // The ruling's parenthetical said the corpus would show zero, meaning every shared collection had moved
-  // to `lib/` under #2096. MEASURED, it shows TWO: `list-row-adoption`'s `ALLOWED_ROOTS` and
-  // `vector-scope-derived`'s `IMPORT_SANCTIONED`. Neither is caused by retiring the carve — both are
-  // module-local, UNEXPORTED, and have no importing sibling, so `coveringSibling` could never have reached
-  // them and arm B accused them before this change too (`vector-scope-derived` is named as exactly that
-  // standing finding in this file's own #2093 history). They are real one-sided tables and they are
-  // someone's row, not this test's business.
+  // to `lib/` under #2096. MEASURED 2026-09-12 it showed TWO, and MEASURED 2026-09-13 it shows ONE:
+  // `vector-scope-derived`'s `IMPORT_SANCTIONED`. The other was `list-row-adoption`'s `ALLOWED_ROOTS`,
+  // which was never a table at all — a subject-VOCABULARY set that arm B's name test accused after
+  // `b5490a02a` removed the module's stale arm; it is spelled `ROW_ROOT_NAMES` since #2268 and arm B has
+  // nothing to say about it. Neither was ever caused by retiring the carve: both are module-local,
+  // UNEXPORTED, and have no importing sibling, so `coveringSibling` could never have reached them and arm
+  // B accused them before this change too (`vector-scope-derived` is named as exactly that standing
+  // finding in this file's own #2093 history). That one is someone's row, not this test's business.
   //
   // So the assertion is the PROPERTY the inversion owns, not a census: the arrangement #2096 forbade and
   // #2219 turned into a `mustFlag` must be ABSENT from the corpus — no accused collection may have a
