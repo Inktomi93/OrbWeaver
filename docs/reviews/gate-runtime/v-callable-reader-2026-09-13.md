@@ -327,3 +327,76 @@ ledger rows OWED: 2 new + 3 existing-row state flips (595, 596, 604) + 3 mirror 
   `audit-client-tests` (population 2153); its bounded run took 1052 ms, which I recorded but did not
   compare against a pre-stack baseline.
 - No live/rendered surface is involved, so nothing was driven in a browser.
+
+## Followup verification (e9bd01d79) — 2026-09-13
+
+Read-only check of the binding author's bounded followup on `wt/agent-aa97f380b938783da`. Method: the
+author's two files were read out of the SHARED object store from MY worktree
+(`git show e9bd01d79:<path>`, never `git -C` into theirs), the gate copy was installed over a `cp`
+backup of my own, and every probe restored with `mv`/`cp` one command per call. Their tree was never
+touched. My copy of the gate was byte-identical to `e9bd01d79^` before the swap (`diff` exit 0), so what
+I ran is exactly the followup diff.
+
+| # | Claim | Verdict |
+| - | - | - |
+| 1 | `mustPass[12]` = the overload fixture (0 now / 1 before); `mustFlag[5]` = reassigned callee (1 now / 0 before) | **CONFIRMED** |
+| 2 | both rows discriminate: the pre-#2163 two-half `calleeDeclaration` fails EXACTLY those two, nothing else; restored → 0 | **CONFIRMED** |
+| 3 | the existing proof corpus is retained | **CONFIRMED** — with a corrected DENOMINATOR: the corpus is **19** rows, not 18 |
+| 4 | header + report corrections dated in place and now TRUE | **CONFIRMED** |
+| 5 | nothing outside the fence touched | **CONFIRMED** |
+| 6 | LEDGER ROW 2 marked FIXED is accurate; ROW 1 stays OPEN | **CONFIRMED** — ROW 2 is FIXED by this commit |
+
+**Receipts.** All through `verifyPolicyProofs([classTokenSplice])` — the production conformance runner —
+from a lane-unique scratch spec that also printed `mustFlag.length` / `mustPass.length`, plus
+`pnpm test:scoped tests/tooling/verify/gates/class-string-literal-wave.test.ts` → exit 0, 4/4.
+
+| gate content in my tree | mustFlag | mustPass | total | `verifyPolicyProofs` failures |
+| - | -: | -: | -: | - |
+| my pre-followup copy (= `e9bd01d79^`) | 5 | 12 | **17** | 0 |
+| the followup `e9bd01d79` | 6 | 13 | **19** | 0 |
+| followup + the pre-#2163 two-half `calleeDeclaration` restored | 6 | 13 | 19 | **2 — `mustFlag[5]` "expected at least one effective finding but got 0" · `mustPass[12]` "expected zero effective findings but got 1: a `${…}` spliced INSIDE a class token"** |
+| followup restored | 6 | 13 | 19 | 0 |
+
+The cut was the real two-half shape, not a stub: `resolveCallableOrigin` for the module case plus
+`lexicalReferenceSymbol(callee)?.getDeclarations()` with the exactly-one rule, and the two imports it
+needs. The failure polarity is the proof of each row's direction — the reassigned-callee row loses its
+finding (stricter delta) and the overload row gains one (permissive delta) — and **no other row among
+the 19 moved**, which is the retention receipt as well as the discrimination one.
+
+**Item 3, the one correction.** `git show --numstat e9bd01d79` = `33 0` on the gate and `39 1` on the
+author's report: the gate change is purely additive, so nothing was removed or rewritten. But the
+corpus size is **19**, and the commit message and the report's §2.2 correction both say *"nothing else
+in the 18 rows moves"*. The measured pre-followup corpus is 17 (5+12, matching `5c73621ea`'s own
+"5 mustFlag + 12 mustPass"), and 17 + 2 = 19. The receipt's SUBSTANCE reproduces exactly; only its
+denominator is off by one. A one-line fix in two places (commit message text is immutable; the report
+sentence is not).
+
+**Item 4.** The gate header carries the correction at `class-token-splice.ts:36-45` in the dated
+in-place form, directly under the original sentence, and every clause of it is true on my own
+measurements: unresolvable → report verdict; overload delta permissive AND more accurate; reassignment
+delta stricter; the two rows named as the discriminators. The author's report carries the same
+correction twice — §2.2 beside the original paragraph and deviation 3 beside its original reason — both
+dated and both retaining the wrong text above them rather than overwriting it. Minor provenance note,
+not a defect: the header says the module "landed … claiming both deltas were strictly stricter", while
+that sentence actually lived in `5c73621ea`'s COMMIT MESSAGE and report §2.2, not in the module header.
+Second note, also not a defect: `mustFlag[5]`'s fixture reassigns a `function` declaration, which is
+TS2630 by construction — the row's `why` says so deliberately, so a future maintainer is warned not to
+"fix" the fixture.
+
+**Item 5.** Two files in the commit, both inside the fence: `tooling/src/verify/gates/class-token-splice.ts`
+and `docs/reviews/gate-runtime/x-binding-reader-a-2026-09-13.md`. No `lib/reference-fact-call.ts`, no
+`contract/reference-fact.ts`, no sibling adopter, nothing in my tree.
+
+**Item 6.** LEDGER ROW 2 above is **FIXED by `e9bd01d79`** — the direction claim is corrected in the
+module and in both report sites, and both deltas now carry a row proven to discriminate. I am leaving
+the row's text in this report as written (it records the defect as measured) and marking its state here
+rather than editing history. **LEDGER ROW 1 stays OPEN**, correctly: the followup touches no shared
+reader, and my §1 finding (the module-axis raw accept, and the write-refusal gap through an import) is
+unchanged on the tree.
+
+**Scoped floor for this section, in my worktree:** `pnpm test:scoped
+tests/tooling/verify/gates/class-string-literal-wave.test.ts` (exit 0, 4/4) · `verifyPolicyProofs` four
+times as tabled · `pnpm exec biome check tooling/src/verify/gates/class-token-splice.ts --diagnostic-level=error` (exit 0, 1 file) · `pnpm exec eslint <same>` (exit 0). Not run for this
+section: any whole-tree check, `check:structure`, typecheck, and the author's own report through
+`check:docs` (their file, their tree). `git status --short` EMPTY after the restore; my copy of the gate
+is back to `cbvcr-stack`'s content.
