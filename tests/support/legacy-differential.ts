@@ -165,11 +165,21 @@ export function legacyScenarios(legacy: GateDescriptor, fallback: string): reado
  *  door, because every blob the in-memory door replays is a pure AST reader that imports no builtin — which is
  *  the same shape as the refusal above it: the substrate decided which bug could exist. */
 function resolveSpecifier(specifier: string): string | null {
+  return resolveWith(specifier, (relative) => pathToFileURL(join(process.cwd(), "tooling/src/verify/gates", relative)).href);
+}
+
+/** THE SPECIFIER POLICY, with the RELATIVE arm left to the caller. Non-relative specifiers ALWAYS resolve
+ *  against TODAY's installation and that is load-bearing, not laziness: `ts-morph` must be the SAME instance
+ *  the harness holds, or the two engines carry different `SyntaxKind` identities and the whole comparison
+ *  becomes noise (this file's header states that as the founding constraint). Node builtins are already
+ *  absolute. Only the relative arm — the frozen module's own `lib/`, `contract/` and sibling reads — is a
+ *  question about WHICH ERA to resolve in, and `frozenClosureResolver` answers it with the frozen one. */
+function resolveWith(specifier: string, relativeArm: (relative: string) => string): string | null {
   if (specifier.startsWith("node:")) {
     return null;
   }
   if (specifier.startsWith("../") || specifier.startsWith("./")) {
-    return pathToFileURL(join(process.cwd(), "tooling/src/verify/gates", specifier)).href;
+    return relativeArm(specifier);
   }
   if (specifier.startsWith("@orb/tooling/_shared/")) {
     return pathToFileURL(join(process.cwd(), "tooling/src/_shared", `${specifier.slice("@orb/tooling/_shared/".length)}.ts`)).href;
@@ -195,7 +205,11 @@ interface ShimmedLine {
   readonly closesBlock: boolean;
 }
 
-function shimSpecifierLine(line: string, pattern: RegExp): ShimmedLine | null {
+/** How one frozen module's specifiers resolve. `shimHeaderImports` defaults to TODAY's tree; the frozen
+ *  closure passes its own so a relative read lands on the extracted era-matched copy. */
+export type SpecifierResolver = (specifier: string) => string | null;
+
+function shimSpecifierLine(line: string, pattern: RegExp, resolve: SpecifierResolver): ShimmedLine | null {
   // Biome's type service drops the `| null` from `RegExp.prototype.exec`'s lib signature when the regex
   // arrives as a PARAMETER (it does not on a module-const regex, which is why this only appeared once the
   // matcher became an argument). The null is real and is the ORDINARY case: this runs on every line of the
@@ -205,7 +219,7 @@ function shimSpecifierLine(line: string, pattern: RegExp): ShimmedLine | null {
   if (groups === undefined) {
     return null;
   }
-  const resolved = resolveSpecifier(groups["specifier"] as string);
+  const resolved = resolve(groups["specifier"] as string);
   if (resolved === null) {
     return { text: line, shimmed: null, closesBlock: true };
   }
@@ -213,15 +227,16 @@ function shimSpecifierLine(line: string, pattern: RegExp): ShimmedLine | null {
   return { text, shimmed: text, closesBlock: true };
 }
 
-/** Rewrite ONLY the header import block, and prove it. See this file's header for the failure it prevents. */
-export function shimHeaderImports(source: string): string {
+/** Rewrite ONLY the header import block, and prove it. See this file's header for the failure it prevents.
+ *  `resolve` defaults to TODAY's tree; `frozenClosureGate` supplies the era-matched one. */
+export function shimHeaderImports(source: string, resolve: SpecifierResolver = resolveSpecifier): string {
   const lines = source.split("\n");
   let end = 0;
   const rewritten: string[] = [];
   const imports: string[] = [];
   let inBlock = false;
   for (const [index, line] of lines.entries()) {
-    const shim = shimSpecifierLine(line, inBlock ? IMPORT_BLOCK_CLOSE : IMPORT_LINE);
+    const shim = shimSpecifierLine(line, inBlock ? IMPORT_BLOCK_CLOSE : IMPORT_LINE, resolve);
     const carried: ShimmedLine | null = shim ?? (inBlock || IMPORT_BLOCK_OPEN.test(line) ? { text: line, shimmed: null, closesBlock: false } : null);
     if (carried !== null) {
       rewritten.push(carried.text);
@@ -272,19 +287,110 @@ export function filesystemReach(source: string): readonly string[] {
   return FILESYSTEM_REACH.filter((spelling) => source.includes(spelling));
 }
 
-/** Extract the frozen blob, shim its header imports, write it OUTSIDE `gates/` and import it. Both doors
- *  share this: the difference between them is the SUBSTRATE the descriptor is then driven over, never how
- *  it is loaded. */
-async function loadFrozenGate(scratch: string, base: string, legacyPath: string): Promise<{ readonly gate: GateDescriptor; readonly source: string }> {
-  const source = execFileSync("git", ["show", `${base}:${legacyPath}`], { encoding: "utf8", maxBuffer: FROZEN_BLOB_CEILING });
-  const name = `${base.slice(0, 8)}-${basename(legacyPath)}`;
-  const target = join(scratch, name);
-  writeFileSync(target, shimHeaderImports(source));
-  const module_ = (await import(`${pathToFileURL(target).href}?frozen=${name}`)) as { readonly gate: GateDescriptor };
-  return { gate: module_.gate, source };
+const FROZEN_BLOB_CEILING = 8 * 1024 * 1024;
+
+/** Read one repo-relative path AT a frozen SHA, or `null` when the blob does not exist there. */
+function frozenBlob(base: string, repoPath: string): string | null {
+  try {
+    return execFileSync("git", ["show", `${base}:${repoPath}`], { encoding: "utf8", maxBuffer: FROZEN_BLOB_CEILING, stdio: ["ignore", "pipe", "ignore"] });
+  } catch {
+    return null;
+  }
 }
 
-const FROZEN_BLOB_CEILING = 8 * 1024 * 1024;
+/** What extracting one frozen module's relative-import closure cost — receipted, never assumed. */
+export interface FrozenClosure {
+  /** Every repo-relative path extracted at the frozen SHA, in discovery order, the entry module first. */
+  readonly extracted: readonly string[];
+  /** The deepest relative-import hop from the entry module. */
+  readonly depth: number;
+  /** Paths reached a second time — the cycle/diamond receipt. Extraction is memoised, so these are reads
+   *  that were SERVED from the map rather than re-fetched. */
+  readonly revisited: readonly string[];
+}
+
+/** THE FROZEN CLOSURE (#2319, the harness's THIRD defect). `resolveSpecifier` sends a frozen module's
+ *  RELATIVE imports to TODAY's tree, so a descriptor whose `lib/` dependency was later deleted or renamed
+ *  could not be LOADED AT ALL — and it failed as `Cannot find module`, which reads as a broken test rather
+ *  than as a missing capability. Measured on `placeholder-copy-registry` at `f5b222e10`, whose
+ *  `../lib/section-defs.ts` exists at that SHA and is gone today.
+ *
+ *  Worse than one blocked module: WHICH modules were replayable was decided by an accident of which `lib/`
+ *  refactors happened AFTER each conversion, so the replay backlog was silently bounded by unrelated churn
+ *  and got smaller every time the program consolidated a reader.
+ *
+ *  So the relative arm now resolves into an ERA-MATCHED extraction: every `./`/`../` specifier is fetched at
+ *  the SAME frozen SHA, written to `scratch`, and rewritten to point there — recursively, memoised, so a
+ *  cycle or a diamond terminates. **Non-relative specifiers deliberately keep TODAY's resolution**: the
+ *  frozen module and the harness must share ONE `ts-morph` instance or the two engines carry different
+ *  `SyntaxKind` identities and the comparison becomes noise (this file's header, the founding constraint).
+ *
+ *  It also REFUSES LOUDLY where the old code said "Cannot find module": a relative dep absent at the frozen
+ *  SHA too is a naming or era mistake by the caller, and it says so with both paths. */
+function extractFrozenClosure(scratch: string, base: string, entryPath: string): { readonly entryFile: string; readonly closure: FrozenClosure } {
+  const written = new Map<string, string>();
+  const extracted: string[] = [];
+  const revisited: string[] = [];
+  let depth = 0;
+
+  const scratchNameFor = (repoPath: string): string => `${base.slice(0, 8)}--${repoPath.split("/").join("__")}`;
+
+  const extract = (repoPath: string, hop: number, requestedBy: string): string => {
+    const already = written.get(repoPath);
+    if (already !== undefined) {
+      revisited.push(repoPath);
+      return already;
+    }
+    const source = frozenBlob(base, repoPath);
+    if (source === null) {
+      throw new Error(
+        `the frozen closure of ${entryPath} at ${base} wants ${repoPath} (imported by ${requestedBy}), and that ` +
+          "path does not exist at that SHA either — so this is a wrong base or a wrong path, not post-conversion " +
+          "churn. Check the conversion commit's parent (tests/support/legacy-differential.ts).",
+      );
+    }
+    const target = join(scratch, scratchNameFor(repoPath));
+    // RECORDED BEFORE RECURSING — a cycle re-entering this path must find the target, not recurse forever.
+    written.set(repoPath, target);
+    extracted.push(repoPath);
+    depth = Math.max(depth, hop);
+    writeFileSync(
+      target,
+      shimHeaderImports(source, (specifier) =>
+        resolveWith(specifier, (relative) => pathToFileURL(extract(normalizeRepoPath(repoPath, relative), hop + 1, repoPath)).href),
+      ),
+    );
+    return target;
+  };
+
+  const entryFile = extract(entryPath, 0, "(the replay harness)");
+  return { entryFile, closure: { extracted, depth, revisited } };
+}
+
+/** Resolve a relative specifier against the IMPORTING module's own repo directory. */
+function normalizeRepoPath(importer: string, relative: string): string {
+  return join(dirname(importer), relative).split(sep).join("/");
+}
+
+/** Extract the frozen blob AND its era-matched relative closure, then import it from OUTSIDE `gates/`. Both
+ *  doors share this: the difference between them is the SUBSTRATE the descriptor is driven over, never how
+ *  it is loaded. */
+async function loadFrozenGate(
+  scratch: string,
+  base: string,
+  legacyPath: string,
+): Promise<{ readonly gate: GateDescriptor; readonly source: string; readonly closure: FrozenClosure }> {
+  const source = execFileSync("git", ["show", `${base}:${legacyPath}`], { encoding: "utf8", maxBuffer: FROZEN_BLOB_CEILING });
+  const { entryFile, closure } = extractFrozenClosure(scratch, base, legacyPath);
+  const name = basename(entryFile);
+  const module_ = (await import(`${pathToFileURL(entryFile).href}?frozen=${name}`)) as { readonly gate: GateDescriptor };
+  return { gate: module_.gate, source, closure };
+}
+
+/** The closure receipt for a frozen descriptor, without importing it — what the report tables per module. */
+export function frozenClosureOf(scratch: string, base: string, legacyPath: string): FrozenClosure {
+  return extractFrozenClosure(scratch, base, legacyPath).closure;
+}
 
 /** The pre-conversion descriptor, extracted at its frozen SHA and shimmed so it runs from `scratch`. */
 export async function frozenLegacyGate(scratch: string, base: string, legacyPath: string): Promise<GateDescriptor> {
