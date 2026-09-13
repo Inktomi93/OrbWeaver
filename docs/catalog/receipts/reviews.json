@@ -6181,6 +6181,122 @@
         }
       ],
       "summary": "Historical suite-honesty review with a subsequently invalidated structure evidence source. Preserve the original confirmations/refutations as dated author claims; this receipt does not certify the slot or current gates."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-2319-continuation-review-2026-09-13.md",
+      "assignedSha256": "a3ecd71db1a22b2375f30c5feac724b2181d3ec3180a38db91916d168a2b5954",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "a3ecd71db1a22b2375f30c5feac724b2181d3ec3180a38db91916d168a2b5954",
+      "verifiedCommit": "628765a4136a723a50e1a0b67b40e2ebc1cb0b5e",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full immutable report read through 282249728 plus exact 282249728..628765a41 frontmatter-only comparison by Codex docs_consolidation_receipt for #2049. Only status changed from invalid `confirmed` to allowed `active`; the report body preserves its original C1-C3 refutations, their source-verified repairs, and the later R-2319-1 supersession. Its no-runtime language is retained: author and primary logs corroborate the source review but are not recast as this reviewer’s execution.",
+        "Current-main verification supplied by Codex-primary: the seven importing suites passed 7 files / 50 tests in report main-2520958-2026-09-13T13-17-05-683Z; lint and docs passed; all eleven native policies passed after Q08. These are primary-run receipts, separate from the report author's source-only review and bounded to cf1b426a4505d796dd8e9c80960f2d6b40a28888."
+      ],
+      "claims": [
+        {
+          "claim": "At current main, this report preserves the original C1-C3 refutations and their source-verified repairs, then explicitly supersedes the earlier checkpoint acceptance for R-2319-1; it does not claim that its reviewer executed runtime tests or that #2319 is complete.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts:236"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:45d520e738691c162ac3468ee2f0a82d4d243140"
+            }
+          ]
+        }
+      ],
+      "summary": "Independent continuation review preserving C1-C3 refutations, their source-level repairs, the later R-2319-1 correction, and explicit runtime and whole-program limits."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-2319-integration-review-2026-09-13.md",
+      "assignedSha256": "1439788439ffa0152c2a45371315c858611e316f5857eb26cd08d98120ea9f04",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "1439788439ffa0152c2a45371315c858611e316f5857eb26cd08d98120ea9f04",
+      "verifiedCommit": "628765a4136a723a50e1a0b67b40e2ebc1cb0b5e",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full immutable report read through 282249728 plus exact 282249728..628765a41 frontmatter-only comparison by Codex docs_consolidation_receipt for #2049. Only status changed from invalid `confirmed` to allowed `active`; the body retains its REFUTED verdict for 7cad620a9, the source-level warm acceptance of R-2319-1, and the explicit attribution of focused, planted-control, importer-floor, lint, typecheck, and docs evidence to their producers.",
+        "Current-main verification supplied by Codex-primary at ancestor cf1b426a4 before the heading-only report edit: the seven importing suites passed 7 files / 50 tests in report main-2520958-2026-09-13T13-17-05-683Z; lint and docs passed; all eleven native policies passed after Q08. These are primary-run receipts and do not enlarge the report into whole-#2319 acceptance."
+      ],
+      "claims": [
+        {
+          "claim": "This report preserves the independent refutation of checkpoint 7cad620a9 and records the subsequent source-level acceptance of the exact Placeholder-body, stronger-reader, same-coordinate wrong-arm repair; author-supplied runtime receipts remain attributed and the four remaining modules and whole #2319 remain outside scope.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts:236"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:45d520e738691c162ac3468ee2f0a82d4d243140"
+            }
+          ]
+        }
+      ],
+      "summary": "Independent checkpoint refutation and source-level closing review for R-2319-1, preserving exact test-evidence attribution and the remaining #2319 scope limits."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-workboard-evidence-2026-09-13.md",
+      "assignedSha256": "7f5a26a23504a26537206cec6d1786ebbc65b81e4d0ac5003cac8fdd7aefa133",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "7f5a26a23504a26537206cec6d1786ebbc65b81e4d0ac5003cac8fdd7aefa133",
+      "verifiedCommit": "45d520e738691c162ac3468ee2f0a82d4d243140",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read of exact main document bytes; initial REFUTED verdict and both stable findings preserved with dated warm CONFIRMED closing review.",
+        "Source inspection confirms byte budgeting and corrected operator guidance; original suite and live receipts are supplied evidence in the independent verifier report.",
+        "Live protocol receipt: https://github.com/Inktomi93/orbweaver/issues/2336#issuecomment-5653412599; scratch CLOSED, Done and archived."
+      ],
+      "claims": [
+        {
+          "claim": "The reviewed evidence transform budgets the complete field in UTF-8 bytes, keeps whole code points, preserves the original overflow receipt and deterministically pairs it with the field.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/workboard/lib/evidence.ts:36"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/workboard/lib/evidence.test.ts:37"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/workboard/cli.test.ts:568"
+            }
+          ]
+        },
+        {
+          "claim": "WB-EVIDENCE-1 and WB-EVIDENCE-2 were repaired: help and its assertion use UTF-8 bytes, and the runbook carries the dated retirement of the workaround. The report preserves the original refutation and appends the warm confirmation.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/workboard/ops/report.ts:275"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/workboard/cli.test.ts:392"
+            },
+            {
+              "kind": "code",
+              "target": ".claude/skills/orchestrator-runbook/SKILL.md:268"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:45d520e738691c162ac3468ee2f0a82d4d243140"
+            }
+          ]
+        }
+      ],
+      "summary": "Full-read scoped workboard review evidence for #1906/#1920, preserved under #2049 catalog coverage. Initial REFUTED and dated warm CONFIRMED are both retained. Verifier source review corroborated lane-produced 73-test and live scratch receipts; it did not independently execute those runs. Original lane commit identifiers remain historical report provenance; this receipt verifies exact main bytes at an ancestral main commit. No new whole-tree gate, security, fixture-isolation, or production acceptance certification is asserted."
     }
   ]
 }
