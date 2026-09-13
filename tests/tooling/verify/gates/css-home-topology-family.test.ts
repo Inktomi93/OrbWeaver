@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -98,6 +98,103 @@ test("a complete topology lets playwright-css-topology reach a verdict and recei
       unresolved: 0,
     },
   ]);
+});
+
+/** THE `unresolved` STATUS OF BOTH DECLARATION FAMILIES, and it is the status the #2294 repair left out
+ *  (#2314). A status set is a property of the READER, and neither of these can be a proof row:
+ *
+ *  - `ops/resource-reader.ts#tree` answers `unresolved` for ANY throw inside the walk, and the authored
+ *    walk throws on a SYMBOLIC LINK. A `files` map cannot spell a symlink, so `authored-tree:packages`'s
+ *    third status has no row and lives here. (`missing` is a row; `empty` is the pin below, which an
+ *    overlay also cannot spell.)
+ *  - `#read` answers `unresolved` for an invalid UTF-8 byte, which a JS STRING map cannot carry
+ *    (`Buffer.from("\uD800")` decodes cleanly), so `product-css`'s and `exact-file`'s fourth/third
+ *    statuses have no row either.
+ *
+ *  All three are driven on a real `mkdtemp` root with NO overlay — an overlay string short-circuits the
+ *  disk read (`resource-reader.ts` prefers `overlay.get(path)` over `diskBytes`), which is precisely how
+ *  these pins would pass for the wrong reason — and each sits beside a HEALTHY TWIN on the same substrate.
+ */
+function passOnDisk(
+  policy: (typeof policies)[number],
+  scratch: string,
+  files: Readonly<Record<string, string>>,
+  bytes: Readonly<Record<string, readonly number[]>> = {},
+): PolicyPassResult {
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  for (const [path, content] of Object.entries(files)) {
+    mkdirSync(join(scratch, path, ".."), { recursive: true });
+    writeFileSync(join(scratch, path), content);
+    if (path.endsWith(".ts") || path.endsWith(".tsx")) {
+      project.createSourceFile(join(scratch, path), content, { overwrite: true });
+    }
+  }
+  for (const [path, raw] of Object.entries(bytes)) {
+    mkdirSync(join(scratch, path, ".."), { recursive: true });
+    writeFileSync(join(scratch, path), Buffer.from(raw));
+  }
+  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: scratch, project, reviewedGrants: [], failOnWarnings: false });
+}
+
+test("a SYMLINK under packages/ refuses authored-tree as `unresolved` — the third status, and no row can spell it", ({ scratch }) => {
+  const result = ((): PolicyPassResult => {
+    for (const [path, content] of Object.entries(HOMES)) {
+      mkdirSync(join(scratch, path, ".."), { recursive: true });
+      writeFileSync(join(scratch, path), content);
+    }
+    symlinkSync(join(scratch, "packages/ui/src/styles/globals.css"), join(scratch, "packages/ui/src/styles/alias.css"));
+    return runPolicyPass({
+      knownPolicies: [sanctionedCssHomes],
+      policies: [sanctionedCssHomes],
+      root: scratch,
+      project: new Project({ skipAddingFilesFromTsConfig: true }),
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+  })();
+
+  expect(result.authority.withheldPolicyIds).toEqual(["sanctioned-css-homes"]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.toolErrors.map(({ phase, message }) => [phase, message])).toEqual([
+    ["population", expect.stringContaining("resource declaration authored-tree:packages is unresolved: authored resource traverses a symbolic link")],
+  ]);
+});
+
+test("the HEALTHY TWIN of the symlink pin reaches a verdict on the same substrate", ({ scratch }) => {
+  const result = passOnDisk(sanctionedCssHomes, scratch, HOMES);
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+});
+
+test("an UNREADABLE product stylesheet refuses as `unresolved`", ({ scratch }) => {
+  const { "packages/ui/src/styles/theme.css": _sheet, ...withoutTheme } = TOPOLOGY;
+  const result = passOnDisk(playwrightCssTopology, scratch, withoutTheme, { "packages/ui/src/styles/theme.css": [0x40, 0xff, 0x0a] });
+
+  expect(result.authority.withheldPolicyIds).toEqual(["playwright-css-topology"]);
+  expect(result.toolErrors.map(({ phase, message }) => [phase, message])).toEqual([
+    ["population", expect.stringContaining("resource declaration product-css is unresolved: The encoded data was not valid for encoding utf-8")],
+  ]);
+});
+
+test("an UNREADABLE exact anchor refuses the whole exact-file fact as `unresolved`", ({ scratch }) => {
+  // The exact-file declaration's THIRD status. `ops/resource-exact.ts` forwards `read`'s status for any
+  // demanded id, so an anchor whose bytes are not UTF-8 is `unresolved` — not `missing` (the file is
+  // there) and not `empty` (it has bytes). A text arm handed those bytes would otherwise judge mojibake.
+  const { "playwright/index.tsx": _boot, ...withoutBoot } = TOPOLOGY;
+  const result = passOnDisk(playwrightCssTopology, scratch, withoutBoot, { "playwright/index.tsx": [0x69, 0xff, 0x0a] });
+
+  expect(result.authority.withheldPolicyIds).toEqual(["playwright-css-topology"]);
+  expect(result.toolErrors.map(({ phase, message }) => [phase, message])).toEqual([
+    ["population", expect.stringContaining("is unresolved: exact resource ct-boot (playwright/index.tsx) is unavailable")],
+  ]);
+});
+
+test("the HEALTHY TWIN of the topology unresolved pin reaches a verdict on the same substrate", ({ scratch }) => {
+  const result = passOnDisk(playwrightCssTopology, scratch, TOPOLOGY);
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
 });
 
 test("an EMPTY packages tree refuses at the population phase instead of reporting six vanished homes", ({ scratch }) => {

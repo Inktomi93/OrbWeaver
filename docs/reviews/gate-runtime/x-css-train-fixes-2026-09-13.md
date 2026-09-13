@@ -528,3 +528,124 @@ withheld policies. The selected legacy `finding-overload-provenance` gate report
 `css-var-defined.ts:294:18`, so the overall command exited 1. Both BaseUI and seed header-marker pairs are
 absent from that finding list. Receipt: `reports/runs/structure/main-4076777-2026-09-13T05-36-11-077Z/check-structure.json`.
 Board and program closure remain separate lifecycle decisions.
+
+## LEG 6 (#2294 #2314 #2315)
+
+Warm leg on main's tip after integration. Tree mechanics first: `rev-list --left-right --count main...HEAD`
+was `10 0` (my six commits already replayed onto main as `aef37aced..b8af78b29`, branch ref moved by root),
+`git merge --ff-only main` succeeded, HEAD = main tip, `0 0`.
+
+**The untracked report vs the tracked copy.** My worktree copy was TRUNCATED to leg 1 (an intervening
+checkout during integration replaced it), while the TRACKED copy is the complete one: `diff` mine → tracked
+is one-directional, `243a244,530`, i.e. tracked is a strict superset carrying legs 2-5 plus root's
+"Integration provenance" section. Tracked vs the byte-exact handoff at
+`/home/inktomi/.codex/handoffs/pending-reports/agent-a67fb261bed09da8c/` differs only by that provenance
+section. **Nothing of mine is missing**; my stale copy was discarded to the scratchpad and this section is
+appended to the tracked file.
+
+### A. #2314 — the reader-derived status table
+
+Statuses enumerated from `ops/resource-reader.ts#read`/`#tree`, `ops/resource-tree.ts#loadCssFiles` and
+`ops/resource-exact.ts#loadExactFiles` — never counted off the rows. Every status reached on an isolated
+`mkdtemp` root with NO overlay (an overlay STRING short-circuits the disk read), each beside a twin:
+
+| declaration · status | constructible? | pin | twin | control |
+| - | - | - | - | - |
+| `token-contract` missing | ROW | `mustRefuse[0]` | — | pre-existing |
+| `token-contract` empty | ROW | `mustRefuse[1]` | — | pre-existing |
+| `token-contract` unresolved | NOT a row — no JS string carries an invalid UTF-8 byte | NEW `token-contract-family.test.ts` pin, bytes `0x7b 0xff 0x7d` | NEW, same helper/substrate | text asserted in full incl. the member path |
+| `product-css` missing (×2) | ROW | `mustRefuse[0]` each | — | pre-existing |
+| `product-css` malformed (×2) | ROW | `mustRefuse` each (#2294) | — | pre-existing |
+| `product-css` empty (×2) | ROW | NEW `mustRefuse` in EACH consumer | — | `s2314a`, `p2314b` → `rowsThatDied=1`, that row only |
+| `product-css` unresolved (×2) | NOT a row | NEW pin in each family test, bytes `0x40 0xff 0x0a` | NEW, same substrate | full text asserted |
+| `exact-file` missing | ROW | `mustRefuse[0]` | — | pre-existing |
+| `exact-file` empty | ROW | NEW `mustRefuse[4]` | — | `p2314a` → `rowsThatDied=1`, that row only |
+| `exact-file` unresolved | NOT a row | NEW `css-home-topology-family.test.ts` pin | shares the topology twin | full text asserted |
+| `exact-file` zero-ids / unknown-id | **UNREACHABLE by construction** | none — `ANCHOR_IDS` is a non-empty compile-time tuple `satisfies readonly ExactResourceId[]` | — | stated in the header |
+| `authored-tree` missing | ROW | `mustRefuse[0]` | — | pre-existing |
+| `authored-tree` empty | NOT a row — a map cannot spell an empty directory | existing family pin | — | pre-existing |
+| `authored-tree` unresolved | NOT a row — a map cannot spell a symlink | NEW symlink pin | NEW, same substrate | full text asserted |
+
+Measured refusal texts (one run, every status + twin):
+`token-contract is unresolved: the token contract member resolverSchema (…) is unavailable: The encoded
+data was not valid for encoding utf-8` · `product-css is empty: resource file is empty:
+packages/ui/src/styles/theme.css` · `product-css is unresolved: The encoded data was not valid for encoding
+utf-8` · `authored-tree:packages is unresolved: authored resource traverses a symbolic link:
+packages/ui/src/styles/alias.css` · `is empty: exact resource ct-boot (playwright/index.tsx) is
+unavailable`. Twins: `toolErrors=[] withheld=[] effective=0`.
+
+**A deviation worth naming:** the brief's list was three declarations; `playwright-css-topology`'s sentence
+also covers its `exact-file` declaration and said nothing about it. Leaving that unenumerated would have
+re-created the exact defect class the row was filed for, so it is enumerated and its two constructible
+statuses pinned.
+
+### B. #2294 — the phrase sweep
+
+`"Both reachable statuses"` → 1 instance (`sanctioned-css-homes.ts:42`), plus 3 `"BOTH reachable statuses
+of"` variants in the sibling headers and one downstream restatement in `check-gates.repo.int.test.ts:1109`.
+All four gate headers are rewritten by section A; the planter comment already enumerated the topology
+pair's three `mustRefuse` rows correctly from leg 4.
+
+`"#2183"` → **12 instances, 5 DRIFTED, 7 CORRECT.** #2183 is the css-home-topology PAIR (`17a59099b`);
+\#2182 is `tokens-contract` (`a97454714`) and `seed-theme-ink-contrast` (`2dabae9ce`) — both subjects
+quoted from `git log`. A blanket replace would have broken seven true citations.
+
+| site | verdict |
+| - | - |
+| `gates/tokens-contract.ts:14` · `contract/resource-artifact.ts:40` · `tests/tooling/token-contract.test.ts:199` · `verify/gates/token-contract-family.test.ts:19` · `verify/gates/seed-theme-ink-family.test.ts:211` | DRIFTED → #2182, each with its receipt |
+| `gates/playwright-css-topology.ts:43` · `lib/css-home-topology.ts:5` · `check-gates.repo.int.test.ts:716` · `:1101` · `verify/ops/resource-tree.test.ts:113` · `verify/lib/css-rules.test.ts:43` · `check-gates.repo.int.test.ts:1084` | CORRECT — the pair's own conversion or the statement at-rule fact built for it; left alone |
+
+### C. #2315 — the delta table, driven
+
+Frozen `680d66e7c^` TEXT reader vs tip over identical bytes produced the differences and unchanged control
+below. This table replaces the earlier header's incomplete four-delta claim:
+
+| class | frozen | tip | pin |
+| - | - | - | - |
+| WIDER no trailing `;` | `hearth{x}` | `hearth{x,last}` | NEW |
+| WIDER two `@theme` blocks | `hearth{x}` | `hearth{x,second}` | NEW |
+| WIDER compound-root subject | `dusk{x}` | `dusk{x,f}` | existing compound-root test |
+| FIXED `html[data-theme]` | `dusk/light{x}` + `dusk/dark{x,h}` | one `dusk/light{x,h}` | existing compound-root test |
+| FIXED multi-root list | `dusk{x}` + `ember{x}` + `ember{x,m}` | each seed once | existing leg-4 tests |
+| CHANGED conditional at-rule (in `@theme`) | `hearth{x,y}` | `hearth{x}` + `hearth @ @supports …{x,y}` | existing arm test |
+| CHANGED conditional at-rule (in a seed) | `dusk{x,z}` | `dusk{x}` + `dusk @ @media …{x,z}` | existing arm test |
+| CHANGED `.card &` | `dusk{x,c}` | `dusk{x}` + `dusk @ .card &{x,c}` | existing arm test |
+| NARROWER descendant/sibling subject | `dusk{x,w}` | `dusk{x}` | existing leg-3 tests |
+| NARROWER seed nested in a seed | `dusk{x,n}` + `ember{x,n}` | `dusk{x}` | NEW |
+| *(not a delta)* flattened descendant | `dusk{x}` | `dusk{x}` | leg-3 test — listed so the set is CLOSED |
+
+Three classes had no pin and now do (the two WIDER reads the header claimed — `grep -c semicolon` was 0 and
+no multi-`@theme` fixture existed — plus the seed-in-seed drop it never mentioned). `seed-theme-ink.ts:20`
+is rewritten to the enumerated, driven, pinned set, and names both earlier false versions of itself.
+
+### Floor
+
+| check | result |
+| - | - |
+| `verifyPolicyProofs` × 4 gates | `FAILURES=0` each |
+| `pnpm test:scoped` × 9 suites (the lane's 8 + `tests/tooling/token-contract.test.ts`) | **9 files, 87/87, exit 0** — 61 preserved + 26 new |
+| bounded `pnpm check:structure --check` × 4, ONE run | **exit 0** · `raw 9 = waived 0 + granted 9 + effective 0 · 0 alarm(s) · 0 tool error(s) · 0 withheld`; per-policy receipts unchanged (`pairs=5856 members:3`, `tokens scanned=310 / 7 member(s)`, `css-inventory:product 3035`, `authored-tree:packages 4198`) |
+| `pnpm exec biome check` × 10 files | exit 0 |
+| `pnpm exec eslint` × 10 files | exit 0 — it caught two unnecessary optional chains in the new pins first; fixed, re-run green |
+| `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | exit 0 |
+| parser-heavy real-tree `runPolicyPass` | NOT run — not needed; the bounded four-gate structure run is the real-tree receipt |
+
+### LEDGER ROWS (0 rows)
+
+v-css-train-4 rows 1-5 are all CLOSED by this commit: row 1 (`token-contract` third status) · rows 2-3
+(`product-css` / `authored-tree` completeness + gaps) · row 4 (`seed-theme-ink.ts:20`) · row 5 (the
+`token-contract.test.ts:199` twin). No new defect found.
+
+`ledger rows OWED: 0`
+
+### Proposed lesson (report text — the orchestrator owns the memory write)
+
+**A COMPLETENESS SENTENCE ABOUT A SET IS ONLY TRUE IF IT WAS DERIVED FROM THE SET'S PRODUCER.** "Both
+reachable statuses are pinned" was written three times in four headers by counting the ROWS that existed
+and calling that the set; the set is a property of the READER (`read` → four statuses, `tree` → four,
+`loadCssFiles` → five), and every one of those sentences was false the day it was written — including the
+one #2294 rewrote to fix its *other* half and left standing. The habit that fixes it: when a header claims
+a set is covered, open the function that PRODUCES the set, enumerate its return arms, and write the
+enumeration into the header with a pin or a not-constructible receipt per arm. A count of what you built is
+never a measurement of what exists. Index line:
+`[completeness claims come from the producer](completeness-sentence-derives-from-the-producer.md) — enumerate a status/kind set from the reader that returns it, never from the pins you happen to have`.

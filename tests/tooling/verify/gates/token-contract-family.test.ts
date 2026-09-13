@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { TokenRemovalBaseline } from "@orb/ui/token-contract";
 import { readTokenContractTexts, readTokenRemovalBaseline, validateTokenContractTexts } from "@orb/ui/token-contract";
 import { Project } from "ts-morph";
+import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { TOKEN_CONTRACT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import { gate as tokensContract } from "../../../../tooling/src/verify/gates/tokens-contract.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -16,7 +17,8 @@ test("tokens-contract keeps its three-arm proofs", () => {
   expect(verifyPolicyProofs([tokensContract])).toEqual([]);
 });
 
-/** THE REMOVAL RATCHET, PINNED FOR THE FIRST TIME (#2183, closing the §5b audit's ledger row 18).
+/** THE REMOVAL RATCHET, PINNED FOR THE FIRST TIME (#2182 — `a97454714`'s own subject line; this cited
+ *  #2183, the sibling pair's issue, until #2294/#2314 — closing the §5b audit's ledger row 18).
  *
  *  The legacy descriptor gated the ratchet on `resolve(ctx.root) === REPO_ROOT`, and the audit's cut t01
  *  measured that forcing the conditional to `undefined` killed NO proof row: a conformance fixture is not a
@@ -91,6 +93,70 @@ test("the policy's own call carries the baseline — a token dropped from the li
 
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings.map(({ token }) => token)).toContain("removed.unrecorded");
+});
+
+/** THE THIRD REACHABLE STATUS of `token-contract`, and a status set is a property of the READER (#2314).
+ *
+ *  `ops/resource-artifact.ts#loadTokenContract` FORWARDS `reader.read`'s status for any member it cannot
+ *  read, and `ops/resource-reader.ts#read` answers `missing` (ENOENT), `empty` (zero length after decode)
+ *  or `unresolved` (any other throw — a non-UTF-8 byte, a directory, a refused symlink). `missing` and
+ *  `empty` are `mustRefuse` ROWS in the module; `unresolved` CANNOT be a row, because a proof row's
+ *  `files` map is a JS STRING map and no string can carry an invalid UTF-8 byte (`Buffer.from("\uD800")`
+ *  is the replacement character, which decodes cleanly). So it lives here, on a real `mkdtemp` root with
+ *  the bad member written as BYTES and NO overlay — an overlay string would short-circuit the disk read
+ *  (`resource-reader.ts` prefers `overlay.get(path)` over `diskBytes`), which is the trap that makes this
+ *  pin easy to write green-for-the-wrong-reason.
+ *
+ *  The HEALTHY TWIN runs on the SAME substrate in the same test, so a refusal caused by the harness rather
+ *  than by the planted byte cannot pass. */
+function driveOnDisk(scratch: string, files: Readonly<Record<string, string>>, bytes: Readonly<Record<string, readonly number[]>>): PolicyPassResult {
+  for (const [path, content] of Object.entries(files)) {
+    mkdirSync(join(scratch, path, ".."), { recursive: true });
+    writeFileSync(join(scratch, path), content);
+  }
+  for (const [path, raw] of Object.entries(bytes)) {
+    mkdirSync(join(scratch, path, ".."), { recursive: true });
+    writeFileSync(join(scratch, path), Buffer.from(raw));
+  }
+  return runPolicyPass({
+    knownPolicies: [tokensContract],
+    policies: [tokensContract],
+    root: scratch,
+    project: new Project({ skipAddingFilesFromTsConfig: true }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+}
+
+const CANONICAL_ON_DISK = Object.fromEntries(
+  Object.entries(TOKEN_CONTRACT_PATHS).map(([field, path]) => [path, CANONICAL[field as keyof typeof CANONICAL]]),
+) as Readonly<Record<string, string>>;
+
+test("an UNREADABLE bundle member refuses as `unresolved` — the status no proof row can express", ({ scratch }) => {
+  const { [TOKEN_CONTRACT_PATHS.resolverSchema]: _sabotaged, ...intact } = CANONICAL_ON_DISK;
+  const result = driveOnDisk(scratch, intact, { [TOKEN_CONTRACT_PATHS.resolverSchema]: [0x7b, 0xff, 0x7d] });
+
+  expect(result.authority.withheldPolicyIds).toEqual(["tokens-contract"]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.policies.map(({ owner }) => owner.status)).toEqual(["incomplete"]);
+  expect(result.toolErrors.map(({ phase, message }) => [phase, message])).toEqual([
+    [
+      "population",
+      expect.stringContaining(
+        "resource declaration token-contract is unresolved: the token contract member resolverSchema (packages/ui/src/tokens/schemas/resolver-2025.10.schema.json) is unavailable: The encoded data was not valid for encoding utf-8",
+      ),
+    ],
+  ]);
+});
+
+test("the HEALTHY TWIN of that pin reaches a verdict on the same substrate", ({ scratch }) => {
+  // Same helper, same disk-only root, every member valid: the refusal above is the planted byte and not
+  // the harness. Without this arm a broken `driveOnDisk` would prove the refusal for the wrong reason.
+  const result = driveOnDisk(scratch, CANONICAL_ON_DISK, {});
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
 });
 
 test("the policy reaches a verdict on the real bundle and receipts the seven DOCUMENTS it walked", ({ scratch }) => {

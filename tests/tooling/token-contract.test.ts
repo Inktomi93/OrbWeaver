@@ -196,7 +196,8 @@ describe("official schema controls", () => {
 });
 
 describe("Orb semantic controls", () => {
-  // CONVERTED 2026-09-13 (#2183): `tokens-contract` is a final `defineGate` policy, so its rows run through
+  // CONVERTED 2026-09-13 (#2182 — `a97454714`'s own subject line; this comment cited #2183, the SIBLING
+  // pair's issue, until #2294/#2314): `tokens-contract` is a final `defineGate` policy, so its rows run through
   // the POLICY runner rather than the legacy `verifyGateProofs`, and the real-worktree removal ratchet is no
   // longer a `ctx.root` conditional — it is the `token-contract` resource's `removalBaseline`, read by the
   // provider and pinned in tests/tooling/verify/gates/token-contract-family.test.ts.

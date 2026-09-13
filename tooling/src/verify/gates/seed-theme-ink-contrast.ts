@@ -73,10 +73,20 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. An unloadable product CSS identity makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create` runs
 // (guide §11 ruling 3), so this module owns no not-ready branch and reads through `readyResourceValue`.
-// BOTH reachable statuses of `product-css` are `mustRefuse` rows: `missing` (a vanished theme.css) and
-// `malformed` (one the shared parser refuses before parsing, #2294 — which matters more here since the
-// fold, because a half-read sheet would reach this policy as ZERO seed palettes and be reported as
-// instrument blindness about the TREE instead of a refusal about the SHEET).
+// THE REACHABLE STATUS SET IS A PROPERTY OF THE READER, enumerated FROM it (#2314 — this sentence said
+// "BOTH reachable statuses" and there are FOUR). `ops/resource-tree.ts#loadCssFiles` forwards
+// `ops/resource-reader.ts#read`'s status BEFORE it can judge the CSS grammar (`read` →
+// `ready | missing | empty | unresolved`), and only then adds `malformed` of its own. Every one of the
+// four matters here for the same reason: since the fold this policy derives its palettes from the sheet's
+// declaration facts, so a sheet it could not read would arrive as ZERO seed palettes and be reported as
+// instrument blindness about the TREE instead of a refusal about the SHEET.
+//   missing     `mustRefuse[0]` — a vanished theme.css.
+//   malformed   `mustRefuse[1]` — an unclosed rule block, refused before the parse (#2294).
+//   empty       `mustRefuse[2]` — a zero-length sheet, on `read`'s own empty arm, which never reaches the
+//               `malformed` test at all.
+//   unresolved  NOT expressible as a row (no JS string carries an invalid UTF-8 byte), so it is a
+//               `runPolicyPass` pin in tests/tooling/verify/gates/seed-theme-ink-family.test.ts — bytes
+//               on a real `mkdtemp` root with NO overlay, beside a healthy twin on the same substrate.
 //
 // DECLARED LIMITS, each with its row: a `-foreground` PAIR ink is judged on its own fill by
 // `palette-contrast.suite.test.ts`, never against neutral chrome (`mustPass[2]`); and a theme.css carrying
@@ -580,6 +590,24 @@ export const gate = defineGate({
       // the unclosed block before the parse, so the refusal fires first and the arms never disagree.
       expect: { messageIncludes: "product-css is malformed: unsupported or malformed CSS in packages/ui/src/styles/theme.css" },
       why: "a theme.css the shared CSS parser cannot read refuses at the population phase, rather than reaching this policy as a sheet with zero seed palettes and being reported as instrument blindness",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/ui/src/styles/theme.css": "",
+        "packages/ui/src/styles/globals.css": "@layer base {}\n",
+        "packages/ui/src/styles/tiers.css": "@layer utilities {}\n",
+        "packages/client/src/styles/globals.css": "@layer base {}\n",
+        "packages/client/src/features/app-shell/surfaces/shell.css": ".shell {}\n",
+        "packages/client/src/features/x.tsx": 'export const X = <span className="text-card">x</span>;',
+      },
+      // `product-css`'s THIRD reachable status (#2314). `ops/resource-tree.ts#loadCssFiles` forwards
+      // `reader.read`'s status BEFORE it can judge the CSS, and `read` answers a zero-length file `empty`
+      // on its own arm — so `empty` never reaches the `malformed` test at all. It matters for the same
+      // reason `malformed` does: a zero-byte theme.css would otherwise reach this policy as a sheet with
+      // no `--color-*` and be reported as instrument blindness about the TREE.
+      expect: { messageIncludes: "product-css is empty: resource file is empty: packages/ui/src/styles/theme.css" },
+      why: "a zero-length theme.css refuses at the population phase on the reader's OWN empty arm, before the CSS grammar is consulted at all",
     },
   ],
 });

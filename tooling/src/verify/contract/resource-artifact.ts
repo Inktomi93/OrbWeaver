@@ -37,7 +37,8 @@ export interface TokenContractResource {
   readonly texts: TokenContractTexts;
   /** Repo-relative, sorted — the bundle's exact identity, so a finding can name the member it came from. */
   readonly paths: readonly string[];
-  /** THE REMOVAL RATCHET'S OTHER SIDE (#2183) — the merge-base copy of the vault, read by the PROVIDER
+  /** THE REMOVAL RATCHET'S OTHER SIDE (#2182 — `a97454714`; cited #2183, the sibling pair's issue, until
+   *  #2294/#2314) — the merge-base copy of the vault, read by the PROVIDER
    *  because a policy has no root and cannot shell git (§12.3), the same shape `tracked-files` already uses
    *  for `git ls-files`. Without it `tokens-contract`'s conversion would have silently dropped half its
    *  stated subject: the static contract would still validate and a token removed with no ledger row would
