@@ -128,7 +128,7 @@ describe("create", () => {
         input: {
           name: "Garbage",
           description: "",
-          // FABRICATION-OK: a deliberately MALFORMED blob — the verb-seam refusal is this test's subject.
+          // @orb-waive no-test-fabrication(never): a deliberately MALFORMED blob — the verb-seam refusal is this test's subject. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
           groupConfig: { output: "narrator", bogusKnob: true } as never,
           members: [memberSpec(c, 0)],
         },

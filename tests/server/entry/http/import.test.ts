@@ -111,7 +111,7 @@ const startSpy =
   >();
 
 function deps(): ImportBundleDeps {
-  // FABRICATION-OK: the route needs exactly `workloads.start`; `Pick<WorkloadService,"start">` is satisfied structurally by the spy.
+  // @orb-waive no-test-fabrication(ImportBundleDeps["workloads"]): the route needs exactly `workloads.start`; `Pick<WorkloadService,"start">` is satisfied structurally by the spy. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { workloads: { start: startSpy } as ImportBundleDeps["workloads"], stagingDir };
 }
 
@@ -124,7 +124,7 @@ function chain(): Handler[] {
       return app;
     },
   };
-  // FABRICATION-OK: narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value.
+  // @orb-waive no-test-fabrication(unknown): narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerImportBundle(app as unknown as Parameters<typeof registerImportBundle>[0], deps());
   const captured = routes.get(BUNDLE_ROUTE);
   if (captured === undefined) {

@@ -40,7 +40,7 @@ function handlers(deps: AuthMetaDeps): { config: Handler; me: Handler } {
       return app;
     },
   };
-  // FABRICATION-OK: Hono isn't test-resolvable — the captured mock app is a deliberate partial (the healthz.test.ts pattern).
+  // @orb-waive no-test-fabrication(unknown): Hono isn't test-resolvable — the captured mock app is a deliberate partial (the healthz.test.ts pattern). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerAuthMeta(app as unknown as Parameters<typeof registerAuthMeta>[0], deps);
   const config = routes.get("GET /api/auth/config");
   const me = routes.get("GET /api/auth/me");

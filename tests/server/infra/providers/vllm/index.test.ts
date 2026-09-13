@@ -35,21 +35,21 @@ function fakeClient(): { client: VllmEngineClient; hits: EngineHit[] } {
       const width = b.dimensions ?? 1;
       const vector = Array.from({ length: width }, (_, i) => (i === 0 ? 1 : 0));
       if (Array.isArray(b.input)) {
-        // FABRICATION-OK: `enginePost<T>` is generic over the caller's expected response shape — no real factory can target an unbound T.
+        // @orb-waive no-test-fabrication(T): `enginePost<T>` is generic over the caller's expected response shape — no real factory can target an unbound T. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         return Promise.resolve({
           data: b.input.map((_, i) => ({ index: i, embedding: vector })),
           model: "served",
         } as T);
       }
       if (b.messages !== undefined) {
-        // FABRICATION-OK: see the T rationale above.
+        // @orb-waive no-test-fabrication(T): see the T rationale above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         return Promise.resolve({
           data: [{ index: 0, embedding: vector }],
           model: "served",
           choices: [{ message: { content: "ok" } }],
         } as T);
       }
-      // FABRICATION-OK: T is enginePost's caller-resolved generic, so no concrete factory can name it here.
+      // @orb-waive no-test-fabrication(T): T is enginePost's caller-resolved generic, so no concrete factory can name it here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
       return Promise.resolve({ model: "served", results: [], usage: { total_tokens: 0 } } as T);
     },
@@ -139,7 +139,7 @@ describe("createVllmBackend", () => {
     const backend = createVllmBackend({ client, now });
 
     await expect(
-      // FABRICATION-OK: this IS the invalid input under test — the arm the seam must refuse (a factory would satisfy the agent-sdk arm, the opposite of the probe).
+      // @orb-waive no-test-fabrication(ChatRequest): this IS the invalid input under test — the arm the seam must refuse (a factory would satisfy the agent-sdk arm, the opposite of the probe). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       backend.runChatTurn?.({
         api: "agent-sdk",
         credential: CRED,

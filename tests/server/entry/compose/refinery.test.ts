@@ -26,7 +26,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 const USER = castId<UserId>("usr_author");
 const OTHER = castId<UserId>("usr_other");
 
-// FABRICATION-OK: never dereferenced — the seam only threads `db` into the factories it builds.
+// @orb-waive no-test-fabrication(unknown): never dereferenced — the seam only threads `db` into the factories it builds. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
 
 /** The EXACT dep set the workload half is allowed to close over (refinery-r0 §9.3 / R4). */
@@ -54,7 +54,7 @@ function harness(prose: UserSettings["prose"] = {}): Harness {
   const roleClients = { summarize, summarizerModel: "sum-v1", summarizerContextTokens: 8192 };
   const loadUserSettings = vi.fn((userId: UserId) => Promise.resolve({ prose: userId === USER ? prose : {} }));
   const resolveUserPresetParams = vi.fn(() => Promise.resolve({}));
-  // FABRICATION-OK: the seam stores the character front door and the db and calls neither here.
+  // @orb-waive no-test-fabrication(unknown): the seam stores the character front door and the db and calls neither here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const deps = {
     db: NO_DB,
     now: () => 1000,
@@ -111,7 +111,7 @@ describe("buildRefinery — the summarizer binding stays LIVE (a role re-point m
 
 describe("buildRefinery — the prose resolver is caller-scoped and single-homed", () => {
   test("it reads the settings of the userId it is handed, and returns that user's prose overrides", async () => {
-    // FABRICATION-OK: a hand-shaped prose OVERRIDE map — the point is an arbitrary authored slot, which is
+    // @orb-waive no-test-fabrication(UserSettings["prose"]): a hand-shaped prose OVERRIDE map — the point is an arbitrary authored slot, which is Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // exactly what an override is; the resolver must return it verbatim for its own user and nothing for another.
     const authored = { "some.slot": "authored" } as UserSettings["prose"];
     const h = harness(authored);

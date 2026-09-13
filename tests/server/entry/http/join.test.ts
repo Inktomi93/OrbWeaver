@@ -29,7 +29,7 @@ function joinHandler(deps: JoinDeps): Handler {
       return app;
     },
   };
-  // FABRICATION-OK: Hono isn't test-resolvable — the captured mock app is a deliberate partial (the healthz.test.ts pattern).
+  // @orb-waive no-test-fabrication(unknown): Hono isn't test-resolvable — the captured mock app is a deliberate partial (the healthz.test.ts pattern). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerJoin(app as unknown as Parameters<typeof registerJoin>[0], deps);
   const handler = routes.get("GET /join/:token");
   if (handler === undefined) {

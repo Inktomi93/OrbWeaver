@@ -32,7 +32,7 @@ const TIER_MODELS = {
 // The exact cowork bundle `tools:[]` does NOT remove — must be stripped on EVERY spawn (translate.ts).
 const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"];
 
-// FABRICATION-OK: ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one.
+// @orb-waive no-test-fabrication(unknown): ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const cred = (value: Record<string, unknown>): ResolvedCredential => value as unknown as ResolvedCredential;
 
 const OR_CRED = cred({ source: "openrouter", apiKey: OR_KEY, credentialId: null });
@@ -260,7 +260,7 @@ describe("dynamicContextOptions — the mid-conversation operator-context seam",
     // The callback's own param type (derived from the seam — no SDK import, keeping the D8 seal); the
     // hook ignores its input, so a structurally-satisfying literal is enough and stays type-checked.
     type HookInput = Parameters<NonNullable<typeof hook>>[0];
-    // FABRICATION-OK: the callback ignores its input; this probe supplies only the SDK fields relevant to invocation.
+    // @orb-waive no-test-fabrication(HookInput): the callback ignores its input; this probe supplies only the SDK fields relevant to invocation. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const input = {
       // biome-ignore-start lint/style/useNamingConvention: the SDK HookInput fixture uses snake_case wire fields (hook_event_name, session_id, transcript_path).
       hook_event_name: "UserPromptSubmit",

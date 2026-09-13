@@ -88,7 +88,7 @@ function recordingEmit(notes: NotificationEvent[]): (event: NotificationEvent, c
 function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | null> {
   return async ({ ownerId, characterId }) => {
     const [row] = await db.select().from(characters).where(eq(characters.id, characterId));
-    // FABRICATION-OK: the copy plan reads ONLY card NON-nullness (resolvable under this owner?), never a field.
+    // @orb-waive no-test-fabrication(unknown): the copy plan reads ONLY card NON-nullness (resolvable under this owner?), never a field. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return row !== undefined && row.ownerId === ownerId ? ({ name: row.name, avatarAssetId: null } as unknown as CharacterCard) : null;
   };
 }
@@ -196,7 +196,7 @@ describe("the accepted offer — the room moves onto the copies", () => {
   test("an actor-tail failure leaves a resumable marker; retry converges without a second audit", async () => {
     const { host, member, chatId } = await seedTransferRoom();
     let attempts = 0;
-    // FABRICATION-OK: minimal ChatRpgOps fault injector; this accept path reaches only the two handoff methods below.
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps fault injector; this accept path reaches only the two handoff methods below. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       handoffHealStatements: (): Promise<readonly BatchStmt[]> => Promise.resolve([]),
       handoffRekeyActors: (): Promise<void> => {
@@ -660,7 +660,7 @@ describe("the nomination discloses what an accepted offer would copy", () => {
     await db.insert(worldBooks).values({ id: roomBook, ownerId: host, name: "Room lore", description: null, createdAt: 1 });
     await db.insert(chatBooks).values({ chatId, worldBookId: roomBook, createdAt: 1 });
     await seedChatScript(chatId, host, { id: "regex_script_room", name: "Room quirk", find: "secret" });
-    // FABRICATION-OK: minimal ChatRpgOps — this nominate/accept pair reaches only the three handoff methods.
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps — this nominate/accept pair reaches only the three handoff methods. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       handoffHealStatements: (): Promise<readonly BatchStmt[]> => Promise.resolve([]),
       handoffRekeyActors: (): Promise<void> => Promise.resolve(),

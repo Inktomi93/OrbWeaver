@@ -90,7 +90,7 @@ describe("patchSheet", () => {
     const ref = { kind: "user" as const, userId };
     // The point is that a caller still sending the retired dial writes nothing — only expressible by sending
     // a key the type no longer has.
-    // FABRICATION-OK: a deliberate INVALID-INPUT probe (the retired `maxHp` key).
+    // @orb-waive no-test-fabrication(never): a deliberate INVALID-INPUT probe (the retired `maxHp` key). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     await service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: ref, patch: { maxHp: 30 } as never });
     const game = await findGameByChat(db, chatId);
     if (!game) {

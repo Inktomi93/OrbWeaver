@@ -198,7 +198,7 @@ async function settledOnLanding(page: Page, component: Locator, firstSection: st
   //    frames is ~1s on the 60Hz compositor and only ever LONGER under contention, which is the direction
   //    that keeps the barrier honest.
   await page.evaluate(() => {
-    // FABRICATION-OK: in-page globalThis scaffolding (a scroll-event tally, not a domain value).
+    // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (a scroll-event tally, not a domain value). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const w = globalThis as unknown as { __scrolls: number; __quiet: number; __seenScrolls: number };
     w.__scrolls = 0;
     w.__quiet = 0;
@@ -213,7 +213,7 @@ async function settledOnLanding(page: Page, component: Locator, firstSection: st
   });
   await page.waitForFunction(
     () => {
-      // FABRICATION-OK: in-page globalThis scaffolding (see the scroll tally installed above).
+      // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see the scroll tally installed above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const w = globalThis as unknown as { __scrolls: number; __quiet: number; __seenScrolls: number };
       if (w.__scrolls === w.__seenScrolls) {
         w.__quiet += 1;
@@ -635,7 +635,7 @@ test("a distant section-row click lands on the target, never an intermediate (sp
   await settledOnLanding(page, component, "Looks");
 
   await page.evaluate(() => {
-    // FABRICATION-OK: in-page globalThis scaffolding (a MutationObserver sample, not a domain value).
+    // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (a MutationObserver sample, not a domain value). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const w = globalThis as unknown as { __seen: string[] };
     w.__seen = [];
     const list = document.querySelector('[data-slot="config-list"]');
@@ -657,7 +657,7 @@ test("a distant section-row click lands on the target, never an intermediate (sp
   await expect(component.getByRole("button", { name: "Effects" })).toHaveAttribute("aria-current", "true");
 
   await page.waitForFunction(() => {
-    // FABRICATION-OK: in-page globalThis scaffolding (see the MutationObserver instrumentation above).
+    // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see the MutationObserver instrumentation above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const w = globalThis as unknown as { __top?: number; __stable?: number };
     const region = document.querySelector('[data-slot="config-content"]') as HTMLElement | null;
     if (region === null) {
@@ -672,7 +672,7 @@ test("a distant section-row click lands on the target, never an intermediate (sp
     return (w.__stable ?? 0) > 4;
   });
 
-  // FABRICATION-OK: in-page globalThis scaffolding (see the MutationObserver instrumentation above).
+  // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see the MutationObserver instrumentation above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   await expect.poll(async () => await page.evaluate(() => (globalThis as unknown as { __seen: string[] }).__seen)).toEqual(["Effects"]);
 });
 

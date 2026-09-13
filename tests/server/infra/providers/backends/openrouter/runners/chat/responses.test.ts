@@ -26,7 +26,7 @@ const CAPABILITY: ModelCapability = {
   context: { window: 200_000 },
 };
 
-// FABRICATION-OK: ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one.
+// @orb-waive no-test-fabrication(unknown): ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const CRED = {
   source: "openrouter",
   apiKey: "sk-or-secret",

@@ -14,7 +14,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 // The dispatch reads only `credential.source`; the brand is irrelevant at runtime (esbuild, not tsc), so
 // a cast keeps the fakes terse.
 function cred(source: ResolvedCredential["source"]): ResolvedCredential {
-  // FABRICATION-OK: ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one.
+  // @orb-waive no-test-fabrication(unknown): ResolvedCredential is brand-sealed (unique symbol) — only the domain mint factory can produce one. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { source, credentialId: null } as unknown as ResolvedCredential;
 }
 

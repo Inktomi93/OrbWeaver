@@ -14,7 +14,7 @@ test("a probe result always carries its own verdict + timing, so an ERR row is n
   expectTypeOf<ProbeResult["ok"]>().toEqualTypeOf<boolean>();
   expectTypeOf<ProbeResult["status"]>().toEqualTypeOf<number>();
   expectTypeOf<ProbeResult["ms"]>().toEqualTypeOf<number>();
-  // FABRICATION-OK: a type-level probe — a `.test-d` file is typechecked, never executed, so the value is never read; the cast exists only so the next line can prove the property.
+  // @orb-waive no-test-fabrication(ProbeResult): a type-level probe — a `.test-d` file is typechecked, never executed, so the value is never read; the cast exists only so the next line can prove the property. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const result = {} as ProbeResult;
   // @ts-expect-error — a recorded probe result is evidence, not a mutable row.
   result.ok = true;

@@ -21,14 +21,14 @@ import { expect, test } from "../../../../../support/fixtures.ts";
 function scrubSetFor(apiKey: string): ProviderScrubSet {
   // ResolvedCredential is brand-sealed (contracts/credentials) — only domain credentials/substrate/mint
   // constructs one, and infra tests must not import a domain.
-  // FABRICATION-OK: server-can't-mint — see above.
+  // @orb-waive no-test-fabrication(unknown): server-can't-mint — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return providerCredentialSecretValues({ source: "openrouter", apiKey, credentialId: null } as unknown as ResolvedCredential);
 }
 
 /** A credential-bearing boundary whose scrub set is EMPTY at runtime — a no-auth custom_openai endpoint.
  *  Distinct from {@link NO_PROVIDER_SECRETS}: a credential WAS handled, so the raw-cause licence is off. */
 function emptyKeyedScrubSet(): ProviderScrubSet {
-  // FABRICATION-OK: server-can't-mint — see scrubSetFor.
+  // @orb-waive no-test-fabrication(unknown): server-can't-mint — see scrubSetFor. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return providerCredentialSecretValues({ source: "custom_openai", apiKey: null, headers: null } as unknown as ResolvedCredential);
 }
 

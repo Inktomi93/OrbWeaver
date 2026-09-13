@@ -481,7 +481,7 @@ const seamlessBoundary = createAutosaveEntityForm<BoundaryValues>({
 // seam is compile-REQUIRED (create-autosave-entity-form-model.ts), so the invalid mount this story exists
 // to drive is unspellable in TS — the double-cast IS the probe, reproducing what a cast or a JS caller can
 // still hand the boundary at runtime.
-// FABRICATION-OK: invalid-input probe — the seamless mount the compile-time seam law forbids.
+// @orb-waive no-test-fabrication(unknown): invalid-input probe — the seamless mount the compile-time seam law forbids. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const SeamlessBoundary = seamlessBoundary as unknown as (props: {
   readonly entityId: string;
   readonly serverValues: BoundaryValues;

@@ -30,7 +30,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-// FABRICATION-OK: minimal CharacterCard double — the service tests below only read name/description off the card.
+// @orb-waive no-test-fabrication(unknown): minimal CharacterCard double — the service tests below only read name/description off the card. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const card = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 function principal(userId: UserId): Principal {

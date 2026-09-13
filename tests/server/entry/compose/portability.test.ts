@@ -42,7 +42,7 @@ const PERSONA = castId<PersonaId>("per_1");
 const CARD_WITH_BOOK =
   '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Aria","description":"a bard","character_book":{"name":"Aria\'s World","entries":[{"keys":["k"],"content":"c","comment":"C","insertion_order":1}]}}}';
 
-// FABRICATION-OK: never dereferenced — the ctx-built descriptors are pinned at layout only.
+// @orb-waive no-test-fabrication(unknown): never dereferenced — the ctx-built descriptors are pinned at layout only. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
 
 /** The bundle's on-disk contract, in the array order the core receives. */
@@ -99,7 +99,7 @@ function injected(): Injected {
 }
 
 function registry(i: Injected): readonly PortableEntity[] {
-  // FABRICATION-OK: the domain CONTEXTS are inert stand-ins — the descriptors built from them are pinned
+  // @orb-waive no-test-fabrication(unknown): the domain CONTEXTS are inert stand-ins — the descriptors built from them are pinned Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // at layout only; every descriptor this file DRIVES is built from the injected ops above.
   const deps = {
     db: NO_DB,

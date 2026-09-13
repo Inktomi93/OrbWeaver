@@ -27,7 +27,7 @@ function viewOf(content: string, reasoning: string | null = null): MessageView {
   // A deliberate minimal view — the stripper reads ONLY `content` + `reasoning`, so the other ~30 MessageView
   // fields are irrelevant to what these tests assert; a full factory would obscure that the strip is
   // content/reasoning-only, and the `not.toContain` byte checks below are the real assertion.
-  // FABRICATION-OK: content/reasoning-only strip probe (see above).
+  // @orb-waive no-test-fabrication(unknown): content/reasoning-only strip probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { id: messageId, chatId, content, reasoning } as unknown as MessageView;
 }
 
@@ -55,7 +55,7 @@ test("stripChatEventForMember strips the `view` payload of every view-carrying m
     // A deliberate per-type view-carrying event probe — the strip keys off `type` + `view`, and this loop
     // asserts the SAME strip across every view-carrying union member; the payload beyond these fields is not
     // what's under test (the byte checks below are the assertion).
-    // FABRICATION-OK: per-type view-carrying event strip probe (see above).
+    // @orb-waive no-test-fabrication(ChatBusEvent): per-type view-carrying event strip probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const event = { type, chatId, messageId, view } as ChatBusEvent;
     const stripped = stripChatEventForMember(event);
     // A view-carrying event is never withheld by the body strip (only `reasoningStreamDone` on a deception game
@@ -249,7 +249,7 @@ test("stripMessagesForViewer: reasoningHostOnly withholds the reasoning channel 
 
 test("stripChatEventForMember: on a deception game a view-carrying event withholds reasoning; reasoningStreamDone is DROPPED (null)", () => {
   const view = viewOf(`prose ${LIE}`, REASONING_SPILL);
-  // FABRICATION-OK: a minimal view-carrying event probe — the strip keys off `type` + `view` only.
+  // @orb-waive no-test-fabrication(ChatBusEvent): a minimal view-carrying event probe — the strip keys off `type` + `view` only. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const committed = { type: "messageCommitted", chatId, messageId, view } as ChatBusEvent;
   const stripped = stripChatEventForMember(committed, true);
   // The strip nulls the view's reasoning AND removes the body lie; the whole serialized event carries no truth.
@@ -257,7 +257,7 @@ test("stripChatEventForMember: on a deception game a view-carrying event withhol
   expect(strippedReasoning).toBeNull();
   expect(JSON.stringify(stripped)).not.toContain("crypt");
   // reasoningStreamDone is a member-visible "the reasoning finished" signal — WITHHELD on a deception game.
-  // FABRICATION-OK: the `reasoningStreamDone` event is a closed literal (type + chatId) — no fields elided.
+  // @orb-waive no-test-fabrication(ChatBusEvent): the `reasoningStreamDone` event is a closed literal (type + chatId) — no fields elided. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const done = { type: "reasoningStreamDone", chatId } as ChatBusEvent;
   expect(stripChatEventForMember(done, true)).toBeNull();
   // Non-deception: it passes through unchanged.
@@ -332,7 +332,7 @@ function deceptionTurnRows(): ChatBusReplayEvent[] {
     { seq: 3, event: { type: "delta", chatId, slotSeq: 3, delta: { chatId, kind: "text", text: `He nods. ${LIE}` } } },
     { seq: 4, event: { type: "delta", chatId, slotSeq: 3, delta: { chatId, kind: "text", text: ' "Nothing."' } } },
     { seq: 5, event: { type: "reasoningStreamDone", chatId } },
-    // FABRICATION-OK: the at-commit view probe reads content/reasoning only (viewOf above).
+    // @orb-waive no-test-fabrication(ChatBusEvent): the at-commit view probe reads content/reasoning only (viewOf above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     { seq: 6, event: { type: "messageCommitted", chatId, messageId, view: viewOf(`He nods. ${LIE} "Nothing."`, REASONING_SPILL) } as ChatBusEvent },
   ];
   return rows.map(({ seq, event }) => ({ seq, event: stamper.stamp(event) }));

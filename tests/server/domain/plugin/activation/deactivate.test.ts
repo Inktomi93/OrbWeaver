@@ -25,7 +25,7 @@ function makeCtx(): {
   const clearSurface = vi.fn();
   const clearOutbox = vi.fn();
   const dispose = vi.fn();
-  // FABRICATION-OK: a minimal PluginContext double — createDeactivate reads only ops.suggestions/surfaceState/uiOutbox/host.
+  // @orb-waive no-test-fabrication(unknown): a minimal PluginContext double — createDeactivate reads only ops.suggestions/surfaceState/uiOutbox/host. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const ctx = {
     ops: { suggestions: { voidForPlugin, raise: () => undefined } },
     surfaceState: { clearForPlugin: clearSurface },
@@ -53,7 +53,7 @@ describe("createDeactivate", () => {
     const unregisterA = vi.fn();
     const unregisterB = vi.fn();
     const instance = { marker: "the-instance" };
-    // FABRICATION-OK: a minimal resident-plugin double — deactivate reads only .handles and .instance.
+    // @orb-waive no-test-fabrication(unknown): a minimal resident-plugin double — deactivate reads only .handles and .instance. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const registry: PluginRegistry = new Map([
       [PLUGIN_ID, { instance, handles: [{ unregister: unregisterA }, { unregister: unregisterB }], invoke: vi.fn() }],
     ]) as unknown as PluginRegistry;
@@ -70,7 +70,7 @@ describe("createDeactivate", () => {
     const { ctx, dispose } = makeCtx();
     const unregister = vi.fn();
     const instance = { marker: "x" };
-    // FABRICATION-OK: a minimal resident-plugin double — deactivate reads only .handles and .instance.
+    // @orb-waive no-test-fabrication(unknown): a minimal resident-plugin double — deactivate reads only .handles and .instance. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const registry: PluginRegistry = new Map([[PLUGIN_ID, { instance, handles: [{ unregister }], invoke: vi.fn() }]]) as unknown as PluginRegistry;
     const deactivate = createDeactivate(ctx, registry);
 

@@ -424,7 +424,7 @@ describe("resolveChat — the quality dial → sampling (Proposal 2, sampling ha
 
   test("an UNKNOWN quality (untyped/persisted value) degrades to no-quality + warns — never throws", () => {
     // The subject is a `quality` UserIntent cannot spell (a stale/typo'd persisted value) — no factory can make it.
-    // FABRICATION-OK: deliberate invalid-input probe.
+    // @orb-waive no-test-fabrication(unknown): deliberate invalid-input probe. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const persisted = { quality: "ludicrous", topP: 0.5 } as unknown as UserIntent;
 
     const out = resolveChat(persisted, FULL);

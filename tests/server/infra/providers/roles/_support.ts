@@ -61,7 +61,7 @@ function credFor(source: CredentialSource): ResolvedCredential {
  *  backend key is present so a mis-route to the wrong backend still records (and fails the assertion). */
 function allBackends(method: EmbedShapedMethod, calls: string[]): Map<BackendKey, ProviderBackend> {
   const impl = (key: BackendKey): ProviderBackend =>
-    // FABRICATION-OK: a spy backend — the dynamic `[method]` key can't be proven against the optional-impl
+    // @orb-waive no-test-fabrication(ProviderBackend): a spy backend — the dynamic `[method]` key can't be proven against the optional-impl Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // union, so the cast is inherent to a one-method test double (same shape the per-role tests used).
     ({
       key,
@@ -120,7 +120,7 @@ export function runEmbedShapedRoleTests(spec: EmbedShapedRoleSpec): void {
       const key = backendForSource(source);
       // A DELIBERATELY under-shaped backend (no method impl) is the negative-space probe for
       // requireRoleImpl's fail-close; a factory would defeat the "missing impl" the test asserts.
-      // FABRICATION-OK: intentional under-shaped backend (see above).
+      // @orb-waive no-test-fabrication(ProviderBackend): intentional under-shaped backend (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const role = spec.create({ backends: new Map([[key, { key } as ProviderBackend]]) });
       await expect(role(req(source))).rejects.toBeInstanceOf(ProviderError);
     });

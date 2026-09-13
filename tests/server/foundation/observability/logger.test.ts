@@ -86,7 +86,7 @@ describe("getLog output shape", () => {
     runInRequest(requestId, () => {
       // pino child loggers expose bindings() — verify requestId is bound without depending on
       // the ring (which is silenced by LOG_LEVEL=silent in the test environment).
-      // FABRICATION-OK: narrowing pino's Logger (a vendor type we don't own) to the one internal API used here.
+      // @orb-waive no-test-fabrication(unknown): narrowing pino's Logger (a vendor type we don't own) to the one internal API used here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       expect((getLog() as unknown as { bindings: () => Record<string, unknown> }).bindings()["requestId"]).toBe(requestId);
     });
   });

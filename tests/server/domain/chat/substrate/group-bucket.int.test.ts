@@ -93,7 +93,7 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
     // A direct insert with the fabricated handle (what engine.ts:477 / backfill.ts:50 did) violates the
     // `chat_digests.scopedCharacterId → characters.id` FK — this is the throw the engine silently swallowed.
     await expect(
-      // FABRICATION-OK: this IS the invalid-input probe — a fabricated non-row id whose FK MUST reject.
+      // @orb-waive no-test-fabrication(never): this IS the invalid-input probe — a fabricated non-row id whose FK MUST reject. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       db.insert(chatDigests).values({
         id: castId("chat_digest_bad"),
         chatId,

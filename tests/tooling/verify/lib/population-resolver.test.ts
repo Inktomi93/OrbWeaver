@@ -118,7 +118,7 @@ test.describe("compilePopulation", () => {
   });
 
   test("validates the expression once at compile time and each path at predicate time", () => {
-    // FABRICATION-OK: malformed runtime data proves compilation validates before producing a predicate.
+    // @orb-waive no-test-fabrication(never): malformed runtime data proves compilation validates before producing a predicate. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     expect(() => compilePopulation({ in: [] } as never)).toThrow(/population/i);
     const compiled = compilePopulation("@client");
     expect(() => compiled("/packages/client/src/file.ts")).toThrow(/path/i);
@@ -226,7 +226,7 @@ test.describe("resolvePopulation", () => {
   });
 
   test("validates the expression even when the candidate set is empty", () => {
-    // FABRICATION-OK: the malformed runtime input deliberately violates PopulationExpr to prove the JS boundary refuses it.
+    // @orb-waive no-test-fabrication(never): the malformed runtime input deliberately violates PopulationExpr to prove the JS boundary refuses it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     expect(() => resolvePopulation({ in: [] } as never, [])).toThrow(/population/i);
   });
 

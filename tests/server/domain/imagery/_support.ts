@@ -36,9 +36,9 @@ export function principal(userId: UserId): Principal {
 export function resolutionWith(imageEdit: boolean): ImageryContext["resolveGenerateImage"] {
   return () =>
     Promise.resolve({
-      // FABRICATION-OK: minimal connection double — credential/model are forwarded to the executor, never read by the fakes.
+      // @orb-waive no-test-fabrication(unknown): minimal connection double — credential/model are forwarded to the executor, never read by the fakes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       connection: { api: "chat-completions", model: castId<ModelId>("img-model"), credential: {}, capability: {} } as unknown as ResolvedConnection,
-      // FABRICATION-OK: only input.imageEdit is read by the gate.
+      // @orb-waive no-test-fabrication(ModelCapability): only input.imageEdit is read by the gate. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       capability: { input: { vision: false, imageEdit } } as ModelCapability,
     });
 }
@@ -48,7 +48,7 @@ type ImageryCardDouble = Awaited<ReturnType<ImageryContext["getCard"]>>;
 
 /** A minimal imagery card double — only `avatarAssetId` (caption path) + `contentHash` (reuse gate) are read. */
 export function fakeCard(avatarAssetId: AssetId | null, contentHash = "hash_aria"): ImageryCardDouble {
-  // FABRICATION-OK: minimal card double — imagery reads only name + avatarAssetId + contentHash.
+  // @orb-waive no-test-fabrication(unknown): minimal card double — imagery reads only name + avatarAssetId + contentHash. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { name: "Aria", avatarAssetId, contentHash } as unknown as ImageryCardDouble;
 }
 
@@ -73,13 +73,13 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
   const extractInstructions: string[] = [];
   const captionInstructions: string[] = [];
   const readAssetCalls: AssetId[] = [];
-  // FABRICATION-OK: minimal ResolvedConnection double — the free-mode orchestrator forwards credential/capability opaquely; the fakes never read them.
+  // @orb-waive no-test-fabrication(ResolvedConnection): minimal ResolvedConnection double — the free-mode orchestrator forwards credential/capability opaquely; the fakes never read them. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const connection = {
     api: "chat-completions",
     model: castId<ModelId>("img-model"),
-    // FABRICATION-OK: opaque credential — forwarded, never read by the fakes.
+    // @orb-waive no-test-fabrication(unknown): opaque credential — forwarded, never read by the fakes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     credential: {} as unknown as ResolvedCredential,
-    // FABRICATION-OK: opaque capability — forwarded, never read by the fakes.
+    // @orb-waive no-test-fabrication(unknown): opaque capability — forwarded, never read by the fakes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     capability: {} as unknown as ResolvedConnection["capability"],
   } as ResolvedConnection;
   const ctx: ImageryContext = {

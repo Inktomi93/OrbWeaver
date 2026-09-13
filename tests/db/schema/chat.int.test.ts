@@ -774,7 +774,7 @@ test("chat_invites status CHECK rejects an out-of-enum value", async () => {
       id: castId<ChatInviteId>("chat_invite_bad"),
       chatId,
       tokenHash: "h",
-      // FABRICATION-OK: the invalid-input probe THIS test asserts the CHECK constraint rejects.
+      // @orb-waive no-test-fabrication(unknown): the invalid-input probe THIS test asserts the CHECK constraint rejects. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       status: "teleported" as unknown as (typeof INVITE_STATUSES)[number],
     });
   } catch (err) {
@@ -826,7 +826,7 @@ test("chat_events accepts a known bus type and rejects an unknown one", async ()
       id: castId<ChatEventId>("chat_event_bad"),
       chatId,
       seq: 2,
-      // FABRICATION-OK: the invalid-input probe THIS test asserts the CHECK constraint rejects.
+      // @orb-waive no-test-fabrication(unknown): the invalid-input probe THIS test asserts the CHECK constraint rejects. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       type: "nope" as unknown as (typeof chatEvents.$inferInsert)["type"],
       payload: { type: "chatCreated", chatId },
     });

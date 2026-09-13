@@ -98,7 +98,7 @@ const OR_TIER_MODELS = {
 };
 
 function agentReq(model: string, over: Partial<ChatRequest & { api: "agent-sdk" }>): ChatRequest {
-  // FABRICATION-OK: a valid ChatRequest arm; the `as` is load-bearing only because the `...over` Partial spread over a discriminated union defeats `satisfies`.
+  // @orb-waive no-test-fabrication(ChatRequest): a valid ChatRequest arm; the `as` is load-bearing only because the `...over` Partial spread over a discriminated union defeats `satisfies`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     api: "agent-sdk",
     prompt: TOOL_PROMPT,
@@ -179,7 +179,7 @@ suite("@live agent-sdk skins — tools + structured output through the real disp
 
 suite("@live chat-completions × vllm (OpenAI-compat surface)", { tags: "live" }, () => {
   function ccReq(model: string, over: Partial<ChatRequest & { api: "chat-completions" }>): ChatRequest {
-    // FABRICATION-OK: a valid ChatRequest arm; the `...over` Partial spread over a discriminated union defeats `satisfies`.
+    // @orb-waive no-test-fabrication(ChatRequest): a valid ChatRequest arm; the `...over` Partial spread over a discriminated union defeats `satisfies`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return {
       api: "chat-completions",
       model: castId<ModelId>(model),
@@ -237,7 +237,7 @@ const OR_MODEL = "anthropic/claude-haiku-4.5";
 type OrArrayApi = Exclude<ChatApi, "agent-sdk">;
 
 function orArrayReq(api: OrArrayApi, over: Partial<ChatRequest & { api: OrArrayApi }>): ChatRequest {
-  // FABRICATION-OK: a valid ChatRequest arm; the `...over` Partial spread over a discriminated union defeats `satisfies`.
+  // @orb-waive no-test-fabrication(ChatRequest): a valid ChatRequest arm; the `...over` Partial spread over a discriminated union defeats `satisfies`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     api,
     model: castId<ModelId>(OR_MODEL),

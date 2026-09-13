@@ -260,7 +260,8 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
     // A malformed blob written directly (a corrupt row) degrades to null (safeParse), never a throw — a
     // non-record string is the corrupt-row shape the read-seam safeParse-degrade exists to survive; no
     // factory can produce an intentionally malformed `UserMacroDraws`.
-    const corruptDraws = "not-a-record" as unknown as UserMacroDraws; // FABRICATION-OK: deliberate invalid-input probe
+    // @orb-waive no-test-fabrication(unknown): deliberate invalid-input probe Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const corruptDraws = "not-a-record" as unknown as UserMacroDraws;
     await db.update(messageVariants).set({ macroDraws: corruptDraws }).where(eq(messageVariants.id, variantId));
     const degraded = await loadSlotTarget(db, chatId, messageId);
     expect(degraded?.macroDraws).toBeNull();

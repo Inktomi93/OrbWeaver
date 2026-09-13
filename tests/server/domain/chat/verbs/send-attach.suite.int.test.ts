@@ -48,7 +48,7 @@ function scripted(content: string): ChatContext["runChatTurn"] {
     })();
 }
 
-// FABRICATION-OK: minimal card stand-in — the round reads only name/regexScripts (attach asserts the USER row).
+// @orb-waive no-test-fabrication(unknown): minimal card stand-in — the round reads only name/regexScripts (attach asserts the USER row). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const STUB_CARD = {
   name: "Aria",
   description: "",

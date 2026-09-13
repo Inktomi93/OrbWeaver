@@ -91,7 +91,7 @@ describe("record — coStatements ride the SAME batch (PD-24 tx-atomicity)", () 
 describe("record — the closed union is the secret-free belt", () => {
   test("an unknown secret field smuggled onto the event does NOT survive the parse", async () => {
     // The type makes this unrepresentable; force it via a cast to prove the RUNTIME strip at the write seam.
-    // FABRICATION-OK: deliberate invalid-input probe of the secret-strip write seam.
+    // @orb-waive no-test-fabrication(unknown): deliberate invalid-input probe of the secret-strip write seam. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const dirty = {
       ...inviteEvent(ALICE),
       apiKey: "sk-leak-me",

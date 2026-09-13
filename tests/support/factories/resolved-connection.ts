@@ -29,7 +29,7 @@ type KeylessSource = (typeof KEYLESS_SOURCES)[number];
  *  its fully-typed input through this single cast. The builders' typed parameters keep each shape honest;
  *  a missing/renamed public field breaks the object literal HERE, not silently in 150 test files. */
 function brand<C extends ResolvedCredential>(value: Omit<C, keyof CredentialBrandMarker>): C {
-  // FABRICATION-OK: the ONE sanctioned brand cast (see the JSDoc above) — ResolvedCredential is unforgeable.
+  // @orb-waive no-test-fabrication(unknown): the ONE sanctioned brand cast (see the JSDoc above) — ResolvedCredential is unforgeable. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return value as unknown as C;
 }
 // The contracts brand is a phantom `unique symbol` we can't name here; this local mirror lets `Omit` drop

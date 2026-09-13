@@ -49,7 +49,7 @@ function fakeClient(opts: { failDimOnce?: boolean; shortVector?: boolean } = {})
         return Promise.reject(new Error("unknown field: dimensions"));
       }
       const data = b.input.map((_, i) => ({ index: i, embedding: opts.shortVector === true ? [1, 2] : [1, 2, 3, 4] }));
-      // FABRICATION-OK: T is enginePost's unbound generic, resolved only by the caller — no fixed shape to satisfy.
+      // @orb-waive no-test-fabrication(T): T is enginePost's unbound generic, resolved only by the caller — no fixed shape to satisfy. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       return Promise.resolve({
         data,
         model: "served-model",

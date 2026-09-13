@@ -546,14 +546,14 @@ describe("the history cache breakpoint placement", () => {
   const longText = "word ".repeat(1500);
 
   function asMessages(items: { role: string; content: string }[]): Parameters<typeof placeHistoryCacheBreakpoint>[0] {
-    // FABRICATION-OK: a wire-shaped fixture for a vendor union we do not own (the `asMixed`/`asWire` siblings likewise).
+    // @orb-waive no-test-fabrication(unknown): a wire-shaped fixture for a vendor union we do not own (the `asMixed`/`asWire` siblings likewise). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return items as unknown as Parameters<typeof placeHistoryCacheBreakpoint>[0];
   }
 
   /** The same wire-shaped fixture with MULTIMODAL rows allowed: `content` is a part array, which the SDK's
    *  role-discriminated union carries and the placer reads structurally. */
   function asMixed(items: { role: string; content: unknown }[]): Parameters<typeof placeHistoryCacheBreakpoint>[0] {
-    // FABRICATION-OK: a wire-shaped fixture for a vendor union we do not own (the `asWire` sibling likewise).
+    // @orb-waive no-test-fabrication(unknown): a wire-shaped fixture for a vendor union we do not own (the `asWire` sibling likewise). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return items as unknown as Parameters<typeof placeHistoryCacheBreakpoint>[0];
   }
 
@@ -665,7 +665,7 @@ describe("the history cache breakpoint is invariant across a within-turn tool ex
     // `ChatMessages` is the SDK's role-discriminated union with a branded `role` enum per arm; the placer reads
     // only role / toolCalls / content, and the point of these fixtures is the exact wire ROW ORDER a tool
     // exchange produces. A typed factory here would be a factory for a vendor union we do not own.
-    // FABRICATION-OK: wire-shaped fixtures for a vendor union (the sibling `asMessages` helper does the same).
+    // @orb-waive no-test-fabrication(unknown): wire-shaped fixtures for a vendor union (the sibling `asMessages` helper does the same). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return rows as unknown as Parameters<typeof placeHistoryCacheBreakpoint>[0];
   }
 

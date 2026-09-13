@@ -131,7 +131,7 @@ export function MotionShiftFlaggerStory(): ReactElement {
     // The accessor is published from HERE, not re-imported by the spec: a `page.evaluate` dynamic import
     // resolves its own URL specifier and would hand the test a SECOND module instance with zero totals —
     // a green that proves nothing. The story owns the instance under test, so it owns the read.
-    // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
+    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read by this story's CT alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const probes = globalThis as unknown as { __motionRead: typeof motionSnapshot | undefined };
     probes.__motionRead = motionSnapshot;
     return (): void => {
@@ -188,7 +188,7 @@ export function MotionVirtualizedShiftStory(): ReactElement {
   const [pushed, setPushed] = useState(false);
   useEffect(() => {
     installMotionObservers();
-    // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
+    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read by this story's CT alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const probes = globalThis as unknown as { __motionRead: typeof motionSnapshot | undefined };
     probes.__motionRead = motionSnapshot;
     return (): void => {
@@ -362,7 +362,7 @@ export function MotionFlaggersRatifiedHeightStory(): ReactElement {
   useEffect(() => {
     installAnimationLifecycleRecorder();
     installMotionFlaggers();
-    // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
+    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read by this story's CT alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const probes = globalThis as unknown as { __motionFlagsRead: typeof motionFlags | undefined };
     probes.__motionFlagsRead = motionFlags;
     return (): void => {
@@ -393,7 +393,7 @@ export function MotionFlaggersReducedMotionStory(): ReactElement {
     installMotionFlaggers();
     // The PULL half of the channel, published from the story's own module instance (a page-side dynamic
     // import would resolve a SECOND instance with an empty ring — the MotionShiftFlaggerStory precedent).
-    // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
+    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read by this story's CT alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const probes = globalThis as unknown as { __motionFlagsRead: typeof motionFlags | undefined };
     probes.__motionFlagsRead = motionFlags;
     return (): void => {
@@ -882,7 +882,7 @@ export function MotionFrameReflowStory(): ReactElement {
     installLongTaskTracer();
     // Published from HERE for the reason MotionShiftFlaggerStory states: a page-side import would resolve
     // a second module instance whose ring is always empty.
-    // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
+    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read by this story's CT alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const probes = globalThis as unknown as { __motionRead: typeof motionSnapshot | undefined };
     probes.__motionRead = motionSnapshot;
     return (): void => {

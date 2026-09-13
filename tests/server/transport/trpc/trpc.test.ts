@@ -199,7 +199,7 @@ function inviteSurface(verb: keyof ChatService, drive: (ctx: Context) => Promise
   return {
     path: `invites.${verb}`,
     make: (): ReturnType<BeltSurface["make"]> => {
-      // FABRICATION-OK: the belt assertions observe only call count; the mocked verb result is never read.
+      // @orb-waive no-test-fabrication(never): the belt assertions observe only call count; the mocked verb result is never read. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const fn = vi.fn(async () => ({}) as never);
       return { services: { chat: { [verb]: fn } }, presence: inertPresence, probe: fn };
     },
@@ -383,7 +383,7 @@ describe("errorFormatter — `stack` never reaches the wire (PROD-LEAK belt)", (
     const secret = "sk-or-reflected-through-trpc-123456";
     // ResolvedCredential is brand-sealed and so is the scrub set it mints (#1599) — a keyed boundary's set
     // comes from the credential, never from a hand-built array, in a test exactly as in a runner.
-    // FABRICATION-OK: server-can't-mint — only domain credentials/substrate/mint constructs a credential.
+    // @orb-waive no-test-fabrication(unknown): server-can't-mint — only domain credentials/substrate/mint constructs a credential. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const credential = { source: "openrouter", apiKey: secret, credentialId: null } as unknown as ResolvedCredential;
     const providerError = providerErrorFromHttp(
       Object.assign(new Error(`upstream rejected ${secret}`), { statusCode: 401, body: `{"error":"${secret}"}` }),

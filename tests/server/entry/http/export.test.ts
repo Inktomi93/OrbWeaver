@@ -67,7 +67,7 @@ function exportRoutes(deps: ExportDeps): Map<string, Handler> {
       return app;
     },
   };
-  // FABRICATION-OK: minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here.
+  // @orb-waive no-test-fabrication(unknown): minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerExport(app as unknown as Parameters<typeof registerExport>[0], deps);
   return routes;
 }

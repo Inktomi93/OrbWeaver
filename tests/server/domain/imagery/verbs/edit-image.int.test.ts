@@ -173,7 +173,7 @@ interface UserMessage {
 /** A fake OpenRouter chat client that captures the built `chatRequest` and returns one image. */
 function capturingGenClient(): { client: GenClient; captured: { body: Record<string, unknown> | undefined } } {
   const captured: { body: Record<string, unknown> | undefined } = { body: undefined };
-  // FABRICATION-OK: chat.send is the ONLY client surface runGenerateImage touches; the cast bridges the partial fake.
+  // @orb-waive no-test-fabrication(unknown): chat.send is the ONLY client surface runGenerateImage touches; the cast bridges the partial fake. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const client = {
     chat: {
       send: (req: { chatRequest: Record<string, unknown> }): Promise<unknown> => {
@@ -237,11 +237,11 @@ describe("editImage — composed-real: the resolved capability rides domain → 
     const bridge = realRunnerBridge(client);
 
     const result = await bridge({
-      // FABRICATION-OK: minimal request — the runner reads model/prompt/edit/capability only.
+      // @orb-waive no-test-fabrication(unknown): minimal request — the runner reads model/prompt/edit/capability only. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       credential: {} as unknown as ResolvedCredential,
       model: castId<ModelId>("img-model"),
       prompt: "make it night",
-      // FABRICATION-OK: the runner belt reads only `capability.input.imageEdit`.
+      // @orb-waive no-test-fabrication(unknown): the runner belt reads only `capability.input.imageEdit`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       capability: { input: { vision: false, imageEdit: false } } as unknown as ImageGenerateRequest["capability"],
       edit: { image: PNG_BYTES },
     });

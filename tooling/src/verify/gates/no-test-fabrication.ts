@@ -1,267 +1,157 @@
-// Gate: no-test-fabrication (core/Spine-Testing.md §5; test-support-dry-punchlist.md W1h) — bans two
-// fabricated-entity shapes that compile STRAIGHT THROUGH a type change ("source changed, tests never
-// knew"): (a) `X as unknown as Y` double-casts, and (b) an object/array-literal `as Y` (not
-// const/any/unknown) — both survive Y gaining/renaming a required field silently; use a typed factory
-// or `satisfies Y` instead. Escape: `// FABRICATION-OK: <reason>`, consumed by exactly the next guarded
-// cast; malformed, stale, and over-broad markers are red. COMMENT POSTURE: comments-INTENDED — this gate
-// reads only comment-opener marker lines; strings and prose mentions are inert. The per-file SHRINK-ONLY baseline
-// ratchet reached its terminal `{}` at #590 and was DELETED — baseline + generator + this reader,
-// GATE-AUTHORING.md §4.8 — the gate is flat now (born-compliant): every unmarked site is reported.
-import type { AsExpression, SourceFile } from "ts-morph";
+// Policy: no-test-fabrication (core/Spine-Testing.md §5) — tests may not fabricate typed entities with
+// `X as unknown as Y` or an object/array literal asserted `as Y`. Both spellings survive Y gaining or
+// renaming a required field; use a typed factory or `satisfies` instead.
+//
+// AUTHORITY: ordinary/error. The gate-owned `FABRICATION-OK` parser, stale table, and line-based findings are
+// retired. A deliberate occurrence uses the central exact-position waiver. Double casts report the authored
+// `unknown` keyword; literal casts report the asserted type's waivable leading slice. Both are exact node
+// coordinates, and a collision in one carrier remains deliberately unwaivable through the central over-broad
+// alarm. The 429 live legacy markers were re-attested to consumed cast nodes before source translation.
+//
+// FAMILY `no-test-fabrication` is a singleton over one cast classifier. POPULATION PORT: legacy
+// `scanRoot: p.startsWith("tests/")` and final `{ in:["@authored"], under:["tests/**"] }` admit the same
+// root test corpus; a production-source counterexample remains in mustPass. `selected-files` is honest: every
+// verdict is local to one AsExpression and no finalizer or shared fact exists.
+import type { AsExpression, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { Finding, GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
+import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
-const TESTS_REL_RE = /\/(?<rel>tests\/.*)$/u;
-const ESCAPE = "FABRICATION-OK";
-const MARKER_OPENER_RE = /^\/\/\s*FABRICATION-OK\b/u;
-const MARKER_RE = /^\/\/\s*FABRICATION-OK\s*:\s*\S.*$/u;
-const COMMENT_LINE_RE = /^\s*(?:\/\/|\*|\/\*)/u;
-const BLANK_LINE_RE = /^\s*$/u;
-const LITERAL_KINDS: ReadonlySet<SyntaxKind> = new Set([
-  SyntaxKind.StringLiteral,
-  SyntaxKind.NoSubstitutionTemplateLiteral,
-  SyntaxKind.TemplateHead,
-  SyntaxKind.TemplateMiddle,
-  SyntaxKind.TemplateTail,
-  SyntaxKind.RegularExpressionLiteral,
-  SyntaxKind.JsxText,
-]);
-/** Cast targets that are NOT a fabrication claim: `as const` (a literal-narrowing operator), `as any` /
- *  `as unknown` (widening escapes with their own rules). This is the PREDICATE'S VOCABULARY, not an
- *  exemption ledger — no site is granted a pass here, and there is nothing that could go stale (the words
- *  are TypeScript keywords). Named out of the exemption vocabulary deliberately (GATE-AUTHORING.md §4 —
- *  "if the collection is not an exemption, the name must not promise one"). The gate's one real exemption
- *  is the `FABRICATION-OK:` marker (reason mandatory). */
 const NON_FABRICATING_CAST_TARGETS: ReadonlySet<string> = new Set(["const", "any", "unknown"]);
-
 const DOUBLE_CAST_MSG =
   "`X as unknown as Y` double-cast in a test — fabricates a typed value that survives Y gaining/renaming a " +
-  "required field (test-support-dry-punchlist.md W1h). Use a typed factory (makeY(overrides?)) or narrow the " +
-  "real value. Deliberate invalid-input probe? mark it `// FABRICATION-OK: <reason>`.";
+  "required field (test-support-dry-punchlist.md W1h). Use a typed factory or narrow the real value.";
 const LITERAL_CAST_MSG = (typeText: string): string =>
   `object/array-literal \`as ${typeText}\` in a test — a hand-shaped literal asserted complete survives ` +
-  `${typeText} growing a field (test-support-dry-punchlist.md W1h). Use a typed factory or \`satisfies ` +
-  `${typeText}\` (which re-checks on every change). Deliberate invalid-input probe? mark it \`// ${ESCAPE}: <reason>\`.`;
-const MALFORMED_MARKER_MSG = `malformed \`// ${ESCAPE}\` marker — the grammar is \`// ${ESCAPE}: <reason>\`; a bare marker exempts nothing (core/Spine-Testing.md §5).`;
-const STALE_MARKER_MSG = `stale \`// ${ESCAPE}: <reason>\` marker — it guards no fabrication cast. Delete the loaded-gun exemption (core/Spine-Testing.md §5).`;
+  `${typeText} growing a field (test-support-dry-punchlist.md W1h). Use a typed factory or \`satisfies ${typeText}\`.`;
+const FIX =
+  "use a typed factory (makeY(overrides?)) or `satisfies Y`. A deliberate invalid-input occurrence waives " +
+  "with `@orb-waive no-test-fabrication(<position>): <why + end condition>` on the line above; double casts " +
+  "report `unknown`, and literal casts report the asserted type's authored leading slice.";
 
-/** True when the AsExpression is `<inner> as unknown as Y` — i.e. its expression is itself an AsExpression
- *  casting to the `unknown` keyword. Detected on the OUTER node so each double-cast counts once. */
-function isDoubleUnknownCast(node: AsExpression): boolean {
+function doubleCastAnchor(node: AsExpression): TypeNode | undefined {
   const inner = node.getExpression();
-  if (!Node.isAsExpression(inner)) {
-    return false;
+  return Node.isAsExpression(inner) && inner.getTypeNode()?.getKind() === SyntaxKind.UnknownKeyword ? inner.getTypeNode() : undefined;
+}
+
+function literalCastAnchor(node: AsExpression): TypeNode | undefined {
+  const expression = unwrapExpression(node.getExpression());
+  const type = node.getTypeNode();
+  if (!(Node.isObjectLiteralExpression(expression) || Node.isArrayLiteralExpression(expression)) || type === undefined) {
+    return;
   }
-  return inner.getTypeNode()?.getKind() === SyntaxKind.UnknownKeyword;
+  return NON_FABRICATING_CAST_TARGETS.has(type.getText()) ? undefined : type;
 }
 
-/** True when the AsExpression casts an object/array LITERAL to a concrete type (not const/any/unknown). */
-function isLiteralFabrication(node: AsExpression): boolean {
-  const expr = unwrapExpression(node.getExpression());
-  if (!(Node.isObjectLiteralExpression(expr) || Node.isArrayLiteralExpression(expr))) {
-    return false;
-  }
-  return !NON_FABRICATING_CAST_TARGETS.has(node.getTypeNode()?.getText() ?? "");
-}
-
-interface Marker {
-  readonly line: number;
-  readonly guards: number;
-  readonly valid: boolean;
-}
-
-interface Candidate {
-  readonly node: AsExpression;
-  readonly line: number;
-  readonly message: string;
-}
-
-function commentOpener(lineText: string, lineStart: number, literalSpans: readonly (readonly [number, number])[]): number | undefined {
-  let opener = lineText.indexOf("//");
-  let found: number | undefined;
-  while (opener !== -1) {
-    const position = lineStart + opener;
-    if (!literalSpans.some(([start, end]) => position >= start && position < end)) {
-      found = opener;
-      break;
-    }
-    opener = lineText.indexOf("//", opener + 2);
-  }
-  return found;
-}
-
-/** Comment-block-scoped markers: each guards the next authored line, or its own line when trailing code. */
-function markersIn(sf: SourceFile): readonly Marker[] {
-  const raw = sf.getFullText();
-  const lines = raw.split("\n");
-  const markers: Marker[] = [];
-  // `forEachDescendant`, NOT the kind-less `getDescendants()`: every LITERAL_KINDS member is a
-  // `forEachChild` NODE (template head/middle/tail hang off TemplateExpression/TemplateSpan, JsxText off
-  // its element), so the two walks return the SAME spans while the kind-less one takes ts-morph's
-  // token-materialising path — measured 2026-09-02 over all 2,518 `tests/` files: 0 differing files, with a
-  // 4-kind planted control (docs/reviews/research/2026-08-31-gate-pass-unified-walk.md §4).
-  const literalSpans: (readonly [number, number])[] = [];
-  sf.forEachDescendant((node) => {
-    if (LITERAL_KINDS.has(node.getKind())) {
-      literalSpans.push([node.getStart(), node.getEnd()] as const);
-    }
-  });
-  let lineStart = 0;
-  for (let index = 0; index < lines.length; index += 1) {
-    const lineText = lines[index] ?? "";
-    const opener = commentOpener(lineText, lineStart, literalSpans);
-    if (opener === undefined) {
-      lineStart += lineText.length + 1;
-      continue;
-    }
-    const text = lineText.slice(opener);
-    if (!MARKER_OPENER_RE.test(text.trim())) {
-      lineStart += lineText.length + 1;
-      continue;
-    }
-    const line = index + 1;
-    const beforeComment = lineText.slice(0, opener);
-    let guards = line;
-    if (BLANK_LINE_RE.test(beforeComment)) {
-      guards += 1;
-      while (guards <= lines.length && (COMMENT_LINE_RE.test(lines[guards - 1] ?? "") || BLANK_LINE_RE.test(lines[guards - 1] ?? ""))) {
-        guards += 1;
-      }
-    }
-    markers.push({ line, guards, valid: MARKER_RE.test(text.trim()) });
-    lineStart += lineText.length + 1;
-  }
-  return markers.sort((a, b) => a.line - b.line);
-}
-
-function candidatesIn(sf: SourceFile): Candidate[] {
-  const candidates: Candidate[] = [];
-  for (const node of sf.getDescendantsOfKind(SyntaxKind.AsExpression)) {
-    let message: string | undefined;
-    if (isDoubleUnknownCast(node)) {
-      message = DOUBLE_CAST_MSG;
-    } else if (isLiteralFabrication(node)) {
-      message = LITERAL_CAST_MSG(node.getTypeNode()?.getText() ?? "?");
-    }
-    if (message !== undefined) {
-      candidates.push({ node, line: node.getStartLineNumber(), message });
-    }
-  }
-  return candidates.sort((a, b) => a.node.getStart() - b.node.getStart());
-}
-
-/** Every fabrication site in one test file, as (line, message) pairs. */
-export function fabricationSites(sf: SourceFile): { line: number; message: string }[] {
-  const candidates = candidatesIn(sf);
-  const consumed = new Set<AsExpression>();
-  const sites: { line: number; message: string }[] = [];
-  for (const marker of markersIn(sf)) {
-    if (!marker.valid) {
-      sites.push({ line: marker.line, message: MALFORMED_MARKER_MSG });
-      continue;
-    }
-    const target = candidates.find((candidate) => candidate.line === marker.guards && !consumed.has(candidate.node));
-    if (target === undefined) {
-      sites.push({ line: marker.line, message: STALE_MARKER_MSG });
-      continue;
-    }
-    consumed.add(target.node);
-  }
-  for (const candidate of candidates) {
-    if (!consumed.has(candidate.node)) {
-      sites.push({ line: candidate.line, message: candidate.message });
-    }
-  }
-  return sites;
-}
-
-/** The tests/-relative path of a test source file, or undefined if it isn't under tests/. */
-export function testsRel(path: string): string | undefined {
-  return TESTS_REL_RE.exec(path)?.groups?.["rel"];
-}
-
-export const gate: GateDescriptor = {
-  name: "no-test-fabrication",
-  docRow: "core/Spine-Testing.md §5 (test-support-dry-punchlist.md W1h)",
-  status: "active",
-  scopeSafety: "whole-project",
+export const gate = defineGate({
+  id: "no-test-fabrication",
+  family: "no-test-fabrication",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@authored"], under: ["tests/**"] },
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: DOUBLE_CAST_MSG,
-  fix: "use a typed factory (makeY(overrides?)) or `satisfies Y`; mark a deliberate invalid-input probe `// FABRICATION-OK: <reason>`.",
-  scanRoot: (p) => p.startsWith("tests/"),
-  visitFile: (sf, ctx) => {
-    const rel = testsRel(sf.getFilePath());
-    if (rel === undefined) {
-      return;
-    }
-    for (const site of fabricationSites(sf)) {
-      const finding: Finding = {
-        file: rel,
-        line: site.line,
-        column: 0,
-        message: site.message,
-        token: site.message === DOUBLE_CAST_MSG ? "double-cast" : "literal-cast",
-      };
-      ctx.report(finding);
-    }
-  },
+  fix: FIX,
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.AsExpression],
+        visit: (node) => {
+          if (!Node.isAsExpression(node)) {
+            return;
+          }
+          const double = doubleCastAnchor(node);
+          if (double !== undefined) {
+            ctx.report.node(double, { token: "unknown", offset: 0, message: DOUBLE_CAST_MSG, fix: FIX });
+            return;
+          }
+          const literal = literalCastAnchor(node);
+          if (literal === undefined) {
+            return;
+          }
+          const authored = literal.getText();
+          ctx.report.node(literal, {
+            token: waivableCoordinate(authored) ?? authored,
+            offset: 0,
+            message: LITERAL_CAST_MSG(authored),
+            fix: FIX,
+          });
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: "export const x = {} as unknown as { a: number };\n",
-      at: "tests/tooling/x.test.ts",
-      expect: { messageIncludes: "double-cast" },
-      why: "an `X as unknown as Y` double-cast in a test — a fabrication (W1h); the gate is flat now (#590, no baseline to admit it)",
+      mode: "source",
+      files: { "tests/tooling/x.test.ts": "export const x = {} as unknown as { a: number };\n" },
+      expect: { count: 1, token: "unknown", messageIncludes: "double-cast" },
+      why: "an X-as-unknown-as-Y double cast in a test",
     },
     {
-      files: "export const b = { n: 1 } as Widget;\n",
-      at: "tests/tooling/lit.test.ts",
-      expect: { messageIncludes: "literal" },
-      why: "an object-literal `as Y` (Y not const/any/unknown) — a hand-shaped literal asserted complete",
+      mode: "source",
+      files: { "tests/tooling/lit.test.ts": "export const b = { n: 1 } as Widget;\n" },
+      expect: { count: 1, token: "Widget", messageIncludes: "literal" },
+      why: "an object literal asserted complete as a concrete type",
     },
     {
-      files: "export const c = [1, 2] as Widget[];\n",
-      at: "tests/tooling/arr.test.ts",
-      expect: { messageIncludes: "literal" },
-      why: "an array-literal `as Y[]` — the same fabrication shape",
+      mode: "source",
+      files: { "tests/tooling/arr.test.ts": "export const c = [1, 2] as Widget[];\n" },
+      expect: { count: 1, token: "Widget[]", messageIncludes: "literal" },
+      why: "an array literal asserted complete as a concrete array type",
     },
     {
-      files: "export const d = ({ n: 1 }) as Widget;\n",
-      at: "tests/tooling/paren.test.ts",
-      expect: { messageIncludes: "literal" },
-      why: "parentheses do not change an object literal into a typed value; shared wrapper unwrapping keeps the fabrication visible",
+      mode: "source",
+      files: { "tests/tooling/paren.test.ts": "export const d = ({ n: 1 }) as Widget;\n" },
+      expect: { count: 1, token: "Widget", messageIncludes: "literal" },
+      why: "parentheses do not change an object literal into a typed value",
     },
   ],
   mustPass: [
     {
-      files: "export const x = { a: 1 } satisfies { a: number };\n",
-      at: "tests/tooling/y.test.ts",
-      why: "`satisfies Y` re-checks the literal on every change — the sanctioned shape, passes",
+      mode: "source",
+      files: { "tests/tooling/y.test.ts": "export const x = { a: 1 } satisfies { a: number };\n" },
+      why: "satisfies re-checks the literal on every type change",
     },
     {
-      files: "export const a = { n: 1 } as const;\nexport const b = { n: 1 } as unknown;\nexport const c = [1] as any;\n",
-      at: "tests/tooling/exempt.test.ts",
-      why: "`as const`/`as unknown`/`as any` are the exempt cast types — passes",
+      mode: "source",
+      files: { "tests/tooling/exempt.test.ts": "export const a = { n: 1 } as const;\nexport const b = { n: 1 } as unknown;\nexport const c = [1] as any;\n" },
+      why: "as const, as unknown, and as any do not claim that a literal is a complete concrete entity",
     },
     {
-      files: "export const b = { n: 1 } as Widget; // FABRICATION-OK: invalid-input probe\n",
-      at: "tests/tooling/escape-same.test.ts",
-      why: "a `// FABRICATION-OK` comment on the SAME line exempts the deliberate-fabrication site — passes",
+      mode: "source",
+      files: {
+        "tests/tooling/waived-literal.test.ts":
+          "// @orb-waive no-test-fabrication(Widget): deliberate invalid-input probe; ends when the parser accepts an untyped input.\nexport const b = { n: 1 } as Widget;\n",
+      },
+      why: "the central positioned waiver licenses exactly one literal fabrication occurrence",
     },
     {
-      files: "// FABRICATION-OK: deliberate invalid-input probe exercises the parser boundary\nexport const a = {} as unknown as Widget;\n",
-      at: "tests/tooling/escape-above.test.ts",
-      why: "a `// FABRICATION-OK` comment on the line ABOVE exempts the site — passes",
+      mode: "source",
+      files: {
+        "tests/tooling/waived-double.test.ts":
+          "// @orb-waive no-test-fabrication(unknown): deliberate invalid-input probe; ends when the boundary accepts unknown directly.\nexport const a = {} as unknown as Widget;\n",
+      },
+      why: "the central positioned waiver licenses exactly one double-cast occurrence",
     },
     {
-      files:
-        "export const a = source\n  // FABRICATION-OK: deliberate invalid-input probe exercises the parser boundary\n  .map((value) => value as unknown as Widget);\n",
-      at: "tests/tooling/escape-chain.test.ts",
-      why: "a marker before a chained call's dot token is a real line comment even when ts-morph exposes no attached comment range",
+      mode: "source",
+      files: {
+        "tests/tooling/escape-chain.test.ts":
+          "export const a = source\n  // @orb-waive no-test-fabrication(unknown): deliberate invalid-input probe; ends when map narrows its own input.\n  .map((value) => value as unknown as Widget);\n",
+      },
+      why: "a central marker before a chained call's dot token remains leading trivia for the reported cast",
     },
     {
-      files: "export const a = {} as unknown as { n: number };\n",
-      at: "packages/server/src/domain/widget/x.ts",
-      why: "scope: a fabrication cast OUTSIDE tests/ is not gated here — passes",
+      mode: "source",
+      files: {
+        "packages/server/src/domain/widget/x.ts": "export const a = {} as unknown as { n: number };\n",
+        "tests/tooling/anchor.test.ts": "export const anchor = { n: 1 } satisfies { n: number };\n",
+      },
+      why: "a fabrication cast outside the root tests tree is outside this policy",
     },
   ],
-};
+});

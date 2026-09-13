@@ -121,7 +121,7 @@ describe("automation.setRuleSuggestOnRefusal — B4's per-rule F4 opt-out wire-t
 
   test("the flag is REQUIRED on the wire — an omitted one is a BAD_REQUEST, never a silent default", async () => {
     const setRuleSuggestOnRefusal = vi.fn<AutomationService["setRuleSuggestOnRefusal"]>(async () => undefined);
-    // FABRICATION-OK: the subject IS the invalid input — this probe exists to prove the wire schema refuses
+    // @orb-waive no-test-fabrication(unknown): the subject IS the invalid input — this probe exists to prove the wire schema refuses Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // an omitted flag, which cannot be spelled without defeating the type that documents the requirement.
     const call = caller(ctxWith({ setRuleSuggestOnRefusal })).automation.setRuleSuggestOnRefusal({
       ruleId: RULE.id,

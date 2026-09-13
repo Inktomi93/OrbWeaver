@@ -22,7 +22,7 @@ test("one immutable run posture keeps all rate consumers consistent when a secon
     .mockResolvedValueOnce({ ...HARDWARE, backend: "SwiftShader", posture: "software" });
   const load = vi.fn().mockReturnValueOnce({ loadavg1: 0.5, cpuCount: 8 }).mockReturnValueOnce({ loadavg1: 64, cpuCount: 8 });
 
-  // FABRICATION-OK: this sentinel can reach only the injected readAcceleration spy, which ignores Browser fields; the test asserts that exact injected boundary is called once.
+  // @orb-waive no-test-fabrication(Browser): this sentinel can reach only the injected readAcceleration spy, which ignores Browser fields; the test asserts that exact injected boundary is called once. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const receipt = await sampleSnapRatePosture({} as Browser, { readAcceleration: acceleration, readLoad: load });
   const dispositions = ["app-snapshot", "motion", "interaction-perf"].map((arm) => ratePostureDisposition(receipt, arm));
 
@@ -40,7 +40,7 @@ test("one failed acceleration read is owned once and withholds every rate consum
   const acceleration = vi.fn().mockRejectedValueOnce(new Error("planted SystemInfo refusal"));
   const load = vi.fn().mockReturnValue({ loadavg1: 0.5, cpuCount: 8 });
 
-  // FABRICATION-OK: this sentinel can reach only the injected readAcceleration spy, which rejects before reading Browser fields; the test asserts that exact injected boundary is called once.
+  // @orb-waive no-test-fabrication(Browser): this sentinel can reach only the injected readAcceleration spy, which rejects before reading Browser fields; the test asserts that exact injected boundary is called once. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const receipt = await sampleSnapRatePosture({} as Browser, { readAcceleration: acceleration, readLoad: load });
   const dispositions = ["app-snapshot", "motion", "interaction-perf"].map((arm) => ratePostureDisposition(receipt, arm));
 

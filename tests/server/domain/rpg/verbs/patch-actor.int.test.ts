@@ -322,11 +322,13 @@ test("a model flush landing between the panel's READ and the hand's WRITE surviv
   // Both casts below are the production hand door's OWN (`snapshot-edit.ts` — the pure merge takes and returns
   // the state as plain JSON); nothing is fabricated here, the base is the real resolved row.
   const headRow = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  const headBeforeHandWrite = { ...headRow } as unknown as Record<string, unknown>; // FABRICATION-OK: the real row, as the merge takes it
+  // @orb-waive no-test-fabrication(unknown): the real row, as the merge takes it Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const headBeforeHandWrite = { ...headRow } as unknown as Record<string, unknown>;
   const staleImage = {
     actorState: [{ ...panelImage, volatile: { ...panelImage?.volatile, trackerValues: { trust: { value: 7, items: null, max: null } } } }],
   };
-  const clobbered = applyLockedPatch(headBeforeHandWrite, staleImage, null) as unknown as RpgSnapshotState; // FABRICATION-OK: the merge's own return cast
+  // @orb-waive no-test-fabrication(unknown): the merge's own return cast Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const clobbered = applyLockedPatch(headBeforeHandWrite, staleImage, null) as unknown as RpgSnapshotState;
   const clobberedRow = clobbered.actorState.find((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mira");
   expect(clobberedRow?.volatile.status).toBe("calm"); // the flush's status: gone
   expect(clobberedRow?.volatile.conditions).toEqual([]); // the flush's condition: gone

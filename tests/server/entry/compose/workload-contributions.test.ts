@@ -29,7 +29,7 @@ function inertDeps(): WorkloadContributionsDeps {
     // `then` must stay undefined or an `await` on this object would try to adopt it as a thenable.
     get: (_target, prop): unknown => (prop === "then" ? undefined : new Proxy(inert, handler)),
   };
-  // FABRICATION-OK: a recursive inert stand-in for the union of nine domains' contribution deps — the
+  // @orb-waive no-test-fabrication(unknown): a recursive inert stand-in for the union of nine domains' contribution deps — the Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // factories store their ops and this pin never runs a job.
   return new Proxy({}, handler) as unknown as WorkloadContributionsDeps;
 }

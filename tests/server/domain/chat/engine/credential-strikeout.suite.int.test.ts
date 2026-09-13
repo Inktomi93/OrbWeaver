@@ -72,7 +72,7 @@ type StrikeCall = Parameters<ChatContext["maybeRevokeOnAuthFailed"]>[0];
 function byoConnection(api: ResolvedConnection["api"] = "chat-completions"): ResolvedConnection {
   return {
     ...testConnection("custom_openai", api),
-    // FABRICATION-OK: minimal ResolvedCredential double — the engine reads only `.source`/`.credentialId`.
+    // @orb-waive no-test-fabrication(unknown): minimal ResolvedCredential double — the engine reads only `.source`/`.credentialId`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     credential: { source: "custom_openai", credentialId: BYO_CREDENTIAL } as unknown as ResolvedCredential,
   };
 }
@@ -329,7 +329,7 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: 0 });
     await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
     const rejected = new ProviderError({ kind: "auth_failed", retryable: false, message: "the upstream rejected the key (401)", apiErrorStatus: 401 });
-    // FABRICATION-OK: minimal RoleClients double — this path throws at the FIRST call (`embed`) and reads
+    // @orb-waive no-test-fabrication(unknown): minimal RoleClients double — this path throws at the FIRST call (`embed`) and reads Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // nothing else off the bundle.
     const searchCtx = {
       db,

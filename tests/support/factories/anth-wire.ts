@@ -11,7 +11,7 @@ import type { RawMessageStreamEvent } from "@anthropic-ai/sdk/resources/messages
  *  reducer reads only the runtime fields, so a structural literal is the honest fixture. */
 export function anthEvent(event: Record<string, unknown>): RawMessageStreamEvent {
   // The SDK's RawMessageStreamEvent is an external deep union; the reducer reads the runtime shape only.
-  // FABRICATION-OK: the ONE sanctioned cast for anth-direct wire fixtures (the resolved-connection brand pattern).
+  // @orb-waive no-test-fabrication(unknown): the ONE sanctioned cast for anth-direct wire fixtures (the resolved-connection brand pattern). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return event as unknown as RawMessageStreamEvent;
 }
 
@@ -25,6 +25,6 @@ export function anthStream(events: readonly RawMessageStreamEvent[]): Stream<Raw
     }
   }
   // The SDK `Stream` is a concrete class the reducer consumes only as an async iterable.
-  // FABRICATION-OK: a generator is the honest test double (matches the openrouter runner's EventStream fake).
+  // @orb-waive no-test-fabrication(unknown): a generator is the honest test double (matches the openrouter runner's EventStream fake). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return gen() as unknown as Stream<RawMessageStreamEvent>;
 }

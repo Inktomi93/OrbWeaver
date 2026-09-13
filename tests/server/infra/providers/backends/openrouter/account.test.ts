@@ -13,7 +13,7 @@ type GenClient = Parameters<typeof getOpenRouterGenerationCost>[0];
 /** The credential-derived scrub set these surfaces now REQUIRE (#1599). */
 function scrubSetFor(apiKey: string): ReturnType<typeof providerCredentialSecretValues> {
   // ResolvedCredential is brand-sealed; only domain credentials/substrate/mint constructs one.
-  // FABRICATION-OK: server-can't-mint — see above.
+  // @orb-waive no-test-fabrication(unknown): server-can't-mint — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return providerCredentialSecretValues({ source: "openrouter", apiKey, credentialId: null } as unknown as ResolvedCredential);
 }
 

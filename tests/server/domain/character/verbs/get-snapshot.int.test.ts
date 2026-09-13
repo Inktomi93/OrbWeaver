@@ -50,7 +50,7 @@ test("an OLDER-shaped stored blob is projected through the same parse seam `rest
   // A history row written under an older card shape: `greetings` as the pre-array string ST used, and a
   // `refinery` score outside today's 1-10 rubric. These rows really exist — the history is opaque AT REST
   // and is never migrated — so this is persisted data the read has to survive, not hypothetical input.
-  // FABRICATION-OK: the whole point is a stored blob that does NOT satisfy today's `CharacterCard`.
+  // @orb-waive no-test-fabrication(unknown): the whole point is a stored blob that does NOT satisfy today's `CharacterCard`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const legacyContent = {
     name: "Aria",
     description: "keeper of records",

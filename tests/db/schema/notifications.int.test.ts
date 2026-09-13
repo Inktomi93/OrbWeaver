@@ -92,7 +92,7 @@ test("notifications type CHECK rejects an out-of-union value", async () => {
     await db.insert(notifications).values({
       id: castId<NotificationId>("notification_badtype"),
       recipientUserId: userId,
-      // FABRICATION-OK: the invalid-input probe THIS test asserts the CHECK constraint rejects.
+      // @orb-waive no-test-fabrication(unknown): the invalid-input probe THIS test asserts the CHECK constraint rejects. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       type: "credential-leak" as unknown as NotificationEvent["type"],
       payload: inviteEvent(userId),
       seq: 1,

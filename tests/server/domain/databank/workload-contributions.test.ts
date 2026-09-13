@@ -22,7 +22,7 @@ const RUN = { documents: 1, chunksUpserted: 3, chunksNoop: 0, chunksPruned: 0, r
 
 function build(): { readonly deps: DatabankWorkloadDeps; readonly contributions: ReturnType<typeof createDatabankWorkloadContributions> } {
   // A recording slice of the two ingest ops the contributions call — the routing + the purge guard are what
-  // FABRICATION-OK: is under test, not the ingest subsystem's own accounting.
+  // @orb-waive no-test-fabrication(unknown): is under test, not the ingest subsystem's own accounting. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const deps = {
     databankIngest: { ingestDocument: vi.fn(async () => RUN), reindex: vi.fn(async () => RUN) },
     purgeDocumentVectors: vi.fn(async () => undefined),

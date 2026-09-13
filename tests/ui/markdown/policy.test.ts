@@ -14,7 +14,7 @@ import { expect, test } from "../../support/fixtures.ts";
 // so the hast node arg is an unused deliberate stub. The `UrlTransform` return type is `string | null |
 // undefined`; this gate always yields a string ("" = BLOCK, else the url), and `?? ""` narrows the type.
 const gate = (url: string): string =>
-  // FABRICATION-OK: the unused hast-node arg — untrustedUrlTransform never reads it.
+  // @orb-waive no-test-fabrication(never): the unused hast-node arg — untrustedUrlTransform never reads it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   untrustedUrlTransform(url, "href", { type: "element", tagName: "a" } as never) ?? "";
 const BLOCKED = "";
 

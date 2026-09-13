@@ -230,7 +230,7 @@ describe("resolve", () => {
     });
     await db
       .update(userCredentials)
-      // FABRICATION-OK: a deliberately corrupt custom_openai row (no baseUrl) — proves the read seam returns null for it.
+      // @orb-waive no-test-fabrication(unknown): a deliberately corrupt custom_openai row (no baseUrl) — proves the read seam returns null for it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       .set({ metadata: { kind: "custom_openai" } as unknown as ProviderMetadata })
       .where(eq(userCredentials.id, added.id));
 

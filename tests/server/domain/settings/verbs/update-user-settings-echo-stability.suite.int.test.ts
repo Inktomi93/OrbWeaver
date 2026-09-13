@@ -155,7 +155,7 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
 
     // Plant a pre-v4 blob directly, with a STALE version column (1) — the exact "unstamped legacy row" the
     // #16 gotcha warns about (parseUserSettings without a current column re-runs the v1→v4 lift chain).
-    // FABRICATION-OK: deliberately the legacy v1 shape, not the column's $type — a real pre-lift db row.
+    // @orb-waive no-test-fabrication(unknown): deliberately the legacy v1 shape, not the column's $type — a real pre-lift db row. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const legacyBlob = {
       schemaVersion: 1,
       defaultModel: "legacy-model",

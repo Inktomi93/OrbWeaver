@@ -71,7 +71,7 @@ function fakes(): Fakes {
 }
 
 function build(f: Fakes): ReturnType<typeof buildImagery> {
-  // FABRICATION-OK: inert structural stand-ins for the db/connection/executor/assets front doors this
+  // @orb-waive no-test-fabrication(unknown): inert structural stand-ins for the db/connection/executor/assets front doors this Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // seam threads; only the ops the pins below drive are ever called.
   const deps = {
     db: {},

@@ -15,7 +15,7 @@ type OidcConfig = Awaited<ReturnType<OidcDiscover>>;
 
 /** A deterministic stand-in for openid-client's `Configuration`. */
 function fakeConfig(issuer: string): OidcConfig {
-  // FABRICATION-OK: openid-client's Configuration has no test constructor and this suite never calls a
+  // @orb-waive no-test-fabrication(unknown): openid-client's Configuration has no test constructor and this suite never calls a Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // method on it — identity (which object came back) is the entire assertion.
   return { serverMetadata: () => ({ issuer }) } as unknown as OidcConfig;
 }

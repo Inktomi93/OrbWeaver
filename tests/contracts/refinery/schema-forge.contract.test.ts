@@ -112,7 +112,7 @@ test("the belt's OTHER refusal classes are unreachable from the grammar — by r
     { path: "p", type: "object", description: "", required: true },
     { path: "p", type: "string", description: "", required: true, chart: "pie" },
   ]) {
-    // FABRICATION-OK: these ARE the invalid inputs under test — the point is that `Row` cannot describe them.
+    // @orb-waive no-test-fabrication(unknown): these ARE the invalid inputs under test — the point is that `Row` cannot describe them. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     expect(forgeDesignEnvelopeSchema.safeParse(design([bad as unknown as Row])).success).toBe(false);
   }
 
@@ -121,7 +121,7 @@ test("the belt's OTHER refusal classes are unreachable from the grammar — by r
   // is structurally incapable of reaching the transpiled document. Both routes end in the same place, which
   // is the property that matters; asserting a refusal here would have been asserting the wrong mechanism.
   const smuggled = forgeDesignEnvelopeSchema.parse(
-    // FABRICATION-OK: a model smuggling a JSON-Schema keyword into a row is exactly the input under test.
+    // @orb-waive no-test-fabrication(unknown): a model smuggling a JSON-Schema keyword into a row is exactly the input under test. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     design([{ path: "p", type: "string", description: "", required: true, pattern: "a+", $ref: "#/x" } as unknown as Row]),
   );
   const { schema } = transpileForgeDesign(smuggled, "score");

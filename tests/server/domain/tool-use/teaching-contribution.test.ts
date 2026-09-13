@@ -35,7 +35,7 @@ const allowAll: Can = (() => undefined) as Can;
 /** This suite drives ONLY the tool-attach axis; chat's attribution contributor (the one db reader) stays
  *  off the db via the tctx's plane-off knob, so the registry takes an inert handle (the chat unit suite's
  *  own `UNIT_DB` spelling). */
-// FABRICATION-OK: a deliberately INERT Db stand-in — nothing here may touch a database, and any collect that did would throw loudly on it.
+// @orb-waive no-test-fabrication(Db): a deliberately INERT Db stand-in — nothing here may touch a database, and any collect that did would throw loudly on it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const UNIT_DB = {} as Db;
 
 function serviceOf(): Service {

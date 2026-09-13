@@ -20,7 +20,7 @@ describe("authored-input belts", () => {
     expect(parsedGroupConfig(null)).toBeNull();
     expect(parsedGroupConfig(undefined)).toBeNull();
     // A stray key on chat's STRICT arms is REFUSED loudly, never stripped-and-healed.
-    // FABRICATION-OK: a deliberately MALFORMED blob — the strict-arm refusal is this assertion's subject.
+    // @orb-waive no-test-fabrication(unknown): a deliberately MALFORMED blob — the strict-arm refusal is this assertion's subject. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     expect(() => parsedGroupConfig({ output: "narrator", bogusKnob: true } as unknown as GroupConfigInput)).toThrow(ZodError);
     expect(parsedGroupConfig({ output: "per-speaker" })).toMatchObject({ output: "per-speaker", cardScope: "merged" });
   });

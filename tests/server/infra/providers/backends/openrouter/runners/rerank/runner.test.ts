@@ -17,7 +17,7 @@ import { expect, test } from "../../../../../../../support/fixtures.ts";
 const MODEL = "qwen/qwen3-reranker";
 // ResolvedCredential is brand-sealed (contracts/credentials) — only the domain credentials/substrate/mint
 // factory constructs one; a test needs a plain equivalent shape.
-// FABRICATION-OK: server-can't-mint — see above.
+// @orb-waive no-test-fabrication(unknown): server-can't-mint — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const CRED = {
   source: "openrouter",
   apiKey: "sk-or-secret",
@@ -46,7 +46,7 @@ interface Captured {
 
 function rerankClient(response: unknown): { client: RerankClient; captured: Captured } {
   const captured: Captured = { body: undefined };
-  // FABRICATION-OK: hand-built fake vendor SDK client — the runner only calls `rerank.rerank`.
+  // @orb-waive no-test-fabrication(unknown): hand-built fake vendor SDK client — the runner only calls `rerank.rerank`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const client = {
     rerank: {
       rerank: (req: { requestBody: Record<string, unknown> }): Promise<unknown> => {
@@ -59,7 +59,7 @@ function rerankClient(response: unknown): { client: RerankClient; captured: Capt
 }
 
 function rejectingClient(error: unknown): RerankClient {
-  // FABRICATION-OK: hand-built fake vendor SDK client — the runner only calls `rerank.rerank`.
+  // @orb-waive no-test-fabrication(unknown): hand-built fake vendor SDK client — the runner only calls `rerank.rerank`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     rerank: { rerank: (): Promise<unknown> => Promise.reject(error) },
   } as unknown as RerankClient;

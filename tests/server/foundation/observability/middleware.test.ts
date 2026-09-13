@@ -58,7 +58,7 @@ async function run(opts: { path: string; method?: string; incomingId?: string; p
     nextCalled = true;
     return Promise.resolve();
   };
-  // FABRICATION-OK: narrowing the real Hono middleware to the minimal test-local call-shape.
+  // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal test-local call-shape. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const mw = observability as unknown as MiddlewareFn;
   await mw(ctx, next);
   return { stampedId: ctx.res.headers.get("x-request-id"), nextCalled };
@@ -265,7 +265,7 @@ describe("observabilityErrorHandler (the thrown-request path, PD-118)", () => {
     initTracing();
     const incomingId = "observed-then-thrown-1";
     const ctx = makeErrorCtx({ path: "/api/chats", incomingId });
-    // FABRICATION-OK: narrowing the real Hono middleware to the minimal test-local call-shape.
+    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal test-local call-shape. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     await (observability as unknown as MiddlewareFn)(ctx, (): Promise<void> => Promise.resolve());
 
     await observabilityErrorHandler(new Error("handler-blew-up"), ctx as never);

@@ -25,7 +25,7 @@ const sig = (): AbortSignal => new AbortController().signal;
 function fakeDeps(): RefineryWorkloadDeps {
   // The `summarize` role client is a wide provider surface this suite deliberately never reaches (no
   // targets ⇒ no prompt, no call); the REAL bundle drives the real chain in `verbs/score-sweep.int.test.ts`.
-  // FABRICATION-OK: an unreached role-client stub — the suite asserts the ENUMERATION's arguments, not a turn.
+  // @orb-waive no-test-fabrication(unknown): an unreached role-client stub — the suite asserts the ENUMERATION's arguments, not a turn. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const summarize = vi.fn() as unknown as RefineryWorkloadDeps["summarize"];
   return {
     summarize,

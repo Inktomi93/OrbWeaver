@@ -153,7 +153,8 @@ describe("resolveHistoryFloorSeq — the persisted policy becomes a canon floor"
 describe("isBelowHistoryFloor — the ONE verdict both the durable replay and the live fan-out ask", () => {
   const chatId = castId<ChatId>("chat_room");
   const messageId = castId<MessageId>("message_x");
-  const viewAt = (seq: number): MessageView => ({ seq }) as unknown as MessageView; // FABRICATION-OK: only `.seq` is read by the verdict.
+  // @orb-waive no-test-fabrication(unknown): only `.seq` is read by the verdict. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const viewAt = (seq: number): MessageView => ({ seq }) as unknown as MessageView;
   /** A streamed token chunk anchored to the canon slot it is filling (`slotSeq` — stamped by the engine's
    *  ONE emit site from the target it already resolved: the loaded slot for swipe/continue, `maxSeq + 1` for
    *  a new slot). This anchor is what makes raw transcript text decidable at all. */

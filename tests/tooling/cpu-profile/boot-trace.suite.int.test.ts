@@ -37,7 +37,6 @@ function plantedStartFailure(detachFailure?: Error): {
   const primary = new Error("planted Tracing.start refusal");
   const detach = vi.fn(() => (detachFailure === undefined ? Promise.resolve() : Promise.reject(detachFailure)));
   const removeListener = vi.fn();
-  // FABRICATION-OK: this is the deliberate third-party CDP boundary failure plant; every method models an exact CDP lifecycle call reached before/after Tracing.start rejects.
   const send = vi.fn((method: string) => {
     if (method === "Page.addScriptToEvaluateOnNewDocument") {
       return Promise.resolve({ identifier: "planted-boot-observer" });
@@ -54,7 +53,7 @@ function plantedStartFailure(detachFailure?: Error): {
     detach,
     send,
   } as unknown as CDPSession;
-  // FABRICATION-OK: this page exposes only the real newCDPSession boundary because the planted start rejection prevents every Page read.
+  // @orb-waive no-test-fabrication(unknown): this page exposes only the real newCDPSession boundary because the planted start rejection prevents every Page read. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const page = { context: () => ({ newCDPSession: (): Promise<CDPSession> => Promise.resolve(cdp) }) } as unknown as Page;
   return { page, detach, removeListener, send };
 }
@@ -174,7 +173,7 @@ for (const failureMode of ["completion", "presentation-and-completion", "end-com
         return Promise.resolve({});
       });
       const detach = vi.fn(() => Promise.resolve());
-      // FABRICATION-OK: deliberately stall the third-party CDP stop boundary after delivering one real-shaped event.
+      // @orb-waive no-test-fabrication(unknown): deliberately stall the third-party CDP stop boundary after delivering one real-shaped event. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const cdp = {
         on: vi.fn((_name: string, collect: (payload: { value: unknown[] }) => void) => collect({ value: [event] })),
         once: vi.fn(),

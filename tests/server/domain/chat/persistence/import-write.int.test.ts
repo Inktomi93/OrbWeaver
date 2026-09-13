@@ -550,7 +550,7 @@ describe("createBulkImportChats", () => {
           ...chatInput("Meta.jsonl"),
           // `opening` is a valid sub-blob; the deliberately-bogus `group.output` must heal to absent WITHOUT
           // taking `opening` with it — that is `parseChatMetadata`'s fault isolation, not a second spelling here.
-          // FABRICATION-OK: the bogus `group.output` IS the probe — a well-typed value cannot express the malformed sub-blob whose isolation this test pins.
+          // @orb-waive no-test-fabrication(never): the bogus `group.output` IS the probe — a well-typed value cannot express the malformed sub-blob whose isolation this test pins. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
           metadata: { opening: "greet-all", group: { output: "not-a-mode" } } as never,
         },
       ],

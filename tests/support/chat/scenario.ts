@@ -45,7 +45,7 @@ import type { Tape } from "./tape.ts";
 import { scriptedRunner } from "./tape.ts";
 
 /** The default model capability (mirrors the chat int fakes — a big window, no reasoning/tools). */
-// FABRICATION-OK: minimal `ModelCapability` double (the turn.int harness precedent) — only window/output are read.
+// @orb-waive no-test-fabrication(unknown): minimal `ModelCapability` double (the turn.int harness precedent) — only window/output are read. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const CAPABILITY = {
   reasoning: { mode: "none", enabled: false },
   sampling: {},
@@ -58,7 +58,7 @@ function connectionOf(): ResolvedConnection {
   return {
     api: "chat-completions",
     model: castId<ModelId>("test-model"),
-    // FABRICATION-OK: minimal `ResolvedCredential` double (turn.int precedent) — only `.source` is read (§9 belt).
+    // @orb-waive no-test-fabrication(unknown): minimal `ResolvedCredential` double (turn.int precedent) — only `.source` is read (§9 belt). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     credential: { source: "vllm", credentialId: null } as unknown as ResolvedCredential,
     capability: CAPABILITY,
   };
@@ -66,7 +66,7 @@ function connectionOf(): ResolvedConnection {
 
 /** A minimal live card for a roster member (name only — the shape the assembly reads). */
 const cardOf = (name: string): CharacterCard =>
-  // FABRICATION-OK: minimal `CharacterCard` double (turn.int precedent) — assembly reads only name/description.
+  // @orb-waive no-test-fabrication(unknown): minimal `CharacterCard` double (turn.int precedent) — assembly reads only name/description. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 /** A deterministic PRNG (Park-Miller LCG) — D46 (never `Math.random`). */

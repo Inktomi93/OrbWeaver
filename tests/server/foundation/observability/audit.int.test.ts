@@ -53,7 +53,7 @@ describe("logAudit — failure path (never breaks the primary channel)", () => {
   test("a db.insert throw is suppressed (no throw) and the failure window increments", async () => {
     resetAuditFailureCount();
     // A db stub whose insert throws — the audit channel must swallow it.
-    // FABRICATION-OK: minimal throwing Db double — only `insert` is invoked by logAudit's failure path.
+    // @orb-waive no-test-fabrication(unknown): minimal throwing Db double — only `insert` is invoked by logAudit's failure path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const brokenDb = {
       insert: () => {
         throw new Error("boom");

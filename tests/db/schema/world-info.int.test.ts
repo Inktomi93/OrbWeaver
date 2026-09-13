@@ -161,7 +161,7 @@ test("character_books role CHECK rejects an out-of-enum value", async () => {
     await db.insert(characterBooks).values({
       characterId,
       worldBookId: bookId,
-      // FABRICATION-OK: deliberate invalid-input probe of the role CHECK constraint.
+      // @orb-waive no-test-fabrication(unknown): deliberate invalid-input probe of the role CHECK constraint. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       role: "nope" as unknown as (typeof WORLD_BOOK_ROLES)[number],
     });
   } catch (err) {

@@ -14,13 +14,13 @@ import { expect, test } from "../../../../support/fixtures.ts";
 // ResolvedCredential is brand-sealed (contracts/credentials) — only the domain credentials/substrate/mint
 // factory constructs one; a test needs a plain equivalent shape.
 function cred(source: ResolvedCredential["source"]): ResolvedCredential {
-  // FABRICATION-OK: server-can't-mint — see above.
+  // @orb-waive no-test-fabrication(unknown): server-can't-mint — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { source, credentialId: null } as unknown as ResolvedCredential;
 }
 
 // ChatResult is a provider-runner output shape; this is a minimal stand-in whose only field the routing
 // spy ever reads is `reply`.
-// FABRICATION-OK: server-can't-mint — see above.
+// @orb-waive no-test-fabrication(unknown): server-can't-mint — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const CHAT_RESULT = { reply: "ok" } as unknown as ChatResult;
 
 /** A backend whose `runAgentTurn` records `${key}:agent` so the routed selection is observable. */

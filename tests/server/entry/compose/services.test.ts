@@ -247,7 +247,7 @@ test("the backend registry sources the resolved vLLM concurrency from AppSetting
       await new Promise((resolve) => setTimeout(resolve, 0));
       active -= 1;
       const { input } = body as { input: string[] };
-      // FABRICATION-OK: `enginePost<T>` is generic over the caller's expected response shape — no real factory can target an unbound T.
+      // @orb-waive no-test-fabrication(T): `enginePost<T>` is generic over the caller's expected response shape — no real factory can target an unbound T. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       return {
         data: input.map((_text, i) => ({ index: i, embedding: [1, 2, 3, 4] })),
         model: "fake",
@@ -564,7 +564,7 @@ function fakeEmbedClient(): VllmEngineClient {
   return {
     enginePost: <T>(_engine: unknown, _path: string, body: unknown): Promise<T> => {
       const { input } = body as { input: string[] };
-      // FABRICATION-OK: `enginePost<T>` is generic over the caller's expected response shape — no real factory can target an unbound T.
+      // @orb-waive no-test-fabrication(T): `enginePost<T>` is generic over the caller's expected response shape — no real factory can target an unbound T. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       return Promise.resolve({
         data: input.map((_text, i) => ({
           index: i,

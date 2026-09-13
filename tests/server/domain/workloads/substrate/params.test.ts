@@ -32,7 +32,7 @@ function contributionsWith(over: Partial<WorkloadContribution<"databank-ingest">
     run: () => Promise.reject(new Error("not invoked by this test")),
     ...over,
   };
-  // FABRICATION-OK: a minimal single-kind registry double — only the "databank-ingest" contribution this file's tests exercise.
+  // @orb-waive no-test-fabrication(WorkloadContributions): a minimal single-kind registry double — only the "databank-ingest" contribution this file's tests exercise. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { "databank-ingest": base } as WorkloadContributions;
 }
 

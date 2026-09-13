@@ -9,15 +9,15 @@ import { expect, test } from "../../../support/fixtures.ts";
 
 describe("requireProfile", () => {
   test("throws loud when ctx.profile is not wired (a card-only slice reaching a chats/personas verb)", () => {
-    // FABRICATION-OK: minimal ImportContext double — only `profile` is read by this assertion.
+    // @orb-waive no-test-fabrication(unknown): minimal ImportContext double — only `profile` is read by this assertion. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const ctx = { profile: undefined } as unknown as ImportContext;
     expect(() => requireProfile(ctx)).toThrow(/ctx\.profile not wired/);
   });
 
   test("returns the wired profile deps verbatim when present", () => {
-    // FABRICATION-OK: an opaque profile-deps marker — requireProfile only checks presence/absence, never reads through it.
+    // @orb-waive no-test-fabrication(ImportProfileDeps): an opaque profile-deps marker — requireProfile only checks presence/absence, never reads through it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const profile = {} as ImportProfileDeps;
-    // FABRICATION-OK: minimal ImportContext double — only `profile` is read by this assertion.
+    // @orb-waive no-test-fabrication(unknown): minimal ImportContext double — only `profile` is read by this assertion. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const ctx = { profile } as unknown as ImportContext;
     expect(requireProfile(ctx)).toBe(profile);
   });

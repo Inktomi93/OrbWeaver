@@ -50,7 +50,7 @@ async function runGate(opts: DebugAuthOptions | string | undefined, reqToken?: s
     passed = true;
     return Promise.resolve();
   };
-  // FABRICATION-OK: narrowing the real Hono middleware to the minimal test-local call-shape.
+  // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal test-local call-shape. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const gate = createDebugAuthMiddleware(opts) as unknown as GateFn;
   const result = await gate(ctx, next);
   if (passed) {

@@ -9,11 +9,11 @@ import { expectTypeOf, test } from "vitest";
 import type { CATALOG_MODES, CatalogMode, ReceiptClaim, ReceiptEntry, ReceiptEvidence } from "../../../../tooling/src/doc-catalog/index.ts";
 
 test("a receipt row and its claims are readonly all the way down", () => {
-  // FABRICATION-OK: a type-level probe — a `.test-d` file is typechecked, never executed, so the value is never read; the cast exists only so the next line can prove the property.
+  // @orb-waive no-test-fabrication(ReceiptEntry): a type-level probe — a `.test-d` file is typechecked, never executed, so the value is never read; the cast exists only so the next line can prove the property. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const entry = {} as ReceiptEntry;
   // @ts-expect-error — a receipt row is evidence, not a mutable record.
   entry.disposition = "current";
-  // FABRICATION-OK: a type-level probe — a `.test-d` file is typechecked, never executed, so the value is never read; the cast exists only so the next line can prove the property.
+  // @orb-waive no-test-fabrication(ReceiptClaim): a type-level probe — a `.test-d` file is typechecked, never executed, so the value is never read; the cast exists only so the next line can prove the property. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const claim = {} as ReceiptClaim;
   // @ts-expect-error — same for the typed claim's evidence list.
   claim.evidence = [];

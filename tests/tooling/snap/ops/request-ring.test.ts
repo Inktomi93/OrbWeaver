@@ -19,7 +19,7 @@ function fakePage(): EventEmitter & Page {
 }
 
 function fakeRequest(spec: FakeRequestSpec): Request {
-  // FABRICATION-OK: minimal Playwright Request event double; RequestRing reads exactly these six methods,
+  // @orb-waive no-test-fabrication(unknown): minimal Playwright Request event double; RequestRing reads exactly these six methods, Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // while requests.int.test.ts proves the same path with real Playwright Request instances.
   return {
     method: () => "GET",
@@ -39,7 +39,7 @@ function fakeRequest(spec: FakeRequestSpec): Request {
 }
 
 function fakeResponse(request: Request, body: string, contentType: string): Response {
-  // FABRICATION-OK: minimal Playwright Response event double; RequestRing reads exactly these five methods,
+  // @orb-waive no-test-fabrication(unknown): minimal Playwright Response event double; RequestRing reads exactly these five methods, Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // while requests.int.test.ts proves the same path with real Playwright Response instances.
   return {
     request: () => request,

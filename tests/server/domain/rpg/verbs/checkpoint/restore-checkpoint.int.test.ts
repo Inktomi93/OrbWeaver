@@ -133,7 +133,7 @@ type RestoreCompanion = (ids: { readonly messageId: MessageId; readonly variantI
  * type before the production contract lands. The explicit missing-callback refusal makes the old two-commit
  * restore fail rather than accidentally ratifying it. */
 function rpgRestorePost(post: PostNarratorMessage): RpgContext["postNarratorMessage"] {
-  // FABRICATION-OK: this compatibility adapter intentionally models the pre-contract restore callback so
+  // @orb-waive no-test-fabrication(unknown): this compatibility adapter intentionally models the pre-contract restore callback so Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // the red-first test fails behaviorally when production omits the atomic companion statement.
   return ((chatId: ChatId, content: string, buildSnapshotStatement: RestoreCompanion | undefined) => {
     if (buildSnapshotStatement === undefined) {

@@ -92,7 +92,7 @@ function makeCtx(req: MockReq): MockCtx {
 // test over a real freshDb.
 // The mock harness reaches only route REGISTRATION (builds the login limiter object but never calls it);
 // the db-touching paths run over a real freshDb in the int test.
-// FABRICATION-OK: never-dereferenced registration-only stand-in.
+// @orb-waive no-test-fabrication(unknown): never-dereferenced registration-only stand-in. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const STUB_DB = {} as unknown as Db;
 
 // The openid-client Configuration type, derived from the deps surface (the tests workspace doesn't depend on
@@ -104,7 +104,7 @@ type OidcConfig = Awaited<ReturnType<OidcRoutesDeps["getConfig"]>>;
  *  single sanctioned fabrication; every OidcRoutesDeps stub built below is otherwise fully typed. */
 // openid-client Configuration has no test constructor; only serverMetadata() is exercised.
 function fakeConfig(meta: { issuer: string; jwks_uri?: string; end_session_endpoint?: string }): OidcConfig {
-  // FABRICATION-OK: openid-client Configuration has no test constructor; only serverMetadata() is exercised.
+  // @orb-waive no-test-fabrication(unknown): openid-client Configuration has no test constructor; only serverMetadata() is exercised. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { serverMetadata: () => meta } as unknown as OidcConfig;
 }
 
@@ -154,7 +154,7 @@ function routesOf(deps: AuthRoutesDeps): Map<string, Handler> {
       return app;
     };
   const app = { get: record("GET"), post: record("POST") };
-  // FABRICATION-OK: minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here.
+  // @orb-waive no-test-fabrication(unknown): minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerAuthRoutes(app as unknown as Parameters<typeof registerAuthRoutes>[0], deps);
   return routes;
 }
@@ -176,7 +176,7 @@ function registeredHandlerCount(deps: AuthRoutesDeps, key: string): number {
       return app;
     };
   const app = { get: record("GET"), post: record("POST") };
-  // FABRICATION-OK: registration-only route capture; handler count proves the middleware belt is present.
+  // @orb-waive no-test-fabrication(unknown): registration-only route capture; handler count proves the middleware belt is present. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerAuthRoutes(app as unknown as Parameters<typeof registerAuthRoutes>[0], deps);
   return counts.get(key) ?? 0;
 }

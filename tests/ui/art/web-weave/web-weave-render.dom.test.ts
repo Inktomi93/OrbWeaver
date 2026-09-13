@@ -119,7 +119,7 @@ function recordSettledFrame(over?: { plucks?: WeavePluckMap; wind?: number; web?
   renderWeaveFrame(
     // The recorder IS the instrument: a canvas context has no typed factory, the painters only ever CALL
     // methods on it, and every method they use is implemented above (a new one throws, loudly).
-    // FABRICATION-OK: recording 2D context — no factory exists for CanvasRenderingContext2D.
+    // @orb-waive no-test-fabrication(unknown): recording 2D context — no factory exists for CanvasRenderingContext2D. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     recorder as unknown as Parameters<typeof renderWeaveFrame>[0],
     {
       web,

@@ -428,7 +428,7 @@ function buildCannedRpgWithText(args: {
                 req.tools?.some((tool) => tool.name === "update_inventory") === true &&
                 req.tools.every((tool) => tool.name === "update_inventory" || tool.name === "no_changes");
               const toolCalls = inventoryAudit ? args.inventoryAuditToolCalls : cannedToolCalls;
-              // FABRICATION-OK: minimal ChatResult double — only the fields the arms actually read; the others never run.
+              // @orb-waive no-test-fabrication(unknown): minimal ChatResult double — only the fields the arms actually read; the others never run. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
               return Promise.resolve({
                 reply: cannedText,
                 ...(toolCalls === undefined ? {} : { toolCalls }),
@@ -2966,7 +2966,7 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
       },
       runChatTurn: (): Promise<ChatResult> => {
         spy.chatTurns.push({ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false, ownerConsented: false });
-        // FABRICATION-OK: this arm must never fire on this test — a minimal double proves it by staying unused.
+        // @orb-waive no-test-fabrication(unknown): this arm must never fire on this test — a minimal double proves it by staying unused. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         return Promise.resolve({ reply: "" } as unknown as ChatResult);
       },
     },

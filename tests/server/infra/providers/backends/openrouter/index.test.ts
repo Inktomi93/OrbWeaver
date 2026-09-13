@@ -20,7 +20,7 @@ const FIXED_NOW = 1000;
 const OR_KEY = "sk-or-secret";
 // ResolvedCredential is brand-sealed (contracts/credentials) — only the domain credentials/substrate/mint
 // factory constructs one; a test needs a plain equivalent shape.
-// FABRICATION-OK: server-can't-mint — see above.
+// @orb-waive no-test-fabrication(unknown): server-can't-mint — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const CRED = {
   source: "openrouter",
   apiKey: OR_KEY,
@@ -99,7 +99,7 @@ function backendWith(
   const tracker: Tracker = { apiKeys: [], sends: 0, sentRequests: [] };
   const getClient = (apiKey: string): OrClient => {
     tracker.apiKeys.push(apiKey);
-    // FABRICATION-OK: hand-built fake vendor SDK client — the backend only calls `chat.send`.
+    // @orb-waive no-test-fabrication(unknown): hand-built fake vendor SDK client — the backend only calls `chat.send`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return {
       chat: {
         send: (arg: unknown): Promise<unknown> => {
@@ -154,7 +154,7 @@ describe("createOpenRouterBackend — surface", () => {
     let receivedSignal: AbortSignal | undefined;
     let aborted = false;
     const getClient = (): OrClient =>
-      // FABRICATION-OK: hand-built vendor SDK client — this path only calls `models.list`.
+      // @orb-waive no-test-fabrication(unknown): hand-built vendor SDK client — this path only calls `models.list`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       ({
         models: {
           list: (_request?: undefined, options?: { signal?: AbortSignal }): Promise<unknown> => {
@@ -193,7 +193,7 @@ describe("createOpenRouterBackend — surface", () => {
   test("an ordinary SDK timeout stays retryable server when the supplied caller signal was not aborted", async () => {
     const upstreamTimeout = new Error("connection timeout from OpenRouter");
     const getClient = (): OrClient =>
-      // FABRICATION-OK: hand-built vendor SDK client — this path only calls `models.list`.
+      // @orb-waive no-test-fabrication(unknown): hand-built vendor SDK client — this path only calls `models.list`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       ({
         models: {
           list: (): Promise<unknown> => Promise.reject(upstreamTimeout),
@@ -215,7 +215,7 @@ describe("createOpenRouterBackend — surface", () => {
 describe("createOpenRouterBackend — firewall + dispatch", () => {
   test("the agent-sdk api is rejected (that api is the agent-sdk backend's)", async () => {
     const { backend } = backendWith(() => summarizeReply("x"));
-    // FABRICATION-OK: deliberate wrong-api probe — `api: "agent-sdk"` must NOT satisfy the openrouter ChatRequest.
+    // @orb-waive no-test-fabrication(unknown): deliberate wrong-api probe — `api: "agent-sdk"` must NOT satisfy the openrouter ChatRequest. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const req = {
       api: "agent-sdk",
       credential: CRED,

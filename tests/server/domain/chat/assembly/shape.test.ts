@@ -847,7 +847,7 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
   let nextSeq = 0;
   const userRow = (authorUserId: UserId, personaId: PersonaId | null, content: string): MessageView => {
     nextSeq += 1;
-    // FABRICATION-OK: slim MessageView double — toShapeCanon reads only role/kind/content/seq/personaId/authorUserId/excludedFromPrompt/id, all real here.
+    // @orb-waive no-test-fabrication(unknown): slim MessageView double — toShapeCanon reads only role/kind/content/seq/personaId/authorUserId/excludedFromPrompt/id, all real here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return {
       id: castId<MessageId>(`message_null_stamp_${nextSeq}`),
       seq: nextSeq,
@@ -865,7 +865,7 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
 
   /** A ctx just rich enough for `toShapeCanon`'s macro render — the host is the live trigger. */
   const ctxFor = (triggerUserId: UserId | null): AssembleContext =>
-    // FABRICATION-OK: slim AssembleContext double — this call path reads only character/characters/characterIds/recentMessages/promptConfig/triggerUserId.
+    // @orb-waive no-test-fabrication(unknown): slim AssembleContext double — this call path reads only character/characters/characterIds/recentMessages/promptConfig/triggerUserId. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     ({
       character: { name: "Aria", description: "" },
       characters: [],
@@ -1022,7 +1022,7 @@ describe("shape — the delivered-row trace", () => {
 // multi-speaker narrator block.
 
 const KIND_CTX: AssembleContext =
-  // FABRICATION-OK: slim AssembleContext double — this path reads only character/characters/characterIds/recentMessages/promptConfig.
+  // @orb-waive no-test-fabrication(unknown): slim AssembleContext double — this path reads only character/characters/characterIds/recentMessages/promptConfig. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   {
     character: { name: "Aria", description: "" },
     characters: [{ name: "Group", description: "" }],
@@ -1041,7 +1041,7 @@ let kindSeq = 0;
 /** A canon row that DECLARES its purpose — the only axis these tests vary. */
 function kindRow(over: Partial<MessageView> & { readonly kind: MessageView["kind"] }): MessageView {
   kindSeq += 1;
-  // FABRICATION-OK: slim MessageView double — toShapeCanon reads role/kind/content/seq/ids/excludedFromPrompt only.
+  // @orb-waive no-test-fabrication(unknown): slim MessageView double — toShapeCanon reads role/kind/content/seq/ids/excludedFromPrompt only. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     id: castId<MessageId>(`message_kind_${kindSeq}`),
     seq: kindSeq,
