@@ -362,19 +362,20 @@
     },
     {
       "path": "docs/reviews/gate-runtime/exception-authority-census.md",
-      "assignedSha256": "c0e1da2ad0efa2c2a0d9cb8ecba0437fb9830649cd49a1d3031522dab03d3375",
+      "assignedSha256": "5efb4171203c74f57f02a558a69a9797500b627048c3e59e1567bb47e59e4b22",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "c0e1da2ad0efa2c2a0d9cb8ecba0437fb9830649cd49a1d3031522dab03d3375",
-      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
+      "verifiedSha256": "5efb4171203c74f57f02a558a69a9797500b627048c3e59e1567bb47e59e4b22",
+      "verifiedCommit": "23a8f61d6db4a371a25d1e3c1dc7a6887c129090",
       "verifiedAt": "2026-09-13",
       "evidence": [
         "docs/reviews/gate-runtime/exception-authority-census.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
         "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed.",
-        "Q11 current claim evidence: immutable284dedcee deriveThemeCss and ledgers-fresh read in full; generator/validator and namespace-health functions read completely at their selected spans. ff25a067f independent theme review read in full, with its scoped/cut results attributed. Primary integrated-main1ef220c20 three-arm whole-stage JSON read in full: same-count1 with theme/census, cut-edge1 without theme and with census, malformed2 without freshness verdict. Canonical validation including required history is retained for this baseline, and scratch roots supply data rather than alternate generator code."
+        "Q11 current claim evidence: immutable284dedcee deriveThemeCss and ledgers-fresh read in full; generator/validator and namespace-health functions read completely at their selected spans. ff25a067f independent theme review read in full, with its scoped/cut results attributed. Primary integrated-main1ef220c20 three-arm whole-stage JSON read in full: same-count1 with theme/census, cut-edge1 without theme and with census, malformed2 without freshness verdict. Canonical validation including required history is retained for this baseline, and scratch roots supply data rather than alternate generator code.",
+        "2026-09-13 Q11 barrier correction: all 213 lines reread; final one-line edit committed at 23a8f61d6db4a371a25d1e3c1dc7a6887c129090. Historical constant classification now uses past tense and the documented former-symbol convention. dangling-refs symbolTokensInLine and RIDER_LINE_RE read directly; independent bounded review confirmed the predicate, prior/current declaration and truthful historical remedy. check:docs passed for this document. No new waiver or exemption; integrated structure rerun remains primary-owned."
       ],
       "summary": "Dated migration census and subsequent ruled dispositions, including retirement of copied theme parity at284dedcee. Historical populations remain measurements of their named tree, not a fresh current-corpus census.",
       "claims": [
