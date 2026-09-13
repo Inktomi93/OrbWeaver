@@ -50,7 +50,20 @@
 // named subject (the room source, then the client entry), else on the lowest admitted path — with the
 // missing filename in the MESSAGE, where it was always the load-bearing half. §4.6 category 6 (ANCHOR
 // MOVE) owes a marker receipt; the live `@orb-gate-ignore test-presence-client` census is ZERO measured
-// with a planted positive control, so nothing binds to the old position and nothing is orphaned.
+// with a planted positive control, so nothing binds to the old position and nothing is orphaned
+// (RE-MEASURED 2026-09-13 at `5045a6a68`: the planted control was found, the corpus holds no other hit).
+//
+// §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273), AND IT IS A POPULATION + OUTCOME RECEIPT, NOT CATCH
+// PARITY. `aecbc6c6c` landed a population/refusal receipt and no findings comparison for this policy:
+//   · FINDINGS. FINAL side through `runPolicyPass` over the real workspace at `5045a6a68`: 0 findings,
+//     owner `success`. The LEGACY side was never EXECUTED for findings, so this is guide §4.6 VACUITY
+//     SHAPE 1 and is NOT closable by rule; the fixture-level replay is what would close it. The port is
+//     also not 1:1 — `CLIENT_EXCLUDE_NESTED` and `CLIENT_EXCLUDE_FILES` were deleted (above), which the
+//     §4.1 rows carry from the other side.
+//   · POPULATION. `{ in: ["@client", "@ui"], notNamed: ["index.ts"] }` = the legacy corpus by construction;
+//     resource members on the real tree: `mirror-index:package-test` 6525 (`unresolved` 0) and
+//     `authored-text#1` 46 demanded paths — the store corpus plus the stories module.
+//   · TOOL ERRORS. 0 on the final side; the legacy `existsSync` arms could emit none by construction.
 //
 // AUTHORITY `hard`. The legacy gate declared no `ExemptionTable`, no baseline and no marker grammar — its
 // `CLIENT_EXCLUDE_FILES` list (DELETED at #2103, below) and its surviving `UI_LOGIC_GROUPS` list were
@@ -370,16 +383,23 @@ export const gate = defineGate({
         // The DEMAND door is called on EVERY run: an unconsumed declaration is a receipt-phase refusal
         // (`lib/resource-policy.ts` `acceptDemand` credits consumption only on a READY fact), and the door
         // itself refuses a ZERO-path demand. So a corpus carrying no store at all still demands ONE path —
-        // the lowest test-space member, which `loadMirrorIndex` guarantees exists because an EMPTY test
-        // space is a refusal, not an empty index. Same shape as `tooling-instrument-proof`'s blind-registry
-        // arm, which demands one selector before it returns. The stories module joins the corpus only when
-        // it is a live member (Spine-Testing §7 — "CT only mounts from a non-test module").
+        // the lowest test-space member. Same shape as `tooling-instrument-proof`'s blind-registry arm,
+        // which demands one selector before it returns. The stories module joins the corpus only when it is
+        // a live member (Spine-Testing §7 — "CT only mounts from a non-test module").
+        //
+        // THE LOWEST MEMBER IS TAKEN AS A SLICE, NOT AS A DEFAULTED ELEMENT (#2280). A `lowestTest ??
+        // STORE_STORIES` fallback stood here and was UNREACHABLE by the guarantee its own comment asserted:
+        // `mirror.testFiles` is empty only when the test space is empty, and that refuses one phase earlier
+        // (`ops/resource-mirror.ts` — `testFiles.length === 0` → status `empty`, so `readyResourceValue`
+        // never returns and `create` never runs; the refusal is driven in `mirror-index-family.test.ts`).
+        // §4.1 deletes an unreachable clause rather than documenting it, and the slice is the TOTAL
+        // expression that needs none: were that guarantee ever withdrawn, an empty demand is the door's own
+        // named refusal rather than a silently substituted subject.
         const demanded = [...new Set(stores.flatMap(({ mirrors }) => mirrors))];
         if (mirror.testFiles.has(STORE_STORIES)) {
           demanded.push(STORE_STORIES);
         }
-        const [lowestTest] = [...mirror.testFiles].toSorted();
-        const subjects = demanded.length > 0 ? demanded.toSorted() : [lowestTest ?? STORE_STORIES];
+        const subjects = demanded.length > 0 ? demanded.toSorted() : [...mirror.testFiles].toSorted().slice(0, 1);
         const corpus = readyResourceValue(ctx.resources.authoredText(subjects));
         judgeStores(stores, new Map(corpus.files.map(({ path, text }) => [path, blankTsCommentsAndStringsInText(text)])), findings);
         judgeWorstArt(mirror, new Set(ctx.resourcePaths), findings);

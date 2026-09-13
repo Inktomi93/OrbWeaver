@@ -68,6 +68,45 @@
 // The clause is kept rather than deleted because it is an ARITY guard, not an exemption row that can rot:
 // without it that impossible tree builds the mirror question `tooling/src//<base>.ts` (the empty `sub`
 // segment), which is what the joint cut prints. `mustPass[10]` carries the joint-cut receipt.
+//
+// §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273). The conversion commit `aecbc6c6c` landed a population
+// and refusal receipt and NO findings comparison, and §4.6 (#2000) stopped accepting silence as compliance;
+// this is the record it owes, with each of the three axes named rather than "the differential".
+//   · FINDINGS. FINAL side driven through `runPolicyPass` over the real workspace at `5045a6a68`: 57
+//     findings, every one the §4.7 tooling arm ("mirror miss — no source for …"). LEGACY side: 53, measured
+//     by cb-v-wave-8c on `50e31c534`, where the final side also read 53 — the pair MATCHES on that tree. The
+//     +4 since is not a catch delta: each member is a test file that landed after, named path-by-path in
+//     `tests/tooling/verify/gates/mirror-index-family.test.ts`'s parked roster (#2270/#2142).
+//   · POPULATION. `population: { of: "none" }` both sides in effect — the legacy descriptor walked `tests`
+//     itself and the final policy declares it. Resource members on the real tree: `package-test` 6525,
+//     `tooling-test` 2228, `unresolved` 0 on both, which is the membership the legacy `readdirSync` built
+//     per invocation.
+//   · TOOL ERRORS. 0 on the final side, owner `success`; the legacy descriptor could not produce one (its
+//     `existsSync` reads had no refusal), which is the capability delta this conversion bought and the
+//     reason the refusal pins exist at all.
+//   · ANCHOR MOVE (§4.6 category 6, the one this family owes a RECEIPT for rather than a bucket): legacy
+//     reported at synthetic `line: 0`, the final policy at `1:1`. A moved anchor can orphan or re-bind a
+//     positioned waiver — here it can bind NOTHING: the live `@orb-gate-ignore test-layout` census is ZERO,
+//     re-measured 2026-09-13 with a planted positive control (the plant was found, the corpus holds no
+//     other hit), and every finding is FILE-anchored with no position token.
+//
+// DECLARED CAPABILITY LIMIT — THIS POLICY PROVES A TEST'S NAME RESOLVES, NEVER THAT THE FILE IS ITS SUBJECT
+// (#2264). The §4.7 arm asks whether the mirror target EXISTS. So a module SPLIT (not deleted) whose test is
+// re-pointed at the new half while keeping its old name leaves the mirror resolving over a relationship
+// that has become a lie, and this gate stays green — measured live for a whole release on
+// `tests/tooling/_shared/artifacts*`. The limit is DECLARED rather than fixed here because the fix is a new
+// capability plus a corpus, not a clause: closing it means comparing a test's IMPORT SET against its mirror
+// target, and the cheap form of that predicate is REFUTED by measurement (2026-09-13, probe over all 2952
+// files under `tests/`): of the 2441 tests whose mirror target resolves, **1460 never name it in their own
+// import text** and **1024 still do not reach it after following re-exports two hops through the barrels**,
+// because the house idiom is `@orb/<pkg>/<subpath>` — the package's public door, not the module. A
+// text-level "the target appears among the imports" arm would therefore accuse ~42% of the test corpus on
+// day one, which is a test-mirror revamp (the same one #2142's park is waiting for), not a gate fix. The
+// row that would DIE under a name-only gate IS constructible and should be the capability's first
+// `mustFlag`: `tooling/src/_shared/{artifacts,artifact-naming}.ts` both present, plus a
+// `tests/tooling/_shared/artifacts.test.ts` importing ONLY `artifact-naming.ts` — name-only says PASS,
+// subject-aware says FLAG. Until then the cheap interim is procedural: after a decomposition, read the
+// mirrored test's IMPORTS rather than trusting that its name resolves.
 import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";
 import type { TestFilenameClassification } from "../../_shared/test-kinds.ts";
 import { classifyTestFilename, looksLikeTestFilename, TEST_KIND_SUFFIXES } from "../../_shared/test-kinds.ts";

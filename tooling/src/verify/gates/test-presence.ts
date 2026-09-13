@@ -72,7 +72,25 @@
 // `lib/absent-subject-anchor.ts` `subjectAnchor` on the real-tree anchor they are already gated on, with
 // the diagnosis unchanged in the MESSAGE. §4.6 category 6 owes a marker receipt for an anchor move; the
 // live `@orb-gate-ignore test-presence` census is ZERO, measured with a planted positive control, so
-// nothing binds to the old position.
+// nothing binds to the old position (RE-MEASURED 2026-09-13 at `5045a6a68`, planted control found, corpus
+// otherwise empty).
+//
+// §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273), AND IT IS A POPULATION + OUTCOME RECEIPT, NOT CATCH
+// PARITY. The conversion `aecbc6c6c` landed a population/refusal receipt and never ran a findings
+// comparison for this policy, so the honest record names which of §4.6's three axes it has:
+//   · FINDINGS. FINAL side driven through `runPolicyPass` over the real workspace at `5045a6a68`: 0
+//     findings, owner `success`. The LEGACY side was never EXECUTED for findings — so this cell is guide
+//     §4.6 VACUITY SHAPE 1 (both sides zero, or one side unmeasured) and it CANNOT be closed by rule, which
+//     requires "a 1:1 port whose legacy side was EXECUTED and returned zero". What would close it is the
+//     fixture-level replay (`origin-client-family-1584.md`'s method), not another real-corpus run: this
+//     policy's real-tree answer is zero on both engines by construction, because the tree is fully mirrored.
+//     The arms are NOT a 1:1 port either — `isPlumbingAtom`'s SPREAD clause and the DOMAIN pass-through
+//     clause are a deliberate 2026-09-12 WIDENING whose blast radius was measured separately (above).
+//   · POPULATION. `["@server", "@contracts"]` = the legacy corpus by construction (the port paragraph above
+//     derives the equality); resource members on the real tree: `mirror-index:package-test` 6525,
+//     `unresolved` 0.
+//   · TOOL ERRORS. 0 on the final side; the legacy descriptor could not emit one at all (`existsSync` has
+//     no refusal), which is the capability this conversion bought.
 //
 // THE REAL-TREE ANCHOR IS STILL REQUIRED AND IS NOW A MEMBERSHIP QUESTION. The tripwires ask "did the
 // corpus this derivation is keyed on disappear?", which is a real question on the live tree and a false
@@ -108,6 +126,21 @@
 // clean. `mustPass[4]`/`[5]` were exactly that — their `why` named the wiring-root fence while
 // `isPassThroughWiring` was doing the acquitting — so both bodies grew a second statement, which puts the
 // claim back under the fence it names.
+//
+// THREE MORE NARROWINGS CAME BACK CLEAN AFTER THAT BATTERY AND NOW CARRY ROWS (#2254, same method — each
+// cut alone, against THIS policy, driven through `verifyPolicyProofs`, with a planted control cut proving
+// the driver can see a row die). They are the fences the four above do not reach, and each row states its
+// DIRECTION, because two of the three are cuts that make the policy flag FEWER:
+//   - `isDomainShapeExempt`'s `hasSchema` arm → `mustPass[16]` (cut ⇒ MORE: the CONTRACT arm's own subject
+//     is handed to the residual arm as well, so one surface owes two different tests);
+//   - its `rel.includes("/contract/")` fence → `mustFlag[22]` (cut ⇒ FEWER: any domain file that merely
+//     mentions a zod builder becomes exempt);
+//   - `hasTest`'s `mirror === "module"` filter → `mustFlag[23]` (cut ⇒ FEWER: a `.suite.test.ts` sitting at
+//     the module path would satisfy a per-MODULE demand, which is the one thing a SUITE mirror is not — and
+//     the family filter cannot hold that fence, since suite kinds share `unit`/`integration`).
+// All three fixtures carry a two-statement body or a slotted `/verbs/` path for the reason the #2132
+// repairs did: the pass-through widening acquits any one-expression forwarder, so a fixture written to
+// exercise some OTHER fence goes silent for the wrong reason and its cut comes back clean.
 import type { Expression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { TestFamily } from "../../_shared/test-kinds.ts";
@@ -745,6 +778,25 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "domain file with runtime logic has no test" },
       why: "THE EXPORTED-CLASS ARM of `exportedCallables` (#2131): a class is runtime logic, and dropping it from the callable list would make a class-only subsystem invisible to BOTH demand arms rather than exempt by a stated shape. This row is outside `contract/`, so `isErrorDeclarationOnly` cannot be what acquits it under the cut — the class arm is the only fence in play",
     },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/src/domain/chat/substrate/limits.ts":
+          "export const limitsSchema = z.object({});\nexport function clampLimit(n: number): number {\n  const next = n + 1;\n  return next;\n}\n",
+        "tests/server/domain/chat/substrate/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "domain file with runtime logic has no test" },
+      why: "THE `/contract/` FENCE inside `isDomainShapeExempt` (#2254): the schema exemption is a statement about the `contract/` slot, which has its OWN arm demanding the RIGHT kind — it is not a licence for any file that mentions a zod builder. A `substrate/` module that declares a schema BESIDE real logic is demanded, and cutting the fence exempts it (and every schema-mentioning file in the domain tree) — the direction is FEWER findings, so only a `mustFlag` can hold it. The function body is two statements so `isPassThroughWiring` cannot be what reds it instead",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = () => 1;\n",
+        "tests/server/domain/chat/verbs/start-chat.suite.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "verb has no test" },
+      why: "THE `mirror === \"module\"` FILTER in `hasTest` (#2254): a `.suite.test.ts` is a `unit`-family kind whose mirror is a SUITE — its name is the suite's, not the module's — so a file sitting at the demanded module path is a COINCIDENCE, not that module's coverage. Cutting the filter makes this suite name satisfy the verb demand and the row goes silent; the family filter alone cannot hold it, because `suite` kinds share `unit`/`integration` families with the module kinds",
+    },
   ],
   mustPass: [
     {
@@ -888,6 +940,15 @@ export const gate = defineGate({
         "tests/server/domain/chat/substrate/other.test.ts": "export {};\n",
       },
       why: "DECLARED LIMIT — THE DOMAIN PASS-THROUGH SEAM (#2062), the shape that put two files in the retired baseline. A `substrate/` DI bridge exists to mediate a dep-cruiser boundary: every export forwards its OWN argument list into one sibling-subsystem call, so the behaviour is the target's and is demanded THERE, exactly as the #773 tier arm has always reasoned. It is also the shape the house's own test law makes UNTESTABLE — a test here either asserts that a forwarder forwards (the §5 tautology) or `vi.mock`s an internal module (§3, banned, and `test-mock-doctrine` reds it). TWO cuts red this row: dropping `isPassThroughWiring` from `pushDomainResidual`, and dropping the SPREAD clause from `isPlumbingAtom`",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/src/domain/chat/contract/limits.ts":
+          "export const limitsSchema = z.object({});\nexport function clampLimit(n: number): number {\n  const next = n + 1;\n  return next;\n}\n",
+        "tests/server/domain/chat/contract/limits.contract.test.ts": "export {};\n",
+      },
+      why: "DECLARED LIMIT — THE SCHEMA ARM of `isDomainShapeExempt` (#2254): a `contract/` file that DECLARES a schema is the CONTRACT arm's subject, and that arm demands the kind the surface actually owes — the `.contract.test.ts` this row carries. Cutting `hasSchema` out of the exemption hands the same file to the residual arm as well, which then demands a SECOND, different test for one surface; the direction is MORE findings, which is why a `mustPass` is what holds it. `mustFlag[10]` holds the other edge (a `contract/` file with real logic and no schema stays demanded), and the body is two statements so `isPassThroughWiring` is not what acquits it",
     },
   ],
 });

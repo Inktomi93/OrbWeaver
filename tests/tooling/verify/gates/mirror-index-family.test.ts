@@ -206,14 +206,33 @@ test("test-presence: an absent test tree REFUSES rather than accusing every sour
  *  HAS members but none under its narrower `tests/tooling` root, while `package-test`'s test root IS the
  *  tree, so the only way in is a test tree that EXISTS and is empty — a state no overlay can build, and
  *  exactly the tree a wiped `tests/` leaves behind. Under `existsSync` this was indistinguishable from a
- *  complete corpus and would have accused every source file on the tree. */
+ *  complete corpus and would have accused every source file on the tree.
+ *
+ *  THE SUBSTRATE IS MIXED ON PURPOSE, AND THE GREEN TWIN BELOW IS WHY (#2279). The first landing of this
+ *  pin planted the SOURCE on disk and passed an EMPTY overlay, which left the ts-morph project with no
+ *  files — so the healthy arrangement of that same substrate does not go green, it tool-errors
+ *  `candidate corpus is empty`, a DIFFERENT failure this pin's `messageIncludes` happens to exclude. The
+ *  pin then proved "the refusal fires", never "the same substrate can pass", which is half of §4.5. The
+ *  source now arrives through the OVERLAY in both arms and the only difference between them is the one
+ *  line that gives the disk-planted test space a member: nothing else about the arrangement can explain
+ *  the flip. */
+const { "tests/server/domain/chat/verbs/start-chat.test.ts": PRESENCE_MIRROR, ...PRESENCE_SOURCE_ONLY } = PRESENCE_TREE;
+
 test("test-presence: a tests/ tree that EXISTS and is empty refuses `empty` rather than accusing the corpus", ({ scratch }) => {
-  plant(scratch, { "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = () => 1;\n" });
   mkdirSync(join(scratch, "tests"), { recursive: true });
-  const result = pass(testPresence, scratch, {});
+  const result = pass(testPresence, scratch, PRESENCE_SOURCE_ONLY);
 
   expect(refusalShape(result)).toEqual(populationRefusal("test-presence", "resource declaration mirror-index:package-test is empty"));
   expect(result.toolErrors[0]?.message).toContain("resource tree has no members: tests");
+});
+
+test("test-presence: the SAME substrate with ONE member in the planted test space reaches a verdict — the empty refusal's green twin", ({ scratch }) => {
+  plant(scratch, { "tests/server/domain/chat/verbs/start-chat.test.ts": PRESENCE_MIRROR });
+  const result = pass(testPresence, scratch, PRESENCE_SOURCE_ONLY);
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.policies.map(({ id, owner }) => [id, owner.status])).toEqual([["test-presence", "success"]]);
 });
 
 /** `test-presence-client`'s TWO declarations, including the `authored-text` DEMAND door — which owns no
@@ -252,4 +271,93 @@ test("state store mirrors are NOT all .ct.tsx — the false premise that made cl
 
   expect(names.filter((name) => name.endsWith(".ct.tsx")).length).toBeGreaterThan(0);
   expect(names.filter((name) => name.endsWith(".test.ts")).length).toBeGreaterThan(5);
+});
+
+/** THE PARKED `test-layout` POPULATION, PINNED ON BOTH SIDES (#2270; the park is #2142). The owner parked
+ *  this policy's real-tree findings behind a test-mirror revamp — but a parked NUMBER that nothing
+ *  re-measures is not a baseline: between the park (`78a411ab0`, 51 findings) and this commit it absorbed
+ *  SIX new members in silence, and the wave that noticed read 53. The roster below is the whole live
+ *  population, enumerated, so the next drift REDS in either direction: a new member fails the equality, and
+ *  so does a member that gets fixed while the park still claims it.
+ *
+ *  WHAT THE SIX ARE, because "the park covers it" is a claim per member and five of the six earn it:
+ *  `bus-payload-family`, `css-home-topology-family`, `real-corpus-liveness-family`, `seed-theme-ink-family`
+ *  and `token-contract-family` are guide §4.5b/§4.9 FAMILY tests — a test that drives several converted
+ *  policy modules through `runPolicyPass` has no single source module to prefix-swap to, which is the exact
+ *  class the park froze and which this program mints one more of per conversion. `catalog-scope.test.ts`
+ *  (`61cae0710`) is NOT that class: it is a CONCEPT-named unit test whose subject is
+ *  `tooling/src/doc-catalog/ops/catalog.ts` reached through the package barrel, and no source named
+ *  `catalog-scope.ts` has ever existed. A test-mirror revamp aimed at family tests would leave it behind,
+ *  so it is named here rather than absorbed.
+ *
+ *  RE-DERIVE, never hand-edit: drive the policy exactly as below and take the printed list. The run costs
+ *  ~1s because `test-layout` declares `population: { of: "none" }` — it reads membership, never source
+ *  text, so an EMPTY project is the honest corpus for it rather than a saving. */
+const PARKED_TEST_LAYOUT_MISSES: readonly string[] = [
+  "tests/tooling/doc-catalog/ops/catalog-scope.test.ts",
+  "tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts",
+  "tests/tooling/verify/gates/bus-pair.test.ts",
+  "tests/tooling/verify/gates/bus-payload-family.test.ts",
+  "tests/tooling/verify/gates/callback-provenance-family.test.ts",
+  "tests/tooling/verify/gates/class-string-literal-wave.test.ts",
+  "tests/tooling/verify/gates/client-query-pair-conversion.test.ts",
+  "tests/tooling/verify/gates/contract-and-serde-seal-split.test.ts",
+  "tests/tooling/verify/gates/contract-shape-wave-1.test.ts",
+  "tests/tooling/verify/gates/css-home-topology-family.test.ts",
+  "tests/tooling/verify/gates/disclosure-reservation-family.test.ts",
+  "tests/tooling/verify/gates/drizzle-registry-conversion.test.ts",
+  "tests/tooling/verify/gates/external-id-single-writer-family.test.ts",
+  "tests/tooling/verify/gates/freeze-provenance-conversion.test.ts",
+  "tests/tooling/verify/gates/grant-liveness-family.test.ts",
+  "tests/tooling/verify/gates/home-client-family.test.ts",
+  "tests/tooling/verify/gates/home-server-family.test.ts",
+  "tests/tooling/verify/gates/id-brand-flow.test.ts",
+  "tests/tooling/verify/gates/injected-op-caller-param-split.test.ts",
+  "tests/tooling/verify/gates/ledger-banned-shapes.test.ts",
+  "tests/tooling/verify/gates/mirror-index-family.test.ts",
+  "tests/tooling/verify/gates/mixed-hook-singletons-conversion.test.ts",
+  "tests/tooling/verify/gates/mixed-hook-singletons.test.ts",
+  "tests/tooling/verify/gates/ordinary-client-and-ct-wave.test.ts",
+  "tests/tooling/verify/gates/ordinary-visitors-family.test.ts",
+  "tests/tooling/verify/gates/origin-client-family.test.ts",
+  "tests/tooling/verify/gates/origin-server-family.test.ts",
+  "tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts",
+  "tests/tooling/verify/gates/port-parity-tier3.test.ts",
+  "tests/tooling/verify/gates/real-corpus-liveness-family.repo.int.test.ts",
+  "tests/tooling/verify/gates/registry-family.test.ts",
+  "tests/tooling/verify/gates/resource-layout-wave-1.test.ts",
+  "tests/tooling/verify/gates/resource-layout-wave-2.test.ts",
+  "tests/tooling/verify/gates/resource-layout-wave-3.test.ts",
+  "tests/tooling/verify/gates/schema-fact-parity.test.ts",
+  "tests/tooling/verify/gates/schema-fact-wave-1.test.ts",
+  "tests/tooling/verify/gates/seed-theme-ink-family.test.ts",
+  "tests/tooling/verify/gates/session-channel-family.test.ts",
+  "tests/tooling/verify/gates/simple-file-hooks.test.ts",
+  "tests/tooling/verify/gates/simple-visitors-1584.test.ts",
+  "tests/tooling/verify/gates/simple-visitors-wave-2.test.ts",
+  "tests/tooling/verify/gates/simple-visitors-wave-4.test.ts",
+  "tests/tooling/verify/gates/singleton-ordinary-policies.test.ts",
+  "tests/tooling/verify/gates/split-arm-parity.test.ts",
+  "tests/tooling/verify/gates/suppressions-family.test.ts",
+  "tests/tooling/verify/gates/tenancy-scope-family.test.ts",
+  "tests/tooling/verify/gates/testid-variant-split-family.test.ts",
+  "tests/tooling/verify/gates/text-citation-family.test.ts",
+  "tests/tooling/verify/gates/tier-home-health-family.int.test.ts",
+  "tests/tooling/verify/gates/tier3-close-by-rule.test.ts",
+  "tests/tooling/verify/gates/token-contract-family.test.ts",
+  "tests/tooling/verify/gates/tooling-front-door-family.test.ts",
+  "tests/tooling/verify/gates/tooling-plumbing-family.test.ts",
+  "tests/tooling/verify/gates/ui-token-surface-wave-1.test.ts",
+  "tests/tooling/verify/gates/unfenced-class-fragment-scanners.test.ts",
+  "tests/tooling/verify/gates/union-axis-family.test.ts",
+  "tests/tooling/verify/lib/bus-fact-relay.test.ts",
+];
+
+test("test-layout's real-tree population is EXACTLY the parked roster — drift reds in both directions", ({ repoRoot }) => {
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  const result = runPolicyPass({ knownPolicies: [testLayout], policies: [testLayout], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings.map(({ file }) => file).toSorted()).toEqual(PARKED_TEST_LAYOUT_MISSES);
+  expect(new Set(result.authority.effectiveFindings.map(({ message }) => (message ?? "").startsWith("mirror miss —")))).toEqual(new Set([true]));
 });
