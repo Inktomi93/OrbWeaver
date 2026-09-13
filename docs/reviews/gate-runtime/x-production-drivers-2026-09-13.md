@@ -184,3 +184,32 @@ pending refusal still prevents a write.
 - `git diff --check`: passed.
 
 No broad structure, whole verification, real-tree catalog write, lifecycle transition or push was run.
+
+## Corrective integration leg — #2225 child lifecycle
+
+Independent review found that the first real-run proof bypassed the repository's process owner: its bespoke
+`spawn` created a detached group, listened only for `exit`, and had no error, deadline or teardown path.
+A failed spawn could leave the promise unsettled, while a timed-out test could leave the child group alive.
+
+`runIsolatedStatic` now delegates to `_shared/proc.ts#spawnNiced`. The test still passes the isolated PATH as
+the child's complete environment and still executes the same generated runner and real `runVerify`; the
+shared helper only replaces lifecycle plumbing. Its existing focused controls prove that timeout kills the
+whole detached process group and no descendant remains, spawn errors reject, close settles, and a child that
+beats the deadline preserves its own exit code. The #2225 test retains the registered missing/resolvable
+`bash` arms, exact `childExit` null/zero values, no-verdict rendering and artifact assertions.
+
+### Evidence
+
+- `pnpm test:scoped tests/tooling/_shared/proc.int.test.ts tests/tooling/verify/ops/run.int.test.ts`:
+  93/93 passed, including the helper's deadline/group-kill controls and the real runner arm. Artifact
+  `reports/runs/test/agent-adee520ef5eeac7f9-890858-2026-09-13T08-35-51-359Z/test-report.json`.
+- After the environment type correction, `pnpm typecheck --config tsconfig.json` passed and the complete
+  `run.int.test.ts` rerun passed 81/81. Artifact
+  `reports/runs/test/agent-adee520ef5eeac7f9-924864-2026-09-13T08-40-09-808Z/test-report.json`.
+- One intervening full-file run passed the repaired #2225 arm and 79 other tests but timed out in the
+  unrelated `browser:ct scopedArgv` case at its existing 20s budget under load; the immediate complete rerun
+  passed that case in 1.087s. This was contention, not a verdict on the repair.
+- Scoped Biome and ESLint passed for `run.int.test.ts`; `git diff --check` passed before commit.
+
+No new lifecycle test duplicates the shared helper's existing process-group proof. No runtime source,
+timeout value, broad battery, lifecycle state or real verification artifact contract changed.

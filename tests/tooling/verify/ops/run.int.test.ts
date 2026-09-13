@@ -10,7 +10,7 @@ import { delimiter, join } from "node:path";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
-import { execNicedSync, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
+import { execNicedSync, spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import YAML from "yaml";
 import type { Parsed, StageDef, StageResult, VerifyReport } from "../../../../tooling/src/verify/index.ts";
 import {
@@ -1548,31 +1548,22 @@ if ("error" in parsed) throw new Error(parsed.error);
 process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
 `,
   );
-  let output = "";
   const childEnv = Object.fromEntries([
     // biome-ignore lint/style/noProcessEnv: the runner needs the caller's node environment; PATH and the host-pool root are the only overlays, and the PATH overlay IS the measurement.
-    ...Object.entries(process.env),
+    ...Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
     ["PATH", isolatedPath],
     ["NO_COLOR", "1"],
     [HOST_POOL_ROOT_ENV, join(scratch, "verify-slots")],
   ]);
   // The host-pool root is redirected into scratch so this run never takes the REAL whole-run slot an
   // operator's `pnpm check` is queueing for.
-  const child = spawn(systemProgram("nice"), ["-n", "19", process.execPath, runner], {
+  const child = await spawnNiced(process.execPath, [runner], {
     cwd: repoRoot,
-    detached: true,
     env: childEnv,
-    stdio: ["ignore", "pipe", "pipe"],
   });
-  child.stdout.on("data", (chunk: Buffer) => {
-    output += chunk.toString("utf8");
-  });
-  child.stderr.on("data", (chunk: Buffer) => {
-    output += chunk.toString("utf8");
-  });
-  const code = await new Promise<number | null>((resolve) => child.once("exit", resolve));
+  const output = `${child.stdout}${child.stderr}`;
   const report = JSON.parse(readFileSync(join(scratch, "reports", "verify.json"), "utf8")) as VerifyReport;
-  return { code, output, report };
+  return { code: child.code, output, report };
 }
 
 /** The stages that actually RAN — a deferred/skipped row carries no `childExit` by contract, and lumping
