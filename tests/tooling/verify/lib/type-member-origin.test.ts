@@ -4,7 +4,8 @@
 // here is a same-SPELLING/different-IDENTITY pair — a local lookalike interface, a second module exporting
 // the same type name — because that pair is the whole reason the readers exist.
 import type { Node, SourceFile } from "ts-morph";
-import { Project, SyntaxKind } from "ts-morph";
+import { Project, SyntaxKind, Type } from "ts-morph";
+import { vi } from "vitest";
 import type { ReferenceFact, ResolvedReferenceFact } from "../../../../tooling/src/verify/contract/reference-fact.ts";
 import {
   declaredByAnyPackage,
@@ -15,8 +16,44 @@ import {
   resolveTypeIdentityOrigin,
   resolveTypeMemberOrigin,
   resolveTypePropertyOrigin,
+  resolveTypeValueOrigins,
 } from "../../../../tooling/src/verify/lib/type-member-origin.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+
+/** Test-only fail-fast tripwire for any expanding generic. A removed production recurrence boundary must
+ *  fail an assertion rather than exhaust the test worker. This budget is not a production hop limit. */
+function withRecursiveTypeTripwire<T>(run: () => T): T {
+  const originalProperties = Type.prototype.getProperties;
+  const originalIntersections = Type.prototype.getIntersectionTypes;
+  const expansions = new Map<object, Set<object>>();
+  const record = (type: Type): void => {
+    const alias = type.getAliasSymbol();
+    const target = alias !== undefined && type.getAliasTypeArguments().length > 0 ? alias.compilerSymbol : undefined;
+    if (target === undefined) {
+      return;
+    }
+    const instances = expansions.get(target) ?? new Set<object>();
+    instances.add(type.compilerType);
+    expansions.set(target, instances);
+    if (instances.size > 64) {
+      throw new Error("TEST TRIPWIRE: expanding generic data graph crossed its recurrence boundary");
+    }
+  };
+  const propertySpy = vi.spyOn(Type.prototype, "getProperties").mockImplementation(function (this: Type) {
+    record(this);
+    return originalProperties.call(this);
+  });
+  const intersectionSpy = vi.spyOn(Type.prototype, "getIntersectionTypes").mockImplementation(function (this: Type) {
+    record(this);
+    return originalIntersections.call(this);
+  });
+  try {
+    return run();
+  } finally {
+    intersectionSpy.mockRestore();
+    propertySpy.mockRestore();
+  }
+}
 
 const ROOT = "/type-member-origin";
 
@@ -223,6 +260,356 @@ test("a self-referential alias terminates the chain instead of looping", () => {
 
   // Whether the checker names this type at all is its business; the reader must not hang either way.
   expect(["resolved", "unresolved"]).toContain(chain.kind);
+});
+
+test("annotation provenance follows local and nested aliases to the canonical declaration", () => {
+  const project = projectOf({
+    "contract.ts": "export interface ExemptionRow { readonly why: string }\nexport type ExemptionTable = Readonly<Record<string, ExemptionRow>>;",
+    "aliases.ts": 'export type { ExemptionRow as CanonicalRow } from "./contract.ts";',
+    "subject.ts": [
+      'import type { ExemptionTable as Base } from "./contract.ts";',
+      'import type { CanonicalRow as Row } from "./aliases.ts";',
+      "type Homes = Base;",
+      "type FreshnessRow = Row & { readonly plane: string };",
+      "type Rows = Readonly<Record<string, FreshnessRow>>;",
+      "declare const homes: Homes;",
+      "declare const rows: Rows;",
+    ].join("\n"),
+  });
+  const home = file(project, "contract.ts");
+  const source = file(project, "subject.ts");
+  const origins = (name: string): readonly string[] =>
+    resolveTypeValueOrigins(source.getVariableDeclarationOrThrow(name).getTypeNodeOrThrow())
+      .filter((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, home))
+      .map((fact) => expectResolved(fact).value.name)
+      .toSorted();
+
+  expect(origins("homes")).toContain("ExemptionTable");
+  expect(origins("rows")).toEqual(["ExemptionRow"]);
+});
+
+test.each([
+  ["keyof Table", ""],
+  ["Phantom<Table>", "type Phantom<T> = string;"],
+  ["Reader<Row>", "type Reader<T> = (row: T) => T;"],
+  ["[Phantom<Row>, unknown]", "type Phantom<T> = string;"],
+  ['Row["why"]', ""],
+  ["Row extends object ? string : Row", ""],
+])("annotation value semantics exclude erased or non-value reference in %s", (annotation, prelude) => {
+  const project = projectOf({
+    "contract.ts": "export interface Row { why: string }\nexport type Table = Readonly<Record<string, Row>>;",
+    "subject.ts": `import type { Row, Table } from "./contract.ts";\n${prelude}\ndeclare const value: ${annotation};`,
+  });
+  const source = file(project, "subject.ts");
+  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+  // Container members can contribute unrelated interface-projection facts. Neither resolved nor
+  // unresolved canonical provenance may be revived by an erased argument or a callable signature.
+  expect(facts.some((fact) => declaredByFile(fact.kind === "resolved" ? fact.value.declarations : fact.trace.declarations, file(project, "contract.ts")))).toBe(
+    false,
+  );
+});
+
+test.each([
+  "Identity<Row>",
+  "ReturnType<() => Row>",
+  "Table[string]",
+  "Row extends object ? Row : string",
+])("annotation value semantics preserve actual canonical output in %s", (annotation) => {
+  const project = projectOf({
+    "contract.ts": "export interface Row { why: string }\nexport type Table = Readonly<Record<string, Row>>;",
+    "subject.ts": `import type { Row, Table } from "./contract.ts";\ntype Identity<T> = T;\ndeclare const value: ${annotation};`,
+  });
+  const source = file(project, "subject.ts");
+  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+  expect(
+    facts.some((fact) => fact.kind === "resolved" && fact.value.name === "Row" && declaredByFile(fact.value.declarations, file(project, "contract.ts"))),
+  ).toBe(true);
+});
+
+test("annotation provenance retains namespace identity and distinguishes the same-named foreign alias", () => {
+  const project = projectOf({
+    "canonical.ts": "export interface Row { readonly why: string }",
+    "foreign.ts": "export interface Row { readonly why: string }",
+    "subject.ts": [
+      'import type * as Canonical from "./canonical.ts";',
+      'import type { Row as Other } from "./foreign.ts";',
+      "type Real = readonly Canonical.Row[];",
+      "type Fake = readonly Other[];",
+      "declare const real: Real;",
+      "declare const fake: Fake;",
+    ].join("\n"),
+  });
+  const source = file(project, "subject.ts");
+  const atCanonicalHome = (name: string): boolean =>
+    resolveTypeValueOrigins(source.getVariableDeclarationOrThrow(name).getTypeNodeOrThrow()).some(
+      (fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "canonical.ts")),
+    );
+
+  expect(atCanonicalHome("real")).toBe(true);
+  expect(atCanonicalHome("fake")).toBe(false);
+});
+
+test.each([
+  "[Row]",
+  "[row: Row]",
+  "[Row?]",
+  "[...Row[]]",
+  "[row?: Row, ...rows: Row[]]",
+])("annotation provenance reads tuple element wrappers in %s", (tuple) => {
+  const project = projectOf({
+    "contract.ts": "export interface Row { readonly why: string }",
+    "subject.ts": `import type { Row } from "./contract.ts";\ntype Rows = readonly ${tuple};\ndeclare const rows: Rows;`,
+  });
+  const source = file(project, "subject.ts");
+  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("rows").getTypeNodeOrThrow());
+  expect(facts.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "contract.ts")))).toBe(true);
+});
+
+test("annotation provenance preserves the missing leaf and refuses identities absorbed by its opaque union", () => {
+  const project = projectOf({
+    "present.ts": "export interface Present { value: string }",
+    "subject.ts": ['import type { Missing as Leaf, Present } from "./present.ts";', "type Alias = Leaf | Present;", "declare const value: Alias;"].join("\n"),
+  });
+  const source = file(project, "subject.ts");
+  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+  expect(facts.flatMap((fact) => (fact.kind === "unresolved" && fact.reason === "missing" ? [fact.node.getText()] : []))).toEqual(["Leaf"]);
+  expect(
+    facts.some((fact) => fact.kind === "unresolved" && fact.reason === "unsupported" && declaredByFile(fact.trace.declarations, file(project, "present.ts"))),
+  ).toBe(true);
+  expect(facts.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "present.ts")))).toBe(false);
+});
+
+test.each([
+  "[readonly Local[], Phantom<Local>]",
+  "[Phantom<Local>, readonly Local[]]",
+])("annotation value semantics retains missing alias provenance in each path of %s", (annotation) => {
+  const project = projectOf({
+    "contract.ts": "export interface Present { why: string }",
+    "subject.ts": `import type { Row } from "./contract.ts";\ntype Local = Row;\ntype Phantom<T> = string;\ndeclare const value: ${annotation};`,
+  });
+  const source = file(project, "subject.ts");
+  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+  expect(facts.some((fact) => fact.kind === "unresolved" && fact.reason === "missing" && fact.node.getText() === "Row")).toBe(true);
+});
+
+test("annotation alias recursion refuses an opaque canonical candidate", () => {
+  const project = projectOf({
+    "contract.ts": "export interface Row { why: string }",
+    "subject.ts": 'import type { Row } from "./contract.ts";\ntype Loop = Loop | Row;\ndeclare const value: Loop;',
+  });
+  const source = file(project, "subject.ts");
+  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+  expect(facts.some((fact) => fact.kind === "unresolved" && fact.node.getText() === "Row")).toBe(true);
+});
+
+test.each(["Readonly<Row>", "Row | unknown", "Row | any"])("annotation value semantics refuses unproven canonical identity in %s", (annotation) => {
+  const project = projectOf({
+    "contract.ts": "export interface Row { why: string }",
+    "subject.ts": `import type { Row } from "./contract.ts";\ndeclare const value: ${annotation};`,
+  });
+  const source = file(project, "subject.ts");
+  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+  expect(facts.some((fact) => fact.kind === "unresolved" && declaredByFile(fact.trace.declarations, file(project, "contract.ts")))).toBe(true);
+  expect(facts.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "contract.ts")))).toBe(false);
+});
+
+test("annotation value semantics follows mapped property values but not an erased mapped argument", () => {
+  const project = projectOf({
+    "contract.ts": "export interface Row { why: string }",
+    "subject.ts": [
+      'import type { Row } from "./contract.ts";',
+      'type Phantom<T> = { [K in "label"]: string };',
+      'declare const rows: Record<"first", Row>;',
+      "declare const erased: Phantom<Row>;",
+    ].join("\n"),
+  });
+  const source = file(project, "subject.ts");
+  const rows = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("rows").getTypeNodeOrThrow());
+  const erased = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("erased").getTypeNodeOrThrow());
+  expect(rows.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "contract.ts")))).toBe(true);
+  expect(erased.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "contract.ts")))).toBe(false);
+  expect(erased.filter((fact) => fact.kind === "unresolved")).toEqual([]);
+});
+
+test("annotation containment distinguishes callable signatures from canonical data properties", () => {
+  const project = projectOf({
+    "contract.ts": "export interface Row { why: string }",
+    "subject.ts": [
+      'import type { Row } from "./contract.ts";',
+      "type Reader = (row: Row) => Row;",
+      "type Vocabulary = { row: Row };",
+      "declare const reader: Reader;",
+      "declare const vocabulary: Vocabulary;",
+    ].join("\n"),
+  });
+  const source = file(project, "subject.ts");
+  for (const name of ["reader", "vocabulary"]) {
+    const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow(name).getTypeNodeOrThrow());
+    expect(facts.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "contract.ts")))).toBe(name === "vocabulary");
+  }
+});
+
+test.each([
+  ["Readonly<{ child: Readonly<{ row: Row }> }>", ""],
+  ["Box<Box<Row>>", "type Box<T> = { value: T };"],
+  ["{ first: Row }", ""],
+  ['Record<"first", Row>', ""],
+  ["Readonly<{ first: Row }>", ""],
+  ["Partial<{ first: Row }>", ""],
+  ["Readonly<Vocabulary>", "interface Vocabulary { readonly first: Row }"],
+  ["Readonly<Partial<{ nested: { rows: readonly Row[] } }>>", ""],
+  ["Cycle", "interface Cycle { row?: Row; next?: Cycle }"],
+  ["Left", "type Left = { right?: Right }; type Right = { left?: Left; row: Row };"],
+])("annotation containment follows equivalent data wrappers and finite cycles in %s", (annotation, prelude) => {
+  const project = projectOf({
+    "contract.ts": "export interface Row { why: string }",
+    "subject.ts": `import type { Row } from "./contract.ts";\n${prelude}\ndeclare const value: ${annotation};`,
+  });
+  const source = file(project, "subject.ts");
+  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+  expect(
+    facts.some((fact) => fact.kind === "resolved" && fact.value.name === "Row" && declaredByFile(fact.value.declarations, file(project, "contract.ts"))),
+  ).toBe(true);
+});
+
+test.each([
+  ['Holder["clean"]', "type Holder = { row: Row | unknown; clean: unknown };"],
+  ['[Row["why"], unknown]', ""],
+  ["Readonly<{ first: Local }>", "interface Local { why: string }"],
+  ["{ read: (row: Row) => Row }", ""],
+  ["{ read(row: Row): Row }", ""],
+  ["{ key: keyof Table; erased: Phantom<Row>; opaque: unknown }", "type Phantom<T> = string;"],
+  ["Cycle", "interface Cycle { next?: Cycle; row: { why: string } }"],
+])("annotation containment excludes foreign, erased and callable paths in %s", (annotation, prelude) => {
+  const project = projectOf({
+    "contract.ts": "export interface Row { why: string }\nexport type Table = Readonly<Record<string, Row>>;",
+    "subject.ts": `import type { Row, Table } from "./contract.ts";\n${prelude}\ndeclare const value: ${annotation};`,
+  });
+  const source = file(project, "subject.ts");
+  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+  expect(facts.some((fact) => declaredByFile(fact.kind === "resolved" ? fact.value.declarations : fact.trace.declarations, file(project, "contract.ts")))).toBe(
+    false,
+  );
+});
+
+test.each([
+  ['Holder["row"]', "type Holder = { row: Row | unknown; clean: unknown };"],
+  ["{ row: Row | unknown }", ""],
+  ["Opaque", "interface Opaque { row: Row | unknown }"],
+  ["{ row: Readonly<Row> }", ""],
+  ["{ row: Loop }", "type Loop = Loop | Row;"],
+])("annotation containment refuses opaque canonical data provenance in %s", (annotation, prelude) => {
+  const project = projectOf({
+    "contract.ts": "export interface Row { why: string }",
+    "subject.ts": `import type { Row } from "./contract.ts";\n${prelude}\ndeclare const value: ${annotation};`,
+  });
+  const source = file(project, "subject.ts");
+  const facts = resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow());
+  expect(facts.some((fact) => fact.kind === "unresolved" && declaredByFile(fact.trace.declarations, file(project, "contract.ts")))).toBe(true);
+  expect(facts.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "contract.ts")))).toBe(false);
+});
+
+test("annotation containment excludes a canonical argument erased by an expanding recursive generic", () => {
+  const project = projectOf({
+    "canonical.ts": "export interface Row { why: string }",
+    "subject.ts": 'import type { Row } from "./canonical.ts";\ntype Nested<T> = { next: Nested<T[]> };\ndeclare const value: Nested<Row>;',
+  });
+  const source = file(project, "subject.ts");
+  const facts = withRecursiveTypeTripwire(() => resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow()));
+  expect(
+    facts.some((fact) => declaredByFile(fact.kind === "resolved" ? fact.value.declarations : fact.trace.declarations, file(project, "canonical.ts"))),
+  ).toBe(false);
+});
+
+test.each([
+  ["T", true, true],
+  ["Readonly<T>", true, true],
+] as const)("annotation containment preserves %s data evidence before an expanding recursive edge", (member, resolved, unresolved) => {
+  const project = projectOf({
+    "canonical.ts": "export interface Row { why: string }",
+    "subject.ts": `import type { Row } from "./canonical.ts";\ntype Nested<T> = { value: ${member}; next: Nested<T[]> };\ndeclare const value: Nested<Row>;\nconst compilerRow: Row = value.next.value[0];`,
+  });
+  const source = file(project, "subject.ts");
+  expect(source.getPreEmitDiagnostics()).toEqual([]);
+  const facts = withRecursiveTypeTripwire(() => resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow()));
+  expect(facts.some((fact) => fact.kind === "resolved" && declaredByFile(fact.value.declarations, file(project, "canonical.ts")))).toBe(resolved);
+  expect(facts.some((fact) => fact.kind === "unresolved" && declaredByFile(fact.trace.declarations, file(project, "canonical.ts")))).toBe(unresolved);
+});
+
+test.each([
+  ["type N<T, D> = { value: D; next: N<D, T[]> };", "N<Row, string>", { resolved: true }],
+  ["type N<A, B, C> = { value: C; next: N<C, A, B[]> };", "N<Row, string, number>", { resolved: true }],
+  ["type A<T, U> = { b: B<T, U> }; type B<T, U> = { value: U; a: A<U, T[]> };", "A<Row, string>", { resolved: true }],
+  [
+    "type N<T> = { value: T extends readonly unknown[] ? T[number] : never; next: N<T[]> }; declare const compilerValue: N<Row>; const compilerRow: Row = compilerValue.next.value;",
+    "N<Row>",
+    { resolved: true, unresolved: true },
+  ],
+  ["type N<T, D> = { value: D; next: N<D, T> };", "N<Row, string>", { resolved: true }],
+  ["type N<T, D> = { value: Readonly<D>; next: N<D, T[]> };", "N<Row, { x: 1 }>", { resolved: true }],
+  ["type N<T, D> = { value: Readonly<D>; next: N<D, T> };", "N<Row, string>", { resolved: false }],
+  ["type N<A, B, C> = { value: A; next: N<{ k: B }, { k: C }, { k: A }> };", "N<string, number, Row>", { resolved: true }],
+  ["type N<A, B, C, D> = { value: A; next: N<{ k: B }, { k: C }, { k: D }, { k: A }> };", "N<string, number, boolean, Row>", { resolved: true }],
+  ["type N<A, B, C> = { value: A; next: N<Readonly<{ k: B }>, Readonly<{ k: C }>, Readonly<{ k: A }>> };", "N<string, number, Row>", { resolved: true }],
+  ["type Box<T> = { k: T }; type N<A, B, C> = { value: A; next: N<Box<Box<B>>, Box<Box<C>>, Box<Box<A>>> };", "N<string, number, Row>", { resolved: true }],
+  [
+    'type Wrap<T> = { item: { k: T } }; type N<A, B, C> = { value: A; next: N<Wrap<B>["item"], Wrap<C>["item"], Wrap<A>["item"]> };',
+    "N<string, number, Row>",
+    { resolved: true },
+  ],
+  [
+    "type Box<T> = { k: T }; type N<A, B, C> = { value: A; next: Box<N<Box<B>, Box<C>, Box<A>>> }; declare const edgeValue: N<string, number, Row>; const edgeRow: Row = edgeValue.next.k.next.k.value.k.k;",
+    "N<string, number, Row>",
+    { resolved: true },
+  ],
+  [
+    "type N<A, B, C> = { value: A; next: Readonly<{ inner: N<Readonly<{ k: B }>, Readonly<{ k: C }>, Readonly<{ k: A }>> }> }; declare const edgeValue: N<string, number, Row>; const edgeRow: Row = edgeValue.next.inner.next.inner.value.k.k;",
+    "N<string, number, Row>",
+    { resolved: true },
+  ],
+  [
+    "type Box<T> = { k: T }; type N<A, B, C> = { value: string; next: Box<N<Box<B>, Box<C>, Box<A>>> };",
+    "N<string, number, Row>",
+    { resolved: false, unresolved: false },
+  ],
+  [
+    "type N<T, D> = { value: D } & { next: N<D, T[]> }; declare const intersectionValue: N<Row, string>; const intersectionRow: Row = intersectionValue.next.value[0];",
+    "N<Row, string>",
+    { resolved: true },
+  ],
+  ["type N<T, D> = { value: string } & { next: N<D, T[]> };", "N<Row, number>", { resolved: false, unresolved: false }],
+  ["type N<A, B, C> = { value: string; next: N<{ k: B }, { k: C }, { k: A }> };", "N<string, number, Row>", { resolved: false, unresolved: false }],
+  ["type B<T> = { value: T; next: B<T[]> }; type N<T> = { nested: B<T>; next: N<T[]> };", "N<Row>", { resolved: true }],
+  ["type B<T> = { next: B<T[]> }; type N<T> = { nested: B<T>; next: N<T[]> };", "N<Row>", { resolved: false, unresolved: false }],
+  ["type B<T> = { next: B<T[]> }; type N<T> = { next: N<T[]>; nested: B<T> };", "N<Row>", { resolved: false, unresolved: false }],
+  ["type Box<T> = { k: T }; type N<T> = { next: Box<Box<N<T[]>>> };", "N<Row>", { resolved: false, unresolved: false }],
+  ["type N<T = Row> = { next: N<T[]> };", "N", { resolved: false, unresolved: false }],
+  ["type N<T> = { next: N<T[]> }; type Alias = N<Row>;", "Alias", { resolved: false, unresolved: false }],
+  [
+    "type Later<T extends unknown[]> = T extends [unknown, unknown, unknown] ? Row : string; type N<T extends unknown[]> = { value: Later<T>; next: N<[unknown, ...T]> }; declare const delayed: N<[]>; const compilerRow: Row = delayed.next.next.next.value;",
+    "N<[]>",
+    { resolved: false, unresolved: true },
+  ],
+  [
+    "type N<T extends unknown[]> = { value: Row extends T[number] ? string : string; next: N<[unknown, ...T]> };",
+    "N<[]>",
+    { resolved: false, unresolved: false },
+  ],
+] as const)("annotation containment follows parameter recurrence in %s", (prelude, annotation, expected) => {
+  const project = projectOf({
+    "canonical.ts": "export interface Row { why: string }",
+    "subject.ts": `import type { Row } from "./canonical.ts";\n${prelude}\ndeclare const value: ${annotation};`,
+  });
+  const source = file(project, "subject.ts");
+  expect(source.getPreEmitDiagnostics()).toEqual([]);
+  const facts = withRecursiveTypeTripwire(() => resolveTypeValueOrigins(source.getVariableDeclarationOrThrow("value").getTypeNodeOrThrow()));
+  const canonical = facts.filter((fact) =>
+    declaredByFile(fact.kind === "resolved" ? fact.value.declarations : fact.trace.declarations, file(project, "canonical.ts")),
+  );
+  expect({
+    resolved: canonical.some((fact) => fact.kind === "resolved"),
+    unresolved: canonical.some((fact) => fact.kind === "unresolved"),
+  }).toMatchObject(expected);
 });
 
 test("an empty declaration set is never a home — the fail-closed floor under both matchers", () => {
