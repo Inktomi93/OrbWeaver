@@ -394,8 +394,6 @@ function writeFixtures(): void {
   // component-size-ui: the @orb/ui twin (activated 2026-07-17) — a ui source over the 450-line cap,
   // in its own __g_ dir at the src root (the __g_motion/__g_defprops placement precedent).
   fx("packages/ui/src/__g_oversize/__g_oversize.ts", "// pad line\n".repeat(451));
-  // no-arbitrary-tw-values: a scoped-utility (w-) arbitrary-value class, off-token, not in ALLOWLIST.
-  fx("packages/client/src/features/__g_arbtw/components/__g_arbtw.tsx", 'export const G = <div className="w-[137px]" />;\n');
   // no-off-token-radius-shadow: a default-scale shadow utility in a real className site, off-token,
   // not in ALLOWLIST.
   fx("packages/client/src/features/__g_offtoken/components/__g_offtoken.tsx", 'export const G = <div className="rounded-lg shadow-md" />;\n');

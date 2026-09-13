@@ -1,44 +1,18 @@
-// Gate: no-arbitrary-tw-values (design-enforcement.md §3) — widens the no-raw-spacing/no-raw-typography
-// biome family to the general bracket escape hatch: a Tailwind arbitrary-VALUE class on a
-// layout/size/spacing/type utility (`w-[137px]`, `text-[13px]`) in packages/{client,ui}/src is banned —
-// if a value is worth using it's worth a token. Walks class tokens (terminal `:`-segment) and flags
-// `<utility>-[<body>]` unless token-driven. ALLOWLIST is a both-directions ratchet.
+// Policy: no-arbitrary-tw-values — off-token Tailwind brackets on layout/size/type utilities.
+// The shared lexical reader owns token offsets; the legacy utility/body predicate and literal-only
+// population remain unchanged. Every string literal is scanned, not just className carriers.
+// The two former file-wide exceptions are exact ordinary markers on their justified occurrences.
+// Central authority now owns their liveness; no real-tree sentinel or module-owned pass state remains.
+// Parenthesized classes use the shared waivable prefix coordinate; the message retains the full value.
+// The legacy stale-file proof is replaced by the family test for central stale-marker alarms.
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
-
-/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
- *  synthetic mini-projects too, so scope alone cannot gate the stale arm. Deliberately NOT any ALLOWLIST
- *  row's own path — gating a row's staleness on THAT row's own file being loaded is the mode-(B) blind
- *  spot: a deleted/renamed survivor is never loaded, so a self-referential guard would skip it forever
- *  instead of flagging it. */
-const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
-
-/** Current legit arbitrary-value files → reason (no token exists). See no-raw-interactive-intrinsics.ts
- *  for the ratchet contract (both arms). */
-const ALLOWLIST: ExemptionTable = {
-  "packages/ui/src/markdown/markdown.tsx": { why: "`max-h-[60cqh]` — container-query height unit; no Tailwind token exists for cqh." },
-  "packages/ui/src/layout/variants.ts": {
-    why:
-      "`grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]` (and its `wide` " +
-      "`minmax(min(22rem,100%),1fr)` variant) — responsive auto-fit grid; no token equivalent. " +
-      "Since 2026-08-16 (#102) also the two NON-auto-fit track templates: `lead` " +
-      "(`1.55fr_1fr` / `1.5fr_1.05fr` at `@min-[100rem]`) — a deliberately UNEQUAL lead-plus-rail split, " +
-      "which is a ratio and not a length, so no token can express it — and `cellFixed` " +
-      "(`repeat(auto-fill,8.5rem)`), a fixed-track auto-fill; both are grid track templates, the same " +
-      "class of value as the rows above. Since 2026-09-02 (#932) also `settingTrack` " +
-      "(`max-content minmax(0,max-content) auto`) — the settings-row track set a whole section shares by " +
-      "subgrid; intrinsic sizing keywords, which no length token can express.",
-  },
-};
+import { defineGate } from "../contract/policy.ts";
+import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
+import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const MESSAGE =
   "arbitrary Tailwind value on a layout/size/type utility (design-enforcement.md §3) — off-token " +
   "brackets bypass the design system; use a token utility (or extend tokens.json if none fits).";
-
-const STALE_ENTRY_MESSAGE_PREFIX =
-  "ALLOWLIST entry has NO scoped arbitrary-value class any more — the offender was reworked onto a " +
-  "token (ratchet down): delete the stale row in no-arbitrary-tw-values.ts: ";
 
 /** Scoped utility prefixes (design-enforcement.md §3): w, h, min-w, min-h, max-w, max-h, size, the p/m
  *  spacing family, gap, space-x/y, inset, top/left/right/bottom/start/end, translate-x/y/z, z,
@@ -52,7 +26,6 @@ function isScopedUtility(util: string): boolean {
 
 const VALUE_ARBITRARY_RE = /^(?<util>[a-z-]+)-\[(?<body>.+)\]$/u;
 const TOKEN_DRIVEN_RE = /^(--|var\(|calc\()/u;
-const WHITESPACE_RE = /\s+/u;
 
 /** Is this whitespace-split class token a banned value-arbitrary (terminal segment, scoped utility,
  *  non-token-driven body)? */
@@ -69,142 +42,85 @@ function isBannedArbitrary(token: string): boolean {
   return !TOKEN_DRIVEN_RE.test(body);
 }
 
-function clientRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
-}
-
-// Per-token: each banned arbitrary token in a class string is its own finding at its real column. The
-// live non-empty ALLOWLIST's stale arm is finalize-guarded to project scope.
-const GATE_SELF = "tooling/src/verify/gates/no-arbitrary-tw-values.ts";
-const passSeenAllowlisted = new Set<string>();
-
-/** A single banned arbitrary token + its 0-based offset into the enclosing node's text (one past the
- *  leading delimiter). Per-occurrence granularity — a class string with N brackets yields N findings. */
-interface BannedArb {
-  readonly token: string;
-  readonly offset: number;
-}
-
-/** Every banned arbitrary-value token in a class-string node's text, with its offset into `getText()`. */
-function bannedArbTokens(nodeText: string): BannedArb[] {
-  const stripped = nodeText.slice(1, -1);
-  const out: BannedArb[] = [];
-  const parts = stripped.split(WHITESPACE_RE);
-  let cursor = 0;
-  for (const part of parts) {
-    const at = stripped.indexOf(part, cursor);
-    cursor = at + part.length;
-    if (part.length > 0 && isBannedArbitrary(part)) {
-      out.push({ token: part, offset: at + 1 });
-    }
-  }
-  return out;
-}
-
-export const gate: GateDescriptor = {
-  name: "no-arbitrary-tw-values",
-  docRow: "design-enforcement.md §3",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "no-arbitrary-tw-values",
+  family: "tailwind-class-token",
+  authority: "ordinary",
+  severity: "error",
+  population: ["@client", "@ui"],
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "use a token utility (w-*/text-*/p-* from the design scale), or extend tokens.json if none fits.",
-  scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/"),
-  kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral],
-  begin: () => {
-    passSeenAllowlisted.clear();
-  },
-  visit: (node, sf, ctx) => {
-    const hits = bannedArbTokens(node.getText());
-    if (hits.length === 0) {
-      return;
-    }
-    const rel = clientRel(sf.getFilePath());
-    if (rel in ALLOWLIST) {
-      passSeenAllowlisted.add(rel);
-      return;
-    }
-    for (const hit of hits) {
-      ctx.report(node, hit);
-    }
-  },
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
-      return; // the stale arm is a whole-tree claim — never fire it below project scope or off the anchor (§4.5)
-    }
-    for (const rel of Object.keys(ALLOWLIST)) {
-      // NOT gated on the row's own file being loaded — that is precisely the mode-(B) blind spot (a
-      // deleted/renamed file is never loaded, so it would never be judged stale). `passSeenAllowlisted`
-      // is only ever set by a live `visit` hit, so "never seen" already covers both a fixed file (A) and
-      // a gone one (B).
-      if (!passSeenAllowlisted.has(rel)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — tooling/src/verify/gates/no-arbitrary-tw-values.ts`,
-        });
-      }
-    }
-  },
+  fix: "use a token utility or extend tokens.json; an intentional exception needs an exact @orb-waive no-arbitrary-tw-values(<reported-coordinate>) marker and its reason.",
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral],
+        visit: (node) => {
+          for (const hit of readTailwindClassTokens(node.getText())) {
+            if (isBannedArbitrary(hit.token)) {
+              const token = waivableCoordinate(hit.token);
+              if (token === undefined) {
+                throw new Error("arbitrary value has no waivable coordinate");
+              }
+              ctx.report.node(node, { token, offset: hit.offset, message: `${MESSAGE} Class: ${hit.token}` });
+            }
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: 'export const G = <div className="w-[137px] p-[7px]" />;\n',
-      at: "packages/client/src/features/x/x.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/x.tsx": 'export const G = <div className="w-[137px] p-[7px]" />;\n' },
       // PER-TOKEN: two banned arbitraries (w-[137px] + p-[7px]) → two findings, not one.
       expect: { count: 2 },
       why: "scoped-utility value arbitraries — off-token brackets that bypass the design scale",
     },
     {
-      // Mode-(B) proof (GATE-AUTHORING.md §4.4a): a project that loads the real-tree anchor but NONE of
-      // the ALLOWLIST paths — exactly what a deleted/renamed survivor looks like from this gate's
-      // vantage. Before the fix this arm was gated on the row's OWN file being loaded, so a project like
-      // this one (which never loads any ALLOWLIST path) silently reported nothing.
-      files: { [STALE_ARM_ANCHOR]: "export const x = 1;\n" },
-      expect: { messageIncludes: "ALLOWLIST entry has NO scoped arbitrary-value class" },
-      why: "the real-tree anchor loads but no ALLOWLIST row's file does (the mode-B shape: gone from the tree) — every row must RED, not silently pass",
-    },
-    {
-      files: 'export const G = <div className="hover:w-[137px]" />;\n',
-      at: "packages/ui/src/x/x.tsx",
+      mode: "source",
+      files: { "packages/ui/src/x/x.tsx": 'export const G = <div className="hover:w-[137px]" />;\n' },
       why: "a variant-prefixed value arbitrary (hover:w-[…]) — the terminal segment still flags",
     },
     {
-      files: 'export const G = <div className="text-[13px]" />;\n',
-      at: "packages/ui/src/primitives/demo/demo.tsx",
+      mode: "source",
+      files: { "packages/ui/src/primitives/demo/demo.tsx": 'export const G = <div className="text-[13px]" />;\n' },
       why: "the gate scans packages/ui/src too — a scoped-type value arbitrary flags there",
     },
   ],
   mustPass: [
     {
-      files: 'export const G = <div className="w-[var(--sidebar-width)]" />;\n',
-      at: "packages/client/src/features/x/ok.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/ok.tsx": 'export const G = <div className="w-[var(--sidebar-width)]" />;\n' },
       why: "a var(--…) bracket body is token-driven — same class as a bare token utility, passes",
     },
     {
-      files: 'export const G = <div className="data-[state=open]:opacity-100" />;\n',
-      at: "packages/client/src/features/x/np.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/np.tsx": 'export const G = <div className="data-[state=open]:opacity-100" />;\n' },
       why: "a variant-SELECTOR bracket (non-terminal segment) is not a value bracket — passes",
     },
     {
-      files: 'export const G = <div className="translate-x-[calc(var(--a)-var(--b))]" />;\n',
-      at: "packages/client/src/features/x/calc.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/calc.tsx": 'export const G = <div className="translate-x-[calc(var(--a)-var(--b))]" />;\n' },
       why: "a calc(...) bracket body is token-driven — passes",
     },
     {
-      files: 'export const G = <div className="has-[:focus-visible]:ring-2" />;\n',
-      at: "packages/client/src/features/x/has.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/has.tsx": 'export const G = <div className="has-[:focus-visible]:ring-2" />;\n' },
       why: "a has-[...]: selector bracket is a variant selector, not a terminal value bracket — passes",
     },
     {
-      files: "export const G = <div className=\"before:content-['']\" />;\n",
-      at: "packages/client/src/features/x/content.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/content.tsx": "export const G = <div className=\"before:content-['']\" />;\n" },
       why: "content-['...'] — content is not a scoped utility, out of scope — passes",
     },
     {
-      files: 'export const G = <div className="fill-[#fff]" />;\n',
-      at: "packages/client/src/features/x/fill.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/fill.tsx": 'export const G = <div className="fill-[#fff]" />;\n' },
       why: "fill is an unscoped utility — a bracket on it is out of scope — passes",
     },
   ],
-};
+});
