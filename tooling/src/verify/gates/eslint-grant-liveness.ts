@@ -6,6 +6,11 @@
 // (missing/malformed eslint.config.js) makes population resolution itself throw — the fail-LOUD requirement
 // is the runtime's own refusal now, not a reportable arm of this policy (see the permanent-pin test).
 // COMMENT POSTURE: comment-SAFE — the policy reads evaluated config data, never source text.
+// THREE EXPORTS BESIDE `gate`, all for the permanent pin and none for a second reader (#2302, 2026-09-13):
+// `RATIFIED`, `selectorIdentity` and `MSG_STALE`. `tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts`
+// drives this table against the REAL `eslint.config.js` through the production resource selection and
+// asserts the VALUE AT EACH RATIFIED INDEX — the `mustFlag` rows below prove the positional re-pointing
+// hazard on synthetic configs, and that pin is what proves the live table still names the live values.
 import type { EslintSelectorSnapshot, EslintSelectorValue } from "../contract/config-snapshot.ts";
 import type { ExemptionTable } from "../contract/gate.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
@@ -18,7 +23,11 @@ const GATE_FIXTURE_LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
 
 type RatifiedRow = GrantExemption & { readonly value: EslintSelectorValue };
 
-const RATIFIED: ExemptionTable<RatifiedRow> = {
+/** EXPORTED for the scoped real-config proof (#2302's residual), never for a second reader: the
+ *  permanent pin drives this table against the REAL `eslint.config.js` through the production resource
+ *  selection and asserts the VALUE AT EACH RATIFIED INDEX. The table is keyed by POSITION, so a test that
+ *  re-spelled these rows would be asserting its own copy of the hazard instead of this one. */
+export const RATIFIED: ExemptionTable<RatifiedRow> = {
   "config[0].ignores[0]": {
     value: "**/node_modules/**",
     why: "installed dependencies are absent from the tracked corpus by design. Delete this row when ESLint stops ignoring node_modules.",
@@ -74,10 +83,14 @@ const MESSAGE =
   "an evaluated ESLint files/ignores selector has ZERO members in its native scope — the rule block or " +
   "grant is dead, and a later file can inherit policy nobody re-approved. Re-point or delete the selector; " +
   "only a by-construction absent population may be ratified with a reason, end condition, and live cite.";
-const MSG_STALE = "an eslint-grant-liveness RATIFIED identity no longer names the same zero-member selector — delete or re-derive the row.";
+/** EXPORTED so the permanent pin discriminates the STALE arm by identity rather than by re-spelling a
+ *  substring of it — the two arms report at the same anchor and differ only in message. */
+export const MSG_STALE = "an eslint-grant-liveness RATIFIED identity no longer names the same zero-member selector — delete or re-derive the row.";
 const MSG_DEAD_CITE = "an eslint-grant-liveness RATIFIED cite no longer resolves — the decision that justified it is gone.";
 
-function identity(row: EslintSelectorSnapshot): string {
+/** The finding token AND the `RATIFIED` key are this one spelling — EXPORTED so the permanent pin speaks
+ *  the same identity language instead of re-deriving `owner.field[position]` beside it. */
+export function selectorIdentity(row: EslintSelectorSnapshot): string {
   return `${row.owner}.${row.field}[${String(row.position)}]`;
 }
 
@@ -92,7 +105,7 @@ function reportDeadSelectors(ctx: GatePolicyContext, selectors: readonly EslintS
     if (row.members > 0) {
       continue;
     }
-    const key = identity(row);
+    const key = selectorIdentity(row);
     const allowance = RATIFIED[key];
     if (allowance !== undefined && sameValue(row.value, allowance.value)) {
       continue;
@@ -130,7 +143,7 @@ export const gate = defineGate({
       const tracked = readyResourceValue(ctx.resources.trackedFiles());
       const trackedSet = new Set(tracked.repoPaths);
       const selectors = native.selectors;
-      const byIdentity = new Map(selectors.map((row) => [identity(row), row]));
+      const byIdentity = new Map(selectors.map((row) => [selectorIdentity(row), row]));
       reportDeadSelectors(ctx, selectors);
       reportRatifiedArms(ctx, byIdentity, trackedSet);
     },
