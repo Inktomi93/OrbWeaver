@@ -272,7 +272,7 @@ export const gate = defineGate({
         "packages/contracts/src/other-member.ts":
           'import type { ZodError } from "zod";\nexport function summarize(parsed: { error: ZodError }): string {\n  return parsed.error.message;\n}\n',
       },
-      why: "THE MEMBER-NAME CLAUSE of `isIssuesMemberRead` (`member.value.name === ISSUES`), the converse of the two counterfactuals above and the half neither reaches: this read IS declared by the installed zod package, so `isZodIssuesProperty` says yes — only the NAME test rejects it. Reading `ZodError.message` is not the path-losing `issues` join this law is about. Cut the name test and this row flags",
+      why: "THE MEMBER-NAME CLAUSE of `classifyIssuesMemberRead` (`member.value.name === ISSUES`), the converse of the two counterfactuals above and the half neither reaches: this read IS declared by the installed zod package, so `homeVerdict` through `declaredByPackage` says zod — only the NAME test rejects it. Reading `ZodError.message` is not the path-losing `issues` join this law is about. Cut the name test and this row flags",
     },
     {
       mode: "types",
@@ -282,7 +282,7 @@ export const gate = defineGate({
         "packages/contracts/src/destructure-other.ts":
           'import type { ZodError } from "zod";\nexport function summarize(parsed: { error: ZodError }): string {\n  const failure = parsed.error;\n  const { message } = failure;\n  return message;\n}\n',
       },
-      why: "the destructured twin of the clause above (`property !== ISSUES` in `isIssuesDestructure`), which is a SEPARATE test in a separate function: the binding resolves to a zod-declared member, so `declaredByPackage` says yes, and only the property-name comparison rejects it. Cut that comparison and this row flags — the member-read cut beside it leaves this row green, so the two clauses are pinned by disjoint rows",
+      why: "the destructured twin of the clause above (`property !== ISSUES` in `classifyIssuesDestructure`), which is a SEPARATE test in a separate function: the binding resolves to a zod-declared member, so `declaredByPackage` says yes, and only the property-name comparison rejects it. Cut that comparison and this row flags — the member-read cut beside it leaves this row green, so the two clauses are pinned by disjoint rows",
     },
   ],
 });
