@@ -1073,7 +1073,9 @@ test("parse: valid tier flags resolve to the right tier (default = static, scope
   expect(asTier(["--push"])).toBe("push");
   expect(asTier(["--full"])).toBe("full");
   expect(asTier(["--tier", "push"])).toBe("push");
-  expect(asTier(["--package", "db"])).toBe("changed"); // a scope flag implies the changed (inner-loop) tier
+  // Use a docs-only scope here: this row owns tier selection, while the dedicated --package=db case above
+  // owns package affected-planning under AFFECTED_PLAN_TIMEOUT.
+  expect(asTier(["--file", "docs/architecture/core/AGENTS.md"])).toBe("changed"); // a scope flag implies the changed (inner-loop) tier
   expect(asTier(["--changed", "git"])).toBe("changed");
 });
 
