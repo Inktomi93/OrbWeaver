@@ -5,8 +5,8 @@
 // AUTHORITY: ordinary/error. The gate-owned `FABRICATION-OK` parser, stale table, and line-based findings are
 // retired. A deliberate occurrence uses the central exact-position waiver. Double casts report the authored
 // `unknown` keyword; literal casts report the asserted type's waivable leading slice. Both are exact node
-// coordinates, and a collision in one carrier remains deliberately unwaivable through the central over-broad
-// alarm. The 429 live legacy markers were re-attested to consumed cast nodes before source translation.
+// coordinates; a type with no usable prefix anchors on its assertion keyword. A collision in one carrier
+// remains deliberately unwaivable through the central over-broad alarm. The 429 live legacy markers were re-attested to consumed cast nodes before source translation.
 //
 // FAMILY `no-test-fabrication` is a singleton over one cast classifier. POPULATION PORT: legacy
 // `scanRoot: p.startsWith("tests/")` and final `{ in:["@authored"], under:["tests/**"] }` admit the same
@@ -74,8 +74,13 @@ export const gate = defineGate({
             return;
           }
           const authored = literal.getText();
-          ctx.report.node(literal, {
-            token: waivableCoordinate(authored) ?? authored,
+          const coordinate = waivableCoordinate(authored);
+          const anchor = coordinate === undefined ? node.getFirstChildByKind(SyntaxKind.AsKeyword) : literal;
+          if (anchor === undefined) {
+            throw new Error("literal fabrication has no authored assertion keyword");
+          }
+          ctx.report.node(anchor, {
+            token: coordinate ?? "as",
             offset: 0,
             message: LITERAL_CAST_MSG(authored),
             fix: FIX,
@@ -85,6 +90,12 @@ export const gate = defineGate({
     ],
   }),
   mustFlag: [
+    {
+      mode: "source",
+      files: { "tests/tooling/parenthesized-type.test.ts": "export const x = {} as (Widget);\nexport const f = {} as (() => void);\n" },
+      expect: { count: 2, token: "as" },
+      why: "parenthesized and function types have no waivable leading type slice; the authored assertion keyword still anchors both violations",
+    },
     {
       mode: "source",
       files: { "tests/tooling/x.test.ts": "export const x = {} as unknown as { a: number };\n" },
@@ -111,6 +122,14 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "source",
+      files: {
+        "tests/tooling/parenthesized-waiver.test.ts":
+          "// @orb-waive no-test-fabrication(as): deliberate parenthesized target; ends with this fixture.\nexport const x = {} as (Widget);\n// @orb-waive no-test-fabrication(as): deliberate function target; ends with this fixture.\nexport const f = {} as (() => void);\n",
+      },
+      why: "the fallback assertion-keyword coordinate remains exactly waivable",
+    },
     {
       mode: "source",
       files: { "tests/tooling/y.test.ts": "export const x = { a: 1 } satisfies { a: number };\n" },

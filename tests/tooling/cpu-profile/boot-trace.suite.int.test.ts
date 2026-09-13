@@ -37,6 +37,7 @@ function plantedStartFailure(detachFailure?: Error): {
   const primary = new Error("planted Tracing.start refusal");
   const detach = vi.fn(() => (detachFailure === undefined ? Promise.resolve() : Promise.reject(detachFailure)));
   const removeListener = vi.fn();
+  // This CDP boundary failure plant models the lifecycle calls reached around a Tracing.start rejection.
   const send = vi.fn((method: string) => {
     if (method === "Page.addScriptToEvaluateOnNewDocument") {
       return Promise.resolve({ identifier: "planted-boot-observer" });
