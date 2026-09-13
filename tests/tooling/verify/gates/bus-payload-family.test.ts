@@ -194,6 +194,16 @@ test("a root whose members all live on OTHER named roots does not trip the zero-
   expect(result.authority.effectiveFindings).toEqual([]);
 });
 
+test("the allowlist receipts an empty field census honestly and the runtime withholds its verdict", () => {
+  const result = run([busPayloadAllowlist], { "packages/contracts/src/settings/index.ts": "export type SomeOtherThing = string;\n" });
+
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toContain(busPayloadAllowlist.id);
+  expect(result.toolErrors).toHaveLength(1);
+  expect(result.toolErrors[0]?.phase).toBe("receipt");
+  expect(result.toolErrors[0]?.message).toContain('population "bus-payload-allowlist" resolved zero members');
+});
+
 // ── §2149 REAL-CORPUS LIVENESS — silent-because-dead cannot pass as silent-because-clean ──
 
 function runOverReal(overlay: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {

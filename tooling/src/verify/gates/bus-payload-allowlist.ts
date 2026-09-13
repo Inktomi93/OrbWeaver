@@ -117,7 +117,7 @@ export const gate = defineGate({
       // `members` is what the SHARED WALK measured — the wire fields it established — which is this
       // policy's own denominator, so a census that shrank while the corpus did not is visible on the run
       // line instead of being inferred from silence.
-      ctx.receipt({ kind: "population", source: "bus-payload-allowlist", members: Math.max(fact.fields.length, 1), unresolved: 0 });
+      ctx.receipt({ kind: "population", source: "bus-payload-allowlist", members: fact.fields.length, unresolved: 0 });
       const candidates: ReviewedGrantCandidate[] = fact.fields
         .filter((field) => smellToken(field.name) !== undefined)
         .map((field) => ({ subject: field.name, operation: OPERATION, node: field.node, token: field.name, offset: 0 }));
