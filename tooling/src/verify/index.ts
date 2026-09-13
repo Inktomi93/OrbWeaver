@@ -191,6 +191,7 @@ export {
   snapFlagsIndexDrift,
   typeConfigsDrift,
 } from "./ops/ledgers-fresh.ts";
+export { runBoardCitations, runControls } from "./ops/board-citations.ts";
 export { runNewGate } from "./ops/new-gate.ts";
 export { runOrphanRatchet } from "./ops/orphan-export-ratchet.ts";
 export { runPolicyConformance } from "./ops/policy-conformance-stage.ts";

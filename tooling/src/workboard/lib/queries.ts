@@ -70,3 +70,16 @@ export function dependencyMutation(remove: boolean): string {
   const mutation = remove ? "removeBlockedBy" : "addBlockedBy";
   return `mutation WorkItemDependency($issueId: ID!, $blockingIssueId: ID!) { ${mutation}(input: { issueId: $issueId, blockingIssueId: $blockingIssueId }) { issue { id } } }`;
 }
+
+/** EVERY issue's number + state, paged — the BULK door (#2156). The targeted walks above answer one row
+ *  richly; a citation census asks about hundreds of numbers at once and would otherwise spend hundreds of
+ *  calls (and the reviewer's patience) to learn one enum per row. `states` is deliberately the thinnest
+ *  possible selection: no body, no comments, no project items, so a page of 100 is cheap. */
+export const ISSUE_STATES_QUERY = `query WorkItemIssueStates($owner: String!, $repo: String!, $cursor: String) {
+  repository(owner: $owner, name: $repo) {
+    issues(first: 100, after: $cursor, orderBy: { field: CREATED_AT, direction: ASC }) {
+      pageInfo { hasNextPage endCursor }
+      nodes { number state }
+    }
+  }
+}`;
