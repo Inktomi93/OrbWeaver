@@ -465,8 +465,11 @@ function orphanBacktickLines(tree: MarkdownNode, source: string): readonly numbe
  * A JavaScript template literal cannot sit inside a single-backtick Markdown code span: its two inner
  * backticks close and reopen the Markdown span. Remark then sees two valid `inlineCode` nodes separated
  * by template content, so both the serialized bytes and the re-parsed tree are stable while the author's
- * intended outer span never exists. Detect that exact source shape from the adjacent parsed nodes. The
- * no-whitespace boundary is load-bearing: ordinary prose between two code spans remains valid.
+ * intended outer span never exists. Detect that ambiguous source shape from the adjacent parsed nodes.
+ * Source bytes cannot distinguish the malformed outer span from intentional adjacent code / template
+ * substitution / code fragments, so the formatter conservatively refuses both and directs either author
+ * to the unambiguous longer-delimiter spelling. The no-whitespace boundary keeps separated prose between
+ * code spans valid.
  */
 function ambiguousTemplateLiteralRefusal(tree: MarkdownNode, source: string): string | null {
   const lines = new Set<number>();

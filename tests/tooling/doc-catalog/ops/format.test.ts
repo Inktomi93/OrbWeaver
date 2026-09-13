@@ -139,6 +139,21 @@ test("SOURCE FIDELITY: longer delimiters carry a template literal, and ordinary 
   expect(bytes).toBe(body);
 });
 
+test("SOURCE FIDELITY: contiguous code-template-code fragments are conservatively refused, with a content-preserving canonical spelling", ({ scratch }) => {
+  const ambiguous = `${FRONTMATTER}The pieces are \`left\`${"${NAME}"}\`right\`.\n`;
+  const refused = format(scratch, "adjacent-template-fragments.md", ambiguous);
+
+  expect(refused.bytes).toBe(ambiguous);
+  expect(refused.outcome.refused.map((entry) => entry.file)).toStrictEqual([join(scratch, "adjacent-template-fragments.md")]);
+  expect(refused.outcome.refused[0]?.reason).toContain("longer backtick delimiter");
+
+  const canonical = `${FRONTMATTER}The pieces are \`\`left\`${"${NAME}"}\`right\`\`.\n`;
+  const accepted = format(scratch, "adjacent-template-fragments-ok.md", canonical);
+
+  expect(accepted.outcome.refused).toStrictEqual([]);
+  expect(accepted.bytes).toBe(canonical);
+});
+
 test("FROZEN ARCHAEOLOGY: a doc in EITHER history tree is never written and never judged", () => {
   // TWO controls, one per tree, because the defect WAS that one tree was covered and its twin was not:
   // `docs/history/**` fell outside the living trees by omission, while `docs/architecture/history/**`
