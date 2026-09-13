@@ -231,6 +231,7 @@ function SortSelect({ sort }: { readonly sort: NonNullable<CollectionContributio
     // is what should be taking the slack (side-eye 2026-08-03 P2, re-homed with the control).
     <Select
       aria-label={sort.label}
+      // @orb-waive ui-size-via-variant(w-auto): content-width Select leaves the row slack to its filter; auto overrides the standard w-full deterministically.
       className="w-auto"
       items={mode.options}
       onValueChange={(value): void => {
