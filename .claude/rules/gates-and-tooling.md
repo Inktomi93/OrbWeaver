@@ -22,8 +22,8 @@ paths:
     before changing a gate; read the complete playbook sections governing the operation you perform. Then
     read the relevant contract source (`policy.ts`, `population.ts`, `resource-declaration.ts`), the owning
     module and family test, and the legacy source at its pre-conversion SHA when converting. The archived
-    exemplar review is historical evidence, never a copy source. `GATE-AUTHORING.md` documents the legacy
-    descriptor only; use it to understand code being removed, never to author a final policy.
+    exemplar review is historical evidence, never a copy source. `GATE-AUTHORING.md` is the mechanism-first final authoring guide. Its linked verbatim legacy
+    archive explains the descriptor being removed; never copy archived templates into a final policy.
   - **Establish a current baseline; do not exempt new failures as migration noise.** Mixed-runtime work may
     inherit known whole-program failures, but no command is red merely because conversion is active. Read
     the finished artifact and distinguish pre-existing findings from new findings, tool errors, withheld

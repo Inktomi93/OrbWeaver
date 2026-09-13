@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-12
+updated: 2026-09-13
 ---
 
 # #962 — file-wide lint suppression made structurally unavailable
@@ -115,9 +115,11 @@ its 200-line cap) to add a mechanism whose only job is to read a few blobs. Chos
 inside `pnpm check` at pre-commit, gates already shell out to git for their corpus (`memberSources`), and
 one home for "what is a blanket" means the index arm cannot drift from the working-tree arm.
 
-### 2.4 `markerImmune` — the written argument §1 of GATE-AUTHORING demands
+### 2.4 `markerImmune` — the as-built legacy argument
 
-The gate's subject IS an exemption vocabulary (the linters' own suppression directives). Its findings have
+The as-built legacy descriptor used `markerImmune: true`; the written argument was required by
+`docs/history/gate-authoring-legacy-2026-09-13.md` §1. The gate's subject IS an exemption vocabulary
+(the linters' own suppression directives). Its findings have
 two sanctioned resolutions, both governed elsewhere: narrow to a line/range (counted by `suppressions`) or
 move the whole-file decision to `biome.json` (stale-armed by `biome-grant-liveness`). A `@orb-gate-ignore`
 above a blanket would be a THIRD door — an ungoverned suppression of a suppression ban, written by the
@@ -205,10 +207,13 @@ Decision procedure, applied mechanically and recorded per file in the report:
 
 ## 6. Coupled sites (enumerated before building)
 
-Gate: the module · `check-gates.int` `__g_` fixture · `Core-Enforcement-Active-Gates.md` row + the
-registered-gate count · GATE-AUTHORING §1 `markerImmune` occupants + `contract/gate.ts` comment ·
+Historical as-built legacy gate sites: the module · `check-gates.int` `__g_` fixture ·
+`Core-Enforcement-Active-Gates.md` row + the registered-gate count ·
+`docs/history/gate-authoring-legacy-2026-09-13.md` §1 `markerImmune` occupants + `contract/gate.ts` comment ·
 `tests/tooling/verify/gates/<gate>.int.test.ts` (a new tracked spec regenerates NOTHING since #2217 —
 the test-baseline manifest is deleted) · `comment-spans.ts` (the CSS/JSON lexer) · `_shared/proc.ts` (`input`).
+Current final-policy authoring follows `tooling/src/verify/gates/GATE-AUTHORING.md` §§1–2; manual
+registered counts and `markerImmune` occupant lists are not final-policy coupled sites.
 Ledger (REPLACED 2026-09-12 — the ratchet retired at `a33b2e339`, which converted `suppressions` to
 reviewed-grant authority and deleted its count ratchet; `ops/gen/suppressions.ts`,
 `suppressions.residual.test.ts`, `suppressions.baseline.json` and `lib/debt.ts` are all gone, so the

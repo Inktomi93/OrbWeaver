@@ -6297,6 +6297,36 @@
         }
       ],
       "summary": "Full-read scoped workboard review evidence for #1906/#1920, preserved under #2049 catalog coverage. Initial REFUTED and dated warm CONFIRMED are both retained. Verifier source review corroborated lane-produced 73-test and live scratch receipts; it did not independently execute those runs. Original lane commit identifiers remain historical report provenance; this receipt verifies exact main bytes at an ancestral main commit. No new whole-tree gate, security, fixture-isolation, or production acceptance certification is asserted."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/authoring-guide-preservation-map-2126.md",
+      "assignedSha256": "8ba9d4bd9502439f29eaff8a4109efdc47830d8b67197a222cb51fa338ac5d9e",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "8ba9d4bd9502439f29eaff8a4109efdc47830d8b67197a222cb51fa338ac5d9e",
+      "verifiedCommit": "7ba66a34eb8d8baca96cf717852dfdd106c51b2b",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification.",
+        "2026-09-13 Q08 integration truth follow-up at 7ba66a34eb8d8baca96cf717852dfdd106c51b2b: guide and standing family law now describe canonical production dependencies from create, including method roots, callable/fact identities and subject/vocabulary data, with unused-import, proof-only and erased-type exclusions and explicit source-reach limits. Source and production-consumption review pinned to integrated main 735a86d0c; this isolated docs lane does not contain or claim to test that source. Warm independent review APPROVE, preserving its prior dated report byte-for-byte; all three changed Markdown format checks and diff whitespace check passed. Prior evidence and claims remain attributed to their original trees. Final latest-main read-cost reconciliation and integrated verification remain coordinator-owned."
+      ],
+      "summary": "Complete original-line conservation map and current mechanism placement for final gate authoring, with explicit separate scaffold/source acceptance limits.",
+      "claims": [
+        {
+          "claim": "Complete original-line conservation map and current mechanism placement for final gate authoring, with explicit separate scaffold/source acceptance limits.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#2126"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:f9a49896fe10926c87f415f3bcce44a68d06c489"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

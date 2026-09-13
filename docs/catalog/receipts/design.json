@@ -568,18 +568,19 @@
     },
     {
       "path": "docs/design/962-blanket-suppression-control-plane.md",
-      "assignedSha256": "f6b4cbceefeb7edd64b566fc3bbde8e74bcdfad06de5c42a808747f4628e6bbd",
+      "assignedSha256": "4c869d41c7a6b64b6a11681a4f1d3016c15de0ff0ed63a1d8c3c47034c667195",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "d97f221a238f8c5b03b8b03f82bbd0e033209a8ab72ca7a4a6bd3e8e83c97a7b",
-      "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
-      "verifiedAt": "2026-09-08",
+      "verifiedSha256": "4c869d41c7a6b64b6a11681a4f1d3016c15de0ff0ed63a1d8c3c47034c667195",
+      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
+      "verifiedAt": "2026-09-13",
       "summary": "#962 design record (lane p-biome-zero, forge, 2026-09-02): file-wide lint suppression made structurally unavailable in authored code AND tests — the law (one home for a whole-file suppression = a biome.json override row stale-armed by biome-grant-liveness; inside a file a suppression is a named line or closed range, counted by the suppressions ledger in tests exactly as in source), the new no-blanket-suppression gate (spelling census incl. biome 2.5.1's hidden-warning behaviours; three arms — harness fileset, tracked non-TS corpus derived from git ls-files minus biome's ignores, the INDEX via git grep --cached + git show :path with the #954 wording; markerImmune argued per GATE-AUTHORING §1; blindness tripwires), the per-rule-class migration decision procedure (74 directives: 10 dead barrels deleted, 1 filename grant, 23 file-subject naming tests moved under a CORRECTED conventions override that had been silently stricter than biome's default, ranges/lines elsewhere, 23 describe-scoped CONSTANT_CASE consts renamed), tests joining the suppressions ledger with RATIFIED_TEST_RULES, the deferred dead-bounded-directive arm (--error-on-warnings cannot resurrect a level-filtered warning), and the enumerated coupled sites.",
       "evidence": [
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "born-reviewed at 5253ba772 (fold of the p-biome-zero lane): full read by the primary orchestrator — §0 premise re-derivation (four premises, one refuted for 10/74, one amended), §1 the law and its three enforcers, §2 the gate (spelling census, three arms, why an arm and not a stage, markerImmune, proof plan), §3 the migration table, §4 the ledger widening, §5 deferrals, §6 coupled sites. The doc's line 11 says the probe transcripts 'were reproduced by the orchestrator's verifier' — that verification (lane p-verify-962) was dispatched at this fold and its verdict lands on #962; the receipt here is for the design text, not for the verifier's outcome.",
-        "re-attested at 7400b4d38 — the §2.5 proof-plan bullet's fixture path reworded (a runtime-planted `__g_blanket` test file, never on disk; dangling-refs finding on the fold tip); no other text moved."
+        "re-attested at 7400b4d38 — the §2.5 proof-plan bullet's fixture path reworded (a runtime-planted `__g_blanket` test file, never on disk; dangling-refs finding on the fold tip); no other text moved.",
+        "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification."
       ],
       "claims": [
         {
@@ -1072,20 +1073,21 @@
     },
     {
       "path": "docs/design/entity-room-member-freshness-bridge.md",
-      "assignedSha256": "204037c2090707d8d2b17851d3d95b63b8f815690af1f5472bf7cad12a3cc681",
+      "assignedSha256": "e029dc2898eceab7481cc29ab36ccf85d3ee154307f586ffdf83c340bfe2d680",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "204037c2090707d8d2b17851d3d95b63b8f815690af1f5472bf7cad12a3cc681",
-      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "e029dc2898eceab7481cc29ab36ccf85d3ee154307f586ffdf83c340bfe2d680",
+      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
+      "verifiedAt": "2026-09-13",
       "evidence": [
         "docs/design/entity-room-member-freshness-bridge.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob",
         "docs/design/entity-room-member-freshness-bridge.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
         "docs/design/entity-room-member-freshness-bridge.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-        "docs/design/entity-room-member-freshness-bridge.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH — the doc stays live in docs/design and the receipt now matches it."
+        "docs/design/entity-room-member-freshness-bridge.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH — the doc stays live in docs/design and the receipt now matches it.",
+        "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification."
       ],
       "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority.",
       "claims": [
@@ -1173,18 +1175,19 @@
     },
     {
       "path": "docs/design/gate-runtime-read-first.md",
-      "assignedSha256": "35960491a63cc1216142ca9446030e00f5eabeaa2cb5376b6881f9f5884afcc4",
+      "assignedSha256": "b7cdf4a8c21227e8b2eaa78497b3646bad7b28b8d28f13f3b0708c044895d312",
       "disposition": "repaired",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "35960491a63cc1216142ca9446030e00f5eabeaa2cb5376b6881f9f5884afcc4",
-      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
+      "verifiedSha256": "b7cdf4a8c21227e8b2eaa78497b3646bad7b28b8d28f13f3b0708c044895d312",
+      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
       "verifiedAt": "2026-09-13",
       "evidence": [
         "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
         "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: 2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete.",
         "2026-09-13 preservation checkpoint d71bd65545a2ff09534eeb6ae8050b41435379d9: full author reads and scoped four-document check:docs passed; native read-first-costs regenerated after checkpoint. Fresh-context Sol/high conservation review confirmed after restoring ignored-class filesystem checks and staged-diff inspection. Whole ledgers:fresh was not run by this lane; primary closing review and consolidated acceptance remain owed.",
-        "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed."
+        "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed.",
+        "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification."
       ],
       "summary": "Consolidated gate-program law, procedure and bounded reading guidance. Historical examples retain provenance; remaining enforcement work and program acceptance require separate current evidence.",
       "claims": [
@@ -1213,12 +1216,12 @@
     },
     {
       "path": "docs/design/gate-runtime-standardization.md",
-      "assignedSha256": "e27067476c708a33a67073bb20a2869629af7e87ffbac2352fc2bc0019e8fa95",
+      "assignedSha256": "fd1175e788c6670fdb1d65b28bcd5f36003226d32d19517bdbfae511fba2b5cc",
       "disposition": "repaired",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "e27067476c708a33a67073bb20a2869629af7e87ffbac2352fc2bc0019e8fa95",
-      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
+      "verifiedSha256": "fd1175e788c6670fdb1d65b28bcd5f36003226d32d19517bdbfae511fba2b5cc",
+      "verifiedCommit": "7ba66a34eb8d8baca96cf717852dfdd106c51b2b",
       "verifiedAt": "2026-09-13",
       "claims": [
         {
@@ -1250,7 +1253,9 @@
         "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: 2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete.",
         "2026-09-13 preservation checkpoint d71bd65545a2ff09534eeb6ae8050b41435379d9: full author reads and scoped four-document check:docs passed; native read-first-costs regenerated after checkpoint. Fresh-context Sol/high conservation review confirmed after restoring ignored-class filesystem checks and staged-diff inspection. Whole ledgers:fresh was not run by this lane; primary closing review and consolidated acceptance remain owed.",
         "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed.",
-        "Q11 current claim evidence: immutable284dedcee deriveThemeCss and ledgers-fresh read in full; generator/validator and namespace-health functions read completely at their selected spans. ff25a067f independent theme review read in full, with its scoped/cut results attributed. Primary integrated-main1ef220c20 three-arm whole-stage JSON read in full: same-count1 with theme/census, cut-edge1 without theme and with census, malformed2 without freshness verdict. Canonical validation including required history is retained for this baseline, and scratch roots supply data rather than alternate generator code."
+        "Q11 current claim evidence: immutable284dedcee deriveThemeCss and ledgers-fresh read in full; generator/validator and namespace-health functions read completely at their selected spans. ff25a067f independent theme review read in full, with its scoped/cut results attributed. Primary integrated-main1ef220c20 three-arm whole-stage JSON read in full: same-count1 with theme/census, cut-edge1 without theme and with census, malformed2 without freshness verdict. Canonical validation including required history is retained for this baseline, and scratch roots supply data rather than alternate generator code.",
+        "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification.",
+        "2026-09-13 Q08 integration truth follow-up at 7ba66a34eb8d8baca96cf717852dfdd106c51b2b: guide and standing family law now describe canonical production dependencies from create, including method roots, callable/fact identities and subject/vocabulary data, with unused-import, proof-only and erased-type exclusions and explicit source-reach limits. Source and production-consumption review pinned to integrated main 735a86d0c; this isolated docs lane does not contain or claim to test that source. Warm independent review APPROVE, preserving its prior dated report byte-for-byte; all three changed Markdown format checks and diff whitespace check passed. Prior evidence and claims remain attributed to their original trees. Final latest-main read-cost reconciliation and integrated verification remain coordinator-owned."
       ]
     },
     {
@@ -1287,13 +1292,13 @@
     },
     {
       "path": "docs/design/integer-line-boxes.md",
-      "assignedSha256": "123b3a135e48b6e7b7eb355d5fedd90329665d3007fc1d7c97fdff166694f3b3",
+      "assignedSha256": "d969ae5f0964c0cc31960a182777bac755430d88e60c83722c6792cce5e0bdae",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "739deec10b16f0db775c832841ef1d62b4c1729988d0a19d9ff46602b403ec70",
-      "verifiedCommit": "cfb9cea2fea7a109cd65c44485ada4d30437fc5c",
-      "verifiedAt": "2026-09-08",
+      "verifiedSha256": "d969ae5f0964c0cc31960a182777bac755430d88e60c83722c6792cce5e0bdae",
+      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
+      "verifiedAt": "2026-09-13",
       "evidence": [
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "1416f2c98710acc454360efdeb52e939524aed36 (#1684, owner arm 1): §2's #1640 'unreachable residual' truth-repaired — the ruling survives, its input changed (the thumb is derived, --spacing-switch-thumb retired)",
@@ -1301,7 +1306,8 @@
         "re-attested at d17bebced by the orchestrator after reading the #1160 diff in full (cb-rendered-polish): §3b retitled and records the snapped belt’s ROUND-UP strategy as a second invariant (round(up, <rem>, 1px) in tokens.build.ts; nearest-rounding shrank a leading box by up to half a pixel while the font scaled continuously, dropping the ratio below LEADING_FLOOR at scales no authored value can see); identity at scale 1 for all seven snapped tokens; frontmatter dated 2026-09-05.",
         "docs/design/integer-line-boxes.md:1 (full read; measured defect, multiplier cross, snapped-dimension architecture, re-pairing sweep, four-arm gate, ramp coherence, declared residuals)",
         "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)",
-        "re-attested at a6db3e258 — #1002 lands Laws 2-4: intro/title truth-repaired (Laws 2-4 no longer 'out of scope'), §9-§12 appended (rest-transform-grid gate; off-grid-transform / promoted-layer-offset / off-grid-text runtime rules; DPR 1/1.25/2 corpus table; reading-surface exemption mirrored). Delta read against the lane report; status stays active until the program closes"
+        "re-attested at a6db3e258 — #1002 lands Laws 2-4: intro/title truth-repaired (Laws 2-4 no longer 'out of scope'), §9-§12 appended (rest-transform-grid gate; off-grid-transform / promoted-layer-offset / off-grid-text runtime rules; DPR 1/1.25/2 corpus table; reading-surface exemption mirrored). Delta read against the lane report; status stays active until the program closes",
+        "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification."
       ],
       "summary": "Active #997 Law-1 design: leadings re-authored as snapped rem dimensions (orb.output snapped -> round(rem,1px)), the SNAPPED_LENGTH_BASE_PX numeric surface, the re-pairing sweep, and the four-arm integer-line-boxes gate, with the reading-surface residual and non-integer-root spacing declared honestly.",
       "claims": [

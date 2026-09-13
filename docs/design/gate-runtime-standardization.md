@@ -21,8 +21,8 @@ lookalike is a tool error; every module is classified exactly once. Final polici
 
 Every Orb-specific policy converges on the final ts-morph runtime. Native Biome, ESLint, and community rules retain
 generic ecosystem lint. Legacy retirement follows conversion of the last owner and its successor evidence; zero legacy
-descriptors is an end-state cleanup condition, not a prerequisite for useful conversions. `GATE-AUTHORING.md` describes
-the legacy descriptor and is not conversion authority.
+descriptors is an end-state cleanup condition, not a prerequisite for useful conversions. [GATE-AUTHORING.md](../../tooling/src/verify/gates/GATE-AUTHORING.md) is the final authoring guide, subordinate to this
+contract. Its verbatim legacy archive explains the removed descriptor and is not a final-policy template.
 
 Mutable row state belongs on GitHub Project 1. Conversion landings are comments on #1584; defects, prerequisites, and
 owner decisions receive rows. Runtime rosters and proof counts come from `pnpm check:policy-conformance`; descriptor
@@ -66,8 +66,12 @@ dimensions, not implied by a generic “all capabilities” claim. The canonical
 their headers under `tooling/src/verify/contract/`.
 
 One descriptor has one authority, severity, and execution mode. Split a multi-arm legacy module when any axis differs.
-Siblings share one real reader in `lib/` and one family. A family is a shared computation or subject reader, never a
-theme, filename prefix, or topic. A singleton names why no shared reader exists.
+Siblings share a meaningful production dependency in `lib/` and one family: a callable reader or canonical
+subject/vocabulary declaration, never a theme, filename prefix, or topic. Each multi-member policy shares a canonical
+declaration with at least one sibling; one declaration common to the whole family is not required. The dependency graph
+starts at `create` and follows possible source reach, including method-form hooks and stable derived values; unused
+imports, proof-only use and erased type references do not establish sharing. Source reach does not prove execution on
+every input or semantic fitness. A singleton names why no meaningful shared dependency exists.
 
 A ruled split arity is a claim about the current predicates, not permission to force code into an old mapping. Before
 conversion, count the independent authority, severity, execution, and semantic predicate arms in the actual module.
@@ -341,7 +345,8 @@ A final module is reusable as an exemplar only when all conditions hold:
 1. It declares the smallest complete contract.
 2. Its `message` describes the actual population, carrier, predicate, and report site.
 3. An ordinary `fix` gives the exact waiver spelling and reported position.
-4. Its family names a real shared reader and function, or gives a valid singleton reason.
+4. Its family names the meaningful shared `lib/` callable or canonical subject/vocabulary declaration reached from
+   production hooks, or gives a valid singleton reason.
 5. Its header records family/reader, population port or intentional correction, and retired private-marker census.
 6. Its proofs satisfy §6, including each narrowing, identity, refusal/receipt, liveness, and differential obligation.
 7. No private reader, walk, cache, exemption table, scope predicate, filesystem read, or single-consumer helper survives.

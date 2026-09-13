@@ -4569,6 +4569,35 @@
         "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed."
       ],
       "summary": "Dated gate-runtime worked cases: exact thirteen-module ruling and world-program guarantee archive, with explicit resource and chronology summaries. Not present implementation or mutable work authority."
+    },
+    {
+      "path": "docs/history/gate-authoring-legacy-2026-09-13.md",
+      "assignedSha256": "8e553da5e8721f081bfbfd2b8f160cc8708c0db87272561ef1e832bf0a7fbedf",
+      "disposition": "current",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "8e553da5e8721f081bfbfd2b8f160cc8708c0db87272561ef1e832bf0a7fbedf",
+      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification."
+      ],
+      "summary": "Verbatim original gate-authoring payload inside an explicitly archived wrapper. Legacy templates and unsafe exemplar recommendation remain historical evidence, never current authoring authority.",
+      "claims": [
+        {
+          "claim": "Verbatim original gate-authoring payload inside an explicitly archived wrapper. Legacy templates and unsafe exemplar recommendation remain historical evidence, never current authoring authority.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#2126"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:f9a49896fe10926c87f415f3bcce44a68d06c489"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

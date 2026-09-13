@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-08
+updated: 2026-09-13
 ---
 
 # Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)
@@ -223,6 +223,11 @@ order (that file's own warning).
 
 ## 5. Part B — the `integer-line-boxes` gate
 
+**Legacy design record.** The descriptor fields and coupled sites below record the original gate design;
+current final-policy authoring follows `tooling/src/verify/gates/GATE-AUTHORING.md`. A conversion must preserve
+the four arms and their evidence while replacing the archived mechanisms documented in
+`docs/history/gate-authoring-legacy-2026-09-13.md`.
+
 `tooling/src/verify/gates/integer-line-boxes.ts` (scaffold `pnpm gate:new`), `scopeSafety:
 "whole-project"`, `fsBacked: true` (reads `tokens.json` + the CSS homes off disk), `run`-arm over
 the shared project. Four arms:
@@ -253,14 +258,15 @@ the shared project. Four arms:
   conformance example's path); plus a distinct-pairing floor (found pairings below the known
   population → RED "census blind, not clean").
 
-Coupled sites per GATE-AUTHORING §2: descriptor with ≥1 `mustFlag`/`mustPass` per arm (fractional
-token fixture, unpaired text fixture, banned-vocab fixture, marker-honoured pass, SVG-marker pass);
-`tests/tooling/check-gates.repo.int.test.ts` `writeFixtures()` `__g_` fixture; the
-Core-Enforcement-Active-Gates row + the registered-gates count; the gate int test
+Historical coupled sites per `docs/history/gate-authoring-legacy-2026-09-13.md` §2: descriptor with ≥1
+`mustFlag`/`mustPass` per arm (fractional token fixture, unpaired text fixture, banned-vocab fixture,
+marker-honoured pass, SVG-marker pass); `tests/tooling/check-gates.repo.int.test.ts` `writeFixtures()`
+`__g_` fixture; the Core-Enforcement-Active-Gates row + the registered-gates count; the gate int test
 `tests/tooling/verify/gates/integer-line-boxes.int.test.ts`. Comment posture: the pairing arm is
 AST-side (comment-safe via the walker); ARM C routes CSS text through `blankCssComments`.
 Ratification: two receipts — a planted real-tree violation REDs `pnpm check:structure`, the clean
-tree GREENs with a non-trivial scan denominator.
+tree GREENs with a non-trivial scan denominator. Current final policies use the guide's declared proof,
+family and coordinated-production surfaces rather than the archived manual count and `writeFixtures()` route.
 
 ## 6. Instrument coherence (ramp.ts — read-only fence, routed)
 
@@ -420,8 +426,10 @@ taken by a scratch playwright probe that sets `deviceScaleFactor` per arm, and p
 
 ## 12. Laws 2–4 coupled sites
 
-- Gate: `tooling/src/verify/gates/rest-transform-grid.ts` · its `Core-Enforcement-Active-Gates.md` row +
-  the registered-gate count · its `__g_resttransform` fixture in `tests/tooling/check-gates.repo.int.test.ts`.
+- Gate: `tooling/src/verify/gates/rest-transform-grid.ts` and its `Core-Enforcement-Active-Gates.md` row.
+  The original registered-gate count and `__g_resttransform` fixture in
+  `tests/tooling/check-gates.repo.int.test.ts` are legacy design history; current final-policy coupled sites
+  and proof ownership follow `tooling/src/verify/gates/GATE-AUTHORING.md` §§2 and 5.
 - Instrument: `tooling/src/ui-audit/ops/walker/census-grid.ts` (post-cohort, after `census-tier`) ·
   `ops/walker.ts`'s composition · `ops/walker/returns.ts` · `contract/samples-grid.ts` ·
   `contract/samples-populations.ts` (the `RelationalSamples` + accounting join) · `contract/rules.ts` (three

@@ -66,7 +66,7 @@ updated: 2026-09-13
 | **identity / auth / sessions / agents** | `Spine-Identity-and-Auth.md` + ledger D17/D18/D40/D60/D65 → route the work to `security-executor` |
 | **providers / backends / a new model source** | `Tier-3b-Providers.md` + the `domain/connection` code + D31/D39/D67 |
 | **db schema / a migration** | `Tier-1-DB.md` + D15/D20/D23/D24/D28 |
-| **a gate / an enforcement change** | `Core-0` §7 → `../../design/gate-runtime-read-first.md` and its ordered full reads → the affected `Core-Enforcement-Active-Gates.md` row and contract headers. `exemplars-2026-09-11.md` is refuted history; `../../../tooling/src/verify/gates/GATE-AUTHORING.md` explains only a legacy descriptor being replaced. |
+| **a gate / an enforcement change** | `Core-0` §7 → `../../design/gate-runtime-read-first.md` and its ordered full reads → the affected `Core-Enforcement-Active-Gates.md` row and contract headers. `exemplars-2026-09-11.md` is refuted history; `../../../tooling/src/verify/gates/GATE-AUTHORING.md` is the final authoring guide; its verbatim archive explains the legacy descriptor being replaced. |
 | **a tool / an instrument** (anything under `tooling/`) | `Core-0` §9 → `Core-Tooling-Law.md` (§2 shape · §4 gates · §9 move playbook) → the tool's own file headers |
 | **client / a feature surface** | `UI-Architecture-and-Layout.md` header (its reading order + §-map) → the owning Project issue and linked program doc |
 | **a `@orb/ui` primitive** | `ui-package-design.md` + `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
@@ -320,7 +320,7 @@ domain-map judgment call is open here.
 | types · schemas · string-union dispatch · house TS style | `Spine-TypeScript-and-Patterns.md` |
 | testing policy (lanes, presence, determinism, factories) | `Spine-Testing.md` |
 | the derived-data cluster boundary (embeddings/search/discovery/memory/stats) | `Knowledge-Cluster.md` |
-| authoring a structural gate | `../../design/gate-runtime-read-first.md` owns the reading order; `../../../tooling/src/verify/ops/new-gate.ts` owns the `pnpm gate:new <name>` scaffold. The legacy `GATE-AUTHORING.md` and refuted exemplar report are not final-policy templates. |
+| authoring a structural gate | `../../design/gate-runtime-read-first.md` owns the reading order; `../../../tooling/src/verify/ops/new-gate.ts` owns the `pnpm gate:new <name>` scaffold. `../../../tooling/src/verify/gates/GATE-AUTHORING.md` connects the final contract to its enforcers and proof obligations. Its legacy archive and the refuted exemplar report are not final-policy templates. |
 | authoring a ui-audit detector rule | `../../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
 | the domain map | §6 above |
 | which WORD names which concept (user-facing copy · ids · testids · comments) | [`../../design/vocabulary-map.md`](../../design/vocabulary-map.md) — the one living home; D151 + §3 cite it and never restate it |
