@@ -40850,9 +40850,9 @@
       "path": "docs/reviews/gate-runtime/x-baseui-rework-2026-09-13.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 355,
-      "bytes": 28417,
-      "sha256": "cc032b92f84b33c3a5bc177a35eb07c917d047a4cc9ccef7d5e899c23a356abf",
+      "lines": 374,
+      "bytes": 30283,
+      "sha256": "faa7c92140cf926fc84b9f1895f856e519cc253a5317735fc2a66f48d49464ec",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -40869,16 +40869,20 @@
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "cc032b92f84b33c3a5bc177a35eb07c917d047a4cc9ccef7d5e899c23a356abf",
-        "verifiedCommit": "9162d7e87331f2c3f68cbbacf36549f10be61af9",
+        "verifiedSha256": "faa7c92140cf926fc84b9f1895f856e519cc253a5317735fc2a66f48d49464ec",
+        "verifiedCommit": "12cff683cef15dd11e6ffb170574e8156b1c89a4",
         "verifiedAt": "2026-09-13",
         "evidence": [
-          "Complete lane report read; root reviewed the integration append. Historical lane measurements remain attributed to their recorded checkout. Current-main receipts and remaining verification limits are explicit."
+          "Root read the complete builder and501-line independent final reports, checked current contract clause against c8fccfa7c, and inspected all correction hunks. Original final report preserved with an additive current-main appendix. Scoped document formatting passed. Full program barrier and stated remaining work are not attested complete."
         ],
         "claims": [
           {
-            "claim": "Preserves BaseUI repair evidence and explicit metadata fixture port; integrated 39-test floor is recorded and resource-selection repair plus final review remain owed.",
+            "claim": "Preserved Base UI repair history with explicit final-verifier correction: derives replay is11/12 raw and12/12 only after the retired marker opener is translated. Current contract reconciliation is dated separately.",
             "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:12cff683cef15dd11e6ffb170574e8156b1c89a4"
+              },
               {
                 "kind": "issue",
                 "target": "#1584"
@@ -40886,7 +40890,7 @@
             ]
           }
         ],
-        "summary": "Preserves BaseUI repair evidence and explicit metadata fixture port; integrated 39-test floor is recorded and resource-selection repair plus final review remain owed."
+        "summary": "Preserved Base UI repair history with explicit final-verifier correction: derives replay is11/12 raw and12/12 only after the retired marker opener is translated. Current contract reconciliation is dated separately."
       },
       "receiptCurrent": true
     },
@@ -41304,6 +41308,54 @@
               {
                 "kind": "provenance",
                 "target": "git:a8c522ee3abbc15efaa97a2195b252765578d17e"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-baseui-final-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 515,
+      "bytes": 40615,
+      "sha256": "14021a345b974fea43539406df22d93d97aaea7c39534999b31f0d90e3311b3e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-baseui-final-2026-09-13.md",
+        "assignedSha256": "14021a345b974fea43539406df22d93d97aaea7c39534999b31f0d90e3311b3e",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "14021a345b974fea43539406df22d93d97aaea7c39534999b31f0d90e3311b3e",
+        "verifiedCommit": "12cff683cef15dd11e6ffb170574e8156b1c89a4",
+        "verifiedAt": "2026-09-13",
+        "summary": "Complete independent Base UI final review preserves production-dispatch, mutation and replay evidence; #2309 confirmed, #2297 replay statement corrected, #2318 refusal coverage and remaining module explanations tracked separately.",
+        "evidence": [
+          "Root read the complete builder and501-line independent final reports, checked current contract clause against c8fccfa7c, and inspected all correction hunks. Original final report preserved with an additive current-main appendix. Scoped document formatting passed. Full program barrier and stated remaining work are not attested complete."
+        ],
+        "claims": [
+          {
+            "claim": "Complete independent Base UI final review preserves production-dispatch, mutation and replay evidence; #2309 confirmed, #2297 replay statement corrected, #2318 refusal coverage and remaining module explanations tracked separately.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:12cff683cef15dd11e6ffb170574e8156b1c89a4"
               },
               {
                 "kind": "issue",
