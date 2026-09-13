@@ -10,10 +10,8 @@ import { discoverEslintFiles } from "../../../../tooling/src/verify/ops/eslint-d
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-// LOAD-HONEST BUDGETS: both #2212 arms shell the REAL discovery child, so vitest's 5s default is a
-// statement about the box rather than about the code (measured: the ceiling arm ran 2.7s solo and 8.8s
-// under a live barrier). The ceiling arm drives four child runs; the measurement arm enumerates the
-// whole repository in-process.
+// LOAD-HONEST BUDGETS: the ceiling arm drives the discovery child four times; the measurement arm asks
+// ESLint to enumerate the whole repository in-process. Both exceed Vitest's default under normal load.
 const CEILING_BUDGET = scaledBudget(90_000, 4);
 const MEASURE_BUDGET = scaledBudget(120_000, 4);
 
@@ -82,26 +80,29 @@ function discoveryRoot(): string {
   return root;
 }
 
-test("the discovery population is COMPLETE, not merely delivered — the child's own count is checked (#2212)", { timeout: CEILING_BUDGET }, async () => {
+test("the discovery envelope is parsed and internally consistent (#2212)", { timeout: CEILING_BUDGET }, async () => {
   const root = discoveryRoot();
   try {
-    // THE COMPLETION CONTROL. #2211 replaced a KILLED child with a raised ceiling; the failure that fix must
-    // not introduce is a SILENTLY TRUNCATED list, and "the call returned" cannot tell those two apart. So the
-    // child states the count it enumerated and the reader checks the delivered list against it.
     const delivered = readDiscoveredPopulation(root);
     expect([...delivered].toSorted()).toEqual([...(await discoverEslintFiles(root))].toSorted());
     expect(delivered.length).toBeGreaterThan(0);
 
-    // …and the check BITES: a well-formed envelope whose list is one row short is refused BY NAME, not
-    // accepted as a shorter population. This is the arm that separates a completion control from a
-    // did-not-throw control, so it is asserted on the message an operator would actually read.
-    const short = JSON.stringify({ count: delivered.length, files: delivered.slice(0, -1) });
-    expect(() => parsedDiscovery(short)).toThrow("TRUNCATED in transit");
-    expect(() => parsedDiscovery(JSON.stringify({ files: delivered }))).toThrow("no usable population count");
+    // A clip of the producer's own serialized shape fails at the parser boundary with the discovery site
+    // named. JSON cannot preserve a sibling count after arbitrary byte clipping, so this is malformed wire
+    // data rather than evidence that the producer independently enumerated more files.
+    const healthy = JSON.stringify({ count: delivered.length, files: delivered });
+    const clipped = healthy.slice(0, -1);
+    expect(() => parsedDiscovery(clipped)).toThrow("ESLint discovery child emitted malformed serialized population data");
+    expect(() => parsedDiscovery(clipped)).toThrow(expect.objectContaining({ cause: expect.any(SyntaxError) }));
+
+    // The count is an envelope-consistency checksum. A forged but valid JSON envelope can disagree, and the
+    // diagnostic must describe that fact without inventing truncation or prescribing a larger stdout buffer.
+    const inconsistent = JSON.stringify({ count: delivered.length, files: delivered.slice(0, -1) });
+    expect(() => parsedDiscovery(inconsistent)).toThrow("ESLint discovery envelope is inconsistent");
+    expect(() => parsedDiscovery(inconsistent)).not.toThrow("maxBuffer");
+    expect(() => parsedDiscovery(JSON.stringify({ files: delivered }))).toThrow("malformed population envelope");
     expect(() => parsedDiscovery(JSON.stringify(delivered))).toThrow("malformed population envelope");
-    // The honest pair: the exact envelope the child emits must PASS, or the control above proves only that
-    // the reader is strict, never that the producer satisfies it.
-    expect(parsedDiscovery(JSON.stringify({ count: delivered.length, files: delivered }))).toEqual(delivered);
+    expect(parsedDiscovery(healthy)).toEqual(delivered);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -135,53 +136,17 @@ function isMainCheckout(): boolean {
   }
 }
 
-/** node's own default capture ceiling — the one #2211's payload outgrew. Not the door's ceiling (64MiB);
- *  this is the line the ORIGINAL failure crossed, and the only reason the door has to name one at all. */
+/** Node's default capture ceiling, distinct from the production door's explicit 64 MiB fuse. */
 const DEFAULT_CEILING_BYTES = 1024 * 1024;
 
-/** THE RECORDED MEASUREMENTS, so a shrink is a CHANGED NUMBER rather than a quietly passing test:
- *   • WORKTREE, 2026-09-12: 441,978 bytes across 7,695 files — comfortably UNDER node's 1MiB default, which
- *     is why claude-b's verifier could not reproduce #2211's ENOBUFS in its own worktree at all;
- *   • MAIN, 2026-09-12: over 1,048,576 bytes, measured by the FAILURE ITSELF — `execFileSync` killed the child
- *     with ENOBUFS at a 1MiB buffer (`5ee1149a9`), and a buffer overflow IS a measurement that the payload
- *     exceeded it. A re-measurement of main's checkout from this lane was attempted and abandoned after ten
- *     minutes under a live barrier; the assertion below therefore first EXECUTES when this lands on main.
- *     If it reds there, that red is the finding this row asked for: the premise moved.
- *
- *  THE PREMISE MOVED, AND THIS ARM MOVED WITH IT (#2281/#2282, 2026-09-13). It asked for that red and it got
- *  it, from the fence rather than from drift, so the arm is INVERTED rather than deleted: what it now pins is
- *  that the FIX HOLDS. Main's checkout was measured directly this time — discovery replicated with rules and
- *  typed programs off, cwd at main's root, one run per config variant:
- *   • MAIN, UNFENCED: 1,782,584 bytes across 15,994 files — #2211's condition, still real on the day it was
- *     removed, and 7,896 of those files were other lanes' worktrees while 353 were the vendored SillyTavern
- *     runtime. `eslint.config.js` now ignores both, and it is the CONFIG that changed, not this checkout;
- *   • MAIN, BOTH FENCES: 446,162 bytes across 7,746 files — 2.35x under node's default.
- *  Both figures were taken on main at `1692583d6`, 2026-09-13. They are RECORDED, never asserted: an
- *  assertion on a number that tracks corpus growth turns a legitimate addition into a red proof. The
- *  THRESHOLD is the claim; the numbers are the observation that justified flipping it.
- *  So the floor became a CEILING and the conditional went away with it: the population fits node's own
- *  default in EVERY checkout now, which is a property of the config, and the next unfenced gitignored tree
- *  that re-inflates it reds this row instead of quietly restoring the ENOBUFS the door's 64MiB ceiling is
- *  there to survive. The door's ceiling is untouched and is still asserted separately below. */
+/** Dated observations for interpreting the live threshold, never equality assertions. The 2026-09-13
+ *  config fences reduced main from 1,782,584 bytes to 446,162 bytes; the worktree measured 441,978 bytes. */
 const RECORDED_WORKTREE_BYTES = 441_978;
 const RECORDED_MAIN_UNFENCED_BYTES = 1_782_584;
 const RECORDED_MAIN_FENCED_BYTES = 446_162;
 
 test("the discovery payload is MEASURED against the ceilings, and the number is recorded (#2212)", { timeout: MEASURE_BUDGET }, async () => {
-  // WHY THIS ARM EXISTS AND WHAT IT DOES NOT PROMISE. #2211 was a KILLED discovery child: the payload had
-  // outgrown node's ~1MiB default. A control that depends on THAT condition is CHECKOUT-DEPENDENT —
-  // claude-b's verifier could not reproduce the overflow in its own worktree, where the admitted population
-  // measured ~442 KB, well under the default. A worktree admits fewer files than main, so an arm asserting
-  // "the payload exceeds 1MiB" would be green there for a reason that has nothing to do with the fix.
-  //
-  // So this arm MEASURES and RECORDS rather than assuming, and it states its own two claims separately:
-  //   • CHECKOUT-INDEPENDENT: the payload must fit the ceiling the door actually passes (64MiB). That is
-  //     the fuse the production run depends on, and it reds anywhere the population outgrows it.
-  //   • CHECKOUT-DEPENDENT: on MAIN the payload is expected to exceed the 1MiB default — the #2211
-  //     condition itself. Asserted only there, because a worktree is a different population, and the size
-  //     is PRINTED either way so a shrink below the default shows up as a CHANGED NUMBER rather than as a
-  //     test that quietly stopped exercising its subject.
-  // The deterministic arm below (an 8-byte ceiling) is the one that needs no checkout at all.
+  // The live threshold catches a newly unfenced population before production reaches either capture fuse.
   const files = await discoverEslintFiles(REPO_ROOT);
   const bytes = Buffer.byteLength(JSON.stringify({ count: files.length, files }), "utf8");
   process.stderr.write(
@@ -189,19 +154,9 @@ test("the discovery payload is MEASURED against the ceilings, and the number is 
   );
 
   expect(files.length).toBeGreaterThan(0);
-  // CHECKOUT-INDEPENDENT: the payload must fit the ceiling the production door actually passes. This is the
-  // fuse every `lint:eslint` run depends on, and it reds in ANY checkout whose population outgrows 64MiB.
   expect(bytes).toBeLessThan(DISCOVERY_MAX_BUFFER_BYTES);
-  // The recorded worktree figure is carried as a CONSTANT so a reader can see at a glance how far today's
-  // number has moved; it is deliberately not asserted (a worktree's population is whatever its branch
-  // holds), and `RECORDED_WORKTREE_BYTES` is printed beside the live one for exactly that comparison.
   process.stderr.write(`[#2212] recorded worktree baseline: ${String(RECORDED_WORKTREE_BYTES)} bytes (2026-09-12)\n`);
   process.stderr.write(`[#2212] recorded main: ${String(RECORDED_MAIN_UNFENCED_BYTES)} unfenced / ${String(RECORDED_MAIN_FENCED_BYTES)} fenced (2026-09-13)\n`);
-  // NO LONGER CHECKOUT-DEPENDENT (#2281/#2282): the ignore fences live in `eslint.config.js`, so "the
-  // admitted population fits node's own default stdout ceiling" is now a property of the CONFIG and holds in
-  // main and in a worktree alike. Asserting it unconditionally is what turns #2211's retired premise into a
-  // standing ratchet — an unfenced gitignored tree walking back into the population reds HERE, at the
-  // measurement, rather than as an ENOBUFS kill in a production run.
   expect(
     bytes,
     `the discovery payload (${String(bytes)} bytes) outgrew node's 1MiB default again. A RED HERE IS NOT A CEILING QUESTION: an unfenced directory has re-inflated the admitted population — find it and fence it in eslint.config.js, the way \`**/.claude/worktrees/**\` (#2281) and \`scripts/probes/st-goldens/sillytavern-runtime/**\` (#2282) fenced the two that did it before. The door's 64MiB ceiling (#2211) is asserted separately above and is not what moved`,

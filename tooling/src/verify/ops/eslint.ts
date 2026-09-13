@@ -33,13 +33,16 @@ function ownerFor(path: string, owners: readonly string[]): string {
   throw new Error(`ESLint file ${path} has ${owners.length === 0 ? "no native compiler owner" : `ambiguous native compiler owners {${owners.join(", ")}}`}`);
 }
 
-/** THE COMPLETION CONTROL (#2212), and it is deliberately not a did-not-throw check. The child states the
- *  COUNT it enumerated beside the list; a delivered list that disagrees is a TRUNCATION and is refused here
- *  by name. #2211's failure was a KILLED child (ENOBUFS terminates, it does not clip) and the failure its fix
- *  must not introduce is the quiet short list — the two are indistinguishable to "the call returned", so the
- *  only thing that separates them is an executing assertion over the producer's own claim. */
+/** The discovery wire reader (#2212). `count` and `files` are serialized from the same producer-owned
+ *  enumeration, so equality proves envelope consistency rather than independent completion. Malformed JSON
+ *  and inconsistent envelopes both refuse with this discovery site named; neither is evidence of ENOBUFS. */
 export function parsedDiscovery(text: string): readonly string[] {
-  const value = JSON.parse(text) as unknown;
+  let value: unknown;
+  try {
+    value = JSON.parse(text) as unknown;
+  } catch (error) {
+    throw new Error("ESLint discovery child emitted malformed serialized population data; no lint verdict is available", { cause: error });
+  }
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("ESLint discovery child emitted a malformed population envelope (expected { count, files })");
   }
@@ -48,12 +51,11 @@ export function parsedDiscovery(text: string): readonly string[] {
     throw new Error("ESLint discovery child emitted a malformed filename list");
   }
   if (!Number.isSafeInteger(count)) {
-    throw new Error("ESLint discovery child emitted no usable population count; a list with no stated size cannot be proven complete");
+    throw new Error("ESLint discovery child emitted a malformed population envelope (count must be a safe integer)");
   }
   if (files.length !== count) {
     throw new Error(
-      `ESLint discovery delivered ${String(files.length)} filenames but the child enumerated ${String(count)} — the population was TRUNCATED in transit, ` +
-        "so no lint verdict is available (raise the discovery maxBuffer in tooling/src/verify/ops/eslint.ts, or hand the list over a file)",
+      `ESLint discovery envelope is inconsistent: count ${String(count)} does not match ${String(files.length)} filenames; no lint verdict is available`,
     );
   }
   return files;
@@ -84,19 +86,18 @@ export function partitionEslintFiles(paths: readonly string[], programs: readonl
   return groups;
 }
 
-/** #2211: the discovery child writes the WHOLE admitted filename population to stdout and node's ~1MiB
- *  default does not truncate — it KILLS the child with ENOBUFS. 64MiB is what `check-gates.repo.int` already
- *  uses for the same class of payload. A ceiling is a fuse, not a fix: if this population keeps growing, hand
- *  the list over a file rather than raising the number again. */
+/** #2211: a discovery population once exceeded node's default capture ceiling, which kills the child with
+ *  ENOBUFS rather than returning clipped stdout. The current fenced repository measured about 446 KiB on
+ *  2026-09-13, so that incident no longer reproduces; 64 MiB remains a named production fuse. */
 const BYTES_PER_KIB = 1024;
 const KIB_PER_MIB = 1024;
 const DISCOVERY_BUFFER_MIB = 64;
 export const DISCOVERY_MAX_BUFFER_BYTES = DISCOVERY_BUFFER_MIB * KIB_PER_MIB * BYTES_PER_KIB;
 
 /** THE DISCOVERY DOOR, and the ceiling is NAMED HERE rather than left to node (#2211/#2212). The child writes
- *  the WHOLE admitted filename population (~2300 paths for the root program alone) to stdout; node's ~1MiB
- *  default does not truncate at the ceiling, it KILLS the child with ENOBUFS, so at current repo size this
- *  door could no longer enumerate its own population and the whole-repo tier verdict was UNOBTAINABLE.
+ *  the whole producer-owned filename population to stdout. Node does not return a clipped value when the
+ *  capture ceiling is exceeded; it kills the child with ENOBUFS. The current fenced payload is below node's
+ *  default, while the explicit 64 MiB ceiling preserves a stable fuse as the repository grows.
  *
  *  A BLOWN CEILING REFUSES BY NAME. `spawnSync`'s bare "spawnSync nice ENOBUFS" names the wrapper, not the
  *  population that outgrew it, and an operator reading that has no way to know WHICH door died or what to do
