@@ -174,7 +174,7 @@ export function liveAdmitted(root: string): LiveAdmission {
     };
   }
   let report: StructureReportView;
-  // @orb-waive caught-failure-ownership(catch): the parse failure IS the answer this reader returns — a `{ ok: false }` carrying the unreadable-artifact reason, printed verbatim beside every ledger. Ends if a caller starts treating an unparseable artifact as zero admissions.
+  // The parse failure is the answer this reader returns: `{ ok: false }` carries the unreadable-artifact reason, printed verbatim beside every ledger.
   try {
     report = JSON.parse(readFileSync(path, "utf8")) as StructureReportView;
   } catch (error) {

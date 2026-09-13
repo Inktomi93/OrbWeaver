@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 595,
-    "reported": 23,
+    "sites": 597,
+    "reported": 25,
     "byVerdict": {
       "deliberate-absorb": 572,
-      "unproven": 23
+      "unproven": 25
     },
     "byGrammar": {
       "default": 161,
-      "empty": 291,
+      "empty": 293,
       "promise": 143
     }
   },
@@ -5036,7 +5036,7 @@
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::catch::3",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 155,
+      "line": 159,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -5044,7 +5044,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "null means the candidate-path census is unavailable; every receipt pair is then treated as touched and must pass the exact-index proof, so failure widens verification instead of reading clean. Ends if null stops selecting every pair.",
-      "markerLine": 142
+      "markerLine": 146
     },
     {
       "siteId": "tooling/src/model-ab/lib/verify.ts::catch::1",
@@ -7051,7 +7051,7 @@
     {
       "siteId": "tooling/src/verify/gates/devtools-frontend-assets.ts::error::1",
       "path": "tooling/src/verify/gates/devtools-frontend-assets.ts",
-      "line": 200,
+      "line": 206,
       "column": 16,
       "grammar": "empty",
       "position": "error",
@@ -7059,7 +7059,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every adjudicator failure is converted into this policy's asset-contract finding, which is the D950 ruling — an unprovable vendored closure IS the violation, not a broken checker. Ends if this catch stops reporting the failure detail.",
-      "markerLine": 197
+      "markerLine": 203
     },
     {
       "siteId": "tooling/src/verify/gates/no-nul-bytes-in-source.ts::catch::1",
@@ -7142,7 +7142,7 @@
     {
       "siteId": "tooling/src/verify/lib/config-snapshot.ts::catch::1",
       "path": "tooling/src/verify/lib/config-snapshot.ts",
-      "line": 171,
+      "line": 176,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -7150,12 +7150,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "readConfigSnapshot turns undefined into an explicit unreadable result that the liveness gate reports. Ends if malformed JSON can produce an ok snapshot.",
-      "markerLine": 168
+      "markerLine": 173
     },
     {
       "siteId": "tooling/src/verify/lib/config-snapshot.ts::error::1",
       "path": "tooling/src/verify/lib/config-snapshot.ts",
-      "line": 223,
+      "line": 228,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7309,9 +7309,22 @@
       "markerLine": 279
     },
     {
+      "siteId": "tooling/src/verify/lib/policy-pass.ts::catch::1",
+      "path": "tooling/src/verify/lib/policy-pass.ts",
+      "line": 411,
+      "column": 7,
+      "grammar": "empty",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::error::1",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 177,
+      "line": 178,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7324,7 +7337,7 @@
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::error::2",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 196,
+      "line": 197,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7337,7 +7350,7 @@
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::error::3",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 417,
+      "line": 455,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -7350,7 +7363,7 @@
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::error::4",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 482,
+      "line": 519,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -7506,8 +7519,8 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::1",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 118,
-      "column": 12,
+      "line": 131,
+      "column": 14,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
@@ -7519,11 +7532,24 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::2",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 166,
+      "line": 156,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::3",
+      "path": "tooling/src/verify/ops/policy-conformance.ts",
+      "line": 204,
+      "column": 12,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 3,
       "snippet": "} catch (error) {",
       "verdict": "unproven",
       "reason": null,
@@ -7727,7 +7753,7 @@
     {
       "siteId": "tooling/src/workboard/ops/gh.ts::catch::1",
       "path": "tooling/src/workboard/ops/gh.ts",
-      "line": 32,
+      "line": 47,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -7735,12 +7761,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "only used to make an already-thrown rate-limit error message more specific — a failed probe of the reset time just falls back to a vaguer but still-actionable phrase in that same message, it never suppresses the real rate-limit failure itself. Ends if this return value starts being used outside a message string.",
-      "markerLine": 25
+      "markerLine": 40
     },
     {
       "siteId": "tooling/src/workboard/ops/project.ts::catch::1",
       "path": "tooling/src/workboard/ops/project.ts",
-      "line": 47,
+      "line": 59,
       "column": 7,
       "grammar": "empty",
       "position": "catch",
@@ -7748,7 +7774,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the comment states the intent directly — a missing or corrupt cache file falls through to fetchProjectContext() below, which is the real source of truth; the cache is purely an optimization. Ends if this stops falling through to the cold fetch.",
-      "markerLine": 41
+      "markerLine": 53
     }
   ]
 }
