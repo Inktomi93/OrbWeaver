@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -13,7 +14,9 @@ import { gate as ownerIdRegistry } from "../../../../tooling/src/verify/gates/ow
 import { gate as schemaBannedShapes } from "../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
 import { gate as schemaBranding } from "../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as tableExplicitPrimaryKey } from "../../../../tooling/src/verify/gates/table-explicit-primary-key.ts";
+import { readAuthoredKeySet } from "../../../../tooling/src/verify/lib/authored-key-set.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { ROOT } from "../../../../tooling/src/verify/lib/repo-paths.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -76,6 +79,8 @@ test(
 // loudness is identical — a tool error either way — and only the accused moves from the fact to the policy.
 const VIRTUAL_ROOT = "/orb-schema-fact-wave-1";
 const PROBE = "packages/db/src/schema/probe.ts";
+const OWN_TABLES_SOURCE = "tooling/src/verify/gates/own-tables-only.ts";
+const STALE_FILE_PREFIX = "FILE_ALLOWLIST row for a file with NO foreign table import left (ratchet down) — delete it in own-tables-only.ts: ";
 
 function runConsumer(files: Readonly<Record<string, string>>): PolicyPassResult {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -190,6 +195,43 @@ function consumerPass(policy: GatePolicy, files: Readonly<Record<string, string>
 function schemaCorpus(policy: GatePolicy, probe: string): Readonly<Record<string, string>> {
   return { [PROBE]: probe, ...(ANCHORS[policy.id] ?? {}) };
 }
+
+test("own-tables-only reports every FILE_ALLOWLIST subject when the complete permission fixture is quiet (#2343)", () => {
+  const sourceProject = new Project({ useInMemoryFileSystem: true });
+  const source = sourceProject.createSourceFile(`/${OWN_TABLES_SOURCE}`, readFileSync(`${ROOT}/${OWN_TABLES_SOURCE}`, "utf8"));
+  const initializer = source.getVariableDeclaration("FILE_ALLOWLIST")?.getInitializer();
+  if (initializer === undefined) {
+    throw new Error("own-tables-only FILE_ALLOWLIST has no source-readable initializer");
+  }
+  const authority = readAuthoredKeySet(initializer);
+  if (authority.kind === "unresolved") {
+    throw new Error(`own-tables-only FILE_ALLOWLIST is not source-readable: ${authority.reason}: ${authority.detail}`);
+  }
+  const expectedSubjects = [...authority.value].toSorted();
+  expect(expectedSubjects.length).toBeGreaterThan(0);
+
+  const policy: GatePolicy = ownTablesOnly;
+  const rows = policy.mustFlag.filter(({ expect: expectation }) => expectation?.countFrom === "FILE_ALLOWLIST");
+  expect(rows).toHaveLength(1);
+  const row = rows[0];
+  if (row === undefined) {
+    throw new Error("unreachable: asserted one FILE_ALLOWLIST proof row above");
+  }
+  expect(row.expect?.messageIncludes).toBe(STALE_FILE_PREFIX);
+  expect(expectedSubjects.filter((subject) => !Object.hasOwn(row.files, subject))).toEqual([]);
+
+  const result = consumerPass(policy, row.files);
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.toolErrors).toEqual([]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
+
+  const findings = result.authority.effectiveFindings;
+  expect(findings).toHaveLength(expectedSubjects.length);
+  expect(findings.map(({ message }) => message).toSorted()).toEqual(expectedSubjects.map((subject) => `${STALE_FILE_PREFIX}"${subject}"`).toSorted());
+});
 
 for (const policy of [
   byteCheckCast,
