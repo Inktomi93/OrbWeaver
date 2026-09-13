@@ -37,6 +37,16 @@
 //      state-files` markers on the tree (measured 2026-09-12), so nothing re-binds and nothing orphans.
 //
 // LEGACY SHA: 50088b39b (`git show 50088b39b:tooling/src/verify/gates/state-files.ts`).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `state-files` descriptor at a4ed280d18da42e55be62960b8ce1aec1f76ff32, the parent of the conversion `5f8347dca`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `50088b39b` cited above
+// is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations resolve to this
+// source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 87 and final `population` admits 87.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/state/__cbbhr_in_active-chat-store.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, ObjectLiteralExpression, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

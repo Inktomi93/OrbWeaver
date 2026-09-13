@@ -27,6 +27,16 @@
 // and `@kit` (`packages/kit/src/`) is the narrowest population that contains the declaration home the
 // carved-out arm judges. Nothing was subtracted from `scrubber-home`'s side to make room for it: the kit
 // directory stays in that policy's population too, where it is now SCANNED rather than excused.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `scrubber-home` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion `9808b93c0`;
+// this module did not exist there, so it is measured against the module it was carved from, `scrubber-home` (blob
+// read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,372
+// and final `population` admits 61. legacy − final = 3,311 `packages/*/src` sources outside `@kit` — the parent's
+// reference scan; this carved completeness arm reads only the definition home. final − legacy = ∅. Controls: inside
+// `packages/kit/src/assets/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { SourceFile } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

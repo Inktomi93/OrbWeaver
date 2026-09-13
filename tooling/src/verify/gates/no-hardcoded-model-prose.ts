@@ -48,6 +48,16 @@
 // declared name. Both are guaranteed authored text at their own offset. Driven (not merely claimed) in the
 // family test's `assumes-single-replica` control, which exercises the shared position mechanism every
 // ordinary policy in this lane uses.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-hardcoded-model-prose` descriptor at d2d0f644c46ee75c2ac44d962d22d18a97a375fe, the parent of the conversion
+// `04e455f4d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,455 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 55 and final `population` admits 7,454. legacy − final = ∅. final − legacy = 7,399 `@authored` sources
+// outside the seam/catalog set — the ARM B importer census reach recorded above; findings still fire only on
+// seam/catalog files. Controls: inside: no virtual sibling fits the exact-path population, so the real shared member
+// `packages/contracts/src/automation/prose.ts` is the control, admitted by both; outside
+// `packages/showcase-plugins/src/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

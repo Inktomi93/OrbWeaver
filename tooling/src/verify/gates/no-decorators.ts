@@ -19,7 +19,23 @@
 // `packages/db/drizzle.config.ts`, `aggregator-assets.d.ts`) and `packages/showcase-plugins/**`. Those 18
 // are outside `@authored` by definition, so a decorator there is now unjudged; whether the legacy runner
 // ever fed them is a property of THAT runner's candidate set, which this measurement bounds, not settles.
+// SETTLED 2026-09-13 (lane cb-b-header-residue): over the candidate set the legacy runner ACTUALLY loaded
+// (`_shared/ts-workspace.ts#harnessGlobs` at `45743d76d^`), legacy − final = ∅ and final − legacy = ∅ — none of the
+// 18 was a harness candidate (the root-level configs are outside `harnessGlobs`, and no
+// `packages/showcase-plugins/src` source existed there), so the port dropped nothing. The 7,537-path compiler-source
+// set above is not the legacy candidate basis.
 // LEGACY SHA: (45743d76d^) — the conversion's parent.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-decorators` descriptor at 073520068d3305dfedbb481153cadfef6b30f847, the parent of the conversion `45743d76d`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,006 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,006
+// and final `population` admits 7,006. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

@@ -17,6 +17,14 @@
 // `p.startsWith("packages/server/src/transport/trpc/routers/") || p.startsWith("packages/contracts/src/")`;
 // the final expression beside `WIRE_SCHEMA_POPULATION` admits exactly that set, and its `under` half is
 // pinned by a mustPass row placing the same unbounded field one directory outside it.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `bounded-list-limit` descriptor at ef22519578607c76a03196f343fb025520c796a5, the parent of the conversion
+// `0d83d99f1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 132 and final `population` admits 132. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/contracts/src/assets/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

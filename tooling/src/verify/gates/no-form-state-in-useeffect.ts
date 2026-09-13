@@ -32,6 +32,17 @@
 // Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
 // compiler-source candidate set: 7,537 admitted on both sides, symmetric difference ZERO in both directions.
 // LEGACY SHA: (61aa46279^) — the conversion's parent.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-form-state-in-useeffect` descriptor at 644785bf211affac516d38c955d275ce45fc09b0, the parent of the conversion
+// `61aa46279` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,368 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 7,368 and final `population` admits 7,368. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import type { Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

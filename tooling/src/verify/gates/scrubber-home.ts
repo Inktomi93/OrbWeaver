@@ -36,6 +36,16 @@
 // is the standing `@packages`-vs-`@authored` boundary question (contract/population.ts, #1980), not a
 // decision taken here. The kit DEFINITION home stays IN the population on both sides — the legacy row that
 // excused it is deleted, and judging that directory is `scrubber-factory-home`'s whole job.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `scrubber-home` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion `9808b93c0`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,372
+// and final `population` admits 3,371. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the one source
+// of an authored package outside the declared composite roots (`@showcase` is not in `@authored`/`@packages`, #1980,
+// `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

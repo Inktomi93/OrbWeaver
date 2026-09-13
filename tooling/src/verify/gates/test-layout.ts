@@ -107,6 +107,19 @@
 // `tests/tooling/_shared/artifacts.test.ts` importing ONLY `artifact-naming.ts` — name-only says PASS,
 // subject-aware says FLAG. Until then the cheap interim is procedural: after a decomposition, read the
 // mirrored test's IMPORTS rather than trusting that its name resolves.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `test-layout` descriptor at 6b1d01be054c113c68595540f3a6a28c9f7d1744, the parent of the conversion `aecbc6c6c`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,487 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no
+// `scanRoot` — dispatched 7,487, and the final `population` admits 0; the subject is the declared `mirror-index`.
+// legacy − final = all 7,487 harness candidates — dispatched to the legacy `run`, which read none of them (its
+// subject came off disk through `readdirSync(tests, { recursive: true })` plus `existsSync` mirror questions);
+// retired with that read. final − legacy = ∅. Controls: the legacy side is non-empty and the final side is empty by
+// declaration, so equality cannot pass vacuously; outside `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";
 import type { TestFilenameClassification } from "../../_shared/test-kinds.ts";
 import { classifyTestFilename, looksLikeTestFilename, TEST_KIND_SUFFIXES } from "../../_shared/test-kinds.ts";

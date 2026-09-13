@@ -17,6 +17,25 @@
 // `tests/`); the final is `@authored` — a NARROWING by `packages/showcase-plugins/src` and a WIDENING by
 // `tooling/src` + `scripts/`, both measured empty of subjects. The derivation and its planted control have
 // ONE home, in the shared reader's own header, rather than three copies across this family.
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the refuted text kept above: "it moves in both directions",
+// "(`packages/*/src` plus `tests/`)" and "a WIDENING by `tooling/src` + `scripts/`" are REFUTED. The live legacy pass
+// at `7ed48eca8^` loaded `_shared/ts-workspace.ts#harnessGlobs` (`lib/pass.ts:434`, `getWorkspace({ root })`), which
+// already carried `tooling/src` and `scripts/`; the narrower glob list in `lib/harness.ts` served only the baseline
+// writers. Measured over that tree's harness candidates: legacy − final = {`packages/showcase-plugins/src/index.ts`},
+// final − legacy = ∅ — a one-file NARROWING, with the sets and controls at the end of this header.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-use-context` descriptor at a4ec5c1b6525da029b9d35bda2c3c4b7720e5c0a, the parent of the conversion `7ed48eca8`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,196 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy harness dispatch (no
+// `scanRoot`) admits 7,196 and final `population` admits 7,195. legacy − final =
+// {`packages/showcase-plugins/src/index.ts`} — the one source of an authored package outside the declared composite
+// roots (`@showcase` is not in `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING.
+// final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by
+// both; outside `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import type { Node } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { reactExportVisitors } from "../lib/react-origin.ts";

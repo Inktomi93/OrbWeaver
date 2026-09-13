@@ -68,6 +68,16 @@
 // SHA FORM NOTE: the `LEGACY SHA` above is the last commit that TOUCHED THE LEGACY DESCRIPTOR, not this
 // conversion's parent (`e81ca1979^`) — the other convention in this corpus. Both resolve to readable
 // legacy source; this one points at it in its final state, which is why it was kept.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `windowed-infinite-query` descriptor at 2eaae72bbfb355e1f7cc84291433983e48557177, the parent of the conversion
+// `e81ca1979` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `67366da91`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,433 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
+// (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
 import type { ArrowFunction, CallExpression, FunctionExpression, Node as MorphNode, ReturnStatement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

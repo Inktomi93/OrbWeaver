@@ -21,6 +21,18 @@
 // the first cut of this policy let exactly that silence every division in a feature file (reviewed
 // 2026-09-06). The canonical home is located in the effective population and receipted, so its rename
 // REFUSES the run — which is why `execution` is entire-population.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-manual-token-estimate` descriptor at a4ec5c1b6525da029b9d35bda2c3c4b7720e5c0a, the parent of the conversion
+// `7ed48eca8` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,196 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 3,220 and final `population` admits 3,220. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. `lib/reference-fact.ts` (`readStaticNumber`,
+// `resolveExportedDeclarations`), `lib/type-member-origin.ts` and `lib/origin-verdict.ts` are corpus-wide primitives;
+// no sibling judges a hand-rolled token estimate.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

@@ -56,6 +56,21 @@
 // cannot distinguish an absent closure from an unreadable one; both are population-phase refusals and
 // `mustRefuse[0]`/`mustRefuse[1]` pin the two doors that produce them (the closure, and the installed
 // tuple, which is an UNPOPULATED kind acquired at the call rather than at planning).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `devtools-frontend-assets` descriptor at c810fee0749e37333042645e1a061b257e289627, the parent of the conversion
+// `a196a35d7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,558 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,558, and the final
+// `population` admits 0; the subject is the declared `devtools-closure` + two `installed-package` doors.
+// legacy − final = all 7,558 harness candidates — dispatched to the legacy `run`, which read none of them (its
+// subject came off disk through `readFileSync`/`readdirSync` over the closure and `import.meta.resolve`); retired
+// with that read. final − legacy = ∅. Controls: the legacy side is non-empty and the final side is empty by
+// declaration, so equality cannot pass vacuously; outside `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { createHash } from "node:crypto";
 import type { DevToolsClosureInput, DevToolsInstalledTuple } from "../../_shared/devtools-assets.ts";
 import { adjudicateDevToolsClosure, readChromiumBrowserVersion } from "../../_shared/devtools-assets.ts";

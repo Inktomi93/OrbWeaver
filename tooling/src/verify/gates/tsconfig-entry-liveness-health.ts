@@ -63,6 +63,15 @@
 // and, through it, `lib/policy-program-membership.ts` — the SAME classifier its sibling reports through,
 // which is the point: a tripwire re-implementing the classifier would be measuring its own copy rather than
 // the one that produced the ✓.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `tsconfig-entry-liveness` descriptor at c97de9d2faeebb319b6195017905c1ccd91a8de0, the parent of the conversion
+// `97e68be91`; this module did not exist there, so it is measured against the module it was carved from,
+// `tsconfig-entry-liveness` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
+// Over the 7,495 harness candidates at that tree the legacy `scanRoot: () => false` admits 0 and the final
+// `population: { of: "none" }` admits 0, both by declaration: legacy − final = ∅, final − legacy = ∅. That equality
+// is VACUOUS BY CONSTRUCTION — neither side ever had a TypeScript subject — and the subject comparison is the
+// resource paragraph above (`tracked-files` + `authored-text`); no inside control exists to plant.
 import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
 import { tsconfigGrantRows, tsconfigRosterFrom, tsconfigRosterPaths } from "../lib/config-grant-rows.ts";

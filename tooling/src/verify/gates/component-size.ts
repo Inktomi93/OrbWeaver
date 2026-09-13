@@ -11,6 +11,17 @@
 // Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
 // compiler-source candidate set: 1,318 admitted on both sides, symmetric difference ZERO in both directions.
 // LEGACY SHA: (70a944751^) — the conversion's parent.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `component-size` descriptor at d59803f7f00233b70d97820311f9f706c911336e, the parent of the conversion `70a944751`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy descriptor had no
+// `scanRoot`, so its effective population is its in-run path filter — fs walk of `packages/client/src`, SKIP_DIRS
+// {node_modules,dist,__screenshots__}, `.ts`/`.tsx` minus `/\.(?:test|spec|gen)\.tsx?$/` and `.d.ts`. Over the SAME
+// 7,047 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`; the walk-based
+// filter over every tracked `.ts`/`.tsx` path) it admits 1,286 and the final `population` admits 1,286 (the bare
+// harness dispatch was 7,047). legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/client/src/styles/__cbbhr_out_vite-env.d.ts` rejected by both.
 import { defineGate } from "../contract/policy.ts";
 import { authoredLineCount } from "../lib/source-line-count.ts";
 

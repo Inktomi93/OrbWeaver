@@ -93,6 +93,21 @@
 // COMMENT POSTURE: comment-BLIND — every subject is a declared resource artifact (parsed JSON, installed
 // `.d.ts` declarations); this policy reads no authored source and no comment.
 // LEGACY SHA: 1692583d6.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `baseui-surface-manifest` descriptor at 89a0b751d78372c17b549ba2ac25931c768d7ccd, the parent of the conversion
+// `17297f298` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,560 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,560, and the final
+// `population` admits 0; the subject is the declared `installed-package:base-ui` + `json:baseui-manifest`.
+// legacy − final = all 7,560 harness candidates — dispatched to the legacy `run`, which read none of them (its
+// subject came off disk through `readInstalledSurface`/`readManifest`); retired with that read. final − legacy = ∅.
+// Controls: the legacy side is non-empty and the final side is empty by declaration, so equality cannot pass
+// vacuously; outside `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import type { InstalledComponent, InstalledPart, ManifestComponent, ManifestPart, SurfaceManifest } from "../contract/baseui.ts";
 import { defineGate } from "../contract/policy.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";

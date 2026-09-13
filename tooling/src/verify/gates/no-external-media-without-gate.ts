@@ -1,5 +1,16 @@
 // Raw intrinsic media tags in feature JSX must use MessageMedia. The syntax policy deliberately does not
 // classify member/namespace component names that merely end in an intrinsic spelling.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-external-media-without-gate` descriptor at 073520068d3305dfedbb481153cadfef6b30f847, the parent of the
+// conversion `45743d76d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,006 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 983 and final `population` admits 983. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. It imports nothing from `lib/`; the subject is an intrinsic tag
+// spelling and no sibling judges it.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

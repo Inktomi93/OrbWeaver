@@ -33,6 +33,20 @@
 //
 // The legacy `bus-definition-belts` descriptor (001949630e8ae87b44c758fd4ba5614c8e63c15a) checked the
 // tuple-belt totality as one of its four arms before this split gave it its own policy id.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `bus-definition-belts` descriptor at 001949630e8ae87b44c758fd4ba5614c8e63c15a, the parent of the conversion
+// `bda39454c`; this module did not exist there, so it is measured against the module it was carved from,
+// `bus-definition-belts` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,230 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// harness dispatch (no `scanRoot`) admits 7,230 and final `population` admits 2,908. legacy − final = 4,322 harness
+// sources outside `@contracts`/`@client`/`@server` (db, kit, ui, showcase, tests, tooling, scripts) — the
+// whole-project `run` walked them; the subject's three homes are the roots the narrowing above names. final − legacy
+// = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { defineGate } from "../contract/policy.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 

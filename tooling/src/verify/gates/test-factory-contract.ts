@@ -22,6 +22,14 @@
 // first glob is the repo-root factories tree, the second is the nested authored case the third mustFlag row
 // pins (`tooling/src/example/tests/support/factories/nested.ts`). Together they admit exactly the substring
 // match the legacy predicate did.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `test-factory-contract` descriptor at 073520068d3305dfedbb481153cadfef6b30f847, the parent of the conversion
+// `45743d76d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,006 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 11 and final `population` admits 11. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `tests/support/factories/__cbbhr_in_anth-wire.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { FunctionDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

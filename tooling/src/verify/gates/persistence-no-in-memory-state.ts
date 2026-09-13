@@ -35,6 +35,14 @@
 // `declare var Map: { Map: MapConstructor }` merges with the loaded default lib's own `declare var Map` and
 // the checker answers `no property symbol for Map`, so the fixture reaches the fail-closed arm instead. The
 // clause stays because it states the collapse invariant locally; no row enforces it.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `persistence-no-in-memory-state` descriptor at 509671ae2e013b6d07fe6f7e9e744e0d7cbac946, the parent of the
+// conversion `e5a7a8a8c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,183 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 104 and final `population` admits 104. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/server/src/domain/admin/persistence/__cbbhr_in_queries.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

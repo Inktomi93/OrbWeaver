@@ -66,6 +66,18 @@
 // half is gone — the central waiver engine owns comment reading now, so this policy reads no comment text at
 // all. The permissive-direction fixture (a surface whose COMMENT names `.focus(` and `<Dialog>`) is kept as
 // `mustFlag[1]`: it is the row that dies if anyone ever re-introduces a file-text scan.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `surface-a11y-focus` descriptor at fc5cad14c0f060ce35d257d96955d778e756d605, the parent of the conversion
+// `ff07e1302` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `854c81c80`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
+// filter — scan: `SURFACE_RE = /^packages\/client\/src\/features\/([^/]+)\/surfaces\/[^/]+\.tsx$/` then
+// `if (rel.includes("app-shell") || rel.includes("topbar")) continue`. Over the SAME 7,458 harness candidates at that
+// tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 31 and the final `population` admits 31
+// (the bare harness dispatch was 7,458). legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/features/auth/surfaces/__cbbhr_in_login-surface.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 import type { SourceFile } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { exportedComponentAnchor, managesArrivalFocus } from "../lib/surface-composition.ts";

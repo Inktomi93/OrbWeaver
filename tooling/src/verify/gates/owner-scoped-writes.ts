@@ -25,6 +25,14 @@
 // becomes `@server`, which is `packages/server/src/`; the only change is substring matching becoming
 // anchored, and 1560 tracked paths contain that segment while the same 1560 begin with it. The derivation
 // and its measurement have ONE home, in the shared reader's own header.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `owner-scoped-writes` descriptor at 40223a0915eda72dd8ab35fbdeaf9e9892089717, the parent of the conversion
+// `b54b2c34e` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,367 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

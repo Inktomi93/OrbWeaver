@@ -24,6 +24,18 @@
 //   · UNFALSIFIABLE — `origin.value.memberPath.length === 0` (:56) has no fixture that can reach it: a
 //     `ReturnType` identifier is always read bare here (never through a further member access), so no
 //     probe forces the clause to matter. Documented rather than faked (§4.1's fourth outcome).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-context-returntype` descriptor at a4ec5c1b6525da029b9d35bda2c3c4b7720e5c0a, the parent of the conversion
+// `7ed48eca8` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,196 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 32 and final `population` admits 32. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/server/src/domain/admin/__cbbhr_in/context.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. Its readers (`lib/reference-fact.ts` global/module origin,
+// `lib/origin-verdict.ts#bindsProvenNonModuleDeclaration`) are corpus-wide primitives; no sibling judges a context
+// bundle's `ReturnType`.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { bindsProvenNonModuleDeclaration } from "../lib/origin-verdict.ts";

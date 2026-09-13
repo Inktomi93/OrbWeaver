@@ -64,6 +64,14 @@
 // MARKER CENSUS: zero live `@orb-gate-ignore domain-freshness-plane` markers on the tree (0 markers / 0
 // files / 0 trailing-position sites, measured with a positive control), so there is no translation to do
 // and nothing was invented for an unmarked finding.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `domain-freshness-plane` descriptor at 7183b7abaee141b0e2e85cb79e939878bd482f77, the parent of the conversion
+// `472bc940c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,377 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 1,178 and final `population` admits 1,178. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { RoomEntityKind } from "@orb/contracts/chat";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";

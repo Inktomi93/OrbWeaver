@@ -28,6 +28,15 @@
 // §4.5 and §4.6 live in `tests/tooling/verify/gates/tier-home-health-family.int.test.ts`: the narrowed-request
 // DEFERRAL pin with its whole-project control (ec336d41c), and the split-arm differential replaying every
 // legacy example through the frozen d6f36904f descriptor and the UNION of both final policies (6f815e95e).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-raw-spacing-in-features` descriptor at d6f36904fa6946238678e61760888aaf62ba0c93, the parent of the conversion
+// `99b7429e2`; this module did not exist there, so it is measured against the module it was carved from,
+// `no-raw-spacing-in-features` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
+// Over the SAME 7,351 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
+// legacy `scanRoot` admits 1,685 and final `population` admits 1,685. legacy − final = ∅. final − legacy = ∅.
+// Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { defineGate } from "../contract/policy.ts";
 import { SANCTIONED_HOMES } from "../lib/raw-spacing-tier.ts";
 import { unresolvedSanctionedHomeKeys } from "../lib/sanctioned-home.ts";

@@ -138,6 +138,16 @@
 // All three fixtures carry a two-statement body or a slotted `/verbs/` path for the reason the #2132
 // repairs did: the pass-through widening acquits any one-expression forwarder, so a fixture written to
 // exercise some OTHER fence goes silent for the wrong reason and its cut comes back clean.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `test-presence` descriptor at 6b1d01be054c113c68595540f3a6a28c9f7d1744, the parent of the conversion `aecbc6c6c`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy descriptor had no
+// `scanRoot`, so its effective population is its in-run path filter — scanTestPresence: `serverSrcRel`
+// ("/packages/server/src/") or `contractsSrcRel` ("/packages/contracts/src/"). Over the SAME 7,487 harness candidates
+// at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,598 and the final `population`
+// admits 1,598 (the bare harness dispatch was 7,487). legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/contracts/src/assets/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 import type { Expression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { TestFamily } from "../../_shared/test-kinds.ts";

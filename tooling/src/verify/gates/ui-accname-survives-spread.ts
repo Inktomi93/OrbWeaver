@@ -14,6 +14,14 @@
 // node; `fix` states the spelling. Two guarded attributes after one spread are two findings with two
 // DIFFERENT position tokens, so they stay separately waivable — pinned by the `Pair` mustFlag row below,
 // whose `token` names the SECOND of the two. Population `@ui`: this is a `@orb/ui` seal by design.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `ui-accname-survives-spread` descriptor at 073520068d3305dfedbb481153cadfef6b30f847, the parent of the conversion
+// `45743d76d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,006 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 360 and final `population` admits 360. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/ui/src/art/art-bleed/__cbbhr_in_art-bleed.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { JsxAttribute, JsxOpeningElement, JsxSelfClosingElement, Node, ParameterDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

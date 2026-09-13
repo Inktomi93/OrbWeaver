@@ -55,6 +55,21 @@
 //
 // DECLARED LIMITS: the closed list itself is the rule, not a fence, so every arm is carried by a row whose
 // count the §4.1 cut moves. No arm of this policy is unfalsifiable.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `sanctioned-css-homes` descriptor at 865e7050cae7e489f86ac7177621c4e6dc03ebb7, the parent of the conversion
+// `17a59099b` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `eba8ef526`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,554 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,554, and the final
+// `population` admits 0; the subject is the declared `authored-tree:packages`. legacy − final = all 7,554 harness
+// candidates — dispatched to the legacy `run`, which read none of them (its subject came off disk through a
+// `readdirSync` recursion from `packages/`); retired with that read. final − legacy = ∅. Controls: the legacy side is
+// non-empty and the final side is empty by declaration, so equality cannot pass vacuously; outside
+// `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
 import { SANCTIONED_CSS_HOMES } from "../lib/css-home-topology.ts";

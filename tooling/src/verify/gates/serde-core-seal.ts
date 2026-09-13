@@ -36,6 +36,14 @@
 // compiler-source candidate set: 1,493 admitted on both sides, symmetric difference ZERO in both directions.
 // SHA FORM NOTE: the legacy sha is the bare 40-char spelling in the paragraph above rather than the
 // `(<sha>^)` form; it names this conversion's parent directly, so both spellings resolve to one commit.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `serde-core-seal` descriptor at 534c1327f682be2578e1dee7c7a2bfa488fb672a, the parent of the conversion `bd56189ba`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,358 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,493
+// and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { DOMAIN_ROOT, pngChunkImport, SANCTIONED_DOMAINS } from "../lib/serde-core-seal.ts";

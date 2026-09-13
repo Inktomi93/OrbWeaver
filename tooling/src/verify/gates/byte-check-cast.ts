@@ -16,6 +16,14 @@
 // The final `SCHEMA_POPULATION` is that expression and also `drizzleSchemaFact`'s own population, which is
 // why widening it to the bare `@db` root reds a mustPass row: outside the schema directory there is no
 // table fact to judge the capped column against.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `byte-check-cast` descriptor at ef22519578607c76a03196f343fb025520c796a5, the parent of the conversion `0d83d99f1`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,186 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 30 and
+// final `population` admits 30. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

@@ -65,6 +65,17 @@
 // AUTHORITY `hard`, severity `error`. Marker census 0 = 0 = 0 (measured 2026-09-13; the only
 // `@orb-gate-ignore bus-payload-allowlist` occurrences on the tree are this family's own test fixtures,
 // which §8 step 6 excludes by name, and the legacy descriptor was `markerImmune` so none of them ever bit).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `bus-payload-allowlist` descriptor at c810fee0749e37333042645e1a061b257e289627, the parent of the conversion
+// `a196a35d7`; this module did not exist there, so it is measured against the module it was carved from,
+// `bus-payload-allowlist` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,558 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 8 and final `population` admits 105. legacy − final = ∅. final − legacy = 97 `@contracts` sources
+// beyond the sibling's eight `BUS_FILES` — the same forced carrier widening. Controls: inside: no virtual sibling
+// fits the exact-path population, so the real shared member `packages/contracts/src/automation/index.ts` is the
+// control, admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
 import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
 import { BUS_DECL_NAMES, BUS_FILES, busPayloadFact, NOTIFICATION_SCHEMA_NAME, REAL_CORPUS_MIN } from "../lib/bus-payload-fact.ts";

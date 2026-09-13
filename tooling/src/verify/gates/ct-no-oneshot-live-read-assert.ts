@@ -56,6 +56,14 @@
 // Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
 // compiler-source candidate set: 491 admitted on both sides, symmetric difference ZERO in both directions.
 // LEGACY SHA: (47c35b61c^) — the conversion's parent.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `ct-no-oneshot-live-read-assert` descriptor at bd56189bacbd0b4c79103fc10fe94d5499d9f3fd, the parent of the
+// conversion `47c35b61c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,360 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 491 and final `population` admits 491. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `tests/client/a11y/__cbbhr_in_accessible-name-quality.suite.ct.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

@@ -12,6 +12,14 @@
 // POPULATION PORT: byte-identical, legacy at `ef2251957^` (`scanRoot: (p) => p.includes("tests/")` — every
 // authored `tests/` tree, including the nested ones); the final `TEST_POPULATION` is that expression, pinned
 // by a mustPass row placing the same internal `vi.mock` in production source.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `test-mock-doctrine` descriptor at e8d06378079aecba08a27a033ef707794f1e625c, the parent of the conversion
+// `ef2251957` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 2,780 and final `population` admits 2,780. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference, readStaticString, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";

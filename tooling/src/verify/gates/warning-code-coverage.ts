@@ -27,6 +27,26 @@
 // `in: ["@server", "@contracts"]` — an INTENTIONAL narrowing, and lossless: both tuple homes live there
 // (server/infra/providers, contracts/chat) and both emit scopes are under `packages/server/src/`, so no
 // admitted file the legacy walk judged is dropped.
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the citation above kept: the `(ed8b96aef)` is NOT this
+// conversion's legacy source. `git rev-parse` gives a different `warning-code-coverage.ts` blob at `ed8b96aef` than
+// at the conversion parent `307640dae` (= `e18bce01e^`), which is the replayable descriptor. "lossless" holds
+// (legacy − final = ∅), and the population is a superset of what the reader judges (final − legacy = 1,347; the
+// sets at the end of this header).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `warning-code-coverage` descriptor at 307640dae36a13f5c21e08cbd24a8e24633adb92, the parent of the conversion
+// `e18bce01e` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `ed8b96aef`
+// cited above is NOT this blob — `git rev-parse` gives a different blob there than at the conversion parent, which is
+// the replayable legacy source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run
+// path filter — channels: homeFile `/packages/server/src/infra/providers/contract/resolve.ts` + emitScope
+// `/packages/server/src/infra/providers/`; homeFile `/packages/contracts/src/chat/bus.ts` + emitScope
+// `/packages/server/src/domain/chat/`. Over the SAME 7,144 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`) it admits 238 and the final `population` admits 1,585 (the bare harness
+// dispatch was 7,144). legacy − final = ∅. final − legacy = 1,347 — every `@contracts` source but the chat bus home
+// (104) and every `@server` source outside `infra/providers` and `domain/chat` (1,243): the two channel emit scopes
+// stay inside the reader, so the population is a superset of what it judges. Controls: inside: the real shared member
+// `packages/contracts/src/chat/bus.ts` admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateFactContext } from "../contract/fact.ts";

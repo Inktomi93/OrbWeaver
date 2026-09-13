@@ -7,6 +7,16 @@
 // (f2e1e2f3d41d02e1443072d009b19012b4762b44, the parent of the `fa5612835` conversion) scoped with
 // `scanRoot: isSchemaFile`; the final declares the PROVIDER'S OWN `DRIZZLE_SCHEMA_POPULATION`. The delta,
 // its one path and its positive control are recorded once at that constant in `lib/schema-fact.ts`.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `table-explicit-primary-key` descriptor at f2e1e2f3d41d02e1443072d009b19012b4762b44, the parent of the conversion
+// `fa5612835` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,128 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 29 and final `population` admits 30. legacy − final = ∅. final − legacy =
+// {`packages/db/src/schema/index.ts`} — the schema barrel, which the legacy `isSchemaFile` excluded and
+// `DRIZZLE_SCHEMA_POPULATION` admits; the intentional one-path widening recorded at that constant. Controls: inside
+// `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";

@@ -107,6 +107,16 @@
 // §4.6 DIFFERENTIAL: the pre-conversion descriptor at `86ce80b6c` replayed through the legacy dispatcher
 // against the final SPLIT PAIR, both over the real `packages/server/src/**` corpus and fixture-level over
 // every legacy example. The result, with each difference classified, is in the landing commit message.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `detached-work-traced` descriptor at d07338082afc3525bdc2b0813d7ce451087dd40f, the parent of the conversion
+// `1e81658b4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `86ce80b6c`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,437 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,493 and final `population` admits 1,493.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/server/src/domain/admin/__cbbhr_in_context.ts`
+// (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";

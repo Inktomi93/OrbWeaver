@@ -28,6 +28,17 @@
 //
 // POPULATION PORT: byte-identical (`@tooling`). Legacy descriptor: `1f5e25c00`
 // (`tooling/src/verify/gates/tooling-front-door.ts`, the escape arm and the `ROOT_CONFIG_IMPORTS` sweep).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `tooling-front-door` descriptor at f1bbc34e7e6961bb5cbb607c17470a642e44a1ca, the parent of the conversion
+// `e2b183b80`; this module did not exist there, so it is measured against the module it was carved from,
+// `tooling-front-door` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `1f5e25c00` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// citations resolve to this source. Over the SAME 7,445 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `tooling/src/_shared/__cbbhr_in_appearance-flags.ts`
+// (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";

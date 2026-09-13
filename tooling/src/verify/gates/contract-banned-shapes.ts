@@ -25,6 +25,20 @@
 // that split, and the legacy blob verified 2026-09-12 at `schema-banned-shapes.ts`) checked both
 // the contract rows above and the schema rows below in one combined gate before this split by evidence
 // plane.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `schema-banned-shapes` descriptor at 0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef, the parent of the conversion
+// `1bf7ff7d9`; this module did not exist there, so it is measured against the module it was carved from,
+// `schema-banned-shapes` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,137 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// harness dispatch (no `scanRoot`) admits 7,137 and final `population` admits 105. legacy − final = 7,032 harness
+// sources outside `@contracts` — the combined legacy module's IMPORT arm (now biome `noRestrictedImports`) and its
+// schema arm (now `schema-banned-shapes`) read them; the contract partition judges only `@contracts` declarations.
+// final − legacy = ∅. Controls: inside `packages/contracts/src/assets/__cbbhr_in_index.ts` (virtual) admitted by
+// both; outside `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ContractBannedShape } from "../contract/ledger-banned-shapes.ts";

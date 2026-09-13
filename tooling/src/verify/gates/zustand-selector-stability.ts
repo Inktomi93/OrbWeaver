@@ -30,6 +30,16 @@
 //
 // POPULATION: `@authored` minus `*.test.ts`/`*.test.tsx`. The notNamed fence is a
 // NARROWING with its own mustPass row; the arity fence and the unnamed-type verdict each have one too.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `zustand-selector-stability` descriptor at 7ed48eca86ea8b82234cefa42dfc128e01874448, the parent of the conversion
+// `cf2ec7dc1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,197 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 5,195 and final `population` admits 5,194. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
+// one source of an authored package outside the declared composite roots (`@showcase` is not in
+// `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls:
+// inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `tests/client/agent-nav/__cbbhr_out_index.test.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

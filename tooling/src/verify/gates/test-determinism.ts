@@ -33,6 +33,17 @@
 // tests/server/infra/plugin-host/realm.test.ts's documented choice (its own header), not a gap this gate
 // closes; a future "flag bracket access too" would need to special-case away from EVERY legitimate bracket
 // property read, which is not this gate's job.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `test-determinism` descriptor at 99b7429e2b0377aa5a6ae62341f9a22aa40de94c, the parent of the conversion `7be684811`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,353 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 2,744
+// and final `population` admits 2,744. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. `lib/comment-spans.ts#blankTsComments` is a generic comment
+// primitive several unrelated policies call; no sibling judges ambient clocks under `tests/`.
 
 import { defineGate } from "../contract/policy.ts";
 import { blankTsComments } from "../lib/comment-spans.ts";

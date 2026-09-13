@@ -34,6 +34,16 @@
 // no paren, no newline and no solidus. Driven (not merely claimed) in the family test's
 // `assumes-single-replica` control, which exercises the shared position mechanism every ordinary policy in
 // this lane uses.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-vanity-alias` descriptor at d2d0f644c46ee75c2ac44d962d22d18a97a375fe, the parent of the conversion `04e455f4d`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `86ce80b6c` cited above
+// is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations resolve to this
+// source. Over the SAME 7,455 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,387 and final `population` admits 3,387.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
+// (virtual) admitted by both; outside `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected
+// by both.
 import type { ExportSpecifier, ImportSpecifier, Node as MorphNode, SourceFile, TypeAliasDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

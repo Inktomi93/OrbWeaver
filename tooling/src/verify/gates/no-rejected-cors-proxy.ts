@@ -25,6 +25,19 @@
 // call, so a call whose source text carried the host was reported TWICE — once on the call node, once on
 // the literal inside it. Dropping that subscription makes the site ONE finding. Populations are equal;
 // the only tool-error delta is the runtime refusing a fixture that admits zero `@server` paths.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-raw-egress` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the conversion `4885cde80`;
+// this module did not exist there, so it is measured against the module it was carved from, `no-raw-egress` (blob
+// read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,263 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,492
+// and final `population` admits 1,492. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY `no-raw-egress` — a SPLIT (by authority) from the excluded-lane `no-raw-egress`, and the string is NOT
+// backed by a shared `lib/` dependency: measured, this module imports nothing from `lib/`. That is the §2 /
+// `policy-family-readers` (#2187) finding shape, recorded rather than dressed as a reader.
 import type { Node as MorphNode } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

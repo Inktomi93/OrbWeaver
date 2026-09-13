@@ -51,6 +51,19 @@
 // narrowing this to `@contracts` alone — the only package this policy's own arms NAME — is the tempting
 // simplification that must not be made. The worked receipt for that failure mode is the twin family's
 // `bus-definition-belts` `mustPass[0]`, which reproduces the real-tree throw inside conformance.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `user-bus-coverage` descriptor at d9ac09d580d98188caae64ba04f24deee7402ef6, the parent of the conversion
+// `001949630`; this module did not exist there, so it is measured against the module it was carved from,
+// `user-bus-coverage` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter — user-bus-coverage
+// SPEC: contractsFile `/packages/contracts/src/user-bus/index.ts`, lib/bus-coverage.ts DEFAULT_EMIT_SCOPE
+// `/packages/server/src/(?:domain|transport)/`. Over the SAME 7,229 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,207 and the final `population` admits 1,597 (the bare harness
+// dispatch was 7,229). legacy − final = ∅. final − legacy = 390 — every other `@contracts` source (104) and the
+// `@server` tiers outside `domain|transport` (286): forced by `busProducerFact`'s own population, which a consumer
+// may not narrow. Controls: inside: the real shared member `packages/contracts/src/user-bus/index.ts` admitted by
+// both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { deferralsFor, USER_BUS_UNION } from "../lib/bus-deferred-member.ts";

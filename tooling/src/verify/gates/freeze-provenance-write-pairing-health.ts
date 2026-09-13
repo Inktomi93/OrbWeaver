@@ -50,6 +50,18 @@
 // it out of the occurrence policy — `git show 5c17068b7^:<this file>` refuses with "exists on disk, but not
 // in 5c17068b7^", and that refusal is the receipt (the `scrubber-factory-home` precedent). The occurrence
 // half cites `5c17068b7^` for the legacy module both came from.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `freeze-provenance-write-pairing` descriptor at ef334c050af962f304d72e0295f7d15d3a5aacd4, the parent of the
+// conversion `5c17068b7`; this module did not exist there, so it is measured against the module it was carved from,
+// `freeze-provenance-write-pairing` (blob read from git with no working-tree plant: a `GateDescriptor`, no
+// `defineGate`). Over the SAME 7,388 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,387 and final `population` admits 3,386.
+// legacy − final = {`packages/showcase-plugins/src/index.ts`} — the one source of an authored package outside the
+// declared composite roots (`@showcase` is not in `@authored`/`@packages`, #1980, `contract/population.ts`); a
+// one-file NARROWING. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
+// (virtual) admitted by both; outside `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected
+// by both.
 
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

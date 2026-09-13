@@ -42,6 +42,15 @@
 // the gate module's own path, final anchors on the derivation source), and the legacy row ALSO carried a
 // second finding from the occurrence arms that now belongs to the sibling policy. Every other legacy
 // example exercised this arm ZERO times. The measured replay is in the landing commit message.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `detached-work-traced` descriptor at d07338082afc3525bdc2b0813d7ce451087dd40f, the parent of the conversion
+// `1e81658b4`; this module did not exist there, so it is measured against the module it was carved from,
+// `detached-work-traced` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,437 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls:
+// inside `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { defineGate } from "../contract/policy.ts";
 import { deriveRootSpanOpeners, TRACING_MODULE } from "../lib/detached-work.ts";
 

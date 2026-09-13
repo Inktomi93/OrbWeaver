@@ -19,6 +19,18 @@
 // `CSSProperties`, a spread of a call result) is NOT a subject. That is the clamp's own shape and the legacy
 // gate's behaviour too — its text check never saw those either. Closing it needs a value-provenance fact no
 // shared reader supplies today.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `theme-override-only-via-scope` descriptor at 256682e4aa17a2555c99834c468905fa53ae5500, the parent of the
+// conversion `47fc0ae01` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,224 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 1,671 and final `population` admits 1,671. legacy − final = ∅. final − legacy = ∅. Controls:
+// inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. `reportReviewedGrantCandidates` and
+// `lib/static-authored-value.ts#readStaticAuthoredValue` are corpus-wide primitives; no sibling judges `--color-*`
+// style props.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

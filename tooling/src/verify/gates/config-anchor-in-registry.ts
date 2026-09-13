@@ -32,6 +32,17 @@
 // Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
 // compiler-source candidate set: 1,319 admitted on both sides, symmetric difference ZERO in both directions.
 // LEGACY SHA: (58370d705^) — the parent of the commit that split this policy out.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `config-group-completeness` descriptor at dd862e988959e1f2f1d216d0649c029fea8d9751, the parent of the conversion
+// `58370d705`; this module did not exist there, so it is measured against the module it was carved from,
+// `config-group-completeness` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
+// The legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter — parent run:
+// `if (!path.includes(CLIENT_SRC)) continue` with CLIENT_SRC = "/packages/client/src/". Over the SAME 7,144 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,302 and the final
+// `population` admits 1,302 (the bare harness dispatch was 7,144). legacy − final = ∅. final − legacy = ∅. Controls:
+// inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

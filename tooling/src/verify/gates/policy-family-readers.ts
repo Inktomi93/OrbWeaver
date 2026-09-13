@@ -18,6 +18,12 @@
 // Whole-population ordinary/warning transition, workItem2187: retain the complete census while its findings
 // drain, then promote to hard/error at the tested final chunk (§5). A partial or unreadable family census
 // refuses. The self-registration pin prevents a dead descriptor reader from certifying an empty census.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). NONE:
+// this module was BORN FINAL at `6eadf5d3a` —
+// `git cat-file -e 6eadf5d3a^:tooling/src/verify/gates/policy-family-readers.ts` fails at its parent `fc2b82d53`, and
+// no legacy descriptor was carved into it — so there is no legacy population to compare, no set difference, and no
+// legacy SHA to record.
 import type { Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";

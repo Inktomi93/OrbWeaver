@@ -25,6 +25,12 @@
 // `chatId` is not an id-confusion hole in the product's type surface, and this policy's message is about the
 // product's boundaries. `@tests` is IN, deliberately and against the same instinct, because a fixture can
 // launder a raw id into a typed call (`mustFlag[4]` is that row).
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "declared NO `scanRoot` — it judged whatever
+// the legacy pass loaded" and "`@authored` minus `@tooling` and `@scripts`. That subtraction is the decision" are
+// REFUTED by the blob. The descriptor at `d10462449^` declared `scanRoot: inScope`,
+// `path.includes("packages/") || path.includes("tests/")`, which ALREADY excluded `tooling/src` and `scripts/`.
+// Measured over that tree's harness candidates: legacy − final = {`packages/showcase-plugins/src/index.ts`},
+// final − legacy = ∅. The tooling/scripts exclusion was inherited, not decided here; the port narrowed by one file.
 //
 // RETIRED VOCABULARY, WITH THE COUNT (§5b.5). The `@foreign-id-ok(<position>): <reason>` parser, its
 // module-global stale-marker state and the `FILE_CLASS_EXEMPT` table all retired into the central
@@ -52,6 +58,16 @@
 //   - a canonical brand alias declared OUTSIDE `ID_BRAND_HOME` does not mint a position. The vocabulary has
 //     exactly one home, by design: a domain-local `Branded<"RoomId">` cannot silently claim `roomId:` across
 //     the whole product.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `brand-in-name-position` descriptor at 32b66931e2a921557108b9e03e2f834f8208c116, the parent of the conversion
+// `d10462449` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,130 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 6,109 and final `population` admits 6,108. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
+// one source of an authored package outside the declared composite roots (`@showcase` is not in
+// `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls:
+// inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { Node as MorphNode, TypeChecker, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

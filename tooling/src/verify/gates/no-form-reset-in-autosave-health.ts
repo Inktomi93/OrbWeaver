@@ -28,6 +28,18 @@
 //
 // LEGACY SHA: b849e7add (`git show b849e7add:tooling/src/verify/gates/no-form-reset-in-autosave.ts`,
 // `modelFileViolations`).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-form-reset-in-autosave` descriptor at a4ed280d18da42e55be62960b8ce1aec1f76ff32, the parent of the conversion
+// `5f8347dca`; this module did not exist there, so it is measured against the module it was carved from,
+// `no-form-reset-in-autosave` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
+// The `b849e7add` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// citations resolve to this source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1.
+// legacy − final = 1,318 `@client` sources other than `forms/editor/autosave-contract.ts` — the carved arm only ever
+// judged that one file. final − legacy = ∅. Controls: inside
+// `packages/client/src/forms/editor/__cbbhr_in/autosave-contract.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { EDITOR_FORM_CONTRACT_FILE } from "../lib/editor-form-factory.ts";

@@ -37,6 +37,19 @@
 // becomes `@server`, which IS `packages/server/src/` — same predicate, same anchoring, no delta. The
 // paragraph above states the widening that was CONSIDERED and refused (`@db`/`@contracts`), which is the
 // decision worth recording here; the port itself moved nothing.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `external-id-single-writer` descriptor at 9377887c0edb28a63931b57f697b0c1596d5aa72, the parent of the conversion
+// `35bf7d328` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,356 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+// CONVERSION-COMMIT PORT (verifier cb-v-header-residue L5): the figures above resolve TODAY'S declaration. The
+// conversion `35bf7d328` itself declared `@backend`: legacy 1,493 vs final 1,640, legacy − final = ∅, final − legacy
+// = 147 (`packages/contracts/src` 105, `packages/db/src` 42) — the unrecorded widening the POPULATION CORRECTION
+// paragraph above describes. Later change, recorded separately: `841d080a9` (#1937) reverted it to `@server`, which
+// gives the ∅/∅ above.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

@@ -1,5 +1,20 @@
 // Gate: tooling-size — tooling source stays below the decomposition caps in Core-Tooling-Law §4.3.
 // Gate modules are the declared carve: a single-purpose contract can be longer than ordinary tooling.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `tooling-size` descriptor at 03b42351fde5c4192dc20b5d15943482e88e7cfb, the parent of the conversion `e656ce65d`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,349 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,053
+// and final `population` admits 783. legacy − final = 270 `tooling/src/verify/gates/**` sources — the declared
+// gate-module carve. final − legacy = ∅. Controls: inside `tooling/src/_shared/__cbbhr_in_appearance-flags.ts`
+// (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
+//
+// FAMILY DECISION CONTRADICTED BY THE CODE, recorded rather than fixed (a family string is code, outside a header
+// lane): the module declares the singleton `tooling-size`, but its production hook calls
+// `lib/source-line-count.ts#authoredLineCount`, the SAME shared reader `component-size` and `component-size-ui` name
+// as their family `component-size`. By §2 that is a meaningful shared dependency, so no valid singleton reason
+// exists.
 import { defineGate } from "../contract/policy.ts";
 import { authoredLineCount } from "../lib/source-line-count.ts";
 

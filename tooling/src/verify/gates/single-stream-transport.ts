@@ -31,6 +31,14 @@
 // population is `{ in: ["@server"], under: ["packages/server/src/transport/trpc/routers/**"] }`. The legacy
 // `SANCTIONED_HOMES` rows (the one-socket home and the permanent `chat.impersonateStream` exemption) were
 // scanned and excused, never subtracted, so the admitted set is the same on both sides.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `single-stream-transport` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion
+// `9808b93c0` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,219 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 27 and final `population` admits 27. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/server/src/transport/trpc/routers/__cbbhr_in_admin.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

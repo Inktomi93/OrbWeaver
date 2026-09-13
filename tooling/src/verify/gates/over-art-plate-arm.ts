@@ -85,6 +85,15 @@
 // THROW during the POPULATION phase, and the receipt phase withholds every consumer, both before
 // `create`/`evaluate` run (guide §3's acquisition-refusal rule). This module owns no not-ready branch: it reads both declared
 // resources through `readyResourceValue`, whose throw asserts the runtime's own refusal already held.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `over-art-plate-arm` descriptor at 89851ec5eae1f7d6f17384fe48946087c73a7308, the parent of the conversion
+// `a0807ce47` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `6977b977b`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the 7,435 harness candidates at that tree the legacy `scanRoot: () => false` admits 0
+// and the final `population: { of: "none" }` admits 0, both by declaration: legacy − final = ∅, final − legacy = ∅.
+// That equality is VACUOUS BY CONSTRUCTION — neither side ever had a TypeScript subject — and the subject comparison
+// is the resource paragraph above (`authored-css` (+ the retired ratchet ledger)); no inside control exists to plant.
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { Judgement, Site } from "../lib/over-art-plate.ts";

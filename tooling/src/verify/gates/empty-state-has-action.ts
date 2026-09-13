@@ -27,6 +27,18 @@
 // UNCHANGED: a SPREAD attribute is treated as satisfying the rule. It may carry a conditional `action`
 // this policy cannot statically resolve, and accusing it would demand a fix for something that may
 // already be correct.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `empty-state-has-action` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the conversion
+// `4885cde80` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,263 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 620 and final `population` admits 620. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. Its readers are corpus-wide primitives — `lib/sealed-origin.ts`
+// (`readSealedOrigin`, `sealedOriginReports`) and `lib/origin-verdict.ts#referenceNamesExport`, shared with seals
+// over other homes — and no sibling policy judges an `EmptyState`'s next step.
 import type { JsxOpeningElement, JsxSelfClosingElement, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

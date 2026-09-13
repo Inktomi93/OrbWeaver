@@ -37,6 +37,25 @@
 // whole unreadable tail rather than a candidate set — the honest opposite of a DECLARED-door arm, where
 // fail-closure is bounded. An unreadable factory-named call therefore passes, and the type-alias arm
 // (pure authored syntax, no identity question) carries the law for everything a schema read cannot place.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-inline-types` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the conversion `4885cde80`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,263 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,263
+// and final `population` admits 3,204. legacy − final = 4,059 §7.4 type homes the legacy visitor returned early on
+// through `isTypeHome` — `@kit`/`@contracts`/`@db`/`@ui`, `packages/showcase-plugins`, `tests/**`, `scripts/**`, the
+// client `data|forms|state|lib` tiers, `packages/server/src/kit`, `tooling/src/_shared`, every `contract/` directory
+// and `contract.ts` — now population algebra, the move the paragraph above states. final − legacy = ∅. Controls:
+// inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+//
+// FAMILY `no-inline-types` — a two-member SPLIT family with `no-inline-domain-interface`, and the string is NOT
+// backed by a shared `lib/` dependency: this module reads `lib/reference-fact.ts` (`readMemberReference`,
+// `resolveModuleMemberOrigin`), corpus-wide primitives the sibling does not import. That is the §2 /
+// `policy-family-readers` (#2187) finding shape, recorded.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

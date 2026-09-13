@@ -4,6 +4,17 @@
 // injected op every single-owner domain verb closes over) — under `domain/chat/**` it is banned outright;
 // member-visible state rides the member-fan op (`emitChatChanged`, membership-derived) or the chat bus,
 // never a single-user channel a non-member/other-member could be silently excluded from.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `membership-fan-guard` descriptor at 073520068d3305dfedbb481153cadfef6b30f847, the parent of the conversion
+// `45743d76d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,006 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 133 and final `population` admits 133. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/server/src/domain/chat/__cbbhr_in_active-turns.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. It imports nothing from `lib/`, and no sibling judges
+// `emitUserEvent` under `domain/chat/**`.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

@@ -17,6 +17,24 @@
 // branch: it reads both trees through `readyResourceValue`, whose throw is an assertion that the runtime's
 // own refusal already held — a silent `if (status !== "ready") return;` here would be unreachable code
 // reporting a clean pass on a run that could not perform its analysis at all.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `client-structure` descriptor at 7b739d9b5cd5ed752f6c38065dfa34e242695d48, the parent of the conversion `941d730cc`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,354 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no
+// `scanRoot` — dispatched 7,354, and the final `population` admits 32; the subject is the declared
+// `client-feature` + `server-domain` trees. legacy − final = 7,322 harness sources the legacy walk never read as
+// TypeScript (it listed the feature tree with `readdirSync` and read `surfaces/**/*.tsx` bytes with `readFileSync`).
+// final − legacy = ∅ — the 32 admitted paths are exactly the `features/*/surfaces/**/*.tsx` files rule 7 read. The
+// TypeScript half the legacy DID read — rule 7: `filesIn(dir, "surfaces")` at any depth,
+// `if (!f.endsWith(".tsx")) continue`, then `readFileSync` — admits 32 against the final 32: legacy − final = ∅,
+// final − legacy = ∅; inside control `packages/client/src/features/app-shell/surfaces/__cbbhr_in_app-shell.tsx`
+// admitted by both, outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both (virtual
+// paths).
+//
+// FAMILY: a declared SINGLETON under its own id. It reads no `lib/` reader except the resource-consumption primitive
+// `readyResourceValue`; `feature-owns-definition` reads the same `client-feature` tree for a different verdict and
+// shares no computation with this module.
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";

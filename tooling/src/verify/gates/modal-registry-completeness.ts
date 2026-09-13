@@ -19,6 +19,16 @@
 // plus `lib/registry-definition-{anchor,field,home}.ts`, consumed identically by all seven members.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
 // (577d03d63^); the final population is `@client`, with the ROUTES fence kept inside the god-map arm.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `modal-registry-completeness` descriptor at f5b222e10d2ffc5d8a364eaf0694e31fdc5b8823, the parent of the conversion
+// `577d03d63` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
+// descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
+// `if (!path.includes(CLIENT_SRC)) continue`. Over the SAME 7,141 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,302 and the final `population` admits 1,302 (the bare harness
+// dispatch was 7,141). legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

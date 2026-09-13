@@ -20,6 +20,14 @@
 // shares in spirit with the rest of the canonical-origin client family, but no second FINAL policy declares it, and
 // the loader law (lib/policy-module.ts) refuses a lone member whose `family` is not its id — first applied to this
 // module by the mixed door (#1584 §5). Re-declare the shared family when a second member lands.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-chat-trpc-in-surface` descriptor at 7ed48eca86ea8b82234cefa42dfc128e01874448, the parent of the conversion
+// `cf2ec7dc1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,197 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 66 and final `population` admits 66. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/features/app-shell/surfaces/__cbbhr_in_app-shell.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

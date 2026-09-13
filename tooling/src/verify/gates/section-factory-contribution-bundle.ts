@@ -33,6 +33,14 @@
 // Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
 // compiler-source candidate set: 1,319 admitted on both sides, symmetric difference ZERO in both directions.
 // LEGACY SHA: (ef18f3a14^) — the conversion's parent.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `section-factory-contribution-bundle` descriptor at f16cde889d8e42c514da2dbfa67333d94cad34eb, the parent of the
+// conversion `ef18f3a14` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,144 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 1,302 and final `population` admits 1,302. legacy − final = ∅. final − legacy = ∅. Controls:
+// inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, ParameterDeclaration, Type } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
