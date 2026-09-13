@@ -26,6 +26,15 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
       "the bound-field bundle is assembled from something other than the raw `useFieldContext` — at which point this file stops making the read and the row goes stale on its own.",
   },
   {
+    id: "bus-payload-allowlist:credential-id",
+    policyId: "bus-payload-allowlist",
+    subject: "credentialId",
+    operation: "bus-payload-field",
+    why: "the user-bus `credentialsChanged` payload carries a branded `UserCredentialId` — an ID, not a secret, and D16's SAFE pattern is exactly id-only re-read: the subscriber re-reads canon by id and never trusts event-carried data. The SUBJECT here is the field NAME rather than a path, because the licensed thing is the name's appearance anywhere on the wire (the `suppressions` precedent for a class-wide identity), and the policy aggregates every site of one name into one finding so this row stays 1:1 (§12.5). This replaces the legacy gate-owned `SANCTIONED_FIELDS` table and its hand-rolled two-sided stale sweep; the central `stale-reviewed-grant` alarm is the stronger successor.",
+    endsWhen:
+      "no scanned bus payload declares a `credentialId` field any more — the user-bus stops carrying the id at all, this row is consumed zero times and the run alarms at its dead subject, which is exactly the loaded-gun case the legacy table's stale arm existed to catch.",
+  },
+  {
     id: "bus-channel-primitive:bus-channel-mint",
     policyId: "bus-channel-primitive",
     subject: "packages/server/src/transport/trpc/bus-channel.ts",

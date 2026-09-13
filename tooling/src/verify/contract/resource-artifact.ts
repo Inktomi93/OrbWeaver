@@ -9,10 +9,16 @@
 //
 // THE VALIDATORS STAY WHERE THEY ARE. `validateTokenContractTexts` and the DevTools pin/manifest/licence
 // validation are unique algorithms owned by their gates (`packages/ui/token-contract.ts:757`,
-// `tooling/src/_shared/devtools-assets.ts:123,260`). These doors own LOADING, identity, refusal and the
-// receipt — which is why each publishes the count the validator would otherwise have to be trusted about:
-// seven token texts, and the exact file/byte census of the closure.
+// `tooling/src/_shared/devtools-assets.ts`'s `adjudicateDevToolsClosure`). These doors own LOADING,
+// identity, refusal and the receipt — which is why each publishes the count the validator would otherwise
+// have to be trusted about: seven token texts, and the exact file/byte census of the closure.
+//
+// AND THE CLOSURE MEMBER SHAPE HAS ONE HOME, WHICH IS THE VALIDATOR'S. `DevToolsClosureFile` is the
+// adjudicator's input vocabulary, so it is declared beside the algorithm that consumes it and imported here
+// rather than re-spelled — two identical structural declarations would type-check forever and drift the
+// first time the census gains a field.
 import type { TokenContractTexts, TokenRemovalBaseline } from "@orb/ui/token-contract";
+import type { DevToolsClosureFile } from "../../_shared/devtools-assets.ts";
 
 /** The canonical token bundle, by the same field names the validator takes. Keeping the SHAPE aligned with
  *  `TokenContractTexts` is what lets the consuming gate hand this straight to `validateTokenContractTexts`
@@ -46,14 +52,6 @@ export const DEVTOOLS_CLOSURE_ROOT = "tooling/src/snap/lib/devtools-frontend";
 export const DEVTOOLS_CLOSURE_PIN = "tooling/src/snap/lib/devtools-frontend/pin.json";
 export const DEVTOOLS_CLOSURE_MANIFEST = "tooling/src/snap/lib/devtools-frontend/manifest.json";
 export const DEVTOOLS_CLOSURE_LICENSES = "tooling/src/snap/lib/devtools-frontend/licenses.json";
-
-/** One closure member. `path` is relative to the closure ROOT, because that is the spelling the manifest and
- *  licence rows use and re-anchoring it would make every comparison a string-surgery exercise. */
-export interface DevToolsClosureFile {
-  readonly file: string;
-  readonly bytes: number;
-  readonly sha256: string;
-}
 
 export interface DevToolsClosure {
   readonly root: string;
