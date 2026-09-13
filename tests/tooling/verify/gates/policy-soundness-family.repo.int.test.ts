@@ -28,6 +28,7 @@ import { gate as policyRefusalCoverage } from "../../../../tooling/src/verify/ga
 import { gate as policySoundness } from "../../../../tooling/src/verify/gates/policy-soundness.ts";
 import { gate as policyWaiverIdentity } from "../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
 import { gate as policyWaiverSpelling } from "../../../../tooling/src/verify/gates/policy-waiver-spelling.ts";
+import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -65,13 +66,6 @@ const MUST_REFUSE_RE = /^ {2}mustRefuse: \[/mu;
 const FAMILY_TESTS_DIR = "tests/tooling/verify/gates/";
 const DISPATCHER_NAME = "runPolicyPass";
 const GATE_MODULE_IMPORT_RE = /from "(?:\.\.\/)+tooling\/src\/verify\/gates\/([a-z0-9-]+)\.ts"/gu;
-/** `policy-family-readers`'s second opinion (#2187): the `family` a descriptor DECLARES (anchored at the
- *  descriptor's own indentation, so the same key spelled inside a fixture STRING — where it is escaped and
- *  never at line start — cannot join the census) plus the `lib/` modules the module imports, read SYNTACTICALLY
- *  off the import declarations. The arm resolves each door to its target module; this opinion reads the
- *  SPECIFIER, so the two agree only if the census itself is right. */
-const FAMILY_DECL_RE = /^ {2}family: "([^"]+)",$/mu;
-const LIB_SPECIFIER_RE = /^(?:\.\.\/)+(?:verify\/)?lib\/([a-z0-9-]+)\.ts$/u;
 /** `policy-binding-resolution`: the members whose NAME alone is unambiguous (every one is declared only on a
  *  ts-morph node or symbol), so a module CALLING one must be accused; `getDeclarations` is ambiguous by name
  *  (`VariableStatement#getDeclarations` is a syntax accessor) and joins only the SUPERSET side. The census is
@@ -95,37 +89,6 @@ function callsMemberNamed(sourceFile: SourceFile, names: ReadonlySet<string>): b
     const callee = call.getExpression();
     return Node.isPropertyAccessExpression(callee) && names.has(callee.getName());
   });
-}
-
-/** The members of a MULTI-MEMBER family importing no `lib/` specifier at least two members import — the
- *  `policy-family-readers` opinion, computed from the declared `family` line and the import specifiers. */
-function isolatedFamilyMembers(finals: readonly SourceFile[], relative: (sourceFile: SourceFile) => string): readonly string[] {
-  const declared = finals.map((sourceFile) => ({
-    path: relative(sourceFile),
-    family: FAMILY_DECL_RE.exec(sourceFile.getFullText())?.[1],
-    libs: new Set(
-      sourceFile.getImportDeclarations().flatMap((declaration) => {
-        const lib = LIB_SPECIFIER_RE.exec(declaration.getModuleSpecifierValue())?.[1];
-        return lib === undefined ? [] : [lib];
-      }),
-    ),
-  }));
-  const families = new Set(declared.flatMap(({ family }) => (family === undefined ? [] : [family])));
-  return [...families]
-    .flatMap((family) => {
-      const members = declared.filter((member) => member.family === family);
-      if (members.length < 2) {
-        return [];
-      }
-      const importers = new Map<string, number>();
-      for (const member of members) {
-        for (const lib of member.libs) {
-          importers.set(lib, (importers.get(lib) ?? 0) + 1);
-        }
-      }
-      return members.filter((member) => ![...member.libs].some((lib) => (importers.get(lib) ?? 0) >= 2)).map(({ path }) => path);
-    })
-    .toSorted();
 }
 
 const CONFORMANCE_TIMEOUT_MS = scaledBudget(300_000);
@@ -316,9 +279,9 @@ const FAMILY_READERS_PROBE = (marker: string): Readonly<Record<string, string>> 
     `${ORDINARY_TRUNK}\n  fix: "f",\n  mustPass: [{ mode: "source", files: { "packages/client/src/b.ts": "y" }, why: "w" }],`,
   ).replace('family: "probe",', `${marker}\n  family: "trio",`),
   "tooling/src/verify/gates/trio-a.ts":
-    'import { readShared } from "../lib/shared-probe.ts";\nimport { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "trio-a", family: "trio", read: readShared });\n',
+    'import { readShared } from "../lib/shared-probe.ts";\nimport { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "trio-a", family: "trio", create: () => ({ evaluate: () => readShared(1) }) });\n',
   "tooling/src/verify/gates/trio-b.ts":
-    'import { readShared } from "../lib/shared-probe.ts";\nimport { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "trio-b", family: "trio", read: readShared });\n',
+    'import { readShared } from "../lib/shared-probe.ts";\nimport { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "trio-b", family: "trio", create: () => ({ evaluate: () => readShared(1) }) });\n',
 });
 
 test("policy-family-readers: the REPORTED position suppresses, a DEAD position ALARMS (§4.2 discrimination)", () => {
@@ -352,6 +315,63 @@ test("policy-waiver-identity REFUSES a corpus in which it recognises no final mo
   expect(legacyOnly.authority.effectiveFindings).toEqual([]);
 });
 
+/** Exercise the production root boundary on the live project's real contract and module resolver.
+ *  These sources exist only in the ts-morph project and are removed in finally; no checkout file is written.
+ *  The two expected finding paths are authored controls, not a second graph or a current-policy roster. */
+async function assertLiveFamilyConsumption(project: Project, repoRoot: string, shapeCount: number): Promise<void> {
+  const { final: knownPolicies } = await loadMixedGateCorpus(repoRoot);
+  const stem = "q08-family-consumption-control";
+  const first = `${GATES_DIR}${stem}-a.ts`;
+  const second = `${GATES_DIR}${stem}-b.ts`;
+  const helper = `tooling/src/verify/lib/${stem}.ts`;
+  const moduleSource = (id: string, production: boolean): string =>
+    `import { defineGate } from "../contract/policy.ts";\nimport { readShared } from "../lib/${stem}.ts";\n` +
+    `const proof = readShared(1);\nexport const gate = defineGate({ id: "${id}", family: "${stem}", mustFlag: [proof], create: () => ({ evaluate: () => ${production ? "readShared(1)" : "1"} }) });\n`;
+  const planted: SourceFile[] = [];
+  const drive = (expected: readonly string[]): void => {
+    const result = runPolicyPass({
+      knownPolicies,
+      policies: [policyFamilyReaders],
+      root: repoRoot,
+      project,
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.toolErrors).toEqual([]);
+    expect(result.authority.authorityAlarms).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([]);
+    const owner = result.policies.find(({ id }) => id === policyFamilyReaders.id);
+    expect(owner?.owner).toEqual({ status: "success", population: "complete" });
+    expect(owner?.receipts).toEqual([{ kind: "population", source: "final policy modules", members: shapeCount + 2, unresolved: 0 }]);
+    expect(
+      result.authority.effectiveFindings
+        .filter(({ file }) => file === first || file === second)
+        .map(({ file }) => file)
+        .toSorted(),
+    ).toEqual(expected);
+  };
+  try {
+    for (const [path, source] of Object.entries({
+      [helper]: "export function readShared(value: number): number { return value; }\n",
+      [first]: moduleSource(`${stem}-a`, true),
+      [second]: moduleSource(`${stem}-b`, false),
+    })) {
+      const absolute = `${repoRoot}/${path}`;
+      expect(project.getSourceFile(absolute)).toBeUndefined();
+      planted.push(project.createSourceFile(absolute, source));
+    }
+    drive([first, second]);
+    project.getSourceFileOrThrow(`${repoRoot}/${second}`).replaceWithText(moduleSource(`${stem}-b`, true));
+    drive([]);
+  } finally {
+    for (const source of planted) {
+      project.removeSourceFile(source);
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------------------------------
 // THE REAL CORPUS. Conformance runs on virtual projects with no real layout; a meta-policy over the gate
 // corpus can be green there and blind here. The recognizer's live count is compared against the guide's own
@@ -359,7 +379,7 @@ test("policy-waiver-identity REFUSES a corpus in which it recognises no final mo
 // ---------------------------------------------------------------------------------------------------
 test(
   "the family reads the REAL gate corpus: no tool errors, nothing withheld, the recognized final count matches the shape test, and the closed classes are at zero",
-  ({ repoRoot }) => {
+  async ({ repoRoot }) => {
     const project = getWorkspace({
       root: repoRoot,
       types: true,
@@ -487,12 +507,12 @@ test(
     expect(refusalOpinion.length).toBeGreaterThan(0);
     expect(pinnedUnambiguously.size).toBeGreaterThan(0);
 
-    // `policy-family-readers`'s SECOND OPINION (#2187), EQUALITY rather than containment because the opinion
-    // computes the same set the arm does by a different route: the arm resolves each import door to its target
-    // MODULE, this reads the `family` line and the import SPECIFIERS. Any difference is a defect in one of them.
-    const familyOpinion = isolatedFamilyMembers(finals, relative);
-    expect(accusedBy(policyFamilyReaders.id)).toEqual(familyOpinion);
-    expect(familyOpinion.length).toBeGreaterThan(0);
+    // Import-only equality stopped being an oracle when production consumption became the contract.
+    // The live corpus moved from eleven to twelve findings because the autosave health member uses its
+    // shared subject only in proofs. Those counts are a measured delta, never a maintained expectation.
+    // Paired controls below exercise the actual live project and keep their expected verdict independent
+    // of the dependency reader: a proof-only common import flags, then a production call acquits.
+    await assertLiveFamilyConsumption(project, repoRoot, shapeCount);
 
     // The error policy pins its CLOSED classes; the tree is the proof they are closed. Asserted LAST so a red here
     // (a foreign module landing an unwrapped read, as `97e68be91` did for E4) still lets every receipt above print.
