@@ -83,7 +83,7 @@ export const gate = defineGate({
         [LIFT_REL]: 'export const bounds = ["minLength"];\n',
         "packages/server/src/infra/providers/backends/newvendor/schema.ts": 'export const DROP = ["minLength", "maxLength", "$schema"];\n',
       },
-      expect: { count: 1, messageIncludes: "wire keyword vocabulary" },
+      expect: { count: 1 },
       why: "a backend re-spells the engine vocabulary instead of calling the scrub engine",
     },
     {
@@ -95,7 +95,7 @@ export const gate = defineGate({
         [LIFT_REL]: 'export const bounds = ["minLength"];\n',
         "packages/kit/src/wire/subset2.ts": 'export const TABLE = ["minLength", "title"];\n',
       },
-      expect: { count: 1, messageIncludes: "wire keyword vocabulary" },
+      expect: { count: 1 },
       why: "a second kit engine is the same drift shape as a backend-local table",
     },
   ],

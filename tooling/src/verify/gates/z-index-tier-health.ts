@@ -46,7 +46,7 @@ export const gate = defineGate({
         "packages/ui/src/layout/x.ts": "export const l = 1;",
         "packages/ui/src/tokens/tokens.json": `{"z":{${Z_TOKEN_NAMES.map((name) => `"${name}":{}`).join(",")}}}`,
       },
-      expect: { messageIncludes: "packages/ui/src/markdown/" },
+      expect: { count: 1, messageIncludes: "packages/ui/src/markdown/" },
       why: "LEGACY mustFlag[5], hard home-health arm: the markdown reviewed home is missing",
     },
     {

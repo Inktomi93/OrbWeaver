@@ -127,37 +127,58 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
-    proof(
-      { "docs/architecture/core/__probe3.md": "---\nkind: law\n---\n\nSee `domain/__ghost_domain__/x.ts` for the shape.\n" },
-      "LEGACY mustFlag[2]: a backticked domain shorthand names no authored path",
-      { subject: "domain/__ghost_domain__/x.ts", operation: DANGLING_PATH_OPERATION },
-    ),
-    proof(
-      { "docs/architecture/core/__probe4.md": "---\nkind: law\n---\n\nScoped to `GHOST_CONST_XYZ` recent turns.\n" },
-      "LEGACY mustFlag[3]: a strict UPPER_SNAKE token names no declaration",
-      { subject: "GHOST_CONST_XYZ", operation: DANGLING_SYMBOL_OPERATION },
-    ),
-    proof(
-      {
+    {
+      mode: "resource" as const,
+      files: {
+        ...PROOF_FILES,
+        "docs/architecture/core/__probe3.md": "---\nkind: law\n---\n\nSee `domain/__ghost_domain__/x.ts` for the shape.\n",
+      },
+      expect: { count: 1 },
+      grant: { subject: "domain/__ghost_domain__/x.ts", operation: DANGLING_PATH_OPERATION },
+      why: "LEGACY mustFlag[2]: a backticked domain shorthand names no authored path",
+    },
+    {
+      mode: "resource" as const,
+      files: {
+        ...PROOF_FILES,
+        "docs/architecture/core/__probe4.md": "---\nkind: law\n---\n\nScoped to `GHOST_CONST_XYZ` recent turns.\n",
+      },
+      expect: { count: 1 },
+      grant: { subject: "GHOST_CONST_XYZ", operation: DANGLING_SYMBOL_OPERATION },
+      why: "LEGACY mustFlag[3]: a strict UPPER_SNAKE token names no declaration",
+    },
+    {
+      mode: "resource" as const,
+      files: {
+        ...PROOF_FILES,
         [CATALOG_REL]:
           '{"documents":[{"path":"docs/design/__probe6.md","lane":"design","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"design"}}]}\n',
         "docs/design/__probe6.md": "---\nkind: design\n---\n\nThe write boundary is `domain/__ghost_domain__/x.ts`.\n",
       },
-      "LEGACY mustFlag[5]: a catalogued living design home participates in path citation integrity",
-      { subject: "domain/__ghost_domain__/x.ts", operation: DANGLING_PATH_OPERATION },
-    ),
-    proof(
-      { "tooling/src/verify/gates/GATE-AUTHORING.md": "---\nkind: law\n---\n\nThe controls live at `tests/tooling/__ghost_controls__.test.ts`.\n" },
-      "LEGACY mustFlag[6]: named law outside docs participates in path citation integrity",
-      { subject: "tests/tooling/__ghost_controls__.test.ts", operation: DANGLING_PATH_OPERATION },
-    ),
-    proof(
-      {
+      expect: { count: 1 },
+      grant: { subject: "domain/__ghost_domain__/x.ts", operation: DANGLING_PATH_OPERATION },
+      why: "LEGACY mustFlag[5]: a catalogued living design home participates in path citation integrity",
+    },
+    {
+      mode: "resource" as const,
+      files: {
+        ...PROOF_FILES,
+        "tooling/src/verify/gates/GATE-AUTHORING.md": "---\nkind: law\n---\n\nThe controls live at `tests/tooling/__ghost_controls__.test.ts`.\n",
+      },
+      expect: { count: 1 },
+      grant: { subject: "tests/tooling/__ghost_controls__.test.ts", operation: DANGLING_PATH_OPERATION },
+      why: "LEGACY mustFlag[6]: named law outside docs participates in path citation integrity",
+    },
+    {
+      mode: "resource" as const,
+      files: {
+        ...PROOF_FILES,
         "docs/architecture/core/__probe_dead_end.md": "---\nkind: law\n---\n\nA message navigating a reader to `GHOST_DEADEND_CONST` read as a dead end.\n",
       },
-      "LEGACY mustFlag[9]: the reachability idiom dead end is not a deliberate-history rider",
-      { subject: "GHOST_DEADEND_CONST", operation: DANGLING_SYMBOL_OPERATION },
-    ),
+      expect: { count: 1 },
+      grant: { subject: "GHOST_DEADEND_CONST", operation: DANGLING_SYMBOL_OPERATION },
+      why: "LEGACY mustFlag[9]: the reachability idiom dead end is not a deliberate-history rider",
+    },
   ],
   mustPass: [
     proof(

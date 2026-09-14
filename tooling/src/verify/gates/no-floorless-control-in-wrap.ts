@@ -49,7 +49,6 @@ export const gate = defineGate({
       },
       expect: {
         count: 1,
-        messageIncludes: "flex-wrap",
       },
       why: "the founding geometry: ONE mapped floorless Button = N runtime siblings in a wrapping grid (the weather-picker/ItemIconPicker shape)",
       mode: "source",

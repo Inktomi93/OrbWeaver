@@ -241,127 +241,156 @@ function proof(row: PlatformProofInput): GatePolicyProof {
   };
 }
 
-const PLATFORM_MUST_FLAG = [
+const PLATFORM_MUST_FLAG: readonly GatePolicyProof[] = [
   {
-    files: "export function escapeRegExp(value: string): string { return value; }",
-    at: "packages/showcase-plugins/src/index.ts",
+    mode: "types",
+    files: { "packages/showcase-plugins/src/index.ts": "export function escapeRegExp(value: string): string { return value; }" },
     expect: { count: 1 },
     why: "showcase retains the predecessor packages population; a clean current file does not exempt future re-mints",
   },
   {
-    files: "export const nap = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));\n",
-    at: "packages/server/src/domain/probe-sleep/expr.ts",
+    mode: "types",
+    files: {
+      "packages/server/src/domain/probe-sleep/expr.ts":
+        "export const nap = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));\n",
+    },
     expect: { count: 1, token: "Promise" },
     why: "ARM SLEEP expr-body — the exact hand-roll W4.1 burned across seven production sites; resolve is passed DIRECTLY to setTimeout",
   },
   {
-    files: "export function nap(ms: number): Promise<void> {\n  return new Promise((resolve) => {\n    setTimeout(resolve, ms);\n  });\n}\n",
-    at: "packages/server/src/domain/probe-sleep/block.ts",
+    mode: "types",
+    files: {
+      "packages/server/src/domain/probe-sleep/block.ts":
+        "export function nap(ms: number): Promise<void> {\n  return new Promise((resolve) => {\n    setTimeout(resolve, ms);\n  });\n}\n",
+    },
     expect: { count: 1, token: "Promise" },
     why: "ARM SLEEP block-body — the same sleep with a statement body, proving the arm is not expression-body-only",
   },
   {
-    files: "export const napA = (ms: number): Promise<void> => new Promise((resolve, reject) => setTimeout(resolve, ms));\n",
-    at: "packages/server/src/domain/probe-sleep/unused-reject.ts",
+    mode: "types",
+    files: {
+      "packages/server/src/domain/probe-sleep/unused-reject.ts":
+        "export const napA = (ms: number): Promise<void> => new Promise((resolve, reject) => setTimeout(resolve, ms));\n",
+    },
     expect: { count: 1, token: "Promise" },
     why: "THE REGRESSION PIN (verifier-refuted 2026-08-07): a plain sleep declaring an UNUSED second param. The reject-exclusion used to sweep the whole executor, where the param's own DECLARATION name matches — so this exact code returned ZERO findings on the real tree. The sweep now reads the BODY; this row fails the moment anyone widens it back",
   },
   {
-    files: "export const napB = (ms: number): Promise<void> => new Promise((resolve, _reject) => {\n  setTimeout(resolve, ms);\n});\n",
-    at: "packages/server/src/domain/probe-sleep/unused-reject-underscore.ts",
+    mode: "types",
+    files: {
+      "packages/server/src/domain/probe-sleep/unused-reject-underscore.ts":
+        "export const napB = (ms: number): Promise<void> => new Promise((resolve, _reject) => {\n  setTimeout(resolve, ms);\n});\n",
+    },
     expect: { count: 1, token: "Promise" },
     why: "the same degenerate-exclusion hole in its `_reject` spelling with a block body — an underscore-prefixed unused param is the idiom this repo writes, so it is the likelier real-world shape of the miss",
   },
   {
-    files: "export const napC = (ms: number): Promise<void> => new Promise((resolve) => globalThis.setTimeout(resolve, ms));\n",
-    at: "packages/server/src/domain/probe-sleep/globalthis.ts",
+    mode: "types",
+    files: {
+      "packages/server/src/domain/probe-sleep/globalthis.ts":
+        "export const napC = (ms: number): Promise<void> => new Promise((resolve) => globalThis.setTimeout(resolve, ms));\n",
+    },
     expect: { count: 1, token: "Promise" },
     why: "BLIND SPOT CLOSED (verifier-flagged): the callee test was an exact-text compare on `setTimeout`, so a `globalThis.`-qualified sleep slipped through. A qualifier does not make a sleep something else",
   },
   {
-    files: "export function escapeRegExp(s: string): string {\n  return s;\n}\n",
-    at: "packages/server/src/kit/probe-escape/decl.ts",
-    expect: { count: 1, messageIncludes: "superseded pre-node-26" },
+    mode: "types",
+    files: { "packages/server/src/kit/probe-escape/decl.ts": "export function escapeRegExp(s: string): string {\n  return s;\n}\n" },
+    expect: { count: 1 },
     why: "ARM ESCAPE-MINT decl — a function DECLARATION named escapeRegExp, the kit export W4.7 deleted",
   },
   {
-    files: "export const helpers = {\n  escapeRegExp(s: string): string {\n    return s;\n  },\n};\n",
-    at: "packages/server/src/kit/probe-escape/method.ts",
-    expect: { count: 1, messageIncludes: "superseded pre-node-26" },
+    mode: "types",
+    files: {
+      "packages/server/src/kit/probe-escape/method.ts": "export const helpers = {\n  escapeRegExp(s: string): string {\n    return s;\n  },\n};\n",
+    },
+    expect: { count: 1 },
     why: "BLIND SPOT CLOSED (verifier-flagged): a re-mint hiding as an object-literal METHOD — the arm handled only function declarations and variable declarations, so a helpers-bag spelling was invisible",
   },
   {
-    files: "export const helpers = {\n  escapeRegex: (s: string): string => s,\n};\n",
-    at: "packages/server/src/kit/probe-escape/property.ts",
-    expect: { count: 1, messageIncludes: "superseded pre-node-26" },
+    mode: "types",
+    files: {
+      "packages/server/src/kit/probe-escape/property.ts": "export const helpers = {\n  escapeRegex: (s: string): string => s,\n};\n",
+    },
+    expect: { count: 1 },
     why: "the property-assignment twin of the method spelling — a function-VALUED object property is the same re-mint; the arm requires the value to be a function so a plain string property named escapeRegex never matches",
   },
   {
-    files: "export const escapeRegex = (s: string): string => s;\n",
-    at: "packages/server/src/kit/probe-escape/arrow.ts",
-    expect: { count: 1, messageIncludes: "superseded pre-node-26" },
+    mode: "types",
+    files: { "packages/server/src/kit/probe-escape/arrow.ts": "export const escapeRegex = (s: string): string => s;\n" },
+    expect: { count: 1 },
     why: "ARM ESCAPE-MINT decl (arrow) — the `const escapeRegex = (…) =>` local re-mint form (body.ts carried its own copy); the name-binding arm covers both spellings",
   },
   {
-    files:
-      "export function bridge(): { readonly ready: Promise<void>; readonly wake: () => void } {\n" +
-      "  let wake = (): void => undefined;\n" +
-      "  const ready = new Promise<void>((resolve) => {\n" +
-      "    wake = resolve;\n" +
-      "  });\n" +
-      "  return { ready, wake };\n" +
-      "}\n",
-    at: "packages/server/src/domain/probe-deferred/resolve.ts",
+    mode: "types",
+    files: {
+      "packages/server/src/domain/probe-deferred/resolve.ts":
+        "export function bridge(): { readonly ready: Promise<void>; readonly wake: () => void } {\n" +
+        "  let wake = (): void => undefined;\n" +
+        "  const ready = new Promise<void>((resolve) => {\n" +
+        "    wake = resolve;\n" +
+        "  });\n" +
+        "  return { ready, wake };\n" +
+        "}\n",
+    },
     expect: { count: 1, token: "Promise" },
     why: "ARM DEFERRED founding shape — the resolve hand-out W4.5 burned at EIGHT production sites (app-ready, preset fork-choice ask, chat-engine lock-lost barrier, the turn DeltaBridge re-arm ×2, frame-queue wake, local-light orphan guard, compose drain notify). The 'six' this row used to claim was a stale snapshot the header had already corrected",
   },
   {
-    files:
-      "export function barrier(): Promise<never> {\n" +
-      "  let fail!: (err: unknown) => void;\n" +
-      "  const lost = new Promise<never>((_resolve, reject) => {\n" +
-      "    fail = reject;\n" +
-      "  });\n" +
-      '  setTimeout(() => fail(new Error("lost")), 1);\n' +
-      "  return lost;\n" +
-      "}\n",
-    at: "packages/server/src/domain/probe-deferred/reject.ts",
+    mode: "types",
+    files: {
+      "packages/server/src/domain/probe-deferred/reject.ts":
+        "export function barrier(): Promise<never> {\n" +
+        "  let fail!: (err: unknown) => void;\n" +
+        "  const lost = new Promise<never>((_resolve, reject) => {\n" +
+        "    fail = reject;\n" +
+        "  });\n" +
+        '  setTimeout(() => fail(new Error("lost")), 1);\n' +
+        "  return lost;\n" +
+        "}\n",
+    },
     expect: { count: 1, token: "Promise" },
     why: "ARM DEFERRED, the REJECT half with a definite-assignment `let x!` — the chat-engine lock-lost barrier + the local-light orphan guard; proves the arm is not resolve-only and reads past the `!` modifier",
   },
   {
-    files:
-      "type Row = { readonly rank: number };\n" +
-      "export function order(rows: readonly Row[]): readonly Row[] {\n" +
-      "  return [...rows].sort((a, b) => a.rank - b.rank);\n" +
-      "}\n",
-    at: "packages/server/src/domain/probe-spread-sort/annotated.ts",
-    expect: { count: 1, messageIncludes: "superseded pre-node-26" },
+    mode: "types",
+    files: {
+      "packages/server/src/domain/probe-spread-sort/annotated.ts":
+        "type Row = { readonly rank: number };\n" +
+        "export function order(rows: readonly Row[]): readonly Row[] {\n" +
+        "  return [...rows].sort((a, b) => a.rank - b.rank);\n" +
+        "}\n",
+    },
+    expect: { count: 1 },
     why: "ARM SPREAD-SORT founding shape — an ANNOTATED array parameter defensively copied to avoid mutating it; the single commonest of the 21 packages/** sites W4.2 converted",
   },
   {
-    files:
-      "type Row = { readonly rank: number };\n" +
-      "export function order(all: readonly Row[]): readonly Row[] {\n" +
-      "  return [...all.filter((r) => r.rank > 0)].sort((a, b) => a.rank - b.rank);\n" +
-      "}\n",
-    at: "packages/server/src/domain/probe-spread-sort/method.ts",
-    expect: { count: 1, messageIncludes: "superseded pre-node-26" },
+    mode: "types",
+    files: {
+      "packages/server/src/domain/probe-spread-sort/method.ts":
+        "type Row = { readonly rank: number };\n" +
+        "export function order(all: readonly Row[]): readonly Row[] {\n" +
+        "  return [...all.filter((r) => r.rank > 0)].sort((a, b) => a.rank - b.rank);\n" +
+        "}\n",
+    },
+    expect: { count: 1 },
     why: "ARM SPREAD-SORT via an array-RETURNING built-in — `.filter()` already produced a fresh array, so the spread is a second wasted copy; proves the proof does not depend on a type annotation",
   },
   {
-    files:
-      'import type { ReactElement } from "react";\n' +
-      "type Row = { readonly rank: number };\n" +
-      "export function Rows({ rows }: { readonly rows: readonly Row[] }): ReactElement | null {\n" +
-      "  const ranked = [...rows].sort((a, b) => a.rank - b.rank);\n" +
-      "  return ranked.length === 0 ? null : null;\n" +
-      "}\n",
-    at: "packages/client/src/features/probe-spread-sort/components/destructured.tsx",
-    expect: { count: 1, messageIncludes: "superseded pre-node-26" },
+    mode: "types",
+    files: {
+      "packages/client/src/features/probe-spread-sort/components/destructured.tsx":
+        'import type { ReactElement } from "react";\n' +
+        "type Row = { readonly rank: number };\n" +
+        "export function Rows({ rows }: { readonly rows: readonly Row[] }): ReactElement | null {\n" +
+        "  const ranked = [...rows].sort((a, b) => a.rank - b.rank);\n" +
+        "  return ranked.length === 0 ? null : null;\n" +
+        "}\n",
+    },
+    expect: { count: 1 },
     why: "ARM SPREAD-SORT through the DESTRUCTURED-PROP idiom (`{ rows }: { rows: Row[] }`) — the client's dominant prop shape; without this resolution the arm would go blind on every component, which is how it reaches the rpg-journal / corpus-similarity sites",
   },
-] satisfies readonly PlatformProofInput[];
+];
 
 const PLATFORM_MUST_PASS = [
   {
@@ -606,6 +635,6 @@ export const gate = defineGate({
       },
     };
   },
-  mustFlag: PLATFORM_MUST_FLAG.map(proof),
+  mustFlag: PLATFORM_MUST_FLAG,
   mustPass: PLATFORM_MUST_PASS.map(proof),
 });

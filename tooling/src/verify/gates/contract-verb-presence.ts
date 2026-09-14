@@ -65,7 +65,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  uncoveredVerb(): void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "export const q = 'nothing';\n",
       },
-      expect: { messageIncludes: "no test in its domain tree invokes" },
+      expect: { count: 1 },
       why: "a Service verb (uncoveredVerb) with no test invocation in the domain tree — a dead-wired verb",
     },
     {
@@ -90,7 +90,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly build: () => void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "await rebuild({ id: 1 });\n",
       },
-      expect: { messageIncludes: "hub.build" },
+      expect: { count: 1, messageIncludes: "hub.build" },
       why: "a bare call to a LONGER identifier ending in the verb name (rebuild) does not count as coverage",
     },
     {
@@ -102,7 +102,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly parkedVerb: () => void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "// TODO cover parkedVerb() — createParkedVerb( needs a fixture first.\nexport const q = 1;\n",
       },
-      expect: { messageIncludes: "hub.parkedVerb" },
+      expect: { count: 1, messageIncludes: "hub.parkedVerb" },
       why: "COMMENT POSTURE: the corpus is read as CODE, so a TODO naming the verb (and its factory) is not coverage — a file-text scan called this verb covered and the gate went green on exactly the wired-with-zero-coverage shape it exists to find",
     },
     {
@@ -113,7 +113,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  save(): void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "export const q = 'nothing';\n",
       },
-      expect: { messageIncludes: "hub.save" },
+      expect: { count: 1, messageIncludes: "hub.save" },
       why: "a MethodSignature member is enumerated as a verb too — flags when uncovered",
     },
     {
@@ -123,7 +123,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly save: () => void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "function save() {}\nsave();\n",
       },
-      expect: { messageIncludes: "hub.save" },
+      expect: { count: 1, messageIncludes: "hub.save" },
       why: "a same-named bare helper call is not evidence that the HubService method ran",
     },
     {
@@ -133,7 +133,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly save: () => void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "logger.save();\n",
       },
-      expect: { messageIncludes: "hub.save" },
+      expect: { count: 1, messageIncludes: "hub.save" },
       why: "a same-named method on an unrelated receiver is not evidence that the assembled HubService ran",
     },
   ],

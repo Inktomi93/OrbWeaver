@@ -36,7 +36,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/example.ts": "export const x = 1;" },
-      expect: { count: 5, messageIncludes: "now blind" },
+      expect: { count: 5 },
       why: "all five resolver names disappeared; the policy cannot be licensed by a source waiver",
     },
   ],

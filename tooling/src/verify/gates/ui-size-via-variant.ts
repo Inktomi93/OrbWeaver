@@ -133,6 +133,7 @@ export const gate = defineGate({
       files: {
         "packages/client/src/features/x/x.tsx": 'import { Button } from "@orb/ui/button";\nexport const G = <Button className="size-auto">x</Button>;\n',
       },
+      expect: { count: 1 },
       why: "the F2 incident shape — `size-auto` on Button; auto is a size verdict the variant owns",
       mode: "source",
     },
@@ -140,6 +141,7 @@ export const gate = defineGate({
       files: {
         "packages/client/src/features/x/tabs.tsx": 'import { TabsTab } from "@orb/ui/tabs";\nexport const G = <TabsTab className="h-auto" />;\n',
       },
+      expect: { count: 1 },
       why: "the pre-layout-variant incident shape — `h-auto` on TabsTab",
       mode: "source",
     },
@@ -159,6 +161,7 @@ export const gate = defineGate({
           'import { Button } from "@orb/ui/button";\nexport const G = <Button className="h-control-sm">x</Button>;\n',
       },
       expect: {
+        count: 1,
         token: "h-control-sm",
       },
       why: "a multi-segment sealed token (`h-control-sm`) — the value class carries `-` since #169; without it every real seal spelling was invisible",
@@ -169,6 +172,7 @@ export const gate = defineGate({
         "packages/client/src/features/x/hyphensize.tsx": 'import { Avatar } from "@orb/ui/avatar";\nexport const G = <Avatar className="size-avatar-md" />;\n',
       },
       expect: {
+        count: 1,
         token: "size-avatar-md",
       },
       why: "the `size` shorthand with a multi-segment token — the same hole, on the axis the F2 incident used",
@@ -178,6 +182,7 @@ export const gate = defineGate({
       files: {
         "packages/client/src/features/x/variantpfx.tsx": 'import { Input } from "@orb/ui/input";\nexport const G = <Input className="focus:h-9" />;\n',
       },
+      expect: { count: 1 },
       why: "a variant-prefixed size utility (focus:h-9) — the terminal segment still flags",
       mode: "source",
     },
@@ -186,6 +191,7 @@ export const gate = defineGate({
         "packages/client/src/features/x/bangpfx.tsx":
           'import { Button } from "@orb/ui/button";\nexport const G = <Button className="!size-6 !p-0">x</Button>;\n',
       },
+      expect: { count: 1 },
       why: "the v3-era `!` PREFIX (`!size-6`) — the escape hatch the 13 inline-button sites used; `!p-0` is out of scope (padding), so exactly ONE finding",
       mode: "source",
     },
@@ -193,6 +199,7 @@ export const gate = defineGate({
       files: {
         "packages/client/src/features/x/bangsfx.tsx": 'import { Button } from "@orb/ui/button";\nexport const G = <Button className="h-auto!">x</Button>;\n',
       },
+      expect: { count: 1 },
       why: "v4's canonical `!` SUFFIX (`h-auto!`) — the same important modifier on the other side, equally registered by the v4.3 engine",
       mode: "source",
     },
@@ -200,6 +207,7 @@ export const gate = defineGate({
       files: {
         "packages/client/src/features/x/bangvariant.tsx": 'import { Input } from "@orb/ui/input";\nexport const G = <Input className="focus:!h-9" />;\n',
       },
+      expect: { count: 1 },
       why: "important + a variant chain (focus:!h-9) — Tailwind puts `!` on the utility, so stripping happens AFTER the `:` split",
       mode: "source",
     },

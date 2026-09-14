@@ -24,7 +24,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/features/x/x.tsx": 'export const x = <div className="pointer-coarse:hidden" />;' },
-      expect: { token: "pointer-coarse:hidden" },
+      expect: { count: 1, token: "pointer-coarse:hidden" },
       why: "LEGACY mustFlag[0], ordinary outside arm: pointer capability variant outside shell",
     },
     {
@@ -38,7 +38,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/features/x/x.ts": 'export const x = "[@media(hover:hover)]:block";' },
-      expect: { token: "[@media" },
+      expect: { count: 1, token: "[@media" },
       why: "LEGACY mustFlag[2], ordinary outside arm: arbitrary capability media variant; coordinate narrows to the exact paren-free authored prefix required by the final waiver grammar",
     },
   ],

@@ -387,87 +387,139 @@ export const gate = defineGate({
   },
   mustFlag: [
     {
-      files: `// biome-ignore-all lint/suspicious/noBitwiseOperators: fixture\n${TWO_STATEMENTS}`,
-      at: "packages/kit/src/top.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "packages/kit/src/top.ts": `// biome-ignore-all lint/suspicious/noBitwiseOperators: fixture\n${TWO_STATEMENTS}`,
+      },
       expect: { count: 1, token: "biome-ignore-all", line: 1 },
       why: "the founding shape — a top-of-file `biome-ignore-all` suppresses the whole file",
     },
     {
-      files: `/* biome-ignore-all lint/suspicious/noBitwiseOperators: fixture */\n${TWO_STATEMENTS}`,
-      at: "packages/kit/src/block.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "packages/kit/src/block.ts": `/* biome-ignore-all lint/suspicious/noBitwiseOperators: fixture */\n${TWO_STATEMENTS}`,
+      },
       expect: { count: 1, token: "biome-ignore-all" },
       why: "the block-comment spelling is honoured by biome exactly like the line spelling",
     },
     {
-      files: `{/* biome-ignore-all lint/suspicious/noBitwiseOperators: fixture */}\n${TWO_STATEMENTS}`,
-      at: "tests/ui/jsx.test.tsx",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "tests/ui/jsx.test.tsx": `{/* biome-ignore-all lint/suspicious/noBitwiseOperators: fixture */}\n${TWO_STATEMENTS}`,
+      },
       expect: { count: 1, token: "biome-ignore-all" },
       why: "a JSX comment container — biome rejects it with a hidden warning, so it sits looking like protection; still banned, and tests are governed",
     },
     {
-      files: "export const a = 1 | 2;\n// biome-ignore-all lint/suspicious/noBitwiseOperators: fixture\nexport const b = 3 & 4;\n",
-      at: "packages/kit/src/mid.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "packages/kit/src/mid.ts": "export const a = 1 | 2;\n// biome-ignore-all lint/suspicious/noBitwiseOperators: fixture\nexport const b = 3 & 4;\n",
+      },
       expect: { count: 1, token: "biome-ignore-all", line: 2 },
       why: "a mid-file `-all` is dead text biome warns about invisibly — the spelling is banned in every position",
     },
     {
-      files: `// biome-ignore-all lint: fixture\n${TWO_STATEMENTS}`,
-      at: "packages/kit/src/category.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "packages/kit/src/category.ts": `// biome-ignore-all lint: fixture\n${TWO_STATEMENTS}`,
+      },
       expect: { count: 1, token: "biome-ignore-all" },
       why: "the category-wide, rule-less spelling suppresses EVERY lint rule for the file",
     },
     {
-      files: '// @ts-nocheck\nexport const a: number = "x";\n',
-      at: "packages/kit/src/nocheck.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "packages/kit/src/nocheck.ts": '// @ts-nocheck\nexport const a: number = "x";\n',
+      },
       expect: { count: 1, token: "@ts-nocheck" },
       why: "the type-checker's whole-file switch is the same class",
     },
     {
-      files: `/* eslint-disable */\n${TWO_STATEMENTS}`,
-      at: "packages/client/src/features/x/lib/eslint-bare.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "packages/client/src/features/x/lib/eslint-bare.ts": `/* eslint-disable */\n${TWO_STATEMENTS}`,
+      },
       expect: { count: 1, token: "eslint-disable", messageIncludes: "never closed" },
       why: "a bare eslint block disable with no `eslint-enable` disables everything to EOF, silently",
     },
     {
-      files: `/* eslint-disable jsx-a11y/no-autofocus */\n${TWO_STATEMENTS}`,
-      at: "packages/client/src/features/x/lib/eslint-rule.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "packages/client/src/features/x/lib/eslint-rule.ts": `/* eslint-disable jsx-a11y/no-autofocus */\n${TWO_STATEMENTS}`,
+      },
       expect: { count: 1, token: "eslint-disable", messageIncludes: "never closed" },
       why: "a rule-scoped eslint block disable is still unbounded without its `eslint-enable`",
     },
     {
-      files: `// biome-ignore-start lint/suspicious/noBitwiseOperators: fixture\n${TWO_STATEMENTS}`,
-      at: "scripts/probes/unclosed.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "scripts/probes/unclosed.ts": `// biome-ignore-start lint/suspicious/noBitwiseOperators: fixture\n${TWO_STATEMENTS}`,
+      },
       expect: { count: 1, token: "biome-ignore-start", messageIncludes: "never closed" },
       why: "biome 2.5.1 extends an unclosed `-start` to end of file and only WARNS (probe 2026-09-02) — and scripts are governed",
     },
     {
-      files:
-        "// biome-ignore-start lint/suspicious/noBitwiseOperators: fixture\nexport const a = 1 | 2;\n" +
-        "// biome-ignore-end lint/style/noProcessEnv: a DIFFERENT rule\nexport const b = 3;\n",
-      at: "tooling/src/x/lib/mismatch.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "tooling/src/x/lib/mismatch.ts":
+          "// biome-ignore-start lint/suspicious/noBitwiseOperators: fixture\nexport const a = 1 | 2;\n" +
+          "// biome-ignore-end lint/style/noProcessEnv: a DIFFERENT rule\nexport const b = 3;\n",
+      },
       expect: { count: 1, token: "biome-ignore-start", messageIncludes: "never closed" },
       why: "ranges pair by RULE KEY — an `-end` for another rule does not close this one; tooling is governed",
     },
     {
-      files:
-        "// biome-ignore-start lint/suspicious/noBitwiseOperators: fixture\nexport const a = 1 | 2;\nexport const b = 3;\n// biome-ignore-end lint/suspicious/noBitwiseOperators: fixture\n",
-      at: "packages/kit/src/whole.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "packages/kit/src/whole.ts":
+          "// biome-ignore-start lint/suspicious/noBitwiseOperators: fixture\nexport const a = 1 | 2;\nexport const b = 3;\n// biome-ignore-end lint/suspicious/noBitwiseOperators: fixture\n",
+      },
       expect: { count: 1, token: "biome-ignore-start", messageIncludes: "EVERY statement" },
       why: "a CLOSED range that encloses every statement is a blanket in disguise",
     },
     {
-      files: `/* eslint-disable */\n${TWO_STATEMENTS}/* eslint-enable */\n`,
-      at: "packages/client/src/features/x/lib/eslint-whole.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "packages/client/src/features/x/lib/eslint-whole.ts": `/* eslint-disable */\n${TWO_STATEMENTS}/* eslint-enable */\n`,
+      },
       expect: { count: 1, token: "eslint-disable", messageIncludes: "EVERY statement" },
       why: "the eslint block form of the same disguise",
     },
     {
-      files: `// biome-ignore-all lint/style/useNamingConvention: fixture\n${TWO_STATEMENTS}`,
-      at: "tests/server/domain/x/y.test.ts",
+      mode: "resource" as const,
+      files: {
+        [CONFIG_REL]: PROOF_CONFIG,
+        [PROOF_ANCHOR]: "export const anchor = true;\n",
+        "tests/server/domain/x/y.test.ts": `// biome-ignore-all lint/style/useNamingConvention: fixture\n${TWO_STATEMENTS}`,
+      },
       expect: { count: 1, token: "biome-ignore-all" },
       why: "#962's founding population — 58 of the 74 blankets lived under tests/, outside every ratchet",
     },
-  ].map(resourceProof),
+  ],
   mustPass: [
     {
       files:

@@ -715,20 +715,31 @@ export const gate = defineGate({
 
   mustFlag: [
     {
-      files: { "tooling/src/verify/gates/__probe.ts": "export const notAGate = 1;\n" },
-      expect: { messageIncludes: "exports no `gate` descriptor" },
+      mode: "resource" as const,
+      files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
+        "tooling/src/verify/gates/__probe.ts": "export const notAGate = 1;\n",
+      },
+      expect: { count: 1, messageIncludes: "exports no `gate` descriptor" },
       why: "ARM A — a module in the gate corpus that registers under neither contract enforces nothing, forever; the mixed loader records it as unregistered, and this is the finding that names the file",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/gates/__probe.ts":
           'function defineGate(policy: unknown): unknown {\n  return policy;\n}\nexport const gate = defineGate({ id: "__probe", message: "m", mustFlag: [1], mustPass: [1] });\n',
       },
-      expect: { messageIncludes: "exports no `gate` descriptor" },
+      expect: { count: 1, messageIncludes: "exports no `gate` descriptor" },
       why: "ARM A — IDENTITY, not spelling: a same-named LOCAL `defineGate` has no import origin in contract/policy.ts, so the module registers nothing (the loader would refuse its unbranded result too) and the arm names it rather than trusting the callee's name",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node.getType()'),
       },
@@ -736,7 +747,10 @@ export const gate = defineGate({
       why: 'ARM E — a policy declaring `analysis: "syntax"` while calling `getType` reads types past the only fence the runtime has (`ctx.checker()` throws for a syntax owner; a ts-morph node does not ask it). ONE finding, on the DECLARATION: the token is `analysis` because changing that one word — or dropping the read — is the repair, and a per-call-site finding would give several findings one carrier and one token, which has no working waiver door at all',
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node.getSymbol()'),
       },
@@ -744,7 +758,10 @@ export const gate = defineGate({
       why: "ARM E — `getSymbol` is the second door onto the same compiler and is flagged identically; without this row the arm would be shown to catch only half its own vocabulary",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node.getContextualType()'),
       },
@@ -752,7 +769,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `getContextualType` — the member #1958 was filed on: the contextual type of an expression is the checker answering a question about the node, reached without ever asking the context",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node.getSymbolOrThrow()'),
       },
@@ -760,7 +780,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `getSymbolOrThrow` — the throwing twin of `getSymbol` — a different spelling of the same read, and a tuple that named only the non-throwing form would miss every module that prefers the assertive one",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.symbol.getAliasedSymbol()'),
       },
@@ -768,7 +791,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `getAliasedSymbol` — import-alias resolution is a SYMBOL read through the compiler, and it is the exact call an origin recognizer reaches for",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.symbol.getAliasedSymbolOrThrow()'),
       },
@@ -776,7 +802,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `getAliasedSymbolOrThrow` — the throwing twin again — the pair is the rule, not the exception",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.symbol.getExportSymbol()'),
       },
@@ -784,7 +813,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `getExportSymbol` — the local-to-export symbol hop, the read a module-boundary policy wants and the one it must declare `types` for",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.symbol.getDeclaredType()'),
       },
@@ -792,7 +824,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `getDeclaredType` — a symbol's declared type is the checker's answer, not the node's syntax",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.resolved.getApparentType()'),
       },
@@ -800,7 +835,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `getApparentType` — a TYPE-level read chained off a type read: the arm must see the whole chain, not only its first link",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.signature.getReturnType()'),
       },
@@ -808,7 +846,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `getReturnType` — signature return types are the deepest of these reads and the most expensive, which is precisely why the declared plane must be honest",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.checkerLike.getTypeAtLocation(ctx.node)'),
       },
@@ -816,7 +857,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `getTypeAtLocation` — the TypeChecker's own spelling — reachable through any handle a module gets on a checker, so naming only the node-side members would leave the front door open",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.project.getTypeChecker()'),
       },
@@ -824,7 +868,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `getTypeChecker` — taking the checker off a Project is a type read with an extra step; §12.3 bans the gate-owned Project separately, and this arm names the CLAIM",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.checker()'),
       },
@@ -832,7 +879,10 @@ export const gate = defineGate({
       why: "ARM E MEMBER `checker` — `ctx.checker()` under a syntax owner throws at RUNTIME and only if the branch executes — a different tier. The DECLARATION is false the moment the call is written, and this arm is the one that reads declarations (#1958, cb-v-instruments)",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts":
           'import { defineGate } from "../contract/policy.ts";\nfunction placed(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\nexport const gate = defineGate({ id: "__probe", message: "m", analysis: "syntax", create: (ctx) => placed(ctx.node), mustFlag: [1], mustPass: [1] });\n',
@@ -841,7 +891,10 @@ export const gate = defineGate({
       why: "ARM E SUBTREE — the read sits in a MODULE-LEVEL helper, not in the descriptor literal. Scanning only the literal made a one-line extraction a free evasion of an arm whose whole subject is what the policy reads; the claim is about the module, so the subtree is the module",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node["getType"]()'),
       },
@@ -849,7 +902,10 @@ export const gate = defineGate({
       why: "ARM E SPELLING — the ELEMENT-ACCESS callee (#2249). Measured CLEAN on the unmodified module while the dotted twin flagged, which is the #2202 shape one module over: a static string subscript is the SAME member position as the dot, and an arm that matched only `PropertyAccessExpression` handed every syntax policy a one-character escape from its own declaration",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node?.["getType"]()'),
       },
@@ -857,7 +913,10 @@ export const gate = defineGate({
       why: "ARM E SPELLING — the OPTIONAL-CHAINED element access (#2249). Its own row because #2202's whole lesson is that the optional chain mints a second node shape: the dotted arm already survived `?.` and the subscript arm had to be shown to as well",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => { const { getType } = ctx.node; return getType(); }'),
       },
@@ -865,7 +924,10 @@ export const gate = defineGate({
       why: "ARM E SPELLING — the DESTRUCTURE (#2249), the shape a policy reaches for when it wants a short local name. The binding element IS the member position; resolving the bare identifier callee back to its binding would have been a second answer to a question the position already answers",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => { const { getType: read } = ctx.node; return read(); }'),
       },
@@ -873,7 +935,10 @@ export const gate = defineGate({
       why: "ARM E SPELLING — the RENAMED destructure (#2249): the PROPERTY name is the member, never the local. Without this row the arm could have been written against the binding's own name and read clean on every alias, which is the rename-shaped blind spot the tuple's own narrow-back control was minted for",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.hand(ctx.node.getType.bind(ctx.node))'),
       },
@@ -881,7 +946,10 @@ export const gate = defineGate({
       why: "ARM E SPELLING — the HANDOFF (#2249): `.bind` passes the compiler door to somebody else and never appears as a call whose callee is the member. This row is why the arm matches a member POSITION rather than an invocation — the CALL is not the read",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/lib/__probe-shared.ts": "export function typeOf(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\n",
         "tooling/src/verify/gates/__probe.ts":
@@ -891,7 +959,10 @@ export const gate = defineGate({
       why: "ARM E IMPORT HOP (#2249) — the byte-identical helper INLINE flags (the SUBTREE row above) and one import hop away read CLEAN, so the arm's own widening stopped exactly at the module boundary. §5b item 7 already names this route (*none smuggled into a `lib/` helper that only this module calls*); the hop is the fix, and this row is what dies without it",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/lib/__probe-shared.ts":
           "function inner(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\nexport function outer(node: { getType: () => unknown }): unknown {\n  return inner(node);\n}\n",
@@ -902,48 +973,63 @@ export const gate = defineGate({
       why: "ARM E IMPORT HOP, IN-FILE CHAIN (#2249) — an INVENTED property, so it carries its planted-break receipt (§4.7): with the in-file recursion cut, this row goes green while the direct-helper row above stays red. Without it the hop would stop at the exported declaration's own body, and a two-line indirection inside the SAME lib module would defeat the whole fix — which is precisely how the real corpus is written (`deriveRootSpanOpeners` reaches `getType` three local calls down)",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/gates/__probe.ts":
           'export const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [{ files: "x" }], mustPass: [] };\n',
       },
-      expect: { token: "mustPass" },
+      expect: { count: 1, token: "mustPass" },
       why: "ARM A — an empty self-proof arm: a gate nobody can show does not false-positive",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/gates/__probe.ts":
           'const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned because reasons" };\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
       },
-      expect: { token: "ALLOWLIST" },
+      expect: { count: 1, token: "ALLOWLIST" },
       why: "ARM B — the founding shape: a populated allowlist with no diagnostic that fires when a row stops matching (the ~57-gate one-sided census)",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/gates/__probe.ts":
           'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
         "tooling/src/verify/gates/__probe-health.ts":
           'import { ALLOWLIST } from "./__probe.ts";\nconst MSG = "ALLOWLIST row matching no live site (ratchet down) — delete the stale row";\nexport const gate = { name: "__probe-health", docRow: "x", message: MSG, mustFlag: [1], mustPass: [1], seen: ALLOWLIST };\n',
       },
-      expect: { token: "ALLOWLIST" },
+      expect: { count: 1, token: "ALLOWLIST" },
       why: "ARM B, THE INVERTED #2093 CARVE (#2219): this EXACT arrangement — the table in the ordinary half, the stale arm in a `-health` sibling that IMPORTS it from the twin gate — used to be the excuse, and it is the arrangement #2096 now forbids outright (a gate never imports a gate; a shared collection's one home is `lib/`). It is therefore a FINDING, and this row is the tripwire that catches its return. The three modules the carve was built for all moved to `lib/` before it was retired, so retiring it accuses nobody on today's tree — which is exactly why the assertion has to exist instead",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "docs/architecture/core/__g_gm_doc.md": "---\nkind: law\n---\n\n## 11. A real section\n\nprose.\n\nSee §12.6 for more.\n",
         "tooling/src/verify/gates/__probe.ts":
           'export const gate = { name: "__probe", docRow: "__g_gm_doc.md §12.6", message: "m", mustFlag: [1], mustPass: [1] };\n',
       },
-      expect: { token: "§12.6" },
+      expect: { count: 1, token: "§12.6" },
       why: "ARM C — the UI-Gates §12.6 phantom EXACTLY: the doc REFERENCES the anchor in prose but never DEFINES it, so a reference-counting check would false-pass",
     },
     {
+      mode: "resource" as const,
       files: {
+        [PROOF_DOC]: "# Resource anchor\n",
+        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
         "tooling/src/verify/gates/__probe.ts": `const LEDGER = "${GATE_MODERNIZATION_PROBE_LEDGER}";\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], run: (ctx) => { ctx.report({ file: LEDGER, line: 1, column: 0, message: "m" }); } };\n`,
       },
-      expect: { token: GATE_MODERNIZATION_PROBE_LEDGER },
+      expect: { count: 1, token: GATE_MODERNIZATION_PROBE_LEDGER },
       why: "ARM D — THE FOUNDING SHAPE (#551): a gate reading a committed ratchet ledger and declaring no admitted count. Its whole budgeted population then renders as ZERO in the single-pass's admitted line — measured at 523 findings across three gates",
     },
-  ].map(resourceProof),
+  ],
   mustPass: [
     {
       files: {

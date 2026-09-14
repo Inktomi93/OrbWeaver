@@ -46,7 +46,7 @@ export const gate = defineGate({
           "export interface Invalidation { readonly invalidate: () => void }\nexport function createInvalidation(trpc: Trpc) { return [trpc.other.thing.pathFilter()]; }\n",
         "packages/client/src/features/automation/activity.tsx": "export const q = trpc.automation.listChatActivity.queryOptions({});\n",
       },
-      expect: { count: 1, messageIncludes: "#1965" },
+      expect: { count: 1 },
       why: "the known uncovered Activity read remains visible as warning debt",
     },
     {

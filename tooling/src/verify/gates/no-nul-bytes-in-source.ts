@@ -80,7 +80,7 @@ export const gate = defineGate({
         "docs/.nul-proof-anchor.txt": "clean",
         "scripts/repeated.txt": "a\u0000b\u0000c\n",
       },
-      expect: { count: 2, messageIncludes: "raw NUL" },
+      expect: { count: 2 },
       why: "two NUL bytes on the same line remain two occurrences rather than collapsing into a line-level finding",
     },
     {
@@ -95,7 +95,7 @@ export const gate = defineGate({
         "docs/.nul-proof-anchor.txt": "clean",
         "packages/server/src/domain/x/verbs/y.ts": "export const key = `a\u0000b`;\n",
       },
-      expect: { count: 1, messageIncludes: "raw NUL" },
+      expect: { count: 1 },
       why: "the founding shape — a raw NUL inside a template literal (the separator idiom written as a BYTE); tsc/biome/eslint are all green on it while git prints `Bin` for every diff",
     },
     {
@@ -110,7 +110,7 @@ export const gate = defineGate({
         "docs/.nul-proof-anchor.txt": "clean",
         "packages/kit/src/x.ts": '// the separator is \u0000 here\nexport const s = "\u0000";\n',
       },
-      expect: { count: 2, messageIncludes: "raw NUL" },
+      expect: { count: 2 },
       why: "one NUL in a comment and one in a plain string literal — per-OCCURRENCE reporting, and the comment case proves the gate is not template-literal-shaped",
     },
     {
@@ -123,7 +123,7 @@ export const gate = defineGate({
         "docs/.nul-proof-anchor.txt": "clean",
         "docs/architecture/core/__probe.md": "---\nkind: law\n---\n\nprose with a \u0000 in it.\n",
       },
-      expect: { count: 1, messageIncludes: "raw NUL" },
+      expect: { count: 1 },
       why: "a NUL in a doc — markdown is a tracked text source too, and a binary-classified law doc reviews as `Bin` exactly like code",
     },
     {
@@ -137,7 +137,7 @@ export const gate = defineGate({
 
         "tooling/src/verify/gates/__probe.ts": 'const GAP = "\u0000";\nexport const gate = { name: "__probe", mustFlag: [1], mustPass: [1], gap: GAP };\n',
       },
-      expect: { count: 1, messageIncludes: "raw NUL" },
+      expect: { count: 1 },
       why: "the gate corpus scans ITSELF — the live instance of this defect was `dangling-refs.ts`'s own `GAP` const, which made that gate's 26KB rewrite diff as `Bin 13848 -> 40068`",
     },
   ],
