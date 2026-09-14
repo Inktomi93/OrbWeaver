@@ -797,9 +797,13 @@ test("policy-waiver-identity REFUSES a corpus in which it recognises no final mo
   expect(legacyOnly.authority.effectiveFindings).toEqual([]);
 });
 
-/** Keep the binding-resolution detector live after production finishes migrating its last violation. The
- *  control joins the real typed project, so it exercises the same contract identity, population resolver and
- *  ts-morph declarations as the live-corpus pass instead of a parallel fixture universe. */
+/** Keep the binding-resolution detector live now that production has finished migrating its last violation
+ *  (`dangling-refs.ts` is final and already reads through `resolveStableExpression` — its own header, "BINDING
+ *  RESOLUTION (#2163)"). With no live violation left to reuse, this control PLANTS one: a `getDefinitionNodes()`
+ *  call on a real ts-morph `Node` receiver, added to the subject's own already-typed `Node` import, then proves
+ *  the shared-reader swap clears it. The control still joins the real typed project — same contract identity,
+ *  population resolver and ts-morph declarations as the live-corpus pass — and still never writes the checkout;
+ *  the planted text lives only in the in-memory `Project` and is restored verbatim in `finally`. */
 async function assertLiveBindingResolution(project: Project, repoRoot: string, populationCount: number): Promise<void> {
   const { final: knownPolicies } = await loadMixedGateCorpus(repoRoot);
   const path = `${GATES_DIR}dangling-refs.ts`;
@@ -830,19 +834,23 @@ async function assertLiveBindingResolution(project: Project, repoRoot: string, p
     expect(result.authority.effectiveFindings.filter(({ file }) => file === path).map(({ token }) => ({ token }))).toEqual(expected);
   };
   try {
-    subject.addImportDeclaration({ namedImports: ["defineGate"], moduleSpecifier: "../contract/policy.ts" });
-    const registration = subject.getVariableDeclarationOrThrow("gate");
-    registration.setInitializer(`defineGate(${registration.getInitializerOrThrow().getText()})`);
+    // `resolveStableExpression` is already imported by production (`dangling-refs.ts:35`); `Node` is already
+    // imported for type positions (`dangling-refs.ts:27`). Planting needs neither a new import nor a defineGate
+    // re-wrap — the module is already final — only a fresh call site the detector can accuse and then acquit.
+    // `getDefinitionNodes` lives on ts-morph's `CommonIdentifierBase` mixin (real `ts-morph.d.ts`), not on the
+    // base `Node` the module already imports — the receiver must be typed `Identifier` for the real checker to
+    // admit the member, so the plant adds that one type-only import beside the module's existing `ts-morph` one.
+    subject.getImportDeclarationOrThrow("ts-morph").addNamedImport({ name: "Identifier", isTypeOnly: true });
+    subject.addStatements("function __policyBindingResolutionProbe(n: Identifier): unknown {\n  return n.getDefinitionNodes();\n}\n");
     drive([{ token: "getDefinitionNodes" }]);
-    subject.addImportDeclaration({ namedImports: ["resolveStableExpression"], moduleSpecifier: "../lib/reference-fact.ts" });
-    const localWalk = subject.getDescendantsOfKind(SyntaxKind.CallExpression).find((call) => {
+    const plantedCall = subject.getDescendantsOfKind(SyntaxKind.CallExpression).find((call) => {
       const callee = call.getExpression();
       return Node.isPropertyAccessExpression(callee) && callee.getName() === "getDefinitionNodes";
     });
-    if (localWalk === undefined) {
-      throw new Error("binding-resolution control lost its local getDefinitionNodes call");
+    if (plantedCall === undefined) {
+      throw new Error("binding-resolution control lost its planted getDefinitionNodes call");
     }
-    localWalk.replaceWithText("resolveStableExpression(n)");
+    plantedCall.replaceWithText("resolveStableExpression(n)");
     drive([]);
   } finally {
     subject.replaceWithText(original);
