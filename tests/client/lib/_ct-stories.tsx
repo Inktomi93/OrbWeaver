@@ -13,14 +13,6 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Select } from "@orb/ui/select";
 import { createToastManager, ToastProvider } from "@orb/ui/toast";
-// @orb-gate-ignore query-machine-seals(useMutation): test-tier code the gate's `\.test\.tsx?$` scope
-// cannot see — Spine-Testing §7 requires a CT to mount from a NON-test story module, so every
-// `_ct-stories` file is test-tier while carrying a production filename. The raw `useMutation` is the
-// SUBJECT: this story reproduces main.tsx's D54 MutationCache.onError→errorToast→notify channel, and
-// createEntityMutation would put the client's own belt between the CT and the global channel under test.
-// ENDS WHEN: query-machine-seals widens its test scope to `_ct-stories` modules, or this story is
-// deleted. §4.3a position-named — an import line can carry BOTH sealed hooks, and a bare marker here
-// would silently absolve a future `useInfiniteQuery` on the same line.
 import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";

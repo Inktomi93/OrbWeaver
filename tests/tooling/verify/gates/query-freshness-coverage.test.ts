@@ -1,20 +1,12 @@
-import type { Finding } from "../../../../tooling/src/verify/contract/gate.ts";
+import type { RawGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate } from "../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor } from "../../_support.ts";
 
-function findings(files: Readonly<Record<string, string>>): readonly Finding[] {
+function findings(files: Readonly<Record<string, string>>): readonly RawGateFinding[] {
   const { project, root } = ctxFor(files);
-  return (
-    runPass([gate], {
-      root,
-      project,
-      scope: { kind: "project" },
-      files: project.getSourceFiles(),
-      checker: () => project.getTypeChecker(),
-    }).gates[0]?.findings ?? []
-  );
+  return runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false }).policies[0]?.findings ?? [];
 }
 
 const CONSUMER = "packages/client/src/features/x/components/x.tsx";
