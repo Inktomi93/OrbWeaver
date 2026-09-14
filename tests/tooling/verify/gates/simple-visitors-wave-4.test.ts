@@ -38,7 +38,7 @@ import { gate as testNoStubs } from "../../../../tooling/src/verify/gates/test-n
 import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { expect, fixturePath, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/simple-visitors-wave-4";
 // The commit immediately before this wave's conversion — the last commit where all four gates still
@@ -136,7 +136,8 @@ function toolingHref(relFromGates: string): string {
 
 async function frozenLegacyGate(path: (typeof PATHS)[number], scratch: string): Promise<GateDescriptor> {
   const source = execFileSync("git", ["show", `${BASE}:${path}`], { encoding: "utf8" });
-  const target = join(scratch, basename(path));
+  // `basename(path)` reads off a tuple member the reader cannot enumerate here; bound it at runtime (#2332).
+  const target = fixturePath(scratch, basename(path));
   const rewritten = source
     .replace('from "../contract/gate.ts"', `from ${toolingHref("../contract/gate.ts")}`)
     .replace('from "../lib/symbol-reference.ts"', `from ${toolingHref("../lib/symbol-reference.ts")}`);

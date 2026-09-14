@@ -5,15 +5,25 @@
 // for the same doc line. A verdict that depends on WHERE it ran is wrong in one of the two places, and the
 // fresh-worktree red is the one lanes actually pay for.
 //
-// The PASS half is un-provable in conformance: the exemption arms are guarded on the real-tree anchor, and
-// planting that anchor in a mini-project turns on every OTHER stale arm at once. So the honoured case lives
-// here, against the real tree, with planted controls in BOTH directions.
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+// The PASS half is un-provable in conformance: the exemption arms are guarded on the real-tree anchor, and a
+// policy proof row's file map cannot carry the RELATIVE paths the corpus derivation is keyed on. So the
+// honoured case lives here — the REAL tree for every read (the absent direction, the grant translation, the
+// population receipts) and an invocation-owned `plantedTree` corpus at the same relative paths for every
+// direction that needs something PLANTED.
+//
+// #2332 — THIS SUITE USED TO WRITE INTO THE CHECKOUT, AND NO LONGER DOES. Six mutations lived here until
+// 2026-09-14: `packages/client/dist` created and removed, a phantom line appended to and restored in the
+// tracked `GATE-AUTHORING.md`, and a probe doc created and removed under `docs/architecture/history/`. Each
+// was belted (restore in `finally` plus a process-exit hook, with the working tree asserted byte-identical
+// afterwards), and the belt was never the problem: cleanup reduces residue after a NORMAL exit, and cannot
+// stop a concurrent `git add -A`, a kill outside the registered path, or another lane reading a gate input
+// while it is mutated. That is the 2026-08-24 blinded-gate incident class verbatim, which is why
+// `policy-fixture-substrate` is a hard gate over this very directory. The per-arm reasoning for each move —
+// including the header premise that said a scratch copy was impossible, and why it was an objection to an
+// UNFILTERED assertion rather than to an isolated root — sits with the arms themselves.
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import process from "node:process";
 import { describe } from "vitest";
-import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as danglingRefCitations } from "../../../../tooling/src/verify/gates/dangling-ref-citations.ts";
 import { gate as danglingRefs } from "../../../../tooling/src/verify/gates/dangling-refs.ts";
 import { projectCtx } from "../../../../tooling/src/verify/index.ts";
@@ -526,6 +536,51 @@ function gitignoreNames(repoRoot: string, path: string): boolean {
     .some((line) => wanted.has(line));
 }
 
+const ISOLATED_LAW = "docs/architecture/core/__dangling_refs_isolated_law__.md";
+const ISOLATED_DESIGN = "docs/design/__dangling_refs_isolated_design__.md";
+
+/** A SELF-CONTAINED derived corpus for this gate, at the same RELATIVE paths the real tree uses (#2332).
+ *
+ *  It exists because every arm below asks a question about the gate's RESOLUTION — is a gitignored path a
+ *  phantom, is `GATE-AUTHORING.md` inside the citation net, is `history/**` outside it — and every one of
+ *  those is answered against `root`. What it deliberately does NOT carry is `core/AGENTS.md` and the rest of
+ *  the living corpus: their cites resolve against the real tree, so importing them would report thousands of
+ *  phantoms that say nothing about the arm. Each assertion below therefore FILTERS to its own subject, and
+ *  the whole-gate-clean claim stays where it belongs — on the real-tree read above. */
+function isolatedCorpus(): Readonly<Record<string, string>> {
+  return {
+    ...FINAL_RESOURCE_FLOOR,
+    [CITE]: `${ABSENT_PATH}\n`,
+    [ISOLATED_LAW]: `---\nkind: law\nstatus: active\n---\n\nThe client build output is \`${ABSENT_PATH}\`.\n`,
+    [ISOLATED_DESIGN]: "---\nkind: design\nstatus: active\n---\n\nIsolated design anchor.\n",
+    "docs/catalog/catalog.json": JSON.stringify({
+      documents: [
+        { path: ISOLATED_LAW, lane: "architecture-core", frontmatter: { fields: { status: "active" } }, receipt: { authority: "normative" } },
+        { path: ISOLATED_DESIGN, lane: "design", frontmatter: { fields: { status: "active" } }, receipt: { authority: "design" } },
+      ],
+    }),
+    [LAW_OUTSIDE_DOC]: "---\nkind: law\n---\n\nIsolated law outside docs.\n",
+    "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md": "---\nkind: law\n---\n\nIsolated rule-authoring law.\n",
+  };
+}
+
+/** One policy's effective findings on an isolated root, as `file:message` labels so two runs compare.
+ *
+ *  THE BLIND-RUN GUARD is here rather than in each arm: an empty finding list on a mini root reads exactly
+ *  like a gate that resolved NOTHING, and three of the arms below assert emptiness. The corpus census must be
+ *  non-zero on every isolated run, so "clean" is a verdict rather than a placebo (#946's shape, #2332). */
+function isolatedFindings(root: string, policyId: string): readonly string[] {
+  const result = runDanglingRefs(root);
+  expect(result.toolErrors, `the isolated corpus must drive ${policyId} without a tool error`).toEqual([]);
+  const receipts = result.policies.find((policy) => policy.id === HARD_GATE)?.receipts ?? [];
+  const law = receipts.find((receipt) => receipt.kind === "population" && receipt.source === "citation-corpus:law");
+  expect(law?.kind === "population" ? law.members : 0, "the isolated corpus must actually populate the law class").toBeGreaterThan(0);
+  return result.authority.effectiveFindings
+    .filter((finding) => finding.policyId === policyId)
+    .map((finding) => `${finding.file}:${finding.message ?? ""}`)
+    .toSorted((left, right) => left.localeCompare(right));
+}
+
 describe("dangling-refs — gitignored paths are absent by design, not phantoms", () => {
   test("the exemption's justification holds on the real tree, and the control does not", ({ repoRoot }) => {
     expect(gitignoreNames(repoRoot, ABSENT_PATH), `${ABSENT_PATH} must be gitignored — that IS the exemption`).toBe(true);
@@ -549,28 +604,30 @@ describe("dangling-refs — gitignored paths are absent by design, not phantoms"
   }, 600_000);
 
   // The OTHER direction (#26 regression): #775's original fix moved the env-dependence rather than removing
-  // it — with the gitignored subtree PRESENT on a full checkout the path resolves, so it was never a phantom,
-  // so the shared phantom-hitRefs stale arm falsely red its GITIGNORED_ABSENT row ("matches no live phantom").
-  // The verdict must be identical whether or not the subtree is checked out here, so we plant it and re-run.
-  test("the real-tree run stays clean when the gitignored subtree IS present on THIS checkout", ({ repoRoot }) => {
-    const abs = join(repoRoot, ABSENT_PATH);
-    const planted = !existsSync(abs); // a full checkout already has it — only plant (and clean up) if absent
-    if (planted) {
-      mkdirSync(abs, { recursive: true });
-    }
-    try {
-      expect(existsSync(abs), "the gitignored subtree must be present for this direction of the arm").toBe(true);
-      const result = runDanglingRefs(repoRoot);
-      expect(result.toolErrors).toEqual([]);
-      const findings = result.authority.effectiveFindings.filter((finding) => finding.policyId === HARD_GATE);
-      // No stale-row red for the now-RESOLVING gitignored path, and the whole gate is still clean.
-      expect(findings.filter((f) => (f.message ?? "").includes(ABSENT_PATH))).toEqual([]);
-      expect(findings).toEqual([]);
-    } finally {
-      if (planted) {
-        rmSync(abs, { recursive: true, force: true });
-      }
-    }
+  // it — with the gitignored subtree PRESENT the path resolves, so it was never a phantom, so the shared
+  // phantom-hitRefs stale arm falsely red its GITIGNORED_ABSENT row ("matches no live phantom"). The claim is
+  // that the verdict is IDENTICAL either way, so the honest shape is one corpus driven BOTH ways and compared.
+  //
+  // #2332 — WHY THIS NO LONGER PLANTS IN THE CHECKOUT, and what was checked before moving it. Until
+  // 2026-09-14 this arm `mkdirSync`'d `packages/client/dist` into the operator's tree and removed it in
+  // `finally`, which is the 2026-08-24 incident class verbatim (a concurrent broad `git add`, or a signal,
+  // and the probe is committed or stranded). The premise that forced it — that a mini root cannot host this
+  // gate — is FALSE for this arm: the absent-by-design row is resolved against `root`, and `.gitignore` plus
+  // the catalog census are read from `root` too, so an invocation-owned corpus carrying the same RELATIVE
+  // paths asks exactly the same question. What the real tree still owns is the absent direction above and the
+  // population receipts below, both of which are READS.
+  test("the isolated run reaches the same verdict whether or not the gitignored subtree is present", async ({ plantedTree }) => {
+    const absent = await plantedTree(isolatedCorpus());
+    const present = await plantedTree({ ...isolatedCorpus(), [`${ABSENT_PATH}/index.js`]: "export const built = true;\n" });
+    expect(existsSync(join(absent, ABSENT_PATH)), "the absent arm must genuinely lack the subtree").toBe(false);
+    expect(existsSync(join(present, ABSENT_PATH)), "the present arm must genuinely carry it").toBe(true);
+
+    const absentFindings = isolatedFindings(absent, HARD_GATE);
+    const presentFindings = isolatedFindings(present, HARD_GATE);
+    // No stale-row red for the now-RESOLVING gitignored path …
+    expect(presentFindings.filter((message) => message.includes(ABSENT_PATH))).toEqual([]);
+    // … and the whole verdict is byte-identical across the two, which is the property #26 actually names.
+    expect(presentFindings, "the verdict must not depend on whether the gitignored subtree is checked out").toEqual(absentFindings);
   }, 600_000);
 });
 
@@ -645,9 +702,25 @@ describe("dangling-ref-citations — central reviewed authority replaces the leg
 // THE DERIVED-CORPUS PIN (#1036). The defect was again a LYING INSTRUMENT, not a bad doc: arms 2-4 read a
 // HAND-NAMED pair of directories, so `GATE-AUTHORING.md` — the law every gate author is routed to — sat
 // outside the citation net entirely and its cite of the population controls rotted with nothing watching.
-// Conformance cannot prove this half: its examples live in a SYNTHETIC tree, so a green mini-project says
-// nothing about whether the corpus derivation reaches the REAL law files or stops at the REAL frozen ones.
-// Both directions are planted here, against the real tree.
+// Conformance cannot prove this half: its examples live in a policy-owned mini-project whose file map is
+// authored per row, so it cannot ask whether the corpus derivation reaches `GATE-AUTHORING.md` AT ITS REAL
+// RELATIVE PATH. Both directions are driven here, on an invocation-owned corpus that carries that path.
+//
+// #2332 — THE PLANT MOVED OUT OF THE CHECKOUT, AND THE PREMISE THAT KEPT IT THERE IS RECORDED REFUTED.
+// Until 2026-09-14 the positive arm APPENDED a line to the tracked `GATE-AUTHORING.md` and restored it in
+// `finally` plus an exit hook, and the header here argued that no scratch copy could work because the arm's
+// subject is MEMBERSHIP — `dangling-refs.ts`'s `LAW_OUTSIDE_DOCS` is a literal two-entry list, so a copy at
+// any other path is not a member — and because arm 3 resolves every backticked path against the real tree,
+// so a docs-only root would report thousands of phantoms.
+//
+// The first half is true and is HONOURED rather than discarded: `LAW_OUTSIDE_DOCS` names a RELATIVE path, so
+// a corpus that carries `tooling/src/verify/gates/GATE-AUTHORING.md` at that same relative path IS a member.
+// The second half was the real objection, and it is an objection to an UNFILTERED assertion, not to an
+// isolated root: each arm below filters to its own subject (the ghost path in the file it was authored in),
+// exactly as the positive arm already did. What the real tree still owns — and what the membership claim
+// ultimately rests on — is the population receipt at the end of this describe: `citation-corpus:law-outside-docs`
+// must resolve members ON THE REAL TREE, which is a READ. Together those two are what the one checkout write
+// used to buy, without a tracked doc changing under a concurrent `git add`.
 const CORPUS_GHOST = "domain/__p1036_ghost_domain__/x.ts";
 const LAW_OUTSIDE_DOC = "tooling/src/verify/gates/GATE-AUTHORING.md";
 /** A DISPOSABLE doc in the frozen class (#1583) — `history/**` is out of the audit corpus by CLASS, so the
@@ -655,93 +728,29 @@ const LAW_OUTSIDE_DOC = "tooling/src/verify/gates/GATE-AUTHORING.md";
  *  for anyone who finds one stranded. */
 const FROZEN_DOC = "docs/architecture/history/__p1583_frozen_probe__.md";
 
-/** The operator's working tree, exactly as git reports it. A probe that plants ANYTHING owes this
- *  unchanged on both sides (#1583) — a lane watched this file's plant appear in a tracked doc mid-run and
- *  could not tell it from a real edit, and a concurrent `git add -A` would have committed it. */
-function porcelain(repoRoot: string): string {
-  return execFileSync("git", ["--no-optional-locks", "status", "--porcelain"], { cwd: repoRoot, encoding: "utf8" });
-}
-
-/** THE TRACKED-FILE PLANT, announced and belted (#1583).
- *
- *  WHY IT CANNOT BE A SCRATCH COPY: the subject of the arm below is MEMBERSHIP — that
- *  `LAW_OUTSIDE_DOCS` (dangling-refs.ts, a literal two-entry list) carries GATE-AUTHORING.md into the
- *  citation corpus. A copy at any other path is not a member, so a plant there proves the opposite of
- *  what the test claims; and a copied mini-ROOT cannot work either, because arm 3 resolves every
- *  backticked path against the real tree (a docs-only root would report thousands of phantoms). So the
- *  real file is plantable-only, and the fix is to make the plant IMPOSSIBLE TO LEAVE BEHIND rather than
- *  to move it: restored in `finally` AND on process exit (a killed vitest used to leave the line), with
- *  the working tree proven byte-identical afterwards. */
-function withAppendedLine<T>(repoRoot: string, rel: string, line: string, body: () => T): T {
-  const abs = join(repoRoot, rel);
-  const original = readFileSync(abs, "utf8");
-  const before = porcelain(repoRoot);
-  const restore = (): void => {
-    if (readFileSync(abs, "utf8") !== original) {
-      writeFileSync(abs, original);
-    }
-  };
-  // A SIGINT/kill during the gate run (600s of real scanning) used to strand the planted line in a tracked
-  // doc — `finally` does not run for a signalled process.
-  process.once("exit", restore);
-  try {
-    writeFileSync(abs, `${original}\n${line}\n`);
-    return body();
-  } finally {
-    restore();
-    process.off("exit", restore);
-    expect(porcelain(repoRoot), `the probe must leave ${rel} — and the whole tree — byte-identical`).toBe(before);
-  }
-}
-
-/** THE SCRATCH-FILE PLANT: an UNTRACKED probe doc, created and removed by this test. Used wherever the
- *  arm's subject is a path CLASS rather than a specific file — `history/**` is out of the audit corpus by
- *  class (dangling-refs.ts's scan dirs never include it), so a probe file there proves exactly what
- *  appending to Pain-Ledger.md proved, while touching nothing the operator owns (#1583).
- *
- *  ITS ONE NARROWER EDGE, stated rather than hidden: the scan-dir half of a widening still reds here (the
- *  walk reads the DIRECTORY off disk, so an untracked `.md` in a newly-scanned dir is found), but a
- *  widening that arrived through the doc CATALOG instead would not — an untracked file is not catalogued.
- *  The catalog route is already fenced by authority+`status: living`, which no `history/**` doc carries. */
-function withProbeDoc<T>(repoRoot: string, rel: string, contents: string, body: () => T): T {
-  const abs = join(repoRoot, rel);
-  const before = porcelain(repoRoot);
-  if (existsSync(abs)) {
-    throw new Error(`#1583 probe: ${rel} already exists — the probe path must be disposable and unique`);
-  }
-  const cleanup = (): void => rmSync(abs, { force: true });
-  process.once("exit", cleanup);
-  try {
-    writeFileSync(abs, contents);
-    return body();
-  } finally {
-    cleanup();
-    process.off("exit", cleanup);
-    expect(porcelain(repoRoot), "the probe file must be gone, and nothing else touched").toBe(before);
-  }
-}
-
-function danglingFindings(repoRoot: string): readonly CoordinatedGateFinding[] {
-  const result = runDanglingRefs(repoRoot);
-  expect(result.toolErrors).toEqual([]);
-  return result.authority.effectiveFindings.filter((finding) => finding.policyId === CITATION_GATE);
-}
-
 describe("dangling-refs — the derived corpus reaches living law outside docs/ and stops at frozen evidence", () => {
-  test("a phantom path planted in GATE-AUTHORING.md is FOUND", ({ repoRoot }) => {
-    const findings = withAppendedLine(repoRoot, LAW_OUTSIDE_DOC, `The shape lives at \`${CORPUS_GHOST}\`.`, () => danglingFindings(repoRoot));
-    const hit = findings.filter((f) => f.file === LAW_OUTSIDE_DOC && (f.message ?? "").includes(CORPUS_GHOST));
-    expect(hit.length, "the law every gate author reads must be inside the citation net").toBe(1);
+  test("a phantom path authored in GATE-AUTHORING.md is FOUND", async ({ plantedTree }) => {
+    const root = await plantedTree({
+      ...isolatedCorpus(),
+      [LAW_OUTSIDE_DOC]: `---\nkind: law\n---\n\nThe shape lives at \`${CORPUS_GHOST}\`.\n`,
+    });
+    const hit = isolatedFindings(root, CITATION_GATE).filter((found) => found.startsWith(`${LAW_OUTSIDE_DOC}:`) && found.includes(CORPUS_GHOST));
+    expect(hit.length, "the law every gate author reads must be inside the citation net, at its own relative path").toBe(1);
   }, 600_000);
 
-  test("the same phantom planted in a FROZEN history doc is not flagged", ({ repoRoot }) => {
-    // #1583: the plant used to APPEND to Pain-Ledger.md — a tracked doc — which a lane then watched change
-    // under it mid-run. The arm's subject is the history/** CLASS, not that file, so a disposable probe doc
-    // in the same directory proves the same thing and leaves the operator's tree alone.
-    const findings = withProbeDoc(repoRoot, FROZEN_DOC, `# probe\n\nIt used to live at \`${CORPUS_GHOST}\`.\n`, () => danglingFindings(repoRoot));
+  test("the same phantom in a FROZEN history doc is not flagged", async ({ plantedTree }) => {
+    // The arm's subject is the `history/**` CLASS, not a specific tracked file: the same ghost, authored in a
+    // doc of that class and catalogued as historical, must draw NOTHING while the arm above draws one.
+    const root = await plantedTree({
+      ...isolatedCorpus(),
+      [FROZEN_DOC]: `---\nkind: history\nstatus: active\n---\n\nIt used to live at \`${CORPUS_GHOST}\`.\n`,
+    });
     // Documentation-Law.md §"Relocation & retirement" step 5: frozen evidence keeps the path that was true
     // then and is NOT repointed, so resolving its cites would red a doc for obeying the law.
-    expect(findings, "frozen evidence is out of the corpus by CLASS — a widening must not swallow it").toEqual([]);
+    expect(
+      isolatedFindings(root, CITATION_GATE).filter((found) => found.startsWith(`${FROZEN_DOC}:`)),
+      "frozen evidence is out of the corpus by CLASS — a widening must not swallow it",
+    ).toEqual([]);
   }, 600_000);
 
   test("every declared corpus class is populated on the real tree", ({ repoRoot }) => {
