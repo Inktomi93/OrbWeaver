@@ -1,10 +1,20 @@
 // Shared query/invalidation graph for the freshness family. All descendants arrive through the
 // runtime visitor stream; the fact does not open a Project or perform a private subtree walk.
+//
+// EVERY HOP OF THE `trpc.<router>.<proc>.<terminal>` CHAIN IS READ THROUGH `lib/symbol-reference.ts`
+// (#2353). Keyed on `PropertyAccessExpression` alone, this reader saw neither side of the graph under a
+// bracket respelling: `trpc["automation"]["listChatActivity"]["queryOptions"]({})` was not a CONSUMED read
+// (so `query-freshness-coverage` and `query-freshness-coverage-debt` both stopped flagging their own
+// fixtures) and `trpc["x"]["y"]["pathFilter"]()` was not a COVERAGE filter (so the acquitting side would
+// have gone blind in the same edit). Both halves move together here, which is the only safe direction: a
+// widened accusing side alone would have turned correctly invalidated bracket-spelled reads into findings.
+// The visitor subscribes `MEMBER_ACCESS_KINDS`, not half the family.
 
 import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
-import type { Node as MorphNode, PropertyAccessExpression, SourceFile } from "ts-morph";
+import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
+import { MEMBER_ACCESS_KINDS, readMemberAccess } from "./symbol-reference.ts";
 
 const SEAM_FACTORY = "createInvalidation";
 const SEAM_ANCHOR = "Invalidation";
@@ -17,7 +27,7 @@ interface QueryKey {
   readonly proc: string;
 }
 interface LocatedFilter {
-  readonly node: PropertyAccessExpression;
+  readonly node: MorphNode;
   readonly owner: MorphNode | undefined;
   readonly key: string | undefined;
   readonly root: string | undefined;
@@ -28,30 +38,42 @@ interface IdentifierUse {
 }
 
 function baseIsTrpc(base: MorphNode): boolean {
-  return Node.isIdentifier(base) ? /^trpc$/iu.test(base.getText()) : Node.isPropertyAccessExpression(base) && /^trpc$/iu.test(base.getName());
+  if (Node.isIdentifier(base)) {
+    return /^trpc$/iu.test(base.getText());
+  }
+  const read = readMemberAccess(base);
+  return read !== undefined && /^trpc$/iu.test(read.name);
+}
+
+/** The RECEIVER of a member read whose member is one of `terminals`, whatever the spelling. */
+function terminalReceiver(node: MorphNode, terminals: ReadonlySet<string>): MorphNode | undefined {
+  const read = readMemberAccess(node);
+  return read !== undefined && terminals.has(read.name) ? read.receiver : undefined;
 }
 
 function trpcChain(node: MorphNode, terminals: ReadonlySet<string>): QueryKey | undefined {
-  if (!(Node.isPropertyAccessExpression(node) && terminals.has(node.getName()))) {
+  const terminal = terminalReceiver(node, terminals);
+  if (terminal === undefined) {
     return;
   }
-  const proc = node.getExpression();
-  if (!Node.isPropertyAccessExpression(proc)) {
+  const proc = readMemberAccess(terminal);
+  if (proc === undefined) {
     return;
   }
-  const router = proc.getExpression();
-  if (!(Node.isPropertyAccessExpression(router) && baseIsTrpc(router.getExpression()))) {
+  const router = readMemberAccess(proc.receiver);
+  if (router === undefined || !baseIsTrpc(router.receiver)) {
     return;
   }
-  return { router: router.getName(), proc: proc.getName() };
+  return { router: router.name, proc: proc.name };
 }
 
 function trpcRoot(node: MorphNode, terminals: ReadonlySet<string>): string | undefined {
-  if (!(Node.isPropertyAccessExpression(node) && terminals.has(node.getName()))) {
+  const terminal = terminalReceiver(node, terminals);
+  if (terminal === undefined) {
     return;
   }
-  const router = node.getExpression();
-  return Node.isPropertyAccessExpression(router) && baseIsTrpc(router.getExpression()) ? router.getName() : undefined;
+  const router = readMemberAccess(terminal);
+  return router !== undefined && baseIsTrpc(router.receiver) ? router.name : undefined;
 }
 
 function topLevelBinding(node: MorphNode): MorphNode | undefined {
@@ -84,7 +106,7 @@ function sameDeclaration(reference: MorphNode, declaration: MorphNode): boolean 
 }
 
 export interface QueryFreshnessFact {
-  readonly consumed: ReadonlyMap<string, PropertyAccessExpression>;
+  readonly consumed: ReadonlyMap<string, MorphNode>;
   readonly coverage: { readonly keys: ReadonlySet<string>; readonly roots: ReadonlySet<string> };
   readonly seam: SourceFile | undefined;
   readonly anchor: MorphNode | undefined;
@@ -103,7 +125,7 @@ export const queryFreshnessFact = defineFact({
     const declarationsBySource = new Map<SourceFile, MorphNode[]>();
     const importsBySource = new Map<SourceFile, SourceFile[]>();
     const anchorSources = new Set<SourceFile>();
-    const consumed = new Map<string, PropertyAccessExpression>();
+    const consumed = new Map<string, MorphNode>();
     const filters: LocatedFilter[] = [];
     const identifiers: IdentifierUse[] = [];
     let anchor: MorphNode | undefined;
@@ -129,7 +151,7 @@ export const queryFreshnessFact = defineFact({
             SyntaxKind.VariableDeclaration,
             SyntaxKind.InterfaceDeclaration,
             SyntaxKind.ImportDeclaration,
-            SyntaxKind.PropertyAccessExpression,
+            ...MEMBER_ACCESS_KINDS,
             SyntaxKind.Identifier,
           ],
           // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one visitor classifies the closed shared node stream by kind.
@@ -151,7 +173,7 @@ export const queryFreshnessFact = defineFact({
               }
               return;
             }
-            if (Node.isPropertyAccessExpression(node)) {
+            if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
               const read = trpcChain(node, READ_TERMINALS);
               if (read !== undefined) {
                 const key = `${read.router}.${read.proc}`;

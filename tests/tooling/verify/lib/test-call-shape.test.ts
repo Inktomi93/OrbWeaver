@@ -61,6 +61,54 @@ test("a call-returning factory and a tagged-template table are walked THROUGH to
   ]);
 });
 
+test("EVERY MEMBER HOP IS SPELLING-INDEPENDENT: the bracket twin of a modifier chain is the same shape", () => {
+  expect(
+    verdicts(
+      [
+        'test["only"]("a", () => {});',
+        'it?.["skipIf"](false)("b", () => {});',
+        'test["concurrent"]["each"]([1])("c", () => {});',
+        'test["each"]`a | b`("d", () => {});',
+        'const MODIFIER = "only";',
+        'test[MODIFIER]("e", () => {});',
+      ].join("\n"),
+    ),
+  ).toEqual([
+    ['test["only"]("a", () => {})', true],
+    ['it?.["skipIf"](false)("b", () => {})', true],
+    ['it?.["skipIf"](false)', true],
+    ['test["concurrent"]["each"]([1])("c", () => {})', true],
+    ['test["concurrent"]["each"]([1])', true],
+    // The tagged template is not a CallExpression, so the table form yields exactly one call.
+    ['test["each"]`a | b`("d", () => {})', true],
+    // A same-file `const` standing for the member name is the third spelling `readMemberAccess` resolves.
+    ['test[MODIFIER]("e", () => {})', true],
+  ]);
+});
+
+test("the bracket spelling does NOT widen admission: a non-modifier member and a non-`test` root stay refused", () => {
+  expect(
+    verdicts(
+      [
+        'test["describe"]("a", () => {});',
+        'test["describe"]["only"]("b", () => {});',
+        'test["extend"]({});',
+        'vitest["test"]("c", () => {});',
+        'test[dynamicKey]("d", () => {});',
+      ].join("\n"),
+    ),
+  ).toEqual([
+    // `describe` is read off the root in EITHER spelling, and it is not a modifier.
+    ['test["describe"]("a", () => {})', false],
+    ['test["describe"]["only"]("b", () => {})', false],
+    ['test["extend"]({})', false],
+    // The ROOT limit is untouched: `vitest` is the root here, not `test`.
+    ['vitest["test"]("c", () => {})', false],
+    // A GENUINELY computed key names no one member — the reader's declared limit, preserved.
+    ['test[dynamicKey]("d", () => {})', false],
+  ]);
+});
+
 test("a non-modifier member, another root, or a non-identifier root is NOT a test-call shape", () => {
   expect(
     verdicts(
@@ -85,7 +133,9 @@ test("a non-modifier member, another root, or a non-identifier root is NOT a tes
     ["describe('c', () => {})", false],
     ["expect(1).toBe(1)", false],
     ["expect(1)", false],
-    // DECLARED LIMITS, run here rather than stated: a non-identifier root is not a shape.
+    // DECLARED LIMITS, run here rather than stated: a non-identifier root is not a shape. Since #2353 the
+    // member walk reads element access, so this chain now bottoms out in `fixtures` — which is exactly what
+    // keeps the by-NAME root limit refusing it, rather than the walk giving up mid-chain.
     ["fixtures['test']('d', () => {})", false],
     // Admission reads the member DIRECTLY off the root: `describe`, not the trailing `only`.
     ["test.describe.only('e', () => {})", false],

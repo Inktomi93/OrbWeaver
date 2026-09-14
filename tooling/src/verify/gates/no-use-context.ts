@@ -139,6 +139,15 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx": 'import * as R from "react";\nexport const reader = R.useContext;\n',
+      },
+      expect: { count: 1, token: "useContext" },
+      why: "A NAMESPACE MEMBER THAT IS NOT CALLED (#2353) — the namespace twin of the IMPORT arm above, and until the member door landed it was reachable by NO visitor: there is no ImportSpecifier and no CallExpression, so the legacy spelling entered the file completely unjudged. This policy and `no-forward-ref` stay arm-for-arm identical by construction, so the door is in `lib/react-origin.ts` rather than here",
+    },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
         "packages/client/src/feature/ui.tsx":
           'import * as R from "react";\nconst ThemeContext = R.createContext("");\nexport const theme = R["useContext"](ThemeContext);\n',
       },

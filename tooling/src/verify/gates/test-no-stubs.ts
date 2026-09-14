@@ -55,14 +55,20 @@ import { callChainRoot, isTestCallShape } from "../lib/test-call-shape.ts";
 /** A dotted callee spelling (`test`, `test.only`, `it.concurrent`) — the token the report keeps verbatim. */
 const DOTTED_CALLEE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/u;
 
-function calleeName(call: CallExpression): string {
-  return call.getExpression().getText();
-}
+/** The assertion roots. `expect.poll(…)`, `expect.soft(…)` and `expect(x).toBe(…)` all bottom out in
+ *  `expect`, so the ROOT is the whole vocabulary and no member spelling needs listing. */
+const ASSERTION_ROOTS: ReadonlySet<string> = new Set(["expect", "expectTypeOf"]);
 
+/** THE ACQUITTING SIDE, READ THROUGH THE SAME CHAIN WALK AS THE ACCUSING ONE (#2353). It used to compare the
+ *  callee's TEXT (`name === "expect" || name.startsWith("expect.")`) with whitespace collapsed to survive a
+ *  formatter-broken `expect\n  .poll(…)`. Text is not a spelling-independent reader in either direction: once
+ *  the declaration side started seeing `test["only"]`, a body whose only assertion was spelled
+ *  `expect["poll"](fn)["toBe"](1)` would have been judged assertion-LESS and the stub finding would have been a
+ *  false accusation. `callChainRoot` answers the same question structurally, which also makes the whitespace
+ *  collapse unnecessary rather than merely unused: a line break is not part of the chain. */
 function isAssertionCall(call: CallExpression): boolean {
-  // Collapse whitespace: a formatter-broken chain (`expect\n  .poll(...)`) must still read as `expect.poll`.
-  const name = calleeName(call).replaceAll(/\s+/gu, "");
-  return name === "expect" || name === "expectTypeOf" || name.startsWith("expect.");
+  const root = callChainRoot(call);
+  return root !== undefined && ASSERTION_ROOTS.has(root.getText());
 }
 
 function hasCallback(call: CallExpression): boolean {
@@ -188,6 +194,12 @@ export const gate = defineGate({
     },
     {
       mode: "source",
+      files: { "tests/tooling/bracket.test.ts": 'test["only"]("stub", () => {\n  const x = 1;\n});\n' },
+      expect: { count: 1, line: 1, token: "test" },
+      why: 'THE BRACKET SPELLING OF A MODIFIER (#2353): `test["only"]` is an ElementAccessExpression, so a chain walk keyed on `PropertyAccessExpression` alone stopped seeing it and a stub spelled this way was judged by NEITHER test policy — five of this policy\'s own mustFlag fixtures went silent under the mechanical respelling. The member is read through `lib/symbol-reference.ts#readMemberAccess`; the token is the chain ROOT because `test["only"]` is not a plain dotted callee',
+    },
+    {
+      mode: "source",
       files: { "tests/tooling/chained.test.ts": 'test.concurrent.each([1])("stub", () => {\n  const x = 1;\n});\n' },
       expect: { count: 1, token: "test" },
       why: "A TWO-MODIFIER CHAIN through a factory (#2027): the walk passes through `.each(...)` to the root, and a recognizer keyed on the callee's dotted text never reaches this form at all. That admission reads the member DIRECTLY off the root (`concurrent`) rather than the outermost one is pinned by the `test.describe.only` mustPass row, not here — both keyings admit this chain",
@@ -228,7 +240,12 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "tests/tooling/z.test.ts": 'test("chained assertion", () => {\n  expect\n    .poll(() => 1)\n    .toBe(1);\n});\n' },
-      why: "declared limit preserved from the legacy check: a formatter-broken `expect\\n  .poll(...)` chain still reads as an assertion once whitespace collapses",
+      why: "the legacy check's declared limit SURVIVES and its MECHANISM changed (#2353): a formatter-broken `expect\\n  .poll(...)` chain still reads as an assertion, now because the recognizer walks the callee CHAIN to its root identifier rather than collapsing whitespace in the callee's TEXT. A line break was never part of the chain, so the collapse is unnecessary rather than merely unused — and the text comparison it belonged to is exactly what would have mis-judged the bracket row below",
+    },
+    {
+      mode: "source",
+      files: { "tests/tooling/bracket-assert.test.ts": 'test("asserts through a bracket-spelled poll", () => {\n  expect["poll"](() => 1)["toBe"](1);\n});\n' },
+      why: 'THE ACQUITTING SIDE MOVING WITH THE ACCUSING ONE (#2353). The text recognizer accepted `expect` and anything starting `expect.`, so `expect["poll"](…)["toBe"](1)` matched NEITHER arm: once the declaration side started seeing bracket-spelled modifiers, this real assertion would have read as no assertion at all and the stub finding would have been a false accusation. Revert `isAssertionCall` to the text comparison and this row alone reds',
     },
     {
       mode: "source",

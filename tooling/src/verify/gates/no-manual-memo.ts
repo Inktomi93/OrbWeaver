@@ -117,6 +117,15 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: {
+        [REACT_TYPES_HOME]: reactProofModule(),
+        "packages/ui/src/x/x.tsx": 'import * as R from "react";\nexport const v = R.useMemo;\n',
+      },
+      expect: { count: 1, token: "useMemo" },
+      why: "THE NAMESPACE MEMBER IN A NON-CALLEE POSITION (#2353): `reactExportVisitors` subscribed `ImportSpecifier` + `CallExpression`, and a namespace import produces no specifier while a bare reference is no call — so NO visitor ever received this node and the namespace respelling of the unresolved-candidate row below stopped flagging. The member door is the third visitor, narrowed by the export NAME so the fail-closed `unreadable` verdict cannot spread to unrelated members of a React namespace binding",
+    },
+    {
+      mode: "types",
       files: { "packages/client/src/features/x/components/x.tsx": 'import { useMemo } from "./missing.ts";\nexport const v = useMemo;\n' },
       expect: { count: 1, messageIncludes: "cannot be established" },
       why: "an unresolved candidate fails closed rather than becoming a silent pass",
@@ -168,6 +177,14 @@ export const gate = defineGate({
         "packages/client/src/features/x/components/x.tsx": 'import { memo } from "../../../local-memo.ts";\nexport const v = memo(1);\n',
       },
       why: "memo imported from a project module is somebody else's function",
+    },
+    {
+      mode: "types",
+      files: {
+        [REACT_TYPES_HOME]: reactProofModule(),
+        "packages/ui/src/x/x.tsx": 'import * as R from "react";\nexport const v = R.useState;\n',
+      },
+      why: "THE ACQUITTING HALF OF THE MEMBER DOOR (#2353): the third visitor is narrowed to reads whose member NAME is one of this policy's exports, so an unrelated member of the same React namespace binding is not even a candidate. Drop that name prefilter and every `R.<anything>` becomes a resolution attempt whose refusals report as `unreadable` — a blind spot traded for a false positive",
     },
     {
       mode: "types",

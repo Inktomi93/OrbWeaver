@@ -51,6 +51,31 @@
 //   • `owner-scoped-upserts` ["bracket","namespace"] → ["bracket"] — the SAME reader change, inherited: the
 //     upsert half calls the same `tableTargetOf`. It was not a subject of the fix and is recorded here so the
 //     shrink is not read as an unexplained disappearance.
+//
+// SHRINK RECEIPTS, 2026-09-14 (#2353, lane cb-2353-spelling-twins). The census had GROWN by six —
+// `audit-client-tests`, `bus-payload-allowlist`, `knob-wire-coverage`, `no-manual-memo`,
+// `query-freshness-coverage-debt` and `test-no-stubs` — and growth is never a ledger row, so all six were
+// fixed at the READER that owns the question (`lib/test-call-shape.ts`, `lib/bus-payload-fact.ts`,
+// `lib/knob-wire-fact.ts`, `lib/react-origin.ts`, `lib/query-freshness-fact.ts`), each pinned by a new
+// `mustFlag` row carrying the respelled fixture and each acquitting side widened in the same commit. Nothing
+// was added here. FOUR rows left the ledger, and each names what closed it:
+//   • `finding-overload-provenance` — GONE, not fixed: the gate itself was retired at `4cb360a59` ("Retire
+//     legacy Finding overload gate"), so the row promised blindness for a policy the corpus no longer loads.
+//   • `no-legacy-react-api` ["bracket","namespace"] → ["namespace"] — closed at `474bd2b75`, BEFORE this
+//     lane: `reactMemberCandidate` stopped asking `node.getText().includes("cloneElement")` and now asks
+//     `referenceNamesExport` with an explicit `ElementAccessExpression` arm for the `Children` receiver.
+//     Measured on the unmodified tree at `868eec0c5` before any edit in this lane, so the shrink is that
+//     commit's, recorded here because it had not reached the ledger.
+//   • `no-use-context` ["namespace"] → GONE — `lib/react-origin.ts#reactExportVisitors` gained its THIRD
+//     door. A namespace import produces no `ImportSpecifier` and a bare `R.useContext` reference is no
+//     `CallExpression`, so the reference reached no visitor at all; the member door subscribes
+//     `MEMBER_ACCESS_KINDS` and is narrowed to reads naming the export. Pinned by that policy's own new
+//     namespace `mustFlag` row, and the same door is what closed `no-manual-memo`.
+//   • `query-freshness-coverage` ["bracket"] → GONE — `lib/query-freshness-fact.ts` reads every hop of the
+//     `trpc.<router>.<proc>.<terminal>` chain through `readMemberAccess` on BOTH sides (the consumed read
+//     and the seam's coverage filter), and `query-freshness-coverage`'s anchor stopped assuming the authored
+//     text contains the dotted key. Pinned by that policy's new bracket `mustFlag` row AND by its new
+//     bracket-seam `mustPass` row, which is the acquitting half.
 // Both gates keep their BRACKET arm: the chain readers (`chainCalls`, `isDrizzleWriteStatement`) are still
 // property-access-keyed, which is committed, measured blindness rather than growth.
 //

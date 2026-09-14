@@ -15,12 +15,21 @@
 // walked THROUGH, which is what makes the call-returning `each` / `for` / `runIf` / `skipIf` factories and
 // Vitest's table form ``test.each`a | b`(name, fn)`` visible at all.
 //
-// DECLARED LIMITS, each a run row in `tests/tooling/verify/lib/test-call-shape.test.ts`: the root is a NAME, so
-// a chain rooted in anything but a bare identifier is not a shape — an element access (`fixtures['test']`), a
-// parenthesized callee (`(test.only)(…)`) or a namespace/qualified root (`vitest.test(…)`) — and an aliased
-// import (`import { test as t }`) is unjudged, while a same-named local `test` is read as one.
+// SPELLING-INDEPENDENT IN THE MEMBER POSITION (#2353): the chain walks members through
+// `lib/symbol-reference.ts#readMemberAccess`, so `test["each"]`, `it?.["skipIf"]` and `test[MODIFIER]` with a
+// same-file `const MODIFIER = "only"` are the SAME shape as their dotted twins. Keying the walk on
+// `PropertyAccessExpression` alone made both consumers blind to every bracket-spelled modifier — six of this
+// module's own `mustFlag` fixtures stopped being flagged under the bracket respelling.
+//
+// DECLARED LIMITS, each a run row in `tests/tooling/verify/lib/test-call-shape.test.ts`: the ROOT is a NAME,
+// so a chain rooted in anything but a bare identifier is not a shape — a receiver-keyed element access
+// (`fixtures['test']`, whose root reads as `fixtures`), a parenthesized callee (`(test.only)(…)`) or a
+// namespace/qualified root (`vitest.test(…)`) — and an aliased import (`import { test as t }`) is unjudged,
+// while a same-named local `test` is read as one. The root limit is UNCHANGED by the member widening: only
+// the MEMBER position gained spellings, and a computed key that names no one member still reads as no shape.
 import type { CallExpression, Identifier, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
+import { readMemberAccess } from "./symbol-reference.ts";
 
 /** The member names that keep a `test`/`it` chain a test declaration. `extend` is deliberately absent: it
  *  defines a fixture, so a local `it` (the async-iterator idiom) or a fixture builder is never mistaken for
@@ -38,8 +47,9 @@ function walkChain(expression: MorphNode, member: string | undefined): ChainShap
   if (Node.isIdentifier(expression)) {
     return { root: expression, member };
   }
-  if (Node.isPropertyAccessExpression(expression)) {
-    return walkChain(expression.getExpression(), expression.getName());
+  const read = readMemberAccess(expression);
+  if (read !== undefined) {
+    return walkChain(read.receiver, read.name);
   }
   if (Node.isTaggedTemplateExpression(expression)) {
     return walkChain(expression.getTag(), member);
@@ -51,8 +61,11 @@ function chainOf(call: CallExpression): ChainShape | undefined {
   return walkChain(call.getExpression(), undefined);
 }
 
-/** The identifier a call's callee chain bottoms out in (`test` for `test.concurrent.each(t)(…)`), or
- *  undefined when the chain roots in anything else (an element access, a parenthesized expression). */
+/** The identifier a call's callee chain bottoms out in (`test` for `test.concurrent.each(t)(…)`, and
+ *  equally for `test["concurrent"]["each"](t)(…)`), or undefined when the chain bottoms out in something
+ *  that is not a name at all (a parenthesized expression, a call's return value, a computed member key).
+ *  A member-position element access is walked THROUGH to its receiver, so `fixtures['test'](…)` roots in
+ *  `fixtures` — which is what keeps the by-NAME root limit refusing it. */
 export function callChainRoot(call: CallExpression): Identifier | undefined {
   return chainOf(call)?.root;
 }
