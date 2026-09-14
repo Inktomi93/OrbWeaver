@@ -97,12 +97,23 @@ describe("debt walk — row extraction", () => {
   });
 
   test("the LISTING separates burnable debt from ruled-permanent rows, and never prints a ratified row as backlog", async ({ runCli }) => {
-    const result = await runCli("verify", ["debt", "--gate", "duplicate-action-doors"]);
+    // RETARGETED 2026-09-13 (#1584) from `duplicate-action-doors`, whose ledger was deleted with its
+    // authority migration: its six RATIFIED door pairs are exact reviewed grants now, so `--gate
+    // duplicate-action-doors` is MISUSE rather than an empty listing (the arm below proves that door).
+    // `density-tier` is the remaining fully-ratified ledger and carries the same shape this row is about.
+    const result = await runCli("verify", ["debt", "--gate", "density-tier"]);
     expect(result.code).toBe(EXIT.clean);
-    // The six door pairs are ratified (#568), so the burnable list is EMPTY and the ruled list carries them.
     expect(result.stdout).toContain("BURNABLE DEBT — 0 row(s)");
-    expect(result.stdout).toContain("RATIFIED — 6 row(s)");
-    expect(result.stdout).toContain("(0 debt · 12 ratified)");
+    expect(result.stdout).toContain("RATIFIED — 22 row(s)");
+    expect(result.stdout).toContain("(0 debt · 58 ratified)");
+  });
+
+  test("the RETIRED doors ledger is gone from the walk — a `--gate` filter naming it is MISUSE, not an empty listing", async ({ runCli }) => {
+    // The two-sided half of the retirement: `reconcileLedgers` already reds a ledger ON DISK the table does
+    // not declare, and this is the other direction — the declaration is gone, so the filter finds nothing and
+    // says so instead of printing a clean, empty, reassuring section.
+    const result = await runCli("verify", ["debt", "--gate", "duplicate-action-doors"]);
+    expect(result.code).toBe(EXIT.misuse);
   });
 
   test("a MALFORMED ledger throws — an unparseable debt file must never report zero rows", async ({ plantedTree }) => {

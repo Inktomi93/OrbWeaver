@@ -51,7 +51,6 @@ import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { LiveAdmission } from "../contract/debt.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
 import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
-import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
 import { BASELINE_REL as CT_UNFED_BASELINE_REL } from "./ct-unfed-ratchet.ts";
 import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts";
 
@@ -75,12 +74,10 @@ export const LEDGERS: readonly Ledger[] = [
     unit: "density finding(s)",
     why: "per-file density findings admitted at landing. Ends per file when the surface is re-tiered and the row is regenerated to a shrink.",
   },
-  {
-    owner: "duplicate-action-doors",
-    rel: DOORS_BASELINE_REL,
-    unit: "door(s) on the plane",
-    why: "one tRPC mutation reachable from N components inside ONE rail section (the §13 more-than-one-home IA class). Ends per pair when the section gets ONE component that owns the verb.",
-  },
+  // `duplicate-action-doors` HAD a row here and no longer has a ledger: its six RATIFIED door pairs became
+  // exact reviewed grants in `lib/reviewed-grants.ts` with the 2026-09-13 authority migration (#1584), and
+  // its count ratchet was deleted with them. Door debt is no longer a BUDGET this walk can total — an
+  // ungranted duplicate pair is a blocking finding, never a row in a burn-down queue.
   // `suppressions` HAD a row here and no longer has a ledger: its per-file count ratchet was deleted with
   // the 2026-09-12 authority migration (#2063), which moved every ruled rule class to an exact reviewed
   // grant in `lib/reviewed-grants.ts`. Suppression debt is no longer a BUDGET this walk can total — an
