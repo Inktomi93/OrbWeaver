@@ -1072,6 +1072,7 @@ async function shapeNextTurn(
   const { chatId, inputs, assembleContext, assembled } = args;
   // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
   // (client-display parity), exactly as the engine builds it for a real turn.
+  // @orb-waive chat-viewer-plane-canon-reads(loadCanonHistory): the fit preview returns NUMBERS + one boundary id, never canon bytes: the canon is token-counted and discarded. The fit budget is deliberately room-wide (one shared window), and the boundary id is the ratified id plane.
   const canon = await loadCanonHistory(ctx.db, chatId);
   const historyMacroNames: HistoryMacroNames = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: canon }));
   const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
