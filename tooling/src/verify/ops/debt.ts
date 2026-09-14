@@ -50,7 +50,6 @@ import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { LiveAdmission } from "../contract/debt.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
-import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
 import { BASELINE_REL as CT_UNFED_BASELINE_REL } from "./ct-unfed-ratchet.ts";
 import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts";
@@ -69,12 +68,11 @@ export interface Ledger {
 }
 
 export const LEDGERS: readonly Ledger[] = [
-  {
-    owner: "density-tier",
-    rel: DENSITY_BASELINE_REL,
-    unit: "density finding(s)",
-    why: "per-file density findings admitted at landing. Ends per file when the surface is re-tiered and the row is regenerated to a shrink.",
-  },
+  // `density-tier` HAD a row here and no longer has a ledger: its per-file count ratchet was deleted with
+  // the 2026-09-13 authority migration (#1939), which moved all 22 ratified rows to 44 exact reviewed
+  // grants in `lib/reviewed-grants.ts` (57 `density-tier` rows in all, the other 13 being the two retired
+  // gate-local path tables). Density debt is no longer a BUDGET this walk can total — an
+  // ungranted `(file, act)` pair is a blocking finding with no door, so it shows up as a violation.
   {
     owner: "duplicate-action-doors",
     rel: DOORS_BASELINE_REL,
