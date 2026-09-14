@@ -704,6 +704,24 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
       "Stryker's sandbox directory changes or mutation execution is retired — the ignore moves or leaves the config and this row is consumed zero times.",
   },
   {
+    id: "firehose-import-allowlist:automation-watcher",
+    policyId: "firehose-import-allowlist",
+    subject: "packages/server/src/entry/compose/automation-watcher.ts",
+    operation: "all-chat-firehose-reference",
+    why: "The server composition root is the sole HOST-authority consumer of the unclamped all-chat stream; it injects the bounded automation operation instead of exposing the stream to a user surface.",
+    endsWhen:
+      "the watcher stops naming the firehose, moves, or the stream gains a caller-bound per-member clamp; central zero-use reconciliation then stales this exact row.",
+  },
+  {
+    id: "firehose-import-allowlist:transport-barrel",
+    policyId: "firehose-import-allowlist",
+    subject: "packages/server/src/transport/trpc/index.ts",
+    operation: "all-chat-firehose-reference",
+    why: "The transport barrel republishes the canonical firehose only so the composition root can wire the HOST-authority consumer; no user-facing module receives the stream.",
+    endsWhen:
+      "the composition root imports the definition directly, the barrel moves, or the re-export disappears; central zero-use reconciliation then stales this exact row.",
+  },
+  {
     id: "json-column-write-parity:automation-rules-actions",
     policyId: "json-column-write-parity",
     subject: "automationRules.actions",
@@ -782,6 +800,42 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     operation: "json-column-straddle",
     why: "the whole-blob user write and reset door coexist with the cross-user json_set theme heal; the residual is the separately ruled race, not a client-image straddle.",
     endsWhen: "the migration/heal is retired, the writer provenance changes, or all writers adopt one write shape.",
+  },
+  {
+    id: "macro-resolution-home:ghost-message-row",
+    policyId: "macro-resolution-home",
+    subject: "packages/client/src/features/chat/components/ghost-message-row.tsx",
+    operation: "macro-resolution",
+    why: "The streaming ghost renders read-only in-flight content and reasoning through the same display pipeline used after commit.",
+    endsWhen:
+      "This exact home stops importing or calling a macro resolver, moves, or begins feeding a writable field; remove or re-review the grant and preserve token-roundtrip coverage.",
+  },
+  {
+    id: "macro-resolution-home:message-content",
+    policyId: "macro-resolution-home",
+    subject: "packages/client/src/features/chat/components/message-content.tsx",
+    operation: "macro-resolution",
+    why: "The transcript renders read-only Markdown; its edit path swaps to the raw-text textarea before resolution.",
+    endsWhen:
+      "This exact home stops importing or calling a macro resolver, moves, or begins feeding a writable field; remove or re-review the grant and preserve token-roundtrip coverage.",
+  },
+  {
+    id: "macro-resolution-home:message-render",
+    policyId: "macro-resolution-home",
+    subject: "packages/client/src/lib/message-render.ts",
+    operation: "macro-resolution",
+    why: "The canonical client display pipeline resolves the kit row atom into Markdown output, never a writable field.",
+    endsWhen:
+      "This exact home stops importing or calling a macro resolver, moves, or begins feeding a writable field; remove or re-review the grant and preserve token-roundtrip coverage.",
+  },
+  {
+    id: "macro-resolution-home:message-row-parts",
+    policyId: "macro-resolution-home",
+    subject: "packages/client/src/features/chat/components/message-row-parts.tsx",
+    operation: "macro-resolution",
+    why: "The transcript row resolves settled reasoning and content; its editing branch returns MessageEditTextarea with the raw MessageView first.",
+    endsWhen:
+      "This exact home stops importing or calling a macro resolver, moves, or begins feeding a writable field; remove or re-review the grant and preserve token-roundtrip coverage.",
   },
   {
     id: "no-direct-useform:contexts",

@@ -262,6 +262,29 @@ function moduleOriginFromDoor(
   return resolved(originFromTarget(moduleSpecifier, exportedName, terminal.value), target, terminal.value.declaration);
 }
 
+function moduleOriginFromExportDoor(declaration: ExportSpecifier, target: ModuleState): ReferenceFact<ModuleMemberOrigin> {
+  const exportDeclaration = declaration.getFirstAncestorByKind(SyntaxKind.ExportDeclaration);
+  if (exportDeclaration === undefined) {
+    return unresolved("missing", declaration, target, `export ${declaration.getName()} has no export declaration`);
+  }
+  const moduleSpecifier = exportDeclaration.getModuleSpecifierValue();
+  if (moduleSpecifier === undefined) {
+    return unresolved("unsupported", declaration, target, `local export ${declaration.getName()} has no module door`);
+  }
+  const sourceFile = exportDeclaration.getModuleSpecifierSourceFile();
+  if (sourceFile === undefined) {
+    if (requiresResolvedSource(moduleSpecifier)) {
+      return unresolved("missing", declaration, target, `re-export door ${moduleSpecifier} has no resolvable source file`);
+    }
+    const canonical = externalTarget(declaration, moduleSpecifier, declaration.getName());
+    return resolved(originFromTarget(moduleSpecifier, declaration.getName(), canonical), target, declaration);
+  }
+  const terminal = resolveExportedDeclaration(sourceFile, declaration.getName(), target);
+  return terminal.kind === "unresolved"
+    ? terminal
+    : resolved(originFromTarget(moduleSpecifier, declaration.getName(), terminal.value), target, terminal.value.declaration);
+}
+
 function namespaceImportBinding(declaration: import("ts-morph").NamespaceImport, target: ModuleState): ReferenceFact<NamespaceBinding> {
   const refusal = inspectStableBinding(declaration, target);
   if (refusal !== undefined) {
@@ -424,6 +447,9 @@ function resolveInternal(node: MorphNode, target: ModuleState, services: Referen
   if (Node.isImportSpecifier(current)) {
     const refusal = inspectStableBinding(current, target);
     return refusal ?? moduleOriginFromDoor(current, current.getName(), target);
+  }
+  if (Node.isExportSpecifier(current)) {
+    return moduleOriginFromExportDoor(current, target);
   }
   if (Node.isBindingElement(current)) {
     return moduleOriginFromBinding(current, target, services);
