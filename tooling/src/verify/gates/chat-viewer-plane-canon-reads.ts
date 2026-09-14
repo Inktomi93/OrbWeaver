@@ -1,637 +1,91 @@
-// Gate: chat-viewer-plane-canon-reads (D16 read-visibility — the two-plane model) — a VIEWER-PLANE chat
-// verb may not reach the ROOM-PLANE (floorless) canon readers.
+// Policy: chat-viewer-plane-canon-reads (ledger D79, chat read-visibility: two planes, one verdict) — a
+// VIEWER-PLANE chat verb may not reach a ROOM-PLANE floorless canon reader. THE OCCURRENCE ARM; the three
+// fail-loud blindness arms are the `-health` sibling, because they are unsuppressible and this door is not.
 //
-// THE MODEL. The unit of read visibility is the canon row (`messages.seq`). Two planes:
-//  • ROOM plane — turn assembly, the engine, compaction, quiet extraction, arbitration, the firehose. Reads
-//    FULL canon under the host's authority. Unclamped BY TYPE.
-//  • VIEWER plane — any bytes leaving the server toward a specific human. Clamped by that human's own join
-//    floor (`substrate/auth/clamp.ts::resolveHistoryFloorSeq`, stamped once at `guard.ts::requireParticipant`).
-// `persistence/queries.ts` holds BOTH families side by side: the three floor-REQUIRED reads
-// (`loadMessagesPage`/`loadStreamReplay`/`loadMessageSlots` — a caller cannot forget the floor, it's a
-// required param) and the floorless room-plane readers. Nothing separated them but convention, and the
-// convention has already failed once OUTSIDE this domain (automation's `canInstallerSeeFact` re-derived chat
-// visibility as membership-only). This gate makes the separation structural INSIDE the domain.
+// RULE AND ARMS. Keyed off the LIVE authority matrix (`substrate/auth/matrix.ts::CHAT_VERB_AUTHORITY`),
+// never a path list: a verb whose matrix authority is anything other than `host`/`non-chat-scoped` is
+// viewer plane, and a bulk canon reader reached from its factory — directly or through a module-local
+// helper — is a finding on the reader CALL, unless that reader's own result is filtered through a
+// directly-negated `isBelowHistoryFloor` bound to the filtered element and the viewer's resolved floor.
+// The complete model, the banned-set rationale and the resolver law are in `lib/chat-plane-read.ts`.
+// DECLARED LIMIT, carried from the legacy module and still true: reach is module-local (a helper in the
+// same file), not cross-module.
 //
-// THE RULE. Keyed off the LIVE authority matrix (`substrate/auth/matrix.ts::CHAT_VERB_AUTHORITY`), never a
-// hardcoded path list: a verb whose matrix authority is anything OTHER than `host`/`non-chat-scoped` is
-// viewer-plane, and its factory may not call a BULK canon reader.
+// FAMILY `chat-viewer-plane`, reader `lib/chat-plane-read.ts` — `chatPlaneVisitors`/`resolveChatMatrix`/
+// `judgeChatPlane` here, `resolveChatMatrix`/`rottedReaders`/`judgeChatPlane` in the health sibling, both
+// reached from `create`. The canonical subject declarations `BULK_CANON_READERS` and
+// `ROOM_PLANE_AUTHORITIES` are the vocabulary both arms judge against.
 //
-// WHY THE BANNED SET IS THE *BULK* READERS. A reader that returns MANY canon rows' CONTENT for a chatId with
-// no floor param is the leak class: it needs no prior knowledge, so "forgot the floor" hands over the whole
-// pre-join transcript. Single-row-by-id readers (`loadMessageView`, `loadSlotTarget`, `loadContinueSnapshot`)
-// are NOT banned: they require the caller to already NAME the row, and per the ratified id-plane principle a
-// clamped member can only learn a row id through an equally-clamped read. Id/seq-only readers
-// (`loadMessageSeqs`) and the activity plane (`loadVariableDeltas`) carry no transcript bytes.
+// POPULATION PORT (legacy `1994ec3d0`, `scanRoot: (p) => /(?:^|\/)packages\/server\/src\/domain\/chat\//`):
+// `legacy − final` = the whole-project matrix sweep. The legacy module found `CHAT_VERB_AUTHORITY` by NAME
+// through `ctx.project.getSourceFiles()`, outside its own scanRoot; the final contract forbids that, so the
+// matrix must live in the declared population. On today's tree it does (`substrate/auth/matrix.ts`), so
+// the effective difference is zero — and a matrix moved OUT of domain/chat now reports blindness through
+// the health sibling instead of resolving invisibly from outside the fence. `final − legacy` = none: the
+// `under` glob admits exactly the `.ts`/`.tsx` the scanRoot regex did. Measured receipts are in
+// `tests/tooling/verify/gates/chat-viewer-plane-family.test.ts`.
 //
-// TWO DISCHARGES, in this order:
-//  1. STRUCTURAL — the reader's own result is filtered through `isBelowHistoryFloor` (the ONE per-event
-//     verdict). A verb that reads room-plane canon and visibly clamps those rows before egress is correct
-//     (`replayChatEvents` is exactly this shape). Preferred: it survives renames and needs no bookkeeping.
-//  2. ALLOWLIST — a `verb:reader` pair whose product provably leaves the viewer plane (numbers, not bytes) or
-//     is room-plane machinery a member merely TRIGGERS (a turn is one shared utterance; the prompt is the
-//     room's, the transcript is the reader's). Every entry carries its reason. The list is RATCHETED: an
-//     entry whose call site is gone is RED, so it can't rot into a standing exemption.
-//
-// THREE FAIL-LOUD ARMS, because a structural gate's real failure mode is going silently GREEN:
-//  • matrix missing / unreadable      → RED (the key vanished; the gate is blind)
-//  • a banned reader name not declared anywhere in the project → RED (the reader was renamed past the gate)
-//  • a viewer-plane verb with no discoverable `ChatService["<verb>"]`-annotated factory → RED (the verb moved
-//    out of scanRoot, or lost the annotation this gate resolves implementations through)
-//
-// THE MATRIX IS RESOLVED, NOT READ FLAT (#947): its object literal is read through the local resolver below,
-// which follows object SPREADS of local/imported sibling matrices. `{...BASE_AUTHORITY, listMessages:"member"}`
-// used to yield ONE verb while staying non-empty — so the blindness arm was satisfied, the gate reported a
-// live matrix, and every spread-in viewer-plane verb was simply not judged. Composition shapes the matrix's
-// own law does not sanction (a spread of a call, an unresolvable binding, a cycle) refuse loudly instead.
-//
-// AND EVERY MEMBER KIND IS ANSWERED, NONE IS SKIPPED (#1091, the #1035 rule carried here). `foldMatrix` read
-// exactly one shape — a `PropertyAssignment` whose value unwraps to a StringLiteral — and let every other
-// member kind fall out of the loop with no throw and no count. Measured: `getChat: MEMBER_AUTHORITY_PROBE`
-// beside `const MEMBER_AUTHORITY_PROBE = "member" as const` took the live census 93 -> 92 with the gate
-// still ✓. A verb missing from the matrix is a verb this gate never classifies, so its factory is judged for
-// nothing — the D16 leak class going invisible in the one direction that is silent. The fold is now TOTAL:
-// every member either writes a row or THROWS. A value resolves through `as const`/`satisfies`/parens and
-// through an identifier's binding (local const or named import); a SHORTHAND resolves through the same hop;
-// a COMPUTED key resolves when its expression is a string literal. Everything else — a non-literal value
-// that binds to nothing, a value-binding cycle, a non-literal computed key, a method, an accessor — refuses.
-import type { Node, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { readStringValue } from "../lib/ast-read.ts";
-
-const MATRIX_CONST = "CHAT_VERB_AUTHORITY";
-const SERVICE_TYPE = "ChatService";
-const CLAMP_FN = "isBelowHistoryFloor";
-const FLOOR_BINDING_RE = /^(?:floor|floorSeq|historyFloorSeq)$/u;
-const MEMBERSHIP_BINDING_RE = /(?:^|\.)membership$/u;
-const CHAT_DOMAIN_RE = /(?:^|\/)packages\/server\/src\/domain\/chat\//u;
-
-/** Matrix authorities that are ROOM plane (host-gated machinery) or gated elsewhere entirely. Everything
- *  else — including any authority added later — is viewer plane, so a NEW authority is checked by default. */
-const ROOM_PLANE_AUTHORITIES: ReadonlySet<string> = new Set(["host", "non-chat-scoped"]);
-
-/** The floorless BULK canon readers: many rows of canon CONTENT for a chatId, no floor parameter. */
-const BULK_CANON_READERS: ReadonlySet<string> = new Set([
-  "loadCanonHistory", // every committed row's MessageView (content included), whole chat
-  "loadCanonHistoryAfter", // the same, from a seq — an `afterSeq` is a cursor, NOT a visibility floor
-  "loadChatEventReplay", // the durable bus log: MessageView payloads + raw `delta` transcript text
-]);
-
-/** Sanctioned `verb:reader` pairs — genuine ROOM-plane reads reached from a viewer-plane entry point. */
-const ALLOWLIST: ReadonlyMap<string, string> = new Map([
-  [
-    "previewContextFit:loadCanonHistory",
-    "the fit preview returns NUMBERS + one boundary id, never canon bytes: the canon is token-counted and " +
-      "discarded. The fit budget is deliberately room-wide (one shared window), and the boundary id is the " +
-      "ratified id plane.",
-  ],
-  [
-    "send:loadCanonHistory",
-    "turn assembly + the first-user-turn greeting-freeze probe — the prompt is the ROOM's. A turn is one " +
-      "shared utterance broadcast to every member, so per-reader assembly is incoherent; the reply's BYTES " +
-      "reach each member through the clamped bus/read paths.",
-  ],
-  [
-    "commitMessage:loadCanonHistory",
-    "the D56 post-without-generate verb shares `send`'s COMMIT half (`commitUserTurn`), so it reaches the " +
-      "SAME first-user-turn greeting-freeze probe. Its product is a BOOLEAN (`isFirstUserTurn`) + a server-side " +
-      "greeting-volatile freeze — NO canon bytes flow to the caller (it returns only the just-committed user " +
-      "row, §3.6-projected). Byte-identical room-plane use to `send:loadCanonHistory` above.",
-  ],
-]);
+// RETIRED PRIVATE-MARKER CENSUS. The legacy `@orb-gate-ignore chat-viewer-plane-canon-reads(<verb>:<reader>)`
+// door had ZERO live occurrences repo-wide at conversion (the single match was this module's own MESSAGE
+// prose), and its position was an ALLOWLIST-key DISCRIMINATOR, not an authored slice — so it could not port
+// by spelling (standing law §2.1). It is recorded as a dead door, not relocated. The legacy gate-local
+// `ALLOWLIST` (3 `verb:reader` rows) and its stale-ratchet arm did not survive conversion either (§5/§8);
+// each row's reason is now the `reason` of a central `@orb-waive` at its own call site, and central
+// reconciliation owns the stale judgment.
+import { defineGate } from "../contract/policy.ts";
+import { CHAT_DOMAIN_UNDER, chatPlaneVisitors, createChatPlaneIndex, judgeChatPlane, MATRIX_CONST, resolveChatMatrix } from "../lib/chat-plane-read.ts";
 
 const MESSAGE =
   "a VIEWER-PLANE chat verb (matrix authority other than host/non-chat-scoped) reaches a ROOM-PLANE floorless " +
   "canon reader. Those readers return canon CONTENT with no history floor, so the caller silently hands a " +
-  "`from-join` member the pre-join transcript every other read path withholds (D16 — substrate/auth/clamp.ts). " +
-  "The finding's token is the `<verb>:<reader>` pair — the same key ALLOWLIST is written in, and the position " +
-  "an `@orb-gate-ignore chat-viewer-plane-canon-reads(<verb>:<reader>): <reason>` names (§4.3a: one body can " +
-  "reach two banned readers). Prefer the typed ALLOWLIST row: it carries its reason AND is ratcheted.";
+  "`from-join` member the pre-join transcript every other read path withholds (D79 — substrate/auth/clamp.ts). " +
+  "The finding is anchored on the reader CALL, so two banned reads in one body are two independently " +
+  "waivable findings.";
 const FIX =
   "use a floor-taking read (`loadMessagesPage`/`loadStreamReplay`/`loadMessageSlots` with the " +
   "`historyFloorSeq` the guard already stamped on the membership), or clamp the result in the same body via " +
   "`isBelowHistoryFloor`. If the read is genuinely ROOM-plane (its product leaves no canon bytes toward the " +
-  "caller), add a `verb:reader` entry with its reason to ALLOWLIST in tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts.";
+  "caller), license it at the call site with " +
+  "`// @orb-waive chat-viewer-plane-canon-reads(<the reader name at the reported column>): <why no canon bytes reach the caller>`.";
 
-interface VerbImpl {
-  readonly verb: string;
-  readonly node: Node;
-  readonly file: SourceFile;
-}
+const BLIND = `${MATRIX_CONST} could not be read in the chat domain — this policy keys every verdict off it, so a clean result would be blindness rather than safety. Refusing the run; the health sibling reports the missing matrix.`;
 
-// ── AST helpers ────────────────────────────────────────────────────────────────────────────────────────
-
-/** Peel `as const` / `satisfies X` / parens off an initializer. AST readers that skip this go silently
- *  GREEN on the very shape the repo writes its single-source maps in. */
-function unwrap(node: Node | undefined): Node | undefined {
-  let cur = node;
-  while (
-    cur !== undefined &&
-    (cur.isKind(SyntaxKind.AsExpression) || cur.isKind(SyntaxKind.SatisfiesExpression) || cur.isKind(SyntaxKind.ParenthesizedExpression))
-  ) {
-    cur = cur.getExpression();
-  }
-  return cur;
-}
-
-/** How many characters of an unsupported matrix expression a refusal quotes. */
-const DIAGNOSTIC_PREVIEW_CHARS = 120;
-
-/** A source-manifest key: `<repo-relative file>#<CONST>`, so the scan line reads the same as every other
- *  gate's rather than leaking an absolute worktree path. */
-function sourceKey(node: Node, name: string): string {
-  const path = node.getSourceFile().getFilePath();
-  const idx = path.indexOf("/packages/");
-  return `${idx === -1 ? path : path.slice(idx + 1)}#${name}`;
-}
-
-/** The declaration an identifier names — the same file's own const, or the one a named import points at.
- *  Undefined when nothing in reach binds it, which the caller turns into a loud refusal. */
-function matrixBinding(owner: SourceFile, localName: string): VariableDeclaration | undefined {
-  const local = owner.getVariableDeclaration(localName);
-  if (local !== undefined) {
-    return local;
-  }
-  const imported = owner
-    .getImportDeclarations()
-    .flatMap((declaration) => declaration.getNamedImports().map((specifier) => ({ declaration, specifier })))
-    .find(({ specifier }) => (specifier.getAliasNode()?.getText() ?? specifier.getName()) === localName);
-  return imported === undefined ? undefined : imported.declaration.getModuleSpecifierSourceFile()?.getVariableDeclaration(imported.specifier.getName());
-}
-
-/** The object literal an expression denotes, following identifier/alias hops into local and imported
- *  declarations. THE NARROW MATRIX RESOLVER (#947) — object semantics, deliberately not shared with the
- *  tuple resolver: it throws on any other shape, on an unresolvable binding, and on a cycle, because a
- *  matrix this reader cannot establish must never read as a SMALLER matrix. */
-function matrixObject(expression: Node, seen: ReadonlySet<string>): ObjectLiteralExpression {
-  const node = unwrap(expression);
-  if (node?.isKind(SyntaxKind.ObjectLiteralExpression) === true) {
-    return node;
-  }
-  if (node?.isKind(SyntaxKind.Identifier) !== true) {
-    throw new Error(
-      `chat-viewer-plane-canon-reads: unsupported ${MATRIX_CONST} expression in ${expression.getSourceFile().getFilePath()}: ${expression.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
-    );
-  }
-  const declaration = matrixBinding(node.getSourceFile(), node.getText());
-  if (declaration === undefined) {
-    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} binding "${node.getText()}" resolves to no local declaration or named import`);
-  }
-  const key = sourceKey(declaration, declaration.getName());
-  if (seen.has(key)) {
-    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} composition cycle at ${key}`);
-  }
-  const initializer = declaration.getInitializer();
-  if (initializer === undefined) {
-    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} source ${key} has no initializer`);
-  }
-  return matrixObject(initializer, new Set([...seen, key]));
-}
-
-/** The fold's accumulator: the resolved verb→authority map and the SOURCE manifest behind it. */
-interface MatrixFold {
-  readonly verbs: Map<string, string>;
-  readonly sources: string[];
-}
-
-/** A member's KEY: an identifier / numeric / quoted name read as written, or a COMPUTED key whose
- *  expression is a string literal. A computed key this reader cannot NAME must not enter the map: before
- *  #1091 it entered as the bracket text (`["listMessages"]`), which matches no factory — so the gate
- *  reported an UNCHECKED verb that does not exist while the real one went unjudged. */
-function memberKey(name: Node): string {
-  if (name.isKind(SyntaxKind.ComputedPropertyName)) {
-    const computed = readStringValue(name.getExpression());
-    if (computed === undefined) {
-      throw new Error(
-        `chat-viewer-plane-canon-reads: computed ${MATRIX_CONST} key in ${name.getSourceFile().getFilePath()} is not a string literal: ${name.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
-      );
-    }
-    return computed;
-  }
-  return readStringValue(name) ?? name.getText();
-}
-
-/** The authority STRING a member's value denotes — through `as const`/`satisfies`/parens (`readStringValue`,
- *  the house reader) and through an identifier's BINDING, the same local-or-named-import hop the matrix
- *  object itself takes. Every other shape THROWS: an authority this reader cannot establish would drop its
- *  verb out of the classified set entirely, and `isViewerPlane` never sees the verb it was supposed to
- *  protect. `seen` is the value chain's OWN cycle domain (`const A = B; const B = A;`). */
-function authorityValue(expression: Node, seen: ReadonlySet<string>): string {
-  const literal = readStringValue(expression);
-  if (literal !== undefined) {
-    return literal;
-  }
-  const node = unwrap(expression);
-  if (node?.isKind(SyntaxKind.Identifier) !== true) {
-    throw new Error(
-      `chat-viewer-plane-canon-reads: unsupported ${MATRIX_CONST} value in ${expression.getSourceFile().getFilePath()}: ${expression.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
-    );
-  }
-  const declaration = matrixBinding(node.getSourceFile(), node.getText());
-  if (declaration === undefined) {
-    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} value binding "${node.getText()}" resolves to no local declaration or named import`);
-  }
-  const key = sourceKey(declaration, declaration.getName());
-  if (seen.has(key)) {
-    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} value binding cycle at ${key}`);
-  }
-  const initializer = declaration.getInitializer();
-  if (initializer === undefined) {
-    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} value binding ${key} has no initializer`);
-  }
-  return authorityValue(initializer, new Set([...seen, key]));
-}
-
-/** Fold one matrix object's rows into the accumulator, resolving object spreads first so a locally-written
- *  row always WINS over the base it overrides (the live `{...BASE, listMessages:"member"}` precedence).
- *
- *  `seen` is threaded ACROSS the fold/resolve boundary, not re-seeded per spread: a cycle runs
- *  fold → resolve → fold, so a per-call seed detects nothing and the recursion blows the stack instead of
- *  refusing (caught by this gate's own committed pin before it could ever ship). */
-function foldMatrix(obj: ObjectLiteralExpression, out: MatrixFold, seen: ReadonlySet<string>): void {
-  const key = sourceKey(obj, obj.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() ?? MATRIX_CONST);
-  if (seen.has(key)) {
-    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} composition cycle at ${key}`);
-  }
-  out.sources.push(key);
-  const nested: ReadonlySet<string> = new Set([...seen, key]);
-  for (const prop of obj.getProperties()) {
-    const spread = prop.asKind(SyntaxKind.SpreadAssignment);
-    if (spread !== undefined) {
-      const before = out.verbs.size;
-      foldMatrix(matrixObject(spread.getExpression(), nested), out, nested);
-      if (out.verbs.size === before) {
-        throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} at ${key} spreads "${spread.getExpression().getText()}", which resolved to zero verbs`);
-      }
-      continue;
-    }
-    const assign = prop.asKind(SyntaxKind.PropertyAssignment);
-    if (assign !== undefined) {
-      const initializer = assign.getInitializer();
-      if (initializer === undefined) {
-        throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} row "${assign.getName()}" at ${key} has no value`);
-      }
-      out.verbs.set(memberKey(assign.getNameNode()), authorityValue(initializer, new Set()));
-      continue;
-    }
-    // A SHORTHAND row (`{ previewAssembly, listMessages }`) is the same row one hop away: its NAME is both
-    // the verb and the value expression, so the binding hop answers it.
-    const shorthand = prop.asKind(SyntaxKind.ShorthandPropertyAssignment);
-    if (shorthand !== undefined) {
-      out.verbs.set(shorthand.getName(), authorityValue(shorthand.getNameNode(), new Set()));
-      continue;
-    }
-    throw new Error(
-      `chat-viewer-plane-canon-reads: unsupported ${MATRIX_CONST} member kind ${prop.getKindName()} at ${key}: ${prop.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
-    );
-  }
-}
-
-/** `CHAT_VERB_AUTHORITY` as verb → authority, found by NAME anywhere in the project (not by path, so the
- *  matrix can move), RESOLVED through object spreads of local/imported sibling matrices (#947);
- *  `undefined` when no readable declaration exists. */
-function matrixFromFile(sf: SourceFile): { readonly verbs: ReadonlyMap<string, string>; readonly sources: readonly string[] } | undefined {
-  const decl = sf.getVariableDeclaration(MATRIX_CONST);
-  const obj = unwrap(decl?.getInitializer())?.asKind(SyntaxKind.ObjectLiteralExpression);
-  if (obj === undefined) {
-    return;
-  }
-  const fold: MatrixFold = { verbs: new Map<string, string>(), sources: [] };
-  foldMatrix(obj, fold, new Set());
-  return fold.verbs.size > 0 ? { verbs: fold.verbs, sources: fold.sources } : undefined;
-}
-
-function readMatrix(ctx: GateRunCtx): { readonly verbs: ReadonlyMap<string, string>; readonly sources: readonly string[] } | undefined {
-  let found: { readonly verbs: ReadonlyMap<string, string>; readonly sources: readonly string[] } | undefined;
-  for (const sf of ctx.project.getSourceFiles()) {
-    found = matrixFromFile(sf);
-    if (found !== undefined) {
-      break;
-    }
-  }
-  return found;
-}
-
-/** The verb names a return-type annotation claims: `ChatService["send"]`, `Pick<ChatService, "a" | "b">`.
- *  Shape-tolerant on purpose — it collects the string-literal types under any node mentioning ChatService. */
-function verbsFromReturnType(fn: Node): string[] {
-  const typeNode = fn.asKind(SyntaxKind.FunctionDeclaration)?.getReturnTypeNode() ?? fn.asKind(SyntaxKind.ArrowFunction)?.getReturnTypeNode();
-  if (typeNode === undefined || !typeNode.getText().includes(SERVICE_TYPE)) {
-    return [];
-  }
-  return typeNode.getDescendantsOfKind(SyntaxKind.StringLiteral).map((l) => l.getLiteralText());
-}
-
-/** Every module-local function in a file, by name — the one-hop-and-deeper resolution target, so extracting
- *  a banned read into a file-local helper does not launder it past this gate. */
-function localFunctions(sf: SourceFile): ReadonlyMap<string, Node> {
-  const out = new Map<string, Node>();
-  for (const fn of sf.getFunctions()) {
-    const name = fn.getName();
-    if (name !== undefined) {
-      out.set(name, fn);
-    }
-  }
-  for (const v of sf.getVariableDeclarations()) {
-    const init = unwrap(v.getInitializer());
-    if (init?.isKind(SyntaxKind.ArrowFunction) === true || init?.isKind(SyntaxKind.FunctionExpression) === true) {
-      out.set(v.getName(), init);
-    }
-  }
-  return out;
-}
-
-/** The identifier a CallExpression calls (`f(…)`), ignoring member calls (`x.f(…)` is never one of ours —
- *  the readers are module-scope imports). */
-function calleeName(call: Node): string | undefined {
-  return call.asKind(SyntaxKind.CallExpression)?.getExpression().asKind(SyntaxKind.Identifier)?.getText();
-}
-
-interface Reach {
-  readerCalls: Node[];
-  readonly seen: Set<Node>;
-  readonly queue: Node[];
-}
-
-/** One function body's contribution to the reachability walk: banned-reader hits, the clamp discharge, and
- *  the module-local callees to descend into. */
-function scanBody(fn: Node, locals: ReadonlyMap<string, Node>, acc: Reach): void {
-  for (const call of fn.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const name = calleeName(call) ?? "";
-    if (BULK_CANON_READERS.has(name)) {
-      acc.readerCalls.push(call);
-    }
-    const local = locals.get(name);
-    if (local !== undefined && !acc.seen.has(local)) {
-      acc.seen.add(local);
-      acc.queue.push(local);
-    }
-  }
-}
-
-/** Every banned-reader call reachable from `root` through module-local helper calls, plus whether the same
- *  reachable body applies the clamp. Cycle-guarded by the visited-function set. */
-function reachFrom(root: Node, locals: ReadonlyMap<string, Node>): Reach {
-  const acc: Reach = { readerCalls: [], seen: new Set<Node>([root]), queue: [root] };
-  for (let fn = acc.queue.pop(); fn !== undefined; fn = acc.queue.pop()) {
-    scanBody(fn, locals, acc);
-  }
-  return acc;
-}
-
-function identifierComesFromParameter(id: Node, parameter: Node): boolean {
-  if (!id.isKind(SyntaxKind.Identifier)) {
-    return false;
-  }
-  return id
-    .getDefinitionNodes()
-    .some(
-      (definition) =>
-        definition === parameter || (definition.isKind(SyntaxKind.BindingElement) && definition.getFirstAncestorByKind(SyntaxKind.Parameter) === parameter),
-    );
-}
-
-/** The verdict's event argument must be the filtered element (or a property/destructured field of it), not
- *  another event that happens to be in scope. */
-function comesFromFilterElement(expression: Node, parameter: Node): boolean {
-  const value = unwrap(expression);
-  if (value === undefined) {
-    return false;
-  }
-  if (value.isKind(SyntaxKind.Identifier)) {
-    return identifierComesFromParameter(value, parameter);
-  }
-  if (value.isKind(SyntaxKind.PropertyAccessExpression) || value.isKind(SyntaxKind.ElementAccessExpression)) {
-    return comesFromFilterElement(value.getExpression(), parameter);
-  }
-  return false;
-}
-
-/** The second verdict argument must be an explicit history-floor binding. A literal or unrelated number
- *  cannot prove that this viewer's resolved floor protects the egress. */
-function isHistoryFloorBinding(expression: Node): boolean {
-  const value = unwrap(expression);
-  if (value === undefined) {
-    return false;
-  }
-  if (value.isKind(SyntaxKind.Identifier)) {
-    return FLOOR_BINDING_RE.test(value.getText()) && value.getDefinitionNodes().length > 0;
-  }
-  if (!value.isKind(SyntaxKind.PropertyAccessExpression)) {
-    return false;
-  }
-  const receiver = value.getExpression();
-  const receiverIds = receiver.isKind(SyntaxKind.Identifier) ? [receiver] : receiver.getDescendantsOfKind(SyntaxKind.Identifier);
-  return (
-    value.getName() === "historyFloorSeq" && MEMBERSHIP_BINDING_RE.test(receiver.getText()) && receiverIds.some((id) => id.getDefinitionNodes().length > 0)
-  );
-}
-
-/** A canonical filter retains an event only when the ONE floor verdict is false. The predicate must be the
- *  direct callback result; merely mentioning a negated verdict in a larger expression is not a proof. */
-function callbackAppliesVisibleVerdict(callback: Node): boolean {
-  if (!(callback.isKind(SyntaxKind.ArrowFunction) || callback.isKind(SyntaxKind.FunctionExpression))) {
-    return false;
-  }
-  const parameter = callback.getParameters()[0];
-  if (parameter === undefined) {
-    return false;
-  }
-  const body = callback.getBody();
-  let returned: Node | undefined = body;
-  if (body.isKind(SyntaxKind.Block)) {
-    const statements = body.getStatements();
-    returned = statements.length === 1 ? statements[0]?.asKind(SyntaxKind.ReturnStatement)?.getExpression() : undefined;
-  }
-  const predicate = unwrap(returned);
-  if (!(predicate?.isKind(SyntaxKind.PrefixUnaryExpression) === true && predicate.getOperatorToken() === SyntaxKind.ExclamationToken)) {
-    return false;
-  }
-  const verdict = unwrap(predicate.getOperand());
-  if (verdict?.isKind(SyntaxKind.CallExpression) !== true) {
-    return false;
-  }
-  const [event, floor] = verdict.getArguments();
-  return (
-    calleeName(verdict) === CLAMP_FN && event !== undefined && floor !== undefined && comesFromFilterElement(event, parameter) && isHistoryFloorBinding(floor)
-  );
-}
-
-/** A floorless reader is discharged only when ITS result is the receiver of a `.filter(…)` whose callback
- *  rejects `isBelowHistoryFloor` for that filtered element and the viewer's resolved floor. A clamp over any
- *  other collection/argument, or one with inverted polarity, proves nothing about this read. The receiver may
- *  contain the call inline or reference the same local result binding. */
-function readerResultIsClamped(readerCall: Node): boolean {
-  const fn = readerCall.getFirstAncestor(
-    (ancestor) =>
-      ancestor.isKind(SyntaxKind.FunctionDeclaration) || ancestor.isKind(SyntaxKind.ArrowFunction) || ancestor.isKind(SyntaxKind.FunctionExpression),
-  );
-  if (fn === undefined) {
-    return false;
-  }
-  const resultDecl = readerCall.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
-  return fn.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
-    const callee = call.getExpression();
-    if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === "filter")) {
-      return false;
-    }
-    const receiver = callee.getExpression();
-    const inline = receiver === readerCall || receiver.getDescendants().includes(readerCall);
-    const bound =
-      resultDecl !== undefined &&
-      [receiver, ...receiver.getDescendantsOfKind(SyntaxKind.Identifier)].some(
-        (part) => part.isKind(SyntaxKind.Identifier) && part.getDefinitionNodes().includes(resultDecl),
-      );
-    const callback = unwrap(call.getArguments()[0]);
-    return (inline || bound) && callback !== undefined && callbackAppliesVisibleVerdict(callback);
-  });
-}
-
-// ── the pass ───────────────────────────────────────────────────────────────────────────────────────────
-
-/** THE SANCTIONED Finding overload (GATE-AUTHORING §1): all three FAIL-LOUD arms are genuinely file-level —
- *  a matrix that cannot be read, a reader name that exists nowhere, a verb with no discoverable factory.
- *  None has an offending NODE to anchor on or hang a marker off, and a blindness alarm must not be
- *  suppressible anyway. Anchored on the matrix file, which is the fact every one of them is about. */
-function fileLevel(ctx: GateRunCtx, message: string): void {
-  ctx.report({ file: "packages/server/src/domain/chat/substrate/auth/matrix.ts", line: 0, column: 0, message });
-}
-
-/** Every `ChatService["<verb>"]`-annotated implementation in the chat domain. */
-function discoverVerbImpls(files: readonly SourceFile[]): VerbImpl[] {
-  const out: VerbImpl[] = [];
-  for (const sf of files) {
-    for (const fn of [...sf.getFunctions(), ...sf.getDescendantsOfKind(SyntaxKind.ArrowFunction)]) {
-      for (const verb of verbsFromReturnType(fn)) {
-        out.push({ verb, node: fn, file: sf });
-      }
-    }
-  }
-  return out;
-}
-
-/** The SOURCE arm — NODE-anchored (GATE-AUTHORING §1) so `@orb-gate-ignore` works on it; until 2026-08-08
- *  this rode the explicit-`Finding` overload, which bypasses `hasGateIgnore`, so every marker was inert.
- *  The verb+authority prose folded into MESSAGE; the token is the `<verb>:<reader>` ALLOWLIST key. */
-function reportReaderCall(ctx: GateRunCtx, call: Node, at: { readonly verb: string; readonly reader: string }): void {
-  ctx.report(call, { token: `${at.verb}:${at.reader}`, offset: 0 });
-}
-
-/** The parameter is `string`, NOT `string | undefined`, and that is the enforcement (#1091): an
- *  unclassified verb used to arrive here as `undefined` and answer "not viewer plane" — the false-negative
- *  direction. Every caller must now decide what an unclassified verb means BEFORE asking. */
-function isViewerPlane(authority: string): boolean {
-  return !ROOM_PLANE_AUTHORITIES.has(authority);
-}
-
-/** Fail-loud arm: a banned reader that no longer exists means it was RENAMED past this gate. */
-function checkReaderRot(ctx: GateRunCtx, files: readonly SourceFile[]): void {
-  const declared = new Set(files.flatMap((sf) => sf.getFunctions().map((f) => f.getName() ?? "")));
-  for (const reader of BULK_CANON_READERS) {
-    if (!declared.has(reader)) {
-      fileLevel(
-        ctx,
-        `the room-plane reader "${reader}" is no longer declared in domain/chat — this gate's BULK_CANON_READERS list has rotted (a rename would leave the gate silently green). Update tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts.`,
-      );
-    }
-  }
-}
-
-/** Judge ONE viewer-plane verb implementation; returns the allowlist keys it consumed. */
-function checkImpl(ctx: GateRunCtx, impl: VerbImpl, locals: ReadonlyMap<string, Node>): readonly string[] {
-  const { readerCalls } = reachFrom(impl.node, locals);
-  const used: string[] = [];
-  for (const call of readerCalls) {
-    if (readerResultIsClamped(call)) {
-      continue;
-    }
-    const reader = calleeName(call) ?? "";
-    const key = `${impl.verb}:${reader}`;
-    if (ALLOWLIST.has(key)) {
-      used.push(key);
-    } else {
-      reportReaderCall(ctx, call, { verb: impl.verb, reader });
-    }
-  }
-  return used;
-}
-
-/** Fail-loud arm: a viewer-plane verb this gate cannot resolve is a verb it is not checking. */
-function checkCoverage(ctx: GateRunCtx, matrix: ReadonlyMap<string, string>, covered: ReadonlySet<string>): void {
-  for (const [verb, authority] of matrix) {
-    if (isViewerPlane(authority) && !covered.has(verb)) {
-      fileLevel(
-        ctx,
-        `viewer-plane verb "${verb}" (authority "${authority}") has no discoverable \`${SERVICE_TYPE}["${verb}"]\`-annotated factory under domain/chat — this gate resolves implementations through that annotation, so the verb is UNCHECKED. Annotate its factory's return type (the house convention) or widen the gate.`,
-      );
-    }
-  }
-}
-
-/** Ratchet arm: a sanctioned pair whose call site is gone must be deleted, not left standing. Judged only
- *  for verbs actually discovered in this run, so a scoped/synthetic fileset cannot false-flag. */
-function checkStaleAllowlist(ctx: GateRunCtx, covered: ReadonlySet<string>, used: ReadonlySet<string>): void {
-  for (const key of ALLOWLIST.keys()) {
-    const verb = key.slice(0, key.indexOf(":"));
-    if (covered.has(verb) && !used.has(key)) {
-      fileLevel(
-        ctx,
-        `stale ALLOWLIST entry "${key}" — that verb no longer reaches that reader. Delete the entry (tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts); a standing exemption for a call site that moved is how the next real one hides.`,
-      );
-    }
-  }
-}
-
-export const gate: GateDescriptor = {
-  name: "chat-viewer-plane-canon-reads",
-  docRow: "ledger D79 (chat read-visibility: two planes, one verdict)",
-  status: "active",
-  scopeSafety: "whole-project",
+export const gate = defineGate({
+  id: "chat-viewer-plane-canon-reads",
+  family: "chat-viewer-plane",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@server"], under: [CHAT_DOMAIN_UNDER] },
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
   message: MESSAGE,
   fix: FIX,
-  scanRoot: (p) => CHAT_DOMAIN_RE.test(`/${p}`),
-  run: (ctx) => {
-    const resolved = readMatrix(ctx);
-    ctx.scan({
-      unit: `authority matrix [${MATRIX_CONST}=${resolved?.verbs.size ?? 0} from ${resolved === undefined || resolved.sources.length === 0 ? "<none>" : resolved.sources.join("+")}]`,
-      candidates: resolved?.sources.length ?? 0,
-      scanned: resolved?.sources.length ?? 0,
-    });
-    const matrix = resolved?.verbs;
-    if (matrix === undefined) {
-      fileLevel(
-        ctx,
-        `${MATRIX_CONST} could not be read — this gate keys every verdict off it, so it is now blind. Restore the matrix (or fix its shape) before shipping.`,
-      );
-      return;
-    }
-    const files = ctx.project.getSourceFiles().filter((sf) => CHAT_DOMAIN_RE.test(sf.getFilePath()));
-    checkReaderRot(ctx, files);
-
-    const localsByFile = new Map<SourceFile, ReadonlyMap<string, Node>>();
-    const covered = new Set<string>();
-    const usedAllowlist = new Set<string>();
-    for (const impl of discoverVerbImpls(files)) {
-      const authority = matrix.get(impl.verb);
-      if (authority === undefined || !isViewerPlane(authority)) {
-        continue;
-      }
-      covered.add(impl.verb);
-      const locals = localsByFile.get(impl.file) ?? localFunctions(impl.file);
-      localsByFile.set(impl.file, locals);
-      for (const key of checkImpl(ctx, impl, locals)) {
-        usedAllowlist.add(key);
-      }
-    }
-
-    checkCoverage(ctx, matrix, covered);
-    checkStaleAllowlist(ctx, covered, usedAllowlist);
+  create: (ctx) => {
+    const index = createChatPlaneIndex();
+    return {
+      visitors: chatPlaneVisitors(index),
+      evaluate: (): void => {
+        ctx.receipt({ kind: "population", source: "chat-plane-source-files", members: ctx.files.length });
+        const matrix = resolveChatMatrix(index);
+        if (matrix === undefined) {
+          throw new Error(`chat-viewer-plane-canon-reads: ${BLIND}`);
+        }
+        for (const violation of judgeChatPlane(index, matrix).violations) {
+          const plural = violation.verbs.length === 1 ? "" : "s";
+          const named = violation.verbs.map((verb) => `\`${verb}\``).join(", ");
+          ctx.report.node(violation.call, { message: `${MESSAGE} Reached from viewer-plane verb${plural} ${named}; reader \`${violation.reader}\`.` });
+        }
+      },
+    };
   },
   mustFlag: [
     {
       // THE #947 SPLIT: `{...BASE_AUTHORITY, listMessages: "member"}` — the viewer-plane verb under test
       // reaches the matrix only through the imported spread. Unresolved, the matrix held ONE verb, stayed
       // non-empty (so the blindness arm was satisfied) and `replayChatEvents` was simply never judged.
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/base-matrix.ts": 'export const BASE_AUTHORITY = { replayChatEvents: "member" } as const;\n',
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
@@ -641,10 +95,11 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/verbs/read.ts":
           'import { loadChatEventReplay } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async () => await loadChatEventReplay();\n}\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => [];\n}\nexport const x = [createReplayChatEvents, createListMessages];\n',
       },
-      expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
-      why: "THE #947 SPLIT RED: a spread-in viewer-plane verb reads a bulk canon reader with no floor clamp and no allowlist row — the exact leak class, invisible while the matrix was read flat",
+      expect: { count: 1, token: "loadChatEventReplay" },
+      why: "THE #947 SPLIT RED: a spread-in viewer-plane verb reads a bulk canon reader with no floor clamp — the exact leak class, invisible while the matrix was read flat",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
@@ -653,46 +108,50 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/verbs/read.ts":
           'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async () => (await loadChatEventReplay()).filter((event) => isBelowHistoryFloor(event, 1));\n}\nexport const x = createReplayChatEvents;\n',
       },
-      expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
+      expect: { count: 1, token: "loadChatEventReplay" },
       why: "the positive floor verdict retains exactly the pre-join events it must withhold — presence of the clamp call is not enough without the rejecting polarity",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(unrelated, floor));\n}\nexport const x = createReplayChatEvents;\n',
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\ndeclare const unrelated: number;\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params: never, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(unrelated, floor));\n}\nexport const x = createReplayChatEvents;\n',
       },
-      expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
+      expect: { count: 1, token: "loadChatEventReplay" },
       why: "a correctly negated verdict over an unrelated event does not clamp the filtered canon row",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(event, unrelatedFloor));\n}\nexport const x = createReplayChatEvents;\n',
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\ndeclare const unrelatedFloor: number;\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params: never, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(event, unrelatedFloor) && floor > 0);\n}\nexport const x = createReplayChatEvents;\n',
       },
-      expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
+      expect: { count: 1, token: "loadChatEventReplay" },
       why: "a clamp fed an unrelated number is not bound to the viewer's resolved history floor",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async () => {\n    const rows = await loadChatEventReplay();\n    const unrelated = otherRows.filter((e) => !isBelowHistoryFloor(e, 1));\n    return rows.concat(unrelated);\n  };\n}\nexport const x = createReplayChatEvents;\n',
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\ndeclare const otherRows: number[];\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async () => {\n    const rows = await loadChatEventReplay();\n    const unrelated = otherRows.filter((e) => !isBelowHistoryFloor(e, 1));\n    return rows.concat(unrelated);\n  };\n}\nexport const x = createReplayChatEvents;\n',
       },
-      expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
+      expect: { count: 1, token: "loadChatEventReplay" },
       why: "a clamp over unrelated rows reachable from the same verb cannot discharge the floorless canon read",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { listMessages: "member" } as const satisfies Record<string, string>;\n',
@@ -701,10 +160,11 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/verbs/read.ts":
           'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
       },
-      expect: { count: 1, token: "listMessages:loadCanonHistory" },
-      why: "a `member`-classified verb calling the floorless loadCanonHistory — the exact shape D16 says must be RED",
+      expect: { count: 1, token: "loadCanonHistory" },
+      why: "a `member`-classified verb calling the floorless loadCanonHistory — the exact shape D79 says must be RED",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { editMessage: "author-or-host" } as const satisfies Record<string, string>;\n',
@@ -713,46 +173,29 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/verbs/edit.ts":
           'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nasync function gather(): Promise<number[]> {\n  return await loadCanonHistory();\n}\nfunction createEditMessage(): ChatService["editMessage"] {\n  return async () => await gather();\n}\nexport const x = createEditMessage;\n',
       },
-      expect: { count: 1, token: "editMessage:loadCanonHistory" },
-      why: "the read hidden behind a module-local helper — laundering it through one hop must not launder it past the gate",
-    },
-    {
-      files: {
-        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
-          'export const CHAT_VERB_AUTHORITY = { listMessages: "member" } as const satisfies Record<string, string>;\n',
-        "packages/server/src/domain/chat/persistence/queries.ts":
-          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
-      },
-      expect: { messageIncludes: "UNCHECKED" },
-      why: "a viewer-plane verb with NO discoverable annotated factory — the silent-green case (verb moved / annotation dropped) must be RED, not ignored",
-    },
-    {
-      files: {
-        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
-          'export const CHAT_VERB_AUTHORITY = { listMessages: "host" } as const satisfies Record<string, string>;\n',
-        "packages/server/src/domain/chat/persistence/queries.ts": "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\n",
-      },
-      expect: { messageIncludes: "has rotted" },
-      why: "two banned readers absent from the tree — the rename-past-the-gate blindness must be RED, never silently green",
+      expect: { count: 1, token: "loadCanonHistory" },
+      why: "the read hidden behind a module-local helper — laundering it through one hop must not launder it past the policy",
     },
     {
       // #1091 MEMBER KIND — a row whose VALUE is a local const. On the real tree `getChat: MEMBER_AUTHORITY_PROBE`
       // took the census 93 -> 92 with the gate still green: the verb stopped being judged, silently. The `host`
       // row keeps the matrix non-empty, so the blindness arm cannot stand in for this red.
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'const MEMBER_AUTHORITY = "member" as const;\nexport const CHAT_VERB_AUTHORITY = { previewAssembly: "host", listMessages: MEMBER_AUTHORITY } as const satisfies Record<string, string>;\n',
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
+          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nfunction createPreviewAssembly(): ChatService["previewAssembly"] {\n  return async () => [];\n}\nexport const x = [createListMessages, createPreviewAssembly];\n',
       },
-      expect: { count: 1, token: "listMessages:loadCanonHistory" },
+      expect: { count: 1, token: "loadCanonHistory" },
       why: "a viewer-plane row written as a LOCAL CONST is still a viewer-plane row — resolving the value is what keeps the verb judged",
     },
     {
       // The same value one module away: an IMPORTED authority const, the shape a shared vocabulary file makes
-      // natural. Resolved through the same local-or-named-import binding hop the matrix object itself takes.
+      // natural. Resolved through the same shared stable-binding hop the matrix object itself takes.
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/authorities.ts": 'export const MEMBER = "member" as const;\n',
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
@@ -760,43 +203,62 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
+          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nfunction createPreviewAssembly(): ChatService["previewAssembly"] {\n  return async () => [];\n}\nexport const x = [createListMessages, createPreviewAssembly];\n',
       },
-      expect: { count: 1, token: "listMessages:loadCanonHistory" },
+      expect: { count: 1, token: "loadCanonHistory" },
       why: "an IMPORTED authority const must not launder a verb out of the judged set",
     },
     {
       // A SHORTHAND member (`{ previewAssembly, listMessages }`) — one editor refactor away from the inline row,
       // and the exact shape #1035 caught dropping a drizzle column with its whole FK obligation.
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'const listMessages = "member" as const;\nexport const CHAT_VERB_AUTHORITY = { previewAssembly: "host", listMessages } as const;\n',
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
+          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nfunction createPreviewAssembly(): ChatService["previewAssembly"] {\n  return async () => [];\n}\nexport const x = [createListMessages, createPreviewAssembly];\n',
       },
-      expect: { count: 1, token: "listMessages:loadCanonHistory" },
+      expect: { count: 1, token: "loadCanonHistory" },
       why: "a shorthand row resolves through its binding — before #1091 it fell out of the fold with no throw and no count",
     },
     {
       // A COMPUTED key whose expression is a string literal. Before #1091 this read as the literal key text
       // `["listMessages"]`, which matches no factory — so it produced an UNCHECKED coverage finding instead of
       // judging the verb: loud, but about the wrong thing, and the real read went unjudged.
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { previewAssembly: "host", ["listMessages"]: "member" } as const;\n',
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
+          'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nfunction createPreviewAssembly(): ChatService["previewAssembly"] {\n  return async () => [];\n}\nexport const x = [createListMessages, createPreviewAssembly];\n',
       },
-      expect: { count: 1, token: "listMessages:loadCanonHistory" },
+      expect: { count: 1, token: "loadCanonHistory" },
       why: "a computed STRING-LITERAL key names its verb — the resolved key must be the verb, not the bracket text",
+    },
+    {
+      // THE §4.3a SHAPE THE LEGACY DISCRIMINATOR EXISTED FOR, now proved by COORDINATES: one body reaching TWO
+      // banned readers is TWO findings at two authored positions, so each is independently waivable. The legacy
+      // `<verb>:<reader>` token could express this only as a label; the final position does it by construction.
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { listMessages: "member" } as const satisfies Record<string, string>;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadCanonHistory, loadChatEventReplay } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => [...(await loadCanonHistory()), ...(await loadChatEventReplay())];\n}\nexport const x = createListMessages;\n',
+      },
+      expect: { count: 2 },
+      why: "TWO banned readers in ONE body are TWO findings at two distinct authored positions — the independent-waivability property §4.3a names, held by the coordinate rather than by a discriminator label",
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/base-matrix.ts": 'export const BASE_AUTHORITY = { replayChatEvents: "member" } as const;\n',
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
@@ -804,11 +266,12 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(event, floor));\n}\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => [];\n}\nexport const x = [createReplayChatEvents, createListMessages];\n',
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params: never, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(event, floor));\n}\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => [];\n}\nexport const x = [createReplayChatEvents, createListMessages];\n',
       },
       why: "the SPLIT's green half: the spread-in verb DISCHARGES structurally (its rows are filtered through the one floor verdict) — resolving the spread widens the judged set without widening the accusation",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { previewAssembly: "host" } as const satisfies Record<string, string>;\n',
@@ -820,28 +283,31 @@ export const gate: GateDescriptor = {
       why: "a `host`-classified verb reading full canon is the ROOM plane doing its job — untouched",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(event, floor));\n}\nexport const x = createReplayChatEvents;\n',
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params: never, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(event, floor));\n}\nexport const x = createReplayChatEvents;\n',
       },
       why: "the STRUCTURAL discharge: a viewer-plane verb retains only filtered canon elements whose canonical floor verdict is false",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { replayChatEvents: "member" } as const satisfies Record<string, string>;\n',
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<Array<{ payload: number }>> {\n  return [];\n}\n",
         "packages/server/src/domain/chat/verbs/read.ts":
-          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params, membership: { historyFloorSeq: number }) => (await loadChatEventReplay()).filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq));\n}\nexport const x = createReplayChatEvents;\n',
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params: never, membership: { historyFloorSeq: number }) => (await loadChatEventReplay()).filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq));\n}\nexport const x = createReplayChatEvents;\n',
       },
       why: "the production replay shape: a destructured payload is the filtered row's canon event and membership.historyFloorSeq is the viewer's resolved floor",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'export const CHAT_VERB_AUTHORITY = { listMessages: "member" } as const satisfies Record<string, string>;\n',
@@ -850,12 +316,13 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/verbs/read.ts":
           'import { loadMessagesPage } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadMessagesPage(0);\n}\nexport const x = createListMessages;\n',
       },
-      why: "the correct shape: a viewer-plane verb using the floor-TAKING read — the gate must not fire on the good path",
+      why: "the correct shape: a viewer-plane verb using the floor-TAKING read — the policy must not fire on the good path",
     },
     {
       // VALUE FIDELITY, not merely key presence: the resolved authority must be the STRING the const holds. A
       // reader that resolved the key but handed back the identifier text would classify this room-plane verb as
       // viewer-plane (every unknown authority is viewer-plane by design) and accuse the ROOM plane of its job.
+      mode: "types",
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'const HOST_AUTHORITY = "host" as const;\nexport const CHAT_VERB_AUTHORITY = { previewAssembly: HOST_AUTHORITY } as const;\n',
@@ -867,4 +334,26 @@ export const gate: GateDescriptor = {
       why: "a `host` authority written as a const is still `host` — resolving the member must widen the judged set without widening the accusation",
     },
   ],
-};
+  mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+      },
+      expect: { messageIncludes: "keys every verdict off it, so a clean result would be blindness rather than safety" },
+      why: "NO MATRIX, NO VERDICT: with the matrix absent from the declared population this arm must WITHHOLD rather than report a clean chat domain — the legacy module returned after one file-level finding, which on the ordinary arm would have been a silent green",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { ...baseAuthority(), listMessages: "member" } as const;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+      },
+      expect: { messageIncludes: "unsupported CHAT_VERB_AUTHORITY expression" },
+      why: "a matrix this reader cannot establish must never read as a SMALLER matrix on the occurrence arm either — the reach verdict withholds with the health sibling rather than judging a partial matrix",
+    },
+  ],
+});

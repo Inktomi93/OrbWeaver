@@ -427,13 +427,11 @@ function writeFixtures(): void {
     "packages/client/src/state/__g_zustand.ts",
     "declare const useGStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useGStore((s) => ({ a: s.a, b: s.b }));\n",
   );
-  // chat-viewer-plane-canon-reads: a VIEWER-plane verb (matrix `listMessages: "member"`) reaching the
-  // floorless bulk canon reader — the D79 leak shape. The gate resolves the verb through the
-  // `ChatService["<verb>"]` return annotation and keys the verdict off the LIVE authority matrix.
-  fx(
-    `${D}/chat/verbs/__g_vpcr.ts`,
-    'import type { ChatService } from "../contract/service";\nimport { loadCanonHistory } from "../persistence/queries";\n\nexport function createGVpcr(): ChatService["listMessages"] {\n  return (async (a: never) => await loadCanonHistory(a, a)) as never;\n}\n',
-  );
+  // `chat-viewer-plane-canon-reads`'s `__g_vpcr` plant was removed 2026-09-13 with that gate's conversion
+  // into the final `chat-viewer-plane` family (occurrence + `-health` siblings). A final policy does not
+  // join the `writeFixtures()`/`UNFIXTURABLE_GATES` ritual (GATE-AUTHORING §2); its catch is proved by
+  // declared rows and `tests/tooling/verify/gates/chat-viewer-plane-family.test.ts`. The fixture had one
+  // incidental second reader — `no-loose-id-cast.ts`'s paren-anchor row — which carries those bytes inline.
   // firehose-import-allowlist: the unclamped all-chats firehose imported outside entry/compose (D79).
   fx("packages/server/src/transport/trpc/__g_firehose.ts", 'import { subscribeAllChatEvents } from "./index";\nexport const f = subscribeAllChatEvents;\n');
   // assets-single-writer arm 1: storeBlob imported outside domain/assets (the CAS write chokepoint).
