@@ -14,7 +14,9 @@ const MESSAGE =
 const FIX =
   "seed an `openedFrom` snapshot beside the draft and commit through `resolveCommit(session, live)` " +
   "(packages/client/src/lib/edit-session.ts) — it separates 'nothing typed', 'an ordinary commit', and 'two " +
-  "writers, surfaced' instead of collapsing them into one comparison.";
+  "writers, surfaced' instead of collapsing them into one comparison. A deliberate exception is waived with " +
+  "`// @orb-waive stale-draft-commit(<position>): <reason>` above the comparison, where <position> is the " +
+  "reported draft-state variable name, e.g. `draft`.";
 
 export const gate = defineGate({
   id: "stale-draft-commit",

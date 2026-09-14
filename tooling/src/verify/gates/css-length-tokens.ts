@@ -18,7 +18,13 @@ export const gate = defineGate({
   facts: [staticClassFact],
   resources: [{ kind: "product-css" }],
   message: MESSAGE,
-  fix: "use an existing token, add a portable DTCG token, or move an inherently structural mechanic through the exact css-length-tokens-grants review door",
+  fix:
+    "use an existing token, add a portable DTCG token, or move an inherently structural mechanic through the " +
+    "exact css-length-tokens-grants review door; a deliberate ordinary exception is waived with " +
+    "`// @orb-waive css-length-tokens(<position>): <reason>` at the exact reported position — the CSS " +
+    "property name for a stylesheet occurrence (e.g. `gap`, `line-height`) or the exact arbitrary length " +
+    "token for a source-discovered class (e.g. `137px`); a CSS-file marker is a `/* … */` comment on the " +
+    "line above the declaration, a source marker is a `//` comment above the class string.",
   create: (ctx) => ({
     evaluate: () => {
       const css = readyResourceValue(ctx.resources.cssInventory("product"));
@@ -65,6 +71,18 @@ export const gate = defineGate({
       mode: "resource",
       files: { ...CLEAN_PRODUCT_CSS, [SOURCE_ANCHOR]: 'export const probe = <div className="w-(--dimension-rail) gap-row" />;\n' },
       why: "token-backed class carriers contain no raw length",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CLEAN_PRODUCT_CSS,
+        [SOURCE_ANCHOR]:
+          "// @orb-waive css-length-tokens(137px): reviewed pending migration, tracked in #0000.\n" +
+          'export const probe = <div className="hover:w-[137px]" />;\n',
+      },
+      why:
+        "the §6.2 positive identity arm: the correct marker at the exact reported source token `137px` suppresses " +
+        "the twin of mustFlag[2] — one finding, one waived, zero effective findings, zero authority alarms",
     },
   ],
   mustRefuse: [

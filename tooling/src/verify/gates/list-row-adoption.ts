@@ -140,7 +140,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "root the row in @orb/ui ListRow or LibraryRow; RowActionsMenu composes its actions.",
+  fix:
+    "root the row in @orb/ui ListRow or LibraryRow; RowActionsMenu composes its actions. A deliberate " +
+    "exception is waived with `// @orb-waive list-row-adoption(<tag>): <reason>` immediately above the " +
+    "`.map()`/renderItem/renderRow callback, where <tag> is the reported root JSX element name, e.g. `div`.",
   create: (ctx) => {
     const surfaces = new Set<SourceFile>();
     const callbacks: Node[] = [];

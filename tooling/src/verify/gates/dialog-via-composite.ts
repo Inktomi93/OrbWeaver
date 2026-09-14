@@ -78,5 +78,15 @@ export const gate = defineGate({
       },
       why: "legacy mustPass[2] is classified into the warning-debt sibling rather than this error owner",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/demo/components/waived-dialog.tsx":
+          '// @orb-waive dialog-via-composite(Dialog): a permanent non-form species, tracked in #0000.\nimport { Dialog, DialogPopup } from "@orb/ui/dialog";\nexport const X = () => <Dialog><DialogPopup /></Dialog>;\n',
+      },
+      why:
+        "the §6.2 positive identity arm: the correct marker at the exact reported named-import token `Dialog` " +
+        "suppresses the twin of mustFlag[0] — one finding, one waived, zero effective findings, zero authority alarms",
+    },
   ],
 });

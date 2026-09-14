@@ -18,7 +18,10 @@ const MESSAGE =
 const FIX =
   'vertical pitch: `rows="control"` on the Stack (one token — floors every direct row, layout/variants.ts) ' +
   "or a per-row `min-h-touch-target`/`pointer-coarse:min-h-*`; a wrapping run: a control size (`sm`/`icon` " +
-  "— the box IS the target). `inline`/`glyph-*` stay correct for a lone datum/glyph riding inside a row.";
+  "— the box IS the target). `inline`/`glyph-*` stay correct for a lone datum/glyph riding inside a row. " +
+  "A deliberate exception is waived with `// @orb-waive no-floorless-control-in-wrap(<position>): <reason>` " +
+  "at the exact reported position — the bare (unquoted) size value, e.g. `inline` or `glyph-lg`, for the " +
+  "flex-wrap arm, or `Stack` for the vertical-pitch arm.";
 
 export const gate = defineGate({
   id: "no-floorless-control-in-wrap",

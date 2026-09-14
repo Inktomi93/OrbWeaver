@@ -78,8 +78,18 @@ test("all seven frozen draft rows preserve exact findings and observed source po
     }
   }
   expect(ordinary.message).toBe(legacy.message);
-  expect(ordinary.fix).toBe(legacy.fix);
+  assertFixIsLegacyPrefixPlusWaiverSpelling(ordinary.fix, legacy.fix);
 });
+
+// §7 item 3 (policy-waiver-spelling) added the exact `@orb-waive stale-draft-commit(<position>): <reason>`
+// spelling onto the legacy remediation prose — a strengthening, not a predicate change, so the legacy text
+// remains a PREFIX rather than the whole string. Split out so the frozen-rows test's own complexity stays
+// within budget.
+function assertFixIsLegacyPrefixPlusWaiverSpelling(ordinaryFix: string | undefined, legacyFix: string | undefined): void {
+  const fix = ordinaryFix ?? "";
+  expect(fix.startsWith(legacyFix ?? "")).toBe(true);
+  expect(fix).toContain("@orb-waive stale-draft-commit(<position>): <reason>");
+}
 
 test("health retains the frozen missing-home arm with an admitted anchor and no waiver door", async ({ scratch }) => {
   const legacy = await frozenLegacyGate(scratch, "01f364760", "tooling/src/verify/gates/stale-draft-commit.ts");

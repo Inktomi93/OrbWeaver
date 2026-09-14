@@ -35,7 +35,11 @@ export const gate = defineGate({
   facts: [cssVariableSourceFact, staticClassFact],
   resources: [{ kind: "product-css" }, { kind: "vendor-css-surface" }],
   message: MESSAGE,
-  fix: "define the property in product CSS, add an explicit var() fallback, or use a runtime property licensed by css-var-defined-grants",
+  fix:
+    "define the property in product CSS, add an explicit var() fallback, use a runtime property licensed by " +
+    "css-var-defined-grants, or waive a deliberate unresolved reference with " +
+    "`// @orb-waive css-var-defined(<position>): <reason>` at the exact reported custom-property name, " +
+    "including its leading `--`, e.g. `--missing`.",
   create: (ctx) => ({
     evaluate: () => {
       const css = readyResourceValue(ctx.resources.cssInventory("product"));
@@ -118,6 +122,20 @@ export const gate = defineGate({
         "packages/client/src/features/x.tsx": "export const note = 'z-(--prose-only)'; export const X = <div className=\"w-(--known)\" />;",
       },
       why: "fallbacks pass while CSS comments and inert source prose do not become references",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...VENDOR_FIXTURE,
+        ...CLEAN_PRODUCT_CSS,
+        "packages/ui/src/styles/theme.css": ":root { --known: 1px; }",
+        "packages/client/src/features/x.tsx":
+          '// @orb-waive css-var-defined(--missing): reviewed pending migration, tracked in #0000.\nexport const X = <div className="z-(--missing)" />;\n',
+      },
+      why:
+        "the §6.2 positive identity arm: the correct marker at the exact reported custom-property name " +
+        "`--missing` suppresses the twin of mustFlag[0] — one finding, one waived, zero effective findings, " +
+        "zero authority alarms",
     },
   ],
   mustRefuse: [
