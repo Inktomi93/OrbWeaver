@@ -407,12 +407,11 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_resttransform/components/__g_resttransform.tsx", 'export const G = <div className="scale-95" />;\n');
   // css-var-defined: an exact arbitrary-variable carrier names no generated, authored, or runtime property.
   fx("packages/client/src/features/__g_cssvar/components/__g_cssvar.tsx", 'export const G = <div className="z-(--definitely-undefined)" />;\n');
-  // density-tier: `rounded-card` outside the ELEVATED family, in a file with no baseline budget (A1). The
-  // fixture path is deliberately NOT in the committed density-tier.baseline.json, so its budget is 0.
-  fx(
-    "packages/client/src/features/__g_density/components/__g_density.tsx",
-    'export const G = <div className="rounded-card border border-border bg-card" />;\n',
-  );
+  // density-tier: NO fixture. It converted to two final policies on 2026-09-13 (#1939/#1584), so it is
+  // partitioned out of the legacy anti-drift arm below; the `__g_density` plant it owned SOLELY (one site on
+  // the whole tree, verified before removal) is deleted with it. Its bite is `structure:policy-conformance`
+  // running the declared rows of `density-tier` and `density-tier-slot-map` through `runPolicyPass`, plus
+  // `tests/tooling/verify/gates/density-tier-family.test.ts`.
   // motion-token-purity: a CSS file with a raw duration + easing in a transition declaration (off-token,
   // not in ALLOWLIST). The gate reads .css via fs.globSync (not ts-morph), so a __g_ CSS fixture in the
   // real src tree is picked up; the __g_ excludes on the OTHER consumers don't reach fs.globSync.
