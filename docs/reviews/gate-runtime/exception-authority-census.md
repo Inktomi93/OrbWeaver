@@ -117,7 +117,7 @@ These are recurring permissions and should become exact reviewed grants, with th
   - `injected-op-caller-param.ts:43` — 7 caller-free operations.
   - `integer-line-boxes.ts:38` — 1 exact CSS token occurrence.
   - `json-column-write-parity.ts:74,86` — 5 semantic column/guard permissions.
-  - `no-floorless-control-in-wrap.ts:70` — 2 permanent geometry rulings despite the misleading `JUDGMENT_DEFERRED` name.
+  - `no-floorless-control-in-wrap.ts:70` — 2 permanent geometry rulings despite the misleading former JUDGMENT_DEFERRED table name.
   - `no-manual-memo.ts:31` — 3 compiler/tooling rulings.
   - `no-untyped-soft-ref.ts:23` — 6 semantic soft-reference grants.
   - `own-tables-only.ts:140` — 1 exact foreign read.
