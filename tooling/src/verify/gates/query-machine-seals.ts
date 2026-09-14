@@ -1,150 +1,82 @@
-// Gate: query-machine-seals (client-architecture-lockdown.md §14/§16 G9) — `useMutation` rides
-// createEntityMutation and `useInfiniteQuery` rides createCollectionSurface; a raw import outside the data/
-// seals hand-rolls or skips the belt.
-//
-// TWO-SIDED (gate-hub #10): the `useInfiniteQuery` exemption is a SINGLE NAMED FILE — the sole paginated-
-// browse factory — so it is checked at the strong grain: RED when that file has left the project OR no
-// longer imports `useInfiniteQuery` (the factory moved and the exemption is now pointing at nothing, while
-// the real home goes unsealed). The `data/` dir exemption stays at the honest weak grain (the tier is the
-// seal home; zero raw mutations inside it is the healthy state, not a dead row) — a dir matching no file is
-// RED. `.test.tsx?` is SCOPE, not an exemption: nothing to ratchet. The arms self-guard on a REAL-TREE
-// ANCHOR (gate-hub #11): the data tier's public entry.
-import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+// Policy: query-machine-seals — raw TanStack mutation and infinite-query machines are named
+// architecture seams. Every admitted named import is an exact reviewed-grant candidate; the central
+// table, rather than path regexes or private comments, owns the production and CT homes.
+import { defineGate } from "../contract/policy.ts";
+import type { QueryMachineName } from "../lib/query-machine-fact.ts";
+import { QUERY_MACHINE_POPULATION, queryMachineFact } from "../lib/query-machine-fact.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 
-const EXEMPT_DATA = /\/packages\/client\/src\/data\//u;
-const EXEMPT_COLLECTION = /\/packages\/client\/src\/data\/create-collection-surface\.ts$/u;
-const EXEMPT_TEST = /\.test\.tsx?$/u;
+const operationFor = (name: QueryMachineName): string => `raw-${name}-import`;
+const MESSAGE =
+  "useMutation or useInfiniteQuery is imported directly from @tanstack/react-query. Every mutation rides " +
+  "createEntityMutation and createCollectionSurface is the sole paginated-browse factory; an additional raw " +
+  "machine hand-rolls or skips the data belt (client-architecture-lockdown.md §14/§16 G9).";
+const FIX = "use createEntityMutation or createCollectionSurface; permanent seam homes require one exact central reviewed grant for that hook and file.";
 
-const GATE_SELF = "tooling/src/verify/gates/query-machine-seals.ts";
-/** Real-tree anchor (gate-hub #11): the data tier's public entry. Deliberately not
- *  one of the seal files themselves — those are example subjects here. */
-const ANCHOR = "packages/client/src/data/index.ts";
-const COLLECTION_REL = "packages/client/src/data/create-collection-surface.ts";
-const INFINITE = "useInfiniteQuery";
-const STALE_COLLECTION_GONE = "stale EXEMPT_COLLECTION — the sole paginated-browse factory is no longer in the project (ratchet down): ";
-const STALE_COLLECTION_UNUSED =
-  "stale EXEMPT_COLLECTION — the named factory no longer imports `useInfiniteQuery`, so the exemption " +
-  "points at nothing while the file that DOES own the raw call goes unsealed (ratchet down): ";
-const STALE_DATA_DIR =
-  "stale EXEMPT_DATA — the pattern matches NO file in the project (ratchet down): the seal tier was renamed or deleted, so the row exempts nothing while reading as live law: ";
-
-export const gate: GateDescriptor = {
-  name: "query-machine-seals",
-  docRow: "client-architecture-lockdown.md §14/§16 G9",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message:
-    "useMutation or useInfiniteQuery imported from @tanstack/react-query outside data/ seals — every mutation rides createEntityMutation; createCollectionSurface is the sole paginated-browse factory. Raw calls hand-roll or skip the belt. See client-architecture-lockdown.md §14/§16 G9.",
-  fix: "use createEntityMutation or createCollectionSurface",
-  scanRoot: () => true,
-  kinds: [SyntaxKind.ImportDeclaration],
-  visit: (node, sf, ctx) => {
-    if (!Node.isImportDeclaration(node)) {
-      return;
-    }
-    const moduleSpecifier = node.getModuleSpecifierValue();
-    if (moduleSpecifier !== "@tanstack/react-query") {
-      return;
-    }
-
-    const namedImports = node.getImportClause()?.getNamedImports() || [];
-    const importNames = namedImports.map((i) => i.getName());
-    const p = `/${sf.getFilePath()}`;
-
-    if (importNames.includes("useMutation") && !(EXEMPT_DATA.test(p) || EXEMPT_TEST.test(p))) {
-      ctx.report(node, { token: "useMutation", offset: 0 });
-    }
-
-    if (importNames.includes("useInfiniteQuery") && !(EXEMPT_COLLECTION.test(p) || EXEMPT_TEST.test(p))) {
-      ctx.report(node, { token: INFINITE, offset: 0 });
-    }
-  },
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    const files = ctx.project.getSourceFiles();
-    if (!files.some((sf) => EXEMPT_DATA.test(`/${sf.getFilePath()}`))) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message: `${STALE_DATA_DIR}${EXEMPT_DATA.source} — the exemptions live in tooling/src/verify/gates/query-machine-seals.ts`,
-      });
-    }
-    const collection = ctx.project.getSourceFile(`${ctx.root}/${COLLECTION_REL}`);
-    if (collection === undefined) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message: `${STALE_COLLECTION_GONE}"${COLLECTION_REL}" — delete or re-point the row in tooling/src/verify/gates/query-machine-seals.ts`,
-      });
-      return;
-    }
-    const importsInfinite = collection
-      .getImportDeclarations()
-      .some((d) => d.getModuleSpecifierValue() === "@tanstack/react-query" && d.getNamedImports().some((n) => n.getName() === INFINITE));
-    if (!importsInfinite) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message: `${STALE_COLLECTION_UNUSED}"${COLLECTION_REL}" — re-point the row in tooling/src/verify/gates/query-machine-seals.ts`,
-      });
-    }
-  },
+export const gate = defineGate({
+  id: "query-machine-seals",
+  family: "query-machine-seals",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: QUERY_MACHINE_POPULATION,
+  analysis: "syntax",
+  execution: "entire-population",
+  facts: [queryMachineFact],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => ({
+    evaluate: () => {
+      const fact = ctx.fact(queryMachineFact);
+      ctx.receipt({ kind: "population", source: "query-machine-source-files", members: ctx.files.length });
+      reportReviewedGrantCandidates(
+        ctx.report,
+        fact.imports.flatMap(({ node, file, names }) =>
+          names.map((name) => ({ node, token: name, offset: node.getText().indexOf(name), subject: file, operation: operationFor(name) })),
+        ),
+        { message: MESSAGE, fix: FIX, unreadableMessage: MESSAGE },
+      );
+    },
+  }),
   mustFlag: [
     {
-      files: "import { useMutation } from '@tanstack/react-query';\n",
-      at: "packages/client/src/components/foo.tsx",
-      why: "useMutation outside data directory",
+      mode: "source",
+      grant: { subject: "packages/client/src/components/foo.tsx", operation: "raw-useMutation-import" },
+      files: { "packages/client/src/components/foo.tsx": "import { useMutation } from '@tanstack/react-query';\n" },
+      expect: { count: 1, token: "useMutation" },
+      why: "the founding raw mutation outside the data seam is an exact hook-and-file grant candidate",
     },
     {
-      files: "import { useInfiniteQuery } from '@tanstack/react-query';\n",
-      at: "packages/client/src/data/other.ts",
-      why: "useInfiniteQuery outside create-collection-surface.ts",
+      mode: "source",
+      grant: { subject: "packages/client/src/data/other.ts", operation: "raw-useInfiniteQuery-import" },
+      files: { "packages/client/src/data/other.ts": "import { useInfiniteQuery } from '@tanstack/react-query';\n" },
+      expect: { count: 1, token: "useInfiniteQuery" },
+      why: "an infinite query outside the sole collection factory is an exact hook-and-file grant candidate",
     },
     {
+      mode: "source",
+      grant: { subject: "packages/ui/src/raw.tsx", operation: "raw-useMutation-import" },
       files: {
-        [ANCHOR]: "export const QueryBoundary = null;\n",
-        [COLLECTION_REL]: "export const createCollectionSurface = null;\n",
+        "packages/client/src/data/index.ts": "export const QueryBoundary = null;\n",
+        "packages/ui/src/raw.tsx": "import { useMutation } from '@tanstack/react-query';\n",
       },
-      expect: { count: 1, messageIncludes: "no longer imports `useInfiniteQuery`" },
-      why: "THE STALE ARM at the strong grain: the anchor is loaded and the named factory still exists but has stopped importing the raw hook — the exemption now points at nothing while whatever DOES own the call goes unsealed",
-    },
-    {
-      files: {
-        [ANCHOR]: "export const QueryBoundary = null;\n",
-      },
-      expect: { count: 1, messageIncludes: "no longer in the project" },
-      why: "the other staleness: the named factory file is gone entirely — path rot ratchets down too (the data/ dir row still matches the anchor, so it stays)",
+      expect: { count: 1, token: "useMutation" },
+      why: "the legacy-wide population includes UI source; a client anchor keeps the population proof non-vacuous",
     },
   ],
   mustPass: [
     {
-      files: "import { useMutation } from '@tanstack/react-query';\n",
-      at: "packages/client/src/data/create-entity-mutation.ts",
-      why: "useMutation in data directory",
-    },
-    {
-      files: "import { useInfiniteQuery } from '@tanstack/react-query';\n",
-      at: "packages/client/src/data/create-collection-surface.ts",
-      why: "useInfiniteQuery in create-collection-surface.ts",
-    },
-    {
-      files: "import { useMutation, useInfiniteQuery } from '@tanstack/react-query';\n",
-      at: "packages/client/src/components/foo.test.tsx",
-      why: "exempt in tests",
-    },
-    {
+      mode: "source",
       files: {
-        [ANCHOR]: "export const QueryBoundary = null;\n",
-        [COLLECTION_REL]: "import { useInfiniteQuery } from '@tanstack/react-query';\nexport const c = useInfiniteQuery;\n",
+        "packages/client/src/components/foo.test.tsx": "import { useMutation, useInfiniteQuery } from '@tanstack/react-query';\n",
+        "packages/client/src/data/index.ts": "export const QueryBoundary = null;\n",
       },
-      why: "both exemptions STILL EARNED, judged against the real-tree anchor: the seal tier matches files and the named factory owns the raw hook, so neither stale arm fires",
+      why: "ordinary unit-test files remain outside the production architecture population",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/components/foo.tsx": "import { useQuery } from '@tanstack/react-query';\n" },
+      why: "other TanStack imports are not mutation or infinite-query machines",
     },
   ],
-};
+});

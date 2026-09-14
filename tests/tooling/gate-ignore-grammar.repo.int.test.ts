@@ -8,7 +8,7 @@
 // substrate where "did the marker actually suppress, and how many things did it suppress" is answerable.
 // The grammar itself (parse/malformed) is proven by conformance; the EXEMPTION VOCABULARY is proven here.
 //
-// The carrier is `query-machine-seals`: it is token-anchored and reports TWO DISTINCT TOKENS FROM ONE
+// The carrier is a local frozen-shape `query-machine-seals` descriptor: it is token-anchored and reports TWO DISTINCT TOKENS FROM ONE
 // NODE — `import { useMutation, useInfiniteQuery } from "@tanstack/react-query"` is one ImportDeclaration
 // carrying two separately-guarded things, which is the live shape that reproduces §4.3a's "one line, two
 // guarded things" (`record(chatId: string, sessionId: string)`).
@@ -28,7 +28,7 @@
 // `no-color-literals` and `no-raw-intl-time` had converted too, and the suite stood at 19 failed / 3
 // passed on `b4714536d`, unnoticed because `tests/tooling/**` is `--full`-only (#1842).
 //
-// WHY A CONVERSION KILLS A CARRIER: marker routing is FENCED (docs/design/gate-runtime-standardization.md
+// WHY A PRODUCTION CARRIER WAS RETIRED: marker routing is FENCED (docs/design/gate-runtime-standardization.md
 // §7 and §5). The legacy `@orb-gate-ignore` engine this suite exercises reaches LEGACY owners ONLY. The
 // day a carrier converts, this suite stops measuring what it claims to measure: the arms that assert a
 // finding go RED (the gate is not in `loadGates`), and the one arm that asserts a SUPPRESSION goes
@@ -38,11 +38,8 @@
 //
 // WHY THIS CARRIER, AND WHAT RETIRES IT. `pnpm gate:contract` is the authority on legacy-ness, never this
 // comment; re-derive before trusting a word of it.
-//   · `query-machine-seals` (node arm + scripts arm) — legacy, not `markerImmune`, node-anchored with a
-//     carried token, `scanRoot: () => true` (so it sees BOTH `DIR` and `SCRIPTS_DIR`), and it reports two
-//     DISTINCT tokens from ONE ImportDeclaration, which is the §4.3a shape nothing else live still has.
-//     `uncovered-gate-conversion-census.md:121` classifies it `X` (gate-owned vocabulary — central seam
-//     grants must land first), so it converts late.
+//   · the synthetic descriptor below preserves the legacy engine's exact node/token/scanRoot shape without
+//     making this permanent grammar proof depend on whichever production legacy gate happens to remain.
 // THE TRIPWIRE: the first test below asserts every carrier is still in the LEGACY roster and says what to
 // do when it is not. That is the whole lesson of #1974 — a green run is not evidence a carrier is live,
 // and a red one must name the reason instead of spraying twenty assertion failures.
@@ -50,11 +47,15 @@
 // Fixtures use the reserved `__g_` sentinel so every other tree consumer excludes them and a crashed run
 // leaves nothing that can red an independent pass (tooling/src/verify/lib/pass.ts PROBE_ARTIFACT_RE).
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { Node, SyntaxKind } from "ts-morph";
 import { afterAll, beforeAll } from "vitest";
+import type { GateDescriptor } from "../../tooling/src/verify/contract/gate.ts";
 import type { Finding, PassResult } from "../../tooling/src/verify/index.ts";
 import { loadGates, projectCtx, runPass } from "../../tooling/src/verify/index.ts";
+import { findGateIgnoreMarkers } from "../../tooling/src/verify/lib/gate-ignore.ts";
+import { gateIgnoreSuppressedInFinalize, gateIgnoreUseCount } from "../../tooling/src/verify/lib/pass.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
@@ -83,6 +84,131 @@ const SCRIPTS_CARRIER = CARRIER;
 const SCRIPTS_VIOLATION = VIOLATION;
 /** A registered LEGACY gate with no violation in the stale fixture. */
 const ELSEWHERE_CARRIER = CARRIER;
+
+/** Stable local carrier for the legacy marker engine. The physical final gate file keeps the name
+ * registered for gate-ignore-inventory; only this descriptor exercises legacy suppression semantics. */
+const SYNTHETIC_CARRIER: GateDescriptor = {
+  name: CARRIER,
+  docRow: "GATE-AUTHORING.md §4.3a",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: "synthetic marker-grammar carrier",
+  scanRoot: () => true,
+  kinds: [SyntaxKind.ImportDeclaration],
+  visit: (node, _source, ctx) => {
+    if (!Node.isImportDeclaration(node) || node.getModuleSpecifierValue() !== "@tanstack/react-query") {
+      return;
+    }
+    const names = node.getNamedImports().map((specifier) => specifier.getName());
+    for (const token of [VIOLATION, SIBLING]) {
+      if (names.includes(token)) {
+        ctx.report(node, { token, offset: 0 });
+      }
+    }
+  },
+  mustFlag: [],
+  mustPass: [],
+};
+
+const GATES_DIR_REL = "tooling/src/verify/gates";
+const ANCHOR_REL = "tooling/src/verify/lib/pass.ts";
+const TS_EXT_RE = /\.ts$/u;
+const MSG_UNREGISTERED = "isn't registered";
+const MSG_MALFORMED = "MALFORMED";
+const MSG_STALE = "STALE";
+const MSG_OVER_EXEMPT = "OVER-EXEMPTING";
+
+interface PendingMarker {
+  readonly file: string;
+  readonly line: number;
+  readonly name: string;
+  readonly positioned: boolean;
+}
+
+let pendingMarkers: PendingMarker[] = [];
+
+function discoverGateNames(gatesDir: string): ReadonlySet<string> {
+  if (!existsSync(gatesDir)) {
+    return new Set();
+  }
+  return new Set(
+    readdirSync(gatesDir)
+      .filter((entry) => TS_EXT_RE.test(entry))
+      .map((entry) => entry.replace(TS_EXT_RE, "")),
+  );
+}
+
+/** Frozen legacy inventory owner. The production policy is final now, but these tests deliberately
+ * exercise the remaining legacy suppressor. Keeping both legacy participants local makes that boundary
+ * explicit and prevents another production conversion from turning the suppression assertions vacuous. */
+const SYNTHETIC_INVENTORY: GateDescriptor = {
+  name: INVENTORY,
+  docRow: "GATE-AUTHORING.md §§4.3–4.4",
+  status: "active",
+  scopeSafety: "whole-project",
+  markerImmune: true,
+  fsBacked: true,
+  message: "synthetic marker-grammar inventory",
+  scanRoot: (path) => path.startsWith("packages/") || path.startsWith("tests/") || path.startsWith("tooling/src/"),
+  begin: () => {
+    pendingMarkers = [];
+  },
+  visitFile: (sourceFile, ctx) => {
+    const registered = discoverGateNames(join(ctx.root, GATES_DIR_REL));
+    const absolute = sourceFile.getFilePath();
+    const file = absolute.startsWith(ctx.root) ? absolute.slice(ctx.root.length + 1) : absolute;
+    for (const { index, marker } of findGateIgnoreMarkers(sourceFile)) {
+      const { line } = sourceFile.getLineAndColumnAtPos(index);
+      if (marker.malformed) {
+        ctx.report({ file, line, column: 0, token: marker.gate, message: MSG_MALFORMED });
+      } else if (!registered.has(marker.gate)) {
+        ctx.report({ file, line, column: 0, token: marker.gate, message: MSG_UNREGISTERED });
+      } else {
+        pendingMarkers.push({
+          file,
+          line,
+          name: marker.gate,
+          positioned: marker.position !== undefined,
+        });
+      }
+    }
+  },
+  finalize: (ctx) => {
+    if (!existsSync(join(ctx.root, ANCHOR_REL))) {
+      return;
+    }
+    if (gateIgnoreSuppressedInFinalize()) {
+      ctx.report({
+        file: `${GATES_DIR_REL}/${INVENTORY}.ts`,
+        line: 0,
+        column: 0,
+        message: "soundness tripwire: a gate suppressed a finding during the finalize phase",
+      });
+    }
+    for (const marker of pendingMarkers) {
+      const used = gateIgnoreUseCount(marker.file, marker.line);
+      if (used === 0) {
+        ctx.report({
+          file: marker.file,
+          line: marker.line,
+          column: 0,
+          token: marker.name,
+          message: MSG_STALE,
+        });
+      } else if (used > 1 && !marker.positioned) {
+        ctx.report({
+          file: marker.file,
+          line: marker.line,
+          column: 0,
+          token: marker.name,
+          message: `it absolved ${used} guarded things. ${MSG_OVER_EXEMPT}`,
+        });
+      }
+    }
+  },
+  mustFlag: [],
+  mustPass: [],
+};
 
 /** case → the fixture source planted at `${DIR}/__g_<case>.ts`. */
 const CASES: Readonly<Record<string, string>> = {
@@ -184,7 +310,7 @@ beforeAll(async () => {
   plant();
   try {
     const gates = await loadGates(ROOT);
-    pass = runPass(gates, projectCtx(ROOT));
+    pass = runPass([...gates, SYNTHETIC_CARRIER, SYNTHETIC_INVENTORY], projectCtx(ROOT));
   } finally {
     clean();
   }
