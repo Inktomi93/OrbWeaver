@@ -1,183 +1,126 @@
-// Gate: firehose-import-allowlist (ledger D79 — the ROOM plane's one unclamped source) — the all-chats
-// firehose `subscribeAllChatEvents` is importable ONLY by the composition root.
-//
-// WHY. `subscribeChatEvents` is per-chat and every yield passes the member-scoped `chatEventBounds` probe
-// (which carries the caller's `historyFloorSeq`). `subscribeAllChatEvents` has NO chatId and NO caller — it
-// fans EVERY room's events, including canon `view` payloads and raw `delta` transcript text, to a process-wide
-// listener. That is correct exactly once: a server-side rule engine running under HOST authority
-// (`entry/compose/automation-watcher.ts`). It is a leak the moment a per-USER surface tails it, because the
-// per-member verdict (`substrate/auth::isBelowHistoryFloor`) is applied at the per-chat SSE seam this stream
-// bypasses entirely. The chat-events-bus header already SAYS "authz lives outside this module" — a comment is
-// not a guarantee, so this is the guarantee.
-//
-// WHY A ts-morph GATE AND NOT DEP-CRUISER. The symbol is re-exported through the `transport/trpc` barrel, and
-// dep-cruiser reasons about MODULES, not named exports: a `to: chat-events-bus` rule cannot fire because the
-// barrel absorbs the resolution. Same reasoning (and same shape) as `no-direct-users-read` /
-// `discovery-no-stats-rollups`.
-//
-// FOUR ARMS — the three laundering routes plus a rename tripwire:
-//  • a named `import { subscribeAllChatEvents }` outside the allowlist
-//  • a NAMESPACE-reached `import * as events; events.subscribeAllChatEvents` (either member spelling) —
-//    that shape produces no ImportSpecifier at all and walked past this gate in silence until #1506
-//  • a `export { subscribeAllChatEvents } from …` RE-EXPORT outside the allowlist (laundering the symbol into
-//    a new module so the import lands on an innocuous specifier)
-//  • FAIL-LOUD: the symbol is not declared anywhere in the tree → it was renamed past this gate, which would
-//    otherwise leave the gate silently green forever
-//
-// A path allowlist here is the fail-LOUD direction: if the compose root moves, its import becomes RED (it
-// does not silently pass), which is the opposite of the path-keyed-gate rot pattern.
-import type { SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { MEMBER_ACCESS_KINDS, namespaceImportSpecifier, readMemberAccess } from "../lib/symbol-reference.ts";
+// D79: the unclamped all-chat stream may be named only by the server composition root and its transport
+// barrel. Canonical origin prevents a same-name foreign symbol from becoming a false firehose finding;
+// exact central grants replace the legacy directory/path allowlist.
+import { defineGate } from "../contract/policy.ts";
+import { FIREHOSE_SYMBOL, firehoseImportFact } from "../lib/firehose-import-fact.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 
-const FIREHOSE = "subscribeAllChatEvents";
-
-/** Production code only — the firehose is a runtime egress concern, and a test harness driving it is not a
- *  per-member delivery path. */
-const SCANNED = /(?:^|\/)packages\/server\/src\//u;
-
-/** The sanctioned homes: the composition root (the one host-authority consumer), the module that DEFINES the
- *  firehose, and the transport barrel that re-exports it to reach compose. */
-const ALLOWED = [
-  /(?:^|\/)packages\/server\/src\/entry\/compose\//u, // the ONE consumer: the automation watcher, host authority
-  /(?:^|\/)packages\/server\/src\/transport\/trpc\/chat-events-bus\.ts$/u, // the definition
-  /(?:^|\/)packages\/server\/src\/transport\/trpc\/index\.ts$/u, // the barrel re-export the compose root imports through
-];
-
+const OPERATION = "all-chat-firehose-reference";
 const MESSAGE =
-  `the all-chats firehose \`${FIREHOSE}\` is importable ONLY by the composition root (entry/compose). It is ` +
+  `the all-chats firehose \`${FIREHOSE_SYMBOL}\` is importable ONLY by the composition root (entry/compose). It is ` +
   "UNCLAMPED BY TYPE: no chatId, no caller, no per-member history-floor verdict — it fans every room's canon " +
   "`view` payloads and raw `delta` transcript text process-wide. Any per-USER surface fed from it ships a " +
   "join-history leak (D79 — the plugin fan-out precedent).";
 const FIX =
   "tail the per-chat stream (`subscribeChatEvents`) behind the member-gated `chatEventBounds` probe, or " +
   "consume the firehose in `entry/compose` and hand your subscriber a HOST-authority injected op. If a new " +
-  "server-side, host-authority consumer is genuinely right, add its compose-root wiring there — not a direct import.";
+  "server-side, host-authority consumer is genuinely right, wire it at the composition root and review that exact file centrally.";
 
-function rel(ctx: GateRunCtx, sf: SourceFile): string {
-  return sf.getFilePath().replace(`${ctx.root}/`, "");
-}
-
-function isAllowed(path: string): boolean {
-  return ALLOWED.some((re) => re.test(path));
-}
-
-export const gate: GateDescriptor = {
-  name: "firehose-import-allowlist",
-  docRow: "ledger D79 (chat read-visibility — the firehose is compose-root-only)",
-  status: "active",
-  scopeSafety: "whole-project",
+export const gate = defineGate({
+  id: "firehose-import-allowlist",
+  family: "firehose-import-allowlist",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: ["@server"],
+  analysis: "types",
+  execution: "entire-population",
+  facts: [firehoseImportFact],
+  resources: [],
   message: MESSAGE,
   fix: FIX,
-  scanRoot: (p) => SCANNED.test(`/${p}`),
-  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.ExportSpecifier, ...MEMBER_ACCESS_KINDS],
-  visit: (node, sf, ctx) => {
-    if (isAllowed(rel(ctx, sf))) {
-      return;
-    }
-    const spec = node.asKind(SyntaxKind.ImportSpecifier) ?? node.asKind(SyntaxKind.ExportSpecifier);
-    if (spec !== undefined) {
-      if (spec.getName() === FIREHOSE) {
-        ctx.report(node, { token: FIREHOSE, offset: 0 });
-      }
-      return;
-    }
-    // ARM 1b (#1506) — the NAMESPACE spelling of arm 1. `import * as events from "…"; events.subscribeAllChatEvents(…)`
-    // produces NO ImportSpecifier, so the specifier arms above never see the reference at all; the whole
-    // firehose was reachable this way while the gate reported ✓. Keyed on the same exact NAME the rename
-    // tripwire keys on, in EITHER member spelling (`events.x` and `events["x"]` are one reference).
-    const read = readMemberAccess(node);
-    if (read?.name === FIREHOSE && namespaceImportSpecifier(read.receiver) !== undefined) {
-      ctx.report(node, { token: FIREHOSE, offset: 0 });
-    }
-  },
-  // Fail-loud: if nothing declares the symbol any more it was renamed, and every arm above is dead.
-  finalize: (ctx) => {
-    const declared = ctx.project
-      .getSourceFiles()
-      .filter((sf) => SCANNED.test(sf.getFilePath()))
-      .some((sf) => sf.getFunction(FIREHOSE) !== undefined);
-    if (!declared) {
-      ctx.report({
-        file: "packages/server/src/transport/trpc/chat-events-bus.ts",
-        line: 0,
-        column: 0,
-        message: `\`${FIREHOSE}\` is no longer declared under packages/server/src — this gate keys on that exact name, so it is now blind. Retarget tooling/src/verify/gates/firehose-import-allowlist.ts at the renamed firehose.`,
-      });
-    }
-  },
+  create: (ctx) => ({
+    evaluate: () => {
+      const { references } = ctx.fact(firehoseImportFact);
+      ctx.receipt({ kind: "population", source: "firehose-import-allowlist-sources", members: ctx.files.length });
+      reportReviewedGrantCandidates(
+        ctx.report,
+        references.map(({ node, file, name, unreadable }) => ({
+          node,
+          subject: file,
+          operation: OPERATION,
+          unreadable,
+          token: name,
+          offset: node.getText().indexOf(name),
+        })),
+        { message: MESSAGE, fix: FIX, unreadableMessage: `${MESSAGE} The named module door could not be resolved, so it fails closed.` },
+      );
+    },
+  }),
   mustFlag: [
     {
+      mode: "types",
       files: {
-        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
-        "packages/server/src/domain/buddy/observer.ts": `import { ${FIREHOSE} } from "../../transport/trpc";\nexport const o = ${FIREHOSE};\n`,
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE_SYMBOL}(): void {}\n`,
+        "packages/server/src/domain/buddy/observer.ts": `import { ${FIREHOSE_SYMBOL} } from "../../transport/trpc/chat-events-bus.ts";\nexport const o = ${FIREHOSE_SYMBOL};\n`,
       },
-      expect: { messageIncludes: "composition root" },
-      why: "a domain tailing the unclamped all-chats firehose — the per-member floor is never applied on that path",
+      grant: { subject: "packages/server/src/domain/buddy/observer.ts", operation: OPERATION },
+      expect: { count: 1, token: FIREHOSE_SYMBOL, messageIncludes: "composition root" },
+      why: "a domain tails the canonical unclamped stream through its barrel; the import and later identifier remain one legacy import finding",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
-        "packages/server/src/infra/relay.ts": `export { ${FIREHOSE} } from "../transport/trpc";\n`,
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE_SYMBOL}(): void {}\n`,
+        "packages/server/src/infra/relay.ts": `export { ${FIREHOSE_SYMBOL} } from "../transport/trpc/chat-events-bus.ts";\n`,
       },
-      expect: { messageIncludes: "composition root" },
-      why: "a RE-EXPORT laundering the symbol into a new module — the import would then land on an innocuous specifier",
+      grant: { subject: "packages/server/src/infra/relay.ts", operation: OPERATION },
+      expect: { count: 1, token: FIREHOSE_SYMBOL },
+      why: "a re-export laundering the canonical firehose into a new module remains a named-symbol finding",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
-        "packages/server/src/domain/hub/observer.ts": `import * as events from "../../transport/trpc";\nexport const o = events.${FIREHOSE};\n`,
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE_SYMBOL}(): void {}\n`,
+        "packages/server/src/domain/hub/observer.ts": `import * as events from "../../transport/trpc/chat-events-bus.ts";\nexport const o = events.${FIREHOSE_SYMBOL};\n`,
       },
-      expect: { count: 1, messageIncludes: "composition root" },
-      why: "ARM 1b (#1506): the NAMESPACE spelling of the same tail. Before the shared reader this example produced ZERO findings — there is no ImportSpecifier to visit, so a per-member-authz bypass was one `import * as` away",
+      grant: { subject: "packages/server/src/domain/hub/observer.ts", operation: OPERATION },
+      expect: { count: 1, token: FIREHOSE_SYMBOL },
+      why: "the namespace dot spelling reaches the same canonical firehose despite having no ImportSpecifier",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
-        "packages/server/src/domain/hub/bracket-observer.ts": `import * as events from "../../transport/trpc";\nexport const o = events["${FIREHOSE}"];\n`,
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE_SYMBOL}(): void {}\n`,
+        "packages/server/src/domain/hub/bracket-observer.ts": `import * as events from "../../transport/trpc/chat-events-bus.ts";\nexport const o = events["${FIREHOSE_SYMBOL}"];\n`,
       },
-      expect: { count: 1, messageIncludes: "composition root" },
-      why: "ARM 1b, bracket spelling — a namespace member is ONE reference however it is written, so the member spelling cannot buy an escape either",
+      grant: { subject: "packages/server/src/domain/hub/bracket-observer.ts", operation: OPERATION },
+      expect: { count: 1, token: FIREHOSE_SYMBOL },
+      why: "the namespace bracket spelling is the same canonical reference",
     },
     {
-      files: {
-        // The symbol exists nowhere: the rename tripwire, which is the only thing between a rename and a
-        // permanently, silently green gate.
-        "packages/server/src/entry/compose/automation-watcher.ts": "export const x = 1;\n",
-      },
-      expect: { messageIncludes: "now blind" },
-      why: "the firehose renamed out from under the gate — must be RED, never silently green",
+      mode: "types",
+      files: { "packages/server/src/domain/unreadable.ts": `import { ${FIREHOSE_SYMBOL} } from "./missing.ts";\n` },
+      grant: { subject: "packages/server/src/domain/unreadable.ts", operation: OPERATION },
+      expect: { count: 1, token: FIREHOSE_SYMBOL },
+      why: "an unreadable relative named door fails closed instead of laundering the security-sensitive symbol",
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
-        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
-        "packages/server/src/entry/compose/automation-watcher.ts": `import { ${FIREHOSE} } from "../../transport/trpc";\nexport const w = ${FIREHOSE};\n`,
+        "packages/server/src/domain/foreign.ts": `export function ${FIREHOSE_SYMBOL}(): void {}\n`,
+        "packages/server/src/domain/consumer.ts": `import { ${FIREHOSE_SYMBOL} } from "./foreign.ts";\nexport const x = ${FIREHOSE_SYMBOL};\n`,
       },
-      why: "the sanctioned consumer: the compose root wiring the server-side rule engine under host authority",
+      why: "a same-named export outside the canonical chat-events-bus home is a different symbol",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
-        "packages/server/src/transport/trpc/index.ts": `export { ${FIREHOSE} } from "./chat-events-bus";\n`,
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE_SYMBOL}(): void {}\n`,
+        "packages/server/src/domain/buddy/observer.ts":
+          'import { subscribeChatEvents } from "../../transport/trpc/chat-events-bus.ts";\nexport const o = subscribeChatEvents;\n',
       },
-      why: "the barrel re-export the compose root imports through — the allowlisted definition/barrel pair",
+      why: "the member-clamped per-chat stream remains legal",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
-        "packages/server/src/domain/buddy/observer.ts": 'import { subscribeChatEvents } from "../../transport/trpc";\nexport const o = subscribeChatEvents;\n',
+        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE_SYMBOL}(): void {}\n`,
+        "packages/server/src/domain/buddy/observer.ts":
+          'import * as events from "../../transport/trpc/chat-events-bus.ts";\nexport const o = events.subscribeChatEvents;\n',
       },
-      why: "the PER-CHAT stream is the correct seam (member-gated per yield) — the gate must not fire on it",
-    },
-    {
-      files: {
-        "packages/server/src/transport/trpc/chat-events-bus.ts": `export function ${FIREHOSE}(): void {}\n`,
-        "packages/server/src/domain/buddy/observer.ts": 'import * as events from "../../transport/trpc";\nexport const o = events.subscribeChatEvents;\n',
-      },
-      why: "ARM 1b's NEGATIVE control: a namespace member read of the PER-CHAT stream is not the firehose — the new arm keys on the exact name, never on reached-through-a-namespace",
+      why: "a different namespace member remains outside the exact firehose vocabulary",
     },
   ],
-};
+});
