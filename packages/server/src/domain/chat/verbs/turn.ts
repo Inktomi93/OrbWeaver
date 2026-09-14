@@ -306,6 +306,7 @@ function joinedCandidateName(speakerCandidates: readonly SpeakerCandidate[]): st
 
 /** The last-assistant speaker (ban-last seed) + a recent transcript the `smart` arbiter reads. */
 async function canonFacts(ctx: ChatContext, chatId: ChatId): Promise<{ lastSpeaker: SpeakerRef | null; recentHistory: string }> {
+  // @orb-waive chat-viewer-plane-canon-reads(loadCanonHistory): turn assembly for `send` — the prompt is the ROOM's. A turn is one shared utterance broadcast to every member, so per-reader assembly is incoherent; the reply's BYTES reach each member through the clamped bus/read paths.
   const canon = await loadCanonHistory(ctx.db, chatId);
   return {
     lastSpeaker: lastSpeakerRef(canon.findLast((m) => m.role === "assistant")),
@@ -1513,6 +1514,7 @@ async function commitUserTurn(
 
   // A greeting's volatile macros freeze at the first user turn; detect it before this send commits (no
   // role:"user" row exists yet), then bake the greetings after the row lands.
+  // @orb-waive chat-viewer-plane-canon-reads(loadCanonHistory): the first-user-turn greeting-freeze probe, reached by BOTH `send` and the D56 post-without-generate `commitMessage`, which shares `send`'s COMMIT half (`commitUserTurn`). Its product is a BOOLEAN (`isFirstUserTurn`) + a server-side greeting-volatile freeze — NO canon bytes flow to the caller (it returns only the just-committed user row, §3.6-projected); the prompt is the ROOM's.
   const priorCanon = await loadCanonHistory(ctx.db, chatId);
   const isFirstUserTurn = !priorCanon.some((m) => m.role === "user");
 
