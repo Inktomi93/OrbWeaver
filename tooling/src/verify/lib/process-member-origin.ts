@@ -34,7 +34,7 @@ import type { ProcessMemberVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { originModuleSpecifier } from "./sealed-origin.ts";
 
-export const PROCESS_GLOBAL = "process";
+const PROCESS_GLOBAL = "process";
 /** The two authored spellings of node's own process door; the canonical origin reports the one it entered. */
 const PROCESS_DOORS: readonly string[] = ["node:process", "process"];
 

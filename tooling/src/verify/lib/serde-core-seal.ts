@@ -15,8 +15,8 @@
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 
-export const PNG_CHUNK_SYMBOLS = new Set(["readCardChunk", "writeCardChunk", "isPng"]);
-export const PNG_CHUNK_SPECIFIER = /^@orb\/kit\/png-card-chunk(?:\/|$)/u;
+const PNG_CHUNK_SYMBOLS = new Set(["readCardChunk", "writeCardChunk", "isPng"]);
+const PNG_CHUNK_SPECIFIER = /^@orb\/kit\/png-card-chunk(?:\/|$)/u;
 
 /** The sanctioned serde homes, named individually so the health sibling can name the dead one. */
 export const SANCTIONED_DOMAINS = ["import", "export"] as const;

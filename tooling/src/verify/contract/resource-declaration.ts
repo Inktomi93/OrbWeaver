@@ -86,10 +86,6 @@ export type GateResourceRequest =
   | { readonly kind: "authored-path" }
   | { readonly kind: "authored-text" };
 
-export function isGateResourceDemandKind(kind: GateResourceRequest["kind"]): kind is GateResourceDemandKind {
-  return (GATE_RESOURCE_DEMAND_KINDS as readonly string[]).includes(kind);
-}
-
 export function isGateResourceUnpopulatedKind(kind: GateResourceRequest["kind"]): kind is GateResourceUnpopulatedKind {
   return (GATE_RESOURCE_UNPOPULATED_KINDS as readonly string[]).includes(kind);
 }

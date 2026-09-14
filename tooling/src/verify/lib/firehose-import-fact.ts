@@ -11,7 +11,7 @@ import { classifyOriginRefusal } from "./origin-verdict.ts";
 export const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
 const FIREHOSE_HOME = "/packages/server/src/transport/trpc/chat-events-bus.ts";
 
-export interface FirehoseReference {
+interface FirehoseReference {
   readonly node: Node;
   readonly file: string;
   readonly name: string;

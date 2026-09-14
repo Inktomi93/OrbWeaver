@@ -34,6 +34,11 @@ import type { DifferentialClaim, Files } from "../../../support/legacy-different
 import { createDifferential, differentialViolations, frozenLegacyGate, inMemorySide, label, legacyScenarios } from "../../../support/legacy-differential.ts";
 import { assertRealCorpusLivenessArms } from "../../../support/real-corpus-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+// Quiet-box ceilings; `scaledBudget` stretches them under measured load so a contended box never reads as a false RED.
+const REPLAY_BASE_MS = 120_000;
+const REAL_CORPUS_BASE_MS = 300_000;
 
 const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 /** The conversion commit's PARENT — the last tree carrying the legacy `GateDescriptor`. */
@@ -140,14 +145,16 @@ const ROWS: readonly Row[] = [
   },
 ];
 
-test("the family's DECLARED proofs hold, including the reviewed-grant identity witness", { timeout: 120_000 }, () => {
+test("the family's DECLARED proofs hold, including the reviewed-grant identity witness", { timeout: scaledBudget(REPLAY_BASE_MS) }, () => {
   // The static bar runs these through `structure:policy-conformance`; this is the lane-scoped door onto the
   // same runner, and it is what exercises the §6.2 witness — the `mustFlag` row that must flag with no
   // authority and then be consumed EXACTLY ONCE by one synthetic grant carrying its authored identity.
   expect(verifyPolicyProofs([doors, doorsHealth])).toEqual([]);
 });
 
-test("§6.4 — every legacy example replays over the same bytes, and every difference is classified", { timeout: 120_000 }, async ({ scratch }) => {
+test("§6.4 — every legacy example replays over the same bytes, and every difference is classified", { timeout: scaledBudget(REPLAY_BASE_MS) }, async ({
+  scratch,
+}) => {
   const legacy = await frozenLegacyGate(scratch, LEGACY_BASE, LEGACY_PATH);
   expect(legacy.name, "the frozen blob is the LEGACY descriptor, not an already-converted policy").toBe(doors.id);
   const examples = legacyScenarios(legacy, FALLBACK);
@@ -321,7 +328,9 @@ const CLIENT_GLOBS = [
   "packages/client/src/state/**/*.tsx",
 ];
 
-test("both policies reach a verdict on the REAL client corpus, and each reports its own positive control", { timeout: 300_000 }, () => {
+test("both policies reach a verdict on the REAL client corpus, and each reports its own positive control", {
+  timeout: scaledBudget(REAL_CORPUS_BASE_MS),
+}, () => {
   const probeA = "packages/client/src/features/chat/components/pcdd-live-probe-a.tsx";
   const probeB = "packages/client/src/features/chat/components/pcdd-live-probe-b.tsx";
   const fired = assertRealCorpusLivenessArms(REPO_ROOT, [

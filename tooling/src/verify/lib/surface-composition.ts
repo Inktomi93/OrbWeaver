@@ -22,7 +22,7 @@ import { renderedTagNames } from "./baseui-read.ts";
 
 /** Base UI primitives that inherently trap/manage focus on mount. A surface returning one of these as its
  *  root is exempt from manual focus restoration — the primitive already owns the caret. */
-export const AUTO_FOCUS_PRIMITIVES = new Set(["Popover", "Dialog", "Tooltip", "Dropdown", "Sheet"]);
+const AUTO_FOCUS_PRIMITIVES = new Set(["Popover", "Dialog", "Tooltip", "Dropdown", "Sheet"]);
 
 /** The shared hook that lands arrival focus, and the two lifecycle hooks a hand-rolled `.focus()` must sit
  *  inside. An `onClick={() => ref.current?.focus()}` is NOT arrival focus, which is why the lifecycle test

@@ -281,7 +281,7 @@ function reportUiDependencyDirection(inventory: CssFacts, owners: ReadonlyMap<st
 /** THE THREE BOUNDED DIRECT-SKIN RECIPES. Membership is the PARTITION between the ordinary policy and its
  *  reviewed-grant sibling, not an exemption inside either: a hook this admits is reported by
  *  `css-family-direct-client-mechanism` under a grant identity, and by nothing else. */
-export function isDirectClientUiMechanism(hook: string, selectorList: string): boolean {
+function isDirectClientUiMechanism(hook: string, selectorList: string): boolean {
   if (hook === "slot:message-list-scroll") {
     return true;
   }

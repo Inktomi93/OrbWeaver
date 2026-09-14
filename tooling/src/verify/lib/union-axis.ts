@@ -56,7 +56,7 @@ const PACKAGE_RE = /^packages\/(?<pkg>[^/]+)\//u;
 const UNRANKED = 5;
 
 /** Order-independent identity of a string-literal set: two sets are the same axis iff these match. */
-export function axisSignature(members: readonly string[]): string {
+function axisSignature(members: readonly string[]): string {
   return [...new Set(members)].toSorted().join(SIGNATURE_SEPARATOR);
 }
 

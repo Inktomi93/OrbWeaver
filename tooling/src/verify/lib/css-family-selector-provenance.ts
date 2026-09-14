@@ -34,15 +34,6 @@ export interface SelectorClassHook {
   readonly offset: number;
 }
 
-function recordSelectorAttribute(hooks: Set<string>, attribute: SelectorAttributeHook): void {
-  if (attribute.name === "data-slot" && attribute.value !== undefined) {
-    hooks.add(`slot:${attribute.value}`);
-  }
-  if (attribute.name.startsWith("data-shell-")) {
-    hooks.add(`attr:${attribute.name}`);
-  }
-}
-
 /** Every authored data-attribute selector identity. Attribute prose stays one lexical token. */
 export function selectorDataAttributes(selector: string): readonly SelectorAttributeHook[] {
   const hooks: SelectorAttributeHook[] = [];
@@ -96,24 +87,6 @@ function classNameAt(selector: string, dot: number): string | undefined {
     end += 1;
   }
   return selector.slice(dot + 1, end);
-}
-
-export function selectorHooks(selector: string): readonly string[] {
-  const hooks = new Set<string>();
-  for (const classHook of selectorClassHooks(selector)) {
-    hooks.add(`class:${classHook.name}`);
-  }
-  for (let index = 0; index < selector.length; index += 1) {
-    if (selector[index] === "[") {
-      const attribute = selectorAttributeAt(selector, index);
-      if (attribute === undefined) {
-        break;
-      }
-      recordSelectorAttribute(hooks, attribute);
-      index = attribute.close;
-    }
-  }
-  return [...hooks];
 }
 
 /** ONE authored selector hook, deduplicated across every occurrence in the product corpus.
@@ -198,9 +171,8 @@ export interface SelectorHookSite {
   readonly authored: string;
 }
 
-/** {@link selectorHooks} with positions. The vocabulary is identical and derived from the same two lexers,
- *  so a hook this returns and a hook `selectorHooks` returns are the same string by construction — the
- *  positions exist because an ORDINARY finding's token must be authored text at its exact coordinate. */
+/** Every hook a selector carries, WITH positions, derived from the two lexers (`selectorClassHooks` and
+ *  `selectorAttributeAt`) so the hook vocabulary has one derivation — the positions exist because an ORDINARY finding's token must be authored text at its exact coordinate. */
 export function selectorHookSites(selector: string): readonly SelectorHookSite[] {
   const sites: SelectorHookSite[] = [];
   for (const classHook of selectorClassHooks(selector)) {

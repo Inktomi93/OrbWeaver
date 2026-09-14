@@ -59,7 +59,7 @@ test("unions a spread of a same-module const and of a same-module LOCAL function
   expect(keys(payload(sf))).toEqual(["id", "macroFreezes", "model", "rawContent", "tokens"]);
 });
 
-test("unions EVERY expression a factory returns — the ceiling readReturnedObjectLiteral refuses", () => {
+test("unions EVERY expression a factory returns — the one-return ceiling a factory-literal reader refuses", () => {
   const sf = one(`
     function columns(flag: boolean) {
       if (flag) {

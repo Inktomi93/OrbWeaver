@@ -236,7 +236,7 @@ function serviceVerbs(interfaces: readonly InterfaceDeclaration[]): ResolvedVerb
   return verbs;
 }
 
-export interface ContractVerbCandidate {
+interface ContractVerbCandidate {
   readonly node: Node;
   readonly subject: string;
   readonly verb: string;

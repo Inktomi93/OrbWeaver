@@ -259,7 +259,7 @@ export function installedSurfaceFrom(declarationPaths: readonly string[], versio
 }
 
 /** Installed Base UI state attributes and their statically-declared string/number values, from the DECLARED
- *  `installed-package {mode: "ast"}` door — the resource-fed twin of `readInstalledStateAttributeValues`.
+ *  `installed-package {mode: "ast"}` door — the resource-fed successor of the retired `ctx.root` filesystem reader.
  *
  *  An EMPTY MAP HERE IS NOT THE FS HALF'S EMPTY MAP, and the difference is the whole point of the door: the
  *  fs function returns one when the package is absent, which is a silent blindness. Reaching this function
@@ -292,22 +292,6 @@ export function readInstalledSurface(root: string): InstalledSurface | undefined
   const surface = installedSurfaceOver(globbedSurfaceProject(pkgDir), pkgDir, version);
   surfaceByRoot.set(root, surface);
   return surface;
-}
-
-/** Installed Base UI state attributes and their statically-declared string/number values. Empty values
- * mean a presence-only boolean/state contract; exact CSS values are never guessed from the key alone. */
-export function readInstalledStateAttributeValues(root: string): ReadonlyMap<string, ReadonlySet<string>> {
-  const hit = stateAttributesByRoot.get(root);
-  if (hit !== undefined) {
-    return hit;
-  }
-  const pkgDir = join(root, BASE_UI_PKG_REL);
-  if (!existsSync(join(pkgDir, "package.json"))) {
-    return new Map();
-  }
-  const values = stateAttributeValuesOver(globbedSurfaceProject(pkgDir));
-  stateAttributesByRoot.set(root, values);
-  return values;
 }
 
 /** THE ONE state-attribute derivation, shared by both acquisitions (see `installedSurfaceOver`). */
@@ -669,7 +653,7 @@ export function consumesContainerProp(expression: Node, parameters: readonly Par
 }
 
 /** Absolute ts-morph path → the repo-relative posix path gates report with. */
-export function repoRelative(path: string): string {
+function repoRelative(path: string): string {
   const idx = path.indexOf("/packages/");
   if (idx !== -1) {
     return path.slice(idx + 1);

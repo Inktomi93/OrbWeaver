@@ -24,7 +24,7 @@ export interface GateScanView {
 }
 
 /** A LEGACY row (`contract` absent on a pre-mixed artifact — read as legacy). */
-export interface LegacyGateView {
+interface LegacyGateView {
   readonly contract?: "legacy";
   readonly name: string;
   readonly ok: boolean;

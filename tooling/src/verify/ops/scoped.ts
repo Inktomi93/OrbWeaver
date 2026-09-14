@@ -267,7 +267,7 @@ export function runScopedPass(
  *
  *  `failOnWarnings` arrives from the operator's `--fail-on-warnings` and DEFAULTS FALSE: a final
  *  `severity: "warning"` finding is reported, counted in `verdict.warnings`, and blocks nothing. */
-export function runScopedPolicyPass(
+function runScopedPolicyPass(
   policies: readonly GatePolicy[],
   base: Omit<GateRunCtx, "report" | "scan">,
   files: readonly SourceFile[],

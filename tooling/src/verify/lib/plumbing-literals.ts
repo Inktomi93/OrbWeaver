@@ -30,17 +30,17 @@ import { parseStaticSourceText } from "./config-static-read.ts";
 
 /** A declaration/property NAME that means "this number is a TCP port". `port`, `ctPort`, `serverPort`,
  *  `FIXTURE_PORT`, `DEV_VITE_PORT` all land here. */
-export const PORT_NAME_RE = /^port$|Port$|_PORT$|^PORT$/u;
+const PORT_NAME_RE = /^port$|Port$|_PORT$|^PORT$/u;
 
 /** Property names whose numeric value IS a wall clock. A nested option object reaches this list through its
  *  INNER property (playwright's expect-timeout and the use-block action timeout both land here) — the
  *  reader reads the LEAF, never the wrapper. */
-export const CLOCK_KEYS: ReadonlySet<string> = new Set(["timeout", "timeoutMs", "testTimeout", "hookTimeout", "actionTimeout", "navigationTimeout"]);
+const CLOCK_KEYS: ReadonlySet<string> = new Set(["timeout", "timeoutMs", "testTimeout", "hookTimeout", "actionTimeout", "navigationTimeout"]);
 
 /** A `setTimeout(fn, N)` below this is a SETTLE — a sleep the run always pays — and a settle is not a
  *  budget (it is never scaled, docs/design/1208-instrument-substrate.md §7.1). At or above it, the literal
  *  is a ceiling wearing a sleep's clothes. */
-export const SETTLE_CEILING_MS = 5000;
+const SETTLE_CEILING_MS = 5000;
 
 /** A const NAMED as a wall clock. A name carrying BASE is the SANCTIONED shape (`NAV_TIMEOUT_BASE_MS`, the
  *  literal every budget is derived from). `*_BUDGET_MS` is DELIBERATELY absent: a verdict threshold is not

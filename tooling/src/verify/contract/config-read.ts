@@ -20,7 +20,7 @@ export interface UnresolvedShape {
 
 /** What a static evaluation produced: the ordered strings it could prove, AND every shape it could not.
  *  A caller that ignores `unresolved` is printing a clean zero over rows it never read.
- *  @public knip type-face false positive — the return type of `readValue`/`extractRows`, never referenced
+ *  @public knip type-face false positive — the return type of `readValue` and of the row extractor `createRowExtractor` returns, never referenced
  *  by its own name at any call site. */
 export interface StaticRead {
   readonly values: readonly string[];

@@ -37,7 +37,7 @@ const REPORTS_PREFIX = `${REPORTS}/`;
 /** The name a callee is spelled with — the identifier, or the member name of a property access — so a
  *  policy can PREFILTER by name before any identity work (the prefilter is what keeps fail-closure honest:
  *  only a callee that LOOKS like the door is ever reported as unreadable). */
-export function calleeName(call: CallExpression): string | undefined {
+function calleeName(call: CallExpression): string | undefined {
   const expression = call.getExpression();
   if (Node.isIdentifier(expression)) {
     return expression.getText();

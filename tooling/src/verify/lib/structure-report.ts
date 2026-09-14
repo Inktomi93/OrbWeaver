@@ -54,7 +54,7 @@ export function finalSide(selectedFinal: readonly GatePolicy[], result: PolicyPa
   return { result, rows: policyRows(result, selectedFinal), report: policyReport(result) };
 }
 
-export function populationCounts(population: PolicyPopulationReceipt): PopulationCounts {
+function populationCounts(population: PolicyPopulationReceipt): PopulationCounts {
   return {
     declaredSourcePaths: population.declaredSourcePaths.length,
     declaredResourcePaths: population.declaredResourcePaths.length,

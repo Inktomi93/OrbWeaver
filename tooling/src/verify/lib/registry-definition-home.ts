@@ -11,7 +11,7 @@ const FEATURE_ROOT = ["packages", "client", "src", "features"] as const;
 const SOURCE_EXTENSIONS = [".ts", ".tsx"] as const;
 
 /** The feature that owns `repoRelativePath`'s definition slot, or undefined when the path is not one. */
-export function definitionHomeOwner(repoRelativePath: string, slot: DefinitionSlot): string | undefined {
+function definitionHomeOwner(repoRelativePath: string, slot: DefinitionSlot): string | undefined {
   const segments = repoRelativePath.split("/");
   const [packagesDir, clientDir, srcDir, featuresDir, owner, libDir, file, ...rest] = segments;
   if (

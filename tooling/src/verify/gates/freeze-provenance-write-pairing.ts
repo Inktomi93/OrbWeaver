@@ -8,7 +8,7 @@
 // (`readAuthoredKeySet`: which column names can this payload author, on any branch). Both were ADDED for
 // this conversion, because `lib/` had value readers and no key-set reader: `readStaticAuthoredValue`
 // refuses all seven live writes (their FIELDS are `params.x` and builder calls), and
-// `resolveAuthoredComposite`/`readObjectLiteral`/`readReturnedObjectLiteral` each stop at one literal.
+// `resolveAuthoredComposite` (and the since-retired `ast-read` literal readers) each stop at one literal.
 // The `-health` sibling shares the family and owns the blindness tripwires, which are HARD: a tripwire
 // that a `@orb-waive` marker could silence is not a tripwire. Legacy reported them through the Finding
 // overload for exactly that reason, so the split preserves the authority rather than inventing it.

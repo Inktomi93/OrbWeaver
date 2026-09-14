@@ -7,7 +7,7 @@
 import type { JsxOpeningElement, JsxSelfClosingElement, StringLiteral } from "ts-morph";
 import { Node } from "ts-morph";
 
-export const COLLAPSIBLE_TRIGGER = "CollapsibleTrigger";
+const COLLAPSIBLE_TRIGGER = "CollapsibleTrigger";
 /** The SUB-FLOOR opt-out: no control box, no hit pseudo at all (pointer-variants.ts measured a 406×16 trigger). */
 export const SUB_FLOOR_ARM = "text";
 /** The default since #884 C2 inverted it: the pointer-conditional `--spacing-control-sm` floor. */

@@ -29,7 +29,7 @@ const TYPE_NAMES = {
   chrome: "ChromeEntry",
 } as const satisfies Readonly<Record<RegistryDefinitionKind, string>>;
 
-export const REGISTRY_DEFINITION_VISITOR_KINDS = [
+const REGISTRY_DEFINITION_VISITOR_KINDS = [
   SyntaxKind.InterfaceDeclaration,
   SyntaxKind.TypeAliasDeclaration,
   SyntaxKind.VariableDeclaration,
@@ -277,7 +277,7 @@ function visitRegistryNode(node: MorphNode, state: MutableRegistryFacts): void {
 }
 
 /** Create one invocation-local collector and feed it only nodes delivered by the shared dispatcher. */
-export function createRegistryDefinitionFacts(): {
+function createRegistryDefinitionFacts(): {
   readonly visit: (node: MorphNode) => void;
   readonly forKind: (kind: RegistryDefinitionKind) => RegistryDefinitionKindFacts;
 } {

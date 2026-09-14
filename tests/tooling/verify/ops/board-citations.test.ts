@@ -26,6 +26,11 @@ import { CLOSED_CONTROL_ISSUE } from "../../../../tooling/src/verify/lib/workite
 import { LEDGERS, ROSTERS, runControls } from "../../../../tooling/src/verify/ops/board-citations.ts";
 import type { BoardIssueRow } from "../../../../tooling/src/workboard/contract/types.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+// The admission arm parses the real 647 KB refutation ledger three times (8 s measured on a busy box, 2026-09-14);
+// a quiet-box ceiling that `scaledBudget` stretches under load, never a bare wall clock.
+const REAL_LEDGER_BASE_MS = 30_000;
 
 /** The subject the healthy snapshot's one declaring row announces — the subject control's real input. */
 const DECLARED = "cb-v-parity-instruments L4";
@@ -93,7 +98,7 @@ test("a snapshot where NO row declares a subject refuses — the subject arm wou
   expect(() => runControls(noSubjects)).toThrow(/NOT ONE board row declares a `\*\*Where:\*\*` subject/);
 });
 
-test("the CONFIGURED production documents are admitted, and a renamed column on their real bytes throws", ({ repoRoot }) => {
+test("the CONFIGURED production documents are admitted, and a renamed column on their real bytes throws", { timeout: scaledBudget(REAL_LEDGER_BASE_MS) }, ({ repoRoot }) => {
   // NOT a synthetic stand-in: these are the exact paths the verb reads, so a rename, a lost fence or a
   // rewritten citation grammar in the real tree reds HERE rather than printing a clean zero at the barrier.
   for (const rel of LEDGERS) {

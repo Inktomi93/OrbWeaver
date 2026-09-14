@@ -33,8 +33,8 @@ export const LIB_READER_PATH = "tooling/src/verify/lib/probe-reader.ts";
 export const LIB_READER_STUB =
   'import { readyResourceValue } from "./resource-declaration.ts";\nexport function readProbeRoster(resources: { trackedFiles: () => unknown }): unknown {\n  return readyResourceValue(resources.trackedFiles() as never);\n}\n';
 
-export const PROBE_GATE_ID = "probe";
-export const PROBE_GATE_PATH = `tooling/src/verify/gates/${PROBE_GATE_ID}.ts`;
+const PROBE_GATE_ID = "probe";
+const PROBE_GATE_PATH = `tooling/src/verify/gates/${PROBE_GATE_ID}.ts`;
 /** The family test that a family-test identity arm lives in, relative to the same root. */
 export const PROBE_FAMILY_TEST_PATH = "tests/tooling/verify/gates/probe-family.test.ts";
 /** The specifier a test at `PROBE_FAMILY_TEST_PATH` imports the probe module through. */
