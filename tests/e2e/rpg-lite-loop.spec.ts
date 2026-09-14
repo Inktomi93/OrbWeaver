@@ -48,6 +48,7 @@ import {
   addJournalEntry,
   createCheckpoint,
   createLiteGame,
+  deleteChat,
   deleteMessages,
   editSnapshot,
   fetchDebugErrors,
@@ -131,8 +132,10 @@ async function characterActor(chatId: ChatId, characterId: CharacterId): Promise
 const COHERENT_VLLM_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
 
 /** Seed a fresh lite game on a virgin chat with a spec-owned character, on the WRITE-CAPABLE chat route.
- *  Returns the ids + a cleanup handle that removes the character (its chats/game cascade) AND restores the
- *  prior chat route (the shared single-user settings row). The handle is UNIQUE per spec (a distinct card
+ *  Returns the ids + a cleanup handle that deletes the chat, removes the character AND restores the prior
+ *  chat route (the shared single-user settings row). The chat is deleted explicitly because removing a
+ *  character cascades its SEAT, not the chat row: a leaked chat stays in the shared DB, where a
+ *  newest/first-chat helper in a later spec can pick it up. The handle is UNIQUE per spec (a distinct card
  *  handle) so serial specs never collide on the shared DB. */
 async function seedGame(
   handle: CharacterHandle,
@@ -143,6 +146,7 @@ async function seedGame(
   const chatId = await startChat([characterId]);
   await createLiteGame(chatId);
   const cleanup = async (): Promise<void> => {
+    await deleteChat(chatId);
     await removeCharacter(characterId);
     if (priorRoute !== undefined) {
       await setChatRoute(priorRoute);

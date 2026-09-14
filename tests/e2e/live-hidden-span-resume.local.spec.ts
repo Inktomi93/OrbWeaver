@@ -42,7 +42,7 @@ import {
 } from "./support/fixture-provider.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
-import { collectChatRoomFrames } from "./support/sse.ts";
+import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
 
 const CARD_HANDLE = "e2e-span-resume";
 const STREAM_TIMEOUT_MS = 60_000;
@@ -101,7 +101,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
     const hostLive = collectChatRoomFrames({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
     await new Promise((resolve) => setTimeout(resolve, PRESENCE_SETTLE_MS));
     await host.mutation("chat.send", { chatId, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
-    const hostValues = await hostLive;
+    const hostValues = requireSatisfied(await hostLive, "host live");
 
     const cursor = openerSeq(hostValues);
     expect(cursor, "the host's stream must carry the span's opener chunk (the fixture streams it split)").toBeDefined();
@@ -109,22 +109,28 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
 
     // ── THE RESUME. Both viewers re-attach at the SAME cursor — the boundary between the opener and the
     // tail — so each one's first delivered delta is the tag's continuation. ──
-    const memberResume = await collectChatRoomFrames({
-      baseUrl: origin,
-      headers: member.headers,
-      chatId,
-      sinceSeq,
-      until: sawReply,
-      timeoutMs: STREAM_TIMEOUT_MS,
-    });
-    const hostResume = await collectChatRoomFrames({
-      baseUrl: origin,
-      headers: host.headers,
-      chatId,
-      sinceSeq,
-      until: sawReply,
-      timeoutMs: STREAM_TIMEOUT_MS,
-    });
+    const memberResume = requireSatisfied(
+      await collectChatRoomFrames({
+        baseUrl: origin,
+        headers: member.headers,
+        chatId,
+        sinceSeq,
+        until: sawReply,
+        timeoutMs: STREAM_TIMEOUT_MS,
+      }),
+      "member resume",
+    );
+    const hostResume = requireSatisfied(
+      await collectChatRoomFrames({
+        baseUrl: origin,
+        headers: host.headers,
+        chatId,
+        sinceSeq,
+        until: sawReply,
+        timeoutMs: STREAM_TIMEOUT_MS,
+      }),
+      "host resume",
+    );
 
     const memberBytes = JSON.stringify(memberResume);
     const hostBytes = JSON.stringify(hostResume);
