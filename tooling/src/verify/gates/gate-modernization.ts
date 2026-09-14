@@ -555,7 +555,8 @@ function armCitation(obj: Node, ctx: GatePolicyContext, documents: DocumentIndex
 // A gate is a LEDGER READER when one of its string literals IS a ratchet-ledger path (anchored whole-text
 // match, so the sentence you are reading — and every other prose mention — can never trip it).
 // …and that literal is NOT inside a `mustFlag`/`mustPass` example (#569): a conformance FIXTURE ledger is
-// something the gate JUDGES, never a budget it reads — `ratchet-row-integrity` is the worked case.
+// something the gate JUDGES, never a budget it reads — `ratchet-row-integrity` was the worked case (retired
+// 2026-09-14 with its subject; the carve outlives it and still guards any future fixture-ledger author).
 const LEDGER_PATH_RE = /^[\w./-]+\.baseline\.json$/u;
 const ADMITTED_PROP = "admitted";
 const SCAN_METHOD = "scan";
@@ -569,7 +570,7 @@ const NO_ADMITTED_TRIPWIRE =
   "tooling/src/verify/gates/gate-modernization.ts stopped matching: re-point it (GATE-AUTHORING.md §4.6).";
 
 /** The SELF-PROOF fields: a ledger path inside a conformance example is a FIXTURE, not a read (#569 — the
- *  `ratchet-row-integrity` gate JUDGES ledgers and admits nothing, so its example files legitimately name
+ *  now-retired `ratchet-row-integrity` gate JUDGED ledgers and admitted nothing, so its example files named
  *  `*.baseline.json` paths and ARM D accused it three times over). Narrow on purpose: a real reader's path
  *  constant lives at module scope, so this carve cannot absolve one. */
 const EXAMPLE_FIELDS: ReadonlySet<string> = new Set(POLICY_PROOF_ARMS);
@@ -948,7 +949,7 @@ export const gate = defineGate({
       files: {
         "tooling/src/verify/gates/__probe.ts": `export const gate = { name: "__probe", docRow: "x", message: "m", run: (ctx) => { ctx.scan({ unit: "ledger row" }); }, mustFlag: [{ files: { "${GATE_MODERNIZATION_PROBE_LEDGER}": "{}" }, why: "w" }], mustPass: [{ files: { "${GATE_MODERNIZATION_PROBE_LEDGER}": "{}" }, why: "w" }] };\n`,
       },
-      why: "ARM D's example carve (#569): a gate whose ONLY ledger path sits inside its mustFlag/mustPass fixtures JUDGES ledgers rather than reading budgets — accusing it of a silent ratchet was a false positive that cost `ratchet-row-integrity` three findings at landing",
+      why: "ARM D's example carve (#569): a gate whose ONLY ledger path sits inside its mustFlag/mustPass fixtures JUDGES ledgers rather than reading budgets — accusing it of a silent ratchet was a false positive that cost `ratchet-row-integrity` (retired 2026-09-14) three findings at landing",
     },
     {
       files: {

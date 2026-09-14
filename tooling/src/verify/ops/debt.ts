@@ -324,7 +324,8 @@ export function runDebtWalk(root: string, argv: readonly string[]): number {
   }
   // `__g_` ledgers are a CONCURRENT TEST's transient fixtures (the probe-artifact convention report.ts
   // already honours for findings) — reconciling against one would make this lens exit 2 because another
-  // process is mid-run. The `ratchet-row-integrity` gate deliberately DOES judge them: that is its fixture.
+  // process is mid-run. (`ratchet-row-integrity` deliberately DID judge them — that was its fixture — until
+  // it retired with its subject on 2026-09-14; this filter is now this lens's own concern.)
   const problems = reconcileLedgers(
     LEDGERS,
     discoverBaselineFiles(root).filter((rel) => !(rel.split("/").at(-1) ?? "").startsWith("__g_")),

@@ -96,8 +96,10 @@ export const LEDGER_DEFINITIONS = {
   },
   /** The enforcement roster `enforcement-registry-parity` reconciles the descriptor corpus against. */
   "gate-enforcement-roster": { nature: "markdown", paths: ["docs/architecture/core/Core-Enforcement-Active-Gates.md"] },
-  /** Every committed ratchet ledger beside the gate corpus — a DISCOVERED member set, which is the whole
-   *  subject of `ratchet-row-integrity`: a ledger that stops being discovered is the defect. */
+  /** Every committed ratchet ledger beside the gate corpus — a DISCOVERED member set. UNCONSUMED since
+   *  2026-09-14: its only consumer, `ratchet-row-integrity`, retired with its subject when the gate corpus
+   *  reached zero ledgers. The id and this tree-discovery shape are dead vocabulary pending their own
+   *  removal; do not re-point this tree at the ops-tier ratchets to give it a consumer. */
   "ratchet-baselines": { nature: "json", tree: "tooling/src/verify/gates", suffix: ".baseline.json" },
 } as const;
 
