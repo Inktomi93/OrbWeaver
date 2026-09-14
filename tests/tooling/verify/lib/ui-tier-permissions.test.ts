@@ -293,6 +293,10 @@ test("the three-policy unions reproduce every frozen legacy example with classif
     const legacy = await frozenLegacyGate(family, scratch);
     for (const arm of ["mustFlag", "mustPass"] as const) {
       for (const [index, example] of legacy[arm].entries()) {
+        const finalOccurrencePolicy = family.policies[0];
+        if (finalOccurrencePolicy === undefined) {
+          throw new Error(`UI tier family ${family.kind} has no occurrence policy`);
+        }
         const files = withFamilySupport(family, arm, index, exampleFiles(example));
         const root = join(scratch, `fixture-${fixture++}`);
         const legacyProject = physicalProject(root, files);
@@ -324,15 +328,19 @@ test("the three-policy unions reproduce every frozen legacy example with classif
         ).toEqual(HEALTH_TRANSITIONS[`${family.kind}:${arm}:${index}`] ?? []);
         expect(
           normalizedVerdict(
-            after.authority.effectiveFindings.map((finding) => ({
-              ...finding,
-              message: finding.message ?? family.policies.find((policy) => policy.id === finding.policyId)?.message,
-            })),
+            after.authority.effectiveFindings.map((finding) => {
+              const message = finding.message ?? family.policies.find((policy) => policy.id === finding.policyId)?.message;
+              return { ...finding, ...(message === undefined ? {} : { message }) };
+            }),
           ),
           `${family.kind} ${arm}[${index}] ${example.why}`,
         ).toEqual(
           normalizedVerdict(
-            (before.gates[0]?.findings ?? []).map((finding) => ({ ...finding, message: finding.message ?? legacy.message, policyId: family.policies[0]?.id })),
+            (before.gates[0]?.findings ?? []).map((finding) => ({
+              ...finding,
+              message: finding.message ?? legacy.message,
+              policyId: finalOccurrencePolicy.id,
+            })),
             OCCURRENCE_MESSAGES[family.kind],
           ),
         );
@@ -354,7 +362,11 @@ test("legacy scan predicates equal the shared classifier predicates, with the po
     if (family.kind === "pointer") {
       pointerLegacy = legacy;
     }
-    const legacySet = tracked.filter((path) => legacy.scanRoot(path));
+    const scanRoot = legacy.scanRoot;
+    if (scanRoot === undefined) {
+      throw new Error(`frozen ${family.kind} gate has no legacy scanRoot`);
+    }
+    const legacySet = tracked.filter((path) => scanRoot(path));
     const classifierSet = tracked.filter((path) => classifierAdmits(family.kind, path));
     expect(
       classifierSet.filter((path) => !legacySet.includes(path)),
@@ -371,6 +383,9 @@ test("legacy scan predicates equal the shared classifier predicates, with the po
   expect(skinOutside.population).toBe("@ui");
   expect(pointerOutside.population).toBe("@client");
   expect(providerOnly.length).toBeGreaterThan(0);
-  expect(pointerLegacy).toBeDefined();
-  expect(providerOnly.some((path) => pointerLegacy?.scanRoot(path) === true)).toBe(false);
+  const pointerScanRoot = pointerLegacy?.scanRoot;
+  if (pointerScanRoot === undefined) {
+    throw new Error("frozen pointer gate has no legacy scanRoot");
+  }
+  expect(providerOnly.some((path) => pointerScanRoot(path))).toBe(false);
 });

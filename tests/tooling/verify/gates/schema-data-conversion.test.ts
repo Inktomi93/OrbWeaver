@@ -14,6 +14,7 @@ import { gate as openDeferred } from "../../../../tooling/src/verify/gates/open-
 import { gate as openHealth } from "../../../../tooling/src/verify/gates/open-json-column-key-parity-health.ts";
 import { gate as wireVocabulary } from "../../../../tooling/src/verify/gates/wire-schema-vocab-one-home.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
+import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import type { DifferentialClaim, Files, Seen, TmpdirReplay } from "../../../support/legacy-differential.ts";
 import {
   createDifferential,
@@ -30,6 +31,11 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 const BASE = "4522eee58";
 const BUDGET_MS = scaledBudget(60_000);
+
+test("wire vocabulary evidence missing its engine fails closed", () => {
+  expect(wireVocabulary.mustRefuse.some((proof) => proof.expect.messageIncludes.includes("has no BOUND_KEYWORDS initializer"))).toBe(true);
+  expect(verifyPolicyProofs([wireVocabulary])).toEqual([]);
+});
 
 function toolErrorCode(owner: string, phase: string, message: string): string {
   if (message.includes("expression admitted zero paths")) {
@@ -242,7 +248,7 @@ function reviewedFinding(
   return {
     file,
     line,
-    ...(token === undefined ? {} : { token }),
+    token,
     message: `${policy.message} Subject: ${subject}, operation: ${operation}, line(s): ${String(line)}.`,
     policyId: policy.id,
   };
@@ -502,6 +508,7 @@ const IDENTITIES: Readonly<Record<string, IdentityPlan>> = {
       {
         file: "packages/db/src/schema/nowhere.ts",
         line: 1,
+        token: undefined,
         message:
           "a schema module has no same-named producer domain; non-domain producer ownership requires an exact reviewed grant. Subject: packages/db/src/schema/nowhere.ts, operation: non-domain-schema-producer, site(s): packages/db/src/schema/nowhere.ts:1 (nowhere).",
         policyId: dbStructureProducerHome.id,
