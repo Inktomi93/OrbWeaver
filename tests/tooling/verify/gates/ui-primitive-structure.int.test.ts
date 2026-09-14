@@ -162,14 +162,22 @@ function finalIdentity(finding: CoordinatedGateFinding): FindingIdentity {
     };
   }
   if (finding.policyId === ordinary.id) {
+    const token = finding.token;
     const arm = new Map([
       ["./variants", "variants-leak"],
       ["svg", "inline-svg"],
-    ]).get(finding.token ?? "");
-    if (arm === undefined || finding.message !== undefined || finding.fix !== undefined || finding.subject !== undefined || finding.operation !== undefined) {
+    ]).get(token ?? "");
+    if (
+      arm === undefined ||
+      token === undefined ||
+      finding.message !== undefined ||
+      finding.fix !== undefined ||
+      finding.subject !== undefined ||
+      finding.operation !== undefined
+    ) {
       throw new Error(`unclassified ordinary UI primitive finding: ${JSON.stringify(finding)}`);
     }
-    return { owner: ordinary.id, arm, file: finding.file, line: finding.line, column: finding.column, token: finding.token };
+    return { owner: ordinary.id, arm, file: finding.file, line: finding.line, column: finding.column, token };
   }
   if (finding.policyId === health.id && finding.message === "modal overlay 'dialog' must NOT have a .Positioner.") {
     return { owner: health.id, arm: "overlay:modal-positioner", file: finding.file, line: finding.line, column: finding.column };

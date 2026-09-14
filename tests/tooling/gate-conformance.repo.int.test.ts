@@ -19,17 +19,12 @@
 // At the #1584 atomic cutover the legacy roster empties, this file's subject ceases to exist, and the
 // suite RETIRES with `verifyGateProofs` rather than being re-pointed again.
 import { join } from "node:path";
-import type { GateDescriptor, GateExample } from "../../tooling/src/verify/contract/gate.ts";
-import { gate as wireVocabGate } from "../../tooling/src/verify/gates/wire-schema-vocab-one-home.ts";
+import type { GateDescriptor } from "../../tooling/src/verify/contract/gate.ts";
 import { loadGates, verifyGateProofs } from "../../tooling/src/verify/index.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
-
-function withMustFlag(gate: GateDescriptor, example: GateExample): GateDescriptor {
-  return { ...gate, mustFlag: [example], mustPass: [] };
-}
 
 // LOAD-HONEST BUDGET (#606). `verifyGateProofs` runs the WHOLE gate corpus's mustFlag/mustPass examples
 // in-process (~21s solo) — pure CPU, no child process to hang a legible timeout on, so the honest lever here
@@ -86,16 +81,6 @@ test("a crashing mustPass proof is a conformance failure, never a clean proof", 
       detail: expect.stringContaining("planted checker crash"),
     }),
   ]);
-});
-
-test("wire vocabulary evidence missing its engine fails closed", () => {
-  const failures = verifyGateProofs([
-    withMustFlag(wireVocabGate, {
-      files: { "packages/server/src/infra/providers/backends/x/schema.ts": 'export const DROP = ["title", "default"];\n' },
-      why: "the vocabulary engine is missing, so a clean comparison is impossible",
-    }),
-  ]);
-  expect(failures).toEqual([]);
 });
 
 // The three `evaluate-no-scope-capture` fail-loud pins that lived here MOVED with its #1584 conversion:

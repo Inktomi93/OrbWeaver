@@ -7,6 +7,15 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor, withTree } from "../../_support.ts";
 
+type EffectiveFinding = ReturnType<typeof runPolicyPass>["authority"]["effectiveFindings"][number];
+
+function messageOf(finding: EffectiveFinding): string {
+  if (finding.message === undefined) {
+    throw new Error(`tooling-slot-template emitted a finding without its arm message: ${JSON.stringify(finding)}`);
+  }
+  return finding.message;
+}
+
 const CLASSIFIED_HOMES = {
   "tooling/src/stack/index.ts": "export {};\n",
   "tooling/src/stack/stack.sh": "#!/bin/sh\n",
@@ -50,33 +59,33 @@ function findings(files: Record<string, string>): ReturnType<typeof runPolicyPas
 
 test("an index.ts-only tool dir that a snap arm imports through its index is an ENGINE — no argv door owed", () => {
   const found = findings({ ...ENGINE, ...SNAP_ARM_ENTERS });
-  expect(found.filter((f) => (f.message ?? "").includes("no cli.ts"))).toEqual([]);
+  expect(found.filter((f) => messageOf(f).includes("no cli.ts"))).toEqual([]);
 });
 
 test("POSITIVE CONTROL — the same dir with no snap importer still owes its cli.ts", () => {
   const found = findings({ ...ENGINE, ...SNAP_ARM_IGNORES });
-  expect(found.filter((f) => (f.message ?? "").includes("no cli.ts")).map((f) => f.file)).toEqual(["tooling/src/enginetool"]);
+  expect(found.filter((f) => messageOf(f).includes("no cli.ts")).map((f) => f.file)).toEqual(["tooling/src/enginetool"]);
 });
 
 test("an engine dir still needs its index.ts — the clause never widens arm B's other half", () => {
   const files = { ...ENGINE, ...SNAP_ARM_ENTERS };
   const { "tooling/src/enginetool/index.ts": _dropped, ...withoutIndex } = files;
   const found = findings({ ...withoutIndex, "tooling/src/enginetool/lib/walk.ts": "export const walk = 1;\n" });
-  expect(found.filter((f) => (f.message ?? "").includes("no index.ts")).map((f) => f.file)).toEqual(["tooling/src/enginetool"]);
+  expect(found.filter((f) => messageOf(f).includes("no index.ts")).map((f) => f.file)).toEqual(["tooling/src/enginetool"]);
 });
 
 test("the corpus classification permits only verify/gates, never another sixth slot", () => {
   const found = findings({ ...CLASSIFIED_HOMES, "tooling/src/verify/anything/x.ts": "export {};\n" });
-  expect(found.filter((f) => f.message.includes("is not a slot")).map((f) => f.file)).toEqual(["tooling/src/verify/anything"]);
+  expect(found.filter((f) => messageOf(f).includes("is not a slot")).map((f) => f.file)).toEqual(["tooling/src/verify/anything"]);
 });
 
 test("classification liveness needs no unrelated exit-contract sentinel", () => {
   const { "tooling/src/stack/index.ts": _index, "tooling/src/stack/stack.sh": _shell, ...withoutStack } = CLASSIFIED_HOMES;
-  expect(findings(withoutStack).some((f) => f.message.includes('stale BASH_FRONTED_TOOLS row "stack"'))).toBe(true);
+  expect(findings(withoutStack).some((f) => messageOf(f).includes('stale BASH_FRONTED_TOOLS row "stack"'))).toBe(true);
   const { "tooling/src/verify/gates/example.ts": _gate, ...withoutCorpus } = CLASSIFIED_HOMES;
   const found = findings({ ...withoutCorpus, "tooling/src/verify/anything/x.ts": "export {};\n" });
-  expect(found.some((f) => f.message.includes('stale CORPUS_SLOTS row "verify"'))).toBe(true);
+  expect(found.some((f) => messageOf(f).includes('stale CORPUS_SLOTS row "verify"'))).toBe(true);
   expect(
-    findings({ ...CLASSIFIED_HOMES, "tooling/src/stack/cli.ts": "export {};\n" }).some((f) => f.message.includes('BASH_FRONTED_TOOLS row "stack" is stale')),
+    findings({ ...CLASSIFIED_HOMES, "tooling/src/stack/cli.ts": "export {};\n" }).some((f) => messageOf(f).includes('BASH_FRONTED_TOOLS row "stack" is stale')),
   ).toBe(true);
 });

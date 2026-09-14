@@ -57,6 +57,7 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
       throw new Error("native config requires an explicit fixture");
     },
     trackedFiles: () => fact("tracked-files", ["z.ts", "a.ts"], { repoPaths: ["z.ts", "a.ts"] }),
+    candidateIndexDelta: () => fact("candidate-index-delta", [], { files: [] }),
     json: (id) => fact(`json:${id}`, [JSON_RESOURCE_PATHS[id]], { id, path: JSON_RESOURCE_PATHS[id], value: {} }),
     // The three UNPOPULATED doors. Each returns a ready fact with ZERO paths, which is the exact shape the
     // planning resolver would otherwise refuse as "an empty fact".

@@ -135,11 +135,15 @@ function verifyFloorlessRow(legacy: GateDescriptor, arm: "mustFlag" | "mustPass"
   const after = drive(files);
   expect(before.toolErrors, example.why).toEqual([]);
   const findings = before.gates[0]?.findings ?? [];
-  expect(findings, example.why).toHaveLength(arm === "mustFlag" ? [1, 2, 6, 6, 2, 1, 1][index] : 0);
+  const expectedCount = arm === "mustFlag" ? [1, 2, 6, 6, 2, 1, 1][index] : 0;
+  if (expectedCount === undefined) {
+    throw new Error(`frozen floorless ${arm}[${index}] has no declared finding count`);
+  }
+  expect(findings, example.why).toHaveLength(expectedCount);
   const retired = arm === "mustFlag" && index === 4;
   const vocabulary = arm === "mustFlag" && (index === 2 || index === 3);
   expect(
-    findings.filter((finding) => finding.message?.startsWith("JUDGMENT_DEFERRED row matching NO live violation")),
+    findings.filter((finding) => finding.message?.startsWith("JUDGMENT_DEFERRED row matching NO live violation") === true),
     example.why,
   ).toHaveLength(retired ? 2 : 0);
   // Ordinary wording and positions survive verbatim. Health deliberately moves from the legacy

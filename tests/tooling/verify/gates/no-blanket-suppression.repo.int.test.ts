@@ -12,7 +12,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
-import type { CoordinatedGateFinding, PolicyToolError } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
+import type { PolicyToolError } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import type { GatePolicyReceipt } from "../../../../tooling/src/verify/contract/policy-primitives.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-blanket-suppression.ts";
 import { projectCtx } from "../../../../tooling/src/verify/index.ts";
@@ -29,6 +30,8 @@ interface Run {
   readonly receipts: readonly GatePolicyReceipt[];
   readonly toolErrors: readonly PolicyToolError[];
 }
+
+type ResourceReceipt = Extract<GatePolicyReceipt, { readonly kind: "resource" }>;
 
 /** Drive the production policy over a root with an EMPTY harness fileset — arm A has nothing to walk,
  *  so every finding here comes from arm B or arm C. */
@@ -99,7 +102,10 @@ describe("no-blanket-suppression — arm B, the tracked non-TS corpus (planted c
     const run = runGate(scratch);
     expect(run.findings).toEqual([]);
     // 3 fixtures + biome.json + the governed TypeScript member all came through the tracked resource.
-    expect(run.receipts.find(({ source }) => source === "tracked-files")).toMatchObject({ resources: 5, unresolved: 0 });
+    expect(run.receipts.find((receipt): receipt is ResourceReceipt => receipt.kind === "resource" && receipt.source === "tracked-files")).toMatchObject({
+      resources: 5,
+      unresolved: 0,
+    });
   });
 
   test("a path biome itself ignores is skipped by DERIVATION and counted, never judged", ({ scratch }) => {
@@ -188,7 +194,11 @@ describe("no-blanket-suppression — the REAL tree", () => {
     const run = runGate(repoRoot, projectCtx(repoRoot).project);
     expect(run.toolErrors).toEqual([]);
     expect(run.findings).toEqual([]);
-    expect(run.receipts.find(({ source }) => source === "tracked-files")?.resources ?? 0).toBeGreaterThan(1000);
-    expect(run.receipts.find(({ source }) => source.startsWith("authored-text"))?.resources ?? 0).toBeGreaterThan(20);
+    expect(
+      run.receipts.find((receipt): receipt is ResourceReceipt => receipt.kind === "resource" && receipt.source === "tracked-files")?.resources ?? 0,
+    ).toBeGreaterThan(1000);
+    expect(
+      run.receipts.find((receipt): receipt is ResourceReceipt => receipt.kind === "resource" && receipt.source.startsWith("authored-text"))?.resources ?? 0,
+    ).toBeGreaterThan(20);
   });
 });
