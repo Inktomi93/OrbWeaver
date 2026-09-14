@@ -28,29 +28,22 @@
 // count, which is the lens's own "counted and NAMED" promise going unhonoured.
 import type { CallExpression, Node, ObjectLiteralExpression, Project, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
+import type { ActionDoorRuling } from "../../_shared/action-door-rulings.ts";
+import { ACTION_DOOR_RULINGS } from "../../_shared/action-door-rulings.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { RatchetRow } from "../../_shared/ratchet-rows.ts";
-import { readRatchetLedger } from "../../_shared/ratchet-rows.ts";
 import type { DestructuredFires, MutationFactoryIndex, ResolvedDoor, UnresolvedDoor } from "../../_shared/trpc-doors.ts";
-import {
-  DOORS_BASELINE_REL,
-  destructuredFires,
-  indexMutationFactories,
-  MUTATION_FIRE_MEMBERS,
-  procedureMatches,
-  resolveFiredDoor,
-} from "../../_shared/trpc-doors.ts";
+import { destructuredFires, indexMutationFactories, MUTATION_FIRE_MEMBERS, procedureMatches, resolveFiredDoor } from "../../_shared/trpc-doors.ts";
 import type { Flags, Hit, SubsetAudit, SubsetCallSite, SubsetDoorCensus, SubsetFinding, SubsetSiteScan, SubsetUnjudgedFire } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, noteUnits, scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
-import { REPO_ROOT } from "../lib/root.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
 /** A subset comparison needs two sides. One resolved site answers nothing — and printing "no findings"
  *  there is exactly the false clean this lens exists to refuse. */
 const MIN_COMPARABLE_SITES = 2;
+
 /** How many supersets a finding NAMES before it elides the rest (the reader needs the shape, not a list). */
 const NAMED_SUPERSETS = 3;
 
@@ -310,40 +303,59 @@ export function sameClassFirst(finding: SubsetFinding): readonly SubsetCallSite[
   return [...finding.supersets].sort((a, b) => rank(a) - rank(b));
 }
 
-/** The doors ledger's RATIFIED rows, by procedure (#569's second consumer). The rows are keyed
- *  `<plane>::<procedure>`; a lens finding knows only the procedure, so the procedure tail is the join key.
- *  Read through the ONE row reader, so the lens and the gate can never disagree about what is ratified. */
-function ratifiedProcedures(root: string): ReadonlyMap<string, RatchetRow> {
-  const out = new Map<string, RatchetRow>();
-  for (const row of readRatchetLedger(root, DOORS_BASELINE_REL).rows) {
-    const procedure = row.subject.split("::").at(-1);
-    if (procedure !== undefined && row.ratified > 0) {
-      out.set(procedure, row);
-    }
-  }
-  return out;
+/** ONE ruling, beside the procedure path a lens finding is joined on. */
+interface RuledPair {
+  readonly procedure: string;
+  readonly ruling: ActionDoorRuling;
 }
 
-/** A flagged subset whose verb is a RATIFIED door pair is not a candidate — it is a decision somebody
- *  already made, and printing it as a lead is how a ruled affordance gets re-litigated every sweep (#572's
- *  report named exactly this need: the lens structurally could not know). The annotation carries the ruling
- *  and its cites so the reader can disagree with the RULING rather than re-derive it. */
-function ratifiedNote(finding: SubsetFinding, ratified: ReadonlyMap<string, RatchetRow>): string {
-  const procedure = finding.site.door?.split(".").at(-1);
-  const row = procedure === undefined ? undefined : (ratified.get(finding.site.door ?? "") ?? ratified.get(procedure));
-  if (row === undefined) {
+/** THE RULED door pairs, each beside its own procedure path (#569's second consumer, re-pointed 2026-09-13).
+ *  The ruling used to live in `duplicate-action-doors.baseline.json`; the #1584 authority migration deleted
+ *  that ledger and moved every ruled pair into `_shared/action-door-rulings.ts`, which
+ *  `verify/lib/reviewed-grants.ts` maps into the central reviewed-grant table. A ruling's `subject` is the
+ *  same `<plane>::<procedure>` key the ledger row carried.
+ *
+ *  IT READS THE FLOOR, NOT `verify`. Reading the central table would mean importing `verify/index.ts` — the
+ *  only cross-tool door `tooling-internal-direction` permits — and that barrel reaches `ops/debt.ts` and
+ *  onward to `ast/index.ts`, i.e. back to this module: five `lint/suspicious/noImportCycles` errors,
+ *  measured. `_shared` is the floor both tools read down into, and the retired `DOORS_BASELINE_REL` lived
+ *  there for the same reason. */
+export function ruledDoorPairs(): readonly RuledPair[] {
+  return ACTION_DOOR_RULINGS.map((ruling) => ({ procedure: ruling.subject.split("::").at(-1) ?? "", ruling }));
+}
+
+/** THE JOIN, AND THE PRE-EXISTING DEFECT IT REPAIRS (measured 2026-09-13). A client door's `door` field is the
+ *  RESOLUTION CHAIN, not a procedure path — the live shape is "mutation ← useContinueTurnMutation → trpc.chat.continueTurn"
+ *  — so the retired lookup, which asked a `chat.continueTurn`-keyed map first for that whole string and then
+ *  for its last dot segment (`continueTurn`), matched NEITHER key: the ledger-era annotation had never
+ *  rendered for a client door at all, which is the only door class #572 asked for it. A chain ends in the bare
+ *  verb, so the join runs through the shared {@link procedureMatches} grammar — the one home for
+ *  "`chat.generate` answers to `generate` and to its full path" — rather than a second spelling of it. Pinned
+ *  in `tests/tooling/verify/gates/action-doors-family.test.ts`. */
+function ruledPairFor(door: string, ruled: readonly RuledPair[]): ActionDoorRuling | undefined {
+  const tail = door.split(".").at(-1);
+  return tail === undefined ? undefined : ruled.find((row) => procedureMatches(row.procedure, tail))?.ruling;
+}
+
+/** A flagged subset whose verb is a RULED door pair is not a candidate — it is a decision somebody already
+ *  made, and printing it as a lead is how a ruled affordance gets re-litigated every sweep (#572's report
+ *  named exactly this need: the lens structurally could not know). The annotation carries the ruling and the
+ *  doors it names so the reader can disagree with the RULING rather than re-derive it. */
+export function ratifiedNote(finding: SubsetFinding, ruled: readonly RuledPair[]): string {
+  const ruling = finding.site.door === null ? undefined : ruledPairFor(finding.site.door, ruled);
+  if (ruling === undefined) {
     return "";
   }
-  return `  [RATIFIED door pair — ${row.subject}: ${row.why ?? "(no why recorded)"} · cites: ${row.cite.join(", ")}]`;
+  return `  [RULED door pair — ${ruling.subject}: ${ruling.why} · doors: ${ruling.doors.join(", ")} · ends when: ${ruling.endsWhen}]`;
 }
 
-function findingHit(symbol: string, finding: SubsetFinding, ratified: ReadonlyMap<string, RatchetRow>): Hit {
+function findingHit(symbol: string, finding: SubsetFinding, ruled: readonly RuledPair[]): Hit {
   const hit = hitOf(finding.site.node, "subset-caller");
   const named = sameClassFirst(finding).slice(0, NAMED_SUPERSETS).map(whereOf);
   const more = finding.supersets.length > named.length ? ` +${finding.supersets.length - named.length} more` : "";
   const via = finding.site.via === null ? "" : ` (via \`${finding.site.via}\`)`;
   const door = finding.site.door === null ? "" : ` [client door: ${finding.site.door}]`;
-  hit.text = `${symbol}({${(finding.site.keys ?? []).join(", ")}})${via}${door} — MISSING: ${finding.missing.join(", ")}  ⊂  ${named.join(", ")}${more}${crossClassNote(finding)}${ratifiedNote(finding, ratified)}`;
+  hit.text = `${symbol}({${(finding.site.keys ?? []).join(", ")}})${via}${door} — MISSING: ${finding.missing.join(", ")}  ⊂  ${named.join(", ")}${more}${crossClassNote(finding)}${ratifiedNote(finding, ruled)}`;
   return hit;
 }
 
@@ -410,9 +422,9 @@ export function cmdSubsetCallers(project: Project, symbol: string, flags: Flags)
     `comparing ${audit.resolved} of ${audit.sites.length} call site(s) of \`${symbol}\` by first-argument object KEYS — ` +
       "THE SUBJECT IS THE COMPARISON UNIT: a shared method tail (`mutate`, `call`) pools unrelated verbs and every finding is noise; name the VERB or HOOK, and narrow further with --in <path>",
   );
-  const ratified = ratifiedProcedures(REPO_ROOT);
+  const ruled = ruledDoorPairs();
   emit(
-    audit.findings.map((f) => findingHit(symbol, f, ratified)),
+    audit.findings.map((f) => findingHit(symbol, f, ruled)),
     flags,
     `subset-callers ${symbol}`,
   );

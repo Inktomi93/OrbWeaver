@@ -1,427 +1,164 @@
-// Gate: duplicate-action-doors (issue #252) — the §13 more-than-one-home IA class, made structural: one
+// Policy: duplicate-action-doors (issue #252) — the §13 more-than-one-home IA class, made structural: one
 // tRPC MUTATION reachable from N distinct components inside ONE rail section is the same verb wearing N
 // doors on one plane ("new chat lives in three places"). NOTHING hardcodes a procedure or a section name:
 // the procedure key IS the `trpc.<…>` property path, and the plane is derived from the co-located section
-// definitions against `SECTION_IDS`' one home. A shrink-only RATCHET, never a ban — some duals are ruled UX
-// (a hero CTA beside a rail button); the gate makes a NEW door a decision instead of an accident.
-// COMMENT POSTURE: comment-SAFE — pure node subscription, no file text is matched.
-// THE VOCABULARY IS RESOLVED, NOT READ FLAT (#947): `SECTION_IDS` is read through `lib/tuple-read.ts`, so
-// `[...CORE_SECTION_IDS, "home"]` contributes every id. A direct-element reader would leave the imported
-// section planes out of the vocabulary — their definitions would stop being recognised as rail sections and
-// every duplicate door on them would regroup under a feature directory, silently, with the vocabulary still
-// non-empty and the blindness tripwire still satisfied. The scan line prints the resolved id count + sources.
+// definitions against `SECTION_IDS`' one home. Some duals are ruled UX (a hero CTA beside a rail button);
+// the policy makes a NEW door a decision instead of an accident.
 //
-// "WHICH VERB IS THIS SITE?" IS NOT THIS GATE'S OWN ANSWER: the creation-site reader lives at
-// `tooling/src/_shared/trpc-doors.ts` (`mutationProcedures`) and is SHARED with the `ast subset-callers`
-// lens, which compares the PAYLOADS the doors this gate counts pass. Two spellings of "what is a door"
-// would let the census and the lens disagree; there is one.
+// FAMILY `action-doors` — the shared reader is `lib/action-door-fact.ts` (`actionDoorFact`), the ONE walk
+// that derives the section vocabulary, the plane map and the door census. The sibling is
+// `duplicate-action-doors-health`, which owns the two §4.6 BLINDNESS TRIPWIRES over that same walk. The
+// split axis is AUTHORITY, which is the only axis a split may take: this policy's exceptions are reviewed
+// grants, and a tripwire that could be granted away is not a tripwire.
 //
-// THE RULING IS A NAMED DOOR SET, NOT A CARDINALITY (#2101, 2026-09-12). Until now a baseline row was a
-// per-pair COUNT budget, which §12.5 names as the tell that a row's subject is wrong: "two doors are allowed
-// here" cannot say WHICH two, so a THIRD door was absolved by arithmetic whenever an old one left, the arm
-// that did fire could only accuse the whole list, and a ruled door that MOVED kept the count at 2 and
-// reported nothing. Every live row already named its doors in `cite` (#568/#569 wrote them there, and
-// `ratchet-row-integrity` reds a ratified row whose cited path stops resolving), so the SET was always the
-// ruling and the number was a shadow of it. The judge now reads the set: a live door the ruling does not
-// name is a finding AT THAT FILE, and a named door that is no longer live is the stale arm. `count` and
-// `ratified` stay as the shared ledger's accounting (`_shared/ratchet-rows.ts` — the admitted/ratified split
-// every consumer prints) and decide nothing; a row whose count disagrees with its named set is itself RED,
-// so the two can never tell different stories. MIN_DOORS is not a budget: it is the class definition (one
-// door is not a duplication). The pair key is unchanged, because the `ast subset-callers` lens joins on its
-// procedure tail (`ast/ops/subset-callers.ts`).
+// THE RULING IS A NAMED DOOR SET, NOT A CARDINALITY (#2101, 2026-09-12), AND THAT SURVIVES THE CONVERSION
+// INTACT. A per-pair COUNT budget could not say WHICH doors it ruled, so a THIRD door was absolved by
+// arithmetic whenever an old one left, and a ruled door that MOVED kept the count at 2 and reported nothing.
+// The grant identity therefore CARRIES THE SET: `subject` is the pair key `<plane>::<procedure>` and
+// `operation` is `duplicate-action-door-set:<every live door of that pair, sorted>`. A third door, a moved
+// door and a swapped door all change the operation string, so the ruling stops matching and the finding is
+// effective; the orphaned grant is consumed zero times and central authority alarms it `stale-reviewed-grant`
+// (#568's two-sided promise, now owned by the engine instead of by a hand-rolled sweep).
+//
+// WHY THE IDENTITY IS A SET AND NOT A DOOR — do not "simplify" the operation back to a single path. Two
+// finer granularities were tried and BOTH fail:
+//   · PER-DOOR (one grant per cited door) cannot satisfy the MANDATORY §6.2 grant witness.
+//     `ops/policy-conformance.ts#grantIdentityFailure` requires the witnessed fixture to leave EXACTLY ONE
+//     granted finding and ZERO effective ones; a two-door pair emits two findings, so one always survives the
+//     single synthetic grant — and no fixture can emit exactly one door finding, because a pair below two
+//     doors is below the duplication floor by definition.
+//   · PER-EXCESS-DOOR (skip a lexicographic "incumbent") passes the witness and re-opens the swap hole:
+//     sorted doors `[components/message-actions-row.tsx, hooks/use-guided-actions.ts]` pick a DIFFERENT
+//     incumbent than `[hooks/use-continue-turn.ts, hooks/use-guided-actions.ts]`, so replacing
+//     `use-continue-turn.ts` with `message-actions-row.tsx` leaves the same grant consumed and the swap goes
+//     silent — exactly the #2101 defect.
+// The SET is the only identity that is both witnessable and two-sided.
+//
+// ONE FINDING PER PAIR, WHICH IS §5's AGGREGATION RULE, NOT A CONVENIENCE. A reviewed grant is strictly 1:1:
+// a row matching N > 1 candidates suppresses NOTHING and alarms `over-broad`. The ruled unit here is the
+// pair's whole door SET, so the policy reports ONE finding per `(subject, operation)` through
+// `lib/reviewed-grant-findings.ts`, anchored at the first door in path order with EVERY door named
+// `file:line` in the message.
+//
+// THE ONE GUARANTEE THAT DID NOT SURVIVE, stated rather than absorbed: #2101's `new-doors` arm anchored each
+// unruled door AT ITS OWN FILE, and the aggregated finding anchors at the first door in path order instead. A
+// policy may not read the grant table, so it cannot know which door is the new one. THE COUNTER-EVIDENCE IS
+// WHY THIS IS A REPAIR RATHER THAN A LOSS: the retired arm was measurably wrong about that anyway — the
+// planted third `chat.forkChat` door made the old count arm accuse `message-actions-row.tsx`, the door that
+// was there first. Loudness is untouched: the finding is still effective and still names every door with its
+// line, and the reader diffs the named set against their change.
+//
+// EXEMPT_PROCEDURES IS RETIRED INTO THE SAME DOOR (2026-09-13). Its single row —
+// `settings.updateUserSettingsSection`, the settings-SECTION contributor seam — used to leave the census
+// entirely, which meant the policy could not see a third door land on it either. Its ruling is now four
+// exact grants (one per qualifying plane) carrying the row's `why` VERBATIM and its stated END condition as
+// `endsWhen`. THE COST IS REAL AND IS NAMED: a NEW settings-section door changes its plane's door set, so the
+// grant stops matching and `pnpm check` reds until the row is re-pointed — where the retired table absorbed
+// it silently. That is the honest price of §7.7 (no gate-local exemption table survives) and the rationale
+// the row itself states ("N call sites BY CONSTRUCTION") argues for a PREDICATE that derives the verb
+// identity from each site's `section` discriminant instead. That predicate is real work with its own proof
+// corpus and was deliberately NOT invented inside a conversion; it is the follow-up this row is waiting for.
+//
+// AND THE SAME MECHANISM REACHES A PURE RENAME. Moving or renaming a SANCTIONED door file with no semantic
+// change at all rewrites the operation string, so the pair reports and its row alarms stale until the ruling
+// is re-pointed. That is correct — a ruling names files, and a ruling that survived its files stopped being
+// about anything — but it is not obvious, so it is named here rather than discovered.
+//
+// WHERE THE ROWS ARE AUTHORED. In `tooling/src/_shared/action-door-rulings.ts`, which
+// `verify/lib/reviewed-grants.ts` maps into the central table. That placement is FORCED by an import cycle,
+// not a preference: the `ast subset-callers` lens must render the same rulings, a cross-tool import may only
+// enter through `verify/index.ts`, and that barrel reaches `ops/debt.ts` → `ast/index.ts` → the lens itself
+// (measured 2026-09-13: five `lint/suspicious/noImportCycles` errors). `_shared` is the floor both tools read
+// down into, and the retired `DOORS_BASELINE_REL` sat there for exactly this reason. Consumption, staleness
+// and over-broad judgment are unchanged and entirely central; THIS POLICY READS NEITHER FILE.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED. See the header of `lib/action-door-fact.ts` for the shared
+// expression and `tests/tooling/verify/gates/action-doors-family.test.ts` for the measured differences and
+// the inside/outside controls. Legacy `scanRoot` admitted `packages/client/src/features/**` plus the single
+// path `packages/client/src/state/section-ids.ts`; the final admits `features/**` + `state/**`.
+// legacy − final = ∅. final − legacy = the rest of `packages/client/src/state/**`, which is an INTENTIONAL
+// CORRECTION and is FORCED: the legacy readers walked `project.getSourceFiles()` directly, so `scanRoot`
+// never controlled what they READ, and `SECTION_IDS`' sanctioned spread source
+// (`state/core-section-ids.ts`, the #947 shape) sits outside the one admitted path. Under this contract a
+// fact reads only its admitted files, so an unadmitted spread source would silently shrink the vocabulary —
+// the exact blindness #947 was minted against.
+//
+// MARKER CENSUS 0 = 0 = 0. This gate's exception mechanism was always the baseline JSON plus
+// `EXEMPT_PROCEDURES`, never a comment grammar: it never declared a private marker and the tree carries zero
+// `@orb-gate-ignore duplicate-action-doors` occurrences, so the conversion translates nothing and orphans
+// nothing. Measured 2026-09-13; the receipt is in the lane report.
 //
 // DECLARED BLIND SPOTS, both stated in #252 and both owned by the RUNTIME half (design-audit's
 // same-role-and-name lens): a registry-rendered action is ONE call site behind N rendered slots (this is
 // exactly how the founding "new chat" complaint escapes tier 1 — its three doors all call one shared state
 // action), and a responsive pair is N call sites behind ONE rendered door.
-import { join } from "node:path";
-import type { Project, SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import type { RatchetAdmission, RatchetRow } from "../../_shared/ratchet-rows.ts";
-import { citePath, classNote, readBudgetRows, writeBudgetLedger } from "../../_shared/ratchet-rows.ts";
-import { DOORS_BASELINE_REL, mutationProcedures } from "../../_shared/trpc-doors.ts";
-import type { PairVerdict } from "../contract/duplicate-action-doors.ts";
-import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { readStringValue } from "../lib/ast-read.ts";
-import { fileLoaded } from "../lib/pass.ts";
-import type { TupleVocabulary } from "../lib/tuple-read.ts";
-import { readTupleDeclaration } from "../lib/tuple-read.ts";
-
-const GATE_SELF = "tooling/src/verify/gates/duplicate-action-doors.ts";
-/** Re-exported from the shared door home (`_shared/trpc-doors.ts`) so the debt walk's import still resolves
- *  here while the PATH itself has ONE home both consumers read (#569 — the subset-callers lens needs it too). */
-export const BASELINE_REL = DOORS_BASELINE_REL;
-/** The section VOCABULARY's ONE home (`no-parallel-section-map`'s sanctioned tuple) — read, never respelled. */
-const SECTION_IDS_HOME = "packages/client/src/state/section-ids.ts";
-/** THE REAL-TREE ANCHOR for every stale/blindness arm (GATE-AUTHORING.md §4.5), and deliberately NOT
- *  `SECTION_IDS_HOME`: this gate's own examples PLANT that file, so anchoring on it fired all three arms
- *  inside every conformance mini-project (measured — the founding mustFlag came back with 2 findings and
- *  three mustPass rows went red). A file present on every real run and needed by no example. */
-const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
-const FEATURES_PREFIX = "packages/client/src/features/";
-/** A co-located rail-section definition: `features/<owner>/lib/<id>-section.tsx`. */
-const SECTION_FILE_RE = /^packages\/client\/src\/features\/([^/]+)\/lib\/[^/]+-section\.tsx$/u;
-const FEATURE_DIR_RE = /^packages\/client\/src\/features\/([^/]+)\//u;
-/** Fewer doors than this on one plane is not a duplication at all. */
-const MIN_DOORS = 2;
-
-/** Procedures whose multi-door shape is ARCHITECTURE, not IA drift. Keyed on the procedure path so a
- *  section rename cannot silently widen it. */
-const EXEMPT_PROCEDURES: ExemptionTable = {
-  "settings.updateUserSettingsSection": {
-    why:
-      "the settings-SECTION contributor seam (client-architecture-lockdown.md §6c): one contributed section owns " +
-      "one `owns:` key-set and saves it itself, so N sections on one plane means N call sites BY CONSTRUCTION — " +
-      "they are N different verbs sharing one wire procedure, not one verb wearing N doors. ENDS when the save " +
-      "seam stops being per-section (a single pane-level committer), at which point every row here goes to 1.",
-  },
-};
+import { doorSetOperation } from "../../_shared/trpc-doors.ts";
+import { defineGate } from "../contract/policy.ts";
+import { actionDoorFact, MIN_DOORS, SECTION_IDS_HOME } from "../lib/action-door-fact.ts";
+import type { ReviewedGrantFileCandidate } from "../lib/reviewed-grant-findings.ts";
+import { reportReviewedGrantFileCandidates } from "../lib/reviewed-grant-findings.ts";
 
 const MESSAGE =
-  "one tRPC mutation is invoked from more components inside a single rail section than the committed baseline " +
-  "allows — the same verb has grown a NEW door on a plane that already has one (the §13 more-than-one-home IA " +
-  "class). See docs/architecture/core/client-architecture-lockdown.md §13.";
+  "one tRPC mutation is invoked from more than one component inside a single rail section, and no reviewed " +
+  "grant names that exact door set — the same verb has grown a door on a plane that already has one (the " +
+  "§13 more-than-one-home IA class). See docs/architecture/core/client-architecture-lockdown.md §13.";
+
+/** Required by the shared reporter and UNREACHABLE here, stated plainly rather than implied: this policy
+ *  never marks a candidate unreadable. A vocabulary shape the tuple reader cannot establish THROWS out of
+ *  `lib/tuple-read.ts` and withholds the owner, and a call site whose procedure cannot be read is not a door
+ *  at all. Nothing enforces that this text is never printed; the two refusals above are what make it so. */
+const UNREADABLE = "a duplicate-door pair was censused without a readable door — the plane census is unreadable, which is itself the violation.";
+
 const FIX =
-  "Give the section ONE component that owns the verb and let the other affordances reach it (a shared hook, a " +
-  "state action, or the existing door). If the new door is ruled UX, NAME IT: add its repo-relative path to the " +
-  "pair's `cite` list in tooling/src/verify/gates/duplicate-action-doors.baseline.json with the ruling in `why` " +
-  "(the ruled set is the cites, never a number). If the whole procedure's multi-door shape is architecture, add " +
-  "a row to EXEMPT_PROCEDURES in tooling/src/verify/gates/duplicate-action-doors.ts instead.";
-const STALE_EXEMPT_PREFIX =
-  "stale EXEMPT_PROCEDURES row — the procedure no longer has two doors anywhere, so the exemption grants nothing while reading as live law. Delete it: ";
-const STALE_BASELINE_PREFIX =
-  "stale baseline row — the ruling names a door the tree no longer has there. Re-cite the door that replaced " +
-  "it, or drop the row (`node tooling/src/verify/cli.ts baseline duplicate-action-doors` re-derives the counts; " +
-  "the CITES are the ruling and are hand-edited): ";
-const BLIND_SECTIONS =
-  "BLINDNESS TRIPWIRE — zero rail-section definitions were derived from the tree, so every call site would fall " +
-  "back to its feature directory and the gate would silently stop judging planes. Re-point SECTION_FILE_RE in " +
-  "tooling/src/verify/gates/duplicate-action-doors.ts";
-const BLIND_VOCAB =
-  "BLINDNESS TRIPWIRE — `SECTION_IDS` resolved to zero members, so no definition can be recognised as a rail " +
-  "section. Re-point SECTION_IDS_HOME in tooling/src/verify/gates/duplicate-action-doors.ts";
+  "Give the section ONE component that owns the verb and let the other affordances reach it (a shared hook, " +
+  "a state action, or the existing door). If the exact door SET is ruled UX, add an exact " +
+  "ruling to tooling/src/_shared/action-door-rulings.ts naming the `<plane>::<procedure>` subject and the " +
+  "COMPLETE door set, with its `why` and `endsWhen`; verify/lib/reviewed-grants.ts maps it into the central " +
+  "reviewed-grant table. The ruled unit is the SET: a door that moves, leaves, joins or is merely RENAMED " +
+  "changes the operation, which is what makes the row stop matching instead of silently absorbing the change.";
 
-/** The `SECTION_IDS` tuple, read from its one home and RESOLVED through the sanctioned spreads of
- *  local/imported sibling tuples (#947 — `[...CORE_SECTION_IDS, "home"]` would otherwise contribute only
- *  the locally-written id, and every door on an imported section plane would evade the rule while the
- *  vocabulary still looked non-empty). Empty is a tripwire, never a pass; an unsanctioned composition
- *  shape refuses loudly in `tuple-read.ts`. */
-export function readSectionIds(project: Project, root: string): readonly string[] {
-  return [...readSectionVocabulary(project, root).members];
-}
-
-/** The same read, keeping the SOURCE manifest for the scan line. */
-function readSectionVocabulary(project: Project, root: string): TupleVocabulary {
-  const sf = project.getSourceFile(join(root, SECTION_IDS_HOME));
-  const decl = sf?.getVariableDeclaration("SECTION_IDS");
-  if (decl === undefined || decl.getInitializer() === undefined) {
-    return { members: new Set<string>(), entries: [], sources: [] };
-  }
-  return readTupleDeclaration(decl);
-}
-
-function repoRel(sf: SourceFile, root: string): string {
-  const abs = sf.getFilePath() as string;
-  return abs.startsWith(`${root}/`) ? abs.slice(root.length + 1) : abs;
-}
-
-/** ONE derivation per PASS, threaded — not memoized. `run` needs the plane map three times (blindness,
- *  census, exemptions) and each derivation walks every source file; on the real tree that is five
- *  whole-workspace scans for one verdict, and it pushed gate-conformance past its 30s budget. So it is
- *  computed once at the top of `run` and passed down.
- *
- *  A `WeakMap<Project, …>` memo sat here until 2026-08-28 and was REMOVED (#780, GATE-AUTHORING §12): it was
- *  correct only because the conformance substrate happened to build a fresh Project per example. That
- *  substrate now reuses ONE Project across every in-memory example, so a Project-keyed memo would serve a
- *  PREVIOUS example's plane map — with the gate still passing its own proofs while judging the wrong facts.
- *  The pass has no identity to key on and needs none: the value's lifetime IS the call. */
-function derivePlanes(project: Project, root: string): ReadonlyMap<string, string> {
-  return deriveSectionPlanes(project, root, readSectionIds(project, root));
-}
-
-/** feature directory → the rail SectionId it owns. Derived from the co-located definitions: a `SectionDefinition`
- *  object literal carries BOTH an `id` in the vocabulary AND a `rail` field (which is what separates it from a
- *  settings-section contribution living in the same `lib/`). */
-export function deriveSectionPlanes(project: Project, root: string, sectionIds: readonly string[]): ReadonlyMap<string, string> {
-  const planes = new Map<string, string>();
-  const vocab = new Set(sectionIds);
-  for (const sf of project.getSourceFiles()) {
-    const rel = repoRel(sf, root);
-    const owner = SECTION_FILE_RE.exec(rel)?.[1];
-    if (owner === undefined) {
-      continue;
-    }
-    const id = railSectionId(sf, vocab);
-    if (id !== undefined) {
-      planes.set(owner, id);
-    }
-  }
-  return planes;
-}
-
-/** The vocabulary id of a `SectionDefinition` object literal in `sf`, if one is there. `rail` is what
- *  separates a RAIL section from a settings-section contribution sharing the same `lib/` filename shape. */
-function railSectionId(sf: SourceFile, vocab: ReadonlySet<string>): string | undefined {
-  const ids = sf.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression).flatMap((obj) => {
-    const idProp = obj.getProperty("rail") === undefined ? undefined : obj.getProperty("id");
-    if (idProp === undefined || !Node.isPropertyAssignment(idProp)) {
-      return [];
-    }
-    const id = readStringValue(idProp.getInitializer() ?? idProp);
-    return id !== undefined && vocab.has(id) ? [id] : [];
-  });
-  return ids[0];
-}
-
-/** `<plane>::<procedure>` → the distinct component files that invoke it. The ONE derivation; the generator
- *  imports it so the baseline can never be computed by a second spelling. */
-export function doorCensus(
-  project: Project,
-  root: string,
-  planes: ReadonlyMap<string, string> = derivePlanes(project, root),
-): ReadonlyMap<string, ReadonlySet<string>> {
-  const census = new Map<string, Set<string>>();
-  for (const sf of project.getSourceFiles()) {
-    const rel = repoRel(sf, root);
-    const owner = FEATURE_DIR_RE.exec(rel)?.[1];
-    if (owner === undefined) {
-      continue;
-    }
-    // A feature with no rail section of its own is still ONE plane — its own subtree.
-    const plane = planes.get(owner) ?? `feature:${owner}`;
-    for (const proc of mutationProcedures(sf)) {
-      if (proc in EXEMPT_PROCEDURES) {
-        continue;
-      }
-      const key = `${plane}::${proc}`;
-      const files = census.get(key) ?? new Set<string>();
-      files.add(rel);
-      census.set(key, files);
-    }
-  }
-  return census;
-}
-
-/** The pairs a baseline should carry: every plane/procedure at or above the duplication floor. */
-export function baselineRows(project: Project, root: string): Readonly<Record<string, number>> {
-  const rows: Record<string, number> = {};
-  for (const [key, files] of doorCensus(project, root)) {
-    if (files.size >= MIN_DOORS) {
-      rows[key] = files.size;
-    }
-  }
-  return Object.fromEntries(Object.entries(rows).sort(([a], [b]) => a.localeCompare(b)));
-}
-
-/** The committed ledger, read through the ONE row reader (`_shared/ratchet-rows.ts`) so this gate sees each
- *  pair's DEBT-vs-RATIFIED class and the doors its `cite` list names. All six live rows are RATIFIED
- *  (#568/#569): ruled same-plane affordance pairs, each citing exactly the two files that are its doors. */
-function readBaseline(root: string): ReadonlyMap<string, RatchetRow> {
-  return readBudgetRows(root, BASELINE_REL);
-}
-
-/** §4.6 — a gate keyed on an exact NAME must detect its own blindness. Both derivations are name-keyed
- *  (`SECTION_IDS`, the `rail`-carrying definition), and either coming back empty would silently regroup
- *  every door under its feature directory while still reporting ✓. Real-tree anchored (§4.5). */
-function judgeBlindness(ctx: GateRunCtx, planes: ReadonlyMap<string, string>): void {
-  if (!fileLoaded(ctx, REAL_TREE_ANCHOR)) {
-    return;
-  }
-  const sectionIds = readSectionIds(ctx.project, ctx.root);
-  if (sectionIds.length === 0) {
-    ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_VOCAB });
-    return;
-  }
-  if (planes.size === 0) {
-    ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_SECTIONS });
-  }
-}
-
-/** THE RULED UNIT IS THE DOOR, AND IT IS NAMED (#2101, §12.5: a per-row `count` is the TELL that a row's
- *  subject is wrong, never the fix). A budget of 2 says "this pair may have two doors" and cannot say WHICH
- *  two, so it absolved a THIRD door by arithmetic, accused an innocent file when it did fire, and rotted the
- *  day a ruled door moved. Every live row already names its doors in `cite` — `ratchet-row-integrity` keeps
- *  each of those paths resolving — so the ruling is read as the SET it always was. The `count`/`ratified`
- *  numbers stay: they are the shared ledger's ACCOUNTING (the admitted/ratified split every consumer prints,
- *  `_shared/ratchet-rows.ts`), and after this they decide nothing. */
-function ruledDoors(row: RatchetRow | undefined): ReadonlySet<string> {
-  return new Set((row?.cite ?? []).map(citePath).filter((path) => path !== ""));
-}
-
-/** The growth decision, pure and total. `live` is the pair's door set from the census; `row` is its ruling. */
-export function judgePair(live: ReadonlySet<string>, row: RatchetRow | undefined): PairVerdict {
-  if (live.size < MIN_DOORS) {
-    return { kind: "below-floor" };
-  }
-  const ruled = ruledDoors(row);
-  if (ruled.size === 0) {
-    return { kind: "unruled-pair", doors: [...live].sort() };
-  }
-  const doors = [...live].filter((door) => !ruled.has(door)).sort();
-  return doors.length === 0 ? { kind: "admitted" } : { kind: "new-doors", doors };
-}
-
-/** The shrink decision, pure: a RULED door that is no longer a live door of its pair. This is the liveness a
- *  count could never express — `live < count` knew that something left and never which, and a ruled door
- *  REPLACED by a different file kept the count at 2 and reported nothing at all. */
-export function staleRuledDoors(live: ReadonlySet<string>, row: RatchetRow): readonly string[] {
-  return [...ruledDoors(row)].filter((door) => !live.has(door)).sort();
-}
-
-/** A row whose accounting disagrees with the door set it names. The numbers no longer decide anything, so
- *  they must not be allowed to drift into a second, contradicting story about the same ruling. */
-export function countDisagreement(row: RatchetRow): string | null {
-  const named = ruledDoors(row).size;
-  return named === 0 || named === row.count ? null : `count ${row.count} vs ${named} named door(s)`;
-}
-
-/** Report ONE non-admitting verdict. The two shapes differ in what they can honestly say:
- *
- *  `unruled-pair` — NOTHING here identifies a new door, because no ruling names any of them. So the
- *  diagnostic names them ALL and anchors on the first; naming one arbitrarily would point a reader at an
- *  innocent file (measured: the planted third `chat.forkChat` door made the old count arm accuse
- *  `message-actions-row.tsx`, the door that was there first). The reader diffs the list against their change.
- *
- *  `new-doors` — a ruled pair CAN say which door is new, so each one is its own finding AT ITS OWN FILE.
- *  That precision is the whole point of #2101: it is what a cardinality budget structurally could not give. */
-function reportVerdict(ctx: GateRunCtx, key: string, verdict: PairVerdict, row: RatchetRow | undefined): void {
-  if (verdict.kind === "unruled-pair") {
-    ctx.report({
-      file: verdict.doors[0] ?? GATE_SELF,
-      line: 1,
-      column: 0,
-      token: key,
-      message: `${MESSAGE} (${key}: ${verdict.doors.length} doors, none of them ruled; doors: ${verdict.doors.join(", ")}) — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts`,
-    });
-    return;
-  }
-  if (verdict.kind !== "new-doors") {
-    return;
-  }
-  for (const door of verdict.doors) {
-    // A RATIFIED row's diagnostic cites its RULING instead of remediation advice (#569): the reader is being
-    // told a door landed on a pair somebody already decided, not that the pair is a defect.
-    ctx.report({
-      file: door,
-      line: 1,
-      column: 0,
-      token: key,
-      message: `${MESSAGE} (${key}: this door is not one the ruling names) — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts${row === undefined ? "" : classNote(row)}`,
-    });
-  }
-}
-
-/** The RATCHET's growth arm. Returns the count of pairs a committed ruling absolved. */
-function judgeGrowth(ctx: GateRunCtx, census: ReadonlyMap<string, ReadonlySet<string>>, baseline: ReadonlyMap<string, RatchetRow>): RatchetAdmission {
-  let admitted = 0;
-  let ratified = 0;
-  for (const [key, files] of census) {
-    const row = baseline.get(key);
-    const verdict = judgePair(files, row);
-    if (verdict.kind === "admitted") {
-      admitted += 1;
-      // The unit here is the PAIR, not the door, so a row carrying any ratified portion admits as ratified —
-      // a pair is ruled or it is not (a per-door partition would be a number this census cannot earn).
-      ratified += row !== undefined && row.ratified > 0 ? 1 : 0;
-      continue;
-    }
-    reportVerdict(ctx, key, verdict, row);
-  }
-  return { admitted, ratified };
-}
-
-/** The RATCHET's shrink-only arm (§4.8): a ruling the tree no longer earns is RED, never silence. */
-function judgeShrink(ctx: GateRunCtx, census: ReadonlyMap<string, ReadonlySet<string>>, baseline: ReadonlyMap<string, RatchetRow>): void {
-  for (const [key, row] of baseline) {
-    const live = census.get(key) ?? new Set<string>();
-    for (const door of staleRuledDoors(live, row)) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message: `${STALE_BASELINE_PREFIX}${key} names \`${door}\`, which is no longer a door on that plane — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts${classNote(row)}`,
-      });
-    }
-    const disagreement = countDisagreement(row);
-    if (disagreement !== null) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message: `${STALE_BASELINE_PREFIX}${key} (${disagreement}) — the ruled doors are the row's \`cite\` list and the numbers beside them are only the shared ledger's accounting, so a disagreement is two stories about one ruling`,
-      });
-    }
-  }
-}
-
-/** The EXEMPT_PROCEDURES stale arm: a row that no longer absolves a real dual is a loaded gun. */
-function judgeExemptions(ctx: GateRunCtx, planes: ReadonlyMap<string, string>): void {
-  const perPair = new Map<string, Set<string>>();
-  for (const sf of ctx.project.getSourceFiles()) {
-    const rel = repoRel(sf, ctx.root);
-    const owner = FEATURE_DIR_RE.exec(rel)?.[1];
-    if (owner === undefined) {
-      continue;
-    }
-    const plane = planes.get(owner) ?? `feature:${owner}`;
-    for (const proc of mutationProcedures(sf)) {
-      if (!(proc in EXEMPT_PROCEDURES)) {
-        continue;
-      }
-      const files = perPair.get(`${plane}::${proc}`) ?? new Set<string>();
-      files.add(rel);
-      perPair.set(`${plane}::${proc}`, files);
-    }
-  }
-  for (const proc of Object.keys(EXEMPT_PROCEDURES)) {
-    const earned = [...perPair].some(([key, files]) => key.endsWith(`::${proc}`) && files.size >= MIN_DOORS);
-    if (!earned) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message: `${STALE_EXEMPT_PREFIX}${proc} — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts`,
-      });
-    }
-  }
-}
-
-export const gate: GateDescriptor = {
-  name: "duplicate-action-doors",
-  docRow: "client-architecture-lockdown.md §13",
-  status: "active",
-  scopeSafety: "whole-project",
+export const gate = defineGate({
+  id: "duplicate-action-doors",
+  family: "action-doors",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: { in: ["@client"], under: ["packages/client/src/features/**", "packages/client/src/state/**"] },
+  analysis: "syntax",
+  // The verdict quantifies over every feature at once: a plane is derived from a definition in one file and
+  // its doors live in others, so no subset of files carries a whole pair.
+  execution: "entire-population",
+  facts: [actionDoorFact],
+  resources: [],
   message: MESSAGE,
   fix: FIX,
-  scanRoot: (p) => p.startsWith(FEATURES_PREFIX) || p === SECTION_IDS_HOME,
-  run: (ctx) => {
-    const vocabulary = readSectionVocabulary(ctx.project, ctx.root);
-    ctx.scan({
-      unit: `section vocabulary [SECTION_IDS=${vocabulary.members.size} from ${vocabulary.sources.length === 0 ? "<none>" : vocabulary.sources.join("+")}]`,
-      candidates: vocabulary.sources.length,
-      scanned: vocabulary.sources.length,
-    });
-    // ONE plane derivation for the whole pass, threaded to every arm that needs it (see `derivePlanes`).
-    const planes = derivePlanes(ctx.project, ctx.root);
-    judgeBlindness(ctx, planes);
-    const census = doorCensus(ctx.project, ctx.root, planes);
-    const baseline = readBaseline(ctx.root);
-    const admission = judgeGrowth(ctx, census, baseline);
-    ctx.scan({ admitted: admission.admitted, admittedRatified: admission.ratified });
-    if (!fileLoaded(ctx, REAL_TREE_ANCHOR)) {
-      return;
-    }
-    judgeShrink(ctx, census, baseline);
-    judgeExemptions(ctx, planes);
-  },
+  create: (ctx) => ({
+    evaluate: () => {
+      const census = ctx.fact(actionDoorFact);
+      // The DOOR SITES the shared walk established — this policy's own denominator, so a census that shrank
+      // while the client did not is visible on the run line instead of inferred from silence.
+      ctx.receipt({ kind: "population", source: "duplicate-action-doors", members: census.doorCount, unresolved: 0 });
+      const candidates: ReviewedGrantFileCandidate[] = census.pairs
+        .filter((pair) => pair.doors.length >= MIN_DOORS)
+        .flatMap((pair) => {
+          const operation = doorSetOperation(pair.doors.map((door) => door.file));
+          return pair.doors.map((door) => ({
+            subject: pair.key,
+            operation,
+            file: door.file,
+            line: door.node.getStartLineNumber(),
+          }));
+        });
+      reportReviewedGrantFileCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
+    },
+  }),
   mustFlag: [
     {
       // THE #947 SPLIT: the section id reaches the vocabulary only through the imported CORE_SECTION_IDS
       // spread. Unresolved, `chats` is not a known id, the definition is not recognised as a rail section,
       // and both doors regroup under the FEATURE DIRECTORY — the finding still fires but under the wrong
-      // plane key (`feature:chat::…`), which is the ratchet's and the exemption table's key. So a budget
-      // row or an EXEMPT_PROCEDURES entry written for the real plane silently stops matching, and two
-      // sections sharing a feature dir collapse into one bucket. The token below pins the REAL plane.
+      // plane key (`feature:chat::…`), which is the grant SUBJECT. So a reviewed row written for the real
+      // plane silently stops matching, and two sections sharing a feature dir collapse into one bucket.
+      mode: "source",
       files: {
         "packages/client/src/state/core-section-ids.ts": 'export const CORE_SECTION_IDS = ["chats"] as const;\n',
         [SECTION_IDS_HOME]: 'import { CORE_SECTION_IDS } from "./core-section-ids.ts";\nexport const SECTION_IDS = [...CORE_SECTION_IDS, "home"] as const;\n',
@@ -429,34 +166,62 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/chat/components/a.tsx": "export const A = () => trpc.chat.forkChat.mutationOptions();\n",
         "packages/client/src/features/chat/components/b.tsx": "export const B = () => trpc.chat.forkChat.mutationOptions();\n",
       },
-      expect: { count: 1, token: "chats::chat.forkChat" },
-      why: "THE #947 SPLIT RED: the founding duplicate-door shape on a section plane whose id arrives through an imported spread. Measured at HEAD, the unresolved reader reported the SAME pair under `feature:chat::chat.forkChat` — a mis-keyed plane, so every plane-keyed budget row and exemption for `chats` quietly stopped matching. The token pins the derived plane, not merely the presence of a finding",
+      expect: { count: 1, messageIncludes: "Subject: chats::chat.forkChat" },
+      // THE REVIEWED-GRANT IDENTITY WITNESS (§6.2). This policy's whole exception door is the pair key as
+      // `subject` plus the exact door SET as `operation`, so the row proves that pair is bindable: the same
+      // fixture re-runs with one generated grant naming exactly these authored strings and holds only at
+      // `grantedFindings` 1 / `effectiveFindings` 0 / `authorityAlarms` 0. BOTH STRINGS ARE AUTHORED
+      // LITERALS and `doorSetOperation` is deliberately NOT reused here: deriving either from the module
+      // would move the emitted and the authored value together under a rename, and the row would stay green
+      // while every real grant in the central table broke.
+      grant: {
+        subject: "chats::chat.forkChat",
+        operation: "duplicate-action-door-set:packages/client/src/features/chat/components/a.tsx, packages/client/src/features/chat/components/b.tsx",
+      },
+      why: "THE #947 SPLIT RED, and the grant-identity witness. Measured at HEAD, the unresolved reader reported the SAME pair under `feature:chat::chat.forkChat` — a mis-keyed plane, so a reviewed row written for `chats` quietly stopped matching. The expectation pins the DERIVED plane in the subject, not merely the presence of a finding, and the annotation proves that subject plus the exact door set reaches the central door",
     },
     {
+      mode: "source",
       files: {
         [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats"] as const;\n',
         "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats", rail: { label: "Chats" } };\n',
         "packages/client/src/features/chat/components/a.tsx": "export const A = () => trpc.chat.forkChat.mutationOptions();\n",
         "packages/client/src/features/chat/components/b.tsx": "export const B = () => trpc.chat.forkChat.mutationOptions();\n",
       },
-      expect: { count: 1, token: "chats::chat.forkChat" },
-      why: "THE FOUNDING SHAPE — one verb, two components, one rail section, no committed budget: the second door is a NEW door and must be a decision",
+      expect: { count: 1, messageIncludes: "components/a.tsx:1, packages/client/src/features/chat/components/b.tsx:1" },
+      why: "THE FOUNDING SHAPE — one verb, two components, one rail section, no reviewed grant: the pair is a decision that has not been made. The expectation pins the SITE LIST rather than the count alone, because the aggregation to one finding is exactly what makes a single exact grant able to consume it (§5) and a reader still needs both doors named",
     },
     {
+      // THE SET IS THE RULING, IN THE HALF A CARDINALITY COULD NEVER EXPRESS: three doors on a pair whose
+      // two-door ruling is granted. The operation string changes, the grant stops matching, the finding is
+      // effective, and the orphaned row alarms. Under a count budget of 2 this shape was admitted whenever
+      // an old door had left, which is the #2101 defect this row keeps dead.
+      mode: "source",
       files: {
-        [REAL_TREE_ANCHOR]: "export const schema = {};\n",
-        [SECTION_IDS_HOME]: "export const OTHER = 1;\n",
-        // The exempt procedure keeps EARNING its row here, so this example isolates the tripwire instead of
-        // also tripping the (equally correct) stale-exemption arm the anchor turns on.
-        "packages/client/src/features/chat/components/a.tsx": "export const A = () => trpc.settings.updateUserSettingsSection.mutationOptions();\n",
-        "packages/client/src/features/chat/components/b.tsx": "export const B = () => trpc.settings.updateUserSettingsSection.mutationOptions();\n",
+        [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats"] as const;\n',
+        "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats", rail: { label: "Chats" } };\n',
+        "packages/client/src/features/chat/components/a.tsx": "export const A = () => trpc.chat.forkChat.mutationOptions();\n",
+        "packages/client/src/features/chat/components/b.tsx": "export const B = () => trpc.chat.forkChat.mutationOptions();\n",
+        "packages/client/src/features/chat/components/c.tsx": "export const C = () => trpc.chat.forkChat.mutationOptions();\n",
       },
-      expect: { count: 1, messageIncludes: "BLINDNESS TRIPWIRE" },
-      why: "THE §4.6 BLINDNESS TRIPWIRE: the vocabulary home loaded but named no SECTION_IDS, so the plane derivation came back empty — a rename must RED, never silently regroup every door under its feature dir",
+      expect: { count: 1, messageIncludes: "components/c.tsx:1" },
+      why: "A THIRD DOOR CHANGES THE RULED SET (#2101): the operation carries every live door, so a pair granted at two doors reports again at three and the two-door row consumes nothing. A count budget of 2 admitted exactly this shape the moment an old door left — the arithmetic could not say WHICH two doors it meant",
+    },
+    {
+      mode: "source",
+      files: {
+        [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats"] as const;\n',
+        "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats", rail: { label: "Chats" } };\n',
+        "packages/client/src/features/chat/components/a.tsx": "export const A = () => trpc.chat.forkChat.useMutation();\n",
+        "packages/client/src/features/chat/components/b.tsx": "export const B = () => trpc.chat.forkChat.mutationOptions();\n",
+      },
+      expect: { count: 1, messageIncludes: "Subject: chats::chat.forkChat" },
+      why: "BOTH TanStack Query CREATION SPELLINGS are one door grammar (`_shared/trpc-doors.ts`): a pair split across `useMutation` and `mutationOptions` is still one verb wearing two doors, and a reader that knew only one spelling would report a clean half of the census",
     },
   ],
   mustPass: [
     {
+      mode: "source",
       files: {
         "packages/client/src/state/core-section-ids.ts": 'export const CORE_SECTION_IDS = ["chats"] as const;\n',
         [SECTION_IDS_HOME]: 'import { CORE_SECTION_IDS } from "./core-section-ids.ts";\nexport const SECTION_IDS = [...CORE_SECTION_IDS, "home"] as const;\n',
@@ -466,15 +231,7 @@ export const gate: GateDescriptor = {
       why: "the SPLIT's green half: the same imported-spread vocabulary with ONE door on the plane — resolving the spread restores the plane without inventing a duplicate",
     },
     {
-      files: {
-        [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats"] as const;\n',
-        "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats", rail: { label: "Chats" } };\n',
-        "packages/client/src/features/chat/components/a.tsx": "export const A = () => trpc.settings.updateUserSettingsSection.mutationOptions();\n",
-        "packages/client/src/features/chat/components/b.tsx": "export const B = () => trpc.settings.updateUserSettingsSection.mutationOptions();\n",
-      },
-      why: "the EXEMPT row earns its keep — the per-section save seam is N verbs sharing one wire procedure, and its stale arm stays quiet because the pair really does have two doors",
-    },
-    {
+      mode: "source",
       files: {
         [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats", "characters"] as const;\n',
         "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats", rail: { label: "Chats" } };\n',
@@ -485,6 +242,7 @@ export const gate: GateDescriptor = {
       why: "DECLARED LIMIT — two doors on two DIFFERENT planes is not the defect: the class is one verb duplicated where a user can see both at once",
     },
     {
+      mode: "source",
       files: {
         [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats"] as const;\n',
         "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats", rail: { label: "Chats" } };\n',
@@ -494,6 +252,7 @@ export const gate: GateDescriptor = {
       why: "THE UNIT IS THE COMPONENT, not the call: one file wiring the same verb twice is one door — a user sees one affordance",
     },
     {
+      mode: "source",
       files: {
         [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats"] as const;\n',
         "packages/client/src/features/chat/lib/memory-settings-section.tsx": 'export const m = { id: "chat-memory", anchor: "chat-behavior" };\n',
@@ -501,13 +260,27 @@ export const gate: GateDescriptor = {
       },
       why: "DECLARED LIMIT — a settings-section CONTRIBUTION lives in the same `lib/` and matches the filename shape, but carries no `rail` field and no vocabulary id, so it never mints a plane",
     },
+    {
+      mode: "source",
+      files: {
+        [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats"] as const;\n',
+        "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats", rail: { label: "Chats" } };\n',
+        "packages/client/src/features/chat/components/a.tsx": "export const A = () => api.chat.forkChat.mutationOptions();\n",
+        "packages/client/src/features/chat/components/b.tsx": "export const B = () => other.chat.forkChat.mutationOptions();\n",
+        "packages/client/src/features/chat/components/c.tsx": "export const C = () => trpc.chat.forkChat.mutationOptions();\n",
+      },
+      why: "THE RECEIVER IS PART OF THE DOOR GRAMMAR: only the `trpc.` proxy names a procedure, so two same-named members on some other object are not doors and cannot join the ONE real door into a pair. The real door is load-bearing twice over — it keeps the census non-empty (a zero census is this policy's refusal, not a pass) and it makes the fence falsifiable: drop the `trpc.` prefix check and this becomes three doors on one plane",
+    },
   ],
-};
-
-/** The generator's single writer (GATE-AUTHORING.md §4.8) — invoked by tooling/src/verify/ops/gen/duplicate-action-doors.ts. */
-export function writeBaseline(project: Project, root: string): number {
-  // The COUNTS are re-derived from the tree; the CLASS is a ruling and rides through from the committed
-  // ledger (#569) — a regenerate that silently demoted six ratified pairs back to backlog would be the
-  // classification erasing itself on its first shrink.
-  return writeBudgetLedger(root, BASELINE_REL, baselineRows(project, root), readBaseline(root));
-}
+  mustRefuse: [
+    {
+      mode: "source",
+      files: {
+        [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats"] as const;\n',
+        "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats", rail: { label: "Chats" } };\n',
+      },
+      expect: { messageIncludes: 'population "duplicate-action-doors" resolved zero members' },
+      why: "a client with a rail section and NO tRPC mutation door anywhere is not a clean IA verdict — it is a census that measured nothing. The policy must withhold its empty denominator; a silent pass here would report `duplicate-action-doors ✓` for a corpus in which the door grammar had stopped resolving entirely",
+    },
+  ],
+});

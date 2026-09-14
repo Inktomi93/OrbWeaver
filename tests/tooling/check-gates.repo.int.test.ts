@@ -381,8 +381,12 @@ function writeFixtures(): void {
   // this real-tree fixture; the finding now anchors on the exported DECLARATION NAME (`useGStore`) rather
   // than a synthetic `exported-handle` token, and a file leaking two handles reports twice instead of once.
   fx("packages/client/src/state/__g_state.ts", 'export const useGStore = createGatedStore("g", () => ({ n: 0 }));\n');
-  // duplicate-action-doors: one tRPC mutation wired from TWO components on one plane, with no baseline
-  // budget for the pair — the second door is a NEW door (#252).
+  // duplicate-action-doors: one tRPC mutation wired from TWO components on one plane, with no reviewed
+  // ruling naming that door set — the pair is a decision nobody made (#252). Converted to a final
+  // `defineGate` reviewed-grant policy plus the hard `duplicate-action-doors-health` sibling (#1584), so its
+  // bite moved to the conformance stage and the `unfired` arm below excludes it through `finalIds`. The
+  // fixture STAYS: it is still the real-tree shape the policy reports on, and the legacy planter is the only
+  // place that drives it against a live `check:structure`.
   fx("packages/client/src/features/__g_doors/components/__g_a.tsx", "export const A = () => trpc.chat.forkChat.mutationOptions();\n");
   fx("packages/client/src/features/__g_doors/components/__g_b.tsx", "export const B = () => trpc.chat.forkChat.mutationOptions();\n");
   // class-token-splice: a `${…}` spliced INSIDE a class token — the composed class never appears as a

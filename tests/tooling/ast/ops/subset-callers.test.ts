@@ -7,7 +7,7 @@
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { SubsetAudit, SubsetFinding } from "../../../../tooling/src/ast/index.ts";
-import { collectSubsetCallers, crossClassNote, sameClassFirst } from "../../../../tooling/src/ast/index.ts";
+import { collectSubsetCallers, crossClassNote, ratifiedNote, ruledDoorPairs, sameClassFirst } from "../../../../tooling/src/ast/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
@@ -530,4 +530,43 @@ describe("ast subset-callers lens (the LEVEL-2 destructured-door arm)", () => {
     expect(audit.sites).toHaveLength(1);
     expect(audit.doors.unjudgedFires).toHaveLength(0);
   });
+});
+
+// ── THE RULED-DOOR ANNOTATION (#569/#572), AND THE DEAD JOIN IT SHIPPED WITH ─────────────────────────────
+//
+// RED-FIRST, MEASURED 2026-09-13 on the unmodified tree: the annotation had NEVER rendered for a client
+// door. Its lookup keyed the rulings by procedure path (`chat.continueTurn`) and then asked that map for the
+// finding's `door` field — which is the RESOLUTION CHAIN, not a path
+// (`` `mutation` ← useContinueTurnMutation → trpc.chat.continueTurn ``) — and, failing that, for the chain's
+// last dot segment (`continueTurn`). Neither is a key, so `pnpm ast subset-callers continueTurn` printed
+// three hits and zero annotations against six live rulings. These rows are the permanent pin: the first
+// fails on the retired lookup, the second is the fence that keeps the repair from annotating everything.
+
+test("a client door whose verb is a RULED pair is annotated with the ruling and the doors it names", () => {
+  const ruled = ruledDoorPairs();
+  const note = ratifiedNote(
+    {
+      site: { node: undefined, keys: [], via: null, door: "`mutation` ← useContinueTurnMutation → trpc.chat.continueTurn", unresolved: null },
+      missing: [],
+      supersets: [],
+    } as unknown as SubsetFinding,
+    ruled,
+  );
+
+  expect(note, "the ruling is NAMED — the reader disagrees with the decision rather than re-deriving it").toContain("chats::chat.continueTurn");
+  expect(note, "with the doors it rules").toContain("use-guided-actions.ts");
+  expect(note, "and the condition that ends it").toContain("ends when:");
+});
+
+test("a door on a verb NO ruling names is not annotated — the repair joins on the verb, never on everything", () => {
+  const note = ratifiedNote(
+    {
+      site: { node: undefined, keys: [], via: null, door: "`mutation` ← useForkChatMutation → trpc.chat.forkChat", unresolved: null },
+      missing: [],
+      supersets: [],
+    } as unknown as SubsetFinding,
+    ruledDoorPairs(),
+  );
+
+  expect(note, "`chat.forkChat` is the founding UNRULED pair — annotating it would launder a decision nobody made").toBe("");
 });
