@@ -956,13 +956,21 @@ function writeFixtures(): void {
 // conditional field type and the empty-denominator tripwire), plus
 // tests/tooling/verify/gates/bus-payload-family.test.ts, which carries the real-corpus liveness pin and the
 // blindness sweep the conformance substrate structurally cannot reach.
-// knob-wire-coverage (D107): a whole-corpus coverage ratchet over its semantic member sources
-// (EffectiveAppConfig / USER_SETTINGS_SECTIONS / appSettingsSchema / imported Appearance schema /
-// DEFAULT_FORMAT_STRINGS / chatMetadataSchema). Its MISSING arm needs an UNWIRED member added to one of
-// those contract sources —
-// a throwaway `__g_` file can't add a member to the real union/interface/schema, and the STALE/ORPHAN arms
-// need a real registry edit. Its bite is proven by gate-conformance (per-arm mustFlag + STALE + the
-// paired-anchor tripwire mustFlag) + its live run on the real tree with the founding registry.
+// knob-wire-coverage CONVERTED 2026-09-13 (#1584) and its row is GONE from the set below: a final policy
+// is partitioned out by the mixed roster, so a row naming one fails the two-sided arm at the end of this
+// file. It did NOT split — the census's recorded arity of 2 was a DISPOSITION axis (sanctioned doorway vs
+// warning debt), not a predicate axis, and splitting on it would have double-reported every unwired knob;
+// it is one `reviewed-grant` + `error` policy over one `knobWireFact` provider. Its unfixturability was
+// never about the `__g_` sentinel: its MISSING arm needs an UNWIRED member added to a real contract source
+// (EffectiveAppConfig / USER_SETTINGS_SECTIONS / appSettingsSchema / the imported Appearance schema /
+// DEFAULT_FORMAT_STRINGS / chatMetadataSchema), which a throwaway file cannot do — and a final policy's
+// `mode: "types"` proof rows materialise a whole synthetic contracts+server+client tree carrying those
+// declarations, which is exactly the substrate the legacy harness could not give it. Its bite is
+// `structure:policy-conformance` running fifteen `mustFlag`, eight `mustPass` and thirteen `mustRefuse`
+// rows, plus tests/tooling/verify/gates/knob-wire-family.test.ts, which replays all 23 frozen legacy
+// fixtures through both engines and drives the central `stale-reviewed-grant` alarm that replaced the
+// legacy STALE and ORPHAN arms. Counts re-derived from the module's own arrays, never carried forward:
+// `gate.mustFlag/mustPass/mustRefuse.length` = 15 / 8 / 13.
 // baseui-surface-manifest CONVERTED 2026-09-13 (#1584) and its row is GONE from the set below: a final
 // policy is partitioned out by the mixed roster, so a row naming one fails the two-sided arm at the end of
 // this file. It still compares two ARTIFACTS — the installed `@base-ui/react` and the committed surface
@@ -1041,7 +1049,9 @@ const UNFIXTURABLE_GATES = new Set([
   // ENTRY deletion, not just the comment** — and the entry is the half the arm checks.
   // "css-family-ownership" + "css-selector-has-a-writer" removed 2026-09-13 (#2181, #2182) for the same
   // reason, with their comment block above: both converted and SPLIT into five final ids.
-  "knob-wire-coverage",
+  // "knob-wire-coverage" removed 2026-09-13 (#1584) with its comment block above: it converted to ONE
+  // final `reviewed-grant` policy, so the two-sided arm below would read `legacy=false, final=true` on a
+  // surviving entry.
 ]);
 
 let registry = new Set<string>();
