@@ -3,8 +3,8 @@
 // 450-line cap and this repair needed to add to it. The judge, the censuses and the report stayed there;
 // nothing else moved. One direction: the judge imports this module, this module imports no judge.
 //
-// THE FENCE IS A SPAN, NOT A START MARKER (N1, `docs/reviews/gate-runtime/sec-barrier-review-2026-09-13.md`
-// §4). The first version took `findIndex("## THE LEDGER")` and admitted every table row from there to END
+// THE FENCE IS A SPAN, NOT A START MARKER (the shared `ledgerHeadingSpan` in `lib/ledger-table-admission.ts`).
+// The first version took `findIndex("## THE LEDGER")` and admitted every table row from there to END
 // OF FILE, so `## CLASS ROLLUP`'s cross-cutting table entered the class-2 population: measured on the real
 // ledger, 6 citations over 5 rows in the denominator, 5 of the advisory disagreements, 1 verdictless cell.
 // Those cells are PROSE mentions ("#2000's §4.6 differential"), not `(board #N)` tracking pointers, and
