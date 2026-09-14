@@ -92,7 +92,7 @@ function hasTopLevelComma(text: string, start: number, end: number): boolean {
   return false;
 }
 
-function varSites(text: string, file: string, node?: Node, sourceOffset = 0): CssVariableSite[] {
+export function cssVariableReferenceSites(text: string, file: string, node?: Node, sourceOffset = 0): CssVariableSite[] {
   const sites: CssVariableSite[] = [];
   for (const match of text.matchAll(VAR_START_RE)) {
     const name = match[1];
@@ -111,7 +111,7 @@ function varSites(text: string, file: string, node?: Node, sourceOffset = 0): Cs
   return sites;
 }
 
-function arbitrarySites(text: string, file: string, node: Node, sourceOffset: number): CssVariableSite[] {
+export function arbitraryCssVariableSites(text: string, file: string, node: Node, sourceOffset: number): CssVariableSite[] {
   const sites: CssVariableSite[] = [];
   for (const match of text.matchAll(ARBITRARY_VAR_RE)) {
     const name = match[1];
@@ -119,8 +119,9 @@ function arbitrarySites(text: string, file: string, node: Node, sourceOffset: nu
     if (name === undefined) {
       continue;
     }
-    const position = node.getSourceFile().getLineAndColumnAtPos(sourceOffset + at);
-    sites.push({ file, ...position, name, fallback: false, node, offset: sourceOffset + at - node.getStart() });
+    const nameAt = at + match[0].lastIndexOf(name);
+    const position = node.getSourceFile().getLineAndColumnAtPos(sourceOffset + nameAt);
+    sites.push({ file, ...position, name, fallback: false, node, offset: sourceOffset + nameAt - node.getStart() });
   }
   return sites;
 }
@@ -169,8 +170,8 @@ function isClassFragment(node: Node): boolean {
 }
 
 function literalSites(node: Node, value: string, sourceStart: number, file: string): CssVariableSite[] {
-  const references = varSites(value, file, node, sourceStart);
-  return isClassFragment(node) ? [...references, ...arbitrarySites(value, file, node, sourceStart)] : references;
+  const references = cssVariableReferenceSites(value, file, node, sourceStart);
+  return isClassFragment(node) ? [...references, ...arbitraryCssVariableSites(value, file, node, sourceStart)] : references;
 }
 
 function hasCssPropertiesContract(node: Node): boolean {
@@ -185,13 +186,13 @@ function hasCssPropertiesContract(node: Node): boolean {
   });
 }
 
-interface SourceInventoryState {
+export interface CssVariableSourceState {
   readonly definitions: Set<string>;
   readonly definitionSites: CssVariableSite[];
   readonly references: CssVariableSite[];
 }
 
-function inventorySourceNode(node: Node, file: string, state: SourceInventoryState): void {
+export function inventoryCssVariableSourceNode(node: Node, file: string, state: CssVariableSourceState): void {
   if (Node.isPropertyAssignment(node)) {
     const nameNode = node.getNameNode();
     if (Node.isStringLiteral(nameNode) && CUSTOM_PROPERTY_NAME_RE.test(nameNode.getLiteralValue()) && hasCssPropertiesContract(node)) {
@@ -207,12 +208,12 @@ function inventorySourceNode(node: Node, file: string, state: SourceInventorySta
   if (Node.isTemplateExpression(node)) {
     const head = node.getHead();
     if (isClassFragment(head)) {
-      state.references.push(...arbitrarySites(head.getLiteralText(), file, head, head.getStart() + 1));
+      state.references.push(...arbitraryCssVariableSites(head.getLiteralText(), file, head, head.getStart() + 1));
     }
     for (const span of node.getTemplateSpans()) {
       const literal = span.getLiteral();
       if (isClassFragment(literal)) {
-        state.references.push(...arbitrarySites(literal.getLiteralText(), file, literal, literal.getStart() + 1));
+        state.references.push(...arbitraryCssVariableSites(literal.getLiteralText(), file, literal, literal.getStart() + 1));
       }
     }
   }
@@ -229,7 +230,7 @@ function sourceStringInventory(
   for (const source of sources) {
     const file = repoRel(root, source.getFilePath());
     for (const node of source.getDescendants()) {
-      inventorySourceNode(node, file, state);
+      inventoryCssVariableSourceNode(node, file, state);
     }
   }
   return { definitions, definitionSites, references };
@@ -253,8 +254,8 @@ export function inventoryCssVariables(root: string, files: readonly SourceFile[]
     for (const segment of candidate.segments) {
       const segmentText = candidate.value.slice(segment.valueStart, segment.valueEnd);
       const file = repoRel(root, segment.node.getSourceFile().getFilePath());
-      references.push(...varSites(segmentText, file, segment.node, segment.sourceStart));
-      references.push(...arbitrarySites(segmentText, file, segment.node, segment.sourceStart));
+      references.push(...cssVariableReferenceSites(segmentText, file, segment.node, segment.sourceStart));
+      references.push(...arbitraryCssVariableSites(segmentText, file, segment.node, segment.sourceStart));
     }
   }
   const unsupportedPrefixes = walk.runtimePrefixes.flatMap((prefix) => {

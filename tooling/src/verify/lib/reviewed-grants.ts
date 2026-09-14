@@ -5,6 +5,36 @@
 // Gate modules never import this table; the command runner hands it to `runPolicyPass` as `reviewedGrants`.
 import type { ReviewedGateGrant, SelectedGatePolicy } from "../contract/gate-authority.ts";
 
+const STRUCTURAL_LENGTH_OPERATION = "structural-css-length";
+const STRUCTURAL_LENGTH_GRANT_SUBJECTS = [
+  ".shell-grid { --list-track: 0px }",
+  ".shell-grid { --context-track: 0px }",
+  ".shell-grid { height: 100vh }",
+  ".shell-grid { height: calc(100dvh - var(--orb-keyboard-inset, 0px)) }",
+  ".shell-grid { --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))) }",
+  ".shell-grid { --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)) }",
+  ".shell-content-primacy-sentinel { block-size: 1px }",
+  '.shell-panel[data-panel-mode="docked"], .shell-panel[data-panel-mode="overlay"], .shell-panel[data-panel-mode="collapsed"] { width: 100dvw }',
+  '.shell-panel[data-panel-side="list"][data-panel-mode="overlay"], .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"], .shell-panel[data-panel-side="context"][data-panel-mode="overlay"], .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] { width: 100dvw }',
+  '.shell-panel[data-panel-side="list"][data-panel-mode="docked"] { width: 100dvw }',
+  "@supports (backdrop-filter: blur(1px)) {",
+  "@container shell-main (max-width: 30rem) {",
+  "@media (max-width: 48rem) {",
+  "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[12rem]/pager:sr-only",
+  "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[13rem]/pager:gap-tight",
+  "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[13rem]/pager:[word-spacing:-1ch]",
+  "packages/client/src/features/character/components/character-create-actions.tsx :: @max-[19rem]:hidden",
+  "packages/client/src/features/character/components/character-create-actions.tsx :: @[19rem]:hidden",
+  "packages/ui/src/markdown/markdown.tsx :: max-h-[60cqh]",
+  "packages/ui/src/layout/variants.ts :: @md:grid-cols-[repeat(auto-fill,8.5rem)]",
+  "packages/ui/src/layout/variants.ts :: @min-[100rem]:grid-cols-[1.5fr_1.05fr]",
+  "packages/ui/src/layout/variants.ts :: @min-[100rem]:grid-cols-2",
+  "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(5rem,100%),1fr))]",
+  "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))]",
+  "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]",
+  "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
+] as const;
+
 /** Sorted by `policyId`, then `id`; `id` is `<policyId>:<short-kebab-subject>` so a row is greppable by its policy. */
 export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
@@ -326,6 +356,72 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     endsWhen:
       "the chat surface stops driving the scroll container from client globals (it moves onto a capability carrier or into the primitive), and the row consumes zero candidates and reds STALE. It is ONE row for however many selectors express the recipe: the policy reports one finding per (carrier, hook) class precisely so a reviewer's decision stays 1:1.",
   },
+  ...[
+    "--accordion-panel-height",
+    "--active-tab-left",
+    "--active-tab-width",
+    "--anchor-width",
+    "--available-height",
+    "--available-width",
+    "--collapsible-panel-height",
+    "--drawer-snap-point-offset",
+    "--drawer-swipe-movement-x",
+    "--drawer-swipe-movement-y",
+    "--toast-swipe-movement-x",
+    "--toast-swipe-movement-y",
+    "--transform-origin",
+  ].map(
+    (property): ReviewedGateGrant => ({
+      id: `css-var-defined-grants:${property.slice(2)}`,
+      policyId: "css-var-defined-grants",
+      subject: property,
+      operation: "base-ui-runtime-property",
+      why: `${property} is a Base UI runtime custom property proved by both the committed API mirror and the installed CssVars declarations; authored consumers may read it although product CSS cannot define its runtime value.`,
+      endsWhen: `Delete the unused central grant when no product source or stylesheet references ${property}; the candidate disappears and central liveness reports this row stale.`,
+    }),
+  ),
+  ...[
+    [
+      "app-shell-width",
+      "packages/client/src/features/app-shell/surfaces/app-shell.tsx",
+      "--width-shell-content",
+      "the user stored chat width is read at runtime",
+    ],
+    [
+      "web-weave-hub-x",
+      "packages/ui/src/art/web-weave/web-weave.tsx",
+      "--orb-weave-hub-x",
+      "the generated weave geometry computes the horizontal hub per instance",
+    ],
+    [
+      "web-weave-hub-y",
+      "packages/ui/src/art/web-weave/web-weave.tsx",
+      "--orb-weave-hub-y",
+      "the generated weave geometry computes the vertical hub per instance",
+    ],
+    ["waystone-pitch", "packages/ui/src/charts/meter/waystone-layers.tsx", "--orb-ws-pitch", "the lattice pitch is per-layer data"],
+    ["waystone-glow", "packages/ui/src/charts/meter/waystone-layers.tsx", "--orb-ws-glow", "the animation floor is computed per frame"],
+    ["spinner-length", "packages/ui/src/primitives/spinner/spinner.tsx", "--orb-web-spiral-length", "the dash length derives from the generated spiral path"],
+  ].map(
+    ([id, subject, property, reason]): ReviewedGateGrant => ({
+      id: `css-var-defined-grants:${id}`,
+      policyId: "css-var-defined-grants",
+      subject: subject ?? "",
+      operation: `css-runtime-writer:${property}`,
+      why: `${property} is written in ${subject} because ${reason}; no static product-CSS value can serve.`,
+      endsWhen: `Delete the stale producer grant or review and repoint it when ${subject} stops writing ${property}, or the value becomes static; central liveness then reports this exact row stale.`,
+    }),
+  ),
+  ...STRUCTURAL_LENGTH_GRANT_SUBJECTS.map(
+    (subject, index): ReviewedGateGrant => ({
+      id: `css-length-tokens-grants:${String(index + 1).padStart(2, "0")}`,
+      policyId: "css-length-tokens-grants",
+      subject,
+      operation: STRUCTURAL_LENGTH_OPERATION,
+      why: `${subject} is an exact raw length used as structural mechanics that cannot consume a portable token.`,
+      endsWhen: `the exact structural subject ${subject} disappears or becomes token-expressible; central liveness then reports this row stale.`,
+    }),
+  ),
   {
     id: "db-structure-producer-home:gallery",
     policyId: "db-structure-producer-home",
