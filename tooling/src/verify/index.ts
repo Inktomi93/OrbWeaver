@@ -173,7 +173,6 @@ export { runGateContract } from "./ops/gate-contract.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
 export { deriveCaughtFailurePopulation, generateCaughtFailurePopulation, POPULATION_REL } from "./ops/gen/caught-failure-population.ts";
 export { generateDensityBaseline } from "./ops/gen/density.ts";
-export { generateDuplicateActionDoorsBaseline } from "./ops/gen/duplicate-action-doors.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { deriveReadFirstCosts, generateReadFirstCosts, READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./ops/gen/read-first-costs.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_REL } from "./ops/gen/snap-flags-index.ts";

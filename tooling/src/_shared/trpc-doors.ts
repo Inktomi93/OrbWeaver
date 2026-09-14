@@ -32,12 +32,18 @@
 import type { BindingElement, CallExpression, Identifier, Node, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 
-/** The `duplicate-action-doors` RATCHET LEDGER's ONE path home. It lives HERE, beside the shared door
- *  resolver, because BOTH consumers of "what is a door" need it: the gate reads its budgets, and the
- *  `ast subset-callers` lens reads its RATIFIED rows to annotate a flagged subset as already-ruled (#569).
- *  A tool cannot import another tool, so a second spelling in the lens would be the rename-death this repo
- *  keeps paying for. */
-export const DOORS_BASELINE_REL = "tooling/src/verify/gates/duplicate-action-doors.baseline.json";
+/** The `operation` half of a `duplicate-action-doors` reviewed-grant identity: the licensed act, carrying
+ *  the exact door SET the ruling names. It lives beside the door grammar because THREE readers must spell it
+ *  identically or a ruling silently stops matching — the policy that emits it
+ *  (`verify/gates/duplicate-action-doors.ts`), the rulings that are granted against it
+ *  (`_shared/action-door-rulings.ts`), and the lens that renders it (`ast/ops/subset-callers.ts`). */
+const DOOR_SET_OPERATION_PREFIX = "duplicate-action-door-set:";
+
+/** The operation string for one pair's door set. Callers hand it PATH-SORTED; the order is part of the
+ *  identity, because two spellings of one set would be two grants for one ruling. */
+export function doorSetOperation(doors: readonly string[]): string {
+  return `${DOOR_SET_OPERATION_PREFIX}${doors.join(", ")}`;
+}
 
 /** The two TanStack Query spellings a tRPC mutation door takes in this client. */
 const MUTATION_MEMBERS = new Set(["mutationOptions", "useMutation"]);
@@ -54,19 +60,24 @@ const TRPC_PREFIX = "trpc.";
 export function mutationProcedures(scope: Node): readonly string[] {
   const out: string[] = [];
   for (const call of scope.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const member = call.getExpression();
-    if (!TsNode.isPropertyAccessExpression(member)) {
-      continue;
-    }
-    if (!MUTATION_MEMBERS.has(member.getName())) {
-      continue;
-    }
-    const path = member.getExpression().getText();
-    if (path.startsWith(TRPC_PREFIX)) {
-      out.push(path.slice(TRPC_PREFIX.length));
+    const procedure = mutationProcedureOf(call);
+    if (procedure !== undefined) {
+      out.push(procedure);
     }
   }
   return out;
+}
+
+/** The procedure ONE call expression creates a door for, or undefined when it is not a creation site at all.
+ *  THE SINGLE-NODE DOOR: `mutationProcedures` above is this predicate applied over a scope's descendants, and
+ *  a kind-indexed visitor (the `action-door-census` fact, which needs the NODE a finding anchors on) applies
+ *  it to the call it was delivered. Two spellings of "is this a door" is exactly the divergence this module
+ *  exists to prevent, so there is one and both doors are it. */
+export function mutationProcedureOf(call: CallExpression): string | undefined {
+  const member = call.getExpression();
+  const isCreationSite = TsNode.isPropertyAccessExpression(member) && MUTATION_MEMBERS.has(member.getName());
+  const path = isCreationSite ? member.getExpression().getText() : "";
+  return path.startsWith(TRPC_PREFIX) ? path.slice(TRPC_PREFIX.length) : undefined;
 }
 
 /** A hook name that resolves two ways — refused rather than guessed. */
