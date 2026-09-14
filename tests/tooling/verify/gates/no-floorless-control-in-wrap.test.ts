@@ -1,7 +1,13 @@
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { Project } from "ts-morph";
+import type { GateDescriptor, GateExample } from "../../../../tooling/src/verify/contract/gate.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/floorless-control-vocabulary-health.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-floorless-control-in-wrap.ts";
+import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -77,3 +83,93 @@ test("the ruled product sites keep their geometry and only their exact occurrenc
       .sort(),
   ).toEqual(["glyph-lg", "glyph-xs"]);
 });
+
+test("all 15 frozen floorless rows preserve occurrences or explicitly move health and stale authority", async ({ scratch }) => {
+  const source = execFileSync("git", ["show", "cc4fdfc2aa2b058b004c84676e65fc90b9ad89cd:tooling/src/verify/gates/no-floorless-control-in-wrap.ts"], {
+    encoding: "utf8",
+  });
+  let rewritten = source;
+  for (const relative of ["../contract/gate.ts", "../lib/pass.ts", "../lib/comment-spans.ts"]) {
+    rewritten = rewritten.replace(
+      `from "${relative}"`,
+      `from ${JSON.stringify(pathToFileURL(join(process.cwd(), "tooling/src/verify/gates", relative)).href)}`,
+    );
+  }
+  const target = join(scratch, "legacy-floorless.ts");
+  writeFileSync(target, rewritten);
+  const legacy = ((await import(pathToFileURL(target).href)) as { gate: GateDescriptor }).gate;
+  expect([legacy.mustFlag.length, legacy.mustPass.length]).toEqual([7, 8]);
+  for (const arm of ["mustFlag", "mustPass"] as const) {
+    for (const [index, example] of legacy[arm].entries()) {
+      verifyFloorlessRow(legacy, arm, index, example);
+    }
+  }
+});
+
+function healthIdentities(index: number): { file: string; line: number; column: number; token: string; message: string; policyId: string }[] {
+  const file = "packages/ui/src/primitives/button/variants.ts";
+  const messages = [
+    ...["inline", "glyph-xs", "glyph-sm", "glyph-md", "glyph-lg"].map(
+      (key) => `Button size arm ${key} is no longer declared in ${file}; rederive the floorless vocabulary.`,
+    ),
+    `${file} no longer spells the touch-target overflow pseudo; rederive the floorless vocabulary.`,
+  ];
+  return messages.map((message) => ({ file, line: index === 3 ? 2 : 1, column: 1, token: "export", message, policyId: "floorless-control-vocabulary-health" }));
+}
+
+function verifyFloorlessRow(legacy: GateDescriptor, arm: "mustFlag" | "mustPass", index: number, example: GateExample): void {
+  const original = typeof example.files === "string" ? { [example.at ?? "packages/client/src/x.tsx"]: example.files } : example.files;
+  // The retired table's fixture was DB-only. Both runners receive the same inert admitted client file.
+  const files = { ...original, "packages/client/src/__floorless_replay.ts": "export const replay = true;" };
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, content] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, content);
+  }
+  const before = runPass([legacy], {
+    root: ROOT,
+    project,
+    scope: { kind: "project" },
+    files: project.getSourceFiles(),
+    checker: () => project.getTypeChecker(),
+  });
+  const after = drive(files);
+  expect(before.toolErrors, example.why).toEqual([]);
+  const findings = before.gates[0]?.findings ?? [];
+  expect(findings, example.why).toHaveLength(arm === "mustFlag" ? [1, 2, 6, 6, 2, 1, 1][index] : 0);
+  const retired = arm === "mustFlag" && index === 4;
+  const vocabulary = arm === "mustFlag" && (index === 2 || index === 3);
+  expect(
+    findings.filter((finding) => finding.message?.startsWith("JUDGMENT_DEFERRED row matching NO live violation")),
+    example.why,
+  ).toHaveLength(retired ? 2 : 0);
+  // Ordinary wording and positions survive verbatim. Health deliberately moves from the legacy
+  // self-file at 0:0 to the declaring source; local-table staleness is held by central-marker tests above.
+  let expected = findings.map(({ file, line, column, token, message }) => ({
+    file,
+    line,
+    column,
+    token,
+    message: message ?? legacy.message,
+    policyId: "no-floorless-control-in-wrap",
+  }));
+  if (retired) {
+    expected = [];
+  }
+  if (vocabulary) {
+    expected = healthIdentities(index);
+  }
+  expect(
+    after.authority.effectiveFindings
+      .map(({ file, line, column, token, message, policyId }) => ({
+        file,
+        line,
+        column,
+        token,
+        message: message ?? gate.message,
+        policyId,
+      }))
+      .map((finding) => JSON.stringify(finding))
+      .toSorted(),
+    example.why,
+  ).toEqual(expected.map((finding) => JSON.stringify(finding)).toSorted());
+}
