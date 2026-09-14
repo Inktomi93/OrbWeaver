@@ -52,7 +52,7 @@ export function parseGateIgnoreMarker(commentText: string): GateIgnoreMarker | u
 /** Node kinds whose spans can legally CONTAIN a marker spelling without it being a marker (gate
  *  fixtures, doc strings, regex sources). A match inside one of these spans is prose about the
  *  vocabulary, not a use of it. */
-const MENTION_SPAN_KINDS: ReadonlySet<SyntaxKind> = new Set([
+export const GATE_IGNORE_MENTION_SPAN_KINDS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.StringLiteral,
   SyntaxKind.NoSubstitutionTemplateLiteral,
   SyntaxKind.TemplateExpression,
@@ -63,7 +63,7 @@ const MENTION_SPAN_KINDS: ReadonlySet<SyntaxKind> = new Set([
 function literalSpans(sf: SourceFile): readonly (readonly [number, number])[] {
   const spans: [number, number][] = [];
   sf.forEachDescendant((node) => {
-    if (MENTION_SPAN_KINDS.has(node.getKind())) {
+    if (GATE_IGNORE_MENTION_SPAN_KINDS.has(node.getKind())) {
       spans.push([node.getStart(), node.getEnd()]);
     }
   });
@@ -127,9 +127,12 @@ function lineCommentOpeners(text: string, spans: readonly (readonly [number, num
  *  is exactly what the suppressor could honour (plus inert ATTEMPTS — e.g. a trailing marker after code,
  *  which opens a real comment but sits in no node's leading trivia, stays visible here so the STALE arm
  *  can red it rather than let it sit there looking like protection). */
-export function findGateIgnoreMarkers(sf: SourceFile): readonly { readonly index: number; readonly marker: GateIgnoreMarker }[] {
+export function findGateIgnoreMarkersWithSpans(
+  sf: SourceFile,
+  spans: readonly (readonly [number, number])[],
+): readonly { readonly index: number; readonly marker: GateIgnoreMarker }[] {
   const text = sf.getFullText();
-  const openers = lineCommentOpeners(text, literalSpans(sf));
+  const openers = lineCommentOpeners(text, spans);
   const out: { index: number; marker: GateIgnoreMarker }[] = [];
   for (const m of text.matchAll(new RegExp(GATE_IGNORE_SOURCE, "gu"))) {
     if (openers.has(m.index)) {
@@ -137,6 +140,10 @@ export function findGateIgnoreMarkers(sf: SourceFile): readonly { readonly index
     }
   }
   return out;
+}
+
+export function findGateIgnoreMarkers(sf: SourceFile): readonly { readonly index: number; readonly marker: GateIgnoreMarker }[] {
+  return findGateIgnoreMarkersWithSpans(sf, literalSpans(sf));
 }
 
 /** Every marker in a file, indexed by its own 1-based LINE — the FINDING-arm resolver's lookup. Cached per

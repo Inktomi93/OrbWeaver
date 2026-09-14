@@ -78,8 +78,10 @@ export type Files = Readonly<Record<string, string>>;
 export interface Seen {
   readonly file: string;
   readonly line: number;
+  readonly column?: number | undefined;
   readonly token: string | undefined;
   readonly message: string;
+  readonly fix?: string | undefined;
   readonly policyId: string | undefined;
 }
 
@@ -779,6 +781,11 @@ export interface TmpdirReplay {
   readonly toolErrors: readonly string[];
   /** Set when population resolution or the pass itself THREW — a refusal, never a verdict. */
   readonly thrown: string | undefined;
+  /** Complete finding identities for conversion families that must pin more than a compact report label. */
+  readonly details: readonly Seen[];
+  readonly rawDetails: readonly Seen[];
+  /** Exact source members the owning dispatcher admitted. */
+  readonly sourcePaths: readonly string[];
 }
 
 /** How one example's two sides differ, as a CLOSED vocabulary rather than a prose cell. §4.6's four
@@ -991,11 +998,16 @@ export function createTmpdirDifferential(classifyToolError: ClassifyToolError): 
         checker: () => project.getTypeChecker(),
       });
       const gateResult = result.gates[0];
-      const findings = sorted(
-        (gateResult?.findings ?? []).map((finding) =>
-          shape({ file: finding.file, line: finding.line, token: finding.token, message: finding.message ?? gate.message, policyId: undefined }),
-        ),
-      );
+      const details = (gateResult?.findings ?? []).map((finding) => ({
+        file: finding.file,
+        line: finding.line,
+        column: finding.column,
+        token: finding.token,
+        message: finding.message ?? gate.message,
+        fix: finding.fix ?? gate.fix,
+        policyId: undefined,
+      }));
+      const findings = sorted(details.map(shape));
       return {
         findings,
         raw: findings,
@@ -1004,6 +1016,13 @@ export function createTmpdirDifferential(classifyToolError: ClassifyToolError): 
         subjects: declaredSubjects(gateResult?.scan.declared),
         toolErrors: sorted(result.toolErrors.map((error) => `${error.gate}/${error.phase}`)),
         thrown: undefined,
+        details,
+        rawDetails: details,
+        sourcePaths: project
+          .getSourceFiles()
+          .map((sourceFile) => sourceFile.getFilePath().slice(root.length + 1))
+          .filter((path) => gate.scanRoot?.(path) === true)
+          .toSorted(),
       };
     } catch (error) {
       return {
@@ -1014,6 +1033,9 @@ export function createTmpdirDifferential(classifyToolError: ClassifyToolError): 
         subjects: [],
         toolErrors: [],
         thrown: error instanceof Error ? error.message : String(error),
+        details: [],
+        rawDetails: [],
+        sourcePaths: [],
       };
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -1035,14 +1057,16 @@ export function createTmpdirDifferential(classifyToolError: ClassifyToolError): 
         resourceOptions: { overlay: { ...files }, parseSource: (path, text) => parser.createSourceFile(`${root}/${path}`, text, { overwrite: true }) },
       });
       const messageOf = new Map(policies.map((policy) => [policy.id, policy.message]));
-      const describe = (finding: CoordinatedGateFinding): string =>
-        shape({
-          file: finding.file.startsWith(`${root}/`) ? finding.file.slice(root.length + 1) : finding.file,
-          line: finding.line,
-          token: finding.token,
-          message: finding.message ?? messageOf.get(finding.policyId) ?? "",
-          policyId: finding.policyId,
-        });
+      const detail = (finding: CoordinatedGateFinding): Seen => ({
+        file: finding.file.startsWith(`${root}/`) ? finding.file.slice(root.length + 1) : finding.file,
+        line: finding.line,
+        column: finding.column,
+        token: finding.token,
+        message: finding.message ?? messageOf.get(finding.policyId) ?? "",
+        fix: finding.fix ?? policies.find(({ id }) => id === finding.policyId)?.fix,
+        policyId: finding.policyId,
+      });
+      const describe = (finding: CoordinatedGateFinding): string => shape(detail(finding));
       const subjects = new Set<string>();
       const population = new Set<string>();
       for (const owner of result.policies) {
@@ -1071,6 +1095,13 @@ export function createTmpdirDifferential(classifyToolError: ClassifyToolError): 
           ...result.authority.toolErrors.map((error) => classifyToolError(error.policyId ?? "authority", "authority", error.message)),
         ]),
         thrown: undefined,
+        details: result.authority.effectiveFindings.map(detail),
+        rawDetails: [
+          ...result.authority.effectiveFindings,
+          ...result.authority.waivedFindings.map(({ finding }) => finding),
+          ...result.authority.grantedFindings.map(({ finding }) => finding),
+        ].map(detail),
+        sourcePaths: [...population].toSorted(),
       };
     } catch (error) {
       return {
@@ -1081,6 +1112,9 @@ export function createTmpdirDifferential(classifyToolError: ClassifyToolError): 
         subjects: [],
         toolErrors: [],
         thrown: error instanceof Error ? error.message : String(error),
+        details: [],
+        rawDetails: [],
+        sourcePaths: [],
       };
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -1173,7 +1207,15 @@ export function createDifferential(root: string, classifyToolError: ClassifyTool
     return {
       findings: sorted(
         (result.gates[0]?.findings ?? []).map((finding) =>
-          shape({ file: rel(finding.file), line: finding.line, token: finding.token, message: finding.message ?? gate.message, policyId: undefined }),
+          shape({
+            file: rel(finding.file),
+            line: finding.line,
+            column: finding.column,
+            token: finding.token,
+            message: finding.message ?? gate.message,
+            fix: finding.fix ?? gate.fix,
+            policyId: undefined,
+          }),
         ),
       ),
       population: Object.keys(files).filter((path) => gate.scanRoot?.(path) ?? true).length,
@@ -1201,8 +1243,10 @@ export function createDifferential(root: string, classifyToolError: ClassifyTool
           shape({
             file: rel(finding.file),
             line: finding.line,
+            column: finding.column,
             token: finding.token,
             message: finding.message ?? messageOf.get(finding.policyId) ?? "",
+            fix: finding.fix ?? policies.find(({ id }) => id === finding.policyId)?.fix,
             policyId: finding.policyId,
           }),
         ),
