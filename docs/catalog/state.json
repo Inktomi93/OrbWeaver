@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "allowed": {
-    "pending": ["docs/design/gate-config-system.md"],
+    "pending": [],
     "missingFrontmatter": [],
     "invalidFrontmatter": [],
     "malformedFrontmatter": []
