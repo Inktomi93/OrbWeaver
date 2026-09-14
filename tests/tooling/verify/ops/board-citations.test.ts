@@ -98,7 +98,9 @@ test("a snapshot where NO row declares a subject refuses — the subject arm wou
   expect(() => runControls(noSubjects)).toThrow(/NOT ONE board row declares a `\*\*Where:\*\*` subject/);
 });
 
-test("the CONFIGURED production documents are admitted, and a renamed column on their real bytes throws", { timeout: scaledBudget(REAL_LEDGER_BASE_MS) }, ({ repoRoot }) => {
+test("the CONFIGURED production documents are admitted, and a renamed column on their real bytes throws", { timeout: scaledBudget(REAL_LEDGER_BASE_MS) }, ({
+  repoRoot,
+}) => {
   // NOT a synthetic stand-in: these are the exact paths the verb reads, so a rename, a lost fence or a
   // rewritten citation grammar in the real tree reds HERE rather than printing a clean zero at the barrier.
   for (const rel of LEDGERS) {
