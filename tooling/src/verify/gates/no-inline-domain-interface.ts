@@ -38,7 +38,7 @@
 //
 // FAMILY `no-inline-types` — a two-member SPLIT family (split by POPULATION), and the string is NOT backed by a
 // shared `lib/` dependency: measured, this module imports nothing from `lib/`, and `no-inline-types` imports only
-// corpus-wide primitives (`lib/reference-fact.ts`). §2 requires a shared canonical dependency for a multi-member
+// corpus-wide primitives (`_shared/reference-fact.ts`). §2 requires a shared canonical dependency for a multi-member
 // family, so this is the `policy-family-readers` finding shape (#2187), recorded here rather than dressed as a
 // reader.
 import { Node, SyntaxKind } from "ts-morph";

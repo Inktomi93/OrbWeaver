@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-13
+updated: 2026-09-14
 ---
 
 # Gate-runtime standardization law
@@ -116,7 +116,14 @@ without the two differences and controls is not evidence.
 A gate may inspect its delivered node, iterate resolved `ctx.files`, request a canonical source file or lazy checker,
 and call shared readers. It may not call project-wide or descendant traversal APIs, create a Project, keep a workspace
 cache, import another registered gate module, or implement binding/origin resolution locally. Shared predicates live in
-`lib/`; recognition of a registered gate is by contract registration, not directory name.
+`lib/`; recognition of a registered gate is by contract registration, not directory name. A corpus-wide
+reference-resolution primitive consumed by more than one TOOL (not only `verify`) lives in
+`tooling/src/_shared/` instead — the `reference-fact` family moved there (#2358) because `tooling/src/ast/`
+also reads it, and `verify` importing `ast` (`ops/orphan-export-ratchet.ts`) made the reverse import a
+direction reversal, not a placement choice. This does not widen the family fence: `policy-family-readers`
+still requires each family's shared canonical declaration to resolve inside `tooling/src/verify/lib/`, so a
+family whose only shared production dependency is a `_shared/` primitive needs a `verify/lib/`-declared
+sibling dependency too, or its own singleton reason.
 
 `ctx.relativePath` is partial and throws outside the effective population. Use the declaration's normalized source-file
 path for home questions about a resolved declaration. Membership in `ctx.files` is not a substitute because scoped

@@ -31,7 +31,7 @@
 //
 // FAMILY (`id-brand-flow`): shared readers, no private door. The cast SEAM is `lib/id-brand.ts`
 // (`createKitIdCallMatcher`, shared with `no-fake-disabled-id`); the argument's callee identity is
-// `lib/reference-fact-call.ts` (`resolveCallableOrigin`, shared with `no-raw-id`'s Zod door); the refusal is
+// `_shared/reference-fact-call.ts` (`resolveCallableOrigin`, shared with `no-raw-id`'s Zod door); the refusal is
 // `lib/origin-verdict.ts` (`classifyOriginRefusal`, shared with both). `MODULE_GENERATORS` below is the one
 // table, and it is a generator VOCABULARY — the set of library mints this policy names — not an exemption
 // list: adding a row makes the policy flag MORE.
@@ -62,11 +62,11 @@
 // by both.
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveCallableOrigin } from "../../_shared/reference-fact-call.ts";
+import type { ModuleMemberOrigin, ReferenceOrigin } from "../../_shared/reference-fact-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { ModuleMemberOrigin, ReferenceOrigin } from "../contract/reference-fact.ts";
 import { createKitIdCallMatcher, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE = "castId wraps a fresh-id generator — use `mintTypeId(ID_PREFIX.x)` for TypeIDs or `newId<T>()` for deliberately prefixless brands.";

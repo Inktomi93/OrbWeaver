@@ -48,8 +48,8 @@
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
 import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 

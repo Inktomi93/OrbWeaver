@@ -4,11 +4,12 @@
 // same-named export of another module resolves to a different one. Consumers pass an absolute-path INFIX
 // because a canonical declaration is routinely OUTSIDE the consuming policy's population, where
 // `ctx.relativePath` refuses by contract.
+
+import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
+import type { ModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node as MorphNode } from "ts-morph";
-import type { ModuleMemberOrigin } from "../contract/reference-fact.ts";
 import type { SealedOriginVerdict } from "../contract/sealed-origin.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import { resolveModuleMemberOrigin } from "./reference-fact.ts";
 
 export interface SealedHome {
   /** Absolute-path infix of the implementation home, e.g. `/packages/server/src/infra/providers/`. */

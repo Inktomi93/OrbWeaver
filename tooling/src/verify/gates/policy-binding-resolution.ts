@@ -3,8 +3,8 @@
 // `lib/policy-descriptor-read.ts` for the registration). §12.3, owner ruling 2026-09-12: *"gate-local
 // binding/origin resolution is FORBIDDEN — `getDefinitionNodes()` and hand-rolled `getSymbol().getDeclarations()`
 // chains inside a gate module are the private-reader shape one member at a time; the sanctioned route is the
-// shared readers (`lib/reference-fact.ts` `resolveStableExpression` / `resolveModuleMemberOrigin` /
-// `resolveGlobalMemberOrigin`, `lib/reference-fact-*.ts`, `lib/origin-verdict.ts`)."* Binding identity is a shared
+// shared readers (`_shared/reference-fact.ts` `resolveStableExpression` / `resolveModuleMemberOrigin` /
+// `resolveGlobalMemberOrigin`, `_shared/reference-fact-*.ts`, `lib/origin-verdict.ts`)."* Binding identity is a shared
 // primitive: one home resolves aliases, re-exports, namespaces and destructuring the same way for every policy,
 // refuses on a written or cyclic binding, and fails closed; a gate that walks `getSymbol()?.getDeclarations()[0]`
 // re-derives a weaker answer (`no-manual-token-estimate.ts:9` records the `[0]` that read the wrong overload,
@@ -78,7 +78,7 @@ const MESSAGE =
   "a FINAL policy module resolves a binding or an origin LOCALLY (gate-runtime-standardization.md §3, owner ruling #2097): `getDefinitionNodes()`, " +
   "`findReferences()`, `Symbol#getDeclarations()`, `getAliasedSymbol()` and their twins inside a gate module are the private-reader shape one member at a " +
   "time — a weaker re-derivation of what the shared readers answer once for every policy, with alias, re-export, namespace and destructuring " +
-  "resolution, write and cycle refusals, and a fail-closed verdict. Read through `lib/reference-fact.ts` (`resolveStableExpression`, " +
+  "resolution, write and cycle refusals, and a fail-closed verdict. Read through `_shared/reference-fact.ts` (`resolveStableExpression`, " +
   "`resolveModuleMemberOrigin`, `resolveGlobalMemberOrigin`) or `lib/origin-verdict.ts`, or add the missing question to a shared reader.";
 const FIX =
   'replace the local chain with the shared reader that answers the question — `resolveModuleMemberOrigin(node)` for "which module export is this", ' +
@@ -267,14 +267,14 @@ export const gate = defineGate({
       files: familyFixture(
         finalProbeModule(
           `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
-          'import type { Node } from "ts-morph";\nimport { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";\nexport const probe = (node: Node): unknown => resolveModuleMemberOrigin(node);\n',
+          'import type { Node } from "ts-morph";\nimport { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";\nexport const probe = (node: Node): unknown => resolveModuleMemberOrigin(node);\n',
         ),
         {
           [TS_MORPH_TYPES_PATH]: TS_MORPH_TYPES_STUB,
-          "tooling/src/verify/lib/reference-fact.ts": "export function resolveModuleMemberOrigin(node: unknown): unknown {\n  return node;\n}\n",
+          "tooling/src/_shared/reference-fact.ts": "export function resolveModuleMemberOrigin(node: unknown): unknown {\n  return node;\n}\n",
         },
       ),
-      why: "THE SANCTIONED ROUTE: the shared reader asked the question. The reader itself walks symbols — under `lib/`, outside this population, once for everyone — and the gate reads a fact",
+      why: "THE SANCTIONED ROUTE: the shared reader asked the question. The reader itself walks symbols — under `_shared/`, outside this population, once for everyone — and the gate reads a fact",
     },
     {
       mode: "types",

@@ -49,11 +49,11 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveStableExpression } from "../../_shared/reference-fact.ts";
 import type { GateFactContext } from "../contract/fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { TupleVocabularyFact } from "../contract/tuple-vocabulary-fact.ts";
 import { declarationHome } from "../lib/declaration-home.ts";
-import { resolveStableExpression } from "../lib/reference-fact.ts";
 import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 

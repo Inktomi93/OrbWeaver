@@ -1,8 +1,8 @@
 // Module-origin traversal for reference-fact.ts, separated from static expression/value resolution.
 import type { BindingElement, ExportSpecifier, ImportClause, ImportSpecifier, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices, ResolvedReferenceFact } from "../contract/reference-fact.ts";
 import { bindingElementName } from "./reference-fact-binding-name.ts";
+import type { ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices, ResolvedReferenceFact } from "./reference-fact-contract.ts";
 import { overloadHome } from "./reference-fact-overload.ts";
 import type { ModuleState } from "./reference-fact-state.ts";
 import {

@@ -35,7 +35,7 @@
 // call sites themselves, and central reconciliation owns the staleness judgment the ratchet arm used to.
 //
 // THE MATRIX IS RESOLVED, NOT READ FLAT (#947): its object literal is read through the shared stable-binding
-// reader (`lib/reference-fact.ts`), following object SPREADS of local/imported sibling matrices.
+// reader (`_shared/reference-fact.ts`), following object SPREADS of local/imported sibling matrices.
 // `{...BASE_AUTHORITY, listMessages:"member"}` used to yield ONE verb while staying non-empty — so the
 // blindness arm was satisfied, the gate reported a live matrix, and every spread-in viewer-plane verb was
 // simply not judged. Composition shapes the matrix's own law does not sanction (a spread of a call, an
@@ -56,12 +56,13 @@
 // the index below is built from the delivered node stream and an ancestor hop, never from a project sweep
 // or a per-candidate descendant re-walk. `callsIn` reproduces the legacy `fn.getDescendantsOfKind(Call)`
 // exactly, because a call is registered under EVERY function that encloses it.
+
+import { readStaticString, resolveLexicalValueDeclaration, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import type { ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyVisitor } from "../contract/policy-primitives.ts";
-import type { ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
 import { readStringValue, unwrapExpression } from "./ast-read.ts";
-import { readStaticString, resolveLexicalValueDeclaration, resolveStableExpression } from "./reference-fact.ts";
 
 export const CHAT_DOMAIN_UNDER = "packages/server/src/domain/chat/**";
 export const CHAT_MATRIX_FILE = "packages/server/src/domain/chat/substrate/auth/matrix.ts";

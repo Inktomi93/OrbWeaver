@@ -11,11 +11,12 @@
 // (`export function estimateTokens` in the consumer is the self-exemption door that shape opens).
 //
 // A pure reader over delivered nodes: no walk, no Project, no filesystem, no cache.
+
+import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
 import type { ProjectHomeVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "./reference-fact.ts";
 import { declaredByAnyPackage, resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "./type-member-origin.ts";
 
 /** The home a policy seals: one repo-relative file and the exported names it owns. */

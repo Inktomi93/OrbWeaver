@@ -21,14 +21,15 @@
 //      declares the doors (`json:baseui-manifest` + `installed-package{base-ui,ast}`).
 //   5. VALUE READS GO THROUGH THE SHARED FACT BOUNDARY. `accessedName`'s element-access argument and the
 //      HAST `properties` initializer are VALUES, and `shared-semantic-readers.md:33` rules `ast-read.ts`
-//      "not the new fact boundary" — they now resolve through `lib/reference-fact.ts`
+//      "not the new fact boundary" — they now resolve through `_shared/reference-fact.ts`
 //      (`readStaticString` / `resolveStableExpression`), which follows a stable const binding as well as
 //      stripping wrappers. That is a WIDENING, not a rename: `el["data-x"]` still resolves and
 //      `el[DATA_X]` now resolves too. `unwrapExpression` survives ONLY where the strip is structural
 //      (a parenthesized assignment target), which is the same layering `reference-fact.ts` itself uses.
+
+import { readStaticString, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
 import type { Type } from "ts-morph";
 import { Node } from "ts-morph";
-import { readStaticString, resolveStableExpression } from "./reference-fact.ts";
 import type { StaticClassCollector } from "./static-class-expression.ts";
 
 const DOM_LIB = "/typescript/lib/lib.dom.d.ts";

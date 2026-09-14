@@ -65,11 +65,11 @@
 //      conversion ADDED, and a same-named LOCAL function is a legacy false positive this policy drops.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticString } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
 import type { LocatedProjectHome } from "../lib/project-home-origin.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
-import { readStaticString } from "../lib/reference-fact.ts";
 
 const PERSISTED_STORE_HOME = { path: "packages/client/src/state/create-persisted-store.ts", names: ["createPersistedStore"] } as const;
 const ENTITY_DRAFT_HOME = { path: "packages/client/src/state/create-entity-draft-store.ts", names: ["createEntityDraftStore"] } as const;

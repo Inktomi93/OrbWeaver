@@ -1,4 +1,8 @@
 // Canonical identity and authored-value composition for the visitor-fed bus fact collector.
+
+import { readMemberReference, readStaticString, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
+import type { ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
 import type { CallExpression, Node as MorphNode, Symbol as MorphSymbol, Type, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
 import type {
@@ -11,11 +15,8 @@ import type {
   EmitterSinkKind,
 } from "../contract/bus-fact.ts";
 import type { GateFactContext } from "../contract/fact.ts";
-import type { ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
 import { declarationHome } from "./declaration-home.ts";
 import { resolveCallableMember } from "./gate-contract-origin.ts";
-import { readMemberReference, readStaticString, resolveStableExpression } from "./reference-fact.ts";
-import { resolveCallableOrigin } from "./reference-fact-call.ts";
 import { readStaticAuthoredScalar, readStaticAuthoredValue } from "./static-authored-value.ts";
 import { resolveTypePropertyOrigin } from "./type-member-origin.ts";
 

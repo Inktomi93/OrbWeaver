@@ -44,7 +44,7 @@
 // `registry.size` was 0 against a 62-row registry and the gate's single real-tree finding was its own
 // zero-population tripwire. The fix is in the shared reader, not here: the collector now names the
 // read-only `Array.prototype` members and fails closed on every other member
-// (`lib/reference-fact-writes.ts` READ_ONLY_MEMBERS, both directions pinned in
+// (`_shared/reference-fact-writes.ts` READ_ONLY_MEMBERS, both directions pinned in
 // `tests/tooling/verify/lib/static-authored-value.test.ts`). Every fixture below resolved through the
 // refusal because none of them declared a consumer beside the array — which is why `mustPass[3]` now does.
 //
@@ -565,7 +565,7 @@ export const gate = defineGate({
         [REGISTRY]: `${ONE_RULE}export const ${REGISTRY_CONST}_IDS: readonly string[] = ${REGISTRY_CONST}.map((rule) => rule.id);\n`,
         [PROOF_FILE]: `${BOUND_HELPER_FIXTURE}${BOTH_PROOFS}`,
       },
-      why: "THE REAL TREE'S OWN SHAPE, and the row this policy shipped BLIND without (#1950 D2): the registry declares a sibling `.map(...)` projection three lines below itself. `resolveAuthoredComposite` refused that with `dynamic` — a refusal about the BINDING'S DOWNSTREAM USE, which says nothing about the literal in place — so `registry.size` was 0 against a 62-row registry and the only finding on the real tree was this module's own zero-population tripwire, while every fixture here resolved because none declared a consumer. The reader now names the read-only `Array.prototype` members and fails closed on everything else (`lib/reference-fact-writes.ts` READ_ONLY_MEMBERS); restoring the blanket refusal REDS this row with `zero-population`",
+      why: "THE REAL TREE'S OWN SHAPE, and the row this policy shipped BLIND without (#1950 D2): the registry declares a sibling `.map(...)` projection three lines below itself. `resolveAuthoredComposite` refused that with `dynamic` — a refusal about the BINDING'S DOWNSTREAM USE, which says nothing about the literal in place — so `registry.size` was 0 against a 62-row registry and the only finding on the real tree was this module's own zero-population tripwire, while every fixture here resolved because none declared a consumer. The reader now names the read-only `Array.prototype` members and fails closed on everything else (`_shared/reference-fact-writes.ts` READ_ONLY_MEMBERS); restoring the blanket refusal REDS this row with `zero-population`",
     },
   ],
 });

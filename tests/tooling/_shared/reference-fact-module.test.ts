@@ -1,6 +1,6 @@
+import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import { Project, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../../../tooling/src/verify/lib/reference-fact.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 function origin(barrel: string): ReturnType<typeof resolveModuleMemberOrigin> {
   const project = new Project({ useInMemoryFileSystem: true });

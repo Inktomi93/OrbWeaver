@@ -70,8 +70,8 @@
 // `analysis: "types"`; its finding semantics and population are unchanged.
 import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveLexicalValueDeclaration, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { resolveLexicalValueDeclaration, resolveStableExpression } from "../lib/reference-fact.ts";
 
 const ACTIVE_ELEMENT = "activeElement";
 

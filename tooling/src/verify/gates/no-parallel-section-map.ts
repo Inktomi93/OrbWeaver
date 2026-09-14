@@ -44,7 +44,7 @@
 //
 // THE RULING SURVIVES; ITS INPUT CHANGED (#1950 D2, landed by lane `p-hooks-wave-refute`). A NARROWER
 // widening than the `as const` one above has now landed in the shared reader: `collectInvokedMembers`
-// (`lib/reference-fact-writes.ts` READ_ONLY_MEMBERS) no longer records a single named read-only
+// (`_shared/reference-fact-writes.ts` READ_ONLY_MEMBERS) no longer records a single named read-only
 // `Array.prototype` member, so a binding consumed ONLY through `.includes(v)` is no longer `dynamic`.
 // The measured 0-members refusal above therefore describes a condition that no longer holds, and the
 // paragraph is kept for its MECHANISM rather than its number. What has NOT changed and is why this module

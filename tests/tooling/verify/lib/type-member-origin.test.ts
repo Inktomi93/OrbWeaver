@@ -3,10 +3,11 @@
 // identity available is the declaration home of the property symbol the checker resolved. Every control
 // here is a same-SPELLING/different-IDENTITY pair — a local lookalike interface, a second module exporting
 // the same type name — because that pair is the whole reason the readers exist.
+
+import type { ReferenceFact, ResolvedReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind, Type } from "ts-morph";
 import { vi } from "vitest";
-import type { ReferenceFact, ResolvedReferenceFact } from "../../../../tooling/src/verify/contract/reference-fact.ts";
 import {
   declaredByAnyPackage,
   declaredByFile,

@@ -13,9 +13,10 @@
 // Extracted 2026-09-12 from four byte-identical private copies (`bounded-list-limit`,
 // `no-direct-reports-write`, `no-handwritten-wire-json-schema`, `no-hardcoded-side-gen-sampling`), whose
 // refusal arm was reached by zero rows in all four.
+
+import { readStaticString } from "@orb/tooling/_shared/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import { readStaticString } from "./reference-fact.ts";
 
 /** The authored NAME of an object member, across identifier, string-literal and computed-literal keys.
  *  `null` means the node is not a property assignment, or its computed key authors no knowable name. */

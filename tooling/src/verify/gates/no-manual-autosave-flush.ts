@@ -24,14 +24,14 @@
 // `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
-// FAMILY: a declared SINGLETON under its own id. `lib/type-member-origin.ts`, `lib/reference-fact.ts` and
+// FAMILY: a declared SINGLETON under its own id. `lib/type-member-origin.ts`, `_shared/reference-fact.ts` and
 // `lib/origin-verdict.ts` are corpus-wide identity primitives; no sibling judges a structural array op beside
 // `handleSubmit`.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 import { LOOKALIKE_HOME, tanstackFormProof, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 

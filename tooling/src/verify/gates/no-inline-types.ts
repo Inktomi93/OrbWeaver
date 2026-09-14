@@ -53,13 +53,13 @@
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 //
 // FAMILY `no-inline-types` — a two-member SPLIT family with `no-inline-domain-interface`, and the string is NOT
-// backed by a shared `lib/` dependency: this module reads `lib/reference-fact.ts` (`readMemberReference`,
+// backed by a shared `lib/` dependency: this module reads `_shared/reference-fact.ts` (`readMemberReference`,
 // `resolveModuleMemberOrigin`), corpus-wide primitives the sibling does not import. That is the §2 /
 // `policy-family-readers` (#2187) finding shape, recorded.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
 const ZOD_DOOR = "zod";
 /** The three zod factories whose result IS a declared shape (F2 of §7.4 — an inferred schema is a type). */

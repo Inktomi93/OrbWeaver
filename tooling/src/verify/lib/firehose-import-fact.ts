@@ -1,11 +1,12 @@
 // One typed fact for the D79 firehose's named-symbol boundary. Candidate spelling stays deliberately
 // narrow (named import/re-export and namespace dot/bracket), while the shared origin reader proves that
 // the candidate reaches the canonical chat-events-bus declaration rather than an unrelated same-name export.
+
+import { readMemberReference, resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import type { Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import { readMemberReference, resolveModuleMemberOrigin } from "./reference-fact.ts";
 
 export const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
 const FIREHOSE_HOME = "/packages/server/src/transport/trpc/chat-events-bus.ts";

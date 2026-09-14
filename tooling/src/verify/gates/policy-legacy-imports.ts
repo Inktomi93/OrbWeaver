@@ -78,7 +78,7 @@
 //     it asks it of every binding the door receives: a named import (by its name IN THE TARGET, so
 //     `{ X as Y }` is judged as `X`), a default import, and a namespace import or `export *`, which receive
 //     the WHOLE export surface and are judged over every export. A named or default binding is resolved by
-//     the SHARED reader (`lib/reference-fact.ts#resolveModuleMemberOrigin`, #2097 — a gate resolves no
+//     the SHARED reader (`_shared/reference-fact.ts#resolveModuleMemberOrigin`, #2097 — a gate resolves no
 //     binding of its own), which follows RE-EXPORT CHAINS, so a two-hop shim is the same finding as a direct
 //     import and needs no walk here; the two forms the reader answers `unsupported` for (a `NamespaceImport`
 //     and an `ExportSpecifier`) and the `ExportAssignment` it stops at are read off the TARGET'S OWN EXPORT
@@ -118,14 +118,14 @@
 // authored, not derived: the `_proof/` exclusion is a fixture fence, not a translated legacy predicate.
 import type { ExportDeclaration, ImportDeclaration, SourceFile, Node as TsNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import type { ModuleMemberOrigin, ReferenceFact } from "../../_shared/reference-fact-contract.ts";
 import type { GateContractKind } from "../contract/gate-corpus.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { ModuleMemberOrigin, ReferenceFact } from "../contract/reference-fact.ts";
 import type { TypeIdentityOrigin } from "../contract/type-member-origin.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "../lib/origin-verdict.ts";
 import { finalRegistrationOf, gateRegistrationOf } from "../lib/policy-descriptor-read.ts";
-import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { resolveTypeValueOrigins } from "../lib/type-member-origin.ts";
 import { familyFixture, finalProbeModule, HARD_TRUNK } from "./_proof/policy-soundness.ts";
 
@@ -498,7 +498,7 @@ function resolvedBindings(door: ImportDeclaration, doorPath: string): readonly R
 }
 
 /** THE FORMS THE SHARED READER DOES NOT ANSWER, enumerated from the target's own export map instead.
- *  Measured against `lib/reference-fact.ts` on 2026-09-13: `resolveModuleMemberOrigin` returns
+ *  Measured against `_shared/reference-fact.ts` on 2026-09-13: `resolveModuleMemberOrigin` returns
  *  `unsupported: NamespaceImport is not a supported module-member binding` and the same for an
  *  `ExportSpecifier`, and it stops at the `ExportAssignment` of an `export default <identifier>` rather than
  *  at the declaration behind it. That is a READER GAP reported with this arm, not a licence for a binding

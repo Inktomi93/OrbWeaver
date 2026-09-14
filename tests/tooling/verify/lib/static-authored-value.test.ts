@@ -1,9 +1,10 @@
 // Authored shape and refusal controls; arbitrary free-function effects are outside this reader's contract.
+
+import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import type { ReferenceFact, ResolvedReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import type { ReferenceFact, ResolvedReferenceFact } from "../../../../tooling/src/verify/contract/reference-fact.ts";
 import type { StaticAuthoredValue } from "../../../../tooling/src/verify/contract/static-authored-value.ts";
-import { resolveStableExpression } from "../../../../tooling/src/verify/lib/reference-fact.ts";
 import {
   readAuthoredArrayElements,
   readAuthoredArrayPresence,

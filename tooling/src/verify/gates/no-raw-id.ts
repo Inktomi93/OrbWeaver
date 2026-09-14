@@ -14,7 +14,7 @@
 // alone, beside 21 `stale ordinary waiver` alarms proving it used to bite): zod 4.4.3 `index.d.cts:1,3` is
 // `import * as z from "./v4/classic/external.cjs";` then `export { z };`, and the shared reader refused that
 // NAMESPACE-forwarding re-export. The refusal was narrowed at its own home in the same commit
-// (`lib/reference-fact-module.ts#republishedImport`, whose spec carries the renaming counterfactuals), so the
+// (`_shared/reference-fact-module.ts#republishedImport`, whose spec carries the renaming counterfactuals), so the
 // door now resolves `project ms=zod ex=z mp=[string]` and the swap is both safe and barrel-proof: 21 → 21,
 // zero lost sites. The proof harness cannot see any of this — `ops/policy-conformance.ts` runs `types` rows
 // on an in-memory project with NO `node_modules`, so a bare specifier lands `external-door` and the
@@ -56,11 +56,11 @@
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveCallableOrigin } from "../../_shared/reference-fact-call.ts";
+import type { ModuleMemberOrigin } from "../../_shared/reference-fact-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { ModuleMemberOrigin } from "../contract/reference-fact.ts";
 import { ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE = "an id-named Zod field is a raw string — use `typeIdSchema(ID_PREFIX.x)` or `brandedId<T>()` so the validated output preserves identity.";

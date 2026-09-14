@@ -33,11 +33,11 @@
 // a hand-written prefix test, which is the difference from this policy's `no-raw-random` sibling.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import type { AmbientSource } from "../contract/ambient-determinism.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readAmbientInvocation } from "../lib/ambient-determinism.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 
 const OPERATION = "ambient-clock-read";
 const NOW_MEMBER = "now";

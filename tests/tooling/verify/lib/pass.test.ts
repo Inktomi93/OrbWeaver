@@ -1,7 +1,7 @@
+import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import { vi } from "vitest";
 import type { GateDescriptor, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
 import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
-import { resolveModuleMemberOrigin } from "../../../../tooling/src/verify/lib/reference-fact.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor } from "../../_support.ts";
 

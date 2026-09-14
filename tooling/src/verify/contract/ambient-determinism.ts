@@ -3,7 +3,7 @@
 // boundary: each policy AUTHORS an `AmbientSource[]` and dispatches on the verdict's `kind`. A shape two
 // policies write and one reader returns has one home, and `lib/` is not a type home
 // (Spine-TypeScript-and-Patterns.md §7.4, Core-Tooling-Law.md §2.5).
-import type { ReferenceUnresolvedReason } from "./reference-fact.ts";
+import type { ReferenceUnresolvedReason } from "../../_shared/reference-fact-contract.ts";
 
 /** One ambient source: the global's own name plus the property path below it (`Date` + `["now"]`). */
 export interface AmbientSource {

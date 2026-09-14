@@ -87,6 +87,7 @@
 // have one.
 import type { CallExpression, ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { FinalRegistration } from "../contract/policy-descriptor-read.ts";
@@ -105,7 +106,6 @@ import {
   staticSegments,
   staticText,
 } from "../lib/policy-descriptor-read.ts";
-import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { MEMBER_ACCESS_KINDS, readMemberAccess } from "../lib/symbol-reference.ts";
 import {
   familyFixture,

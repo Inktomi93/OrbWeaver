@@ -30,9 +30,9 @@
 // `no-static-staletime` also imports; `no-inline-optimistic-in-surface` joins through `lib/project-home-origin.ts`.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 import { declaredByFile, declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 import { LOOKALIKE_HOME, tanstackQueryProof, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 

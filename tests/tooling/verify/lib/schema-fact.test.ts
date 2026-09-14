@@ -1,9 +1,10 @@
 // The final schema query proves Drizzle identity and refuses every lossy population shape.
+
+import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
-import type { ReferenceFact } from "../../../../tooling/src/verify/contract/reference-fact.ts";
 import type { SchemaFact, SchemaModel, SchemaQuery } from "../../../../tooling/src/verify/contract/schema-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { createSchemaQuery, drizzleSchemaFact } from "../../../../tooling/src/verify/lib/schema-fact.ts";

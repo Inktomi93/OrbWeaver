@@ -1,5 +1,5 @@
 // Policy: policy-fixture-substrate — a family test NEVER writes into the checkout (#2185; matrix D3, §4.8, the
-// probe rule in constitution §4; family `policy-soundness`, reader `lib/reference-fact.ts`).
+// probe rule in constitution §4; family `policy-soundness`, reader `_shared/reference-fact.ts`).
 //
 // THE PAID DEFECT. 2026-08-24: a review lane probed `gates/bus-definition-belts.ts` live on main, the next broad
 // `git add` swept the probe into a commit, and the gate shipped BLINDED — and a blinded gate reports green
@@ -61,7 +61,7 @@
 // receipt added here never ran, because the refusal had already fired. The family test pins that refusal by
 // phase, with a seeing arm beside it, rather than this module carrying a second mechanism that says less.
 //
-// FAMILY: `policy-soundness`, shared reader `lib/reference-fact.ts` (`resolveModuleMemberOrigin` for the fs
+// FAMILY: `policy-soundness`, shared reader `_shared/reference-fact.ts` (`resolveModuleMemberOrigin` for the fs
 // door's identity, `resolveStableExpression` for the path walk) plus `lib/symbol-reference.ts#readMemberAccess`
 // for the member spelling — the same readers its siblings resolve identity through. NOT a singleton: it is the
 // FIXTURE-SUBSTRATE arm of the family whose other members judge the corpus itself, and it differs from them in
@@ -77,9 +77,9 @@
 // waive out of it would re-open the door the 2026-08-24 incident closed.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import { resolveModuleMemberOrigin, resolveStableExpression } from "../lib/reference-fact.ts";
 import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 

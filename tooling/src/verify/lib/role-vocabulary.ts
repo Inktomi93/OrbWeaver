@@ -18,11 +18,12 @@
 // Each policy carries that limit as a `mustPass` row.
 //
 // A pure reader over nodes the dispatcher delivered: no walk, no Project, no cache, no filesystem.
+
+import { readMemberReference, readStaticString } from "@orb/tooling/_shared/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { RoleAxisVerdict } from "../contract/role-vocabulary.ts";
 import type { TupleVocabularyFact } from "../contract/tuple-vocabulary-fact.ts";
-import { readMemberReference, readStaticString } from "./reference-fact.ts";
 
 /** The identifier a role read must be spelled with — the legacy subject, kept and declared. */
 const ROLE_NAME = "role";

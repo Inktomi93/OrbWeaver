@@ -38,13 +38,14 @@
 // needed to justify a widening that never happened. Each member header carries the sets and controls.
 // The other two members — `no-effect-on-shared-selection` and `registry-context-via-mint` — each had a real
 // legacy `scanRoot`, so each states its own port in its own header rather than sharing this one.
+
+import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
+import type { ModuleMemberOrigin, ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { ImportSpecifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ReactExportFinding, ReactOriginVerdict } from "../contract/origin-verdict.ts";
 import type { GatePolicyVisitor } from "../contract/policy-primitives.ts";
-import type { ModuleMemberOrigin, ReferenceFact } from "../contract/reference-fact.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import { resolveModuleMemberOrigin } from "./reference-fact.ts";
 import { declaredByAnyPackage } from "./type-member-origin.ts";
 
 /** The module door React is authored as. A re-export shim keeps its OWN specifier, so the canonical

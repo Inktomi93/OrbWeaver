@@ -8,7 +8,7 @@
 //
 // FAMILY `no-direct-reports-write` — a declared SINGLETON. Its subject is ONE instrument-substrate hazard
 // (§3.7's published `latest` pointer) at ONE call shape, and no sibling policy judges a write target. The
-// machinery is shared rather than private: `lib/reference-fact.ts` (member identity, binding stability,
+// machinery is shared rather than private: `_shared/reference-fact.ts` (member identity, binding stability,
 // member-write inspection), `lib/template-static-text.ts` for the authored path, and
 // `lib/property-assignment-name.ts` for the option key. A shared hazard TOPIC is not a family (guide §2).
 //
@@ -24,9 +24,9 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { inspectReferenceWrites, readMemberReference, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
-import { inspectReferenceWrites, readMemberReference, resolveStableExpression } from "../lib/reference-fact.ts";
 import { readStaticTextOf } from "../lib/template-static-text.ts";
 
 const SCREENSHOT = "screenshot";

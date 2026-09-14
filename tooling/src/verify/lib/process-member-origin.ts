@@ -27,10 +27,11 @@
 // CANDIDATE — two spellings of one concept — and re-homing it here is the follow-up, per guide §8.
 //
 // A pure reader over one delivered node: no walk, no Project, no filesystem, no cache.
+
+import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
 import type { ProcessMemberVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "./reference-fact.ts";
 import { originModuleSpecifier } from "./sealed-origin.ts";
 
 export const PROCESS_GLOBAL = "process";

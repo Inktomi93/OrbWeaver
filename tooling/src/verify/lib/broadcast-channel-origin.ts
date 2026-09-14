@@ -13,12 +13,13 @@
 // than passes (#944's third answer).
 //
 // A pure reader over one delivered node: no walk, no Project, no filesystem, no cache.
+
+import { resolveGlobalMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { BroadcastChannelVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "./origin-verdict.ts";
 import { readsAmbientGlobalPath } from "./project-home-origin.ts";
-import { resolveGlobalMemberOrigin } from "./reference-fact.ts";
 
 /** The ONE sanctioned home (staleness-and-session-freshness.md §4.3). Scanned, never subtracted: the
  *  occurrence policy skips it by exact path and the health policy proves it still constructs. */

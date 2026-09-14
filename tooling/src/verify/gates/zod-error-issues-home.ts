@@ -46,8 +46,8 @@
 // annotated type that would have to be read, which is a different reader and a different arm.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 import { declaredByPackage, resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";

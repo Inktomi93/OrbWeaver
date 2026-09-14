@@ -25,7 +25,7 @@
 // before this conversion moved both onto the callable-origin reader and the central reviewed-grant table.
 //
 // FAMILY: SINGLETON (`bus-channel-primitive`). No sibling policy resolves a CONSTRUCTED class's door
-// identity; `lib/reference-fact-call.ts#resolveCallableOrigin` and `lib/origin-verdict.ts`'s
+// identity; `_shared/reference-fact-call.ts#resolveCallableOrigin` and `lib/origin-verdict.ts`'s
 // `classifyOriginRefusal`/`referenceNamesExport` are corpus-wide primitives that ~20 policies across four
 // families consume, which is a shared PRIMITIVE and not a shared family computation (guide §2: a theme or a
 // shared topic is not a family).
@@ -44,9 +44,9 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveCallableOrigin } from "../../_shared/reference-fact-call.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "../lib/origin-verdict.ts";
-import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 import { EMITTER_GLOBAL_HOME, emitterGlobalLookalikeProof } from "./_proof/node-types.ts";
 

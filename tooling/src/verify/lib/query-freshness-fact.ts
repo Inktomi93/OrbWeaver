@@ -1,9 +1,10 @@
 // Shared query/invalidation graph for the freshness family. All descendants arrive through the
 // runtime visitor stream; the fact does not open a Project or perform a private subtree walk.
+
+import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import type { Node as MorphNode, PropertyAccessExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
-import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "./reference-fact.ts";
 
 const SEAM_FACTORY = "createInvalidation";
 const SEAM_ANCHOR = "Invalidation";

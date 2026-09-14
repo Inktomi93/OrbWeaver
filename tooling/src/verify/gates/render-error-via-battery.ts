@@ -21,10 +21,10 @@
 // the run instead of silently passing every arm.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { referenceResolutionServices } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { LocatedProjectHome, ProjectHomeDeclaration } from "../lib/project-home-origin.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
-import { referenceResolutionServices } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 

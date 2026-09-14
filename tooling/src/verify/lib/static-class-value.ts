@@ -1,9 +1,10 @@
 // Cycle-fenced static class VALUE evaluator. Exact values preserve producer segments; unsupported static
 // shapes are unresolved, while genuine runtime leaves are counted opaque and partial templates retain
 // the prefix proven before their first runtime substitution.
+
+import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
 import type { ImportClause, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
-import { resolveStableExpression } from "./reference-fact.ts";
 import { evalComposerCall } from "./static-class-collections.ts";
 import { ComposerResolver } from "./static-class-composer.ts";
 import type { RuntimeClassPrefix, StaticClassSourceIndex, StaticValue } from "./static-class-expression-model.ts";

@@ -358,7 +358,7 @@ what the legacy guarded on and is the honest subject).
 ### 2.5 Group 2 measured (2026-09-12, this worktree)
 
 **Two build-time findings, both recorded in the modules.** (a) The shared global resolver
-(`lib/reference-fact-global.ts#isAmbientGlobalDeclaration`) trusts only `node_modules/typescript/lib/lib.*`
+(`_shared/reference-fact-global.ts#isAmbientGlobalDeclaration`) trusts only `node_modules/typescript/lib/lib.*`
 and `node_modules/@types/` declaration files, so in the proof workspace a bare `process` binds nothing and
 the family reader answers UNREADABLE — every ambient-spelling row passed for the WRONG reason (the
 fail-closed report counts the same as the precise one; guide [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.5). Closed by planting `@types/node`'s
@@ -557,7 +557,7 @@ argv pair's family, renamed `process-member` to say what it shares), and the cli
 
 | Policy | Authority · execution · analysis | Population | Legacy arm(s) | Family / reader | Grants |
 | - | - | - | - | - | - |
-| `tooling-project-home` | reviewed-grant · entire · types | `@tooling` | A | singleton; `lib/reference-fact-call.ts#resolveCallableOrigin` (the `ts-morph` door, fail-closed) | 9: ts-workspace + 7 `PROJECT_SITES` + `ops/policy-conformance.ts`, op `ts-morph-project-construction` |
+| `tooling-project-home` | reviewed-grant · entire · types | `@tooling` | A | singleton; `_shared/reference-fact-call.ts#resolveCallableOrigin` (the `ts-morph` door, fail-closed) | 9: ts-workspace + 7 `PROJECT_SITES` + `ops/policy-conformance.ts`, op `ts-morph-project-construction` |
 | `tooling-browser-door` | reviewed-grant · entire · types | `@tooling` | B, H | singleton; the receiver resolves to the playwright door (`@playwright/test` / `playwright` / `playwright-core`), member `chromium\|firefox\|webkit` — puppeteer's `connect` is a proven different door, not a text limit | 2: browser.ts × `browser-launch`, × `browser-attach` |
 | `tooling-artifact-path-home` | reviewed-grant · entire · types | `@tooling` | C | `tooling-artifact` / `lib/artifact-filing.ts` | 1: artifacts.ts × `reports-path-literal` |
 | `tooling-artifact-run-slot` | hard · entire · types | `@tooling` | G | `tooling-artifact` / `lib/artifact-filing.ts` (filer + slot exports resolved against `_shared/artifacts.ts` by identity; the home receipted) | — |

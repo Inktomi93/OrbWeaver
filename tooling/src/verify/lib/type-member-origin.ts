@@ -7,11 +7,12 @@
 // WHY DECLARATIONS AND NOT A TYPE NAME: a type NAME is spelling again (`interface QueryClient` can be
 // declared anywhere). The declaration's own source file is the home, and comparing it against a package
 // directory or a project SourceFile identity is what a same-named lookalike cannot satisfy.
+
+import { readMemberReference } from "@orb/tooling/_shared/reference-fact";
+import type { ReferenceFact, ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node as MorphNode, Symbol as MorphSymbol, SourceFile, Type, TypeNode } from "ts-morph";
 import { Node, SyntaxKind, TypeFlags } from "ts-morph";
-import type { ReferenceFact, ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
 import type { ContextualMemberOrigin, TypeIdentityOrigin, TypeMemberOrigin } from "../contract/type-member-origin.ts";
-import { readMemberReference } from "./reference-fact.ts";
 
 function resolved<T>(value: T, origin: MorphNode, declarations: readonly MorphNode[]): ReferenceFact<T> {
   return { kind: "resolved", value, trace: { declarations: [...declarations], origin } };

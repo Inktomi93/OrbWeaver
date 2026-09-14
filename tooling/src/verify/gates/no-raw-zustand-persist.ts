@@ -31,10 +31,10 @@
 // behind the cast is still zustand's; the shared reader (`lib/project-home-origin.ts`) judges both axes.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveExportedDeclarations } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { classifyPackageMemberOrigin, readPackageExportOrigin } from "../lib/project-home-origin.ts";
-import { resolveExportedDeclarations } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 import { declaredByFile, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";

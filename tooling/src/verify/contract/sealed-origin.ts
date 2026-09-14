@@ -7,7 +7,7 @@
 // It is an OBJECT union carrying the resolved origin, not the three-string identity axis, so it derives
 // from `origin-verdict.ts` no more than `ModuleMemberOrigin` does: its `unresolved` arm carries the whole
 // refusing fact so the caller can report WHAT could not be read.
-import type { ModuleMemberOrigin, ReferenceFact } from "./reference-fact.ts";
+import type { ModuleMemberOrigin, ReferenceFact } from "../../_shared/reference-fact-contract.ts";
 
 /** The verdict for one candidate reference. `unresolved` is never absence: a candidate whose origin cannot
  *  be read is fail-closed evidence for the caller, not a silent pass. */

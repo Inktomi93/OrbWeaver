@@ -19,12 +19,13 @@
 // resolve, and a literal .gitignore rule must still name it. Presence after a local build cannot change the
 // verdict.
 //
-// BINDING RESOLUTION (#2163): descriptor const aliases resolve through lib/reference-fact.ts
+// BINDING RESOLUTION (#2163): descriptor const aliases resolve through _shared/reference-fact.ts
 // resolveStableExpression. Bare descriptor names resolve core, history, proposed, then repository root;
 // Markdown links resolve relative to their own document first.
 import { dirname, join, normalize } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveStableExpression } from "../../_shared/reference-fact.ts";
 import type { GatePolicyContext, GatePolicyProof } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { PathStatusIndex } from "../lib/dangling-ref-citations.ts";
@@ -32,7 +33,6 @@ import { CORE_ANCHOR, scanPathCitations, shorthandCandidates } from "../lib/dang
 import type { DanglingRefCorpora } from "../lib/dangling-ref-corpus.ts";
 import { CATALOG_REL, danglingRefCorpora, danglingRefTextIndex, GITIGNORED_ABSENT, LAW_OUTSIDE_DOCS } from "../lib/dangling-ref-corpus.ts";
 import { finalDescriptorOf } from "../lib/policy-descriptor-read.ts";
-import { resolveStableExpression } from "../lib/reference-fact.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const GATES_DIR_REL = "tooling/src/verify/gates";

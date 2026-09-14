@@ -43,10 +43,10 @@
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, ParameterDeclaration, Type } from "ts-morph";
 import { Node } from "ts-morph";
+import { resolveExportedDeclarations } from "../../_shared/reference-fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
-import { resolveExportedDeclarations } from "../lib/reference-fact.ts";
 import { definitionName } from "../lib/registry-definition-anchor.ts";
 import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 

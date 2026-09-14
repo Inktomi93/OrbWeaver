@@ -75,10 +75,10 @@
 // both.
 import type { Identifier, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveCallableDeclaration } from "../../_shared/reference-fact-call.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
-import { resolveCallableDeclaration } from "../lib/reference-fact-call.ts";
 
 const EVALUATE_METHODS: ReadonlySet<string> = new Set(["evaluate", "evaluateAll"]);
 

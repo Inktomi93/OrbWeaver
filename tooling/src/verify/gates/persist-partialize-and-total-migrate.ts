@@ -42,7 +42,7 @@
 //
 // THE OPTIONS EXPRESSION IS RESOLVED, NOT REQUIRED INLINE. `persist(init, opts)` through an immutable const
 // hop read 0 before #2089 — the options object is the whole subject, and a one-identifier hop is not a
-// different program. The hop is the SHARED stable-binding reader `lib/reference-fact.ts#resolveStableExpression`
+// different program. The hop is the SHARED stable-binding reader `_shared/reference-fact.ts#resolveStableExpression`
 // (the same one `windowed-infinite-query` uses for the identical shape), which follows const bindings and
 // import doors and REFUSES on a write, a cycle or a dynamic terminal.
 //
@@ -104,10 +104,10 @@
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
+import { resolveStableExpression } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
-import { resolveStableExpression } from "../lib/reference-fact.ts";
 import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { storeLookalikeProof, zustandProof } from "./_proof/zustand.ts";
 

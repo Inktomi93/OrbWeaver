@@ -1,8 +1,10 @@
 // Invocation-scoped Drizzle schema query built only from the policy's already-loaded source population.
+
+import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import type { ReferenceFact, UnresolvedReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { CallExpression, Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
-import type { ReferenceFact, UnresolvedReferenceFact } from "../contract/reference-fact.ts";
 import type {
   SchemaColumn,
   SchemaColumnIdentity,
@@ -16,7 +18,6 @@ import type {
   SchemaTable,
   SchemaTableIdentity,
 } from "../contract/schema-fact.ts";
-import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "./reference-fact.ts";
 import type { ColumnDraft, TableDraft } from "./schema-fact-value.ts";
 import {
   canonicalPathResolver,

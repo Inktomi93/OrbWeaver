@@ -32,8 +32,8 @@
 // `_proof/client-vendors.ts` plants are not that dependency.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticString } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readStaticString } from "../lib/reference-fact.ts";
 import { declaredByPackage, resolveContextualMemberOrigin } from "../lib/type-member-origin.ts";
 import { LOOKALIKE_HOME, tanstackQueryProof, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 

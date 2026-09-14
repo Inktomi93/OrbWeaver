@@ -4,9 +4,10 @@
 // `reports/`-carrying path prefix is authored in a quasi even when the filename is interpolated, and a
 // SQL `length(col) <= ${CAP}` cap is a quasi skeleton with the cap in a hole. Reading the two apart is what
 // keeps a needle inside an interpolated expression from counting as authored text.
+
+import { readStaticString, referenceResolutionServices } from "@orb/tooling/_shared/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import { readStaticString, referenceResolutionServices } from "./reference-fact.ts";
 
 export interface TemplateSkeleton {
   /** Cooked literal texts, in order. Always exactly `holes.length + 1` entries. */

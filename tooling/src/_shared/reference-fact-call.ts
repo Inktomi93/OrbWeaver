@@ -1,6 +1,7 @@
 // Callable-origin normalization over the shared module and ambient-global fact readers.
 import type { Identifier, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { inspectBindingReassignment, readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin } from "./reference-fact.ts";
 import type {
   CallableDeclaration,
   CallableOrigin,
@@ -9,8 +10,7 @@ import type {
   ReferenceUnresolvedReason,
   ResolvedReferenceFact,
   UnresolvedReferenceFact,
-} from "../contract/reference-fact.ts";
-import { inspectBindingReassignment, readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin } from "./reference-fact.ts";
+} from "./reference-fact-contract.ts";
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import { overloadHome } from "./reference-fact-overload.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-writes.ts";
@@ -55,7 +55,7 @@ function resolveReferenceOrigin(node: MorphNode): ReferenceFact<ReferenceOrigin>
 // shared reader instead of copied into each caller.
 //
 // THE SEMANTICS, EXPLICIT — every one of these is a pinned control in
-// `tests/tooling/verify/lib/reference-fact-call.test.ts`:
+// `tests/tooling/_shared/reference-fact-call.test.ts`:
 //   local `function f`            → resolved at the FunctionDeclaration (body absent for `declare function`)
 //   `const g = f` / `import { f as g }` / a re-export rename → resolved at the SAME declaration as `f`
 //   `const h = () => …`           → resolved at the ARROW, never at the binding
@@ -205,7 +205,7 @@ function callableOfExpression(raw: MorphNode, state: CallableWalk): ReferenceFac
   const moduleFact = resolveModuleMemberOrigin(expression);
   if (moduleFact.kind === "resolved") {
     // A package door the checker could not resolve proves the SPELLING and nothing about the declaration
-    // (contract/reference-fact.ts `external-door`), so it is not an answer to this question.
+    // (_shared/reference-fact-contract.ts `external-door`), so it is not an answer to this question.
     const canonical = moduleFact.value.canonical;
     return canonical.kind === "project"
       ? callableHome(canonical.declaration, state)
