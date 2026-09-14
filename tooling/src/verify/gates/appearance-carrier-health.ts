@@ -34,7 +34,7 @@ export const gate = defineGate({
         [SCHEMA_FILE]: 'import { z } from "zod"; export const appearanceSettingsSchema = z.object({ ghost: z.boolean() });',
         [MANIFEST_FILE]: "export const APPEARANCE_OWNER_KEYS = { sizing: [] }; export const APPEARANCE_CARRIER_MANIFEST = {};",
       },
-      expect: { messageIncludes: "schema↔manifest: missing ghost" },
+      expect: { count: 2, messageIncludes: "schema↔manifest: missing ghost" },
       why: "missing-carrier control: a new schema leaf cannot exist outside the manifest",
     },
     {
@@ -45,7 +45,7 @@ export const gate = defineGate({
           'const C={file:"packages/client/src/x.ts",symbol:"AppShell"}; export const APPEARANCE_OWNER_KEYS={sizing:["density"]}; export const APPEARANCE_CARRIER_MANIFEST={density:{owner:"effects",carriers:["theme-scope"],consumer:C,lifecycle:"hydrated-from-prepaint-hint",portal:"shared-theme-scope-sibling",requiredDistinctArms:["compact","comfortable"]}}; export const APPEARANCE_CARRIER_OBSERVABLES={density:{kind:"attribute",selector:"x",signal:"data-density"}};',
         "packages/client/src/x.ts": "export function AppShell(){ const density = 1; return density; }",
       },
-      expect: { messageIncludes: "wrong owner for density" },
+      expect: { count: 1, messageIncludes: "wrong owner for density" },
       why: "wrong-owner control: a valid key assigned to the wrong editor group is red",
     },
     {

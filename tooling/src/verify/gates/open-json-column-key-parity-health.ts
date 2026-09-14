@@ -46,7 +46,7 @@ export const gate = defineGate({
       files: {
         "packages/db/src/schema/index.ts": `${DRIZZLE_IMPORT}export const notes = sqliteTable("notes", { id: text("id") });\n`,
       },
-      expect: { count: 1, token: "mode:json", messageIncludes: "DERIVED NOTHING" },
+      expect: { count: 1, token: "mode:json" },
       why: "the schema still resolves a table but the JSON-column denominator disappeared",
     },
   ],

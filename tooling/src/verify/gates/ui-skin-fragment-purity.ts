@@ -38,13 +38,13 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/ui/src/primitives/x.ts": 'export const x = "bg-backdrop";' },
-      expect: { token: "bg-backdrop" },
+      expect: { count: 1, token: "bg-backdrop" },
       why: "ordinary string carriers are scanned",
     },
     {
       mode: "source",
       files: { "packages/ui/src/primitives/x.ts": "declare const y: string; export const x = `focus-visible:ring-2 ${y}`;" },
-      expect: { token: "focus-visible:ring-" },
+      expect: { count: 1, token: "focus-visible:ring-" },
       why: "LEGACY mustFlag[2], ordinary outside arm: static template spans are scanned",
     },
   ],

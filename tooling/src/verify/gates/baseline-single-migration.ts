@@ -108,7 +108,7 @@ export const gate = defineGate({
         "packages/db/src/migrations/0001_extra.sql": "-- incremental\n",
         "packages/db/src/migrations/meta/_journal.json": '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }] }\n',
       },
-      expect: { count: 1, messageIncludes: "incremental migration" },
+      expect: { count: 1, messageIncludes: "incremental migration file was found" },
       why: "an incremental 0001 migration alongside the baseline — pre-launch changes must squash",
     },
     {

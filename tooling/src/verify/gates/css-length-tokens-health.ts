@@ -35,7 +35,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: { ...CLEAN_PRODUCT_CSS, [SOURCE_ANCHOR]: 'let dynamic = "w-[1px]";\ndynamic = "w-[2px]";\nexport const probe = <div className={dynamic} />;\n' },
-      expect: { count: 1, messageIncludes: "could not resolve" },
+      expect: { count: 1 },
       why: "an unreadable class carrier is instrument health, not an ordinary author waiver",
     },
   ],

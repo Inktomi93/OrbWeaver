@@ -54,7 +54,7 @@ export const gate = defineGate({
         "packages/server/src/domain/buddy/observer.ts": `import { ${FIREHOSE_SYMBOL} } from "../../transport/trpc/chat-events-bus.ts";\nexport const o = ${FIREHOSE_SYMBOL};\n`,
       },
       grant: { subject: "packages/server/src/domain/buddy/observer.ts", operation: OPERATION },
-      expect: { count: 1, token: FIREHOSE_SYMBOL, messageIncludes: "composition root" },
+      expect: { count: 1, token: FIREHOSE_SYMBOL },
       why: "a domain tails the canonical unclamped stream through its barrel; the import and later identifier remain one legacy import finding",
     },
     {

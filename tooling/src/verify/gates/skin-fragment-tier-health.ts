@@ -26,7 +26,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/ui/src/primitives/x.ts": "export const x = 1;" },
-      expect: { messageIncludes: HOME },
+      expect: { count: 1, messageIncludes: "packages/ui/src/lib/" },
       why: "LEGACY mustFlag[3], hard home-health arm: the reviewed definition home is missing",
     },
   ],

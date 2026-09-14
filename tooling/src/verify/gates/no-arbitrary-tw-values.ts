@@ -83,11 +83,13 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/ui/src/x/x.tsx": 'export const G = <div className="hover:w-[137px]" />;\n' },
+      expect: { count: 1 },
       why: "a variant-prefixed value arbitrary (hover:w-[…]) — the terminal segment still flags",
     },
     {
       mode: "source",
       files: { "packages/ui/src/primitives/demo/demo.tsx": 'export const G = <div className="text-[13px]" />;\n' },
+      expect: { count: 1 },
       why: "the gate scans packages/ui/src too — a scoped-type value arbitrary flags there",
     },
   ],

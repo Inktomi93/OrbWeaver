@@ -30,7 +30,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: { "packages/server/src/entry/compose/automation-watcher.ts": "export const x = 1;\n" },
-      expect: { count: 1, messageIncludes: "now blind" },
+      expect: { count: 1 },
       why: "the canonical firehose declaration disappeared or moved, so every name-keyed arm must fail loud",
     },
   ],

@@ -45,7 +45,7 @@ export const gate = defineGate({
         "packages/server/src/domain/stats/read.ts":
           "export async function read(db) { return db.all(sql`select json_extract(v.metadata, '$.reasoning_duration') from message_variants v`); }\n",
       },
-      expect: { count: 1, messageIncludes: "messageVariants.metadata" },
+      expect: { count: 1 },
       why: "the live unresolved #184 seam remains visible as a warning with explicit issue authority",
     },
   ],

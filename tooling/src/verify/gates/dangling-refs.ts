@@ -440,23 +440,29 @@ export const gate = defineGate({
   },
   mustFlag: [
     {
+      mode: "resource" as const,
       files: {
+        ...PROOF_FILES,
         // arm 1: a docRow naming a doc that resolves against NO root — the ghost-cite the gate exists to catch.
         "tooling/src/verify/gates/__probe.ts": 'export const gate = { name: "__probe", docRow: "GHOST-DOC-THAT-DOES-NOT-EXIST.md", message: "x" };\n',
       },
-      expect: { messageIncludes: "resolves" },
+      expect: { count: 1, messageIncludes: "resolves" },
       why: "arm 1: a gate docRow names a doc under no resolution root — the UNIFIED-VERIFICATION ghost class",
     },
     {
+      mode: "resource" as const,
       files: {
+        ...PROOF_FILES,
         // arm 2: a markdown LINK in a core doc pointing at a missing sibling.
         "docs/architecture/core/__probe.md": "---\nkind: law\n---\n\nSee [the ghost](ghost-sibling-xyz.md).\n",
       },
-      expect: { messageIncludes: "resolves to no file" },
+      expect: { count: 1, messageIncludes: "resolves to no file" },
       why: "arm 2: a markdown link in core/ targets a doc that resolves nowhere — a dead navigational pointer",
     },
     {
+      mode: "resource" as const,
       files: {
+        ...PROOF_FILES,
         // The real-tree ANCHOR, planted so the exemption arms run at all (§4.5), plus a `.gitignore` that does
         // NOT name the absent-by-design path. Other stale-row findings ride along here by construction — this
         // row is matched on its MESSAGE, and the PASS half is un-provable in a mini-project (the anchor turns
@@ -464,20 +470,24 @@ export const gate = defineGate({
         "docs/architecture/core/AGENTS.md": "---\nkind: law\n---\n\nplanted anchor.\n",
         ".gitignore": "node_modules/\nreports/\n",
       },
-      expect: { messageIncludes: "no longer named by a literal" },
+      expect: { count: 5, messageIncludes: "no longer named by a literal" },
       why: "arm 5 two-sidedness (#775): the ONLY thing making the path absent-by-design is its ignore rule — with the rule gone the row would forgive a REAL phantom, so it must red rather than keep skipping",
     },
     {
+      mode: "resource" as const,
       files: {
+        ...PROOF_FILES,
         // §4.6 for the ONE hand-named member set: the anchor is planted, so a LAW_OUTSIDE_DOCS path that
         // resolves to nothing must RED rather than shrink the corpus in silence.
         "docs/architecture/core/AGENTS.md": "---\nkind: law\n---\n\nplanted anchor.\n",
       },
-      expect: { messageIncludes: "named by LAW_OUTSIDE_DOCS" },
+      expect: { count: 4, messageIncludes: "named by LAW_OUTSIDE_DOCS" },
       why: "§4.6 blindness tripwire: a literally-named law doc that stops resolving is REPORTED, never silently dropped from the corpus",
     },
     {
+      mode: "resource" as const,
       files: {
+        ...PROOF_FILES,
         // The other blindness half: a catalog that resolves ZERO living homes would silently return arms
         // 2-4 to the hand-named directories — a placebo with a healthy-looking file count.
         "docs/architecture/core/AGENTS.md": "---\nkind: law\n---\n\nplanted anchor.\n",
@@ -486,10 +496,10 @@ export const gate = defineGate({
         "docs/catalog/catalog.json":
           '{"documents":[{"path":"docs/history/x.md","lane":"history","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"historical"}}]}\n',
       },
-      expect: { messageIncludes: "resolved ZERO living law/design documents" },
+      expect: { count: 3, messageIncludes: "resolved ZERO living law/design documents" },
       why: "the derived corpus must fail LOUD when its census comes back empty — a silently empty derivation is the blind-gate placebo, not a clean tree",
     },
-  ].map(resourceProof),
+  ],
   mustPass: [
     {
       // SELF-CONTAINED: every doc the passing gate-stub cites is PLANTED here — the conformance harness

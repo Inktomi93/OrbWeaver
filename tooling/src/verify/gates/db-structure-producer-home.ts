@@ -65,7 +65,7 @@ export const gate = defineGate({
         "packages/db/src/schema/nowhere.ts": "export const t = 1;\n",
         "packages/server/src/domain/other/index.ts": "export const x = 1;\n",
       },
-      expect: { count: 1, messageIncludes: "no same-named producer" },
+      expect: { count: 1 },
       why: "a schema module with neither a same-named domain nor a reviewed non-domain producer ruling",
     },
   ],

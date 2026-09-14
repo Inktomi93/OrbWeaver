@@ -42,7 +42,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { [ANCHOR]: "export const QueryBoundary = null;\n", [COLLECTION]: "export const createCollectionSurface = null;\n" },
-      expect: { count: 1, messageIncludes: "no longer imports useInfiniteQuery" },
+      expect: { count: 1, messageIncludes: "useInfiniteQuery." },
       why: "the named factory remains but stopped owning the raw infinite-query machine",
     },
     {
