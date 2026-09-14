@@ -9,7 +9,6 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 import { generateBaseuiSurface } from "./gen/baseui-surface.ts";
 import { generateCaughtFailurePopulation } from "./gen/caught-failure-population.ts";
-import { generateDensityBaseline } from "./gen/density.ts";
 import { generateProseBaseline } from "./gen/prose.ts";
 import { generateReadFirstCosts } from "./gen/read-first-costs.ts";
 import { generateSnapFlagsIndex } from "./gen/snap-flags-index.ts";
@@ -26,7 +25,10 @@ const BASELINES: Readonly<Record<string, (root: string) => number | Promise<numb
   // NOT a ratchet: a derived REVIEW RECORD no gate reads (#751). It rides the same single-writer door so
   // the census cannot be hand-edited into agreement with itself.
   "caught-failure-population": generateCaughtFailurePopulation,
-  density: generateDensityBaseline,
+  // `density` and `duplicate-action-doors` BOTH had rows here and neither has a generator any more: their
+  // baseline JSONs were deleted with the 2026-09-13 authority migration (#1939, #1584), which moved every
+  // ratified row to an exact reviewed grant in `lib/reviewed-grants.ts`. There is no derivable number left
+  // for a single writer to own in either case.
   prose: generateProseBaseline,
   // A generated COLUMN inside a hand-authored document, not a generated file: the read-first table's SIZE
   // cells are derived and its Read/Stop-rule prose is authored, joined by the row id. #2017 — every one of

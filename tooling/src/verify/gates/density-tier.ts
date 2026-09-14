@@ -1,545 +1,294 @@
-// Gate: density-tier (docs/architecture/core/UI-Density-Law.md §5.1) — the assignment law the token SCALES never
-// had. Four rules, each a measured defect from the 2026-07-31 audit:
-//   A1 radius-by-class — `rounded-card` is the ELEVATED/floating step only (D6). 45 of 51 non-pill radius
-//      choices in client/ were the largest step, which is what makes every surface read as boxes-in-boxes.
-//   A2 box-in-box     — a border+radius+background triple nested inside another one (chrome diet CD2).
-//   A3 text-voice     — a feature passing `size`/`weight`/`tone`/`transform` to <Text>/<Heading>: those are
-//      the @orb/ui-INTERNAL axes the four voices are built from (§2.3). 336 taste combinations is the
-//      mechanism by which nothing on a surface recedes; features pass `voice`.
-//   A4 tier writer    — `data-surface-tier` outside `packages/ui/src/layout/surface.tsx`. Born sealed: NO
-//      baseline, zero tolerance (two writers = two disagreeing density maps).
-//   A5 stale entry    — a baseline row whose file no longer violates (ratchet down, both ways).
-//   A6 slot names     — the two halves of "the map keys on slots the PRIMITIVES emit" (S2). tiers.css is
-//      read at run time, so the gate's vocabulary IS the live map: (a) a MAPPED slot name stamped outside
-//      `packages/ui/src/` silently inherits tier padding/type without going through the primitive that
-//      owns the slot — born sealed like A4; (b) a mapped slot NO ui file emits is a DEAD rule, the
-//      mapped-but-dead failure class that makes a stylesheet look load-bearing while it paints nothing.
+// Policy: density-tier — every density-law occurrence in `packages/{client,ui}/src` is either licensed by
+// an exact reviewed grant naming its FILE and the ACT it performs, or a finding with no door
+// (docs/architecture/core/UI-Density-Law.md §5.1). There is no third state and no path is subtracted.
 //
-// TRANSITION RATCHET (§5.2, the `no-test-fabrication` idiom): A1–A3 are budgeted per file by
-// density-tier.baseline.json — a file violates only when its LIVE count EXCEEDS its committed budget, and
-// only the EXCESS is reported. Landing at the current baseline is therefore zero-new and blocks nothing;
-// every sweep stage regenerates the baseline DOWNWARD (`node tooling/src/verify/cli.ts baseline density`)
-// in the same commit. A baseline that GROWS in a diff is a review-blocking defect. Terminal state: `{}`,
-// the file deleted, this gate flipped to born-compliant.
+// FOUR ARMS, one authority, one verdict per `(file, act)`:
+//   A1 elevated-radius — `rounded-card` at a class-string site. The ELEVATED family D6 rules it correct for
+//      (modal/popover/drawer/toast/composer/chat bubble) is twelve exact grants, not a path subtraction.
+//      45 of 51 non-pill radius choices were the largest step, which is what made every surface read as
+//      boxes-in-boxes.
+//   A2 box-in-box      — a border+radius+background triple nested inside another one (chrome diet CD2).
+//   A3 text-axis:<axis> — a `features/**` call site passing `size`/`weight`/`tone`/`transform` to
+//      <Text>/<Heading>: those are the @orb/ui-INTERNAL axes the voices are built from (§2.3). 336 taste
+//      combinations is the mechanism by which nothing on a surface recedes; features pass `voice`.
+//   A4 surface-tier-write — `data-surface-tier`, wherever it is written. Its ONE sanctioned writer is a
+//      single exact grant (two writers = two disagreeing density maps, so a second one is a REVIEW event).
+//
+// === THE AUTHORITY MIGRATION, 2026-09-13 (#1939 / #1584 / #2176) — READ THIS BEFORE COPYING ANYTHING ===
+//
+// WHAT WAS HELD BEFORE: a committed PER-FILE COUNT RATCHET (`density-tier.baseline.json`, 22 file rows /
+// 58 budgeted occurrences at deletion, every row `ratified === count` and ZERO debt) PLUS two gate-local
+// path tables — `ELEVATED_ALLOW` (11 prefix rows) and a hardcoded `TIER_WRITER` constant. A file violated
+// only when its LIVE count EXCEEDED its committed budget and only the EXCESS was reported; a budget the
+// live count no longer spent was the A5a stale arm, and `ELEVATED_ALLOW`'s liveness was a hand-rolled A5b
+// sweep asking whether each prefix still matched a live `rounded-card` class site.
+//
+// WHAT IS HELD NOW: `authority: "reviewed-grant"`, one finding per `(file, act)`, one exact grant row per
+// ruled pair in `lib/reviewed-grants.ts`. No baseline, no counts, no generator, no gate-owned table of any
+// kind. Owner ruling 2026-09-13 on #1939: ratified count baselines migrate to reviewed grants — not to a
+// retained ratchet primitive and not to retirement — each row's `why` carrying over VERBATIM. The two PATH
+// tables migrate the same way, for two independent reasons: standing law §5 ("gate-local allowlists, path
+// subtractions … and exemption tables do not survive conversion"), and because the `lib/<family>.ts`
+// `ExemptionTable` shape the `raw-typography-tier` precedent teaches is REJECTED by the live
+// `policy-legacy-imports` policy (#2320 — eight findings across four families on this tree, including both
+// halves of that precedent). `lib/density-tier.ts`'s header carries that measurement.
+//
+// WHICH DIRECTION EACH HALF MOVED — both, and in OPPOSITE directions. State this plainly wherever this
+// policy is described; it is a MEASURED trade:
+//   · THE RULED HALF GOT WEAKER IN ONE DIMENSION. Per-file CARDINALITY is gone. A NINTH `size=` site added
+//     to `login-surface.tsx` — which today spends a budget of 8 — is now consumed by the same grant that
+//     licenses the four existing ones, where the ratchet REDded it until someone regenerated the budget.
+//     Grant identity is the finest the authored source can carry: a LINE is not stable across edits, so the
+//     act is the axis, not the occurrence.
+//   · THE RULED HALF GOT STRICTLY STRONGER IN ANOTHER. The budget was one number per FILE across all three
+//     budgeted arms, so a NEW KIND of violation — a `transform=` in a file ruled only for `size`+`tone`, or
+//     a box-in-box in a file ruled for its voice axes — was absolved by arithmetic whenever an old
+//     occurrence left. Under `(file, act)` identity each act needs its own reviewed row, so a new kind fires
+//     at its own file naming the act, and a ruled act whose last site disappears goes STALE centrally.
+//   · THE UNRULED HALF IS UNCHANGED: a file with no row REDded at count 0 before and REDs with no grant now.
+//   · THE TWO PATH TABLES GOT STRICTLY STRONGER, BOTH WAYS, and this is a STRENGTHENING rather than a
+//     trade. (i) PRECISION: `ELEVATED_ALLOW`'s eight DIRECTORY prefixes silently covered every file under a
+//     primitive directory, including files nobody had reviewed; the twelve grants name the exact files that
+//     carry a live `rounded-card` class site. (ii) LIVENESS: the legacy A5b sweep was MODE A — does the
+//     prefix still match a live class site — and the obvious `-health` port could only have done MODE B —
+//     does the row resolve to a file. Central grant reconciliation IS mode A, for free: a granted file whose
+//     last live site disappears is consumed zero times and raises `stale-reviewed-grant`. So A5b is
+//     PRESERVED by this conversion rather than downgraded, and the tier-writer home gains liveness it never
+//     had (a renamed `surface.tsx` used to take the A4 seal with it, silently).
+//
+// THE 22 BASELINE ROWS, CLASSIFIED AGAINST CURRENT SOURCE BEFORE MIGRATION (2026-09-13, the whole
+// client+ui corpus through this module's own reader): all 22 still live, 58 live occurrences against 58
+// budgeted, ZERO drained and ZERO in excess. Every row was therefore a live ratified exception and became
+// grants; NONE was burned. The 22 rows produce 44 grants, because a row budgeting `size`+`tone` in one file
+// is TWO ruled acts and central reconciliation matches a grant on the pair — the same shape the
+// `duplicate-action-doors` correction ruled the same evening (six rows, twelve grants). Each row's `why`
+// rides VERBATIM onto every grant it produced. The two path tables add 13 more (12 elevated-radius files +
+// the one tier writer), for 57 `density-tier` grants in all.
+//
+// THE FOUR LEGACY RATCHET ARMS, EACH WITH ITS SUCCESSOR OR ITS OBITUARY:
+//   · EXCEED (report only `findings.slice(budget)`) was the count ratchet. DELETED with the baseline
+//     (standing law §5: numeric ratchets are forbidden where the value is derivable).
+//   · A5a STALE ROW (a budget the live count no longer spends) survives with a STRONGER successor and no
+//     code here: a ruled act with zero live sites produces no finding, its grant is consumed zero times, and
+//     central reconciliation raises `stale-reviewed-grant`. Same verdict, owned by the engine, and it
+//     additionally catches the OVER-BROAD direction the legacy arm had no word for.
+//   · A5b ELEVATED_ALLOW LIVENESS is owned by the same engine arm, per FILE rather than per prefix: see the
+//     STRENGTHENING bullet above. No policy code implements it and none should.
+//   · `ctx.scan({ admitted, admittedRatified })` — the #569 admitted-by-ratchet split line — has no
+//     successor because it has no subject: there is no budget to absolve anything. The grant table's
+//     granted/effective/consumption counts are the reviewed-grant analogue and are reported centrally.
+//
+// A CORRECTED FALSE STATEMENT, recorded rather than silently deleted. The legacy module's `loadBaseline`
+// comment read "Every density row is DEBT today — the density sweep is a burn-down, and a ratified density
+// row would be a claim that a surface is permanently off-tier." Its own ledger contradicted it: all 22 rows
+// carried `ratified === count` from `75d9f774a` (2026-08) onward, ZERO were debt, and `a6d519761` ratified
+// the twenty-second. The comment was wrong about the artifact it introduced, and a reader who believed it
+// would have classified this conversion as a burn-down and deleted 22 recorded owner rulings.
+//
+// MARKER CENSUS: ZERO, per file and in total. This gate never owned an `@orb-gate-ignore` vocabulary — its
+// exemption mechanism was the baseline JSON plus two path tables, never a comment grammar — so nothing was
+// translated and nothing was dropped. Verified by reading the legacy module in full at
+// `4791ef15dc813861a7aa5362a6311e36b2671272`: no marker string, no consumption map, no stale-marker sweep.
+// No product or test file changed for marker reasons in the conversion commit, which is the other half of
+// that claim ("a gate with live markers and no product/test diff translated nothing").
+//
+// FAMILY `density-tier` — a TWO-member split family over `lib/density-tier.ts`. The shared canonical
+// CALLABLE is `jsxAttributeLiterals`, reached from this policy's A4 arm and from
+// `density-tier-slot-map`'s rogue-slot arm, and the shared DECLARATION is `UI_SOURCE_ROOT`. The split is by
+// axis, not by topic: the slot-map sibling is `hard` where this is `reviewed-grant`, and it needs the
+// ENTIRE population (does ANY ui file emit this slot) where this composes per file.
+//
+// LEGACY SHA: the conversion parent is `4791ef15dc813861a7aa5362a6311e36b2671272`. The legacy
+// `GateDescriptor` at that revision is what the §6.4 differential replayed against.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standing law §2.1, 2026-09-13, lane p-convert-density-tier).
+// Legacy `scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/")` becomes
+// `["@client", "@ui"]` = `packages/client/src/` + `packages/ui/src/`. Over the SAME 7,704 harness candidates
+// at `4791ef15d` (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy admits 1,687 and final
+// admits 1,687. legacy − final = ∅. final − legacy = ∅. The only change is that a substring match becomes
+// two anchored prefixes, and that distinction is empty on this tree. Controls: inside
+// `packages/client/src/features/__dtlane_in/probe.tsx` (virtual) admitted by both; outside
+// `packages/contracts/src/__dtlane_out/probe.ts` (virtual) rejected by both.
 //
 // DECLARED BLIND SPOT — this is a LITERAL-SHAPE reader. It sees string literals, template parts, and
 // `tv()`/`cva()` object literals inside `className=` / `cn`/`clsx`/`cva`/`tv` calls. A className assembled
 // from a variable, a conditional, or `cn(cond && STYLES)` where the classes live in another module is
 // INVISIBLE to it, and an AST reader blind to computed shapes reports a silent GREEN. That is why the
-// computed-value CTs (tests/ui/density-tier.suite.ct.tsx, spec §5.3) are the REQUIRED second lens, not a
-// nice-to-have: they read back what the browser resolved.
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import type { JsxOpeningElement, JsxSelfClosingElement, Node, SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { RatchetRow } from "../../_shared/ratchet-rows.ts";
-import { admissionFor, classNote, readBudgetRows } from "../../_shared/ratchet-rows.ts";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { blankCssComments } from "../lib/comment-spans.ts";
-
-/** A NODE-anchored hit — never a `{file,line,column}` Finding literal (finding-overload-provenance): the
- *  node carries its own position; `line`/`column` are kept ONLY as the deterministic sort key
- *  `densityFindings`'s budget-slice depends on, never handed to `ctx.report`. */
-interface Hit {
-  readonly node: Node;
-  readonly token: string;
-  readonly line: number;
-  readonly column: number;
-}
-
-/** The ledger's ONE home — exported so the debt walk (ops/debt.ts) enumerates the rows this gate admits
- *  instead of re-spelling the path (a rename would leave that walk silently reading nothing). */
-export const BASELINE_REL = "tooling/src/verify/gates/density-tier.baseline.json";
-const GATE_SELF = "tooling/src/verify/gates/density-tier.ts";
-const TIER_WRITER = "packages/ui/src/layout/surface.tsx";
-const FEATURES_DIR = "packages/client/src/features/";
-const TIER_MAP_REL = "packages/ui/src/styles/tiers.css";
-const UI_SRC = "packages/ui/src/";
-
-/** Files where `rounded-card` is CORRECT: the elevated/floating families (§2.1 — modal, popover, drawer,
- *  toast, composer, the chat bubble, the `elevated` opt-in itself). Everything else ratchets. */
-const ELEVATED_ALLOW: readonly string[] = [
-  "packages/ui/src/primitives/card/",
-  "packages/ui/src/primitives/command/",
-  "packages/ui/src/primitives/macro-textarea/",
-  "packages/ui/src/primitives/menu/",
-  "packages/ui/src/primitives/popover/",
-  "packages/ui/src/primitives/selection-bar/",
-  "packages/ui/src/primitives/toast/",
-  "packages/ui/src/content/immersive-card/",
-  // THE composer card — D6 names the composer in the elevated family. The `rounded-card` site moved here
-  // from composer.tsx (#376) when the card + its media drop affordance were extracted; the gate's own
-  // stale-arm caught the old row the same run, so this is a MOVE, never a widened exemption.
-  "packages/client/src/features/chat/components/composer-drop-target.tsx",
-  // THE chat bubble's box, single-homed here so the theme editor's preview paints the same one (a runtime
-  // cross-feature import is dep-cruiser RED, so lib/ is the shared home). The row skins consume it.
-  "packages/client/src/lib/message-bubble-class.ts",
-  "packages/client/src/features/chat/surfaces/command-palette-surface.tsx",
-];
+// computed-value CTs (tests/ui/density-tier.suite.ct.tsx, UI-Density-Law.md §5.3) are the REQUIRED second
+// lens, not a nice-to-have: they read back what the browser resolved.
+import { defineGate } from "../contract/policy.ts";
+import { densityOccurrences } from "../lib/density-tier.ts";
+import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 
 const MESSAGE =
-  "density-tier violation (docs/architecture/core/UI-Density-Law.md §3/§5.1): `rounded-card` outside the ELEVATED " +
-  "family (D6 — it is the floating-island step: modal/popover/drawer/toast/composer/chat bubble), a " +
-  "border+radius+background box nested inside another one (CD2 — one box deep, maximum), a feature passing " +
-  "the @orb/ui-internal type axes instead of `voice` (§2.3), a second writer of `data-surface-tier`, or a " +
-  "tier-mapped `data-slot` name emitted by something other than the @orb/ui primitive that owns it.";
+  "density-tier violation (docs/architecture/core/UI-Density-Law.md §3/§5.1): `rounded-card` outside the " +
+  "ELEVATED family (D6 — it is the floating-island step: modal/popover/drawer/toast/composer/chat bubble), " +
+  "a border+radius+background box nested inside another one (CD2 — one box deep, maximum), a feature " +
+  "passing the @orb/ui-internal type axes instead of `voice` (§2.3), or a second writer of " +
+  "`data-surface-tier`. Each `(file, act)` pair is one finding: either the act is wrong here, or it is a " +
+  "ruling and takes an exact reviewed grant.";
 
 const FIX =
   "rounded-card → rounded-base (grouped content inside a surface) / rounded-control (anything you operate) / " +
   "rounded-inset (a sub-control mark), or wrap the surface in <Surface tier> and let tiers.css resolve it; " +
   "un-nest the inner box (hairlines + gaps separate INSIDE a box, never a nested card); <Text size=… weight=…> " +
-  '→ <Text voice="kicker|label|datum|hero|gloss|quiet|datumMono|monogram|reading|credit|masthead|focal|promoted">; write data-surface-tier ONLY via <Surface>; compose the ' +
-  "@orb/ui primitive that owns a mapped slot instead of hand-stamping its data-slot name.";
+  '→ <Text voice="kicker|label|datum|hero|gloss|quiet|datumMono|monogram|reading|credit|masthead|focal|promoted">; ' +
+  "write data-surface-tier ONLY via <Surface>. If the call site is a RULING rather than a defect, add ONE " +
+  'exact reviewed grant to `tooling/src/verify/lib/reviewed-grants.ts` keyed `policyId: "density-tier"`, ' +
+  "`subject: <the repo-relative file>`, `operation: <the act named in the finding>`, whose `why` states the " +
+  "ruling and whose `endsWhen` names what retires it. One row licenses that act in that file; it goes STALE " +
+  "the day its last live site disappears.";
 
-const A1_TOKEN = "rounded-card";
-const CLASS_STRING_CALLEES: ReadonlySet<string> = new Set(["cn", "clsx", "cva", "tv"]);
-const INTERNAL_TEXT_PROPS: ReadonlySet<string> = new Set(["size", "weight", "tone", "transform"]);
-const TEXT_TAGS: ReadonlySet<string> = new Set(["Text", "Heading"]);
-const WHITESPACE_RE = /\s+/u;
-const BORDER_RE = /(?:^|\s|:)border(?:-|$|\s)/u;
-const RADIUS_RE = /(?:^|\s|:)rounded(?:-|$|\s)/u;
-const BG_RE = /(?:^|\s|:)bg-/u;
-
-function repoRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
-}
-
-/** Is this literal/template part a class-string carrier — a `className=` attribute value, or a string arg
- *  (at any depth, e.g. inside a `tv({slots:{…}})` object) of `cn`/`clsx`/`cva`/`tv`? Same scoping as
- *  `no-off-token-radius-shadow`: `rounded-card` is only a class where classes live. */
-function isClassStringSite(node: Node): boolean {
-  const jsxAttr = node.getFirstAncestorByKind(SyntaxKind.JsxAttribute);
-  if (jsxAttr !== undefined && jsxAttr.getNameNode().getText() === "className") {
-    return true;
-  }
-  const call = node.getFirstAncestorByKind(SyntaxKind.CallExpression);
-  return call !== undefined && CLASS_STRING_CALLEES.has(call.getExpression().getText());
-}
-
-/** The offset of `rounded-card` inside a class-carrier node's text (one past the stripped delimiter), for
- *  each occurrence — so the caret lands on the token, not the line start. */
-function radiusHits(nodeText: string): number[] {
-  const stripped = nodeText.slice(1, -1);
-  const out: number[] = [];
-  let cursor = 0;
-  for (const part of stripped.split(WHITESPACE_RE)) {
-    const at = stripped.indexOf(part, cursor);
-    cursor = at + part.length;
-    if ((part.split(":").at(-1) ?? part) === A1_TOKEN) {
-      out.push(at + 1);
-    }
-  }
-  return out;
-}
-
-type JsxTag = JsxOpeningElement | JsxSelfClosingElement;
-
-/** Every class string LITERALLY visible on one JSX element's own `className` (its attribute value plus any
- *  literal inside a `cn(...)` in that attribute) — the box-in-box reader's input. */
-function ownClassText(element: JsxTag): string {
-  const attr = element
-    .getAttributes()
-    .filter((a) => a.getKind() === SyntaxKind.JsxAttribute)
-    .map((a) => a.asKindOrThrow(SyntaxKind.JsxAttribute))
-    .find((a) => a.getNameNode().getText() === "className");
-  if (attr === undefined) {
-    return "";
-  }
-  const literals = [...attr.getDescendantsOfKind(SyntaxKind.StringLiteral), ...attr.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral)];
-  return literals.map((l) => l.getLiteralText()).join(" ");
-}
-
-/** border + radius + background all present — "this element is a BOX". */
-function isBox(classText: string): boolean {
-  return BORDER_RE.test(classText) && RADIUS_RE.test(classText) && BG_RE.test(classText);
-}
-
-/** Every JSX tag (opening + self-closing) of one file. */
-function jsxElements(sf: SourceFile): JsxTag[] {
-  return [...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement), ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)];
-}
-
-const CLASS_STRING_KINDS = [
-  SyntaxKind.StringLiteral,
-  SyntaxKind.NoSubstitutionTemplateLiteral,
-  SyntaxKind.TemplateHead,
-  SyntaxKind.TemplateMiddle,
-  SyntaxKind.TemplateTail,
-];
-
-/** Does this file carry a `rounded-card` occurrence at a class-string site — independent of the
- *  ELEVATED_ALLOW suppression below. The A5b stale-arm tracker (finalize) uses this: a suppressed file
- *  never enters `radiusFindings`'s reported set, so ELEVATED_ALLOW liveness has to be measured separately. */
-function hasRoundedCardClassSite(sf: SourceFile): boolean {
-  for (const kind of CLASS_STRING_KINDS) {
-    for (const node of sf.getDescendantsOfKind(kind)) {
-      if (isClassStringSite(node) && radiusHits(node.getText()).length > 0) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-/** A1 — `rounded-card` outside the elevated allowlist. */
-function radiusFindings(sf: SourceFile, rel: string): Hit[] {
-  if (ELEVATED_ALLOW.some((allowed) => rel.startsWith(allowed))) {
-    return [];
-  }
-  const out: Hit[] = [];
-  for (const kind of CLASS_STRING_KINDS) {
-    for (const node of sf.getDescendantsOfKind(kind)) {
-      if (!isClassStringSite(node)) {
-        continue;
-      }
-      for (const _offset of radiusHits(node.getText())) {
-        out.push({ node, line: node.getStartLineNumber(), column: node.getStart() - node.getStartLinePos() + 1, token: A1_TOKEN });
-      }
-    }
-  }
-  return out;
-}
-
-/** A2 — a box whose JSX ancestor in the same file is also a box.
- *
- *  The walk starts ABOVE the element's own `JsxElement` wrapper: a non-self-closing tag's `getParent()`
- *  IS the JsxElement whose `getOpeningElement()` is that same tag, so walking from there made every
- *  paired box report ITSELF as its own ancestor (a self-closing box did not — which is why the fixtures
- *  missed it). Fixed 2026-08-01 (S2); the `mustPass` twin below pins both tag forms. */
-function boxInBoxFindings(sf: SourceFile): Hit[] {
-  const out: Hit[] = [];
-  for (const element of jsxElements(sf)) {
-    if (!isBox(ownClassText(element))) {
-      continue;
-    }
-    // An OPENING tag's parent is its own JsxElement; a SELF-CLOSING tag's parent is already the enclosing
-    // element, so only the opening form skips a level.
-    const self: Node = element.getKind() === SyntaxKind.JsxOpeningElement ? element.getParent() : element;
-    let ancestor: Node | undefined = self.getParent();
-    let nested = false;
-    while (ancestor !== undefined && !nested) {
-      const jsxElement = ancestor.asKind(SyntaxKind.JsxElement);
-      const opening = jsxElement?.getOpeningElement();
-      nested = opening !== undefined && isBox(ownClassText(opening));
-      ancestor = ancestor.getParent();
-    }
-    if (nested) {
-      out.push({ node: element, line: element.getStartLineNumber(), column: element.getStart() - element.getStartLinePos() + 1, token: "box-in-box" });
-    }
-  }
-  return out;
-}
-
-/** A3 — a FEATURE passing an `@orb/ui`-internal type axis to `<Text>`/`<Heading>`. */
-function textVoiceFindings(sf: SourceFile, rel: string): Hit[] {
-  if (!rel.startsWith(FEATURES_DIR)) {
-    return [];
-  }
-  const out: Hit[] = [];
-  for (const element of jsxElements(sf)) {
-    if (!TEXT_TAGS.has(element.getTagNameNode().getText())) {
-      continue;
-    }
-    for (const attr of element.getAttributes()) {
-      const jsxAttr = attr.asKind(SyntaxKind.JsxAttribute);
-      const name = jsxAttr?.getNameNode().getText() ?? "";
-      if (jsxAttr !== undefined && INTERNAL_TEXT_PROPS.has(name)) {
-        out.push({ node: jsxAttr, line: jsxAttr.getStartLineNumber(), column: jsxAttr.getStart() - jsxAttr.getStartLinePos() + 1, token: name });
-      }
-    }
-  }
-  return out;
-}
-
-/** A4 — the tier attribute, written anywhere but the Surface primitive. NOT budgeted: born sealed. */
-function tierWriterFindings(sf: SourceFile, rel: string): readonly Node[] {
-  if (rel === TIER_WRITER) {
-    return [];
-  }
-  const out: Node[] = [];
-  for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
-    if (attr.getNameNode().getText() === "data-surface-tier") {
-      out.push(attr);
-    }
-  }
-  return out;
-}
-
-/** A `[data-slot="…"]` selector, as tiers.css spells it. */
-const SLOT_SELECTOR_RE = /\[data-slot="([a-z0-9-]+)"\]/gu;
-
-/** The slot names the live tier map keys on → the 1-based line of the first selector that names each.
- *  Parsed from tiers.css itself rather than hand-listed here: a hand-listed copy is a second map that
- *  drifts, and a drifted copy would police slots the stylesheet stopped mapping. */
-export function mappedSlots(root: string): Map<string, number> {
-  const path = join(root, TIER_MAP_REL);
-  const out = new Map<string, number>();
-  if (!existsSync(path)) {
-    return out;
-  }
-  // Blanked, not stripped, by the ONE CSS blanker: the header's ILLUSTRATIVE `[data-slot="…"]` selectors
-  // must not enter the map (that was already true), and blanking is LENGTH-PRESERVING, so a multi-line
-  // comment no longer shifts every reported line number below it (`.replace` did).
-  const lines = blankCssComments(readFileSync(path, "utf-8")).split("\n");
-  for (const [index, line] of lines.entries()) {
-    for (const match of line.matchAll(SLOT_SELECTOR_RE)) {
-      const slot = match[1];
-      if (slot !== undefined && !out.has(slot)) {
-        out.set(slot, index + 1);
-      }
-    }
-  }
-  return out;
-}
-
-/** Every `data-slot="literal"` JSX attribute of one file, as (slot name → the attribute node). */
-function slotAttributes(sf: SourceFile): { readonly slot: string; readonly attr: Node }[] {
-  const out: { slot: string; attr: Node }[] = [];
-  for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
-    if (attr.getNameNode().getText() !== "data-slot") {
-      continue;
-    }
-    const literal = attr.getInitializer()?.asKind(SyntaxKind.StringLiteral);
-    if (literal !== undefined) {
-      out.push({ slot: literal.getLiteralText(), attr });
-    }
-  }
-  return out;
-}
-
-/** A6a — a tier-MAPPED slot name stamped outside `packages/ui/src/`. NOT budgeted: born sealed. */
-function rogueSlotFindings(sf: SourceFile, rel: string, mapped: ReadonlyMap<string, number>): Hit[] {
-  if (rel.startsWith(UI_SRC)) {
-    return [];
-  }
-  const out: Hit[] = [];
-  for (const { slot, attr } of slotAttributes(sf)) {
-    if (!mapped.has(slot)) {
-      continue;
-    }
-    // NODE-anchored: the token names the mapped slot (finding-overload-provenance forbids a per-occurrence
-    // `message` on a node-anchored literal — the general reason lives on the gate's static `message`).
-    out.push({ node: attr, line: attr.getStartLineNumber(), column: attr.getStart() - attr.getStartLinePos() + 1, token: `data-slot=${slot}` });
-  }
-  return out;
-}
-
-/** The BUDGETED arms (A1–A3) of one file, in a deterministic order so `slice(budget)` reports the same
- *  excess on every run. */
-export function densityFindings(sf: SourceFile, rel: string): Hit[] {
-  return [...radiusFindings(sf, rel), ...boxInBoxFindings(sf), ...textVoiceFindings(sf, rel)].sort((a, b) => a.line - b.line || a.column - b.column);
-}
-
-/** The committed ledger, read through the ONE row reader (`_shared/ratchet-rows.ts`) so each row's
- *  DEBT-vs-RATIFIED class travels with its budget. Every density row is DEBT today — the density sweep is a
- *  burn-down, and a ratified density row would be a claim that a surface is permanently off-tier. */
-export function loadBaseline(root: string): ReadonlyMap<string, RatchetRow> {
-  return readBudgetRows(root, BASELINE_REL);
-}
-
-let passBaseline: ReadonlyMap<string, RatchetRow> = new Map();
-// Per-file LIVE count (not just a violating/clean boolean) — the finding-overload-provenance
-// `judgeBaseline` shape (GATE-AUTHORING §4.4a mode A): a stale baseline row is any budget the live count
-// no longer SPENDS, not just a budget spending zero. A file that improved from 5 violations to 2 stayed
-// invisible to the old zero-only arm; this catches it too.
-const passActualCounts = new Map<string, number>();
-let passMappedSlots: ReadonlyMap<string, number> = new Map();
-const passSeenSlotEmitters = new Set<string>();
-// A5b — ELEVATED_ALLOW liveness (GATE-AUTHORING §4 rule 4: every exemption vocabulary is two-sided from
-// birth). Populated in visitFile with the allow-prefix of every file that STILL carries a live
-// `rounded-card` class site; a prefix absent here at finalize matches ZERO live sites and is stale.
-const passSeenElevatedAllow = new Set<string>();
-
-export const gate: GateDescriptor = {
-  name: "density-tier",
-  docRow: "docs/architecture/core/UI-Density-Law.md §5.1 (the density pass)",
-  status: "active",
-  scopeSafety: "whole-project", // the baseline budget is a per-file whole-tree count
+/** The shared reporter's text bundle. No `unreadable` candidate can arise here — every occurrence is read
+ *  off an AST node whose file path IS the subject and whose arm IS the operation, so the third string says
+ *  so rather than pretending to an arm no fixture can reach. */
+const REPORT_TEXT = {
   message: MESSAGE,
   fix: FIX,
-  // The `no-off-token-radius-shadow` form — it makes NO assumption about a leading slash (the two existing
-  // gates disagree on that, and a wrong path format is a SILENT GREEN, not a red).
-  scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/"),
-  // A6 reads tiers.css off disk (the map is CSS — never in the ts-morph project), so its examples must be
-  // materialized to a real tree.
-  fsBacked: true,
-  begin: (ctx: GateRunCtx) => {
-    passBaseline = loadBaseline(ctx.root);
-    passActualCounts.clear();
-    passMappedSlots = mappedSlots(ctx.root);
-    passSeenSlotEmitters.clear();
-    passSeenElevatedAllow.clear();
-  },
-  visitFile: (sf, ctx) => {
-    const rel = repoRel(sf.getFilePath());
-    for (const attr of tierWriterFindings(sf, rel)) {
-      ctx.report(attr, { token: "data-surface-tier", offset: 0 });
-    }
-    if (rel.startsWith(UI_SRC)) {
-      for (const { slot } of slotAttributes(sf)) {
-        passSeenSlotEmitters.add(slot);
-      }
-    }
-    const elevatedPrefix = ELEVATED_ALLOW.find((allowed) => rel.startsWith(allowed));
-    if (elevatedPrefix !== undefined && hasRoundedCardClassSite(sf)) {
-      passSeenElevatedAllow.add(elevatedPrefix);
-    }
-    for (const hit of rogueSlotFindings(sf, rel, passMappedSlots)) {
-      ctx.report(hit.node, { token: hit.token, offset: 0 });
-    }
-    const findings = densityFindings(sf, rel);
-    passActualCounts.set(rel, findings.length);
-    const row = passBaseline.get(rel);
-    const budget = row?.count ?? 0;
-    // The budget-absolved head is DECLARED DEBT, not absence: without this the ratchet's live population
-    // is invisible behind a ✓ and only the generator ever knows the number (Codex GA-H-02). Split by CLASS
-    // (#569) so a burnable row and a ruled one are never summed into one undifferentiated number.
-    const admission = admissionFor(row, findings.length);
-    ctx.scan({ admitted: admission.admitted, admittedRatified: admission.ratified });
-    for (const hit of findings.slice(budget)) {
-      ctx.report(hit.node, { token: hit.token, offset: 0 });
-    }
-  },
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project") {
-      return; // a stale-entry claim is whole-tree — never fire it below project scope
-    }
-    // A6b — every mapped slot must have an emitter. Whole-tree by nature: the emitter lives in a file this
-    // run only saw because the scope was the project.
-    for (const [slot, line] of passMappedSlots) {
-      if (!passSeenSlotEmitters.has(slot)) {
-        ctx.report({
-          file: TIER_MAP_REL,
-          line,
-          // 0, not 1: `line` is a CSS stylesheet line from a text scan — there is no node and no intra-line
-          // token, and `Finding.column` spells that "0" (contract.ts). It read `1` until 2026-08-08, which
-          // claimed an intra-line caret this gate cannot have.
-          column: 0,
-          message: `${TIER_MAP_REL} maps [data-slot="${slot}"] but no file under ${UI_SRC} emits that slot — a mapped-but-dead rule paints nothing while the stylesheet reads as load-bearing (UI-Density-Law.md §4.2). Emit the slot from the primitive that owns it, or drop the rule.`,
-        });
-      }
-    }
-    // A5b — ELEVATED_ALLOW liveness. REAL-TREE ANCHOR (GATE-AUTHORING §4 rule 5): `existsSync(BASELINE_REL)`
-    // is absent in every conformance mini-project (no fixture below creates the baseline file), so this arm
-    // only ever fires against the real workspace — never inside the gate's own self-proof.
-    if (existsSync(join(ctx.root, BASELINE_REL))) {
-      for (const allowed of ELEVATED_ALLOW) {
-        if (!passSeenElevatedAllow.has(allowed)) {
-          ctx.report({
-            file: GATE_SELF,
-            line: 1,
-            column: 0,
-            message: `ELEVATED_ALLOW entry "${allowed}" (${GATE_SELF}) matches ZERO live \`rounded-card\` class sites — the elevated-radius exemption there is no longer used; delete the row (GATE-AUTHORING.md §4 rule 4, the ratchet only goes down, both ways).`,
-          });
-        }
-      }
-    }
-    for (const [rel, row] of passBaseline) {
-      const actual = passActualCounts.get(rel) ?? 0;
-      if (actual < row.count) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${BASELINE_REL} budgets ${row.count} finding(s) for "${rel}" but only ${actual} remain — the ratchet only goes down: regenerate it (node tooling/src/verify/cli.ts baseline density) and commit the shrink.${classNote(row)}`,
-        });
-      }
-    }
-  },
+  unreadableMessage: `${MESSAGE} (UNREACHABLE: this policy's subject is the admitted file path and its operation is the arm that matched, both always readable.)`,
+} as const;
 
+export const gate = defineGate({
+  id: "density-tier",
+  family: "density-tier",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: ["@client", "@ui"],
+  analysis: "syntax",
+  // Every arm composes over a subset: each verdict is decided inside ONE file (a class-string site, a JSX
+  // ancestry walk within the same file, a feature call site, a tier-attribute stamp). The whole-population
+  // questions — is a sanctioned-home row still live, does a mapped slot still have an emitter — are the two
+  // siblings, which is why they are separate policies rather than a wider execution mode here.
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    // Invocation state allocated in `create`: every occurrence the walk saw, as grant candidates. The
+    // grouping into ONE finding per `(subject, operation)` is the shared reporter's law, never this
+    // module's — a hand-rolled grouper here would be a private reader behind `defineGate`.
+    const candidates: ReviewedGrantCandidate[] = [];
+    return {
+      visitFile: (sourceFile) => {
+        for (const occurrence of densityOccurrences(sourceFile, ctx.relativePath(sourceFile))) {
+          candidates.push(occurrence);
+        }
+      },
+      evaluate: () => {
+        reportReviewedGrantCandidates(ctx.report, candidates, REPORT_TEXT);
+      },
+    };
+  },
   mustFlag: [
     {
-      files: `export const G = <div className="rounded-card border border-border bg-card" />;\n`,
-      at: "packages/client/src/x.tsx",
-      // A SHALLOW path — with A1 (rounded-card) firing; the box-in-box arm needs an ancestor box, so one finding.
-      expect: { count: 1 },
-      why: "A1 at a shallow path: `rounded-card` outside the elevated family, with no baseline budget",
+      mode: "source",
+      grant: { subject: "packages/client/src/x.tsx", operation: "elevated-radius" },
+      files: { "packages/client/src/x.tsx": 'export const G = <div className="rounded-card border border-border bg-card" />;\n' },
+      expect: { count: 1, messageIncludes: "Subject: packages/client/src/x.tsx, operation: elevated-radius" },
+      why: "A1 at a SHALLOW path, carried from the legacy descriptor's founding row: `rounded-card` outside the elevated family. The legacy row pinned `count: 1` only; the conversion strengthens it to the exact `(subject, operation)` pair central reconciliation matches a grant on, and this is the policy's GRANT WITNESS — the fixture emits exactly one finding, so the rerun with the authored identity must consume exactly one and leave zero effective",
     },
     {
-      files: `export const G = <div className="rounded-base border border-border bg-card"><span className="rounded-base border border-border bg-muted" /></div>;\n`,
-      at: "packages/client/src/features/deep/nested/components/inner/box.tsx",
-      expect: { token: "box-in-box" },
-      why: "A2 at a DEEPLY NESTED path (proves the matcher, §5.1): a box inside a box — chrome diet CD2",
-    },
-    {
-      files: `export const G = <Text size="micro" tone="muted">x</Text>;\n`,
-      at: "packages/client/src/features/rpg/components/thing.tsx",
-      expect: { count: 2 },
-      why: "A3: a feature passing two @orb/ui-internal type axes — one finding per axis, `voice` is the feature API",
-    },
-    {
-      files: `export const G = <div data-surface-tier="instrument" />;\n`,
-      at: "packages/client/src/features/x/rogue.tsx",
-      expect: { token: "data-surface-tier" },
-      why: "A4: a second writer of the tier attribute — born sealed, no baseline, zero tolerance",
-    },
-    {
-      files: `export const v = tv({ base: "rounded-card border border-border bg-card" });\n`,
-      at: "packages/ui/src/primitives/thing/variants.ts",
-      why: "A1 inside a tv() object literal — the variants-file shape a className-only scan misses",
-    },
-    {
+      mode: "source",
       files: {
-        [TIER_MAP_REL]: `[data-surface-tier] [data-slot="card-root"] {\n  padding: var(--spacing-row);\n}\n`,
-        "packages/ui/src/primitives/card/card.tsx": `export const Card = (): unknown => <div data-slot="card-root" />;\n`,
-        "packages/client/src/features/x/rogue-slot.tsx": `export const G = <div data-slot="card-root" />;\n`,
+        "packages/client/src/features/deep/nested/components/inner/box.tsx":
+          'export const G = <div className="rounded-base border border-border bg-card"><span className="rounded-base border border-border bg-muted" /></div>;\n',
       },
-      expect: { token: "data-slot=card-root" },
-      why: "A6a: a feature stamping a MAPPED slot name — it would inherit tier steps without the primitive that owns the slot",
+      expect: { count: 1, messageIncludes: "operation: box-in-box" },
+      why: 'A2 at a DEEPLY NESTED path (proves the matcher over the legacy\'s `scanRoot` substring form, §5.1): a box inside a box — chrome diet CD2. The legacy row pinned `token: "box-in-box"`, which the conversion re-derives as the OPERATION rather than a finding token, because the grant identity is what a reader must now spell',
     },
     {
+      mode: "source",
+      files: { "packages/client/src/features/rpg/components/thing.tsx": 'export const G = <Text size="micro" tone="muted">x</Text>;\n' },
+      expect: { count: 2, messageIncludes: "operation: text-axis:size" },
+      why: "A3: a feature passing two @orb/ui-internal type axes. THE LEGACY COUNT SURVIVES — two axes are still two findings — but for a different and stronger reason: each axis is its own ACT, so `size` being ruled here never licenses `tone`. Collapse `textVoiceOccurrences`'s operation to a bare `text-axis` in lib/density-tier.ts and this row drops to one finding; that is its falsifier",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/features/x/rogue.tsx": 'export const G = <div data-surface-tier="instrument" />;\n' },
+      expect: { count: 1, messageIncludes: "operation: surface-tier-write" },
+      why: "A4: a second writer of the tier attribute, carried from legacy. Under the conversion the ONE sanctioned writer is no longer a hardcoded `rel === TIER_WRITER` skip but an exact reviewed grant, so this row and the `surface.tsx` row below are the SAME predicate under two identities rather than a predicate and a scope hole",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/src/layout/surface.tsx": 'export const Surface = (): unknown => <div data-surface-tier="instrument" />;\n' },
+      expect: { count: 1, messageIncludes: "Subject: packages/ui/src/layout/surface.tsx, operation: surface-tier-write" },
+      why: "THE INVERTED LEGACY ROW, classified. `packages/ui/src/layout/surface.tsx` was a legacy `mustPass` because the descriptor skipped it by a hardcoded path; it now FLAGS and is licensed by the exact grant `density-tier:surface-tier-writer`. The predicate did not weaken — it stopped having a hole. Pinning the emitted `(subject, operation)` here is what makes the shipped grant row bindable; a respelled operation would leave the real writer red on the next run",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/src/primitives/thing/variants.ts": 'export const v = tv({ base: "rounded-card border border-border bg-card" });\n' },
+      expect: { count: 1, messageIncludes: "operation: elevated-radius" },
+      why: "A1 inside a `tv()` object literal — the variants-file shape a className-only scan misses, carried from legacy. The carrier fence admits a class-composer call at any depth; delete the `CLASS_STRING_CALLEES` arm and this row goes green while the attribute row stays red",
+    },
+    {
+      mode: "source",
       files: {
-        [TIER_MAP_REL]: `/* [data-slot="card-root"] in a comment is NOT a mapping */\n[data-surface-tier] [data-slot="ghost-slot"] {\n  padding: var(--spacing-row);\n}\n`,
-        "packages/ui/src/primitives/card/card.tsx": `export const Card = (): unknown => <div data-slot="card-root" />;\n`,
+        "packages/client/src/features/x/template-carrier.tsx":
+          'export const G = (on: boolean): unknown => <div className={`rounded-card border border-border ${on ? "bg-card" : "bg-muted"}`} />;\n',
       },
-      expect: { messageIncludes: "no file under packages/ui/src/ emits that slot" },
-      why: "A6b: the map keys on a slot no primitive emits — the mapped-but-dead rule (and the commented card-root proves comments are stripped, not parsed)",
+      expect: { count: 1, token: "rounded-card", messageIncludes: "operation: elevated-radius" },
+      why: "THE TEMPLATE-PART CARRIER, and it is a caught defect rather than a coverage row. A `rounded-card` inside a TemplateHead has no derivable identity token, so the sink's scanner throws `cannot derive a nonempty authored position token from TemplateHead` and WITHHOLDS the whole policy — which is what happened on the real tree the moment the elevated-family path skip became grants and a template carrier first reached the reporter. `radiusHitOffsets` therefore hands the exact authored slice and its offset. Drop the `token`/`offset` pair in lib/density-tier.ts and this row does not merely fail, it TOOL-ERRORS: `token` is pinned here so the row is about the position and not only the count",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/a/one.tsx": 'export const A = <Text size="micro">a</Text>;\n',
+        "packages/client/src/features/b/two.tsx": 'export const B = <Text size="micro">b</Text>;\n',
+      },
+      expect: { count: 2, messageIncludes: "operation: text-axis:size" },
+      why: "THE INVENTED ROW for the conversion's core new property — the SUBJECT is the FILE, so the SAME act in two files is TWO findings and needs TWO grants. Were the subject anything coarser, one grant would match two findings, license NOTHING and raise `over-broad-reviewed-grant`. Planted-break receipt in the family test",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/two-acts.tsx":
+          'export const G = <div className="rounded-base border border-border bg-card"><Text size="micro">x</Text><span className="rounded-base border border-border bg-muted" /></div>;\n',
+      },
+      expect: { count: 2, messageIncludes: "operation: box-in-box" },
+      why: "THE INVENTED ROW for the guarantee the count ratchet LOST and this identity keeps: ONE file performing TWO DIFFERENT acts is TWO findings, so a file ruled for its voice axis is not thereby ruled for a box-in-box. Under the legacy per-file budget both collapsed into one number and the second act was absolved by arithmetic. Planted-break receipt in the family test",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/src/primitives/popover/variants.ts": 'export const v = tv({ base: "rounded-card border border-border bg-popover" });\n' },
+      expect: { count: 1, messageIncludes: "Subject: packages/ui/src/primitives/popover/variants.ts, operation: elevated-radius" },
+      why: "THE OTHER INVERTED LEGACY ROW, classified. The popover variants file was a legacy `mustPass` because `ELEVATED_ALLOW` subtracted its DIRECTORY; it now FLAGS and is licensed by the exact grant `density-tier:popover-variants-elevated-radius`. Two gains are stated here because a reader seeing twelve per-file grants where eleven prefix rows stood must be able to tell this was an upgrade: the permission became per-FILE (a prefix row silently covered every file in the primitive directory, including ones nobody reviewed), and it became MODE-A live (the day this file's last `rounded-card` disappears the grant is consumed zero times and central reconciliation stales it — exactly what the legacy A5b sweep hand-rolled, which a path-resolution tripwire could not do)",
     },
   ],
   mustPass: [
     {
-      files: `export const G = <div className="rounded-base border border-border bg-card" />;\n`,
-      at: "packages/client/src/x.tsx",
-      why: "the grouped-content step at a shallow path — one box, correct radius: passes",
+      mode: "source",
+      files: { "packages/client/src/x.tsx": 'export const G = <div className="rounded-base border border-border bg-card" />;\n' },
+      why: "the grouped-content step at a shallow path — one box, correct radius: passes (carried from legacy)",
     },
     {
-      files: `export const v = tv({ base: "rounded-card border border-border bg-popover" });\n`,
-      at: "packages/ui/src/primitives/popover/variants.ts",
-      why: "an ELEVATED family member (popover) — `rounded-card` is exactly right there: allowlisted, passes",
+      mode: "source",
+      files: { "packages/client/src/features/deep/nested/components/inner/stat.tsx": 'export const G = <Text voice="datum">42</Text>;\n' },
+      why: "the closed voice API at a deeply nested feature path — what A3 exists to push callers onto: passes (carried from legacy)",
     },
     {
-      files: `export const G = <Text voice="datum">42</Text>;\n`,
-      at: "packages/client/src/features/deep/nested/components/inner/stat.tsx",
-      why: "the four-voice API at a deeply nested feature path — what A3 exists to push callers onto: passes",
+      mode: "source",
+      files: { "packages/client/src/components/shared-thing.tsx": 'export const G = <Text size="micro">x</Text>;\n' },
+      why: "A3 is FEATURES-scoped (`packages/client/src/features/`) — a client-shared composite is not a feature call site: passes (carried from legacy). Delete the `FEATURES_TIER` fence and this row goes red, which is its falsifier",
     },
     {
-      files: `export const G = <Text size="micro">x</Text>;\n`,
-      at: "packages/client/src/components/shared-thing.tsx",
-      why: "A3 is FEATURES-scoped (client/src/features/**) — a client-shared composite is not a feature call site: passes",
+      mode: "source",
+      files: { "packages/client/src/features/x/copy.ts": 'export const label = "rounded-card is the elevated step";\n' },
+      why: "the token as prose OUTSIDE a class-string site — the false positive the carrier fence guards (carried from legacy)",
     },
     {
-      files: `export const Surface = (): unknown => <div data-surface-tier="instrument" />;\n`,
-      at: "packages/ui/src/layout/surface.tsx",
-      why: "the ONE sanctioned tier writer — the Surface primitive itself: passes",
-    },
-    {
-      files: `export const label = "rounded-card is the elevated step";\n`,
-      at: "packages/client/src/features/x/copy.ts",
-      why: "the token as prose OUTSIDE a class-string site — the false positive the class-site scoping guards",
-    },
-    {
-      files: `export const G = <div className="rounded-base border border-border bg-card">one box, paired tags</div>;\n`,
-      at: "packages/client/src/features/x/paired-box.tsx",
-      why: "A2's self-match guard: a PAIRED-tag box is not its own ancestor (the self-closing fixture above missed this for a full stage)",
-    },
-    {
+      mode: "source",
       files: {
-        [TIER_MAP_REL]: `[data-surface-tier] [data-slot="card-root"] {\n  padding: var(--spacing-row);\n}\n`,
-        "packages/ui/src/primitives/card/card.tsx": `export const Card = (): unknown => <div data-slot="card-root" />;\n`,
-        "packages/client/src/features/x/uses-card.tsx": `export const G = <div data-slot="feature-own-slot" />;\n`,
+        "packages/client/src/features/x/paired-box.tsx":
+          'export const G = <div className="rounded-base border border-border bg-card">one box, paired tags</div>;\n',
       },
-      why: "A6: the mapped slot is emitted by its ui primitive, and a FEATURE's own unmapped slot name is none of the map's business: passes",
+      why: "A2's self-match guard: a PAIRED-tag box is not its own ancestor. The self-closing fixture missed this for a full stage in 2026-08 (S2), which is why both tag forms are pinned (carried from legacy)",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/lib/message-bubble-class.ts": 'export const bubble = "rounded-card border border-border bg-card";\n' },
+      why: "THE CARRIER FENCE AT A GRANTED PATH: this exact file holds a shipped `elevated-radius` grant, and the bare exported constant here is NOT a class-string site (no `className` attribute, no class-composer call). It passes for the FENCE's reason, not the grant's — which is the discrimination the conversion needs stated, because a reader could otherwise assume the grant is what silenced it. Delete the carrier fence and this row goes red while the grant stays unconsumed",
     },
   ],
-};
+});

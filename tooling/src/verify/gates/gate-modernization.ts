@@ -95,7 +95,7 @@ const FIX =
   "scan-SCOPE decision rather than an exemption, rename it out of the exemption vocabulary. " +
   "C: repoint the `§` to an anchor the cited doc actually defines. " +
   `D: call \`ctx.scan({ admitted: <the findings your budgets absolved> })\` in the gate's \`run\`/\`finalize\` (${LAW} §1) — ` +
-  "`density-tier` and `duplicate-action-doors` are the worked examples; `pnpm debt` enumerates the rows behind the number. " +
+  "`duplicate-action-doors` is the worked example; `pnpm debt` enumerates the rows behind the number. " +
   'E: declare `analysis: "types"` if the policy genuinely needs compiler-resolved semantics, or delete the ' +
   "compiler-reaching calls ANYWHERE IN THE MODULE and judge the node's syntax — a type read through a ts-morph " +
   "node is still a type read, and the declared plane is what the runtime prices.";

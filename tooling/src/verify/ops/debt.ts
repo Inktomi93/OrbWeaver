@@ -50,7 +50,6 @@ import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { LiveAdmission } from "../contract/debt.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
-import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as CT_UNFED_BASELINE_REL } from "./ct-unfed-ratchet.ts";
 import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts";
 
@@ -68,16 +67,15 @@ export interface Ledger {
 }
 
 export const LEDGERS: readonly Ledger[] = [
-  {
-    owner: "density-tier",
-    rel: DENSITY_BASELINE_REL,
-    unit: "density finding(s)",
-    why: "per-file density findings admitted at landing. Ends per file when the surface is re-tiered and the row is regenerated to a shrink.",
-  },
   // `duplicate-action-doors` HAD a row here and no longer has a ledger: its six RATIFIED door pairs became
   // exact reviewed grants in `lib/reviewed-grants.ts` with the 2026-09-13 authority migration (#1584), and
   // its count ratchet was deleted with them. Door debt is no longer a BUDGET this walk can total — an
   // ungranted duplicate pair is a blocking finding, never a row in a burn-down queue.
+  // `density-tier` HAD a row here and no longer has a ledger: its per-file count ratchet was deleted with
+  // the 2026-09-13 authority migration (#1939), which moved all 22 ratified rows to 44 exact reviewed
+  // grants in `lib/reviewed-grants.ts` (57 `density-tier` rows in all, the other 13 being the two retired
+  // gate-local path tables). Density debt is no longer a BUDGET this walk can total — an
+  // ungranted `(file, act)` pair is a blocking finding with no door, so it shows up as a violation.
   // `suppressions` HAD a row here and no longer has a ledger: its per-file count ratchet was deleted with
   // the 2026-09-12 authority migration (#2063), which moved every ruled rule class to an exact reviewed
   // grant in `lib/reviewed-grants.ts`. Suppression debt is no longer a BUDGET this walk can total — an

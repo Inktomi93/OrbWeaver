@@ -96,16 +96,26 @@ describe("debt walk — row extraction", () => {
     }
   });
 
-  test("the LISTING separates burnable debt from ruled-permanent rows, and never prints a ratified row as backlog", async ({ runCli }) => {
-    // RETARGETED 2026-09-13 (#1584) from `duplicate-action-doors`, whose ledger was deleted with its
-    // authority migration: its six RATIFIED door pairs are exact reviewed grants now, so `--gate
-    // duplicate-action-doors` is MISUSE rather than an empty listing (the arm below proves that door).
-    // `density-tier` is the remaining fully-ratified ledger and carries the same shape this row is about.
+  test("the RETIRED density ledger is gone from the walk — a `--gate` filter naming it is MISUSE, not an empty listing", async ({ runCli }) => {
+    // RETARGETED TWICE IN ONE DAY, AND THE SECOND TARGET DIED UNDER IT. This row used to assert the LISTING's
+    // ratified section against `duplicate-action-doors`; on 2026-09-13 that ledger was deleted by its
+    // authority migration (#1584) and the row was re-pointed at `density-tier` as "the remaining fully-ratified
+    // ledger" — by a lane that could not see its sibling deleting THAT ledger the same evening (#1939). Both
+    // conversions landed, so the assertion failed at the merge with `EXIT.misuse` where it expected `EXIT.clean`.
+    //
+    // GUARANTEE RETIRED WITH ITS LAST CARRIER, stated rather than quietly dropped: NO live ledger carries a
+    // ratified row any more (`ct-unfed-reads` holds zero rows, `orphan-export-ratchet`'s `entries` is `{}`),
+    // so the CLI's *rendering* of a RATIFIED section has no real subject to exercise and this row cannot be
+    // re-pointed a third time. The PARTITION LOGIC it was really about is still pinned, synthetically and
+    // durably, by "a CLASSIFIED ledger yields the DEBT/RATIFIED partition, and the halves sum to the budget
+    // (#569)" above, which plants its own ledger and depends on no gate. What is uncovered is only the
+    // section rendering, and it is uncovered because the debt it rendered is gone.
+    //
+    // What this row proves now is the two-sided retirement, same as the `duplicate-action-doors` arm below:
+    // the declaration is gone, so a filter naming it finds nothing and SAYS SO rather than printing a clean,
+    // empty, reassuring section.
     const result = await runCli("verify", ["debt", "--gate", "density-tier"]);
-    expect(result.code).toBe(EXIT.clean);
-    expect(result.stdout).toContain("BURNABLE DEBT — 0 row(s)");
-    expect(result.stdout).toContain("RATIFIED — 22 row(s)");
-    expect(result.stdout).toContain("(0 debt · 58 ratified)");
+    expect(result.code).toBe(EXIT.misuse);
   });
 
   test("the RETIRED doors ledger is gone from the walk — a `--gate` filter naming it is MISUSE, not an empty listing", async ({ runCli }) => {
