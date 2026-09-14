@@ -169,7 +169,7 @@ export const gate = defineGate({
       mode: "types",
       files: NODE_MEMBER("getDefinitionNodes"),
       expect: { count: 1, token: "getDefinitionNodes", messageIncludes: "Member: `getDefinitionNodes`." },
-      why: "THE FOUNDING SHAPE the ruling names (#2097): `identifier.getDefinitionNodes()` — the language-service definition walk a gate performs itself (`dangling-refs.ts:91`, `list-row-adoption.ts:103`, `json-column-write-parity.ts:414`). The position is the member name, because replacing the call is the repair",
+      why: "THE FOUNDING SHAPE the ruling names (#2097): `identifier.getDefinitionNodes()` — the language-service definition walk a gate performs itself. The position is the member name, because replacing the call is the repair. DO NOT re-point this row at live modules: the founding sites (`dangling-refs`, `list-row-adoption`, `json-column-write-parity`) have all since migrated to the shared readers and carry zero live calls, which is this policy succeeding, not the row going stale. A citation of a live example is self-staling here by construction, because the population drains to zero",
     },
     {
       mode: "types",
@@ -235,7 +235,7 @@ export const gate = defineGate({
       mode: "types",
       files: RESOLVING("export const probe = (node: Node): unknown => [node.getDefinitionNodes(), node.getSymbol()?.getAliasedSymbol()];"),
       expect: { count: 2 },
-      why: "TWO sites are TWO findings, one per member — the live modules carry several each (`chat-viewer-plane-canon-reads` four, `bus-payload-allowlist` three), and the migration is per site",
+      why: "TWO sites are TWO findings, one per member, because the migration is per site: replacing one member leaves the other accused. Stated as a property and not a live census on purpose — the counts this row once cited (`chat-viewer-plane-canon-reads` four, `bus-payload-allowlist` three) are both zero now that those modules converted, and any replacement count decays the same way",
     },
   ],
   mustRefuse: [
