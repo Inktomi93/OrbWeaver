@@ -77,7 +77,7 @@ export const KNOB_WIRE_OPERATIONS = {
 } as const;
 
 /** One unwired knob: its authored carrier, the member name, and the exact grant identity it binds. */
-export interface KnobWireCandidate {
+interface KnobWireCandidate {
   readonly node: Node;
   readonly token: string;
   readonly subject: string;
@@ -86,7 +86,7 @@ export interface KnobWireCandidate {
 }
 
 /** Every belt's resolved member count — the semantic denominator the verdict rests on. */
-export interface KnobWireCounts {
+interface KnobWireCounts {
   readonly fields: number;
   readonly sections: number;
   readonly appKeys: number;
