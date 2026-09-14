@@ -1,10 +1,11 @@
 // The semantic reader for browser-only contracts consumed by Node-intent tests. It follows only module
 // identity, declared alias/heritage ancestry, and generic constraints; it never expands object members or
 // ReactNode's structural graph.
+
+import { referenceResolutionServices, resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import type { Node as MorphNode, Type, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { BROWSER_PACKAGES, worldOf } from "../../_shared/project-worlds.ts";
-import { referenceResolutionServices, resolveModuleMemberOrigin } from "./reference-fact.ts";
 
 const BASE_UI_PREFIX = "@base-ui/react";
 const REACT_DOM_ANCHORS = new Set(["DOMAttributes", "SyntheticEvent"]);

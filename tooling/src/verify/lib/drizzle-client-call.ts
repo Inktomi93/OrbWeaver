@@ -5,9 +5,10 @@
 // Reading the property symbol therefore identifies `db.select()`, `tx.insert()`, `deps.db.batch()`,
 // `this.#db["insert"]()` and `db.query.chats.findMany()` alike, while a same-named method on a local class
 // or an unrelated import is refused. Callers own the fail-closed decision for an unresolved property.
+
+import { readMemberReference } from "@orb/tooling/_shared/reference-fact";
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import type { DrizzleClientCall } from "../contract/drizzle-client-call.ts";
-import { readMemberReference } from "./reference-fact.ts";
 
 const DRIZZLE_PACKAGE_INFIX = "/drizzle-orm/";
 

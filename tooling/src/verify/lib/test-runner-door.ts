@@ -5,10 +5,11 @@
 // `ModuleMemberOrigin` preserves by contract — and, for the tooling mirror, whether that door is the one
 // that installs the RESULT snapshot serializer (Core-Tooling-Law.md §4.8: entering through the plain door
 // bakes unnormalized inline snapshots). Both are read structurally, so a rename of either door is free.
+
+import { readMemberReference, referenceResolutionServices } from "@orb/tooling/_shared/reference-fact";
 import type { ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { FixtureDoor } from "../contract/test-runner-door.ts";
-import { readMemberReference, referenceResolutionServices } from "./reference-fact.ts";
 
 /** The runner packages a test may never enter directly (core/Spine-Testing.md §4). */
 export const TEST_RUNNER_MODULES: ReadonlySet<string> = new Set(["vitest", "@playwright/test"]);

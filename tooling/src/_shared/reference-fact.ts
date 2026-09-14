@@ -10,7 +10,7 @@ import type {
   ReferenceUnresolvedReason,
   ResolvedReferenceFact,
   UnresolvedReferenceFact,
-} from "../contract/reference-fact.ts";
+} from "./reference-fact-contract.ts";
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import { readMemberReferenceWith } from "./reference-fact-member.ts";
 import { resolveModuleMemberOriginWith } from "./reference-fact-module.ts";

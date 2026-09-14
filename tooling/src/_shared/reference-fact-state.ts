@@ -6,7 +6,7 @@ import type {
   ReferenceUnresolvedReason,
   ResolvedReferenceFact,
   UnresolvedReferenceFact,
-} from "../contract/reference-fact.ts";
+} from "./reference-fact-contract.ts";
 
 export interface ModuleState {
   readonly declarations: MorphNode[];

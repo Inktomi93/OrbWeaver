@@ -1,6 +1,6 @@
 // Ordered tuple vocabulary facts retain canonical declarations and authored member anchors.
 import type { Node, VariableDeclaration } from "ts-morph";
-import type { ReferenceUnresolvedReason } from "./reference-fact.ts";
+import type { ReferenceUnresolvedReason } from "../../_shared/reference-fact-contract.ts";
 
 /** @public knip type-face false positive — a structural field (`symbol`) of the exported `TupleVocabularyFact` shape,
  *  never referenced by its own name at any call site. */

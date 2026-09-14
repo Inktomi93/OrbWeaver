@@ -23,7 +23,7 @@
 // regex that exempted `state/` and `features/config/` wholesale is deleted.
 //
 // FAMILY: a declared SINGLETON under its own id. It rides `lib/registry-fact.ts`,
-// `lib/registry-definition-field.ts`, `lib/reference-fact-call.ts` and `lib/origin-verdict.ts`, but every
+// `lib/registry-definition-field.ts`, `_shared/reference-fact-call.ts` and `lib/origin-verdict.ts`, but every
 // one of those is a shared PRIMITIVE a dozen policies use; a shared primitive is not a family, and no
 // sibling asks whether an anchor stamp is registered.
 // POPULATION PORT: BYTE-IDENTICAL, inherited — this policy was SPLIT OUT of `config-group-completeness`
@@ -45,10 +45,10 @@
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveCallableOrigin } from "../../_shared/reference-fact-call.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { definitionField } from "../lib/registry-definition-field.ts";
 import { readJsxTagFact, registryDefinitionFacts } from "../lib/registry-fact.ts";
 import { readMemberAccess } from "../lib/symbol-reference.ts";

@@ -16,9 +16,10 @@
 // family has simply never met), `unreadable` is a table EXPRESSION that reduces to no name at all, and
 // `no-write-chain` is a call with no Drizzle write verb in it at all (`map.set(…)`) — the boundary that
 // stops the fail-closed posture from redding every `.set()`.
+
+import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { readDrizzleWriteTable } from "./drizzle-write-target.ts";
-import { resolveModuleMemberOrigin } from "./reference-fact.ts";
 
 /** The Drizzle declaration every guarded write goes through, and the two homes that prove a binding IS it. */
 export const GUARDED_TABLE = "messageVariants";

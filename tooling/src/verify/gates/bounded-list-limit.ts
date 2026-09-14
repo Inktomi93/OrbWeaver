@@ -8,7 +8,7 @@
 // FAMILY `bounded-list-limit` — a declared SINGLETON, because no other policy judges a BUILDER CHAIN. Its
 // verdict walks a zod chain hop by hop asking whether a `.max()` appears anywhere before the factory root;
 // that walk is this module's own and nothing else in the corpus wants it. The shared machinery it consumes
-// is `lib/reference-fact.ts` (`resolveModuleMemberOrigin` for the chain root, `readMemberReference` per hop,
+// is `_shared/reference-fact.ts` (`resolveModuleMemberOrigin` for the chain root, `readMemberReference` per hop,
 // `resolveStableExpression` for a named schema), `lib/sealed-origin.ts`'s `originModuleSpecifier`, and
 // `lib/property-assignment-name.ts` for the field key — consuming four shared readers is not a family
 // (guide §2, §7 item 4), so it declares itself rather than inventing one around "wire schemas".
@@ -27,9 +27,9 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
-import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "../lib/reference-fact.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 
 const ZOD_MODULE = "zod";

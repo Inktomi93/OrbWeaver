@@ -3,7 +3,7 @@ import type { Node as MorphNode, Project, SourceFile, VariableDeclaration } from
 import { Node, SyntaxKind } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression } from "../../verify/lib/reference-fact.ts";
+import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
 import { noteUnits, scanCorpus } from "../lib/ledger.ts";

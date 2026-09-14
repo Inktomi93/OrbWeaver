@@ -6,7 +6,7 @@
 // resolve is fail-closed. DECLARED LIMITS live in the mustPass rows.
 //
 // FAMILY `test-mock-doctrine` — a declared SINGLETON. Its subject is ONE doctrine rule about ONE runner API;
-// it consumes `lib/reference-fact.ts` and `lib/sealed-origin.ts`'s `originModuleSpecifier`, and sharing those
+// it consumes `_shared/reference-fact.ts` and `lib/sealed-origin.ts`'s `originModuleSpecifier`, and sharing those
 // with the rest of the canonical-origin corpus is not a family (guide §2). "Test-tree policies" is a theme.
 //
 // POPULATION PORT: byte-identical, legacy at `ef2251957^` (`scanRoot: (p) => p.includes("tests/")` — every
@@ -21,8 +21,8 @@
 // `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference, readStaticString, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference, readStaticString, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 
 const VITEST_MODULE = "vitest";

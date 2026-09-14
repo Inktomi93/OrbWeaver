@@ -80,9 +80,9 @@
 // both.
 import type { ArrowFunction, CallExpression, FunctionExpression, Node as MorphNode, ReturnStatement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveStableExpression } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { resolveStableExpression } from "../lib/reference-fact.ts";
 
 const INFINITE_FACTORY = "infiniteQueryOptions";
 const MAX_PAGES = "maxPages";
@@ -108,7 +108,7 @@ function propertyOf(object: MorphNode | undefined, name: string): MorphNode | un
 }
 
 /** The options OBJECT behind an options argument — inline, or through the SHARED stable-binding reader
- *  (`lib/reference-fact.ts`), which follows immutable const bindings and import doors and REFUSES on a
+ *  (`_shared/reference-fact.ts`), which follows immutable const bindings and import doors and REFUSES on a
  *  write, a cycle or a dynamic terminal. The legacy descriptor hand-rolled a same-file-const-only walk with
  *  `getDefinitionNodes()`; binding identity is a shared primitive (§12.3) and a gate may not own one. The
  *  consequence is a STRONGER reader: an options const imported from a sibling module is now read, where the
@@ -190,7 +190,7 @@ export const gate = defineGate({
   population: "@client",
   // `types`, NOT `syntax` (#2256, corrected 2026-09-13) — the same correction as its sibling
   // `contract-banned-shapes`, for the same reason and the same reader. This policy imports
-  // `resolveStableExpression` from `lib/reference-fact.ts`, whose `resolveStableExpressionInternal` ->
+  // `resolveStableExpression` from `_shared/reference-fact.ts`, whose `resolveStableExpressionInternal` ->
   // `importedTarget` path calls `lexicalReferenceSymbol(current)?.getAliasedSymbol()`; following a const
   // binding through an import door is a CHECKER answer, not a syntactic one. `analysis` is data the runtime
   // dispatches on and it fixes the proof MODE (`lib/policy-validation.ts#expectedMode`), so every proof row

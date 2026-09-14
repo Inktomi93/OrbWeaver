@@ -33,13 +33,13 @@
 // `packages/server/src/domain/admin/__cbbhr_in/context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
-// FAMILY: a declared SINGLETON under its own id. Its readers (`lib/reference-fact.ts` global/module origin,
+// FAMILY: a declared SINGLETON under its own id. Its readers (`_shared/reference-fact.ts` global/module origin,
 // `lib/origin-verdict.ts#bindsProvenNonModuleDeclaration`) are corpus-wide primitives; no sibling judges a context
 // bundle's `ReturnType`.
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { bindsProvenNonModuleDeclaration } from "../lib/origin-verdict.ts";
-import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
 const UTILITY = "ReturnType";
 const MESSAGE =

@@ -32,6 +32,9 @@
 // does this expression contribute" and refuses a template with a dynamic span outright; this family needs
 // the opposite answer — "which pieces of text are certain" — because a `messageIncludes` substring that sits
 // inside a certain piece matches every finding that site emits, whatever the dynamic part says.
+
+import { resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import { resolveCallableDeclaration } from "@orb/tooling/_shared/reference-fact-call";
 import type {
   ArrowFunction,
   CallExpression,
@@ -49,8 +52,6 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { GateContractKind } from "../contract/gate-corpus.ts";
 import type { Discrimination, FinalRegistration, ProofRows, ReportSiteMessage, StaticSegments } from "../contract/policy-descriptor-read.ts";
 import { isCanonicalDefineGate, resolveCallableMember } from "./gate-contract-origin.ts";
-import { resolveModuleMemberOrigin, resolveStableExpression } from "./reference-fact.ts";
-import { resolveCallableDeclaration } from "./reference-fact-call.ts";
 import { readAuthoredArrayPresence } from "./static-authored-value.ts";
 import { staticDerivedText } from "./static-derived-text.ts";
 

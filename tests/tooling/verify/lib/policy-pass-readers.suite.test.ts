@@ -1,8 +1,8 @@
+import { resolveModuleMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import type { GatePolicy, GatePolicyContext } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { resolveModuleMemberOrigin } from "../../../../tooling/src/verify/lib/reference-fact.ts";
 import { readStaticAuthoredValue } from "../../../../tooling/src/verify/lib/static-authored-value.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

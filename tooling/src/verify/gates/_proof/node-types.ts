@@ -5,7 +5,7 @@
 // WHY THIS FILE EXISTS (#2030, design §4.8b). `@types/node` is what declares `process` on the real tree; the
 // proof workspace has no node_modules, so without this plant a bare `process.argv` / `process.env` is an
 // UNDECLARED identifier, which the shared global resolver refuses
-// (`lib/reference-fact-global.ts#isAmbientGlobalDeclaration` trusts only `node_modules/typescript/lib/lib.*`
+// (`_shared/reference-fact-global.ts#isAmbientGlobalDeclaration` trusts only `node_modules/typescript/lib/lib.*`
 // and `node_modules/@types/` declaration files) and the policies report fail-closed as UNREADABLE — a row
 // that would pass for the wrong reason, with the same finding count and the same message as the precise
 // branch. Planting is the fix: widening the trust rule to make a fixture resolve would weaken a real identity
@@ -34,7 +34,7 @@
 // still matches the package byte-for-byte, which is what §4.8b actually requires; the branch claim was the
 // error. A declaration file can only reach the augmentation branch when a TOP-LEVEL import makes it a module,
 // and that fixture is pinned where the claim belongs — on the READER, at
-// `tests/tooling/verify/lib/reference-fact-origin.suite.test.ts`. Reach for the top-level-import form if you
+// `tests/tooling/_shared/reference-fact-origin.suite.test.ts`. Reach for the top-level-import form if you
 // ever need that branch from a proof row; the simpler script-global spelling takes the branch the live tree
 // never uses, which is #2037 repeating.
 export const NODE_TYPES_HOME = "node_modules/@types/node/index.d.ts";

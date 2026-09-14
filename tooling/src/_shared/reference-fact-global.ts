@@ -8,7 +8,7 @@ import type {
   ReferenceUnresolvedReason,
   ResolvedReferenceFact,
   UnresolvedReferenceFact,
-} from "../contract/reference-fact.ts";
+} from "./reference-fact-contract.ts";
 
 interface GlobalState {
   readonly declarations: MorphNode[];

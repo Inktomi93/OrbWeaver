@@ -33,10 +33,10 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
+import { resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumn } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { resolveModuleMemberOrigin, resolveStableExpression } from "../lib/reference-fact.ts";
 import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { effectiveObjectProperty, SchemaRefusal, unwrapSchemaExpression } from "../lib/schema-fact-value.ts";
 import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";

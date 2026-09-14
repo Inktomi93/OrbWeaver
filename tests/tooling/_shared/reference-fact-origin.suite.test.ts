@@ -1,10 +1,11 @@
 // Canonical module, callable, and ambient-global facts retain both proof and loud refusal controls.
+
+import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
+import type { ReferenceFact, ResolvedReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { CallExpression, Node as MorphNode, NewExpression, SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
-import type { ReferenceFact, ResolvedReferenceFact } from "../../../../tooling/src/verify/contract/reference-fact.ts";
-import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin, resolveStableExpression } from "../../../../tooling/src/verify/lib/reference-fact.ts";
-import { resolveCallableOrigin } from "../../../../tooling/src/verify/lib/reference-fact-call.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 // TWO FIXTURE LINES HOISTED OUT OF THEIR TEMPLATES (#1975, 2026-09-11) — the fixture TEXT is unchanged;
 // only its markability is. `test-determinism` is a syntax LINE SCANNER whose per-site waiver binds to the

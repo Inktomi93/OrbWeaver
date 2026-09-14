@@ -31,7 +31,7 @@
 //
 // FAMILY: a declared SINGLETON (`family` equals the id). The identity work is entirely borrowed — the cast
 // axis is `lib/project-home-origin.ts` `readsAmbientGlobalPath` (shared with `no-raw-intl-time`), the origin
-// readers are `lib/reference-fact.ts` `resolveGlobalMemberOrigin`/`resolveModuleMemberOrigin`, the two-answer
+// readers are `_shared/reference-fact.ts` `resolveGlobalMemberOrigin`/`resolveModuleMemberOrigin`, the two-answer
 // refusal is `lib/origin-verdict.ts` `classifyOriginRefusal`, and the dedupe is
 // `lib/reviewed-grant-findings.ts` — so there is no gate-owned reader to share and no sibling arm to split
 // off. One api, one law, one population; a family string would only name itself.
@@ -59,10 +59,10 @@
 // fixture, and saying so is cheaper than a row that pretends.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { readsAmbientGlobalPath } from "../lib/project-home-origin.ts";
-import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 

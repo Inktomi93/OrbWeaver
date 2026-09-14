@@ -1,6 +1,6 @@
 // Canonical registry-definition and JSX-tag facts for final Orb policies.
 import type { InterfaceDeclaration, Node, ObjectLiteralExpression, TypeAliasDeclaration } from "ts-morph";
-import type { ReferenceFact } from "./reference-fact.ts";
+import type { ReferenceFact } from "../../_shared/reference-fact-contract.ts";
 import type { StaticAuthoredValue } from "./static-authored-value.ts";
 
 export const REGISTRY_DEFINITION_KINDS = ["section", "modal", "home-tile", "config-group", "collection", "config-section", "chrome"] as const;
@@ -46,5 +46,5 @@ export interface RegistryDefinitionKindFacts {
 export interface JsxTagFact {
   readonly element: Node;
   readonly tagName: Node;
-  readonly origin: import("./reference-fact.ts").ModuleMemberOrigin;
+  readonly origin: import("../../_shared/reference-fact-contract.ts").ModuleMemberOrigin;
 }

@@ -5,9 +5,16 @@
 // Unfrozen collections must stay inside this grammar through every local alias. Frozen primitive arrays
 // can escape: other consumers cannot change their elements. This is a source-value model under the
 // standard ambient intrinsics, not proof against an external host replacing built-in prototypes.
+
+import {
+  inspectReferenceWrites,
+  inspectSymbolWrites,
+  readMemberReference,
+  resolveGlobalMemberOrigin,
+  resolveStableExpression,
+} from "@orb/tooling/_shared/reference-fact";
 import type { CallExpression, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import { inspectReferenceWrites, inspectSymbolWrites, readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./reference-fact.ts";
 import { readStaticAuthoredValue } from "./static-authored-value.ts";
 
 type Value =

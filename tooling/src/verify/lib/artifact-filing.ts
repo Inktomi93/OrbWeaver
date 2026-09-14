@@ -13,14 +13,15 @@
 // function named `artifactFile` is not a filer and an aliased import is.
 //
 // A pure reader over delivered nodes: no walk, no Project, no filesystem, no cache.
+
+import { readMemberReference, readStaticString } from "@orb/tooling/_shared/reference-fact";
+import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { PathCalleeVerdict, ProjectHomeVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import type { LocatedProjectHome, ProjectHomeDeclaration } from "./project-home-origin.ts";
 import { classifyProjectHomeOrigin } from "./project-home-origin.ts";
-import { readMemberReference, readStaticString } from "./reference-fact.ts";
-import { resolveCallableOrigin } from "./reference-fact-call.ts";
 import { originModuleSpecifier } from "./sealed-origin.ts";
 
 /** The `--out` filing layer: the two FILING doors and the one RUN-SLOT door, all exported from one home. */

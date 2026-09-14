@@ -18,12 +18,13 @@
 // The table argument is handed back UNJUDGED: which table is guarded, and whether an unbindable identifier
 // is "somebody else's table" or "a subject I refuse", are the calling policy's law, decided on the shared
 // module-origin fact of this node.
+
+import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "../contract/reference-fact.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { readCallReturns } from "./authored-key-set.ts";
-import { resolveStableExpression } from "./reference-fact.ts";
 
 /** The two Drizzle verbs that CHOOSE a table for a write. `delete` is excluded on purpose: it names a table
  *  but writes no columns, so a column-invariant caller has nothing to judge there. */

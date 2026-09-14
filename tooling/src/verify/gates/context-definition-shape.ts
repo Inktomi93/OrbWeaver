@@ -55,10 +55,10 @@
 // LEGACY SHA: aa8cf0d53 (`git show aa8cf0d53:tooling/src/verify/gates/context-definition-shape.ts`).
 import type { Node as MorphNode, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { DEFINE_CONTEXT_REGION, REGISTRY_CONTRACTS_RE } from "../lib/context-definition-shape.ts";
-import { referenceResolutionServices, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { resolveTypeIdentityOrigin } from "../lib/type-member-origin.ts";
 
 export const FEATURES_RE = /\/packages\/client\/src\/features\//u;

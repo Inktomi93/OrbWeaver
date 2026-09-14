@@ -12,11 +12,12 @@
 // of the gates that consume the verdict treat a refusal as an ORDINARY negative verdict (unsafe paint, an
 // unresolved assertion helper). A refusal that silently changes reason changes nothing they can see, so
 // the reason has to be held here or nowhere.
+
+import { resolveCallableDeclaration } from "@orb/tooling/_shared/reference-fact-call";
+import type { CallableDeclaration, ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node as MorphNode } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import type { CallableDeclaration, ReferenceFact } from "../../../../tooling/src/verify/contract/reference-fact.ts";
-import { resolveCallableDeclaration } from "../../../../tooling/src/verify/lib/reference-fact-call.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });

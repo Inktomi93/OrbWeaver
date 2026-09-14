@@ -10,11 +10,12 @@
 // source and passes; an unreadable one is reported).
 //
 // A pure function over nodes the dispatcher delivered: no walk, no Project, no cache, no filesystem.
+
+import { resolveGlobalMemberOrigin } from "@orb/tooling/_shared/reference-fact";
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { AmbientInvocationVerdict, AmbientSource } from "../contract/ambient-determinism.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import { resolveGlobalMemberOrigin } from "./reference-fact.ts";
 
 function samePath(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((segment, index) => segment === right[index]);

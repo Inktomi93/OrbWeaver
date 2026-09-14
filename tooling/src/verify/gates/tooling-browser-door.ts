@@ -30,9 +30,9 @@
 // Legacy descriptor: `2c1a1d37c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arms B + H). No
 // private marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at conversion.
 import { SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 

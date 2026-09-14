@@ -44,8 +44,8 @@
 // origin is worth resolving and never whether the call is a zod call, so cutting it alone changes nothing.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
 const ZOD_DOOR = "zod";
 const OBJECT = "object";

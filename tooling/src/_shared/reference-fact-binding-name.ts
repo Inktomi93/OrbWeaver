@@ -1,7 +1,7 @@
 // Static property-name resolution for module-origin destructuring bindings.
 import type { BindingElement } from "ts-morph";
 import { Node } from "ts-morph";
-import type { ReferenceFact, ReferenceResolutionServices } from "../contract/reference-fact.ts";
+import type { ReferenceFact, ReferenceResolutionServices } from "./reference-fact-contract.ts";
 import type { ModuleState } from "./reference-fact-state.ts";
 import { mergeUnresolved, resolved, unresolved } from "./reference-fact-state.ts";
 

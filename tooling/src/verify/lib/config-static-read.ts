@@ -8,12 +8,12 @@
 // unreadable shape is never silently dropped. The ordered-evaluation approach is `dangling-refs.ts`'s
 // `evalString` precedent, widened to arrays/spreads/identifiers with a cycle fence.
 import { existsSync, readFileSync } from "node:fs";
+import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import type { ConfigRead, ExtractRequest, RowExtraction, StaticRead, UnresolvedShape } from "../contract/config-read.ts";
 import type { ExactRow } from "./grant-liveness.ts";
 import { lineFinder } from "./grant-liveness.ts";
-import { resolveStableExpression } from "./reference-fact.ts";
 
 export type { ConfigRead, ExtractRequest, RowExtraction } from "../contract/config-read.ts";
 

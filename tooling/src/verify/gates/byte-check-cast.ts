@@ -26,10 +26,10 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaTable } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { readMemberReference, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 import { readTemplateSkeleton } from "../lib/template-static-text.ts";

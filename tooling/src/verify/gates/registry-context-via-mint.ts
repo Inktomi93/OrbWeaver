@@ -33,11 +33,11 @@
 // licensed nothing and the home is now simply scanned like every other file.
 import type { Node as MorphNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { LocatedProjectHome, ProjectHomeDeclaration } from "../lib/project-home-origin.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
 import { createReactExportMatcher } from "../lib/react-origin.ts";
-import { referenceResolutionServices, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { resolveTypeIdentityOrigin } from "../lib/type-member-origin.ts";
 import { REACT_LOOKALIKE_HOME, REACT_TYPES_HOME, reactLookalikeProofModule, reactProofModule } from "./_proof/react.ts";
 

@@ -1,6 +1,6 @@
+import { readMemberReference, readStaticString, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
 import type { BindingElement, Expression, Identifier, Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import { readMemberReference, readStaticString, resolveModuleMemberOrigin, resolveStableExpression } from "./reference-fact.ts";
 
 export interface CallableMember {
   readonly name: string;

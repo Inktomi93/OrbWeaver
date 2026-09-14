@@ -38,6 +38,8 @@
 // WHY IT DECLARES `product-css`. Spreads cannot be evaluated until the authored data-attribute NAMES are
 // known — `evaluateObjectProperties` takes the name set — and those names come from the CSS census. The
 // provider therefore reads the same closed identity its consumers do, one phase earlier.
+
+import { readStaticString } from "@orb/tooling/_shared/reference-fact";
 import type { SourceFile, Type } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateFactContext } from "../contract/fact.ts";
@@ -48,7 +50,6 @@ import type { HookOwners } from "./css-family-census.ts";
 import { recordClassTokens, recordOwner, sourceOwner } from "./css-family-census.ts";
 import type { SelectorWriterCensus, SelectorWriterPass } from "./css-selector-writers.ts";
 import { createSelectorWriterPass } from "./css-selector-writers.ts";
-import { readStaticString } from "./reference-fact.ts";
 import { readyResourceValue } from "./resource-declaration.ts";
 import type { StaticClassCollector, StaticClassWork } from "./static-class-expression.ts";
 import { StaticClassCollector as ClassCollector, STATIC_CLASS_KINDS } from "./static-class-expression.ts";
@@ -179,7 +180,7 @@ function jsxValue(attribute: import("ts-morph").JsxAttribute): Node | undefined 
 }
 
 /** A property NAME in every authored spelling. The computed arm reads its expression through the shared
- *  stable-binding resolver (`lib/reference-fact.ts`), so `{ [DATA_SHELL_RAIL]: true }` is the same fact as
+ *  stable-binding resolver (`_shared/reference-fact.ts`), so `{ [DATA_SHELL_RAIL]: true }` is the same fact as
  *  `{ "data-shell-rail": true }` — a widening over the legacy `unwrapExpression`-only strip. */
 function propertyName(node: Node): string | undefined {
   if (Node.isIdentifier(node) || Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {

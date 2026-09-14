@@ -1,7 +1,7 @@
 // Member-spelling normalization for reference-fact.ts.
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import type { MemberReference, ReferenceFact, ReferenceResolutionServices } from "../contract/reference-fact.ts";
+import type { MemberReference, ReferenceFact, ReferenceResolutionServices } from "./reference-fact-contract.ts";
 import { isReferenceWriteTarget } from "./reference-fact-writes.ts";
 
 type MemberResolutionServices = Pick<ReferenceResolutionServices, "readComputedName" | "unwrapExpression">;

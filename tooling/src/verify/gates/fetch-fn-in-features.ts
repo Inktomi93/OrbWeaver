@@ -22,14 +22,14 @@
 // `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
-// FAMILY: a declared SINGLETON under its own id. `lib/reference-fact.ts` (`resolveGlobalMemberOrigin`,
+// FAMILY: a declared SINGLETON under its own id. `_shared/reference-fact.ts` (`resolveGlobalMemberOrigin`,
 // `resolveModuleMemberOrigin`) and `lib/origin-verdict.ts#classifyOriginRefusal` are corpus-wide identity primitives;
 // no sibling judges ambient `fetch` egress in features.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
 const FETCH = "fetch";
 const MESSAGE =

@@ -1,6 +1,7 @@
 // Final policy dispatcher: resolve once, create once, walk once, then centrally reconcile authority.
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { performance } from "node:perf_hooks";
+import { beginReferencePass, endReferencePass } from "@orb/tooling/_shared/reference-fact";
 import { collectByKinds } from "@orb/tooling/_shared/ts-workspace";
 import type { SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 import type { GateFact, GateFactHooks } from "../contract/fact.ts";
@@ -41,7 +42,6 @@ import {
   normalizePathSet,
 } from "./policy-validation.ts";
 import { resolvePopulation } from "./population-resolver.ts";
-import { beginReferencePass, endReferencePass } from "./reference-fact.ts";
 import { resolveResourceDeclarations } from "./resource-declaration.ts";
 
 interface MutableTiming {

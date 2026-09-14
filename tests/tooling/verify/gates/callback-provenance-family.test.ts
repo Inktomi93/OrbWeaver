@@ -279,7 +279,7 @@ test("detached-work-traced-health: an ABSENT derivation source refuses rather th
 // file — in the final policy AND in the legacy gate, neither of which called `getAliasedSymbol`.
 //
 // THE MECHANISM CHANGED AND THE VERDICT DID NOT (#2163, the shared-reader migration). `resolveCalleeBody`
-// now asks `lib/reference-fact-call.ts#resolveCallableDeclaration`, which DOES follow the import to
+// now asks `_shared/reference-fact-call.ts#resolveCallableDeclaration`, which DOES follow the import to
 // `outside.ts` and returns its body; the policy declines it at an explicit source-file FENCE, because a
 // cross-file body would make a `selected-files` verdict depend on a file the request need not contain.
 // So the same one finding is asserted here for a different reason, and the fence — unlike the reader

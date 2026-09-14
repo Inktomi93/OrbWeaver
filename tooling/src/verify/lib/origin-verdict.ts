@@ -11,11 +11,12 @@
 // Conflating them is how a text-keyed gate acquires permanent exemption markers (every local `Provider` /
 // `fetch` / `forwardRef` lookalike) or a silent green (every unreadable door). One home so the twelve
 // canonical-origin policies cannot drift apart on the answer.
+
+import { readMemberReference } from "@orb/tooling/_shared/reference-fact";
+import type { ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
 import type { OriginRefusalVerdict } from "../contract/origin-verdict.ts";
-import type { ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
-import { readMemberReference } from "./reference-fact.ts";
 
 /** Refusals that mean "no ONE authored source exists", whatever the leaf symbol says. A written binding, a
  *  resolution cycle and a multiply-declared symbol are unknowable by construction: `let fetch = globalThis.fetch`

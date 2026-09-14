@@ -4,9 +4,10 @@
 // imported icon, component, or hook — so a policy that needs `id`, `trigger.placement`, `placeholder.title`
 // or `body.planned` reads exactly that field, through the one shared authored-value reader. These helpers
 // inspect a node the shared fact already delivered; they own no walk, no parser, and no binding resolver.
+
+import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import { Node } from "ts-morph";
-import type { ReferenceFact } from "../contract/reference-fact.ts";
 import { readStaticAuthoredScalar, resolveAuthoredComposite } from "./static-authored-value.ts";
 
 /** The authored initializer of one named property, or undefined when the literal declares none. */

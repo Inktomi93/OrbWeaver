@@ -46,10 +46,10 @@
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import type { AmbientSource } from "../contract/ambient-determinism.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readAmbientInvocation } from "../lib/ambient-determinism.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 
 const OPERATION = "ambient-entropy-draw";
 const RANDOM_MEMBER = "random";

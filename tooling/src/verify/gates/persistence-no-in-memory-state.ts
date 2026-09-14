@@ -18,7 +18,7 @@
 // different constructor and passes, and only a door with no reachable target is reported.
 //
 // FAMILY `persistence-no-in-memory-state` — a declared SINGLETON. It is the only policy whose subject is an
-// AMBIENT GLOBAL constructor; the readers it consumes (`lib/reference-fact.ts`'s global and module origin
+// AMBIENT GLOBAL constructor; the readers it consumes (`_shared/reference-fact.ts`'s global and module origin
 // resolvers, `lib/origin-verdict.ts`'s `classifyOriginRefusal`) are shared with policies asking entirely
 // different questions, and a shared reader is not a family (guide §2).
 //
@@ -27,7 +27,7 @@
 // final `PERSISTENCE_POPULATION` is that expression, and both exclusion clauses already carry rows.
 //
 // DECLARED LIMIT, §4.1 fourth outcome (UNFALSIFIABLE, with the construction attempted — #2046). The ambient
-// arm's `origin.value.memberPath.length === 0` half cannot be falsified: `lib/reference-fact-global.ts`'s
+// arm's `origin.value.memberPath.length === 0` half cannot be falsified: `_shared/reference-fact-global.ts`'s
 // `appendMember` COLLAPSES `globalThis`/`self`/`window` member reads onto the bare global with an EMPTY
 // path, and every other receiver yields a `globalName` equal to the RECEIVER rather than to the member — so
 // `globalName === spelled.name` already implies an empty path. The one shape that would separate them is a
@@ -45,9 +45,9 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
 const IN_MEMORY_GLOBALS = new Set(["Map", "Set", "WeakMap", "WeakSet"]);
 

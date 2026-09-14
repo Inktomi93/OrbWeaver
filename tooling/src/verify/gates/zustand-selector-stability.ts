@@ -42,9 +42,9 @@
 // `tests/client/agent-nav/__cbbhr_out_index.test.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { referenceResolutionServices } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { TypeIdentityOrigin } from "../contract/type-member-origin.ts";
-import { referenceResolutionServices } from "../lib/reference-fact.ts";
 import { declaredByFile, declaredByPackage, resolveTypeIdentityChain } from "../lib/type-member-origin.ts";
 import { LOOKALIKE_HOME, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 

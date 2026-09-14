@@ -31,11 +31,11 @@
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveCallableOrigin } from "../../_shared/reference-fact-call.ts";
 import { defineGate } from "../contract/policy.ts";
 import { DEFINITION_SLOTS } from "../contract/registry-definition-home.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { declarationHome } from "../lib/declaration-home.ts";
-import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { isDefinitionHome } from "../lib/registry-definition-home.ts";

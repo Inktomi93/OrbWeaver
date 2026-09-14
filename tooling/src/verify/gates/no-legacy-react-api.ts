@@ -7,11 +7,11 @@
 // Include @showcase explicitly because the predecessor harness admitted that workspace too.
 import type { ClassDeclaration, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "../lib/origin-verdict.ts";
 import { createReactExportMatcher, isReactOrigin, reactExportPath } from "../lib/react-origin.ts";
-import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { declaredByPackage } from "../lib/type-member-origin.ts";
 import { REACT_LOOKALIKE_HOME, REACT_TYPES_HOME, reactLookalikeProofModule, reactProofModule } from "./_proof/react.ts";
 

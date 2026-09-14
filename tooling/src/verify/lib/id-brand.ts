@@ -1,9 +1,10 @@
 // Canonical @orb/kit/ids phantom extraction shared by schema and source identity policies.
+
+import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
 import type { CallExpression, ImportDeclaration, Node as MorphNode, SourceFile, Type, TypeChecker } from "ts-morph";
 import { Node } from "ts-morph";
 import type { KitIdCallVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import { resolveCallableOrigin } from "./reference-fact-call.ts";
 
 export const ID_BRAND_HOME = "packages/kit/src/ids/index.ts";
 

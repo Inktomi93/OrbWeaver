@@ -12,6 +12,8 @@
 // ../contract/pass.ts and the marker grammar in ./gate-ignore.ts (five-slot split, P6). BOTH report
 // overloads are suppressible since #828 — the node arm block-scoped, the Finding arm line-adjacent — except
 // for a `markerImmune` gate, which audits the vocabulary and must never be silenced by it.
+
+import { beginReferencePass, endReferencePass } from "@orb/tooling/_shared/reference-fact";
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Node, SourceFile, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx, GateScanDeclaration, Scope } from "../contract/gate.ts";
@@ -20,7 +22,6 @@ import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import { findGateIgnore, findGateIgnoreAtLine } from "./gate-ignore.ts";
 import type { PhaseClock } from "./pass-timing.ts";
 import { chargedPhase, inFinalizePhase, newPhaseClock, nowMs, passTiming } from "./pass-timing.ts";
-import { beginReferencePass, endReferencePass } from "./reference-fact.ts";
 
 /** repo-relative posix path for a SourceFile. */
 export function repoRel(root: string, absPath: string): string {

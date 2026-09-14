@@ -30,9 +30,9 @@
 // PROJECT_SITES). No private marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at
 // conversion (rg over packages/, tests/, tooling/, scripts/), so no translation was owed.
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 

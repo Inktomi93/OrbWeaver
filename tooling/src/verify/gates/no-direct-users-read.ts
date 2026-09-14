@@ -22,7 +22,7 @@
 // stale, and the run says so at each row instead of silently having nothing to judge.
 //
 // FAMILY: SINGLETON (`no-direct-users-read`). `lib/sealed-origin.ts#readSealedOrigin`/`sealedOriginReports`
-// and `lib/reference-fact.ts#readMemberReference` are corpus-wide primitives, not a family computation; the
+// and `_shared/reference-fact.ts#readMemberReference` are corpus-wide primitives, not a family computation; the
 // identity root's home constant is this policy's alone and no sibling shares its subject.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `MSG_DIR.test(p)` where
 // `MSG_DIR = /packages\/server\/src\/domain\//` (`9808b93c0^:71`); the final population is
@@ -39,8 +39,8 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
 import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 

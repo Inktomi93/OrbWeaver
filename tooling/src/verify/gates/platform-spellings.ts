@@ -20,10 +20,10 @@
 //
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveLexicalValueDeclaration } from "../../_shared/reference-fact.ts";
 import type { GatePolicyProof } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { resolveLexicalValueDeclaration } from "../lib/reference-fact.ts";
 
 const SET_TIMEOUT_CALLEES: ReadonlySet<string> = new Set(["setTimeout", "globalThis.setTimeout", "global.setTimeout", "window.setTimeout"]);
 const ESCAPE_NAMES: ReadonlySet<string> = new Set(["escapeRegExp", "escapeRegex"]);

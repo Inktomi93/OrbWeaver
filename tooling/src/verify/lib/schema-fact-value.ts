@@ -1,18 +1,19 @@
 // Drizzle table/column authored-value extraction for the invocation-scoped schema query.
-import type { CallExpression, Node as MorphNode, Type, VariableDeclaration } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+
+import { inspectReferenceWrites, readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
 import type {
   ModuleMemberOrigin,
   ReferenceFact,
   ReferenceUnresolvedReason,
   ResolvedReferenceFact,
   UnresolvedReferenceFact,
-} from "../contract/reference-fact.ts";
+} from "@orb/tooling/_shared/reference-fact-contract";
+import { invokedMemberThroughAliases } from "@orb/tooling/_shared/reference-fact-writes";
+import type { CallExpression, Node as MorphNode, Type, VariableDeclaration } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { SchemaColumn, SchemaColumnIdentity, SchemaJsonShape, SchemaQueryOptions, SchemaTable, SchemaTableIdentity } from "../contract/schema-fact.ts";
 import { canonicalIdBrand } from "./id-brand.ts";
-import { inspectReferenceWrites, readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "./reference-fact.ts";
-import { resolveCallableOrigin } from "./reference-fact-call.ts";
-import { invokedMemberThroughAliases } from "./reference-fact-writes.ts";
 import { readStaticAuthoredScalar } from "./static-authored-value.ts";
 
 export const DRIZZLE_SQLITE = "drizzle-orm/sqlite-core";

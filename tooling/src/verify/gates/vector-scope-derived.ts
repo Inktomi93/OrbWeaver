@@ -15,7 +15,7 @@
 // (`lib/origin-verdict.ts`) — it had none, because before this it only ever acquitted.
 //
 // FAMILY `vector-scope-derived` — a declared SINGLETON. It is a THREE-ARM policy (import · write · cosine)
-// over one substrate, and no sibling shares an arm; `lib/sealed-origin.ts` and `lib/reference-fact.ts` are
+// over one substrate, and no sibling shares an arm; `lib/sealed-origin.ts` and `_shared/reference-fact.ts` are
 // shared readers, which guide §2 says is not a family.
 //
 // POPULATION PORT: byte-identical, legacy at `0d83d99f1^` (`scanRoot: (p) => SERVER_SRC.test(\`/\${p}\`)` —
@@ -32,9 +32,9 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
 import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 

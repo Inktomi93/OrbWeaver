@@ -55,7 +55,7 @@
 // stub #2037 rules out. So the clause is defensive against a future `@types/node` shape rather than
 // against a constructible one, and it stays: deleting it would widen the ambient arm onto any nested `env`.
 //
-// FAMILY: SINGLETON (`sole-env-reader`). `lib/reference-fact.ts`'s global and module member-origin readers
+// FAMILY: SINGLETON (`sole-env-reader`). `_shared/reference-fact.ts`'s global and module member-origin readers
 // are corpus-wide primitives shared by ~20 policies; this policy's own composition — the TWO candidate arms
 // (member read plus destructure site) and the per-KEY operation grain derived from the read's own shape —
 // has no sibling.
@@ -73,9 +73,9 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 import { NODE_LOOKALIKE_HOME, NODE_TYPES_HOME, nodeLookalikeProof, nodeTypesProof } from "./_proof/node-types.ts";
 

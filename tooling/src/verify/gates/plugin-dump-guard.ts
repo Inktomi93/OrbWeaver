@@ -18,7 +18,7 @@
 //     `logger.dump(x)` inside the membrane would have been judged as a guest materialization.
 //   * `handleSafeToDump` is the DECLARATION in the membrane's own module, so a same-named import from
 //     somewhere else is not the guard this law means. Since #2163 that declaration comes from the shared
-//     `lib/reference-fact-call.ts#resolveCallableDeclaration` rather than a local
+//     `_shared/reference-fact-call.ts#resolveCallableDeclaration` rather than a local
 //     `callee.getSymbol()?.getDeclarations()` walk (owner ruling #2097), and the HOME test is what
 //     refuses the import — see `negatedGuardCall`, which states why that difference is not cosmetic.
 // The ordering/dominance analysis is unchanged: the guard must precede the dump statement in the same
@@ -33,14 +33,14 @@
 // `packages/server/src/infra/plugin-host/__cbbhr_in_budgets.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
-// FAMILY: a declared SINGLETON under its own id. `lib/reference-fact-call.ts#resolveCallableDeclaration`,
-// `lib/reference-fact.ts` and `lib/type-member-origin.ts` are corpus-wide primitives; no sibling judges the QuickJS
+// FAMILY: a declared SINGLETON under its own id. `_shared/reference-fact-call.ts#resolveCallableDeclaration`,
+// `_shared/reference-fact.ts` and `lib/type-member-origin.ts` are corpus-wide primitives; no sibling judges the QuickJS
 // dump guard.
 import type { CallExpression, FunctionDeclaration, Node as MorphNode, SourceFile, Statement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
+import { resolveCallableDeclaration } from "../../_shared/reference-fact-call.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
-import { resolveCallableDeclaration } from "../lib/reference-fact-call.ts";
 import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 import { quickjsLookalikeProof, quickjsProof } from "./_proof/quickjs.ts";
 

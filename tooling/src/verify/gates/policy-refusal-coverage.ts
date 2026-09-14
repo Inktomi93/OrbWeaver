@@ -136,6 +136,7 @@
 // module reads "not final" and the corpus reports ✓ forever. It self-anchors on its OWN path and THROWS instead.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import type { GatePolicy, GatePolicyContext, PolicyProofArm } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import {
@@ -148,7 +149,6 @@ import {
   policyIdOfPath,
   stableTerminal,
 } from "../lib/policy-descriptor-read.ts";
-import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { familyFixture, finalProbeModule, ORDINARY_TRUNK } from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-refusal-coverage.ts";

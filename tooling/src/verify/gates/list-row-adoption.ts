@@ -19,8 +19,8 @@
 // `resolveStableExpression` reader, then this policy retains its same-file callback fence.
 import type { ReturnStatement, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveStableExpression } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { resolveStableExpression } from "../lib/reference-fact.ts";
 
 const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
 

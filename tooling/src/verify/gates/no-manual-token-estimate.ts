@@ -30,14 +30,14 @@
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
-// FAMILY: a declared SINGLETON under its own id. `lib/reference-fact.ts` (`readStaticNumber`,
+// FAMILY: a declared SINGLETON under its own id. `_shared/reference-fact.ts` (`readStaticNumber`,
 // `resolveExportedDeclarations`), `lib/type-member-origin.ts` and `lib/origin-verdict.ts` are corpus-wide primitives;
 // no sibling judges a hand-rolled token estimate.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReference, readStaticNumber, resolveExportedDeclarations } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { readMemberReference, readStaticNumber, resolveExportedDeclarations } from "../lib/reference-fact.ts";
 import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 
 const LENGTH = "length";

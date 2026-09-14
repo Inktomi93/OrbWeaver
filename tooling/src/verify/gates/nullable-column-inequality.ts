@@ -7,7 +7,7 @@
 //
 // FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
 // the column model this policy's nullability verdict rests on; the drizzle callee identity comes from the
-// other shared reader, `lib/reference-fact.ts` (`resolveModuleMemberOrigin`). The POPULATION is this
+// other shared reader, `_shared/reference-fact.ts` (`resolveModuleMemberOrigin`). The POPULATION is this
 // policy's own rather than the provider's, because the SUBJECT is a query anywhere in the cake while the
 // FACT is the schema directory — the derivation and its measured delta are at
 // `NULLABLE_INEQUALITY_POPULATION` below.
@@ -26,10 +26,10 @@
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumn, SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
 const DRIZZLE_MODULE = "drizzle-orm";

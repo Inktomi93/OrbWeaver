@@ -18,8 +18,8 @@
 //   1. THE PRIVATE CROSS-MODULE RESOLVER IS GONE. Legacy `resolveName` hand-rolled identifier lookup
 //      (`sf.getVariableDeclaration` plus a named-import hop through `getModuleSpecifierSourceFile`) — a
 //      private reader wearing a shared reader's clothes (§5b item 7). Identity now goes through
-//      `lib/reference-fact.ts#resolveStableExpression` and
-//      `lib/reference-fact-call.ts#resolveCallableDeclaration`, the shared binding readers, which are
+//      `_shared/reference-fact.ts#resolveStableExpression` and
+//      `_shared/reference-fact-call.ts#resolveCallableDeclaration`, the shared binding readers, which are
 //      STRICTLY STRONGER: they see through aliases, re-export renames and namespace members, and they
 //      REFUSE a binding that is written to (a reassigned `let` resolved silently in the legacy reader and
 //      now lands on the UNSAFE arm, which is the correct direction for this policy). That is why
@@ -93,10 +93,10 @@
 // both.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { resolveCallableDeclaration } from "../../_shared/reference-fact-call.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { resolveStableExpression } from "../lib/reference-fact.ts";
-import { resolveCallableDeclaration } from "../lib/reference-fact-call.ts";
 
 const LEADING_SPACE = /^\s/u;
 const TRAILING_SPACE = /\s$/u;

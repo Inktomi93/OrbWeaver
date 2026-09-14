@@ -7,7 +7,7 @@
 //
 // FAMILY `no-hardcoded-side-gen-sampling` — a declared SINGLETON. Its verdict is a VOCABULARY judgement with
 // an object-level corroboration rule (`maxTokens` is a sampling knob only beside an unambiguous one), which
-// nothing else in the corpus computes. It consumes `lib/reference-fact.ts` (static numbers, module origin)
+// nothing else in the corpus computes. It consumes `_shared/reference-fact.ts` (static numbers, module origin)
 // and `lib/property-assignment-name.ts`; a shared reader is not a family (guide §2).
 //
 // POPULATION PORT: byte-identical, legacy at `0d83d99f1^` — that `scanRoot` admitted
@@ -24,9 +24,9 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readStaticNumber, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
-import { readStaticNumber, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
 /** The knobs that name a sampling posture and NOTHING else. */
 const UNAMBIGUOUS_SAMPLING_KEYS = new Set(["temperature", "maxOutputTokens", "topP"]);

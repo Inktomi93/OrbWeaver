@@ -14,7 +14,7 @@
 // IDENTITY, NOT SPELLING — and the conversion's own finding. The legacy matched the callee's TEXT against
 // `join`/`resolve`/`mkdir`/`mkdirSync` as a bare IDENTIFIER, so `path.join(REPO_ROOT, "reports", "ab", stamp)`
 // (`tooling/src/model-ab/ops/run.ts:110`, live since the tool was minted) was never seen. The callee is now
-// judged by where it RESOLVES — node's own path/fs doors through `lib/reference-fact-call.ts` — so the
+// judged by where it RESOLVES — node's own path/fs doors through `_shared/reference-fact-call.ts` — so the
 // default-import, namespace and named spellings are one read (mustFlag[1]); a project-declared `join` is
 // provably a different callee (mustPass[2]); a callee the readers cannot place is reported fail-closed under
 // the disjoint UNREADABLE text (mustFlag[6]). The literal is read STATICALLY (`readStaticString`), so a const
