@@ -113,7 +113,7 @@ export const gate = defineGate({
               return;
             }
             const tag = node.getTagNameNode();
-            if (!(Node.isIdentifier(tag) && imports.get(node.getSourceFile())?.has(tag.getText()))) {
+            if (!(Node.isIdentifier(tag) && imports.get(node.getSourceFile())?.has(tag.getText()) === true)) {
               return;
             }
             const literal = classNameLiteral(node);
