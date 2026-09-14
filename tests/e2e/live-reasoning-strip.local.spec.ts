@@ -31,7 +31,7 @@ import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from
 import { FIXTURE_COVER_MARKER, FIXTURE_LIE_TRUTH, startFixtureProvider } from "./support/fixture-provider.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
-import { collectChatRoomFrames } from "./support/sse.ts";
+import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
 
 const CARD_HANDLE = "e2e-reasoning-strip";
 const STREAM_TIMEOUT_MS = 60_000;
@@ -106,7 +106,11 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     await new Promise((r) => setTimeout(r, 1500));
     await host.mutation("chat.send", { chatId, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
 
-    const [memberValues, hostValues] = await Promise.all([memberLive, hostLive]);
+    // Both collections must have SEEN the reply commit: the member's arm below is all absence assertions, which a
+    // timed-out empty stream would pass without delivering a byte.
+    const [memberCollection, hostCollection] = await Promise.all([memberLive, hostLive]);
+    const memberValues = requireSatisfied(memberCollection, "member live");
+    const hostValues = requireSatisfied(hostCollection, "host live");
 
     // The MEMBER's live stream: NO reasoning channel at all, and the lie truth absent from the whole payload
     // (body span stripped AND reasoning withheld) — the security-critical invariant, at the real wire.
@@ -119,22 +123,28 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
 
     // ── REPLAY: the durable log from sinceSeq 0 (the client's draft-promotion seed) — same per-viewer
     // verdict on the replay half. The turn has committed, so a fresh connect replays it. ──
-    const memberReplay = await collectChatRoomFrames({
-      baseUrl: origin,
-      headers: member.headers,
-      chatId,
-      sinceSeq: 0,
-      until: sawReply,
-      timeoutMs: STREAM_TIMEOUT_MS,
-    });
-    const hostReplay = await collectChatRoomFrames({
-      baseUrl: origin,
-      headers: host.headers,
-      chatId,
-      sinceSeq: 0,
-      until: sawReply,
-      timeoutMs: STREAM_TIMEOUT_MS,
-    });
+    const memberReplay = requireSatisfied(
+      await collectChatRoomFrames({
+        baseUrl: origin,
+        headers: member.headers,
+        chatId,
+        sinceSeq: 0,
+        until: sawReply,
+        timeoutMs: STREAM_TIMEOUT_MS,
+      }),
+      "member replay",
+    );
+    const hostReplay = requireSatisfied(
+      await collectChatRoomFrames({
+        baseUrl: origin,
+        headers: host.headers,
+        chatId,
+        sinceSeq: 0,
+        until: sawReply,
+        timeoutMs: STREAM_TIMEOUT_MS,
+      }),
+      "host replay",
+    );
 
     expect(hasReasoning(memberReplay)).toBe(false);
     expect(streamBytes(memberReplay)).not.toContain(FIXTURE_LIE_TRUTH);

@@ -19,9 +19,9 @@
 // OPT-IN (`@live`): fires a real turn on the warm local 8B (~3-6s), skipped unless E2E_LIVE=1 (config
 // grepInvert) so routine `pnpm e2e` spends no model traffic. globalSetup pins routing.chat = chat-completions/vllm.
 //
-// SELF-SEEDING: reuses globalSetup's guaranteed committed chat (openOrCreateChat). The open chat is
-// listChats()[0]: the list is desc(updatedAt) and the room opens rows.first(), and this turn bumps
-// updatedAt, so the open room and canon[0] stay the same chat throughout.
+// SELF-SEEDING: starts its own fresh chat (greeting only) and opens it as the newest Chats-list row; this
+// turn bumps its updatedAt, so the open room stays that chat throughout. The chat is deleted in `finally`
+// so it never becomes the newest row a later spec opens.
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -31,7 +31,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { assistantRows, busEventTypes, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
-import { listCanon, listCharacters, startChat } from "./support/trpc.ts";
+import { deleteChat, listCanon, listCharacters, startChat } from "./support/trpc.ts";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
 const GEN_POST_MARKER = "POST /v1/chat/completions";
@@ -66,89 +66,93 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
   const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
-  await openNewestChat(page);
-  await waitForStreamOpen(page);
+  try {
+    await openNewestChat(page);
+    await waitForStreamOpen(page);
 
-  const beforePosts = await genPostCount();
+    const beforePosts = await genPostCount();
 
-  await typeAndSend(page.getByRole("textbox", { name: "Message" }), USER_PROMPT);
+    await typeAndSend(page.getByRole("textbox", { name: "Message" }), USER_PROMPT);
 
-  // ── (a) GHOST LIFECYCLE ──
-  // The ghost appears (hard), streamed content renders into its body (hard), and it RESOLVES into a durable
-  // assistant row (hard: ghost gone, durable row non-empty). The `data-streaming` MICRO-state (ghost-message-
-  // row.tsx sets data-streaming="" only WHILE paced AND after the first token) is a best-effort observation:
-  // on a warm sub-second local turn the streaming frame can be too brief for a web-first wait to catch before
-  // the ghost resolves, so we RACE it against the resolve and only record it — the appear→body→resolve chain
-  // is the deterministic streaming-lifecycle proof, not the transient attribute.
-  const ghost = page.locator('[data-slot="ghost-message-row"]');
-  await expect(ghost).toBeVisible({ timeout: 30_000 });
-  // The identity-family locator helper (#10) — `.last()` here is a DELIBERATE "newest assistant row" choice.
-  const rows = assistantRows(page);
+    // ── (a) GHOST LIFECYCLE ──
+    // The ghost appears (hard), streamed content renders into its body (hard), and it RESOLVES into a durable
+    // assistant row (hard: ghost gone, durable row non-empty). The `data-streaming` MICRO-state (ghost-message-
+    // row.tsx sets data-streaming="" only WHILE paced AND after the first token) is a best-effort observation:
+    // on a warm sub-second local turn the streaming frame can be too brief for a web-first wait to catch before
+    // the ghost resolves, so we RACE it against the resolve and only record it — the appear→body→resolve chain
+    // is the deterministic streaming-lifecycle proof, not the transient attribute.
+    const ghost = page.locator('[data-slot="ghost-message-row"]');
+    await expect(ghost).toBeVisible({ timeout: 30_000 });
+    // The identity-family locator helper (#10) — `.last()` here is a DELIBERATE "newest assistant row" choice.
+    const rows = assistantRows(page);
 
-  // Streamed content rendered INTO the ghost body: `ghost-stream-body` mounts only once tokens arrive
-  // (ghost-message-row.tsx renders TypingDots until held.length>0, then the body) — its appearance is the
-  // deterministic proof the reply STREAMED (not popped in whole). Race it against the resolve so a warm
-  // sub-second turn that skips straight past an observable ghost frame still passes on the durable landing.
-  let sawGhostBody = false;
-  await Promise.race([
-    page
-      .locator('[data-slot="ghost-stream-body"]')
-      .waitFor({ state: "attached", timeout: 120_000 })
-      .then(() => {
-        sawGhostBody = true;
-      })
-      .catch(() => {
-        /* ghost resolved before its body frame was observable — the durable resolve below is the guarantee */
-      }),
-    rows.last().waitFor({ state: "visible", timeout: 120_000 }),
-  ]);
+    // Streamed content rendered INTO the ghost body: `ghost-stream-body` mounts only once tokens arrive
+    // (ghost-message-row.tsx renders TypingDots until held.length>0, then the body) — its appearance is the
+    // deterministic proof the reply STREAMED (not popped in whole). Race it against the resolve so a warm
+    // sub-second turn that skips straight past an observable ghost frame still passes on the durable landing.
+    let sawGhostBody = false;
+    await Promise.race([
+      page
+        .locator('[data-slot="ghost-stream-body"]')
+        .waitFor({ state: "attached", timeout: 120_000 })
+        .then(() => {
+          sawGhostBody = true;
+        })
+        .catch(() => {
+          /* ghost resolved before its body frame was observable — the durable resolve below is the guarantee */
+        }),
+      rows.last().waitFor({ state: "visible", timeout: 120_000 }),
+    ]);
 
-  // The ghost RESOLVES: a durable assistant row lands with non-empty content, and the ghost is gone.
-  await expect(rows.last()).toContainText(NON_WS, { timeout: 120_000 });
-  await expect(ghost).toHaveCount(0, { timeout: 30_000 });
-  // Legibility: surface whether the ghost's streaming body was observable this run (not asserted — see above).
-  test.info().annotations.push({ type: "ghost-stream-body-observed", description: String(sawGhostBody) });
+    // The ghost RESOLVES: a durable assistant row lands with non-empty content, and the ghost is gone.
+    await expect(rows.last()).toContainText(NON_WS, { timeout: 120_000 });
+    await expect(ghost).toHaveCount(0, { timeout: 30_000 });
+    // Legibility: surface whether the ghost's streaming body was observable this run (not asserted — see above).
+    test.info().annotations.push({ type: "ghost-stream-body-observed", description: String(sawGhostBody) });
 
-  // ── (b) DOM↔DB PARITY IN ORDER ──
-  // Read canon (seq-ascending) for the self-seeded chat and the DOM top-to-bottom; they must be the SAME
-  // conversation in the SAME order. Short transcript ⇒ every row renders ⇒ full-length parity is exact.
-  const canon = await listCanon(chatId);
+    // ── (b) DOM↔DB PARITY IN ORDER ──
+    // Read canon (seq-ascending) for the self-seeded chat and the DOM top-to-bottom; they must be the SAME
+    // conversation in the SAME order. Short transcript ⇒ every row renders ⇒ full-length parity is exact.
+    const canon = await listCanon(chatId);
 
-  // Poll until the DOM has rendered exactly `canon.length` rows (the list mounts rows async after the turn
-  // settles) — then the ordered compare below is race-free.
-  await expect.poll(async () => page.locator('[data-slot="message-row"]').count(), { timeout: 15_000 }).toBe(canon.length);
-  const dom = await domTranscript(page);
+    // Poll until the DOM has rendered exactly `canon.length` rows (the list mounts rows async after the turn
+    // settles) — then the ordered compare below is race-free.
+    await expect.poll(async () => page.locator('[data-slot="message-row"]').count(), { timeout: 15_000 }).toBe(canon.length);
+    const dom = await domTranscript(page);
 
-  // Same number of rows, and roles match pairwise in order.
-  expect(dom.length).toBe(canon.length);
-  expect(dom.map((r) => r.role)).toEqual(canon.map((c) => c.role));
+    // Same number of rows, and roles match pairwise in order.
+    expect(dom.length).toBe(canon.length);
+    expect(dom.map((r) => r.role)).toEqual(canon.map((c) => c.role));
 
-  // PARITY of content: canon `content` is markdown-RENDERED into the DOM (styled spans, italics from
-  // *asterisks*, name prefixes), so a byte-equal compare is dishonest. We assert the strongest HONEST
-  // containment: the user turn we typed is verbatim, unrendered text — its distinctive string MUST appear in
-  // its DOM row. (Assistant prose is model-nondeterministic + markdown-transformed; non-emptiness + the
-  // canon model check below are the honest assistant-side guarantees.)
-  const userIdx = canon.findIndex((c) => c.role === "user" && c.content.includes(USER_PROMPT));
-  expect(userIdx).toBeGreaterThanOrEqual(0);
-  expect(dom[userIdx]?.role).toBe("user");
-  expect(dom[userIdx]?.text).toContain(USER_PROMPT);
+    // PARITY of content: canon `content` is markdown-RENDERED into the DOM (styled spans, italics from
+    // *asterisks*, name prefixes), so a byte-equal compare is dishonest. We assert the strongest HONEST
+    // containment: the user turn we typed is verbatim, unrendered text — its distinctive string MUST appear in
+    // its DOM row. (Assistant prose is model-nondeterministic + markdown-transformed; non-emptiness + the
+    // canon model check below are the honest assistant-side guarantees.)
+    const userIdx = canon.findIndex((c) => c.role === "user" && c.content.includes(USER_PROMPT));
+    expect(userIdx).toBeGreaterThanOrEqual(0);
+    expect(dom[userIdx]?.role).toBe("user");
+    expect(dom[userIdx]?.text).toContain(USER_PROMPT);
 
-  // ── (c) BUS EVENT ORDER ──
-  // The invalidating canon-event ring for this turn, in order: user commit → assistant commit → turnCompleted.
-  // (turnStarted/delta are pure-transient — not in this ring; see header FINDING.)
-  await expect.poll(async () => busEventTypes(page), { timeout: 15_000 }).toContain("turnCompleted");
-  const events = await busEventTypes(page);
-  const commitIdxs = events.flatMap((t, i) => (t === "messageCommitted" ? [i] : []));
-  const completeIdx = events.lastIndexOf("turnCompleted");
-  expect(commitIdxs.length).toBeGreaterThanOrEqual(2); // user + assistant commits
-  expect(commitIdxs[0]).toBeLessThan(completeIdx);
-  expect(commitIdxs.at(-1)).toBeLessThan(completeIdx);
+    // ── (c) BUS EVENT ORDER ──
+    // The invalidating canon-event ring for this turn, in order: user commit → assistant commit → turnCompleted.
+    // (turnStarted/delta are pure-transient — not in this ring; see header FINDING.)
+    await expect.poll(async () => busEventTypes(page), { timeout: 15_000 }).toContain("turnCompleted");
+    const events = await busEventTypes(page);
+    const commitIdxs = events.flatMap((t, i) => (t === "messageCommitted" ? [i] : []));
+    const completeIdx = events.lastIndexOf("turnCompleted");
+    expect(commitIdxs.length).toBeGreaterThanOrEqual(2); // user + assistant commits
+    expect(commitIdxs[0]).toBeLessThan(completeIdx);
+    expect(commitIdxs.at(-1)).toBeLessThan(completeIdx);
 
-  // ── (d) ENGINE HONESTY ──
-  // The local gen engine logged ≥1 message-POST during the turn (real local traffic, not a hosted call).
-  await expect.poll(async () => genPostCount(), { timeout: 15_000 }).toBeGreaterThan(beforePosts);
-  // The freshly-generated assistant canon row is stamped with the LOCAL leaf model alias — NOT a hosted id.
-  const generated = canon.filter((c) => c.role === "assistant" && c.model !== null);
-  const newest = generated.at(-1);
-  expect(newest?.model).toBe(LOCAL_MODEL_LEAF);
+    // ── (d) ENGINE HONESTY ──
+    // The local gen engine logged ≥1 message-POST during the turn (real local traffic, not a hosted call).
+    await expect.poll(async () => genPostCount(), { timeout: 15_000 }).toBeGreaterThan(beforePosts);
+    // The freshly-generated assistant canon row is stamped with the LOCAL leaf model alias — NOT a hosted id.
+    const generated = canon.filter((c) => c.role === "assistant" && c.model !== null);
+    const newest = generated.at(-1);
+    expect(newest?.model).toBe(LOCAL_MODEL_LEAF);
+  } finally {
+    await deleteChat(chatId);
+  }
 });

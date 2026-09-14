@@ -22,7 +22,7 @@ import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { gotoChatsList, messageRow } from "./support/chat-room.ts";
-import { getUserSettings, listCanon, listCharacters, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc.ts";
+import { deleteChat, getUserSettings, listCanon, listCharacters, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc.ts";
 
 interface ContextFitPreview {
   readonly boundaryMessageId: string | null;
@@ -51,70 +51,76 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
   const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
-  // `mode:"auto"` on every turn ⇒ no managed marker ⇒ the divider is purely fit-driven (this spec's subject).
-  await sendTurn(chatId, "Count to three.", undefined, AUTO);
-  await sendTurn(chatId, "Name a color.", undefined, AUTO);
-  await sendTurn(chatId, "Say ok.", TINY_CEILING, AUTO);
-
-  // The canon PROVENANCE recorded the tiny-ceiling cut (a real mid-transcript boundary)…
-  const canon = await listCanon(chatId);
-  const stampedId = canon.filter((c) => c.role === "assistant" && c.contextBoundaryMessageId !== null).at(-1)?.contextBoundaryMessageId;
-  expect(stampedId).toBeTruthy();
-  expect(canon.findIndex((c) => c.id === stampedId)).toBeGreaterThan(0);
-
-  // ── P1: …but the PRESENT-TENSE preview (current preset, full window) says everything fits — null
-  // boundary, and the UI renders NO divider despite the stale stamp sitting in canon. ──
-  const restingPreview = await previewFit(chatId);
-  expect(restingPreview.boundaryMessageId).toBeNull();
-
-  await gotoChatsList(page);
-  await page.getByRole("list", { name: "Chats list" }).getByRole("button").first().click();
-  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(0);
-
-  // ── P2: point the user's default preset at a tiny ceiling → the line appears WITH NO MODEL TURN. ──
-  const priorDefaultPresetId = (await getUserSettings()).config.seeds.defaultPresetId;
-  const tinyPreset = await trpcMutation<{ readonly id: string }>("preset.create", {
-    name: "e2e-tiny-context",
-    kind: "chat",
-  });
   try {
-    // preset.update takes the FULL config (promptConfigSchema) — a `patch` key is silently stripped by
-    // the input schema (integration find, 2026-07-24). Read the created preset's config, merge the knob.
-    const created = await trpcQuery<{ readonly config: { readonly params?: Record<string, unknown> } }>("preset.get", { id: tinyPreset.id });
-    await trpcMutation("preset.update", {
-      id: tinyPreset.id,
-      config: { ...created.config, params: { ...created.config.params, maxContextTokens: TINY_CEILING } },
-    });
-    await trpcMutation("settings.updateUserSettingsSection", {
-      section: "seeds",
-      patch: { defaultPresetId: tinyPreset.id },
-    });
+    // `mode:"auto"` on every turn ⇒ no managed marker ⇒ the divider is purely fit-driven (this spec's subject).
+    await sendTurn(chatId, "Count to three.", undefined, AUTO);
+    await sendTurn(chatId, "Name a color.", undefined, AUTO);
+    await sendTurn(chatId, "Say ok.", TINY_CEILING, AUTO);
 
-    // The API preview now reports a REAL mid-transcript boundary under the preset ceiling…
-    await expect.poll(async () => (await previewFit(chatId)).boundaryMessageId, { timeout: 15_000, intervals: [200, 500, 1000] }).not.toBeNull();
-    const knobbed = await previewFit(chatId);
-    const apiBoundary = knobbed.boundaryMessageId;
-    expect(canon.findIndex((c) => c.id === apiBoundary)).toBeGreaterThan(0);
-    expect(knobbed.ceilingTokens).toBe(TINY_CEILING);
+    // The canon PROVENANCE recorded the tiny-ceiling cut (a real mid-transcript boundary)…
+    const canon = await listCanon(chatId);
+    const stampedId = canon.filter((c) => c.role === "assistant" && c.contextBoundaryMessageId !== null).at(-1)?.contextBoundaryMessageId;
+    expect(stampedId).toBeTruthy();
+    expect(canon.findIndex((c) => c.id === stampedId)).toBeGreaterThan(0);
 
-    // …and the DOM divider appears on exactly that row (settingsChanged invalidation refetches the preview —
-    // no reload, no turn). The boundary row is addressed by its KNOWN id via the identity-scoped `messageRow()`
-    // locator (#10 — the intended debut over the prior manual `data-message-id` read); the divider is its
-    // immediately-preceding sibling.
-    await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(1, { timeout: 15_000 });
-    expect(apiBoundary).not.toBeNull();
-    const boundaryRow = messageRow(page, castId<MessageId>(apiBoundary ?? ""));
-    await expect(boundaryRow).toHaveCount(1);
-    const dividerIsPrecedingSibling = await boundaryRow.evaluate((row) => row.previousElementSibling?.getAttribute("data-slot") === "context-boundary-divider");
-    expect(dividerIsPrecedingSibling).toBe(true);
+    // ── P1: …but the PRESENT-TENSE preview (current preset, full window) says everything fits — null
+    // boundary, and the UI renders NO divider despite the stale stamp sitting in canon. ──
+    const restingPreview = await previewFit(chatId);
+    expect(restingPreview.boundaryMessageId).toBeNull();
+
+    await gotoChatsList(page);
+    await page.getByRole("list", { name: "Chats list" }).getByRole("button").first().click();
+    await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(0);
+
+    // ── P2: point the user's default preset at a tiny ceiling → the line appears WITH NO MODEL TURN. ──
+    const priorDefaultPresetId = (await getUserSettings()).config.seeds.defaultPresetId;
+    const tinyPreset = await trpcMutation<{ readonly id: string }>("preset.create", {
+      name: "e2e-tiny-context",
+      kind: "chat",
+    });
+    try {
+      // preset.update takes the FULL config (promptConfigSchema) — a `patch` key is silently stripped by
+      // the input schema (integration find, 2026-07-24). Read the created preset's config, merge the knob.
+      const created = await trpcQuery<{ readonly config: { readonly params?: Record<string, unknown> } }>("preset.get", { id: tinyPreset.id });
+      await trpcMutation("preset.update", {
+        id: tinyPreset.id,
+        config: { ...created.config, params: { ...created.config.params, maxContextTokens: TINY_CEILING } },
+      });
+      await trpcMutation("settings.updateUserSettingsSection", {
+        section: "seeds",
+        patch: { defaultPresetId: tinyPreset.id },
+      });
+
+      // The API preview now reports a REAL mid-transcript boundary under the preset ceiling…
+      await expect.poll(async () => (await previewFit(chatId)).boundaryMessageId, { timeout: 15_000, intervals: [200, 500, 1000] }).not.toBeNull();
+      const knobbed = await previewFit(chatId);
+      const apiBoundary = knobbed.boundaryMessageId;
+      expect(canon.findIndex((c) => c.id === apiBoundary)).toBeGreaterThan(0);
+      expect(knobbed.ceilingTokens).toBe(TINY_CEILING);
+
+      // …and the DOM divider appears on exactly that row (settingsChanged invalidation refetches the preview —
+      // no reload, no turn). The boundary row is addressed by its KNOWN id via the identity-scoped `messageRow()`
+      // locator (#10 — the intended debut over the prior manual `data-message-id` read); the divider is its
+      // immediately-preceding sibling.
+      await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(1, { timeout: 15_000 });
+      expect(apiBoundary).not.toBeNull();
+      const boundaryRow = messageRow(page, castId<MessageId>(apiBoundary ?? ""));
+      await expect(boundaryRow).toHaveCount(1);
+      const dividerIsPrecedingSibling = await boundaryRow.evaluate(
+        (row) => row.previousElementSibling?.getAttribute("data-slot") === "context-boundary-divider",
+      );
+      expect(dividerIsPrecedingSibling).toBe(true);
+    } finally {
+      // Restore the prior default preset (null = clear back to the system default) + remove the throwaway.
+      await trpcMutation("settings.updateUserSettingsSection", {
+        section: "seeds",
+        patch: { defaultPresetId: priorDefaultPresetId ?? null },
+      });
+      await trpcMutation("preset.remove", { id: tinyPreset.id });
+    }
   } finally {
-    // Restore the prior default preset (null = clear back to the system default) + remove the throwaway.
-    await trpcMutation("settings.updateUserSettingsSection", {
-      section: "seeds",
-      patch: { defaultPresetId: priorDefaultPresetId ?? null },
-    });
-    await trpcMutation("preset.remove", { id: tinyPreset.id });
+    await deleteChat(chatId);
   }
 });
