@@ -9,7 +9,8 @@ import { createFixtureAuthoredRecordReader } from "./fixture-path-authored-recor
 import { createFixturePathCallGraph } from "./fixture-path-call-graph.ts";
 import { classifyProcessMemberRead } from "./process-member-origin.ts";
 
-type RootKind = "scratch" | "checkout" | "temp-base";
+const ROOT_KINDS = ["scratch", "checkout", "temp-base"] as const;
+type RootKind = (typeof ROOT_KINDS)[number];
 interface RootFactBase {
   /** Minimum proven segments below the owned root across every authored alternative. */
   readonly depth: number;
