@@ -7376,7 +7376,7 @@
     {
       "siteId": "tooling/src/verify/lib/pass.ts::err::1",
       "path": "tooling/src/verify/lib/pass.ts",
-      "line": 282,
+      "line": 283,
       "column": 14,
       "grammar": "empty",
       "position": "err",
@@ -7384,7 +7384,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.",
-      "markerLine": 279
+      "markerLine": 280
     },
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::catch::1",
@@ -7454,7 +7454,7 @@
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::1",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 426,
+      "line": 427,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7467,7 +7467,7 @@
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::2",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 479,
+      "line": 480,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7480,7 +7480,7 @@
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::3",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 561,
+      "line": 562,
       "column": 22,
       "grammar": "empty",
       "position": "error",
