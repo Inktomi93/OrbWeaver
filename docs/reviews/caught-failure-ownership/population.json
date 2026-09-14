@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 606,
-    "reported": 36,
+    "sites": 604,
+    "reported": 34,
     "byVerdict": {
       "deliberate-absorb": 570,
-      "unproven": 36
+      "unproven": 34
     },
     "byGrammar": {
-      "default": 161,
-      "empty": 301,
+      "default": 160,
+      "empty": 300,
       "promise": 144
     }
   },
@@ -2163,7 +2163,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::catch::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 1281,
+      "line": 1282,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -2171,12 +2171,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — non-fatal, mirrors neo: the",
-      "markerLine": 1275
+      "markerLine": 1276
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::err::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2470,
+      "line": 2472,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -2184,12 +2184,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below — a permanent verdict",
-      "markerLine": 2464
+      "markerLine": 2466
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::run::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2261,
+      "line": 2263,
       "column": 14,
       "grammar": "promise",
       "position": "run",
@@ -2197,7 +2197,7 @@
       "snippet": "void run.catch((err: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "the fault has NOWHERE to go — this generator",
-      "markerLine": 2257
+      "markerLine": 2259
     },
     {
       "siteId": "packages/server/src/domain/connection/verbs/get-models-for-source.ts::err::1",
@@ -6544,7 +6544,7 @@
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::cdp.send::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 42,
+      "line": 63,
       "column": 25,
       "grammar": "promise",
       "position": "cdp.send",
@@ -6552,12 +6552,12 @@
       "snippet": "await Promise.race([cdp.send(\"Runtime.terminateExecution\").catch(() => undefined), sleep(budget(TERMINATION_ACK_WAIT_BASE_MS))]);",
       "verdict": "deliberate-absorb",
       "reason": "the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait.",
-      "markerLine": 41
+      "markerLine": 62
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::Promise.resolve::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 61,
+      "line": 82,
       "column": 16,
       "grammar": "promise",
       "position": "Promise.resolve",
@@ -6565,25 +6565,25 @@
       "snippet": "const work = Promise.resolve()",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.",
-      "markerLine": 60
+      "markerLine": 81
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::session.page.reload::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 44,
+      "line": 65,
       "column": 11,
       "grammar": "promise",
       "position": "session.page.reload",
       "ordinal": 1,
-      "snippet": "await session.page.reload({ waitUntil: \"commit\", timeout: SESSION_CALL_BASE_MS }).catch(() => undefined);",
+      "snippet": "await session.page.reload({ waitUntil: \"commit\", timeout: budget(RELOAD_COMMIT_BASE_MS) }).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed.",
-      "markerLine": 43
+      "markerLine": 64
     },
     {
       "siteId": "tooling/src/snap/ops/session-call-watchdog.ts::then::1",
       "path": "tooling/src/snap/ops/session-call-watchdog.ts",
-      "line": 81,
+      "line": 102,
       "column": 84,
       "grammar": "promise",
       "position": "then",
@@ -6591,7 +6591,7 @@
       "snippet": "(\"recover\" in state ? state.recover() : terminatePageExecution(state.session)).then(",
       "verdict": "deliberate-absorb",
       "reason": "failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown.",
-      "markerLine": 80
+      "markerLine": 101
     },
     {
       "siteId": "tooling/src/snap/ops/session-client.ts::catch::1",
@@ -7164,32 +7164,6 @@
       "verdict": "deliberate-absorb",
       "reason": "every adjudicator failure is converted into this policy's asset-contract finding, which is the D950 ruling — an unprovable vendored closure IS the violation, not a broken checker. Ends if this catch stops reporting the failure detail.",
       "markerLine": 218
-    },
-    {
-      "siteId": "tooling/src/verify/gates/ratchet-row-integrity.ts::catch::1",
-      "path": "tooling/src/verify/gates/ratchet-row-integrity.ts",
-      "line": 82,
-      "column": 15,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "tooling/src/verify/gates/ratchet-row-integrity.ts::error::1",
-      "path": "tooling/src/verify/gates/ratchet-row-integrity.ts",
-      "line": 44,
-      "column": 12,
-      "grammar": "empty",
-      "position": "error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
     },
     {
       "siteId": "tooling/src/verify/lib/biome-rule-liveness.ts::error::1",
