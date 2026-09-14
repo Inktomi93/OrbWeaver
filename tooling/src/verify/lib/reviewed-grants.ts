@@ -825,6 +825,63 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     why: "the whole-blob user write and reset door coexist with the cross-user json_set theme heal; the residual is the separately ruled race, not a client-image straddle.",
     endsWhen: "the migration/heal is retired, the writer provenance changes, or all writers adopt one write shape.",
   },
+  // THE SIX D107 KNOB ROWS (#1584, #2283). They replace `knob-wire-coverage`'s two gate-local
+  // `ExemptionTable`s — `DOORWAY` (one sanctioned, indefinitely-dormant rebuild seam) and `DEFERRED` (five
+  // tracked-debt rows) — whose two-sided STALE/ORPHAN arms are now the central `stale-reviewed-grant`
+  // alarm: a row consumed zero times after a complete owner run is an error whether the member GAINED its
+  // wire or VANISHED. The legacy `ExemptionRow` carried only `why`, which is why #2283 recorded the five
+  // debt rows as citing prose with no durable tracker; `endsWhen` is the field that deliverable inhabits,
+  // and it cites #2283 rather than a design-doc coordinate (#1965).
+  {
+    id: "knob-wire-coverage:config-import-skip-characters",
+    policyId: "knob-wire-coverage",
+    subject: "EffectiveAppConfig.importSkipCharacters",
+    operation: "unread-config-field",
+    why: "D107 triage — the resolved env-floor skip list (env floor ⊕ admin override) is read by no import behavior outside the resolver itself, so editing it governs nothing today. Tracked debt, not a sanctioned doorway.",
+    endsWhen: "domain/import consumes getEffectiveConfig().importSkipCharacters — central liveness then reports this row stale. Tracker: #2283.",
+  },
+  {
+    id: "knob-wire-coverage:config-allow-non-owner-local-compute",
+    policyId: "knob-wire-coverage",
+    subject: "EffectiveAppConfig.allowNonOwnerLocalCompute",
+    operation: "unread-config-field",
+    why: "D107 triage — the resolved compute-permission flag is read by no behavior outside the resolver, so the admin override governs nothing today. Tracked debt, not a sanctioned doorway.",
+    endsWhen:
+      "the non-owner local-compute gate reads getEffectiveConfig().allowNonOwnerLocalCompute — central liveness then reports this row stale. Tracker: #2283.",
+  },
+  {
+    id: "knob-wire-coverage:section-profile",
+    policyId: "knob-wire-coverage",
+    subject: "USER_SETTINGS_SECTIONS.profile",
+    operation: "unwritten-settings-section",
+    why: "D107 — the settings-wiring remediation program: profile.avatarAssetId is live-read but the section has ZERO section-patch writers, so the user's own avatar is unsettable. Tracked debt, not a sanctioned doorway.",
+    endsWhen: 'a client or compose-seed writer patches section:"profile" — central liveness then reports this row stale. Tracker: #2283.',
+  },
+  {
+    id: "knob-wire-coverage:section-group-defaults",
+    policyId: "knob-wire-coverage",
+    subject: "USER_SETTINGS_SECTIONS.groupDefaults",
+    operation: "unwritten-settings-section",
+    why: "D107 audit Q1 — the READ half was wired 2026-07-25 (start-chat seeds metadata.group when the creator's defaults deviate); the section-patch WRITE path (a groupDefaults editor) is still owed. Tracked debt, not a sanctioned doorway.",
+    endsWhen: 'a groupDefaults editor patches section:"groupDefaults" — central liveness then reports this row stale. Tracker: #2283.',
+  },
+  {
+    id: "knob-wire-coverage:app-key-import-skip-characters",
+    policyId: "knob-wire-coverage",
+    subject: "appSettingsSchema.importSkipCharacters",
+    operation: "unwritten-admin-key",
+    why: "D107 — the admin-editor wave of the settings-wiring program; verified UI-less 2026-07-25 with zero write field anywhere in features/settings ∪ features/user-admin. Tracked debt, not a sanctioned doorway.",
+    endsWhen: "an admin surface gains an importSkipCharacters write field — central liveness then reports this row stale. Tracker: #2283.",
+  },
+  {
+    id: "knob-wire-coverage:metadata-provider-routing",
+    policyId: "knob-wire-coverage",
+    subject: "chatMetadataSchema.providerRouting",
+    operation: "unwritten-metadata-field",
+    why: "THE ONE SANCTIONED DOORWAY, not debt (the legacy DOORWAY table's only row): the field is read live at entry/compose/chat.ts (meta.providerRouting → RouteChatAssignment) but no verb or router writes it, and domain/connection/verbs/resolve-chat.ts's header states that middle hop is INTENTIONALLY NOT WIRED. A per-chat connection-overlay writer is the intended graft (D107, audit Q2), so this seam is never re-litigated — only stale-checked.",
+    endsWhen:
+      "a per-chat connection-overlay writer lands in domain/chat/verbs or transport/trpc, or the field is removed — central liveness then reports this row stale (D107 audit Q2).",
+  },
   {
     id: "macro-resolution-home:ghost-message-row",
     policyId: "macro-resolution-home",
