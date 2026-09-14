@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 597,
-    "reported": 25,
+    "sites": 606,
+    "reported": 36,
     "byVerdict": {
-      "deliberate-absorb": 572,
-      "unproven": 25
+      "deliberate-absorb": 570,
+      "unproven": 36
     },
     "byGrammar": {
       "default": 161,
-      "empty": 293,
-      "promise": 143
+      "empty": 301,
+      "promise": 144
     }
   },
   "rows": [
@@ -4969,9 +4969,48 @@
       "markerLine": 29
     },
     {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::cleanup::1",
+      "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
+      "line": 222,
+      "column": 14,
+      "grammar": "empty",
+      "position": "cleanup",
+      "ordinal": 1,
+      "snippet": "} catch (cleanup) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::cleanup::2",
+      "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
+      "line": 227,
+      "column": 14,
+      "grammar": "empty",
+      "position": "cleanup",
+      "ordinal": 2,
+      "snippet": "} catch (cleanup) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::cleanupObserver::1",
+      "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
+      "line": 238,
+      "column": 11,
+      "grammar": "promise",
+      "position": "cleanupObserver",
+      "ordinal": 1,
+      "snippet": "await cleanupObserver().catch((error: unknown) => warn(`BOOT LCP CLEANUP     ${errorMessage(error)}`));",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::detach::1",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 86,
+      "line": 240,
       "column": 11,
       "grammar": "promise",
       "position": "detach",
@@ -4979,12 +5018,77 @@
       "snippet": "await detach().catch((error: unknown) => warn(`BOOT TRACE DETACH   ${errorMessage(error)}`));",
       "verdict": "deliberate-absorb",
       "reason": "detach is terminal cleanup after trace stop/abort; warn prints the exact failure and the owning Snap session still closes the browser. Ends if this warning or the following session close disappears.",
-      "markerLine": 85
+      "markerLine": 239
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::1",
+      "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
+      "line": 137,
+      "column": 12,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::2",
+      "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
+      "line": 145,
+      "column": 12,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::3",
+      "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
+      "line": 183,
+      "column": 14,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 3,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::4",
+      "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
+      "line": 194,
+      "column": 14,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 4,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::5",
+      "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
+      "line": 264,
+      "column": 18,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 5,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::stopTrace::1",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 94,
+      "line": 248,
       "column": 13,
       "grammar": "promise",
       "position": "stopTrace",
@@ -4992,7 +5096,7 @@
       "snippet": "await stopTrace(cdp, complete.promise).catch((error: unknown) => warn(`BOOT TRACE CLEANUP  ${errorMessage(error)}`));",
       "verdict": "deliberate-absorb",
       "reason": "warn receives the caught cleanup error and prints it as BOOT TRACE CLEANUP; the surrounding session close remains the terminal cleanup owner. Ends if this warning stops carrying the failure or session close stops following this block.",
-      "markerLine": 93
+      "markerLine": 247
     },
     {
       "siteId": "tooling/src/doc-catalog/ops/catalog.ts::catch::1",
@@ -5582,7 +5686,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::error::1",
       "path": "tooling/src/snap/ops/arms/boot-trace.ts",
-      "line": 77,
+      "line": 79,
       "column": 20,
       "grammar": "empty",
       "position": "error",
@@ -5590,12 +5694,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
-      "markerLine": 61
+      "markerLine": 75
     },
     {
       "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::error::2",
       "path": "tooling/src/snap/ops/arms/boot-trace.ts",
-      "line": 88,
+      "line": 100,
       "column": 20,
       "grammar": "empty",
       "position": "error",
@@ -5603,12 +5707,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
-      "markerLine": 85
+      "markerLine": 87
     },
     {
       "siteId": "tooling/src/snap/ops/arms/boot-trace.ts::error::3",
       "path": "tooling/src/snap/ops/arms/boot-trace.ts",
-      "line": 121,
+      "line": 133,
       "column": 22,
       "grammar": "empty",
       "position": "error",
@@ -5616,7 +5720,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.",
-      "markerLine": 105
+      "markerLine": 117
     },
     {
       "siteId": "tooling/src/snap/ops/arms/cascade.ts::error::1",
@@ -7051,7 +7155,7 @@
     {
       "siteId": "tooling/src/verify/gates/devtools-frontend-assets.ts::error::1",
       "path": "tooling/src/verify/gates/devtools-frontend-assets.ts",
-      "line": 206,
+      "line": 221,
       "column": 16,
       "grammar": "empty",
       "position": "error",
@@ -7059,33 +7163,33 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every adjudicator failure is converted into this policy's asset-contract finding, which is the D950 ruling — an unprovable vendored closure IS the violation, not a broken checker. Ends if this catch stops reporting the failure detail.",
-      "markerLine": 203
+      "markerLine": 218
     },
     {
-      "siteId": "tooling/src/verify/gates/no-nul-bytes-in-source.ts::catch::1",
-      "path": "tooling/src/verify/gates/no-nul-bytes-in-source.ts",
-      "line": 43,
-      "column": 5,
+      "siteId": "tooling/src/verify/gates/ratchet-row-integrity.ts::catch::1",
+      "path": "tooling/src/verify/gates/ratchet-row-integrity.ts",
+      "line": 82,
+      "column": 15,
       "grammar": "default",
       "position": "catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — documented on the return: a scan root absent from this tree (a conformance temp dir plants only some roots) has nothing to scan. Ends if this gate starts running against a fixed, always-complete root set.",
-      "markerLine": 40
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "tooling/src/verify/gates/ratchet-row-integrity.ts::error::1",
       "path": "tooling/src/verify/gates/ratchet-row-integrity.ts",
-      "line": 62,
+      "line": 44,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "reported via ctx.report() as an UNPARSEABLE LEDGER violation, per the doc comment above — the gate's contract treats a parse failure as a finding, never a silent pass. Ends if ctx.report() stops being read as the gate's violation stream.",
-      "markerLine": 47
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "tooling/src/verify/lib/biome-rule-liveness.ts::error::1",
@@ -7207,7 +7311,7 @@
     {
       "siteId": "tooling/src/verify/lib/grant-liveness.ts::catch::1",
       "path": "tooling/src/verify/lib/grant-liveness.ts",
-      "line": 240,
+      "line": 258,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -7215,12 +7319,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "NOT a swallow — an empty corpus is the",
-      "markerLine": 232
+      "markerLine": 250
     },
     {
       "siteId": "tooling/src/verify/lib/grant-liveness.ts::catch::2",
       "path": "tooling/src/verify/lib/grant-liveness.ts",
-      "line": 257,
+      "line": 275,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -7228,7 +7332,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a malformed package.json is the package",
-      "markerLine": 252
+      "markerLine": 270
     },
     {
       "siteId": "tooling/src/verify/lib/history.ts::catch::1",
@@ -7584,8 +7688,21 @@
     {
       "siteId": "tooling/src/verify/ops/resource-host.ts::error::1",
       "path": "tooling/src/verify/ops/resource-host.ts",
-      "line": 85,
+      "line": 86,
       "column": 16,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-index.ts::error::1",
+      "path": "tooling/src/verify/ops/resource-index.ts",
+      "line": 66,
+      "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
@@ -7688,7 +7805,7 @@
     {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::error::4",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 284,
+      "line": 296,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -7701,7 +7818,7 @@
     {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::error::5",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 319,
+      "line": 331,
       "column": 14,
       "grammar": "empty",
       "position": "error",
