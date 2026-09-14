@@ -10,9 +10,13 @@
 // partition cannot. `classOf` reads it back as debt | ratified | mixed.
 //
 // THE PROMISE IS TWO-SIDED (GATE-AUTHORING.md §4.4). A ratified portion REQUIRES a `why` AND at least one
-// `cite`, and a cite is a REPO-RELATIVE PATH that must resolve on the tree — the `ratchet-row-integrity`
-// gate REDs a ratified row whose cited site is gone, so a ratification cannot outlive the thing that
-// justified it. DECLARED LIMIT: a `§`/`#` suffix on a cite is prose (stripped before the existence check),
+// `cite`, and a cite is a REPO-RELATIVE PATH that must resolve on the tree, so a ratification cannot
+// outlive the thing that justified it. NOTHING ENFORCES THAT MECHANICALLY ANY MORE: `ratchet-row-integrity`
+// was the enforcer and it RETIRED 2026-09-14 with its subject — gates are mechanically forbidden from owning
+// baseline ledgers (`lib/gate-contract.ts`, `[baseline-ledger]`), so the gate corpus holds zero ledgers to
+// judge. The two surviving ratchets are ops-tier (`ops/ct-unfed-ratchet.ts` CT, `ops/orphan-export-ratchet.ts`
+// push), both drained to zero rows, and their row integrity is their own tier's business. The migrated half
+// of the property — cites that moved into reviewed-grant `why`/`endsWhen` prose — is owed by #2349. DECLARED LIMIT: a `§`/`#` suffix on a cite is prose (stripped before the existence check),
 // and a D-number named inside a `why` is NOT resolved here — `d-citation-integrity` owns D-number integrity
 // over packages/** + docs/architecture/core/**, and re-spelling its registry reader here would be a second
 // home for it.
@@ -222,7 +226,7 @@ export function classNote(row: RatchetRow): string {
     return "";
   }
   const scope = row.ratified === row.count ? "RATIFIED" : `PARTLY RATIFIED (${row.ratified} of ${row.count})`;
-  return ` — ${scope}: ${row.why ?? "(no why recorded — the ratchet-row-integrity gate reds this)"} [cites: ${row.cite.join(", ")}]`;
+  return ` — ${scope}: ${row.why ?? "(no why recorded — a ratified row owes one, GATE-AUTHORING.md §4.4)"} [cites: ${row.cite.join(", ")}]`;
 }
 
 function sniffShape(parsed: unknown): RatchetLedgerShape {
