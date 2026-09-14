@@ -129,7 +129,7 @@ function constInitializerOf(identifier: MorphNode): MorphNode | null {
  *  `(useQueryClient() as { setQueryData(k: unknown, v: unknown): void }).setQueryData(…)` passed every
  *  policy in this family while the uncast twin reported: a one-line dodge for the whole class. The receiver's
  *  own identity cannot be cast away, so the fix belongs here rather than in each policy. */
-export function uncastReceiver(node: MorphNode): MorphNode {
+function uncastReceiver(node: MorphNode): MorphNode {
   let current = referenceResolutionServices.unwrapExpression(node);
   for (let hop = 0; hop < MAX_RECEIVER_HOPS && Node.isIdentifier(current); hop += 1) {
     const initializer = constInitializerOf(current);

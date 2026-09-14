@@ -8,8 +8,6 @@ export const SHELL = "packages/client/src/features/app-shell/surfaces/shell.css"
 export const PRODUCT_STYLESHEETS = [THEME, UI_GLOBALS, TIERS, CLIENT_GLOBALS, SHELL] as const;
 export const AUTHORED_STYLESHEETS = [UI_GLOBALS, TIERS, CLIENT_GLOBALS, SHELL] as const;
 
-export type ProductStylesheet = (typeof PRODUCT_STYLESHEETS)[number];
-
 /** The report sink a policy hands in. Deliberately the narrow shape `ctx.report.file` already has, so a
  * reader cannot smuggle a node anchor into a CSS verdict. */
 export type CssFamilyReport = (

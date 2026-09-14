@@ -181,7 +181,7 @@ function rejectionHandlerOf(call: CallExpression, linkName: string): Node | unde
 /** The `.catch(<discard>)` / `.then(_, <discard>)` link of a promise chain, or undefined when the chain never
  *  absorbs its rejection. Walks INWARD through `then`/`catch`/`finally` links only — a non-link callee ends
  *  the chain. */
-export function absorbingLink(expr: Node): CallExpression | undefined {
+function absorbingLink(expr: Node): CallExpression | undefined {
   let cur: Node = expr;
   let found: CallExpression | undefined;
   while (found === undefined && cur.isKind(SyntaxKind.CallExpression)) {

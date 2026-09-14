@@ -8,11 +8,11 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";
 
-export const EXTERNAL_ID_KEYS: ReadonlySet<string> = new Set(["externalId", "external_id"]);
+const EXTERNAL_ID_KEYS: ReadonlySet<string> = new Set(["externalId", "external_id"]);
 /** The users-row write verbs: the two sessions persistence wrappers + the raw drizzle write surface. An
  *  `externalId` object-key whose nearest enclosing call is one of these is a COLUMN write; the same key in a
  *  `.select(...)` map / an `audit(...)` metadata object / a bare return object is not. */
-export const EXTERNAL_ID_WRITE_VERBS: ReadonlySet<string> = new Set(["insertUser", "updateUser", "set", "values", "onConflictDoUpdate"]);
+const EXTERNAL_ID_WRITE_VERBS: ReadonlySet<string> = new Set(["insertUser", "updateUser", "set", "values", "onConflictDoUpdate"]);
 
 const SESSIONS = "packages/server/src/domain/sessions/";
 export const LINK_CAPABILITY = `${SESSIONS}verbs/link-external-id.ts`;
@@ -30,7 +30,7 @@ export const EXTERNAL_ID_CLAIM_CALLERS: ReadonlySet<string> = new Set([LINK_CAPA
 export const EXTERNAL_ID_SANCTIONED_FILES = [PROVISION_CAPABILITY, `${SESSIONS}persistence/users.ts`] as const;
 
 /** The simple name of a call's callee: `insertUser(…)` → "insertUser"; `db.x(…).set(…)` → "set". */
-export function externalIdCalleeName(call: Node): string | undefined {
+function externalIdCalleeName(call: Node): string | undefined {
   if (!call.isKind(SyntaxKind.CallExpression)) {
     return;
   }

@@ -621,25 +621,6 @@ export function proofRowsOf(expression: MorphNode | undefined): ProofRows {
   return out;
 }
 
-/** Every value expression of a proof row's `files` map, spreads resolved through their const one hop. */
-export function filesContentsOf(filesExpression: MorphNode | undefined): readonly MorphNode[] {
-  const out: MorphNode[] = [];
-  const object = objectLiteralOf(filesExpression);
-  for (const property of object?.getProperties() ?? []) {
-    if (Node.isSpreadAssignment(property)) {
-      out.push(...filesContentsOf(property.getExpression()));
-    } else if (Node.isPropertyAssignment(property)) {
-      const initializer = property.getInitializer();
-      if (initializer !== undefined) {
-        out.push(initializer);
-      }
-    } else if (Node.isShorthandPropertyAssignment(property)) {
-      out.push(property.getNameNode());
-    }
-  }
-  return out;
-}
-
 /** Does a piece of static text MENTION the waiver spelling for this policy id (`@orb-waive <id>(`)? The test
  *  a `fix` must pass — a mention is what an author needs to type, wherever in the sentence it sits. */
 export function mentionsWaiverOf(segment: string, policyId: string): boolean {

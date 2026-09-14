@@ -50,7 +50,7 @@ import { declaredByAnyPackage } from "./type-member-origin.ts";
 
 /** The module door React is authored as. A re-export shim keeps its OWN specifier, so the canonical
  *  target is what proves the origin; this is only the cheap first-pass filter and the external-door name. */
-export const REACT_MODULE = "react";
+const REACT_MODULE = "react";
 
 /** The `node_modules` directories that declare React's public surface. React ships no types of its own
  *  today, but a future inline `react/index.d.ts` must not silently stop matching. */

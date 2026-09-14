@@ -12,7 +12,7 @@ export const GATE_IGNORE_POPULATION = {
   under: ["packages/**", "tests/**", "tooling/src/**"],
 } as const;
 
-export interface GateIgnoreSite {
+interface GateIgnoreSite {
   readonly file: string;
   readonly line: number;
   readonly marker: GateIgnoreMarker;

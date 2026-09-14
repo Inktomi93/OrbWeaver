@@ -86,7 +86,7 @@ export interface CrossedCitation {
 
 /** A ledger cell whose verdict word and whose tracked row's state disagree. ADVISORY: printed, never a
  *  verdict, because the `(board #N)` pointer does not claim the row's state (header, class 2). */
-export interface StateDisagreement {
+interface StateDisagreement {
   readonly site: string;
   readonly issue: number;
   readonly verdict: string;
@@ -97,7 +97,7 @@ export interface StateDisagreement {
 /** A ledger citation whose subject the join could not turn into a verdict — a DIFFERENT wave's row (the
  *  legitimate "tracked on the earlier row of this defect family" pointer) or a key in an unknown spelling.
  *  ADVISORY: printed with its two keys so a reader can see why it is not a finding. */
-export interface SubjectNote {
+interface SubjectNote {
   readonly site: string;
   readonly issue: number;
   readonly verdict: SubjectVerdict;
@@ -144,7 +144,7 @@ export function assertSubjectJoinMeasured(outcome: BoardCitationsOutcome): void 
 }
 
 /** The warning-policy citations, class 1 — the ONE claim of openness on the tree. */
-export function policyCitations(policies: readonly GatePolicy[]): readonly BoardCitation[] {
+function policyCitations(policies: readonly GatePolicy[]): readonly BoardCitation[] {
   return warningWorkItems(policies).map(({ policy, workItem }) => ({
     citationClass: "policy-workitem" as const,
     site: policy,

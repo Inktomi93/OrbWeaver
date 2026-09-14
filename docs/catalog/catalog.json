@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 24,
+    "pending": 1,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -453,8 +453,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 498,
-      "bytes": 393522,
-      "sha256": "b8f20b445701bc642f16451b916c870d4fef88a948c2fd265d7e01115779d60f",
+      "bytes": 393534,
+      "sha256": "c2c106b2c98d48616dc7c997dc8a4273b4fd0dc25f8e79274d68472bef2af3ab",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12805,7 +12805,7 @@
       "issue": 5,
       "lines": 58,
       "bytes": 4461,
-      "sha256": "9d35d66f6336088bd1c4768b9b44d8b192a2861481389b2e191fdb20abbd9756",
+      "sha256": "47a250b6de643854450ca8bc57340017f4e0b4984f628495545709ab527dca0c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12866,16 +12866,16 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 392,
-      "bytes": 31145,
-      "sha256": "10bcbbb931d5c8fba700c0d9201c7ce96726a4735fa2a8ff73fa8f7ab9998934",
+      "lines": 399,
+      "bytes": 31834,
+      "sha256": "c65fd9a4b1f97a3b7737e34a90f686e47cee5322e0161929cea7be75e1d09fd8",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-13"
+          "updated": "2026-09-14"
         },
         "errors": []
       },
@@ -13154,8 +13154,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 962,
-      "bytes": 94412,
-      "sha256": "8ab1bd396d657bca066dc5d834b741736d830487bd80c8ff2527bcd31524eb19",
+      "bytes": 94420,
+      "sha256": "b2f473bb683b48e62cc044a8aa7f83c93553e17c2e5ed5cc8487b9f18b003cfb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -30115,16 +30115,18 @@
       "receipt": {
         "path": "docs/reviews/gate-runtime/adj-authority-design-2026-09-13.md",
         "assignedSha256": "f06c87c180ee8f5ac00a8564884633a41d1e43b5538c675138ec0b917cf3317a",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "f06c87c180ee8f5ac00a8564884633a41d1e43b5538c675138ec0b917cf3317a",
+        "verifiedCommit": "9dca9fca4f0d825a538905e4ceb5a141da2ca1b3",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/adj-authority-design-2026-09-13.md:1-1245 read in full 2026-09-14; a read-only design-planner lane's dated analysis of the #2320 enforcement gap and the #1922/#2147 exemption-authority migration train, revised twice (a root-requested correction and a security review) that withdraw and replace several of its own earlier claims, and it closes still marking commits 2 and 3 UNAUTHORIZED pending root's review. VERBATIM line 969: \"the seven aliases never reach `ctx.report.node`, so a `reviewed-grant` flip yields **raw 0** for them → seven grants consumed zero → **seven `stale-reviewed-grant` alarms on day one**\""
+        ],
+        "summary": "A dated, multi-revision design record from claude-b's read-only planner lane proposing an ARM D fix for the #2320 policy-legacy-imports enforcement gap and a three-commit migration train for the #1922/#2147 exemption-authority program; no tracked file was ever modified. The document is append-only across three legs (initial design, a root-requested correction that withdrew several claims and replaced the train plan, and a security review that rejected and replaced its successor design for the CALLER_FREE_OP_ROWS grants), and a reader must not treat any earlier section as current without checking whether a later section supersedes it — as of the final append, commits 2 and 3 remain UNAUTHORIZED and only commit 1 is unaffected by the security review."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/adj-closure-review-2026-09-13.md",
@@ -30190,16 +30192,18 @@
       "receipt": {
         "path": "docs/reviews/gate-runtime/adj-grant-reach-2026-09-13.md",
         "assignedSha256": "e87e5c3c9b898b55b25aa91c4be3f7e37f4c2dbc819fbbff3b52cc21d18a09dd",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "e87e5c3c9b898b55b25aa91c4be3f7e37f4c2dbc819fbbff3b52cc21d18a09dd",
+        "verifiedCommit": "9dca9fca4f0d825a538905e4ceb5a141da2ca1b3",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/adj-grant-reach-2026-09-13.md:1-253 read in full 2026-09-14; an owner-authorized prevention-question lane proved final gate modules can reach the reviewed-grants table through an ordinary-import wrapper, and that the program's own prior repair commit already created this exact wrapper shape unnoticed. VERBATIM line 66: \"same-named sibling defeats a spelling\""
+        ],
+        "summary": "An investigative lane answering whether a final gate policy can reach the reviewed-grants authority table indirectly through a lib/ wrapper, given that policy-legacy-imports only follows re-export declarations one hop. It proves the wrapper reach is live today (not hypothetical) because commit 3420a81e9 already created this exact shape while closing two unrelated findings, and proposes a producer-side allowlist seal as the smallest complete fix. Readers must not treat this as an implemented fix — it is a proposed enforcement contract for the orchestrator to authorize and dispatch, and three ledger rows remain unrouted."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/adj-ledger-receipt-reconciliation-2026-09-13.md",
@@ -31248,17 +31252,19 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/ordinary-waiver-source-migration.md",
-        "assignedSha256": "834ce90e2fee514ac868177046fe0a63e2db0de57eb9390bd0e29719e7d07258",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "assignedSha256": "5bebad4d195172a43fcaf979f14cef59bf2849821123c817c0547e8c9a895959",
+        "disposition": "superseded",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "5bebad4d195172a43fcaf979f14cef59bf2849821123c817c0547e8c9a895959",
+        "verifiedCommit": "e1108242eab2f837713e09e3167855a02c58223d",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/ordinary-waiver-source-migration.md:1-1787 read in full 2026-09-14; the document is a closed atomic-cutover manifest for translating 767 legacy @orb-gate-ignore/custom-grammar comment markers to a central @orb-waive vocabulary, self-marked superseded because the program now runs a mixed (not atomic) runtime, and it closes with a 791-row re-attested path:line appendix and its own re-attestation/tooling receipts. VERBATIM line 1785: \"No tests or gates were run: this lane changed review evidence only and was forbidden to edit or exercise shared\""
+        ],
+        "summary": "A closed migration manifest for the #1584 ordinary-waiver program: it names the exact @orb-waive carrier grammar, closes the disposition of all 11 legacy comment-marker grammars (centralize/delete), and lists all 791 authored path:line sites requiring translation or deletion under an atomic cutover checklist. Its own opening banner (owner, 2026-09-11) marks the TRANSITION MODEL superseded because the program moved to a mixed runtime where each conversion lane translates its own markers in the same commit as the conversion, rather than a single frozen atomic cutover; a reader must not treat the atomic-cutover steps or the \"all sites blocking\" framing as still operative, only the still-binding grammar/contract and non-migration fences it explicitly retains."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/origin-client-family-1584.md",
@@ -31573,17 +31579,19 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/resource-gate-access-patterns.md",
-        "assignedSha256": "f7441548020fb3242ed1568b1a59d21decbf9ea8acf46d9271ad36c987f42ce4",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "assignedSha256": "6a8deeed5f81466f022cf16a329c9343c5359592d6b661f11a1097f9ebebb292",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "6a8deeed5f81466f022cf16a329c9343c5359592d6b661f11a1097f9ebebb292",
+        "verifiedCommit": "9757ed2da1780575cb2365359520b72388bcbbfe",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/resource-gate-access-patterns.md:1-309 read in full 2026-09-14; census and design audit of the 53 fsBacked gate modules found they are not one homogeneous filesystem-gate class and enumerated nine required typed ResourceHost capability surfaces plus nine blockers before any resource-gate conversion can start. VERBATIM line 122: \"The current reusable static reader already resolves literals, same-file consts, templates, concatenation, arrays, objects, and spreads and refuses unsupported shapes\""
+        ],
+        "summary": "A design/audit document surveying the 53 fsBacked gate modules to define the minimal shared ResourceHost surface (authored trees, parsed configs, tracked Git inventory, CSS corpus, document/ledger facts, Base UI surface, generated artifacts, tsconfig program membership) needed before resource-gate conversion. It lists nine explicit BLOCKED-BEFORE-CONVERSION items and a per-gate access-pattern table; readers must not mistake this for a completed conversion — no gate, helper, runtime, or test was edited or run for this audit."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/resource-host-foundation.md",
@@ -32123,17 +32131,19 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-audit-wave10-2026-09-12.md",
-        "assignedSha256": "3d03234884576640fb3fd7d53f900e5ae401899c16c55e15f461a2e0d3f66ef6",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "assignedSha256": "061fed7d9b4dc3b04cc2f242ad606852d493f6b43984ce9c73b75621c8d0fb84",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "061fed7d9b4dc3b04cc2f242ad606852d493f6b43984ce9c73b75621c8d0fb84",
+        "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-audit-wave10-2026-09-12.md:1-609 read in full 2026-09-14; a dated audit of the BUS plane (7) plus id-brand-flow family (5) plus a user-bus-deferred-member re-audit, naming bus-definition-belts the module to copy and no-raw-id (blind to a re-export door) the anti-pattern. VERBATIM line 524: \"It is the only subject where every cut in the right direction reds, its\""
+        ],
+        "summary": "A dated (2026-09-12) read-only adversarial audit of twelve gate policies (the BUS plane and the id-brand-flow family, plus a re-audit of wave 1's user-bus-deferred-member) against #1584's §5b criteria. It finds 2 CONFIRMED, 1 CONFIRMED-minor, 1 re-audit CONFIRMED and 8 REFUTED, with a same-family A/B comparison proving no-raw-id's hand-rolled identity reader is blind to a re-export door its sibling catches. It is a point-in-time verification record, not living guidance for future gate work."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md",
@@ -32155,16 +32165,18 @@
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md",
         "assignedSha256": "24c020ff9d2e2e37a4c87c8049e6937380a73ed3b2e86f3f6898424d03b917d1",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "24c020ff9d2e2e37a4c87c8049e6937380a73ed3b2e86f3f6898424d03b917d1",
+        "verifiedCommit": "eb3ac74ec2d29af4843b61098b34ca47562c7186",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md:1-720 read in full 2026-09-14; a dated audit of the 8-module registry/completeness family that reproduces the #1972 ctx.relativePath escape in five modules with ordinary in-repo fixtures and corrects wave 1's unsplit cut-classification method. VERBATIM line 667: \"audited the eight-module registry/completeness family against §5b's seven\""
+        ],
+        "summary": "A dated (2026-09-12) read-only adversarial audit of eight registry/completeness gate policies against #1584's §5b criteria, introducing a three-bucket clean-cut classification (unenforced / mutually redundant / wrong-direction) that later waves adopted. It refutes seven of the eight final modules and excludes an eighth as legacy/unconverted, with the headline finding that the #1972 ctx.relativePath population escape is reproducible with an ordinary cross-package import, not merely latent. It is a dated verification snapshot, not standing design guidance."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave3-2026-09-12.md",
@@ -32186,16 +32198,18 @@
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-audit-wave3-2026-09-12.md",
         "assignedSha256": "93fa63ac7c0725e696bf0a3f2cc6d7a833e5a4227bf144bb784281e11bfe710d",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "93fa63ac7c0725e696bf0a3f2cc6d7a833e5a4227bf144bb784281e11bfe710d",
+        "verifiedCommit": "19e445e32e130c184f2e2c72460273f2e98f6130",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-audit-wave3-2026-09-12.md:1-901 read in full 2026-09-14; a dated audit of the nine-module Drizzle-schema fact family finding the strongest proof sets but the weakest headers in the corpus so far, with a dedicated #1966 receipt-discipline reproduction. VERBATIM line 606: \"the guard and module-origin fences ENFORCED, and\""
+        ],
+        "summary": "A dated (2026-09-12) read-only adversarial audit of nine Drizzle-schema-fact gate policies against #1584's §5b criteria, all nine REFUTED but on largely documentation (header/roster) grounds rather than proof-set weakness. It includes a dedicated reproduction of the #1966 receipt-discipline fail-open gap (confirmed latent, not present, across all 18 real consumers) and names db-enum-from-tuple the module to hand a conversion lane. It is a dated verification snapshot, not standing policy or design guidance."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave4-2026-09-12.md",
@@ -32216,17 +32230,19 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-audit-wave4-2026-09-12.md",
-        "assignedSha256": "18da8cfd167ebb6af43eafd82af97b46daf6d8f6a9b539f7c0149b212c5907f0",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "assignedSha256": "c1a0da60af07cf0af8bf8d93decb6f1431d89b6eb672dbbea3fca4bfc20da4a7",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "c1a0da60af07cf0af8bf8d93decb6f1431d89b6eb672dbbea3fca4bfc20da4a7",
+        "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-audit-wave4-2026-09-12.md:1-773 read in full 2026-09-14; a dated audit of the raw-CSS/token-surface family showing the #1954 carrier-fence repair pinned only the outer fence, leaving both inner halves unenforced in three mirrored modules. VERBATIM line 612: \"the message was correctly made context-free by #1954 and\""
+        ],
+        "summary": "A dated (2026-09-12) read-only adversarial audit of ten raw-CSS/token-surface gate policies against #1584's §5b criteria, finding this family markedly worse than wave 2's on the axes that matter most for copying (narrowing pins, identity arms). All nine final modules are REFUTED, with the central finding that a prior #1954 repair fixed only the outer carrier fence in three mirrored/sibling modules, leaving both discriminating inner clauses unenforced. It is a dated verification report, not a living design or policy document."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave5-2026-09-12.md",
@@ -32247,17 +32263,19 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-audit-wave5-2026-09-12.md",
-        "assignedSha256": "cbcd429a6e5cc12c155352caf61ddbc160611853f94d0b77e8c48ab87fbf1fad",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "assignedSha256": "293b0beb6241acaddf6d58864e90a150775afc591fa953806eeff846a680544c",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "293b0beb6241acaddf6d58864e90a150775afc591fa953806eeff846a680544c",
+        "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-audit-wave5-2026-09-12.md:1-466 read in full 2026-09-14; a dated adversarial audit of 15 ordinary-visitors-family gate policies against #1584's PRISTINE criteria, verdict 13 REFUTED / 2 CONFIRMED, with a flagged program-level no-inline-types count nobody is tracking. VERBATIM line 408: \"The count is ratcheting with the program, and nobody is tracking it.\""
+        ],
+        "summary": "A dated (2026-09-12) read-only adversarial audit of the fifteen gate policies imported by ordinary-visitors-family.test.ts, measured against the #1584 gate-runtime standardization program's §5b criteria and §4 proof rules. It finds 13 of 15 REFUTED and 2 CONFIRMED, with detailed narrowing-cut, identity-arm and header-honesty tables plus proposed follow-up items. It is a point-in-time verification report, not standing guidance — later conversions and rulings may have superseded individual findings."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave6-2026-09-12.md",
@@ -32324,17 +32342,19 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-audit-wave7-2026-09-12.md",
-        "assignedSha256": "d100927b0c6597dda6a71783e0f45aa4a1f54a169c640d35f752d8a7eb56ea2f",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "assignedSha256": "d5c03a7de1c32d550d05362da45febabee143d4c2ed5fdf8732f4cd3e5f55201",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "d5c03a7de1c32d550d05362da45febabee143d4c2ed5fdf8732f4cd3e5f55201",
+        "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-audit-wave7-2026-09-12.md:1-548 read in full 2026-09-14; a dated audit of the 14-policy home-client family, naming no-raw-matchmedia as the program's first genuine copy candidate and no-effect-on-shared-selection as the anti-pattern. VERBATIM line 507: \"It is the only module in 26 audited across waves 6 and 7 whose\""
+        ],
+        "summary": "A dated (2026-09-12) read-only adversarial audit of the fourteen sanctioned-home CLIENT gate policies against the #1584 program's §5b criteria, following the wave 5/6 method. It finds 13 of 14 REFUTED and one CONFIRMED (no-raw-matchmedia, after two named repairs), and identifies no-effect-on-shared-selection as an anti-pattern that fails open on a three-way shared reader. It is a point-in-time verification snapshot, not durable guidance for future conversions."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave8-2026-09-12.md",
@@ -32401,17 +32421,19 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-audit-wave9-2026-09-12.md",
-        "assignedSha256": "296574b1bd6c843eff4888449ce067585bd51d088f4b653cdf52e16afc93e1ed",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "assignedSha256": "dc5f1f27b6c04fbec0f1350983b8f152a24dc5ce3866bdbe69c6d1ca4ddafd2e",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "dc5f1f27b6c04fbec0f1350983b8f152a24dc5ce3866bdbe69c6d1ca4ddafd2e",
+        "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-audit-wave9-2026-09-12.md:1-553 read in full 2026-09-14; a dated audit closing wave 8's debt on the 14-policy origin-server family, finding five false positives on pristine source from a sealed-origin conflation (D1) and naming turn-identity the sole copy candidate once fixed. VERBATIM line 478: \"and it clears the bar once D1 is fixed\""
+        ],
+        "summary": "A dated (2026-09-12) read-only adversarial audit of the fourteen server-plane gate policies against #1584's §5b criteria, closing the §4.1 narrowing-cut and third-answer axes wave 8 had left uncovered for this family. All 14 are REFUTED, with a HIGH-severity finding that five policies produce false positives on pristine source by comparing a sealed-origin verdict's `.kind` directly instead of through the shared refusal classifier. It is a dated verification snapshot recording defects found at the time, not a durable design document."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-authority-census-2026-09-12.md",
@@ -32750,17 +32772,19 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-exemplar-audit-2026-09-12.md",
-        "assignedSha256": "d39521cc8c5af41c4ff8ef632a6c7d603a3a15c933e3a0675422cd0d9c619dc2",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "assignedSha256": "a29e4aa0a041a847ec159db8a4c94813f481e380722238372521967d17fc9143",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "a29e4aa0a041a847ec159db8a4c94813f481e380722238372521967d17fc9143",
+        "verifiedCommit": "e6994a62f19e2e467aeb421222eb8966eb3e5966",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-exemplar-audit-2026-09-12.md:1-568 read in full 2026-09-14; the wave-1 audit that refutes nine of the ten cited exemplars in exemplars-2026-09-11.md, including two modules that document certified \"Wart: none found\", and names user-bus-deferred-member the sole module worth copying. VERBATIM line 432: \"This is the module to point a conversion lane at\""
+        ],
+        "summary": "A dated (2026-09-11/12) read-only adversarial audit of the ten gate policies cited as exemplars by exemplars-2026-09-11.md, against the #1584 program's §5b criteria. It REFUTES nine of the ten — including proving server-layout's and no-raw-matchmedia's cited not-ready/fail-closed guards are unreachable or unproven, despite the exemplars document certifying them clean — and CONFIRMS only user-bus-deferred-member. This document is itself the record that refutes exemplars-2026-09-11.md (elsewhere recorded as retired history); it is a dated verification report, not current guidance."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-fix-wave-1-2026-09-12.md",
@@ -32989,17 +33013,19 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-gate-batch-2026-09-12.md",
-        "assignedSha256": "82c064f1e034d90118cab2295c47855f2c73df45a6a90e95fde76a9403f68d75",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "assignedSha256": "de043079ecbd3807a98faf3b25a60c5419bdd8c2e6967d20571fd74a35e87957",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "de043079ecbd3807a98faf3b25a60c5419bdd8c2e6967d20571fd74a35e87957",
+        "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-gate-batch-2026-09-12.md:1-549 read in full 2026-09-14; a dated verifier pass over four exemplar gate-runtime lanes, confirming two lanes clean and refuting two others for a deleted legacy suppression marker and a missed enforcement-roster coupled-site edit. VERBATIM line 531: \"still describes the retired legacy\""
+        ],
+        "summary": "A dated (2026-09-11/12) read-only verifier pass over four landed gate-runtime lanes (key-set reader, caught-failure conversion, ResourceHost wave 2, provider-receipt lane) for the #1584 program. It CONFIRMS the capability and provider-receipt lanes clean, but REFUTES the key-set and caught-failure lanes for leaving the enforcement roster coupled site unedited and for silently deleting a live legacy suppression marker rather than translating it. It is a dated code-review/verification record, not a design or policy document."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-hit-geometry-2026-09-13.md",
@@ -33253,16 +33279,18 @@
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-legs-wave-2026-09-12.md",
         "assignedSha256": "f661ab76902ff03fea26896c964f8b962ed0aaf5ffacd730282ab0410bdfffe7",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "f661ab76902ff03fea26896c964f8b962ed0aaf5ffacd730282ab0410bdfffe7",
+        "verifiedCommit": "9dca9fca4f0d825a538905e4ceb5a141da2ca1b3",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-legs-wave-2026-09-12.md:1-107 read in full 2026-09-14; fresh-context adversarial re-verification confirmed all four re-checked Verify rows and additionally minted three new unpinned-fence ledger rows on no-raw-zustand-persist. VERBATIM line 88: \"Hardcoding unreadable: false at the arm-B return leaves home-client-family 17/17 green, so a future edit fails the arm OPEN silently\""
+        ],
+        "summary": "An adversarial re-verification lane that re-derived four already-claimed Verify rows (#2047, #2050, #1950/#2051) from a fresh, isolated worktree, confirming all four with planted mutation/control probes rather than trusting the original commits' own floors. It also minted three new unpinned-fence findings (P2/P3) on no-raw-zustand-persist's ARM B/C acquittal logic. Readers must not treat this as a whole-tree verdict — the real-tree structure delta and nine of eleven touched files in the third commit were explicitly out of scope."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-migrations-wave-2026-09-12.md",
@@ -39899,16 +39927,18 @@
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-05-1584-integration-checkpoint.md",
         "assignedSha256": "7bac2923bdfa409f4dd7bf5dfb333bfc9f1a72ca98da34b7453c9ac3f2cb0fcb",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "7bac2923bdfa409f4dd7bf5dfb333bfc9f1a72ca98da34b7453c9ac3f2cb0fcb",
+        "verifiedCommit": "74c7250678f4947f093661d39d75a8a89bb6ba13",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-05-1584-integration-checkpoint.md:1-68 read in full 2026-09-14; integrated cold review of #1584's gate-tsmorph-standardization checkpoint range confirmed one HIGH finding that a reviewed grant whose policy was deleted from the corpus is never rejected or marked stale. VERBATIM line 49: \"A serial rerun of the five affected files with a 60-second per-test ceiling passed 51/51 with zero type errors\""
+        ],
+        "summary": "A cold checkpoint review of an integrated gate-runtime range on the #1584 migration branch. It confirms one HIGH finding: a typed reviewed grant whose policy id has been deleted from the loaded corpus survives with zero consumption and no stale alarm, so it can silently reattach if that policy id is reintroduced. All 14 converted policies passed their self-proofs and the focused runtime battery was green after clearing load-induced timeouts; readers must not treat this as a whole-tree verification since broad structure/type/CT/e2e checks were explicitly out of scope."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-09-05-gate-migration-codemod.md",
@@ -39930,16 +39960,18 @@
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-05-gate-migration-codemod.md",
         "assignedSha256": "bad28fe7eae0579d182362083a96bc5993b1401d0b518c28098952f5afce996b",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "bad28fe7eae0579d182362083a96bc5993b1401d0b518c28098952f5afce996b",
+        "verifiedCommit": "535b70dc3eaf9690544bcd98c4f3e9db3eff430c",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-05-gate-migration-codemod.md:1-202 read in full 2026-09-14; stickler review of the gate migration codemod rendered NOT MERGEABLE with ten confirmed findings spanning manifest trust, source-shape checking, symlink escape, and non-atomic apply. VERBATIM line 57: \"ts-morph retains the in-root symlink identity and saves through it\""
+        ],
+        "summary": "A stickler review of the gate migration codemod tool that mechanically converts legacy gate descriptors to the final policy shape. Verdict NOT MERGEABLE with ten confirmed findings (four P1, five P2, one P3): the manifest's membership is self-asserted so it converts gates the authoritative reports classify as semantic-manual, the source-shape filter is narrower than the existing gate-contract analysis, a symlinked gate path can write outside the declared repository root, and multi-file apply has no rollback after a mid-sequence save failure. Readers must not treat the one successfully converted real no-decorators.ts gate as proof the tool is safe for the full migration wave."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-09-05-gate-runtime-core.md",
@@ -39961,16 +39993,18 @@
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-05-gate-runtime-core.md",
         "assignedSha256": "7c67087b1b7501938a1cb07bfe682db05c135ac349694a25932e934e6b3b74a9",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "7c67087b1b7501938a1cb07bfe682db05c135ac349694a25932e934e6b3b74a9",
+        "verifiedCommit": "fb8afa862ba2baf7eb17bf4761869fa0d775d80b",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-05-gate-runtime-core.md:1-148 read in full 2026-09-14; stickler review of the gate-runtime core commit rendered a NOT MERGEABLE verdict with seven confirmed findings across the runtime's two entry doors and its semantic receipt boundary. VERBATIM line 60: \"Validate that every value is a real node kind in the supported SyntaxKind range\""
+        ],
+        "summary": "A stickler review of the gate-runtime core commit (the one-walk dispatcher, loader, and policy-pass runtime). Verdict NOT MERGEABLE with seven confirmed findings (four P1, three P2): an empty module corpus loads successfully, the dispatcher executes empty/unbranded/invalid policy input without validation, any integer is accepted as a SyntaxKind so an impossible visitor clean-passes without running, and malformed semantic/resource receipts do not withhold a clean owner result. Readers must not treat the passing focused-test receipts as proof of a safe runtime — the probes above demonstrate the tests' uncovered false-green paths."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-09-05-gate-runtime-foundation.md",
@@ -39992,16 +40026,18 @@
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-05-gate-runtime-foundation.md",
         "assignedSha256": "9d01e28b8fe28114287fdb2a1917d563ce0d8f809d13713b7ae1ecd45748cbc9",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "9d01e28b8fe28114287fdb2a1917d563ce0d8f809d13713b7ae1ecd45748cbc9",
+        "verifiedCommit": "ccf8b7d617998747405208d35c3fcb0cba61f0b5",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-05-gate-runtime-foundation.md:1-149 read in full 2026-09-14; stickler review of the gate-runtime standardization foundation range rendered NOT MERGEABLE with six confirmed findings plus two mechanically-enforced coupled-site blockers. VERBATIM line 111: \"the same active design offers two answers to the denominator its manifest is supposed to lock\""
+        ],
+        "summary": "A stickler review of the temporary gate-contract census/inspector foundation for the tsmorph gate-runtime migration. Verdict NOT MERGEABLE with six confirmed findings (four P1, two P2): the descriptor inspector misses spread/computed-key indirection, traversal and Project detection use text rather than symbol identity (both false-clean and false-accuse), module-state mutation detection loses aliased writes, and an empty corpus exits clean. Readers must not treat the reproduced 255-module/1,579-finding census total as proof the migration inventory is trustworthy — the confirmed holes mean a future terminal zero would not prove the migration complete."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-09-05-policy-scope-foundation-ff408a140.md",
@@ -40023,16 +40059,18 @@
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-05-policy-scope-foundation-ff408a140.md",
         "assignedSha256": "38724b46257608c4ff60cf7c1f093394aa7b09bc123b8fe45a54b2e5007f6bfc",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "38724b46257608c4ff60cf7c1f093394aa7b09bc123b8fe45a54b2e5007f6bfc",
+        "verifiedCommit": "53bb2d35f3d7bf82bf0c5e911c705b60a35bb91a",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-05-policy-scope-foundation-ff408a140.md:1-84 read in full 2026-09-14; cold review of the policy-scope foundation commit confirmed five HIGH/LOW findings including committed-unpushed-main changes resolving to an empty scope and modified tsconfigs selecting zero compiler programs. VERBATIM line 63: \"Reviewed commit ff408a140c7a7f1d0bc4d6bcd9e330c4536662a2 at exact branch tip codex/gate-policy-scope\""
+        ],
+        "summary": "A cold review of the gate-runtime policy-scope foundation commit (scoped-verification resolver). It confirms five findings, severity ceiling HIGH: committed-but-unpushed main changes resolve to an empty change scope, modified tsconfig/extends inputs select zero compiler programs, an untracked replacement at a deleted/renamed path is silently dropped, Git-authored symlink identities collapse or vanish, and malformed-request diagnostics are insertion-order dependent. Readers must not read the passing focused test suite as covering these cases — the suite is green only because it does not exercise them."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-09-05-resource-layout-size-inventory.md",
@@ -40054,16 +40092,18 @@
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-05-resource-layout-size-inventory.md",
         "assignedSha256": "ee0b83eb53db80410a12c61c63218c0a2040b0a00e491e64935f7c4875f0ba0d",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "ee0b83eb53db80410a12c61c63218c0a2040b0a00e491e64935f7c4875f0ba0d",
+        "verifiedCommit": "a7cdadda3860af47d1afaf33952668b925a98e66",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-05-resource-layout-size-inventory.md:1-68 read in full 2026-09-14; cold review confirmed the closed ResourceHost census of 53 fsBacked gates split 13 in-family / 40 out-of-family, with one mid-review correction about the delivered planner's .mts admission. VERBATIM line 43: \"Live ResourceHost acquisition reproduced the report exactly: client-source=1,437, ui-source=490, tooling-slot=1,752\""
+        ],
+        "summary": "A cold review of the ResourceHost layout/size/inventory family report, confirming its closed census of 53 fsBacked gate modules partitioned into 13 in-family and 40 out-of-family policies. One report defect was found and corrected during review (the destination .ts/.tsx-only extension ruling had omitted that the delivered planner currently admits .mts). Readers must not treat the corrected report as proof that resource-gate conversion has started — it is a planning inventory, and the .mts planner drift remains unresolved parent-seam work."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-09-05-shared-semantic-readers.md",
@@ -40085,16 +40125,18 @@
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-05-shared-semantic-readers.md",
         "assignedSha256": "5287fd9efe43a20391ed1999ac50f22b15045162fb36e6fbd745e0b48397f73c",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "5287fd9efe43a20391ed1999ac50f22b15045162fb36e6fbd745e0b48397f73c",
+        "verifiedCommit": "d5a6c8e4c3a2c2aa031365351c9aaa0df67c9871",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-05-shared-semantic-readers.md:1-80 read in full 2026-09-14; cold review of the shared AST/type reader foundations for #1584 closed clean after six reproduced silent-resolution/compatibility classes were fixed and re-probed during the session. VERBATIM line 60: \"The focused module regression was red before the strict cross-source canonical fix and green after it\""
+        ],
+        "summary": "A cold review of the shared semantic-reader foundation (reference-fact and static-authored-value readers) built for the #1584 gate-runtime migration. It concludes clean with zero outstanding findings after the reviewer found and had fixed six silent-resolution/compatibility classes during the session. Readers must not treat this as coverage of gate modules, ResourceHost, or policy conversions — those were explicitly out of scope and remain the parent integration lane's responsibility."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-09-06-gate-system-composed-review.md",
@@ -40116,16 +40158,18 @@
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-06-gate-system-composed-review.md",
         "assignedSha256": "dfdd81f22d081597088bcb801963e45e0824afe8b8e794ff7d913382844a7409",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "dfdd81f22d081597088bcb801963e45e0824afe8b8e794ff7d913382844a7409",
+        "verifiedCommit": "aafe68db3ce2c41ee7f2e56383f2ffe4ee1801b7",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-06-gate-system-composed-review.md:1-34 read in full 2026-09-14; composed cold review of two in-flight gate-migration lanes found one confirmed high-severity false-clean in nullable-column-inequality and left Lane B's final bytes and a long-running pnpm check unfinished when the orchestrator forced an immediate verdict. VERBATIM line 26: \"Lane B moved from the supplied 0d8b9b39 state to at least b18a35dd and continued changing\""
+        ],
+        "summary": "A composed stickler review of two concurrent gate-runtime migration lanes (A and B), forced to an immediate verdict mid-run. It confirms one High finding: nullable-column-inequality treats an unrelated same-statement isNull/isNotNull call as a guard, letting a nullable inequality drop NULL rows while reporting clean. Readers must not mistake the report as a complete review of Lane B's final state — the lane was still moving and full coverage was explicitly not reached."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-09-08-appearance-boot-split.md",
@@ -40718,17 +40762,19 @@
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-11-tool-guard-reenable.md",
-        "assignedSha256": "2e7165d03a39d9e04df958972e505c0b12fa3ef9a51bff1a9d34d93385c0051e",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "assignedSha256": "c375517cab9f34f184e74a083f17f138495c769e2817cbc397afb369d602249e",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "c375517cab9f34f184e74a083f17f138495c769e2817cbc397afb369d602249e",
+        "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
+        "verifiedAt": "2026-09-14",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-11-tool-guard-reenable.md:1-448 read in full 2026-09-14; stickler review of the Bash tool-guard re-registration confirmed six P2/P3 findings including a raw CT spelling gap and a glued group-closer that still shields a destructive script body. VERBATIM line 61: \"bare .sh head: words[head] (:1397) still carries the leading ( — ungroup fixed the token, not the word\""
+        ],
+        "summary": "A stickler review of the tool-guard.mjs re-registration and CT-rule rewrite (commit 40223a091 plus a docs follow-up), reproducing every claim by spawning the committed guard with real probe payloads rather than reasoning from the diff. It confirms six findings, severity ceiling P2, none a regression: a raw ./node_modules/.bin/playwright CT spelling gap (268 corpus sightings), a glued group-closer that still shields a destructive script, the hook being linted by nothing with its only behavioral pin gated to the --full tier, and several heavy-tool spellings that pass un-floored. Readers must not read the 175-row A/B probe as a whole-tree verification — several classes (real CT execution, the 179k-row replay, structure re-run bare) were explicitly not covered."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",

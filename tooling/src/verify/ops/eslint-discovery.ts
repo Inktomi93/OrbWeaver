@@ -53,7 +53,7 @@ export async function discoverEslintFiles(root: string): Promise<readonly string
 /** The producer serializes its native discovery result as one envelope (#2212). `count` is derived from the
  *  same `files` array and therefore checks wire consistency only; it is not an independent enumeration or a
  *  truncation oracle. Discovery ownership stays here, through ESLint's native `lintFiles(["."])` semantics. */
-export interface EslintDiscoveryWire {
+interface EslintDiscoveryWire {
   readonly count: number;
   readonly files: readonly string[];
 }

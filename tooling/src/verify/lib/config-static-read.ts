@@ -15,7 +15,7 @@ import type { ConfigRead, ExtractRequest, RowExtraction, StaticRead, UnresolvedS
 import type { ExactRow } from "./grant-liveness.ts";
 import { lineFinder } from "./grant-liveness.ts";
 
-export type { ConfigRead, ExtractRequest, RowExtraction } from "../contract/config-read.ts";
+export type { ConfigRead } from "../contract/config-read.ts";
 
 function refuse(node: Node): StaticRead {
   return { values: [], unresolved: [{ kind: node.getKindName(), text: node.getText(), line: node.getStartLineNumber() }] };
@@ -271,7 +271,7 @@ function readValueInner(node: Node, seen: Set<Node>, escaped: ReadonlySet<object
 }
 
 /** The ordered string evaluator's PUBLIC face (#910): evaluate ONE expression to the strings it provably
- *  contributes, plus every shape it could not read. Same contract as `extractRows` — a caller that ignores
+ *  contributes, plus every shape it could not read. Same contract as the row extractor (`createRowExtractor`) — a caller that ignores
  *  `unresolved` is printing a clean zero over a value it never read. Exported because a second reader of
  *  authored CODE strings (`enforcement-registry-parity`, comparing a doc row against a gate descriptor's
  *  runtime `message`) must not re-spell this evaluation: a hand-rolled `Node.isStringLiteral(x)` read is
@@ -328,18 +328,16 @@ export function parseStaticSourceText(rel: string, text: string): Exclude<Config
   return { kind: "ok", sf, text };
 }
 
-/** Read + parse one repo-relative source. Missing and SYNTACTICALLY BROKEN both refuse loudly. */
+/**
+ * Read + parse one repo-relative source. Missing and SYNTACTICALLY BROKEN both refuse loudly.
+ * @public knip false positive — no live importer; consumed at TEST RUNTIME by the frozen legacy `tooling-shared-plumbing` gate that tests/tooling/verify/gates/tooling-plumbing-family.test.ts git-shows at its pinned SHA and rewires to this live module.
+ */
 export function readStaticSource(root: string, rel: string): ConfigRead {
   const abs = `${root}/${rel}`;
   if (!existsSync(abs)) {
     return { kind: "missing" };
   }
   return parseStaticSourceText(rel, readFileSync(abs, "utf-8"));
-}
-
-/** Config-owner spelling retained for the two registry readers; parsing still has one implementation. */
-export function readConfigSource(root: string, rel: string): ConfigRead {
-  return readStaticSource(root, rel);
 }
 
 type BoundExtractRequest = Omit<ExtractRequest, "sf">;
@@ -385,12 +383,4 @@ export function createRowExtractor(sf: import("ts-morph").SourceFile): RowExtrac
   const escaped = escapedCollectionSymbols(sf);
   const properties = sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment);
   return (request) => extractRowsWith(request, escaped, properties);
-}
-
-/** Walk a parsed config for the given property KEYS, statically evaluate each value, and classify it.
- *  Every unreadable shape is carried out in `unresolved` — the caller MUST fail loud on a non-empty list;
- *  a shape this cannot read is never a clean zero. */
-export function extractRows(request: ExtractRequest): RowExtraction {
-  const { sf, ...bound } = request;
-  return createRowExtractor(sf)(bound);
 }

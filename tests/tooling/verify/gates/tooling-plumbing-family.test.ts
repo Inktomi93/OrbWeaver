@@ -95,7 +95,10 @@ const TREE: readonly GatePolicy[] = [
 ];
 const ALL: readonly GatePolicy[] = [...TREE, runnerConfigLiterals];
 const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifactPathHome, processExitHome, childProcessDoor, portRegistry];
-const PLUMBING_GRANT_COUNT = 19;
+// 19 at mint; 17 since `tooling-project-home:dangling-refs` (d32dbde26) and `:enforcement-registry-parity`
+// (ed4b7588a) retired with their gates' conversions — a converted policy owns no Project, so its grant died
+// with the act it licensed. The exact-subject arm below still pins every survivor to a live file.
+const PLUMBING_GRANT_COUNT = 17;
 const LEGACY = { sha: "2c1a1d37c", path: "tooling/src/verify/gates/tooling-shared-plumbing.ts" } as const;
 const LEGACY_EXAMPLES = 36;
 const DIFFERENTIAL_BUDGET_MS = scaledBudget(180_000);
@@ -314,7 +317,7 @@ test("the browser home carries TWO grants because it performs two licensed acts,
   expect(both.authority.authorityAlarms).toEqual([]);
 });
 
-test("the central table carries exactly the nineteen plumbing rows, every subject on the tree", () => {
+test("the central table carries exactly the plumbing rows the survivors license, every subject on the tree", () => {
   const rows = reviewedGrantsFor(GRANT_POLICIES);
   expect(rows).toHaveLength(PLUMBING_GRANT_COUNT);
   expect(rows.map((row) => row.policyId)).toEqual(sorted(rows.map((row) => row.policyId)));

@@ -22,7 +22,7 @@ import { Node as N, SyntaxKind } from "ts-morph";
 import type { ExemptionTable } from "../contract/gate.ts";
 
 export const DOMAIN_CONTRACT_RE = /^packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
-export const DB_SCHEMA_DIR = "packages/db/src/schema/";
+const DB_SCHEMA_DIR = "packages/db/src/schema/";
 const ROW_SUFFIX_RE = /(?<suffix>Row|Insert)$/u;
 const SQLITE_TABLE = "sqliteTable";
 

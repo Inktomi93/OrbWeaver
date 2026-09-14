@@ -581,7 +581,7 @@ function pooledVocab(targets: readonly OpenJsonColumn[], vocabs: ReadonlyMap<str
 const tokenOf = (targets: readonly OpenJsonColumn[], key: string): string =>
   targets.length === 1 && targets[0] !== undefined ? `${colKey(targets[0])}:${key}` : `${targets[0]?.prop ?? "?"}:${key}`;
 
-export interface OpenJsonVerdict {
+interface OpenJsonVerdict {
   readonly hit: ReaderHit;
   readonly token: string;
 }

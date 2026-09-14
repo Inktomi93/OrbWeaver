@@ -81,7 +81,3 @@ export function runtimeUse(inventory: CssVariableInventory): ReadonlySet<string>
     inventory.references.filter((site) => !inventory.cssDefinitions.has(site.name) && inventory.runtimeDefinitions.has(site.name)).map((site) => site.name),
   );
 }
-
-export function producerKey(file: string, property: string): string {
-  return `${file}:${property}`;
-}

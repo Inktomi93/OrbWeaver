@@ -8,7 +8,6 @@
 // any of those honest-authoring shapes is still seen. Hardening only ever WIDENS what a gate detects.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ObjectLiteralRead } from "../contract/ast-read.ts";
 
 /** Strip `as X` / `satisfies X` / parentheses wrappers so the underlying literal/object/call is reachable.
  *  Mirrors the local `unwrap` in diagnostic-legibility.ts. */
@@ -88,75 +87,4 @@ export function declarationsNamed(sf: SourceFile, name: string): readonly Node[]
     declarationsByName.set(key, index);
   }
   return index.get(name) ?? [];
-}
-
-/** How deep the same-file identifier hops go before the read gives up — a cheap cycle/pathology fence. */
-const IDENTIFIER_HOPS = 4;
-
-/** Describe an unreadable initializer in the AUTHOR's vocabulary, so the finding says what to change. */
-function unresolvedShape(n: Node): string {
-  if (Node.isIdentifier(n)) {
-    return `the identifier \`${n.getText()}\` (not an object literal declared in this file — an imported or re-exported definition)`;
-  }
-  if (Node.isCallExpression(n)) {
-    return `a call expression \`${n.getExpression().getText()}(…)\` (a builder)`;
-  }
-  return `a ${n.getKindName()}`;
-}
-
-/** The object literal an initializer expression denotes — through any `as`/`satisfies`/paren wrapper
- *  (`unwrapExpression`) and through SAME-FILE identifier indirection (a `const def = {...}` consumed by an
- *  exported `const x: T = def` — still co-located, so still readable). An IMPORTED identifier, a builder call, or anything else
- *  comes back `unresolved` WITH the shape named: that is the value a gate fails closed on. */
-export function readObjectLiteral(node: Node | undefined): ObjectLiteralRead {
-  if (node === undefined) {
-    return { kind: "unresolved", shape: "no initializer" };
-  }
-  let current: Node = node;
-  for (let hop = 0; hop <= IDENTIFIER_HOPS; hop += 1) {
-    const n = unwrapExpression(current);
-    if (Node.isObjectLiteralExpression(n)) {
-      return { kind: "object", object: n };
-    }
-    if (!Node.isIdentifier(n)) {
-      return { kind: "unresolved", shape: unresolvedShape(n) };
-    }
-    const declared = declarationsNamed(n.getSourceFile(), n.getText()).filter((d) => Node.isVariableDeclaration(d));
-    const only = declared.length === 1 ? declared[0] : undefined;
-    const init = only !== undefined && Node.isVariableDeclaration(only) ? only.getInitializer() : undefined;
-    if (init === undefined) {
-      return { kind: "unresolved", shape: unresolvedShape(n) };
-    }
-    current = init;
-  }
-  return { kind: "unresolved", shape: `an identifier chain deeper than ${IDENTIFIER_HOPS} hops` };
-}
-
-/** Is this node a function-like whose body a factory read can enter? */
-function isFunctionLike(n: Node): boolean {
-  return Node.isFunctionDeclaration(n) || Node.isArrowFunction(n) || Node.isFunctionExpression(n);
-}
-
-/** The object literal a FACTORY returns — `function make(): T { return {…}; }` or `(): T => ({…})`. The
- *  factory posture is a SANCTIONED authoring shape for some definitions and not for others, so this is a
- *  separate door from `readObjectLiteral`: a gate calls it only where its own law allows a factory.
- *
- *  A function with more than one `return` of its OWN is `unresolved` on purpose — two candidate definitions
- *  is exactly the ambiguity a gate must not silently pick one of. */
-export function readReturnedObjectLiteral(fn: Node): ObjectLiteralRead {
-  if (!isFunctionLike(fn)) {
-    return { kind: "unresolved", shape: `a ${fn.getKindName()} (not a function)` };
-  }
-  const body = Node.isFunctionDeclaration(fn) || Node.isArrowFunction(fn) || Node.isFunctionExpression(fn) ? fn.getBody() : undefined;
-  if (body === undefined) {
-    return { kind: "unresolved", shape: "a function with no body (an overload signature)" };
-  }
-  if (!Node.isBlock(body)) {
-    return readObjectLiteral(body);
-  }
-  const returns = body.getDescendantsOfKind(SyntaxKind.ReturnStatement).filter((r) => r.getFirstAncestor(isFunctionLike) === fn);
-  if (returns.length !== 1) {
-    return { kind: "unresolved", shape: `a function body with ${returns.length} \`return\` statement(s) — exactly one is readable` };
-  }
-  return readObjectLiteral(returns[0]?.getExpression());
 }

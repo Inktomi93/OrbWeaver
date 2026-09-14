@@ -23,7 +23,7 @@ export function sanctionedHome(homes: ExemptionTable, rel: string): string | und
  *  row covers, read through the policy's own `relativePath` rather than `ctx.project`/`ctx.root`. Additive
  *  — the `GateRunCtx`-shaped `homeFiles`/`reportUnresolvedHomes` below are untouched for gates still on the
  *  legacy contract. */
-export function coveredFiles(files: readonly SourceFile[], relativePath: (sourceFile: SourceFile) => string, key: string): readonly SourceFile[] {
+function coveredFiles(files: readonly SourceFile[], relativePath: (sourceFile: SourceFile) => string, key: string): readonly SourceFile[] {
   return files.filter((sourceFile) => covers(key, relativePath(sourceFile)));
 }
 
@@ -41,14 +41,16 @@ export function unresolvedSanctionedHomeKeys(
 /** Every loaded file one row covers — a directory row's whole subtree, a file row's single file. The
  *  substrate for a gate's own mode-A arm ("the home no longer carries the shape it is the home OF"),
  *  which only some homes can honestly claim. */
-export function homeFiles(ctx: Pick<GateRunCtx, "root" | "project">, key: string): readonly SourceFile[] {
+function homeFiles(ctx: Pick<GateRunCtx, "root" | "project">, key: string): readonly SourceFile[] {
   return ctx.project.getSourceFiles().filter((sf) => covers(key, repoRel(ctx.root, sf.getFilePath())));
 }
 
 /** The default REAL-TREE ANCHOR for the tripwire (GATE-AUTHORING.md §4.5, `own-tables-only`'s precedent):
  *  the db schema barrel is present on every real run, sits inside NO gate's sanctioned home, and is needed
  *  by no example that is not deliberately arming this arm. A gate must NOT anchor this sweep on a file
- *  inside its own home — the home dying would take the guard with it and the tripwire would never fire. */
+ *  inside its own home — the home dying would take the guard with it and the tripwire would never fire.
+ * @public knip false positive — no live importer; the frozen legacy ui-skin-fragment-purity gate that tests/tooling/verify/lib/ui-tier-permissions.test.ts git-shows at its pinned SHA imports this anchor, and an un-exported value there is a SILENT undefined that flips its rename-tripwire verdict rather than a thrown error.
+ */
 export const HOME_SWEEP_ANCHOR = "packages/db/src/schema/index.ts";
 
 /** THE RENAME TRIPWIRE (GATE-AUTHORING.md §3 "add a rename tripwire in finalize", §4.4a mode B): one
@@ -62,7 +64,9 @@ export const HOME_SWEEP_ANCHOR = "packages/db/src/schema/index.ts";
  *
  *  Guarded on a REAL-TREE ANCHOR, never on `ctx.scope.kind` alone: `scope.kind === "project"` is TRUE
  *  inside gate-conformance's synthetic mini-projects, where no row's path exists and every row would
- *  "prove" itself dead (§4.5). The anchor must be a file no example needs. */
+ *  "prove" itself dead (§4.5). The anchor must be a file no example needs.
+ * @public knip false positive — no live importer; consumed at TEST RUNTIME by the frozen legacy no-raw-* / z-index / skin gates that tests/tooling/verify/gates/tier-home-health-family.int.test.ts and tests/tooling/verify/lib/ui-tier-permissions.test.ts git-show at their pinned SHAs and rewire to this live module.
+ */
 export function reportUnresolvedHomes(
   ctx: GateRunCtx,
   homes: ExemptionTable,

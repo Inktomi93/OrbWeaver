@@ -55,7 +55,7 @@
 // at mint does not authorize downgrading the current contract.
 //
 // FAMILY `policy-soundness` — the shared reader is `lib/policy-descriptor-read.ts` (`proofRowsOf`,
-// `filesContentsOf`, `discriminationOf` and the `staticSegments` machinery). `discriminationOf` is the one
+// `discriminationOf` and the `staticSegments` machinery). `discriminationOf` is the one
 // worth naming: whether a `messageIncludes` actually DISCRIMINATES is computed once, for every member, so a
 // row cannot read as pinning an arm here and as pinning nothing next door.
 // POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL, in the

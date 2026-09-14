@@ -43,7 +43,7 @@ export type CitationClass = (typeof CITATION_CLASSES)[number];
 
 /** What a site's own grammar claims about the row it names — see the class table in `board-citations.ts`.
  *  `open` is claimed by exactly one class; the other two claim only that the row EXISTS. */
-export type CitationClaim = "open" | "exists";
+type CitationClaim = "open" | "exists";
 
 export interface BoardCitation {
   readonly citationClass: CitationClass;

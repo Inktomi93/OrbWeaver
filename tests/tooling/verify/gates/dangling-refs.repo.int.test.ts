@@ -30,12 +30,22 @@ import {
   sorted,
 } from "../../../support/legacy-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+// Quiet-box ceiling for the 19-row filesystem replay; `scaledBudget` stretches it under measured load.
+const REPLAY_BASE_MS = 600_000;
 
 const HARD_GATE = "dangling-refs";
 const CITATION_GATE = "dangling-ref-citations";
 const ABSENT_PATH = "packages/client/dist";
 const CITE = ".dockerignore";
 const FAMILY_GRANTS = REVIEWED_GRANTS.filter(({ policyId }) => policyId === CITATION_GATE);
+// Two rows joined the family AFTER the conversion (a6740edc3, 2026-09-14): the `ELEVATED_ALLOW` and
+// `EXEMPT_PROCEDURES` symbol citations that the density-tier and duplicate-action-doors conversions retired
+// from the tree while Core-Enforcement-Active-Gates.md kept naming them. They are live grants, not
+// translations of a legacy private row, so the translation arms below count only the 22 that were.
+const POST_CONVERSION_GRANT_IDS: ReadonlySet<string> = new Set(["dangling-ref-citations:elevated-allow", "dangling-ref-citations:exempt-procedures"]);
+const TRANSLATED_GRANTS = FAMILY_GRANTS.filter(({ id }) => !POST_CONVERSION_GRANT_IDS.has(id));
 const LEGACY_BASE = "d8cda584fb1665907c0a6d7479780b9f4e691aca";
 const LEGACY_PATH = "tooling/src/verify/gates/dangling-refs.ts";
 const LEGACY_FALLBACK = "__no-example-files-map__/dangling-refs.ts";
@@ -426,7 +436,9 @@ function unclassifiedToolError(owner: string, phase: string, message: string): n
   throw new Error(`unclassified dangling differential refusal from ${owner}/${phase}: ${message}`);
 }
 
-test("§4.6 — the final split replays all 10 mustFlag and 9 mustPass legacy rows on the same bytes", { timeout: 600_000 }, async ({ scratch }) => {
+test("§4.6 — the final split replays all 10 mustFlag and 9 mustPass legacy rows on the same bytes", { timeout: scaledBudget(REPLAY_BASE_MS) }, async ({
+  scratch,
+}) => {
   const differential = createTmpdirDifferential(unclassifiedToolError);
   const legacy = await frozenFilesystemLegacyGate(scratch, LEGACY_BASE, LEGACY_PATH);
   expect(legacy.name, "the frozen conversion-parent blob is the legacy descriptor").toBe(HARD_GATE);
@@ -485,9 +497,9 @@ test("§4.6 — the final split replays all 10 mustFlag and 9 mustPass legacy ro
     }
   }
   expect(authorityTransitions, "the three legacy real-tree-anchor rows each retire exactly the 22 private permission rows").toEqual([
-    { index: 4, legacyPrivateRows: FAMILY_GRANTS.length, countDelta: FAMILY_GRANTS.length },
-    { index: 7, legacyPrivateRows: FAMILY_GRANTS.length, countDelta: FAMILY_GRANTS.length },
-    { index: 8, legacyPrivateRows: FAMILY_GRANTS.length, countDelta: FAMILY_GRANTS.length },
+    { index: 4, legacyPrivateRows: TRANSLATED_GRANTS.length, countDelta: TRANSLATED_GRANTS.length },
+    { index: 7, legacyPrivateRows: TRANSLATED_GRANTS.length, countDelta: TRANSLATED_GRANTS.length },
+    { index: 8, legacyPrivateRows: TRANSLATED_GRANTS.length, countDelta: TRANSLATED_GRANTS.length },
   ]);
 });
 
@@ -588,13 +600,17 @@ const EXPECTED_GRANT_IDENTITIES = [
 ] as const;
 
 describe("dangling-ref-citations — central reviewed authority replaces the legacy tables", () => {
-  test("the 22 translated rows are exact and the real corpus consumes each once", ({ repoRoot }) => {
-    expect(FAMILY_GRANTS.map(({ subject, operation }) => [subject, operation]).toSorted()).toEqual([...EXPECTED_GRANT_IDENTITIES].toSorted());
+  test("the 22 translated rows are exact, the two post-conversion rows are present, and the real corpus consumes each once", ({ repoRoot }) => {
+    expect(TRANSLATED_GRANTS.map(({ subject, operation }) => [subject, operation]).toSorted()).toEqual([...EXPECTED_GRANT_IDENTITIES].toSorted());
+    expect(FAMILY_GRANTS.filter(({ id }) => POST_CONVERSION_GRANT_IDS.has(id)).map(({ subject, operation }) => [subject, operation])).toEqual([
+      ["ELEVATED_ALLOW", "dangling-symbol-cite"],
+      ["EXEMPT_PROCEDURES", "dangling-symbol-cite"],
+    ]);
 
     const result = runDanglingRefs(repoRoot);
     expect(result.toolErrors).toEqual([]);
     expect(result.authority.effectiveFindings).toEqual([]);
-    expect(result.authority.grantedFindings.filter(({ finding }) => finding.policyId === CITATION_GATE)).toHaveLength(EXPECTED_GRANT_IDENTITIES.length);
+    expect(result.authority.grantedFindings.filter(({ finding }) => finding.policyId === CITATION_GATE)).toHaveLength(FAMILY_GRANTS.length);
     expect(result.authority.authorityAlarms.filter(({ policyId }) => policyId === CITATION_GATE)).toEqual([]);
   }, 600_000);
 

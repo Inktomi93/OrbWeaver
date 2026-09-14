@@ -15,7 +15,7 @@ export interface ShowInk {
 }
 
 /** The final row's own denominator note: the artifact's population counts, receipts, waived/granted, owner state. */
-export function finalRowNote(row: FinalPolicyRow, ink: ShowInk): string {
+function finalRowNote(row: FinalPolicyRow, ink: ShowInk): string {
   const parts = [
     `final ${row.authority}/${row.severity}`,
     `population ${row.population.effectiveSourcePaths} source · ${row.population.effectiveResourcePaths} resource`,
@@ -80,7 +80,7 @@ export function finalBlockLines(policy: StructurePolicyReport, ink: ShowInk): re
 }
 
 /** The final tallies for the pass line. */
-export function finalPassSummary(rows: readonly FinalPolicyRow[], policy: StructurePolicyReport): string {
+function finalPassSummary(rows: readonly FinalPolicyRow[], policy: StructurePolicyReport): string {
   const waived = rows.reduce((n, row) => n + row.waived, 0);
   const granted = rows.reduce((n, row) => n + row.granted, 0);
   const effective = rows.reduce((n, row) => n + row.violations.length, 0);

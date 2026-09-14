@@ -54,7 +54,7 @@ export const LEDGER_CLAIMS_HELP =
   "  writes that phrase) · an id in `ledger rows OWED:` that exists as no row in the ledger.\n" +
   "  REPORTED, never red: an OWED id still open after later commits in the same range.";
 
-export const REFUTATION_LEDGER_REL = "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md";
+const REFUTATION_LEDGER_REL = "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md";
 
 /** The two ruled phrases, ONE home. Matched case-insensitively at a line start (a commit body wraps, and an
  *  author writing `Ledger rows OWED:` meant the same thing); the ids follow on the same line. */

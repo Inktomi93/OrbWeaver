@@ -46,7 +46,7 @@ export const USER_BUS_UNION: BusDeclarationIdentity = Object.freeze({
 /** The ONE home for "which bus members are owner-deferred", keyed by `(union, member)`. The union half is
  *  load-bearing since the coverage policy became generic over every belted bus — a bare member NAME would
  *  defer a same-named member of any other bus with it. */
-export const BUS_MEMBER_DEFERRALS: readonly BusMemberDeferral[] = Object.freeze([{ union: USER_BUS_UNION, member: "connectionsChanged" }]);
+const BUS_MEMBER_DEFERRALS: readonly BusMemberDeferral[] = Object.freeze([{ union: USER_BUS_UNION, member: "connectionsChanged" }]);
 
 /** The deferred members of ONE bus — the only way either policy is allowed to read the list, so the union
  *  half of the key cannot be dropped in one reader and honoured in the other.

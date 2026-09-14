@@ -16,7 +16,7 @@ export interface TailwindClassToken {
 }
 
 /** Split on top-level colons while preserving colons inside arbitrary variants and values. */
-export function splitTailwindClassToken(token: string): readonly string[] {
+function splitTailwindClassToken(token: string): readonly string[] {
   const segments: string[] = [];
   let depth = 0;
   let start = 0;

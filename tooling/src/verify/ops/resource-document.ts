@@ -32,7 +32,7 @@ const REFERENCE_LINK_RE = /^ {0,3}\[(?<label>[^\]]+)\]:\s*(?<target>\S+)/u;
 const ANCHOR_STRIP_RE = /[^a-z0-9 _-]/gu;
 
 /** GitHub's heading slug: case-folded, punctuation dropped, spaces hyphenated. */
-export function markdownAnchor(title: string): string {
+function markdownAnchor(title: string): string {
   return title.toLowerCase().replaceAll(ANCHOR_STRIP_RE, "").trim().replaceAll(/\s+/gu, "-");
 }
 

@@ -8,12 +8,12 @@ import { defineFact } from "../contract/fact.ts";
 const DIALOG_MODULE = "@orb/ui/dialog";
 const FEATURES = "packages/client/src/features/";
 
-export const DIALOG_DEBT_PATHS: ReadonlySet<string> = new Set([
+const DIALOG_DEBT_PATHS: ReadonlySet<string> = new Set([
   "packages/client/src/features/chat/components/invite-dialog.tsx",
   "packages/client/src/features/chat/components/rename-chat-dialog.tsx",
 ]);
 
-export interface DialogRootImportOccurrence {
+interface DialogRootImportOccurrence {
   readonly node: ImportSpecifier;
   readonly path: string;
   readonly debt: boolean;

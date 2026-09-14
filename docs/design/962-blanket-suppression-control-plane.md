@@ -112,7 +112,7 @@ command outside the registry is folklore wiring. Rejected: **a new static stage*
 correct but costs seven coupled sites (registry row, package.json script, cli verb + help, `VERIFY_VERBS`,
 `run.int.test.ts`'s static-tier pin, UNIFIED-VERIFICATION-DESIGN §3.2's literal list, `cli.ts` at 188 of
 its 200-line cap) to add a mechanism whose only job is to read a few blobs. Chosen: the gate already runs
-inside `pnpm check` at pre-commit, gates already shell out to git for their corpus (`memberSources`), and
+inside `pnpm check` at pre-commit, gates already shell out to git for their corpus (the tracked-file readers in `lib/grant-liveness.ts`), and
 one home for "what is a blanket" means the index arm cannot drift from the working-tree arm.
 
 ### 2.4 `markerImmune` — the as-built legacy argument

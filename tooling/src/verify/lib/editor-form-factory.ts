@@ -24,7 +24,7 @@ import type { SourceFile } from "ts-morph";
 /** The autosave factory: bakes the draft mirror, and strips `reset` at the type level. */
 export const AUTOSAVE_FORM_FACTORY = "createAutosaveEntityForm";
 /** The saved-entity factory: explicit submit, no live draft mirror. */
-export const SAVED_FORM_FACTORY = "createSavedEntityForm";
+const SAVED_FORM_FACTORY = "createSavedEntityForm";
 
 /** Both editor form factories — the set `form-factory-for-multifield` treats as "routed through Form". */
 export const EDITOR_FORM_FACTORIES: ReadonlySet<string> = new Set([AUTOSAVE_FORM_FACTORY, SAVED_FORM_FACTORY]);

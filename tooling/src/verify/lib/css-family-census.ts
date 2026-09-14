@@ -44,7 +44,6 @@ export const CLIENT_BLUR_FILL = new Set(["--blur-fill-chrome", "--blur-fill-dens
 export const CLIENT_COLORIZATION = new Set(["--color-border", "--color-sidebar-border"]);
 export const LOCAL_FADE_STOP_RE = /^--fade-(?:start|end|top|bottom)-stop$/u;
 export const KEYFRAME_STEP_RE = /^(?:from|to|\d+%(?:\s*,\s*\d+%)*)$/u;
-export const KNOWN_DENSITY_FLOOR = '[data-slot="list-row-subtitle"][data-subtitle-step="label"]';
 const CLASS_TOKEN_RE = /^[A-Za-z_][\w-]*$/u;
 
 // `EXPECTED_RUNTIME_WRITERS` IS GONE (#2305). It survived the first conversion leg as three "derived"

@@ -2,7 +2,7 @@
 // it). Gate Checks read `CheckContext = { root, project }`; a self-test drives the Check directly over a
 // synthetic tree instead of the real repo. Two flavors, both hoisted here from ~15 gate tests that had
 // byte-identical copies:
-//   • `ctxFor`/`ctxAt` — an in-memory ts-morph project (for gates that walk `ctx.project`'s AST).
+//   • `ctxFor` — an in-memory ts-morph project (for gates that walk `ctx.project`'s AST).
 //   • `withTree` — a REAL temp-dir fixture (for gates that line-count / stat the fs directly, ignoring
 //     `ctx.project`); auto-cleaned in `finally`.
 // A gate test that layers extra scaffold files into its tree (client-structure's domain-mirror seed) keeps
@@ -21,12 +21,6 @@ export function ctxFor(files: Record<string, string>, root = "/repo"): CheckCont
     project.createSourceFile(`${root}/${path}`, text);
   }
   return { root, project };
-}
-
-/** A `CheckContext` at `root` with an empty throwaway project — for gates that read the fs directly and
- *  ignore `ctx.project` (pair with `withTree`). */
-export function ctxAt(root: string): CheckContext {
-  return { root, project: new Project({ useInMemoryFileSystem: true }) };
 }
 
 /** Materialize `files` (relative path → source) into a fresh temp dir, run `fn(root)`, then remove it. */

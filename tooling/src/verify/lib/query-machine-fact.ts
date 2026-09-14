@@ -4,8 +4,8 @@ import type { ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
 
-export const QUERY_MACHINE_MODULE = "@tanstack/react-query";
-export const QUERY_MACHINE_NAMES = ["useMutation", "useInfiniteQuery"] as const;
+const QUERY_MACHINE_MODULE = "@tanstack/react-query";
+const QUERY_MACHINE_NAMES = ["useMutation", "useInfiniteQuery"] as const;
 /** Byte-for-byte port of the legacy harness population under `scanRoot: () => true`, with its
  * `.test.tsx?` scope subtraction. `@showcase` is explicit because it is deliberately outside
  * `@authored` while the harness still loads that workspace package. */
@@ -15,7 +15,7 @@ export const QUERY_MACHINE_POPULATION = {
 } as const;
 export type QueryMachineName = (typeof QUERY_MACHINE_NAMES)[number];
 
-export interface QueryMachineImport {
+interface QueryMachineImport {
   readonly node: ImportDeclaration;
   readonly file: string;
   readonly names: readonly QueryMachineName[];

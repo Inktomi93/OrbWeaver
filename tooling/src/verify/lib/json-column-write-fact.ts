@@ -36,12 +36,6 @@ export const JSON_VERSIONED_BLIND_MESSAGE =
   "placebo (GATE-AUTHORING.md §4.6). Re-point the derivation at the primitive's current spelling: " +
   "tooling/src/verify/gates/json-column-write-parity-health.ts";
 
-export const JSON_STALE_GUARD_EXEMPT_PREFIX =
-  "GUARD_EXEMPT entry names a writer that no longer needs the exemption (it grew the " +
-  "`requireIntactStoredConfig` guard, stopped being a whole-replace writer of a versioned-config column, or " +
-  "left the tree) — a standing exemption for a site that is gone is a loaded gun: delete the stale row in " +
-  "json-column-write-parity.ts: ";
-
 export interface JsonColumnWriter {
   readonly node: TsNode;
   readonly wholeReplace: boolean;
@@ -56,7 +50,7 @@ export interface JsonColumnIndex {
   readonly versioned: Map<string, ReadonlySet<string>>;
 }
 
-export function deriveJsonColumns(schema: SchemaModel, versionedTypes: ReadonlySet<string>): JsonColumnIndex {
+function deriveJsonColumns(schema: SchemaModel, versionedTypes: ReadonlySet<string>): JsonColumnIndex {
   const all = new Map<string, ReadonlySet<string>>();
   const versioned = new Map<string, ReadonlySet<string>>();
   for (const table of schema.tables) {
@@ -93,7 +87,7 @@ function ownedTypeOf(call: CallExpression): string | undefined {
 
 /** Every versioned-config declaration in `contracts`, split into the types it could read and the calls it
  *  could not (the #944 fail-closed half — a `continue` here would erase obligations silently). */
-export function deriveVersionedTypes(candidates: readonly CallExpression[]): {
+function deriveVersionedTypes(candidates: readonly CallExpression[]): {
   readonly types: Set<string>;
   readonly unresolved: CallExpression[];
   readonly calls: number;
@@ -280,7 +274,7 @@ const EMPTY_TAINT: ReadonlyMap<string, boolean> = new Map();
 
 /** The column a collected writer assigns — a `metadata: …` property, or a `set.metadata = …` accumulator
  *  assignment (whose LHS is the property access). */
-export function jsonWriterColumn(w: JsonColumnWriter): string {
+function jsonWriterColumn(w: JsonColumnWriter): string {
   if (Node.isPropertyAssignment(w.node) || Node.isShorthandPropertyAssignment(w.node)) {
     return w.node.getName();
   }
@@ -303,10 +297,7 @@ function jsonTableOf(
 }
 
 /** Every `<table>.<column>` a domain `.set()` writes → its classified writers. */
-export function collectJsonWritersByColumn(
-  calls: readonly CallExpression[],
-  jsonColumns: ReadonlyMap<string, ReadonlySet<string>>,
-): Map<string, JsonColumnWriter[]> {
+function collectJsonWritersByColumn(calls: readonly CallExpression[], jsonColumns: ReadonlyMap<string, ReadonlySet<string>>): Map<string, JsonColumnWriter[]> {
   const byColumn = new Map<string, JsonColumnWriter[]>();
   for (const call of calls) {
     if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
@@ -448,7 +439,7 @@ function versionedSetArg(
 }
 
 /** Every versioned-config write site in the domain corpus, classified. */
-export function collectJsonGuardTargets(
+function collectJsonGuardTargets(
   calls: readonly CallExpression[],
   versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
   root: string,

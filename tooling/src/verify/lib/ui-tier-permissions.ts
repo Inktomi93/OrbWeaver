@@ -5,7 +5,7 @@ import type { GatePolicyContext } from "../contract/policy.ts";
 import { readTailwindClassTokens } from "./tailwind-class-token.ts";
 import { waivableCoordinate } from "./waivable-coordinate.ts";
 
-export const UI_TIER_IDS = ["z-index", "skin-fragment", "pointer-capability"] as const;
+const UI_TIER_IDS = ["z-index", "skin-fragment", "pointer-capability"] as const;
 export type UiTierId = (typeof UI_TIER_IDS)[number];
 
 export interface UiTierHome {
@@ -26,7 +26,7 @@ const POINTER_VARIANT_RE = /^(?:any-)?pointer-(?:coarse|fine):/u;
 const CAPABILITY_MEDIA_RE = /\[@media\([^)]*(?:any-pointer|pointer|hover)\s*:[^)]*\)\]:/u;
 const CLASS_COMPOSERS: ReadonlySet<string> = new Set(["cn", "clsx", "cva", "tv"]);
 
-export const SKIN_SIGNATURES = [
+const SKIN_SIGNATURES = [
   "focus-visible:ring-",
   "before:size-touch-target",
   "rotate-45 border border-border bg-popover",

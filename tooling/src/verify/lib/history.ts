@@ -18,7 +18,7 @@ import type { VerifyReport } from "../contract/stage.ts";
  *  in #1848 when that file reached the tooling line cap; a ledger's row shape belongs with its ledger).
  *  Recorded BEFORE the comparison so the file is the ledger even when the comparison has nothing to say;
  *  `runId` ties the line back to the artifact it measured. */
-export function historyEntry(root: string, report: VerifyReport, pid: number = process.pid): RunHistoryEntry {
+function historyEntry(root: string, report: VerifyReport, pid: number = process.pid): RunHistoryEntry {
   const at = new Date().toISOString();
   return {
     runId: `${String(pid)}-${at}`,

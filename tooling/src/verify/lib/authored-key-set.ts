@@ -9,8 +9,8 @@
 //                               not care what the values ARE.
 //   `resolveAuthoredComposite`  answers "which literal node is this", so it stops at the FIRST literal and
 //                               refuses a builder call outright: it never unions a spread's contribution.
-//   `readObjectLiteral`         same one-literal ceiling ("a call expression (a builder)").
-//   `readReturnedObjectLiteral` reaches a factory's literal but demands EXACTLY ONE `return`.
+//   (the retired `lib/ast-read.ts` object-literal and factory-return readers had the same one-literal
+//   ceiling and demanded EXACTLY ONE `return`; they were deleted once this reader replaced their last caller.)
 //
 // So this module answers a strictly weaker and independent question from all four: WHICH KEYS could this
 // expression author, on any branch. It resolves the union through a `...spread` of a call, through EVERY
@@ -148,7 +148,7 @@ function returnedExpressions(fn: MorphNode): readonly MorphNode[] {
     .filter((expression) => expression !== undefined);
 }
 
-/** The expressions the function THIS CALL targets returns. `readReturnedObjectLiteral` refuses any function
+/** The expressions the function THIS CALL targets returns. A one-literal factory reader would refuse any function
  *  with more than one `return`; a union reader must see them all, so this is its own door. */
 export function readCallReturns(call: CallExpression): ReferenceFact<readonly MorphNode[]> {
   const target = state();

@@ -133,9 +133,9 @@ export function smellToken(fieldName: string): string | undefined {
   return SMELL_TOKENS.find((t) => lower.includes(t));
 }
 
-export const UNRESOLVED_TOKEN = "unresolved-base:";
-export const UNSUPPORTED_TOKEN = "unsupported-shape:";
-export const UNRESOLVED_SCHEMA_TOKEN = "unresolved-schema:";
+const UNRESOLVED_TOKEN = "unresolved-base:";
+const UNSUPPORTED_TOKEN = "unsupported-shape:";
+const UNRESOLVED_SCHEMA_TOKEN = "unresolved-schema:";
 
 /** One wire field. `origin` is where it was declared RELATIVE TO THE NAMED EVENT: `local` = spelled inside
  *  the named declaration itself; `inherited` = reached through a base / intersection constituent / aliased
@@ -146,7 +146,7 @@ export const UNRESOLVED_SCHEMA_TOKEN = "unresolved-schema:";
  *  `readonly`, never the field name — so reporting the property with `{ token: name, offset: 0 }` THROWS
  *  (measured 2026-09-13 across five rows of this family). The name node's text IS the field name, so the
  *  derived coordinate is correct by construction and the finding points at the name a reader must change. */
-export interface BusPayloadField {
+interface BusPayloadField {
   readonly name: string;
   readonly node: MorphNode;
   readonly origin: "local" | "inherited";
@@ -154,7 +154,7 @@ export interface BusPayloadField {
 
 /** One fail-closed verdict: a part of a wire shape this reader could not establish. Under D16 that IS the
  *  violation, which is why it is DATA here and a finding in the `-health` policy rather than a tool error. */
-export interface BusShapeRefusal {
+interface BusShapeRefusal {
   readonly node: MorphNode;
   /** The SHAPE LABEL (`unresolved-base:<Name>`, `unsupported-shape:<Kind>`, `unresolved-schema:<Name>`).
    *  It is a discriminator, never a source coordinate: these strings appear in no source file, so the
@@ -164,7 +164,7 @@ export interface BusShapeRefusal {
 }
 
 /** A root that resolved and taught the reader nothing, with the name node its finding anchors on. */
-export interface BusEmptyRoot {
+interface BusEmptyRoot {
   readonly name: string;
   readonly node: MorphNode;
 }
@@ -194,7 +194,7 @@ export interface BusPayloadFact {
  *  member. `distributions` counts the §5.5 mapped-type arms this reader RESOLVED (#1047): the day that
  *  number falls to zero while the spelling is still on the tree, the reader stopped reaching a live union's
  *  members. */
-export interface BusPayloadCensus {
+interface BusPayloadCensus {
   readonly events: number;
   readonly local: number;
   readonly inherited: number;
@@ -206,7 +206,7 @@ export interface BusPayloadCensus {
 }
 
 /** Real-tree anchor (§4.5): a bus union home that is never an example subject in the family's own rows. */
-export const BUS_ANCHOR_FILE = "packages/contracts/src/world-info/index.ts";
+const BUS_ANCHOR_FILE = "packages/contracts/src/world-info/index.ts";
 
 const PROVIDER_RECEIPT_SOURCE = "bus-payload-shape";
 

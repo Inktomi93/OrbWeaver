@@ -27,7 +27,7 @@ export const SESSION_CHANNEL_HOME = "packages/client/src/lib/session-channel.ts"
 /** The real-tree anchor (§4.5) the health tripwire self-guards on: the lib barrel, present on every real
  *  run and loaded by no fixture that must keep the tripwire silent. */
 export const SESSION_CHANNEL_ANCHOR = "packages/client/src/lib/index.ts";
-export const BROADCAST_CHANNEL = "BroadcastChannel";
+const BROADCAST_CHANNEL = "BroadcastChannel";
 /** The ambient roots a member spelling hangs the global off: `new globalThis.BroadcastChannel(…)` is the
  *  same construction as the bare one, and the legacy text check passed all three. Any OTHER receiver is a
  *  different object (an injected port, a namespace) and is `other`. */

@@ -12,7 +12,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { FixtureDoor } from "../contract/test-runner-door.ts";
 
 /** The runner packages a test may never enter directly (core/Spine-Testing.md §4). */
-export const TEST_RUNNER_MODULES: ReadonlySet<string> = new Set(["vitest", "@playwright/test"]);
+const TEST_RUNNER_MODULES: ReadonlySet<string> = new Set(["vitest", "@playwright/test"]);
 
 /** The composed-fixture names the doctrine is about. */
 export const FIXTURE_NAMES: ReadonlySet<string> = new Set(["test", "it", "expect"]);

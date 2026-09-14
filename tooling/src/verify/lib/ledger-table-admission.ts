@@ -20,7 +20,7 @@ export interface LocatedLedgerTable {
   readonly endLine: number;
 }
 
-export interface LocatedLedgerHeading {
+interface LocatedLedgerHeading {
   readonly depth: number;
   readonly text: string;
   readonly line: number;

@@ -194,7 +194,7 @@ export interface PatternRow {
 
 /** The two member sources a pattern may live against. Both are derived from TRACKED files only, so the
  *  verdict is identical on a clean checkout and on a machine that has built, installed, and run tests. */
-export interface MemberSources {
+interface MemberSources {
   /** Every tracked repo path (`git ls-files`). */
   readonly repoPaths: readonly string[];
   /** Every declared dependency rendered as the module paths a registry writes: `node_modules/<name>/` and
@@ -293,7 +293,10 @@ function declaredDependencyModules(root: string, repoPaths: readonly string[]): 
   return [...names].flatMap((name) => [`node_modules/${name}/index.js`, `${name}/index.js`]);
 }
 
-/** Derive BOTH member sources once per pass. */
+/**
+ * Derive BOTH member sources once per pass.
+ * @public knip false positive — no live importer; consumed at TEST RUNTIME by the frozen legacy biome/tsconfig grant-liveness gates that tests/tooling/verify/gates/grant-liveness-family.test.ts and grant-liveness-legacy-replay.test.ts git-show at their pinned SHA and rewire to this live module.
+ */
 export function memberSources(root: string): MemberSources {
   const repoPaths = trackedRepoPaths(root);
   return { repoPaths, dependencyModules: declaredDependencyModules(root, repoPaths) };
@@ -313,12 +316,6 @@ export function dependencyModulesFromManifests(manifests: readonly PackageDepend
     }
   }
   return [...names].flatMap((name) => [`node_modules/${name}/index.js`, `${name}/index.js`]);
-}
-
-/** `MemberSources` for a ResourceHost-backed caller: `repoPaths` from a `trackedFiles()` fact, dependency
- *  modules from already-acquired `packageMetadata()` facts. */
-export function memberSourcesFromResources(repoPaths: readonly string[], manifests: readonly PackageDependencyFacts[]): MemberSources {
-  return { repoPaths, dependencyModules: dependencyModulesFromManifests(manifests) };
 }
 
 /** The rows that still have NO member, after one sweep of `members`.

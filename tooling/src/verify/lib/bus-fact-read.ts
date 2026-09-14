@@ -104,7 +104,7 @@ export function busRefusal(input: RefusalInput): BusUnresolvedIdentity {
   };
 }
 
-export function indexedBusUnion(node: MorphNode | undefined): MorphNode | undefined {
+function indexedBusUnion(node: MorphNode | undefined): MorphNode | undefined {
   if (!Node.isIndexedAccessTypeNode(node)) {
     return;
   }
@@ -434,17 +434,6 @@ export function operationIdentity(context: GateFactContext, call: CallExpression
     };
   }
   return { kind: "injected", owner: bus, memberPath: [callName(call) ?? "<call>"] };
-}
-
-export function ownerIdentity(context: GateFactContext, node: MorphNode): BusDeclarationIdentity {
-  const owner = node.getFirstAncestor(
-    (candidate) => Node.isTypeAliasDeclaration(candidate) || Node.isVariableDeclaration(candidate) || Node.isFunctionDeclaration(candidate),
-  );
-  let name = "<anonymous>";
-  if (Node.isTypeAliasDeclaration(owner) || Node.isVariableDeclaration(owner) || Node.isFunctionDeclaration(owner)) {
-    name = owner.getName() ?? name;
-  }
-  return { path: context.relativePath(node.getSourceFile()), exportName: name };
 }
 
 export function typeDiscriminators(type: Type, at: MorphNode): ReadonlySet<string> {

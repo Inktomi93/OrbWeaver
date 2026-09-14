@@ -8,10 +8,10 @@
 import type { CallExpression, Node } from "ts-morph";
 import { Node as TsNode, VariableDeclarationKind } from "ts-morph";
 
-export const MUTATING_METHODS = new Set(["post", "put", "patch", "delete"]);
+const MUTATING_METHODS = new Set(["post", "put", "patch", "delete"]);
 const BODY_READ_METHODS = new Set(["json", "parseBody", "formData", "arrayBuffer", "blob", "text"]);
-export const CAP_MIDDLEWARE = new Set(["bodyLimit", "bodyCap"]);
-export const CAP_NAME_RE = /(?:^|_)MAX(?:_[A-Z0-9]+)*_BYTES$/u;
+const CAP_MIDDLEWARE = new Set(["bodyLimit", "bodyCap"]);
+const CAP_NAME_RE = /(?:^|_)MAX(?:_[A-Z0-9]+)*_BYTES$/u;
 const MAX_RESOLUTION_DEPTH = 8;
 
 /** A top-level mutating route registration (`app.post(...)` etc.) — its own method name, or undefined. */
@@ -30,7 +30,7 @@ function isRawRequest(node: Node): boolean {
 }
 
 /** `c.req.raw.body`, or an identifier bound (same file, `const`, one hop at a time) to that exact shape. */
-export function isRawRequestBody(node: Node, depth = 0): boolean {
+function isRawRequestBody(node: Node, depth = 0): boolean {
   if (TsNode.isPropertyAccessExpression(node) && node.getName() === "body" && isRawRequest(node.getExpression())) {
     return true;
   }

@@ -11,7 +11,7 @@ import { Node } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";
 
 export const QUERY_BOUNDARY = "QueryBoundary";
-export const SKELETON_ROWS = "SkeletonRows";
+const SKELETON_ROWS = "SkeletonRows";
 export const RESERVE_KEY = "reserveKey";
 /** The seam every finding points at — the tripwire's subject. */
 export const QUERY_BOUNDARY_HOME = "packages/client/src/components/query-boundary.tsx";
