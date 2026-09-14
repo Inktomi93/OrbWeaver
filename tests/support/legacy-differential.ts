@@ -771,7 +771,7 @@ export interface TmpdirReplay {
   readonly raw: readonly string[];
   /** Grant ids consumed, sorted. Empty on the legacy side by construction. */
   readonly granted: readonly string[];
-  /** The SOURCE population both runtimes publish (`scanRoot` admissions · `effectiveSourcePaths`). */
+  /** The observed SOURCE population both runtimes publish (`GateScan.scanned` · `effectiveSourcePaths`). */
   readonly population: number;
   /** The SUBJECT set: the legacy `ctx.scan` declaration, or the final `effectiveResourcePaths`. A
    *  `{ of: "none" }` policy's whole population lives here and nowhere in the number above. */
@@ -990,8 +990,9 @@ export function createTmpdirDifferential(classifyToolError: ClassifyToolError): 
         files: project.getSourceFiles(),
         checker: () => project.getTypeChecker(),
       });
+      const gateResult = result.gates[0];
       const findings = sorted(
-        (result.gates[0]?.findings ?? []).map((finding) =>
+        (gateResult?.findings ?? []).map((finding) =>
           shape({ file: finding.file, line: finding.line, token: finding.token, message: finding.message ?? gate.message, policyId: undefined }),
         ),
       );
@@ -999,8 +1000,8 @@ export function createTmpdirDifferential(classifyToolError: ClassifyToolError): 
         findings,
         raw: findings,
         granted: [],
-        population: Object.keys(files).filter((path) => gate.scanRoot?.(path) ?? true).length,
-        subjects: declaredSubjects(result.gates[0]?.scan.declared),
+        population: gateResult?.scan.scanned ?? 0,
+        subjects: declaredSubjects(gateResult?.scan.declared),
         toolErrors: sorted(result.toolErrors.map((error) => `${error.gate}/${error.phase}`)),
         thrown: undefined,
       };

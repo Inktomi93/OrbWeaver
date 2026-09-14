@@ -21,6 +21,8 @@
 /** Closed exact-file identities. A gate may not supply a path; adding an id is a contract edit with a
  *  named consumer. */
 export const EXACT_RESOURCE_PATHS = {
+  /** `dangling-refs`: the literal ignore rules that justify absent-by-design path citations. */
+  gitignore: ".gitignore",
   /** `baseline-single-migration`: the squashed baseline the migration journal must agree with. */
   "db-baseline-sql": "packages/db/src/migrations/0000_baseline.sql",
   /** `playwright-css-topology`: the production CSS front door and its two entry modules. */
