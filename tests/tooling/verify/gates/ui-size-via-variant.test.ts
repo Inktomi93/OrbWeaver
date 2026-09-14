@@ -1,6 +1,12 @@
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { Project } from "ts-morph";
+import type { GateDescriptor, GateExample } from "../../../../tooling/src/verify/contract/gate.ts";
 import { gate } from "../../../../tooling/src/verify/gates/ui-size-via-variant.ts";
+import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -75,3 +81,71 @@ test("both product permissions still bind and product files gain no blanket perm
   const unmarked = Object.fromEntries(Object.entries(files).map(([path, source]) => [path, source.replace(/^.*@orb-waive ui-size-via-variant.*$/gmu, "")]));
   expect(drive(unmarked).authority.effectiveFindings.map((f) => f.token)).toEqual(["w-auto", "w-auto"]);
 });
+
+test("all 18 frozen parent rows preserve occurrence identity or explicitly retire local-table staleness", async ({ scratch }) => {
+  const source = execFileSync("git", ["show", "da943afb32c19f38cb76a6b3fd005e260eb5adf3:tooling/src/verify/gates/ui-size-via-variant.ts"], {
+    encoding: "utf8",
+  });
+  let rewritten = source;
+  for (const relative of ["../contract/gate.ts", "../lib/pass.ts", "../lib/tailwind-class-token.ts"]) {
+    rewritten = rewritten.replace(
+      `from "${relative}"`,
+      `from ${JSON.stringify(pathToFileURL(join(process.cwd(), "tooling/src/verify/gates", relative)).href)}`,
+    );
+  }
+  const target = join(scratch, "legacy-ui-size.ts");
+  writeFileSync(target, rewritten);
+  const legacy = ((await import(pathToFileURL(target).href)) as { gate: GateDescriptor }).gate;
+  expect([legacy.mustFlag.length, legacy.mustPass.length]).toEqual([10, 8]);
+  for (const arm of ["mustFlag", "mustPass"] as const) {
+    for (const [index, example] of legacy[arm].entries()) {
+      verifySizeRow(legacy, arm, index, example);
+    }
+  }
+});
+
+function verifySizeRow(legacy: GateDescriptor, arm: "mustFlag" | "mustPass", index: number, example: GateExample): void {
+  const files = typeof example.files === "string" ? { [example.at ?? "packages/client/src/x.tsx"]: example.files } : example.files;
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, content] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, content);
+  }
+  const before = runPass([legacy], {
+    root: ROOT,
+    project,
+    scope: { kind: "project" },
+    files: project.getSourceFiles(),
+    checker: () => project.getTypeChecker(),
+  });
+  const after = drive(files);
+  expect(before.toolErrors, example.why).toEqual([]);
+  const findings = before.gates[0]?.findings ?? [];
+  const retired = arm === "mustFlag" && index === 9;
+  const expectedFlagCount = index === 2 || retired ? 2 : 1;
+  expect(findings, example.why).toHaveLength(arm === "mustPass" ? 0 : expectedFlagCount);
+  // The sole removed row checked a private allowlist. Existing family controls above exercise
+  // its successor: central stale/wrong-coordinate rejection against actual marked source.
+  expect(
+    findings.filter((finding) => finding.message?.startsWith("ALLOWLIST entry has NO scoped size utility")),
+    example.why,
+  ).toHaveLength(retired ? 2 : 0);
+  const expected = (retired ? [] : findings).map(({ file, line, column, token }) => ({
+    file,
+    line,
+    column,
+    token,
+    policyId: "ui-size-via-variant",
+    message: "sizes come from variants — a call-site sizing utility overrides the primitive's sealed box; add a size/layout variant to the primitive instead.",
+  }));
+  expect(
+    after.authority.effectiveFindings.map(({ file, line, column, token, policyId, message }) => ({
+      file,
+      line,
+      column,
+      token,
+      policyId,
+      message: message ?? gate.message,
+    })),
+    example.why,
+  ).toEqual(expected);
+}
