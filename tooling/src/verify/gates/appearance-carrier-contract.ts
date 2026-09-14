@@ -14,7 +14,10 @@ export const gate = defineGate({
   facts: [appearanceCarrierFact],
   resources: [],
   message: "Appearance carrier graph drift: a manifest key has no executable carrier declaration.",
-  fix: "declare the key's carrier without flattening the theme/custom-CSS planes",
+  fix:
+    "declare the key's carrier without flattening the theme/custom-CSS planes; a deliberately empty carrier is " +
+    "waived with `// @orb-waive appearance-carrier-contract(<key>): <reason>` on the line above the manifest " +
+    "entry, where <key> is the bare (unquoted) manifest key name at the reported position, e.g. `width`.",
   create: (ctx) => ({
     evaluate: () => {
       const graph = ctx.fact(appearanceCarrierFact);
@@ -45,6 +48,19 @@ export const gate = defineGate({
           'export const APPEARANCE_OWNER_KEYS={sizing:["width"]}; export const APPEARANCE_CARRIER_MANIFEST={width:{owner:"sizing",carriers:["shell-grid"]}};',
       },
       why: "a nonempty carrier has no empty-list occurrence; its other obligations belong to graph health",
+    },
+    {
+      mode: "source",
+      files: {
+        [SCHEMA_FILE]: "export const appearanceSettingsSchema = z.object({ width: z.number() });",
+        [MANIFEST_FILE]:
+          'export const APPEARANCE_OWNER_KEYS={sizing:["width"]};\n' +
+          "// @orb-waive appearance-carrier-contract(width): reviewed empty carrier pending migration, tracked in #0000.\n" +
+          'export const APPEARANCE_CARRIER_MANIFEST={width:{owner:"sizing",carriers:[]}};',
+      },
+      why:
+        "the §6.2 positive identity arm: the correct marker at the exact reported bare token `width` suppresses " +
+        "the twin of mustFlag[0] — one finding, one waived, zero effective findings, zero authority alarms",
     },
   ],
 });

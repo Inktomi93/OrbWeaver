@@ -14,7 +14,11 @@ export const gate = defineGate({
   facts: [uiPrimitiveFact],
   resources: [],
   message: "UI source re-exports private variants or embeds inline SVG outside the chart layer.",
-  fix: "keep variants imports internal; use the governed Icon component for non-chart SVG geometry.",
+  fix:
+    "keep variants imports internal; use the governed Icon component for non-chart SVG geometry. A " +
+    "deliberate exception is waived with `// @orb-waive ui-primitive-structure(<position>): <reason>` " +
+    "at the exact reported position — the module specifier for a leaked variants barrel, e.g. " +
+    "`./variants`, or `svg` for an inline SVG element.",
   create: (ctx) => ({
     evaluate: () => {
       const { sources } = ctx.fact(uiPrimitiveFact);
@@ -43,6 +47,17 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/ui/src/charts/thing.tsx": "export const Thing = () => <svg />;" },
       why: "chart geometry is the existing inline-SVG classification",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/thing/index.ts":
+          '// @orb-waive ui-primitive-structure(./variants): reviewed pending migration, tracked in #0000.\nexport * from "./variants";',
+      },
+      why:
+        "the §6.2 positive identity arm: the correct marker at the exact reported module-specifier token " +
+        "`./variants` suppresses the twin of mustFlag[0] — one finding, one waived, zero effective findings, " +
+        "zero authority alarms",
     },
   ],
 });

@@ -636,5 +636,19 @@ export const gate = defineGate({
     };
   },
   mustFlag: PLATFORM_MUST_FLAG,
-  mustPass: PLATFORM_MUST_PASS.map(proof),
+  mustPass: [
+    ...PLATFORM_MUST_PASS.map(proof),
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe-sleep/waived.ts":
+          "// @orb-waive platform-spellings(Promise): reviewed pending cutover, tracked in #0000.\n" +
+          "export const nap = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));\n",
+      },
+      why:
+        "the §6.2 positive identity arm: the correct marker at the exact reported `Promise` position suppresses " +
+        "the twin of the SLEEP arm's founding mustFlag row — one finding, one waived, zero effective findings, " +
+        "zero authority alarms",
+    },
+  ],
 });
