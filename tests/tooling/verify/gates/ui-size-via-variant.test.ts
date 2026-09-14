@@ -126,7 +126,7 @@ function verifySizeRow(legacy: GateDescriptor, arm: "mustFlag" | "mustPass", ind
   // The sole removed row checked a private allowlist. Existing family controls above exercise
   // its successor: central stale/wrong-coordinate rejection against actual marked source.
   expect(
-    findings.filter((finding) => finding.message?.startsWith("ALLOWLIST entry has NO scoped size utility")),
+    findings.filter((finding) => finding.message?.startsWith("ALLOWLIST entry has NO scoped size utility") === true),
     example.why,
   ).toHaveLength(retired ? 2 : 0);
   const expected = (retired ? [] : findings).map(({ file, line, column, token }) => ({

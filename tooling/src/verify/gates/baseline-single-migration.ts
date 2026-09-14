@@ -17,9 +17,16 @@ import { defineGate } from "../contract/policy.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
-// Widened to `boolean` so the launch transition remains an intentional authored edit rather than an
-// always-falsy branch. When it flips, delete this policy in the same change.
-const LAUNCHED: boolean = false;
+// AN ASSERTION, NOT AN ANNOTATION, AND THE DIFFERENCE IS LOAD-BEARING (2026-09-14). This was
+// `const LAUNCHED: boolean = false` with a comment claiming the widening kept the branch from reading as
+// always-falsy. It did not: an annotation sets the DECLARED type, but TypeScript still narrows a `const`
+// to its initializer at every reference (it can never be reassigned), so the checker saw `false` and
+// `@typescript-eslint/no-unnecessary-condition` red the branch below as "value is always falsy". Asserting
+// the INITIALIZER is what actually widens the narrowed type. Verified both directions on this file:
+// annotation -> eslint exit 1, assertion -> exit 0. Do not "simplify" this back to `: boolean` — that
+// reintroduces the red, and the rule offers no option for it (`allowConstantLoopConditions` is loops only).
+// The flag is the launch switch tracked by #316. When it flips, delete this policy in the same change.
+const LAUNCHED = false as boolean;
 
 const MIGRATIONS_REL = "packages/db/src/migrations";
 const BASELINE_TAG = "0000_baseline";

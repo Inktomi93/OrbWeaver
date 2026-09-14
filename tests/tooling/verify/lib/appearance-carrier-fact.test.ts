@@ -87,8 +87,8 @@ test("an exact empty-carrier waiver cannot suppress independent graph health or 
       failOnWarnings: false,
     });
   };
-  const bare = drive(original ?? "");
-  const marked = drive((original ?? "").replace("={width:", "={\n// @orb-waive appearance-carrier-contract(width): isolated carrier probe\nwidth:"));
+  const bare = drive(original);
+  const marked = drive((original).replace("={width:", "={\n// @orb-waive appearance-carrier-contract(width): isolated carrier probe\nwidth:"));
   expect(marked.toolErrors).toEqual([]);
   expect(marked.factErrors).toEqual([]);
   expect(marked.authority.waivedFindings.map(({ finding }) => finding.policyId)).toEqual([gate.id]);
@@ -96,7 +96,7 @@ test("an exact empty-carrier waiver cannot suppress independent graph health or 
     bare.authority.effectiveFindings.filter(({ policyId }) => policyId === health.id),
   );
   const stale = drive(
-    (original ?? "")
+    (original)
       .replace("carriers:[]", 'carriers:["shell-grid"]')
       .replace("={width:", "={\n// @orb-waive appearance-carrier-contract(width): isolated carrier probe\nwidth:"),
   );

@@ -38,7 +38,7 @@ export const floorlessControlFact = defineFact({
     /** A property-call spelling ending in .map, preserving the legacy syntax boundary. */
     function mapCall(node: Node | undefined): CallExpression | undefined {
       let found: CallExpression | undefined;
-      if (node?.isKind(SyntaxKind.CallExpression)) {
+      if (node?.isKind(SyntaxKind.CallExpression) === true) {
         const callee = node.getExpression();
         if (callee.isKind(SyntaxKind.PropertyAccessExpression) && MAP_CALLEE_RE.test(callee.getText())) {
           found = node;
