@@ -1,5 +1,6 @@
-// Policy: policy-fixture-substrate — a family test NEVER writes into the checkout (#2185; matrix D3, §4.8, the
-// probe rule in constitution §4; family `policy-soundness`, reader `_shared/reference-fact.ts`).
+// Policy: policy-fixture-substrate — a family test NEVER writes into the checkout (#2185, #2332; matrix D3,
+// §4.8, the probe rule in constitution §4; family `policy-soundness`, shared reader
+// `lib/fixture-path-origin.ts`).
 //
 // THE PAID DEFECT. 2026-08-24: a review lane probed `gates/bus-definition-belts.ts` live on main, the next broad
 // `git add` swept the probe into a commit, and the gate shipped BLINDED — and a blinded gate reports green
@@ -7,45 +8,48 @@
 // ("a gate probe on a shared tree is an ANNOUNCED operation"); nothing held it. A fixture is an in-memory
 // `Project` or a runner-owned temp dir; the checkout is never a scratch pad.
 //
-// ═══ THE PREDICATE IS INVERTED FROM THE ROW THAT ORDERED IT, AND THAT IS THE DESIGN ═══
+// ═══ THE 2026-09-12 RULING SURVIVES — ITS INPUT CHANGED (#2332) ═══
 //
-// The audit row (§RECOMMENDED ADDITIONS #2) asked for the POSITIVE proof: a write whose first argument does not
-// resolve to a `tmpdir()` / `mkdtempSync` / `scratch`-rooted expression is RED, fail-closed. Re-derived over the
-// whole population before building — 87 files, not the four the audit sampled — that rule reds ~15 files, every
-// one of them CORRECT, because the dominant shape roots the write at a FUNCTION PARAMETER:
+// The first implementation of this policy recorded an orchestrator ruling, and that ruling is NOT reversed
+// here. Its text: **FAIL-CLOSED IS ONLY HONEST WHEN UNREADABILITY IS RARE AND SUSPICIOUS** — where the
+// unreadable shape is the common, correct one, a fail-closed positive-proof requirement stops being a guard
+// and becomes a false-accusation engine; *a positive-proof requirement the reader structurally cannot satisfy
+// is fail-closed in name and false-accusing in fact*. That reasoning is still correct and still governs.
 //
-//     tests/tooling/verify/gates/no-blanket-suppression.repo.int.test.ts:56-59
-//       function plant(root: string, rel: string, content: string): void {
-//         const abs = join(root, rel);
-//         writeFileSync(abs, content);            // <- first argument roots at a PARAMETER
-//       }
+// What changed is its ANTECEDENT. The ruling rested on a measured fact about the READER, not about the shape:
+// the dominant population spelling roots its write at a FUNCTION PARAMETER
 //
-// and `resolveStableExpression` CANNOT resolve a parameter — by contract, not by omission: a parameter has no
-// single authored value, which is the whole point of the shared binding reader. Same shape at
-// `runner-config-path-liveness.int.test.ts:39-40`, `enforcement-registry-parity.int.test.ts:66-67`,
-// `motion-token-purity.test.ts:33-34`, `integer-line-boxes.int.test.ts:70-71`,
-// `tsconfig-entry-liveness.int.test.ts:47-48`, `mixed-hook-singletons-conversion.test.ts:76-77`.
+//     function plant(root: string, rel: string, content: string): void { writeFileSync(join(root, rel), content); }
 //
-// THE RULE THAT GENERALISES (orchestrator ruling 2026-09-12, on this lane's refutation): **FAIL-CLOSED IS ONLY
-// HONEST WHEN UNREADABILITY IS RARE AND SUSPICIOUS.** Where the unreadable shape is the common, correct one, a
-// fail-closed positive-proof requirement stops being a guard and becomes a false-accusation engine. It is the
-// mirror image of the lesson `lib/origin-verdict.ts` carries from the other direction (every fail-open →
-// fail-closed repair owes a name prefilter, or every unreadable node becomes an accusation): **a positive-proof
-// requirement the reader structurally cannot satisfy is fail-closed in name and false-accusing in fact.**
+// and `resolveStableExpression` cannot resolve a parameter BY CONTRACT (a parameter has no single authored
+// value). So the parameter was acquitted outright and the policy judged a closed set of repo ANCHORS by
+// identity instead. That acquittal is exactly the hole #2332 measured: 92 family-test files, ZERO findings,
+// while six real checkout writes sat in `dangling-refs.repo.int.test.ts` — because a checkout root handed in
+// through a parameter is invisible to an anchor walk that stops at the parameter.
 //
-// So this policy judges a CLOSED SET BY IDENTITY, the discipline the family already uses
-// (`policy-legacy-imports#FORBIDDEN_IMPORT_HOMES`, `lib/origin-verdict.ts`): a write is RED when its path
-// expression is rooted at a REPO ANCHOR — `process.cwd()`, `import.meta.dirname`, `import.meta.url`,
-// `__dirname`, `__filename`. That is exactly the paid defect (2026-08-24 was a probe at a repo-SPELLED path),
-// and it acquits the parameter case correctly: a repo root has to be SPELLED somewhere, and wherever it is
-// spelled this same rule reads it.
+// `lib/fixture-path-origin.ts` removes the antecedent rather than the ruling. A parameter is resolved at its
+// COMPLETE authored call sites (`lib/fixture-path-call-graph.ts`): every caller scratch → scratch, any caller
+// checkout → checkout, an incomplete or escaping caller set → `unreadable`. The dominant shape is therefore
+// now READ rather than guessed, and the ruling's own condition is satisfied — unreadability is once again RARE
+// and SUSPICIOUS (an exported or escaping helper, a mutable destination, a relative literal), which is exactly
+// where the doctrine says fail-closed is honest. Identity is still the judge; the call graph only carries
+// identity ACROSS the parameter hop that used to swallow it.
 //
-// THE WEAKENING, NAMED RATHER THAN HIDDEN: a repo root computed in ANOTHER FILE and passed in as an argument is
-// out of reach. This policy is a fence against the shape that caused the incident, not a proof of hermeticity.
-// The parameter-rooted acquittal is PINNED by its own `mustPass` row so it is a decision, not a gap.
+// THE LIMIT, NAMED RATHER THAN HIDDEN — and it is narrower than the one it replaces. The population is
+// `tests/tooling/verify/gates/**`, so a mutation authored inside a helper MODULE outside that population is
+// not visited; what reaches this policy from such a helper is the call site's own argument. And the proof is
+// deliberately LEXICAL and STATIC: this is a path-provenance fence for authored path-bearing fs calls, not a
+// filesystem sandbox, not an fd/FileHandle dataflow proof, not a subprocess fence, and not a runtime
+// canonical-path containment proof. The RUNTIME half of the same contract, for the dynamic keys static
+// provenance cannot read, is `tests/support/tool-fixtures.ts#fixturePath`, which this reader recognises as
+// root-preserving.
 //
-// FAIL-CLOSED SURVIVES WHERE IT IS MEANINGFUL: a write verb whose first argument is ABSENT — a call the reader
-// cannot inspect at all — is still reported, because that is the rare-and-suspicious case the doctrine means.
+// WRITE-AFFECTING OPERANDS ARE A CLOSED TABLE, NOT ARGUMENT ZERO. The first implementation judged
+// `arguments[0]` for every verb, so `copyFileSync(scratchSource, checkoutDestination)` read GREEN while it
+// overwrote a gate, and the read-only SOURCE of a copy was the operand being accused. `WRITE_ARGUMENTS` below
+// names the mutated position per canonical export: copy/cp/symlink/link judge the DESTINATION, rename judges
+// BOTH paths, and every async twin sits beside its sync form — a missing twin is a spelling that bypasses the
+// whole rule (`gate-spelling-twins`' class).
 //
 // THE FOUR `__g_` PLANTERS are the known exception and hold an explicit, dated grant (#2176, Phase F), never a
 // directory carve: `check-gates.repo.int.test.ts` and its siblings materialise fixtures at real-tree paths on
@@ -61,12 +65,6 @@
 // receipt added here never ran, because the refusal had already fired. The family test pins that refusal by
 // phase, with a seeing arm beside it, rather than this module carrying a second mechanism that says less.
 //
-// FAMILY: `policy-soundness`, shared reader `_shared/reference-fact.ts` (`resolveModuleMemberOrigin` for the fs
-// door's identity, `resolveStableExpression` for the path walk) plus `lib/symbol-reference.ts#readMemberAccess`
-// for the member spelling — the same readers its siblings resolve identity through. NOT a singleton: it is the
-// FIXTURE-SUBSTRATE arm of the family whose other members judge the corpus itself, and it differs from them in
-// POPULATION (the test tree) rather than in authority, which is why it is one more policy under the shared
-// `family` string rather than a `-health` split.
 // POPULATION PORT: NO legacy population — this policy is BORN FINAL, added at `575e48d5a`
 // (`git show 575e48d5a^:tooling/src/verify/gates/policy-fixture-substrate.ts` → `exists on disk, but not in`).
 // Nothing was ported and nothing was subtracted from a sibling to make room: `tests/tooling/verify/gates/**` was
@@ -75,191 +73,127 @@
 //
 // `hard`/`error`: this is the fence that keeps a gate's own test from blinding the gate. A module that could
 // waive out of it would re-open the door the 2026-08-24 incident closed.
-import type { CallExpression, Node as MorphNode } from "ts-morph";
+import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
+import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import type { FixturePathOriginReader } from "../contract/fixture-path-origin.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberAccess } from "../lib/symbol-reference.ts";
-import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
+import { createFixturePathOriginReader } from "../lib/fixture-path-origin.ts";
 
-/** The write verbs, by EXPORTED NAME on a filesystem door. A read (`readFileSync`, `existsSync`) is not this
- *  policy's business — reading the checkout is what a family test is FOR. */
-const WRITE_VERBS: ReadonlySet<string> = new Set([
-  "writeFileSync",
-  "writeFile",
-  "appendFileSync",
-  "appendFile",
-  "mkdirSync",
-  "mkdir",
-  "rmSync",
-  "rm",
-  "rmdirSync",
-  "unlinkSync",
-  "cpSync",
-  "cp",
-  "copyFileSync",
-  "renameSync",
-  "rename",
-]);
 /** The filesystem doors, by SPECIFIER. A bare node builtin has no import origin to resolve past — the spelling
  *  IS the identity — which is the same reasoning `policy-soundness#FORBIDDEN_IO_SPECIFIERS` records. */
 const FS_SPECIFIERS: ReadonlySet<string> = new Set(["fs", "node:fs", "fs/promises", "node:fs/promises", "fs-extra"]);
 
-/** THE CLOSED SET OF REPO ANCHORS. Each is an expression that evaluates to a path INSIDE the checkout, and each
- *  is recognised structurally rather than by spelling a variable name. */
-const CWD = "cwd";
-const PROCESS = "process";
-const DIRNAME = "__dirname";
-const FILENAME = "__filename";
-const META_ROOTS: ReadonlySet<string> = new Set(["dirname", "url", "filename"]);
-/** The ONE unresolved reason the walk continues through — see `anchorBelow`. */
-const DYNAMIC = "dynamic";
+/** THE CLOSED WRITE-EFFECT TABLE, by canonical fs export → the argument positions that are MUTATED.
+ *  Read-only operands are deliberately absent: a copy SOURCE and a symlink TARGET are read, so judging them
+ *  would accuse the legal direction while the illegal one passed. Every sync form carries its async twin. */
+const WRITE_ARGUMENTS = {
+  writeFileSync: [0],
+  writeFile: [0],
+  appendFileSync: [0],
+  appendFile: [0],
+  mkdirSync: [0],
+  mkdir: [0],
+  rmSync: [0],
+  rm: [0],
+  rmdirSync: [0],
+  rmdir: [0],
+  unlinkSync: [0],
+  unlink: [0],
+  cpSync: [1],
+  cp: [1],
+  copyFileSync: [1],
+  copyFile: [1],
+  renameSync: [0, 1],
+  rename: [0, 1],
+  createWriteStream: [0],
+  symlinkSync: [1],
+  symlink: [1],
+  linkSync: [1],
+  link: [1],
+  openSync: [0],
+  open: [0],
+  truncateSync: [0],
+  truncate: [0],
+  chmodSync: [0],
+  chmod: [0],
+  chownSync: [0],
+  chown: [0],
+  lchownSync: [0],
+  lchown: [0],
+  lchmodSync: [0],
+  lchmod: [0],
+  lutimesSync: [0],
+  lutimes: [0],
+  utimesSync: [0],
+  utimes: [0],
+  mkdtempSync: [0],
+  mkdtemp: [0],
+  mkdtempDisposableSync: [0],
+  mkdtempDisposable: [0],
+} as const satisfies Readonly<Record<string, readonly number[]>>;
 
-const MESSAGE =
-  "a family test under `tests/tooling/verify/gates/**` performs a filesystem WRITE at a path rooted in the CHECKOUT " +
-  "(gate-runtime-standardization.md §6.5; the probe rule, constitution §4). A fixture is an in-memory ts-morph `Project` or a " +
-  "runner-owned temp dir — never the repository. Paid 2026-08-24: a probe written into the tree was swept into a commit by the " +
-  "next broad `git add` and the gate shipped BLINDED, which reports green forever. The token names the repo anchor the write " +
-  "resolved through.";
-const ABSENT_MESSAGE =
-  "a family test under `tests/tooling/verify/gates/**` calls a filesystem WRITE verb with NO path argument the reader can " +
-  "inspect. The destination cannot be established, so the call is reported rather than acquitted (#944 fail-closed) — this is the " +
-  "rare-and-suspicious unreadability the doctrine means, as opposed to the parameter-rooted shape this policy deliberately acquits.";
+type WriteVerb = keyof typeof WRITE_ARGUMENTS;
+
+const CHECKOUT_MESSAGE =
+  "a family test filesystem mutation resolves a write-affecting path to the CHECKOUT (#2185, #2332). Paid 2026-08-24: a probe written into the tree was swept into a commit by the next broad `git add` and the gate shipped BLINDED, which reports green forever. Family fixtures READ the checkout but write only to an invocation-owned `scratch`/`plantedTree` root or a unique `mkdtemp[Disposable][Sync]` directory.";
+const UNREADABLE_MESSAGE =
+  "a family test filesystem mutation has an UNREADABLE write-affecting path (#2185, #2332). Every actual fs destination and both rename paths must prove an invocation-owned scratch root, and a `mkdtemp[Disposable][Sync]` prefix must prove a child of canonical `tmpdir()` or of owned scratch. Relative, mutable, escaping/reset, incomplete-caller and otherwise dynamic paths fail closed — honest here because the module identity of the fs door has already established an ACTUAL mutation, and because the dominant parameter-rooted shape is now resolved at its call sites rather than guessed.";
+const MISSING_MESSAGE =
+  "a family test filesystem mutation is missing a required write-affecting path argument (#2185, #2332), so scratch ownership cannot be proven at all.";
 const FIX =
-  "Root the write at a scratch directory: the `scratch` fixture parameter (`tests/support/tool-fixtures.ts`), `mkdtempSync(join(tmpdir(), …))`, " +
-  "or the `plantedTree` fixture, which materialises a whole throwaway root under the session scratchpad. If the test genuinely needs the REAL " +
-  "tree, it reads it — `readFileSync`/`existsSync` are untouched by this policy. A test that must PLANT at real-tree paths is the `__g_` " +
-  "conformance-suite shape and lives outside this population under an explicit dated grant (#2176), never behind a carve here.";
+  'Root the write at the canonical `scratch` or `plantedTree` fixture (`tests/support/tool-fixtures.ts`), or create a unique directory with `mkdtemp[Disposable][Sync](join(tmpdir(), prefix))`, and keep every composed path below that root — `fixturePath(root, …)` carries a proven root across a runtime-computed segment. If the test genuinely needs the REAL tree it READS it: `readFileSync`/`existsSync`/a read-only `openSync(path, "r")` are untouched by this policy. Copy/cp/symlink/link judge their destination; rename judges both paths. A test that must PLANT at real-tree paths is the `__g_` conformance-suite shape and lives outside this population under an explicit dated grant (#2176), never behind a carve here.';
 
-/** Is this call a filesystem WRITE — the verb resolved to an fs door by import origin, never by name alone?
- *  A local helper called `writeFileSync` resolves to no module member and is not accused. */
-function fsWriteCall(call: CallExpression): boolean {
-  const fact = resolveModuleMemberOrigin(call.getExpression());
-  if (fact.kind === "unresolved") {
-    return false;
-  }
-  const { moduleSpecifier, exportedName, memberPath } = fact.value;
-  // A namespace read (`fs.writeFileSync`) arrives with the verb in `memberPath`; a named import carries it as
-  // the exported name. Both are the same door and both are judged.
-  const verb = memberPath.at(-1) ?? exportedName;
-  return FS_SPECIFIERS.has(moduleSpecifier) && WRITE_VERBS.has(verb);
-}
-
-/** `process.cwd()` — the call, not the property. HOWEVER SPELLED: the member is read through the shared
- *  `lib/symbol-reference.ts#readMemberAccess`, so `process["cwd"]()` is the same anchor as `process.cwd()`. */
-function isCwdCall(node: MorphNode): boolean {
-  if (!Node.isCallExpression(node)) {
-    return false;
-  }
-  const read = readMemberAccess(node.getExpression());
-  return read !== undefined && read.name === CWD && read.receiver.getText() === PROCESS;
-}
-
-/** `import.meta.dirname` / `.url` / `.filename`, dotted or bracketed — same reader, same reason. */
-function isImportMetaRoot(node: MorphNode): boolean {
-  const read = readMemberAccess(node);
-  return read !== undefined && META_ROOTS.has(read.name) && read.receiver.getKind() === SyntaxKind.MetaProperty;
-}
-
-function isRepoAnchor(node: MorphNode): boolean {
-  if (Node.isIdentifier(node)) {
-    const text = node.getText();
-    return text === DIRNAME || text === FILENAME;
-  }
-  return isCwdCall(node) || isImportMetaRoot(node);
-}
-
-/** THE ANCHOR WALK. A path expression is a tree of joins, template spans, concatenations and bindings; this
- *  follows every branch, hopping ONE resolution step through each identifier (the shared stable-binding reader),
- *  and answers with the first repo anchor it reaches. A `visited` set bounds it: a const cycle would otherwise
- *  be an infinite descent, and an instrument that hangs is an instrument nobody runs. */
-/** An anchor and the node that CARRIES it inside the reported call.
- *
- *  They differ the moment the walk crosses a binding: `mkdirSync(join(ROOT, …))` is convicted by an
- *  `import.meta.dirname` that lives in ROOT's declaration, somewhere else entirely. A finding's position must be
- *  a slice of the node it is reported on, so the CARRIER — the `ROOT` identifier, which is inside the call — is
- *  what the reader points at, and it is also the better repair target: `ROOT` is what this call has to stop
- *  using. Measured here as a conformance TOOL ERROR ("token is not anchored at its declared offset") before the
- *  two were separated. */
-interface Anchored {
-  readonly anchor: MorphNode;
-  readonly carrier: MorphNode;
-}
-
-/** One hop BELOW a node that is not itself an anchor: through an identifier's stable binding, or across every
- *  child of a compound expression (a `join(…)` call, a template literal, a concatenation). */
-function anchorBelow(node: MorphNode, visited: Set<MorphNode>): Anchored | undefined {
-  let found: Anchored | undefined;
-  if (Node.isIdentifier(node)) {
-    const fact = resolveStableExpression(node);
-    // THE CARRIER STOPS HERE, at the identifier: everything past this hop lives in another declaration, so this
-    // is the last node on the path that is still inside the call being reported.
-    if (fact.kind !== "unresolved") {
-      found = carriedBy(anchorOf(fact.value, visited), node);
-    } else if (fact.reason === DYNAMIC) {
-      // A `"dynamic"` refusal is NOT unknowability — it is the reader saying "this binding's VALUE is computed",
-      // and `resolveStableExpression` treats a call as a TERMINAL by contract (`class-token-splice.ts:110`). The
-      // overwhelmingly common repo-anchor spelling is exactly that shape: `const ROOT = join(import.meta.dirname,
-      // "..", "..")`. Measured here red-first — the whole binding arm reported NOTHING until this branch existed.
-      // The EXPRESSION is still right there, so the structural walk continues into it; only the VALUE was opaque.
-      found = carriedBy(anchorOf(fact.node, visited), node);
-    }
-    // EVERY OTHER refusal is an acquittal, and the header says why: a PARAMETER (`missing`) is the common CORRECT
-    // shape, so convicting on it would make this a false-accusation engine rather than a fence.
-    return found;
-  }
-  for (const child of node.getChildren()) {
-    found = anchorOf(child, visited);
-    if (found !== undefined) {
-      break;
-    }
-  }
-  return found;
-}
-
-/** Re-seat a result's CARRIER on `carrier` — used at every binding hop, and nowhere else: a walk that stays
- *  inside the reported expression keeps the carrier it already had. */
-function carriedBy(found: Anchored | undefined, carrier: MorphNode): Anchored | undefined {
-  return found === undefined ? found : { anchor: found.anchor, carrier };
-}
-
-function anchorOf(node: MorphNode, visited: Set<MorphNode>): Anchored | undefined {
-  // ONE TAIL RETURN — the accumulator idiom (`lib/pass.ts`'s shape): `biome`'s `noUselessUndefined` deletes a
-  // trailing `return undefined;` and tsc's `noImplicitReturns` then reds the fall-through, so the two rules are
-  // satisfied by structure rather than by a suppression.
-  let found: Anchored | undefined;
-  if (!visited.has(node)) {
-    visited.add(node);
-    found = isRepoAnchor(node) ? { anchor: node, carrier: node } : anchorBelow(node, visited);
-  }
-  return found;
-}
-
-function judgeWrite(ctx: GatePolicyContext, call: CallExpression): void {
-  const first = call.getArguments()[0];
-  if (first === undefined) {
-    ctx.report.node(call, { message: ABSENT_MESSAGE });
+function writeDoor(call: CallExpression): { readonly verb: WriteVerb; readonly positions: readonly number[] } | undefined {
+  const origin = resolveModuleMemberOrigin(call.getExpression());
+  if (origin.kind === "unresolved" || !FS_SPECIFIERS.has(origin.value.moduleSpecifier)) {
     return;
   }
-  const found = anchorOf(first, new Set());
-  if (found !== undefined) {
-    const anchor = found.carrier;
-    // THE COORDINATE IS PAREN-FREE, and that is a hard requirement rather than a nicety: the `@orb-waive`
-    // position grammar admits no parenthesis, CR or LF, so a token of `process.cwd()` would make the finding
-    // PERMANENTLY UNWAIVABLE (`lib/ordinary-waiver.ts waivableCoordinate`, guide §2.1, #2107) — measured here as a
-    // conformance TOOL ERROR before the slice was narrowed. `process.cwd()` hands back its callee `process.cwd`,
-    // which is a leading slice at the same offset; every other anchor is already a bare name.
-    const coordinate = Node.isCallExpression(anchor) ? anchor.getExpression() : anchor;
-    const raw = coordinate.getText();
-    // `?? raw` is the REFUSAL path, not a fallback that hides one (`no-loose-id-cast`'s shape, #2197): a value
-    // with no anchorable head is handed to the report door, which refuses it LOUDLY. Dropping the finding here
-    // would trade a visible tool error for a silent blind spot.
-    ctx.report.node(call, { token: waivableCoordinate(raw) ?? raw, offset: coordinate.getStart() - call.getStart(), message: MESSAGE });
+  // A namespace read (`fs.writeFileSync`) arrives with the verb in `memberPath`; a named import carries it as
+  // the exported name. Both are the same door and both are judged. A LOCAL function of the same spelling
+  // resolves to no module member and is never accused.
+  const verb = origin.value.memberPath.at(-1) ?? origin.value.exportedName;
+  return verb in WRITE_ARGUMENTS ? { verb: verb as WriteVerb, positions: WRITE_ARGUMENTS[verb as WriteVerb] } : undefined;
+}
+
+interface WriteCandidate {
+  readonly call: CallExpression;
+  readonly verb: WriteVerb;
+  readonly positions: readonly number[];
+}
+
+/** Judge ONE established mutation. Deferred to `evaluate` rather than decided in the visitor because a
+ *  helper's caller set is only complete once the whole walk has been delivered to the reader. */
+function judge(ctx: GatePolicyContext, paths: FixturePathOriginReader, { call, verb, positions }: WriteCandidate): void {
+  if ((verb === "open" || verb === "openSync") && paths.isReadOnlyOpen(call)) {
+    return;
+  }
+  for (const position of positions) {
+    const argument = call.getArguments()[position];
+    if (argument === undefined) {
+      ctx.report.node(call, { message: MISSING_MESSAGE });
+      continue;
+    }
+    const origin = verb.startsWith("mkdtemp") ? paths.readMkdtempPrefix(argument) : paths.read(argument);
+    if (origin.kind === "checkout") {
+      ctx.report.node(call, { message: CHECKOUT_MESSAGE });
+    } else if (origin.kind === "unreadable") {
+      ctx.report.node(call, { message: `${UNREADABLE_MESSAGE} ${origin.detail}` });
+    }
   }
 }
 
-const PLANT = (body: string, prelude = 'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\n'): string => `${prelude}${body}`;
+/** The canonical fixture door, restated in the proof mini-project: `fixtureBinding` resolves `test` through
+ *  module identity, so a LOCAL callback carrying a `scratch` property mints nothing (a `mustFlag` row). */
+const SUPPORT = {
+  "tests/support/tool-fixtures.ts":
+    "export function test(name: string, body: (fixtures: { scratch: string; repoRoot: string; plantedTree: (files: Record<string, string>) => Promise<string> }) => unknown): void { void name; void body; }\nexport function fixturePath(root: string, ...parts: string[]): string { return [root, ...parts].join('/'); }\n",
+} as const;
+const PLANT = (body: string, fs = 'import { writeFileSync } from "node:fs";\n'): Readonly<Record<string, string>> => ({
+  ...SUPPORT,
+  "tests/tooling/verify/gates/probe.test.ts": `${fs}import { join, resolve } from "node:path";\nimport { test } from "../../../support/tool-fixtures.ts";\n${body}`,
+});
 
 export const gate = defineGate({
   id: "policy-fixture-substrate",
@@ -271,105 +205,250 @@ export const gate = defineGate({
   execution: "selected-files",
   facts: [],
   resources: [],
-  message: MESSAGE,
+  message: UNREADABLE_MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.CallExpression],
-        visit: (node): void => {
-          if (Node.isCallExpression(node) && fsWriteCall(node)) {
-            judgeWrite(ctx, node);
-          }
+  create: (ctx: GatePolicyContext) => {
+    const paths = createFixturePathOriginReader();
+    const candidates: WriteCandidate[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node): void => {
+            if (!Node.isCallExpression(node)) {
+              return;
+            }
+            // EVERY call is handed to the reader, not only the fs doors: the call graph's job is to know a
+            // helper's COMPLETE caller set, and a helper's callers are ordinary calls.
+            paths.visitCall(node);
+            const door = writeDoor(node);
+            if (door !== undefined) {
+              candidates.push({ call: node, verb: door.verb, positions: door.positions });
+            }
+          },
         },
+        {
+          kinds: [SyntaxKind.Identifier],
+          visit: (node): void => {
+            if (Node.isIdentifier(node)) {
+              // Identifier references are what prove a helper does not ESCAPE (every reference is either its
+              // declaration name or a callee position); without them a passed-around helper would read "closed".
+              paths.visitIdentifier(node);
+            }
+          },
+        },
+      ],
+      evaluate: (): void => {
+        for (const candidate of candidates) {
+          judge(ctx, paths, candidate);
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",
-      files: { "tests/tooling/verify/gates/probe.test.ts": PLANT('writeFileSync(join(process.cwd(), "tooling/src/verify/gates/x.ts"), "planted");\n') },
-      expect: { count: 1, token: "process.cwd" },
-      why: "THE FOUNDING SHAPE — the 2026-08-24 incident exactly: a probe written into the checkout at a `process.cwd()`-rooted path. The token is the ANCHOR rather than the whole call, because the anchor is what has to change",
+      files: PLANT('writeFileSync(join(process.cwd(), "tooling/src/verify/gates/x.ts"), "planted");\n'),
+      expect: { count: 1, messageIncludes: "CHECKOUT" },
+      why: "THE FOUNDING SHAPE — the 2026-08-24 incident exactly: a probe written into the checkout at a `process.cwd()`-rooted path",
     },
     {
       mode: "types",
-      files: {
-        "tests/tooling/verify/gates/probe.test.ts": PLANT(
-          'const ROOT = join(import.meta.dirname, "..", "..", "..");\nmkdirSync(join(ROOT, "packages/client/src/probe"), { recursive: true });\n',
-          'import { mkdirSync } from "node:fs";\nimport { join } from "node:path";\n',
-        ),
-      },
-      expect: { count: 1, token: "ROOT" },
-      why: "THE ANCHOR WALK THROUGH A BINDING and a second verb: the repo root is a const one hop away and the verb is `mkdirSync`, not `writeFileSync`. Without the identifier hop the dominant real-world spelling (`const ROOT = join(import.meta.dirname, …)`) would be invisible",
+      files: PLANT('test("x", ({ repoRoot }) => { function plant(root: string): void { writeFileSync(join(root, "x.ts"), "x"); } plant(repoRoot); });\n'),
+      expect: { count: 1, messageIncludes: "CHECKOUT" },
+      why: "THE HOLE #2332 MEASURED, and the reason the 2026-09-12 blanket acquittal could retire: the canonical `repoRoot` fixture reaches the write through a helper PARAMETER, where the anchor walk stopped. Resolving the parameter at its complete call sites is what makes this red",
     },
     {
       mode: "types",
-      files: { "tests/tooling/verify/gates/probe.test.ts": PLANT('writeFileSync(join(process["cwd"](), "tooling/src/verify/gates/x.ts"), "planted");\n') },
-      expect: { count: 1, token: 'process["cwd"]' },
-      why: 'THE BRACKET TWIN of the founding shape (#2208). `process["cwd"]()` is the SAME anchor respelled, and this module read it through `PropertyAccessExpression` alone until `gate-spelling-twins` grew by one on the folded tree — a gate blind to a respelling of its own subject is a false clean, and the ledger\'s growth is a READER defect, never a new baseline row. Now resolved through `lib/symbol-reference.ts#readMemberAccess`; its dotted control is the row above',
+      files: PLANT(
+        'function inner(root: string): void { writeFileSync(join(root, "x.ts"), "x"); } function outer(root: string): void { inner(root); } outer(process.cwd());\n',
+      ),
+      expect: { count: 1, messageIncludes: "CHECKOUT" },
+      why: "checkout provenance survives TWO complete helper-call hops — a one-hop reader would report this as unreadable instead of as the checkout write it is",
     },
     {
       mode: "types",
-      files: {
-        "tests/tooling/verify/gates/probe.test.ts": PLANT(
-          'const ROOT = join(import.meta["dirname"], "..", "..", "..");\nmkdirSync(join(ROOT, "packages/client/src/probe"), { recursive: true });\n',
-          'import { mkdirSync } from "node:fs";\nimport { join } from "node:path";\n',
-        ),
-      },
-      expect: { count: 1, token: "ROOT" },
-      why: "THE BRACKET TWIN of the import-meta anchor (#2208), through the SAME binding hop as its dotted control above — so the respelling is proven at the far end of the walk rather than only at a direct argument, which is where a member-kind blind spot actually hides",
+      files: PLANT('export function plant(root: string): void { writeFileSync(join(root, "x.ts"), "x"); }\n'),
+      expect: { count: 1, messageIncludes: "UNREADABLE" },
+      why: "FAIL-CLOSED WHERE THE DOCTRINE SAYS IT IS HONEST: an EXPORTED helper has no complete authored caller set, so its destination is genuinely unknown — rare and suspicious, as opposed to the closed-caller shape, which is now proven rather than accused",
     },
     {
       mode: "types",
-      files: { "tests/tooling/verify/gates/probe.test.ts": PLANT('writeFileSync(`${__dirname}/planted.ts`, "x");\n') },
-      expect: { count: 1, token: "__dirname" },
-      why: "THE TEMPLATE-SPAN BRANCH: the anchor is inside a template literal, not an argument of `join`. The walk descends every child, so the shape of the concatenation is not part of the rule",
+      files: PLANT('test("x", ({ scratch }) => { writeFileSync(resolve(scratch, process.cwd()), "x"); });\n'),
+      expect: { count: 1, messageIncludes: "CHECKOUT" },
+      why: "`path.resolve` RESETS at a later absolute root, so an earlier scratch argument grants nothing. A reader that judged only the first argument would call this scratch",
     },
     {
       mode: "types",
-      files: { "tests/tooling/verify/gates/probe.test.ts": PLANT("writeFileSync();\n") },
-      expect: { count: 1, messageIncludes: "NO path argument" },
-      why: "FAIL-CLOSED WHERE IT IS MEANINGFUL (#944): a write with no inspectable destination is rare AND suspicious, which is the condition the doctrine attaches to fail-closed — as opposed to the parameter shape below, where unreadability is common and correct",
+      files: PLANT('test("x", ({ scratch }) => { writeFileSync(join(scratch, "..", "x"), "x"); });\n'),
+      expect: { count: 1, messageIncludes: "UNREADABLE" },
+      why: "static traversal ABOVE the owned root is rejected by the depth proof — the composition-escape half of the same contract `fixturePath` enforces at runtime",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'test("x", ({ scratch }) => { writeFileSync("probe.ts", "x"); writeFileSync(join(scratch, runtimeKey()), "x"); });\ndeclare function runtimeKey(): string;\n',
+      ),
+      expect: { count: 2, messageIncludes: "UNREADABLE" },
+      why: "a RELATIVE-ONLY destination resolves against the runtime cwd (which IS the checkout under vitest), and a dynamic suffix with no finite authored value cannot be bounded statically. Both were silent passes before #2332",
+    },
+    {
+      mode: "types",
+      files: PLANT('test("x", ({ scratch, repoRoot }) => { let target = join(scratch, "x"); target = join(repoRoot, "x"); writeFileSync(target, "x"); });\n'),
+      expect: { count: 1, messageIncludes: "UNREADABLE" },
+      why: "a MUTABLE destination has no single authored value; the shared binding reader refuses it rather than crediting the first assignment",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'function fakeTest(_n: string, body: (f: { scratch: string }) => void): void { body({ scratch: "/tmp/x" }); } fakeTest("x", ({ scratch }) => writeFileSync(join(scratch, "x"), "x"));\n',
+      ),
+      expect: { count: 1, messageIncludes: "UNREADABLE" },
+      why: "IDENTITY, NOT PROPERTY NAME: a LOCAL callback carrying a property called `scratch` cannot mint fixture provenance — the fixture door is resolved through `tests/support/tool-fixtures.ts#test` by module identity",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'test("x", ({ scratch, repoRoot }) => { copyFileSync(join(scratch, "source"), join(repoRoot, "dest")); cpSync(join(scratch, "source"), join(repoRoot, "dest")); });\n',
+        'import { copyFileSync, cpSync } from "node:fs";\n',
+      ),
+      expect: { count: 2, messageIncludes: "CHECKOUT" },
+      why: "COPY JUDGES ITS DESTINATION. Before #2332 only argument zero was read, so a copy ONTO a gate source was green while its read-only source was the operand being judged",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'test("x", ({ scratch, repoRoot }) => { renameSync(join(repoRoot, "old"), join(scratch, "new")); });\n',
+        'import { renameSync } from "node:fs";\n',
+      ),
+      expect: { count: 1, messageIncludes: "CHECKOUT" },
+      why: "RENAME MUTATES BOTH PATHS — the old directory entry is REMOVED — so a checkout source is a checkout mutation even when the destination is owned",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'test("x", async ({ scratch, repoRoot }) => { await fsp.copyFile(join(scratch, "s"), join(repoRoot, "d")); await fsp.cp(join(scratch, "s"), join(repoRoot, "d")); await fsp.rename(join(scratch, "o"), join(repoRoot, "n")); await fsp["unlink"](join(repoRoot, "o")); await fsp.rmdir(join(repoRoot, "o")); });\n',
+        'import * as fsp from "node:fs/promises";\n',
+      ),
+      expect: { count: 5, messageIncludes: "CHECKOUT" },
+      why: "THE ASYNC TWINS plus the namespace and bracket spellings of the same doors. `copyFile`, `rmdir` and `unlink` were absent from the first verb table entirely, so the async spelling of a governed operation bypassed the rule",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'test("x", ({ repoRoot }) => { createWriteStream(join(repoRoot, "x.ts")).end("x"); symlinkSync("/tmp/s", join(repoRoot, "l")); linkSync("/tmp/s", join(repoRoot, "h")); truncateSync(join(repoRoot, "t")); openSync(join(repoRoot, "o"), "w"); });\n',
+        'import { createWriteStream, linkSync, openSync, symlinkSync, truncateSync } from "node:fs";\n',
+      ),
+      expect: { count: 5, messageIncludes: "CHECKOUT" },
+      why: "the remaining path-bearing CREATION doors: a stream and a write-capable `open` mutate the path they open, `truncate` mutates in place, and link creation judges the NEW link rather than its target",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'test("x", ({ repoRoot }) => { chmodSync(join(repoRoot, "a"), 0o755); utimesSync(join(repoRoot, "b"), 0, 0); chownSync(join(repoRoot, "c"), 0, 0); });\n',
+        'import { chmodSync, chownSync, utimesSync } from "node:fs";\n',
+      ),
+      expect: { count: 3, messageIncludes: "CHECKOUT" },
+      why: "METADATA IS MUTATION: a mode/owner/timestamp change to a tracked file is a working-tree change a concurrent `git add` commits, which is the incident class verbatim",
+    },
+    {
+      mode: "types",
+      files: PLANT('test("x", ({ repoRoot }) => { mkdtempSync(join(repoRoot, "leak-")); });\n', 'import { mkdtempSync } from "node:fs";\n'),
+      expect: { count: 1, messageIncludes: "CHECKOUT" },
+      why: "`mkdtemp` CREATES a directory beside its prefix, so it cannot mint scratch below the checkout — the verb that otherwise looks like the sanctioned escape hatch",
+    },
+    {
+      mode: "types",
+      files: PLANT("writeFileSync();\n"),
+      expect: { count: 1, messageIncludes: "missing" },
+      why: "a governed verb with NO inspectable destination: the destination cannot be established at all, so the call is reported rather than acquitted (#944)",
     },
   ],
   mustPass: [
     {
       mode: "types",
-      files: {
-        "tests/tooling/verify/gates/probe.test.ts": PLANT(
-          "function plant(root: string, rel: string, content: string): void {\n  writeFileSync(join(root, rel), content);\n}\nexport const p = plant;\n",
-        ),
-      },
-      why: "THE ACQUITTAL THIS POLICY IS DESIGNED AROUND, PINNED so it is a decision rather than a gap (#2185): the parameter-rooted plant helper is the DOMINANT shape across the 87-file population and is correct. `resolveStableExpression` cannot resolve a parameter by contract, so the row the audit asked for would have reported every one of these — a positive-proof requirement the reader structurally cannot satisfy is fail-closed in name and false-accusing in fact",
+      files: PLANT('test("x", ({ scratch }) => { writeFileSync(join(scratch, "x.ts"), "x"); });\n'),
+      why: "the canonical per-invocation `scratch` fixture is the direct sanctioned root",
     },
     {
       mode: "types",
-      files: {
-        "tests/tooling/verify/gates/probe.test.ts": PLANT(
-          'import { mkdtempSync } from "node:fs";\nimport { tmpdir } from "node:os";\nconst scratch = mkdtempSync(join(tmpdir(), "orb-"));\nwriteFileSync(join(scratch, "a.ts"), "x");\n',
-          'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\n',
-        ),
-      },
-      why: "THE SANCTIONED SHAPE — a `mkdtempSync(tmpdir())` root, resolved through its const binding by the same walk that convicts a repo anchor. It passes because no anchor is REACHED, never because the walk stopped early",
+      files: PLANT(
+        'test("x", ({ scratch }) => { function inner(root: string): void { writeFileSync(join(root, "x.ts"), "x"); } function outer(root: string): void { inner(root); } outer(scratch); });\n',
+      ),
+      why: "THE ACQUITTAL THE 2026-09-12 RULING PROTECTED, now PROVEN instead of assumed: the parameter-rooted plant helper passes because every one of its complete authored callers is scratch, across two hops. A reader that could not do this is the one the ruling was written about",
     },
     {
       mode: "types",
-      files: {
-        "tests/tooling/verify/gates/probe.test.ts": PLANT(
-          'const target = join(process.cwd(), "tooling/src/verify/gates/x.ts");\nexport const source = readFileSync(target, "utf8");\n',
-          'import { readFileSync } from "node:fs";\nimport { join } from "node:path";\n',
-        ),
-      },
-      why: "READS ARE UNTOUCHED, at the most provocative spelling available: a `process.cwd()`-rooted path handed to `readFileSync`. Reading the real tree is what a family test is FOR — the differential harness's `git show` comparisons depend on it — and a policy that convicted this would be unusable",
+      files: PLANT(
+        'test("x", ({ scratch }) => { function plant(root: string, rel: string): void { writeFileSync(join(root, rel), "x"); } plant(scratch, "a/b.ts"); });\n',
+      ),
+      why: "the literal population shape the ruling quoted (`plant(root, rel)`), including a composed RELATIVE segment that stays below the proven root",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'const scratch = mkdtempSync(join(tmpdir(), "orb-"));\nwriteFileSync(join(scratch, "x.ts"), "x");\n',
+        'import { mkdtempSync, writeFileSync } from "node:fs";\nimport { tmpdir } from "node:os";\n',
+      ),
+      why: "`mkdtempSync` one segment BELOW the canonical temp base mints an invocation-owned root, resolved through its const binding by the same walk that convicts a repo anchor",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'test("x", async ({ scratch }) => { mkdtempSync(join(scratch, "nested", "fixture-")); await mkdtemp(join(tmpdir(), "orb-")); mkdtempDisposableSync(join(scratch, "d-")); });\n',
+        'import { mkdtempDisposableSync, mkdtempSync } from "node:fs";\nimport { mkdtemp } from "node:fs/promises";\nimport { tmpdir } from "node:os";\n',
+      ),
+      why: "every `mkdtemp` twin stays legal below canonical temp AND below an already-owned scratch path — the positive control for the prefix rule, so the checkout-prefix `mustFlag` row is a decision rather than a blanket refusal",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'test("x", ({ scratch, repoRoot }) => { copyFileSync(join(repoRoot, "source"), join(scratch, "dest")); cpSync(join(repoRoot, "source"), join(scratch, "dest")); renameSync(join(scratch, "a"), join(scratch, "b")); });\n',
+        'import { copyFileSync, cpSync, renameSync } from "node:fs";\n',
+      ),
+      why: "THE OTHER DIRECTION of the operand table: copying OUT of the checkout into scratch is legal (reading the real tree is what a family test is FOR), and a rename is clean only when BOTH affected paths are owned",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'test("x", ({ scratch, repoRoot }) => { openSync(join(repoRoot, "read.ts"), "r"); const flags = "rs"; openSync(join(repoRoot, "sync-read.ts"), flags); openSync(join(repoRoot, "numeric.ts"), 0); openSync(join(scratch, "write.ts"), "w"); });\n',
+        'import { openSync } from "node:fs";\n',
+      ),
+      why: "a PROVEN read-only flag set (including the numeric `O_RDONLY` and a stable alias) may open a checkout path; an unreadable or write-capable flag stays governed, which is why the write arm sits in the same fixture",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'test("x", ({ scratch }) => { writeFileSync(fixturePath(scratch, runtimeKey()), "x"); });\ndeclare function runtimeKey(): string;\n',
+        'import { writeFileSync } from "node:fs";\nimport { fixturePath } from "../../../support/tool-fixtures.ts";\n',
+      ),
+      why: "the canonical CHECKED composition door carries the proven root across a segment static provenance cannot read — the one sanctioned answer to the dynamic-key `mustFlag` row, and the seam between the static and runtime halves of this contract",
+    },
+    {
+      mode: "types",
+      files: PLANT('test("x", ({ scratch }) => { function plant(__dirname: string): void { writeFileSync(join(__dirname, "x"), "x"); } plant(scratch); });\n'),
+      why: "IDENTITY OVER SPELLING, in the acquitting direction: a local parameter NAMED `__dirname` whose call site is proven scratch is not the ambient Node root. A text-equality anchor check called this a checkout write",
+    },
+    {
+      mode: "types",
+      files: PLANT('test("x", async ({ plantedTree }) => { const root = await plantedTree({ "a.ts": "x" }); writeFileSync(join(root, "b.ts"), "x"); });\n'),
+      why: "the `plantedTree` fixture is an owned root in its own right — the whole-corpus form of `scratch`, and the fixture the repaired `dangling-refs` family test now builds its isolated corpora with",
     },
     {
       mode: "types",
       files: {
         "tests/tooling/verify/gates/probe.test.ts":
-          'function writeFileSync(path: string, data: string): void {\n  void path;\n  void data;\n}\nwriteFileSync(String(process.cwd()), "x");\nexport const local = writeFileSync;\n',
+          'function writeFileSync(path: string, data: string): void { void path; void data; }\nwriteFileSync(String(process.cwd()), "x");\nexport const local = writeFileSync;\n',
       },
-      why: "IDENTITY, NOT SPELLING: a LOCAL function named `writeFileSync`, called with a `process.cwd()` argument. It resolves to no module member, so it is not an fs door and is never accused — the same rule `policy-legacy-imports` pins with its `./pass.ts` row",
+      why: "IDENTITY, NOT SPELLING: a LOCAL function named `writeFileSync`, called with a `process.cwd()` argument. It resolves to no module member, so it is not an fs door and never enters the candidate set — the same rule `policy-legacy-imports` pins with its `./pass.ts` row",
+    },
+    {
+      mode: "types",
+      files: PLANT(
+        'const target = join(process.cwd(), "tooling/src/verify/gates/x.ts");\nexport const source = readFileSync(target, "utf8");\n',
+        'import { readFileSync } from "node:fs";\n',
+      ),
+      why: "READS ARE UNTOUCHED, at the most provocative spelling available: a `process.cwd()`-rooted path handed to `readFileSync`. The differential harness's `git show` comparisons depend on it, and a policy that convicted this would be unusable",
     },
   ],
 });

@@ -34,7 +34,7 @@ import { gate as designAuditRuleProof } from "../../../../tooling/src/verify/gat
 import { gate as toolingInstrumentProof } from "../../../../tooling/src/verify/gates/tooling-instrument-proof.ts";
 import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { expect, fixturePath, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const DIFFERENTIAL_TIMEOUT_MS = scaledBudget(120_000);
@@ -72,8 +72,10 @@ async function frozenLegacyGate(scratch: string, gateFile: string): Promise<Gate
 function plant(root: string, files: Readonly<Record<string, string>>): Project {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   for (const [path, content] of Object.entries(files)) {
-    const absolute = join(root, path);
-    mkdirSync(dirname(absolute), { recursive: true });
+    // Keys arrive from the caller's fixture maps, so no segment has an authored value here; the checked
+    // composition door bounds them below the owned root at runtime instead (#2332).
+    const absolute = fixturePath(root, path);
+    mkdirSync(fixturePath(root, dirname(path)), { recursive: true });
     writeFileSync(absolute, content);
     if (path.endsWith(".ts") || path.endsWith(".tsx")) {
       project.addSourceFileAtPath(absolute);

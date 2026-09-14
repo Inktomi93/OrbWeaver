@@ -14,10 +14,13 @@
 //   plantedTree  — materialize a throwaway violation tree under scratch (the conformance-harness
 //                  pattern as a fixture); fsBacked tool tests never write the REAL tree (`__g_` stays
 //                  reserved for the gate harness).
-import { existsSync } from "node:fs";
+//   fixturePath  — compose a path below an owned root and REFUSE lexical or symlink escape (#2332); the
+//                  runtime half of `policy-fixture-substrate`, for the dynamic keys static provenance
+//                  cannot read.
+import { existsSync, lstatSync, realpathSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
 import process from "node:process";
 import { expect, test as houseTest } from "./fixtures.ts";
 
@@ -45,6 +48,61 @@ export interface ToolFixtures {
 
 const REPO_ROOT = resolve(import.meta.dirname, "..", "..");
 const EXECUTABLE_MODE = 0o755;
+
+function isContained(root: string, candidate: string): boolean {
+  const rel = relative(root, candidate);
+  return rel === "" || !(rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel));
+}
+
+/** Compose a runtime fixture path and refuse lexical or already-present symlink escape.
+ *
+ *  THE STATIC HALF CANNOT REACH HERE, which is why this exists: `policy-fixture-substrate` proves an
+ *  AUTHORED root, and a key computed at runtime (a proof-row name, a git SHA, a basename read off disk)
+ *  has no authored value to prove. A writer with a dynamic key crosses this one checked door instead, and
+ *  the policy recognises it as root-preserving — the root argument keeps its proven provenance while the
+ *  dynamic segments are bounded HERE rather than statically.
+ *
+ *  It validates at construction time. `win32.isAbsolute` is deliberate: it also rejects `C:\…` and `\\?\…`
+ *  spellings that POSIX `isAbsolute` reads as relative segments. Callers must still not race or replace an
+ *  ancestor between this check and their own filesystem call — a lexical+existing-symlink proof, never a
+ *  TOCTOU-free sandbox. */
+export function fixturePath(root: string, ...segments: readonly string[]): string {
+  const lexicalRoot = resolve(root);
+  if (segments.some((segment) => win32.isAbsolute(segment))) {
+    throw new Error(`fixturePath: ${JSON.stringify(segments)} contains an absolute path`);
+  }
+  const candidate = resolve(lexicalRoot, ...segments);
+  if (!isContained(lexicalRoot, candidate)) {
+    throw new Error(`fixturePath: ${JSON.stringify(segments)} escapes the owned root`);
+  }
+  // The owned root does not have to EXIST yet — `plantedTree` composes its tree path before creating it —
+  // and an absent root has no ancestor that could already be a link out, so it canonicalises to itself.
+  const canonicalRoot = existsSync(lexicalRoot) ? realpathSync(lexicalRoot) : lexicalRoot;
+  const relativeCandidate = relative(lexicalRoot, candidate);
+  let prefix = lexicalRoot;
+  for (const segment of relativeCandidate === "" ? [] : relativeCandidate.split(sep)) {
+    prefix = join(prefix, segment);
+    try {
+      lstatSync(prefix);
+    } catch (error) {
+      // The first ABSENT ancestor ends the walk: nothing below it can already be a link out.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        break;
+      }
+      throw error;
+    }
+    let canonicalPrefix: string;
+    try {
+      canonicalPrefix = realpathSync(prefix);
+    } catch (error) {
+      throw new Error(`fixturePath: existing path ${prefix} does not resolve inside the owned root`, { cause: error });
+    }
+    if (!isContained(canonicalRoot, canonicalPrefix)) {
+      throw new Error(`fixturePath: existing path ${prefix} resolves outside the owned root`);
+    }
+  }
+  return candidate;
+}
 
 export const test = houseTest.extend<ToolFixtures>({
   // biome-ignore lint/suspicious/useAwait: vitest's fixture signature is async; the value is a constant.
@@ -95,11 +153,13 @@ export const test = houseTest.extend<ToolFixtures>({
     let counter = 0;
     await use(async (files) => {
       counter += 1;
-      const root = join(scratch, `tree-${counter}`);
+      const root = fixturePath(scratch, `tree-${counter}`);
       await Promise.all(
+        // Keys are AUTHORED by the caller but arbitrary to this fixture, so containment is checked here
+        // rather than assumed: a `"../x"` or absolute key would otherwise plant outside the owned tree.
         Object.entries(files).map(async ([rel, content]) => {
-          const abs = join(root, rel);
-          await mkdir(dirname(abs), { recursive: true });
+          const abs = fixturePath(root, rel);
+          await mkdir(fixturePath(root, dirname(rel)), { recursive: true });
           await writeFile(abs, content, "utf8");
         }),
       );

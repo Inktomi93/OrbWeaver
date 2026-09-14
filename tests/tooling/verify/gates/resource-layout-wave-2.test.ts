@@ -7,7 +7,7 @@ import { gate as clientStructure } from "../../../../tooling/src/verify/gates/cl
 import { gate as featureStructure } from "../../../../tooling/src/verify/gates/feature-structure.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { expect, fixturePath, test } from "../../../support/tool-fixtures.ts";
 
 const policies = [featureStructure, clientStructure] as const;
 
@@ -105,8 +105,9 @@ function emptyDirectory(scratch: string, relative: string): void {
 }
 
 function fileAtTreePath(scratch: string, relative: string): void {
+  // `parent` is sliced at runtime, so it carries no authored value; `fixturePath` bounds it (#2332).
   const parent = relative.slice(0, relative.lastIndexOf("/"));
-  mkdirSync(join(scratch, parent), { recursive: true });
+  mkdirSync(fixturePath(scratch, parent), { recursive: true });
   writeFileSync(join(scratch, relative), "not a directory\n");
 }
 

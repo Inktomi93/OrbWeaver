@@ -55,9 +55,9 @@
 // 5 stronger-reader · 4 vacuous-both-zero · 4 retired-arm · 3 split · 3 runtime-refusal · 3 identical ·
 // 3 exemption-mechanism-move = 25, against the runner's own 14 + 11 assertion on the live example count.
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, parse } from "node:path";
+import { basename, join, parse } from "node:path";
 import process from "node:process";
 import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -76,7 +76,7 @@ import {
   shimHeaderImports,
   stagedReplayTarget,
 } from "../../../support/legacy-differential.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { expect, fixturePath, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 /** The parent of `97e68be91`, the conversion that landed both pairs. Both modules' headers cite it. */
@@ -608,11 +608,15 @@ test("§4.6 — a staged path that crosses a symlink OUT of the staging root is 
 test("§4.6 — BOTH tmpdir replay legs refuse an escaping fixture key before a root exists", async ({ scratch }) => {
   const differential = createTmpdirDifferential(toolErrorCode);
   const legacy = await frozenFilesystemLegacyGate(scratch, LEGACY_BASE, BIOME_LEGACY);
-  // THE SENTINEL, in the one place a `materialize` traversal can actually reach. Its root is the door's OWN
-  // mkdtemp under `tmpdir()`, so `../<name>` resolves to a sibling THERE — this is that exact path, created
-  // by this test, uniquely named by pid, and asserted byte-identical afterwards.
-  const sentinelName = `orb-replay-boundary-sentinel-${String(process.pid)}.txt`;
-  const sentinel = join(tmpdir(), sentinelName);
+  // THE SENTINEL, in the one place a `materialize` traversal can actually reach. The door's root is its OWN
+  // mkdtemp directly under `tmpdir()`, so `../<rel>` resolves to a sibling THERE — and the sibling this test
+  // names is a directory it OWNS (#2332): the escaping key carries the owned dir's own basename, so the
+  // escape target is a file inside an invocation-owned root rather than a predictable litter path in the
+  // shared `tmpdir()`. Same geometry, same assertion, and `policy-fixture-substrate` can now prove the
+  // sentinel write is not a checkout write instead of refusing it as unreadable.
+  const sentinelRoot = mkdtempSync(join(tmpdir(), "orb-replay-boundary-sentinel-"));
+  const sentinelName = `${basename(sentinelRoot)}/sentinel.txt`;
+  const sentinel = fixturePath(sentinelRoot, "sentinel.txt");
   const liveRoots = (): readonly string[] => readdirSync(tmpdir()).filter((entry) => entry.startsWith(`orb-legacy-differential-${String(process.pid)}-`));
   writeFileSync(sentinel, SENTINEL_BYTES);
   try {
@@ -623,7 +627,7 @@ test("§4.6 — BOTH tmpdir replay legs refuse an escaping fixture key before a 
     expect(readFileSync(sentinel, "utf8"), "both legs refused BEFORE the sentinel could be overwritten").toBe(SENTINEL_BYTES);
     expect(liveRoots(), "the key is judged before `mkdtemp`, so no root was created — nothing to leak, nothing to reap").toEqual([]);
   } finally {
-    rmSync(sentinel, { force: true });
+    rmSync(sentinelRoot, { recursive: true, force: true });
   }
 });
 
@@ -713,7 +717,9 @@ test("§4.6 — a symlink planted at the loader's own staged filename is REFUSED
   mkdirSync(outside);
   const victim = join(outside, "victim.ts");
   writeFileSync(victim, VICTIM_BYTES);
-  symlinkSync(victim, join(staging, `${LEGACY_BASE.slice(0, 8)}--${BIOME_LEGACY.split("/").join("__")}`));
+  // The link's own name is the loader's staged spelling, computed from the SHA and the legacy path, so the
+  // composed segment has no authored value; `fixturePath` bounds it at runtime instead (#2332).
+  symlinkSync(victim, fixturePath(staging, `${LEGACY_BASE.slice(0, 8)}--${BIOME_LEGACY.split("/").join("__")}`));
   await expect(
     frozenFilesystemLegacyGate(staging, LEGACY_BASE, BIOME_LEGACY),
     "the frozen entry would be written THROUGH the link — the one place writeFileSync follows one",
