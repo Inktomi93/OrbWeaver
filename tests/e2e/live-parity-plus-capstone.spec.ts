@@ -31,6 +31,7 @@ import { openContextTab, openNewestChat } from "./support/chat-room.ts";
 import type { ChatRoute } from "./support/trpc.ts";
 import {
   createLiteGame,
+  deleteChat,
   editMessage,
   editSnapshot,
   fetchDebugErrors,
@@ -58,8 +59,9 @@ const GM_GREETING = "The lantern gutters as you step into the Rusted Gate tavern
 const COHERENT_VLLM_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
 
 /** Seed a fresh lite game on a virgin chat with a spec-owned character, on the write-capable route. Returns the
- *  ids + a cleanup handle (removes the character — chats/game cascade — AND restores the prior route). A UNIQUE
- *  card handle per spec keeps serial specs from colliding on the shared dev DB. */
+ *  ids + a cleanup handle (deletes the chat, removes the character AND restores the prior route). The chat is
+ *  deleted explicitly: removing a character cascades its seat, never the chat row. A UNIQUE card handle per
+ *  spec keeps serial specs from colliding on the shared dev DB. */
 async function seedGame(
   handle: CharacterHandle,
 ): Promise<{ readonly chatId: ChatId; readonly characterId: CharacterId; readonly cleanup: () => Promise<void> }> {
@@ -69,6 +71,7 @@ async function seedGame(
   const chatId = await startChat([characterId]);
   await createLiteGame(chatId);
   const cleanup = async (): Promise<void> => {
+    await deleteChat(chatId);
     await removeCharacter(characterId);
     if (priorRoute !== undefined) {
       await setChatRoute(priorRoute);

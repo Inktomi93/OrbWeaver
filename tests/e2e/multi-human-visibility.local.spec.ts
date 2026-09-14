@@ -23,7 +23,7 @@ import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./support/fixture-provider.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
-import { collectChatRoomFrames } from "./support/sse.ts";
+import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
 
 const STREAM_TIMEOUT_MS = 20_000;
 const REPLY_POLL_TIMEOUT_MS = 60_000;
@@ -250,14 +250,17 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
 
     // PATH 2 — the DURABLE REPLAY (`sinceSeq: 0` on the real chat ROOM source: exactly what a member's
     // browser bus seeds itself with on attach). Same verdict, the other half of the stream.
-    const memberReplay = await collectChatRoomFrames({
-      baseUrl: origin,
-      headers: member.headers,
-      chatId,
-      sinceSeq: 0,
-      until: (values) => values.some((v) => JSON.stringify(v).includes(POST_JOIN)),
-      timeoutMs: STREAM_TIMEOUT_MS,
-    });
+    const memberReplay = requireSatisfied(
+      await collectChatRoomFrames({
+        baseUrl: origin,
+        headers: member.headers,
+        chatId,
+        sinceSeq: 0,
+        until: (values) => values.some((v) => JSON.stringify(v).includes(POST_JOIN)),
+        timeoutMs: STREAM_TIMEOUT_MS,
+      }),
+      "member replay",
+    );
     const memberReplayWire = JSON.stringify(memberReplay);
     expect(memberReplayWire).toContain(POST_JOIN); // the replay actually delivered (not an empty timeout)
     expect(memberReplayWire).not.toContain(GREETING);
@@ -269,14 +272,17 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
     expect(hostWire).toContain(PRE_JOIN);
     expect(hostWire).toContain(POST_JOIN);
 
-    const hostReplay = await collectChatRoomFrames({
-      baseUrl: origin,
-      headers: host.headers,
-      chatId,
-      sinceSeq: 0,
-      until: (values) => values.some((v) => JSON.stringify(v).includes(POST_JOIN)),
-      timeoutMs: STREAM_TIMEOUT_MS,
-    });
+    const hostReplay = requireSatisfied(
+      await collectChatRoomFrames({
+        baseUrl: origin,
+        headers: host.headers,
+        chatId,
+        sinceSeq: 0,
+        until: (values) => values.some((v) => JSON.stringify(v).includes(POST_JOIN)),
+        timeoutMs: STREAM_TIMEOUT_MS,
+      }),
+      "host replay",
+    );
     expect(JSON.stringify(hostReplay)).toContain(PRE_JOIN);
   } finally {
     await host.mutation("character.remove", { characterId });
@@ -463,7 +469,9 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
     // The MEMBER fires the turn. The anchor is deliberately UNSET, so the only way their persona can reach
     // the prompt is the trigger-plane resolution D122 widened.
     await member.mutation("chat.send", { chatId, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
-    await hostSocket;
+    // The presence socket must have SEEN the reply: a timed-out socket means the host was offline for part of
+    // the turn, and the proof below would then describe a deferred turn rather than a live one.
+    requireSatisfied(await hostSocket, "host presence socket");
 
     // The reply row + its variant, read as the HOST (the wire record is a host/admin inspector read).
     // `chat.send` resolves when the turn is ACCEPTED, not when it commits (the reply lands over the bus), so
