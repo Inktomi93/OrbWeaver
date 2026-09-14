@@ -64,6 +64,10 @@
 // `scanRoot` admits 491 and final `population` admits 491. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `tests/client/a11y/__cbbhr_in_accessible-name-quality.suite.ct.tsx` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// EVIDENCE PLANE CORRECTION (2026-09-14): imported and lexical snapshot identity is resolved through the
+// shared reference-fact reader, which follows checker-backed symbol identity. The policy therefore declares
+// `analysis: "types"`; its finding semantics and population are unchanged.
 import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -281,7 +285,7 @@ export const gate = defineGate({
   authority: "ordinary",
   severity: "error",
   population: { in: ["@tests"], named: ["*.ct.tsx"] },
-  analysis: "syntax",
+  analysis: "types",
   execution: "selected-files",
   facts: [],
   resources: [],
@@ -308,7 +312,7 @@ export const gate = defineGate({
   // re-derived by running the row, not read off the fixture by eye.
   mustFlag: [
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/client/data/x.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  expect(trpc.count("tag.createTag")).toBe(2);\n});\n',
@@ -317,7 +321,7 @@ export const gate = defineGate({
       why: "the create-entity-mutation flake verbatim — a bare `expect(recorder.count(...)).toBe(N)` read before the async call registered",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/ui/content/x.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ dialog }) => {\n  expect(await dialog.evaluate((n) => n.contains(document.activeElement))).toBe(true);\n});\n',
@@ -326,7 +330,7 @@ export const gate = defineGate({
       why: "the lightbox focus-trap flake — a bare `expect(await locator.evaluate(...activeElement...)).toBe(true)` focus read",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/ui/charts/x.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ canvas }) => {\n  expect((await canvas.boundingBox())?.width).toBeGreaterThan(300);\n});\n',
@@ -335,7 +339,7 @@ export const gate = defineGate({
       why: "the chart-resize flake — a bare `expect(await locator.boundingBox()?.width).toBeGreaterThan(...)` one-shot rect read",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/ui/primitives/snap.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  const el = document.activeElement;\n  expect(el).toBe(document.body);\n});\n',
@@ -344,7 +348,7 @@ export const gate = defineGate({
       why: "an `activeElement` snapshot captured into a local then asserted non-retrying — the variable-capture focus-read shape",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/ui/pane.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("live", async ({ pane }) => {\n  const text = await pane.textContent();\n  expect(text).toBe("settled");\n});\ntest("static", () => {\n  const text = "settled";\n  expect(text).toBe("settled");\n});\n',
@@ -353,7 +357,7 @@ export const gate = defineGate({
       why: "symbol identity matters: the live-read local (line 4) is flagged while the same-named local in the second test scope (line 8) stays clean — `count: 1` is the half of this claim that the clean scope rests on",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/ui/taint.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("box", async ({ pane }) => {\n  const box = await pane.boundingBox();\n  expect(box?.width).toBeGreaterThan(0);\n});\ntest("text", async ({ pane }) => {\n  const text = (await pane.textContent())?.trim().toLowerCase();\n  expect(text).toBe("ready");\n});\n',
@@ -364,7 +368,7 @@ export const gate = defineGate({
   ],
   mustPass: [
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/ui/primitives/y.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ input }) => {\n  await expect(input).toBeFocused();\n});\n',
@@ -372,7 +376,7 @@ export const gate = defineGate({
       why: "the FIX shape — a web-first auto-retrying `expect(<locator>).toBeFocused()` waits for focus to settle",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/client/data/y.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  await expect.poll(() => trpc.count("tag.createTag")).toBe(2);\n});\n',
@@ -380,7 +384,7 @@ export const gate = defineGate({
       why: "the FIX shape — `expect.poll(() => <read>).toBe(...)` retries the read until it settles (callee is `expect.poll`, not bare `expect`)",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/ui/content/z.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ dialog }) => {\n  await expect(dialog).toContainText("hi");\n});\n',
@@ -388,7 +392,7 @@ export const gate = defineGate({
       why: "a web-first `toContainText` on a locator — auto-retrying, never a one-shot read",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/client/data/escape.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — count polled to 2 above\n  expect(trpc.count("tag.createTag")).toBe(2);\n});\n',
@@ -396,7 +400,7 @@ export const gate = defineGate({
       why: "a deliberate settled recorder read escaped with the central `@orb-waive` marker on the line immediately above — passes",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "tests/ui/primitives/plain.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  expect(results).toEqual([{ accepted: 0, rejected: 1 }]);\n});\n',
@@ -404,7 +408,7 @@ export const gate = defineGate({
       why: "a plain-value assertion whose arg is NOT a mutable-async read (a JS array from a callback) — out of the class; passes",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         // A companion IN-population `.ct.tsx` file: `named: ["*.ct.tsx"]` excludes the `.test.ts` subject
         // below otherwise, and a population resolving zero paths from a nonempty candidate set is a tool

@@ -1,10 +1,12 @@
-// Gate: gate-modernization — the META-gate. The gate corpus is the enforcement layer; nothing else
+// Policy: gate-modernization — the META-gate. The gate corpus is the enforcement layer; nothing else
 // enforces ITS shape, so a gate could register nothing, carry a one-sided exemption table, cite a
-// section that does not exist, or carry a ratchet ledger nobody counts, forever and silently. Four
+// section that does not exist, carry a ratchet ledger nobody counts, or claim syntax while reading types,
+// forever and silently. Five
 // mechanical axes, all keyed on the corpus itself: A DESCRIPTOR (a gate file must register under one of
 // the two contracts) · B EXEMPTIONS (an exemption vocabulary promises a STALE arm) · C CITATION (a docRow
 // `§` anchor must resolve in the doc it names) · D ADMITTED (a gate reading a committed ratchet ledger must
-// DECLARE what it admitted). The law these arms mechanize is tooling/src/verify/gates/GATE-AUTHORING.md.
+// DECLARE what it admitted) · E ANALYSIS (a final syntax policy must not reach compiler semantics). The law
+// these arms mechanize is tooling/src/verify/gates/GATE-AUTHORING.md.
 //
 // MIXED RUNTIME (#1584, docs/reviews/gate-runtime/mixed-runtime-front-door.md §5): arm A recognises a module
 // as REGISTERED under either contract — a legacy `gate` descriptor object, or a `gate = defineGate(…)` call
@@ -16,20 +18,22 @@
 // which only a legacy descriptor carries. The corpus is the LOADER's corpus — top-level `gates/*.ts` —
 // so the shared proof surfaces under `gates/_proof/` are inputs to policy proofs, never modules that owe
 // a descriptor.
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { posix } from "node:path";
 import type { Node, SourceFile } from "ts-morph";
-import { SyntaxKind, Node as TsNode } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { POLICY_PROOF_ARMS } from "../contract/policy.ts";
-import { isCanonicalDefineGate } from "../lib/gate-contract-origin.ts";
-import { fileLoaded, repoRel } from "../lib/pass.ts";
+import { Node as TsNode } from "ts-morph";
+import type { GatePolicyContext, GatePolicyProof } from "../contract/policy.ts";
+import { defineGate, POLICY_PROOF_ARMS } from "../contract/policy.ts";
+import type { DocumentIndex } from "../contract/resource-document.ts";
+import type { GateModernizationModuleSyntax } from "../lib/gate-modernization-fact.ts";
+import { GATE_MODERNIZATION_POPULATION, gateModernizationFact, readGateModernizationFacts } from "../lib/gate-modernization-fact.ts";
+import { finalDescriptorOf, gateRegistrationOf } from "../lib/policy-descriptor-read.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
+import { GATE_MODERNIZATION_PROBE_LEDGER, GATE_MODERNIZATION_PROBE_LEDGER_SUFFIX } from "./_proof/gate-modernization.ts";
 
 const GATES_REL = "tooling/src/verify/gates/";
 /** This module's own path — ARM D's real-tree anchor (§4.5) and the file its tripwire reports on. */
 const GATE_SELF = `${GATES_REL}gate-modernization.ts`;
 const LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
-const TS_EXT_RE = /\.ts$/u;
 /** A sibling gate module imports its family-mate as `./<name>.ts` — both modules are top-level in `gates/`. */
 
 // ── ARM B vocabulary ─────────────────────────────────────────────────────────────────────────────────
@@ -107,29 +111,32 @@ const NO_DESCRIPTOR = (rel: string): string =>
  *  `defineGate(…)` CALL (registered; its shape is the final contract's own validation). */
 type Registration = { readonly contract: "legacy"; readonly obj: Node } | { readonly contract: "final"; readonly obj: Node | undefined };
 
+/** Preserve the legacy gate's semantic position token while using the final sink correctly. Most tokens
+ *  occur inside the anchor and remain node-derived; a missing descriptor field has no authored token, so
+ *  that narrow case uses the source file plus the descriptor's real coordinates. */
+function reportToken(ctx: GatePolicyContext, node: Node, token: string): void {
+  const offset = node.getText().indexOf(token);
+  if (offset !== -1) {
+    ctx.report.node(node, { token, offset });
+    return;
+  }
+  const at = node.getSourceFile().getLineAndColumnAtPos(node.getStart());
+  ctx.report.file(ctx.relativePath(node.getSourceFile()), { line: at.line, column: at.column, token });
+}
+
 /** The module's registration under either contract, or undefined when it registers under neither. Identity, not
  *  spelling: a `defineGate` whose import origin is not `contract/policy.ts` is a lookalike and registers nothing. */
 function registrationOf(sf: SourceFile): Registration | undefined {
+  const contract = gateRegistrationOf(sf);
+  if (contract === "final") {
+    // The descriptor literal itself — §12.1 requires `defineGate({ … })` to take a direct object literal,
+    // and ARM E judges the CLAIM that literal makes about its own evidence plane. The shared reader keeps
+    // this classification identical to the loader and the policy-soundness family.
+    return { contract, obj: finalDescriptorOf(sf) };
+  }
   const init = sf.getVariableDeclaration("gate")?.getInitializer();
-  if (init === undefined) {
-    return;
-  }
-  const value = unwrap(init);
-  if (TsNode.isObjectLiteralExpression(value)) {
-    return { contract: "legacy", obj: value };
-  }
-  if (!TsNode.isCallExpression(value)) {
-    return;
-  }
-  const callee = value.getExpression();
-  if (!(TsNode.isIdentifier(callee) && isCanonicalDefineGate(callee))) {
-    return;
-  }
-  // The descriptor literal itself — §12.1 requires `defineGate({ … })` to take a direct object literal, and
-  // ARM E judges the CLAIM that literal makes about its own evidence plane. Anything else is `undefined`:
-  // the final contract's own validator owns that refusal, and this arm must not guess at a second one.
-  const argument = value.getArguments()[0];
-  return { contract: "final", obj: argument !== undefined && TsNode.isObjectLiteralExpression(argument) ? argument : undefined };
+  const value = init === undefined ? undefined : unwrap(init);
+  return contract === "legacy" && value !== undefined && TsNode.isObjectLiteralExpression(value) ? { contract, obj: value } : undefined;
 }
 
 /** Is a descriptor property a non-empty array literal? */
@@ -141,12 +148,12 @@ function hasNonEmptyArrayProp(obj: Node, field: string): boolean {
 
 /** ARM A for one module. Returns the LEGACY descriptor object for arm C, or undefined when there is nothing further
  *  to judge — a registered final policy (its floor is `lib/policy-validation.ts`) or an unregistered module. */
-function armDescriptor(sf: SourceFile, rel: string, ctx: GateRunCtx): Node | undefined {
+function armDescriptor(sf: SourceFile, rel: string, ctx: GatePolicyContext): Node | undefined {
   const registration = registrationOf(sf);
   if (registration === undefined) {
     // THE SANCTIONED Finding overload (§1): FILE-LEVEL by construction — the module exports no descriptor,
     // so there is no node to anchor on or hang a marker off.
-    ctx.report({ file: rel, line: 1, column: 0, message: NO_DESCRIPTOR(rel) });
+    ctx.report.file(rel, { line: 1, column: 1, message: NO_DESCRIPTOR(rel) });
     return;
   }
   if (registration.contract === "final") {
@@ -158,7 +165,7 @@ function armDescriptor(sf: SourceFile, rel: string, ctx: GateRunCtx): Node | und
     if (!hasNonEmptyArrayProp(obj, field)) {
       // The missing FIELD is the token — both fields can be missing on the SAME descriptor node, which is
       // exactly the §4.3a case a line-scoped marker would over-exempt.
-      ctx.report(obj, { token: field, offset: 0 });
+      reportToken(ctx, obj, field);
     }
   }
   return obj;
@@ -348,11 +355,11 @@ function importHopReadsTypes(sf: SourceFile): boolean {
  *  about what the POLICY reads, and a policy reads through its module-level helpers as readily as inline —
  *  scanning only the literal left the one-line extraction (`function isX(node) { return node.getType()… }`)
  *  as a free evasion of an arm whose entire subject is that claim. */
-function armSyntaxAnalysis(obj: Node | undefined, sf: SourceFile, ctx: GateRunCtx): void {
+function armSyntaxAnalysis(obj: Node | undefined, sf: SourceFile, ctx: GatePolicyContext): void {
   if (obj === undefined || analysisText(obj) !== SYNTAX_ANALYSIS || !(readsTypes(sf) || importHopReadsTypes(sf))) {
     return;
   }
-  ctx.report(obj, { token: ANALYSIS_PROP, offset: 0 });
+  reportToken(ctx, obj, ANALYSIS_PROP);
 }
 
 // ── ARM B ────────────────────────────────────────────────────────────────────────────────────────────
@@ -432,40 +439,29 @@ export function exemptionCollections(sf: SourceFile): Collection[] {
  *  this: a zero-population door converted into a baseline is an honest dead-code signal turned into
  *  permanent silence. */
 
-const STRING_KINDS = [
-  SyntaxKind.StringLiteral,
-  SyntaxKind.NoSubstitutionTemplateLiteral,
-  SyntaxKind.TemplateHead,
-  SyntaxKind.TemplateMiddle,
-  SyntaxKind.TemplateTail,
-] as const;
-
 /** Does this gate module carry a stale-arm DIAGNOSTIC (a string a reader would be shown when a row stops
  *  matching)? Necessary condition, not sufficient — see the DECLARED LIMIT mustPass row. */
-export function hasStaleArm(sf: SourceFile): boolean {
-  return staleArmStrings(sf).length > 0;
+export function hasStaleArm(module: GateModernizationModuleSyntax): boolean {
+  return staleArmStrings(module).length > 0;
 }
 
 /** Every stale-arm diagnostic string in the module, as authored text. */
-function staleArmStrings(sf: SourceFile): readonly string[] {
-  const out: string[] = [];
-  for (const kind of STRING_KINDS) {
-    for (const n of sf.getDescendantsOfKind(kind)) {
-      const text = n.getText();
-      if (STALE_VOCAB_RE.test(text)) {
-        out.push(text);
-      }
-    }
-  }
-  return out;
+function staleArmStrings(module: GateModernizationModuleSyntax): readonly string[] {
+  return module.strings.flatMap((node) => (STALE_VOCAB_RE.test(node.getText()) ? [node.getText()] : []));
 }
 
 // ── ARM C ────────────────────────────────────────────────────────────────────────────────────────────
-function resolveDoc(root: string, ref: string): string | undefined {
-  if (ref.includes("/")) {
-    return [join(root, ref), join(root, "docs/architecture", ref)].find((p) => existsSync(p));
+function docCandidates(ref: string): readonly string[] {
+  return ref.includes("/") ? [posix.normalize(ref), posix.join("docs/architecture", ref)] : BARE_ROOTS.map((root) => posix.join(root, ref));
+}
+
+function resolveDoc(documents: DocumentIndex, ref: string): string | undefined {
+  const candidates = docCandidates(ref);
+  const refusal = documents.refusals.find((row) => candidates.includes(row.path));
+  if (refusal !== undefined) {
+    throw new Error(`cited document ${refusal.path} was refused (${refusal.status}): ${refusal.reason}`);
   }
-  return BARE_ROOTS.map((r) => join(root, r, ref)).find((p) => existsSync(p));
+  return documents.documents.find((document) => candidates.includes(document.path))?.text;
 }
 
 function headingsOf(src: string): string[] {
@@ -523,7 +519,7 @@ function docRowText(obj: Node): string | undefined {
   return TsNode.isStringLiteral(n) || TsNode.isNoSubstitutionTemplateLiteral(n) ? n.getLiteralText() : undefined;
 }
 
-function armCitation(obj: Node, ctx: GateRunCtx): void {
+function armCitation(obj: Node, ctx: GatePolicyContext, documents: DocumentIndex): void {
   const value = docRowText(obj);
   if (value === undefined) {
     return;
@@ -538,13 +534,13 @@ function armCitation(obj: Node, ctx: GateRunCtx): void {
     if (owner === undefined || !owner.ref.endsWith(".md")) {
       continue; // a §-cite bound to a CODE file (or to nothing) — out of this arm's scope
     }
-    const abs = resolveDoc(ctx.root, owner.ref);
-    if (abs === undefined) {
+    const document = resolveDoc(documents, owner.ref);
+    if (document === undefined) {
       continue; // the doc itself does not resolve — that is `dangling-refs`' arm, not a second red here
     }
-    if (!anchorExists(readFileSync(abs, "utf8"), section)) {
+    if (!anchorExists(document, section)) {
       // The ghost ANCHOR is the token — several ghost cites can ride one docRow on one node.
-      ctx.report(obj, { token: `§${section.trim()}`, offset: 0 });
+      reportToken(ctx, obj, `§${section.trim()}`);
     }
   }
 }
@@ -567,9 +563,6 @@ const SCAN_METHOD = "scan";
  *  whole string literal that IS a ledger path would make the arm accuse its own conformance rows
  *  (GATE-AUTHORING.md §5 — never spell a gate's trigger literally near its scan root). Neither piece
  *  satisfies the anchored match; only their concatenation does, and that exists at runtime only. */
-const LEDGER_SUFFIX = ".baseline.json";
-const PROBE_LEDGER = `${GATES_REL}__probe${LEDGER_SUFFIX}`;
-
 const NO_ADMITTED_TRIPWIRE =
   "BLINDNESS TRIPWIRE (ARM D) — no gate module in the corpus was recognised as a ratchet-ledger reader, so " +
   "this arm would report ✓ over every silent ratchet forever. The ledger-path recogniser in " +
@@ -593,14 +586,15 @@ function inExampleBlock(node: Node): boolean {
 
 /** The ratchet-ledger paths this gate module reads, as their literal nodes (the report anchor). A path that
  *  only ever appears in a conformance example is EXCLUDED — see `inExampleBlock`. */
-function ledgerLiterals(sf: SourceFile): { readonly node: Node; readonly path: string }[] {
+function ledgerLiterals(module: GateModernizationModuleSyntax): { readonly node: Node; readonly path: string }[] {
   const out: { node: Node; path: string }[] = [];
-  for (const kind of STRING_KINDS) {
-    for (const n of sf.getDescendantsOfKind(kind)) {
-      const text = n.getLiteralText();
-      if (LEDGER_PATH_RE.test(text) && !inExampleBlock(n)) {
-        out.push({ node: n, path: text });
-      }
+  for (const node of module.strings) {
+    if (!(TsNode.isStringLiteral(node) || TsNode.isNoSubstitutionTemplateLiteral(node))) {
+      continue;
+    }
+    const text = node.getLiteralText();
+    if (LEDGER_PATH_RE.test(text) && !inExampleBlock(node)) {
+      out.push({ node, path: text });
     }
   }
   return out;
@@ -608,8 +602,12 @@ function ledgerLiterals(sf: SourceFile): { readonly node: Node; readonly path: s
 
 /** Does this module declare an admitted count — `<x>.scan({ admitted: … })` anywhere in it? AST-positional
  *  (a mention of the call in a comment or a doc string enforces nothing, and this arm's own header names it). */
-export function declaresAdmitted(sf: SourceFile): boolean {
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+export function declaresAdmitted(module: GateModernizationModuleSyntax): boolean {
+  for (const node of module.calls) {
+    if (!TsNode.isCallExpression(node)) {
+      continue;
+    }
+    const call = node;
     const callee = call.getExpression();
     if (!TsNode.isPropertyAccessExpression(callee) || callee.getName() !== SCAN_METHOD) {
       continue;
@@ -623,43 +621,28 @@ export function declaresAdmitted(sf: SourceFile): boolean {
 }
 
 /** ARM D for one gate module. Returns whether it reads a ledger at all — the tripwire's evidence. */
-function armAdmitted(sf: SourceFile, ctx: GateRunCtx): boolean {
-  const ledgers = ledgerLiterals(sf);
-  if (ledgers.length === 0 || declaresAdmitted(sf)) {
+function armAdmitted(module: GateModernizationModuleSyntax, ctx: GatePolicyContext): boolean {
+  const ledgers = ledgerLiterals(module);
+  if (ledgers.length === 0 || declaresAdmitted(module)) {
     return ledgers.length > 0;
   }
   for (const ledger of ledgers) {
     // NODE-anchored with the ledger path as its token: a gate can read two ledgers on two lines, and the
     // token is what a `@orb-gate-ignore` would have to name (§4.3a).
-    ctx.report(ledger.node, { token: ledger.path, offset: 0 });
+    reportToken(ctx, ledger.node, ledger.path);
   }
   return true;
-}
-
-// ── the pass ─────────────────────────────────────────────────────────────────────────────────────────
-/** Gate modules in this run's project, repo-relative path → SourceFile, sorted. The LOADER's corpus predicate —
- *  top-level `gates/*.ts` only (lib/loader.ts `corpusFiles`): a file under `gates/_proof/` is a shared proof surface
- *  the policy proofs import, not a module that owes a descriptor. */
-function gateFiles(ctx: GateRunCtx): Map<string, SourceFile> {
-  const out = new Map<string, SourceFile>();
-  for (const sf of ctx.project.getSourceFiles()) {
-    const rel = repoRel(ctx.root, sf.getFilePath());
-    if (rel.startsWith(GATES_REL) && TS_EXT_RE.test(rel) && !rel.slice(GATES_REL.length).includes("/")) {
-      out.set(rel, sf);
-    }
-  }
-  return new Map([...out].sort(([a], [b]) => (a < b ? -1 : 1)));
 }
 
 /** Arm B for one gate module: every one-sided exemption collection it carries. Unsuppressed by
  *  construction — the RETRO handoff baseline reached its terminal state `{}` (GATE-AUTHORING.md §4.8) and was
  *  deleted with its generator, so a NEW one-sided table is red on arrival with no ledger to add it to. */
-function armExemptions(sf: SourceFile, ctx: GateRunCtx): void {
-  if (hasStaleArm(sf)) {
+function armExemptions(module: GateModernizationModuleSyntax, ctx: GatePolicyContext): void {
+  if (hasStaleArm(module)) {
     return;
   }
-  for (const c of exemptionCollections(sf)) {
-    ctx.report(c.node, { token: c.name, offset: 0 });
+  for (const c of exemptionCollections(module.sourceFile)) {
+    reportToken(ctx, c.node, c.name);
   }
 }
 
@@ -669,33 +652,64 @@ const POLICY_STUB = "export function defineGate(policy: unknown): unknown {\n  r
 const finalProbe = (body: string): string =>
   `import { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", ${body}, mustFlag: [1], mustPass: [1] });\n`;
 
-export const gate: GateDescriptor = {
-  name: "gate-modernization",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — tooling/src/verify/gates/GATE-AUTHORING.md",
-  status: "active",
-  scopeSafety: "whole-project", // it judges the WHOLE gate corpus in one pass, not per changed file
-  fsBacked: true, // arm C reads the cited docs off disk
+interface CarriedProof {
+  readonly files: Readonly<Record<string, string>>;
+  readonly expect?: GatePolicyProof["expect"];
+  readonly why: string;
+}
+
+const PROOF_DOC = "docs/architecture/core/__gate_modernization_resource_anchor.md";
+const PROOF_CATALOG = "docs/catalog/catalog.json";
+
+function resourceProof(proof: CarriedProof): GatePolicyProof {
+  return {
+    mode: "resource",
+    files: {
+      [PROOF_DOC]: "# Resource anchor\n",
+      [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
+      ...proof.files,
+    },
+    ...(proof.expect === undefined ? {} : { expect: proof.expect }),
+    why: proof.why,
+  };
+}
+
+export const gate = defineGate({
+  id: "gate-modernization",
+  family: "gate-modernization",
+  authority: "hard",
+  severity: "error",
+  population: GATE_MODERNIZATION_POPULATION,
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [gateModernizationFact],
+  resources: [{ kind: "documents" }],
   message: MESSAGE,
   fix: FIX,
-  run: (ctx) => {
-    let ledgerReaders = 0;
-    const corpus = gateFiles(ctx);
-    for (const [rel, sf] of corpus) {
-      const obj = armDescriptor(sf, rel, ctx);
-      armExemptions(sf, ctx);
-      ledgerReaders += armAdmitted(sf, ctx) ? 1 : 0;
-      if (obj !== undefined) {
-        armCitation(obj, ctx);
-      }
-    }
-    // §4.6: this arm is keyed on a NAME shape, so a corpus with zero recognised ledger readers means the
-    // recogniser died, not that the debt did. Real-tree anchored on this gate's own module — a conformance
-    // mini-project holds only its `__probe.ts`, so the tripwire cannot misfire there.
-    if (ledgerReaders === 0 && fileLoaded(ctx, GATE_SELF)) {
-      // A GENUINELY file-level Finding (line/column 0, no node position) — the arm-E shape, so
-      // `finding-overload-provenance` does not judge it and a marker here would itself be stale.
-      ctx.report({ file: GATE_SELF, line: 0, column: 0, message: NO_ADMITTED_TRIPWIRE });
-    }
+  create: (ctx) => {
+    const documents = readyResourceValue(ctx.resources.documents());
+    return {
+      evaluate: () => {
+        const syntax = readGateModernizationFacts(ctx);
+        let ledgerReaders = 0;
+        let selfVisited = false;
+        for (const module of syntax.modules) {
+          const rel = ctx.relativePath(module.sourceFile);
+          selfVisited ||= rel === GATE_SELF;
+          const obj = armDescriptor(module.sourceFile, rel, ctx);
+          armExemptions(module, ctx);
+          ledgerReaders += armAdmitted(module, ctx) ? 1 : 0;
+          if (obj !== undefined) {
+            armCitation(obj, ctx, documents);
+          }
+        }
+        // §4.6: this arm is keyed on a NAME shape, so a corpus with zero recognised ledger readers means
+        // the recogniser died, not that the debt did. The self module is the real-corpus anchor.
+        if (ledgerReaders === 0 && selfVisited) {
+          ctx.report.file(GATE_SELF, { line: 1, column: 1, message: NO_ADMITTED_TRIPWIRE });
+        }
+      },
+    };
   },
 
   mustFlag: [
@@ -923,16 +937,16 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "tooling/src/verify/gates/__probe.ts": `const LEDGER = "${PROBE_LEDGER}";\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], run: (ctx) => { ctx.report({ file: LEDGER, line: 1, column: 0, message: "m" }); } };\n`,
+        "tooling/src/verify/gates/__probe.ts": `const LEDGER = "${GATE_MODERNIZATION_PROBE_LEDGER}";\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], run: (ctx) => { ctx.report({ file: LEDGER, line: 1, column: 0, message: "m" }); } };\n`,
       },
-      expect: { token: PROBE_LEDGER },
+      expect: { token: GATE_MODERNIZATION_PROBE_LEDGER },
       why: "ARM D — THE FOUNDING SHAPE (#551): a gate reading a committed ratchet ledger and declaring no admitted count. Its whole budgeted population then renders as ZERO in the single-pass's admitted line — measured at 523 findings across three gates",
     },
-  ],
+  ].map(resourceProof),
   mustPass: [
     {
       files: {
-        "tooling/src/verify/gates/__probe.ts": `export const gate = { name: "__probe", docRow: "x", message: "m", run: (ctx) => { ctx.scan({ unit: "ledger row" }); }, mustFlag: [{ files: { "${PROBE_LEDGER}": "{}" }, why: "w" }], mustPass: [{ files: { "${PROBE_LEDGER}": "{}" }, why: "w" }] };\n`,
+        "tooling/src/verify/gates/__probe.ts": `export const gate = { name: "__probe", docRow: "x", message: "m", run: (ctx) => { ctx.scan({ unit: "ledger row" }); }, mustFlag: [{ files: { "${GATE_MODERNIZATION_PROBE_LEDGER}": "{}" }, why: "w" }], mustPass: [{ files: { "${GATE_MODERNIZATION_PROBE_LEDGER}": "{}" }, why: "w" }] };\n`,
       },
       why: "ARM D's example carve (#569): a gate whose ONLY ledger path sits inside its mustFlag/mustPass fixtures JUDGES ledgers rather than reading budgets — accusing it of a silent ratchet was a false positive that cost `ratchet-row-integrity` three findings at landing",
     },
@@ -1004,7 +1018,10 @@ export const gate: GateDescriptor = {
       why: "ARM E SCOPE — a LEGACY descriptor carries no `analysis` field, so it makes no claim about its evidence plane and there is nothing for a type read to contradict; arm E is final-contract only",
     },
     {
-      files: { "tooling/src/verify/gates/_proof/__probe-surface.ts": "export const SURFACE = 1;\n" },
+      files: {
+        "tooling/src/verify/gates/__probe.ts": 'export const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1] };\n',
+        "tooling/src/verify/gates/_proof/__probe-surface.ts": "export const SURFACE = 1;\n",
+      },
       why: "ARM A — the corpus is the LOADER's corpus (top-level `gates/*.ts`): a shared proof surface under `gates/_proof/` is an input the policy proofs import, not a module that owes a descriptor (six such files read as unregistered before the predicate matched the loader's)",
     },
 
@@ -1063,13 +1080,13 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "tooling/src/verify/gates/__probe.ts": `const LEDGER = "${PROBE_LEDGER}";\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], run: (ctx) => { ctx.scan({ admitted: LEDGER.length }); } };\n`,
+        "tooling/src/verify/gates/__probe.ts": `const LEDGER = "${GATE_MODERNIZATION_PROBE_LEDGER}";\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], run: (ctx) => { ctx.scan({ admitted: LEDGER.length }); } };\n`,
       },
       why: "ARM D — the honest shape: the ledger reader declares what its budgets absolved, so the single-pass total includes it",
     },
     {
       files: {
-        "tooling/src/verify/gates/__probe.ts": `const NOTE = "regenerate the committed ${LEDGER_SUFFIX} ledger when the count shrinks";\nexport const gate = { name: "__probe", docRow: "x", message: NOTE, mustFlag: [1], mustPass: [1] };\n`,
+        "tooling/src/verify/gates/__probe.ts": `const NOTE = "regenerate the committed ${GATE_MODERNIZATION_PROBE_LEDGER_SUFFIX} ledger when the count shrinks";\nexport const gate = { name: "__probe", docRow: "x", message: NOTE, mustFlag: [1], mustPass: [1] };\n`,
       },
       why: "ARM D — DECLARED LIMIT and the anti-self-flag: the recogniser matches a literal that IS a ledger PATH (whole-text anchored), never prose that merely mentions one — otherwise this gate's own header and every gate's fix text would accuse themselves",
     },
@@ -1080,5 +1097,5 @@ export const gate: GateDescriptor = {
       },
       why: "ARM D — a gate that reads NO ledger owes no admitted count: the arm is about declared debt, not about every `ctx.scan` call (and the blindness tripwire stays quiet here, being real-tree anchored)",
     },
-  ],
-};
+  ].map(resourceProof),
+});

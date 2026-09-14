@@ -20,15 +20,17 @@
 // arm is the mixed roster's own receipt.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { Node } from "ts-morph";
-import { Project } from "ts-morph";
 import { describe } from "vitest";
-import type { Finding, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
+import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate } from "../../../../tooling/src/verify/gates/enforcement-registry-parity.ts";
+import { projectCtx } from "../../../../tooling/src/verify/index.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { verifyMetaGateConversion } from "../../../support/meta-gate-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const DOC_REL = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
+const CATALOG_REL = "docs/catalog/catalog.json";
 const GATE_REL = "tooling/src/verify/gates/x.ts";
 const MESSAGE = "the exact runtime text";
 /** The message as it is SPELLED in a descriptor — a quoted literal, the default initializer under test. */
@@ -36,29 +38,25 @@ const MESSAGE_LITERAL = JSON.stringify(MESSAGE);
 /** Restated, not imported: the test is the SECOND opinion on the marker vocabulary, not a re-import of
  *  the subject's own constant. */
 const MARKER = "(@mirrors-message)";
+const LEGACY_BASE = "30333fd4e";
+const LEGACY_PATH = "tooling/src/verify/gates/enforcement-registry-parity.ts";
 /** The real-tree arm parses all ~270 gate modules with ts-morph, resolves every `defineGate` callee to its
  *  import origin, and evaluates each message — measured 19s alone on 2026-09-11 (8.4s before the origin
  *  reader); the parallel lane default of 5s is a contention flake, not a verdict. */
 const REAL_TREE_TIMEOUT_MS = scaledBudget(60_000);
 
-function runGate(root: string): readonly Finding[] {
-  const project = new Project({ useInMemoryFileSystem: true });
-  const findings: Finding[] = [];
-  const ctx: GateRunCtx = {
+function runGate(root: string): readonly CoordinatedGateFinding[] {
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
     root,
-    project,
-    scope: { kind: "project" },
-    files: [],
-    checker: () => project.getTypeChecker(),
-    report: (arg: Node | Finding): void => {
-      if ("file" in arg) {
-        findings.push(arg);
-      }
-    },
-    scan: () => undefined,
-  };
-  gate.run?.(ctx);
-  return findings;
+    project: projectCtx(root).project,
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.factErrors).toEqual([]);
+  return result.authority.effectiveFindings.filter((finding) => finding.policyId === gate.id);
 }
 
 function plant(root: string, rel: string, content: string): void {
@@ -71,10 +69,11 @@ function plant(root: string, rel: string, content: string): void {
  *  so the only thing under test is the row's DESCRIPTION. */
 function plantRegistry(root: string, description: string, message = MESSAGE_LITERAL): void {
   plant(root, GATE_REL, `export const gate = { name: "x", status: "active", message: ${message} };\n`);
+  plant(root, CATALOG_REL, '{"documents":[]}\n');
   plant(root, DOC_REL, `## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| \`x\` | ${description} |\n\n### Layer 3 — DORMANT structural gates\n`);
 }
 
-const messages = (findings: readonly Finding[]): string => findings.map((f) => f.message ?? "").join("\n");
+const messages = (findings: readonly CoordinatedGateFinding[]): string => findings.map((f) => f.message ?? "").join("\n");
 
 /** The FINAL-contract fixtures: a `contract/policy.ts` whose `defineGate` the origin reader resolves on disk, and a
  *  module importing it — planted beside the legacy `x` so ONE registry carries both contracts. */
@@ -96,6 +95,7 @@ function plantMixedRegistry(root: string, { yModule, rows, count }: MixedRegistr
   plant(root, GATE_REL, 'export const gate = { name: "x", status: "active" };\n');
   plant(root, POLICY_STUB_REL, POLICY_STUB);
   plant(root, FINAL_GATE_REL, yModule);
+  plant(root, CATALOG_REL, '{"documents":[]}\n');
   const table = rows.map((row) => `| \`${row}\` | enforces ${row} |`).join("\n");
   plant(root, DOC_REL, `## Layer 3 — Structural gates\n\n(${count} registered gates)\n\n${table}\n\n### Layer 3 — DORMANT structural gates\n`);
 }
@@ -184,4 +184,16 @@ describe("enforcement-registry-parity — the REAL tree", () => {
     const doc = readFileSync(join(repoRoot, DOC_REL), "utf8");
     expect(doc.split(MARKER).length - 1).toBeGreaterThanOrEqual(3);
   });
+});
+
+test("all 13 flag and 5 pass rows preserve the frozen parent verdict through final dispatch", { timeout: scaledBudget(240_000) }, async ({ scratch }) => {
+  expect(
+    await verifyMetaGateConversion({
+      scratch,
+      base: LEGACY_BASE,
+      legacyPath: LEGACY_PATH,
+      policy: gate,
+      expectedRows: { mustFlag: 13, mustPass: 5 },
+    }),
+  ).toBe(18);
 });

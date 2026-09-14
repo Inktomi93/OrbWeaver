@@ -12,6 +12,7 @@ import {
   resolveCallableMember,
   resolveModuleBinding,
 } from "./gate-contract-origin.ts";
+import { descriptorValue, objectLiteralOf, proofRowsOf } from "./policy-descriptor-read.ts";
 
 const LEGACY_FIELDS: ReadonlySet<string> = new Set(["scanRoot", "scopeSafety", "begin", "finalize", "run"]);
 const DIRECT_WALK_METHODS: ReadonlySet<string> = new Set([
@@ -273,7 +274,59 @@ function inspectModuleState(sf: SourceFile, root: string, out: GateContractFindi
   }
 }
 
+const PROOF_ARMS = ["mustFlag", "mustPass", "mustRefuse"] as const;
+
+function descriptorObject(sf: SourceFile): ObjectLiteralExpression | undefined {
+  const initializer = sf.getVariableDeclaration("gate")?.getInitializer();
+  if (initializer === undefined) {
+    return;
+  }
+  const value = unwrap(initializer);
+  const candidate = usesDefineGate(sf) && TsNode.isCallExpression(value) ? value.getArguments()[0] : value;
+  if (candidate === undefined || !TsNode.isExpression(candidate)) {
+    return;
+  }
+  const object = resolveObjectLiteral(candidate);
+  return object !== undefined && TsNode.isObjectLiteralExpression(object) ? object : undefined;
+}
+
+function collectFileMaps(expression: Node | undefined, out: ObjectLiteralExpression[], seen: Set<ObjectLiteralExpression>): void {
+  const object = objectLiteralOf(expression);
+  if (object === undefined || seen.has(object)) {
+    return;
+  }
+  seen.add(object);
+  out.push(object);
+  for (const property of object.getProperties()) {
+    if (TsNode.isSpreadAssignment(property)) {
+      collectFileMaps(property.getExpression(), out, seen);
+    }
+  }
+}
+
+/** File-map keys and contents under policy proof rows are synthetic inputs, not gate-owned ledgers. The
+ *  contract still reports every baseline path outside this closed proof-data position. */
+function proofFileMaps(sf: SourceFile): readonly ObjectLiteralExpression[] {
+  const descriptor = descriptorObject(sf);
+  if (descriptor === undefined) {
+    return [];
+  }
+  const out: ObjectLiteralExpression[] = [];
+  const seen = new Set<ObjectLiteralExpression>();
+  for (const arm of PROOF_ARMS) {
+    for (const row of proofRowsOf(descriptorValue(descriptor, arm)).rows) {
+      collectFileMaps(descriptorValue(row, "files"), out, seen);
+    }
+  }
+  return out;
+}
+
+function belongsToProofFileMap(candidate: Node, maps: readonly ObjectLiteralExpression[]): boolean {
+  return maps.some((map) => candidate === map || candidate.getAncestors().includes(map));
+}
+
 function inspectBaselines(sf: SourceFile, root: string, out: GateContractFinding[]): void {
+  const proofMaps = proofFileMaps(sf);
   const descendants: Node[] = [
     ...sf.getDescendantsOfKind(SyntaxKind.StringLiteral),
     ...sf.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral),
@@ -281,6 +334,9 @@ function inspectBaselines(sf: SourceFile, root: string, out: GateContractFinding
     ...sf.getDescendantsOfKind(SyntaxKind.BinaryExpression).filter((binary) => binary.getOperatorToken().getKind() === SyntaxKind.PlusToken),
   ];
   const candidates = descendants.filter((candidate) => {
+    if (belongsToProofFileMap(candidate, proofMaps)) {
+      return false;
+    }
     const parent = candidate.getParent();
     return !(
       (TsNode.isBinaryExpression(parent) && parent.getOperatorToken().getKind() === SyntaxKind.PlusToken) ||
