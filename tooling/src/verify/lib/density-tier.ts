@@ -40,7 +40,7 @@ export const UI_SOURCE_ROOT = "packages/ui/src/";
  *  axes the voices are built from, so a client-shared composite one level up is not a feature call site
  *  (UI-Density-Law.md §2.3). It is not expressible as a population root — `@client` has no sub-root — and
  *  it subtracts nothing from the population, which is what keeps the other three arms judging those files. */
-export const FEATURES_TIER = "packages/client/src/features/";
+const FEATURES_TIER = "packages/client/src/features/";
 
 /** ONE candidate occurrence of the density law, carrying the reviewed-grant identity central reconciliation
  *  matches on. `subject` is the repo-relative file; `operation` is the licensed ACT, which is what makes a

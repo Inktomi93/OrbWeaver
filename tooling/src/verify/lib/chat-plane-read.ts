@@ -68,7 +68,7 @@ export const CHAT_MATRIX_FILE = "packages/server/src/domain/chat/substrate/auth/
 export const CHAT_QUERIES_FILE = "packages/server/src/domain/chat/persistence/queries.ts";
 export const MATRIX_CONST = "CHAT_VERB_AUTHORITY";
 export const SERVICE_TYPE = "ChatService";
-export const CLAMP_FN = "isBelowHistoryFloor";
+const CLAMP_FN = "isBelowHistoryFloor";
 
 /** How many characters of an unsupported matrix expression a refusal quotes. */
 const DIAGNOSTIC_PREVIEW_CHARS = 120;
@@ -78,10 +78,10 @@ const MEMBERSHIP_BINDING_RE = /(?:^|\.)membership$/u;
 
 /** Matrix authorities that are ROOM plane (host-gated machinery) or gated elsewhere entirely. Everything
  *  else — including any authority added later — is viewer plane, so a NEW authority is checked by default. */
-export const ROOM_PLANE_AUTHORITIES: ReadonlySet<string> = new Set(["host", "non-chat-scoped"]);
+const ROOM_PLANE_AUTHORITIES: ReadonlySet<string> = new Set(["host", "non-chat-scoped"]);
 
 /** The floorless BULK canon readers: many rows of canon CONTENT for a chatId, no floor parameter. */
-export const BULK_CANON_READERS: ReadonlySet<string> = new Set([
+const BULK_CANON_READERS: ReadonlySet<string> = new Set([
   "loadCanonHistory", // every committed row's MessageView (content included), whole chat
   "loadCanonHistoryAfter", // the same, from a seq — an `afterSeq` is a cursor, NOT a visibility floor
   "loadChatEventReplay", // the durable bus log: MessageView payloads + raw `delta` transcript text
@@ -117,7 +117,7 @@ function sourceKey(node: MorphNode, name: string): string {
   return `${idx === -1 ? path : path.slice(idx + 1)}#${name}`;
 }
 
-export interface VerbImpl {
+interface VerbImpl {
   readonly verb: string;
   readonly node: MorphNode;
   readonly file: SourceFile;
@@ -375,7 +375,7 @@ export function resolveChatMatrix(index: ChatPlaneIndex): ChatVerbMatrix | undef
 
 /** The identifier a CallExpression calls (`f(…)`), ignoring member calls (`x.f(…)` is never one of ours —
  *  the readers are module-scope imports). */
-export function calleeName(call: MorphNode): string | undefined {
+function calleeName(call: MorphNode): string | undefined {
   const callee = Node.isCallExpression(call) ? call.getExpression() : undefined;
   return callee !== undefined && Node.isIdentifier(callee) ? callee.getText() : undefined;
 }
@@ -529,7 +529,7 @@ function readerResultIsClamped(index: ChatPlaneIndex, readerCall: MorphNode): bo
   });
 }
 
-export interface PlaneViolation {
+interface PlaneViolation {
   /** Every viewer-plane verb whose factory reaches this call, sorted — the legacy finding's `<verb>` half. */
   readonly verbs: readonly string[];
   readonly reader: string;

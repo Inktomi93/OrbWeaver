@@ -41,7 +41,7 @@ interface ChatFrame {
 
 /** How a collection stopped. `satisfied` is the only arm under which the values are evidence: `timed-out` (the
  *  timer fired first) and `stream-ended` (the server closed the socket first) both mean `until` never held. */
-export type ChatRoomCollectionOutcome = "satisfied" | "timed-out" | "stream-ended";
+type ChatRoomCollectionOutcome = "satisfied" | "timed-out" | "stream-ended";
 
 /** The collector's verdict. `malformedFrames` counts frames whose `data:` payload the instrument could not read
  *  (not JSON, not an object, or a frame of THIS room without a numeric `seq` and an `event`). Control frames and
