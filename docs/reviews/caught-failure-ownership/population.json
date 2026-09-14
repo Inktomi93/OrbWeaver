@@ -7181,7 +7181,7 @@
     {
       "siteId": "tooling/src/verify/lib/bus-payload-fact.ts::catch::1",
       "path": "tooling/src/verify/lib/bus-payload-fact.ts",
-      "line": 373,
+      "line": 381,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -7189,7 +7189,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the failure IS owned and surfaced — tuple-read THROWS to say \"I cannot establish this vocabulary\", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REFUSES `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this module's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed refusal.",
-      "markerLine": 370
+      "markerLine": 378
     },
     {
       "siteId": "tooling/src/verify/lib/compiler-source-filename-overlay.ts::catch::1",

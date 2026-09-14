@@ -46,6 +46,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { ReactExportFinding, ReactOriginVerdict } from "../contract/origin-verdict.ts";
 import type { GatePolicyVisitor } from "../contract/policy-primitives.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
+import { MEMBER_ACCESS_KINDS, readMemberAccess } from "./symbol-reference.ts";
 import { declaredByAnyPackage } from "./type-member-origin.ts";
 
 /** The module door React is authored as. A re-export shim keeps its OWN specifier, so the canonical
@@ -181,10 +182,26 @@ export function createReactExportMatcher(exportedName: string): ReactExportMatch
   };
 }
 
-/** The TWO doors a deprecated React export enters a file through, as one visitor pair. Both `no-forward-ref`
+/** Is this member read already judged as a call's callee? `R.memo(…)` arrives on the CallExpression visitor,
+ *  so the member visitor must not report it a second time. */
+function isCalleeOfCall(node: MorphNode): boolean {
+  const parent = node.getParent();
+  return parent !== undefined && Node.isCallExpression(parent) && parent.getExpression() === node;
+}
+
+/** The THREE doors a deprecated React export enters a file through, as one visitor set. Both `no-forward-ref`
  *  and `no-use-context` are exactly this shape and must stay arm-for-arm identical: they are the same law
  *  applied to two exports, and a coverage difference between them would be an accident, not a decision.
- *  The caller owns the message and the report anchor. */
+ *  The caller owns the message and the report anchor.
+ *
+ *  THE THIRD DOOR IS THE NAMESPACE ONE (#2353). Subscribing `ImportSpecifier` + `CallExpression` left a
+ *  reference that is NEITHER — `import * as R from "react"; export const v = R.useMemo;` — with no node any
+ *  visitor received, so `no-manual-memo`'s own unresolved-candidate fixture stopped flagging under the
+ *  namespace respelling and `no-use-context` carried the same arm in the committed ledger. The member door
+ *  subscribes `MEMBER_ACCESS_KINDS` (so `R["useMemo"]` is the same reference) and is NARROWED to reads whose
+ *  member NAME is this export: the name prefilter is what keeps the fail-closed `unreadable` verdict from
+ *  spreading to every unrelated member of a React namespace binding, which would have converted a blind spot
+ *  into a false positive. A callee is skipped because the call door already judged it. */
 export function reactExportVisitors(exportedName: string, onFinding: (node: MorphNode, verdict: ReactExportFinding) => void): readonly GatePolicyVisitor[] {
   const matcher = createReactExportMatcher(exportedName);
   const emit = (node: MorphNode, verdict: ReactOriginVerdict | undefined): void => {
@@ -207,6 +224,14 @@ export function reactExportVisitors(exportedName: string, onFinding: (node: Morp
         if (Node.isCallExpression(node)) {
           const callee = node.getExpression();
           emit(callee, matcher.reference(callee));
+        }
+      },
+    },
+    {
+      kinds: MEMBER_ACCESS_KINDS,
+      visit: (node): void => {
+        if (readMemberAccess(node)?.name === exportedName && !isCalleeOfCall(node)) {
+          emit(node, matcher.reference(node));
         }
       },
     },

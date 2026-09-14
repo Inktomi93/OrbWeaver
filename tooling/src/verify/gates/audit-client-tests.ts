@@ -107,6 +107,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { resolveCallableDeclaration } from "../../_shared/reference-fact-call.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { callChainRoot, isTestCallShape } from "../lib/test-call-shape.ts";
 
 const MAX_HELPER_DEPTH = 4;
@@ -133,13 +134,11 @@ function isDescribeCall(call: CallExpression): boolean {
   return callChainRoot(call)?.getText() === "describe";
 }
 
-/** The plain callee NAME of a call — `beforeEach` for `beforeEach(…)`, `poll` for `expect.poll(…)`. */
+/** The plain callee NAME of a call — `beforeEach` for `beforeEach(…)`, `poll` for `expect.poll(…)` and for
+ *  `expect["poll"](…)`, because the member is read through the shared spelling-independent reader. */
 function calleeName(call: CallExpression): string | undefined {
   const expr = call.getExpression();
-  if (Node.isIdentifier(expr)) {
-    return expr.getText();
-  }
-  return Node.isPropertyAccessExpression(expr) ? expr.getName() : undefined;
+  return Node.isIdentifier(expr) ? expr.getText() : readMemberAccess(expr)?.name;
 }
 
 /** The authored name the report anchors on. A tagged-table callee (a Vitest `each` table template) anchors on its
@@ -155,7 +154,11 @@ function callbackFromCall(call: CallExpression): ArrowFunction | FunctionExpress
   return call.getArguments().find((a): a is ArrowFunction | FunctionExpression => Node.isArrowFunction(a) || Node.isFunctionExpression(a));
 }
 
-/** Does this expression chain bottom out in the bare `expect` identifier or an `expect(...)` call? */
+/** Does this expression chain bottom out in the bare `expect` identifier or an `expect(...)` call? Member
+ *  hops are read through `lib/symbol-reference.ts#readMemberAccess`, so `expect(x)["toBe"]` reaches `expect`
+ *  exactly as `expect(x).toBe` does — THE ACQUITTING SIDE MOVING WITH THE ACCUSING ONE (#2353): a
+ *  bracket-spelled matcher chain that stopped reaching `expect` here would turn a real assertion into a
+ *  no-assertion finding. */
 function walksToExpectCall(cursor: MorphNode | undefined): boolean {
   if (cursor === undefined) {
     return false;
@@ -164,17 +167,17 @@ function walksToExpectCall(cursor: MorphNode | undefined): boolean {
     const inner = cursor.getExpression();
     return (Node.isIdentifier(inner) && inner.getText() === EXPECT) || walksToExpectCall(inner);
   }
-  if (Node.isPropertyAccessExpression(cursor)) {
-    const lhs = cursor.getExpression();
-    return (Node.isIdentifier(lhs) && lhs.getText() === EXPECT) || walksToExpectCall(lhs);
+  const read = readMemberAccess(cursor);
+  if (read === undefined) {
+    return false;
   }
-  return false;
+  return (Node.isIdentifier(read.receiver) && read.receiver.getText() === EXPECT) || walksToExpectCall(read.receiver);
 }
 
-/** A MATCHER-chained expect: a call whose callee is a property access reaching `expect`. */
+/** A MATCHER-chained expect: a call whose callee is a member read (however spelled) reaching `expect`. */
 function isMatcherChainedExpect(call: CallExpression): boolean {
-  const expr = call.getExpression();
-  return Node.isPropertyAccessExpression(expr) && walksToExpectCall(expr.getExpression());
+  const read = readMemberAccess(call.getExpression());
+  return read !== undefined && walksToExpectCall(read.receiver);
 }
 
 /** A BARE `expect(x);` expression statement — the incomplete assertion. */
@@ -508,6 +511,14 @@ export const gate = defineGate({
       expect: { count: 1, line: 1, token: "each", messageIncludes: "no `expect(...).<matcher>()`" },
       why: "A MULTI-LINE TAGGED TABLE (verifier RV-1): since the shared shape reads tagged tables, a stub in Vitest's idiomatic multi-line table form reaches this arm. Anchored on the whole callee, its token would span the template's newlines, the waiver sink would refuse it as a tool error and WITHHOLD the whole policy — so this row would read zero findings. Anchoring on the tag's member name keeps it one reported, waivable finding",
     },
+    {
+      mode: "types",
+      files: {
+        "tests/tooling/bracket-table.test.ts": 'test["each"]`\n  a | b\n  1 | 2\n`("stub", () => {\n  const x = 1;\n  void x;\n});\n',
+      },
+      expect: { count: 1, line: 1, token: 'test["each"]', messageIncludes: "no `expect(...).<matcher>()`" },
+      why: "THE BRACKET SPELLING OF THE SAME TABLE (#2353). The shared `lib/test-call-shape.ts` walk keyed its member hop on `PropertyAccessExpression`, so respelling this fixture's tag as `test[\"each\"]` made the policy stop flagging its own stub — the exact silent green the spelling-twin census exists to catch. The anchor is still single-line by construction: `calleeNameNode` unwraps the tagged template to its TAG, which is the element access and not the multi-line template, so RV-1's newline-in-token refusal stays out of reach in this spelling too",
+    },
   ],
   mustPass: [
     {
@@ -527,6 +538,11 @@ export const gate = defineGate({
       mode: "types",
       files: { "tests/tooling/poll.test.ts": 'test("polls", async () => {\n  await expect.poll(() => 1).toBe(1);\n});\n' },
       why: "RULE 1 — `expect.poll(...)` is a matcher chain through the bare `expect` identifier target, and the row doubles as rule 2's await control",
+    },
+    {
+      mode: "types",
+      files: { "tests/tooling/bracket-matcher.test.ts": 'test("asserts through a bracket-spelled matcher", () => {\n  expect(1)["toBe"](1);\n});\n' },
+      why: 'THE ACQUITTING SIDE MOVING WITH THE ACCUSING ONE (#2353): `isMatcherChainedExpect` required a PropertyAccessExpression callee, so `expect(1)["toBe"](1)` was not a matcher chain and this asserting test read as RULE 1\'s no-assertion finding. Restore the node-kind test in `isMatcherChainedExpect`/`walksToExpectCall` and this row alone reds — a widening that only moved the accusing side would have converted the blind spot into a false positive',
     },
     {
       mode: "types",

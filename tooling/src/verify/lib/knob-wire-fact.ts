@@ -22,6 +22,7 @@ import type { InterfaceDeclaration, Node, ObjectLiteralExpression, SourceFile, V
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
 import { readStringValue, unwrapExpression } from "./ast-read.ts";
+import { readMemberAccess } from "./symbol-reference.ts";
 import { readTupleDeclaration } from "./tuple-read.ts";
 
 // ── member sources and their paired-anchor rename tripwires ─────────────────────────────────────────────
@@ -246,13 +247,19 @@ function collectBoundMembers(identifier: Node, out: SchemaMembers, walk: SchemaW
   collectSchemaMembers(initializer, out, { ...walk, seen: new Set([...walk.seen, key]) });
 }
 
-/** Dispatch one `<recv>.<method>(…)` builder in a schema position. */
+/** Dispatch one `<recv>.<method>(…)` builder in a schema position. The METHOD is read through
+ *  `lib/symbol-reference.ts#readMemberAccess` (#2353), so `z["object"]({ … })` and `.extend`/`.prefault`
+ *  spelled with brackets are the same builder as their dotted twins. Keyed on `PropertyAccessExpression`
+ *  alone this reader THREW on every bracket-spelled schema — a loud tool error rather than a silent pass,
+ *  but still a gate that stopped judging six of its own `mustFlag` fixtures under the respelling. */
 function collectCallMembers(call: Node, out: SchemaMembers, walk: SchemaWalk): void {
   const callee = MorphNode.isCallExpression(call) ? call.getExpression() : undefined;
-  if (callee === undefined || !MorphNode.isPropertyAccessExpression(callee)) {
+  const read = callee === undefined ? undefined : readMemberAccess(callee);
+  if (read === undefined) {
     throw new Error(`knob-wire-coverage: unsupported ${walk.label} expression: ${preview(call)}`);
   }
-  const method = callee.getName();
+  const method = read.name;
+  const receiver = read.receiver;
   const args = MorphNode.isCallExpression(call) ? call.getArguments() : [];
   const first = args[0];
   if (method === "object") {
@@ -263,7 +270,7 @@ function collectCallMembers(call: Node, out: SchemaMembers, walk: SchemaWalk): v
     return;
   }
   if (method === "extend" || method === "merge") {
-    collectSchemaMembers(callee.getExpression(), out, walk);
+    collectSchemaMembers(receiver, out, walk);
     if (first === undefined) {
       throw new Error(`knob-wire-coverage: ${walk.label} declares .${method}() with no argument`);
     }
@@ -271,7 +278,7 @@ function collectCallMembers(call: Node, out: SchemaMembers, walk: SchemaWalk): v
     return;
   }
   if (KEY_NEUTRAL_SCHEMA_METHODS.has(method)) {
-    collectSchemaMembers(callee.getExpression(), out, walk);
+    collectSchemaMembers(receiver, out, walk);
     return;
   }
   throw new Error(`knob-wire-coverage: unsupported ${walk.label} schema method .${method}(): ${preview(call)}`);
@@ -288,9 +295,10 @@ function collectSchemaMembers(expression: Node, out: SchemaMembers, walk: Schema
     collectBoundMembers(node, out, walk);
     return;
   }
-  // `{ ...base.shape }` — the sanctioned zod spelling for "every key of that schema".
-  if (MorphNode.isPropertyAccessExpression(node) && node.getName() === "shape") {
-    collectSchemaMembers(node.getExpression(), out, walk);
+  // `{ ...base.shape }` / `{ ...base["shape"] }` — the sanctioned zod spelling for "every key of that schema".
+  const shape = readMemberAccess(node);
+  if (shape !== undefined && shape.name === "shape") {
+    collectSchemaMembers(shape.receiver, out, walk);
     return;
   }
   if (MorphNode.isCallExpression(node)) {

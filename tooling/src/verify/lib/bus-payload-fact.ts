@@ -58,6 +58,13 @@
 // reference, or REFUSE. Only a provably KEYLESS kind (`FIELD_KEYLESS_KINDS`) passes in silence, and that set
 // is WIDER than the identity walker's on purpose — `chatId: string` is a field, never an event identity.
 //
+// THE ZOD SCHEMA BUILDER IS READ BY MEMBER, NOT BY NODE KIND (#2353). `scanSchemaExpr` keyed its callee on
+// `PropertyAccessExpression`, so `z["object"]({ … })` fell through to the strict-position refusal and the
+// notification schema's whole arm list contributed ZERO wire keys — the credential-key search then ran over
+// an empty population and the policy's own `mustFlag` fixtures stopped flagging under the bracket
+// respelling. Every builder hop (`object`/`extend`/`merge`/the key-neutral methods) and the `{ ...base.shape }`
+// spread now resolve through `lib/symbol-reference.ts#readMemberAccess`.
+//
 // THE RESOLUTION FENCE IS THE POPULATION FENCE, AND THAT IS A CONVERSION NARROWING (#1584). The legacy
 // reader accepted any declaration under the repo root outside `node_modules`; this one accepts only a
 // declaration the provider's own population ADMITTED, and refuses everything else as `unresolved-base:`.
@@ -69,7 +76,6 @@ import type {
   IndexedAccessTypeNode,
   InterfaceDeclaration,
   Node as MorphNode,
-  PropertyAccessExpression,
   SourceFile,
   TypeAliasDeclaration,
   TypeReferenceNode,
@@ -78,7 +84,9 @@ import type {
 } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
+import type { MemberRead } from "../contract/symbol-reference.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { readMemberAccess } from "./symbol-reference.ts";
 import { readTupleDeclaration } from "./tuple-read.ts";
 
 /** The bus event UNION declarations, by their one-home paths. The provider reads these files and picks out
@@ -705,9 +713,9 @@ function resolveSchemaInit(nameNode: MorphNode, state: CollectorState): MorphNod
 /** A `{ ...base.shape }` spread — the third sanctioned imported shape, RESOLVED. Any other spread is
  *  refused: it would otherwise be dropped silently, the same omission `getProperties()` makes. */
 function scanSchemaSpread(prop: MorphNode, expression: MorphNode, frame: WalkFrame): void {
-  const spread = unwrapExpression(expression);
-  if (N.isPropertyAccessExpression(spread) && spread.getName() === "shape") {
-    scanSchemaExpr(spread.getExpression(), true, { ...frame, origin: "inherited" });
+  const spread = readMemberAccess(unwrapExpression(expression));
+  if (spread !== undefined && spread.name === "shape") {
+    scanSchemaExpr(spread.receiver, true, { ...frame, origin: "inherited" });
     return;
   }
   refuse(frame.state, prop, `${UNSUPPORTED_TOKEN}Spread`);
@@ -761,8 +769,8 @@ function scanSchemaIdentifier(expr: MorphNode, strict: boolean, frame: WalkFrame
 
 /** Dispatch one `<recv>.<method>(…)` schema builder. An unmodeled method in an ARM position is REFUSED —
  *  which is how `.loose()`/`.passthrough()`/`.catchall()` are refused (they admit unknown keys). */
-function scanSchemaCall(expr: MorphNode, callee: PropertyAccessExpression, strict: boolean, frame: WalkFrame): void {
-  const method = callee.getName();
+function scanSchemaCall(expr: MorphNode, callee: MemberRead, strict: boolean, frame: WalkFrame): void {
+  const method = callee.name;
   const args = N.isCallExpression(expr) ? expr.getArguments() : [];
   if (method === "object") {
     scanSchemaObject(args[0] ?? expr, frame);
@@ -773,17 +781,17 @@ function scanSchemaCall(expr: MorphNode, callee: PropertyAccessExpression, stric
     return;
   }
   if (method === "extend") {
-    scanSchemaExpr(callee.getExpression(), strict, frame);
+    scanSchemaExpr(callee.receiver, strict, frame);
     scanSchemaObject(args[0] ?? expr, { ...frame, origin: "local" });
     return;
   }
   if (method === "merge") {
-    scanSchemaExpr(callee.getExpression(), strict, frame);
+    scanSchemaExpr(callee.receiver, strict, frame);
     scanSchemaExpr(args[0] ?? expr, strict, { ...frame, origin: "inherited" });
     return;
   }
   if (SCHEMA_KEY_NEUTRAL_METHODS.has(method) || !strict) {
-    scanSchemaExpr(callee.getExpression(), strict, frame);
+    scanSchemaExpr(callee.receiver, strict, frame);
     return;
   }
   refuse(frame.state, expr, `${UNSUPPORTED_TOKEN}z.${method}`);
@@ -798,8 +806,8 @@ function scanSchemaExpr(node: MorphNode, strict: boolean, frame: WalkFrame): voi
     scanSchemaIdentifier(expr, strict, frame);
     return;
   }
-  const callee = N.isCallExpression(expr) ? expr.getExpression() : undefined;
-  if (callee !== undefined && N.isPropertyAccessExpression(callee)) {
+  const callee = N.isCallExpression(expr) ? readMemberAccess(expr.getExpression()) : undefined;
+  if (callee !== undefined) {
     scanSchemaCall(expr, callee, strict, frame);
     return;
   }

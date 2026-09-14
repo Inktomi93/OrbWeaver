@@ -163,6 +163,18 @@ export const gate = defineGate({
       why: "arm B2: an AppSettings key absent from every admin write surface (a UI-less AppSettings) while a NON-admin client file reads it, so arm C is satisfied and this is the only finding — the admin-surface scope is what the row distinguishes",
     },
     {
+      // The SAME arm-B2 subject, with every zod builder hop spelled with brackets (#2353).
+      mode: "types",
+      grant: { subject: "appSettingsSchema.ghostBracket", operation: KNOB_WIRE_OPERATIONS.adminKey },
+      files: {
+        [SETTINGS]: appSettings('z["object"]({ ghostBracket: z["boolean"]() })'),
+        "packages/client/src/features/settings/lib/x.ts": "export const somethingElse = 1;\n",
+        "packages/client/src/features/other/x.ts": "declare const view: { ghostBracket?: boolean };\nexport const a = view.ghostBracket;\n",
+      },
+      expect: { count: 1, token: "ghostBracket", messageIncludes: "no write field in the admin surfaces" },
+      why: 'THE SCHEMA BUILDER, BRACKET-SPELLED (#2353). `collectCallMembers` required a `PropertyAccessExpression` callee, so `z["object"]({ … })` THREW `unsupported appSettingsSchema expression` — loud, but still a policy that stopped judging six of its own fixtures under the mechanical respelling, because a fact tool error is not a finding. The method is read through `lib/symbol-reference.ts#readMemberAccess`, so the bracket twin declares the same leaf and reaches the same arm',
+    },
+    {
       // Arm B2 (#1094 G4): an appSettingsSchema key arriving through an object SPREAD. Arm C flags both
       // keys here too (a bare identifier is not a read-shaped occurrence) — the B2 needle is the point.
       mode: "types",
