@@ -137,11 +137,12 @@ const WRITE_ARGUMENTS = {
 type WriteVerb = keyof typeof WRITE_ARGUMENTS;
 
 const CHECKOUT_MESSAGE =
-  "a family test filesystem mutation resolves a write-affecting path to the CHECKOUT (#2185, #2332). Paid 2026-08-24: a probe written into the tree was swept into a commit by the next broad `git add` and the gate shipped BLINDED, which reports green forever. Family fixtures READ the checkout but write only to an invocation-owned `scratch`/`plantedTree` root or a unique `mkdtemp[Disposable][Sync]` directory.";
-const UNREADABLE_MESSAGE =
+  "a family test filesystem mutation resolves a write-affecting path to the CHECKOUT (#2185, #2332). Paid 2026-08-24: a probe written into the tree was swept into a commit by the next broad `git add` and the gate shipped BLINDED, which reports green forever. Family fixtures READ the checkout but write only to an invocation-owned `scratch`/`plantedTree` root or a unique `mkdtemp[Disposable][Sync]` directory. (gate-runtime-standardization.md §6.5)";
+const UNREADABLE_MESSAGE_BODY =
   "a family test filesystem mutation has an UNREADABLE write-affecting path (#2185, #2332). Every actual fs destination and both rename paths must prove an invocation-owned scratch root, and a `mkdtemp[Disposable][Sync]` prefix must prove a child of canonical `tmpdir()` or of owned scratch. Relative, mutable, escaping/reset, incomplete-caller and otherwise dynamic paths fail closed — honest here because the module identity of the fs door has already established an ACTUAL mutation, and because the dominant parameter-rooted shape is now resolved at its call sites rather than guessed.";
+const UNREADABLE_MESSAGE = UNREADABLE_MESSAGE_BODY + " (gate-runtime-standardization.md §6.5)";
 const MISSING_MESSAGE =
-  "a family test filesystem mutation is missing a required write-affecting path argument (#2185, #2332), so scratch ownership cannot be proven at all.";
+  "a family test filesystem mutation is missing a required write-affecting path argument (#2185, #2332), so scratch ownership cannot be proven at all. (gate-runtime-standardization.md §6.5)";
 const FIX =
   'Root the write at the canonical `scratch` or `plantedTree` fixture (`tests/support/tool-fixtures.ts`), or create a unique directory with `mkdtemp[Disposable][Sync](join(tmpdir(), prefix))`, and keep every composed path below that root — `fixturePath(root, …)` carries a proven root across a runtime-computed segment. If the test genuinely needs the REAL tree it READS it: `readFileSync`/`existsSync`/a read-only `openSync(path, "r")` are untouched by this policy. Copy/cp/symlink/link judge their destination; rename judges both paths. A test that must PLANT at real-tree paths is the `__g_` conformance-suite shape and lives outside this population under an explicit dated grant (#2176), never behind a carve here.';
 
@@ -179,7 +180,7 @@ function judge(ctx: GatePolicyContext, paths: FixturePathOriginReader, { call, v
     if (origin.kind === "checkout") {
       ctx.report.node(call, { message: CHECKOUT_MESSAGE });
     } else if (origin.kind === "unreadable") {
-      ctx.report.node(call, { message: `${UNREADABLE_MESSAGE} ${origin.detail}` });
+      ctx.report.node(call, { message: `${UNREADABLE_MESSAGE_BODY} ${origin.detail} (gate-runtime-standardization.md §6.5)` });
     }
   }
 }
