@@ -411,12 +411,11 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_resttransform/components/__g_resttransform.tsx", 'export const G = <div className="scale-95" />;\n');
   // css-var-defined: an exact arbitrary-variable carrier names no generated, authored, or runtime property.
   fx("packages/client/src/features/__g_cssvar/components/__g_cssvar.tsx", 'export const G = <div className="z-(--definitely-undefined)" />;\n');
-  // density-tier: `rounded-card` outside the ELEVATED family, in a file with no baseline budget (A1). The
-  // fixture path is deliberately NOT in the committed density-tier.baseline.json, so its budget is 0.
-  fx(
-    "packages/client/src/features/__g_density/components/__g_density.tsx",
-    'export const G = <div className="rounded-card border border-border bg-card" />;\n',
-  );
+  // density-tier: NO fixture. It converted to two final policies on 2026-09-13 (#1939/#1584), so it is
+  // partitioned out of the legacy anti-drift arm below; the `__g_density` plant it owned SOLELY (one site on
+  // the whole tree, verified before removal) is deleted with it. Its bite is `structure:policy-conformance`
+  // running the declared rows of `density-tier` and `density-tier-slot-map` through `runPolicyPass`, plus
+  // `tests/tooling/verify/gates/density-tier-family.test.ts`.
   // motion-token-purity: a CSS file with a raw duration + easing in a transition declaration (off-token,
   // not in ALLOWLIST). The gate reads .css via fs.globSync (not ts-morph), so a __g_ CSS fixture in the
   // real src tree is picked up; the __g_ excludes on the OTHER consumers don't reach fs.globSync.
@@ -1105,16 +1104,22 @@ test("reserved proof files stay project inputs but never become descriptor corpu
 // FILE scan; a final line carries the resolved POPULATION (source + resource paths).
 const SCANNED_RE = /^ {2}[✓✗⚠] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}scanned \d+\/\d+ files/gmu;
 const FINAL_POPULATION_RE = /^ {2}[✓✗⚠] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}final [a-z-]+\/[a-z]+ · population \d+ source · \d+ resource/gmu;
-const DENSITY_ADMITTED_RE = /^ {2}[✓✗!] density-tier.*admitted-by-ratchet: \d+/mu;
-// #569: the admitted number is SPLIT BY CLASS everywhere it prints — a ratified admission is permanent by a
-// recorded ruling and must not read as burnable backlog. THE CARRIER MOVED 2026-09-12 (#2063): `suppressions`
-// used to be the ledger carrying both halves, and its per-file count ratchet was DELETED when the policy
-// converted to reviewed-grant authority, so it prints no `admitted-by-ratchet` line at all any more.
-// `density-tier` carries the split now — a live ratchet whose rows are ratified. Like every carrier in this
-// file, it is LEGACY BY REQUIREMENT: the split line is a legacy-runtime artifact and this whole suite retires
-// with the legacy roster at the atomic cutover rather than being re-pointed forever.
-const RATCHET_SPLIT_RE = /^ {2}[✓✗!] density-tier.*admitted-by-ratchet: (?<total>\d+) \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
-const SINGLE_PASS_SPLIT_RE = /^single-pass: (?<total>\d+) finding\(s\) admitted by ratchet baselines \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
+// THE #569 ADMITTED-BY-RATCHET SPLIT RETIRED WITH ITS LAST PRODUCER, 2026-09-13 (#1584). Two tests lived here
+// — "a ratchet gate names the debt it admits in normal output (Codex GA-H-02)" and "the admitted number is
+// split into DEBT and RATIFIED, and the split adds up (#569)" — plus the three regexes that drove them. The
+// line they matched is emitted only by `lib/render.ts` from a legacy `ctx.scan({ admitted, admittedRatified })`
+// call, and the corpus now has ZERO such callers: `suppressions` went first (#2063, 2026-09-12), then
+// `duplicate-action-doors` and `density-tier` converted the same evening (#1584/#1939), each moving its
+// ratified rows to exact reviewed grants. The comment above them had already anticipated this — "this whole
+// suite retires with the legacy roster" — but nothing scheduled it, and neither converting lane could see the
+// collision, because each alone left the other as carrier.
+//
+// The guarantee is not silently dropped, it MOVED and got stronger. The property was "an admitted total must
+// not read as burnable backlog when a recorded ruling made it permanent." Under reviewed-grant authority a
+// ruled admission is not a number in a budget at all: it is an exact `(policyId, subject, operation)` row,
+// consumed exactly once, with `stale-reviewed-grant` when its subject disappears and
+// `over-broad-reviewed-grant` when one row covers more than one finding. There is nothing left to mistake for
+// backlog. Do not re-point these at another gate — the third re-point is what this note exists to prevent.
 
 test("every LEGACY gate reports the SCAN DENOMINATOR behind its verdict (Codex GA-H-01)", () => {
   // A verdict without a denominator cannot be audited: ✓ reads identically whether the gate examined
@@ -1139,28 +1144,6 @@ test("no gate's real-tree run is a NON-VERDICT: no legacy gate scanned ZERO file
   // this pins the population at zero so the day one appears it is attributed here and not mistaken for an
   // unregistered-gate drift red.
   expect([...blind]).toEqual([]);
-});
-
-test("a ratchet gate names the debt it admits in normal output (Codex GA-H-02)", () => {
-  // green ≠ clean population: a live ratchet carries a committed per-file budget, and until 2026-08-13
-  // the only way to learn the number was to run the generator. finding-overload-provenance's own ratchet
-  // reached `{}` and was deleted (GATE-AUTHORING.md §4.8) — it is born-compliant now, so it carries no
-  // admitted-by-ratchet line any more.
-  expect(cleanRun).toMatch(DENSITY_ADMITTED_RE);
-});
-
-test("the admitted number is split into DEBT and RATIFIED, and the split adds up (#569)", () => {
-  // The owner's complaint this classification answers: an undifferentiated admitted total makes 346 ruled
-  // suppressions and 6 ruled door pairs read as "a glut of backlog". Both the per-gate line and the
-  // single-pass footer carry the split, and the two halves must SUM to the total — an arithmetic that
-  // silently drifts would be worse than no split at all.
-  const perGate = RATCHET_SPLIT_RE.exec(cleanRun)?.groups;
-  expect(perGate).toBeDefined();
-  expect(Number(perGate?.["debt"]) + Number(perGate?.["ratified"])).toBe(Number(perGate?.["total"]));
-  expect(Number(perGate?.["ratified"])).toBeGreaterThan(0);
-  const footer = SINGLE_PASS_SPLIT_RE.exec(cleanRun)?.groups;
-  expect(footer).toBeDefined();
-  expect(Number(footer?.["debt"]) + Number(footer?.["ratified"])).toBe(Number(footer?.["total"]));
 });
 
 test("every registered LEGACY gate fires on its fixture (anti-drift)", () => {
