@@ -443,6 +443,25 @@ test("reports statically concatenated and templated baseline paths once each", (
   expect(report.findings.filter((finding) => finding.code === "baseline-ledger")).toHaveLength(2);
 });
 
+test("acquits synthetic proof file maps while retaining production baseline paths", () => {
+  const report = inspect(`
+    import { defineGate } from "../contract/policy.ts";
+    const PROOF_FILES = {
+      "tooling/src/verify/gates/key.baseline.json": "fixture cites embedded.baseline.json",
+    };
+    const FLAG_ROWS = [{ mode: "resource", files: { ...PROOF_FILES }, why: "fixture" }];
+    const PRODUCTION_BASELINE = "tooling/src/verify/gates/production.baseline.json";
+    export const gate = defineGate({
+      create() { void PRODUCTION_BASELINE; return { visitors: {} }; },
+      mustFlag: FLAG_ROWS,
+      mustPass: [{ mode: "resource", files: { "tooling/src/verify/gates/pass.baseline.json": "{}" }, why: "fixture" }],
+    });
+  `);
+  const findings = report.findings.filter((finding) => finding.code === "baseline-ledger");
+  expect(findings).toHaveLength(1);
+  expect(findings[0]?.line).toBe(7);
+});
+
 test("batch static-string reads preserve singular results across files, aliases, and escaped mutable collections", () => {
   const project = new Project({ useInMemoryFileSystem: true });
   const first = project.createSourceFile(

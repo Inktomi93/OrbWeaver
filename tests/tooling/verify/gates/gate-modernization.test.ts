@@ -37,7 +37,11 @@ import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import { exemptionCollections, gate, hasStaleArm } from "../../../../tooling/src/verify/gates/gate-modernization.ts";
-import { verifyGateProofs } from "../../../../tooling/src/verify/index.ts";
+import { projectCtx } from "../../../../tooling/src/verify/index.ts";
+import { readGateModernizationModule } from "../../../../tooling/src/verify/lib/gate-modernization-fact.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { verifyMetaGateConversion } from "../../../support/meta-gate-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -45,6 +49,8 @@ const GATES_REL = "tooling/src/verify/gates";
 const ORDINARY = `${GATES_REL}/probe-ordinary.ts`;
 const HEALTH = `${GATES_REL}/probe-ordinary-health.ts`;
 const STALE_ARM = 'const MSG = "ALLOWLIST row matching no live site (ratchet down) — delete the stale row";\n';
+const LEGACY_BASE = "30333fd4e";
+const LEGACY_PATH = "tooling/src/verify/gates/gate-modernization.ts";
 const TABLE = 'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\n';
 
 function corpusOf(modules: Readonly<Record<string, string>>): Map<string, SourceFile> {
@@ -55,7 +61,7 @@ function corpusOf(modules: Readonly<Record<string, string>>): Map<string, Source
 /** Arm B's verdict for one module, composed from the gate's own exported predicates. */
 function accusedCollections(rel: string, corpus: ReadonlyMap<string, SourceFile>): readonly string[] {
   const sf = corpus.get(rel) as SourceFile;
-  return hasStaleArm(sf) ? [] : exemptionCollections(sf).map((collection) => collection.name);
+  return hasStaleArm(readGateModernizationModule(sf)) ? [] : exemptionCollections(sf).map((collection) => collection.name);
 }
 
 test("arm B accuses a DECLARED one-sided collection, and a stale arm in the SAME module still acquits", () => {
@@ -92,7 +98,7 @@ const CORPUS_WALK_BUDGET = scaledBudget(60_000);
 // `gate-conformance.repo.int.test.ts` is the orchestrator's and is `--full`-only, which is exactly how
 // this class stayed invisible; driving this gate's own rows here puts the verdict on a tier a lane runs.
 test("the gate's OWN proof rows hold, including the split-family pair", { timeout: CORPUS_WALK_BUDGET }, () => {
-  expect(verifyGateProofs([gate])).toEqual([]);
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
 /** Does a DIFFERENT gate module import `name` from `rel`? That pairing is the retired #2093 arrangement
@@ -132,4 +138,30 @@ test("the real corpus has no one-sided exemption collections or retired split-fa
       .map((name) => `${rel}:${name}`),
   );
   expect(splitFamily, "a gate imports an exemption collection from another gate — the shape #2096 forbids and #2219 accuses").toEqual([]);
+});
+
+test("the final policy dispatch is clean on the real loader-shaped corpus", { timeout: CORPUS_WALK_BUDGET }, ({ repoRoot }) => {
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: repoRoot,
+    project: projectCtx(repoRoot).project,
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.factErrors).toEqual([]);
+  expect(result.authority.effectiveFindings.filter((finding) => finding.policyId === gate.id)).toEqual([]);
+});
+
+test("all 28 flag and 20 pass rows preserve the frozen parent verdict through final dispatch", { timeout: scaledBudget(360_000) }, async ({ scratch }) => {
+  expect(
+    await verifyMetaGateConversion({
+      scratch,
+      base: LEGACY_BASE,
+      legacyPath: LEGACY_PATH,
+      policy: gate,
+      expectedRows: { mustFlag: 28, mustPass: 20 },
+    }),
+  ).toBe(48);
 });

@@ -1,10 +1,11 @@
-// Gate: enforcement-registry-parity — Core-Enforcement-Active-Gates.md must agree with the DISCOVERED
+// Policy: enforcement-registry-parity — Core-Enforcement-Active-Gates.md must agree with the DISCOVERED
 // gate roster (the loader IS the registry): its Layer-3 ACTIVE table names exactly the `status:"active"`
 // LEGACY descriptors PLUS every FINAL `defineGate` policy (a policy has no status — it is always active), its
 // DORMANT table exactly the `status:"dormant"` descriptors, and its "(N registered gates)" count matches the
 // active-legacy + final total — and that count has ONE home, so a SECOND core doc stating a figure for it is
 // RED too (`client-architecture-lockdown.md` froze at 133 while the registry held 207). Both directions RED.
-// Self-hosts via its own ts-morph Project (fsBacked) — never imports report.ts, so no import cycle.
+// The source population is the loader's gate-module corpus; the named enforcement ledger and living-document
+// index provide the Markdown inputs. No private Project or checkout filesystem read is involved.
 // BOTH CONTRACTS, BY IDENTITY (#1584 mixed runtime, docs/reviews/gate-runtime/mixed-runtime-front-door.md §5): a
 // module is FINAL when its `gate` initializer is a call whose callee resolves — by import origin, through
 // `lib/gate-contract-origin.ts#isCanonicalDefineGate` — to `contract/policy.ts`'s `defineGate`, never by the
@@ -22,20 +23,25 @@
 // mirror fully and declare it, or summarize; there is no third state a checker can police. Census at mint
 // (2026-09-01): 3 byte-exact mirrors of 247 rows, 234 independent prose, 9 messages this reader cannot
 // resolve (a call/property-access initializer) — those are counted, never silently skipped.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
-import { Node, Project } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { Node } from "ts-morph";
 import type { GateContractKind } from "../contract/gate-corpus.ts";
-import type { Violation } from "../contract/harness.ts";
+import type { GatePolicyContext, GatePolicyProof } from "../contract/policy.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { DocumentIndex, MarkdownDocument } from "../contract/resource-document.ts";
 import { readExpressionString } from "../lib/config-static-read.ts";
 import { isCanonicalDefineGate } from "../lib/gate-contract-origin.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
+
+interface Violation {
+  readonly file: string;
+  readonly line: number;
+  readonly message: string;
+}
 
 const CORE_DOCS_REL = "docs/architecture/core";
 const DOC_REL = `${CORE_DOCS_REL}/Core-Enforcement-Active-Gates.md`;
 const GATES_DIR_REL = "tooling/src/verify/gates";
-const TS_EXT_RE = /\.ts$/u;
 const COUNT_RE = /\((?<count>\d+) registered gates\)/u;
 /** WIDER than COUNT_RE on purpose: a second home does not have to copy the parenthesised spelling, and the
  *  one that rotted did not (`**133 registered gates**`). Any FIGURE beside the phrase is the violation. */
@@ -271,26 +277,6 @@ function descriptorOf(sf: SourceFile): DescriptorMeta | undefined {
   return Node.isObjectLiteralExpression(value) ? legacyMeta(value) : finalMeta(value);
 }
 
-/** Every descriptor's name+status+message, read from the gate-file source AST (fsBacked — this gate's own
- *  Project over the gates dir). */
-function discoverDescriptorMeta(gatesDir: string): DescriptorMeta[] {
-  if (!existsSync(gatesDir)) {
-    return [];
-  }
-  const project = new Project({ skipAddingFilesFromTsConfig: true });
-  const out: DescriptorMeta[] = [];
-  for (const entry of readdirSync(gatesDir).sort()) {
-    if (!TS_EXT_RE.test(entry)) {
-      continue;
-    }
-    const meta = descriptorOf(project.addSourceFileAtPath(join(gatesDir, entry)));
-    if (meta !== undefined) {
-      out.push(meta);
-    }
-  }
-  return out;
-}
-
 /** The Layer-3 DORMANT table's rows (after the DORMANT header to end-of-doc). */
 function dormantTableRows(doc: string): DocRow[] {
   const start = doc.search(DORMANT_TABLE_START_RE);
@@ -338,40 +324,22 @@ function contractCountViolations(doc: string, legacyActive: number, final: numbe
  *  month past the real 207 — a law doc lying about the enforcement inventory. Any other
  *  `docs/architecture/core/*.md` stating a NUMBER of registered gates is RED: cite the doc, never
  *  restate the figure. */
-function secondCountHomeViolations(root: string): Violation[] {
-  const dir = join(root, CORE_DOCS_REL);
-  if (!existsSync(dir)) {
-    return [];
-  }
+function secondCountHomeViolations(documents: readonly MarkdownDocument[]): Violation[] {
   const out: Violation[] = [];
-  for (const entry of readdirSync(dir).sort()) {
-    const rel = `${CORE_DOCS_REL}/${entry}`;
-    if (!entry.endsWith(".md") || rel === DOC_REL) {
+  for (const document of documents) {
+    if (!document.path.startsWith(`${CORE_DOCS_REL}/`) || document.path === DOC_REL) {
       continue;
     }
-    const text = readFileSync(join(dir, entry), "utf-8");
-    const line = text.split("\n").findIndex((l) => ANY_COUNT_RE.test(l));
+    const line = document.text.split("\n").findIndex((value) => ANY_COUNT_RE.test(value));
     if (line !== -1) {
-      out.push({ file: rel, line: line + 1, message: SECOND_COUNT_HOME(rel) });
+      out.push({ file: document.path, line: line + 1, message: SECOND_COUNT_HOME(document.path) });
     }
   }
   return out;
 }
 
 /** The contract-conformance reconciliation shared by the descriptor's `run` and its self-test. */
-function reconcileContract(root: string): Violation[] {
-  const docPath = join(root, DOC_REL);
-  if (!existsSync(docPath)) {
-    return [
-      {
-        file: DOC_REL,
-        line: 0,
-        message: "docs/architecture/core/Core-Enforcement-Active-Gates.md is missing (docs/architecture/core/Core-Enforcement-Active-Gates.md).",
-      },
-    ];
-  }
-  const doc = readFileSync(docPath, "utf-8");
-  const descriptors = discoverDescriptorMeta(join(root, GATES_DIR_REL));
+function reconcileContract(doc: string, documents: readonly MarkdownDocument[], descriptors: readonly DescriptorMeta[]): Violation[] {
   // A final policy is `status:"active"` by construction (finalMeta), so this partition needs no contract branch.
   const active = descriptors.filter((d) => d.status === STATUS_ACTIVE);
   const dormant = descriptors.filter((d) => d.status === STATUS_DORMANT);
@@ -386,7 +354,7 @@ function reconcileContract(root: string): Violation[] {
     descriptors.length >= MIRROR_READER_ANCHOR && readable === 0 ? [{ file: DOC_REL, line: 0, message: MIRROR_READER_BLIND(descriptors.length) }] : [];
   return [
     ...contractCountViolations(doc, legacyActive, active.length - legacyActive),
-    ...secondCountHomeViolations(root),
+    ...secondCountHomeViolations(documents),
     ...reconcileTable(active, new Set(activeTableRows(doc).map((r) => r.name)), DOC_ACTIVE_MISSING, DOC_ACTIVE_ORPHAN),
     ...reconcileTable(dormant, new Set(dormantTableRows(doc).map((r) => r.name)), DOC_DORMANT_MISSING, DOC_DORMANT_ORPHAN),
     ...readerBlind,
@@ -394,19 +362,74 @@ function reconcileContract(root: string): Violation[] {
   ];
 }
 
-export const gate: GateDescriptor = {
-  name: "enforcement-registry-parity",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
-  status: "active",
-  scopeSafety: "whole-project",
-  fsBacked: true,
+function policyDocuments(ctx: GatePolicyContext): { readonly roster: MarkdownDocument; readonly index: DocumentIndex } {
+  const ledger = readyResourceValue(ctx.resources.ledger("gate-enforcement-roster"));
+  const roster = ledger.documents.find((document) => document.path === DOC_REL);
+  if (roster === undefined) {
+    throw new Error(`gate-enforcement-roster did not serve ${DOC_REL}`);
+  }
+  const index = readyResourceValue(ctx.resources.documents());
+  const refusedCore = index.refusals.find((refusal) => refusal.path.startsWith(`${CORE_DOCS_REL}/`));
+  if (refusedCore !== undefined) {
+    throw new Error(`core document ${refusedCore.path} was refused (${refusedCore.status}): ${refusedCore.reason}`);
+  }
+  return { roster, index };
+}
+
+function reportViolations(ctx: GatePolicyContext, violations: readonly Violation[]): void {
+  for (const violation of violations) {
+    ctx.report.file(violation.file, { line: Math.max(1, violation.line), column: 1, message: violation.message });
+  }
+}
+
+interface CarriedProof {
+  readonly files: Readonly<Record<string, string>>;
+  readonly expect?: GatePolicyProof["expect"];
+  readonly why: string;
+}
+
+const PROOF_CATALOG = "docs/catalog/catalog.json";
+
+function resourceProof(proof: CarriedProof): GatePolicyProof {
+  return {
+    mode: "resource",
+    files: { [PROOF_CATALOG]: '{"documents":[]}\n', ...proof.files },
+    ...(proof.expect === undefined ? {} : { expect: proof.expect }),
+    why: proof.why,
+  };
+}
+
+export const gate = defineGate({
+  id: "enforcement-registry-parity",
+  family: "enforcement-registry-parity",
+  authority: "hard",
+  severity: "error",
+  population: {
+    in: ["@tooling"],
+    under: ["tooling/src/verify/gates/*.ts"],
+    notNamed: ["*.d.ts", "__g_*", "__dc_*"],
+  },
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [],
+  resources: [{ kind: "ledger", id: "gate-enforcement-roster" }, { kind: "documents" }],
   message:
     'Core-Enforcement-Active-Gates.md disagrees with the discovered gate roster — its ACTIVE table must list exactly the status:"active" legacy descriptors plus every canonical defineGate policy, its DORMANT table exactly the status:"dormant" descriptors, and its "(N registered gates)" count must equal that active total; that count has ONE home, so no other docs/architecture/core doc may state a figure for it; and a row whose description MIRRORS the gate\'s runtime `message` declares it with the `(@mirrors-message)` marker and then matches byte-for-byte, in both directions (Core-Enforcement-Active-Gates.md).',
   fix: "add/remove the doc row for the gate (a legacy descriptor's row follows its status — ACTIVE vs DORMANT; a defineGate policy's row is always ACTIVE), update the \"(N registered gates)\" count to the active-legacy + final total in docs/architecture/core/Core-Enforcement-Active-Gates.md, and in any other core doc CITE that line instead of restating the number. For a MIRROR row: repair the description to the descriptor's message byte-for-byte and keep the `(@mirrors-message)` marker at the end of the cell, or drop the marker and write an independent summary — a copy that does not say it is a copy is the row that drifts.",
-  run: (ctx) => {
-    for (const v of reconcileContract(ctx.root)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
+  create: (ctx) => {
+    const descriptors: DescriptorMeta[] = [];
+    return {
+      visitFile: (sourceFile) => {
+        const descriptor = descriptorOf(sourceFile);
+        if (descriptor !== undefined) {
+          descriptors.push(descriptor);
+        }
+      },
+      evaluate: () => {
+        const { roster, index } = policyDocuments(ctx);
+        reportViolations(ctx, reconcileContract(roster.text, index.documents, descriptors));
+      },
+    };
   },
   mustFlag: [
     {
@@ -533,7 +556,7 @@ export const gate: GateDescriptor = {
       expect: { count: 1, messageIncludes: "declares itself a MIRROR" },
       why: "the DORMANT table is judged too — a dormant gate's doc row is read by exactly the agent deciding whether to arm it",
     },
-  ],
+  ].map(resourceProof),
   mustPass: [
     {
       files: {
@@ -580,5 +603,12 @@ export const gate: GateDescriptor = {
       },
       why: "DECLARED LIMIT — an independent summary is prose and is never compared; only a declared mirror (or an exact accidental copy) is judged, because a PARAPHRASE has no checkable relation to the message",
     },
+  ].map(resourceProof),
+  mustRefuse: [
+    resourceProof({
+      files: { [GATE_FILE]: LEGACY_X, "docs/architecture/core/__registry_resource_anchor.md": "# anchor\n" },
+      expect: { messageIncludes: "resource declaration ledger:gate-enforcement-roster is missing" },
+      why: "a missing enforcement roster is a refused evidence plane, never a clean registry with zero rows",
+    }),
   ],
-};
+});

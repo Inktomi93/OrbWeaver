@@ -2262,14 +2262,6 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     endsWhen: "every such file joins the governed corpus or stops needing AST reads — the row is then consumed zero times and reds.",
   },
   {
-    id: "tooling-project-home:enforcement-registry-parity",
-    policyId: "tooling-project-home",
-    subject: "tooling/src/verify/gates/enforcement-registry-parity.ts",
-    operation: "ts-morph-project-construction",
-    why: "fsBacked, same reason as dangling-refs: it reconciles the on-disk gate corpus against the enforcement doc, and a conformance temp tree has no shared workspace to read from (the legacy PROJECT_SITES row, carried verbatim).",
-    endsWhen: "the same diagnostic-legibility-style fold-in, or the gate converts — the row is then consumed zero times and reds.",
-  },
-  {
     id: "tooling-project-home:ops-conformance",
     policyId: "tooling-project-home",
     subject: "tooling/src/verify/ops/conformance.ts",
