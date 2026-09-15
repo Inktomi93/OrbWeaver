@@ -84,9 +84,6 @@ export function passTiming(startedAt: number, gates: readonly GatePassResult[]):
   return { totalMs: ceilMs(nowMs() - startedAt), gateMs: fromMicros(gateMicros) };
 }
 
-/** The phase the pass is CURRENTLY in. Module state, written only by `chargedPhase` below. */
-let currentPhase: GatePhase = "begin";
-
 /** RUN `body` AS THIS PHASE: enter it, take both readings, and charge the gate — the one door the
  *  dispatcher hands a hook call to. It exists in this shape so the dispatcher cannot enter a phase
  *  without timing it, or time one without entering it: the two facts have a single writer.
@@ -95,7 +92,6 @@ let currentPhase: GatePhase = "begin";
  *  whose cost a reader needs. `body` owns its own failure (the dispatcher's guard catches inside it);
  *  nothing is caught here. */
 export function chargedPhase(clock: PhaseClock, phase: GatePhase, body: () => void): void {
-  currentPhase = phase;
   const startedAt = nowMs();
   try {
     body();
@@ -103,4 +99,3 @@ export function chargedPhase(clock: PhaseClock, phase: GatePhase, body: () => vo
     clock.charge(phase, startedAt);
   }
 }
-
