@@ -1,42 +1,28 @@
-// The SHARED READER for the `contract-derives-not-respells` family (#2091, owner decision #2096): the
-// drizzle table vocabulary, the hand-written-shape reader, the `*Row`/`*Insert` → table name match, and the
-// ARM-B ALLOWLIST the two policies judge together.
+// The SHARED READER for `contract-derives-not-respells` (#2091, owner decision #2096): the drizzle table
+// vocabulary, the hand-written-shape reader and the `*Row`/`*Insert` → table name match.
 //
-// WHY IT IS HERE AND NOT IN A GATE MODULE. Both halves of this family need the identical computation — the
-// `ordinary` occurrence policy reads the allowlist to SKIP a report, and the `hard` `-health` tripwire
-// re-derives the same table match to prove each row is still EARNED — and the health sibling used to reach
-// them by importing the occurrence gate module directly. A `v-unaudited-finals` audit called that out
-// (§5b.4 asks for "a real shared `lib/` reader (module + function, named in the header)") and the owner
-// ruled the general case on 2026-09-12: **a gate module NEVER imports another gate module; a shared
-// predicate moves to `lib/<family>.ts`.** This file is that home. A gate module is a POLICY — one
-// descriptor, one verdict — and a second policy importing it takes a dependency on somebody else's
-// enforcement surface, so a change made for one arm silently re-aims the other.
+// WHY IT IS HERE AND NOT IN A GATE MODULE. It was carved out while this was a two-member family — the
+// `ordinary` occurrence policy and a `hard` `-health` tripwire over the gate-local ALLOWLIST — because the
+// health sibling reached the predicate by importing the occurrence GATE MODULE. A `v-unaudited-finals`
+// audit called that out (§5b.4 asks for "a real shared `lib/` reader (module + function, named in the
+// header)") and the owner ruled the general case on 2026-09-12: **a gate module NEVER imports another gate
+// module; a shared predicate moves to `lib/<family>.ts`.** The reader stays here after the family
+// collapsed to a singleton (#2176 Phase F): a gate owns no private reader either, and the three functions
+// below are the policy's whole computation, not a spelling of its `create`.
 //
-// THE ALLOWLIST IS DATA, AND IT IS RATCHETED FROM OUTSIDE. Every row exempts an exact `<file>::<ShapeName>`
-// pair because it is a homonym or a read-time aggregate; the claim is that the shape STILL matches a table
-// name today. `contract-derives-not-respells-health` reds any row whose shape was renamed or deleted, or
-// whose matching table disappeared. Adding a row here is therefore not a way to park debt — it is a claim
-// the tripwire keeps checking.
+// THE ALLOWLIST IS GONE — ITS TWO ROWS ARE CENTRAL REVIEWED GRANTS (#1922/#2176 Phase F, 2026-09-15).
+// `contract-derives-not-respells` is `authority: "reviewed-grant"`; each formerly-exempt homonym/aggregate
+// is a `(policyId, subject, operation)` row in `lib/reviewed-grants.ts` whose subject is the identical
+// `<file>::<ShapeName>` key the table used. The two-sided staleness ratchet the `-health` sibling owned is
+// now the central engine's: a granted row nobody consumes raises `stale-reviewed-grant`, and an ungranted
+// hand-row is a finding. A gate receives no exemption table, so `ExemptionTable` no longer reaches here.
 import type { Node, SourceFile } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import type { ExemptionTable } from "../contract/gate.ts";
 
 export const DOMAIN_CONTRACT_RE = /^packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
 const DB_SCHEMA_DIR = "packages/db/src/schema/";
 const ROW_SUFFIX_RE = /(?<suffix>Row|Insert)$/u;
 const SQLITE_TABLE = "sqliteTable";
-
-/** ARM B survivors: a `*Row` whose prefix collides with a table NAME but which is not that table's row. Each
- *  row states WHY (a homonym or an aggregate), and the ratchet works both ways — a row whose file no longer
- *  carries the shape is RED, so a cleaned-up exemption cannot linger. */
-export const ALLOWLIST: ExemptionTable = {
-  "packages/server/src/domain/discovery/contract/results.ts::ThemeRow": {
-    why: "HOMONYM: discovery's `ThemeRow` is an emergent THEME CLUSTER (k-means over digest embeddings — id/level/clusterIdx/size/model), while the `themes` table is the UI palette/token-override row (owner-scoped `override` blob). Same word, unrelated concepts; the cluster's own table is `themeClusters`.",
-  },
-  "packages/server/src/domain/stats/contract/views.ts::ModelStatRow": {
-    why: "AGGREGATE: a read-time GROUP BY projection over `model_stats` carrying computed fields that are never columns (`charactersUsedWith` — model_stats is character-less, plus the p50/p90 percentiles the file header says are computed on read, invariant #6). Deriving it from `$inferSelect` would be a lie about what the read returns.",
-  },
-};
 
 export interface ContractShape {
   readonly name: string;

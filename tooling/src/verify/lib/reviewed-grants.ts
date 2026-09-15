@@ -310,6 +310,24 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
       "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
   },
   {
+    id: "contract-derives-not-respells:discovery-theme-row",
+    policyId: "contract-derives-not-respells",
+    subject: "packages/server/src/domain/discovery/contract/results.ts::ThemeRow",
+    operation: "contract-hand-row:themes",
+    why: "HOMONYM: discovery's `ThemeRow` is an emergent THEME CLUSTER (k-means over digest embeddings — id/level/clusterIdx/size/model), while the `themes` table is the UI palette/token-override row (owner-scoped `override` blob). Same word, unrelated concepts; the cluster's own table is `themeClusters`.",
+    endsWhen:
+      "the shape is renamed or derived, or the `themes` table disappears — any of the three ends the collision the operation names, the row is consumed zero times and it reds as `stale-reviewed-grant`. That is the two-sided ratchet the retired `contract-derives-not-respells-health` policy owned by hand (#2176 Phase F).",
+  },
+  {
+    id: "contract-derives-not-respells:stats-model-stat-row",
+    policyId: "contract-derives-not-respells",
+    subject: "packages/server/src/domain/stats/contract/views.ts::ModelStatRow",
+    operation: "contract-hand-row:modelStats",
+    why: "AGGREGATE: a read-time GROUP BY projection over `model_stats` carrying computed fields that are never columns (`charactersUsedWith` — model_stats is character-less, plus the p50/p90 percentiles the file header says are computed on read, invariant #6). Deriving it from `$inferSelect` would be a lie about what the read returns.",
+    endsWhen:
+      "the projection stops being hand-written (it derives, or it is renamed so it no longer collides), or the `modelStats` table disappears — the row is then consumed zero times and reds as `stale-reviewed-grant`.",
+  },
+  {
     id: "contract-verb-presence:chat-room-overrides",
     policyId: "contract-verb-presence",
     subject: "chat.getRoomOverridesForChat",

@@ -65,8 +65,10 @@ const REGISTERS_RE = /^export const gate(?::| =)/mu;
  *  named-import shape measured at landing. It does NOT recognize local/nested type aliases; the independent
  *  paired dispatch control below holds those forms. The live equality deliberately fails on an accusation
  *  outside this narrow opinion so new corpus cases require source classification, not a copied expected count.
- *  The binding LIST is read whole — the live `contract-derives-not-respells` door carries the table beside four
- *  other names, and a single-binding regex called that module clean while the arm accused it. */
+ *  The binding LIST is read whole — while `contract-derives-not-respells` still carried an ALLOWLIST its door
+ *  imported the table beside four other names, and a single-binding regex called that module clean while the
+ *  arm accused it. That table is now central reviewed grants (#2176 Phase F) and the corpus may hold no such
+ *  importer at all, which is why the live equality below is derived from source rather than a pinned count. */
 const LIB_IMPORT_RE = /^import \{ ([^}]*) \} from "\.\.\/lib\/([a-z0-9-]+)\.ts";$/gmu;
 const EXEMPTION_CONST_RE = (binding: string): RegExp => new RegExp(`^export const ${binding}: Exemption(?:Table|Row)`, "mu");
 /** The PIN half of that opinion (#2274), also text: the family-test tree, the dispatcher's name, and the gate
@@ -1049,9 +1051,26 @@ test(
       .toSorted();
     expect(accusedBy(policyLegacyImports.id)).toEqual(importOpinion);
     expect(importOpinion.length).toBeGreaterThan(0);
-    // And the RECEIPT half is non-empty on today's tree, so the clause above is a measurement rather than a
-    // disjunct that never fires: the relocated tables of #2320 are live until the #1922 migration lands.
-    expect(finals.filter((sourceFile) => receivesExemptionTable(sourceFile.getFullText())).length).toBeGreaterThan(0);
+    // THE RECEIPT HALF IS NOW DRAINED TO ZERO, and a drained class needs a PLANTED CONTROL rather than a
+    // population count. Until #2176 Phase F the tree carried live relocated tables (`contract-derives-not-
+    // respells` and its `-health` sibling both received `ALLOWLIST: ExemptionTable` through `../lib/`), and
+    // this line asserted the clause was a measurement by counting them. They are central reviewed grants now,
+    // so counting would assert `0 === 0` and the disjunct above could rot into a clause that never fires and
+    // nobody notices. The control plants the exact shape the predicate recognizes — a one-line named import of
+    // a `../lib/` binding the target declares as an exemption-typed const — and dies if the reader stops
+    // seeing it. It runs AFTER `importOpinion`, and removes its overlay, so the real corpus is unperturbed.
+    expect(finals.filter((sourceFile) => receivesExemptionTable(sourceFile.getFullText())).length).toBe(0);
+    const plantedLib = project.createSourceFile(
+      `${repoRoot}/tooling/src/verify/lib/psf-exemption-control.ts`,
+      'import type { ExemptionTable } from "../contract/gate.ts";\nexport const PLANTED: ExemptionTable = {};\n',
+      { overwrite: true },
+    );
+    try {
+      expect(receivesExemptionTable('import { PLANTED } from "../lib/psf-exemption-control.ts";\n')).toBe(true);
+      expect(receivesExemptionTable('import { SOMETHING_ELSE } from "../lib/psf-exemption-control.ts";\n')).toBe(false);
+    } finally {
+      project.removeSourceFile(plantedLib);
+    }
     // The resolution arm is two-sided by CONTAINMENT, not equality: every module the unambiguous spellings name must
     // be accused (the arm is not blind), and every accused module must carry some member's spelling (the arm is not
     // inventing) — `getDeclarations` alone cannot be judged by text, which is the whole reason the arm reads types.
