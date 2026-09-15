@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
+import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { CLOSED_CONTROL_ISSUE, warningWorkItems } from "../../../../tooling/src/verify/lib/workitem-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -57,11 +57,11 @@ test("the warning population is DERIVED from a real corpus load — an error pol
     tier: `authority: "ordinary",\n  severity: "warning",\n  workItem: ${String(PLANTED_WORK_ITEM)},`,
   });
   writeModule({ root: scratch, repoRoot, name: "planted-error.ts", id: "planted-error", tier: 'authority: "hard",\n  severity: "error",' });
-  const corpus = await loadMixedGateCorpus(scratch);
-  expect(corpus.final).toHaveLength(2);
+  const corpus = await loadGateCorpus(scratch);
+  expect(corpus.gates).toHaveLength(2);
 
   // `workItem` exists only on the `warning` arm of the descriptor union, so this is total by construction.
-  expect(warningWorkItems(corpus.final)).toEqual([{ policy: "planted-warning", workItem: PLANTED_WORK_ITEM }]);
+  expect(warningWorkItems(corpus.gates)).toEqual([{ policy: "planted-warning", workItem: PLANTED_WORK_ITEM }]);
 });
 
 test("warningWorkItems keeps corpus order and reads the number off the warning arm only", () => {

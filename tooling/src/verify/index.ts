@@ -1,6 +1,6 @@
 // verify's programmatic front door — the ONE surface the tooling suites import (five-slot template:
-// tests import index.ts, cli.ts consumes it). The three systems it fronts: the GATE HARNESS (descriptor
-// contract → loader → single-pass dispatcher → renderer → conformance), the STAGE REGISTRY (`pnpm verify`'s
+// tests import index.ts, cli.ts consumes it). The three systems it fronts: the GATE HARNESS (policy
+// contract → loader → policy dispatcher → renderer → conformance), the STAGE REGISTRY (`pnpm verify`'s
 // tiers/scoping/exit classification), and the standalone reconciliation stages (type/execution membership,
 // the db baseline, the orphan-export ratchet).
 
@@ -21,27 +21,16 @@ export { CAUGHT_FAILURE_VERDICTS } from "./contract/caught-failure.ts";
 export type { LiveAdmission } from "./contract/debt.ts";
 export type { GateFact, GateFactContext, GateFactHooks, GateFactValue } from "./contract/fact.ts";
 export { defineFact } from "./contract/fact.ts";
-export type {
-  ExemptionRow,
-  ExemptionTable,
-  Finding,
-  GateDescriptor,
-  GateExample,
-  GateRunCtx,
-  GateScanDeclaration,
-  GateStatus,
-  Scope,
-  ScopeSafety,
-} from "./contract/gate.ts";
+export type { ExemptionRow, ExemptionTable, Finding } from "./contract/gate.ts";
 export type { GateContractCode, GateContractFinding, GateContractReport } from "./contract/gate-contract.ts";
 export { GATE_CONTRACT_CODES } from "./contract/gate-contract.ts";
-export type { GateContractKind, GateCorpus, GatePolicyCorpus, GateRosterEntry, MixedGateCorpus } from "./contract/gate-corpus.ts";
+export type { GateContractKind, GateCorpus, GatePolicyCorpus, GateRosterEntry, SelectedGateCorpus } from "./contract/gate-corpus.ts";
 export { GATE_CONTRACT_KINDS } from "./contract/gate-corpus.ts";
-export type { CheckContext, GateResult, Violation } from "./contract/harness.ts";
+export type { GateIgnoreMarker } from "./contract/gate-ignore-marker.ts";
+export type { CheckContext, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { HostSlotHolder, HostSlotLease, HostSlotPool } from "./contract/host-slots.ts";
 export type { ContractBannedShape, SchemaBannedShape } from "./contract/ledger-banned-shapes.ts";
-export type { DeclaredScan, GateIgnoreMarker, GatePassResult, GateScan, PassResult, ToolError } from "./contract/pass.ts";
 export type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProof } from "./contract/policy.ts";
 export { defineGate, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "./contract/policy.ts";
 export type {
@@ -77,18 +66,11 @@ export type { GatePolicyReceipt } from "./contract/policy-primitives.ts";
 export { GATE_POLICY_ANALYSES } from "./contract/policy-primitives.ts";
 export type { CompilerProgram, CompilerSourceOverlay, PolicyScopeRequest, PolicyScopeResolution, PolicySemanticPath } from "./contract/policy-scope.ts";
 export { POLICY_SCOPE_KINDS, POLICY_SEMANTIC_PATH_STATUSES } from "./contract/policy-scope.ts";
+export type { ProjectContext } from "./contract/project-context.ts";
 export type { GateResourceRequest } from "./contract/resource-declaration.ts";
 export { GATE_RESOURCE_REQUEST_KINDS } from "./contract/resource-declaration.ts";
 export type { RunManifest } from "./contract/run-manifest.ts";
-export type {
-  AssetRefsCoverage,
-  AssetRefsRegistryRow,
-  BootChunkVerdict,
-  ConformanceFailure,
-  LedgerFreshness,
-  SchemaBaselineComparison,
-  ScopedResult,
-} from "./contract/scoped.ts";
+export type { AssetRefsCoverage, AssetRefsRegistryRow, BootChunkVerdict, LedgerFreshness, SchemaBaselineComparison, Scope } from "./contract/scoped.ts";
 export type { ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-test.ts";
 export { SCOPED_TEST_RUNNERS } from "./contract/scoped-test.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
@@ -119,7 +101,7 @@ export {
 export { auditBiomeTranscript, biomeStageAudit, controlProbeCount, parseCheckedFileCount } from "./lib/biome-verdict.ts";
 export { aggregateExit, asViolations, eslintScheme, noVerdictStages, ownScheme, producedNoVerdict } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
-export { findGateIgnoreMarkers, parseGateIgnoreMarker } from "./lib/gate-ignore.ts";
+export { findGateIgnoreMarkersWithSpans, GATE_IGNORE_MENTION_SPAN_KINDS } from "./lib/gate-ignore.ts";
 export { ledgerSections, reportLedgerRows, strayLedgerSections } from "./lib/gate-program-docs.ts";
 export { committedClassRollup, committedOtherClassCensus, deriveClassRollup, otherCensusDrift } from "./lib/gate-program-rollup.ts";
 export { getProject } from "./lib/harness.ts";
@@ -135,9 +117,9 @@ export {
   slowdowns,
 } from "./lib/history.ts";
 export { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome, SCHEMA_BANNED_SHAPES } from "./lib/ledger-banned-shapes.ts";
-export { loadGateCorpus, loadGates, loadMixedGateCorpus } from "./lib/loader.ts";
+export { loadGateCorpus } from "./lib/loader.ts";
 export { markdownTables } from "./lib/markdown-tables.ts";
-export { canonicalSort, fileLoaded, projectCtx, repoRel, runPass, stripProbeFindings, zeroScanGates } from "./lib/pass.ts";
+export { stripProbePolicyFindings } from "./lib/planted-fixtures.ts";
 export { parsePolicyCommand } from "./lib/policy-command.ts";
 export { loadPolicies, loadPolicyCorpus } from "./lib/policy-loader.ts";
 export { runPolicyPass } from "./lib/policy-pass.ts";
@@ -146,8 +128,8 @@ export { readCompilerPrograms } from "./lib/policy-program-membership.ts";
 export { resolvePolicyScope } from "./lib/policy-scope.ts";
 export { isPolicySourceCandidate, policySourceCandidates } from "./lib/policy-source-candidate.ts";
 export { planTypecheckPrograms } from "./lib/program-routing.ts";
+export { projectCtx, repoRel } from "./lib/project-context.ts";
 export { manualStages, REGISTRY, stagesForTier } from "./lib/registry.ts";
-export { renderPass } from "./lib/render.ts";
 export { canonicalResourceDeclarations, resolvePolicyResourcePaths, resolveResourceDeclarations, resourceRequestIdentity } from "./lib/resource-declaration.ts";
 export { REVIEWED_GRANTS, reviewedGrantsFor } from "./lib/reviewed-grants.ts";
 export type { Parsed } from "./lib/run-argv.ts";
@@ -164,7 +146,6 @@ export { ruleLivenessReport, runBiomeRuleLiveness } from "./ops/biome-rule-liven
 export { runBoardCitations, runControls } from "./ops/board-citations.ts";
 export { BOOT_CHUNK_CEILING_BYTES, measureBootChunk, runBootChunkRatchet } from "./ops/boot-chunk-ratchet.ts";
 export { CONFIG_SNAPSHOT_HELP, runConfigSnapshot } from "./ops/config-snapshot.ts";
-export { verifyGateProofs } from "./ops/conformance.ts";
 export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-parity.ts";
 export type { Ledger } from "./ops/debt.ts";
 export { LEDGERS, liveAdmitted, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
@@ -196,7 +177,7 @@ export { runPolicyConformance } from "./ops/policy-conformance-stage.ts";
 export type { RatchetClassification, RatchetExclusion } from "./ops/ratchet-gate.ts";
 export { classifyRatchetFiles, discoverTestFiles, isRatchetShaped, runRatchetGateCli } from "./ops/ratchet-gate.ts";
 export { auditedExit, auditLine, auditOf, noticesIn, runVerify } from "./ops/run.ts";
-export { runScopedCli, runScopedPass, SCOPED_USAGE } from "./ops/scoped.ts";
+export { runScopedCli, SCOPED_USAGE } from "./ops/scoped.ts";
 export { runScopedTest, SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";
 export { runStructure } from "./ops/structure.ts";

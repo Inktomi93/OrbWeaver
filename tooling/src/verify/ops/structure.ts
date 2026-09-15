@@ -1,16 +1,19 @@
-// The structural-gate orchestrator (`pnpm check:structure` → `cli.ts structure`) — THE MIXED FRONT DOOR
-// (docs/design/gate-runtime-standardization.md §1; docs/reviews/gate-runtime/mixed-runtime-front-door.md).
-// One loader classifies every tooling/src/verify/gates/*.ts module by exact contract identity (lib/loader.ts), ONE
-// shared ts-morph Project is built, and each contract runs through its OWN dispatcher in this one invocation: the
-// legacy single-pass machine (`runPass`) over the legacy descriptors and the final policy dispatcher
-// (`runPolicyPass`, the FULL final roster as `knownPolicies`, the central grant table) over the final policies.
-// Both land in ONE artifact (contract/structure-report.ts) and ONE console; the exit is the max of the two
-// verdicts under the unchanged 0/1/2/3 contract. Add a gate by dropping it in gates/ — the loader IS the registry.
+// The structural-gate orchestrator (`pnpm check:structure` → `cli.ts structure`) — THE FRONT DOOR
+// (docs/design/gate-runtime-standardization.md §1). One loader classifies every
+// tooling/src/verify/gates/*.ts module (lib/loader.ts), ONE shared ts-morph Project is built, and the policy
+// dispatcher runs the roster in this one invocation (`runPolicyPass`, the FULL roster as `knownPolicies`,
+// the central grant table). It lands in ONE artifact (contract/structure-report.ts) and ONE console under
+// the unchanged 0/1/2/3 exit contract. Add a gate by dropping it in gates/ — the loader IS the registry.
+//
+// IT WAS THE MIXED FRONT DOOR UNTIL #2176 PHASE F (2026-09-14). The legacy `runPass` side and the exit
+// `Math.max` that composed the two verdicts are gone with the descriptor contract; what the mixed era
+// established and this file KEEPS is that the run's completeness is reconciled and its verdict is refused
+// rather than shortened.
 //
 // RUN COMPLETENESS (#410, contract/run-manifest.ts): the artifact is written TWICE — an IN-FLIGHT stub the
 // moment the run starts, and the finished report at the end — and the counts are reconciled before any
-// clean/violations exit, on BOTH contracts. A killed run therefore leaves an artifact that SAYS it is not a
-// verdict instead of leaving the previous run's complete-looking file for the next reader to consume.
+// clean/violations exit. A killed run therefore leaves an artifact that SAYS it is not a verdict instead of
+// leaving the previous run's complete-looking file for the next reader to consume.
 //
 // THE GATE-SCOPED DOOR (#1964/#1973/#1992). `--check <id>` / `--family <name>` narrow WHICH gates run — and
 // NOTHING ELSE. The ts-morph Project, the fileset and every population stay the whole real tree, because the
@@ -26,9 +29,9 @@
 // `reports/check-structure.json` (it prints its own slot), so no fixed-path reader can pick a one-gate report
 // up as the whole one.
 //
-// QUIET (#2069). A fixture-planting suite materializes `__g_` / `__dc_` files INSIDE the real package tree
-// (tests/tooling/check-gates.repo.int.test.ts), so a structure run overlapping one judges a tree that does not
-// exist and comes back with inflated raw counts that look exactly like a real number. This run therefore
+// QUIET (#2069). A fixture-planting suite materializes `__g_` / `__dc_` files INSIDE the real package tree,
+// so a structure run overlapping one judges a tree that does not exist and comes back with inflated raw
+// counts that look exactly like a real number. This run therefore
 // OBSERVES those paths at both ends of its own walk and marks itself NOT QUIET when it sees any it did not
 // plant — a non-verdict that says so, instead of a number nobody can tell apart from a real one.
 //
@@ -41,6 +44,9 @@
 // one of them. It acted correctly on every rule it had; the lie was the missing LABEL, not the content. So a
 // non-verdict run says so on its own artifact, prints it above the roster, and NEVER publishes the pointer —
 // and `structure --void <slot> --reason` writes the same judgement into a slot after the fact.
+//
+// THE ARTIFACT'S PROBE-FINDING STRIP now lives beside the observer that shares its sentinel vocabulary
+// (`lib/planted-fixtures.ts#stripProbePolicyFindings`); it moved out of the retired `lib/pass.ts`.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -49,76 +55,41 @@ import { checkoutName, closeRunSlot, openRunSlot, publishRunSlot, reportsPath } 
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import type { MixedGateCorpus, SelectedGateCorpus } from "../contract/gate-corpus.ts";
-import type { Violation } from "../contract/harness.ts";
-import type { PassResult } from "../contract/pass.ts";
+import type { GateCorpus, SelectedGateCorpus } from "../contract/gate-corpus.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type { PolicySelector } from "../contract/policy-plan.ts";
+import type { ProjectContext } from "../contract/project-context.ts";
 import type { RunManifest } from "../contract/run-manifest.ts";
-import type { FinalPolicyRow, LegacyGateRow, StructureReport } from "../contract/structure-report.ts";
+import type { FinalPolicyRow, StructureReport } from "../contract/structure-report.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
-import { loadMixedGateCorpus } from "../lib/loader.ts";
-import { projectCtx, runPass, stripProbeFindings, stripProbePolicyFindings, zeroScanGates } from "../lib/pass.ts";
-import { nonVerdictReason, notQuietReasons, plantedPaths } from "../lib/planted-fixtures.ts";
+import { loadGateCorpus } from "../lib/loader.ts";
+import { nonVerdictReason, notQuietReasons, plantedPaths, stripProbePolicyFindings } from "../lib/planted-fixtures.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyPassExitCode } from "../lib/policy-plan.ts";
-import { isSelectionFailure, resolveMixedSelection } from "../lib/policy-selection.ts";
-import { populationAlarms } from "../lib/population.ts";
+import { isSelectionFailure, resolveGateSelection } from "../lib/policy-selection.ts";
+import { projectCtx } from "../lib/project-context.ts";
 import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
 import { structureConsole } from "../lib/structure-console.ts";
 import { finalSide, finalToolErrorCount, structureCountReconciliation } from "../lib/structure-report.ts";
 import { parseStructureTail, tailRefusal, VOID_FLAG } from "../lib/structure-tail.ts";
-import { policyTimingAlarms, timingAlarms } from "../lib/timing.ts";
+import { policyTimingAlarms } from "../lib/timing.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
-/** Map the legacy PassResult onto the artifact's legacy rows: each gate's per-occurrence findings collapse into
- *  `{file,line,message}` violations, where the message is the finding's own override or the descriptor's `message`.
- *
- *  `ok` IS CARRIED FROM THE PASS, NEVER RECOMPUTED (#2285). `lib/pass.ts#gateOk` already answers the TWO-TERM
- *  verdict — nothing to report AND nothing broken — and `stripProbeFindings` states the rule this line used to
- *  break: *"ONE SPELLING of the two-term verdict (#2234): recomputing `findings.length === 0` here would have
- *  laundered a BROKEN gate back to green."* That is exactly what happened here, one file over: a gate whose
- *  `run` phase THREW came back with zero findings, and this row published `ok: true` into
- *  `reports/check-structure.json` — the artifact `structure-delta`, `check:show` and the barrier all read.
- *
- *  THE #2234 RULING SURVIVES; ITS INPUT CHANGED. `lib/pass.ts`'s header (2026-09-12) recorded the front door as
- *  DELIBERATELY unchanged, and the property it was protecting — *"the run verdict and the exit code are
- *  byte-identical before and after"* — is preserved here unconditionally: nothing in this verb's exit path reads
- *  a legacy row's `ok`. Re-derived 2026-09-13 over 7,570 files (`pnpm ast refs LegacyGateRow` / `StructureGateRow`
- *  / `StructureReport`, then every `.ok` / `?.ok` / `["ok"]` / destructured spelling across the eight resulting
- *  files): the run verdict is `:345`'s `total === 0 && !legacyBroken && !finalBroken`, whose brokenness term is
- *  `pass.toolErrors` at `:334`; `ops/structure-delta.ts` types its `counts(row: FinalPolicyRow)` to the FINAL
- *  side and never sees a legacy row; `ops/debt.ts`'s `ok` is its own reader-result union. The ONE consumer of
- *  this field is `ops/show.ts:164`'s per-gate ✓/✗ glyph, which now agrees with `lib/render.ts:106` — the reader
- *  #2234 already fixed, and the disagreement between the two was the defect. */
-function toLegacyRows(pass: PassResult, gatesByName: ReadonlyMap<string, GateDescriptor>): readonly LegacyGateRow[] {
-  return pass.gates.map((g) => {
-    const descriptor = gatesByName.get(g.name);
-    const violations: Violation[] = g.findings.map((f) => ({ file: f.file, line: f.line, message: f.message ?? descriptor?.message ?? g.name }));
-    return { contract: "legacy", name: g.name, ok: g.ok, violations, scan: g.scan, timing: g.timing };
-  });
-}
-
-/** The reconciliation (#410) over BOTH contracts: every corpus file accounted for, every ACTIVE legacy descriptor
- *  actually run, every registered final policy actually reported. A mismatch means the report is SHORTER than the
- *  corpus — the exact shape a silently-skipped gate makes, and the one a verdict must never be read off. */
-function reconcile(corpus: MixedGateCorpus, selected: SelectedGateCorpus, pass: PassResult, finalRows: readonly FinalPolicyRow[]): readonly string[] {
+/** The reconciliation (#410) over the roster: every corpus file accounted for, every registered policy
+ *  actually reported. A mismatch means the report is SHORTER than the corpus — the exact shape a silently
+ *  skipped gate makes, and the one a verdict must never be read off. */
+function reconcile(corpus: GateCorpus, selected: SelectedGateCorpus, rows: readonly FinalPolicyRow[]): readonly string[] {
   const out: string[] = [];
   if (corpus.files.length === 0) {
     out.push("the gate corpus resolved ZERO modules — nothing was loaded, so this run is not a verdict");
   }
   // The denominator is the SELECTION, not the corpus (#1964): a gate-scoped run is short only when it failed
   // to run something it WAS asked about. On the default whole-corpus run the two are the same set.
-  const active = selected.legacy.filter((g) => g.status === "active").length;
-  if (pass.gates.length !== active) {
-    out.push(`${pass.gates.length} legacy gate(s) produced a result but ${active} were ACTIVE — the legacy pass is short by ${active - pass.gates.length}`);
-  }
-  if (finalRows.length !== selected.final.length) {
+  if (rows.length !== selected.gates.length) {
     out.push(
-      `${finalRows.length} final polic(ies) produced a result but ${selected.final.length} were registered — the final pass is short by ${selected.final.length - finalRows.length}`,
+      `${rows.length} polic(ies) produced a result but ${selected.gates.length} were registered — the pass is short by ${selected.gates.length - rows.length}`,
     );
   }
   if (corpus.unregistered.length > 0) {
@@ -137,17 +108,13 @@ function writeReport(slot: RunSlot, report: StructureReport): void {
  *  own `run.complete: false` refuses to be read as a verdict. Since #1029 it lands in the run's own slot
  *  and the slot's in-flight marker is what surfaces it to a fixed-path reader (`abandonedRuns`). */
 function writeInFlight(slot: RunSlot, run: RunManifest): void {
-  // The zeroed timing is the honest stub value: nothing has run yet. `run.complete: false` is what tells
-  // a reader this is not a verdict — the cost ledger never has to carry that signal too.
+  // `run.complete: false` is what tells a reader this is not a verdict — no other field has to carry that
+  // signal too.
   writeReport(slot, {
     run,
     gates: [],
-    toolErrors: [],
-    scanAlarms: [],
-    populationAlarms: [],
-    timing: { totalMs: 0, gateMs: 0 },
     policy: null,
-    reconciliation: { legacyFindings: 0, finalEffectiveFindings: 0, nonblockingWarnings: 0, authorityAlarms: 0, blocking: 0 },
+    reconciliation: { finalEffectiveFindings: 0, nonblockingWarnings: 0, authorityAlarms: 0, blocking: 0 },
     total: 0,
     ok: false,
   });
@@ -175,7 +142,6 @@ function startManifest(root: string, slot: RunSlot, selection: PolicySelector): 
     unregistered: [],
     active: 0,
     ran: 0,
-    legacy: { registered: 0, active: 0, ran: 0 },
     final: { registered: 0, ran: 0, withheld: 0 },
     incompleteReasons: [],
   };
@@ -197,8 +163,8 @@ function keepProbeFindings(): boolean {
   return process.env["ORB_GATE_FIXTURES"] === "1";
 }
 
-/** The FINAL dispatcher over the SAME Project the legacy pass walked: the full roster as `knownPolicies` (a
- *  narrower roster manufactures unknown-policy waiver alarms) and the grant rows that name a LOADED policy. The
+/** The dispatcher over the shared Project: the full roster as `knownPolicies` (a narrower roster
+ *  manufactures unknown-policy waiver alarms) and the grant rows that name a LOADED policy. The
  *  door filters (`reviewedGrantsFor`) so a partial roster — every planted tree, every future scoped policy
  *  selection — is not buried under `invalid-grant` errors for rows naming policies it never loaded; the
  *  WHOLE table against the WHOLE roster is the conformance stage's job (ops/policy-conformance-stage.ts), where a
@@ -206,12 +172,7 @@ function keepProbeFindings(): boolean {
  *
  *  `failOnWarnings` arrives from the operator and DEFAULTS FALSE (see runStructure's tail): a final
  *  `severity: "warning"` finding is reported, counted in `verdict.warnings`, and blocks nothing. */
-function runFinalPass(
-  corpus: MixedGateCorpus,
-  selectedFinal: readonly GatePolicy[],
-  ctx: Omit<GateRunCtx, "report" | "scan">,
-  failOnWarnings: boolean,
-): PolicyPassResult | null {
+function runFinalPass(corpus: GateCorpus, selectedFinal: readonly GatePolicy[], ctx: ProjectContext, failOnWarnings: boolean): PolicyPassResult | null {
   if (selectedFinal.length === 0) {
     return null;
   }
@@ -219,11 +180,11 @@ function runFinalPass(
     // `knownPolicies` stays the WHOLE loaded roster even under a selection (#1964): a narrower roster
     // manufactures unknown-policy waiver alarms, and `assertSelectedPoliciesAreLoaded` already rules
     // `policies ⊆ knownPolicies` as the supported scoped shape.
-    knownPolicies: corpus.final,
+    knownPolicies: corpus.gates,
     policies: selectedFinal,
     root: ctx.root,
     project: ctx.project,
-    reviewedGrants: reviewedGrantsFor(corpus.final),
+    reviewedGrants: reviewedGrantsFor(corpus.gates),
     failOnWarnings,
   });
   return keepProbeFindings() ? raw : stripProbePolicyFindings(raw);
@@ -266,21 +227,21 @@ function tombstoneSlot(root: string, request: { readonly slot: string; readonly 
 async function preflightSelection(
   root: string,
   selection: PolicySelector,
-): Promise<{ readonly corpus: MixedGateCorpus; readonly selected: SelectedGateCorpus } | null> {
+): Promise<{ readonly corpus: GateCorpus; readonly selected: SelectedGateCorpus } | null> {
   if (selection.kind === "all") {
     return null;
   }
-  const corpus = await loadMixedGateCorpus(root);
-  const selected = resolveMixedSelection(corpus, selection);
+  const corpus = await loadGateCorpus(root);
+  const selected = resolveGateSelection(corpus, selection);
   if (isSelectionFailure(selected)) {
     throw new UsageError(tailRefusal(selected.message));
   }
   return { corpus, selected };
 }
 
-/** The single invocation: load BOTH contracts, build ONE Project, run each dispatcher, render both, write the ONE
- *  JSON, and RETURN the 0/1/2 verdict — the max of the two sides (2 when any gate threw, read nothing, refused a
- *  receipt, or the run did not reconcile; 1 on violations or a blocking final finding/alarm; 0 clean). The cli's
+/** The single invocation: load the corpus, build ONE Project, run the dispatcher, render it, write the ONE
+ *  JSON, and RETURN the 0/1/2 verdict (2 when a policy threw, refused a receipt, or the run did not
+ *  reconcile; 1 on a blocking finding/alarm; 0 clean). The cli's
  *  `runTool` sets `process.exitCode` from it — never `process.exit`, which drops the buffered stdout write below
  *  and truncates a large report mid-line (the fixture-run report the check-gates anti-drift test parses). */
 export async function runStructure(root: string, argv: readonly string[]): Promise<number> {
@@ -294,25 +255,21 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   const started = startManifest(root, slot, request.selection);
   writeInFlight(slot, started);
 
-  const corpus = preflight?.corpus ?? (await loadMixedGateCorpus(root));
-  const selected = preflight?.selected ?? { legacy: corpus.legacy, final: corpus.final };
-  const gatesByName = new Map(corpus.legacy.map((g) => [g.name, g]));
+  const corpus = preflight?.corpus ?? (await loadGateCorpus(root));
+  const selected = preflight?.selected ?? { gates: corpus.gates };
   const ctx = projectCtx(root);
   // #2069 sample ONE: the tree as it stood when this run took its fileset.
   const plantedAtStart = plantedPaths(root);
-  const rawPass = runPass(selected.legacy, ctx);
-  const pass = keepProbeFindings() ? rawPass : stripProbeFindings(rawPass);
-  const final = finalSide(selected.final, runFinalPass(corpus, selected.final, ctx, request.failOnWarnings));
-  // #2069 sample TWO: a plant that opened AFTER the project was built still poisons every fs-reading gate.
+  const final = finalSide(selected.gates, runFinalPass(corpus, selected.gates, ctx, request.failOnWarnings));
+  // #2069 sample TWO: a plant that opened AFTER the project was built still poisons every fs-reading policy.
   const observed = keepProbeFindings() ? [] : [...new Set([...plantedAtStart, ...plantedPaths(root)])].toSorted();
 
-  // An UNTIMED gate (either contract) rides the same class as a SHORT run (lib/timing.ts): both leave a report
-  // that looks complete while a fact the artifact promises is silently absent.
+  // An UNTIMED policy rides the same class as a SHORT run (lib/timing.ts): both leave a report that looks
+  // complete while a fact the artifact promises is silently absent.
   const incompleteReasons = [
-    ...reconcile(corpus, selected, pass, final.rows),
+    ...reconcile(corpus, selected, final.rows),
     ...notQuietReasons(observed),
-    ...timingAlarms(pass),
-    // A corpus with no final policy owes no final ledger; one WITH a final policy owes the whole one.
+    // A corpus with no policy owes no ledger; one WITH a policy owes the whole one.
     ...(final.result === null ? [] : policyTimingAlarms(final.rows, final.result.timing)),
   ];
   // ANNOTATED LOCAL, not a bare `final.result`: biome's type service resolves the imported `FinalSide`'s
@@ -320,15 +277,10 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   // reads the same union correctly. Re-stating the type here restores the union for both readers without a
   // suppression and without weakening the guard (the house answer for biome's cross-module narrowing).
   const finalResult: PolicyPassResult | null = final.result;
-  const legacyRows = toLegacyRows(pass, gatesByName);
-  const allRows = [...legacyRows, ...final.rows];
-  const reconciliation = structureCountReconciliation(allRows, final.report);
+  const reconciliation = structureCountReconciliation(final.rows, final.report);
   const total = reconciliation.blocking;
-  const scanAlarms = zeroScanGates(pass);
-  const populations = populationAlarms(pass);
   // Every count below is a denominator over what this run was ASKED about. On the default run the selection
   // IS the corpus, so the numbers are byte-identical to the pre-#1964 manifest.
-  const legacyActive = selected.legacy.filter((g) => g.status === "active").length;
   const nonVerdict = nonVerdictReason(keepProbeFindings(), observed);
   const run: RunManifest = {
     ...started,
@@ -338,31 +290,25 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
     finishedAt: new Date().toISOString(),
     complete: true,
     corpusFiles: corpus.files.length,
-    registered: selected.legacy.length + selected.final.length,
+    registered: selected.gates.length,
     unregistered: corpus.unregistered,
-    active: legacyActive + selected.final.length,
-    ran: pass.gates.length + final.rows.length,
-    legacy: { registered: selected.legacy.length, active: legacyActive, ran: pass.gates.length },
-    final: { registered: selected.final.length, ran: final.rows.length, withheld: finalResult?.authority.withheldPolicyIds.length ?? 0 },
+    active: selected.gates.length,
+    ran: final.rows.length,
+    final: { registered: selected.gates.length, ran: final.rows.length, withheld: finalResult?.authority.withheldPolicyIds.length ?? 0 },
     incompleteReasons,
   };
 
   // THE ONE console write — the text is composed in lib/structure-console.ts and lands here, once.
-  process.stdout.write(structureConsole({ pass, gatesByName, selected, final, reconciliation, run, slotRelDir: slot.relDir }));
+  process.stdout.write(structureConsole({ selected, final, reconciliation, run, slotRelDir: slot.relDir }));
 
-  const legacyBroken = pass.toolErrors.length > 0 || scanAlarms.length > 0 || populations.length > 0 || incompleteReasons.length > 0;
-  const finalBroken = final.result !== null && finalToolErrorCount(final.result) > 0;
+  const broken = incompleteReasons.length > 0 || (final.result !== null && finalToolErrorCount(final.result) > 0);
   writeReport(slot, {
     run,
-    gates: allRows,
-    toolErrors: pass.toolErrors,
-    scanAlarms,
-    populationAlarms: populations,
-    timing: pass.timing,
+    gates: final.rows,
     policy: final.report,
     reconciliation,
     total,
-    ok: total === 0 && !legacyBroken && !finalBroken,
+    ok: total === 0 && !broken,
   });
   // Published at the END and only here: a reader arriving at reports/check-structure.json therefore always
   // resolves to a run that FINISHED — its own or a sibling's — never to an in-flight or torn artifact.
@@ -378,11 +324,11 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   // real-tree liveness. A non-verdict keeps its slot and never becomes `latest`.
   finishSlot(root, slot, request.selection, run);
 
-  // A short run, a blind gate, a refused POPULATION receipt, a thrown gate and a refused final owner ride the SAME
-  // severity: in all of them the run is not a verdict. The final side's exit rule has ONE home
-  // (`policyPassExitCode`, the planner's) and is composed here by max, never re-spelled.
-  const finalExit = final.result === null ? EXIT.clean : policyPassExitCode(final.result);
-  return Math.max(legacyExit(legacyBroken, reconciliation.legacyFindings), finalExit);
+  // A short run, an untimed policy, a contaminated tree and a refused owner ride the SAME severity: in all of
+  // them the run is not a verdict. The dispatcher's own exit rule has ONE home (`policyPassExitCode`, the
+  // planner's) and is composed here with the run-completeness verdict, never re-spelled.
+  const dispatcherExit = final.result === null ? EXIT.clean : policyPassExitCode(final.result);
+  return Math.max(incompleteReasons.length > 0 ? EXIT.toolError : EXIT.clean, dispatcherExit);
 }
 
 /** END THE RUN: publish the pointer when this run may speak for the corpus, and CLOSE the slot either way.
@@ -404,12 +350,4 @@ function finishSlot(root: string, slot: RunSlot, selection: PolicySelector, run:
     return;
   }
   closeRunSlot(slot);
-}
-
-/** The legacy side's exit under the unchanged contract: a broken run outranks a verdict, a verdict outranks clean. */
-function legacyExit(broken: boolean, violations: number): number {
-  if (broken) {
-    return EXIT.toolError;
-  }
-  return violations > 0 ? EXIT.violations : EXIT.clean;
 }

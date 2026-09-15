@@ -26,12 +26,12 @@ import type { OrdinaryWaiverSource } from "../../contract/ordinary-waiver-source
 import { gate } from "../../gates/caught-failure-ownership.ts";
 import { caughtFailureReviewSites } from "../../lib/caught-failure.ts";
 import { createOrdinaryWaiverEngine } from "../../lib/ordinary-waiver.ts";
+import { compilePopulation } from "../../lib/population-resolver.ts";
 // NOT `harness.ts`'s `getProject` — MEASURED 2026-08-28: its fileset is deliberately narrower than
 // `harnessGlobs` and EXCLUDES `tooling/src/**`, which this gate scans. Deriving the census from it reported
 // 329 sites where the real run finds 448, and the undercount reads exactly like a smaller population. The
 // artifact must walk the SAME fileset the gate run walks, or it is a census of a different tree.
-import { projectCtx } from "../../lib/pass.ts";
-import { compilePopulation } from "../../lib/population-resolver.ts";
+import { projectCtx } from "../../lib/project-context.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline caught-failure-population");
 

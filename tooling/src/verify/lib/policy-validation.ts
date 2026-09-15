@@ -103,8 +103,14 @@ export function assertRepoPathIdentity(value: unknown, label = "path"): asserts 
  *  fixture, so a `.git/config` destination is repository configuration git obeys, including
  *  `core.fsmonitor`, which it executes. Case-insensitive because `.GIT` is the same directory on a
  *  case-insensitive filesystem. This is a fixture-destination rule only: repo-path identity in general
- *  (`assertRepoPathIdentity`) keeps admitting the segment for its other callers. */
-export function namesGitControlSegment(path: string): boolean {
+ *  (`assertRepoPathIdentity`) keeps admitting the segment for its other callers.
+ *
+ *  MODULE-PRIVATE since #2176 Phase F (2026-09-14). It was exported for the legacy conformance runner
+ *  (`ops/conformance.ts:59`), which materialised fs-backed legacy examples on real disk and asked the same
+ *  question of each key; that runner is deleted with the descriptor contract, and `assertFixtureDestination`
+ *  below is the one caller left. The RULE is unchanged and is still the load-bearing defence
+ *  `lib/repo-paths.ts` cites. */
+function namesGitControlSegment(path: string): boolean {
   return path.split("/").some((segment) => segment.toLowerCase() === ".git");
 }
 

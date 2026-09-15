@@ -17,7 +17,7 @@ import { pathToFileURL } from "node:url";
 import { Project } from "ts-morph";
 import { gate as policyFamilyReaders } from "../../../../tooling/src/verify/gates/policy-family-readers.ts";
 import { gate as policySoundness } from "../../../../tooling/src/verify/gates/policy-soundness.ts";
-import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
+import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { markdownTables } from "../../../../tooling/src/verify/lib/markdown-tables.ts";
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -79,15 +79,17 @@ test("what the scaffold emits LOADS as a final policy and its own proof rows pas
   expect(verifyPolicyProofs(corpus.gates)).toEqual([]);
 });
 
-test("the final-only loader rejects an actual legacy descriptor accepted by the mixed loader", async ({ scratch }) => {
+test("a legacy descriptor is a LOAD REFUSAL naming its retired contract, never a silent skip", async ({ scratch }) => {
+  // #2176 Phase F: the mixed loader used to CLASSIFY this module as `legacy` and run it through a second
+  // dispatcher. Both are deleted, and the replacement is deliberately the LOUD arm — silently recording it
+  // as unregistered would shorten the corpus, which is the #410 defect the run manifest exists to refuse.
   mkdirSync(join(scratch, GATES_REL), { recursive: true });
   writeFileSync(
     join(scratch, GATES_REL, `${NAME}.ts`),
     `export const gate = { name: "${NAME}", docRow: "legacy", status: "active", scopeSafety: "incremental-safe", message: "legacy", run: () => undefined, mustFlag: [{ files: {}, why: "legacy catch" }], mustPass: [{ files: {}, why: "legacy pass" }] };`,
   );
-  const mixed = await loadMixedGateCorpus(scratch);
-  expect(mixed.roster).toEqual([{ path: `${GATES_REL}/${NAME}.ts`, contract: "legacy", id: NAME }]);
-  await expect(loadPolicyCorpus(scratch)).rejects.toThrow("must export exactly one `gate` created by defineGate");
+  await expect(loadGateCorpus(scratch)).rejects.toThrow("is a LEGACY `GateDescriptor` object");
+  await expect(loadPolicyCorpus(scratch)).rejects.toThrow("is a LEGACY `GateDescriptor` object");
 });
 
 test("the emitted final module passes production policy-soundness and its planted legacy-field control fails", ({ repoRoot, scratch }) => {

@@ -1,109 +1,106 @@
-// PER-GATE COST (#1107) — the planted controls, in BOTH directions, for the ledger `check-structure.json`
-// now publishes: a healthy ledger is a verdict, and a gate that reports NO wall-clock refuses the run
-// rather than reaching the artifact as a silent `undefined` that reads as "instant".
+// PER-POLICY COST (#1107) — the planted controls, in BOTH directions, for the ledger
+// `check-structure.json` publishes: a healthy ledger is a verdict, and a policy that reports NO wall-clock
+// refuses the run rather than reaching the artifact as a silent `undefined` that reads as "instant".
 //
-// WHY THE UNTIMED ARM IS A UNIT TEST AND NOT A PLANTED CLI RUN: the harness times every hook through ONE
-// wrapper (`guard`), so a REAL run cannot produce an untimed gate on demand — the only way to reach that
-// state is a writer regression (a phase added to the dispatcher and not to the clock) or an artifact
-// re-read from an older writer. Both arrive as `undefined` while satisfying `tsc` at the call site, which
-// is why the alarm's parameter is `TimingLedgerView` (the ledger as a READER receives it) rather than
-// `PassResult`: the broken shapes below are then ordinary values of a real type, never a cast past one.
-
-import { performance } from "node:perf_hooks";
-import { vi } from "vitest";
-import type { GatePassResult, TimingGateView, TimingLedgerView } from "../../../../tooling/src/verify/contract/pass.ts";
-import { newPhaseClock, passTiming } from "../../../../tooling/src/verify/lib/pass-timing.ts";
-import { timingAlarms, timingLine } from "../../../../tooling/src/verify/lib/timing.ts";
+// THIS FILE WAS THE LEGACY HALF'S PROOF UNTIL #2176 PHASE F (2026-09-14). `timingAlarms`/`timingLine` read
+// the legacy single-pass ledger and retired with its dispatcher; the PROPERTY they held did not, so the
+// same controls are re-aimed at `policyTimingAlarms`/`policyTimingLine`, which are the surviving readers of
+// the only ledger the artifact still carries. Nothing about the refusal's shape changed — only its subject.
+//
+// WHY THE UNTIMED ARM IS A UNIT TEST AND NOT A PLANTED CLI RUN: the dispatcher times every phase through
+// one wrapper, so a REAL run cannot produce an untimed policy on demand — the only ways to reach that state
+// are a writer regression (a phase added to the dispatcher and not to the clock) and an artifact re-read
+// from an older writer. Both arrive as `undefined` while satisfying `tsc` at the call site, which is why
+// the alarm's parameter is the LOOSE row view rather than `FinalPolicyRow`: the broken shapes below are
+// then ordinary values of a real type, never a cast past one.
+import type { PolicyPhase } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import type { FinalPolicyRow } from "../../../../tooling/src/verify/contract/structure-report.ts";
+import { policyTimingAlarms, policyTimingLine } from "../../../../tooling/src/verify/lib/timing.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const SCAN = { candidates: 1, scanned: 1, skipped: 0, skipReasons: {}, visited: 1, admitted: 0, admittedRatified: 0, populations: [] } as const;
+const ZERO_PHASES: Record<PolicyPhase, number> = { population: 0, create: 0, visitFile: 0, visit: 0, evaluate: 0, receipt: 0 };
 
-function gate(name: string, phaseMs: Partial<GatePassResult["timing"]["phaseMs"]>): GatePassResult {
-  const phases = { begin: 0, visit: 0, visitFile: 0, run: 0, finalize: 0, ...phaseMs };
-  const totalMs = phases.begin + phases.visit + phases.visitFile + phases.run + phases.finalize;
-  return { name, ok: true, findings: [], scan: SCAN, timing: { totalMs, phaseMs: phases } };
+/** A ledger ROW as a reader receives it. `timing` is deliberately shaped, never cast: the two ways it goes
+ *  missing in production are exactly the two values below. */
+function row(
+  name: string,
+  phaseMs: Partial<Record<PolicyPhase, number>>,
+): { readonly name: string; readonly timing: { readonly totalMs: number; readonly phaseMs: Record<PolicyPhase, number> } } {
+  const phases = { ...ZERO_PHASES, ...phaseMs };
+  const totalMs = Object.values(phases).reduce((sum, ms) => sum + ms, 0);
+  return { name, timing: { totalMs, phaseMs: phases } };
 }
 
-/** A ledger AS A READER RECEIVES IT (`TimingLedgerView`) — which is the point of every broken arm below.
- *  A live `PassResult` is assignable to this view, so the healthy control measures the same door
- *  production calls, while a gate whose `timing` never arrived is expressible here WITHOUT a cast. */
-function ledger(gates: readonly TimingGateView[], totalMs: number): TimingLedgerView {
-  return { gates, timing: { totalMs, gateMs: gates.reduce((sum, g) => sum + (g.timing?.totalMs ?? 0), 0) } };
-}
+const HEALTHY_PASS = { totalMs: 500, policyMs: 300, factMs: 100 } as const;
 
 test("a fully timed pass raises NO alarm — the negative control the refusals below are read against", () => {
-  expect(timingAlarms(ledger([gate("planted-cheap", { visit: 1.5 }), gate("planted-hog", { run: 199.25 })], 500))).toEqual([]);
+  expect(policyTimingAlarms([row("planted-cheap", { visit: 1.5 }), row("planted-hog", { evaluate: 199.25 })], HEALTHY_PASS)).toEqual([]);
 });
 
-test("a gate total sums integer microseconds instead of flooring an already-floored float", () => {
-  const now = vi.spyOn(performance, "now").mockReturnValue(100);
-  try {
-    const clock = newPhaseClock();
-    clock.charge("begin", 100 - 40.329);
-    clock.charge("visit", 100 - 0.001);
-    clock.charge("run", 100 - 0.001);
-
-    const timing = clock.finish();
-    expect(timing.phaseMs).toMatchObject({ begin: 40.329, visit: 0.001, run: 0.001 });
-    expect(timing.totalMs).toBe(40.331);
-
-    const pass = passTiming(0, [gate("a", { run: 40.329 }), gate("b", { run: 0.001 }), gate("c", { run: 0.001 })]);
-    expect(pass).toEqual({ totalMs: 100, gateMs: 40.331 });
-  } finally {
-    now.mockRestore();
-  }
-});
-
-test("a gate with NO wall-clock refuses the run instead of publishing a silent undefined", () => {
-  const untimed: TimingGateView = { name: "planted-untimed" };
-  const alarms = timingAlarms(ledger([gate("planted-ok", { run: 3 }), untimed], 500));
+test("a policy with NO wall-clock refuses the run instead of publishing a silent undefined", () => {
+  const untimed = { name: "planted-untimed" };
+  const alarms = policyTimingAlarms([row("planted-ok", { evaluate: 3 }), untimed], HEALTHY_PASS);
   expect(alarms).toHaveLength(1);
   expect(alarms[0]).toContain("planted-untimed");
   expect(alarms[0]).toContain("UNTIMED, not instant");
 });
 
-test("a gate missing ONE phase's clock is refused by name — a partial breakdown is not a breakdown", () => {
-  const missingRun: TimingGateView = {
-    name: "planted-half-timed",
-    timing: { totalMs: 12, phaseMs: { begin: 0, visit: 0, visitFile: 0, finalize: 0 } },
-  };
-  const alarms = timingAlarms(ledger([missingRun], 500));
+test("a policy missing ONE phase's clock is refused by name — a partial breakdown is not a breakdown", () => {
+  const { receipt: _dropped, ...missingReceipt } = { ...ZERO_PHASES, evaluate: 3 };
+  const alarms = policyTimingAlarms([{ name: "planted-partial", timing: { totalMs: 3, phaseMs: missingReceipt } }], HEALTHY_PASS);
   expect(alarms).toHaveLength(1);
-  expect(alarms[0]).toContain("planted-half-timed");
-  expect(alarms[0]).toContain("phase(s) run");
+  expect(alarms[0]).toContain("planted-partial");
+  expect(alarms[0]).toContain("receipt");
 });
 
 test("a non-finite clock is refused exactly like a missing one — NaN is not a measurement", () => {
-  const nan: TimingGateView = { name: "planted-nan", timing: { totalMs: Number.NaN, phaseMs: gate("x", {}).timing.phaseMs } };
-  expect(timingAlarms(ledger([nan], 500))[0]).toContain("planted-nan");
+  const nan = { name: "planted-nan", timing: { totalMs: Number.NaN, phaseMs: ZERO_PHASES } };
+  expect(policyTimingAlarms([nan], HEALTHY_PASS)[0]).toContain("planted-nan");
 });
 
-test("a ledger whose gates outweigh the pass is refused — a part cannot exceed the whole", () => {
-  const impossible: TimingLedgerView = { gates: [gate("planted-hog", { run: 900 })], timing: { totalMs: 100, gateMs: 900 } };
-  expect(timingAlarms(impossible)[0]).toContain("does not add up");
+test("a ledger whose policies outweigh the pass is refused — a part cannot exceed the whole", () => {
+  expect(policyTimingAlarms([row("planted-ok", { evaluate: 1 })], { totalMs: 10, policyMs: 8, factMs: 8 })[0]).toContain("does not add up");
 });
 
-test("a pass with no timing of its own is refused — there is no total to check the gates against", () => {
-  const noTotal: TimingLedgerView = { gates: [gate("planted-ok", { run: 1 })] };
-  expect(timingAlarms(noTotal)[0]).toContain("no wall-clock of its own");
+test("a pass with no timing of its own is refused — there is no total to check the policies against", () => {
+  expect(policyTimingAlarms([row("planted-ok", { evaluate: 1 })], undefined)[0]).toContain("no wall-clock of its own");
 });
 
-test("the summary line names the slowest gates with the phase that dominated each, and the artifact path", () => {
-  const gates = [
-    gate("planted-cheap", { visit: 1 }),
-    gate("planted-hog", { run: 115_000 }),
-    gate("planted-walker", { visit: 4000, begin: 1 }),
-    gate("planted-file", { visitFile: 57 }),
-    gate("planted-final", { finalize: 20 }),
-    gate("planted-tail", { begin: 0.5 }),
-  ];
-  const line = timingLine({ totalMs: 292_600, gateMs: 119_078.5 }, gates, "reports/runs/structure/x/check-structure.json");
-  expect(line).toContain("single-pass cost: 292600.0ms wall — gate hooks 119078.5ms, harness 173521.5ms");
-  // Sorted by cost, capped at five, each carrying the phase that dominated it: the six-gate input drops
-  // the cheapest, and `planted-hog` must lead with `run` (the whole finding the ledger exists to surface).
-  expect(line).toContain(
-    "slowest 5: planted-hog 115000.0ms (run) · planted-walker 4001.0ms (visit) · planted-file 57.0ms (visitFile) · planted-final 20.0ms (finalize) · planted-cheap 1.0ms (visit)",
-  );
-  expect(line).not.toContain("planted-tail");
-  expect(line).toContain("(per-gate timing: reports/runs/structure/x/check-structure.json)");
+/** The console line takes the WRITER's row shape, so this control builds one rather than a view. */
+function fullRow(name: string, phaseMs: Partial<Record<PolicyPhase, number>>): FinalPolicyRow {
+  const phases = { ...ZERO_PHASES, ...phaseMs };
+  const totalMs = Object.values(phases).reduce((sum, ms) => sum + ms, 0);
+  return {
+    contract: "final",
+    name,
+    family: name,
+    authority: "hard",
+    severity: "error",
+    workItem: null,
+    ok: true,
+    owner: { status: "success", population: "complete" },
+    withheld: false,
+    population: { declaredSourcePaths: 1, declaredResourcePaths: 0, effectiveSourcePaths: 1, effectiveResourcePaths: 0, requestedPaths: null },
+    receipts: [],
+    violations: [],
+    waived: 0,
+    granted: 0,
+    timing: { totalMs, phaseMs: phases },
+  };
+}
+
+test("the summary line names the slowest policies with the phase that dominated each", () => {
+  const rows = [fullRow("planted-hog", { evaluate: 115_000 }), fullRow("planted-mid", { visit: 40 }), fullRow("planted-cheap", { create: 0.5 })];
+  const line = policyTimingLine({ totalMs: 292_600, policyMs: 119_078.5, factMs: 1000 }, rows);
+  expect(line).toContain("final-pass cost: 292600.0ms wall");
+  // The dispatcher's own share is the subtraction a reader would otherwise have to do by hand.
+  expect(line).toContain("dispatcher 172521.5ms");
+  // Slowest FIRST, each with the phase that dominated it — the fix differs by phase.
+  expect(line).toContain("planted-hog 115000.0ms (evaluate)");
+  expect(line).toContain("planted-mid 40.0ms (visit)");
+  expect(line.indexOf("planted-hog")).toBeLessThan(line.indexOf("planted-mid"));
+});
+
+test("the summary line says so when nothing ran, rather than printing an empty list", () => {
+  expect(policyTimingLine({ totalMs: 1, policyMs: 0, factMs: 0 }, [])).toContain("(no policies ran)");
 });

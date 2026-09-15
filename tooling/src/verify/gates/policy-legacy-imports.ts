@@ -59,14 +59,20 @@
 //     identity-losing projections REFUSE; foreign provenance stays foreign. Earlier closure claims were
 //     refuted by aliases, syntax-only accusations and inconsistent wrapper semantics. Structural retypes,
 //     inferred initializer identity and compiler validity remain outside this arm.
-//     Retiring `contract/gate.ts` at the cutover retires the TYPE, not the CLASS — the same limit, restated.
+//     THE CUTOVER LANDED AND THE TYPE SURVIVED IT (#2176 Phase F, 2026-09-14). `contract/gate.ts` kept
+//     `ExemptionTable`/`ExemptionRow`/`Finding` and lost its descriptor half, precisely because moving those
+//     three declarations would have retired THIS ARM'S real-tree subject rather than the class it names —
+//     a relocation is not a discharge, which is the same sentence the `fix` makes about a table. The limit
+//     above is unchanged: a module that declares its OWN row interface is still invisible here.
 //
 // THE CANDIDATE SETS, per arm, with the `lib/origin-verdict.ts` discipline (identity, not spelling; fail closed
 // only inside the candidate set):
 //   A a specifier whose BASENAME is a forbidden home's — the identity is the RESOLVED path's suffix in
-//     `FORBIDDEN_IMPORT_HOMES`: `contract/gate.ts` (`ExemptionTable`, `ExemptionRow`, `Finding`, `GateDescriptor`,
-//     `GateRunCtx`, `GateExample`), `lib/pass.ts` (the legacy dispatcher), `lib/gate-ignore.ts` (the legacy
-//     `@orb-gate-ignore` parser, §7 kind 1), `lib/reviewed-grants.ts` (the grant table), `lib/ordinary-waiver.ts`
+//     `FORBIDDEN_IMPORT_HOMES`: `contract/gate.ts` (`ExemptionTable`, `ExemptionRow`, `Finding` — its legacy
+//     descriptor half was deleted at #2176 Phase F and the three surviving shapes are exactly what §12.5 says a
+//     gate module may not receive), `lib/pass.ts` (the legacy dispatcher — the MODULE is now DELETED; the row
+//     stays as a resurrection tripwire, see the tuple), `lib/gate-ignore.ts` (the `@orb-gate-ignore` recognizer,
+//     §7 kind 1), `lib/reviewed-grants.ts` (the grant table), `lib/ordinary-waiver.ts`
 //     (the central `@orb-waive` engine), `lib/gate-authority.ts` (the coordinator), `lib/policy-pass.ts` (the final
 //     dispatcher — a pass inside a pass is a private workspace cache, §12.3), `lib/loader.ts` · `lib/policy-loader.ts`
 //     (the registry — a module that loads the corpus judges itself). A same-basename module elsewhere
@@ -140,7 +146,14 @@ import { familyFixture, finalProbeModule, HARD_TRUNK } from "./_proof/policy-sou
 
 const SELF = "tooling/src/verify/gates/policy-legacy-imports.ts";
 
-/** ARM A's closed set, as REPO-RELATIVE suffixes the resolved path is judged by. Each member has its own row. */
+/** ARM A's closed set, as REPO-RELATIVE suffixes the resolved path is judged by. Each member has its own row.
+ *
+ *  A MEMBER WHOSE MODULE NO LONGER EXISTS STAYS IN THE TUPLE (#2176 Phase F, 2026-09-14). `lib/pass.ts` was
+ *  deleted with the legacy dispatcher; its entry is not residue but a RESURRECTION TRIPWIRE — the day anyone
+ *  re-creates a module at that path, a gate importing it is RED on the first run rather than after somebody
+ *  notices. It costs one string and its own fixture-planted row (which never depended on the real file: every
+ *  ARM A row plants its target through `TARGET(…)`, so the proofs are unaffected by the deletion). The same
+ *  reasoning is why an entry is never removed merely because today's corpus has no importer of it. */
 const FORBIDDEN_IMPORT_HOMES = [
   "/tooling/src/verify/contract/gate.ts",
   "/tooling/src/verify/lib/pass.ts",
@@ -191,8 +204,8 @@ const TOOLING_SRC = "/tooling/src/";
 const FORBIDDEN_IMPORT_PREFIXES = ["/tooling/src/verify/ops/"] as const;
 
 const MESSAGE =
-  "a FINAL policy module imports the legacy descriptor contract or the central authority machinery (gate-runtime-standardization.md §5, §9): " +
-  "`contract/gate.ts` (ExemptionTable/ExemptionRow/Finding/GateDescriptor), the legacy dispatcher or marker parser, the grant table, the waiver " +
+  "a FINAL policy module imports the shared exemption vocabulary or the central authority machinery (gate-runtime-standardization.md §5, §9): " +
+  "`contract/gate.ts` (ExemptionTable/ExemptionRow/Finding), the retired dispatcher or marker recognizer, the grant table, the waiver " +
   "engine, the coordinator, the final dispatcher or the loader. A gate module receives neither grant tables nor marker parsers, owns no " +
   "exemption table, and runs no pass of its own; a legacy artifact carried across a conversion is the #1922 migration's work, never a keep. " +
   "The `from` token names the import; the message names the resolved home.";
@@ -214,7 +227,7 @@ const SIBLING_MESSAGE =
   "exports is two homes for one reader. The target is judged by REGISTRATION, never by directory — a shared proof surface under `gates/_proof/` " +
   "registers nothing and is not this finding. The `from` token names the import; the message names the target and its contract.";
 const UNREADABLE_MESSAGE =
-  "a FINAL policy module imports a candidate specifier that resolves to NOTHING — a basename in the forbidden-home set (`gate.ts`, `pass.ts`, " +
+  "a FINAL policy module imports a candidate specifier that resolves to NOTHING — a basename in the forbidden-home set (`gate.ts`, `pass.ts` (a DELETED module kept as a tripwire), " +
   "`gate-ignore.ts`, `reviewed-grants.ts`, `ordinary-waiver.ts`, `gate-authority.ts`, `policy-pass.ts`, `loader.ts`, `policy-loader.ts`) or a " +
   "relative path that could name a sibling gate module. The import origin CANNOT be established, so the module is reported rather than " +
   "acquitted on the strength of a spelling (#944 fail-closed).";
@@ -331,8 +344,9 @@ function judgeDoor(door: ModuleDoor): DoorVerdict | undefined {
  *  (`config-static-read.ts:17`, `policy-conformance.ts:14`) and NEITHER targets a forbidden home — so this
  *  fence lands at zero findings and zero false positives, and its cost is two resolutions. */
 function launderedThrough(shim: SourceFile, visited: Set<SourceFile>): DoorVerdict | undefined {
-  // ONE TAIL RETURN (`lib/pass.ts`'s accumulator idiom): `biome`'s `noUselessUndefined` deletes a trailing
-  // `return undefined;` and tsc's `noImplicitReturns` then reds the fall-through.
+  // ONE TAIL RETURN (the house accumulator idiom, `.claude/rules/gates-and-tooling.md`): `biome`'s
+  // `noUselessUndefined` deletes a trailing `return undefined;` and tsc's `noImplicitReturns` then reds the
+  // fall-through.
   let found: DoorVerdict | undefined;
   if (!visited.has(shim)) {
     visited.add(shim);
@@ -382,7 +396,7 @@ const CONST_ASSERTION = "const";
  *  a lib.d.ts global) is a different identity and acquits; anything else is UNREADABLE, and an unreadable
  *  subject inside this arm's candidate set REFUSES the run rather than passing on a spelling. */
 function moduleOrigin(node: TsNode, subject: string): ModuleMemberOrigin | undefined {
-  // ONE TAIL RETURN (`lib/pass.ts`'s accumulator idiom): biome's `noUselessUndefined` deletes a trailing
+  // ONE TAIL RETURN (the house accumulator idiom): biome's `noUselessUndefined` deletes a trailing
   // `return undefined;` and tsc's `noImplicitReturns` then reds the fall-through.
   let origin: ModuleMemberOrigin | undefined;
   const fact = resolveModuleMemberOrigin(node);
@@ -606,7 +620,9 @@ const IMPORTING_VALUE = (specifier: string, named: string): string =>
   );
 
 /** ARM D's fixtures need a REAL `contract/gate.ts`: the arm resolves the type NAME to its declaration, so a
- *  `type ExemptionTable = unknown` stub would prove a spelling. This is the live shape, minus the prose. */
+ *  `type ExemptionTable = unknown` stub would prove a spelling. This is the live shape, minus the prose —
+ *  and it is still the live shape after #2176 Phase F, which deleted that module's descriptor half and kept
+ *  exactly these two declarations. */
 const GATE_TYPE_HOME: Readonly<Record<string, string>> = {
   "tooling/src/verify/contract/gate.ts":
     "export interface ExemptionRow {\n  readonly why: string;\n}\nexport type ExemptionTable<Row extends ExemptionRow = ExemptionRow> = Readonly<Record<string, Row>>;\n",
@@ -750,7 +766,7 @@ export const gate = defineGate({
       mode: "types",
       files: familyFixture(IMPORTING("../lib/pass.ts", "PassResult"), TARGET("tooling/src/verify/lib/pass.ts", "PassResult")),
       expect: { count: 1, messageIncludes: "Resolved home: tooling/src/verify/lib/pass.ts" },
-      why: "ARM A MEMBER `lib/pass.ts` — the legacy dispatcher; a final module that reaches it runs a pass of its own",
+      why: "ARM A MEMBER `lib/pass.ts` — the legacy dispatcher. The module was DELETED at #2176 Phase F, and the row is deliberately kept: it is the tripwire that reds the day the path comes back. The fixture plants its own target, so the row proves the same property it always did",
     },
     {
       mode: "types",

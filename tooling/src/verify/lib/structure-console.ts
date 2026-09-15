@@ -5,20 +5,16 @@
 // §2: pure logic to lib/), and it is the same contract lib/render.ts already keeps — `renderPass` returns a
 // string too. ops/structure.ts does the single `process.stdout.write`, so "the ONE console write" stays a
 // true statement about one call site rather than a comment above four of them.
-import type { GateDescriptor } from "../contract/gate.ts";
 import type { SelectedGateCorpus } from "../contract/gate-corpus.ts";
-import type { PassResult } from "../contract/pass.ts";
 import type { RunManifest } from "../contract/run-manifest.ts";
 import type { StructureCountReconciliation } from "../contract/structure-report.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
-import { renderPass, renderPolicyPass } from "./render.ts";
+import { renderPolicyPass } from "./render.ts";
 import type { FinalSide } from "./structure-report.ts";
 import { structureCountLine } from "./structure-report.ts";
-import { policyTimingLine, timingLine } from "./timing.ts";
+import { policyTimingLine } from "./timing.ts";
 
 export interface StructureConsoleInput {
-  readonly pass: PassResult;
-  readonly gatesByName: ReadonlyMap<string, GateDescriptor>;
   readonly selected: SelectedGateCorpus;
   readonly final: FinalSide;
   readonly reconciliation: StructureCountReconciliation;
@@ -41,41 +37,38 @@ function nonVerdictBanner(run: RunManifest): string {
   return `\n‼ THIS RUN IS NOT A VERDICT — ${run.nonVerdictReason ?? "no reason recorded"}\n`;
 }
 
-/** The whole console text, in the order a reader scans: the non-verdict banner when there is one, the two
- *  rosters, the banner again, then what the run WAS, then cost.
- *
- *  `zeroScanAlarm` is set HERE and nowhere else — the mixed front door is the only entrypoint whose fileset
- *  is the real whole tree, so it is the only one where "this gate read nothing" means the checker is blind. */
-export function structureConsole({ pass, gatesByName, selected, final, reconciliation, run, slotRelDir }: StructureConsoleInput): string {
+/** The whole console text, in the order a reader scans: the non-verdict banner when there is one, the
+ *  roster, the banner again, then what the run WAS, then cost. `slotRelDir` names the artifact the per-policy
+ *  table lives in, so the cost line is a POINTER rather than a second, shorter ledger. */
+export function structureConsole({ selected, final, reconciliation, run, slotRelDir }: StructureConsoleInput): string {
   const banner = run.nonVerdictReason !== null ? nonVerdictBanner(run) : "";
   return [
     banner,
-    renderPass(pass, gatesByName, { zeroScanAlarm: true }),
-    final.report === null ? "" : `\n${renderPolicyPass(final.rows, final.report, selected.final)}`,
+    final.report === null ? "" : renderPolicyPass(final.rows, final.report, selected.gates),
     banner,
     `\nfinding count: ${structureCountLine(reconciliation)}\n`,
     `\n${completenessLine(run)}\n`,
-    `${timingLine(pass.timing, pass.gates, `${slotRelDir}/${STRUCTURE_REPORT_NAME}`)}\n`,
+    `  (per-policy timing: ${slotRelDir}/${STRUCTURE_REPORT_NAME})\n`,
     final.result === null ? "" : `${policyTimingLine(final.result.timing, final.rows)}\n`,
   ].join("");
 }
 
-/** The visible half of the #410 guarantee: the console says how many of the corpus actually ran, per contract. */
+/** The visible half of the #410 guarantee: the console says how many of the corpus actually ran. */
 function completenessLine(run: RunManifest): string {
-  const split = `${run.legacy.ran}/${run.legacy.active} legacy · ${run.final.ran}/${run.final.registered} final`;
+  const split = `${run.final.ran}/${run.final.registered} policies`;
   if (run.selection.kind !== "all") {
     // A selected run's own line says what it is NOT, in the same place a reader looks for the verdict.
     return [
-      `single-pass: SELECTED RUN (--${run.selection.kind} ${run.selection.names.join(`, --${run.selection.kind} `)}) — ran ${run.ran}/${run.active} selected gate(s) (${split}) of ${run.corpusFiles} corpus file(s)`,
+      `check:structure: SELECTED RUN (--${run.selection.kind} ${run.selection.names.join(`, --${run.selection.kind} `)}) — ran ${run.ran}/${run.active} selected gate(s) (${split}) of ${run.corpusFiles} corpus file(s)`,
       `  this is NOT a whole-corpus verdict and reports/${STRUCTURE_REPORT_NAME} was NOT republished — read ${run.artifactDir}/${STRUCTURE_REPORT_NAME}`,
       ...(run.incompleteReasons.length === 0 ? [] : ["  the SELECTED run is itself INCOMPLETE:", ...run.incompleteReasons.map((r) => `  ‼ ${r}`)]),
     ].join("\n");
   }
   if (run.incompleteReasons.length === 0) {
-    return `single-pass: ran ${run.ran}/${run.active} active gate(s) (${split}) of ${run.corpusFiles} corpus file(s) — run COMPLETE (run ${run.runId} → ${run.artifactDir}/${STRUCTURE_REPORT_NAME})`;
+    return `check:structure: ran ${run.ran}/${run.active} registered gate(s) (${split}) of ${run.corpusFiles} corpus file(s) — run COMPLETE (run ${run.runId} → ${run.artifactDir}/${STRUCTURE_REPORT_NAME})`;
   }
   return [
-    `single-pass: run INCOMPLETE — the report is NOT a verdict (run ${run.runId}; ${split}):`,
+    `check:structure: run INCOMPLETE — the report is NOT a verdict (run ${run.runId}; ${split}):`,
     ...run.incompleteReasons.map((r) => `  ‼ ${r}`),
     "  See tooling/src/verify/contract/run-manifest.ts (#410).",
   ].join("\n");

@@ -14,27 +14,25 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { spawnNicedChild } from "@orb/tooling/_shared/proc";
-import { GATE_PHASES } from "../../../../tooling/src/verify/contract/pass.ts";
-import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
+import { POLICY_PHASES } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
+import { plantedPolicySource } from "../../../support/planted-gate-corpus.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-/** A minimal, VALID descriptor: scans everything, flags nothing. `scanRoot: () => true` + a `visitFile`
- *  keeps it out of the zero-scan alarm, so a failure here is never that alarm wearing a disguise. */
-const OK_GATE = `export const gate = {
-  name: "planted-ok",
-  docRow: "Core-Enforcement-Active-Gates.md",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message: "the planted control gate — see tooling/src/verify/contract/run-manifest.ts",
-  scanRoot: () => true,
-  visitFile: () => undefined,
-  mustFlag: [{ files: "export const a = 1;\\n" }],
-  mustPass: [{ files: "export const b = 1;\\n" }],
-};
-`;
+/** A minimal, VALID policy that reports nothing ON THIS TREE: its one subject path is deliberately not
+ *  planted (tests/support/planted-gate-corpus.ts states the silence convention). Its `mustFlag` row still
+ *  fires on its own virtual fixture, so the loader's proof floor is satisfied without a second shape. */
+const okPolicy = (repoRoot: string, id = "planted-ok", extraHooks?: string): string =>
+  plantedPolicySource({
+    repoRoot,
+    id,
+    subjectPath: "packages/x/src/unplanted.ts",
+    token: "unplanted",
+    ...(extraHooks === undefined ? {} : { extraHooks }),
+  });
 
-/** The file the planted gate scans — without it every planted run trips the zero-scan alarm instead. */
+/** The file the planted corpus walks — a run over an empty fileset would measure something else. */
 const SCANNED = { "packages/x/src/y.ts": "export const y = 1;\n" };
 const GATE_DIR = "tooling/src/verify/gates";
 const HOG_ITERATIONS = 40_000_000;
@@ -119,8 +117,12 @@ function publishedRunId(root: string): string {
 
 // ── the POSITIVE control: a healthy planted corpus reconciles and IS a verdict ──────────────────────
 
-test("a complete run stamps its identity, reconciles ran===active, and exits clean", { timeout: CLI_CASE_BUDGET_MS }, async ({ plantedTree, runCli }) => {
-  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-ok.ts`]: OK_GATE });
+test("a complete run stamps its identity, reconciles ran===active, and exits clean", { timeout: CLI_CASE_BUDGET_MS }, async ({
+  plantedTree,
+  repoRoot,
+  runCli,
+}) => {
+  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-ok.ts`]: okPolicy(repoRoot) });
   const res = await runCli("verify", ["structure"], { cwd: root });
   expect(res.code).toBe(0);
   const run = manifest(root);
@@ -131,8 +133,12 @@ test("a complete run stamps its identity, reconciles ran===active, and exits cle
   expect(publishedRunId(root)).toBe(run.runId);
 });
 
-test("`show` reads a complete artifact (the negative control for the refusal below)", { timeout: CLI_CASE_BUDGET_MS }, async ({ plantedTree, runCli }) => {
-  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-ok.ts`]: OK_GATE });
+test("`show` reads a complete artifact (the negative control for the refusal below)", { timeout: CLI_CASE_BUDGET_MS }, async ({
+  plantedTree,
+  repoRoot,
+  runCli,
+}) => {
+  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-ok.ts`]: okPolicy(repoRoot) });
   expect((await runCli("verify", ["structure"], { cwd: root })).code).toBe(0);
   const shown = await runCli("verify", ["show"], { cwd: root });
   expect(shown.code).toBe(0);
@@ -146,30 +152,35 @@ test("`show` reads a complete artifact (the negative control for the refusal bel
 // The planted hog burns a known ~60ms in its `run` hook: a report that cannot tell it from the free gate
 // beside it is the artifact this arm exists to refuse.
 
-const HOG_GATE = OK_GATE.replace(
-  "visitFile: () => undefined,",
-  `visitFile: () => undefined,\n  run: () => {\n    let burnt = 0;\n    for (let i = 0; i < ${String(HOG_ITERATIONS)}; i += 1) {\n      burnt += i % 7;\n    }\n    if (burnt < 0) {\n      throw new Error("unreachable — the planted cost must not be optimised away");\n    }\n  },`,
-).replace('"planted-ok"', '"planted-hog"');
+const hogPolicy = (repoRoot: string): string =>
+  okPolicy(
+    repoRoot,
+    "planted-hog",
+    `evaluate: () => {\n      let burnt = 0;\n      for (let i = 0; i < ${String(HOG_ITERATIONS)}; i += 1) {\n        burnt += i % 7;\n      }\n      if (burnt < 0) {\n        throw new Error("unreachable — the planted cost must not be optimised away");\n      }\n    },`,
+  );
 
 interface TimingView {
-  readonly timing: { readonly totalMs: number; readonly gateMs: number };
+  readonly policy: { readonly timing: { readonly totalMs: number; readonly policyMs: number; readonly factMs: number } } | null;
   readonly gates: readonly { readonly name: string; readonly timing: { readonly totalMs: number; readonly phaseMs: Record<string, number> } }[];
 }
 
-test("the artifact carries per-gate wall-clock, and the summary line names the slowest", { timeout: CLI_CASE_BUDGET_MS }, async ({ plantedTree, runCli }) => {
-  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-ok.ts`]: OK_GATE, [`${GATE_DIR}/planted-hog.ts`]: HOG_GATE });
+test("the artifact carries per-policy wall-clock, and the summary line names the slowest", { timeout: CLI_CASE_BUDGET_MS }, async ({
+  plantedTree,
+  repoRoot,
+  runCli,
+}) => {
+  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-ok.ts`]: okPolicy(repoRoot), [`${GATE_DIR}/planted-hog.ts`]: hogPolicy(repoRoot) });
   const res = await runCli("verify", ["structure"], { cwd: root });
   expect(res.code).toBe(0);
   const report = runArtifact<TimingView>(root);
 
-  // EVERY gate is timed — a report where only the interesting ones carry a number is the silent
+  // EVERY policy is timed — a report where only the interesting ones carry a number is the silent
   // `undefined` the writer refuses (tests/tooling/verify/lib/timing.test.ts holds that arm).
   expect(report.gates).toHaveLength(2);
   for (const gate of report.gates) {
     expect(Number.isFinite(gate.timing.totalMs)).toBe(true);
-    const phases = GATE_PHASES;
-    expect(Object.keys(gate.timing.phaseMs).toSorted()).toEqual([...phases].toSorted());
-    const sum = phases.reduce((total: number, phase) => total + (gate.timing.phaseMs[phase] ?? 0), 0);
+    expect(Object.keys(gate.timing.phaseMs).toSorted()).toEqual([...POLICY_PHASES].toSorted());
+    const sum = POLICY_PHASES.reduce((total: number, phase) => total + (gate.timing.phaseMs[phase] ?? 0), 0);
     expect(gate.timing.totalMs).toBeCloseTo(sum, 3);
   }
 
@@ -178,36 +189,38 @@ test("the artifact carries per-gate wall-clock, and the summary line names the s
   // absolute millisecond is asserted — that would be a claim about the machine, not about the ledger.
   const hog = report.gates.find((gate) => gate.name === "planted-hog");
   const free = report.gates.find((gate) => gate.name === "planted-ok");
-  const hogRun = hog?.timing.phaseMs["run"] ?? 0;
+  const hogEvaluate = hog?.timing.phaseMs["evaluate"] ?? 0;
   const freeTotal = free?.timing.totalMs ?? Number.POSITIVE_INFINITY;
-  expect(hogRun).toBeGreaterThan(0);
-  expect(hogRun).toBeGreaterThan(freeTotal);
+  expect(hogEvaluate).toBeGreaterThan(0);
+  expect(hogEvaluate).toBeGreaterThan(freeTotal);
   expect(hog?.timing.totalMs ?? 0).toBeGreaterThan(freeTotal);
-  // The free gate has no `run` hook at all, so its own run phase must be exactly zero — the negative
-  // control that says the hog's number is the HOOK's cost and not a per-gate constant.
-  expect(free?.timing.phaseMs["run"]).toBe(0);
+  // The free policy has no `evaluate` hook at all, so its own evaluate phase must be exactly zero — the
+  // negative control that says the hog's number is the HOOK's cost and not a per-policy constant.
+  expect(free?.timing.phaseMs["evaluate"]).toBe(0);
 
-  // The ledger adds up: the pass wall clock encloses the sum of its gates, by construction and not by
-  // rounding luck (per-gate numbers floor, the pass total ceils).
-  expect(report.timing.gateMs).toBeCloseTo((hog?.timing.totalMs ?? 0) + (free?.timing.totalMs ?? 0), 3);
-  expect(report.timing.totalMs).toBeGreaterThanOrEqual(report.timing.gateMs);
+  // The ledger adds up: the pass wall clock encloses the sum of its policies, by construction and not by
+  // rounding luck (per-policy numbers floor, the pass total ceils).
+  const passTiming = report.policy?.timing;
+  expect(passTiming?.policyMs ?? 0).toBeCloseTo((hog?.timing.totalMs ?? 0) + (free?.timing.totalMs ?? 0), 3);
+  expect(passTiming?.totalMs ?? 0).toBeGreaterThanOrEqual((passTiming?.policyMs ?? 0) + (passTiming?.factMs ?? 0));
 
-  // The console half: the format a reader diffs across runs, and the slowest gate named on it.
-  expect(res.stdout).toContain("single-pass cost: ");
-  expect(res.stdout).toContain("ms wall — gate hooks ");
-  expect(res.stdout).toMatch(/slowest 2: planted-hog \d+\.\dms \(run\) · planted-ok /u);
-  expect(res.stdout).toContain("(per-gate timing: reports/runs/structure/");
+  // The console half: the format a reader diffs across runs, and the slowest policy named on it.
+  expect(res.stdout).toContain("final-pass cost: ");
+  expect(res.stdout).toContain("ms wall — policies ");
+  expect(res.stdout).toMatch(/slowest 2: planted-hog \d+\.\dms \(evaluate\) · planted-ok /u);
+  expect(res.stdout).toContain("(per-policy timing: reports/runs/structure/");
 });
 
 // ── control 1: a corpus file that registers NOTHING makes the run SHORT, not clean ──────────────────
 
 test("a corpus file exporting no descriptor is a SHORT run — exit 2, never a shorter clean report", { timeout: CLI_CASE_BUDGET_MS }, async ({
   plantedTree,
+  repoRoot,
   runCli,
 }) => {
   const root = await plantedTree({
     ...SCANNED,
-    [`${GATE_DIR}/planted-ok.ts`]: OK_GATE,
+    [`${GATE_DIR}/planted-ok.ts`]: okPolicy(repoRoot),
     // The loader `continue`s past this. Before #410 that was invisible: the report simply had one fewer
     // entry, and every count a reader could reach agreed with itself.
     [`${GATE_DIR}/planted-silent.ts`]: "export const notADescriptor = 1;\n",
@@ -227,11 +240,12 @@ test("a corpus file exporting no descriptor is a SHORT run — exit 2, never a s
 
 test("a gate that throws at LOAD exits 2 and leaves an artifact that says it is not a verdict", { timeout: CLI_CASE_BUDGET_MS }, async ({
   plantedTree,
+  repoRoot,
   runCli,
 }) => {
   const root = await plantedTree({
     ...SCANNED,
-    [`${GATE_DIR}/planted-ok.ts`]: OK_GATE,
+    [`${GATE_DIR}/planted-ok.ts`]: okPolicy(repoRoot),
     [`${GATE_DIR}/planted-boom.ts`]: 'throw new Error("planted load failure");\n',
   });
   const res = await runCli("verify", ["structure"], { cwd: root });
@@ -257,17 +271,19 @@ test("a gate that throws at LOAD exits 2 and leaves an artifact that says it is 
  *  assertions below are the halves that must not disagree: the row is NOT ok, and the tool error names the
  *  same gate. Asserting the sibling stays `ok: true` is what stops the pin passing on a runtime that simply
  *  reds everything. */
-test("a gate that throws at RUN publishes an artifact whose row reads ok:false, not a clean zero", { timeout: CLI_CASE_BUDGET_MS }, async ({
+test("a policy that throws at EVALUATE publishes an artifact whose row reads ok:false, not a clean zero", { timeout: CLI_CASE_BUDGET_MS }, async ({
   plantedTree,
+  repoRoot,
   runCli,
 }) => {
   const root = await plantedTree({
     ...SCANNED,
-    [`${GATE_DIR}/planted-ok.ts`]: OK_GATE,
-    [`${GATE_DIR}/planted-run-throw.ts`]: OK_GATE.replace(
-      "visitFile: () => undefined,",
-      '  run: () => {\n    throw new Error("planted run-phase failure");\n  },',
-    ).replace('"planted-ok"', '"planted-run-throw"'),
+    [`${GATE_DIR}/planted-ok.ts`]: okPolicy(repoRoot),
+    [`${GATE_DIR}/planted-run-throw.ts`]: okPolicy(
+      repoRoot,
+      "planted-run-throw",
+      'evaluate: () => {\n      throw new Error("planted run-phase failure");\n    },',
+    ),
   });
   const res = await runCli("verify", ["structure"], { cwd: root });
   expect(res.code).toBe(2);
@@ -295,10 +311,11 @@ test("a run KILLED mid-pass leaves the in-flight stub, and `show` refuses it", {
     // A gate whose `run` announces entry through a planted readiness file and never returns. The parent
     // SIGKILLs only after that signal — the same abnormal-termination class as an operator `kill -9` or a
     // lefthook wall-clock kill, without assuming startup completed inside an arbitrary sleep.
-    [`${GATE_DIR}/planted-hang.ts`]: `import { writeFileSync } from "node:fs";\n${OK_GATE.replace(
-      "visitFile: () => undefined,",
-      `run: () => {\n    writeFileSync(${JSON.stringify(readyFile)}, "ready");\n    while (true) {\n      /* planted hang */\n    }\n  },`,
-    ).replace('"planted-ok"', '"planted-hang"')}`,
+    [`${GATE_DIR}/planted-hang.ts`]: `import { writeFileSync } from "node:fs";\n${okPolicy(
+      repoRoot,
+      "planted-hang",
+      `evaluate: () => {\n      writeFileSync(${JSON.stringify(readyFile)}, "ready");\n      while (true) {\n        /* planted hang */\n      }\n    },`,
+    )}`,
   });
   let output = "";
   const child = spawnNicedChild(process.execPath, [join(repoRoot, "tooling", "src", "verify", "cli.ts"), "structure"], {
@@ -328,15 +345,17 @@ test("a run KILLED mid-pass leaves the in-flight stub, and `show` refuses it", {
 
 test("readiness followed by a harness timeout is not accepted as an OOM", { timeout: TIMEOUT_CHILD_BUDGET_MS + SUBPROCESS_CLEANUP_BUDGET_MS }, async ({
   plantedTree,
+  repoRoot,
   runCli,
 }) => {
   const readyFile = "planted-timeout-ready";
   const root = await plantedTree({
     ...SCANNED,
-    [`${GATE_DIR}/planted-timeout.ts`]: `import { writeFileSync } from "node:fs";\n${OK_GATE.replace(
-      "visitFile: () => undefined,",
-      `run: () => {\n    writeFileSync(${JSON.stringify(readyFile)}, "ready");\n    while (true) {\n      /* planted timeout */\n    }\n  },`,
-    ).replace('"planted-ok"', '"planted-timeout"')}`,
+    [`${GATE_DIR}/planted-timeout.ts`]: `import { writeFileSync } from "node:fs";\n${okPolicy(
+      repoRoot,
+      "planted-timeout",
+      `evaluate: () => {\n      writeFileSync(${JSON.stringify(readyFile)}, "ready");\n      while (true) {\n        /* planted timeout */\n      }\n    },`,
+    )}`,
   });
   const res = await runCli("verify", ["structure"], { cwd: root, timeoutMs: TIMEOUT_CHILD_BUDGET_MS });
   expect(existsSync(join(root, readyFile)), res.stderr).toBe(true);
@@ -346,17 +365,19 @@ test("readiness followed by a harness timeout is not accepted as an OOM", { time
 
 test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves the in-flight stub", {
   timeout: OOM_CHILD_BUDGET_MS + SUBPROCESS_CLEANUP_BUDGET_MS,
-}, async ({ plantedTree, runCli }) => {
+}, async ({ plantedTree, repoRoot, runCli }) => {
   const readyFile = "planted-oom-ready";
   const root = await plantedTree({
     ...SCANNED,
     // Allocation without bound under a bounded heap: node aborts (exit 134 / SIGABRT). The readiness
-    // marker proves the loader completed and the planted gate entered `run` before memory exhaustion, so
-    // an ever-heavier startup cannot satisfy this control by crashing before the in-flight stub exists.
-    [`${GATE_DIR}/planted-oom.ts`]: `import { writeFileSync } from "node:fs";\n${OK_GATE.replace(
-      "visitFile: () => undefined,",
-      `run: () => {\n    writeFileSync(${JSON.stringify(readyFile)}, "ready");\n    const hog = [];\n    while (true) {\n      hog.push(new Array(1_000_000).fill(0));\n    }\n  },`,
-    ).replace('"planted-ok"', '"planted-oom"')}`,
+    // marker proves the loader completed and the planted policy entered `evaluate` before memory
+    // exhaustion, so an ever-heavier startup cannot satisfy this control by crashing before the in-flight
+    // stub exists.
+    [`${GATE_DIR}/planted-oom.ts`]: `import { writeFileSync } from "node:fs";\n${okPolicy(
+      repoRoot,
+      "planted-oom",
+      `evaluate: () => {\n      writeFileSync(${JSON.stringify(readyFile)}, "ready");\n      const hog = [];\n      while (true) {\n        hog.push(new Array(1_000_000).fill(0));\n      }\n    },`,
+    )}`,
   });
   const res = await runCli("verify", ["structure"], {
     cwd: root,
@@ -378,8 +399,8 @@ test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves th
 // ── THE REAL-CORPUS ROSTER, successor to two `check-gates.repo.int.test.ts` arms (#2176 Phase F) ────────
 //
 // That suite planted `__g_*` fixtures inside the real package tree, which is why it was orchestrator-only
-// and not concurrency-safe with itself, and it died at `lib/loader.ts`'s empty-legacy-roster refusal once
-// the corpus went all-final. Two of its eight arms had FINAL subjects and land here:
+// and not concurrency-safe with itself, and it died at `lib/loader.ts`'s (since-retired) empty-legacy-roster
+// refusal once the corpus went all-final. Two of its eight arms had FINAL subjects and land here:
 //
 //   the reserved-proof-files arm (proof surfaces stay project inputs but never become descriptor corpus,
 //   and the roster accounts for every module once) — the `__g_`/`__dc_` exclusion and the roster
@@ -391,7 +412,7 @@ test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves th
 // The other two final-subject arms went to their own owners rather than here, because the property is not
 // this file's: the population denominator on every rendered final line is the RENDERER's
 // (`tests/tooling/verify/lib/render.int.test.ts`), and "no run is a NON-VERDICT" is the production EXIT
-// contract, pinned against a real CLI child in `structure-mixed.suite.int.test.ts`'s withheld-owner arm
+// contract, pinned against a real CLI child in `structure-corpus.suite.int.test.ts`'s withheld-owner arm
 // (exit 2, `⚠ … WITHHELD by authority`) — a stronger receipt than observing one clean tree.
 //
 // SYNTHETIC-CORPUS controls for both halves stay in `tests/tooling/verify/lib/loader.test.ts`; what is
@@ -399,13 +420,13 @@ test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves th
 test("the real gate corpus registers every module it holds, admits no probe sentinel, and accounts for each row once", {
   timeout: CLI_CASE_BUDGET_MS,
 }, async ({ repoRoot }) => {
-  const corpus = await loadMixedGateCorpus(repoRoot);
+  const corpus = await loadGateCorpus(repoRoot);
   // A denominator first: an empty corpus would satisfy every assertion below vacuously.
   expect(corpus.files.length).toBeGreaterThan(8);
-  expect(corpus.files.filter((file) => file.includes("/__g_") || file.includes("/__dc_"))).toEqual([]);
+  expect(corpus.files.filter((file: string) => file.includes("/__g_") || file.includes("/__dc_"))).toEqual([]);
   // ANTI-DRIFT: a module in the gates dir that registers nothing is a gate file doing nothing, silently.
   expect(corpus.unregistered).toEqual([]);
   // THE ACCOUNTING IDENTITY the run manifest reconciles: one roster row per module, nothing vanishing.
-  expect(corpus.files.length).toBe(corpus.legacy.length + corpus.final.length + corpus.unregistered.length);
+  expect(corpus.files.length).toBe(corpus.gates.length + corpus.unregistered.length);
   expect(corpus.roster.map(({ path }) => path)).toEqual([...corpus.files].toSorted());
 });

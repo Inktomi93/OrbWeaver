@@ -45,7 +45,7 @@
 //     commit credited with the repair, `eb51d4313`, never touched THIS file (4-file stat) — its last
 //     toucher `a7d88287b` predates it — which is how a shrink receipt kept naming the wrong proof.** The
 //     same hunk first added a paragraph claiming this suite calls `loadGates()` and so shrinks with every
-//     conversion; it calls `loadMixedGateCorpus` at `:100` and the census drives BOTH engines. Deleted
+//     conversion; it calls the whole-corpus loader and the census drives every policy in it. Deleted
 //     2026-09-13 — the header 26 lines above already states the true premise, and a comment-honesty fix
 //     that ships a new false comment is the disease.
 //   • `owner-scoped-upserts` ["bracket","namespace"] → ["bracket"] — the SAME reader change, inherited: the
@@ -89,7 +89,7 @@ import { Project, SyntaxKind } from "ts-morph";
 import type { GatePolicy, GatePolicyProof } from "../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../tooling/src/verify/contract/policy.ts";
 import type { SpellingBlindSet } from "../../tooling/src/verify/contract/spelling-twin-blindness.ts";
-import { loadMixedGateCorpus } from "../../tooling/src/verify/lib/loader.ts";
+import { loadGateCorpus } from "../../tooling/src/verify/lib/loader.ts";
 import { verifyPolicyProofs } from "../../tooling/src/verify/ops/policy-conformance.ts";
 import { spellingTwinCensus } from "../../tooling/src/verify/ops/spelling-twin-blindness.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
@@ -98,10 +98,11 @@ import { scaledBudget } from "./_load-budget.ts";
 const ROOT = join(import.meta.dirname, "..", "..");
 const LEDGER_REL = "tests/tooling/gate-spelling-twins.baseline.json";
 
-/** LOAD-HONEST BUDGET, same reasoning as gate-conformance.int: this drives the respelled proofs of BOTH
- *  engines in-process — pure CPU with no child process to hang a legible timeout on. Measured 2026-09-12 on
- *  the mixed corpus at ~100s wall (245 gates examined), so the base is ~2.5× the measurement rather than the
- *  120s the legacy-only sweep needed. */
+/** LOAD-HONEST BUDGET: this drives every respelled proof in-process — pure CPU with no child process to
+ *  hang a legible timeout on. Measured 2026-09-12 on the then-mixed corpus at ~100s wall (245 gates
+ *  examined), so the base is ~2.5× the measurement. The legacy engine retired at #2176 Phase F and the
+ *  census now drives one engine over the whole corpus; the budget is deliberately left where the
+ *  measurement put it rather than tightened on an untaken measurement. */
 const TWIN_BUDGET = scaledBudget(240_000, 4);
 
 /** The one anti-vacuum floor: a census over an empty corpus produces an empty blind set and would satisfy
@@ -120,7 +121,7 @@ function scratchParser(): Project {
 const REGEN = `the ledger is hand-maintained: paste the JSON printed below into ${LEDGER_REL} and run pnpm exec biome format --write on it (biome collapses the short arrays; this test parses the file, so the format is free). Do that ONLY to record a SHRINK — a gate that became blind is a defect to fix in tooling/src/verify/lib/symbol-reference.ts, never a new row.`;
 
 test("no gate is blind to a respelling of its own mustFlag fixture beyond the committed, shrink-only ledger", { timeout: TWIN_BUDGET }, async () => {
-  const corpus = await loadMixedGateCorpus(ROOT);
+  const corpus = await loadGateCorpus(ROOT);
   const ledger = JSON.parse(readFileSync(join(ROOT, LEDGER_REL), "utf8")) as { readonly blind: SpellingBlindSet };
   const census = spellingTwinCensus(corpus, scratchParser());
 
@@ -201,7 +202,7 @@ test("THE PLANTED CONTROL, FINAL side: the same blindness is detected on a defin
   expect(verifyPolicyProofs([naive])).toEqual([]);
   expect(verifyPolicyProofs([migrated])).toEqual([]);
 
-  const census = spellingTwinCensus({ legacy: [], final: [naive, migrated] }, scratchParser());
+  const census = spellingTwinCensus({ gates: [naive, migrated] }, scratchParser());
   expect(census.blind).toEqual({ "twin-control-final-naive": ["bracket"] });
   expect({ examined: census.examined, skipped: census.skipped }).toEqual({ examined: 2, skipped: [] });
 });
@@ -233,7 +234,7 @@ for (const sourceRow of ["annotated", "unannotated"] as const) {
     const naive = reviewedGrantControl(`twin-grant-${sourceRow}-naive`, sourceRow, false);
     const migrated = reviewedGrantControl(`twin-grant-${sourceRow}-migrated`, sourceRow, true);
     expect(verifyPolicyProofs([naive, migrated])).toEqual([]);
-    const census = spellingTwinCensus({ legacy: [], final: [naive, migrated] }, scratchParser());
+    const census = spellingTwinCensus({ gates: [naive, migrated] }, scratchParser());
     expect(census).toEqual({ blind: { [naive.id]: ["bracket"] }, examined: 2, skipped: [] });
   });
 }
@@ -248,7 +249,7 @@ for (const phase of ["baseline", "grant"] as const) {
     const failures = verifyPolicyProofs([broken]);
     expect(failures).toHaveLength(1);
     expect(failures[0]).toMatchObject({ arm: "mustFlag", exampleIndex: 0 });
-    expect(() => spellingTwinCensus({ legacy: [], final: [broken] }, scratchParser())).toThrow(
+    expect(() => spellingTwinCensus({ gates: [broken] }, scratchParser())).toThrow(
       expect.objectContaining({
         message: expect.stringContaining("supporting proof"),
         cause: expect.objectContaining({ policyId: broken.id, arm: "mustFlag", exampleIndex: 1, detail: failures[0]?.detail }),
@@ -262,7 +263,7 @@ test("reviewed-grant twins: a missing authored witness remains an invalid descri
     { mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_FLAG }, why: "a finding without an authored grant identity" },
   ]);
   expect(() => verifyPolicyProofs([missing])).toThrow("carries no grant identity witness");
-  expect(() => spellingTwinCensus({ legacy: [], final: [missing] }, scratchParser())).toThrow("carries no grant identity witness");
+  expect(() => spellingTwinCensus({ gates: [missing] }, scratchParser())).toThrow("carries no grant identity witness");
 });
 
 for (const arm of ["mustPass", "mustRefuse"] as const) {
@@ -290,7 +291,7 @@ for (const arm of ["mustPass", "mustRefuse"] as const) {
       mustRefuse: [refusalProof],
     } as GatePolicy);
     expect(verifyPolicyProofs([valid])).toEqual([]);
-    expect(spellingTwinCensus({ legacy: [], final: [valid] }, scratchParser())).toEqual({ blind: {}, examined: 1, skipped: [] });
+    expect(spellingTwinCensus({ gates: [valid] }, scratchParser())).toEqual({ blind: {}, examined: 1, skipped: [] });
 
     const broken = defineGate({
       ...valid,
@@ -301,7 +302,7 @@ for (const arm of ["mustPass", "mustRefuse"] as const) {
     const failures = verifyPolicyProofs([broken]);
     expect(failures).toHaveLength(1);
     expect(failures[0]).toMatchObject({ policyId: broken.id, arm, exampleIndex: 0 });
-    expect(() => spellingTwinCensus({ legacy: [], final: [broken] }, scratchParser())).toThrow(
+    expect(() => spellingTwinCensus({ gates: [broken] }, scratchParser())).toThrow(
       expect.objectContaining({ message: expect.stringContaining("supporting proof"), cause: failures[0] }),
     );
   });

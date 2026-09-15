@@ -22,6 +22,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { FinalPolicyRow, StructurePolicyReport, StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
+import { plantedPolicySource } from "../../../support/planted-gate-corpus.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -30,7 +31,7 @@ const RUN_TIMEOUT_MS = scaledBudget(120_000);
 
 const GATES = "tooling/src/verify/gates";
 const POLICY_ID = "planted-warning";
-const LEGACY_ID = "planted-ok";
+const CONTROL_ID = "planted-ok";
 /** The one file the planted policy reports on — every other source file in the tree is silent. */
 const SUBJECT = "packages/client/src/features/probe/warned.ts";
 const SUBJECT_LINE = "export const warned = 1;\n";
@@ -81,25 +82,16 @@ function plantedWarningPolicy(repoRoot: string): string {
   ].join("\n");
 }
 
-/** The legacy control (structure.int.test.ts's shape): scans everything, flags nothing. It keeps the legacy
- *  side non-empty and its total at 0, so `report.total` on the promoted run is unambiguously the final side's. */
-const LEGACY_GATE = `export const gate = {
-  name: ${JSON.stringify(LEGACY_ID)},
-  docRow: "Core-Enforcement-Active-Gates.md",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message: "the planted control gate — it flags nothing",
-  scanRoot: () => true,
-  visitFile: () => undefined,
-  mustFlag: [{ files: "export const a = 1;\\n" }],
-  mustPass: [{ files: "export const b = 1;\\n" }],
-};
-`;
+/** A SECOND policy that reports nothing on this tree (its one subject path is never planted — the silence
+ *  convention, tests/support/planted-gate-corpus.ts). It keeps the roster from being a single row, so
+ *  `report.total` on the promoted run is unambiguously the WARNING policy's rather than the whole corpus's. */
+const controlPolicy = (repoRoot: string): string =>
+  plantedPolicySource({ repoRoot, id: CONTROL_ID, subjectPath: "packages/x/src/unplanted.ts", token: "unplanted" });
 
 function plantedTreeFiles(repoRoot: string): Readonly<Record<string, string>> {
   return {
     [`${GATES}/${POLICY_ID}.ts`]: plantedWarningPolicy(repoRoot),
-    [`${GATES}/${LEGACY_ID}.ts`]: LEGACY_GATE,
+    [`${GATES}/${CONTROL_ID}.ts`]: controlPolicy(repoRoot),
     [SUBJECT]: SUBJECT_LINE,
     [QUIET]: QUIET_LINE,
   };
@@ -118,8 +110,8 @@ function policyOf(report: StructureReport): StructurePolicyReport {
 
 function warningRow(report: StructureReport): FinalPolicyRow {
   const row = report.gates.find((gate) => gate.name === POLICY_ID);
-  if (row === undefined || row.contract !== "final") {
-    throw new Error(`no final row for ${POLICY_ID} in ${report.gates.map((gate) => gate.name).join(", ")}`);
+  if (row === undefined) {
+    throw new Error(`no row for ${POLICY_ID} in ${report.gates.map((gate) => gate.name).join(", ")}`);
   }
   return row;
 }
@@ -135,7 +127,6 @@ test("structure: a warning finding blocks NOTHING by default and blocks with --f
   const offReport = readArtifact(root);
   expect(policyOf(offReport).authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 0, failOnWarnings: false });
   expect(offReport.reconciliation).toEqual({
-    legacyFindings: 0,
     finalEffectiveFindings: 1,
     nonblockingWarnings: 1,
     authorityAlarms: 0,
@@ -155,7 +146,6 @@ test("structure: a warning finding blocks NOTHING by default and blocks with --f
   const onReport = readArtifact(root);
   expect(policyOf(onReport).authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 1, failOnWarnings: true });
   expect(onReport.reconciliation).toEqual({
-    legacyFindings: 0,
     finalEffectiveFindings: 1,
     nonblockingWarnings: 0,
     authorityAlarms: 0,
@@ -167,13 +157,11 @@ test("structure: a warning finding blocks NOTHING by default and blocks with --f
   expect(policyOf(onReport).toolErrors).toEqual([]);
   expect(policyOf(onReport).authority.toolErrors).toEqual([]);
   expect(policyOf(onReport).authority.alarms).toEqual([]);
-  expect(onReport.toolErrors).toEqual([]);
 
-  // ── the flag moves the VERDICT and nothing else: identical findings, identical legacy side ──
+  // ── the flag moves the VERDICT and nothing else: identical findings, identical roster ──
   expect(warningRow(onReport).violations).toEqual(warningRow(offReport).violations);
   expect(onReport.gates.map((gate) => `${gate.contract}:${gate.name}`)).toEqual(offReport.gates.map((gate) => `${gate.contract}:${gate.name}`));
   expect(onReport.run.final).toEqual(offReport.run.final);
-  expect(onReport.run.legacy).toEqual(offReport.run.legacy);
 });
 
 test("structure refuses an unknown tail BEFORE it opens a run slot, so a typo leaves no artifact at all", { timeout: RUN_TIMEOUT_MS }, async ({

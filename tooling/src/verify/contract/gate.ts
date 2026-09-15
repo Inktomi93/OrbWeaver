@@ -1,10 +1,27 @@
-// The ONE interface every single-pass gate module exports. A gate never walks anything itself — it
-// declares the SyntaxKinds it wants + a per-node predicate, and the runner (pass.ts) feeds it via one
-// shared walk.
-import type { Node, Project, SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
+// THE SHARED EXEMPTION + FINDING VOCABULARY — what survives of the legacy single-pass gate contract after
+// the #2176 Phase F cutover retired its runtime (the `GateDescriptor` interface, `GateRunCtx`, `GateExample`,
+// `GateScanDeclaration`, `Scope`, `GateStatus` and `ScopeSafety` were deleted with `lib/pass.ts` on
+// 2026-09-14). Three shapes are left and none of them is a descriptor:
+//   `Finding`        — the coordinate shape `lib/grant-liveness.ts` still produces for its config-liveness
+//                      consumers (`biome-grant-liveness`, `depcruise-grant-liveness`, `tsconfig-entry-liveness`,
+//                      `runner-config-path-liveness`), which map it onto `ctx.report.*`;
+//   `ExemptionRow` / `ExemptionTable` — the canonical exemption vocabulary.
+//
+// THE FILENAME IS LOAD-BEARING AND IS NOT A LEFTOVER. `gates/policy-legacy-imports.ts` keys ARM A on
+// `contract/gate.ts` as a FORBIDDEN IMPORT HOME (a gate module receives no grant table,
+// gate-runtime-standardization.md §12.5) and ARM D on the EXACT path
+// `/tooling/src/verify/contract/gate.ts` as the type identity of `ExemptionTable`/`ExemptionRow`. Moving
+// these two declarations would retire that arm's real-tree subject, which is enforcement, not tidiness —
+// so the ruling survives and its INPUT changed: the home stays, the descriptor went.
+//
+// AND THE HOME IS A KNOWN RESIDUE, NOT A DESTINATION. `ExemptionTable` as a row type any gate-adjacent
+// module can reach is still the #1922 / #2147 RETYPE obligation: each surviving table migrates to exact
+// reviewed grants keyed on `(subject, operation)`, or gets a per-subject row interface of its own. When the
+// last carrier is retyped this file has no consumer left and goes with it. Do not read its survival as a
+// sanctioned place to declare a new exemption table.
 
 /** A single-pass finding — one per distinct violation instance (a class-string gate emits one per
- *  offending token, not one per className). The reason lives once on the gate descriptor
+ *  offending token, not one per className). The reason lives once on the policy
  *  (`message`/`fix`); a Finding never repeats prose. `message`/`fix` here are per-occurrence overrides
  *  for the rare finding whose text varies (e.g. a stale-registry arm naming the dead entry). */
 export interface Finding {
@@ -35,187 +52,3 @@ export interface ExemptionRow {
  *  arm — a row matching zero live sites must be RED, not silence (GATE-AUTHORING.md §"The exemption
  *  grammar"). Kept as an alias rather than a branded type so a gate can widen the row by intersection. */
 export type ExemptionTable<Row extends ExemptionRow = ExemptionRow> = Readonly<Record<string, Row>>;
-
-export type ScopeSafety =
-  | "incremental-safe" // per-file verdicts: running on just the changed files is correct for those files
-  | "whole-project"; // cross-file: registry/parity/uniqueness/coverage — needs the full tree
-
-export type GateStatus = "active" | "dormant";
-
-/** What fileset a run covers. v1 uses only `project`; the field lets a gate's finalize self-guard its
- *  stale/ratchet arm on `scope.kind === "project"`. */
-export type Scope =
-  | { readonly kind: "project" }
-  | { readonly kind: "package"; readonly name: string }
-  | { readonly kind: "folder"; readonly glob: string }
-  | { readonly kind: "changed"; readonly paths: readonly string[] };
-
-/** A self-proof example: single virtual file (per-node gates) or a multi-file map (whole-project gates
- *  whose bite depends on another file). */
-export interface GateExample {
-  /** `"code string"` → one virtual file at `at` (or a scanRoot default); a path→source map → a mini-project. */
-  readonly files: string | Readonly<Record<string, string>>;
-  /** Single-string form only: the virtual path the snippet lands at. */
-  readonly at?: string;
-  /** mustFlag only, optional precision: the finding must match. */
-  readonly expect?: {
-    readonly messageIncludes?: string;
-    readonly line?: number;
-    readonly count?: number;
-    /** The `Finding.token` a node-anchored report must carry — WHICH arm bit, and (§4.3a) the position an
-     *  `@orb-gate-ignore` would have to name. `messageIncludes` cannot answer this for a multi-arm gate:
-     *  a token-emitting gate has no per-finding message, so every arm's needle matches the ONE group
-     *  message and the row proves nothing about which arm fired. */
-    readonly token?: string;
-  };
-  readonly why?: string; // one-liner: what this example proves (rendered in conformance failures)
-}
-
-/** ONE named SEMANTIC SOURCE and the members a coverage gate resolved from it — the DENOMINATOR its
- *  verdict actually rests on, which the harness's FILE counts structurally cannot see.
- *
- *  WHY IT EXISTS (#946, from the 2026-08-31 member-discovery audit): a coverage gate stays green when
- *  members move behind an import / a spread / an inherited interface / a builder, because it still visits
- *  the same files, still has a subject, and still renders a healthy `scanned N/M files` while the set it
- *  actually judged shrank. `admitted` did this one level up for ratchet debt; this is the same move for the
- *  population itself.
- *
- *  DECLARING IS THE OPT-IN — there is no descriptor flag beside it, deliberately (a stored "judge me" flag
- *  beside the call that produces the number is two facts that can disagree, the same argument §4's
- *  ratchet-class PARTITION makes). A gate that declares a population is judged on it at the real-tree
- *  entrypoint, exactly where the zero-SCAN alarm is judged and for the same reason:
- *  - `members === 0` ⇒ the gate's subject derivation came back EMPTY — a blind checker, exit 2,
- *    unconditionally (a vacuous verdict is vacuous whatever else the gate said);
- *  - `unresolved > 0` BEHIND A GREEN VERDICT ⇒ the gate SAW declarations it could not resolve into members
- *    and reported nothing — a ✓ over a shrunken denominator, which is the audited defect verbatim: exit 2.
- *    A gate that ALREADY reported the unreadable declaration (the #944 fail-closed arms) has done its job
- *    and rides the ordinary violation exit; the count still prints on its line as the receipt.
- *    Either way a gate never `continue`s past an unreadable declaration silently: it reports the finding,
- *    or counts it here, or both.
- *
- *  AND A COUNT NEVER PROVES CORRECTNESS. A confidently wrong number is still wrong: this receipt makes a
- *  SHRINKING denominator loud, it does not establish that the members it did resolve are the right ones.
- *  Every gate declaring a population still owes the per-shape planted controls (imported / spread /
- *  inherited / builder) its source law sanctions — GATE-AUTHORING.md §5. */
-interface GatePopulationDeclaration {
-  /** The source's stable name — what a reader diffs run over run (`"SectionDefinition"`,
-   *  `"CHROME_ZONES"`, `"WorkloadService members"`). Declarations ACCUMULATE per source name. */
-  readonly source: string;
-  /** Members the gate RESOLVED from that source and actually judged. */
-  readonly members: number;
-  /** Declarations the gate SAW but could not resolve into members — an authoring shape outside its
-   *  reader. Non-zero is an instrument error: the gate's denominator silently shrank. */
-  readonly unresolved?: number;
-}
-
-/** What a gate DECLARES about its own scan, for the counts the harness structurally cannot observe.
- *  Every field is optional and every numeric field ACCUMULATES across calls (`unit` is last-wins), so a
- *  gate may declare once in `finalize` or per batch. Nothing here can shrink the harness's own observed
- *  file counts — a gate can add to the picture, never overwrite it green.
- *
- *  Two live uses (GATE-AUTHORING.md §"Harness mechanics"):
- *  - `admitted` — findings a committed RATCHET BUDGET absolved this run. Declared debt is not "clean";
- *    the reporter prints it as `admitted-by-ratchet: N (D debt · R ratified)` beside the ✓ so a green gate
- *    still shows the population it is carrying — SPLIT BY CLASS (#569), because a permanent admission a
- *    ruling made (a ratified door pair, a documented tool false positive) is not backlog and must not read
- *    as a glut of it. `admittedRatified` is the PERMANENT SUBSET of `admitted`, never a number beside it.
- *  - `unit`/`candidates`/`scanned`/`skipped` — a gate reading units the shared ts-morph walk cannot see
- *    (markdown, CSS, JSON rows). Without this its harness row reports the workspace file count, which is
- *    a denominator it never actually read, and (for a gate whose `scanRoot` admits nothing) its ZERO-SCAN
- *    alarm would be a false positive. */
-export interface GateScanDeclaration {
-  /** What one declared scan counts, singular ("doc", "stylesheet", "row"). Default `"unit"`. */
-  readonly unit?: string;
-  /** Units the gate could have read. Defaults to `scanned` when omitted. */
-  readonly candidates?: number;
-  /** Units the gate actually read. */
-  readonly scanned?: number;
-  /** Units deliberately not read, by REASON — the gate's own skip vocabulary. */
-  readonly skipped?: Readonly<Record<string, number>>;
-  /** Findings a committed ratchet baseline absolved this run (declared debt, NOT violations). */
-  readonly admitted?: number;
-  /** The RATIFIED subset of `admitted` — the part a recorded ruling or a documented tool false positive made
-   *  permanent (`_shared/ratchet-rows.ts`). Never larger than `admitted`; the burnable remainder is
-   *  `admitted - admittedRatified`. Omitted means "all of it is burnable debt". */
-  readonly admittedRatified?: number;
-  /** The SEMANTIC-MEMBER populations behind this gate's verdict (#946). Entries accumulate by `source`,
-   *  so a gate may declare once in `finalize` or per discovery site. Declaring is the opt-in — see
-   *  `GatePopulationDeclaration`. */
-  readonly population?: readonly GatePopulationDeclaration[];
-}
-
-/** Per-run context handed to every hook. */
-export interface GateRunCtx {
-  readonly root: string;
-  readonly project: Project; // the ONE shared workspace
-  readonly scope: Scope; // §4 — what fileset this run covers
-  readonly files: readonly SourceFile[]; // the scoped fileset the walk will visit
-  /** Exact dispatcher identity. Gate-owned shared accumulators key on this so an interrupted pass can
-   *  never leak unfinished state into a later run over the same Project and files array. */
-  readonly passIdentity?: object;
-  /** Lazy — first access creates the Program/binder (pay once, shared by every gate that asks). */
-  readonly checker: () => TypeChecker;
-  /** The finding sink. Overload 1: node-anchored (line/column from the node). Overload 2: token-anchored
-   *  — `offset` is the token's 0-based index into `node.getText()`, so the column lands on the token
-   *  itself. Overload 3: file-level / explicit (caller supplies the whole Finding). */
-  readonly report: {
-    (node: Node, atToken?: { readonly token: string; readonly offset: number }): void;
-    (finding: Finding): void;
-  };
-  /** The SCAN-HEALTH sink (optional to call — the harness records file counts for every gate either way).
-   *  Declare only what the harness cannot see: `admitted` ratchet debt, and non-file scan units. */
-  readonly scan: (counts: GateScanDeclaration) => void;
-}
-
-export interface GateDescriptor {
-  readonly name: string; // kebab, must equal the filename (loader-enforced)
-  readonly docRow: string; // the Core-Enforcement-Active-Gates.md citation
-  readonly status: GateStatus;
-  readonly scopeSafety: ScopeSafety;
-
-  // ---- the REASON, written ONCE -----------------------------
-  /** The rule this gate enforces: what is wrong + why. The reporter prints this once as the group
-   *  header, then lists every occurrence beneath it — a Finding never repeats this prose. */
-  readonly message: string;
-  /** How to correct it. Printed once under the group header. */
-  readonly fix?: string;
-  /** Which files this gate reads AT ALL — replaces file.ts's hand-kept GATE_SCOPES table. */
-  readonly scanRoot?: (repoRelPath: string) => boolean;
-  /** TRUE only for a gate that AUDITS an exemption vocabulary: `pass.ts` then offers it NO suppression on
-   *  either arm. A marker gate must never be marker-suppressible — a marker written one line above the
-   *  report that indicts it would absolve exactly the finding the vocabulary's two-sidedness exists to
-   *  make. Occupants: `gate-ignore-inventory` (the `@orb-gate-ignore` auditor), `finding-overload-provenance`
-   *  (whose own escape is the separate `finding-overload-ok` marker), `no-blanket-suppression` (#962 — the
-   *  linters' own suppression vocabulary is its subject; its escapes are the narrower mechanisms other gates
-   *  govern, so a marker here would be an ungoverned third door), and the D16 wire firewall
-   *  `bus-payload-allowlist` (owner ruling 2026-09-01, #1048). It is NOT a "this gate is important" flag — a
-   *  gate that merely wants to be hard says so with a message. */
-  readonly markerImmune?: boolean;
-
-  // ---- the NODE SUBSCRIPTION (per-node gates) --------------------------------
-  /** SyntaxKinds this gate wants. The loader builds `Map<SyntaxKind, Gate[]>` from these.
-   *  Omit for file-level / fs-level gates. */
-  readonly kinds?: readonly SyntaxKind[];
-  /** The per-node check. MUST be read-only. May accumulate into module-local state consumed by `finalize`. */
-  readonly visit?: (node: Node, sf: SourceFile, ctx: GateRunCtx) => void;
-
-  // ---- per-FILE hook (line-scans, per-file setup/teardown) -------------------
-  readonly visitFile?: (sf: SourceFile, ctx: GateRunCtx) => void;
-
-  // ---- whole-project / fs-level pass ------------------------------------------
-  /** A `whole-project` gate's own pass over the SAME shared Project (never a new Project). */
-  readonly run?: (ctx: GateRunCtx) => void;
-  /** True when this gate's hooks read the real filesystem rather than only the ts-morph Project, so the
-   *  conformance runner materializes its examples into a real temp dir instead of an in-memory Project. */
-  readonly fsBacked?: boolean;
-
-  // ---- lifecycle around the single walk ---------------------------------------
-  readonly begin?: (ctx: GateRunCtx) => void; // reset accumulators
-  readonly finalize?: (ctx: GateRunCtx) => void; // judge accumulated state (ratchet stale arms live here)
-
-  // ---- SELF-PROOF (required — the loader refuses an un-proven gate) ------------
-  /** ≥1 example the gate must flag. */
-  readonly mustFlag: readonly GateExample[];
-  /** ≥1 example the gate must not flag. */
-  readonly mustPass: readonly GateExample[];
-}

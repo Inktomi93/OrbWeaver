@@ -13,11 +13,12 @@
 //   4. STALE-ARM ISOLATION — an INCREMENTAL-safe gate does run on a scoped pass, `finalize` included, so
 //      its exemption-table stale sweep must stay silent about rows whose files the run never visited.
 //
-// The "full run" oracle here is `runPass` over the SAME in-memory project with scope=project — the exact
-// path `pnpm check:structure` drives — so the scoped verdict is proven against the real full verdict, not
-// a hand-rolled expectation.
+// The "full run" oracle here is the policy dispatcher over the SAME in-memory project with the whole
+// population requested — the exact path `pnpm check:structure` drives — so the scoped verdict is proven
+// against the real full verdict, not a hand-rolled expectation.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { plantedPolicySource } from "../../../support/planted-gate-corpus.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -50,13 +51,15 @@ function inScopeCount(stdout: string): number {
   return Number(m[1]);
 }
 
-test("the COMMA form is a UNION of folder globs, never a silent zero (#1185)", { timeout: SCOPED_CLI_TIMEOUT_MS }, async ({ runCli, scratch }) => {
+test("the COMMA form is a UNION of folder globs, never a silent zero (#1185)", { timeout: SCOPED_CLI_TIMEOUT_MS }, async ({ repoRoot, runCli, scratch }) => {
   const files = {
     "tsconfig.json": JSON.stringify({ compilerOptions: { target: "es2022", module: "nodenext", moduleResolution: "nodenext" }, include: ["packages/**/*.ts"] }),
     [`${SCOPE_A}/switch.ts`]: "export const value = 1;\n",
     [`${SCOPE_B}/tokens.ts`]: "export const token = 1;\n",
-    "tooling/src/verify/gates/fixture.ts":
-      'export const gate = { name: "fixture", docRow: "test-owned", status: "active", scopeSafety: "incremental-safe", message: "fixture", visitFile() {}, mustFlag: [{ files: "export const bad = 1;", why: "fixture" }], mustPass: [{ files: "export const good = 1;", why: "fixture" }] };\n',
+    // A corpus member the scoped door can load. It reports nothing on this tree: its one subject path is
+    // never planted (the silence convention, tests/support/planted-gate-corpus.ts), so what this arm measures
+    // is the SCOPE's file count and not a finding.
+    "tooling/src/verify/gates/fixture.ts": plantedPolicySource({ repoRoot, id: "fixture", subjectPath: "packages/x/src/unplanted.ts", token: "unplanted" }),
   };
   for (const [path, source] of Object.entries(files)) {
     const absolute = join(scratch, path);

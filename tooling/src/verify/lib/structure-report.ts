@@ -1,7 +1,7 @@
-// The FINAL side of `reports/check-structure.json`: map one `runPolicyPass` result onto the mixed artifact's rows
-// and aggregate (contract/structure-report.ts). Pure: no I/O, no rendering. The legacy side's mapping stays in
-// ops/structure.ts (`toGateResults`); this file exists so the artifact writer, the console renderer and the
-// mixed-corpus test all derive a final row from ONE function.
+// `reports/check-structure.json`: map one `runPolicyPass` result onto the artifact's rows and aggregate
+// (contract/structure-report.ts). Pure: no I/O, no rendering. This file exists so the artifact writer, the
+// console renderer and the corpus tests all derive a row from ONE function — and since #2176 Phase F
+// (2026-09-14) it is the ONLY mapping there is, the legacy side having retired with its dispatcher.
 import type { CoordinatedGateFinding, GateAuthorityAlarm } from "../contract/gate-authority.ts";
 import type { Violation } from "../contract/harness.ts";
 import type { GatePolicy } from "../contract/policy.ts";
@@ -20,29 +20,26 @@ export interface FinalSide {
 }
 
 interface FindingRow {
-  readonly contract: "legacy" | "final";
   readonly violations: readonly unknown[];
 }
 
-/** ONE derivation of the mixed headline. `blocking` deliberately reads the authority verdict rather than
- *  restating its severity policy; the other four fields expose the equivalent human-readable equation. */
+/** ONE derivation of the headline. `blocking` deliberately reads the authority verdict rather than restating
+ *  its severity policy; the other three fields expose the equivalent human-readable equation. */
 export function structureCountReconciliation(rows: readonly FindingRow[], policy: StructurePolicyReport | null): StructureCountReconciliation {
-  const legacyFindings = rows.filter(({ contract }) => contract === "legacy").reduce((sum, entry) => sum + entry.violations.length, 0);
-  const finalEffectiveFindings = rows.filter(({ contract }) => contract === "final").reduce((sum, entry) => sum + entry.violations.length, 0);
+  const finalEffectiveFindings = rows.reduce((sum, entry) => sum + entry.violations.length, 0);
   const verdict = policy?.authority.verdict;
   return {
-    legacyFindings,
     finalEffectiveFindings,
     nonblockingWarnings: verdict === undefined || verdict.failOnWarnings ? 0 : verdict.warnings,
     authorityAlarms: policy?.authority.alarms.length ?? 0,
-    blocking: legacyFindings + (verdict?.blocking ?? 0),
+    blocking: verdict?.blocking ?? 0,
   };
 }
 
 /** The same equation emitted by the live console and by `check:show`. */
 export function structureCountLine(counts: StructureCountReconciliation): string {
   return (
-    `${counts.blocking} blocking = ${counts.legacyFindings} legacy + ${counts.finalEffectiveFindings} final effective` +
+    `${counts.blocking} blocking = ${counts.finalEffectiveFindings} effective` +
     ` - ${counts.nonblockingWarnings} nonblocking warning(s) + ${counts.authorityAlarms} authority alarm(s)`
   );
 }
