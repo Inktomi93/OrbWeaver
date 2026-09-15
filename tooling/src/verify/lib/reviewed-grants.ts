@@ -1187,6 +1187,32 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
       "the tier attribute stops being written at all, or the Surface primitive moves: the grant is then consumed zero times and central reconciliation stales it.",
   },
   {
+    id: "depcruise-grant-liveness:dist",
+    policyId: "depcruise-grant-liveness",
+    subject: "config.options.exclude.path[1]",
+    operation: 'depcruise-zero-member-pattern:"^packages/[^/]+/dist/"',
+    why: "BUILD OUTPUT: `dist/` is gitignored, so it is absent from the tracked corpus by design and present only after a build — judging it either way makes the verdict depend on machine state. The exclude is ANCHORED to workspace packages on purpose: a bare `(^|/)dist/` also matches `node_modules/<lib>/dist/` and would drop the sealed-lib import edges the satellite-seal rules fire on. Migrated from the retired gate-local RATIFIED row (#1922 / #2176), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
+    endsWhen: "the packages stop emitting dist/ — the exclude leaves .dependency-cruiser.cjs and this row is consumed zero times.",
+  },
+  {
+    id: "depcruise-grant-liveness:g-fixture",
+    policyId: "depcruise-grant-liveness",
+    subject: "config.options.exclude.path[0]",
+    operation: 'depcruise-zero-member-pattern:"(^|/)__g_"',
+    why: "the reserved throwaway-fixture sentinel: the legacy `__g_` planters materialise files at real-tree paths for milliseconds and reap them, so the subject is ABSENT from every tracked source BY CONSTRUCTION — a member test would RED a correct config, and an FS test would depend on whether a suite happened to be mid-run. Migrated from the retired gate-local RATIFIED row (#1922 / #2176), whose cite `tooling/src/verify/gates/GATE-AUTHORING.md` is no longer liveness-checked by anything (successor citation check: #2349).",
+    endsWhen:
+      "the `__g_` planting suites retire with the legacy gate runtime (#2176 Phase F) — the exclude then leaves .dependency-cruiser.cjs and this row is consumed zero times.",
+  },
+  {
+    id: "depcruise-grant-liveness:quickjs-wasm-url",
+    policyId: "depcruise-grant-liveness",
+    subject: "config.forbidden[64].to.pathNot[0]",
+    operation: 'depcruise-zero-member-pattern:"^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\\\?url$"',
+    why: "a vite ASSET QUERY specifier (`?url`), not a module path and not a repo file: its member set is what the bundler emits at build time, which no static tree read can enumerate — dep-cruiser matches it only as an unresolvable-import exemption. Migrated from the retired gate-local RATIFIED row (#1922 / #2176), whose cite `packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts` (the one importer that makes it live) is no longer liveness-checked by anything (successor citation check: #2349).",
+    endsWhen:
+      "the guest worker stops importing the quickjs wasm through a `?url` asset query — the exemption then leaves .dependency-cruiser.cjs and this row is consumed zero times.",
+  },
+  {
     id: "eslint-grant-liveness:cache",
     policyId: "eslint-grant-liveness",
     subject: "config[0].ignores[5]",

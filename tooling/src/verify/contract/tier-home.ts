@@ -26,8 +26,10 @@
 // file, so a row cannot outlive the directory it names.
 
 /** ONE tier-implementation home. The KEY (in {@link TierImplementationHomes}) is the home; this carries
- *  the reason it may spell the raw utility AND the condition that ends the row. */
-export interface TierImplementationHome {
+ *  the reason it may spell the raw utility AND the condition that ends the row. Deliberately NOT exported:
+ *  the table alias below is the importable shape, and a second exported name nothing imports is what knip
+ *  reds. A consumer needing the row type indexes the alias (`TierImplementationHomes[string]`). */
+interface TierImplementationHome {
   /** Why this home implements the scale by hand, and what would end the row. Never empty. */
   readonly why: string;
 }
