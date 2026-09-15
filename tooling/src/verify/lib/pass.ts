@@ -21,7 +21,7 @@ import type { DeclaredScan, GatePassResult, GatePhase, GateScan, PassResult, Pop
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import { findGateIgnore, findGateIgnoreAtLine } from "./gate-ignore.ts";
 import type { PhaseClock } from "./pass-timing.ts";
-import { chargedPhase, inFinalizePhase, newPhaseClock, nowMs, passTiming } from "./pass-timing.ts";
+import { chargedPhase, newPhaseClock, nowMs, passTiming } from "./pass-timing.ts";
 
 /** repo-relative posix path for a SourceFile. */
 export function repoRel(root: string, absPath: string): string {
@@ -193,12 +193,6 @@ function isNode(v: Node | Finding): v is Node {
  *  count — not a boolean — is what the inventory gate must read. Module state, reset per `runPass`
  *  (conformance runs many passes). */
 const gateIgnoreUses = new Map<string, number>();
-/** Did a suppression happen during the `finalize` phase? The inventory gate's stale sweep runs in
- *  `finalize`, so a marker consumed after the sweep read its count would be reported stale by mistake. It
- *  covers BOTH arms since #828 — the Finding overload is suppressible too now, and finalize is exactly
- *  where the stale/ratchet arms that use it live. No gate trips it today; this is the tripwire for the day
- *  one does. */
-let gateIgnoreLateUse = false;
 
 function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | "scan">, passIdentity: object): GateRun {
   const sink: Finding[] = [];
@@ -219,7 +213,6 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | 
   const consume = (file: string, markerLine: number): void => {
     const key = `${file}:${markerLine}`;
     gateIgnoreUses.set(key, (gateIgnoreUses.get(key) ?? 0) + 1);
-    gateIgnoreLateUse ||= inFinalizePhase();
   };
   /** The FINDING overload's suppression (#828): no node, so the marker binds to the line IMMEDIATELY above
    *  `finding.line`. A `markerImmune` gate AUDITS the vocabulary and is never reachable by it. */
@@ -400,7 +393,6 @@ function gateOk(name: string, findingCount: number, errors: readonly ToolError[]
 
 function runWithReferenceCache(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunCtx, "report" | "scan">): PassResult {
   gateIgnoreUses.clear();
-  gateIgnoreLateUse = false;
   const passStartedAt = nowMs();
   const passIdentity = {};
   const runs: readonly GateRun[] = gates.filter((g) => g.status === "active").map((g) => makeGateRun(g, ctxBase, passIdentity));

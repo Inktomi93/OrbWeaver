@@ -381,10 +381,10 @@ test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves th
 // and not concurrency-safe with itself, and it died at `lib/loader.ts`'s empty-legacy-roster refusal once
 // the corpus went all-final. Two of its eight arms had FINAL subjects and land here:
 //
-//   "reserved proof files stay project inputs but never become descriptor corpus, and the roster accounts
-//    for every module once" — the `__g_`/`__dc_` exclusion and the roster accounting identity;
-//   "every ACTIVE gate file in tooling/src/verify/gates is run by report.ts (anti-drift)" — which on the
-//    all-final corpus IS `unregistered === []`: the loader is the registry, every registered final policy
+//   the reserved-proof-files arm (proof surfaces stay project inputs but never become descriptor corpus,
+//   and the roster accounts for every module once) — the `__g_`/`__dc_` exclusion and the roster
+//   accounting identity; and the anti-drift arm (every active gate file under tooling/src/verify/gates is
+//   run by report.ts) — which on the all-final corpus IS `unregistered === []`: the loader is the registry, every registered final policy
 //    is dispatched (only the retired legacy contract had a `status` filter to drop one), and the doc-side
 //    half is `enforcement-registry-parity`.
 //
