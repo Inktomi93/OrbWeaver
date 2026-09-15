@@ -13,8 +13,8 @@
 // refuses, and a ledger that can only refuse itself by rounding accident is not a ledger.
 //
 // WHY THE PHASE IN FLIGHT LIVES HERE TOO: "which phase is running" and "what is that phase costing" are
-// one fact read two ways — the dispatcher charges the clock with it, and the gate-ignore stale sweep asks
-// whether a suppression landed after its own soundness window (`inFinalizePhase`).
+// one fact read two ways — the dispatcher charges the clock with it, and (until the legacy marker sweep
+// retired with #2176) the gate-ignore stale sweep asked whether a suppression landed after its window.
 import { performance } from "node:perf_hooks";
 import type { GatePassResult, GatePhase, GateTiming, PassTiming } from "../contract/pass.ts";
 import { GATE_PHASES } from "../contract/pass.ts";
@@ -104,8 +104,3 @@ export function chargedPhase(clock: PhaseClock, phase: GatePhase, body: () => vo
   }
 }
 
-/** Is the pass in its `finalize` arm? The gate-ignore stale sweep runs there, so a suppression consumed
- *  during it lands AFTER the sweep read its count — the tripwire that says the sweep's premise broke. */
-export function inFinalizePhase(): boolean {
-  return currentPhase === "finalize";
-}
