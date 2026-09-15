@@ -31,25 +31,19 @@
 //          (count identical, message differs) — the planted-types rows in the module pin the precise branch.
 //   Plus the real-tree fact the retired test carried: `ast/ops/prodonly.ts` imports `knip.ts` by relative
 //   path, read off disk — the second, independent method behind the one root-config grant.
-import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
-import process from "node:process";
-import { pathToFileURL } from "node:url";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Project } from "ts-morph";
-import type { GateDescriptor, GateExample } from "../../../../tooling/src/verify/contract/gate.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as argvFrontDoor } from "../../../../tooling/src/verify/gates/tooling-argv-front-door.ts";
 import { gate as argvHealth } from "../../../../tooling/src/verify/gates/tooling-argv-front-door-health.ts";
 import { gate as frontDoor } from "../../../../tooling/src/verify/gates/tooling-front-door.ts";
 import { gate as rootConfigImport } from "../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
-import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/tooling-front-door-family";
 const IMPORT_FAMILY: readonly GatePolicy[] = [frontDoor, rootConfigImport];
@@ -63,10 +57,6 @@ const PRODONLY = "tooling/src/ast/ops/prodonly.ts";
 const KNIP_IMPORT = 'import knipConfig from "../../../../knip.ts";';
 const ENGINES = "tooling/src/stack/ops/engines.ts";
 const ENGINES_READ = 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n';
-/** The legacy descriptors, byte-identical to the modules the brief named as the pre-conversion source. */
-const LEGACY_FRONT_DOOR = { sha: "1f5e25c00", path: "tooling/src/verify/gates/tooling-front-door.ts" } as const;
-const LEGACY_ARGV = { sha: "4097be20d", path: "tooling/src/verify/gates/tooling-argv-front-door.ts" } as const;
-const DIFFERENTIAL_BUDGET_MS = scaledBudget(120_000);
 
 function grantOf(id: string): ReviewedGateGrant {
   const grant = REVIEWED_GRANTS.find((row) => row.id === id);
@@ -210,134 +200,3 @@ test("the knip grant is LIVE on today's tree: ast/ops/prodonly imports the knip 
   expect(source, "…and it must still be CONSUMED, not merely imported").toContain("knipConfig as");
   expect(grantOf(KNIP_GRANT_ID).subject).toBe(PRODONLY);
 });
-
-// ─── §4.6 SPLIT-ARM DIFFERENTIALS ───────────────────────────────────────────────────────────────────────
-function toolingHref(relFromGates: string): string {
-  return JSON.stringify(pathToFileURL(join(process.cwd(), "tooling/src/verify/gates", relFromGates)).href);
-}
-
-async function frozenLegacyGate(legacy: { readonly sha: string; readonly path: string }, scratch: string): Promise<GateDescriptor> {
-  const source = execFileSync("git", ["show", `${legacy.sha}:${legacy.path}`], { encoding: "utf8" });
-  const target = join(scratch, basename(legacy.path));
-  // The copy lives outside the checkout, so its RELATIVE imports are rewritten to file URLs. Every named
-  // module is still on the tree and untouched by this conversion.
-  const rewritten = source
-    .replace('from "../contract/gate.ts"', `from ${toolingHref("../contract/gate.ts")}`)
-    .replace('from "../lib/pass.ts"', `from ${toolingHref("../lib/pass.ts")}`)
-    .replace('from "../lib/ast-read.ts"', `from ${toolingHref("../lib/ast-read.ts")}`);
-  expect(rewritten).not.toBe(source);
-  writeFileSync(target, rewritten);
-  return ((await import(`${pathToFileURL(target).href}?frozen=${basename(legacy.path)}`)) as { readonly gate: GateDescriptor }).gate;
-}
-
-function legacyFiles(example: GateExample, fallback: string): Readonly<Record<string, string>> {
-  return typeof example.files === "string" ? { [example.at ?? fallback]: example.files } : example.files;
-}
-
-const sorted = (lines: readonly string[]): readonly string[] => lines.toSorted((left, right) => left.localeCompare(right));
-
-interface Verdict {
-  readonly lines: readonly string[];
-  readonly refusals: readonly string[];
-}
-
-function legacyVerdict(
-  gateDescriptor: GateDescriptor,
-  files: Readonly<Record<string, string>>,
-  line: (finding: { readonly file: string; readonly line: number; readonly column: number; readonly token?: string; readonly message?: string }) => string,
-): Verdict {
-  const project = projectOf(files);
-  const result = runPass([gateDescriptor], {
-    root: ROOT,
-    project,
-    scope: { kind: "project" },
-    files: project.getSourceFiles(),
-    checker: () => project.getTypeChecker(),
-  });
-  return { lines: sorted((result.gates[0]?.findings ?? []).map(line)), refusals: result.toolErrors.map((error) => error.phase) };
-}
-
-function finalVerdict(
-  policies: readonly GatePolicy[],
-  files: Readonly<Record<string, string>>,
-  line: (finding: {
-    readonly file: string;
-    readonly line: number;
-    readonly column: number;
-    readonly token?: string;
-    readonly message?: string;
-    readonly policyId: string;
-  }) => string,
-): Verdict {
-  const result = passOf(policies, files);
-  return {
-    lines: sorted(result.authority.effectiveFindings.map(line)),
-    refusals: sorted(result.toolErrors.map((error) => `${error.policyId} ${error.phase}`)),
-  };
-}
-
-const admitsNothing = (files: Readonly<Record<string, string>>, policies: readonly GatePolicy[]): readonly string[] =>
-  Object.keys(files).some((path) => path.startsWith("tooling/src/")) ? [] : sorted(policies.map((policy) => `${policy.id} population`));
-
-test(
-  "tooling-front-door + tooling-root-config-import reproduce the frozen legacy gate on every original example",
-  async ({ scratch }) => {
-    const legacy = await frozenLegacyGate(LEGACY_FRONT_DOOR, scratch);
-    const examples = [...legacy.mustFlag, ...legacy.mustPass];
-    expect(examples).toHaveLength(6);
-    const arms: string[] = [];
-    for (const example of examples) {
-      const files = legacyFiles(example, "tooling/src/aa/ops/x.ts");
-      // Legacy reported on the ImportDeclaration with the bare specifier as token; the final policies report on
-      // the specifier LITERAL. The comparable line is `<arm> <file>:<line> <specifier>` — position difference (1)
-      // is classified by reading the token off the quoted literal.
-      const before = legacyVerdict(legacy, files, (finding) => `IMPORT ${finding.file}:${finding.line} ${finding.token ?? "<no token>"}`);
-      arms.push(...before.lines.map(() => "IMPORT"));
-      const after = finalVerdict(IMPORT_FAMILY, files, (finding) => `IMPORT ${finding.file}:${finding.line} ${(finding.token ?? "").replace(/^"|"$/gu, "")}`);
-      // Difference (2): the knip-row example is a FINDING now (the grant is not carried here); legacy passed it.
-      const knipRow = Object.keys(files).includes("knip.ts");
-      const expectedLines = knipRow ? ["IMPORT tooling/src/aa/ops/x.ts:1 ../../../../knip.ts"] : before.lines;
-      expect(before.refusals, example.why).toEqual([]);
-      expect(after, example.why).toEqual({ lines: expectedLines, refusals: admitsNothing(files, IMPORT_FAMILY) });
-    }
-    // The legacy corpus exercised the occurrence arm (three flag examples) — the replay is evidence.
-    expect(arms).toHaveLength(3);
-  },
-  DIFFERENTIAL_BUDGET_MS,
-);
-
-test(
-  "tooling-argv-front-door + tooling-argv-front-door-health reproduce the frozen legacy gate on every original example",
-  async ({ scratch }) => {
-    const legacy = await frozenLegacyGate(LEGACY_ARGV, scratch);
-    const examples = [...legacy.mustFlag, ...legacy.mustPass];
-    expect(examples).toHaveLength(11);
-    const arms: string[] = [];
-    for (const example of examples) {
-      const files = legacyFiles(example, "tooling/src/x.ts");
-      const before = legacyVerdict(legacy, files, (finding) => {
-        if (finding.file === LEGACY_ARGV.path) {
-          return "BLIND";
-        }
-        return (finding.message ?? "").startsWith("stale ARGV_ENTRIES row") ? `STALE ${finding.file}` : `READ ${finding.file}:${finding.line}`;
-      });
-      arms.push(...before.lines.map((entry) => entry.split(" ")[0] ?? ""));
-      const after = finalVerdict(ARGV_FAMILY, files, (finding) => (finding.policyId === argvHealth.id ? "BLIND" : `READ ${finding.file}:${finding.line}`));
-      // Differences (5): a censused entry is a FINDING here (its grant is not carried by the differential) where
-      // legacy passed it, and the six stale-row findings of the two-sided sweep example are grant liveness, not
-      // findings. Difference (6): the blindness verdict anchors on the anchor file — its LINE is compared, not
-      // its path. Difference (4)/(7) are position/message deltas invisible to these lines by construction.
-      const entryReads = Object.keys(files)
-        .filter((path) => REVIEWED_GRANTS.some((grant) => grant.policyId === argvFrontDoor.id && grant.subject === path))
-        .map((path) => `READ ${path}:2`);
-      const expectedLines = sorted([...before.lines.filter((entry) => !entry.startsWith("STALE ")), ...entryReads]);
-      expect(before.refusals, example.why).toEqual([]);
-      expect(after, example.why).toEqual({ lines: expectedLines, refusals: admitsNothing(files, ARGV_FAMILY) });
-    }
-    // The legacy corpus exercised all three arms: three reader examples, the six-row stale sweep, one blindness.
-    expect(arms.filter((arm) => arm === "READ")).toHaveLength(3);
-    expect(arms.filter((arm) => arm === "STALE")).toHaveLength(6);
-    expect(arms.filter((arm) => arm === "BLIND")).toHaveLength(1);
-  },
-  DIFFERENTIAL_BUDGET_MS,
-);

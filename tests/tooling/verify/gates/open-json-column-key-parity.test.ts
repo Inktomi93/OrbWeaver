@@ -3,7 +3,7 @@
 // pooling every drizzle column NAMED `value`, so `json_extract(element.value, '$.k')` was attributed to the
 // open `settings.value` blob and any key that blob's writers do not spell went RED — a LYING INSTRUMENT whose
 // verdict depended on what else had contributed to the pooled vocabulary that run.
-import type { Finding } from "../../../../tooling/src/verify/contract/gate.ts";
+import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate } from "../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -13,7 +13,7 @@ const SETTINGS_SCHEMA =
   'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n';
 const SETTINGS_WRITER = "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n";
 
-function findings(reader: string): readonly Finding[] {
+function findings(reader: string): readonly CoordinatedGateFinding[] {
   const { project, root } = ctxFor({
     "packages/db/src/schema/settings.ts": SETTINGS_SCHEMA,
     "packages/server/src/domain/settings/persistence/write.ts": SETTINGS_WRITER,

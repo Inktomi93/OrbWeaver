@@ -41,39 +41,13 @@ import { projectCtx } from "../../../../tooling/src/verify/index.ts";
 import { readGateModernizationModule } from "../../../../tooling/src/verify/lib/gate-modernization-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { verifyMetaGateConversion } from "../../../support/meta-gate-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const GATES_REL = "tooling/src/verify/gates";
 const ORDINARY = `${GATES_REL}/probe-ordinary.ts`;
 const HEALTH = `${GATES_REL}/probe-ordinary-health.ts`;
-const STALE_ARM = 'const MSG = "ALLOWLIST row matching no live site (ratchet down) — delete the stale row";\n';
-const LEGACY_BASE = "30333fd4e";
-const LEGACY_PATH = "tooling/src/verify/gates/gate-modernization.ts";
 const TABLE = 'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\n';
-
-// RETIRED ARM D ROWS (#2359, owner ruling: option 2, scoped). ARM D itself retired 2026-09-14 — its last
-// subject, `ratchet-row-integrity`, retired at 6bab419ad, leaving zero ledger readers in the corpus, and
-// `lib/gate-contract.ts`'s `baseline-ledger` finding (successor proof:
-// tests/tooling/verify/lib/gate-contract.test.ts:426,435,446, plus the front-door plant/rerun receipt in
-// this commit) strictly supersedes ARM D's whole-literal ledger-path match. These are the FROZEN legacy
-// module's own row indices (derived from git show 30333fd4e:tooling/src/verify/gates/gate-modernization.ts
-// — the single mustFlag "THE FOUNDING SHAPE" row and the four mustPass ARM D rows: the example carve, the
-// honest shape, the declared-limit anti-self-flag, and the no-ledger row) — excluded from the parity
-// replay below because the retired arm has no live final-side counterpart to agree with.
-const RETIRED_ARM_D_MUST_FLAG: readonly number[] = [27];
-const RETIRED_ARM_D_MUST_PASS: readonly number[] = [0, 17, 18, 19];
-
-// MESSAGE DELTA (#2359): the live descriptor's `message` dropped this exact sentence when ARM D retired —
-// a message still describing a retired arm is a drifted-diagnostic defect, not something to preserve for
-// parity. This is the byte-exact legacy sentence (captured from the frozen module's `MESSAGE` constant),
-// deleted from the replayed legacy message before the parent-to-final comparison; widened no further.
-const RETIRED_ARM_D_SENTENCE =
-  "A token that IS a committed ratchet-ledger path: this gate READS that ledger and never calls " +
-  "`ctx.scan({ admitted })`, so every finding its budgets absolve is missing from the single-pass's " +
-  "admitted total — declared debt that renders as ZERO declared debt, which is the one number a reader " +
-  "uses to know the debt is still there (#551). ";
 
 function corpusOf(modules: Readonly<Record<string, string>>): Map<string, SourceFile> {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -85,6 +59,8 @@ function accusedCollections(rel: string, corpus: ReadonlyMap<string, SourceFile>
   const sf = corpus.get(rel) as SourceFile;
   return hasStaleArm(readGateModernizationModule(sf)) ? [] : exemptionCollections(sf).map((collection) => collection.name);
 }
+
+const STALE_ARM = 'const MSG = "ALLOWLIST row matching no live site (ratchet down) — delete the stale row";\n';
 
 test("arm B accuses a DECLARED one-sided collection, and a stale arm in the SAME module still acquits", () => {
   // #2219 INVERTED the #2093 carve: the split-family arrangement below used to be EXCUSED here and is now
@@ -174,20 +150,4 @@ test("the final policy dispatch is clean on the real loader-shaped corpus", { ti
   expect(result.toolErrors).toEqual([]);
   expect(result.factErrors).toEqual([]);
   expect(result.authority.effectiveFindings.filter((finding) => finding.policyId === gate.id)).toEqual([]);
-});
-
-test("all 28 flag and 20 pass rows preserve the frozen parent verdict through final dispatch, minus the retired ARM D rows", {
-  timeout: scaledBudget(360_000),
-}, async ({ scratch }) => {
-  expect(
-    await verifyMetaGateConversion({
-      scratch,
-      base: LEGACY_BASE,
-      legacyPath: LEGACY_PATH,
-      policy: gate,
-      expectedRows: { mustFlag: 28, mustPass: 20 },
-      retiredRows: { mustFlag: RETIRED_ARM_D_MUST_FLAG, mustPass: RETIRED_ARM_D_MUST_PASS },
-      legacyMessageTransform: (message) => message.replace(RETIRED_ARM_D_SENTENCE, ""),
-    }),
-  ).toBe(48);
 });

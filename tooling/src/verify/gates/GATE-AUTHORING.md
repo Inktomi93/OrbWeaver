@@ -79,7 +79,8 @@ reporting semantics; legacy `report(node)`/`report(finding)`, line-adjacent igno
 A final policy needs its module, declared proofs, applicable family tests and accurate
 [active catalog row](../../../../docs/architecture/core/Core-Enforcement-Active-Gates.md). The loader is the registry;
 do not add a hand-maintained registration list or count. New scripts or tiers are separate registry changes only when
-there is a real new entry point. Final policies do not join the legacy `writeFixtures()`/`UNFIXTURABLE_GATES` ritual.
+there is a real new entry point. The legacy fixture-planting anti-drift ritual a final policy never joined is gone
+entirely (#2176 Phase F): a policy's bite is its declared rows on `structure:policy-conformance`.
 
 For a conversion, preserve the old source at its commit, account for every legacy example and arm, port the population
 in both directions, and translate that owner's live markers in the same commit. Classify exemptions before moving them

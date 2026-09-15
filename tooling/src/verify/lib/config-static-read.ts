@@ -7,7 +7,6 @@
 // the caller is obliged to turn a non-empty `unresolved` into a finding. Nothing here ever guesses, and an
 // unreadable shape is never silently dropped. The ordered-evaluation approach is `dangling-refs.ts`'s
 // `evalString` precedent, widened to arrays/spreads/identifiers with a cycle fence.
-import { existsSync, readFileSync } from "node:fs";
 import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
@@ -326,18 +325,6 @@ export function parseStaticSourceText(rel: string, text: string): Exclude<Config
     return { kind: "unparseable", detail: typeof message === "string" ? message : message.getMessageText() };
   }
   return { kind: "ok", sf, text };
-}
-
-/**
- * Read + parse one repo-relative source. Missing and SYNTACTICALLY BROKEN both refuse loudly.
- * @public knip false positive — no live importer; consumed at TEST RUNTIME by the frozen legacy `tooling-shared-plumbing` gate that tests/tooling/verify/gates/tooling-plumbing-family.test.ts git-shows at its pinned SHA and rewires to this live module.
- */
-export function readStaticSource(root: string, rel: string): ConfigRead {
-  const abs = `${root}/${rel}`;
-  if (!existsSync(abs)) {
-    return { kind: "missing" };
-  }
-  return parseStaticSourceText(rel, readFileSync(abs, "utf-8"));
 }
 
 type BoundExtractRequest = Omit<ExtractRequest, "sf">;

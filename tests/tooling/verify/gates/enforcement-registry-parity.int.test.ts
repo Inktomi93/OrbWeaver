@@ -25,7 +25,6 @@ import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/cont
 import { gate } from "../../../../tooling/src/verify/gates/enforcement-registry-parity.ts";
 import { projectCtx } from "../../../../tooling/src/verify/index.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyMetaGateConversion } from "../../../support/meta-gate-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -38,8 +37,6 @@ const MESSAGE_LITERAL = JSON.stringify(MESSAGE);
 /** Restated, not imported: the test is the SECOND opinion on the marker vocabulary, not a re-import of
  *  the subject's own constant. */
 const MARKER = "(@mirrors-message)";
-const LEGACY_BASE = "30333fd4e";
-const LEGACY_PATH = "tooling/src/verify/gates/enforcement-registry-parity.ts";
 /** The real-tree arm parses all ~270 gate modules with ts-morph, resolves every `defineGate` callee to its
  *  import origin, and evaluates each message — measured 19s alone on 2026-09-11 (8.4s before the origin
  *  reader); the parallel lane default of 5s is a contention flake, not a verdict. */
@@ -184,16 +181,4 @@ describe("enforcement-registry-parity — the REAL tree", () => {
     const doc = readFileSync(join(repoRoot, DOC_REL), "utf8");
     expect(doc.split(MARKER).length - 1).toBeGreaterThanOrEqual(3);
   });
-});
-
-test("all 13 flag and 5 pass rows preserve the frozen parent verdict through final dispatch", { timeout: scaledBudget(240_000) }, async ({ scratch }) => {
-  expect(
-    await verifyMetaGateConversion({
-      scratch,
-      base: LEGACY_BASE,
-      legacyPath: LEGACY_PATH,
-      policy: gate,
-      expectedRows: { mustFlag: 13, mustPass: 5 },
-    }),
-  ).toBe(18);
 });

@@ -54,12 +54,10 @@
 //       shared resolver and reported fail-closed under the disjoint text; count identical, message differs.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import process from "node:process";
-import { pathToFileURL } from "node:url";
 import { Project } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
-import type { GateDescriptor, GateExample } from "../../../../tooling/src/verify/contract/gate.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { NODE_TYPES_HOME, nodeTypesProof } from "../../../../tooling/src/verify/gates/_proof/node-types.ts";
@@ -73,7 +71,6 @@ import { gate as portRegistry } from "../../../../tooling/src/verify/gates/tooli
 import { gate as processExitHome } from "../../../../tooling/src/verify/gates/tooling-process-exit-home.ts";
 import { gate as projectHome } from "../../../../tooling/src/verify/gates/tooling-project-home.ts";
 import { gate as runnerConfigLiterals } from "../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS, reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -99,9 +96,6 @@ const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifac
 // (ed4b7588a) retired with their gates' conversions — a converted policy owns no Project, so its grant died
 // with the act it licensed. The exact-subject arm below still pins every survivor to a live file.
 const PLUMBING_GRANT_COUNT = 17;
-const LEGACY = { sha: "2c1a1d37c", path: "tooling/src/verify/gates/tooling-shared-plumbing.ts" } as const;
-const LEGACY_EXAMPLES = 36;
-const DIFFERENTIAL_BUDGET_MS = scaledBudget(180_000);
 const REAL_TREE_BUDGET_MS = scaledBudget(300_000);
 
 const PROC_HOME = "tooling/src/_shared/proc.ts";
@@ -516,211 +510,4 @@ test(
     }
   },
   REAL_TREE_BUDGET_MS,
-);
-
-// ─── §4.6 CONVERSION DIFFERENTIAL ────────────────────────────────────────────────────────────────────────
-function toolingHref(relFromGates: string): string {
-  return JSON.stringify(pathToFileURL(join(process.cwd(), "tooling/src/verify/gates", relFromGates)).href);
-}
-
-async function frozenLegacyGate(scratch: string): Promise<GateDescriptor> {
-  const source = execFileSync("git", ["show", `${LEGACY.sha}:${LEGACY.path}`], { encoding: "utf8" });
-  const target = join(scratch, basename(LEGACY.path));
-  // The copy lives outside the checkout, so its RELATIVE imports are rewritten to file URLs. Every named module
-  // is still on the tree; `config-static-read.ts` gained a text-fed sibling ADDITIVELY (`readStaticSource` is
-  // byte-equivalent in behaviour), so the frozen descriptor runs the code it ran.
-  let rewritten = source;
-  for (const relative of ["../../_shared/ports.ts", "../contract/gate.ts", "../lib/ast-read.ts", "../lib/config-static-read.ts", "../lib/pass.ts"]) {
-    const before = rewritten;
-    rewritten = rewritten.replace(`from "${relative}"`, `from ${toolingHref(relative)}`);
-    expect(rewritten, relative).not.toBe(before);
-  }
-  writeFileSync(target, rewritten);
-  return ((await import(`${pathToFileURL(target).href}?frozen=${basename(LEGACY.path)}`)) as { readonly gate: GateDescriptor }).gate;
-}
-
-function legacyFiles(example: GateExample): Readonly<Record<string, string>> {
-  return typeof example.files === "string" ? { [example.at ?? "tooling/src/x.ts"]: example.files } : example.files;
-}
-
-const LEGACY_ARMS = ["A", "B", "C", "D", "E", "F", "F2", "G", "H", "I", "J", "STALE", "BLIND"] as const;
-type LegacyArm = (typeof LEGACY_ARMS)[number];
-
-interface LegacyFinding {
-  readonly file: string;
-  readonly token?: string;
-  readonly message?: string;
-}
-
-function legacyArm(finding: LegacyFinding): LegacyArm {
-  const token = finding.token ?? "";
-  const message = finding.message ?? "";
-  if (message.startsWith("stale ")) {
-    return "STALE";
-  }
-  if (message.includes("cannot read")) {
-    return "BLIND";
-  }
-  if (message.includes("must enter through runTool")) {
-    return "E";
-  }
-  if (message.includes("must open its artifact run slot")) {
-    return "G";
-  }
-  if (token === "new Project(") {
-    return "A";
-  }
-  if (token === 'import "node:child_process"') {
-    return "F";
-  }
-  if (token === "process.exit(") {
-    return "D";
-  }
-  if (token.startsWith("spawnFullPriority")) {
-    return "F2";
-  }
-  if (token.endsWith(".launch(")) {
-    return "B";
-  }
-  if (token.includes(".connect")) {
-    return "H";
-  }
-  if (token.includes(" in ") && token.startsWith('"reports')) {
-    return "C";
-  }
-  if (/^(?:timeout|timeoutMs|testTimeout|hookTimeout|actionTimeout|navigationTimeout): |_TIMEOUT_MS = |TimeoutMs = |^setTimeout\(/u.test(token)) {
-    return "J";
-  }
-  return "I";
-}
-
-/** The final policy a legacy arm's finding lands in — or null for the two arms that produce no finding now
- *  (difference 1: F2's local declarations; difference 5: STALE/BLIND are grant liveness and the door's refusal). */
-const ARM_POLICY: ReadonlyMap<LegacyArm, string | null> = new Map<LegacyArm, string | null>([
-  ["A", projectHome.id],
-  ["B", browserDoor.id],
-  ["H", browserDoor.id],
-  ["C", artifactPathHome.id],
-  ["D", processExitHome.id],
-  ["E", cliEntry.id],
-  ["F", childProcessDoor.id],
-  ["F2", null],
-  ["G", artifactRunSlot.id],
-  ["I", portRegistry.id],
-  ["J", clockBudget.id],
-  ["STALE", null],
-  ["BLIND", null],
-]);
-
-/** Difference 3: the legacy mustPass rows that sat on a censused subject, reported by the final policies
- *  because the differential carries no grant and no waiver. Keyed on the example's path. */
-const CENSUSED_SUBJECTS: Readonly<Record<string, string>> = {
-  "tooling/src/_shared/ports.ts": portRegistry.id,
-  "tooling/src/_shared/ts-workspace.ts": projectHome.id,
-  "tooling/src/verify/lib/comment-spans.ts": projectHome.id,
-  "tooling/src/_shared/browser.ts": browserDoor.id,
-  "tests/tooling/verify/ops/structure.int.test.ts": clockBudget.id,
-};
-
-function legacyVerdict(gateDescriptor: GateDescriptor, files: Readonly<Record<string, string>>): readonly LegacyFinding[] {
-  const project = projectOf(files);
-  const result = runPass([gateDescriptor], {
-    root: ROOT,
-    project,
-    scope: { kind: "project" },
-    files: project.getSourceFiles(),
-    checker: () => project.getTypeChecker(),
-  });
-  expect(result.toolErrors).toEqual([]);
-  return (result.gates[0]?.findings ?? []).map((finding) => ({
-    file: finding.file,
-    ...(finding.token === undefined ? {} : { token: finding.token }),
-    ...(finding.message === undefined ? {} : { message: finding.message }),
-  }));
-}
-
-/** The final `<policy> <file>` line one legacy finding maps to, or null for the arms that produce no finding
- *  now (difference 1: F2's local declarations; difference 5: STALE/BLIND are grant liveness and the door's
- *  refusal). Difference 6: the legacy G finding sat on `<tool>/cli.ts`; the final one sits on the filing
- *  call, whose file the legacy message names first (`<site> files an artifact, …`). */
-function finalLineOf(finding: LegacyFinding): { readonly arm: LegacyArm; readonly line: string } | null {
-  const arm = legacyArm(finding);
-  const policy = ARM_POLICY.get(arm) ?? null;
-  if (policy === null) {
-    return null;
-  }
-  const file = arm === "G" ? ((finding.message ?? "").split(" files an artifact")[0] ?? finding.file) : finding.file;
-  return { arm, line: `${policy} ${file}` };
-}
-
-/** `<policy> <file>` per finding, with multiplicity — the comparable unit (difference 6: lines are not).
- *  Difference 2: the port policy reports one finding per (file, operation). Difference 3: a legacy mustPass
- *  row on a censused subject is a finding now. */
-function expectedFinalLines(before: readonly LegacyFinding[], example: GateExample, proofArm: "mustFlag" | "mustPass"): readonly string[] {
-  const lines: string[] = [];
-  const portLines = new Set<string>();
-  for (const finding of before) {
-    const mapped = finalLineOf(finding);
-    if (mapped === null || (mapped.arm === "I" && portLines.has(mapped.line))) {
-      continue;
-    }
-    if (mapped.arm === "I") {
-      portLines.add(mapped.line);
-    }
-    lines.push(mapped.line);
-  }
-  const censused = proofArm === "mustPass" && typeof example.files === "string" && example.at !== undefined ? CENSUSED_SUBJECTS[example.at] : undefined;
-  if (censused !== undefined) {
-    lines.push(`${censused} ${example.at ?? ""}`);
-  }
-  return sorted(lines);
-}
-
-/** Replay ONE legacy example through both sides and assert the classified outcome; returns the legacy arms
- *  it exercised. Difference 4 is asserted here: the planted homes change NOTHING on the legacy side. */
-function replayExample(legacy: GateDescriptor, example: GateExample, proofArm: "mustFlag" | "mustPass"): readonly LegacyArm[] {
-  const bare = legacyFiles(example);
-  const files = { ...HOME_STUBS, ...bare };
-  const before = legacyVerdict(legacy, bare);
-  expect(legacyVerdict(legacy, files), example.why).toEqual(before);
-  const after = passOf(TREE, files);
-  expect(after.toolErrors, example.why).toEqual([]);
-  const lines = sorted(after.authority.effectiveFindings.map((finding) => `${finding.policyId} ${finding.file}`));
-  expect(lines, example.why).toEqual(expectedFinalLines(before, example, proofArm));
-  return before.map(legacyArm);
-}
-
-test(
-  "the nine tree policies reproduce the frozen legacy gate on every original example, with the seven classified differences",
-  async ({ scratch }) => {
-    const legacy = await frozenLegacyGate(scratch);
-    const examples = [...legacy.mustFlag.map((example) => [example, "mustFlag"] as const), ...legacy.mustPass.map((example) => [example, "mustPass"] as const)];
-    expect(examples).toHaveLength(LEGACY_EXAMPLES);
-    const arms: LegacyArm[] = [];
-    for (const [example, proofArm] of examples) {
-      arms.push(...replayExample(legacy, example, proofArm));
-    }
-    // Legacy-side coverage, read first: every arm the descriptor carried is exercised by its own rows, so the
-    // replay is evidence and nothing here is constructed in place of it.
-    const count = (arm: LegacyArm): number => arms.filter((entry) => entry === arm).length;
-    const exercised: readonly (readonly [LegacyArm, number])[] = (["A", "B", "C", "D", "E", "F", "F2", "G", "H", "I", "J"] as const).map(
-      (arm) => [arm, count(arm)] as const,
-    );
-    expect(exercised).toEqual([
-      ["A", 1],
-      ["B", 1],
-      ["C", 1],
-      ["D", 1],
-      ["E", 1],
-      ["F", 2],
-      ["F2", 2],
-      ["G", 1],
-      ["H", 2],
-      ["I", 6],
-      ["J", 3],
-    ]);
-    expect(count("STALE")).toBeGreaterThan(0);
-    expect(count("BLIND")).toBeGreaterThan(0);
-  },
-  DIFFERENTIAL_BUDGET_MS,
 );

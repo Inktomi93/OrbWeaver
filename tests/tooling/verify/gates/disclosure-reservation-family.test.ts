@@ -30,23 +30,17 @@
 //          the gate module's own path → the vocabulary/boundary home. Legacy-side coverage of every arm
 //          asserted per example.
 
-import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
-import process from "node:process";
-import { pathToFileURL } from "node:url";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Project } from "ts-morph";
-import type { GateDescriptor, GateExample } from "../../../../tooling/src/verify/contract/gate.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as qbr } from "../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as qbrHealth } from "../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
 import { gate as subFloor } from "../../../../tooling/src/verify/gates/sub-floor-disclosure.ts";
 import { gate as subFloorHealth } from "../../../../tooling/src/verify/gates/sub-floor-disclosure-health.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
-import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/disclosure-reservation-family";
 const SUB_FLOOR_FAMILY: readonly GatePolicy[] = [subFloor, subFloorHealth];
@@ -61,9 +55,6 @@ const LIVE_SITES = [
   "packages/client/src/features/rpg/components/turn-tool-calls-disclosure.tsx",
   "packages/client/src/features/rpg/components/rpg-beat-row.tsx",
 ] as const;
-const LEGACY_SUB_FLOOR = { sha: "4e1bdb87e", path: "tooling/src/verify/gates/sub-floor-disclosure.ts", opener: "@sub-floor-ok" } as const;
-const LEGACY_QBR = { sha: "370243fe7", path: "tooling/src/verify/gates/query-boundary-reservation.ts", opener: "@first-boot-only" } as const;
-const DIFFERENTIAL_BUDGET_MS = scaledBudget(120_000);
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -211,170 +202,3 @@ test("the sub-floor tripwire REFUSES at the population phase when its home — i
   expect(absent.authority.withheldPolicyIds).toEqual([subFloorHealth.id]);
   expect(absent.authority.effectiveFindings).toEqual([]);
 });
-
-// ─── §4.6 SPLIT-ARM DIFFERENTIALS ───────────────────────────────────────────────────────────────────────
-function toolingHref(relFromGates: string): string {
-  return JSON.stringify(pathToFileURL(join(process.cwd(), "tooling/src/verify/gates", relFromGates)).href);
-}
-
-async function frozenLegacyGate(legacy: { readonly sha: string; readonly path: string }, scratch: string): Promise<GateDescriptor> {
-  const source = execFileSync("git", ["show", `${legacy.sha}:${legacy.path}`], { encoding: "utf8" });
-  const target = join(scratch, basename(legacy.path));
-  // The copy lives outside the checkout, so its RELATIVE imports are rewritten to file URLs. Every named
-  // module is still on the tree and untouched by this conversion.
-  const rewritten = source
-    .replace('from "../contract/gate.ts"', `from ${toolingHref("../contract/gate.ts")}`)
-    .replace('from "../lib/pass.ts"', `from ${toolingHref("../lib/pass.ts")}`)
-    .replace('from "../lib/ast-read.ts"', `from ${toolingHref("../lib/ast-read.ts")}`)
-    .replace('from "../lib/comment-spans.ts"', `from ${toolingHref("../lib/comment-spans.ts")}`);
-  expect(rewritten).not.toBe(source);
-  writeFileSync(target, rewritten);
-  return ((await import(`${pathToFileURL(target).href}?frozen=${basename(legacy.path)}`)) as { readonly gate: GateDescriptor }).gate;
-}
-
-function legacyFiles(example: GateExample, fallback: string): Readonly<Record<string, string>> {
-  return typeof example.files === "string" ? { [example.at ?? fallback]: example.files } : example.files;
-}
-
-/** CLASSIFIED DIFFERENCE 1: the retired grammar is inert text. Blank its opener (same length, same lines)
- *  so the LEGACY run neither consumes nor judges the marker — that is the legacy verdict the final policies
- *  must reproduce, because to them the marker is a comment like any other. */
-function withRetiredMarkersBlanked(files: Readonly<Record<string, string>>, opener: string): Readonly<Record<string, string>> {
-  return Object.fromEntries(Object.entries(files).map(([path, source]) => [path, source.replaceAll(opener, " ".repeat(opener.length))]));
-}
-
-const sorted = (lines: readonly string[]): readonly string[] => lines.toSorted((left, right) => left.localeCompare(right));
-
-interface LegacyFinding {
-  readonly file: string;
-  readonly line: number;
-  readonly column: number;
-  readonly token?: string;
-  readonly message?: string;
-}
-
-function legacyFindings(gateDescriptor: GateDescriptor, files: Readonly<Record<string, string>>): readonly LegacyFinding[] {
-  const project = projectOf(files);
-  const result = runPass([gateDescriptor], {
-    root: ROOT,
-    project,
-    scope: { kind: "project" },
-    files: project.getSourceFiles(),
-    checker: () => project.getTypeChecker(),
-  });
-  expect(result.toolErrors).toEqual([]);
-  return result.gates[0]?.findings ?? [];
-}
-
-function finalLines(
-  policies: readonly GatePolicy[],
-  files: Readonly<Record<string, string>>,
-  line: (finding: {
-    readonly file: string;
-    readonly line: number;
-    readonly column: number;
-    readonly token?: string;
-    readonly message?: string;
-    readonly policyId: string;
-  }) => string,
-): readonly string[] {
-  const result = passOf(policies, files);
-  expect(result.toolErrors).toEqual([]);
-  return sorted(result.authority.effectiveFindings.map(line));
-}
-
-const isMarkerVerdict = (finding: LegacyFinding): boolean => /^(?:malformed|stale|over-exempting) @/u.test(finding.message ?? "");
-
-test(
-  "sub-floor-disclosure + sub-floor-disclosure-health reproduce the frozen legacy gate on every original example",
-  async ({ scratch }) => {
-    const legacy = await frozenLegacyGate(LEGACY_SUB_FLOOR, scratch);
-    const examples = [...legacy.mustFlag, ...legacy.mustPass];
-    expect(examples).toHaveLength(9);
-    const coverage = { occurrence: 0, markerVerdicts: 0, markerConsumed: 0, tripwire: 0 };
-    for (const example of examples) {
-      const files = legacyFiles(example, "packages/client/src/features/a/x.tsx");
-      // Legacy-side coverage is read off the UNBLANKED run — the marker verdicts are the retired arm.
-      const raw = legacyFindings(legacy, files);
-      coverage.markerVerdicts += raw.filter(isMarkerVerdict).length;
-      // The comparable legacy verdict: retired markers blanked, so consumed sites report and marker verdicts vanish.
-      const before = legacyFindings(legacy, withRetiredMarkersBlanked(files, LEGACY_SUB_FLOOR.opener));
-      expect(before.filter(isMarkerVerdict), example.why).toEqual([]);
-      // A marker that CONSUMED a finding is the retired arm's third shape: blanking it makes the site report.
-      coverage.markerConsumed += before.filter((finding) => !isMarkerVerdict(finding)).length - raw.filter((finding) => !isMarkerVerdict(finding)).length;
-      const expected = sorted(
-        before.map((finding) => {
-          if (finding.file === LEGACY_SUB_FLOOR.path) {
-            coverage.tripwire += 1;
-            // DIFFERENCE 3: the tripwire anchors on the variants home, line 1 — and names the arm.
-            const arm = /arm `(?<arm>\w+)`/u.exec(finding.message ?? "")?.groups?.["arm"] ?? "?";
-            return `TRIPWIRE ${VARIANTS_HOME}:1 ${arm}`;
-          }
-          coverage.occurrence += 1;
-          // DIFFERENCE 2: the position moves from the bare `text` to the quoted literal, one column left.
-          return `OCC ${finding.file}:${finding.line}:${finding.column - 1} "text"`;
-        }),
-      );
-      // EMPTY ADMISSION: the tripwire's population is exactly the variants home, so a legacy example without it
-      // refuses at the population phase (pinned above) — the union is compared only where the home is present.
-      const policies = Object.keys(files).includes(VARIANTS_HOME) ? SUB_FLOOR_FAMILY : [subFloor];
-      const after = finalLines(policies, files, (finding) => {
-        if (finding.policyId === subFloorHealth.id) {
-          const arm = /arm `(?<arm>\w+)`/u.exec(finding.message ?? "")?.groups?.["arm"] ?? "?";
-          return `TRIPWIRE ${finding.file}:${finding.line} ${arm}`;
-        }
-        return `OCC ${finding.file}:${finding.line}:${finding.column} ${finding.token ?? "<no token>"}`;
-      });
-      expect(after, example.why).toEqual(expected);
-    }
-    // Every arm the split touched was exercised by the legacy corpus.
-    expect(coverage).toEqual({ occurrence: 3, markerVerdicts: 2, markerConsumed: 1, tripwire: 2 });
-  },
-  DIFFERENTIAL_BUDGET_MS,
-);
-
-test(
-  "query-boundary-reservation + query-boundary-reservation-health reproduce the frozen legacy gate on every original example",
-  async ({ scratch }) => {
-    const legacy = await frozenLegacyGate(LEGACY_QBR, scratch);
-    const examples = [...legacy.mustFlag, ...legacy.mustPass];
-    expect(examples).toHaveLength(12);
-    const coverage = { occurrence: 0, markerVerdicts: 0, markerConsumed: 0, duplicate: 0, seam: 0 };
-    const reserveKeyAttrPrefix = "reserveKey=".length;
-    for (const example of examples) {
-      const files = legacyFiles(example, "packages/client/src/features/a/x.tsx");
-      const raw = legacyFindings(legacy, files);
-      coverage.markerVerdicts += raw.filter(isMarkerVerdict).length;
-      const before = legacyFindings(legacy, withRetiredMarkersBlanked(files, LEGACY_QBR.opener));
-      expect(before.filter(isMarkerVerdict), example.why).toEqual([]);
-      coverage.markerConsumed += before.filter((finding) => !isMarkerVerdict(finding)).length - raw.filter((finding) => !isMarkerVerdict(finding)).length;
-      const expected = sorted(
-        before.map((finding) => {
-          if (finding.file === LEGACY_QBR.path) {
-            coverage.seam += 1;
-            // DIFFERENCE 3: the seam tripwire anchors on the boundary home, line 1.
-            return `SEAM ${BOUNDARY_HOME}:1`;
-          }
-          if ((finding.message ?? "").startsWith("duplicate reserveKey")) {
-            coverage.duplicate += 1;
-            // DIFFERENCE 2: the duplicate is reported on the key LITERAL (quoted), not the attribute start.
-            return `DUP ${finding.file}:${finding.line}:${finding.column + reserveKeyAttrPrefix} "${finding.token ?? ""}"`;
-          }
-          coverage.occurrence += 1;
-          return `OCC ${finding.file}:${finding.line}:${finding.column} ${finding.token ?? "<no token>"}`;
-        }),
-      );
-      const after = finalLines(QBR_FAMILY, files, (finding) => {
-        if (finding.policyId !== qbrHealth.id) {
-          return `OCC ${finding.file}:${finding.line}:${finding.column} ${finding.token ?? "<no token>"}`;
-        }
-        return (finding.message ?? "").startsWith("duplicate reserveKey")
-          ? `DUP ${finding.file}:${finding.line}:${finding.column} ${finding.token ?? ""}`
-          : `SEAM ${finding.file}:${finding.line}`;
-      });
-      expect(after, example.why).toEqual(expected);
-    }
-    expect(coverage).toEqual({ occurrence: 4, markerVerdicts: 2, markerConsumed: 1, duplicate: 2, seam: 1 });
-  },
-  DIFFERENTIAL_BUDGET_MS,
-);

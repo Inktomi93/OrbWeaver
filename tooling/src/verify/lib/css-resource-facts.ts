@@ -131,13 +131,13 @@ function allDeclarations(file: AuthoredCssFile): readonly CssDeclaration[] {
   );
 }
 
-export function customPropertyDefinitions(file: AuthoredCssFile): readonly CssCustomPropertyDefinitionFact[] {
+function customPropertyDefinitions(file: AuthoredCssFile): readonly CssCustomPropertyDefinitionFact[] {
   return allDeclarations(file).flatMap((declaration) =>
     declaration.prop.startsWith("--") ? [{ ...position(file.text, file.path, declaration.offset), name: declaration.prop }] : [],
   );
 }
 
-export function customPropertyReferences(file: AuthoredCssFile): readonly CssCustomPropertyReferenceFact[] {
+function customPropertyReferences(file: AuthoredCssFile): readonly CssCustomPropertyReferenceFact[] {
   return allDeclarations(file).flatMap((declaration) => referencesInValue(file.text, file.path, declaration.rawValue, declaration.valueOffset));
 }
 

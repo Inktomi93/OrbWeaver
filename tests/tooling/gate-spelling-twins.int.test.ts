@@ -86,11 +86,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../../tooling/src/verify/contract/gate.ts";
 import type { GatePolicy, GatePolicyProof } from "../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../tooling/src/verify/contract/policy.ts";
 import type { SpellingBlindSet } from "../../tooling/src/verify/contract/spelling-twin-blindness.ts";
-import { verifyGateProofs } from "../../tooling/src/verify/index.ts";
 import { loadMixedGateCorpus } from "../../tooling/src/verify/lib/loader.ts";
 import { verifyPolicyProofs } from "../../tooling/src/verify/ops/policy-conformance.ts";
 import { spellingTwinCensus } from "../../tooling/src/verify/ops/spelling-twin-blindness.ts";
@@ -99,7 +97,6 @@ import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const LEDGER_REL = "tests/tooling/gate-spelling-twins.baseline.json";
-const REGEN = `the ledger is hand-maintained: paste the JSON printed below into ${LEDGER_REL} and run pnpm exec biome format --write on it (biome collapses the short arrays; this test parses the file, so the format is free). Do that ONLY to record a SHRINK — a gate that became blind is a defect to fix in tooling/src/verify/lib/symbol-reference.ts, never a new row.`;
 
 /** LOAD-HONEST BUDGET, same reasoning as gate-conformance.int: this drives the respelled proofs of BOTH
  *  engines in-process — pure CPU with no child process to hang a legible timeout on. Measured 2026-09-12 on
@@ -120,6 +117,8 @@ function scratchParser(): Project {
   return new Project({ useInMemoryFileSystem: true });
 }
 
+const REGEN = `the ledger is hand-maintained: paste the JSON printed below into ${LEDGER_REL} and run pnpm exec biome format --write on it (biome collapses the short arrays; this test parses the file, so the format is free). Do that ONLY to record a SHRINK — a gate that became blind is a defect to fix in tooling/src/verify/lib/symbol-reference.ts, never a new row.`;
+
 test("no gate is blind to a respelling of its own mustFlag fixture beyond the committed, shrink-only ledger", { timeout: TWIN_BUDGET }, async () => {
   const corpus = await loadMixedGateCorpus(ROOT);
   const ledger = JSON.parse(readFileSync(join(ROOT, LEDGER_REL), "utf8")) as { readonly blind: SpellingBlindSet };
@@ -138,52 +137,6 @@ test("no gate is blind to a respelling of its own mustFlag fixture beyond the co
 
 const CONTROL_MUST_FLAG = "export const a = (db: Record<string, unknown>) => db.forbidden;\n";
 const CONTROL_MUST_PASS = "export const a = (db: Record<string, unknown>) => db.allowed;\n";
-
-test("THE PLANTED CONTROL, LEGACY side: an un-migrated descriptor is detected blind, and the migrated spelling is not", () => {
-  const base = {
-    docRow: "test fixture",
-    status: "active",
-    scopeSafety: "incremental-safe",
-    message: "test fixture: a `.forbidden` member read",
-    mustFlag: [{ files: CONTROL_MUST_FLAG, why: "the dotted spelling" }],
-    mustPass: [],
-  } as const;
-
-  // (1) The naive detector — `PropertyAccessExpression.getName()`, the exact shape #1506 found in 21 gates.
-  const naive: GateDescriptor = {
-    ...base,
-    name: "twin-control-naive",
-    kinds: [SyntaxKind.PropertyAccessExpression],
-    visit: (node, _sf, ctx) => {
-      if (node.isKind(SyntaxKind.PropertyAccessExpression) && node.getName() === "forbidden") {
-        ctx.report(node);
-      }
-    },
-  };
-  // (2) The same law read through the shared resolver — both member kinds subscribed.
-  const migrated: GateDescriptor = {
-    ...base,
-    name: "twin-control-migrated",
-    kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-    visit: (node, _sf, ctx) => {
-      if (node.isKind(SyntaxKind.PropertyAccessExpression) && node.getName() === "forbidden") {
-        ctx.report(node);
-        return;
-      }
-      if (node.isKind(SyntaxKind.ElementAccessExpression) && node.getArgumentExpression()?.getText() === '"forbidden"') {
-        ctx.report(node);
-      }
-    },
-  };
-
-  // Both gates prove themselves on the DOTTED fixture — the control is honest only if they start equal.
-  expect(verifyGateProofs([naive])).toEqual([]);
-  expect(verifyGateProofs([migrated])).toEqual([]);
-
-  const census = spellingTwinCensus({ legacy: [naive, migrated], final: [] }, scratchParser());
-  expect(census.blind).toEqual({ "twin-control-naive": ["bracket"] });
-  expect({ examined: census.examined, skipped: census.skipped }).toEqual({ examined: 2, skipped: [] });
-});
 
 /** The minimum honest `defineGate` shape for a control: one visitor, one law, both proof arms. */
 function controlPolicy(id: string, kinds: readonly SyntaxKind[], detect: (text: string) => boolean, grantProofs?: readonly GatePolicyProof[]): GatePolicy {

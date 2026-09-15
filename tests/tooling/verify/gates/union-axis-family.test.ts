@@ -18,25 +18,15 @@
 //          `report.node`'s exact-slice validation; each becomes an authored slice, and arm B's z.enum
 //          sub-kind additionally moves from the CALL to its ARRAY argument (a call's text carries parens,
 //          which the marker grammar's `[^()\r\n]+` position group cannot hold).
-import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
-import process from "node:process";
-import { pathToFileURL } from "node:url";
 import { Project } from "ts-morph";
-import type { GateDescriptor, GateExample } from "../../../../tooling/src/verify/contract/gate.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as unionRedecl } from "../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/union-axis-family";
 const FAMILY: readonly GatePolicy[] = [unionRedecl];
-const LEGACY_PATH = "tooling/src/verify/gates/no-inline-union-redecl.ts";
-/** The pre-conversion SHA the brief names; verified byte-identical to the module at this lane's base. */
-const LEGACY_SHA = "2030ab180";
 const HOME = "packages/contracts/src/axis-home.ts";
 const RESPELL = "packages/server/src/axis-respell.ts";
 
@@ -102,99 +92,4 @@ test("a request admitting only the re-speller DEFERS instead of declaring the ax
   // The point of the pin: the narrowed run must produce NO verdict, not a silent clean one. Without the
   // deferral the same request would run arm B against a tuple map the selection never let it collect.
   expect(narrowed.authority.effectiveFindings).toEqual([]);
-});
-
-// ─── §4.6 CONVERSION DIFFERENTIAL ───────────────────────────────────────────────────────────────────────
-function toolingHref(relFromGates: string): string {
-  return JSON.stringify(pathToFileURL(join(process.cwd(), "tooling/src/verify/gates", relFromGates)).href);
-}
-
-async function frozenLegacyGate(scratch: string): Promise<GateDescriptor> {
-  const source = execFileSync("git", ["show", `${LEGACY_SHA}:${LEGACY_PATH}`], { encoding: "utf8" });
-  const target = join(scratch, basename(LEGACY_PATH));
-  // The copy lives outside the checkout, so its RELATIVE imports are rewritten to file URLs. Both named
-  // modules are still on the tree and untouched by this conversion.
-  const rewritten = source
-    .replace('from "../contract/gate.ts"', `from ${toolingHref("../contract/gate.ts")}`)
-    .replace('from "../lib/pass.ts"', `from ${toolingHref("../lib/pass.ts")}`);
-  expect(rewritten).not.toBe(source);
-  writeFileSync(target, rewritten);
-  return ((await import(`${pathToFileURL(target).href}?frozen=${basename(LEGACY_PATH)}`)) as { readonly gate: GateDescriptor }).gate;
-}
-
-function legacyFiles(example: GateExample): Readonly<Record<string, string>> {
-  return typeof example.files === "string" ? { [example.at ?? "packages/contracts/src/x.ts"]: example.files } : example.files;
-}
-
-/** One comparable line per finding: where it landed and what it named. */
-function line(finding: { readonly file: string; readonly line: number; readonly column: number; readonly token?: string }): string {
-  return `${finding.file}:${finding.line}:${finding.column} ${finding.token ?? "<no token>"}`;
-}
-
-const sorted = (lines: readonly string[]): readonly string[] => lines.toSorted((left, right) => left.localeCompare(right));
-
-function legacyVerdict(
-  descriptor: GateDescriptor,
-  files: Readonly<Record<string, string>>,
-): { readonly lines: readonly string[]; readonly refusals: readonly string[] } {
-  const project = projectOf(files);
-  const result = runPass([descriptor], {
-    root: ROOT,
-    project,
-    scope: { kind: "project" },
-    // The legacy side is driven over the SAME admitted set the final policy declares — the descriptor's own
-    // `scanRoot` still applies inside `runPass`, and no fixture here sits under `tooling/src/verify/gates/`.
-    files: project.getSourceFiles(),
-    checker: () => project.getTypeChecker(),
-  });
-  return { lines: sorted((result.gates[0]?.findings ?? []).map(line)), refusals: result.toolErrors.map((error) => error.phase) };
-}
-
-function finalVerdict(files: Readonly<Record<string, string>>): { readonly lines: readonly string[]; readonly refusals: readonly string[] } {
-  const result = passOf(files);
-  return {
-    lines: sorted(result.authority.effectiveFindings.map(line)),
-    refusals: sorted(result.toolErrors.map((error) => `${error.policyId} ${error.phase}`)),
-  };
-}
-
-/** THE ONE CLASSIFIED DIFFERENCE — position/token — applied per legacy finding, so the comparison is one
- *  `toEqual` and an unclassified change cannot average out against a classified one. */
-const TOKEN_MOVE: ReadonlyMap<string, { readonly token: string; readonly columnDelta: number }> = new Map([
-  // arm A: the alias DECLARATION's start → its NAME. `export type ` is 12 characters.
-  ["union Mode", { token: "Mode", columnDelta: 12 }],
-  // arm B union: same column, synthetic label → the set's own text.
-  ["re-spell AXIS", { token: "'a' | 'b' | 'c'", columnDelta: 0 }],
-  ["re-spell PAIR", { token: "'x' | 'y'", columnDelta: 0 }],
-  ["re-spell MODES", { token: "'a' | 'b' | 'c'", columnDelta: 0 }],
-  // arm B z.enum: the CALL → its ARRAY argument. `z.enum(` is 7 characters.
-  ["z.enum re-spell MODE", { token: "['a', 'b', 'c']", columnDelta: 7 }],
-]);
-
-test("the converted policy reproduces the frozen legacy gate on every original example", async ({ scratch }) => {
-  const legacy = await frozenLegacyGate(scratch);
-  const examples = [...legacy.mustFlag, ...legacy.mustPass];
-  expect(examples).toHaveLength(10);
-  let flagging = 0;
-  const movedTokens = new Set<string>();
-  for (const example of examples) {
-    const files = legacyFiles(example);
-    const before = legacyVerdict(legacy, files);
-    expect(before.refusals, example.why).toEqual([]);
-    flagging += before.lines.length > 0 ? 1 : 0;
-    const expected = before.lines.map((entry) => {
-      const match = /^(?<file>[^:]+):(?<row>\d+):(?<column>\d+) (?<token>.+)$/u.exec(entry);
-      const groups = match?.groups ?? {};
-      const move = TOKEN_MOVE.get(groups["token"] ?? "");
-      expect(move, `unclassified legacy token in ${entry}`).toBeDefined();
-      movedTokens.add(groups["token"] ?? "");
-      return `${groups["file"]}:${groups["row"]}:${String(Number(groups["column"]) + (move?.columnDelta ?? 0))} ${move?.token ?? ""}`;
-    });
-    expect(finalVerdict(files), example.why).toEqual({ lines: sorted(expected), refusals: [] });
-  }
-  // LEGACY-SIDE COVERAGE, asserted rather than assumed: a replay over examples that never flagged would be
-  // green whatever the conversion did. Five of ten flag, and between them they exercise every legacy token
-  // shape both arms could emit — which is what makes the position move above a measured delta.
-  expect(flagging).toBe(5);
-  expect(movedTokens.size).toBe(5);
 });

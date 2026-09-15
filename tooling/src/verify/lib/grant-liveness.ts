@@ -23,9 +23,8 @@
 // `path.matchesGlob`), dep-cruiser speaks regex source, and tsconfig entries resolve against their own
 // config's directory. This module never guesses a syntax and never expands against a root it was not
 // handed: no universal DSL (#973 program shape 5).
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join, matchesGlob } from "node:path";
-import { execNicedSync } from "@orb/tooling/_shared/proc";
 import type { ExemptionTable, Finding } from "../contract/gate.ts";
 import type { PackageDependencyFacts } from "../contract/resource-config.ts";
 
@@ -66,52 +65,6 @@ export interface ExactRow {
   readonly line: number;
 }
 
-/**
- * @public knip false positive — no live PRODUCTION importer since `depcruise-grant-liveness` converted to
- * reviewed-grant authority (#2176 Phase F); consumed at TEST RUNTIME by the frozen legacy
- * `tsconfig-entry-liveness` descriptor that `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts`
- * git-shows at `c97de9d2f` and rewires to this live module (`:56` imports it, `:324` calls it). The whole
- * exemption half of this core — this function, `GrantExemption`, `LivenessMessages`, `LivenessInput` and
- * `patternLivenessFindings`' `ratified`/`anchorOk` inputs — dies with that replay when the legacy runtime
- * retires; nothing final reaches it.
- */
-export interface LivenessMessages {
-  /** DEAD file-exact grant (path resolves to nothing, not exempt). Carries the path as the finding token. */
-  readonly dead: string;
-  /** An EXEMPT row the registry no longer carries. */
-  readonly staleExempt: string;
-  /** An EXEMPT row whose cited producer no longer resolves. */
-  readonly deadCite: string;
-}
-
-/**
- * @public knip false positive — no live PRODUCTION importer since `depcruise-grant-liveness` converted to
- * reviewed-grant authority (#2176 Phase F); consumed at TEST RUNTIME by the frozen legacy
- * `tsconfig-entry-liveness` descriptor that `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts`
- * git-shows at `c97de9d2f` and rewires to this live module (`:56` imports it, `:324` calls it). The whole
- * exemption half of this core — this function, `GrantExemption`, `LivenessMessages`, `LivenessInput` and
- * `patternLivenessFindings`' `ratified`/`anchorOk` inputs — dies with that replay when the legacy runtime
- * retires; nothing final reaches it.
- */
-export interface LivenessInput {
-  /** Disk root for the default `existsSync` check. Omit when `exists` is supplied — a resource-fed caller
-   *  (GatePolicyContext carries no root/filesystem at all) has no disk root to hand back. */
-  readonly root?: string;
-  /** The path-existence oracle. Defaults to `existsSync(join(root, path))` for the pre-ResourceHost callers
-   *  (`runner-config-path-liveness`, `tsconfig-entry-liveness`); a ResourceHost-backed caller supplies its
-   *  own predicate over a resource fact (e.g. `trackedFiles()`'s `repoPaths`) instead. */
-  readonly exists?: (path: string) => boolean;
-  readonly exact: readonly ExactRow[];
-  readonly exempt: ExemptionTable<GrantExemption>;
-  /** Which config file the GLOBAL exemption-table findings anchor at (a registry can span several config
-   *  files, but its exemption table is one home). Normally the primary config, e.g. `biome.json`/`tsconfig.json`. */
-  readonly exemptAnchorFile: string;
-  /** The §4.5 real-tree anchor: only when TRUE (a genuine full-config read, never a conformance
-   *  mini-project) do the exemption-table arms run, so a synthetic proof can't red the gate's own self-test. */
-  readonly anchorOk: boolean;
-  readonly messages: LivenessMessages;
-}
-
 interface ExistenceInput {
   readonly root?: string;
   readonly exists?: (path: string) => boolean;
@@ -130,48 +83,6 @@ interface DeadExactInput extends ExistenceInput {
 export function deadExactFindings(input: DeadExactInput): Finding[] {
   const exists = existenceOracle(input);
   return input.exact.filter((row) => !exists(row.path)).map((row) => ({ file: row.file, line: row.line, column: 0, token: row.path, message: input.message }));
-}
-
-/** The two-sided EXEMPT arms — runs only when the caller's real-tree anchor holds (`input.anchorOk`). */
-function exemptionArms(input: LivenessInput, exactPaths: ReadonlySet<string>): Finding[] {
-  const { exemptAnchorFile, exempt, messages } = input;
-  const exists = existenceOracle(input);
-  const out: Finding[] = [];
-  for (const [path, row] of Object.entries(exempt)) {
-    if (!exactPaths.has(path)) {
-      out.push({ file: exemptAnchorFile, line: 0, column: 0, token: path, message: messages.staleExempt });
-      continue;
-    }
-    if (!exists(row.cite)) {
-      out.push({ file: exemptAnchorFile, line: 0, column: 0, token: row.cite, message: messages.deadCite });
-    }
-  }
-  return out;
-}
-
-/** DEAD-row + two-sided-EXEMPT findings for a set of already-extracted, already-classified file-exact rows.
- *  A row is dead when it is NOT exempt and its path resolves to nothing on the tree; the finding token is
- *  the dead path, anchored at its OWN config file + source line. The exemption table is judged GLOBALLY
- *  against the whole exact set (a row exact in ANY scanned config keeps its exemption live).
- *
- * @public knip false positive — no live PRODUCTION importer since `depcruise-grant-liveness` converted to
- * reviewed-grant authority (#2176 Phase F); consumed at TEST RUNTIME by the frozen legacy
- * `tsconfig-entry-liveness` descriptor that `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts`
- * git-shows at `c97de9d2f` and rewires to this live module (`:56` imports it, `:324` calls it). The whole
- * exemption half of this core — this function, `GrantExemption`, `LivenessMessages`, `LivenessInput` and
- * `patternLivenessFindings`' `ratified`/`anchorOk` inputs — dies with that replay when the legacy runtime
- * retires; nothing final reaches it.
- */
-export function livenessFindings(input: LivenessInput): Finding[] {
-  const { exact, exempt, anchorOk, messages } = input;
-  const exactPaths = new Set(exact.map((r) => r.path));
-  const dead = deadExactFindings({
-    ...(input.root === undefined ? {} : { root: input.root }),
-    ...(input.exists === undefined ? {} : { exists: input.exists }),
-    exact: exact.filter((row) => exempt[row.path] === undefined),
-    message: messages.dead,
-  });
-  return [...dead, ...(anchorOk ? exemptionArms(input, exactPaths) : [])];
 }
 
 /** A path→1-based-line resolver over raw config text, advancing a per-path cursor so a path that appears in
@@ -228,16 +139,6 @@ export interface PatternRow {
   readonly matches: (member: string) => boolean;
 }
 
-/** The two member sources a pattern may live against. Both are derived from TRACKED files only, so the
- *  verdict is identical on a clean checkout and on a machine that has built, installed, and run tests. */
-interface MemberSources {
-  /** Every tracked repo path (`git ls-files`). */
-  readonly repoPaths: readonly string[];
-  /** Every declared dependency rendered as the module paths a registry writes: `node_modules/<name>/` and
-   *  the bare specifier `<name>/`. Dep-cruiser's `path`/`pathNot` match module paths, not repo paths. */
-  readonly dependencyModules: readonly string[];
-}
-
 export interface PatternLivenessMessages {
   /** A pattern with ZERO members in either source. Carries the pattern as the finding token. */
   readonly deadPattern: string;
@@ -247,6 +148,16 @@ export interface PatternLivenessMessages {
   readonly deadCite: string;
   /** The irreducible BUDGET moved. `{actual}`/`{budget}` are substituted. */
   readonly budgetMoved: string;
+}
+
+/** The two member sources a pattern may live against. Both are derived from TRACKED files only, so the
+ *  verdict is identical on a clean checkout and on a machine that has built, installed, and run tests. */
+interface MemberSources {
+  /** Every tracked repo path (`git ls-files`). */
+  readonly repoPaths: readonly string[];
+  /** Every declared dependency rendered as the module paths a registry writes: `node_modules/<name>/` and
+   *  the bare specifier `<name>/`. Dep-cruiser's `path`/`pathNot` match module paths, not repo paths. */
+  readonly dependencyModules: readonly string[];
 }
 
 export interface PatternLivenessInput {
@@ -277,65 +188,6 @@ export interface PatternLivenessOutcome {
   readonly ratified: number;
   /** Patterns with no member at all and no ratification — every one is a finding. */
   readonly dead: number;
-}
-
-/** Every tracked repo path, as repo-relative posix. TRACKED, never an FS walk: a gate that judged patterns
- *  against the filesystem would answer differently depending on whether node_modules/dist/reports exist
- *  (and `__g_` fixtures are materialised for milliseconds mid-run by check-gates.int). */
-function trackedRepoPaths(root: string): readonly string[] {
-  // @orb-waive caught-failure-ownership(catch): NOT a swallow — an empty corpus is the
-  // caller's LOUD blindness arm ("I could not measure", never "clean"), and every caller reds on it at
-  // real-config scope. Throwing here would surface as an anonymous harness ToolError instead of the
-  // diagnostic that names the config. Ends if a caller starts reading [] as "no members".
-  try {
-    return execNicedSync("git", ["ls-files", "-z"], { cwd: root })
-      .split("\0")
-      .filter((path) => path !== "");
-  } catch {
-    return [];
-  }
-}
-
-const DEPENDENCY_KEYS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const;
-
-/** Every dependency NAME declared by a tracked package.json, rendered as the two module-path spellings a
- *  registry writes. This is the second finite source: `node_modules/echarts/` is live exactly while some
- *  package.json still declares `echarts`, which is a tracked fact, not an install artifact. */
-function manifestDependencyNames(root: string, rel: string): readonly string[] {
-  let parsed: Record<string, unknown>;
-  // @orb-waive caught-failure-ownership(catch): a malformed package.json is the package
-  // manager's red, not this gate's subject — it contributes no names rather than aborting the pass. Ends
-  // if this gate ever becomes the manifest validator.
-  try {
-    parsed = JSON.parse(readFileSync(join(root, rel), "utf-8")) as Record<string, unknown>;
-  } catch {
-    return [];
-  }
-  return DEPENDENCY_KEYS.flatMap((key) => {
-    const block = parsed[key];
-    return typeof block === "object" && block !== null ? Object.keys(block) : [];
-  });
-}
-
-function declaredDependencyModules(root: string, repoPaths: readonly string[]): readonly string[] {
-  const names = new Set<string>();
-  for (const rel of repoPaths) {
-    if (rel.endsWith("package.json") && !rel.includes("node_modules/")) {
-      for (const name of manifestDependencyNames(root, rel)) {
-        names.add(name);
-      }
-    }
-  }
-  return [...names].flatMap((name) => [`node_modules/${name}/index.js`, `${name}/index.js`]);
-}
-
-/**
- * Derive BOTH member sources once per pass.
- * @public knip false positive — no live importer; consumed at TEST RUNTIME by the frozen legacy biome/tsconfig grant-liveness gates that tests/tooling/verify/gates/grant-liveness-family.test.ts and grant-liveness-legacy-replay.test.ts git-show at their pinned SHA and rewire to this live module.
- */
-export function memberSources(root: string): MemberSources {
-  const repoPaths = trackedRepoPaths(root);
-  return { repoPaths, dependencyModules: declaredDependencyModules(root, repoPaths) };
 }
 
 /** The dependency-module half of `MemberSources`, derived from already-acquired `PackageDependencyFacts`

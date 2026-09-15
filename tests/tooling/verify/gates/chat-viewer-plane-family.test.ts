@@ -6,19 +6,13 @@
 // static `structure:policy-conformance` stage; the first test here only asserts they are readable, so a
 // row that stops conforming is caught in this file too rather than only in the whole-corpus stage.
 import { Project } from "ts-morph";
-import type { GateDescriptor } from "../../../../tooling/src/verify/contract/gate.ts";
 import { gate as reach } from "../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads-health.ts";
 import { CHAT_MATRIX_FILE, CHAT_QUERIES_FILE } from "../../../../tooling/src/verify/lib/chat-plane-read.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { frozenLegacyGate } from "../../../support/legacy-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-/** The pre-conversion SHA of `tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts`. */
-const LEGACY_SHA = "9dca9fca4";
-const LEGACY_PATH = "tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
 const ROOT = "/chat-viewer-plane-family";
 const READ = "packages/server/src/domain/chat/verbs/read.ts";
 
@@ -33,11 +27,6 @@ function projectFor(files: Files): Project {
     project.createSourceFile(`${ROOT}/${path}`, text);
   }
   return project;
-}
-
-function before(gate: GateDescriptor, files: Files): ReturnType<typeof runPass> {
-  const project = projectFor(files);
-  return runPass([gate], { root: ROOT, project, files: project.getSourceFiles(), scope: { kind: "project" }, checker: () => project.getTypeChecker() });
 }
 
 function after(files: Files): ReturnType<typeof runPolicyPass> {
@@ -150,51 +139,3 @@ test("the population port admits the same chat sources both ways, with an inside
 });
 
 // ── §6.4 conversion differential over the same bytes ───────────────────────────────────────────────────
-
-test("the frozen legacy descriptor and the two final policies agree over the same bytes", async ({ scratch }) => {
-  const legacy = await frozenLegacyGate(scratch, LEGACY_SHA, LEGACY_PATH);
-  expect([legacy.mustFlag.length, legacy.mustPass.length]).toEqual([13, 6]);
-
-  // THE CATCH the occurrence arm owns, on both sides, at the same file.
-  const leak = leakTree(LEAK_READ);
-  const old = before(legacy, leak);
-  const next = after(leak);
-  expect(old.toolErrors).toEqual([]);
-  expect(next.toolErrors).toEqual([]);
-  expect(old.gates[0]?.findings.map((finding) => finding.file)).toEqual([READ]);
-  expect(next.authority.effectiveFindings.map((finding) => finding.file)).toEqual([READ]);
-  // ANCHOR MOVE, classified: the legacy token was the ALLOWLIST key `<verb>:<reader>`, a discriminator
-  // label; the final position is the authored callee slice, which is what an ordinary waiver can bind.
-  expect(old.gates[0]?.findings[0]?.token).toBe("listMessages:loadCanonHistory");
-  expect(next.authority.effectiveFindings[0]?.token).toBe("loadCanonHistory");
-
-  // THE GREEN half, on both sides: the floor-taking read.
-  const clean = leakTree(LEAK_READ.replace("loadCanonHistory", "loadMessagesPage").replace("loadCanonHistory()", "loadMessagesPage(0)"));
-  const cleanFiles: Files = {
-    ...clean,
-    [CHAT_QUERIES_FILE]: `${QUERIES_SRC}export async function loadMessagesPage(_floor: number): Promise<number[]> {\n  return [];\n}\n`,
-  };
-  expect(before(legacy, cleanFiles).gates[0]?.findings).toEqual([]);
-  expect(after(cleanFiles).authority.effectiveFindings).toEqual([]);
-
-  // EXEMPTION-MECHANISM MOVE, proved: the legacy ALLOWLIST suppressed `previewContextFit:loadCanonHistory`
-  // inside the gate module. The final policies carry no allowlist, so the same shape is a LIVE finding
-  // that only a central marker can consume — which is the migration this conversion performed.
-  const sanctioned = leakTree(LEAK_READ.replace("listMessages", "previewContextFit"));
-  const sanctionedFiles: Files = {
-    ...sanctioned,
-    [CHAT_MATRIX_FILE]: 'export const CHAT_VERB_AUTHORITY = { previewContextFit: "member" } as const satisfies Record<string, string>;\n',
-  };
-  expect(before(legacy, sanctionedFiles).gates[0]?.findings).toEqual([]);
-  expect(after(sanctionedFiles).authority.effectiveFindings).toHaveLength(1);
-
-  // DOOR LOSS, recorded rather than relocated: the legacy `@orb-gate-ignore` grammar had zero live
-  // occurrences and its position was a discriminator label, so it does not bind on the final policy.
-  const ignored = leakTree(
-    LEAK_READ.replace(
-      "  return async () => await loadCanonHistory();",
-      "  // @orb-gate-ignore chat-viewer-plane-canon-reads(listMessages:loadCanonHistory): the retired grammar.\n  return async () => await loadCanonHistory();",
-    ),
-  );
-  expect(after(ignored).authority.effectiveFindings).toHaveLength(1);
-});

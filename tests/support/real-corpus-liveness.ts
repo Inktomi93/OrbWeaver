@@ -10,10 +10,12 @@
 //
 // A VIRTUAL OVERLAY, NEVER A WORKING-TREE PLANT. `project.createSourceFile` adds the file to the loaded
 // ts-morph project in memory only — nothing is written, nothing is cleaned up, and a killed run leaves no
-// debris. This matters more than convenience: ZERO final policies plant by construction (guide §6.5), the
-// four surviving `__g_`/`__dc_` planters all cover LEGACY modules, and they are the reason
-// `check-gates.repo.int.test.ts` is orchestrator-only and not concurrency-safe with itself. A fifth planter
-// would be a new shared-tree hazard for every lane, to prove a property that does not need one.
+// debris. This matters more than convenience: ZERO final policies plant by construction (guide §6.5), and
+// as of #2176 Phase F NOTHING plants into the working tree at all — the `__g_`/`__dc_` planters covered
+// LEGACY modules only, they were the reason `check-gates.repo.int.test.ts` was orchestrator-only and not
+// concurrency-safe with itself, and they retired with the legacy runtime. This mechanism is the whole
+// answer now: a new planter would be a new shared-tree hazard for every lane, to prove a property that
+// does not need one.
 //
 // IT WORKS BECAUSE POPULATION RESOLUTION READS THE PROJECT, NOT THE DISK. `lib/policy-pass.ts#resolveRuns`
 // builds its candidate set from `input.project.getSourceFiles()`, so an in-memory file inside the policy's

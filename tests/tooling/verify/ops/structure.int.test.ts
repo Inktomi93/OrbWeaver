@@ -15,6 +15,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { spawnNicedChild } from "@orb/tooling/_shared/proc";
 import { GATE_PHASES } from "../../../../tooling/src/verify/contract/pass.ts";
+import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -36,6 +37,7 @@ const OK_GATE = `export const gate = {
 /** The file the planted gate scans — without it every planted run trips the zero-scan alarm instead. */
 const SCANNED = { "packages/x/src/y.ts": "export const y = 1;\n" };
 const GATE_DIR = "tooling/src/verify/gates";
+const HOG_ITERATIONS = 40_000_000;
 const POLL_DELAY_MS = 50;
 const READINESS_BUDGET_MS = scaledBudget(30_000);
 const SUBPROCESS_CLEANUP_BUDGET_MS = scaledBudget(5000);
@@ -144,12 +146,6 @@ test("`show` reads a complete artifact (the negative control for the refusal bel
 // The planted hog burns a known ~60ms in its `run` hook: a report that cannot tell it from the free gate
 // beside it is the artifact this arm exists to refuse.
 
-/** A planted gate that burns a FIXED AMOUNT OF WORK in one named phase. Work, not a wall-clock deadline:
- *  the case's subject is ATTRIBUTION (which phase of which gate was charged), and a loop of a known size
- *  proves that without reading an ambient clock from the test — the deadline form spelled `Date.now()`
- *  here, which is `test-determinism`'s exact ban. The harness times the hook's own return, so only real
- *  occupied CPU inside it can land on this gate. */
-const HOG_ITERATIONS = 40_000_000;
 const HOG_GATE = OK_GATE.replace(
   "visitFile: () => undefined,",
   `visitFile: () => undefined,\n  run: () => {\n    let burnt = 0;\n    for (let i = 0; i < ${String(HOG_ITERATIONS)}; i += 1) {\n      burnt += i % 7;\n    }\n    if (burnt < 0) {\n      throw new Error("unreachable — the planted cost must not be optimised away");\n    }\n  },`,
@@ -377,4 +373,39 @@ test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves th
   expect(isRealHeapOom(res)).toBe(true);
   expect(manifest(root).complete).toBe(false);
   expect((await runCli("verify", ["show"], { cwd: root })).code).toBe(2);
+});
+
+// ── THE REAL-CORPUS ROSTER, successor to two `check-gates.repo.int.test.ts` arms (#2176 Phase F) ────────
+//
+// That suite planted `__g_*` fixtures inside the real package tree, which is why it was orchestrator-only
+// and not concurrency-safe with itself, and it died at `lib/loader.ts`'s empty-legacy-roster refusal once
+// the corpus went all-final. Two of its eight arms had FINAL subjects and land here:
+//
+//   "reserved proof files stay project inputs but never become descriptor corpus, and the roster accounts
+//    for every module once" — the `__g_`/`__dc_` exclusion and the roster accounting identity;
+//   "every ACTIVE gate file in tooling/src/verify/gates is run by report.ts (anti-drift)" — which on the
+//    all-final corpus IS `unregistered === []`: the loader is the registry, every registered final policy
+//    is dispatched (only the retired legacy contract had a `status` filter to drop one), and the doc-side
+//    half is `enforcement-registry-parity`.
+//
+// The other two final-subject arms went to their own owners rather than here, because the property is not
+// this file's: the population denominator on every rendered final line is the RENDERER's
+// (`tests/tooling/verify/lib/render.int.test.ts`), and "no run is a NON-VERDICT" is the production EXIT
+// contract, pinned against a real CLI child in `structure-mixed.suite.int.test.ts`'s withheld-owner arm
+// (exit 2, `⚠ … WITHHELD by authority`) — a stronger receipt than observing one clean tree.
+//
+// SYNTHETIC-CORPUS controls for both halves stay in `tests/tooling/verify/lib/loader.test.ts`; what is
+// added here is the REAL-TREE measurement, in process, with no planted file anywhere.
+test("the real gate corpus registers every module it holds, admits no probe sentinel, and accounts for each row once", {
+  timeout: CLI_CASE_BUDGET_MS,
+}, async ({ repoRoot }) => {
+  const corpus = await loadMixedGateCorpus(repoRoot);
+  // A denominator first: an empty corpus would satisfy every assertion below vacuously.
+  expect(corpus.files.length).toBeGreaterThan(8);
+  expect(corpus.files.filter((file) => file.includes("/__g_") || file.includes("/__dc_"))).toEqual([]);
+  // ANTI-DRIFT: a module in the gates dir that registers nothing is a gate file doing nothing, silently.
+  expect(corpus.unregistered).toEqual([]);
+  // THE ACCOUNTING IDENTITY the run manifest reconciles: one roster row per module, nothing vanishing.
+  expect(corpus.files.length).toBe(corpus.legacy.length + corpus.final.length + corpus.unregistered.length);
+  expect(corpus.roster.map(({ path }) => path)).toEqual([...corpus.files].toSorted());
 });
