@@ -20,9 +20,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesS
 import { join } from "node:path";
 import process from "node:process";
 import type { RunSlot } from "@orb/tooling/_shared/artifacts";
+import { plantedPolicySource } from "../../support/planted-gate-corpus.ts";
 import type { CliResult } from "../../support/tool-fixtures.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
-import { plantedPolicySource } from "../../support/planted-gate-corpus.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 /** A valid descriptor whose `run` is a RENDEZVOUS: the first child holds its in-flight marker until the

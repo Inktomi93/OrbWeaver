@@ -2889,14 +2889,6 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     endsWhen: "every such file joins the governed corpus or stops needing AST reads — the row is then consumed zero times and reds.",
   },
   {
-    id: "tooling-project-home:ops-conformance",
-    policyId: "tooling-project-home",
-    subject: "tooling/src/verify/ops/conformance.ts",
-    operation: "ts-morph-project-construction",
-    why: "materializes each LEGACY gate's mustFlag/mustPass example as its OWN synthetic mini-project (in-memory, or a real temp dir for an fsBacked gate) — a self-proof run over the shared workspace would prove nothing about the example (the legacy PROJECT_SITES row; two constructions, one grant).",
-    endsWhen: "the legacy conformance runner retires at the gate-runtime cutover (#1584) — the row is then consumed zero times and reds.",
-  },
-  {
     id: "tooling-project-home:ops-policy-conformance",
     policyId: "tooling-project-home",
     subject: "tooling/src/verify/ops/policy-conformance.ts",

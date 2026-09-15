@@ -94,8 +94,9 @@ const ALL: readonly GatePolicy[] = [...TREE, runnerConfigLiterals];
 const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifactPathHome, processExitHome, childProcessDoor, portRegistry];
 // 19 at mint; 17 since `tooling-project-home:dangling-refs` (d32dbde26) and `:enforcement-registry-parity`
 // (ed4b7588a) retired with their gates' conversions — a converted policy owns no Project, so its grant died
-// with the act it licensed. The exact-subject arm below still pins every survivor to a live file.
-const PLUMBING_GRANT_COUNT = 17;
+// with the act it licensed; 16 since `tooling-project-home:ops-conformance` died with the legacy conformance
+// runner at df2a54b09 (#2176 Phase F). The exact-subject arm below still pins every survivor to a live file.
+const PLUMBING_GRANT_COUNT = 16;
 const REAL_TREE_BUDGET_MS = scaledBudget(300_000);
 
 const PROC_HOME = "tooling/src/_shared/proc.ts";
