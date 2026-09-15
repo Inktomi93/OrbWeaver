@@ -357,12 +357,12 @@ is decoration, not the pin.
 
 ## What I did NOT cover — this is a limit on the verdict above
 
-- **I did not run `pnpm check:structure`, `pnpm check`, `pnpm verify`, `gate-conformance.repo.int`,
-  `gate-ignore-grammar.repo.int` or `check-gates.repo.int`** — forbidden by the brief (three lanes live;
-  the last three plant fixtures). Two of them were EDITED by the callback lane without being run. **Nothing
-  in this report speaks to those three suites, and the callback merge's edits to
-  `tests/tooling/check-gates.repo.int.test.ts` and `tests/tooling/gate-conformance.repo.int.test.ts`
-  (32 and 56 changed lines) are wholly unverified here.** That is where the residual risk sits.
+- **I did not run `pnpm check:structure`, `pnpm check`, `pnpm verify`, or the three `__g_`-planting suites
+  (gate-conformance, gate-ignore-grammar, check-gates)** — forbidden by the brief (three lanes live; those three
+  plant fixtures). Two of them were EDITED by the callback lane without being run. **Nothing in this report speaks
+  to those three suites, and the callback merge's edits to the check-gates and gate-conformance planters
+  (32 and 56 changed lines) are wholly unverified here.** That is where the residual risk sat; all three suites
+  were deleted with the legacy runtime on 2026-09-15 (#2176 Phase F), so the risk is closed by retirement.
 - **`pnpm gate:contract` was not run** — not in the given floor; the 659 → 619 / 678 → 667 claims are
   unverified.
 - **Legacy-side replays**: I drove them for `diagnostic-legibility` (full predicate), `pd-citation-integrity`

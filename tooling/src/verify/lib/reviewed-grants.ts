@@ -2633,15 +2633,6 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
       "CodeMirror 6 exposes an observable post-interaction state, the stability traces move to a rendered settle signal, and the tracing control gains a DOM condition — at which point every site converts to a barrier and this row is consumed zero times.",
   },
   {
-    id: "suppressions:tests-lint-nursery-no-unnecessary-template-expression",
-    policyId: "suppressions",
-    subject: "lint/nursery/noUnnecessaryTemplateExpression",
-    operation: "tests",
-    why: "RULING, and it is load-bearing rather than stylistic. `tests/tooling/check-gates.repo.int.test.ts:573`: \"The function name is assembled so the literal isn't present in THIS file's source.\" The suite plants gate fixtures whose subject is a NAME PATTERN, and spelling that name literally would make the gate under test flag its own test file — the interpolation is what keeps the fixture out of the scanned corpus.",
-    endsWhen:
-      "the gate fixtures are planted outside any scanned corpus (the legacy `__g_` working-tree planting retires with the legacy runtime), after which the name can be spelled literally.",
-  },
-  {
     id: "suppressions:tests-lint-nursery-use-nullish-coalescing",
     policyId: "suppressions",
     subject: "lint/nursery/useNullishCoalescing",

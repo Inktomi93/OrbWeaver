@@ -1,13 +1,7 @@
-import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import process from "node:process";
-import { pathToFileURL } from "node:url";
 import { Project } from "ts-morph";
-import type { GateDescriptor } from "../../../../tooling/src/verify/contract/gate.ts";
 import { gate } from "../../../../tooling/src/verify/gates/appearance-carrier-contract.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/appearance-carrier-health.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -22,53 +16,6 @@ function projectFor(root: string, files: Readonly<Record<string, string>>): Proj
 
 test("preserves all declared appearance controls through final dispatch", () => {
   expect(verifyPolicyProofs([gate, health])).toEqual([]);
-});
-
-test("all frozen legacy examples preserve complete finding messages and tokens", async ({ scratch }) => {
-  const source = execFileSync("git", ["show", "4e6a09f5c:tooling/src/verify/gates/appearance-carrier-contract.ts"], { encoding: "utf8" });
-  const target = join(scratch, "legacy-appearance.ts");
-  const relocated = source.replace(
-    /from "(\.\.\/[^"\n]+)"/gu,
-    (_, specifier: string) => `from ${JSON.stringify(pathToFileURL(join(process.cwd(), "tooling/src/verify/gates", specifier)).href)}`,
-  );
-  writeFileSync(target, relocated);
-  const legacy = ((await import(pathToFileURL(target).href)) as { gate: GateDescriptor }).gate;
-  const rows = [...legacy.mustFlag, ...legacy.mustPass];
-  expect(rows).toHaveLength(4);
-  for (const row of rows) {
-    if (typeof row.files === "string") {
-      throw new Error("appearance legacy corpus unexpectedly changed representation");
-    }
-    const project = projectFor(scratch, row.files);
-    const before = runPass([legacy], {
-      root: scratch,
-      project,
-      scope: { kind: "project" },
-      files: project.getSourceFiles(),
-      checker: () => project.getTypeChecker(),
-    });
-    const after = runPolicyPass({ root: scratch, project, knownPolicies: [gate, health], policies: [gate, health], reviewedGrants: [], failOnWarnings: false });
-    expect(after.toolErrors).toEqual([]);
-    expect(after.factErrors).toEqual([]);
-    // Hard health findings preserve their manifest file/line and descriptive token. The legacy zero
-    // column becomes the final runtime's one-based column; this is the only coordinate normalization.
-    interface Identity {
-      file: string;
-      line: number;
-      column: number;
-      message?: string;
-      token?: string;
-    }
-    const normalize = (findings: readonly Identity[]): Identity[] =>
-      findings.map(({ file, line, column, message, token }) => ({
-        file,
-        line,
-        column: Math.max(1, column),
-        ...(message === undefined ? {} : { message }),
-        ...(token === undefined ? {} : { token }),
-      }));
-    expect(normalize(after.authority.effectiveFindings), row.why).toEqual(normalize(before.gates[0]?.findings ?? []));
-  }
 });
 
 test("an exact empty-carrier waiver cannot suppress independent graph health or survive a removed occurrence", () => {

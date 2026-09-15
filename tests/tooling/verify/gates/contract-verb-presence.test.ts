@@ -1,4 +1,4 @@
-import type { Finding } from "../../../../tooling/src/verify/contract/gate.ts";
+import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/contract-verb-presence.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -8,7 +8,7 @@ import { ctxFor } from "../../_support.ts";
 const CONTRACT = "packages/server/src/domain/hub/contract/service.ts";
 const TEST = "tests/server/domain/hub/x.test.ts";
 
-function findings(testSource: string, extraFiles: Readonly<Record<string, string>> = {}): readonly Finding[] {
+function findings(testSource: string, extraFiles: Readonly<Record<string, string>> = {}): readonly CoordinatedGateFinding[] {
   const { project, root } = ctxFor({
     [CONTRACT]: "export interface HubService { readonly coveredVerb: () => void; }\n",
     [TEST]: testSource,

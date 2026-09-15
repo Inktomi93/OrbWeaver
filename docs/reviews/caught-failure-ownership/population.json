@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 604,
+    "sites": 602,
     "reported": 34,
     "byVerdict": {
-      "deliberate-absorb": 570,
+      "deliberate-absorb": 568,
       "unproven": 34
     },
     "byGrammar": {
-      "default": 160,
+      "default": 158,
       "empty": 300,
       "promise": 144
     }
@@ -7283,32 +7283,6 @@
       "markerLine": 194
     },
     {
-      "siteId": "tooling/src/verify/lib/grant-liveness.ts::catch::1",
-      "path": "tooling/src/verify/lib/grant-liveness.ts",
-      "line": 294,
-      "column": 5,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "NOT a swallow — an empty corpus is the",
-      "markerLine": 286
-    },
-    {
-      "siteId": "tooling/src/verify/lib/grant-liveness.ts::catch::2",
-      "path": "tooling/src/verify/lib/grant-liveness.ts",
-      "line": 311,
-      "column": 5,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "a malformed package.json is the package",
-      "markerLine": 306
-    },
-    {
       "siteId": "tooling/src/verify/lib/history.ts::catch::1",
       "path": "tooling/src/verify/lib/history.ts",
       "line": 68,
@@ -7376,7 +7350,7 @@
     {
       "siteId": "tooling/src/verify/lib/pass.ts::err::1",
       "path": "tooling/src/verify/lib/pass.ts",
-      "line": 283,
+      "line": 272,
       "column": 14,
       "grammar": "empty",
       "position": "err",
@@ -7384,7 +7358,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.",
-      "markerLine": 280
+      "markerLine": 269
     },
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::catch::1",

@@ -301,11 +301,6 @@ export function rulesContaining(rules: readonly CssRule[], offset: number): read
   return rules.filter((rule) => rule.braceStart <= offset && offset <= rule.end);
 }
 
-/** Compatibility view for policy helpers that need only style rules. */
-export function parseCssRules(rawText: string): readonly CssRule[] {
-  return parseCssStylesheet(rawText).rules;
-}
-
 /** Split at top-level commas only — `:not(a, b)` and `[attr="x,y"]` keep their commas. */
 export function splitSelectorList(prelude: string): readonly string[] {
   return splitSelectorListWithOffsets(prelude).map((part) => part.selector);

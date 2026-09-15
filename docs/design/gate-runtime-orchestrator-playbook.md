@@ -84,10 +84,9 @@ every file read and every file omitted; grep-derived sampling does not satisfy a
    kind; list intentional dead deletions. A gate with live markers and no product/test diff translated nothing.
 6. Sweep coupled tests by gate id string and by assertions derived from the shrinking legacy roster. A split also runs
    `enforcement-registry-parity`, whose registered-policy total changes without naming the new id. Inspect the converted
-   gate’s legacy-only entry in `tests/tooling/check-gates.repo.int.test.ts`; when present, delete it in the same conversion commit. The current
-   carrier is `UNFIXTURABLE_GATES`. Rewriting its comment does not delete the live set entry. This is distinct from
-   deleting a planted file: a shared fixture may still serve another legacy owner and needs that ownership proved
-   before removal. The orchestrator checks the exact entry at every fold and owns the serialized planter run.
+   gate’s legacy-only entry in the anti-drift planter suite; that suite and its unfixturable-gate carrier retired with
+   the legacy runtime (#2176 Phase F), so there is no entry left to delete and no serialized planter run to own.
+   A gate's bite is its declared rows on `structure:policy-conformance`.
 7. Run the scoped floor: touched family tests; `pnpm gate:contract` before/after; Biome and ESLint on touched files;
    every affected native TS program; affected product behavior; marker reconciliation; and the conversion differential.
 8. Report population port, authority/severity, family and reader, proof changes, differential, marker census, refusals,

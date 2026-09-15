@@ -51,7 +51,6 @@ import { gate as tsconfigEntryLiveness } from "../../../../tooling/src/verify/ga
 import { gate as tsconfigEntryLivenessHealth } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { filesystemReach, frozenLegacyGate } from "../../../support/legacy-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -88,29 +87,6 @@ test("the family is one family, and each member's authority is the one its arms 
     ["tsconfig-entry-liveness", "grant-liveness", "reviewed-grant"],
     ["tsconfig-entry-liveness-health", "grant-liveness", "hard"],
   ]);
-});
-
-/** The parent of `97e68be91`, the conversion that landed both pairs. Both modules' headers cite it. */
-const LEGACY_BASE = "c97de9d2f";
-
-// ── §4.6: WHY THIS PAIR'S CONVERSION DIFFERENTIAL IS A REAL-TREE DRIVE AND NOT A FIXTURE REPLAY ───────
-// The shared harness (`tests/support/legacy-differential.ts`) replays a frozen descriptor on an IN-MEMORY
-// project and REFUSES anything that touches disk (#2119): an `existsSync` arm answers about the running
-// checkout rather than about the fixture, so a confident differential over it would be wrong. Both legacy
-// blobs at `c97de9d2f` are filesystem readers — that is what the conversion RETIRED. This arm pins the
-// refusal, so the §4.6 records in both module headers cite an executed fact rather than a reading, and so
-// a later lane cannot quietly relax the scan to "add the missing differential".
-test("§4.6 — the shared in-memory replay harness REFUSES both legacy descriptors, which is why their records are real-tree drives", async ({ scratch }) => {
-  const blobs = ["tooling/src/verify/gates/biome-grant-liveness.ts", "tooling/src/verify/gates/tsconfig-entry-liveness.ts"] as const;
-  for (const path of blobs) {
-    const source = execFileSync("git", ["show", `${LEGACY_BASE}:${path}`], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
-    expect(source, `${path} at ${LEGACY_BASE} is the LEGACY descriptor, not an already-converted policy`).toContain("GateDescriptor");
-    expect(filesystemReach(source), `${path} reaches disk, so the in-memory harness must refuse it`).toContain("existsSync");
-    await expect(frozenLegacyGate(scratch, LEGACY_BASE, path)).rejects.toThrow("Replay it on a real tmpdir instead of relaxing this refusal");
-  }
-  // The reader's own controls, both directions — a `toContain` that never sees an empty answer proves nothing.
-  expect(filesystemReach("export const gate = { name: 'x' };\n"), "the clean control").toEqual([]);
-  expect(filesystemReach('import { existsSync } from "node:fs";\n'), "the dirty control").toEqual(["node:fs", "existsSync"]);
 });
 
 // ── §4.3: the grant-carrying half's exact `(policy, subject, operation)` identity ─────────────────────

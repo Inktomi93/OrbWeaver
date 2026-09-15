@@ -53,10 +53,16 @@ export interface CssStatementAtRuleFact extends CssSourcePosition {
   readonly prelude: string;
 }
 
+/** @public knip type-face false positive — a structural field (`customPropertyDefinitions`) of the exported
+ *  `CssFacts` shape, never referenced by its own name at any call site since the frozen-replay harness that
+ *  named it retired (#2176 Phase F). */
 export interface CssCustomPropertyDefinitionFact extends CssSourcePosition {
   readonly name: string;
 }
 
+/** @public knip type-face false positive — a structural field (`customPropertyReferences`) of the exported
+ *  `CssFacts` shape, never referenced by its own name at any call site since the frozen-replay harness that
+ *  named it retired (#2176 Phase F). */
 export interface CssCustomPropertyReferenceFact extends CssSourcePosition {
   readonly name: string;
   readonly fallback: boolean;

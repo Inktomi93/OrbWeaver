@@ -66,10 +66,12 @@ policy (the final contract, `contract/policy.ts`) or, until the #1584 cutover, a
 mixed loader (`tooling/src/verify/lib/loader.ts`, `loadMixedGateCorpus`) discovers and classifies it by exact contract
 identity: a branded `defineGate` result is final, a validated descriptor is legacy, an unbranded lookalike refuses the
 load; each contract's dispatcher runs its side and `check:structure` reports ONE roster. All are lenient on absent code
-(vacuously pass on the placeholder tree, activate as code lands) and **pinned by
-`tests/tooling/check-gates.repo.int.test.ts`** — it derives the roster from the mixed `check:structure` run, asserts
-every legacy gate fires on a fixture (a broken AST query can't silently pass; anti-drift), and hands every final
-policy's bite to `structure:policy-conformance` (its own `mustFlag` rows through the production dispatcher).
+(vacuously pass on the placeholder tree, activate as code lands). Every final policy's bite is
+`structure:policy-conformance` — its own `mustFlag`/`mustPass` rows through the production dispatcher on every
+`pnpm check` — and the roster itself is pinned in `tests/tooling/verify/ops/structure.int.test.ts` (every module
+registers, no probe sentinel is corpus, one roster row per module). The `__g_`-planting anti-drift suite that held
+those two claims retired with the legacy runtime (#2176 Phase F): with zero legacy descriptors there is no gate that
+a planted fixture could prove and a declared row could not.
 
 | Gate | Enforces |
 | - | - |
@@ -442,8 +444,8 @@ These gate files exist in `tooling/src/verify/gates/` and each carries its own `
 proving it fires, but their descriptor's `status` field is `"dormant"` by decision — `report.ts`'s
 `loadGates()`/`runPass` filters to active descriptors only (each finds real debt whose backfill rides
 a later wave, or gates a construct that doesn't exist yet — keeping them off preserves green-to-commit
-without hiding the debt). Activation is flipping the descriptor's `status` field to `"active"`. The
-`DORMANT_GATES` set in `tests/tooling/check-gates.repo.int.test.ts` is a mirror of this, not ground truth —
+without hiding the debt). Activation is flipping the descriptor's `status` field to `"active"`. The dormant-gate mirror
+that the retired `__g_`-planting anti-drift suite carried was never ground truth and retired with it (#2176 Phase F);
 the descriptor's `status` field is ground truth.
 
 | Gate | Enforces | Activation trigger |

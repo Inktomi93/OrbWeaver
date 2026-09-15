@@ -260,8 +260,8 @@ the shared project. Four arms:
 
 Historical coupled sites per `docs/history/gate-authoring-legacy-2026-09-13.md` §2: descriptor with ≥1
 `mustFlag`/`mustPass` per arm (fractional token fixture, unpaired text fixture, banned-vocab fixture,
-marker-honoured pass, SVG-marker pass); `tests/tooling/check-gates.repo.int.test.ts` `writeFixtures()`
-`__g_` fixture; the Core-Enforcement-Active-Gates row + the registered-gates count; the gate int test
+marker-honoured pass, SVG-marker pass); the retired anti-drift planter suite's `__g_` fixture (gone with the legacy
+runtime, #2176 Phase F); the Core-Enforcement-Active-Gates row + the registered-gates count; the gate int test
 `tests/tooling/verify/gates/integer-line-boxes.int.test.ts`. Comment posture: the pairing arm is
 AST-side (comment-safe via the walker); ARM C routes CSS text through `blankCssComments`.
 Ratification: two receipts — a planted real-tree violation REDs `pnpm check:structure`, the clean
@@ -427,8 +427,8 @@ taken by a scratch playwright probe that sets `deviceScaleFactor` per arm, and p
 ## 12. Laws 2–4 coupled sites
 
 - Gate: `tooling/src/verify/gates/rest-transform-grid.ts` and its `Core-Enforcement-Active-Gates.md` row.
-  The original registered-gate count and `__g_resttransform` fixture in
-  `tests/tooling/check-gates.repo.int.test.ts` are legacy design history; current final-policy coupled sites
+  The original registered-gate count and the `__g_resttransform` fixture in the retired anti-drift planter suite
+  are legacy design history; current final-policy coupled sites
   and proof ownership follow `tooling/src/verify/gates/GATE-AUTHORING.md` §§2 and 5.
 - Instrument: `tooling/src/ui-audit/ops/walker/census-grid.ts` (post-cohort, after `census-tier`) ·
   `ops/walker.ts`'s composition · `ops/walker/returns.ts` · `contract/samples-grid.ts` ·

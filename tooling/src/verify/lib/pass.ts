@@ -200,17 +200,6 @@ const gateIgnoreUses = new Map<string, number>();
  *  one does. */
 let gateIgnoreLateUse = false;
 
-/** How many findings the marker at `<file>:<line>` suppressed this run. `0` = stale (§4.4); `>1` from an
- *  UNPOSITIONED marker = over-exemption (§4.3a). */
-export function gateIgnoreUseCount(file: string, line: number): number {
-  return gateIgnoreUses.get(`${file}:${line}`) ?? 0;
-}
-
-/** True when a suppression landed after the stale sweep's phase — the sweep's soundness premise broke. */
-export function gateIgnoreSuppressedInFinalize(): boolean {
-  return gateIgnoreLateUse;
-}
-
 function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | "scan">, passIdentity: object): GateRun {
   const sink: Finding[] = [];
   const scan: ScanState = {
