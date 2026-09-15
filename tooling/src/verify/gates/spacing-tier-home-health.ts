@@ -1,14 +1,14 @@
 // Policy: spacing-tier-home-health — the RENAME TRIPWIRE for `no-raw-spacing-in-features`'s tier
 // permission (GATE-AUTHORING.md §4.4a mode B): a sanctioned home whose row resolves to zero files on the
 // tree either moved or died, and an exclusion carried in a `population` predicate would follow it into the
-// void silently. This policy shares the exact `SANCTIONED_HOMES` table with its sibling and runs over the
+// void silently. This policy shares the exact `TIER_IMPLEMENTATION_HOMES` table with its sibling and runs over the
 // ENTIRE population (never a narrowed subset), because "does this row resolve to a file" is a whole-tree
 // question the occurrence policy's per-file dispatch cannot answer.
 //
 // FAMILY `raw-spacing-tier` — a two-member SPLIT family with TWO shared `lib/` modules, and they are
 // different kinds of thing: the shared READER is `lib/sanctioned-home.ts` (`unresolvedSanctionedHomeKeys`
 // here, `sanctionedHome` in the occurrence twin), and the shared TABLE is
-// `lib/raw-spacing-tier.ts#SANCTIONED_HOMES`. The split is forced by `execution`: the occurrence check is
+// `lib/raw-spacing-tier.ts#TIER_IMPLEMENTATION_HOMES`. The split is forced by `execution`: the occurrence check is
 // per-file and incremental-safe, this verdict needs the entire declared population, and one descriptor
 // carries one `execution` value.
 // Until 2026-09-12 this sentence read "imported from the sibling rather than re-spelled", describing a
@@ -20,7 +20,7 @@
 // `no-raw-spacing-in-features.ts` carried BOTH arms in one `GateDescriptor`) scoped with
 // `scanRoot: (p) => /\/packages\/(?:client|ui)\/src\//u.test(`/${p}`)`; `["@client", "@ui"]` is the same set.
 // The population is a STRUCTURAL non-narrowing, not an unenforced fence (guide §6.1's structurally-unfalsifiable classification, wave 4):
-// `SANCTIONED_HOMES`' keys are hardcoded under one package, so no fixture placed under an added population
+// `TIER_IMPLEMENTATION_HOMES`' keys are hardcoded under one package, so no fixture placed under an added population
 // root can ever land on one and no discriminating row EXISTS.
 // CUT DIRECTION IS INVERTED HERE (guide §6.1) — this is a tripwire, so its fences ACQUIT and opening one
 // makes it flag FEWER. The ANCHOR self-guard's falsifier is `mustPass[1]` going RED; the resolution reader's
@@ -38,7 +38,7 @@
 // Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { defineGate } from "../contract/policy.ts";
-import { SANCTIONED_HOMES } from "../lib/raw-spacing-tier.ts";
+import { TIER_IMPLEMENTATION_HOMES } from "../lib/raw-spacing-tier.ts";
 import { unresolvedSanctionedHomeKeys } from "../lib/sanctioned-home.ts";
 
 /** The real-tree anchor (GATE-AUTHORING.md §4.5): the generated token vocabulary the spacing gate's
@@ -64,7 +64,7 @@ export const gate = defineGate({
       if (!ctx.files.some((sourceFile) => ctx.relativePath(sourceFile) === ANCHOR)) {
         return;
       }
-      for (const key of unresolvedSanctionedHomeKeys(ctx.files, ctx.relativePath, SANCTIONED_HOMES)) {
+      for (const key of unresolvedSanctionedHomeKeys(ctx.files, ctx.relativePath, TIER_IMPLEMENTATION_HOMES)) {
         ctx.report.file(ANCHOR, {
           line: 1,
           message: `stale SANCTIONED-HOME row — "${key}" resolves to no file on the tree, so the spacing-token implementation tier it exempts either moved or died and its new path is judged by nobody: re-point the row at the real home or delete it, in no-raw-spacing-in-features.ts`,

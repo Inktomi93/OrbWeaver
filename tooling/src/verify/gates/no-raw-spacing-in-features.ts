@@ -39,11 +39,11 @@
 //
 // FAMILY `raw-spacing-tier` — a two-member SPLIT family with `spacing-tier-home-health`: the shared READER is
 // `lib/sanctioned-home.ts` (`sanctionedHome` here) and the shared TABLE is
-// `lib/raw-spacing-tier.ts#SANCTIONED_HOMES`, both imported by the tripwire twin.
+// `lib/raw-spacing-tier.ts#TIER_IMPLEMENTATION_HOMES`, both imported by the tripwire twin.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { SANCTIONED_HOMES } from "../lib/raw-spacing-tier.ts";
+import { TIER_IMPLEMENTATION_HOMES } from "../lib/raw-spacing-tier.ts";
 import { sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const MESSAGE =
@@ -85,7 +85,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral],
         visit: (node, sourceFile) => {
-          if (sanctionedHome(SANCTIONED_HOMES, ctx.relativePath(sourceFile)) !== undefined) {
+          if (sanctionedHome(TIER_IMPLEMENTATION_HOMES, ctx.relativePath(sourceFile)) !== undefined) {
             return;
           }
           const text = node.getText();
@@ -114,7 +114,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/ui/src/layout/test.tsx": 'const x = <div className="p-4" />;' },
-      why: "THE ALLOWLIST ITSELF: the layout tier is now SCANNED, and its raw utility passes only because a cited SANCTIONED_HOMES row covers it",
+      why: "THE TIER-HOME TABLE ITSELF: the layout tier is now SCANNED, and its raw utility passes only because a cited TIER_IMPLEMENTATION_HOMES row covers it",
     },
     {
       mode: "source",
