@@ -16,14 +16,20 @@
 // whole one. That is asserted here by pointing the pointer at a whole run FIRST and proving a selected run
 // leaves it alone.
 //
-// THE SUBJECT IS THE DOOR, so the corpus is planted rather than shimmed: two legacy descriptors (one silent,
-// one loud) and three `defineGate` policies (a two-member family plus a singleton), so every selection shape
-// has something it must include AND something it must exclude. A selection that accidentally ran everything and
-// a selection that accidentally ran nothing both fail here.
+// THE SUBJECT IS THE DOOR, so the corpus is planted rather than shimmed: five `defineGate` policies — a
+// two-member family, a singleton, one that reports nothing on this tree and one that reports loudly — so every
+// selection shape has something it must include AND something it must exclude. A selection that accidentally
+// ran everything and a selection that accidentally ran nothing both fail here.
+//
+// IT HELD TWO LEGACY DESCRIPTORS UNTIL #2176 PHASE F (2026-09-14), which is what made the `--check` arm a claim
+// about ONE FLAT ID NAMESPACE ACROSS TWO CONTRACTS. There is one contract now, so that arm retired with its
+// premise; what it was really protecting — a selection resolves to at most one module, because the loader
+// asserts `id === basename` — is the loader's own law and is pinned in `tests/tooling/verify/lib/loader.test.ts`.
 import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import type { StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
+import type { PlantedPolicyRequest } from "../../../support/planted-gate-corpus.ts";
+import { plantedPolicySource, SUBJECT_COLUMN, plantedSubject as subject } from "../../../support/planted-gate-corpus.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -37,114 +43,33 @@ const DUO_FAMILY = "scoped-duo";
 const ALPHA = "scoped-alpha";
 const BETA = "scoped-beta";
 const LONE = "scoped-lone";
-const SILENT_LEGACY = "planted-ok";
-const LOUD_LEGACY = "planted-loud";
-const EVERY_GATE = [ALPHA, BETA, LONE, SILENT_LEGACY, LOUD_LEGACY].toSorted();
+/** Silent ON THIS TREE: its subject path is deliberately not planted (the silence convention,
+ *  tests/support/planted-gate-corpus.ts). It is the cheap one-policy selection several arms below narrow to. */
+const SILENT = "planted-ok";
+const LOUD = "planted-loud";
+const EVERY_GATE = [ALPHA, BETA, LONE, SILENT, LOUD].toSorted();
 
 const SUBJECT_DIR = "packages/client/src/features/probe";
 const ALPHA_SUBJECT = `${SUBJECT_DIR}/alpha.ts`;
 const BETA_SUBJECT = `${SUBJECT_DIR}/beta.ts`;
 const LONE_SUBJECT = `${SUBJECT_DIR}/lone.ts`;
-const LEGACY_SUBJECT = `${SUBJECT_DIR}/legacy.ts`;
-/** Every subject line is `export const <name> = 1;`, and `export const ` is 13 characters — so the token starts
- *  at column 14. The central ordinary-waiver engine raises an AUTHORITY ALARM when a finding's `token` is not
- *  the exact slice at its reported position, and an alarm is unconditionally blocking, which would make the
- *  exit codes here say something other than what this suite is measuring. */
-const SUBJECT_COLUMN = 14;
-function subject(name: string): string {
-  return `export const ${name} = 1;\n`;
-}
-
-/** A minimal, VALID final policy reporting exactly one finding on one planted file, importing the REAL
- *  `defineGate` by absolute file URL (the loader refuses an unbranded lookalike). */
-interface PlantedPolicy {
-  readonly id: string;
-  readonly family: string;
-  /** Each policy owns ONE subject file, so "which policies ran" is readable off the violation list as well as
-   *  off the roster — a selection that ran the wrong sibling is visible, not just a miscount. */
-  readonly subjectPath: string;
-  readonly token: string;
-}
-
-/** `workItem` is FORBIDDEN at `severity: "error"` (lib/policy-module.ts:51) — measured here as a load-time tool
- *  error before it was removed. */
-function plantedPolicy(repoRoot: string, { id, family, subjectPath, token }: PlantedPolicy): string {
-  const contract = JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/contract/policy.ts")).href);
-  return [
-    `import { defineGate } from ${contract};`,
-    "",
-    "export const gate = defineGate({",
-    `  id: ${JSON.stringify(id)},`,
-    `  family: ${JSON.stringify(family)},`,
-    '  authority: "ordinary",',
-    '  severity: "error",',
-    '  population: { of: "all", why: "the planted tree is this fixture policy\'s whole world" },',
-    '  analysis: "syntax",',
-    '  execution: "selected-files",',
-    "  facts: [],",
-    "  resources: [],",
-    `  message: ${JSON.stringify(`planted debt for ${id}`)},`,
-    `  fix: ${JSON.stringify(`delete the planted subject, or waive it with \`@orb-waive ${id}(<position>): <reason>\``)},`,
-    "  create: (ctx) => ({",
-    "    visitFile: (sourceFile) => {",
-    "      const path = ctx.relativePath(sourceFile);",
-    `      if (path === ${JSON.stringify(subjectPath)}) {`,
-    `        ctx.report.file(path, { line: 1, column: ${SUBJECT_COLUMN}, token: ${JSON.stringify(token)} });`,
-    "      }",
-    "    },",
-    "  }),",
-    `  mustFlag: [{ mode: "source", files: { ${JSON.stringify(subjectPath)}: ${JSON.stringify(subject(token))} }, expect: { count: 1, line: 1, token: ${JSON.stringify(token)} }, why: "the planted subject is the one file this fixture policy reports" }],`,
-    `  mustPass: [{ mode: "source", files: { "${SUBJECT_DIR}/quiet.ts": ${JSON.stringify(subject("quiet"))} }, why: "every other source file is silent" }],`,
-    "});",
-    "",
-  ].join("\n");
-}
-
-/** The silent legacy control (structure.int.test.ts's shape): scans everything, flags nothing. */
-const SILENT_GATE = `export const gate = {
-  name: ${JSON.stringify(SILENT_LEGACY)},
-  docRow: "Core-Enforcement-Active-Gates.md",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message: "the planted control gate — it flags nothing",
-  scanRoot: () => true,
-  visitFile: () => undefined,
-  mustFlag: [{ files: "export const a = 1;\\n" }],
-  mustPass: [{ files: "export const b = 1;\\n" }],
-};
-`;
-
-/** The LOUD legacy control: it fires on one planted file, so "this gate did not run" is visible as a MISSING
- *  violation rather than only as a missing row. */
-const LOUD_GATE = `export const gate = {
-  name: ${JSON.stringify(LOUD_LEGACY)},
-  docRow: "Core-Enforcement-Active-Gates.md",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message: "the planted loud gate — it flags the legacy subject",
-  scanRoot: () => true,
-  visitFile: (sourceFile, ctx) => {
-    const path = sourceFile.getFilePath().slice(ctx.root.length + 1);
-    if (path === ${JSON.stringify(LEGACY_SUBJECT)}) {
-      ctx.report({ file: path, line: 1, column: ${SUBJECT_COLUMN}, message: "the planted legacy finding" });
-    }
-  },
-  mustFlag: [{ files: "export const a = 1;\\n" }],
-  mustPass: [{ files: "export const b = 1;\\n" }],
-};
-`;
+const LOUD_SUBJECT = `${SUBJECT_DIR}/loud.ts`;
+/** The subject `SILENT` reports on — never planted, which is what makes it silent on the real planted tree. */
+const SILENT_SUBJECT = `${SUBJECT_DIR}/unplanted.ts`;
+/** The shared planted-module factory, with this suite's root bound in. */
+const plantedPolicy = (repoRoot: string, request: Omit<PlantedPolicyRequest, "repoRoot">): string => plantedPolicySource({ repoRoot, ...request });
 
 function plantedTreeFiles(repoRoot: string): Readonly<Record<string, string>> {
   return {
     [`${GATES}/${ALPHA}.ts`]: plantedPolicy(repoRoot, { id: ALPHA, family: DUO_FAMILY, subjectPath: ALPHA_SUBJECT, token: "alpha" }),
     [`${GATES}/${BETA}.ts`]: plantedPolicy(repoRoot, { id: BETA, family: DUO_FAMILY, subjectPath: BETA_SUBJECT, token: "beta" }),
     [`${GATES}/${LONE}.ts`]: plantedPolicy(repoRoot, { id: LONE, family: LONE, subjectPath: LONE_SUBJECT, token: "lone" }),
-    [`${GATES}/${SILENT_LEGACY}.ts`]: SILENT_GATE,
-    [`${GATES}/${LOUD_LEGACY}.ts`]: LOUD_GATE,
+    [`${GATES}/${SILENT}.ts`]: plantedPolicy(repoRoot, { id: SILENT, subjectPath: SILENT_SUBJECT, token: "unplanted" }),
+    [`${GATES}/${LOUD}.ts`]: plantedPolicy(repoRoot, { id: LOUD, subjectPath: LOUD_SUBJECT, token: "loud" }),
     [ALPHA_SUBJECT]: subject("alpha"),
     [BETA_SUBJECT]: subject("beta"),
     [LONE_SUBJECT]: subject("lone"),
-    [LEGACY_SUBJECT]: subject("legacy"),
+    [LOUD_SUBJECT]: subject("loud"),
     [`${SUBJECT_DIR}/quiet.ts`]: subject("quiet"),
   };
 }
@@ -184,17 +109,15 @@ test("the DEFAULT run is unchanged: every gate, the whole roster, and the publis
 }) => {
   const root = await plantedTree(plantedTreeFiles(repoRoot));
   const whole = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
-  // three planted violations (alpha, beta, legacy) — a verdict about the TREE, never a tool error
+  // three planted violations (alpha, beta, loud) — a verdict about the TREE, never a tool error
   await expect(whole).toExitWith(1);
 
   const report = readPointer(root);
   expect(ranGates(report)).toEqual(EVERY_GATE);
   expect(report.run.selection).toEqual({ kind: "all" });
   expect(report.run.quiet).toBe(true);
-  expect(report.run.legacy).toEqual({ registered: 2, active: 2, ran: 2 });
-  expect(report.run.final).toEqual({ registered: 3, ran: 3, withheld: 0 });
+  expect(report.run.final).toEqual({ registered: 5, ran: 5, withheld: 0 });
   expect(report.run.incompleteReasons).toEqual([]);
-  expect(report.toolErrors).toEqual([]);
   expect(whole.stdout).toContain("run COMPLETE");
 });
 
@@ -214,7 +137,6 @@ test("--check <id> runs ONLY that policy over the SAME whole tree, and leaves th
   expect(report.run.runId).not.toBe(wholeRunId);
   expect(ranGates(report)).toEqual([ALPHA]);
   expect(report.run.selection).toEqual({ kind: "check", names: [ALPHA] });
-  expect(report.run.legacy).toEqual({ registered: 0, active: 0, ran: 0 });
   expect(report.run.final).toEqual({ registered: 1, ran: 1, withheld: 0 });
   // THE LOAD-BEARING RECEIPT: the selected run's row for this policy is the row the WHOLE-CORPUS run
   // produced for it, field for field — population denominator, receipts, waived/granted counts and all. The
@@ -235,24 +157,6 @@ test("--check <id> runs ONLY that policy over the SAME whole tree, and leaves th
   // the pointer still resolves to the WHOLE run: a partial report can never be picked up as the corpus verdict
   expect(readPointer(root).run.runId).toBe(wholeRunId);
   expect(lstatSync(join(root, ...POINTER)).isSymbolicLink()).toBe(true);
-});
-
-test("--check reaches a LEGACY gate by name — one flat id namespace across both contracts", { timeout: RUN_TIMEOUT_MS }, async ({
-  plantedTree,
-  repoRoot,
-  runCli,
-}) => {
-  const root = await plantedTree(plantedTreeFiles(repoRoot));
-  const scoped = await runCli("verify", ["structure", "--check", LOUD_LEGACY], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
-  await expect(scoped).toExitWith(1);
-  const report = readSlotArtifact(root, scoped.stdout);
-  expect(ranGates(report)).toEqual([LOUD_LEGACY]);
-  expect(report.run.legacy).toEqual({ registered: 1, active: 1, ran: 1 });
-  expect(report.run.final).toEqual({ registered: 0, ran: 0, withheld: 0 });
-  // no final policy ran, so the artifact carries no final block at all — and that is not a short run
-  expect(report.policy).toBeNull();
-  expect(report.run.incompleteReasons).toEqual([]);
-  expect(report.gates[0]?.violations).toEqual([{ file: LEGACY_SUBJECT, line: 1, message: "the planted legacy finding" }]);
 });
 
 test("--family <name> pulls the whole family and nothing else", { timeout: RUN_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
@@ -279,10 +183,11 @@ test("a selection that names nothing is MISUSE, refused before the slot opens �
   // the failure this door exists to close: a run that reports a clean zero about a gate it never ran
   expect(existsSync(join(root, "reports"))).toBe(false);
 
-  // a FAMILY name is final-only: a legacy gate name is not a family
-  const notAFamily = await runCli("verify", ["structure", "--family", LOUD_LEGACY], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  // the SAME refusal on the other selector, which resolves against a DIFFERENT name set (families, not ids):
+  // a door that answered from one of them would be half-blind
+  const notAFamily = await runCli("verify", ["structure", "--family", "no-such-family"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(notAFamily).toExitWith(3);
-  expect(notAFamily.stderr).toContain(`unknown family selection(s): ${LOUD_LEGACY}`);
+  expect(notAFamily.stderr).toContain("unknown family selection(s): no-such-family");
 
   // and the two selectors are mutually exclusive — a grammar refusal, so it never reaches the loader
   const both = await runCli("verify", ["structure", "--check", ALPHA, "--family", DUO_FAMILY], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
@@ -308,7 +213,7 @@ test("a QUIET run says so — the negative control the positive arm is worthless
   runCli,
 }) => {
   const root = await plantedTree(plantedTreeFiles(repoRoot));
-  const quiet = await runCli("verify", ["structure", "--check", SILENT_LEGACY], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const quiet = await runCli("verify", ["structure", "--check", SILENT], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(quiet).toExitWith(0);
   const report = readSlotArtifact(root, quiet.stdout);
   expect(report.run.quiet).toBe(true);
@@ -320,7 +225,7 @@ test("a run that OBSERVES a planted fixture path refuses to be a verdict (exit 2
   timeout: RUN_TIMEOUT_MS * 2,
 }, async ({ plantedTree, repoRoot, runCli }) => {
   const byFile = await plantedTree({ ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
-  const file = await runCli("verify", ["structure", "--check", SILENT_LEGACY], { cwd: byFile, timeoutMs: RUN_TIMEOUT_MS });
+  const file = await runCli("verify", ["structure", "--check", SILENT], { cwd: byFile, timeoutMs: RUN_TIMEOUT_MS });
   // exit 2, not 1: the run is not a verdict at all — it is not "a verdict with a violation in it"
   await expect(file).toExitWith(2);
   const fileReport = readSlotArtifact(byFile, file.stdout);
@@ -332,7 +237,7 @@ test("a run that OBSERVES a planted fixture path refuses to be a verdict (exit 2
   // the planter creates `__g_` DIRECTORIES too (`packages/server/src/domain/__g_struct/index.ts`) — the sweep
   // names the directory, which is the entry that matches
   const byDir = await plantedTree({ ...plantedTreeFiles(repoRoot), [PLANTED_DIR_FILE]: subject("planted") });
-  const dir = await runCli("verify", ["structure", "--check", SILENT_LEGACY], { cwd: byDir, timeoutMs: RUN_TIMEOUT_MS });
+  const dir = await runCli("verify", ["structure", "--check", SILENT], { cwd: byDir, timeoutMs: RUN_TIMEOUT_MS });
   await expect(dir).toExitWith(2);
   expect(readSlotArtifact(byDir, dir.stdout).run.incompleteReasons.join(" ")).toContain("packages/server/src/domain/__g_dir");
 });
@@ -343,7 +248,7 @@ test("the PLANTER's own child run is exempt: ORB_GATE_FIXTURES=1 must see what i
   runCli,
 }) => {
   const root = await plantedTree({ ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
-  const own = await runCli("verify", ["structure", "--check", SILENT_LEGACY], {
+  const own = await runCli("verify", ["structure", "--check", SILENT], {
     cwd: root,
     timeoutMs: RUN_TIMEOUT_MS,
     // biome-ignore lint/style/noProcessEnv: passthrough env for the spawned child — harness plumbing, not app config.
@@ -404,7 +309,7 @@ test("a FIXTURE-MODE run stamps itself a non-verdict, keeps its exit code, and n
   // copy stays because a `tail -20` reader must still meet it, so the assertion is BOTH ends.
   const banner = "THIS RUN IS NOT A VERDICT";
   expect(fixture.stdout.split(banner)).toHaveLength(3); // two occurrences
-  expect(fixture.stdout.indexOf(banner)).toBeLessThan(fixture.stdout.indexOf("single-pass:"));
+  expect(fixture.stdout.indexOf(banner)).toBeLessThan(fixture.stdout.indexOf("check:structure:"));
   // "first" means FIRST, not merely earlier than the counts: nothing but the leading newline precedes it.
   expect(fixture.stdout.trimStart().startsWith(`‼ ${banner}`)).toBe(true);
 
@@ -417,7 +322,7 @@ test("a FIXTURE-MODE run stamps itself a non-verdict, keeps its exit code, and n
 
 test("a CONTAMINATED run is a non-verdict too — same field, different reason", { timeout: RUN_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
   const root = await plantedTree({ ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
-  const run = await runCli("verify", ["structure", "--check", SILENT_LEGACY], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const run = await runCli("verify", ["structure", "--check", SILENT], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(run).toExitWith(2);
   const report = readSlotArtifact(root, run.stdout);
   expect(report.run.verdict).toBe("non-verdict");

@@ -14,16 +14,32 @@
 // templated path ARM D's anchored-literal test could not see. The letter is skipped on purpose; the axis
 // list stays A/B/C/E.
 //
-// MIXED RUNTIME (#1584, docs/reviews/gate-runtime/mixed-runtime-front-door.md §5): arm A recognises a module
-// as REGISTERED under either contract — a legacy `gate` descriptor object, or a `gate = defineGate(…)` call
-// whose callee resolves BY IMPORT ORIGIN to `contract/policy.ts` (`lib/gate-contract-origin.ts`; a same-named
-// local `defineGate` is not the contract and the module registers nothing). A final module's proof floor
-// (≥1 mustFlag/mustPass, no legacy fields) is `lib/policy-validation.ts`'s at load time, so arm A judges
-// nothing further on it; arm B is a MODULE-shape arm and runs over both contracts (a one-sided
-// exemption table is a defect whatever the descriptor); arm C reads `docRow`,
-// which only a legacy descriptor carries. The corpus is the LOADER's corpus — top-level `gates/*.ts` —
-// so the shared proof surfaces under `gates/_proof/` are inputs to policy proofs, never modules that owe
-// a descriptor.
+// MIXED RUNTIME (#1584): arm A recognises a module as REGISTERED under either contract — a legacy `gate`
+// descriptor object, or a `gate = defineGate(…)` call whose callee resolves BY IMPORT ORIGIN to
+// `contract/policy.ts` (`lib/gate-contract-origin.ts`; a same-named local `defineGate` is not the contract
+// and the module registers nothing). A final module's proof floor (≥1 mustFlag/mustPass, no legacy fields)
+// is `lib/policy-validation.ts`'s at load time, so arm A judges nothing further on it; arm B is a
+// MODULE-shape arm and runs over both contracts (a one-sided exemption table is a defect whatever the
+// descriptor); arm C reads `docRow`, which only a legacy descriptor carries. The corpus is the LOADER's
+// corpus — top-level `gates/*.ts` — so the shared proof surfaces under `gates/_proof/` are inputs to policy
+// proofs, never modules that owe a descriptor.
+//
+// TWO OF THOSE PATHS ARE NOW RETAINED-DEAD (#2176 Phase F, 2026-09-14) — arm A's LEGACY-descriptor branch
+// (`registrationOf`'s `contract === "legacy"` arm and the `mustFlag`/`mustPass` field checks it feeds) and
+// ARM C WHOLE, because `docRow` exists only on a legacy descriptor. The legacy contract and its dispatcher
+// were deleted in that leg, and `lib/loader.ts` now REFUSES an unbranded `gate` at load, so no module
+// carrying one can reach this policy's population at all. Their successor evidence: the loader's refusal
+// plus `lib/policy-validation.ts` at load (arm A's half) and `dangling-refs` / `dangling-ref-citations`
+// (arm C's citation half).
+//
+// THEY ARE NOT DELETED HERE, and that is a scope call rather than an oversight. ARM C is the ONLY consumer
+// of this policy's `documents` resource, and `lib/policy-validation.ts:414` refuses `analysis: "resource"`
+// with an empty `resources` — so retiring it moves the policy's declared evidence plane and re-modes every
+// `mode: "resource"` proof row; and arm B's five fixtures each plant a LEGACY-shaped `gate` object, which
+// without arm A's legacy branch would gain a second (UNREGISTERED) finding and break their own
+// `expect: { count: 1 }`. That is a policy rewrite with its own design decisions, filed as its own row off
+// #2176 rather than half-done in a deletion leg. Until it lands, READ THE TWO PATHS AS DEAD: they compile,
+// they are green, and no tree state can make them fire.
 import { posix } from "node:path";
 import type { Node, SourceFile } from "ts-morph";
 import { Node as TsNode } from "ts-morph";
@@ -143,7 +159,11 @@ function hasNonEmptyArrayProp(obj: Node, field: string): boolean {
 }
 
 /** ARM A for one module. Returns the LEGACY descriptor object for arm C, or undefined when there is nothing further
- *  to judge — a registered final policy (its floor is `lib/policy-validation.ts`) or an unregistered module. */
+ *  to judge — a registered final policy (its floor is `lib/policy-validation.ts`) or an unregistered module.
+ *
+ *  RETAINED-DEAD BELOW THE `contract === "final"` RETURN (see the header): with the legacy contract deleted
+ *  and the loader refusing an unbranded `gate`, `registrationOf` can no longer answer `"legacy"` for any
+ *  module in this population, so the field checks and the arm-C object they return are unreachable. */
 function armDescriptor(sf: SourceFile, rel: string, ctx: GatePolicyContext): Node | undefined {
   const registration = registrationOf(sf);
   if (registration === undefined) {
@@ -446,7 +466,8 @@ function staleArmStrings(module: GateModernizationModuleSyntax): readonly string
   return module.strings.flatMap((node) => (STALE_VOCAB_RE.test(node.getText()) ? [node.getText()] : []));
 }
 
-// ── ARM C ────────────────────────────────────────────────────────────────────────────────────────────
+// ── ARM C (RETAINED-DEAD since #2176 Phase F — `docRow` is a legacy-descriptor field and no legacy
+// descriptor can reach this population any more; see the header for why the retirement is its own row) ──
 function docCandidates(ref: string): readonly string[] {
   return ref.includes("/") ? [posix.normalize(ref), posix.join("docs/architecture", ref)] : BARE_ROOTS.map((root) => posix.join(root, ref));
 }

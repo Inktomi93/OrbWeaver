@@ -6,10 +6,11 @@
 // EXACTLY like a real one. Measured 2026-09-12: slot `main-2930600` came back with inflated raw counts and
 // nothing on the artifact said why.
 //
-// Stripping the probe FINDINGS (lib/pass.ts `stripProbeFindings`) is the other half of this rule and is not a
-// substitute for it: stripping keeps the fixtures from REDDING an independent run, which is correct, but it
-// also makes the overlap invisible — and the counts a fixture-planting window perturbs are not only the
-// findings (scan denominators, populations, ratchet baselines and every fs-reading gate move too).
+// Stripping the probe FINDINGS (`stripProbePolicyFindings`, below — it moved here from the retired
+// `lib/pass.ts` at #2176 Phase F, beside the observer that shares its sentinel vocabulary) is the other half
+// of this rule and is not a substitute for it: stripping keeps the fixtures from REDDING an independent run,
+// which is correct, but it also makes the overlap invisible — and the counts a fixture-planting window
+// perturbs are not only the findings (population receipts, resource reads and every fs-reading policy move too).
 //
 // SO THE RUN OBSERVES, AND SAYS SO. A run that sees a sentinel path it did not plant records it in
 // `incompleteReasons`, which the existing #410 machinery already turns into "this report is NOT a verdict"
@@ -21,14 +22,15 @@
 // AND closes strictly between the two samples is not observable from the READER's side at all; closing it
 // needs the PLANTER to announce itself, which is a separate change to a suite this module does not own.
 import { globSync } from "node:fs";
+import type { PolicyPassResult } from "../contract/policy-pass.ts";
 
 /** The roots a fixture-planting suite writes into and reaps from — `cleanFixtures()`'s own argument list in
  *  tests/tooling/check-gates.repo.int.test.ts, so the observer's scope is the planter's scope by construction
  *  rather than by guess. */
 const PLANTED_ROOTS = ["packages", "tests", "scripts", "tooling"] as const;
-/** Both reserved sentinels (`__g_` gate fixtures, `__dc_` dep-cruiser fixtures), matching lib/pass.ts's
- *  `PROBE_ARTIFACT_RE`. The glob matches a planted DIRECTORY as well as a planted file — the planter creates
- *  both (`packages/server/src/domain/__g_struct/index.ts`). */
+/** Both reserved sentinels (`__g_` gate fixtures, `__dc_` dep-cruiser fixtures), matching
+ *  `PROBE_ARTIFACT_RE` below. The glob matches a planted DIRECTORY as well as a planted file — the planter
+ *  creates both (`packages/server/src/domain/__g_struct/index.ts`). */
 const PLANTED_GLOBS = PLANTED_ROOTS.map((dir) => `${dir}/**/__{g,dc}_*`);
 /** How many observed paths the reason names before eliding: enough to identify WHICH suite was planting
  *  without turning a console line into a fixture listing. */
@@ -83,4 +85,36 @@ export function notQuietReasons(observed: readonly string[]): readonly string[] 
   return [
     `this run OBSERVED ${observed.length} PLANTED FIXTURE PATH(S) it did not plant — a fixture-planting suite was in flight, so the tree these counts describe does not exist: ${named}${elided}`,
   ];
+}
+
+/** Gate-conformance PROBE artifacts (`__g_*` / `__dc_*`): transient fixtures the conformance tests write
+ *  while proving policies bite. A REAL-TREE run racing a concurrent battery (or finding a crash-orphaned
+ *  probe) must not red on them — they are the self-test's props, not code. */
+const PROBE_ARTIFACT_RE = /(^|\/)__(?:g|dc)_/u;
+
+/** Drop probe-artifact EFFECTIVE findings from a real-tree `runPolicyPass` result and recompute the
+ *  authority verdict over what remains, so `policyPassExitCode` keeps ONE spelling of the exit rule.
+ *  Waived/granted findings and the alarms are untouched (they are not findings on the report), and a result
+ *  with no probe finding is returned as-is.
+ *
+ *  Applied ONLY at the real-tree entrypoints (ops/structure.ts / ops/scoped.ts), NEVER inside the
+ *  dispatcher: conformance's own fixture runs assert findings ON probe-named files, and a dispatcher-level
+ *  filter would blind them. */
+export function stripProbePolicyFindings(result: PolicyPassResult): PolicyPassResult {
+  const effectiveFindings = result.authority.effectiveFindings.filter((finding) => !PROBE_ARTIFACT_RE.test(finding.file));
+  if (effectiveFindings.length === result.authority.effectiveFindings.length) {
+    return result;
+  }
+  const errors = effectiveFindings.filter(({ severity }) => severity === "error").length;
+  const warnings = effectiveFindings.length - errors;
+  const alarmErrors = result.authority.authorityAlarms.length;
+  const { failOnWarnings } = result.authority.verdict;
+  return {
+    ...result,
+    authority: {
+      ...result.authority,
+      effectiveFindings,
+      verdict: { errors: errors + alarmErrors, warnings, blocking: errors + alarmErrors + (failOnWarnings ? warnings : 0), failOnWarnings },
+    },
+  };
 }

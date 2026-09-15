@@ -3,11 +3,12 @@
 // reader (ops/show.ts). Homed in contract/ per the five-slot type law (Core-Tooling-Law.md §2.5): ops/structure.ts
 // writes it, ops/show.ts and the suites read it.
 //
-// `gates[]` is the whole roster: every row carries `contract`, and the two contracts carry their OWN vocabularies —
-// a legacy row is today's `GateResult` (file scan denominator, phase timing), a final row carries authority,
-// severity, owner completion, population COUNTS, semantic receipts, waived/granted tallies and policy-phase timing.
-// Nothing here adapts one contract to the other's fields; a reader that wants a denominator reads `scan` on a legacy
-// row and `population`/`receipts` on a final row.
+// `gates[]` is the whole roster and since #2176 Phase F (2026-09-14) it holds ONE row shape: a policy row
+// carrying authority, severity, owner completion, population COUNTS, semantic receipts, waived/granted
+// tallies and policy-phase timing. The legacy half — `LegacyGateRow`, the top-level `toolErrors`,
+// `scanAlarms`, `populationAlarms` and `timing` slots, and `reconciliation.legacyFindings` — retired with
+// the dispatcher that wrote it. `contract/show-artifact.ts` keeps loose OPTIONAL views of those fields on
+// purpose: it reads HISTORICAL artifacts, which still carry them.
 //
 // Population is carried as COUNTS, deliberately: 163 policies × ~7,300 paths as lists would make the artifact
 // unreadable and `check:show` unusable; the per-policy semantic receipts (members, unresolved) stay whole because
@@ -21,9 +22,8 @@ import type {
   GateOwnerCompletion,
   GateSeverity,
 } from "./gate-authority.ts";
-import type { GateResult, Violation } from "./harness.ts";
+import type { Violation } from "./harness.ts";
 import type { OrdinaryWaiverCarrierRefusal } from "./ordinary-waiver-source.ts";
-import type { PassTiming, PopulationAlarm, ToolError } from "./pass.ts";
 import type { GateFactOwnerResult, GateFactToolError, PolicyPassTiming, PolicySemanticReceipt, PolicyTiming, PolicyToolError } from "./policy-pass.ts";
 import type { RunManifest } from "./run-manifest.ts";
 
@@ -41,11 +41,6 @@ export interface PopulationCounts {
   readonly effectiveSourcePaths: number;
   readonly effectiveResourcePaths: number;
   readonly requestedPaths: number | null;
-}
-
-/** Today's legacy row, discriminated. */
-export interface LegacyGateRow extends GateResult {
-  readonly contract: "legacy";
 }
 
 /** One final policy's outcome. `violations` are the EFFECTIVE findings after central waiver/grant reconciliation
@@ -70,8 +65,10 @@ export interface FinalPolicyRow {
 }
 
 /** @public knip type-face false positive — a structural field (`gates`) of the exported `StructureReport` shape, never
- *  referenced by its own name at any call site. */
-export type StructureGateRow = LegacyGateRow | FinalPolicyRow;
+ *  referenced by its own name at any call site. A single-arm alias since #2176 Phase F: the name is what the
+ *  artifact's readers spell, and collapsing it into `FinalPolicyRow` at every call site would be four edits
+ *  for the next contract that joins the roster to undo. */
+export type StructureGateRow = FinalPolicyRow;
 
 /** One shared fact provider's outcome, population as counts. */
 export interface StructureFactRow {
@@ -101,31 +98,23 @@ export interface StructurePolicyReport {
 }
 
 /** The arithmetic behind `total`, materialized so an artifact reader can reconcile the headline without
- *  knowing the authority engine's warning/alarm rules. Final effective findings include warnings; only
- *  warnings left unpromoted by `failOnWarnings` are subtracted, while every authority alarm adds a blocker. */
+ *  knowing the authority engine's warning/alarm rules. Effective findings include warnings; only warnings
+ *  left unpromoted by `failOnWarnings` are subtracted, while every authority alarm adds a blocker. */
 export interface StructureCountReconciliation {
-  readonly legacyFindings: number;
   readonly finalEffectiveFindings: number;
   readonly nonblockingWarnings: number;
   readonly authorityAlarms: number;
   readonly blocking: number;
 }
 
-/** The artifact. `policy` is null when the corpus holds no final policy (a planted legacy-only tree). */
+/** The artifact. `policy` is null when the corpus resolved no policy at all (a planted empty tree) — every
+ *  refusal, alarm and cost ledger lives inside it, which is why nothing sits beside it here any more. */
 export interface StructureReport {
   readonly run: RunManifest;
   readonly gates: readonly StructureGateRow[];
-  /** Legacy tool errors (a descriptor hook that threw). The final side's are in `policy`. */
-  readonly toolErrors: readonly ToolError[];
-  /** Legacy gates that ran and read NOTHING — a blind checker, judged only at real-tree scope. */
-  readonly scanAlarms: readonly string[];
-  /** Legacy declared SEMANTIC-MEMBER populations that came back empty or unresolved (#946). */
-  readonly populationAlarms: readonly PopulationAlarm[];
-  /** The legacy pass's own cost ledger (#1107); the final pass's is `policy.timing`. */
-  readonly timing: PassTiming;
   readonly policy: StructurePolicyReport | null;
   readonly reconciliation: StructureCountReconciliation;
-  /** Legacy violations + final BLOCKING effective findings + authority alarms — what exit 1 counts. */
+  /** BLOCKING effective findings + authority alarms — what exit 1 counts. */
   readonly total: number;
   readonly ok: boolean;
 }

@@ -52,13 +52,31 @@ refuseDirectInvocation(import.meta.url, "pnpm check:structure-delta");
  *  had, and a pre-#410 one carries no manifest at all (`ops/show.ts` models the same reality the same way).
  *  Typing the reader against the writer's shape would make the "no manifest" refusal below unreachable — and
  *  silently reachable at runtime, which is how an instrument comes to read `undefined.complete`. */
-/** The manifest fields that ARRIVED LATER and are therefore absent from artifacts still on disk: `legacy`/
- *  `final` with the mixed runtime (#1584), `selection`/`quiet` with the gate-scoped door (#1964), and
+/** The manifest fields that ARRIVED LATER and are therefore absent from artifacts still on disk: `final`
+ *  with the mixed runtime (#1584), `selection`/`quiet` with the gate-scoped door (#1964), and
  *  `verdict`/`nonVerdictReason` with this row (#2167). Declaring them optional HERE is what makes each
  *  `!== undefined` guard below a real test instead of dead code the linter is right to flag. */
-type LateManifestFields = "legacy" | "final" | "selection" | "quiet" | "verdict" | "nonVerdictReason";
+type LateManifestFields = "final" | "selection" | "quiet" | "verdict" | "nonVerdictReason";
 type SlotRun = Omit<RunManifest, LateManifestFields> & Partial<Pick<RunManifest, LateManifestFields>>;
-type SlotReport = Omit<StructureReport, "run"> & { readonly run?: SlotRun };
+/** `toolErrors` LEFT the writer contract at #2176 Phase F (the legacy dispatcher that raised them is gone),
+ *  which does not remove it from the slots already on disk. Declaring it OPTIONAL here is the same move the
+ *  late fields above make in the other direction: this reader opens every writer this repo has had, and a
+ *  reader that dropped the field would silently stop counting a historical run's thrown gates. */
+/** A row shape slots written BEFORE #2176 Phase F still carry: the legacy contract's per-gate record. The
+ *  writer emits only `FinalPolicyRow` now, so typing this reader against the writer's shape would make the
+ *  `contract === "final"` test below always-true — and then a historical legacy row would be silently read
+ *  as a policy row it is not. Same reasoning as the late/retired manifest fields around it. */
+interface HistoricalGateRow {
+  readonly contract?: "legacy";
+  readonly name: string;
+  readonly ok: boolean;
+  readonly violations: readonly unknown[];
+}
+type SlotReport = Omit<StructureReport, "run" | "gates"> & {
+  readonly run?: SlotRun;
+  readonly gates: readonly (FinalPolicyRow | HistoricalGateRow)[];
+  readonly toolErrors?: readonly { readonly gate: string; readonly phase: string; readonly message: string }[];
+};
 
 /** The slot directory's segments BENEATH the artifact root — never including `"reports"` itself. The root is
  *  spelled ONCE, in `_shared/artifacts.ts#reportsPath` (#1164): a second `"reports"` literal fed to a path call
@@ -238,10 +256,11 @@ function regressed(before: Counts | null, after: Counts): boolean {
 
 function toolErrorCount(report: SlotReport): number {
   const policy = report.policy;
+  const historical = report.toolErrors?.length ?? 0;
   if (policy === null) {
-    return report.toolErrors.length;
+    return historical;
   }
-  return report.toolErrors.length + policy.toolErrors.length + policy.factErrors.length + policy.authority.toolErrors.length;
+  return historical + policy.toolErrors.length + policy.factErrors.length + policy.authority.toolErrors.length;
 }
 
 const DELTA_OPTIONS = { before: { type: "string" }, after: { type: "string" } } as const;

@@ -1,36 +1,27 @@
-// Result shapes for the non-gate verify verbs: the SCOPED single-pass run, the gate self-proof
-// (conformance), the db schema-vs-baseline reconcile, the client boot-chunk ratchet, and the committed-
-// ledger freshness stage. Homed here per the five-slot type law (docs/architecture/core/Core-Tooling-Law.md §2.5).
+// Result shapes for the non-gate verify verbs: the SCOPED policy run and its selector, the db
+// schema-vs-baseline reconcile, the client boot-chunk ratchet, and the committed-ledger freshness
+// stage. Homed here per the five-slot type law (docs/architecture/core/Core-Tooling-Law.md §2.5).
 import type { AnySQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { GateDescriptor } from "./gate.ts";
-import type { PassResult } from "./pass.ts";
 import type { GatePolicy } from "./policy.ts";
 import type { PolicyPassResult } from "./policy-pass.ts";
 
-/** What one `cli.ts scoped` run produced on the LEGACY side: the incremental-safe gates' pass, the whole-project
- *  gates it DEFERRED (a scoped clean is never a full all-clear), and how many files were in scope. */
-export interface ScopedResult {
-  readonly pass: PassResult;
-  readonly deferred: readonly GateDescriptor[];
-  readonly files: number;
-}
+/** WHAT FILESET a run covers. Since #2176 Phase F it is the SCOPED verb's own selector vocabulary and
+ *  nothing else: the legacy `GateRunCtx.scope` field retired with the descriptor contract, and the final
+ *  dispatcher fences itself on `requestedPaths` rather than on a scope kind. `ops/scoped.ts` reads the
+ *  `kind` to decide whether an empty fileset was ASSERTED (exit 2) or DERIVED (exit 0, #1185). */
+export type Scope =
+  | { readonly kind: "project" }
+  | { readonly kind: "package"; readonly name: string }
+  | { readonly kind: "folder"; readonly glob: string }
+  | { readonly kind: "changed"; readonly paths: readonly string[] };
 
-/** The FINAL side of one scoped run (mixed runtime, #1584 §5): the dispatcher's result over the scoped fileset as
- *  `requestedPaths`, plus the policies it declined to run — an `entire-population` policy under a proper subset
- *  and a policy whose population never met the selection are both `not-applicable` owners, which is the final
- *  contract's whole-project fence. `pass` is null when the corpus holds no final policy. */
+/** What one `cli.ts scoped` run produced: the dispatcher's result over the scoped fileset as
+ *  `requestedPaths`, plus the policies it declined to run — an `entire-population` policy under a proper
+ *  subset and a policy whose population never met the selection are both `not-applicable` owners, which is
+ *  the whole-project fence. `pass` is null when the corpus holds no policy. */
 export interface ScopedPolicyResult {
   readonly pass: PolicyPassResult | null;
   readonly deferred: readonly GatePolicy[];
-}
-
-/** One failed gate self-proof example. A conformance failure is a TOOL error (exit 2), never a violation:
- *  the gate's own claim about itself is what broke. */
-export interface ConformanceFailure {
-  readonly gate: string;
-  readonly arm: "mustFlag" | "mustPass";
-  readonly why: string;
-  readonly detail: string;
 }
 
 /** The committed squashed baseline vs what the live `@orb/db/schema` generates. */

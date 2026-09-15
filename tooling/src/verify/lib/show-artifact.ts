@@ -99,8 +99,11 @@ export function refuseIncomplete(report: StructureReport, ink: ShowInk): string 
   );
 }
 
-/** The member-population refusal, in the artifact reader's voice (the runner's own spelling lives at
- *  lib/pass.ts `populationAlarmLine`; this view reads a JSON row, not a typed alarm). */
+/** The member-population refusal, in the artifact reader's voice. HISTORICAL ONLY since #2176 Phase F
+ *  (2026-09-14): no writer emits `populationAlarms` any more — the policy dispatcher refuses an empty
+ *  declared population at the source (`contract/policy-pass.ts#POLICY_PASS_REFUSALS`) instead of publishing
+ *  an alarm beside a finished verdict. This reader stays because artifacts written before that cutover are
+ *  still on disk and still readable, and a reader that dropped the field would render them as clean. */
 export function populationAlarmText(a: PopulationAlarmView): string {
   if (a.reason === "empty") {
     return `population "${a.source}" resolved ZERO members — the gate's subject derivation came back empty, so its verdict is a placebo (GATE-AUTHORING.md §1).`;
@@ -108,8 +111,9 @@ export function populationAlarmText(a: PopulationAlarmView): string {
   return `population "${a.source}" left ${a.unresolved} declaration(s) UNRESOLVED beside ${a.members} member(s) — the denominator silently shrank (GATE-AUTHORING.md §1).`;
 }
 
-/** How many "the run is not a verdict" signals the artifact carries — thrown gates, blind gates, refused
- *  populations. ONE spelling, so the header, the exit code and the pass line can never disagree. */
+/** How many "the run is not a verdict" signals the artifact carries. The first three terms are HISTORICAL
+ *  (see `populationAlarmText`) and read as 0 on anything written after #2176 Phase F; the final side's
+ *  count is the live one. ONE spelling, so the header, the exit code and the pass line can never disagree. */
 export function brokenEvidenceCount(report: StructureReport): number {
   return (report.toolErrors?.length ?? 0) + (report.scanAlarms?.length ?? 0) + (report.populationAlarms?.length ?? 0) + finalBrokenEvidenceCount(report.policy);
 }

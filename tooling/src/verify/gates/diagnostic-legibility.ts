@@ -3,16 +3,17 @@
 // must carry a resolvable pointer — a `*.md` doc path, a code-home path/file/`@orb/<pkg>` specifier — so a
 // blocked cold agent gets a navigable next step, never a dead-end "no".
 //
-// THE CORPUS IS MIXED AND THIS POLICY IS DELIBERATELY CONTRACT-AGNOSTIC. `tooling/src/verify/gates/**`
-// carries BOTH descriptor shapes in production (a branded `defineGate` result and a validated
-// `GateDescriptor`, gate-runtime-standardization.md §1) and will until the legacy set empties. A reader
-// that CLASSIFIED by contract identity would silently under-report on whichever half it did not model, and
-// the corpus moves daily. This policy never classifies: its subject is the AUTHORED SYNTAX both shapes
-// share — a `message:`/`unreadableMessage:` property assignment, plus the string values of a `const
-// MSG`/`MESSAGES` table (the shorthand-`{ message }` idiom) — so a legacy descriptor and a final policy are
-// read by the same code path. mustFlag[1] is a LEGACY `export const gate: GateDescriptor = {…}` and
-// mustFlag[2] is a FINAL `defineGate({…})` with the identical defect: the two halves are pinned as rows,
-// not asserted in prose.
+// THIS POLICY IS DELIBERATELY CONTRACT-AGNOSTIC, AND THAT OUTLIVED THE MIXED CORPUS. `tooling/src/verify/gates/**`
+// carried BOTH descriptor shapes in production until #2176 Phase F (2026-09-14) retired the legacy one; a
+// reader that CLASSIFIED by contract identity would have silently under-reported on whichever half it did
+// not model, and the corpus moved daily. This policy never classifies, and still does not: its subject is
+// the AUTHORED SYNTAX any descriptor shape shares — a `message:`/`unreadableMessage:` property assignment,
+// plus the string values of a `const MSG`/`MESSAGES` table (the shorthand-`{ message }` idiom) — so the
+// shape of the object around it never reaches the reader. mustFlag[1] keeps a LEGACY
+// `export const gate: GateDescriptor = {…}` and mustFlag[2] a FINAL `defineGate({…})` with the identical
+// defect: the SHAPE-AGNOSTIC property pinned as two rows rather than asserted in prose. The legacy row is
+// now a shape control rather than a live population — the loader refuses that module — and it stays for
+// exactly the property it always held.
 //
 // FAMILY `policy-soundness`, reader `lib/policy-descriptor-read.ts` — `staticSegments` for the diagnostic's
 // static text and `isMessageProperty` for the subject. That module is the gate corpus's one descriptor
@@ -159,7 +160,7 @@ export const gate = defineGate({
           'import type { GateDescriptor } from "../contract/gate.ts";\nexport const gate: GateDescriptor = { name: "legacy-half", message: "no home for this rule" };\n',
       },
       expect: { count: 1, token: "message" },
-      why: "THE MIXED-RUNTIME HALF #1: a LEGACY `GateDescriptor` object literal. The corpus carries both shapes in production until the legacy set empties, and a reader that classified by contract identity would under-report on one of them — this row is the legacy half asserted as a row rather than as prose",
+      why: "THE SHAPE CONTROL: a LEGACY `GateDescriptor` object literal. The corpus can no longer HOLD one — `lib/loader.ts` refuses it at load since #2176 Phase F (2026-09-14) — but this reader walks SOURCE, not the loaded corpus, and a reader that classified by contract identity rather than by the fields it actually needs would under-report on any shape it did not recognise. The row is kept for that property, not for a live population: the legacy half asserted as a row rather than as prose",
     },
     {
       mode: "types",

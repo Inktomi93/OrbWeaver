@@ -3,9 +3,9 @@
 //
 // THE DEFECT IT CLOSES. `reports/check-structure.json` recorded a VERDICT and nothing about the RUN that
 // produced it. Three ways that lies, all of them silent:
-//   1. a SHORTER run — the loader silently `continue`s past a module that exports no `gate` (loader.ts), so
-//      a corpus file can stop registering and the report simply has one fewer entry. Nothing compares the
-//      count on disk against the count that ran.
+//   1. a SHORTER run — the loader records a module that exports no branded `gate` as UNREGISTERED rather
+//      than refusing (loader.ts), so a corpus file can stop registering and the report simply has one
+//      fewer entry. Nothing compares the count on disk against the count that ran.
 //   2. a KILLED run — the artifact is written once, at the END. A run killed mid-walk (SIGKILL, a wall-clock
 //      kill, an OOM abort under the heap ceiling) leaves the PREVIOUS run's file on disk, and every reader
 //      the doctrine sends there ("read reports/check-structure.json, never re-run") consumes a stale
@@ -39,8 +39,8 @@ import type { PolicySelector } from "./policy-plan.ts";
  *  REAL-TREE LIVENESS section on slot `main-2930600`, whose 443 `__g_` findings are a fixture suite's props.
  *  The artifact said `complete: true` and carried no marker, so the reader acted correctly on every rule it
  *  had. THREE of the twelve published slots are that shape — derived, not remembered, with the predicate
- *  "any `__g_`/`__dc_` path in a slot's violations": a real-tree run STRIPS those (lib/pass.ts
- *  `stripProbeFindings`), so a slot that CONTAINS them is by construction a run that opted out, i.e. the
+ *  "any `__g_`/`__dc_` path in a slot's violations": a real-tree run STRIPS those
+ *  (lib/planted-fixtures.ts `stripProbePolicyFindings`), so a slot that CONTAINS them is by construction a run that opted out, i.e. the
  *  gate self-test's own child (`ORB_GATE_FIXTURES=1`).
  *
  *  So the two axes are orthogonal and both are recorded: `complete` = the run finished · `verdict` = what it
@@ -96,20 +96,21 @@ export interface RunManifest {
   readonly complete: boolean;
   /** Gate `.ts` files the corpus dir holds (the denominator the loader started from). */
   readonly corpusFiles: number;
-  /** Descriptors the loader accepted. */
+  /** Policies the loader accepted. */
   readonly registered: number;
-  /** Corpus files that registered NOTHING — the loader's silent `continue`. Recorded, never tolerated
-   *  quietly: `gate-modernization` arm A reds them, and this count is how a reader sees the gap at all. */
+  /** Corpus files that registered NOTHING. Recorded, never tolerated quietly: `gate-modernization`'s
+   *  UNREGISTERED arm reds them, and this count is how a reader sees the gap at all. */
   readonly unregistered: readonly string[];
-  /** Descriptors with `status: "active"` — the set `runPass` was supposed to run. */
+  /** The set the dispatcher was supposed to run. A policy has no dormant state, so since #2176 Phase F
+   *  (2026-09-14) this equals `registered` by construction — it stays a separate field because it is what
+   *  `ran` is reconciled AGAINST, and collapsing the two would make the short-run tell compare a number to
+   *  itself. */
   readonly active: number;
-  /** Gates that actually produced a result this pass. */
+  /** Policies that actually produced a result this pass. */
   readonly ran: number;
-  /** THE MIXED RUNTIME'S SPLIT (#1584 §5): `registered`/`active`/`ran` above are the SUMS across both contracts, so a
-   *  pre-mixed reader keeps its meaning; these halves say which contract each count came from. A final policy has
-   *  no dormant state (every registered policy is active), and `withheld` counts the final owners central
-   *  authority refused to reconcile (an incomplete owner, a spoofed finding) — each of those is also a tool error. */
-  readonly legacy: { readonly registered: number; readonly active: number; readonly ran: number };
+  /** `withheld` counts the owners central authority refused to reconcile (an incomplete owner, a spoofed
+   *  finding) — each of those is also a tool error. The `legacy` half of this split retired with the legacy
+   *  dispatcher; `final` keeps its name because the CONTRACT is still called the final contract. */
   readonly final: { readonly registered: number; readonly ran: number; readonly withheld: number };
   /** Why the reconciliation failed, when it did. Empty on a complete, reconciled run. */
   readonly incompleteReasons: readonly string[];

@@ -1,9 +1,11 @@
-// Dispatcher-owned inventory of the retired legacy gate-ignore marker. The final residue policy receives
-// marker facts rather than the parser: literal spans come from the shared syntax walk, and the one historical
-// grammar remains beside the legacy suppressor until the atomic cutover removes that runtime.
+// Dispatcher-owned inventory of the RETIRED legacy gate-ignore marker. The residue policy receives marker
+// FACTS rather than the parser: literal spans come from the shared syntax walk and the one historical
+// grammar stays in `lib/gate-ignore.ts`. Since #2176 Phase F (2026-09-14) that grammar has no suppressor
+// behind it at all — this fact and `gate-ignore-inventory` are its only readers, which is what turns every
+// surviving marker from silent protection into a finding.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
-import type { GateIgnoreMarker } from "../contract/pass.ts";
+import type { GateIgnoreMarker } from "../contract/gate-ignore-marker.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { findGateIgnoreMarkersWithSpans, GATE_IGNORE_MENTION_SPAN_KINDS } from "./gate-ignore.ts";
 

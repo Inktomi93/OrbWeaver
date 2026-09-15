@@ -34,7 +34,7 @@ import type { BoardCitation, CitedDocument } from "../lib/citation-sources.ts";
 import { assertLedgerSource, assertRosterSource } from "../lib/citation-sources.ts";
 import type { CitationSubject } from "../lib/citation-subject.ts";
 import { declaredSubjectKey, parseSubject } from "../lib/citation-subject.ts";
-import { loadMixedGateCorpus } from "../lib/loader.ts";
+import { loadGateCorpus } from "../lib/loader.ts";
 import { boardStates } from "../lib/workitem-board-reader.ts";
 import { CLOSED_CONTROL_ISSUE } from "../lib/workitem-liveness.ts";
 
@@ -219,7 +219,7 @@ export function runControls(states: BoardStates): readonly ControlReceipt[] {
  *  citation is named · 2 = the run could not measure (thrown: the board read, an absent document, an empty
  *  snapshot, or a control that did not fire). */
 export async function runBoardCitations(root: string): Promise<number> {
-  const corpus = await loadMixedGateCorpus(root);
+  const corpus = await loadGateCorpus(root);
   const states = boardStates();
   for (const receipt of runControls(states)) {
     process.stdout.write(`  control [${receipt.control}] ${receipt.proved}\n`);
@@ -235,7 +235,7 @@ export async function runBoardCitations(root: string): Promise<number> {
   for (const doc of rosters) {
     process.stdout.write(`  source [roster] ${doc.rel} admitted with ${String(assertRosterSource(doc))} citation(s)\n`);
   }
-  const outcome = judgeBoardCitations({ policies: corpus.final, ledgers, rosters, states });
+  const outcome = judgeBoardCitations({ policies: corpus.gates, ledgers, rosters, states });
   assertSubjectJoinMeasured(outcome);
   for (const line of boardCitationsReport(outcome)) {
     process.stdout.write(`${line}\n`);

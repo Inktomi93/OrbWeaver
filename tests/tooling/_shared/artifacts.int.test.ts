@@ -22,50 +22,47 @@ import process from "node:process";
 import type { RunSlot } from "@orb/tooling/_shared/artifacts";
 import type { CliResult } from "../../support/tool-fixtures.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { plantedPolicySource } from "../../support/planted-gate-corpus.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 /** A valid descriptor whose `run` is a RENDEZVOUS: the first child holds its in-flight marker until the
  *  second child acknowledges that it has opened and scanned its own slot.
  *
  *  The census needs a conjunction: the leader marker exists before the follower scans, and the leader stays
- *  alive until that scan. The outer test establishes the first condition. Inside `runPass`, the in-flight census
+ *  alive until that scan. The outer test establishes the first condition. Inside the planted policy, the in-flight census
  *  identifies the follower; it writes an acknowledgement only after its slot scan and
  *  returns immediately. The leader alone waits for that acknowledgement, so neither child can be stranded
  *  waiting for a sibling that has already departed.
  *
  *  `Atomics.wait` yields between checks without burning CPU. The slice budget is only a failsafe against a
  *  hang; normal completion is driven by the acknowledgement and the exact artifact assertions below. */
-const SLOW_GATE = `import { existsSync, readdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+/** The ROOT is derived from a source file rather than handed in: a policy context exposes `relativePath`
+ *  and the resolved fileset, never the root (the legacy `GateRunCtx.root` retired with its contract at
+ *  #2176 Phase F). Subtracting the relative path from the absolute one is exact, and it fails LOUDLY (a
+ *  throw inside the hook is a tool error) rather than silently reading the wrong directory. */
+const slowHook = `evaluate: () => {
+      const probe = ctx.files[0];
+      if (probe === undefined) {
+        throw new Error("the planted concurrency gate saw no source file — the fixture tree never loaded");
+      }
+      const absolute = probe.getFilePath();
+      const root = absolute.slice(0, absolute.length - ctx.relativePath(probe).length - 1);
+      const slots = join(root, "reports", "runs", "structure");
+      const followerAck = join(root, "reports", "planted-concurrency-follower-ready");
+      const open = readdirSync(slots).filter((name) => existsSync(join(slots, name, ".inflight"))).length;
+      if (open >= 2) {
+        writeFileSync(followerAck, "ready\\n");
+        return;
+      }
+      for (let i = 0; i < MAX_SLICES && !existsSync(followerAck); i += 1) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, SLICE_MS);
+      }
+    },`;
 
-const SLICE_MS = 25;
-const MAX_SLICES = 2000;
-
-export const gate = {
-  name: "planted-slow",
-  docRow: "Core-Enforcement-Active-Gates.md",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message: "the planted concurrency control gate — see tooling/src/_shared/artifacts.ts (#1029)",
-  scanRoot: () => true,
-  visitFile: () => undefined,
-  run: (ctx) => {
-    const slots = join(ctx.root, "reports", "runs", "structure");
-    const followerAck = join(ctx.root, "reports", "planted-concurrency-follower-ready");
-    const open = readdirSync(slots).filter((name) => existsSync(join(slots, name, ".inflight"))).length;
-    if (open >= 2) {
-      writeFileSync(followerAck, "ready\\n");
-      return [];
-    }
-    for (let i = 0; i < MAX_SLICES && !existsSync(followerAck); i += 1) {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, SLICE_MS);
-    }
-    return [];
-  },
-  mustFlag: [{ files: "export const a = 1;\\n" }],
-  mustPass: [{ files: "export const b = 1;\\n" }],
-};
-`;
+const slowPolicy = (repoRoot: string): string =>
+  `import { existsSync, readdirSync, writeFileSync } from "node:fs";\nimport { join } from "node:path";\n\nconst SLICE_MS = 25;\nconst MAX_SLICES = 2000;\n\n${plantedPolicySource(
+    { repoRoot, id: "planted-slow", subjectPath: "packages/x/src/unplanted.ts", token: "unplanted", extraHooks: slowHook },
+  )}`;
 
 const SCANNED = { "packages/x/src/y.ts": "export const y = 1;\n" };
 const GATE_DIR = "tooling/src/verify/gates";
@@ -97,7 +94,7 @@ function published(root: string): RunView {
 
 /** How long to wait between checks for the leader's marker. It bounds the SPIN, never the wait: the loop
  *  below ends on the CONDITION and the case's own `scaledBudget` timeout is what can fail it. The file's
- *  SLOW_GATE comment already rules out a busy-wait here ("a load bomb for a timing fixture"). */
+ *  `slowHook` comment already rules out a busy-wait here ("a load bomb for a timing fixture"). */
 const MARKER_POLL_MS = 10;
 
 /** The run id of the first slot carrying an in-flight marker, or null while none does. */
@@ -120,7 +117,7 @@ function inflightRunId(root: string): string | null {
  *  THIS IS THE ORDERING THE RACING CENSUS REQUIRES, AND NOTHING IN THIS FIXTURE USED TO PROVIDE IT (#2248).
  *  `openRunSlot` (tooling/src/_shared/artifacts.ts) computes `racing` by scanning the other slots' markers
  *  and only THEN writes its own — so a second run can name the first if and only if it opens its slot after
- *  the first's marker is on disk. `SLOW_GATE` sleeps inside `runPass`, which is strictly AFTER that window,
+ *  the first's marker is on disk. The planted policy sleeps inside `evaluate`, which is strictly AFTER that window,
  *  so it widens the two runs' OVERLAP and orders nothing: `runs.some((r) => r.concurrent.length > 0)` was
  *  green solo, where two `Promise.all` children happen to stagger, and red under batch load, where both can
  *  scan before either writes. A fixture that claims determinism owes the ordering, not a wider budget.
@@ -161,12 +158,13 @@ async function leaderRunId(root: string, leading: Promise<CliResult>): Promise<s
 // acknowledgement loop until its 50s failsafe. The timeout owns that failure path under sibling load.
 test("two concurrent `check:structure` runs both keep their verdict, and the pointer names a COMPLETE one", { timeout: scaledBudget(60_000) }, async ({
   plantedTree,
+  repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-slow.ts`]: SLOW_GATE });
+  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-slow.ts`]: slowPolicy(repoRoot) });
   // ORDERED, not raced (#2248 — see `leaderRunId`). The leader starts, and the follower starts only once
   // the leader's in-flight marker exists, which is the one fact `openRunSlot`'s racing census reads. The
-  // two are still genuinely CONCURRENT: SLOW_GATE keeps the leader inside `runPass` until the follower
+  // two are still genuinely CONCURRENT: the planted policy keeps the leader inside `evaluate` until the follower
   // acknowledges reaching its own post-scan hook. `racing` keeps only markers whose pid is ALIVE, which
   // makes the census below a real observation of a live sibling rather than of a leftover.
   const leading = runCli("verify", ["structure"], { cwd: root });
@@ -205,9 +203,10 @@ test("two concurrent `check:structure` runs both keep their verdict, and the poi
 
 test("a run names the LIVE sibling holding a slot — the racing-writer census, deterministically", { timeout: scaledBudget(60_000) }, async ({
   plantedTree,
+  repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-slow.ts`]: SLOW_GATE });
+  const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-slow.ts`]: slowPolicy(repoRoot) });
   // A slot whose in-flight marker names a LIVE pid (this test process): the shape a concurrent instrument
   // leaves. Planted rather than raced, so the census assertion cannot be a coin flip.
   const sibling = join(slotDir(root), "planted-sibling");

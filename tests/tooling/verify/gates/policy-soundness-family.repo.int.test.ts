@@ -31,7 +31,7 @@ import { gate as policyRefusalCoverage } from "../../../../tooling/src/verify/ga
 import { gate as policySoundness } from "../../../../tooling/src/verify/gates/policy-soundness.ts";
 import { gate as policyWaiverIdentity } from "../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
 import { gate as policyWaiverSpelling } from "../../../../tooling/src/verify/gates/policy-waiver-spelling.ts";
-import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
+import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -880,7 +880,7 @@ test("policy-waiver-identity REFUSES a corpus in which it recognises no final mo
  *  population resolver and ts-morph declarations as the live-corpus pass — and still never writes the checkout;
  *  the planted text lives only in the in-memory `Project` and is restored verbatim in `finally`. */
 async function assertLiveBindingResolution(project: Project, repoRoot: string, populationCount: number): Promise<void> {
-  const { final: knownPolicies } = await loadMixedGateCorpus(repoRoot);
+  const { gates: knownPolicies } = await loadGateCorpus(repoRoot);
   const path = `${GATES_DIR}dangling-refs.ts`;
   const subject = project.getSourceFileOrThrow(`${repoRoot}/${path}`);
   const original = subject.getFullText();
@@ -936,7 +936,7 @@ async function assertLiveBindingResolution(project: Project, repoRoot: string, p
  *  These sources exist only in the ts-morph project and are removed in finally; no checkout file is written.
  *  The two expected finding paths are authored controls, not a second graph or a current-policy roster. */
 async function assertLiveFamilyConsumption(project: Project, repoRoot: string, shapeCount: number): Promise<void> {
-  const { final: knownPolicies } = await loadMixedGateCorpus(repoRoot);
+  const { gates: knownPolicies } = await loadGateCorpus(repoRoot);
   const stem = "q08-family-consumption-control";
   const first = `${GATES_DIR}${stem}-a.ts`;
   const second = `${GATES_DIR}${stem}-b.ts`;
@@ -1131,9 +1131,9 @@ test(
     // the same way: as TEXT over the family-test tree, which this project already loads.
     // #2342: the independent dependency denominator is now the runtime loader's actual arrays, not
     // another literal-only source census that shares the defect under review. Paths come from its roster.
-    const corpus = await loadMixedGateCorpus(repoRoot);
+    const corpus = await loadGateCorpus(repoRoot);
     const owingRefusal = new Set(
-      corpus.final.filter((policy) => (policy.facts.length > 0 || policy.resources.length > 0) && (policy.mustRefuse?.length ?? 0) === 0).map(({ id }) => id),
+      corpus.gates.filter((policy) => (policy.facts.length > 0 || policy.resources.length > 0) && (policy.mustRefuse?.length ?? 0) === 0).map(({ id }) => id),
     );
     const refusalOpinion = corpus.roster
       .filter((entry) => entry.contract === "final" && entry.id !== null && owingRefusal.has(entry.id))
