@@ -36,7 +36,7 @@
 // FAMILY `raw-typography-tier` — a two-member SPLIT family with TWO shared `lib/` modules that are
 // different kinds of thing, as the `-health` twin's header states in full: the shared READER is
 // `lib/sanctioned-home.ts` (`sanctionedHome` here, `unresolvedSanctionedHomeKeys` there) and the shared
-// TABLE is `lib/raw-typography-tier.ts#SANCTIONED_HOMES`. The table moved out of THIS module on 2026-09-12
+// TABLE is `lib/raw-typography-tier.ts#TIER_IMPLEMENTATION_HOMES`. The table moved out of THIS module on 2026-09-12
 // because the twin used to import it from here, which #2096 / §12.3 banned.
 // POPULATION PORT: byte-identical. The legacy `scanRoot: (p) => SCOPE_REGEX.test(`/${p}`)` with
 // `SCOPE_REGEX = /\/packages\/(?:client|ui)\/src\//` becomes `["@client", "@ui"]` =
@@ -56,7 +56,7 @@
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { SANCTIONED_HOMES } from "../lib/raw-typography-tier.ts";
+import { TIER_IMPLEMENTATION_HOMES } from "../lib/raw-typography-tier.ts";
 import { sanctionedHome } from "../lib/sanctioned-home.ts";
 
 /** The CARRIER FENCE (GATE-AUTHORING.md §5): only a className attribute or a class-composer call
@@ -98,7 +98,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral],
         visit: (node, sourceFile) => {
-          if (sanctionedHome(SANCTIONED_HOMES, ctx.relativePath(sourceFile)) !== undefined) {
+          if (sanctionedHome(TIER_IMPLEMENTATION_HOMES, ctx.relativePath(sourceFile)) !== undefined) {
             return;
           }
           const text = node.getText();
@@ -127,7 +127,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/ui/src/layout/test.tsx": 'const x = <div className="text-sm" />;' },
-      why: "THE ALLOWLIST ITSELF: the layout tier is now SCANNED, and its raw utility passes only because a cited SANCTIONED_HOMES row covers it",
+      why: "THE TIER-HOME TABLE ITSELF: the layout tier is now SCANNED, and its raw utility passes only because a cited TIER_IMPLEMENTATION_HOMES row covers it",
     },
     {
       mode: "source",

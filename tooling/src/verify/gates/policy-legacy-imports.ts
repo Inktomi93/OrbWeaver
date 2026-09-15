@@ -14,6 +14,15 @@
 //     one a legacy exemption artifact carried across its conversion — the #1922 authority migration's exact work
 //     list (row #2147); THREE more import the central marker engine for a coordinate helper (#2155). All twelve are
 //     RED on the real tree by design (owner ruling 2026-09-12: the red is the finding).
+//     THE LIST IS BEING BURNED DOWN, and the 2026-09-12 measurement above is kept verbatim as the mint's record.
+//     Re-measured 2026-09-14 (#2176 Phase F): the whole policy reports EIGHT, of which SEVEN are this burn-down and
+//     one is ARM B's (`query-freshness-coverage-debt` importing its sibling, a pre-existing red outside Phase F).
+//     `lib/raw-spacing-tier.ts` and `lib/raw-typography-tier.ts` then left the list — NOT by relocating a table, but
+//     because a cp-probe proved the rows are SCAN-SCOPE rather than exemptions (both tables emptied → all four
+//     consumers still ZERO findings, so nothing was being forgiven and a reviewed grant could not be consumed even
+//     once). They now carry `contract/tier-home.ts#TierImplementationHomes`, which is the classification
+//     `gate-modernization` ARM B's own `fix` prescribes — *"if the collection is a scan-SCOPE decision rather than an
+//     exemption, rename it out of the exemption vocabulary"* — and NOT the relocation ARM D's `fix` refuses.
 //   B ANOTHER GATE MODULE (§12.3, owner ruling #2096, 2026-09-12: *"a gate module never imports another gate
 //     module; shared predicates move to `lib/<family>.ts`"*). A `-health` sibling reading its twin's exports was
 //     two homes for one reader wearing a family's clothes. The predicate is NOT the directory: `gates/_proof/**`

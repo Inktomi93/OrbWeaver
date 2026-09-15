@@ -1,14 +1,14 @@
 // Policy: typography-tier-home-health — the RENAME TRIPWIRE for `no-raw-typography-in-features`'s tier
 // permission (GATE-AUTHORING.md §4.4a mode B): a sanctioned home whose row resolves to zero files on the
 // tree either moved or died, and an exclusion carried in a `population` predicate would follow it into the
-// void silently. This policy shares the exact `SANCTIONED_HOMES` table with its sibling and runs over the
+// void silently. This policy shares the exact `TIER_IMPLEMENTATION_HOMES` table with its sibling and runs over the
 // ENTIRE population (never a narrowed subset), because "does this row resolve to a file" is a whole-tree
 // question the occurrence policy's per-file dispatch cannot answer.
 //
 // FAMILY `raw-typography-tier` — a two-member SPLIT family with TWO shared `lib/` modules, and they are
 // different kinds of thing: the shared READER is `lib/sanctioned-home.ts` (`unresolvedSanctionedHomeKeys`
 // here, `sanctionedHome` in the occurrence twin), and the shared TABLE is
-// `lib/raw-typography-tier.ts#SANCTIONED_HOMES`. Until 2026-09-12 that table was imported FROM THE SIBLING
+// `lib/raw-typography-tier.ts#TIER_IMPLEMENTATION_HOMES`. Until 2026-09-12 that table was imported FROM THE SIBLING
 // GATE MODULE — the shape the owner banned that day (#2096 / §12.3: a gate module never imports another
 // gate module; a shared predicate moves to `lib/<family>.ts`), with `lib/contract-derives-not-respells.ts`
 // as the worked precedent.
@@ -33,7 +33,7 @@
 // (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
 import { defineGate } from "../contract/policy.ts";
-import { SANCTIONED_HOMES } from "../lib/raw-typography-tier.ts";
+import { TIER_IMPLEMENTATION_HOMES } from "../lib/raw-typography-tier.ts";
 import { unresolvedSanctionedHomeKeys } from "../lib/sanctioned-home.ts";
 
 /** The real-tree anchor (GATE-AUTHORING.md §4.5): the generated token vocabulary the typography gate's
@@ -59,7 +59,7 @@ export const gate = defineGate({
       if (!ctx.files.some((sourceFile) => ctx.relativePath(sourceFile) === ANCHOR)) {
         return;
       }
-      for (const key of unresolvedSanctionedHomeKeys(ctx.files, ctx.relativePath, SANCTIONED_HOMES)) {
+      for (const key of unresolvedSanctionedHomeKeys(ctx.files, ctx.relativePath, TIER_IMPLEMENTATION_HOMES)) {
         ctx.report.file(ANCHOR, {
           line: 1,
           message: `stale SANCTIONED-HOME row — "${key}" resolves to no file on the tree, so the typography-token implementation tier it exempts either moved or died and its new path is judged by nobody: re-point the row at the real home or delete it, in no-raw-typography-in-features.ts`,

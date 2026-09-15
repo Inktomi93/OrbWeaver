@@ -16,9 +16,23 @@
 // typography home because they implement the TYPE scale. Either can retire without the other, and each
 // family's `-health` sibling reds only its own rows — a shared table would couple two ratchets that have
 // no reason to move together. Family is the unit, not the value.
-import type { ExemptionTable } from "../contract/gate.ts";
+//
+// THE TABLE IS SCAN-SCOPE DATA, NOT AN EXEMPTION LEDGER (#2176 Phase F, #2320). It was typed
+// `contract/gate.ts#ExemptionTable` and named `SANCTIONED_HOMES` until the Phase F cutover, which made
+// `policy-legacy-imports` ARM D red both consumers: a final policy must not RECEIVE a gate exemption
+// table. The repair is the classification `gate-modernization` ARM B already states — *"if the
+// collection is a scan-SCOPE decision rather than an exemption, rename it out of the exemption
+// vocabulary"* — so the rows are now `contract/tier-home.ts#TierImplementationHomes` and the constant
+// says what it is. MEASURED before renaming (cp-probe 2026-09-14: this table and its twin emptied, all
+// four consumers re-run through `pnpm check:structure --check`, restored, `git status --short` empty):
+// every consumer stayed at ZERO findings. The rows forgive NOTHING today, so they could not have become
+// reviewed grants either — a reviewed grant must be consumed exactly once and a zero-consumption row is
+// an immediate `stale-reviewed-grant` alarm. Their liveness is by PATH
+// (`unresolvedSanctionedHomeKeys`); `lib/sanctioned-home.ts`'s header records why occupancy (mode A) is
+// deliberately not swept.
+import type { TierImplementationHomes } from "../contract/tier-home.ts";
 
-export const SANCTIONED_HOMES: ExemptionTable = {
+export const TIER_IMPLEMENTATION_HOMES: TierImplementationHomes = {
   "packages/ui/src/layout/": {
     why: "the layout primitives (<Stack>/<Row>/<Section>/<Toolbar>) ARE the implementation of the typography tokens — they must spell the raw utility once so no feature ever does. Ends when the primitives move: the rename tripwire reds the row at its dead path",
   },
