@@ -36,7 +36,7 @@
 // not a mechanism question: the helper already takes `types: true`, the arm was written, and it ran.**
 // `section-factory-contribution-bundle` additionally consumes a registry FACT
 // (`registryDefinitionFacts.section`), so its arm owes a fact-resolution check the other seven do not.
-import { gate as contractDerivesHealth } from "../../../../tooling/src/verify/gates/contract-derives-not-respells-health.ts";
+import { gate as contractDerives } from "../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
 import { gate as ctPollHealth } from "../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint-health.ts";
 import { gate as externalIdHealth } from "../../../../tooling/src/verify/gates/external-id-single-writer-health.ts";
 import { gate as injectedOpHealth } from "../../../../tooling/src/verify/gates/injected-op-caller-param-health.ts";
@@ -47,13 +47,15 @@ import { assertRealCorpusLivenessArms } from "../../../support/real-corpus-liven
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // THE GLOBS MUST COVER THE POLICY'S WHOLE DECLARED POPULATION, and getting this wrong does not fail
-// quietly — it manufactures findings. `contract-derives-not-respells-health` declares `["@server", "@db"]`;
-// built over `@server` alone it reported TWO stale-allowlist findings in the BASELINE, because the rows its
-// allowlist names live in `@db` and an absent row reads exactly like a deleted one. The helper's clean-
-// baseline guard refused the arm rather than letting it "pass", which is the guard earning its place on its
-// first real use.
+// quietly — it manufactures findings. The retired `contract-derives-not-respells-health` declared
+// `["@server", "@db"]`; built over `@server` alone it reported TWO stale-allowlist findings in the BASELINE,
+// because the rows its allowlist named needed `@db` and an absent row reads exactly like a deleted one. The
+// helper's clean-baseline guard refused the arm rather than letting it "pass", which is the guard earning
+// its place on its first real use. Its successor arm below declares all THREE roots
+// (`["@server", "@contracts", "@db"]`) for the same reason: without `@db` no hand-row matches a table and
+// the control could never fire.
 const SERVER = ["packages/server/src/**/*.ts"];
-const SERVER_AND_DB = ["packages/server/src/**/*.ts", "packages/db/src/**/*.ts"];
+const SERVER_CONTRACTS_DB = ["packages/server/src/**/*.ts", "packages/contracts/src/**/*.ts", "packages/db/src/**/*.ts"];
 const SERVER_KIT_DB = ["packages/server/src/**/*.ts", "packages/kit/src/**/*.ts", "packages/db/src/**/*.ts"];
 const SERVER_AND_KIT = ["packages/server/src/**/*.ts", "packages/kit/src/**/*.ts"];
 const CLIENT = ["packages/client/src/**/*.ts", "packages/client/src/**/*.tsx"];
@@ -83,11 +85,25 @@ const ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "no longer calls",
   },
   {
-    policy: contractDerivesHealth,
-    globs: SERVER_AND_DB,
-    // The allowlist names hand-spelled row shapes; blank the module one lives in and the stale-row arm fires.
-    overlays: [blank("packages/server/src/domain/discovery/contract/results.ts")],
-    messageIncludes: "ThemeRow",
+    policy: contractDerives,
+    globs: SERVER_CONTRACTS_DB,
+    // WAS `contract-derives-not-respells-health`, a NEUTRALISE arm that blanked the file one ALLOWLIST row
+    // named. That policy retired with the table (#2176 Phase F): the two rows are central reviewed grants and
+    // a dead row is now `stale-reviewed-grant`, which is an authority ALARM and not a policy report, so no
+    // liveness arm can express it — its successor is the grant-reconciliation pin in
+    // `contract-shape-wave-1.test.ts`. What is pinned HERE is the surviving occurrence policy, and an ADD is
+    // the only shape that can speak for it: a NEW domain `contract/` file hand-spelling a real table's row.
+    // `characters` is a live `sqliteTable` export in `packages/db/src/schema/`, so `CharacterRow` matches it
+    // and no grant names this path — which is exactly the third successor obligation, that an UNGRANTED
+    // hand-row is an effective finding on the real tree rather than a fixture-only verdict.
+    overlays: [
+      {
+        kind: "add",
+        path: "packages/server/src/domain/character/contract/__cb2176b-liveness.ts",
+        source: "export interface CharacterRow {\n  readonly id: string;\n}\n",
+      },
+    ],
+    messageIncludes: 'hand-row "CharacterRow"',
   },
   {
     policy: injectedOpHealth,

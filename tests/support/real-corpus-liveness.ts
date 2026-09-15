@@ -65,8 +65,8 @@ export interface RealCorpusLivenessArm {
    *
    *  THEY MUST COVER THE POLICY'S WHOLE DECLARED POPULATION. Narrowing below it does not merely measure
    *  less — it MANUFACTURES findings, because a policy that reads "this allowlist row names nothing" cannot
-   *  tell an absent row from a deleted one. Measured on the first real arm:
-   *  `contract-derives-not-respells-health` declares `["@server", "@db"]` and, built over `@server` alone,
+   *  tell an absent row from a deleted one. Measured on the first real arm: the since-retired
+   *  `contract-derives-not-respells-health` declared `["@server", "@db"]` and, built over `@server` alone,
    *  reported two stale-allowlist findings in its BASELINE. The clean-baseline guard below is what caught
    *  it; without that guard the arm would have "passed" against a corpus of its own invention. */
   readonly globs: readonly string[];
