@@ -1216,19 +1216,10 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
     id: "depcruise-grant-liveness:dist",
     policyId: "depcruise-grant-liveness",
-    subject: "config.options.exclude.path[1]",
+    subject: "config.options.exclude.path[0]",
     operation: 'depcruise-zero-member-pattern:"^packages/[^/]+/dist/"',
     why: "BUILD OUTPUT: `dist/` is gitignored, so it is absent from the tracked corpus by design and present only after a build — judging it either way makes the verdict depend on machine state. The exclude is ANCHORED to workspace packages on purpose: a bare `(^|/)dist/` also matches `node_modules/<lib>/dist/` and would drop the sealed-lib import edges the satellite-seal rules fire on. Migrated from the retired gate-local RATIFIED row (#1922 / #2176), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
     endsWhen: "the packages stop emitting dist/ — the exclude leaves .dependency-cruiser.cjs and this row is consumed zero times.",
-  },
-  {
-    id: "depcruise-grant-liveness:g-fixture",
-    policyId: "depcruise-grant-liveness",
-    subject: "config.options.exclude.path[0]",
-    operation: 'depcruise-zero-member-pattern:"(^|/)__g_"',
-    why: "the reserved throwaway-fixture sentinel: the legacy `__g_` planters materialise files at real-tree paths for milliseconds and reap them, so the subject is ABSENT from every tracked source BY CONSTRUCTION — a member test would RED a correct config, and an FS test would depend on whether a suite happened to be mid-run. Migrated from the retired gate-local RATIFIED row (#1922 / #2176), whose cite `tooling/src/verify/gates/GATE-AUTHORING.md` is no longer liveness-checked by anything (successor citation check: #2349).",
-    endsWhen:
-      "the `__g_` planting suites retire with the legacy gate runtime (#2176 Phase F) — the exclude then leaves .dependency-cruiser.cjs and this row is consumed zero times.",
   },
   {
     id: "depcruise-grant-liveness:quickjs-wasm-url",
@@ -1242,7 +1233,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
     id: "eslint-grant-liveness:cache",
     policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[5]",
+    subject: "config[0].ignores[4]",
     operation: 'eslint-zero-member-selector:"**/.cache/**"',
     why: "local tools write derived, refetchable cache artifacts outside the tracked corpus, at the root and at every nesting depth, so the ignore has no tracked member by construction. The value is `**/.cache/**`, NOT `.cache/**` (#2213): a flat-config glob is anchored at the config directory, and the bare spelling left `playwright/.cache` linted. Migrated from the retired gate-local RATIFIED row (#1922), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
     endsWhen:
@@ -1251,7 +1242,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
     id: "eslint-grant-liveness:claude-worktrees",
     policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[6]",
+    subject: "config[0].ignores[5]",
     operation: 'eslint-zero-member-selector:"**/.claude/worktrees/**"',
     why: "agent worktrees are transient checkouts the repository never tracks, and ESLint cannot see .gitignore (flat config reads no VCS ignore file), so this selector is the only fence and has no tracked member by construction (#2281). Migrated from the retired gate-local RATIFIED row (#1922), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
     endsWhen:
@@ -1266,14 +1257,6 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     endsWhen: "packages stop emitting dist/ — the ignore leaves the config and this row is consumed zero times.",
   },
   {
-    id: "eslint-grant-liveness:g-fixture",
-    policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[3]",
-    operation: 'eslint-zero-member-selector:"**/__g_*"',
-    why: "check-gates materialises the reserved __g_ fixtures only transiently, so the ignore must pre-exist a subject that is never tracked. Migrated from the retired gate-local RATIFIED row (#1922), whose cite `tooling/src/verify/gates/GATE-AUTHORING.md` is no longer liveness-checked by anything (successor citation check: #2349).",
-    endsWhen: "the `__g_` fixture sentinel is retired with the legacy gate runtime — the ignore leaves the config and this row is consumed zero times.",
-  },
-  {
     id: "eslint-grant-liveness:node-modules",
     policyId: "eslint-grant-liveness",
     subject: "config[0].ignores[0]",
@@ -1284,7 +1267,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
     id: "eslint-grant-liveness:st-goldens-runtime",
     policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[7]",
+    subject: "config[0].ignores[6]",
     operation: 'eslint-zero-member-selector:"scripts/probes/st-goldens/sillytavern-runtime/**"',
     why: "the st-parity rig's captured SillyTavern runtime is vendored third-party source the repository deliberately does not track; the rig's own 9 tracked files sit ABOVE this path and stay outside the fence, so the selector has no tracked member by construction (#2282). Migrated from the retired gate-local RATIFIED row (#1922), whose cite `.gitignore` is no longer liveness-checked by anything (successor citation check: #2349).",
     endsWhen:
@@ -1293,7 +1276,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
     id: "eslint-grant-liveness:stryker-tmp",
     policyId: "eslint-grant-liveness",
-    subject: "config[0].ignores[4]",
+    subject: "config[0].ignores[3]",
     operation: 'eslint-zero-member-selector:".stryker-tmp/**"',
     why: "Stryker writes rewritten copies and generated runner setup outside the authored corpus, so the ignore has no tracked member by construction. Migrated from the retired gate-local RATIFIED row (#1922), whose cite `tooling/src/_shared/stryker-config.ts` is no longer liveness-checked by anything (successor citation check: #2349).",
     endsWhen:
@@ -2946,22 +2929,6 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     why: "ast/ops/prodonly derives its entry closure from the ONE knip workspace-entry config — re-spelling the globs is the one-home violation the front-door law exists to kill (P4 of #393, Core-Tooling-Law §4.2).",
     endsWhen:
       "prodonly stops deriving its closure from knip.ts, or knip's entry config moves — the row is then consumed zero times and reds at its dead subject, which is the two-sided stale sweep the legacy ROOT_CONFIG_IMPORTS table carried by hand.",
-  },
-  {
-    id: "tsconfig-entry-liveness:g-fixture-file",
-    policyId: "tsconfig-entry-liveness",
-    subject: "**/__g_*",
-    operation: "tsconfig-glob-entry",
-    why: "the reserved throwaway-fixture sentinel: check-gates.int materialises `__g_*` files at real-tree paths for milliseconds and reaps them, so the subject is ABSENT from every tracked source BY CONSTRUCTION — an exclude that must PRE-EXIST the fixture it excludes. Law: tooling/src/verify/gates/GATE-AUTHORING.md.",
-    endsWhen: "the `__g_` fixture sentinel is retired with the legacy gate runtime — the entry then leaves every tsconfig and this row is consumed zero times.",
-  },
-  {
-    id: "tsconfig-entry-liveness:g-fixture-tree",
-    policyId: "tsconfig-entry-liveness",
-    subject: "**/__g_*/**",
-    operation: "tsconfig-glob-entry",
-    why: "the DIRECTORY half of the `__g_` sentinel exclude — same construction as its sibling row, same law (tooling/src/verify/gates/GATE-AUTHORING.md): the tree exists for milliseconds mid-run and is tracked never.",
-    endsWhen: "the `__g_` fixture sentinel is retired — it dies with its file-half sibling, never alone.",
   },
   {
     id: "tsconfig-entry-liveness:node-modules",

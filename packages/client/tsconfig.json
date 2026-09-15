@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.world-browser.json",
   "include": ["src", "../../reset.d.ts", "../../platform.d.ts", "src/styles/vite-env.d.ts"],
-  "exclude": ["**/node_modules", "**/__g_*", "**/__g_*/**"]
+  "exclude": ["**/node_modules"]
 }

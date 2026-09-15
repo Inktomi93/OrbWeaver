@@ -74,9 +74,18 @@ export function ambientRootsForProgram(config: string): readonly string[] | unde
   return scopes === undefined ? undefined : ambientsWithScope(...scopes);
 }
 
-// Every concrete leaf restates these because TypeScript replaces inherited exclude arrays. `__g_*` is
-// the transient structural-gate fixture namespace; node_modules is absent from the authored corpus.
-export const TYPE_CONFIG_EXCLUDES = ["**/node_modules", "**/__g_*", "**/__g_*/**"] as const;
+// Every concrete leaf restates this because TypeScript replaces inherited exclude arrays. node_modules is
+// absent from the authored corpus.
+//
+// THE `__g_*` PAIR LEFT AT #2176 PHASE F (2026-09-14). It excluded the transient structural-gate fixture
+// namespace, which existed only because the LEGACY gate self-test materialized `__g_` files inside the real
+// package tree for the length of its own child run. Those planters retired with the legacy runtime, so the
+// namespace has no producer: every final policy proves itself on a virtual overlay
+// (`tests/support/real-corpus-liveness.ts`) and plants nothing. Its two reviewed-grant rows
+// (`tsconfig-entry-liveness:g-fixture-file` / `:g-fixture-tree`) were deleted in the same commit, per their
+// own `endsWhen`. The one surviving `__g_` writer is `lib/biome-rule-liveness.ts`'s repo-root
+// `__g_biome-rule-liveness.<pid>.json`, which no TypeScript program ever sees.
+export const TYPE_CONFIG_EXCLUDES = ["**/node_modules"] as const;
 export const BROWSER_LIB_ADDITIONS = ["dom", "dom.iterable"] as const;
 
 export interface TypeConfigIntentInput {

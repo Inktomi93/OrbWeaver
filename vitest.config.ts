@@ -27,7 +27,9 @@ function resourceGlobs(resource: TestResource): string[] {
   return TEST_KIND_DEFINITIONS.filter((kind) => kind.resource === resource).map(({ suffix }) => `tests/**/*${suffix}`);
 }
 
-const IGNORE = ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "reports/**", "**/__g_*"];
+// `**/__g_*` left this list at #2176 Phase F (2026-09-14) with the legacy gate self-test's planters: the
+// namespace had no producer left, so the entry was a runner exclusion for files that are never written.
+const IGNORE = ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "reports/**"];
 const withIgnored = (globs: readonly string[]): string[] => [...globs, ...IGNORE.map((glob) => `!${glob}`)];
 const TOOLING = "tests/tooling/**";
 const REPOSITORY_RESOURCE = "repository" satisfies TestResource;

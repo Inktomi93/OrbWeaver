@@ -12,8 +12,10 @@
 //   fakeBin      — a temp executable prepended to PATH for the test (the work-item fake-`gh` shim,
 //                  generalized); auto-restored.
 //   plantedTree  — materialize a throwaway violation tree under scratch (the conformance-harness
-//                  pattern as a fixture); fsBacked tool tests never write the REAL tree (`__g_` stays
-//                  reserved for the gate harness).
+//                  pattern as a fixture); fsBacked tool tests never write the REAL tree. Nothing else does
+//                  either since #2176 Phase F: the legacy gate self-test's `__g_` real-tree planters are
+//                  deleted, and the prefix now belongs to one repo-root probe
+//                  (`verify/lib/biome-rule-liveness.ts`) and to nothing under a package.
 //   fixturePath  — compose a path below an owned root and REFUSE lexical or symlink escape (#2332); the
 //                  runtime half of `policy-fixture-substrate`, for the dynamic keys static provenance
 //                  cannot read.

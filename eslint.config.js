@@ -346,10 +346,6 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/dist/**",
       "reports/**",
-      // `__g_*` — the check-gates self-test's reserved throwaway-fixture sentinel (tsconfig.base.json's
-      // exclude note). Ignoring it keeps a concurrent `pnpm lint:eslint` from catching a fixture (many land
-      // under packages/*/src) mid-lifecycle → a phantom lint error that vanishes on re-run.
-      "**/__g_*",
       // Mutation sandboxes contain rewritten source and generated runner setup, never authored inputs.
       ".stryker-tmp/**",
       // Local tool caches are derived scratch artifacts, never authored inputs. THE `**/` PREFIX IS
@@ -377,7 +373,7 @@ export default tseslint.config(
       // discovery itself changes materially with the live worktree count. What the fence removes is the
       // stage's inability to return a VERDICT — a lane swept mid-run, which is routine, turns an enumerated path into ENOENT and
       // the stage exits 2, the tool-error class, never a verdict (reproduced live on
-      // `agent-afe8e5ce74da79230`). That is exactly the concurrent-lifecycle phantom `**/__g_*` above was
+      // `agent-afe8e5ce74da79230`). That is exactly the concurrent-lifecycle phantom the retired `**/__g_*` entry was
       // reasoned through for, never carried across to the larger, more frequently mutated case.
       // `**/`-PREFIXED per the #2213 note above: a worktree CONTAINS a `.claude/` of its own, so unlike
       // `.stryker-tmp/**` a nested instance is structurally possible and root anchoring would miss it.

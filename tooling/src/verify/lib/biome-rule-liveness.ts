@@ -12,7 +12,11 @@ import { runNicedSync } from "../../_shared/proc.ts";
 /** The probe config lives AT THE REPO ROOT, never in a temp dir. MEASURED 2026-09-02: with
  *  `--config-path` pointing outside the repo, biome moves its PROJECT ROOT to the config's directory —
  *  `noUndeclaredDependencies` then reports "no package.json file was found" and overrides re-scope, so the
- *  run answers a different question while looking healthy. The `__g_` prefix is already negated in
+ *  run answers a different question while looking healthy. THIS IS THE ONE SURVIVING `__g_` WRITER in the
+ *  repo (#2176 Phase F, 2026-09-14): the legacy gate self-test's planters that minted the namespace are
+ *  deleted, and the surviving `__g_` negation in `biome.json` plus the `__g_` ignore in `.gitignore` exist
+ *  for this probe alone.
+ *  The `__g_` prefix is already negated in
  *  biome.json's own `files.includes`, so a concurrent lint can never see this file. */
 const PROBE_PREFIX = "__g_biome-rule-liveness.";
 const PROBE_SUFFIX = ".json";

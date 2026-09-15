@@ -22,8 +22,6 @@
   ],
   "exclude": [
     "**/node_modules",
-    "**/__g_*",
-    "**/__g_*/**",
     "tests/**/*.dom.test-d.ts",
     "tests/**/*.dom.test.ts",
     "tests/**/*.spec.ts",

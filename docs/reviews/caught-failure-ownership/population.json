@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 602,
+    "sites": 601,
     "reported": 34,
     "byVerdict": {
-      "deliberate-absorb": 568,
+      "deliberate-absorb": 567,
       "unproven": 34
     },
     "byGrammar": {
       "default": 158,
-      "empty": 300,
+      "empty": 299,
       "promise": 144
     }
   },
@@ -7168,7 +7168,7 @@
     {
       "siteId": "tooling/src/verify/lib/biome-rule-liveness.ts::error::1",
       "path": "tooling/src/verify/lib/biome-rule-liveness.ts",
-      "line": 168,
+      "line": 172,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7176,7 +7176,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "EPERM alone means a LIVE process this UID may not signal — still alive, still not ours to sweep; every other errno (ESRCH, a malformed pid) means the owner is gone and its probe is ours to clear. Ends if the probe name stops carrying its owner's pid.",
-      "markerLine": 164
+      "markerLine": 168
     },
     {
       "siteId": "tooling/src/verify/lib/bus-payload-fact.ts::catch::1",
@@ -7346,19 +7346,6 @@
       "verdict": "deliberate-absorb",
       "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.",
       "markerLine": 191
-    },
-    {
-      "siteId": "tooling/src/verify/lib/pass.ts::err::1",
-      "path": "tooling/src/verify/lib/pass.ts",
-      "line": 265,
-      "column": 14,
-      "grammar": "empty",
-      "position": "err",
-      "ordinal": 1,
-      "snippet": "} catch (err) {",
-      "verdict": "deliberate-absorb",
-      "reason": "pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.",
-      "markerLine": 262
     },
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::catch::1",
@@ -7779,7 +7766,7 @@
     {
       "siteId": "tooling/src/verify/ops/tests-type-membership.ts::catch::1",
       "path": "tooling/src/verify/ops/tests-type-membership.ts",
-      "line": 85,
+      "line": 82,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -7787,7 +7774,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "nativeRootSets propagates this failed observation and runTestsTypeMembership returns tool-error exit 2. Ends if malformed native output can produce a membership verdict.",
-      "markerLine": 82
+      "markerLine": 79
     },
     {
       "siteId": "tooling/src/verify/ops/typecheck.ts::error::1",
