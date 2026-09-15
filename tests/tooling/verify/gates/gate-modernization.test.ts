@@ -53,6 +53,28 @@ const LEGACY_BASE = "30333fd4e";
 const LEGACY_PATH = "tooling/src/verify/gates/gate-modernization.ts";
 const TABLE = 'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\n';
 
+// RETIRED ARM D ROWS (#2359, owner ruling: option 2, scoped). ARM D itself retired 2026-09-14 — its last
+// subject, `ratchet-row-integrity`, retired at 6bab419ad, leaving zero ledger readers in the corpus, and
+// `lib/gate-contract.ts`'s `baseline-ledger` finding (successor proof:
+// tests/tooling/verify/lib/gate-contract.test.ts:426,435,446, plus the front-door plant/rerun receipt in
+// this commit) strictly supersedes ARM D's whole-literal ledger-path match. These are the FROZEN legacy
+// module's own row indices (derived from git show 30333fd4e:tooling/src/verify/gates/gate-modernization.ts
+// — the single mustFlag "THE FOUNDING SHAPE" row and the four mustPass ARM D rows: the example carve, the
+// honest shape, the declared-limit anti-self-flag, and the no-ledger row) — excluded from the parity
+// replay below because the retired arm has no live final-side counterpart to agree with.
+const RETIRED_ARM_D_MUST_FLAG: readonly number[] = [27];
+const RETIRED_ARM_D_MUST_PASS: readonly number[] = [0, 17, 18, 19];
+
+// MESSAGE DELTA (#2359): the live descriptor's `message` dropped this exact sentence when ARM D retired —
+// a message still describing a retired arm is a drifted-diagnostic defect, not something to preserve for
+// parity. This is the byte-exact legacy sentence (captured from the frozen module's `MESSAGE` constant),
+// deleted from the replayed legacy message before the parent-to-final comparison; widened no further.
+const RETIRED_ARM_D_SENTENCE =
+  "A token that IS a committed ratchet-ledger path: this gate READS that ledger and never calls " +
+  "`ctx.scan({ admitted })`, so every finding its budgets absolve is missing from the single-pass's " +
+  "admitted total — declared debt that renders as ZERO declared debt, which is the one number a reader " +
+  "uses to know the debt is still there (#551). ";
+
 function corpusOf(modules: Readonly<Record<string, string>>): Map<string, SourceFile> {
   const project = new Project({ useInMemoryFileSystem: true });
   return new Map(Object.entries(modules).map(([rel, source]) => [rel, project.createSourceFile(`/${rel}`, source)] as const));
@@ -154,7 +176,9 @@ test("the final policy dispatch is clean on the real loader-shaped corpus", { ti
   expect(result.authority.effectiveFindings.filter((finding) => finding.policyId === gate.id)).toEqual([]);
 });
 
-test("all 28 flag and 20 pass rows preserve the frozen parent verdict through final dispatch", { timeout: scaledBudget(360_000) }, async ({ scratch }) => {
+test("all 28 flag and 20 pass rows preserve the frozen parent verdict through final dispatch, minus the retired ARM D rows", {
+  timeout: scaledBudget(360_000),
+}, async ({ scratch }) => {
   expect(
     await verifyMetaGateConversion({
       scratch,
@@ -162,6 +186,8 @@ test("all 28 flag and 20 pass rows preserve the frozen parent verdict through fi
       legacyPath: LEGACY_PATH,
       policy: gate,
       expectedRows: { mustFlag: 28, mustPass: 20 },
+      retiredRows: { mustFlag: RETIRED_ARM_D_MUST_FLAG, mustPass: RETIRED_ARM_D_MUST_PASS },
+      legacyMessageTransform: (message) => message.replace(RETIRED_ARM_D_SENTENCE, ""),
     }),
   ).toBe(48);
 });

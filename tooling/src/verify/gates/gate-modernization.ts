@@ -1,20 +1,26 @@
 // Policy: gate-modernization — the META-gate. The gate corpus is the enforcement layer; nothing else
 // enforces ITS shape, so a gate could register nothing, carry a one-sided exemption table, cite a
-// section that does not exist, carry a ratchet ledger nobody counts, or claim syntax while reading types,
-// forever and silently. Five
+// section that does not exist, or claim syntax while reading types, forever and silently. Four
 // mechanical axes, all keyed on the corpus itself: A DESCRIPTOR (a gate file must register under one of
 // the two contracts) · B EXEMPTIONS (an exemption vocabulary promises a STALE arm) · C CITATION (a docRow
-// `§` anchor must resolve in the doc it names) · D ADMITTED (a gate reading a committed ratchet ledger must
-// DECLARE what it admitted) · E ANALYSIS (a final syntax policy must not reach compiler semantics). The law
-// these arms mechanize is tooling/src/verify/gates/GATE-AUTHORING.md.
+// `§` anchor must resolve in the doc it names) · E ANALYSIS (a final syntax policy must not reach compiler
+// semantics). The law these arms mechanize is tooling/src/verify/gates/GATE-AUTHORING.md.
+//
+// ARM D (a gate reading a committed ratchet ledger must DECLARE what it admitted) RETIRED 2026-09-14 (#2359):
+// its last subject, `ratchet-row-integrity`, retired at 6bab419ad, leaving zero ledger readers in the
+// corpus — and `lib/gate-contract.ts`'s `baseline-ledger` finding (§8-controlled here, `gate:contract`
+// on the real corpus) refuses ANY gate module whose resolved string values end in `.baseline.json`, which
+// is strictly stronger than ARM D's whole-literal ledger-path match: it also catches a concatenated or
+// templated path ARM D's anchored-literal test could not see. The letter is skipped on purpose; the axis
+// list stays A/B/C/E.
 //
 // MIXED RUNTIME (#1584, docs/reviews/gate-runtime/mixed-runtime-front-door.md §5): arm A recognises a module
 // as REGISTERED under either contract — a legacy `gate` descriptor object, or a `gate = defineGate(…)` call
 // whose callee resolves BY IMPORT ORIGIN to `contract/policy.ts` (`lib/gate-contract-origin.ts`; a same-named
 // local `defineGate` is not the contract and the module registers nothing). A final module's proof floor
 // (≥1 mustFlag/mustPass, no legacy fields) is `lib/policy-validation.ts`'s at load time, so arm A judges
-// nothing further on it; arms B and D are MODULE-shape arms and run over both contracts (a one-sided
-// exemption table or a silent ledger read is a defect whatever the descriptor); arm C reads `docRow`,
+// nothing further on it; arm B is a MODULE-shape arm and runs over both contracts (a one-sided
+// exemption table is a defect whatever the descriptor); arm C reads `docRow`,
 // which only a legacy descriptor carries. The corpus is the LOADER's corpus — top-level `gates/*.ts` —
 // so the shared proof surfaces under `gates/_proof/` are inputs to policy proofs, never modules that owe
 // a descriptor.
@@ -22,17 +28,13 @@ import { posix } from "node:path";
 import type { Node, SourceFile } from "ts-morph";
 import { Node as TsNode } from "ts-morph";
 import type { GatePolicyContext, GatePolicyProof } from "../contract/policy.ts";
-import { defineGate, POLICY_PROOF_ARMS } from "../contract/policy.ts";
+import { defineGate } from "../contract/policy.ts";
 import type { DocumentIndex } from "../contract/resource-document.ts";
 import type { GateModernizationModuleSyntax } from "../lib/gate-modernization-fact.ts";
 import { GATE_MODERNIZATION_POPULATION, gateModernizationFact, readGateModernizationFacts } from "../lib/gate-modernization-fact.ts";
 import { finalDescriptorOf, gateRegistrationOf } from "../lib/policy-descriptor-read.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
-import { GATE_MODERNIZATION_PROBE_LEDGER, GATE_MODERNIZATION_PROBE_LEDGER_SUFFIX } from "./_proof/gate-modernization.ts";
 
-const GATES_REL = "tooling/src/verify/gates/";
-/** This module's own path — ARM D's real-tree anchor (§4.5) and the file its tripwire reports on. */
-const GATE_SELF = `${GATES_REL}gate-modernization.ts`;
 const LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
 /** A sibling gate module imports its family-mate as `./<name>.ts` — both modules are top-level in `gates/`. */
 
@@ -69,11 +71,7 @@ const MESSAGE =
   "A `mustFlag`/`mustPass` token: the descriptor has no non-empty array for that field — a gate without a " +
   "self-proof cannot be shown to bite, so add ≥1 example WITH a `why`. A `§<anchor>` token: the docRow cites " +
   "that section but the doc it names defines no such anchor — no heading, no line-start anchor — which is " +
-  "drift the amnesiac reader cannot tell from a real home (the UI-Gates §12.6 phantom class). A token that " +
-  "IS a committed ratchet-ledger path: this gate READS that ledger and never calls `ctx.scan({ admitted })`, " +
-  "so every finding its budgets absolve is missing from the single-pass's admitted total — declared debt " +
-  "that renders as ZERO declared debt, which is the one number a reader uses to know the debt is still " +
-  "there (#551). " +
+  "drift the amnesiac reader cannot tell from a real home (the UI-Gates §12.6 phantom class). " +
   'An `analysis` token: the policy DECLARES `analysis: "syntax"` and its MODULE calls one of the closed ' +
   "set of compiler-reaching members (`getType`, `getContextualType`, `getSymbol`, the aliased/export symbol " +
   "hops, the type- and signature-level reads, `getTypeAtLocation`, `getTypeChecker`, or `ctx.checker()` " +
@@ -94,8 +92,6 @@ const FIX =
   `guarded on a real-tree anchor, not on \`scope.kind\` alone (${LAW} §4); if the collection is a ` +
   "scan-SCOPE decision rather than an exemption, rename it out of the exemption vocabulary. " +
   "C: repoint the `§` to an anchor the cited doc actually defines. " +
-  `D: call \`ctx.scan({ admitted: <the findings your budgets absolved> })\` in the gate's \`run\`/\`finalize\` (${LAW} §1) — ` +
-  "`duplicate-action-doors` is the worked example; `pnpm debt` enumerates the rows behind the number. " +
   'E: declare `analysis: "types"` if the policy genuinely needs compiler-resolved semantics, or delete the ' +
   "compiler-reaching calls ANYWHERE IN THE MODULE and judge the node's syntax — a type read through a ts-morph " +
   "node is still a type read, and the declared plane is what the runtime prices.";
@@ -545,96 +541,6 @@ function armCitation(obj: Node, ctx: GatePolicyContext, documents: DocumentIndex
   }
 }
 
-// ── ARM D ────────────────────────────────────────────────────────────────────────────────────────────
-// A gate that reads a committed ratchet ledger and never calls `ctx.scan({ admitted })` is invisible in
-// the single-pass's "N finding(s) admitted by ratchet baselines" line — declared debt that reads as ZERO
-// declared debt. Measured 2026-08-23 (#546/#551): three of the six ledger-carrying gates were silent, and
-// the printed total (216) omitted 523 budgeted findings across their baselines. GATE-AUTHORING.md §1 said
-// so in prose ("any new baseline ratchet owes the same call"); prose is a wish, so this is its enforcer.
-//
-// A gate is a LEDGER READER when one of its string literals IS a ratchet-ledger path (anchored whole-text
-// match, so the sentence you are reading — and every other prose mention — can never trip it).
-// …and that literal is NOT inside a `mustFlag`/`mustPass` example (#569): a conformance FIXTURE ledger is
-// something the gate JUDGES, never a budget it reads — `ratchet-row-integrity` was the worked case (retired
-// 2026-09-14 with its subject; the carve outlives it and still guards any future fixture-ledger author).
-const LEDGER_PATH_RE = /^[\w./-]+\.baseline\.json$/u;
-const ADMITTED_PROP = "admitted";
-const SCAN_METHOD = "scan";
-/** ARM D's fixture ledger, ASSEMBLED from parts. This module declares no admitted count of its own, so a
- *  whole string literal that IS a ledger path would make the arm accuse its own conformance rows
- *  (GATE-AUTHORING.md §5 — never spell a gate's trigger literally near its scan root). Neither piece
- *  satisfies the anchored match; only their concatenation does, and that exists at runtime only. */
-const NO_ADMITTED_TRIPWIRE =
-  "BLINDNESS TRIPWIRE (ARM D) — no gate module in the corpus was recognised as a ratchet-ledger reader, so " +
-  "this arm would report ✓ over every silent ratchet forever. The ledger-path recogniser in " +
-  "tooling/src/verify/gates/gate-modernization.ts stopped matching: re-point it (GATE-AUTHORING.md §4.6).";
-
-/** The SELF-PROOF fields: a ledger path inside a conformance example is a FIXTURE, not a read (#569 — the
- *  now-retired `ratchet-row-integrity` gate JUDGED ledgers and admitted nothing, so its example files named
- *  `*.baseline.json` paths and ARM D accused it three times over). Narrow on purpose: a real reader's path
- *  constant lives at module scope, so this carve cannot absolve one. */
-const EXAMPLE_FIELDS: ReadonlySet<string> = new Set(POLICY_PROOF_ARMS);
-
-/** Is this literal inside a `mustFlag`/`mustPass` example block? */
-function inExampleBlock(node: Node): boolean {
-  for (let cur = node.getParent(); cur !== undefined; cur = cur.getParent()) {
-    if (TsNode.isPropertyAssignment(cur) && EXAMPLE_FIELDS.has(cur.getName())) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/** The ratchet-ledger paths this gate module reads, as their literal nodes (the report anchor). A path that
- *  only ever appears in a conformance example is EXCLUDED — see `inExampleBlock`. */
-function ledgerLiterals(module: GateModernizationModuleSyntax): { readonly node: Node; readonly path: string }[] {
-  const out: { node: Node; path: string }[] = [];
-  for (const node of module.strings) {
-    if (!(TsNode.isStringLiteral(node) || TsNode.isNoSubstitutionTemplateLiteral(node))) {
-      continue;
-    }
-    const text = node.getLiteralText();
-    if (LEDGER_PATH_RE.test(text) && !inExampleBlock(node)) {
-      out.push({ node, path: text });
-    }
-  }
-  return out;
-}
-
-/** Does this module declare an admitted count — `<x>.scan({ admitted: … })` anywhere in it? AST-positional
- *  (a mention of the call in a comment or a doc string enforces nothing, and this arm's own header names it). */
-export function declaresAdmitted(module: GateModernizationModuleSyntax): boolean {
-  for (const node of module.calls) {
-    if (!TsNode.isCallExpression(node)) {
-      continue;
-    }
-    const call = node;
-    const callee = call.getExpression();
-    if (!TsNode.isPropertyAccessExpression(callee) || callee.getName() !== SCAN_METHOD) {
-      continue;
-    }
-    const arg = call.getArguments()[0];
-    if (arg !== undefined && TsNode.isObjectLiteralExpression(arg) && arg.getProperty(ADMITTED_PROP) !== undefined) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/** ARM D for one gate module. Returns whether it reads a ledger at all — the tripwire's evidence. */
-function armAdmitted(module: GateModernizationModuleSyntax, ctx: GatePolicyContext): boolean {
-  const ledgers = ledgerLiterals(module);
-  if (ledgers.length === 0 || declaresAdmitted(module)) {
-    return ledgers.length > 0;
-  }
-  for (const ledger of ledgers) {
-    // NODE-anchored with the ledger path as its token: a gate can read two ledgers on two lines, and the
-    // token is what a `@orb-gate-ignore` would have to name (§4.3a).
-    reportToken(ctx, ledger.node, ledger.path);
-  }
-  return true;
-}
-
 /** Arm B for one gate module: every one-sided exemption collection it carries. Unsuppressed by
  *  construction — the RETRO handoff baseline reached its terminal state `{}` (GATE-AUTHORING.md §4.8) and was
  *  deleted with its generator, so a NEW one-sided table is red on arrival with no ledger to add it to. */
@@ -692,22 +598,13 @@ export const gate = defineGate({
     return {
       evaluate: () => {
         const syntax = readGateModernizationFacts(ctx);
-        let ledgerReaders = 0;
-        let selfVisited = false;
         for (const module of syntax.modules) {
           const rel = ctx.relativePath(module.sourceFile);
-          selfVisited ||= rel === GATE_SELF;
           const obj = armDescriptor(module.sourceFile, rel, ctx);
           armExemptions(module, ctx);
-          ledgerReaders += armAdmitted(module, ctx) ? 1 : 0;
           if (obj !== undefined) {
             armCitation(obj, ctx, documents);
           }
-        }
-        // §4.6: this arm is keyed on a NAME shape, so a corpus with zero recognised ledger readers means
-        // the recogniser died, not that the debt did. The self module is the real-corpus anchor.
-        if (ledgerReaders === 0 && selfVisited) {
-          ctx.report.file(GATE_SELF, { line: 1, column: 1, message: NO_ADMITTED_TRIPWIRE });
         }
       },
     };
@@ -1019,24 +916,8 @@ export const gate = defineGate({
       expect: { count: 1, token: "§12.6" },
       why: "ARM C — the UI-Gates §12.6 phantom EXACTLY: the doc REFERENCES the anchor in prose but never DEFINES it, so a reference-counting check would false-pass",
     },
-    {
-      mode: "resource" as const,
-      files: {
-        [PROOF_DOC]: "# Resource anchor\n",
-        [PROOF_CATALOG]: `{"documents":[{"path":"${PROOF_DOC}"}]}\n`,
-        "tooling/src/verify/gates/__probe.ts": `const LEDGER = "${GATE_MODERNIZATION_PROBE_LEDGER}";\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], run: (ctx) => { ctx.report({ file: LEDGER, line: 1, column: 0, message: "m" }); } };\n`,
-      },
-      expect: { count: 1, token: GATE_MODERNIZATION_PROBE_LEDGER },
-      why: "ARM D — THE FOUNDING SHAPE (#551): a gate reading a committed ratchet ledger and declaring no admitted count. Its whole budgeted population then renders as ZERO in the single-pass's admitted line — measured at 523 findings across three gates",
-    },
   ],
   mustPass: [
-    {
-      files: {
-        "tooling/src/verify/gates/__probe.ts": `export const gate = { name: "__probe", docRow: "x", message: "m", run: (ctx) => { ctx.scan({ unit: "ledger row" }); }, mustFlag: [{ files: { "${GATE_MODERNIZATION_PROBE_LEDGER}": "{}" }, why: "w" }], mustPass: [{ files: { "${GATE_MODERNIZATION_PROBE_LEDGER}": "{}" }, why: "w" }] };\n`,
-      },
-      why: "ARM D's example carve (#569): a gate whose ONLY ledger path sits inside its mustFlag/mustPass fixtures JUDGES ledgers rather than reading budgets — accusing it of a silent ratchet was a false positive that cost `ratchet-row-integrity` (retired 2026-09-14) three findings at landing",
-    },
     {
       files: {
         // The origin reader resolves the relative import on disk (this gate is fsBacked, so its example is a real
@@ -1164,25 +1045,6 @@ export const gate = defineGate({
           'export const gate = { name: "__probe", docRow: "NO-SUCH-DOC-ANYWHERE.md §4", message: "m", mustFlag: [1], mustPass: [1] };\n',
       },
       why: "ARM C — a docRow naming a doc that resolves NOWHERE is `dangling-refs`' finding, not a second red here: one defect, one diagnostic",
-    },
-    {
-      files: {
-        "tooling/src/verify/gates/__probe.ts": `const LEDGER = "${GATE_MODERNIZATION_PROBE_LEDGER}";\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], run: (ctx) => { ctx.scan({ admitted: LEDGER.length }); } };\n`,
-      },
-      why: "ARM D — the honest shape: the ledger reader declares what its budgets absolved, so the single-pass total includes it",
-    },
-    {
-      files: {
-        "tooling/src/verify/gates/__probe.ts": `const NOTE = "regenerate the committed ${GATE_MODERNIZATION_PROBE_LEDGER_SUFFIX} ledger when the count shrinks";\nexport const gate = { name: "__probe", docRow: "x", message: NOTE, mustFlag: [1], mustPass: [1] };\n`,
-      },
-      why: "ARM D — DECLARED LIMIT and the anti-self-flag: the recogniser matches a literal that IS a ledger PATH (whole-text anchored), never prose that merely mentions one — otherwise this gate's own header and every gate's fix text would accuse themselves",
-    },
-    {
-      files: {
-        "tooling/src/verify/gates/__probe.ts":
-          'export const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], run: (ctx) => { ctx.scan({ scanned: 1 }); } };\n',
-      },
-      why: "ARM D — a gate that reads NO ledger owes no admitted count: the arm is about declared debt, not about every `ctx.scan` call (and the blindness tripwire stays quiet here, being real-tree anchored)",
     },
   ].map(resourceProof),
 });
