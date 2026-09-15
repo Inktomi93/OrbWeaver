@@ -7142,7 +7142,7 @@
     {
       "siteId": "tooling/src/verify/gates/depcruise-grant-liveness.ts::catch::1",
       "path": "tooling/src/verify/gates/depcruise-grant-liveness.ts",
-      "line": 174,
+      "line": 170,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -7150,7 +7150,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unparseable pattern matches nothing, so it",
-      "markerLine": 169
+      "markerLine": 165
     },
     {
       "siteId": "tooling/src/verify/gates/devtools-frontend-assets.ts::error::1",
@@ -7285,7 +7285,7 @@
     {
       "siteId": "tooling/src/verify/lib/grant-liveness.ts::catch::1",
       "path": "tooling/src/verify/lib/grant-liveness.ts",
-      "line": 258,
+      "line": 294,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -7293,12 +7293,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "NOT a swallow — an empty corpus is the",
-      "markerLine": 250
+      "markerLine": 286
     },
     {
       "siteId": "tooling/src/verify/lib/grant-liveness.ts::catch::2",
       "path": "tooling/src/verify/lib/grant-liveness.ts",
-      "line": 275,
+      "line": 311,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -7306,7 +7306,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a malformed package.json is the package",
-      "markerLine": 270
+      "markerLine": 306
     },
     {
       "siteId": "tooling/src/verify/lib/history.ts::catch::1",

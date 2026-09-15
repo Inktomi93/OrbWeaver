@@ -2,7 +2,7 @@
 // config selector still name something this repository carries". The family shares two readers — the
 // executable-config subject reader (`lib/config-snapshot.ts` `readConfigSnapshot`, reached only through the
 // `native-config` ResourceHost fact) and the liveness/exemption reconciler
-// (`lib/grant-liveness.ts` `livenessFindings` / `patternLivenessFindings`).
+// (`lib/grant-liveness.ts` `deadExactFindings` / `patternLivenessFindings`).
 //
 // `runner-config-path-liveness` JOINED 2026-09-12 (#1584): the `authored-path` door its 2026-09-11 refusal
 // specified shipped inside the frozen 18-kind vocabulary, so the refusal's premise is retired and the module
@@ -25,8 +25,11 @@
 // gate-owned exemption table; the `-health` siblings and `runner-config-path-liveness` are `hard`.
 // `eslint-grant-liveness` MIGRATED 2026-09-13 (#1922 / #2147): its positional `RATIFIED` table became seven
 // central rows, and its real-config grant arms live in `eslint-grant-liveness.int.test.ts`.
-// `depcruise-grant-liveness` is still `hard` carrying a gate-local `RATIFIED` table — the remaining MIGRATION
-// boundary (#1922), not an inconsistency.
+// `depcruise-grant-liveness` MIGRATED 2026-09-14 (#1922 / #2147, closed by #2176 Phase F): its empty `EXEMPT`
+// and three-row `RATIFIED` tables became three central rows, its blindness tripwire became a `mustRefuse`
+// arm (a reviewed-grant finding owes an identity a grant could name, and a blindness alarm must never be
+// grantable), and its real-config grant arms live in `depcruise-grant-liveness.int.test.ts`. The #1922
+// migration boundary is now CLOSED for this family.
 //
 // WHY THIS FILE EXISTS (#1932): both converted policies' permanent-pin int tests previously cited
 // `tests/tooling/verify/ops/policy-conformance.test.ts` as the harness that runs their `mustFlag`/`mustPass`
@@ -77,7 +80,9 @@ test("the family is one family, and each member's authority is the one its arms 
   expect(policies.map((policy) => [policy.id, policy.family, policy.authority])).toEqual([
     ["biome-grant-liveness", "grant-liveness", "reviewed-grant"],
     ["biome-grant-liveness-health", "grant-liveness", "hard"],
-    ["depcruise-grant-liveness", "grant-liveness", "hard"],
+    // `depcruise-grant-liveness` was the LAST `hard` member carrying its own `ExemptionTable`s; #2176 Phase F
+    // migrated its three RATIFIED rows to `lib/reviewed-grants.ts` and moved it to the door its siblings use.
+    ["depcruise-grant-liveness", "grant-liveness", "reviewed-grant"],
     ["eslint-grant-liveness", "grant-liveness", "reviewed-grant"],
     ["runner-config-path-liveness", "grant-liveness", "hard"],
     ["tsconfig-entry-liveness", "grant-liveness", "reviewed-grant"],

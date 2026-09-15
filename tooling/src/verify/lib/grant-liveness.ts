@@ -40,7 +40,16 @@ export function isFileExact(p: string): boolean {
 
 /** A grant/exemption row a liveness gate deliberately does not fail on, but STILL polices two-sided
  *  (§4.4): a key the registry no longer carries is RED (a standing exemption for a gone row is a loaded
- *  gun), and a `cite` that stopped resolving is RED (the promise outlived its evidence). */
+ *  gun), and a `cite` that stopped resolving is RED (the promise outlived its evidence).
+ *
+ * @public knip false positive — no live PRODUCTION importer since `depcruise-grant-liveness` converted to
+ * reviewed-grant authority (#2176 Phase F); consumed at TEST RUNTIME by the frozen legacy
+ * `tsconfig-entry-liveness` descriptor that `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts`
+ * git-shows at `c97de9d2f` and rewires to this live module (`:56` imports it, `:324` calls it). The whole
+ * exemption half of this core — this function, `GrantExemption`, `LivenessMessages`, `LivenessInput` and
+ * `patternLivenessFindings`' `ratified`/`anchorOk` inputs — dies with that replay when the legacy runtime
+ * retires; nothing final reaches it.
+ */
 export interface GrantExemption {
   readonly why: string;
   /** The repo-relative producer/decision that justifies the exemption. Must resolve on the real tree. */
@@ -57,6 +66,15 @@ export interface ExactRow {
   readonly line: number;
 }
 
+/**
+ * @public knip false positive — no live PRODUCTION importer since `depcruise-grant-liveness` converted to
+ * reviewed-grant authority (#2176 Phase F); consumed at TEST RUNTIME by the frozen legacy
+ * `tsconfig-entry-liveness` descriptor that `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts`
+ * git-shows at `c97de9d2f` and rewires to this live module (`:56` imports it, `:324` calls it). The whole
+ * exemption half of this core — this function, `GrantExemption`, `LivenessMessages`, `LivenessInput` and
+ * `patternLivenessFindings`' `ratified`/`anchorOk` inputs — dies with that replay when the legacy runtime
+ * retires; nothing final reaches it.
+ */
 export interface LivenessMessages {
   /** DEAD file-exact grant (path resolves to nothing, not exempt). Carries the path as the finding token. */
   readonly dead: string;
@@ -66,6 +84,15 @@ export interface LivenessMessages {
   readonly deadCite: string;
 }
 
+/**
+ * @public knip false positive — no live PRODUCTION importer since `depcruise-grant-liveness` converted to
+ * reviewed-grant authority (#2176 Phase F); consumed at TEST RUNTIME by the frozen legacy
+ * `tsconfig-entry-liveness` descriptor that `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts`
+ * git-shows at `c97de9d2f` and rewires to this live module (`:56` imports it, `:324` calls it). The whole
+ * exemption half of this core — this function, `GrantExemption`, `LivenessMessages`, `LivenessInput` and
+ * `patternLivenessFindings`' `ratified`/`anchorOk` inputs — dies with that replay when the legacy runtime
+ * retires; nothing final reaches it.
+ */
 export interface LivenessInput {
   /** Disk root for the default `existsSync` check. Omit when `exists` is supplied — a resource-fed caller
    *  (GatePolicyContext carries no root/filesystem at all) has no disk root to hand back. */
@@ -125,7 +152,16 @@ function exemptionArms(input: LivenessInput, exactPaths: ReadonlySet<string>): F
 /** DEAD-row + two-sided-EXEMPT findings for a set of already-extracted, already-classified file-exact rows.
  *  A row is dead when it is NOT exempt and its path resolves to nothing on the tree; the finding token is
  *  the dead path, anchored at its OWN config file + source line. The exemption table is judged GLOBALLY
- *  against the whole exact set (a row exact in ANY scanned config keeps its exemption live). */
+ *  against the whole exact set (a row exact in ANY scanned config keeps its exemption live).
+ *
+ * @public knip false positive — no live PRODUCTION importer since `depcruise-grant-liveness` converted to
+ * reviewed-grant authority (#2176 Phase F); consumed at TEST RUNTIME by the frozen legacy
+ * `tsconfig-entry-liveness` descriptor that `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts`
+ * git-shows at `c97de9d2f` and rewires to this live module (`:56` imports it, `:324` calls it). The whole
+ * exemption half of this core — this function, `GrantExemption`, `LivenessMessages`, `LivenessInput` and
+ * `patternLivenessFindings`' `ratified`/`anchorOk` inputs — dies with that replay when the legacy runtime
+ * retires; nothing final reaches it.
+ */
 export function livenessFindings(input: LivenessInput): Finding[] {
   const { exact, exempt, anchorOk, messages } = input;
   const exactPaths = new Set(exact.map((r) => r.path));

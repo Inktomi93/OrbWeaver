@@ -11,8 +11,8 @@
 // values are REGEX SOURCE, not globs, so a path is only recognised when the pattern is FULLY ANCHORED
 // (`^…$`) and carries no surviving metacharacter after unescaping `\.`/`\/`. That classifier is deliberately
 // CONSERVATIVE in the direction that matters: these lists are load-bearing import law, so an ambiguous
-// pattern becomes a declared SKIP, never a RED. Arms: DEAD · NO-ROWS (the §4.6 blindness tripwire) · the
-// two-sided EXEMPT arms (empty-but-armed at mint — every live row resolves). MISSING/UNPARSEABLE-CONFIG are
+// pattern becomes a declared SKIP, never a RED. Arms: DEAD · DEAD-PATTERN · NO-ROWS (the §4.6 blindness
+// tripwire) · the irreducible BACKREF BUDGET. MISSING/UNPARSEABLE-CONFIG are
 // no longer a reportable arm of THIS policy: a `native-config` resource that cannot resolve makes population
 // resolution itself throw (`resolveResourceDeclarations`), which withholds the whole run as a TOOL ERROR —
 // the fail-LOUD requirement is now the runtime's own refusal, proven at `runPolicyPass` level, not by a
@@ -22,18 +22,39 @@
 // fact, or the declared-dependency module paths derived from every `package-metadata` fact (dep-cruiser
 // matches MODULE paths, so `node_modules/echarts/` is live exactly while some package.json still declares
 // echarts). Zero members in either = the same loaded-gun class one level up: import law aimed at nothing, or
-// an exemption for a class that no longer exists. Two families cannot be judged and are RATIFIED with
-// reasons + a no-growth budget: a `$1` BACKREFERENCE (its member set is bound by the paired rule's capture at
-// cruise time, not by the tree) and the two by-design rows below.
+// an exemption for a class that no longer exists. One family cannot be judged at all and carries a no-growth
+// BUDGET instead: a `$1` BACKREFERENCE, whose member set is bound by the paired rule's capture at cruise
+// time rather than by the tree.
+//
+// AUTHORITY — REVIEWED GRANT, MIGRATED FROM TWO GATE-LOCAL TABLES (#1922 / #2147, closed by #2176 Phase F).
+// This policy was the LAST of the four config-liveness siblings still `hard` with its own `ExemptionTable`s:
+// an empty `EXEMPT` for the file-exact arm and a three-row `RATIFIED` for the pattern arm, plus two in-policy
+// arms policing those tables (STALE: the config no longer carries the row; DEAD-CITE: the row's `cite` stopped
+// resolving). §5 forbids a gate-owned exemption table, so the three rows are now exact
+// `(policy, subject, operation)` rows in `lib/reviewed-grants.ts` and this policy reports EVERY dead row. The
+// identity keeps both halves of each retired row, exactly as `eslint-grant-liveness` does one config over:
+//   · SUBJECT = the positional selector identity (`config.options.exclude.path[0]`) — the authored coordinate.
+//   · OPERATION = `depcruise-dead-exact:<JSON path>` or `depcruise-zero-member-pattern:<JSON pattern>`, so a
+//     grant binds the VALUE it reviewed and never whatever later occupies the same position.
+//   · STALE → central `stale-reviewed-grant` (zero consumption after a complete owner run). Stronger: a module
+//     cannot forget it.
+//   · DEAD-CITE → NO SUCCESSOR, the retired property `biome-grant-liveness` and `eslint-grant-liveness` both
+//     record. Each grant's `why` carries its former cite path verbatim for the successor citation check (#2349):
+//     `dist` → `.gitignore`; `g-fixture` → `tooling/src/verify/gates/GATE-AUTHORING.md`; `quickjs-wasm-url` →
+//     `packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts`.
+// MEASURED at the conversion (2026-09-14, `pnpm check:structure --check depcruise-grant-liveness`): the three
+// formerly hidden patterns became `raw 3 = waived 0 + granted 3 + effective 0`, 0 alarms — one grant per
+// finding, which is the §6.4 EXEMPTION-MECHANISM MOVE receipt. The POPULATION and resource declarations are
+// unchanged.
 // COMMENT POSTURE: comment-SAFE — observation reads runtime config values, never source text.
 import type { DepcruiseConfigSnapshotField, DepcruiseSelectorSnapshot } from "../contract/config-snapshot.ts";
-import type { ExemptionTable, Finding } from "../contract/gate.ts";
+import type { GrantFinding } from "../contract/grant-liveness.ts";
 import type { GatePolicyContext, GatePolicyFileFindingDetails } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { PackageResourceId } from "../contract/resource-config.ts";
 import { PACKAGE_RESOURCE_PATHS } from "../contract/resource-config.ts";
-import type { GrantExemption, LivenessMessages, PatternLivenessMessages, PatternRow } from "../lib/grant-liveness.ts";
-import { dependencyModulesFromManifests, irreducibleBudgetFindings, livenessFindings, patternLivenessFindings } from "../lib/grant-liveness.ts";
+import type { PatternLivenessMessages, PatternRow } from "../lib/grant-liveness.ts";
+import { deadExactFindings, dependencyModulesFromManifests, irreducibleBudgetFindings, patternLivenessFindings } from "../lib/grant-liveness.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const CONFIG_REL = ".dependency-cruiser.cjs";
@@ -45,11 +66,6 @@ const REGEX_META_RE = /[|()[\]{}*+?^$\\]/u;
  *  rules; a resource proof plants a handful. Counted over ALL derived values, never over the exact ones, so
  *  it can guard the very arm that judges the regex/literal classifier. */
 const REAL_CONFIG_MIN_CANDIDATES = 80;
-
-/** Empty but ARMED at mint — every file-exact row in .dependency-cruiser.cjs resolves today, so nothing
- *  needs forgiving. The two-sided machinery is shared (lib/grant-liveness.ts) and is
- *  proven in both directions by the sibling gates' pins; a row added here inherits both arms automatically. */
-const EXEMPT: ExemptionTable<GrantExemption> = {};
 
 /** A `$1`/`$2` capture BACKREFERENCE: dep-cruiser binds it from the paired `path`'s capture at cruise time,
  *  so the pattern denotes a different set per matched file and has no member set of its own to test. */
@@ -65,38 +81,6 @@ const BACKREF_BUDGET = 16;
  *  for this repo) disagree with a committed budget it knows nothing about. */
 const BUDGET_ANCHOR = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
 
-const GUEST_WORKER = "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts";
-const GATE_FIXTURE_LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
-
-/** Patterns whose liveness is NOT decidable from any tracked source — each with the exact reason, the
- *  owning decision, and an END CONDITION. Two-sided: a row .dependency-cruiser.cjs no longer carries is
- *  RED, and a cite that stopped resolving is RED. */
-const RATIFIED: ExemptionTable<GrantExemption> = {
-  "(^|/)__g_": {
-    why:
-      "the reserved throwaway-fixture sentinel: check-gates.int materialises `__g_*` files at real-tree " +
-      "paths for milliseconds and reaps them, so the subject is ABSENT from every tracked source by " +
-      "construction — a member test would RED a correct config, and an FS test would depend on whether a " +
-      "suite happened to be mid-run. Delete this row the day the `__g_` sentinel is retired.",
-    cite: GATE_FIXTURE_LAW,
-  },
-  "^packages/[^/]+/dist/": {
-    why:
-      "BUILD OUTPUT: `dist/` is gitignored, so it is absent from the tracked corpus by design and present " +
-      "only after a build — judging it either way makes the verdict depend on machine state. Delete this " +
-      "row the day the packages stop emitting dist/.",
-    cite: ".gitignore",
-  },
-  "^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\?url$": {
-    why:
-      "a vite ASSET QUERY specifier (`?url`), not a module path and not a repo file: its member set is what " +
-      "the bundler emits at build time, which no static tree read can enumerate (dep-cruiser matches it " +
-      "only as an unresolvable-import exemption). The cite is the one importer that makes it live — the " +
-      "row dies with it.",
-    cite: GUEST_WORKER,
-  },
-};
-
 const PATTERN_MESSAGES: PatternLivenessMessages = {
   deadPattern:
     "a PATTERN in .dependency-cruiser.cjs matches NOTHING this repo carries — no tracked file and no " +
@@ -104,17 +88,19 @@ const PATTERN_MESSAGES: PatternLivenessMessages = {
     "over an empty set is an exemption nobody can see being over-broad (the loaded-gun class one level up " +
     "from a dead file-exact row, tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode B). Re-point the " +
     "pattern at the tier/package it means, delete the rule, or — if its members genuinely cannot be " +
-    "enumerated from the tree — add a RATIFIED row in " +
-    "tooling/src/verify/gates/depcruise-grant-liveness.ts with its `why` + END CONDITION and a resolving " +
-    "`cite`. The finding token is the pattern.",
-  staleRatified:
-    "a depcruise-grant-liveness RATIFIED row forgives a pattern .dependency-cruiser.cjs no longer carries — " +
-    "a standing allowance for a row that is gone is a LOADED GUN. Delete the row from RATIFIED in " +
-    "tooling/src/verify/gates/depcruise-grant-liveness.ts.",
-  deadCite:
-    "a depcruise-grant-liveness RATIFIED row's `cite` no longer resolves — the decision that justified the " +
-    "allowance moved or was deleted. Re-derive the cite, or delete the row from RATIFIED in " +
-    "tooling/src/verify/gates/depcruise-grant-liveness.ts.",
+    "enumerated from the tree — it is a REVIEWED GRANT: add a row to " +
+    "tooling/src/verify/lib/reviewed-grants.ts keyed on this policy id, the finding's subject and its " +
+    "operation, with its `why` and its `endsWhen`. The finding TOKEN is the positional selector identity " +
+    "(a regex source carries parentheses, which no @orb-waive position may name); the pattern itself is in " +
+    "this message and in the grant operation.",
+  // The two RATIFIED arms are unreachable by construction now (`ratified: {}`, `anchorOk: false`) and
+  // their successors are central: STALE -> `stale-reviewed-grant` (zero consumption after a complete
+  // owner run, which cannot be forgotten by a module); DEAD-CITE -> NO SUCCESSOR, the same retired
+  // property `biome-grant-liveness` and `eslint-grant-liveness` record, with each grant's `why` carrying
+  // its former cite path verbatim for the successor citation check (#2349). The shared core keeps the two
+  // keys until its last legacy replay retires with the runtime (#2176 commit 3).
+  staleRatified: "",
+  deadCite: "",
   budgetMoved:
     "the count of IRREDUCIBLE `$1`-backreference patterns in .dependency-cruiser.cjs is {actual}, but the " +
     "committed budget is {budget}. These are the rows whose member set dep-cruiser binds from the paired " +
@@ -124,22 +110,12 @@ const PATTERN_MESSAGES: PatternLivenessMessages = {
     "tooling/src/verify/gates/depcruise-grant-liveness.ts.",
 };
 
-const MESSAGES: LivenessMessages = {
-  dead:
-    "a FILE-EXACT `path`/`pathNot` in .dependency-cruiser.cjs names nothing on the tree — the import-law row " +
-    "it carries is DEAD. A `pathNot` exemption whose subject was deleted is an over-grant nobody can see (and " +
-    "the next file created at that path silently inherits it); a `path` subject that resolves to nothing is a " +
-    "rule aimed at no file at all. See tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode B. The finding " +
-    "token is the dead path.",
-  staleExempt:
-    "a depcruise-grant-liveness EXEMPT row forgives a path .dependency-cruiser.cjs no longer carries — a " +
-    "standing exemption for a row that is gone is a LOADED GUN. Delete the row from EXEMPT in " +
-    "tooling/src/verify/gates/depcruise-grant-liveness.ts.",
-  deadCite:
-    "a depcruise-grant-liveness EXEMPT row's `cite` no longer resolves — the producer that justified the " +
-    "exemption moved or was deleted. Re-derive the cite, or delete the row from EXEMPT in " +
-    "tooling/src/verify/gates/depcruise-grant-liveness.ts.",
-};
+const MSG_DEAD =
+  "a FILE-EXACT `path`/`pathNot` in .dependency-cruiser.cjs names nothing on the tree — the import-law row " +
+  "it carries is DEAD. A `pathNot` exemption whose subject was deleted is an over-grant nobody can see (and " +
+  "the next file created at that path silently inherits it); a `path` subject that resolves to nothing is a " +
+  "rule aimed at no file at all. See tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode B. The finding " +
+  "token is the dead path.";
 
 const MSG_NO_ROWS =
   ".dependency-cruiser.cjs parsed but ZERO file-exact rows were derived from an anchor-sized value set — the " +
@@ -154,12 +130,32 @@ interface NativeGrantRow {
   readonly position: number;
 }
 
-/** Map a shared-lib `Finding` (file/line/column/token?/message?) onto the final contract's
- *  `report.file`, never handing `exactOptionalPropertyTypes` an explicit `token: undefined`. */
-function reportFinding(ctx: GatePolicyContext, finding: Finding, message?: string): void {
-  const details: GatePolicyFileFindingDetails = { line: 1, column: 1 };
-  const withMessage: GatePolicyFileFindingDetails = message === undefined ? details : { ...details, message };
-  ctx.report.file(finding.file, finding.token === undefined ? withMessage : { ...withMessage, token: finding.token });
+/** THE LICENSED ACT. The authored selector value is part of the OPERATION, so a grant binds the value it
+ *  reviewed and never whatever later occupies the same position — `eslint-grant-liveness`' identity, one
+ *  config over. Two operations because the two arms review different things: a FILE-EXACT row promises one
+ *  named file, a PATTERN promises a class. */
+const OPERATION_EXACT = "depcruise-dead-exact:";
+const OPERATION_PATTERN = "depcruise-zero-member-pattern:";
+
+/** The positional identity — the finding token's home in the executable config. EXPORTED so the permanent
+ *  pin speaks the same identity language instead of re-deriving `owner.field[position]`. */
+export function selectorIdentity(row: Pick<DepcruiseSelectorSnapshot, "owner" | "field" | "position">): string {
+  return `${row.owner}.${row.field}[${String(row.position)}]`;
+}
+
+interface GrantIdentity {
+  readonly subject: string;
+  readonly operation: string;
+}
+
+/** Map a shared-core `GrantFinding` (file/line/column/token?/message?) onto the final contract's
+ *  `report.file`, never handing `exactOptionalPropertyTypes` an explicit `token: undefined`. An arm that
+ *  can be licensed passes its `(subject, operation)`; the BUDGET arm cannot and passes none. */
+function reportFinding(ctx: GatePolicyContext, finding: GrantFinding, message?: string, identity?: GrantIdentity): void {
+  const base: GatePolicyFileFindingDetails = { line: 1, column: 1 };
+  const withMessage: GatePolicyFileFindingDetails = message === undefined ? base : { ...base, message };
+  const withIdentity: GatePolicyFileFindingDetails = identity === undefined ? withMessage : { ...withMessage, ...identity };
+  ctx.report.file(finding.file, finding.token === undefined ? withIdentity : { ...withIdentity, token: finding.token });
 }
 
 /** A dep-cruiser pattern is REGEX SOURCE matched against a module path. An unparseable source is treated as
@@ -223,49 +219,66 @@ function classifySelectors(selectors: readonly DepcruiseSelectorSnapshot[]): Cla
   return { exact, skipped };
 }
 
-function reportExactRows(ctx: GatePolicyContext, exact: readonly NativeGrantRow[], exists: (path: string) => boolean, anchorOk: boolean): void {
-  const findings = livenessFindings({
+function reportExactRows(ctx: GatePolicyContext, exact: readonly NativeGrantRow[], exists: (path: string) => boolean): void {
+  const findings = deadExactFindings({
     exact: exact.map((row) => ({ file: CONFIG_REL, path: row.path, line: 0 })),
-    exempt: EXEMPT,
-    exemptAnchorFile: CONFIG_REL,
-    anchorOk,
-    messages: MESSAGES,
+    message: MSG_DEAD,
     exists,
   });
   for (const finding of findings) {
     const row = exact.find((candidate) => candidate.path === finding.token);
-    const message =
-      finding.message === MESSAGES.dead && row !== undefined
-        ? `${MESSAGES.dead} Native selector: ${row.owner}.${row.field}[${String(row.position)}].`
-        : finding.message;
-    reportFinding(ctx, finding, message);
+    if (row === undefined) {
+      reportFinding(ctx, finding, finding.message);
+      continue;
+    }
+    const subject = selectorIdentity(row);
+    const operation = `${OPERATION_EXACT}${JSON.stringify(row.path)}`;
+    reportFinding(ctx, finding, `${MSG_DEAD} Subject: ${subject}, operation: ${operation}.`, { subject, operation });
   }
 }
 
 interface PatternRowsInput {
   readonly skipped: readonly DepcruiseSelectorSnapshot[];
-  readonly exists: (path: string) => boolean;
   readonly repoPaths: readonly string[];
   readonly dependencyModules: readonly string[];
-  readonly anchorOk: boolean;
 }
 
 function reportPatternRows(ctx: GatePolicyContext, input: PatternRowsInput): number {
-  const { skipped, exists, repoPaths, dependencyModules, anchorOk } = input;
+  const { skipped, repoPaths, dependencyModules } = input;
   const backrefs = skipped.filter((row) => BACKREF_RE.test(row.value));
   const judgeable = skipped.filter((row) => !BACKREF_RE.test(row.value));
   const rows: readonly PatternRow[] = judgeable.map((row) => ({ file: CONFIG_REL, pattern: row.value, line: 0, matches: regexMatcher(row.value) }));
   const outcome = patternLivenessFindings({
     rows,
     sources: { repoPaths, dependencyModules },
-    ratified: RATIFIED,
+    // No gate-owned allowance survives: every zero-member pattern is REPORTED and the central table
+    // licenses the three whose members are genuinely not enumerable. `anchorOk: false` makes the core's
+    // two ratified arms unreachable rather than merely empty, matching the converted siblings.
+    ratified: {},
     ratifiedAnchorFile: CONFIG_REL,
-    anchorOk,
+    anchorOk: false,
     messages: PATTERN_MESSAGES,
-    exists,
   });
   for (const finding of outcome.findings) {
-    reportFinding(ctx, finding, finding.message);
+    const row = judgeable.find((candidate) => candidate.value === finding.token);
+    if (row === undefined) {
+      reportFinding(ctx, finding, finding.message);
+      continue;
+    }
+    const subject = selectorIdentity(row);
+    const operation = `${OPERATION_PATTERN}${JSON.stringify(row.value)}`;
+    // THE TOKEN IS THE POSITIONAL IDENTITY, NOT THE PATTERN (#2176), and the runtime is what taught it: a
+    // dep-cruiser pattern is REGEX SOURCE, so `(^|/)__g_` carries parentheses — which the ordinary-waiver
+    // position grammar admits nowhere, making the finding permanently unnameable. The dispatcher REFUSES
+    // such a token and withholds the owner — measured verbatim as `finding token "(^|/)__g_" cannot be named
+    // by an ordinary-waiver marker` — so the pattern was only ever reportable while a gate-local RATIFIED row
+    // absorbed it first. `eslint-grant-liveness` already reports its positional identity as the
+    // token for the same reason; the pattern stays in the MESSAGE and in the grant OPERATION, where it is
+    // the value a review actually binds.
+    reportFinding(ctx, { ...finding, token: subject }, `${PATTERN_MESSAGES.deadPattern} Subject: ${subject}, operation: ${operation}.`, {
+      subject,
+      operation,
+    });
   }
   return backrefs.length;
 }
@@ -282,19 +295,20 @@ function reportBudget(ctx: GatePolicyContext, irreducibleCount: number, budgetAn
 export const gate = defineGate({
   id: "depcruise-grant-liveness",
   family: "grant-liveness",
-  authority: "hard",
+  authority: "reviewed-grant",
   severity: "error",
   population: { of: "none", why: "the import-law config, the tracked corpus, and every package manifest are closed ResourceHost facts" },
   analysis: "resource",
   execution: "entire-population",
   facts: [],
   resources: [{ kind: "native-config", id: "depcruise" }, { kind: "tracked-files" }, ...PACKAGE_IDS.map((id) => ({ kind: "package-metadata", id }) as const)],
-  message: MESSAGES.dead,
+  message: MSG_DEAD,
   fix:
     "delete the dead path from its `path`/`pathNot` in .dependency-cruiser.cjs. If the file MOVED, re-point " +
     "the row and re-read the rule — an import-law exemption follows a decision, not a filename. If the path " +
-    "is transient by construction, add a row to EXEMPT in " +
-    "tooling/src/verify/gates/depcruise-grant-liveness.ts with its `why` + END CONDITION and a resolving `cite`.",
+    "is absent BY CONSTRUCTION, it is a REVIEWED GRANT: add a row to " +
+    "tooling/src/verify/lib/reviewed-grants.ts keyed on this policy id, the finding's subject and its " +
+    "operation, with its `why` and its `endsWhen`.",
   create: (ctx) => ({
     evaluate: () => {
       // Every declared resource must be ACQUIRED every run (the receipt phase reds an unconsumed
@@ -308,26 +322,33 @@ export const gate = defineGate({
       const { exact, skipped } = classifySelectors(native.selectors);
       const anchorOk = native.selectors.length >= REAL_CONFIG_MIN_CANDIDATES;
       if (exact.length === 0) {
+        // THE BLINDNESS TRIPWIRE IS A REFUSAL, NOT A FINDING (#2176, at the reviewed-grant conversion).
+        // Every finding of a reviewed-grant policy owes a `(subject, operation)` a central row could name
+        // — and a blindness alarm is the ONE verdict that must never be grantable, because granting it
+        // would license the gate to stop measuring. So it raises, which withholds the owner as a TOOL
+        // ERROR (exit 2): the run is not a verdict, which is exactly what the alarm says. Same move the
+        // MISSING/UNPARSEABLE-CONFIG arm already made in this file, now proven by a `mustRefuse` row.
         if (anchorOk) {
-          ctx.report.file(CONFIG_REL, { line: 1, column: 1, message: MSG_NO_ROWS });
+          throw new Error(MSG_NO_ROWS);
         }
         return;
       }
-      reportExactRows(ctx, exact, exists, anchorOk);
+      reportExactRows(ctx, exact, exists);
       const dependencyModules = dependencyModulesFromManifests(manifests.map((facts) => facts.dependencies));
-      const irreducibleCount = reportPatternRows(ctx, { skipped, exists, repoPaths, dependencyModules, anchorOk });
+      const irreducibleCount = reportPatternRows(ctx, { skipped, repoPaths, dependencyModules });
       reportBudget(ctx, irreducibleCount, exists(BUDGET_ANCHOR));
     },
   }),
   mustFlag: [
     {
       mode: "resource",
+      grant: { subject: "config.forbidden[0].to.pathNot[0]", operation: 'depcruise-dead-exact:"packages/ui/src/gone.ts"' },
       files: {
         ...PACKAGE_FIXTURE_FILES,
         [CONFIG_REL]: `module.exports = { forbidden: [{ name: "r", from: {}, to: { pathNot: "^packages/ui/src/gone\\.ts$" } }] };\n`,
       },
       expect: { count: 1, token: "packages/ui/src/gone.ts" },
-      why: "the founding shape — a file-exact `pathNot` EXEMPTION whose file is GONE (mode B: nothing visits it, so nothing examines the promise)",
+      why: "the founding shape — a file-exact `pathNot` EXEMPTION whose file is GONE (mode B: nothing visits it, so nothing examines the promise). The grant witness binds its exact (positional selector, authored path) pair, so a review can license this arm and nothing else",
     },
     {
       mode: "resource",
@@ -344,20 +365,22 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         ...PACKAGE_FIXTURE_FILES,
-        [CONFIG_REL]: `module.exports = { forbidden: [{ name: "r", from: { path: [${Array.from({ length: 80 }, (_, i) => `"^packages/p${String(i)}/"`).join(", ")}] }, to: {} }] };\n`,
+        [CONFIG_REL]: dependencyPatternConfig("node_modules/echarts/"),
+        "packages/kit/src/live.ts": "export const live = 1;\n",
       },
-      expect: { count: 1, messageIncludes: "ZERO file-exact rows" },
-      why: "zero derived rows on an anchor-sized value set is 'I could not measure', never 'clean' — the classifier-rot tripwire",
+      expect: { count: 1, token: "config.forbidden[0].from.path[0]", messageIncludes: 'operation: depcruise-zero-member-pattern:"node_modules/echarts/"' },
+      why: "#973 — a DEPENDENCY pattern lives on the declared dependency set, not on repo paths; UNDECLARED, it is dead exactly like a repo-path pattern with no member",
     },
+  ],
+  mustRefuse: [
     {
       mode: "resource",
       files: {
         ...PACKAGE_FIXTURE_FILES,
-        [CONFIG_REL]: dependencyPatternConfig("node_modules/echarts/"),
-        "packages/kit/src/live.ts": "export const live = 1;\n",
+        [CONFIG_REL]: `module.exports = { forbidden: [{ name: "r", from: { path: [${Array.from({ length: 80 }, (_, i) => `"^packages/p${String(i)}/"`).join(", ")}] }, to: {} }] };\n`,
       },
-      expect: { count: 1, token: "node_modules/echarts/" },
-      why: "#973 — a DEPENDENCY pattern lives on the declared dependency set, not on repo paths; UNDECLARED, it is dead exactly like a repo-path pattern with no member",
+      expect: { messageIncludes: "ZERO file-exact rows were derived from an anchor-sized value set" },
+      why: "zero derived rows on an anchor-sized value set is 'I could not measure', never 'clean' — the classifier-rot tripwire. It REFUSES rather than reporting (#2176): a reviewed-grant finding owes an identity a central row could name, and a blindness alarm is the one verdict that must never be grantable. The substring is this policy's own sentence, not the generic refusal envelope",
     },
   ],
   mustPass: [
