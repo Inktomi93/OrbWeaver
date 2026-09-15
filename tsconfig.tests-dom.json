@@ -20,12 +20,5 @@
     "playwright/**/*",
     "scripts/probes/st-goldens/**/*"
   ],
-  "exclude": [
-    "**/node_modules",
-    "**/__g_*",
-    "**/__g_*/**",
-    "tests/support/iso/**/*",
-    "tests/support/node/**/*",
-    "scripts/probes/st-goldens/sillytavern-runtime"
-  ]
+  "exclude": ["**/node_modules", "tests/support/iso/**/*", "tests/support/node/**/*", "scripts/probes/st-goldens/sillytavern-runtime"]
 }

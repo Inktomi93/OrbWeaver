@@ -23,9 +23,6 @@ refuseDirectInvocation(import.meta.url, "pnpm check:type-ownership");
 // The type-relevant test SOURCE roots + the file-extension surface. `.d.ts` is INCLUDED (it's type-bearing);
 // non-TS (json/css/snap/sh) is excluded — those are in no TS program by design.
 const TEST_ROOT_RE = /^(?:tests|playwright)\//u;
-// The reserved throwaway-fixture sentinel the check-gates self-test materializes for milliseconds (mirrored
-// in every tsconfig `exclude`). It is not a real test file — never an escapee.
-const SENTINEL_RE = /(?:^|\/)__g_/u;
 
 // tsgo's --listFilesOnly on the widest program is ~5,400 absolute paths (~0.5MB); 64MiB is generous headroom.
 const LIST_FILES_MAX_BUFFER = 67_108_864;
@@ -340,7 +337,13 @@ function writeHumanReport(input: HumanReportInput): void {
 export function runTestsTypeMembership(root: string, args: readonly string[] = []): number {
   const json = jsonRequested(args);
   const inventory = readPolicyRepositoryInventory(root);
-  const files = inventory.paths.filter((file) => isTypeWorldSource(file) && !SENTINEL_RE.test(file));
+  // NO SENTINEL FILTER (#2176 Phase F, 2026-09-14). A `__g_` branch used to sit here beside the tsconfig
+  // excludes, for the legacy self-test's transient plants; those planters are deleted and the namespace has
+  // no producer. LEGITIMATE UNTRACKED TEST ADMISSION IS UNTOUCHED and does not depend on it: `inventory.paths`
+  // is `git ls-files` ∪ `git ls-files --others --exclude-standard`, so an untracked spec is admitted by the
+  // second read — and a `__g_` path was never in either list anyway, because `.gitignore` excludes it, which
+  // is what made the filter redundant as well as dead.
+  const files = inventory.paths.filter((file) => isTypeWorldSource(file));
   const memberships = readAvailablePolicyPrograms(inventory);
   const programs = memberships.map((program) => program.config);
   const closures = programClosures(root, memberships);

@@ -104,8 +104,14 @@ scratch/
 # SillyTavern data snapshot (copied from neo-tavern) — import fodder for the ST-profile loader; never committed
 .st-data/
 
-# --- gate-conformance probe fixtures (transient test artifacts; a crashed run can orphan them —
-# they must never reach git, and the real gate scan excludes them too: scripts/check/harness.ts) ---
+# --- reserved throwaway-fixture sentinels (transient test artifacts; a crashed run can orphan them, and
+# they must never reach git).
+# `__g_*` now has exactly ONE producer, and it is not a gate fixture: `tooling/src/verify/lib/biome-rule-liveness.ts`
+# writes a repo-root `__g_biome-rule-liveness.<pid>.json` probe (`PROBE_PREFIX`, :17) and reaps it. The LEGACY
+# gate self-test's planters that minted this namespace retired at #2176 Phase F (2026-09-14); the biome
+# negation `!**/__g_*` in biome.json:24 is the other half of this one surviving owner, because biome honours
+# this file through `vcs.useIgnoreFile` and would otherwise refuse to lint the probe's own path.
+# `__dc*` is the dependency-cruiser self-test's live planter (tests/tooling/dependency-cruiser.int.test.ts).
 **/__g_*
 **/__dc*
 # The constitution's scratch-probe idiom (AGENTS §4: plant at `features/__probe/...`, rm after) and

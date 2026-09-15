@@ -826,9 +826,10 @@ module.exports = {
       conditionNames: ["import", "require", "node", "default", "types"],
       mainFields: ["module", "main", "types", "typings"],
     },
-    // TanStack Router codegen (client, Phase 6) — not ours to police. `__g_` is the check-gates
-    // self-test's reserved throwaway-fixture sentinel (tsconfig.base.json's exclude note): excluding it
-    // stops a concurrent `pnpm depcruise` from graphing a fixture mid-lifecycle → a phantom edge/error.
+    // TanStack Router codegen (client, Phase 6) — not ours to police. The `(^|/)__g_` exclude left at #2176
+    // Phase F (2026-09-14) with its reviewed-grant row `depcruise-grant-liveness:g-fixture`: it covered the
+    // LEGACY gate self-test's transient real-tree plants, and those planters are deleted — a final policy
+    // proves itself on a virtual overlay and writes nothing to the tree.
     // The DevTools frontend root is an exact-revision GENERATED RUNTIME CLOSURE, not first-party source:
     // its path-closed manifest + hashes + licenses are governed by devtools-frontend-assets, and the
     // materialized subset deliberately contains imports outside the 477-resource runtime closure. Graphing
@@ -837,7 +838,7 @@ module.exports = {
     // The dist exclude is ANCHORED to workspace packages (`^packages/*/dist/`): a bare `(^|/)dist/` also
     // matches `node_modules/<lib>/dist/`, dropping the sealed-lib import edges (minisearch/echarts/shiki/…)
     // so the satellite-seal rules silently stop firing on their fixtures.
-    exclude: { path: ["(^|/)__g_", "^packages/[^/]+/dist/", "^tooling/src/snap/lib/devtools-frontend/"] },
+    exclude: { path: ["^packages/[^/]+/dist/", "^tooling/src/snap/lib/devtools-frontend/"] },
     // NO RESULT CACHE (removed 2026-08-22, #393 P6 — planted-control receipt below). It was
     // `cache: { strategy: "content" }`, and a WARM cruise is BLIND TO A NEWLY-ADDED FILE: planting
     // `packages/kit/src/__dc/node.ts` with `import "node:fs"` and cruising warm reported 0 violations;

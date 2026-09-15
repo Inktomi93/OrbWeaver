@@ -53,7 +53,8 @@
 //   · FINDINGS. FINAL side through `runPolicyPass` over the real root: raw 8, granted 8, effective 0,
 //     owner `success`/`complete`, `authorityAlarms []` — the empty alarm set measured with a planted stale
 //     grant (`probe:never-matches` → one `stale-reviewed-grant`), so it is a measurement and not a silence.
-//     The eight are one per GRANT IDENTITY: `**/__g_*`, `**/__g_*/**`, `**/node_modules`,
+//     The eight are one per GRANT IDENTITY (`**/__g_*` and `**/__g_*/**` left the excludes and this list at
+//     #2176 Phase F; the receipt below is kept VERBATIM as the conversion's record): `**/__g_*`, `**/__g_*/**`, `**/node_modules`,
 //     `scripts/**/*.mts`, `scripts/**/*.cts`, `tests/**/*.cts`, `scripts/**/*.tsx` and
 //     `scripts/probes/st-goldens/sillytavern-runtime`, each consumed EXACTLY once.
 //     LEGACY side: the frozen descriptor at `c97de9d2f`, header-import-shimmed into a scratch module
@@ -149,8 +150,8 @@ const TEMPLATE_MESSAGE =
 
 const FIX =
   "delete the dead entry from its tsconfig `include`/`exclude`. If the path MOVED, re-point the entry. If " +
-  "its members are absent BY DESIGN (a gitignored subtree, installed dependencies, the `__g_` fixture " +
-  "sentinel, a root declared before its first member), it is a REVIEWED GRANT: add a row to " +
+  "its members are absent BY DESIGN (a gitignored subtree, installed dependencies, a root declared before " +
+  "its first member), it is a REVIEWED GRANT: add a row to " +
   "tooling/src/verify/lib/reviewed-grants.ts keyed on this policy id, this subject and this operation, " +
   "with its `why` and its `endsWhen`. A `${configDir}` entry is reviewed the same way, or spelled as a real " +
   "path.";

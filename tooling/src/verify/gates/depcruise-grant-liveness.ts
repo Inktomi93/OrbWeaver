@@ -40,7 +40,7 @@
 //     cannot forget it.
 //   · DEAD-CITE → NO SUCCESSOR, the retired property `biome-grant-liveness` and `eslint-grant-liveness` both
 //     record. Each grant's `why` carries its former cite path verbatim for the successor citation check (#2349):
-//     `dist` → `.gitignore`; `g-fixture` → `tooling/src/verify/gates/GATE-AUTHORING.md`; `quickjs-wasm-url` →
+//     `dist` → `.gitignore`; `quickjs-wasm-url` →
 //     `packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts`.
 // MEASURED at the conversion (2026-09-14, `pnpm check:structure --check depcruise-grant-liveness`): the three
 // formerly hidden patterns became `raw 3 = waived 0 + granted 3 + effective 0`, 0 alarms — one grant per
@@ -268,11 +268,11 @@ function reportPatternRows(ctx: GatePolicyContext, input: PatternRowsInput): num
     const subject = selectorIdentity(row);
     const operation = `${OPERATION_PATTERN}${JSON.stringify(row.value)}`;
     // THE TOKEN IS THE POSITIONAL IDENTITY, NOT THE PATTERN (#2176), and the runtime is what taught it: a
-    // dep-cruiser pattern is REGEX SOURCE, so `(^|/)__g_` carries parentheses — which the ordinary-waiver
-    // position grammar admits nowhere, making the finding permanently unnameable. The dispatcher REFUSES
-    // such a token and withholds the owner — measured verbatim as `finding token "(^|/)__g_" cannot be named
-    // by an ordinary-waiver marker` — so the pattern was only ever reportable while a gate-local RATIFIED row
-    // absorbed it first. `eslint-grant-liveness` already reports its positional identity as the
+    // dep-cruiser pattern is REGEX SOURCE, and a pattern carrying regex punctuation is spellable nowhere in
+    // the ordinary-waiver position grammar, which makes the finding permanently unnameable. The dispatcher
+    // REFUSES such a token and withholds the owner. MEASURED VERBATIM on the example that taught it — since
+    // retired at #2176 Phase F with the `__g_` sentinel itself — as `finding token "(^|/)__g_" cannot be
+    // named by an ordinary-waiver marker`; the class is every punctuated pattern, not that one row. `eslint-grant-liveness` already reports its positional identity as the
     // token for the same reason; the pattern stays in the MESSAGE and in the grant OPERATION, where it is
     // the value a review actually binds.
     reportFinding(ctx, { ...finding, token: subject }, `${PATTERN_MESSAGES.deadPattern} Subject: ${subject}, operation: ${operation}.`, {

@@ -34,7 +34,7 @@
 //     `biome-grant-liveness.ts`'s header records. Each grant's `why` carries its former cite path verbatim
 //     so the successor citation check (#2349) has something to read. Per row, the cite that
 //     lost its liveness check: `node-modules`, `dist`, `cache`, `claude-worktrees`, `st-goldens-runtime` →
-//     `.gitignore`; `g-fixture` → `tooling/src/verify/gates/GATE-AUTHORING.md`; `stryker-tmp` →
+//     `.gitignore`; `stryker-tmp` →
 //     `tooling/src/_shared/stryker-config.ts`.
 //
 // POPULATION PORT: `{ of: "none" }` and the `native-config:eslint` declaration are unchanged. The
