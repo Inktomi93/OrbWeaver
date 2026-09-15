@@ -581,6 +581,16 @@ export const gate = defineGate({
       why: "ARM B, and the first proof IT has ever had: a real router source that declares `list` but not `export`, so the `persona` single-export door cites a proc nothing declares. The router IS read (its `list` proc resolves), which is what makes this a cite failure rather than an empty-corpus artefact — the distinction the legacy arm could not express at all, because it only ever ran on the real tree. `countFrom: PORTABLE_CANON_TABLES` (#2001): this fixture also arms the whole ratchet sweep, so the door cite is ONE finding among the registry's cardinality; the `token` is what pins this arm",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/empty.ts": "export const NOT_A_TABLE = 1;\n",
+      },
+      expect: { messageIncludes: "drizzle schema fact empty" },
+      why: "THE SUPPLY REFUSAL (law §6.3): a schema tree that declares NO drizzle table gives the `drizzle-schema` fact a zero-member receipt, and the dispatcher withholds every consumer before `evaluate` (the 9b29c5595 receipt); both coverage arms rest on that census, so a silent clean here would certify portability over nothing. Successor to the frozen-replay arm retired at b1e5e3e30 (#2176).",
+    },
+  ],
   mustPass: [
     {
       mode: "types",
