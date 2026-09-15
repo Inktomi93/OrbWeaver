@@ -1,7 +1,7 @@
 ---
 kind: review
 status: active
-updated: 2026-09-13
+updated: 2026-09-15
 ---
 
 # Exception and authority migration census
@@ -26,7 +26,7 @@ The final law is unambiguous: one central ordinary marker, exact typed grants, w
 
 - Equivalent non-`ExemptionTable` gate collections detected by the existing structural predicate: 20 collections, 79 rows. These include `ReadonlyMap`, arrays, `Set`s, inferred objects, and regex lists. The existing name detector and its limits are at [gate-modernization.ts:21-29](../../../tooling/src/verify/gates/gate-modernization.ts:21) and [gate-modernization.ts:109-160](../../../tooling/src/verify/gates/gate-modernization.ts:109).
 
-- `SANCTIONED_HOMES`: 25 tables, 42 rows. Twenty-four gates use the shared helper; `two-class-role-authority` implements the same mechanism locally. The helper supports file and directory grants and owns only missing-path liveness ([sanctioned-home.ts:10-26](../../../tooling/src/verify/lib/sanctioned-home.ts:10), [sanctioned-home.ts:35-68](../../../tooling/src/verify/lib/sanctioned-home.ts:35)).
+- The sanctioned-home tables (formerly the sanctioned-homes constant, renamed `TIER_IMPLEMENTATION_HOMES` at 7b3d15bc4 as scan-scope data, #2176): 25 tables, 42 rows. Twenty-four gates use the shared helper; `two-class-role-authority` implements the same mechanism locally. The helper supports file and directory grants and owns only missing-path liveness ([sanctioned-home.ts:10-26](../../../tooling/src/verify/lib/sanctioned-home.ts:10), [sanctioned-home.ts:35-68](../../../tooling/src/verify/lib/sanctioned-home.ts:35)).
 
 - Baselines: 9 tracked `*.baseline.json` files repository-wide. Their current logical populations are:
 
@@ -89,7 +89,7 @@ The linter suppression parser is a distinct resource fact, not an Orb waiver gra
 
 These are recurring permissions and should become exact reviewed grants, with the current broad file/zone key narrowed to the finding’s stable subject and operation.
 
-- The 42 `SANCTIONED_HOMES` rows across 25 gates.
+- The 42 sanctioned-home rows across 25 gates (the tables since renamed `TIER_IMPLEMENTATION_HOMES`, 7b3d15bc4).
 
 - Three legacy path subtractions that are explicitly already ruled as reviewed grants:
 
