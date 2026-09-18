@@ -8,10 +8,8 @@ import { defineFact } from "../contract/fact.ts";
 const DIALOG_MODULE = "@orb/ui/dialog";
 const FEATURES = "packages/client/src/features/";
 
-const DIALOG_DEBT_PATHS: ReadonlySet<string> = new Set([
-  "packages/client/src/features/chat/components/invite-dialog.tsx",
-  "packages/client/src/features/chat/components/rename-chat-dialog.tsx",
-]);
+// #2350 resolved — both chat-lane raw Dialog paths migrated to FormDialog. The debt set is empty.
+const DIALOG_DEBT_PATHS: ReadonlySet<string> = new Set<string>();
 
 interface DialogRootImportOccurrence {
   readonly node: ImportSpecifier;

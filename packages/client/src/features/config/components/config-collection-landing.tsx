@@ -94,31 +94,28 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
     );
   }
   if (count === 0) {
+    // #1845 — the zero-member arm opens on the SAME register as the populated arm (#1839 residual). The
+    // populated arm opens with `ConfigPaneGlance` at the `focal` headline step; the old EmptyState title
+    // used `text-title` — a smaller step — so the two arms opened at different registers. The fix: the
+    // glance IS the pane's heading and the EmptyState carries the teaching below it.
     return (
-      <EmptyState
-        action={
-          <Button intent="primary" onClick={create} type="button">
-            {collection.create.label}
-          </Button>
-        }
-        // THE READER WITH NOTHING GETS THE MOST TEACHING, NOT THE LEAST (#1213). This arm passed `emptyText`
-        // alone, so the one reader who has never seen the library — the first-timer the empty state exists
-        // for — was the only one the surface declined to tell what it is FOR, while the settling arm below
-        // and the LIST's own slot both showed the blurb. Two sentences, in the order a cold reader needs
-        // them: what this library is, then that theirs is empty.
-        description={
-          <>
-            {group.description} {collection.emptyText}
-          </>
-        }
-        icon={<Icon icon={group.icon} size="lg" />}
-        measure="wide"
-        title={group.label}
-        // The pane's ONLY content, so its title is the pane's heading — a landing that left `main` headingless
-        // dead-ends heading navigation (the primitive's own `titleAs` note).
-        titleAs="h2"
-        titleStep="focal"
-      />
+      <Stack data-collection={group.id} data-slot="config-collection-landing" gap="section">
+        <ConfigPaneGlance blurb={true} group={group} level={2} />
+        <EmptyState
+          action={
+            <Button intent="primary" onClick={create} type="button">
+              {collection.create.label}
+            </Button>
+          }
+          // THE READER WITH NOTHING GETS THE MOST TEACHING, NOT THE LEAST (#1213). The glance above names
+          // the library and states its purpose; the empty state teaches that it IS empty and offers the verb.
+          description={collection.emptyText}
+          measure="wide"
+          // `p` NOT `h2`: the heading is already above in ConfigPaneGlance; a second h2 here invents structure.
+          title={`No ${group.label.toLowerCase()} yet`}
+          titleAs="p"
+        />
+      </Stack>
     );
   }
   return (

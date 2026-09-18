@@ -1,12 +1,13 @@
-// The invite mint dialog. Two modes: share link (untargeted, the raw token returns exactly once and is
-// rendered with a copy button, never re-derivable) and invite by handle (targeted, delivered as a
-// notification; an unknown handle renders its refusal inline, never silently degraded to a share link).
-// Below the mint form: the outstanding-invites list, host-only, with per-row Revoke on pending.
+// The invite mint dialog (#2350 — migrated to `FormDialog` DISMISS mode). Two modes: share link
+// (untargeted, the raw token returns exactly once and is rendered with a copy button, never re-derivable)
+// and invite by handle (targeted, delivered as a notification; an unknown handle renders its refusal
+// inline, never silently degraded to a share link). Below the mint form: the outstanding-invites list,
+// host-only, with per-row Revoke on pending. Uses DISMISS mode (not PROMPT) because the form body carries
+// its own submit and the dialog's exit is just "Done".
 
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
@@ -16,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { FormDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, testId, timeLib } from "#lib";
@@ -34,20 +36,20 @@ export interface InviteDialogProps {
 
 export function InviteDialog({ chatId, open, onOpenChange }: InviteDialogProps): ReactElement {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup data-testid={testId("inviteDialog")}>
-        <Stack gap="block">
-          <DialogTitle>Invite people</DialogTitle>
-          <DialogDescription>Anyone with an invite link can join until it expires or runs out of uses.</DialogDescription>
-          <InviteMintForm chatId={chatId} />
-          <Separator />
-          <OutstandingInvites chatId={chatId} />
-          <Row justify="end">
-            <DialogClose render={<Button intent="ghost">Done</Button>} />
-          </Row>
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Invite people"
+      description="Anyone with an invite link can join until it expires or runs out of uses."
+      testKey="inviteDialog"
+      dismissLabel="Done"
+    >
+      <Stack gap="block">
+        <InviteMintForm chatId={chatId} />
+        <Separator />
+        <OutstandingInvites chatId={chatId} />
+      </Stack>
+    </FormDialog>
   );
 }
 

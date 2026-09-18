@@ -79,9 +79,9 @@ function renderRowIdentity(args: {
     return null;
   }
   return (
-    <Row gap="field" align="baseline" className={mirrored ? "flex-row-reverse" : undefined}>
+    <Row gap="field" align="center" className={mirrored ? "flex-row-reverse" : undefined}>
       {attribution.name === null ? null : (
-        <Row gap="field" align="baseline" data-slot="message-attribution">
+        <Row gap="field" align="center" data-slot="message-attribution">
           {renderAttributionName(attribution)}
         </Row>
       )}
