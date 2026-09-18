@@ -44,9 +44,11 @@ export const ROLE_BADGE_INTENT: Record<UserRole, NonNullable<BadgeProps["intent"
   user: "neutral",
 };
 
-/** vLLM engine status → badge intent. Unknown states default to danger — never silently healthy. */
+/** Engine-row status → badge intent. The map covers BOTH tiers this panel lists: the supervised vLLM engines
+ *  and the in-process local-light model slots (`queued`/`downloading`/`ready`/`failed`), whose rows arrive on
+ *  the same read. Unknown states default to danger — never silently healthy. */
 export function engineBadgeIntent(status: string): NonNullable<BadgeProps["intent"]> {
-  if (status === "adopted" || status === "owned") {
+  if (status === "adopted" || status === "owned" || status === "ready") {
     return "success";
   }
   // sleeping / sleeping-held are healthy-but-idle (weights on CPU, scheduler paused) — NOT an error;
@@ -54,7 +56,9 @@ export function engineBadgeIntent(status: string): NonNullable<BadgeProps["inten
   if (status === "sleeping" || status === "sleeping-held") {
     return "info";
   }
-  if (status === "starting" || status === "stack-pending" || status === "down") {
+  // `downloading`/`queued` are the local-light warm-up in flight — transitional like `starting`, and a
+  // several-minute state on a first boot, so it must not read as a fault.
+  if (status === "starting" || status === "stack-pending" || status === "down" || status === "downloading" || status === "queued") {
     return "warning";
   }
   return "danger"; // hung / failed / foreign / anything new

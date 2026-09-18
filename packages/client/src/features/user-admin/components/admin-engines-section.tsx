@@ -1,4 +1,6 @@
-// The Engines section body (Settings → Admin → Engines; PD-3) — the vLLM engine monitor + restart.
+// The Engines section body (Settings → Admin → Engines; PD-3) — the model-serving monitor + restart. TWO
+// tiers arrive on the one read: the supervised vLLM engines, and the in-process local-light model slots
+// (`local-light:embed`, …) whose rows report the boot warm-up download and whose Restart re-attempts it.
 // Its OWN plain `useQuery` (not the pane's suspense batch): engine status is a live ops read with no
 // bus event, so it polls — fast (5s) while any engine is transitioning (a restart/warmup is watchable),
 // backed off (30s) once everything is steady (the neo ServerEnginesCard cadence; the supervisor probes
@@ -24,8 +26,10 @@ import { EngineLaunchConfig } from "./engine-launch-config.tsx";
 const POLL_ACTIVE_MS = 5000;
 const POLL_STEADY_MS = 30_000;
 // Steady = settled, no restart/warmup in flight → the slow poll. sleeping/sleeping-held are steady (a
-// healthy engine deliberately idle, weights on CPU) — not a transient the fast poll should chase.
-const STEADY_STATUSES = new Set(["adopted", "owned", "sleeping", "sleeping-held"]);
+// healthy engine deliberately idle, weights on CPU) — not a transient the fast poll should chase. `ready` is
+// the local-light tier's settled arm; its `queued`/`downloading` deliberately are NOT, so a multi-GB model
+// fetch animates on the 5s cadence instead of updating twice a minute.
+const STEADY_STATUSES = new Set(["adopted", "owned", "sleeping", "sleeping-held", "ready"]);
 
 /** The engine status list + per-engine restart. */
 export function AdminEnginesSection(): ReactElement {
@@ -65,7 +69,9 @@ export function AdminEnginesSection(): ReactElement {
               // The lifecycle line plus the env-only DEPLOYMENT facts (port + store path), read-only — the
               // #14 ruling: these are displayed, never edited. The subtitle truncates within its column and
               // its native title= surfaces the full (often long) store path on hover.
-              subtitle={`${record.detail === "" ? record.status : record.detail} · updated ${timeLib.formatRelative(record.updatedAt)} · port ${record.port} · ${record.storePath}`}
+              // `port 0` is the IN-PROCESS local-light tier — nothing listens, so the port segment is dropped
+              // rather than rendered as a port that does not exist; its store path (the weights cache) stays.
+              subtitle={`${record.detail === "" ? record.status : record.detail} · updated ${timeLib.formatRelative(record.updatedAt)}${record.port === 0 ? "" : ` · port ${record.port}`} · ${record.storePath}`}
               actions={
                 <Row align="center" gap="row">
                   <Badge intent={engineBadgeIntent(record.status)}>{record.status}</Badge>

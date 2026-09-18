@@ -3,6 +3,7 @@
 // Owns no business logic — it wires admin's session/vllm/embed sub-bundles onto the already-built sessions
 // service, the provider backend registry's engine handle, and character/embeddings front doors.
 
+import { resolve } from "node:path";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { SessionId, UserId } from "@orb/kit/ids";
@@ -18,7 +19,8 @@ import { createToolUseService } from "#domain/tool-use";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatementIfPrecedingWrote } from "#foundation/observability";
-import type { EngineDeploymentFacts, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
+import type { EngineDeploymentFacts, LocalLightPrefetchHandle, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
+import { LOCAL_LIGHT_STATUS_PREFIX } from "#infra/providers";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { SessionSocketEviction } from "../http/index.ts";
 
@@ -39,6 +41,9 @@ export interface AdminComposeDeps {
    *  ruling). Transport state, injected as a port: `domain/admin` may not import transport. */
   readonly sockets: SessionSocketEviction;
   readonly vllmEngine: VllmEngineHandle | null;
+  /** The local-light warm-up handle — always present (the in-process tier is unconditionally registered), and
+   *  publishing nothing until boot hands it a plan. */
+  readonly localLightPrefetch: LocalLightPrefetchHandle;
   readonly character: Pick<CharacterService, "getCard" | "loadCardText">;
   readonly embeddings: Pick<EmbeddingsService, "store">;
   /** The ACTIVE embed-space model tag, read per call — a thunk, never a captured string, because
@@ -63,7 +68,7 @@ export interface AdminComposeResult {
 }
 
 export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
-  const { db, now, audit, sessions, vllmEngine, character, embeddings } = deps;
+  const { db, now, audit, sessions, vllmEngine, localLightPrefetch, character, embeddings } = deps;
 
   const admin = createAdminService({
     db,
@@ -121,23 +126,42 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
     vllm: {
       // Merge the live lifecycle record with each engine's env-only DEPLOYMENT facts (port + store path)
       // into the AdminEngineStatus read-model the panel renders read-only. Both maps are keyed by engine.
+      //
+      // The IN-PROCESS local-light tier's warm-up rows ride the SAME map (its record is field-identical, and
+      // this panel is the one surface that already answers "is a model ready to serve?"). They are merged
+      // FIRST and OUTSIDE the vLLM null-guard on purpose: the GPU-less box local-light exists for has NO vLLM
+      // supervisor at all, and that is precisely the box whose 3.5 GB fetch the operator needs to see. Their
+      // keys are namespaced (`local-light:embed`), so they cannot collide with the vLLM `embed`/`rerank`
+      // engines on a box running both. `port` is 0 (nothing listens — the tier is in THIS process) and the
+      // store path is the weights cache, the one deployment fact a local-light row actually has.
       allEngineStatuses: (): Record<string, AdminEngineStatus> => {
+        const localLightStorePath = resolve(env.LOCAL_LIGHT_CACHE_DIR);
+        const merged: Record<string, AdminEngineStatus> = Object.fromEntries(
+          Object.entries(localLightPrefetch.status()).map(([slot, record]) => [slot, { ...record, port: 0, storePath: localLightStorePath }]),
+        );
         if (vllmEngine === null) {
-          return {};
+          return merged;
         }
         const statuses = vllmEngine.status();
         // Widen to a string index so a status key with no matching deployment fact resolves to `undefined`
         // (honest guard) rather than being asserted present by the branded engine key.
         const facts: Record<string, EngineDeploymentFacts | undefined> = vllmEngine.deployment();
-        return Object.fromEntries(
-          Object.entries(statuses).map(([engine, record]) => {
-            const deployment = facts[engine];
-            return [engine, { ...record, port: deployment?.port ?? 0, storePath: deployment?.storePath ?? "" }];
-          }),
-        );
+        for (const [engine, record] of Object.entries(statuses)) {
+          const deployment = facts[engine];
+          merged[engine] = { ...record, port: deployment?.port ?? 0, storePath: deployment?.storePath ?? "" };
+        }
+        return merged;
       },
-      restartEngine: (name: string): Promise<string> =>
-        vllmEngine === null ? Promise.resolve("vllm supervisor not running") : vllmEngine.restart(name as Parameters<VllmEngineHandle["restart"]>[0]),
+      // A local-light row's Restart is a RE-ATTEMPT of its download (the prefetch makes one attempt per boot,
+      // so this is the operator's only door back after an offline start). Routed by key BEFORE the vLLM
+      // handle, which would otherwise answer a local-light row with a sentence about a supervisor that has
+      // nothing to do with it.
+      restartEngine: (name: string): Promise<string> => {
+        if (name.startsWith(LOCAL_LIGHT_STATUS_PREFIX)) {
+          return localLightPrefetch.retry(name);
+        }
+        return vllmEngine === null ? Promise.resolve("vllm supervisor not running") : vllmEngine.restart(name as Parameters<VllmEngineHandle["restart"]>[0]);
+      },
     },
     embed: {
       embedCharacterCard: async (principal, characterId): Promise<boolean> => {

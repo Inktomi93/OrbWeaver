@@ -74,6 +74,37 @@ test("renders the engines list off its OWN polled read, anchored at the admin pa
   await expect(page.locator("#config-anchor-admin-engines")).toBeVisible();
 });
 
+// The IN-PROCESS local-light tier's warm-up rows ride the SAME read (`entry/compose/admin.ts` merges them,
+// namespaced so they cannot collide with the vLLM engine of the same role). `port: 0` is the honest shape —
+// nothing listens, the tier runs inside the server process.
+const LOCAL_LIGHT_ROW = {
+  "local-light:embed": {
+    status: "downloading",
+    detail: "downloading jinaai/jina-clip-v2 — 42% (1.5 GB / 3.5 GB)",
+    updatedAt: 1_700_000_000_000,
+    port: 0,
+    storePath: "/app/data/models/transformers",
+  },
+};
+const LOCAL_LIGHT_PROGRESS_RE = /42% \(1\.5 GB \/ 3\.5 GB\)/u;
+const ANY_PORT_RE = /port \d/u;
+
+test("a local-light warm-up row renders its download progress, and never a port it does not have", async ({ mount, page }) => {
+  await stub(page, { "admin.vllmEngines": () => ({ ...ENGINES, ...LOCAL_LIGHT_ROW }) });
+  const component = await mount(<AdminEnginesSectionStory />);
+
+  // The row is titled by its namespaced key, badged `downloading`, and carries the byte/percent line.
+  await expect(component.getByText("local-light:embed", { exact: true })).toBeVisible();
+  await expect(component.getByText("downloading", { exact: true })).toBeVisible();
+  const subtitle = component.getByText(LOCAL_LIGHT_PROGRESS_RE);
+  await expect(subtitle).toBeVisible();
+  // `port 0` would be a fabricated deployment fact — the segment is dropped for this row while the weights
+  // cache path (its one real fact) stays. The vLLM rows above still show theirs.
+  await expect(subtitle).not.toHaveText(ANY_PORT_RE);
+  await expect(component.getByText(/\/app\/data\/models\/transformers/u)).toBeVisible();
+  await expect(component.getByText(ENGINE_PORT_RE)).toBeVisible();
+});
+
 test("engines: restart fires restartVllmEngine for THAT engine", async ({ mount, page }) => {
   const trpc = await stub(page, { "admin.restartVllmEngine": () => "restart 1/3" });
   const component = await mount(<AdminEnginesSectionStory />);

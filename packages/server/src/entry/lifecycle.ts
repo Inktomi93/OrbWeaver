@@ -73,6 +73,7 @@ import {
   migrateHandoffOfferVocabOnBoot,
   migratePluginToolWireNamesOnBoot,
   migrateProseSlotVocabOnBoot,
+  planLocalLightPrefetch,
   reactivatePluginsOnBoot,
   reclaimLocksOnBoot,
   repairStaleJoinSeqOnBoot,
@@ -277,6 +278,10 @@ export interface Lifecycle {
 interface LifecycleOptions {
   /** Composition-root test seam. Production omits it and binds the validated env.PORT unchanged. */
   readonly listenPort?: number;
+  /** Composition-root test seam, forwarded verbatim to `createServices`. Its one production-shaped use is a
+   *  boot test that must exercise the REAL graph while replacing a backend edge that would otherwise do
+   *  something a test may not (fetch multi-GB model weights). Production omits it. */
+  readonly providerSeams?: Parameters<typeof createServices>[0]["providerSeams"];
 }
 
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
@@ -296,6 +301,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let stopBuddyObserver: (() => void) | null = null;
   let stopAutomationWatcher: (() => void) | null = null;
   let drainVllm: (() => void) | null = null;
+  let stopLocalLightPrefetch: (() => void) | null = null;
   let booted = false;
 
   // RATIFIED (#596). boot is the ORDERED startup protocol, and its score is the protocol's LENGTH, not tangled
@@ -479,6 +485,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       hostClaude,
       repoRoot: process.cwd(),
       holder,
+      ...(options.providerSeams === undefined ? {} : { providerSeams: options.providerSeams }),
     });
 
     credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();
@@ -513,6 +520,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // In OIDC mode without an owner, these are deferred: per-user seeds (characters, persona, demo chats,
     // example plugins) fire via `seedUserCharacters` on the owner's first login; the env credential and
     // CAS schedules seed on the owner's first request after provisioning.
+    // Declared OUTSIDE the guard because one step below the listener bind also needs it (the local-light
+    // prefetch plan resolves roles AS the owner); it stays `undefined` on an owner-less box, which is
+    // exactly the condition each consumer already guards on.
+    let bootOwner: Principal | undefined;
     if (ownerId !== undefined) {
       // The boot-seed Principal (default preset/characters/persona + the env credential seed). D135: READ, not
       // stamped — `seedOwner` has already written `role=owner` onto this exact row, so reading
@@ -520,6 +531,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       // GRANT authority. On a box whose owner row is somehow below `owner`, the seed now runs at the row's
       // honest role and fails closed rather than overriding the users table from memory.
       const owner: Principal = await createHostPrincipalResolver(bootSessions)(ownerId);
+      bootOwner = owner;
 
       await seedCredentialFromEnv({
         credentials: built.services.credentials,
@@ -775,6 +787,24 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       server = handle;
       handle.once("error", onBindError);
     });
+
+    // AFTER THE BIND, ON PURPOSE — and the only boot step that is. The local-light weights are gigabytes
+    // (jina-clip-v2 alone is ~3.5 GB fp32), so warming them anywhere earlier would hold /healthz and the
+    // first request hostage to a download on a box that is otherwise ready to serve. Fire-and-forget past
+    // this point: the plan read is a resolver call that can be slow (it may warm a catalog), the walk is a
+    // multi-minute download, and NEITHER may extend boot. An owner-less box (a fresh OIDC deploy) has no
+    // principal to resolve roles as and simply keeps the lazy path until someone logs in.
+    if (bootOwner !== undefined) {
+      const principal = bootOwner;
+      superviseDetached(`local-light-prefetch:${randomUUID()}`, "local-light.prefetch.plan", { enabled: env.LOCAL_LIGHT_PREFETCH }, async () => {
+        const targets = await planLocalLightPrefetch({
+          resolveRole: built.services.connection.resolveRole,
+          principal,
+          enabled: env.LOCAL_LIGHT_PREFETCH === "on",
+        });
+        stopLocalLightPrefetch = built.localLightPrefetch.start(targets);
+      });
+    }
   }
 
   // RATIFIED (#596). Nine null-guarded stops at real nesting depth 0 score 20 only because biome DOUBLES every
@@ -821,6 +851,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     if (drainVllm !== null) {
       drainVllm();
       drainVllm = null;
+    }
+    // Stops the WALK before its next slot; an ONNX load already in flight has no interrupt and settles into
+    // a registry nobody reads again (`local-light/prefetch.ts`). Null when this boot planned nothing.
+    if (stopLocalLightPrefetch !== null) {
+      stopLocalLightPrefetch();
+      stopLocalLightPrefetch = null;
     }
     if (db !== null) {
       await preCloseHousekeeping(db);

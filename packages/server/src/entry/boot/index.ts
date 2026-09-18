@@ -6,6 +6,8 @@ export type { BackfillPluginProvenanceOnBootDeps } from "./backfill-plugin-prove
 export { backfillPluginProvenanceOnBoot } from "./backfill-plugin-provenance.ts";
 export type { HealLegacyBackgroundPinsDeps } from "./heal-legacy-background-pins.ts";
 export { healLegacyBackgroundPinsOnBoot } from "./heal-legacy-background-pins.ts";
+export type { LocalLightPrefetchPlanDeps } from "./local-light-prefetch.ts";
+export { planLocalLightPrefetch } from "./local-light-prefetch.ts";
 export type { MigrateDeps } from "./migrate.ts";
 export { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "./migrate.ts";
 export type { MigrateHandoffOfferVocabDeps } from "./migrate-handoff-offer-vocab.ts";

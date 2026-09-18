@@ -19,6 +19,7 @@ function fakeCache(): { cache: LocalLightModelCache; removeBackground: Mock<Loca
     embedImages: () => Promise.resolve([]),
     embedClipTexts: () => Promise.resolve([]),
     removeBackground,
+    preload: (): Promise<void> => Promise.resolve(),
   };
   return { cache, removeBackground };
 }

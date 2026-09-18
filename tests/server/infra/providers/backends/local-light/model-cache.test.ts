@@ -77,6 +77,32 @@ describe("createMemo", () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
+  // THE PREFETCH'S LOAD-BEARING PROPERTY (#2403). `preload` calls `memo(id)`; every inference method calls
+  // `memo.withLease(id, …)`. This pins that the two share ONE entry, which is the whole mechanism behind "a
+  // request arriving mid-download waits on that download instead of starting a second" — a property that
+  // cannot be asserted against the real transformers.js loader without actually downloading 3.5 GB.
+  test("a preload (memo) and an inference lease of the same id share ONE load", async () => {
+    const started = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const load = vi.fn(async (id: string) => {
+      started.resolve();
+      await release.promise;
+      return `model:${id}`;
+    });
+    const memo = createMemo(load, noDispose);
+
+    // The prefetch's door, still in flight …
+    const preloading = memo("x");
+    await started.promise;
+    // … and a request arriving mid-download through the inference door.
+    const inferring = memo.withLease("x", (value) => Promise.resolve(value));
+
+    release.resolve();
+    await expect(preloading).resolves.toBe("model:x");
+    await expect(inferring).resolves.toBe("model:x");
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
   test("does NOT cache a rejected load — a later call retries (no failure poisoning)", async () => {
     const load = vi.fn((id: string) =>
       load.mock.calls.length === 1 ? Promise.reject(new Error("Unable to get model file path or buffer.")) : Promise.resolve(`model:${id}`),

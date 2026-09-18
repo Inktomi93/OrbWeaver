@@ -8,7 +8,14 @@ import { createAgentSdkBackend } from "./backends/agent-sdk/index.ts";
 import { createCustomByoBackend } from "./backends/custom-byo/index.ts";
 import type { ImageToPng } from "./backends/kit/index.ts";
 import { createImageNormalizer } from "./backends/kit/index.ts";
-import { createLocalLightBackend, createLocalLightMatte, createModelCache } from "./backends/local-light/index.ts";
+import type { LocalLightModelCache, LocalLightPrefetchHandle } from "./backends/local-light/index.ts";
+import {
+  createLocalLightBackend,
+  createLocalLightMatte,
+  createLocalLightPrefetch,
+  createModelCache,
+  recordLocalLightLoadProgress,
+} from "./backends/local-light/index.ts";
 import type { OpenRouterBackendDeps } from "./backends/openrouter/index.ts";
 import { createOpenRouterBackend } from "./backends/openrouter/index.ts";
 import type { BackendRegistry, ProviderBackend, ProviderDeps, ProviderExecutor, WireCaptureSink } from "./contract/index.ts";
@@ -84,6 +91,12 @@ export interface BackendRegistryDeps {
    *  read-only in the container and erased by every `pnpm install` — acceptable only in a test that never
    *  downloads. Every composed graph passes it (`entry/compose/services.ts`, off `LOCAL_LIGHT_CACHE_DIR`). */
   readonly localLightCacheDir?: string | undefined;
+  /** A PREBUILT local-light model cache, replacing the one this factory would construct from
+   *  `localLightCacheDir`. The same seam `createLocalLightBackend` already exposes, lifted to the registry so
+   *  the MATTE op and the BOOT PREFETCH share the injected instance too. Present only when a composition root
+   *  supplies one — a boot test that must not fetch multi-GB weights from HuggingFace injects a deterministic
+   *  cache here rather than mocking the module (Spine-Testing.md §3: fake at the edges, inject at the root). */
+  readonly localLightCache?: LocalLightModelCache | undefined;
   readonly vllmClient?: VllmBackendDeps["client"];
   readonly vllmEmbedDim?: VllmBackendDeps["embedDim"];
   readonly vllmChunkSize?: VllmBackendDeps["chunkSize"];
@@ -97,6 +110,11 @@ export interface BackendRegistryResult {
    *  local-light backend uses (expressions-design/03 §4.1). Always present (local-light is unconditionally
    *  registered); compose threads it into expressions' sprite-sheet matte arm. NOT a provider role. */
   readonly matteModel: ReturnType<typeof createLocalLightMatte>;
+  /** The BOOT WARM-UP handle for the same shared cache (`backends/local-light/prefetch.ts`) — the structural
+   *  twin of `vllmEngine`, minus the processes: `entry/lifecycle.ts` starts it after the listener binds and
+   *  drains it on shutdown. Always present (local-light is unconditionally registered); it publishes nothing
+   *  until entry hands it targets, so a box where no role resolves to local-light stays silent. */
+  readonly localLightPrefetch: LocalLightPrefetchHandle;
 }
 
 function openRouterDeps(deps: BackendRegistryDeps): OpenRouterBackendDeps {
@@ -141,7 +159,18 @@ function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
 export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistryResult {
   // One shared local-light model cache — the embed/rerank/imageEmbed backend AND the sprite-sheet matte op
   // load through it (one process-wide model LRU + device/CPU-fallback mechanics; §4.1).
-  const localLightCache = createModelCache(deps.localLightCacheDir !== undefined ? { cacheDir: deps.localLightCacheDir } : {});
+  // The progress sink is wired UNCONDITIONALLY, not only for a prefetched model: a LAZY load (a request that
+  // beat the prefetch, or a model nobody prefetched) reports through the same callback, and the status
+  // registry drops a tick whose repo id no slot claimed. That is what keeps the panel honest about WHO is
+  // downloading rather than only about what boot decided to warm.
+  const localLightCache =
+    deps.localLightCache ??
+    createModelCache({
+      ...(deps.localLightCacheDir !== undefined ? { cacheDir: deps.localLightCacheDir } : {}),
+      onProgress: (progress): void => {
+        recordLocalLightLoadProgress(progress, deps.now());
+      },
+    });
   const backends: ProviderBackend[] = [
     createOpenRouterBackend(openRouterDeps(deps)),
     createCustomByoBackend({
@@ -167,15 +196,31 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
   }
 
   const registry: BackendRegistry = new Map(backends.map((b): readonly [ProviderBackend["key"], ProviderBackend] => [b.key, b]));
-  return { backends: registry, vllmEngine, matteModel: createLocalLightMatte(localLightCache) };
+  return {
+    backends: registry,
+    vllmEngine,
+    matteModel: createLocalLightMatte(localLightCache),
+    localLightPrefetch: createLocalLightPrefetch({ cache: localLightCache, now: deps.now }),
+  };
 }
 
 export type { AgentToolResult, AgentToolSpec, SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 export { createAgentToolServer, fetchAgentSdkModels } from "./backends/agent-sdk/index.ts";
+export type {
+  LocalLightModelCache,
+  LocalLightModelSlot,
+  LocalLightPrefetchHandle,
+  LocalLightPrefetchRecord,
+  LocalLightPrefetchTarget,
+} from "./backends/local-light/index.ts";
 export {
+  allLocalLightPrefetchStatuses,
   DEFAULT_EMBED_MODEL,
   DEFAULT_IMAGE_EMBED_MODEL,
+  DEFAULT_MATTE_MODEL,
   DEFAULT_RERANK_MODEL,
+  LOCAL_LIGHT_MODEL_SLOTS,
+  LOCAL_LIGHT_STATUS_PREFIX,
 } from "./backends/local-light/index.ts";
 export { fetchOrCatalog } from "./backends/openrouter/index.ts";
 export type {
