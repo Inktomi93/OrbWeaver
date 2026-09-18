@@ -1,22 +1,30 @@
-// The db-baseline parity stage — the committed `packages/db/src/migrations/0000_baseline.sql` must equal
-// what the LIVE schema (`@orb/db/schema`, the source of truth Drizzle reads at runtime) would generate.
+// The db-baseline parity stage — the committed migration CHAIN must already account for everything the
+// LIVE schema (`@orb/db/schema`, the source of truth Drizzle reads at runtime) declares.
 //
-// WHY IT IS A COMMIT-TIER STAGE, not only a test: pre-launch, schema changes SQUASH into the baseline
-// (`baseline-single-migration` gate / Tier-1-DB.md), and `freshDb` PUSHES schema-derived DDL — so every
-// per-table `.int` test passes while the committed baseline rots. TWICE a schema-version bump shipped
-// without a baseline regen and was only caught ~10 hours later at `verify --push` (latest: the
-// `schema_version` DEFAULT 5→6 drift, fixed 1160f0a8). The comparison costs ~1s in-process (drizzle-kit's
-// own snapshot API — no stack, no db file, no network), so it was wired too LATE, not too heavy.
+// RE-POINTED AT THE CHAIN 2026-09-18 (#316 Arm A, the launch flip; Tier-1-DB.md §"Regime 2" asked for
+// exactly this, by name). It used to generate from `{}` and compare the resulting CREATE set against
+// `0000_baseline.sql`'s statements — correct only while the policy was "there is exactly one migration and
+// it is regenerated in place". The instant a legitimate `0001_x` exists, the from-scratch set no longer
+// matches any single file and that comparison reds on every honest incremental. So the question is now
+// asked the way drizzle itself asks it: generate from the CHAIN TIP's `meta/<n>_snapshot.json` to the live
+// schema and require the result to be EMPTY. Pending statements mean a schema edit with no migration
+// behind it (or a migration whose change never reached the schema files).
 //
-// ONE COMPARATOR, TWO CALLERS: `compareSchemaBaseline` is the single home for the statement diff — this
-// file's CLI (the `pnpm check` stage) and `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` both call it.
+// WHY IT IS A COMMIT-TIER STAGE, not only a test: `freshDb` PUSHES schema-derived DDL, so every per-table
+// `.int` test passes while the committed migrations rot. TWICE a schema-version bump shipped without a
+// baseline regen and was only caught ~10 hours later at `verify --push` (latest: the `schema_version`
+// DEFAULT 5→6 drift, fixed 1160f0a8). The comparison costs ~1s in-process (drizzle-kit's own snapshot API
+// — no stack, no db file, no network), so it was wired too LATE, not too heavy.
+//
+// ONE COMPARATOR, TWO CALLERS: `compareSchemaBaseline` is the single home for the diff — this file's CLI
+// (the `pnpm check` stage) and `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` both call it.
 // Two comparators would be exactly the drift this stage exists to catch.
 //
-// EQUIVALENCE = the drizzle-generated statement set vs the committed file's statement set, each
-// whitespace-normalized + trailing-semicolon-stripped, ORDER-INSENSITIVE (FK-dependency order is proven
-// applicable by client.int.test.ts's "baseline applies" test; here we assert STRUCTURAL parity, so a pure
-// reorder is not drift). Same generator `freshDb` uses, so an in-sync baseline is byte-equivalent
-// post-normalization; only a real schema/baseline divergence trips it.
+// DECLARED LIMIT: the subject is the SNAPSHOT chain, which is what drizzle diffs against. A migration's
+// `.sql` hand-edited WITHOUT its snapshot is invisible here — that pair is guarded from the other two
+// sides: `pnpm check:drizzle-kit` owns journal/snapshot chain integrity, and `tests/db/client.int.test.ts`
+// applies the committed chain to a real libSQL db. Post-launch an applied `.sql` must never be edited at
+// all (Tier-1-DB.md §"Regime 2" step 4), and a db that recorded one is boot-FATAL.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -26,17 +34,20 @@ import type { SchemaBaselineComparison } from "../contract/scoped.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:db-baseline");
 
-const BASELINE_REL = "packages/db/src/migrations/0000_baseline.sql";
-const BREAKPOINT = "--> statement-breakpoint";
+const MIGRATIONS_REL = "packages/db/src/migrations";
+const JOURNAL_REL = `${MIGRATIONS_REL}/meta/_journal.json`;
 const WS_RE = /\s+/gu;
 const TRAILING_SEMI_RE = /;\s*$/u;
 /** How many drifted statements to print before summarizing — a full schema diff is unreadable. */
 const MAX_SHOWN = 8;
+/** drizzle names snapshots `0000_snapshot.json`, `0001_snapshot.json`, … — index-ordered, zero-padded to 4. */
+const SNAPSHOT_INDEX_WIDTH = 4;
 
 const FIX_HINT =
-  "regenerate the squashed baseline (pre-launch policy — never an incremental 0001+): " +
-  "`pnpm --filter @orb/db exec drizzle-kit generate --name baseline` over a CLEARED migrations dir, then " +
-  "biome-format the meta files. See docs/architecture/core/Tier-1-DB.md + the `baseline-single-migration` gate.";
+  "emit the forward migration the schema edit owes (post-launch policy — the baseline is FROZEN and is " +
+  "never regenerated): `pnpm --filter @orb/db exec drizzle-kit generate --name <what-changed>` with the " +
+  "migrations dir untouched, READ the emitted SQL, then biome-format the meta files. See " +
+  'docs/architecture/core/Tier-1-DB.md §"Regime 2".';
 
 function normalize(statement: string): string {
   return statement.replace(WS_RE, " ").replace(TRAILING_SEMI_RE, "").trim();
@@ -49,6 +60,42 @@ function clean(statements: readonly string[]): string[] {
     .sort();
 }
 
+/** The committed chain's journal entries, in apply order — the same file drizzle's migrator reads. A
+ *  malformed or empty journal THROWS: the caller routes that to `EXIT.toolError`, because "I could not
+ *  find the chain" must never print as "the schema is in sync". */
+function readJournal(root: string): { readonly length: number; readonly tip: string } {
+  const parsed: unknown = JSON.parse(readFileSync(join(root, JOURNAL_REL), "utf8"));
+  const entries = typeof parsed === "object" && parsed !== null ? (parsed as { entries?: unknown }).entries : undefined;
+  if (!Array.isArray(entries)) {
+    throw new Error(`${JOURNAL_REL} has no 'entries' array — the chain cannot be identified`);
+  }
+  const tags = entries.map((entry: unknown, index) => {
+    const tag = typeof entry === "object" && entry !== null ? (entry as { tag?: unknown }).tag : undefined;
+    if (typeof tag !== "string") {
+      throw new Error(`${JOURNAL_REL} entry ${index} has no string 'tag'`);
+    }
+    return tag;
+  });
+  const tip = tags.at(-1);
+  if (tip === undefined) {
+    throw new Error(`${JOURNAL_REL} holds no migration entries — the chain cannot be identified`);
+  }
+  return { length: tags.length, tip };
+}
+
+/** The chain tip's committed snapshot — drizzle's own record of the schema AFTER the last migration, and
+ *  therefore the state a new `generate` would diff against. Validated rather than cast blind: a snapshot
+ *  missing its `dialect`/`tables` shape would otherwise be diffed as an EMPTY schema, which prints the
+ *  whole schema as "pending" — a spectacular false red that reads like a real finding. */
+function readChainTipSnapshot(root: string, tipIndex: number): Record<string, unknown> {
+  const rel = `${MIGRATIONS_REL}/meta/${String(tipIndex).padStart(SNAPSHOT_INDEX_WIDTH, "0")}_snapshot.json`;
+  const parsed: unknown = JSON.parse(readFileSync(join(root, rel), "utf8"));
+  if (typeof parsed !== "object" || parsed === null || !("dialect" in parsed) || !("tables" in parsed)) {
+    throw new Error(`${rel} is not a drizzle snapshot (no 'dialect'/'tables') — the chain tip cannot be diffed`);
+  }
+  return parsed as Record<string, unknown>;
+}
+
 /** The ONE comparison — the CLI stage and the int test both call this.
  *
  *  `@orb/db/schema` and drizzle-kit's snapshot API are DYNAMIC imports on purpose: this module is reachable
@@ -59,18 +106,13 @@ export async function compareSchemaBaseline(root: string): Promise<SchemaBaselin
   // biome-ignore lint/performance/noNamespaceImport: drizzle-kit's snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table.
   const schema = await import("@orb/db/schema");
   const { generateSQLiteDrizzleJson, generateSQLiteMigration } = await import("drizzle-kit/api");
-  const empty = await generateSQLiteDrizzleJson({});
+  const journal = readJournal(root);
+  const tip = readChainTipSnapshot(root, journal.length - 1);
   const current = await generateSQLiteDrizzleJson(schema as Record<string, unknown>);
-  const expected = clean(await generateSQLiteMigration(empty, current));
-  const actual = clean(readFileSync(join(root, BASELINE_REL), "utf8").split(BREAKPOINT));
-  const actualSet = new Set(actual);
-  const expectedSet = new Set(expected);
-  return {
-    expected,
-    actual,
-    missingFromBaseline: expected.filter((s) => !actualSet.has(s)),
-    staleInBaseline: actual.filter((s) => !expectedSet.has(s)),
-  };
+  // The snapshot's own shape is drizzle-kit-internal; the door is its API signature, and the validation
+  // above is what makes this narrowing a checked one rather than a hope.
+  const pending = clean(await generateSQLiteMigration(tip as Parameters<typeof generateSQLiteMigration>[0], current));
+  return { chainTip: journal.tip, chainLength: journal.length, pending };
 }
 
 function printGroup(label: string, statements: readonly string[]): void {
@@ -86,16 +128,18 @@ function printGroup(label: string, statements: readonly string[]): void {
   }
 }
 
-// ── the DEV-DB DROP TRIPWIRE (advisory — issue #534) ─────────────────────────────────────────────────
-// The gating arm above asks "does the committed baseline match the live SCHEMA". This one asks the other
-// question the same file governs: "does it match what the LIVE DEV DB recorded" — because when it does
-// not, the next server respawn DROPS EVERY ROW (pre-launch by design, boot/migrate.ts). On 2026-08-23
-// that cost a 1,242-chat import and ~8h of GPU passes, and the only signal was a server.log line read
-// hours later (#533).
+// ── the LOCAL-DB DIVERGENCE TRIPWIRE (advisory — issue #534, re-aimed by #316) ───────────────────────
+// The gating arm above asks "does the committed CHAIN account for the live SCHEMA". This one asks the
+// other question the same file governs: "is what the LOCAL DB recorded still in that chain" — because
+// when it is not, the next server boot ABORTS (`DB_LAUNCHED`, boot/migrate.ts). It used to forecast the
+// opposite consequence, an automatic wipe: on 2026-08-23 that cost a 1,242-chat import and ~8h of GPU
+// passes with no signal but a server.log line read hours later (#533), and on 2026-08-19 it took the
+// owner's whole corpus (#316, the incident behind the launch flip).
 //
-// It is a NOTICE, never a violation, deliberately: regenerating the baseline is legitimate, routine work,
-// and a hard red would block it. What was missing is VISIBILITY at the decision point — so the line rides
-// the `[verify-notice]` channel, which `printSummary` renders in the tail beside the verdict.
+// It stays a NOTICE, never a violation: the stage's verdict is about the COMMITTED tree, and whatever a
+// particular developer's db recorded is not a property of the commit. What it buys is VISIBILITY at the
+// decision point — the line rides the `[verify-notice]` channel, which `printSummary` renders in the tail
+// beside the verdict.
 //
 // A lane worktree has no `data/` and gets `no-db` (silence); a fresh checkout gets `trivial` (silence);
 // an unreadable db gets `unknown`, which is REPORTED — "I could not measure" is never printed as clean.
@@ -109,7 +153,7 @@ function noticeLine(text: string): void {
   process.stdout.write(`${NOTICE} ${text}\n`);
 }
 
-/** Print the dev-db drop forecast, if there is anything to say. Never throws, never gates. */
+/** Print the local-db divergence forecast, if there is anything to say. Never throws, never gates. */
 async function reportDevDbForecast(root: string): Promise<void> {
   // biome-ignore lint/style/noProcessEnv: the dev db's URL is genuinely process env — this stage runs standalone, outside the server's env module.
   const url = process.env["DATABASE_URL"] ?? DEFAULT_DATABASE_URL;
@@ -119,23 +163,23 @@ async function reportDevDbForecast(root: string): Promise<void> {
   try {
     forecast = await forecastDevDbReset(url, join(root, DEV_DB_MIGRATIONS));
   } catch (err) {
-    noticeLine(`could not read the dev db at ${url} to forecast a reset: ${err instanceof Error ? err.message : String(err)}`);
+    noticeLine(`could not read the db at ${url} to forecast a boot refusal: ${err instanceof Error ? err.message : String(err)}`);
     return;
   }
   if (forecast.status === "unknown") {
-    noticeLine(`could not forecast a dev-db reset for ${forecast.path}: ${forecast.reason} — this check said nothing, which is not the same as "safe"`);
+    noticeLine(`could not forecast a boot refusal for ${forecast.path}: ${forecast.reason} — this check said nothing, which is not the same as "safe"`);
     return;
   }
-  if (forecast.status !== "will-reset") {
+  if (forecast.status !== "diverged") {
     return;
   }
   const mib = Math.round(forecast.bytes / MIB);
   noticeLine(
-    `THE NEXT SERVER RESPAWN WILL DROP THE DEV DB. ${forecast.path} (${mib} MiB) recorded baseline ` +
-      `${forecast.appliedHash.slice(0, HASH_PREFIX)}…, the committed 0000_baseline.sql is ${forecast.shippedHash.slice(0, HASH_PREFIX)}… — ` +
-      "boot/migrate resets a dev db whose baseline was regenerated (ALL DATA DROPPED, pre-launch by design). " +
-      "The boot takes ONE pre-migrate backup first: pin it the moment it exists " +
-      "(`touch data/orbweaver.db.backup-<stamp>.keep`) or the retention sweep will age it out.",
+    `THE NEXT SERVER BOOT WILL REFUSE TO START. ${forecast.path} (${mib} MiB) recorded migration ` +
+      `${forecast.appliedHash.slice(0, HASH_PREFIX)}…, which is in no entry of the committed chain (its newest is ` +
+      `${forecast.shippedHash.slice(0, HASH_PREFIX)}…) — boot/migrate aborts rather than auto-wipe a LAUNCHED db (#316). ` +
+      "An applied migration was edited or deleted: restore it, or ship the change as a forward incremental " +
+      "migration. A deliberate wipe of a local dev db is `pnpm seed:demo --fresh`.",
   );
 }
 
@@ -153,13 +197,12 @@ export async function runDbBaselineParity(root: string): Promise<number> {
     process.stdout.write(`db-baseline-parity — TOOL ERROR: ${err instanceof Error ? err.message : String(err)}\n`);
     return EXIT.toolError;
   }
-  process.stdout.write(`db-baseline-parity — ${result.expected.length} schema statement(s) vs ${result.actual.length} in ${BASELINE_REL}\n`);
-  if (result.missingFromBaseline.length === 0 && result.staleInBaseline.length === 0) {
-    process.stdout.write("  ✓ the committed baseline matches the live schema\n");
+  process.stdout.write(`db-baseline-parity — live schema vs the ${result.chainLength}-migration chain ending at ${result.chainTip}\n`);
+  if (result.pending.length === 0) {
+    process.stdout.write("  ✓ the committed migration chain accounts for the live schema\n");
     return EXIT.clean;
   }
-  printGroup(`in the LIVE schema but NOT in ${BASELINE_REL} (the baseline was never regenerated)`, result.missingFromBaseline);
-  printGroup(`in ${BASELINE_REL} but NOT in the live schema (a stale or hand-edited baseline)`, result.staleInBaseline);
+  printGroup(`drizzle would emit to bring ${result.chainTip} up to the live schema (a schema edit with no migration behind it)`, result.pending);
   process.stdout.write(`\n  FIX: ${FIX_HINT}\n`);
   return EXIT.violations;
 }

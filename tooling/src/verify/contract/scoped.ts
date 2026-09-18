@@ -24,16 +24,18 @@ export interface ScopedPolicyResult {
   readonly deferred: readonly GatePolicy[];
 }
 
-/** The committed squashed baseline vs what the live `@orb/db/schema` generates. */
+/** The committed migration CHAIN vs what the live `@orb/db/schema` generates. Since #316 (2026-09-18) the
+ *  subject is the chain, not the single squashed baseline: a legitimate `0001_x` advances the recorded
+ *  schema, so the comparison generates FROM the chain tip's snapshot and asks whether anything is left. */
 export interface SchemaBaselineComparison {
-  /** Statements the LIVE schema generates (normalized), sorted. */
-  readonly expected: readonly string[];
-  /** Statements the COMMITTED baseline holds (normalized), sorted. */
-  readonly actual: readonly string[];
-  /** In the live schema, absent from the baseline — the "you changed the schema and forgot to regen" arm. */
-  readonly missingFromBaseline: readonly string[];
-  /** In the baseline, absent from the live schema — a stale/hand-edited baseline. */
-  readonly staleInBaseline: readonly string[];
+  /** The journal tag the comparison generated from — the newest committed migration. */
+  readonly chainTip: string;
+  /** How many migrations the committed chain holds (the tip is the last of them). */
+  readonly chainLength: number;
+  /** The statements drizzle would emit to take the chain tip's snapshot to the live schema, normalized and
+   *  sorted. EMPTY is the only clean verdict: anything here is a schema edit with no migration behind it
+   *  (or, in the other direction, a migration that never made it into the schema files). */
+  readonly pending: readonly string[];
 }
 
 /** One row of the assets domain's RETAINING registry (`ASSET_REFS`), read structurally so the comparator

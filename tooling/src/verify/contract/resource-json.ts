@@ -35,8 +35,6 @@ export type JsonValue = null | boolean | number | string | readonly JsonValue[] 
 export const JSON_RESOURCE_PATHS = {
   /** `biome-grant-liveness`: the override rows whose `includes` are suppression grants. */
   biome: "biome.json",
-  /** `baseline-single-migration`: the migration journal beside the squashed baseline. */
-  "migration-journal": "packages/db/src/migrations/meta/_journal.json",
   /** `no-raw-z-index` and the token policies: the canonical token vault. */
   tokens: "packages/ui/src/tokens/tokens.json",
   /** `dangling-refs`: the catalog IS the census of living documents. */

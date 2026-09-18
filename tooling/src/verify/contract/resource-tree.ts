@@ -7,7 +7,6 @@ export const AUTHORED_TREE_PATHS = {
   "ui-primitive": "packages/ui/src/primitives",
   "tooling-slot": "tooling/src",
   "db-schema": "packages/db/src/schema",
-  "db-migration": "packages/db/src/migrations",
   server: "packages/server/src",
   packages: "packages",
   tests: "tests",

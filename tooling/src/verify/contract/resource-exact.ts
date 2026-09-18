@@ -8,10 +8,9 @@
 // each. `playwright/` is also not a member of ANY authored tree id, so for two of them there is no tree to
 // borrow.
 //
-// WHY IT IS NOT `json`/`static-config`. Those doors promise a PARSE. These files are SQL, TSX and CSS whose
-// consumers do their own graph/text work (`gates/playwright-css-topology.ts:22-24,49-60`,
-// `gates/baseline-single-migration.ts`). The door's promise here is narrower and total: this exact file
-// exists, here is its text and its size.
+// WHY IT IS NOT `json`/`static-config`. Those doors promise a PARSE. These files are TSX, CSS and TS whose
+// consumers do their own graph/text work (`gates/playwright-css-topology.ts:22-24,49-60`). The door's
+// promise here is narrower and total: this exact file exists, here is its text and its size.
 //
 // ANY DEMANDED ID THAT DOES NOT RESOLVE REFUSES THE WHOLE FACT. Not a row, not a shorter map. An exact
 // resource is named because the policy's judgment is ABOUT it: "the CT boot file has no CSS import" and
@@ -23,8 +22,6 @@
 export const EXACT_RESOURCE_PATHS = {
   /** `dangling-refs`: the literal ignore rules that justify absent-by-design path citations. */
   gitignore: ".gitignore",
-  /** `baseline-single-migration`: the squashed baseline the migration journal must agree with. */
-  "db-baseline-sql": "packages/db/src/migrations/0000_baseline.sql",
   /** `playwright-css-topology`: the production CSS front door and its two entry modules. */
   "client-entry": "packages/client/src/main.tsx",
   "client-css-entry": "packages/client/src/styles/index.ts",

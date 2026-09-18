@@ -1,7 +1,11 @@
-// Pins that the committed migrations/0000_baseline.sql equals what the LIVE schema (schema/*.ts — the
-// source of truth Drizzle reads at runtime) would generate. freshDb PUSHES schema-derived DDL, so the
-// per-table .int tests never touch the committed baseline; a schema change without regenerating the
-// baseline is silent today (client.int.test.ts only checks the baseline APPLIES + 5 sentinel tables).
+// Pins that the committed migration CHAIN already accounts for the LIVE schema (schema/*.ts — the source
+// of truth Drizzle reads at runtime). freshDb PUSHES schema-derived DDL, so the per-table .int tests never
+// touch the committed migrations; a schema change with no migration behind it is silent today
+// (client.int.test.ts only checks the chain APPLIES + 5 sentinel tables).
+//
+// THE SUBJECT IS THE CHAIN, NOT THE BASELINE (2026-09-18, #316 Arm A): the comparator generates from the
+// chain TIP's snapshot, so a legitimate forward `000N` advances the recorded schema instead of reading as
+// drift. Empty `pending` is the only clean verdict.
 //
 // THE COMPARATOR LIVES IN THE STAGE, NOT HERE (2026-08-02): the drift is now RED at COMMIT time — the
 // `structure:db-baseline` stage (`tooling/src/verify/ops/db-baseline-parity.ts`, in `pnpm check`) owns the ONE
@@ -15,13 +19,13 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 
-test("committed 0000_baseline.sql matches the live schema (no drift)", async () => {
+test("the committed migration chain accounts for the live schema (no drift)", async () => {
   const result = await compareSchemaBaseline(ROOT);
-  // Named both directions — a missing CREATE (never regenerated) reads differently from a stale one
-  // (hand-edited baseline), and the stage prints the same two groups.
-  expect(result.missingFromBaseline).toEqual([]);
-  expect(result.staleInBaseline).toEqual([]);
-  // Count last: with both diffs empty this can only fail on a duplicated statement, which the set-diff
-  // above cannot see.
-  expect(result.actual.length).toBe(result.expected.length);
+  // The statements themselves, not a count — a failure here must NAME the DDL the tree owes a migration
+  // for, which is the whole reason the stage prints them.
+  expect(result.pending).toEqual([]);
+  // …and the comparison really read the chain: a tip of "" / a length of 0 would mean the journal read
+  // silently degraded, which would make the emptiness above meaningless.
+  expect(result.chainLength).toBeGreaterThan(0);
+  expect(result.chainTip).not.toBe("");
 });

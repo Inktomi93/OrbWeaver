@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
 import { checkBaseline, createDb, runMigrations } from "@orb/db";
-import { resolveMigrationsFolder, runBootMigrations } from "@orb/server/entry/boot";
+import { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "@orb/server/entry/boot";
 import { sql } from "drizzle-orm";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -209,6 +209,36 @@ test("a regenerated-baseline boot (the destructive reset) still backs up first, 
     const remaining = readdirSync(dir).filter((name) => BACKUP_RE.test(name));
     expect(remaining).toHaveLength(5);
     expect(remaining).not.toContain(first[0]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// THE SHIPPED POSTURE, on a REAL FILE DB (#316 Arm A, 2026-09-18). Every test above and below drives the
+// arms with a LITERAL `launched:`, which says nothing about what production actually passes — and the
+// #1392 incident was precisely a guard that was correct and never armed. This one asserts the constant the
+// composition root hands in, then proves that under it the destructive path is unreachable AND costs
+// nothing: the boot aborts BEFORE the backup copy (there is no db change to protect) and the row a reset
+// would have dropped is still there afterwards.
+test("the shipped DB_LAUNCHED posture refuses a diverged chain on a real file db, before any backup", async () => {
+  expect(DB_LAUNCHED).toBe(true);
+  const dir = mkdtempSync(join(tmpdir(), `orb-bootlaunched-${pid}-`));
+  const url = `file:${join(dir, "orb.db")}`;
+  try {
+    const db = await createDb(url);
+    // A fresh db under the SHIPPED posture migrates normally — the refusal is about drift, not about being
+    // launched, and a flip that bricked every first boot would pass a refusal-only assertion.
+    await runBootMigrations({ db, databaseUrl: url, launched: DB_LAUNCHED });
+    await db.run(sql`CREATE TABLE launched_probe (value integer not null)`);
+    await db.run(sql`INSERT INTO launched_probe (value) VALUES (1)`);
+    const priorBackups = readdirSync(dir).filter((name) => BACKUP_RE.test(name));
+
+    // The post-squash / edited-applied-migration state: what this db recorded is in no shipped entry.
+    await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
+    await expect(runBootMigrations({ db, databaseUrl: url, launched: DB_LAUNCHED })).rejects.toThrow(LAUNCHED_FATAL_RE);
+
+    expect(await db.all(sql`SELECT value FROM launched_probe`)).toEqual([{ value: 1 }]);
+    expect(readdirSync(dir).filter((name) => BACKUP_RE.test(name))).toEqual(priorBackups);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
