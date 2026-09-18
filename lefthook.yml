@@ -1,9 +1,14 @@
 # Lefthook — git hooks, worktree-safe by construction.
 #
-# Installed via the root `prepare: lefthook install` script, which runs on EVERY `pnpm install`
-# (main checkout AND every worktree). `lefthook install` sets `core.hooksPath` in the SHARED git
-# config (the common gitdir), and this file is tracked — so hooks fire in every worktree with zero
-# per-worktree setup. Commands run from the worktree root (lefthook resolves it per-worktree), so a
+# Installed via the root `prepare: lefthook install --force` script, which runs on EVERY `pnpm install`
+# (main checkout AND every worktree). Lefthook 2.1.10 writes the hook stubs into the SHARED `.git/hooks`
+# of the common gitdir and does NOT set `core.hooksPath` (probed 2026-09-18 from main and from a worktree,
+# with and without a config change — the earlier claim here that it does was wrong). Git resolves a
+# worktree's hooks from the common dir, and this file is tracked, so hooks fire in every worktree with
+# zero per-worktree setup. `--force` because a stray `core.hooksPath` (pointing at that same default dir)
+# appeared in .git/config twice on 2026-09-18 from an unidentified external writer, and plain
+# `lefthook install` REFUSES under it — which failed every worktree's post-checkout install and every
+# `isolation: "worktree"` dispatch. With --force the chain survives the key. Commands run from the worktree root (lefthook resolves it per-worktree), so a
 # fresh worktree just needs `pnpm install` (or `pnpm run worktree:bootstrap`) and the gates work.
 #
 # GREEN-TO-COMMIT is enforced HERE, not by discipline (born-compliant doctrine — "won't pass check →

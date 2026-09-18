@@ -937,7 +937,7 @@ const CONTEXTS = {
   sqliteLive:
     "sqlite3 against a live-looking DB: touching a WAL database while the stack is up can corrupt it (repo memory: sqlite3-wal-danger). Stop the stack first, or read through the /api/_debug endpoints instead.",
   noVerify:
-    "`--no-verify` is legitimate only immediately after a green gate receipt in THIS session. Lanes: prefer `git -c core.hooksPath=/dev/null …` (the sanctioned spelling) so the skip is visible and scoped.",
+    "`--no-verify` is legitimate only immediately after a green gate receipt in THIS session. Lanes: prefer `LEFTHOOK_EXCLUDE=check git …` (the sanctioned spelling since 2026-09-18 — it skips only the whole-tree check and keeps the commit-msg contract) so the skip is visible and scoped.",
   gitAddAll:
     "`git add -A` / `git add .` stages everything — including sibling-lane debris and untracked scratch. Repo law is pathspec staging: `git add <paths>` and `git commit -- <paths>`. Check `git status --short` first.",
   rmRf: "`rm -rf` outside scratch/cache territory — double-check the target: uncommitted work here is unrecoverable, and git-based undo (stash/restore) is banned.",
