@@ -68,11 +68,20 @@ cp -R "$src/packages/client/dist" "$out/packages/client/dist"
 #
 # The derivation is NOT forked here: this invokes the server's own reader (`buildVersionStamp`), the same
 # code that reads the stamp back at boot, so the stamp can never disagree with the reader's rules. The
-# workspace's .git is present in this stage because .dockerignore un-ignores exactly four plain ref files.
+# workspace's ref files are present in this stage because .dockerignore un-ignores exactly four plain ref
+# files — and the Dockerfile moves them to `.git-refs` BEFORE its throwaway `git init`, so the stamp is read
+# through a `gitdir:` redirect root (the linked-worktree shape the reader already understands) rather than
+# from the empty repo git sees. Without the moved dir (an archive build) the stamp reads the source root.
 # `builtAt` is passed IN rather than read inside the package: production source reads time from the
 # injected clock (the `no-raw-clock` law), and a build script is the one place that legitimately knows the
 # wall instant.
-ORB_STAMP_ROOT="$src" \
+stamp_root="$src"
+if [ -d "$src/.git-refs" ]; then
+  stamp_root="$(mktemp -d)"
+  cp "$src/package.json" "$stamp_root/package.json"
+  printf 'gitdir: %s\n' "$src/.git-refs" > "$stamp_root/.git"
+fi
+ORB_STAMP_ROOT="$stamp_root" \
 ORB_STAMP_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   node --input-type=module -e \
     'import { buildVersionStamp } from "@orb/server/foundation/version"; process.stdout.write(JSON.stringify(buildVersionStamp(process.env.ORB_STAMP_ROOT, process.env.ORB_STAMP_BUILT_AT)));' \

@@ -45,8 +45,15 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store,sharing=locked \
 # ── Stage 2: build — install (offline), generated tokens, client bundle, pruned prod node_modules ─────
 FROM deps AS build
 COPY . .
+# The four un-ignored .git ref files (.dockerignore) exist for the version stamp ONLY (assemble-runtime.sh
+# reads them through a `gitdir:` redirect). git itself must NOT see them: a HEAD that names a commit with no
+# object store behind it is a dangling ref, and the ui token ratchet (`packages/ui/token-contract.ts`) then
+# tries `git merge-base HEAD origin/main`, which no build context can satisfy — the build broke there
+# 2026-09-18. Set aside before the throwaway repo below is created; an archive build without them is fine.
+RUN if [ -d .git ]; then mv .git /app/.git-refs; fi
 # `git init`: the root `prepare` script is `lefthook install`, which hard-fails outside a git repository
-# (LEFTHOOK=0 does not rescue it). A throwaway .git satisfies it and never reaches the runtime stage.
+# (LEFTHOOK=0 does not rescue it). A throwaway .git satisfies it and never reaches the runtime stage; with no
+# commit at all, the token ratchet is vacuous by its own design (no history to ratchet against).
 # `--ignore-scripts` is NOT an option: it would also skip the allowBuilds postinstalls (sharp,
 # onnxruntime-node) the runtime needs.
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store,sharing=locked \
