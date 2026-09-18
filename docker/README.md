@@ -129,6 +129,13 @@ Anything reachable from the internet runs an SSO mode (`oidc` / `forward-header`
   `PUID=$(id -u) PGID=$(id -g) docker compose up -d`. Started non-root (`user:`, rootless podman) it skips the
   chown and refuses to boot on an unwritable data dir, saying so.
 - The image itself holds no state; `docker compose down` keeps the volume, `down -v` deletes it.
+- **Updates and the database.** Migrations run at boot, from the SQL that ships inside the image. Before a
+  boot that will CHANGE the database it copies the file aside first (`orbweaver.db.backup-<timestamp>`
+  in the same directory, with a retention sweep), then migrates, then verifies referential integrity; a
+  boot that changes nothing makes no copy. There are no "down" migrations: to roll back, stop the
+  container, put the backup file back in place of `orbweaver.db` (remove any `-wal`/`-shm` beside it),
+  and start the OLDER checkout again. Back up the whole volume before a big update:
+  `docker run --rm -v orbweaver_orbweaver-data:/data -v "$PWD":/out alpine tar czf /out/orbweaver-data.tgz -C /data .`
 
 ## Secrets as files
 
