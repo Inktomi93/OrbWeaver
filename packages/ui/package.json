@@ -137,6 +137,7 @@
     "remark-gfm": "catalog:",
     "remark-math": "catalog:",
     "streamdown": "catalog:",
+    "style-dictionary": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwind-variants": "catalog:",
     "tailwindcss": "catalog:",
@@ -150,7 +151,6 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:",
-    "style-dictionary": "catalog:"
+    "react-dom": "catalog:"
   }
 }

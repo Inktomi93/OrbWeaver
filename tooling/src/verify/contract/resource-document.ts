@@ -103,7 +103,7 @@ export type LedgerId = keyof typeof LEDGER_DEFINITIONS;
  *  reaches a ledger's nature through the definition map's own inferred type rather than by naming this alias. */
 export type LedgerNature = (typeof LEDGER_DEFINITIONS)[LedgerId]["nature"];
 
-export interface LedgerJsonDocument {
+interface LedgerJsonDocument {
   readonly path: string;
   readonly value: JsonValue;
 }

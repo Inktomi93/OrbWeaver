@@ -9,7 +9,7 @@ export interface TableShape {
 /** How a caller's tenancy reaches a row. The classes are ordered strongest-predicate first; a table that
  * satisfies two takes the one whose predicate an authorization check actually spells. */
 /** Carries `ownerId` · `chat_participants` membership · pure link · FK-inherited · system/global. */
-export const SCOPING_CLASSES = ["ownerId", "membership", "junction", "parent", "global"] as const;
+const SCOPING_CLASSES = ["ownerId", "membership", "junction", "parent", "global"] as const;
 export type ScopingClass = (typeof SCOPING_CLASSES)[number];
 
 /** One registry row: the SQL table name as a VALUE, its class, and the mandatory reason. Deliberately not

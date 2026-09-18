@@ -5,7 +5,7 @@ import type { PolicyPopulationReceipt } from "./policy-pass.ts";
 /** `run` maps to a running owner; the other two are the two `not-applicable` reasons, whose WORDING stays with
  *  each caller (the planner's plan reason and `POLICY_PASS_REFUSALS` are different strings today, and unifying
  *  them is a refusal-envelope change this calculation has no standing to make). */
-export const POLICY_SELECTION_DISPOSITIONS = ["run", "deferred", "empty-intersection"] as const;
+const POLICY_SELECTION_DISPOSITIONS = ["run", "deferred", "empty-intersection"] as const;
 export type PolicySelectionDisposition = (typeof POLICY_SELECTION_DISPOSITIONS)[number];
 
 /** The narrowed request, in its two forms — one nullable field rather than two that must agree.

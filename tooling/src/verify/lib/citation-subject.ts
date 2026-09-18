@@ -47,7 +47,7 @@ export interface CitationSubject {
 }
 
 /** How a ledger citation's subject stands against the row it names — see the verdict table in the header. */
-export const SUBJECT_VERDICTS = ["matched", "crossed", "cross-family", "undeclared", "unkeyed"] as const;
+const SUBJECT_VERDICTS = ["matched", "crossed", "cross-family", "undeclared", "unkeyed"] as const;
 // @orb-waive no-inline-types(SubjectVerdict): consumed within the citation lib/ cluster only; not a cross-domain shape; ends when a gate imports it
 export type SubjectVerdict = (typeof SUBJECT_VERDICTS)[number];
 

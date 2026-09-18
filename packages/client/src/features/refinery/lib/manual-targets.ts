@@ -38,6 +38,9 @@ export function manualTargetsOf(selection: RefinerySelection, card: ManualCard):
   });
 }
 
+/** @public — exported so the field switch (the depth-prompt unwrap in particular) gets its own direct
+ *  unit test, separate from `manualTargetsOf`'s selection/greeting machinery; internal use above is real
+ *  but not the only reason this stays exported. */
 export function manualTextOf(
   card: {
     description: string | null;
