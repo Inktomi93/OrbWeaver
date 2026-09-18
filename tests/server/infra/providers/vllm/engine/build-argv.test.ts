@@ -332,3 +332,26 @@ describe("buildEngineArgv — GPU-count topology", () => {
     expect(engineCudaVisibleDevices("gen", 2)).toBeNull();
   });
 });
+
+// ── `--host`: loopback BY CONSTRUCTION, and the one caller that moves it (the engine-container compose
+// generator, tooling/src/stack/lib/engines-compose.ts). A process that binds 127.0.0.1 inside a container
+// is unreachable from its peers, so the container arm passes `bindHost: "0.0.0.0"` and bounds reachability
+// with the container network instead. The default is what keeps every OTHER caller — the in-server
+// supervisor and the standalone launcher, neither of which passes the field — byte-identical. ──
+describe("buildEngineArgv — the --host bind address", () => {
+  const config = resolveEngineLaunchConfig(FLOOR, undefined);
+
+  for (const engine of ["embed", "rerank", "gen"] as const) {
+    test(`${engine} binds loopback when the caller passes no bindHost`, () => {
+      expect(flagVal(buildEngineArgv(engine, config, CTX), "--host")).toBe("127.0.0.1");
+    });
+
+    test(`${engine}: an explicit bindHost changes the --host value and NOTHING else`, () => {
+      const bare = buildEngineArgv(engine, config, CTX);
+      const bound = buildEngineArgv(engine, config, { ...CTX, bindHost: "0.0.0.0" });
+      expect(flagVal(bound, "--host")).toBe("0.0.0.0");
+      const hostValueIndex = bare.indexOf("--host") + 1;
+      expect(bound).toEqual(bare.map((arg, i) => (i === hostValueIndex ? "0.0.0.0" : arg)));
+    });
+  }
+});

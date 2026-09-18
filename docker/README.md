@@ -44,6 +44,26 @@ The app adopts what is up and reports the rest down; search and memory need the 
 without them those features degrade rather than break. The app never spawns engines from a container —
 there is one vLLM setup to maintain, and it is yours.
 
+**…or run the engines as containers too**, from the official `vllm/vllm-openai` image, with an overlay that
+sets the two app values for you:
+
+```sh
+docker compose -f docker-compose.yaml -f docker/compose.engines.yaml --profile gen up -d
+docker compose -f docker-compose.yaml -f docker/compose.engines.yaml \
+    --profile gen --profile embed --profile rerank up -d      # the whole trio
+```
+
+Needs an NVIDIA GPU with the [Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/)
+installed on the host. `gen` is the base profile: embed and rerank share its network namespace (that is how
+one `VLLM_ENGINE_HOST` reaches three ports), so compose refuses `--profile embed` on its own. The first boot
+downloads the models into a `vllm-models` volume — tens of GB — and the first load takes minutes; the
+containers are unhealthy, not broken, until they answer `/health`. What each profile asks of your cards, at
+the shipped defaults: `gen` 60% of every card (tensor-parallel across all of them), `embed` 14% of card 0,
+`rerank` 14% of card 1. The overlay is generated for a 2-card box — on a single card, regenerate it with
+`pnpm engines compose --gpus 1` from a checkout (it rewrites `docker/compose.engines.yaml` in place).
+Sleep/wake works exactly as on bare metal, over the same HTTP endpoints; the engine ports are published
+nowhere, so only the app reaches them.
+
 ## Login modes
 
 | `AUTH_MODE` | who gets in | needs |

@@ -62,7 +62,7 @@ const config = {
     // @orb/tooling: every tool's cli.ts + index.ts are entries; _shared modules are entries too
     // (research-zone scripts import them by subpath until their tools promote).
     tooling: {
-      // The three BASH-SPAWNED entries are invisible to the import graph: `stack` is a bash-fronted tool
+      // The four BASH-SPAWNED entries are invisible to the import graph: `stack` is a bash-fronted tool
       // (Core-Tooling-Law.md §4.1) whose .sh entrypoints exec these by path, so nothing imports them.
       // The GATE CORPUS is an entry glob for the same reason one level up: `verify`'s loader IS the registry
       // — it `globSync`s `gates/*.ts` and imports each by URL at runtime (Core-Tooling-Law.md §4.3), so every
@@ -76,6 +76,7 @@ const config = {
         "src/stack/ops/prod-entry.ts",
         "src/stack/ops/engines.ts",
         "src/stack/ops/engines-ctl.ts",
+        "src/stack/ops/engines-compose.ts",
         "src/verify/ops/required-live-evidence-reporter.ts",
       ],
       project: ["src/**/*.ts"],

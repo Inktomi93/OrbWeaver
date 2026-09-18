@@ -16,6 +16,9 @@
 #   pnpm engines sleep      POST /sleep?level=1 + write the hold marker.
 #   pnpm engines wake       clear hold → reconcile → VRAM gate → wake + wait.
 #   pnpm engines reconcile  orphan-family sweep (also runs pre-spawn).
+#   pnpm engines compose    regenerate docker/compose.engines.yaml — the engine containers' compose overlay,
+#                           whose serve flags come from the SAME buildEngineArgv this launcher spawns with.
+#                           Spawns NOTHING (config in, one file out) and is posture-blind.
 #
 # ENGINES_POSTURE gates the SPAWN half of ensure/start (#1567 — the branch this script was missing):
 #   off             ensure/start are a no-op
@@ -54,6 +57,7 @@ LOG_DIR="$RUN_DIR"
 # invocations were node.
 RUNNER="node"
 CTL_TS="$REPO/tooling/src/stack/ops/engines-ctl.ts"
+COMPOSE_TS="$REPO/tooling/src/stack/ops/engines-compose.ts"
 # Model/venv stores are SHARED across git worktrees (git-common-dir parent); an explicit override wins.
 STORE_ROOT="${VLLM_STORE_ROOT:-$(dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO/.git")")}"
 VLLM_VENV="$STORE_ROOT/.cache/vllm/venv"
@@ -329,8 +333,20 @@ case "${1:-ensure}" in
   sleep) exec "$RUNNER" "$CTL_TS" sleep ;;
   wake) exec "$RUNNER" "$CTL_TS" wake ;;
   reconcile) exec "$RUNNER" "$CTL_TS" reconcile ;;
+  # ORB_ENV_NO_FILE=1: the generator resolves the engine LAUNCH FLOOR from the environment, and a local
+  # `.env` would bake this box's model paths into a TRACKED, shipped artifact. Skipping the file entirely
+  # is what makes the committed overlay the SHIPPED defaults; the program additionally refuses if a
+  # launch-floor key survives in the environment.
+  # AUTH_FALLBACK=owner: foundation/env parses the WHOLE schema at import, and with no `.env` at all its
+  # own AUTH_MODE default (single-user) pairs boot-fatally with AUTH_FALLBACK's (deny). This is the same
+  # value vitest's config supplies for the same reason, so the drift row and this front door resolve under
+  # identical env; it reaches nothing beyond a process that writes one file and exits.
+  compose)
+    shift
+    exec env ORB_ENV_NO_FILE=1 AUTH_FALLBACK=owner "$RUNNER" "$COMPOSE_TS" "$@"
+    ;;
   *)
-    echo "usage: engines.sh {ensure|start|stop|status|sleep|wake|reconcile}"
+    echo "usage: engines.sh {ensure|start|stop|status|sleep|wake|reconcile|compose}"
     exit 2
     ;;
 esac
