@@ -53,7 +53,8 @@ export const DEFAULT_SESSION_TTL_MIN = 30;
 export const DEFAULT_SESSION_CAP = 3;
 const MS_PER_MINUTE = 60_000;
 /** How long the client waits for a booting daemon to answer `ping`, on a QUIET box — the launcher's own
- *  readiness ceiling (`stack.sh` READINESS_TIMEOUT 240 s) plus a browser boot. The BASE the ceiling below
+ *  readiness ceiling for a stage (which never cold-spawns engines — `stack.sh`'s own READINESS_TIMEOUT is sized
+ *  for a cold fleet, 960 s, and does not apply here) plus a browser boot. The BASE the ceiling below
  *  derives from; phase 1b's policy (#1232) now owns the stretch this comment used to only promise. */
 const SESSION_BOOT_BASE_MS = 240_000;
 export const SESSION_BOOT_TIMEOUT_MS = budget(SESSION_BOOT_BASE_MS);

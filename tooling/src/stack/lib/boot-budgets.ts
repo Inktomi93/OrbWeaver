@@ -11,13 +11,16 @@
 // `stack-restart-vs-battery-contention`. They are ceilings, not sleeps: a warm boot never reaches them.
 import { budget } from "../../_shared/load-budget.ts";
 
-/** Quiet-box base for the server `/healthz` gate. Must clear a full model cold-load (the gen 8B alone runs
- *  well past a minute); 60s once falsely tore down a server that was still coming up. */
-const SERVER_HEALTHZ_BASE_MS = 180_000;
+/** Quiet-box base for the server `/healthz` gate. Under `adopt-or-start` the WHOLE three-engine fleet
+ *  cold-spawns during boot, and the gate must clear all three — 180 s tore down a booting server on
+ *  2026-09-18 while the fleet (embed + rerank + a 27 B gen) was still loading; 60 s had done the same to
+ *  the 8 B gen alone before that. 900 s is the same cold-load allowance the container overlay gives the
+ *  engines (`docker/compose.engines.yaml` start_period). A warm boot never reaches it (a ceiling, not a sleep). */
+const SERVER_HEALTHZ_BASE_MS = 900_000;
 
 /** Quiet-box base for the wrapper's readiness poll. Stays AHEAD of the healthz gate plus a cold vite
- *  compile, so it never declares boot-timeout while the leader is legitimately still booting. */
-const READINESS_BASE_MS = 240_000;
+ *  compile (~55 s), so it never declares boot-timeout while the leader is legitimately still booting. */
+const READINESS_BASE_MS = 960_000;
 
 const MS_PER_SECOND = 1000;
 
