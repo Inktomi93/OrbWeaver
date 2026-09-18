@@ -124,17 +124,31 @@ case "${mode}" in
     if [ -z "${AUTH_FALLBACK:-}" ]; then
       export AUTH_FALLBACK=owner
     fi
-    if [ -z "${AUTH_FALLBACK_TRUSTED_PEERS:-}" ]; then
-      echo "entrypoint: AUTH_MODE=single-user — the owner is whoever reaches this process over a LOOPBACK socket; a published bridge port is NOT loopback (every request would 401). Use docker/compose.single-user.yaml (bridge + the AUTH_FALLBACK_TRUSTED_PEERS opt-in), docker/compose.host-network.yaml, or AUTH_MODE=local." >&2
+    if [ -n "${AUTH_FALLBACK_TRUSTED_PEERS:-}" ]; then
+      # The no-login mode is safe ONLY while the port is published on loopback: under docker's NAT every
+      # client that reaches the published port arrives from the trusted bridge range, so a non-loopback
+      # publication would make the whole network the owner. The compose echoes ORB_BIND in for this check.
+      case "${ORB_BIND:-127.0.0.1}" in
+        127.*|localhost|::1) ;;
+        *)
+          echo "entrypoint: REFUSING to boot — AUTH_MODE=single-user with AUTH_FALLBACK_TRUSTED_PEERS is published on ORB_BIND=${ORB_BIND}, which would make every device that can reach the port the owner with no login. For other devices use a login: AUTH_MODE=local, AUTH_FALLBACK=deny, AUTH_FALLBACK_TRUSTED_PEERS= (empty) in docker/orbweaver.local.env — then HTTPS in front (docker/README.md)." >&2
+          exit 1
+          ;;
+      esac
+    else
+      echo "entrypoint: AUTH_MODE=single-user without AUTH_FALLBACK_TRUSTED_PEERS — the owner is whoever reaches this process over a LOOPBACK socket; a published bridge port is NOT loopback (every request would 401). The shipped docker/orbweaver.env sets the trusted bridge ranges; docker/compose.host-network.yaml is the other shape." >&2
     fi
     ;;
-  local)
+  local|oidc)
+    # Both cookie modes need SESSION_SECRET (the scrypt pepper + session-token HMAC); an OIDC deployer
+    # should not have to mint one by hand any more than a password-mode one.
     if [ -z "${SESSION_SECRET:-}" ]; then
       state="$(keep_generated session_secret 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')"
       SESSION_SECRET="$(cat "${secrets_dir}/session_secret")"
       export SESSION_SECRET
       echo "entrypoint: SESSION_SECRET ${state} at ${secrets_dir}/session_secret" >&2
     fi
+    [ "${mode}" = oidc ] && exec "$@"
     if [ -z "${LOCAL_INITIAL_PASSWORD:-}" ]; then
       state="$(keep_generated initial_password 'process.stdout.write(require("node:crypto").randomBytes(15).toString("base64url"))')"
       LOCAL_INITIAL_PASSWORD="$(cat "${secrets_dir}/initial_password")"
@@ -155,7 +169,7 @@ case "${mode}" in
     fi
     ;;
   *)
-    : # oidc / forward-header: every required value is explicit config; the env schema refuses a partial one at boot.
+    : # forward-header: every required value is explicit config; the env schema refuses a partial one at boot.
     ;;
 esac
 

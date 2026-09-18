@@ -36,10 +36,14 @@ test("compose publishes on loopback by default, ships a credentialed login mode,
   expect(compose.match(/^ {2}[a-z][\w-]*:$/gmu)).toEqual(["  orbweaver:"]);
   expect(compose).toContain('"${ORB_BIND:-127.0.0.1}:${ORB_PORT:-8788}:8788"');
   expect(compose).not.toMatch(/^\s*- "8788:8788"/mu);
-  // the tracked defaults: a credentialed mode (single-user 401s through a bridge port) + deny
-  expect(env).toMatch(/^AUTH_MODE=local$/mu);
-  expect(env).toMatch(/^AUTH_FALLBACK=deny$/mu);
+  // the tracked defaults: no-login single-user, safe ONLY because the port is loopback-published — the
+  // trusted bridge ranges are the docker-NAT counterpart of a loopback peer, and the entrypoint refuses the
+  // mode on a non-loopback ORB_BIND (pinned below).
+  expect(env).toMatch(/^AUTH_MODE=single-user$/mu);
+  expect(env).toMatch(/^AUTH_FALLBACK=owner$/mu);
+  expect(env).toMatch(/^AUTH_FALLBACK_TRUSTED_PEERS=172\.16\.0\.0\/12,/mu);
   expect(env).toMatch(/^CREDENTIALS_KEY_AUTO=true$/mu);
+  expect(compose).toContain("ORB_BIND: ${ORB_BIND:-127.0.0.1}");
   // no secret VALUE is assigned in the tracked file (commented examples are fine)
   for (const key of ["SESSION_SECRET", "LOCAL_INITIAL_PASSWORD", "OIDC_CLIENT_SECRET", "OPENROUTER_API_KEY", "CREDENTIALS_KEY", "DEBUG_TOKEN"]) {
     expect(env, `${key} must not be assigned in the tracked env file`).not.toMatch(new RegExp(`^${key}=`, "mu"));
@@ -54,12 +58,15 @@ test("the entrypoint keeps its single *_FILE allowlist line (the agent-sdk firew
   expect(shim.match(/^for name in [^;]+; do$/gmu)).toHaveLength(1);
   // single-user's only credential is the owner fallback; the schema refuses the deny pairing
   expect(shim).toContain("export AUTH_FALLBACK=owner");
+  // the no-login default must not survive a non-loopback publication
+  expect(shim).toContain("REFUSING to boot");
+  expect(shim).toMatch(/case "\$\{ORB_BIND:-127\.0\.0\.1\}" in/u);
   // local mode: generated + kept, under the data volume, never printed on later boots
   expect(shim).toContain("keep_generated session_secret");
   expect(shim).toContain("keep_generated initial_password");
 });
 
-test("every compose shape resolves (base + the five overlays)", ({ repoRoot, scratch, skip }) => {
+test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scratch, skip }) => {
   const probe = spawnSync("docker", ["compose", "version"], { encoding: "utf8" });
   if (probe.status !== 0) {
     // A LOUD skip, never a silent pass: without compose on the host these shapes were not validated here.
@@ -83,7 +90,6 @@ test("every compose shape resolves (base + the five overlays)", ({ repoRoot, scr
   const shapes: readonly (readonly [readonly string[], readonly string[]])[] = [
     [["docker-compose.yaml"], []],
     [["docker-compose.yaml", "docker/compose.host-network.yaml"], []],
-    [["docker-compose.yaml", "docker/compose.single-user.yaml"], []],
     [["docker-compose.yaml", "docker/compose.secrets.yaml"], []],
     [["docker-compose.yaml", "docker/compose.dev.yaml"], []],
     [["docker-compose.yaml", "docker/compose.engines.yaml"], ["gen"]],
