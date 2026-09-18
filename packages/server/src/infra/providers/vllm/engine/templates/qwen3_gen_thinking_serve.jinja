@@ -114,6 +114,11 @@
     {%- if content is string %}
         {{- content }}
     {%- elif content is iterable and content is not mapping %}
+        {#- Consecutive TEXT parts get one newline between them (2026-09-18). The stock template glues them:
+            a client that sends the user turn as parts (Qwen Code: three <system-reminder> blocks + the prompt)
+            rendered as `...</system-reminder>What is 17*23?`, and the model read the turn as scaffolding with
+            an empty question. Single-string content and single-part lists are byte-identical to before. -#}
+        {%- set _txt = namespace(n=0) %}
         {%- for item in content %}
             {%- if item is mapping %}
                 {%- if item.type == 'image' or 'image' in item or 'image_url' in item %}
@@ -139,7 +144,9 @@
                     {%- endif %}
                     {{- '<|vision_start|><|video_pad|><|vision_end|>' }}
                 {%- elif 'text' in item %}
+                    {%- if _txt.n > 0 %}{{- '\n' }}{%- endif %}
                     {{- item.text }}
+                    {%- set _txt.n = _txt.n + 1 %}
                 {%- else %}
                     {{- raise_exception('Unexpected item type in content.') }}
                 {%- endif %}
@@ -361,7 +368,7 @@
     {%- elif message.role == 'tool' %}
         {%- set _content_lower = content | lower %}
         {%- set _content_head = _content_lower[:80] %}
-        {%- if content | length < 500 and '$ ' not in content and 'took ' not in _content_lower and ('"error":' in _content_head or 'error:' in _content_head or 'err!' in _content_head or 'fatal:' in _content_head or 'exception:' in _content_head or 'traceback' in _content_head or 'command not found' in _content_head or 'invalid syntax' in _content_head or 'failed to' in _content_head) %}
+        {%- if content | length < 500 and '$ ' not in content and 'took ' not in _content_lower and 'error: (none)' not in _content_lower and 'exit code: 0' not in _content_lower and ('"error":' in _content_head or 'error:' in _content_head or 'err!' in _content_head or 'fatal:' in _content_head or 'exception:' in _content_head or 'traceback' in _content_head or 'command not found' in _content_head or 'invalid syntax' in _content_head or 'failed to' in _content_head) %}
             {%- set ns2.consecutive_failures = ns2.consecutive_failures + 1 %}
         {%- else %}
             {%- set ns2.consecutive_failures = 0 %}
