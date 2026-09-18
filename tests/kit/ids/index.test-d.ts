@@ -57,6 +57,7 @@ test("brandedId<T> accepts plain strings and yields the requested brand", () => 
   expectTypeOf<number>().not.toExtend<z.input<typeof schema>>();
   expectTypeOf<{ readonly wrong: true }>().not.toExtend<z.input<typeof schema>>();
   expectTypeOf<z.infer<typeof schema>>().toEqualTypeOf<UserId>();
+  // @orb-waive brand-in-name-position(userId): z.input is the PRE-parse wire shape — it IS string, not the branded output; ends when z.input infers the branded type
   expectTypeOf<z.input<typeof wrapped>>().toEqualTypeOf<{ userId: string }>();
   expectTypeOf<z.infer<typeof wrapped>>().toEqualTypeOf<{ userId: UserId }>();
   expectTypeOf(schema.parse("u")).toEqualTypeOf<UserId>();

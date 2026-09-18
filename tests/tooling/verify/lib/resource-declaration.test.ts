@@ -7,10 +7,11 @@ import { EXACT_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/re
 import type { ResourceHost } from "../../../../tooling/src/verify/contract/resource-host.ts";
 import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-json.ts";
 import { VENDOR_MIRROR_INDEX, VENDOR_MIRROR_ROOT } from "../../../../tooling/src/verify/contract/resource-vendor.ts";
+import type { SchemaFactStatus } from "../../../../tooling/src/verify/contract/schema-fact.ts";
 import { resolveResourceDeclarations } from "../../../../tooling/src/verify/lib/resource-declaration.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-function fact<T>(source: string, paths: readonly string[], value: T, status: "ready" | "missing" | "empty" | "unresolved" = "ready"): ResourceFact<T> {
+function fact<T>(source: string, paths: readonly string[], value: T, status: SchemaFactStatus = "ready"): ResourceFact<T> {
   const receipt = { source, status, paths, members: paths.length, durationMs: 0 };
   return status === "ready"
     ? { status, value, paths, members: paths.length, receipt }

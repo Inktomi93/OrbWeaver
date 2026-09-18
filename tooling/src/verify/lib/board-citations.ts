@@ -74,6 +74,7 @@ import { warningWorkItems } from "./workitem-liveness.ts";
 /** One board snapshot: every issue the repository has, by number, with the evidence the three class
  *  contracts need (state · board membership · the row's own text). A number ABSENT from this map names no
  *  row — never "the read failed", which throws in the reader long before this map exists. */
+// @orb-waive no-inline-types(BoardStates): consumed within lib/ and ops/ (board-citations family only); not a cross-domain shape; ends when a gate imports it
 export type BoardStates = ReadonlyMap<number, BoardIssueRow>;
 
 /** A citation whose claim the board contradicts — the exit-1 population. */

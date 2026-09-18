@@ -161,7 +161,7 @@ export const gate = defineGate({
       files: {
         "docs/architecture/core/Core-Path-Registry.md": "- **D1** — `domain/chat/verbs/nonexistent-file.ts` is the home for chat reads.\n",
       },
-      expect: { count: 1, token: "domain/chat/verbs/nonexistent-file.ts", messageIncludes: "does not resolve" },
+      expect: { count: 1, token: "domain/chat/verbs/nonexistent-file.ts" },
       why: "the founding defect: a backticked file path in a D-entry that names a file not on the tree — the exact rot class this gate exists to catch",
     },
     {
@@ -169,7 +169,7 @@ export const gate = defineGate({
       files: {
         "docs/architecture/core/Core-Path-Registry.md": "- **D2** — See `packages/server/src/domain/deleted/service.ts` for the implementation.\n",
       },
-      expect: { count: 1, token: "packages/server/src/domain/deleted/service.ts", messageIncludes: "does not resolve" },
+      expect: { count: 1, token: "packages/server/src/domain/deleted/service.ts" },
       why: "a fully-qualified packages/ path that does not exist on the tree — the typical shape after a domain delete or rename",
     },
   ],

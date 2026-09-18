@@ -1,8 +1,9 @@
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
+import type { PathStatusIndex } from "../contract/resource-path.ts";
 
-export type PathStatusIndex = ReadonlyMap<string, "file" | "directory" | "absent" | "outside" | "unresolved">;
+export type { PathStatusIndex } from "../contract/resource-path.ts";
 
 export interface DanglingCitation {
   readonly file: string;

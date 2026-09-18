@@ -85,9 +85,11 @@ export const pickerCellVariants = tv({
     shape: {
       /** A wide picture: a transcript, a shell diagram, a spacing stack, a palette.
        *  16:9 → height = width * 9/16 = width * 0.5625, pixel-snapped. */
+      // @orb-waive css-length-tokens(1px): the `1px` is the CSS `round()` rounding precision, not a design token — a structural mechanic, not a size; ends when round() accepts a token
       landscape: { art: "h-[calc(round(nearest,100cqw*0.5625,1px))]" },
       /** A square picture: a wallpaper thumbnail, an avatar shape.
        *  1:1 → height = width, pixel-snapped. */
+      // @orb-waive css-length-tokens(1px): same structural pixel-snap precision as landscape above
       square: { art: "h-[calc(round(nearest,100cqw,1px))]" },
       /** No picture at all — a label-only cell that must still sit in the same grid as its picture siblings. */
       none: { art: "hidden" },

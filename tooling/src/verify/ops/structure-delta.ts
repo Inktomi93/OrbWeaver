@@ -56,7 +56,8 @@ refuseDirectInvocation(import.meta.url, "pnpm check:structure-delta");
  *  with the mixed runtime (#1584), `selection`/`quiet` with the gate-scoped door (#1964), and
  *  `verdict`/`nonVerdictReason` with this row (#2167). Declaring them optional HERE is what makes each
  *  `!== undefined` guard below a real test instead of dead code the linter is right to flag. */
-type LateManifestFields = "final" | "selection" | "quiet" | "verdict" | "nonVerdictReason";
+const LATE_MANIFEST_FIELDS = ["final", "selection", "quiet", "verdict", "nonVerdictReason"] as const;
+type LateManifestFields = (typeof LATE_MANIFEST_FIELDS)[number];
 type SlotRun = Omit<RunManifest, LateManifestFields> & Partial<Pick<RunManifest, LateManifestFields>>;
 /** `toolErrors` LEFT the writer contract at #2176 Phase F (the legacy dispatcher that raised them is gone),
  *  which does not remove it from the slots already on disk. Declaring it OPTIONAL here is the same move the

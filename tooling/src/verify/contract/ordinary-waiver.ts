@@ -9,17 +9,19 @@ export interface OrdinaryWaiverEngineInput {
   readonly knownPolicies: readonly SelectedGatePolicy[];
 }
 
-export type OrdinaryWaiverMarkerOutcome =
-  | "malformed"
-  | "unknown-policy"
-  | "wrong-authority"
-  | "stale"
-  | "dead-position"
-  | "unbound-trivia"
-  | "ambiguous-trivia"
-  | "over-broad"
-  | "duplicate-target"
-  | "matched";
+export const ORDINARY_WAIVER_MARKER_OUTCOMES = [
+  "malformed",
+  "unknown-policy",
+  "wrong-authority",
+  "stale",
+  "dead-position",
+  "unbound-trivia",
+  "ambiguous-trivia",
+  "over-broad",
+  "duplicate-target",
+  "matched",
+] as const;
+export type OrdinaryWaiverMarkerOutcome = (typeof ORDINARY_WAIVER_MARKER_OUTCOMES)[number];
 
 export interface OrdinaryWaiverMarkerMatch {
   readonly id: string;

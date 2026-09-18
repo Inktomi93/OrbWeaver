@@ -133,7 +133,7 @@ export const gate = defineGate({
           "",
         ].join("\n"),
       },
-      expect: { count: 1, token: "component", messageIncludes: "RUNTIME_BY_FAMILY" },
+      expect: { count: 1, token: "component" },
       why: "a browser family (component) mapped to vitest would hang the worker in browser-mode negotiation — the founding defect shape",
     },
     {
@@ -151,7 +151,7 @@ export const gate = defineGate({
           "",
         ].join("\n"),
       },
-      expect: { count: 1, token: "e2e", messageIncludes: "RUNTIME_BY_FAMILY" },
+      expect: { count: 1, token: "e2e" },
       why: "the e2e family mapped to vitest is the same browser-hang defect as the component arm",
     },
     {

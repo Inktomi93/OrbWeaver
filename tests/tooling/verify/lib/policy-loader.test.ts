@@ -2,7 +2,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
+import type { GateAuthority } from "../../../../tooling/src/verify/contract/gate-authority.ts";
+import type { GatePolicyProofMode } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
+import type { GatePolicyAnalysis } from "../../../../tooling/src/verify/contract/policy-primitives.ts";
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
 import { refusalEnvelope } from "../../../../tooling/src/verify/lib/policy-refusal-envelope.ts";
 import { assertGateFactDescriptor, assertGatePolicyDescriptor } from "../../../../tooling/src/verify/lib/policy-validation.ts";
@@ -17,16 +20,16 @@ function writeModules(root: string, modules: Readonly<Record<string, string>>): 
 }
 
 interface ModuleOptions {
-  readonly analysis?: "syntax" | "types" | "resource";
+  readonly analysis?: GatePolicyAnalysis;
   readonly family?: string;
-  readonly proofMode?: "source" | "types" | "resource";
+  readonly proofMode?: GatePolicyProofMode;
   readonly population?: string;
   readonly exportName?: string;
   readonly extra?: string;
   readonly prototype?: string;
   readonly severity?: "error" | "warning";
   /** Defaults to `hard`; warning fixtures therefore prove that severity does not open a suppression door. */
-  readonly authority?: "hard" | "ordinary" | "reviewed-grant";
+  readonly authority?: GateAuthority;
   readonly secondDescriptor?: boolean;
   readonly resources?: string;
 }

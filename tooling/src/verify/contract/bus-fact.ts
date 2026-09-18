@@ -69,7 +69,7 @@ export interface BusRecord {
 
 export interface BusUnresolvedIdentity {
   readonly stage: "union" | "belt" | "member" | "emitter";
-  readonly reason: "unsupported" | "dynamic" | "write" | "cycle" | "ambiguous" | "missing";
+  readonly reason: ReferenceUnresolvedReason;
   readonly detail: string;
   readonly expected: BusDeclarationIdentity | null;
   readonly anchor: BusAnchor | null;

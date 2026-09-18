@@ -12,4 +12,5 @@
  *  `string`, and a read whose type is a strict SUPERSET of the vocabulary all passed silently, while the
  *  legacy hardcoded-literal readers caught the `string` case. Only a CLOSED literal union that provably
  *  omits a vocabulary member is another axis; everything else is fail-closed evidence. */
-export type RoleAxisVerdict = "on-axis" | "foreign" | "unreadable";
+export const ROLE_AXIS_VERDICTS = ["on-axis", "foreign", "unreadable"] as const;
+export type RoleAxisVerdict = (typeof ROLE_AXIS_VERDICTS)[number];
