@@ -86,34 +86,27 @@ import { blankTsComments } from "../lib/comment-spans.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import { scanTextCitations } from "../lib/text-cite-scan.ts";
 
-// A repo-relative doc token. Anchored on the `docs/` tier because that is the only one this repo has; a
-// bare `foo.md` in prose is not a repo-path claim and is deliberately out of scope (precision over
-// recall).
+// A repo-relative doc token. Two GRAMMARS, the second added by #1334 to close the bare-filename gap:
 //
-// THAT LIMIT HAS A LIVE OWNER AND A MEASURED SIZE — #1334, which is where the widened recognizer belongs;
-// do not re-argue it here and do not read arm-B membership as coverage of it (#2288, 2026-09-13). Arm B
-// genuinely reaches a root `.cjs`: two-direction planted control on `.dependency-cruiser.cjs`, ONE bounded
-// `--check dangling-doc-cite` run each — a `docs/`-prefixed nonexistent cite is FLAGGED at
-// `.dependency-cruiser.cjs:855:33` (baseline raw 0 → planted raw 1), and its bare-basename twin planted on
-// the very next line is NOT. So membership is proven and the grammar is what limits the verdict. On that
-// same file, measured the same day: 64 `.md` cites, of which exactly ONE is `docs/`-prefixed and the other
-// 63 (14 bare basenames plus one `history/`-relative spelling) are outside this token grammar. All 64
-// resolve today, so this is prospective blindness rather than a live lie — which is precisely why the
-// repair is #1334's widening and not a claim of coverage here.
+//   1. A `docs/`-prefixed repo path — the original grammar. The LOOKBEHIND IS LOAD-BEARING: a vendor URL
+//      carries the same segment, and without the fence three live comments citing a vendor's own published
+//      docs read as phantom REPO paths. The CHARACTER CLASS IS THE TRAILING-COORDINATE FENCE: neither `#`
+//      nor `:` is in the class, so a `#section` anchor and a `:<line>` coordinate already END the match.
 //
-// THE LOOKBEHIND IS LOAD-BEARING: a vendor URL carries the same segment
-// (`https://platform.claude.com/docs/en/…`), and without the fence three live comments citing a vendor's
-// own published docs read as phantom REPO paths. A cite must start at a word boundary to be ours.
-//
-// THE CHARACTER CLASS IS THE TRAILING-COORDINATE FENCE, AND THE LEGACY `trimCite` IT SUPERSEDES WAS DEAD
-// CODE (measured this lane by cutting the whole trim to `return raw`: every row stayed green). Neither
-// `#` nor `:` is in the class, so a `#section` anchor and a `:<line>` coordinate already END the match at
-// the extension; the match is extension-terminated so it can never end in strippable prose punctuation;
-// and no such match can be shorter than the tier prefix plus the extension, which made the legacy
-// `ref.length > "docs/".length` guard unreachable too. Both are deleted rather than documented as limits.
-// (This paragraph deliberately spells no literal example path — under its own `<placeholder>` fence the
-// gate would otherwise flag its own header, which is why the legacy header carried the same warning.)
+//   2. A BARE `.md` basename (#1334) — the house idiom. Comments cite `Documentation-Law.md` or
+//      `Core-0-Architecture-and-Structure.md` without a `docs/` prefix, and 63 of 64 `.md` cites in
+//      `.dependency-cruiser.cjs` alone used this form. The grammar requires a Capital letter or a digit
+//      after a hyphen (the doc-naming convention), so `readme.md` or `changelog.md` — which are NOT doc
+//      cites — stay out. Resolution is against the BASENAME set of all tracked `docs/**/*.md` paths: a bare
+//      cite is a finding only when some `docs/` path with that basename USED TO exist (i.e. it is in the
+//      basename vocabulary) but is now absent from the tracked tree, OR when no such basename exists (which
+//      means the comment names a doc that never existed). A bare cite whose basename matches a LIVE doc is
+//      clean. The `§`/`:` trailing fence is inherited from the character class.
 const DOC_TOKEN_RE = /(?<![\w./-])docs\/[A-Za-z0-9_./+-]*\.md/gu;
+// A bare `.md` basename: at least one Capital letter or digit-after-hyphen to stay in the doc-naming
+// convention. Must start at a word boundary (the lookbehind) and end at `.md`. Group 1 captures the
+// basename so `scanTextCitations` reports it as the token.
+const BARE_DOC_RE = /(?<![/\w.-])([A-Z][A-Za-z0-9_-]*\.md|[A-Za-z]+-[A-Z0-9][A-Za-z0-9_-]*\.md)/gu;
 // A token carrying a glob / brace / placeholder / elision is a PROSE PATTERN, never a literal cite.
 // ONLY THE ELISION HALF IS LIVE, and the split is measured rather than assumed (§4.1 cut, this lane):
 // `*`, `{`, `}`, `<`, `>` and `…` are all OUTSIDE `DOC_TOKEN_RE`'s character class, so a token carrying
@@ -146,6 +139,8 @@ interface Cite {
   readonly ref: string;
   readonly line: number;
   readonly column: number;
+  /** When true the ref is a bare basename (no `docs/` prefix), resolved against the doc-tree basenames. */
+  readonly bare: boolean;
 }
 
 function extOf(path: string): string {
@@ -236,6 +231,49 @@ function commentsOnlySource(sourceFile: SourceFile): string {
   return out;
 }
 
+/** Report one cite if it is dangling — extracted to keep the evaluate body under the complexity cap. */
+function reportCite(
+  cite: Cite,
+  present: ReadonlySet<string>,
+  docBasenames: ReadonlyMap<string, string>,
+  ctx: { readonly report: { readonly file: (path: string, details: { line: number; column: number; token: string; message: string }) => void } },
+): void {
+  if (cite.bare) {
+    // A bare cite resolves against the doc basename set. If the basename matches a live doc it is clean;
+    // otherwise it is dangling (the doc was renamed, moved, or the comment names a doc that never existed).
+    if (!docBasenames.has(cite.ref)) {
+      ctx.report.file(cite.path, {
+        line: cite.line,
+        column: cite.column,
+        token: cite.ref,
+        message: `comment cites bare doc name \`${cite.ref}\` — no doc under \`docs/\` has that basename. Use the full repo-relative path, or fix the doc name.`,
+      });
+    }
+    return;
+  }
+  if (!present.has(cite.ref)) {
+    ctx.report.file(cite.path, {
+      line: cite.line,
+      column: cite.column,
+      token: cite.ref,
+      message: `comment cites \`${cite.ref}\` — no such doc exists. A doc move owes its citer sweep (Documentation-Law.md §Relocation & retirement step 2); a pointer to nowhere is worse than no pointer.`,
+    });
+  }
+}
+
+/** Build a basename to full repo-relative path map from the tracked doc paths under `docs/`. */
+function docBasenameMap(tracked: readonly string[]): ReadonlyMap<string, string> {
+  const out = new Map<string, string>();
+  for (const path of tracked) {
+    if (path.startsWith("docs/") && path.endsWith(".md")) {
+      const slash = path.lastIndexOf("/");
+      const basename = slash === -1 ? path : path.slice(slash + 1);
+      out.set(basename, path);
+    }
+  }
+  return out;
+}
+
 export const gate = defineGate({
   id: "dangling-doc-cite",
   family: "text-citation",
@@ -255,7 +293,13 @@ export const gate = defineGate({
     const collect = (path: string, commentText: string): void => {
       for (const hit of scanTextCitations(commentText, DOC_TOKEN_RE)) {
         if (!NON_LITERAL_RE.test(hit.token)) {
-          cites.push({ path, ref: hit.token, line: hit.line, column: hit.column });
+          cites.push({ path, ref: hit.token, line: hit.line, column: hit.column, bare: false });
+        }
+      }
+      // #1334: bare `.md` basenames — the house idiom for citing docs without the `docs/` prefix.
+      for (const hit of scanTextCitations(commentText, BARE_DOC_RE)) {
+        if (!NON_LITERAL_RE.test(hit.token)) {
+          cites.push({ path, ref: hit.token, line: hit.line, column: hit.column, bare: true });
         }
       }
     };
@@ -273,8 +317,9 @@ export const gate = defineGate({
     return {
       visitFile: (sourceFile) => {
         const raw = sourceFile.getFullText();
-        // The candidate fence: a file whose RAW text cannot match cannot match blanked either.
-        if (raw.includes("docs/")) {
+        // The candidate fence: a file whose RAW text cannot match either grammar cannot match blanked
+        // either. `.md` is the shared suffix; a file with no `.md` has no cite in either grammar.
+        if (raw.includes(".md")) {
           collect(ctx.relativePath(sourceFile), commentsOnlySource(sourceFile));
         }
       },
@@ -289,15 +334,10 @@ export const gate = defineGate({
         }
         readArmB(members);
         const present = new Set(tracked);
+        // #1334: bare basenames resolve against the doc tree's basename vocabulary.
+        const docBasenames = docBasenameMap(tracked);
         for (const cite of cites) {
-          if (!present.has(cite.ref)) {
-            ctx.report.file(cite.path, {
-              line: cite.line,
-              column: cite.column,
-              token: cite.ref,
-              message: `comment cites \`${cite.ref}\` — no such doc exists. A doc move owes its citer sweep (Documentation-Law.md §Relocation & retirement step 2); a pointer to nowhere is worse than no pointer.`,
-            });
-          }
+          reportCite(cite, present, docBasenames, ctx);
         }
         // What this run MEASURED — every citer file it read — never the census of cites it FOUND. A
         // receipt whose count can legitimately be zero turns its own clean corpus into a refusal
@@ -350,6 +390,16 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "docs/design/login-loading-screen.md" },
       why: "arm B: an XML comment in a shipped public asset — the favicon/orb-mark class the #873 census found dangling",
+    },
+    {
+      mode: "resource",
+      files: {
+        "knip.ts": "export const config = 1;\n",
+        // #1334: a BARE basename cite to a doc that does not exist.
+        "packages/kit/src/bare.ts": "// See Gone-Forever-Design.md for the ruling.\nexport const x = 1;\n",
+      },
+      expect: { count: 1, token: "Gone-Forever-Design.md" },
+      why: "#1334: a bare-basename doc cite (no `docs/` prefix) to a doc that does not exist under `docs/` — the house idiom the original grammar missed",
     },
   ],
   mustPass: [
@@ -433,6 +483,35 @@ export const gate = defineGate({
         "packages/kit/src/anchor.ts": "export const anchor = 1;\n",
       },
       why: "THE NARROWING ROW for arm B's ROOT_EXTS filter: a root `.md` is not a config this gate reads, and widening the root filter to every extension reds this row",
+    },
+    {
+      mode: "resource",
+      files: {
+        "knip.ts": "export const config = 1;\n",
+        // #1334: a bare basename whose doc EXISTS — it resolves, so no finding.
+        "docs/design/Real-Design.md": "---\nkind: design\n---\n\nplanted.\n",
+        "packages/kit/src/bare-ok.ts": "// See Real-Design.md for the design.\nexport const x = 1;\n",
+      },
+      why: "#1334: a bare-basename cite to a doc that EXISTS under `docs/` — the basename resolves and is not a finding",
+    },
+    {
+      mode: "resource",
+      files: {
+        "knip.ts": "export const config = 1;\n",
+        // #1334: a lowercase `.md` reference (like `readme.md`) is NOT a doc cite — the `BARE_DOC_RE`
+        // grammar requires a Capital letter to stay in the doc-naming convention.
+        "packages/kit/src/lower.ts": "// See readme.md for setup instructions.\nexport const x = 1;\n",
+      },
+      why: "#1334 NARROWING ROW: a lowercase bare `.md` (like `readme.md`) is NOT a doc cite — the grammar requires a Capital, and dropping the capital requirement reds this row",
+    },
+    {
+      mode: "resource",
+      files: {
+        "knip.ts": "export const config = 1;\n",
+        // #1334: a bare basename in a STRING LITERAL is not a comment cite — the comment projection excludes it.
+        "packages/kit/src/str.ts": 'export const name = "Gone-Design.md";\n',
+      },
+      why: "#1334: a bare basename in a STRING LITERAL is not a cite — the comment projection excludes it structurally",
     },
   ],
 });
