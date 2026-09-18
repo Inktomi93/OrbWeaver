@@ -13,8 +13,20 @@ import type { AgentSdkCatalogSnapshot } from "../contract/results.ts";
 import type { ConnectionService } from "../contract/service.ts";
 import { persistAgentSdkCatalogSnapshot, readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot.ts";
 
+/** Nothing has ever been discovered — the same shape `getAgentSdkCatalog` serves for a never-refreshed box. */
+const EMPTY_SNAPSHOT: AgentSdkCatalogSnapshot = { fetchedAt: 0, models: [] };
+
 export function createRefreshAgentSdkCatalog(ctx: ConnectionContext): ConnectionService["refreshAgentSdkCatalog"] {
   return async (params: RefreshCatalogParams): Promise<AgentSdkCatalogSnapshot> => {
+    // THE BOOT SPAWN'S ORIGIN (2026-09-18): the catalog-refresh scheduler runs one check IMMEDIATELY at
+    // boot, which enqueues the `refresh-model-catalog` workload, whose agent-sdk lane lands here and forks
+    // the bundled claude runtime. On a box with no host-Claude backend that child could only ever fail, on
+    // every container restart. An absent backend is a NORMAL state, not an outage: serve whatever is
+    // persisted (else the empty snapshot) and never call the discovery op. The `requireBackend` refusal
+    // behind it is the belt; this is the arm that keeps the queue quiet.
+    if (!ctx.hostClaudeAvailable) {
+      return (await readAgentSdkCatalogSnapshot(ctx.db)) ?? EMPTY_SNAPSHOT;
+    }
     let models: AgentSdkCatalogSnapshot["models"];
     try {
       models = await ctx.fetchAgentSdkModels({ signal: params.signal });

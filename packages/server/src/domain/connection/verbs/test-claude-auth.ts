@@ -8,16 +8,28 @@
 // The probe model is the CHEAPEST curated tier (neo parity: "defaults to the cheapest tier") — the haiku
 // entry of the connection-internal shortlist, resolved from the catalog subsystem, never a magic string.
 
-import type { VerifyAuthResult } from "@orb/contracts/providers";
+import type { HostClaudeAuthReport } from "@orb/contracts/providers";
 import type { ConnectionContext } from "../context.ts";
 import type { TestClaudeAuthParams } from "../contract/params.ts";
 import type { ConnectionService } from "../contract/service.ts";
 import { cheapestChatModelId } from "../substrate/probe-model.ts";
 
+/** The two deployment states that have no probe to run (`foundation/env/host-claude.ts` decides which). */
+const REPORT_OFF: HostClaudeAuthReport = { state: "off" };
+const REPORT_NOT_SET_UP: HostClaudeAuthReport = { state: "not-set-up" };
+
 export function createTestClaudeAuth(ctx: ConnectionContext): ConnectionService["testClaudeAuth"] {
-  return async ({ principal }: TestClaudeAuthParams): Promise<VerifyAuthResult> => {
-    // Owner gate (D17) runs inside credentials' max-pro-sub mint — rejects for a non-owner.
+  return async ({ principal }: TestClaudeAuthParams): Promise<HostClaudeAuthReport> => {
+    // Owner gate (D17) runs inside credentials' max-pro-sub mint — rejects for a non-owner. It stays FIRST:
+    // the deployment states below are facts about this box, and a non-owner is refused before learning any.
     const credential = await ctx.resolveCredential({ principal, source: "max-pro-sub" });
-    return await ctx.verifyClaudeAuth({ credential, model: cheapestChatModelId() });
+    // No backend, no probe. Reporting `ok:false` here would tell the owner their subscription was REJECTED
+    // when nothing was ever asked — and asking is precisely what forks the bundled runtime that this state
+    // exists to keep unforked (2026-09-18).
+    if (!ctx.hostClaudeAvailable) {
+      return ctx.claudeBackendPosture === "off" ? REPORT_OFF : REPORT_NOT_SET_UP;
+    }
+    const verify = await ctx.verifyClaudeAuth({ credential, model: cheapestChatModelId() });
+    return { state: "ready", verify };
   };
 }

@@ -378,6 +378,124 @@ describe("host-owned isolation pins survive the escape hatch (#1536)", () => {
   });
 });
 
+// 2026-09-18 — THE HEADLESS SUBSCRIPTION CREDENTIAL. A container has no browser, so the documented way in is
+// `claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN`. It reaches the child ONLY because mode-1 writes it
+// explicitly: `hostEnvForClaudeChild()` copies an ALLOWLIST that excludes the whole CLAUDE_*/ANTHROPIC_*
+// namespace (`isAmbientClaudeEnvKey`), and the SDK's `env: {...process.env}` is only a DEFAULT we always
+// override. Both directions are pinned here — mode-1 CARRIES it, mode-2/4 must NOT (a sub token inside an
+// OpenRouter spawn is the ban-risk leak the whole firewall exists for).
+//
+// These re-import the barrel per case for the same reason the isolation block below does: the config-dir
+// decision is memoized per process, so the arms must not share a module instance.
+const SETUP_TOKEN = "sk-ant-oat01-SETUP-TOKEN-SECRET";
+
+describe("mode-1 OAuth-token arm (the container's headless subscription credential)", () => {
+  afterEach(() => {
+    vi.doUnmock("node:fs");
+    vi.resetModules();
+  });
+
+  async function loadWithoutCredentialsFile(): Promise<typeof import("@orb/server/infra/providers/backends/agent-sdk")> {
+    vi.doMock("node:fs", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("node:fs")>();
+      return {
+        ...actual,
+        existsSync: (p: Parameters<typeof actual.existsSync>[0]) => (typeof p === "string" && p.endsWith(CREDS_SUFFIX) ? false : actual.existsSync(p)),
+      };
+    });
+    vi.resetModules();
+    return await import(AGENT_SDK_BARREL);
+  }
+
+  test("with NO credentials file, the token REACHES the child and the config dir is an empty isolated one", async () => {
+    vi.stubEnv("CLAUDE_CODE_OAUTH_TOKEN", SETUP_TOKEN);
+    const mod = await loadWithoutCredentialsFile();
+
+    const env = mod.buildClaudeSdkEnv();
+
+    // Before this arm the token could not reach the runtime AT ALL — the host baseline strips the namespace.
+    expect(env["CLAUDE_CODE_OAUTH_TOKEN"], "a token-only container must be able to authenticate").toBe(SETUP_TOKEN);
+    // …and the spawn is still ISOLATED: an empty dir, so the host ~/.claude skills/memory/settings stay out
+    // of a potentially-adversarial RP subprocess (the old no-creds path left the config dir un-overridden).
+    const dir = env["CLAUDE_CONFIG_DIR"] as string | undefined;
+    expect(dir).toBeDefined();
+    expect(env["ANTHROPIC_CONFIG_DIR"]).toBe(dir);
+    expect(existsSync(join(dir as string, CREDS_SUFFIX)), "the token arm's dir holds no credential file").toBe(false);
+    // The metered first-party key stays pinned off on every mode-1 arm.
+    expect(env["ANTHROPIC_API_KEY"]).toBeUndefined();
+  });
+
+  test("with a credentials FILE present, the file arm wins and the token is NOT passed", async () => {
+    vi.stubEnv("CLAUDE_CODE_OAUTH_TOKEN", SETUP_TOKEN);
+    vi.doMock("node:fs", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("node:fs")>();
+      return {
+        ...actual,
+        existsSync: (p: Parameters<typeof actual.existsSync>[0]) => (typeof p === "string" && p.endsWith(CREDS_SUFFIX) ? true : actual.existsSync(p)),
+      };
+    });
+    vi.resetModules();
+    const mod = await import(AGENT_SDK_BARREL);
+
+    const env = mod.buildClaudeSdkEnv();
+
+    // The file is the credential this process actively REFRESHES (host-token.ts rewrites it before a spawn);
+    // preferring the token here would hand the runtime a credential nothing can renew.
+    expect(env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
+    expect(Object.values(env), "the token must not leak under another name either").not.toContain(SETUP_TOKEN);
+    expect(lstatSync(join(env["CLAUDE_CONFIG_DIR"] as string, CREDS_SUFFIX)).isSymbolicLink()).toBe(true);
+  });
+
+  test("an EMPTY token is honestly unset — no config-dir override, nothing passed", async () => {
+    // The container's secret plumbing produces empty strings for an empty/absent secret file; treating one
+    // as a credential would register a backend that cannot log in.
+    vi.stubEnv("CLAUDE_CODE_OAUTH_TOKEN", "");
+    const mod = await loadWithoutCredentialsFile();
+
+    const env = mod.buildClaudeSdkEnv();
+
+    expect(env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
+    expect(env["CLAUDE_CONFIG_DIR"]).toBeUndefined();
+  });
+
+  test("the PAID skins never carry the token, even with one exported (the ban-risk leak)", () => {
+    vi.stubEnv("CLAUDE_CODE_OAUTH_TOKEN", SETUP_TOKEN);
+    for (const env of [buildClaudeOpenRouterEnv(OR_KEY, TIER_MODELS), buildClaudeAnthEnv(ANTH_KEY)]) {
+      expect(env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
+      expect(Object.values(env)).not.toContain(SETUP_TOKEN);
+    }
+  });
+
+  test("CLAUDE_CONFIG_DIR is honored end to end — the credentials probe follows it", async () => {
+    // The container sets CLAUDE_CONFIG_DIR into its persisted data volume so a one-time in-container
+    // `claude login` survives a restart. The probe must look THERE, not at homedir()/.claude — otherwise the
+    // login is written to a path this process never reads and the box reports "not set up" forever.
+    // `vi.resetModules()` re-parses `foundation/env`, so the stub below is the value the build actually sees.
+    const configDir = "/app/data/claude";
+    vi.stubEnv("CLAUDE_CONFIG_DIR", configDir);
+    const probed: string[] = [];
+    vi.doMock("node:fs", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("node:fs")>();
+      return {
+        ...actual,
+        existsSync: (p: Parameters<typeof actual.existsSync>[0]) => {
+          if (typeof p === "string" && p.endsWith(CREDS_SUFFIX)) {
+            probed.push(p);
+            return false;
+          }
+          return actual.existsSync(p);
+        },
+      };
+    });
+    vi.resetModules();
+    const mod = await import(AGENT_SDK_BARREL);
+
+    mod.buildClaudeSdkEnv();
+
+    expect(probed, "the mode-1 build must probe the CONFIG-DIR credentials path, not the home one").toEqual([join(configDir, CREDS_SUFFIX)]);
+  });
+});
+
 describe("mode-1 (Max sub) firewall", () => {
   test("the OR-skin trio is nulled so a stale ambient export can't repoint the free sub at a paid endpoint", () => {
     vi.stubEnv("ANTHROPIC_BASE_URL", "https://stale-paid.example");

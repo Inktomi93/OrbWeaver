@@ -17,6 +17,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
 import { AddCredentialDialog } from "../../../../packages/client/src/features/credentials/components/add-credential-dialog.tsx";
+import { ConnectionsHostClaudeSection } from "../../../../packages/client/src/features/credentials/components/connections-host-claude-section.tsx";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
 import { ModelPicker } from "../../../../packages/client/src/features/credentials/components/model-picker.tsx";
 import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
@@ -226,6 +227,19 @@ function ConnectionsPaneInner(): ReactElement {
         refetch settings
       </button>
     </div>
+  );
+}
+
+/** The Host Claude section ALONE — the owner's "Test Claude auth" surface. Mounted on its own (rather than
+ *  through the whole Connections pane) so the three deployment states it now renders can be driven with one
+ *  stubbed procedure instead of the roles pane's whole read set. */
+export function HostClaudeSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720 }}>
+        <ConnectionsHostClaudeSection />
+      </div>
+    </CtDataProviders>
   );
 }
 

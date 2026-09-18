@@ -73,7 +73,7 @@ let embedModel = "";
 const queryVectors = new Map<string, Float32Array>();
 
 async function embedAll(inputs: readonly string[], inputType: "query" | "document"): Promise<EmbedResult> {
-  const { backends } = createBackendRegistry({ now: () => Date.now(), vllmDisabled: false });
+  const { backends } = createBackendRegistry({ now: () => Date.now(), vllmDisabled: false, hostClaudeDisabled: false });
   const executor = createProviderExecutor({ backends });
   // The deployment's OWN resolved embed model (the `backend-matrix.live` precedent for reading `orbEnv`) —
   // never a hardcoded id, so the floor is measured against whatever the box actually serves.

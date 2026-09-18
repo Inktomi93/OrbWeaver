@@ -152,4 +152,31 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
 
     expect(verdict).toEqual({ available: false, cause: "engine-off" });
   });
+
+  // 2026-09-18 — the max-pro-sub twin of `engine-off`. The backend became OPTIONAL (registered only when a
+  // Claude subscription credential is present, or CLAUDE_BACKEND=on), and `resolveChat` cannot see that: the
+  // max-pro-sub credential mint is OWNER-gated, not backend-gated, so it resolves perfectly on a box with no
+  // backend at all. Without this arm the composer reads AVAILABLE and the send fails LATE at `requireBackend`
+  // — the exact "the button lied" shape this gate exists to prevent.
+  test("a chat routed to the sub is unavailable when the host-Claude backend is absent (host-claude)", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "agent-sdk", source: "max-pro-sub" } });
+    h.setHostClaude(false, "auto");
+    const svc = createConnectionService(h.ctx);
+
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
+
+    expect(verdict).toEqual({ available: false, cause: "host-claude" });
+  });
+
+  // POSITIVE CONTROL — the arm keys on the REGISTRATION fact, not on the source: an available sub still sends.
+  test("the same chat is AVAILABLE when the host-Claude backend is registered", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "agent-sdk", source: "max-pro-sub" } });
+    const svc = createConnectionService(h.ctx);
+
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
+
+    expect(verdict).toEqual({ available: true });
+  });
 });

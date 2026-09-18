@@ -31,6 +31,7 @@ import type { ConnectionService } from "../contract/service.ts";
 const UNAVAILABLE_NO_CONNECTION: ChatSendAvailability = { available: false, cause: "no-connection" };
 const UNAVAILABLE_ENGINE_OFF: ChatSendAvailability = { available: false, cause: "engine-off" };
 const UNAVAILABLE_ENGINE_DOWN: ChatSendAvailability = { available: false, cause: "engine-down" };
+const UNAVAILABLE_HOST_CLAUDE: ChatSendAvailability = { available: false, cause: "host-claude" };
 const AVAILABLE: ChatSendAvailability = { available: true };
 
 /** The LOCAL vLLM serveability arm — off/absent → engine-off; a DOWN engine under the passive `adopt-only`
@@ -63,8 +64,21 @@ export function createCheckChatAvailability(ctx: ConnectionContext, resolveChat:
       }
       throw error;
     }
-    // Only the local vLLM arm has deterministic reachability gaps; every hosted/agent source is unconditionally
-    // wired (and never pre-flighted).
-    return resolvedSource === "vllm" ? resolveLocalVllmAvailability(ctx) : AVAILABLE;
+    return resolveBackendAvailability(ctx, resolvedSource);
   };
+}
+
+/** The two sources with a deterministic availability gap the RESOLUTION itself cannot see, because both are
+ *  about whether the BACKEND WAS REGISTERED at boot rather than about the chat's own configuration:
+ *    • vllm        — posture/GPU/engine liveness ({@link resolveLocalVllmAvailability}).
+ *    • max-pro-sub — the host-Claude backend is absent when `CLAUDE_BACKEND=off` or no subscription
+ *                    credential was detected (2026-09-18). `resolveChat` still resolves cleanly — the
+ *                    max-pro-sub credential mint is OWNER-gated, not backend-gated — so without this arm the
+ *                    composer reads AVAILABLE and the send fails LATE at `requireBackend`.
+ *  Every other hosted source stays unconditionally wired and is never pre-flighted. */
+function resolveBackendAvailability(ctx: ConnectionContext, source: string): ChatSendAvailability {
+  if (source === "max-pro-sub") {
+    return ctx.hostClaudeAvailable ? AVAILABLE : UNAVAILABLE_HOST_CLAUDE;
+  }
+  return source === "vllm" ? resolveLocalVllmAvailability(ctx) : AVAILABLE;
 }

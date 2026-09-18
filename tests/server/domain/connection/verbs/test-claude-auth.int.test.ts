@@ -25,13 +25,55 @@ describe("testClaudeAuth", () => {
     // The probe model is the curated haiku entry — a health check never burns the opus tier.
     expect(h.verifyCalls).toEqual([{ source: "max-pro-sub", model: "claude-haiku-4-5-20251001" }]);
     expect(result).toEqual({
-      source: "max-pro-sub",
-      ok: true,
-      apiKeySource: "none",
-      model: "claude-haiku-4-5-20251001",
-      reply: "ok",
-      costUsd: 0.0001,
+      state: "ready",
+      verify: {
+        source: "max-pro-sub",
+        ok: true,
+        apiKeySource: "none",
+        model: "claude-haiku-4-5-20251001",
+        reply: "ok",
+        costUsd: 0.0001,
+      },
     });
+  });
+
+  // 2026-09-18 — THE BACKEND MAY NOT EXIST. `CLAUDE_BACKEND=off`, or no subscription credential detected,
+  // means the agent-sdk backend was never constructed, so there is nothing to probe. The verb must say so
+  // WITHOUT calling the verify diagnostic: that call is what forks the bundled claude runtime, and a
+  // container with no credential forking a doomed child on every restart is the incident this closes.
+  // The two states stay DISTINCT because their fixes are (turn the knob back on vs log in / paste a token).
+  test("CLAUDE_BACKEND=off reports `off` and never touches the verify diagnostic", async () => {
+    const db = await freshDb();
+    const h = makeConnHarness(db);
+    h.setHostClaude(false, "off");
+    const svc = createConnectionService(h.ctx);
+
+    expect(await svc.testClaudeAuth({ principal: principal(castId<UserId>("user_owner")) })).toEqual({ state: "off" });
+    expect(h.verifyCalls, "an absent backend must not be probed — the probe IS the spawn").toEqual([]);
+  });
+
+  test("no credential detected reports `not-set-up` and never touches the verify diagnostic", async () => {
+    const db = await freshDb();
+    const h = makeConnHarness(db);
+    h.setHostClaude(false, "auto");
+    const svc = createConnectionService(h.ctx);
+
+    expect(await svc.testClaudeAuth({ principal: principal(castId<UserId>("user_owner")) })).toEqual({ state: "not-set-up" });
+    expect(h.verifyCalls).toEqual([]);
+  });
+
+  // The owner gate stays AHEAD of the deployment states: a non-owner learns nothing about this box's setup.
+  test("a non-owner is refused even when the backend is absent (the D17 gate runs first)", async () => {
+    const db = await freshDb();
+    const h = makeConnHarness(db);
+    h.setHostClaude(false, "off");
+    const ctx = {
+      ...h.ctx,
+      resolveCredential: (): Promise<never> => Promise.reject(new DomainForbiddenError("max-pro-sub is owner-only")),
+    };
+    const svc = createConnectionService(ctx);
+
+    await expect(svc.testClaudeAuth({ principal: principal(castId<UserId>("user_member")) })).rejects.toBeInstanceOf(DomainForbiddenError);
   });
 
   test("a credentials-side owner-gate rejection propagates BEFORE any verify spend", async () => {

@@ -31,6 +31,9 @@ import {
   effectiveVllmDisabled,
   enginesPostureInput,
   env,
+  hostClaudeInput,
+  hostClaudeNotice,
+  hostClaudeWarnings,
   ownerFallbackCredentialInput,
   ownerFallbackPeerInput,
   ownerFallbackPeerWarnings,
@@ -38,6 +41,7 @@ import {
   resolveBindPosture,
   resolveDiagnosticsPosture,
   resolveEnginesPosture,
+  resolveHostClaudePosture,
   resolveOwnerFallbackCredential,
   resolveOwnerFallbackPeers,
 } from "#foundation/env";
@@ -433,6 +437,18 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const vllmDisabled = effectiveVllmDisabled(posture, gpuPresent);
     log.info({ gpuPresent, posture, vllmDisabled }, "boot: gpu-detect → engines posture → effective vLLM availability");
 
+    // The HOST-CLAUDE POSTURE (foundation/env/host-claude.ts holds the model + the 2026-09-18 incident):
+    // CLAUDE_BACKEND × credential detection decides whether the agent-sdk backend is registered at all. The
+    // notice is ALWAYS logged — "the Claude backend silently isn't there" is the state that produced the
+    // incident, so it has to be readable in the boot log — and it names the credential SOURCE, never a value
+    // (the `diagnostics.ts` rule). Resolved HERE and handed down, so the registration gate and every
+    // connection surface answer from one resolution.
+    const hostClaude = resolveHostClaudePosture(hostClaudeInput());
+    log.info({ hostClaude }, `boot: ${hostClaudeNotice(hostClaude)}`);
+    for (const warning of hostClaudeWarnings(hostClaude)) {
+      log.warn({ hostClaude: hostClaude.posture }, `boot: ${warning}`);
+    }
+
     // The DIAGNOSTICS POSTURE report (foundation/env/diagnostics.ts holds the model): one line stating who
     // can reach the box, who can open /api/_debug, and what the recorders are holding — then a WARN per
     // exposure that needs closing, each naming the knob that closes it. A healthy posture logs the info
@@ -459,6 +475,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       sessionSecret: env.SESSION_SECRET ?? null,
       vllmDisabled,
       vllmManages: postureManages(posture),
+      hostClaude,
       repoRoot: process.cwd(),
       holder,
     });

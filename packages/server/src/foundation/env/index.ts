@@ -5,7 +5,8 @@
 // Every other tier imports `env` and dot-accesses a typed key. This file is the sole place that touches
 // process.env; never written, parsed once, frozen, read down as the floor.
 
-import { readFileSync } from "node:fs";
+import { accessSync, constants, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
@@ -17,6 +18,8 @@ import { resolveBindPosture } from "./bind.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
 import { resolveOwnerFallbackPeers } from "./fallback-peers.ts";
+import type { HostClaudeInput } from "./host-claude.ts";
+import { CLAUDE_BACKEND_POSTURES, HOST_CLAUDE_OAUTH_TOKEN_ENV, hostClaudeConfigDir, hostClaudeCredentialsPath } from "./host-claude.ts";
 import type { EnginesPosture } from "./posture.ts";
 import { ENGINES_POSTURES } from "./posture.ts";
 
@@ -26,6 +29,18 @@ export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, 
 export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
 export type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./fallback-peers.ts";
 export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
+export type { ClaudeBackendPosture, HostClaudeCredentialSource, HostClaudeInput, HostClaudePosture } from "./host-claude.ts";
+export {
+  CLAUDE_BACKEND_POSTURES,
+  HOST_CLAUDE_CREDENTIAL_SOURCES,
+  HOST_CLAUDE_CREDENTIALS_FILE,
+  HOST_CLAUDE_OAUTH_TOKEN_ENV,
+  hostClaudeConfigDir,
+  hostClaudeCredentialsPath,
+  hostClaudeNotice,
+  hostClaudeWarnings,
+  resolveHostClaudePosture,
+} from "./host-claude.ts";
 export type { EnginesPosture } from "./posture.ts";
 export { ENGINES_POSTURES, effectiveVllmDisabled, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture.ts";
 
@@ -418,6 +433,23 @@ const envSchema = z
     //                    restart/breaker + the auto-sleep timer. The dev/prod server.
     // Unset ⇒ resolved from the DEPRECATED VLLM_DISABLED/STACK_ENGINES pair with a visible log (resolveEnginesPosture).
     ENGINES_POSTURE: z.enum(ENGINES_POSTURES).optional(),
+    // The ONE host-Claude (agent-sdk / max-pro-sub) topology knob — the same explicit-posture shape as
+    // ENGINES_POSTURE above, for the same reason (`host-claude.ts` holds the model + the 2026-09-18 incident):
+    //   off  — the backend is never registered and the bundled claude runtime never spawns.
+    //   auto — (default) registered when a subscription credential is DETECTED; otherwise absent and quiet.
+    //   on   — registered on the operator's word (detection cannot see a macOS Keychain login); the first
+    //          use runs the SDK's own auth probe.
+    CLAUDE_BACKEND: z.enum(CLAUDE_BACKEND_POSTURES).optional(),
+    // The Claude config dir the bundled runtime reads its login from (and `claude login` writes it to).
+    // Unset ⇒ `homedir()/.claude`. A container sets it into the persisted data volume so a one-time
+    // in-container `claude login` survives a restart. NOT a secret — a path.
+    CLAUDE_CONFIG_DIR: z.string().min(1).optional(),
+    // CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY are DELIBERATELY NOT PARSED HERE. Two reasons, both
+    // load-bearing: (a) `env` is parsed once at module load and frozen, and a credential can arrive AFTER
+    // boot (a container secret mounted late, `claude setup-token` exported into a restarted shell) — the
+    // #1406 no-latch rule, which is why `hostClaudeInput()` below reads them live from the process
+    // snapshot; (b) keeping a BEARER credential out of the frozen, widely-imported `env` object shrinks the
+    // set of places that could ever echo it. Their one reader is `buildClaudeSdkEnv` (mode-1).
     // The manager-posture auto-sleep idle window (ms) — an idle engine (running==0 && waiting==0 && success
     // counters unchanged) is /sleep'd after this. `0` disables. Default 10 min: wake is seconds (cheap to be
     // wrong toward shorter), but in-chat thinking pauses routinely hit 5 min, so 10 keeps a live session warm
@@ -776,6 +808,50 @@ export function diagnosticsPostureInput(): DiagnosticsPostureInput {
  *  reader; `entry/lifecycle` composes it into the auth seam, which owns no copy of the rule. */
 export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
   return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK, fallbackWidened: resolveOwnerFallbackPeers(ownerFallbackPeerInput()).widened };
+}
+
+/** The raw inputs the HOST-CLAUDE posture resolver reads (`host-claude.ts` holds the model, the three arms
+ *  and the incident). Same seam shape as `enginesPostureInput`, with ONE addition this file is the right
+ *  home for: the credentials-file probe. It is ambient ENVIRONMENT exactly like a variable is — and it has
+ *  to be read HERE because two callers (the backend-registration gate at compose and the mode-1 child-env
+ *  builder in infra) must agree on the same answer, which a second probe site could not guarantee.
+ *
+ *  SECRET DISCIPLINE: only WHETHER a credential is set crosses this seam, never a value (the
+ *  `diagnosticsPostureInput` rule). The token VALUE has exactly one reader — `buildClaudeSdkEnv` — and it
+ *  takes it from `env` directly rather than through a posture nobody can log safely.
+ *
+ *  Re-read per call, never memoized: a credential can be mounted or created after boot (a container secret
+ *  landing late, an operator running `claude login` on a live box) — the #1406 no-latch rule. */
+export function hostClaudeInput(): HostClaudeInput {
+  const configDir = hostClaudeConfigDir(env.CLAUDE_CONFIG_DIR, homedir());
+  const live = processEnvSnapshot();
+  return {
+    posture: env.CLAUDE_BACKEND,
+    anthropicApiKeySet: isSetNonEmpty(live["ANTHROPIC_API_KEY"]),
+    oauthTokenSet: isSetNonEmpty(live[HOST_CLAUDE_OAUTH_TOKEN_ENV]),
+    credentialsFileReadable: isReadableFile(hostClaudeCredentialsPath(configDir)),
+    configDir,
+  };
+}
+
+/** Set AND non-empty. An empty string is honestly "unset" — the entrypoint's `*_FILE` shim exports an empty
+ *  value for an empty secret file, and treating that as a credential is how a box registers a backend that
+ *  cannot log in. */
+function isSetNonEmpty(value: string | undefined): boolean {
+  return value !== undefined && value.length > 0;
+}
+
+/** Is this path a readable FILE right now? `accessSync(R_OK)` rather than `existsSync`: a credentials file
+ *  the app cannot read (wrong uid after a PUID/PGID drop, a bad bind-mount) is not a credential, and calling
+ *  it one is how you get the spawn-that-can-only-fail back. Any failure is "no", never a throw. */
+function isReadableFile(path: string): boolean {
+  // @orb-waive caught-failure-ownership(catch): a probe whose ONLY verdict is a boolean — an unreadable/missing/permission-denied credentials file all mean the same thing to every caller ("not detected"), and the false answer FAILS CLOSED (the backend stays unregistered, nothing spawns). Ends if this probe ever gates something that opens rather than closes.
+  try {
+    accessSync(path, constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** The raw inputs the OWNER-FALLBACK PEER-SET resolver reads (`fallback-peers.ts` holds the rule, the hazard

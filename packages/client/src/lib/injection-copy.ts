@@ -170,6 +170,9 @@ const SEND_UNAVAILABLE_REASON: Record<ChatUnavailableCause, string> = {
   "engine-off": "Local engine is off — enable it to send.",
   // A registered local engine is DEAD and won't self-recover (down under adopt-only) — start it.
   "engine-down": "Local engine is down — start it to send.",
+  // The host-Claude (Claude subscription) backend is not registered on this deployment — off by knob, or no
+  // credential detected. Both fixes live on the same pane, which is where the two are told apart.
+  "host-claude": "Claude subscription isn't set up on this server — set it up in Settings → Connections to send.",
   // No working connection (no credential row / no configured connection / broken routing).
   "no-connection": "This chat has no working connection — configure one to send.",
   // The generic fallback: the resolved backend isn't serveable and no specific cause fits.
