@@ -181,7 +181,7 @@ is lost by collapsing it.
   That was wrong — the probe stopped at `stop_reason: "tool_use"` and read "turn not finished" as "prose
   dropped." Corrected here; the empty-text-in-one-call observation itself reproduces on both wires.
 
-**PRIOR ART — `rpg-companion-sillytavern`** (`neo-tavern/references/`) lands on the SAME axis, which is a
+**PRIOR ART — `rpg-companion-sillytavern`** (the previous codebase’s `references/`) lands on the SAME axis, which is a
 useful independent check on R1's framing: it ships exactly two "Generation Modes" — **Together** (one call)
 vs **Separate** (a second call). But its mechanism is **text extraction**: tracker data is emitted *inside*
 the prose and regexed out. Its own README lists the inherent cost — *"Tracker formatting mixed in AI

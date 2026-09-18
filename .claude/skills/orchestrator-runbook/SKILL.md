@@ -169,7 +169,7 @@ preserved as the recorded condition rather than rewritten into a description of 
 - **POST-COMPACT LIVENESS:** `~/.claude/bridge/SESSIONS.md` is the claude-b
   session REGISTRY — read it before any claude-b spawn; the standing session there is RESUMED
   (`--resume <id>`), never re-minted (endless fresh spawns lose its accumulated context); a live
-  process check is `ps ax | grep -F 'CLAUDE_CONFIG_DIR=/home/inktomi/.claude-b'`.
+  process check is `ps ax | grep -F 'CLAUDE_CONFIG_DIR=$HOME/.claude-b'`.
 - **Which account am I, when both accounts load the rules file?** The identity test above is the only
   answer — `CLAUDE_CONFIG_DIR` naming `.claude-b` means this overflow clause does not apply to you, and
   your session is driven by the primary via `-p`/`--resume` when it was delegated (report on stdout and

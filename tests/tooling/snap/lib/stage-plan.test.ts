@@ -162,7 +162,7 @@ test("stageDecision treats a warm dirty stage exactly like any other sha for sta
 // orphaned processes for the ports (measured 2026-08-09; same stage + same DB with the key ⇒ healthz=200).
 
 const DEV_ENV_SAMPLE = [
-  "OWNER_HANDLES=inktomi93@gmail.com",
+  "OWNER_HANDLES=owner@example.com",
   "CREDENTIALS_KEY=3d0f1a2b3c4d5e6f",
   "DEBUG_TOKEN=abadcafeabadcafe",
   "SESSION_SECRET=hunter2hunter2hunter2",
@@ -172,7 +172,7 @@ const DEV_ENV_SAMPLE = [
 
 test("stageInheritedEnv forwards the DB-BOUND keys — the owner handle AND the credentials key", () => {
   const inherited = stageInheritedEnv(DEV_ENV_SAMPLE);
-  expect(inherited["OWNER_HANDLES"]).toBe("inktomi93@gmail.com");
+  expect(inherited["OWNER_HANDLES"]).toBe("owner@example.com");
   expect(inherited["CREDENTIALS_KEY"]).toBe("3d0f1a2b3c4d5e6f");
   // The exact key SET, so a future addition has to come through the allowlist and its reason, not by accident.
   expect(Object.keys(inherited)).toStrictEqual(["OWNER_HANDLES", "CREDENTIALS_KEY"]);

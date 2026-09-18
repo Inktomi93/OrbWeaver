@@ -16,7 +16,7 @@ updated: 2026-09-18
 
 **Study target:** `open-webui/open-webui`, shallow clone at pinned `01f4282f1ffe` (2026-07-27), reused
 from the OIDC study's scratchpad. Receipts prefixed `OW:` are that tree; unprefixed receipts are ours
-(repo-relative, root `/home/inktomi/inktomi-stack/development/orbweaver/`).
+(repo-relative, rooted at this repository).
 
 **Headline.** Open WebUI has **N parallel provisioning paths, each with its own linking policy** —
 OIDC (sub-first, email-*rebind*), token-exchange (repeats the rebind), LDAP (**email-only**, no stable

@@ -31,7 +31,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 /** Verification's placeholder handle (`DEFAULT_USER_HANDLE`, whose schema default is this literal). */
 const OWNER_HANDLE = "owner";
 /** The REAL owner handle on a box that configured one — deliberately ≠ `OWNER_HANDLE`, which is the whole
- *  shape of the D135 defect (the live box ran `OWNER_HANDLES=inktomi93@gmail.com` with the default
+ *  shape of the D135 defect (the live box ran `OWNER_HANDLES=owner@example.com` with the default
  *  `DEFAULT_USER_HANDLE`, and grew a second-class twin at handle "owner"). */
 const REAL_OWNER_HANDLE = "owner@example.test";
 const OWNER_HANDLES_VAR = "OWNER_HANDLES";

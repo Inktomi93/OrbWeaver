@@ -12,7 +12,7 @@ updated: 2026-08-14
 
 **Study target:** `open-webui/open-webui`, shallow clone at `01f4282f1ffe` (2026-07-27), read at
 `/tmp/claude-1000/.../scratchpad/open-webui`. Receipts prefixed `OW:` are that tree; unprefixed
-receipts are ours (repo-relative, absolute root `/home/inktomi/inktomi-stack/development/orbweaver/`).
+receipts are ours (repo-relative, rooted at this repository).
 
 **Headline.** Open WebUI's OIDC is *broader* than ours (group→group sync, group auto-creation,
 back-channel logout, picture ingestion, token-exchange, per-provider session store) and *weaker* at

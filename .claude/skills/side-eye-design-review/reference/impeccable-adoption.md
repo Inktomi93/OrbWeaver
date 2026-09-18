@@ -3,7 +3,7 @@
 > **What this is:** the durable design record for GitHub issue #83 — "using impeccable and
 > integrating it into our stuff." All 59 deterministic detector rules from
 > [pbakaus/impeccable](https://github.com/pbakaus/impeccable) (read at the read-only clone
-> `~/inktomi-stack/development/skills-reference/impeccable`, registry
+> the impeccable design-review reference, registry
 > `cli/engine/registry/antipatterns.mjs`, implementations `cli/engine/rules/checks.mjs`) triaged
 > adopt / adapt / reject against orbweaver law, with the reason on every row. The adapted rules
 > live in OUR detector home — **`tooling/src/ui-audit/`** (paths corrected 2026-09-01; the

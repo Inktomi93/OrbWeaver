@@ -37,7 +37,7 @@
 # book, an ingested databank doc, a preset, tags) through the REAL domain verbs —
 # run it before booting the stack to always land on a populated app.
 #
-# WHY setsid + pidfile (ported from neo-tavern scripts/dev/stack.sh): `pkill -f`
+# WHY setsid + pidfile (ported from the previous codebase’s scripts/dev/stack.sh): `pkill -f`
 # matches the INVOKING shell when the pattern appears in its own command line
 # (agent harnesses wrap commands in bash -c) — the chain kills itself with exit
 # 143. And nothing owning the ports means a second server can silently take

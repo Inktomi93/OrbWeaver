@@ -83,7 +83,7 @@ describe("resolveBindPosture — the DEFAULT arm: a non-production build restric
 });
 
 describe("resolveBindPosture — the REFUSE arm: an explicit dev public bind is boot-fatal", () => {
-  test.each(["0.0.0.0", "::", "192.168.1.50", "orbweaver.inktomi.tech", "0.0.0.0 "])("development + BIND_HOST=%s without the hatch → refusal", (bindHost) => {
+  test.each(["0.0.0.0", "::", "192.168.1.50", "orbweaver.example.com", "0.0.0.0 "])("development + BIND_HOST=%s without the hatch → refusal", (bindHost) => {
     const posture = resolveBindPosture({ nodeEnv: "development", bindHost, ...HATCH_SHUT });
     expect(posture.publicBind).toBe(true);
     expect(posture.refusal).toContain("NON-PRODUCTION");

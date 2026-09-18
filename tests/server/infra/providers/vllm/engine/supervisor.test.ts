@@ -7,6 +7,7 @@
 // prove the flag stays true across the restart-backoff window — a monitor tick landing in that window must
 // NOT double-queue the spawn (which would double-charge the breaker and mislabel an owned engine 'adopted').
 
+import nodeProcess from "node:process";
 import {
   __resetWakeGateCache,
   breakerAllows,
@@ -948,6 +949,174 @@ describe("startVllmEngines — the local-GPU requirement is MANAGER-scoped", () 
       expect(getEngineStatus("embed")?.detail).toBe("no GPU on this host");
       expect(getEngineStatus("gen")?.detail).toBe("no GPU on this host");
       expect(io.triggers).toEqual([]);
+    } finally {
+      stop();
+    }
+  });
+});
+
+// The two OS-SPECIFIC doors this supervisor owns are the `/proc`-backed port-owner read (`enginePortPid`,
+// which shells `ss`) and the PROCESS-GROUP kill (`signalRecordedEngineProcess`). Neither exists on Windows,
+// and macOS has no `/proc` at all — so a non-Linux box may only ever run the PASSIVE postures. `off` never
+// constructs the supervisor (the compose site gates on `postureManages`/`vllmDisabled`), which leaves
+// `adopt-only` as the one posture that DOES construct it on such a box: it must reach neither door, on any
+// platform, whatever the fleet's probe says. Both doors are injected here, so a call is observable.
+describe("startVllmEngines — the passive postures never reach a /proc read or a process-group kill", () => {
+  const engines = ["embed", "rerank", "gen"] as const;
+  const urlEngine = (url: string): string | undefined => engines.find((e) => url.startsWith(engineBaseUrl(e)));
+  const realPlatform = nodeProcess.platform;
+
+  beforeEach(() => {
+    io.healthy.clear();
+    io.occupied.clear();
+    io.triggers.length = 0;
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", (input: unknown): Promise<{ ok: boolean; json: () => Promise<unknown> }> => {
+      const url = String(input);
+      const engine = urlEngine(url);
+      if (engine !== undefined && io.occupied.has(engine)) {
+        const timeout = new Error("health timed out");
+        timeout.name = "TimeoutError";
+        return Promise.reject(timeout);
+      }
+      if (engine !== undefined && io.healthy.has(engine)) {
+        // biome-ignore lint/style/useNamingConvention: is_sleeping mirrors the vLLM /is_sleeping wire body.
+        const body = url.includes("/is_sleeping") ? { is_sleeping: false } : {};
+        return Promise.resolve({ ok: true, json: (): Promise<unknown> => Promise.resolve(body) });
+      }
+      return Promise.reject(new Error("ECONNREFUSED"));
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(nodeProcess, "platform", { value: realPlatform, configurable: true });
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 8; i += 1) {
+      await vi.advanceTimersByTimeAsync(0);
+    }
+  };
+
+  // POSITIVE CONTROL for the whole describe: the same doors, the same drive, the MANAGER posture. Without
+  // it every assertion below could be green because the harness never reached a decision at all.
+  test("CONTROL — the manager posture DOES read the port owner and kill the group when an engine hangs", async () => {
+    const portReads: string[] = [];
+    const signals: NodeJS.Signals[] = [];
+    // The fleet starts DOWN so the manager's own spawn makes each engine `owned` — only an OWNED engine's
+    // hang reaches the kill (`decideOccupied`), which is precisely why the adopt-only arms below are safe.
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => 1_000_000,
+      sleep: () => Promise.resolve(),
+      triggerSpawn: () => {
+        io.triggers.push(io.triggers.length);
+        io.healthy.add("embed");
+        io.healthy.add("rerank");
+        io.healthy.add("gen");
+      },
+      portOwnerPid: (engine) => {
+        portReads.push(engine);
+        return Promise.resolve(7331);
+      },
+      signalEngineProcess: (engine, _listenerPid, signal) => {
+        signals.push(signal);
+        io.occupied.delete(engine);
+        return { verdict: "signaled", pgid: 7331 };
+      },
+    });
+    try {
+      await settle();
+      io.healthy.delete("embed");
+      io.occupied.add("embed");
+      for (let tick = 0; tick < 3; tick += 1) {
+        await vi.advanceTimersByTimeAsync(21_000);
+        await settle();
+      }
+      expect(portReads).toContain("embed");
+      expect(signals).toEqual(["SIGKILL"]);
+    } finally {
+      stop();
+    }
+  });
+
+  test.each(["win32", "darwin", "linux"] as const)("adopt-only on %s touches neither door while the fleet hangs", async (platform) => {
+    Object.defineProperty(nodeProcess, "platform", { value: platform, configurable: true });
+    const portReads: string[] = [];
+    const signals: NodeJS.Signals[] = [];
+    io.healthy.add("embed");
+    io.healthy.add("rerank");
+    io.healthy.add("gen");
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => 1_000_000,
+      sleep: () => Promise.resolve(),
+      manages: false,
+      triggerSpawn: () => {
+        io.triggers.push(io.triggers.length);
+      },
+      portOwnerPid: (engine) => {
+        portReads.push(engine);
+        return Promise.resolve(7331);
+      },
+      signalEngineProcess: (_engine, _listenerPid, signal) => {
+        signals.push(signal);
+        return { verdict: "signaled", pgid: 7331 };
+      },
+    });
+    try {
+      await settle();
+      // The harshest arm the passive posture can meet: an adopted engine goes HUNG (port held, /health dead).
+      // A manager kills the group here; adopt-only may only re-mark it.
+      io.healthy.delete("embed");
+      io.occupied.add("embed");
+      for (let tick = 0; tick < 4; tick += 1) {
+        await vi.advanceTimersByTimeAsync(21_000);
+        await settle();
+      }
+      expect(portReads).toEqual([]);
+      expect(signals).toEqual([]);
+      expect(io.triggers).toEqual([]);
+      // …and it still reports the truth, so the refusal is visible rather than silent.
+      expect(getEngineStatus("embed")?.status).not.toBe("owned");
+    } finally {
+      stop();
+    }
+  });
+
+  test.each(["win32", "darwin"] as const)("adopt-only on %s with the whole fleet DOWN never probes a pid", async (platform) => {
+    Object.defineProperty(nodeProcess, "platform", { value: platform, configurable: true });
+    const portReads: string[] = [];
+    const signals: NodeJS.Signals[] = [];
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => 1_000_000,
+      sleep: () => Promise.resolve(),
+      manages: false,
+      triggerSpawn: () => {
+        io.triggers.push(io.triggers.length);
+      },
+      portOwnerPid: (engine) => {
+        portReads.push(engine);
+        return Promise.resolve(null);
+      },
+      signalEngineProcess: (_engine, _listenerPid, signal) => {
+        signals.push(signal);
+        return { verdict: "signaled", pgid: 7331 };
+      },
+    });
+    try {
+      await settle();
+      for (let tick = 0; tick < 3; tick += 1) {
+        await vi.advanceTimersByTimeAsync(21_000);
+        await settle();
+      }
+      expect(portReads).toEqual([]);
+      expect(signals).toEqual([]);
+      expect(getEngineStatus("embed")?.detail).toContain("adopt-only: this stack never spawns");
     } finally {
       stop();
     }

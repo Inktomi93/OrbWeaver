@@ -3,7 +3,7 @@
 // WHY THIS IS A PRIMITIVE AND NOT A CALL-SITE `.split("/")`: a model identifier arrives in three unrelated
 // shapes — a hosted route (`anthropic/claude-sonnet-5`), a HuggingFace org/repo ref
 // (`Qwen/Qwen3-30B-A3B-Instruct-2507`), and a LOCAL WEIGHTS PATH from a self-hosted engine
-// (`/media/inktomi/Data/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token`,
+// (`/mnt/models/storage/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token`,
 // 106 characters). Every surface that names a model has to answer the same question, and the last shape is
 // the one that breaks layouts: the preset panel restated that path twice, ~100px apart (#115). Pure,
 // zero-I/O, zero-domain, multiple consumers ⇒ `kit` by the placement rule; isomorphic because the CLIENT is

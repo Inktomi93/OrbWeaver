@@ -1,4 +1,4 @@
-// db-errors — the UNIFIED libSQL/SQLite constraint classifier. neo-tavern walked ONE level of
+// db-errors — the UNIFIED libSQL/SQLite constraint classifier. The previous codebase walked ONE level of
 // `error.cause` and scattered per-domain marker predicates (`isCredentialUniqueViolation`, the workloads
 // single-active marker). This unifies them into ONE 4-depth `error.cause` walk that also discriminates
 // WHICH constraint fired — so a domain reads `.kind` instead of re-walking, and a FK-on-`ownerId`

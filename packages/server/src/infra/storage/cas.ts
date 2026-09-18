@@ -1,8 +1,9 @@
 // Per-user content-addressed blob store (CAS): a sealed filesystem adapter keyed by sha-256, sharded as
 // <root>/<owner>/<ab>/<cd>/<hash> (no cross-user dedup, ownership gated above this adapter). Writes are
 // crash-atomic on platforms that support directory fsync: temp file under rootDir → fsync fd → rename →
-// fsync dir. Windows does not consistently permit opening directories, so EISDIR/EPERM there is the one
-// explicit durability downgrade; every other file, stat, directory-read, sync, and close failure propagates.
+// fsync dir. Windows does not consistently permit opening or syncing directories, so EISDIR/EPERM/ENOTSUP
+// THERE is the one explicit durability downgrade; every other file, stat, directory-read, sync, and close
+// failure propagates, on every platform.
 
 import { randomBytes } from "node:crypto";
 import type { Dirent } from "node:fs";
@@ -102,14 +103,17 @@ async function* walkOwners(rootDir: string): AsyncGenerator<string> {
   }
 }
 
-// Windows does not consistently support opening directories for fsync. That platform-only limitation is
-// explicit; supported-platform open/sync/close failures invalidate the crash-durable write verdict.
+// Windows does not consistently support opening directories for fsync, nor syncing the handle once open.
+// That platform-only limitation is explicit; supported-platform open/sync/close failures invalidate the
+// crash-durable write verdict.
 async function fsyncDir(dir: string): Promise<void> {
   try {
     await using handle = await open(dir, "r");
     await handle.sync();
   } catch (error) {
-    if (process.platform === "win32" && (errnoIs(error, "EISDIR") || errnoIs(error, "EPERM"))) {
+    // ENOTSUP joins EISDIR/EPERM because a Windows directory handle can refuse the sync itself, not only
+    // the open; the PLATFORM fence stays, so a supported-platform failure still invalidates the verdict.
+    if (process.platform === "win32" && (errnoIs(error, "EISDIR") || errnoIs(error, "EPERM") || errnoIs(error, "ENOTSUP"))) {
       return;
     }
     throw error;

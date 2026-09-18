@@ -15,7 +15,7 @@ do-it-right-once with the WHY.
 `docs/history/retro-workboard-2026-08-14.md`, `docs/barrel-star-reexport-residue.md`, `knip.ts`, both stack
 launchers (`scripts/dev/stack.sh`, `scripts/dev/stack-prod.ts`), the only Dockerfile in the repo
 (`.devcontainer/Dockerfile` + `init-firewall.sh` + `devcontainer.json`), the deployment topology
-(`/home/inktomi/inktomi-stack/docker-compose.yaml`, `/home/inktomi/inktomi-stack/caddy/conf/Caddyfile`),
+(the host stack’s `docker-compose.yaml` and `caddy/conf/Caddyfile` (a separate repository)),
 and the agent-sdk backend (`packages/server/src/infra/providers/backends/agent-sdk/**`, esp.
 `host-token.ts`). **Not covered:** I did not drive the live stack, did not run any pentest, and did
 not read the authentik blueprint config (out of scope). The Caddy/compose facts are from the host
@@ -36,13 +36,13 @@ app runtime image.
 **The app runs bare on the host as the owner's user.** Caddy (in Docker, in the big stack)
 reverse-proxies the public domain to the host process:
 
-- `caddy/conf/Caddyfile:370-392` — `@orbweaver host orbweaver.inktomi.tech` →
+- `caddy/conf/Caddyfile:370-392` — `@orbweaver host orbweaver.example.com` →
   `reverse_proxy host.docker.internal:8788` with `flush_interval -1` (SSE), a `request_body
   max_size 1GB`, `read_timeout/write_timeout 1800s`, and an `encode` carve-out that **excludes
   `/api/*`** (D118's multiplexed SSE would buffer through `encode` — caddy#6293).
 - `docker-compose.yaml:151-152` — Caddy gets `extra_hosts: host.docker.internal:host-gateway` for
-  exactly this host-hosted reach. The block's own comment (`:149-150`) calls it a neo-tavern relic:
-  *"drop this once neo-tavern moves into the compose network."*
+  exactly this host-hosted reach. The block's own comment (`:149-150`) calls it a relic of the previous codebase:
+  *"drop this once the previous codebase moves into the compose network."*
 - The app owns its own auth (Caddyfile:364-366: *"NO forward_auth here … the app owns auth"*), so
   the reverse-proxy is a dumb pass-through — no identity is injected at the proxy.
 

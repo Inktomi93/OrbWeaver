@@ -1,6 +1,6 @@
 // domain/discovery/cooccurrence/retrieve — the read side of the cooccurrence subsystem (cheap rollup lookups
 // for the live tRPC paths; the heavy pass that POPULATES the tables is generate.ts, workload-driven). Was
-// neo-tavern `corpus/cooccurrence/retrieve.ts` (adapted to orb's schema: `keyword_cooccurrence` stores NO
+// the previous codebase’s `corpus/cooccurrence/retrieve.ts` (adapted to orb's schema: `keyword_cooccurrence` stores NO
 // sampled `characterIds`, `character_keyword_profiles` has NO ownerId — owner DERIVES via `characterId →
 // characters.ownerId`, D23). `ownerId` is ALWAYS the resolved principal id (audit #1).
 

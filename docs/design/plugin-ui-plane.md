@@ -602,7 +602,7 @@ below is CMT with a phase, except the one substrate-blocked row, marked SUB).
 | # | ST ability | Verdict | How / fidelity / wall |
 | - | - | - | - |
 | 1 | Per-extension settings panel (drawer in the settings screen) | **PD** | `settings` anchor, Tier S spec + form nodes (§4.5); full function, house look. Arbitrary-HTML settings look: §6.1 |
-| 2 | Persistent extension settings (`extensionSettings` + save) | **PT** | `storage.kv` (`host-v1.ts:113-120`) — and BETTER: per-plugin-private, unlike ST's world-readable settings blob (ST's own docs warn plugins can read each other's) |
+| 2 | Persistent extension settings (`extensionSettings` + save) | **PT** | `storage.kv` (`host-v1.ts:113-120`) — per-plugin-private, so one plugin cannot read another's settings |
 | 3 | Top-bar / wand-menu buttons | **PD** | the first-party "Plugins" chrome menu + `/plugin` dispatch (§4.5); fidelity: inside one labeled menu, not arbitrary top-bar DOM — the chrome registry stays door-owned |
 | 4 | Message decorations (badges/annotations on rows) | **PD (v2)** | `message-footer` DSL badges, phase U6; per-row caps; fidelity: adjacent decoration, not in-bubble markup |
 | 5 | Message TEXT display-transform (formatting hooks / furigana class) | **BUILT (U6, 2026-08-28)** | not a canon write (display-only), so no wall; a display-transform seam registered like D50, executed server-side (the guest lives there) under a per-message budget and APPLIED at the CLIENT render path via a round-trip — see the dated seam-14 repair for why the doc's original "applied at the render path" server-side reading was refuted |

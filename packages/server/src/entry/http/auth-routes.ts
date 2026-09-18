@@ -201,7 +201,7 @@ const POST_LOGOUT_REDIRECT_PARAM = "post_logout_redirect_uri";
  * (no param at all), never a reflected one.
  *
  * THE OUTPUT IS BYTE-EXACT BY CONSTRUCTION, and it has to be: authentik matches this value STRICTLY against
- * the URL registered on the provider (`redirect_uri_type: logout` — `https://orbweaver.inktomi.tech/login`
+ * the URL registered on the provider (`redirect_uri_type: logout` — `https://orbweaver.example.com/login`
  * is registered today), so a trailing slash or a stray query makes the OP reject the whole request.
  * `new URL("/login", <allowlisted callback>)` yields exactly `<scheme>://<host>/login` — no trailing slash
  * (URL only appends one for an origin-only path) and no query. Do not "normalise" it.

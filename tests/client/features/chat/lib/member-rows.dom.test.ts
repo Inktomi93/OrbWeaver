@@ -5,7 +5,7 @@
 // AUTH_MODE=oidc): a human seat renders the PERSONA it is playing, and it renders exactly ONE identity. The
 // row used to append ` · ${handle}` as well, and on that install the handle IS the owner's email address —
 // `users` has no display-name column at all, so the server's `publics.displayName ?? handle` rule falls back
-// to it on EVERY row, and the seat read "inktomi93@gmail.com · inktomi93@gmail.com".
+// to it on EVERY row, and the seat read "owner@example.com · owner@example.com".
 
 import type { ChatIdentity } from "@orb/contracts/chat";
 import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
@@ -22,7 +22,7 @@ const ALICE_ID = castId<CharacterId>("char_alice");
 const BOB_ID = castId<CharacterId>("char_bob");
 /** The real shape of an OIDC account: the handle IS the email, and there is no display name behind it, so
  *  the server's `publics.displayName ?? handle` rule hands the client the email in BOTH fields. */
-const OIDC_EMAIL = "inktomi93@gmail.com";
+const OIDC_EMAIL = "owner@example.com";
 
 const NATE_CAST: ChatIdentity = { kind: "persona", id: NATE_PERSONA, name: "Nate", description: "", avatarHash: "persona-hash" };
 

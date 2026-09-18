@@ -137,7 +137,10 @@ const ACTIVE_TOOL_WINDOW = 60;
 const ACTIVE_TIME_WINDOW_MS = 4 * 60 * 60 * 1000;
 const RETRY_TOOL_WINDOW = 12;
 const RETRY_TIME_WINDOW_MS = 60 * 60 * 1000;
-const REPORT_PATH_RE = /(?:^|[\s'"`(])((?:\/home\/inktomi\/inktomi-stack\/development\/orbweaver\/)?(?:reports|artifacts|screenshots?)\/[A-Za-z0-9_@./=+:-]+)/g;
+// A transcript may spell an artifact path absolutely or repo-relative, so the absolute arm is DERIVED from
+// the checkout this runs in (`node scripts/research/… ` from the repo root) rather than any one box's path.
+const REPO_PREFIX_RE_SOURCE = `${process.cwd().replace(/\/+$/, "")}/`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const REPORT_PATH_RE = new RegExp(`(?:^|[\\s'"\`(])((?:${REPO_PREFIX_RE_SOURCE})?(?:reports|artifacts|screenshots?)\\/[A-Za-z0-9_@./=+:-]+)`, "g");
 const TMP_PATH_RE = /(?:^|[\s'"`(])(\/tmp\/[A-Za-z0-9_@./=+:-]+)/g;
 const FILE_PATH_RE = /(?:^|[\s'"`(])((?:\/|\.{0,2}\/)?[A-Za-z0-9_@./=+:-]+\.(?:png|json|har|html|gif|webm|mp4|zip|trace|txt|md))/gi;
 const TARGET_MENTION_RE =

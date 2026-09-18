@@ -3322,7 +3322,7 @@ export function importStChatCompletionPreset(raw: unknown, powerUser?: unknown):
 
 // ── orb native preset file (the lossless full-preset export) ───────────────────────────────────────
 // `PRESET_SCHEMA_KIND` is the ONE accepted kind — orb-native backup only. There is no legacy-kind accept:
-// neo-tavern never launched, so no foreign preset file exists to import.
+// the previous codebase never launched, so no foreign preset file exists to import.
 export const PRESET_SCHEMA_KIND = "orb.preset";
 
 export interface PresetFile {

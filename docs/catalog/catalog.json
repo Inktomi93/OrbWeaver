@@ -29386,43 +29386,6 @@
       "receiptCurrent": true
     },
     {
-      "path": "docs/orbweaver-card-debug-handoff.md",
-      "lane": "root-operational",
-      "issue": 8,
-      "lines": 520,
-      "bytes": 30739,
-      "sha256": "9da1c5b32a6bcddfad7cef9c7a378ea8a4f22db3a2d76ca2cf1762ca2efa5cdb",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "handoff",
-          "status": "superseded",
-          "updated": "2026-08-22"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/orbweaver-card-debug-handoff.md",
-        "assignedSha256": "9da1c5b32a6bcddfad7cef9c7a378ea8a4f22db3a2d76ca2cf1762ca2efa5cdb",
-        "disposition": "archive",
-        "authority": "historical",
-        "fullRead": true,
-        "verifiedSha256": "9da1c5b32a6bcddfad7cef9c7a378ea8a4f22db3a2d76ca2cf1762ca2efa5cdb",
-        "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-        "verifiedAt": "2026-08-30",
-        "evidence": [
-          "docs/orbweaver-card-debug-handoff.md:1",
-          "git log --oneline -5 -- docs",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-          "re-attest 2026-08-22 (#325, bytes at 12a536adb): the removed `pnpm start` cites are repointed to the launcher that replaced them (`pnpm stack up prod` / `start-fg prod`), the refusal table's FALSE `start-fg prod` row is corrected against tooling/src/stack/lib/argv.ts:34+110 (only `_leader` is dev-only), and three stack-tool paths that moved to tooling/src/stack/ at P5 are repointed",
-          "docs/orbweaver-card-debug-handoff.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
-        ],
-        "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
-      },
-      "receiptCurrent": true
-    },
-    {
       "path": "docs/retro-workboard.md",
       "lane": "root-operational",
       "issue": 8,

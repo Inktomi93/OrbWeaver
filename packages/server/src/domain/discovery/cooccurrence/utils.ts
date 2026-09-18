@@ -1,6 +1,6 @@
 // domain/discovery/cooccurrence/utils — pure helpers shared by the cooccurrence write side (generate.ts) +
 // read side (retrieve.ts). Cross-file inside ONE subsystem is fine; cross-subsystem is blocked by
-// `domain-no-cross-subsystem`. Was neo-tavern `corpus/cooccurrence/utils.ts` (the `/u` regex flags dropped —
+// `domain-no-cross-subsystem`. Was the previous codebase’s `corpus/cooccurrence/utils.ts` (the `/u` regex flags dropped —
 // the patterns are ASCII, and `useUnicodeRegex` is deliberately removed from biome.json).
 
 // A leading English article (folded so "the crown" and "crown" collapse to one key).

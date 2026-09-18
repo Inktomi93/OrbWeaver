@@ -19,7 +19,12 @@ refuseDirectInvocation(import.meta.url, "node tooling/src/model-ab/cli.ts <verb>
 
 const DEFAULT_PORT = MODEL_AB_PORT;
 const DEFAULT_VLLM_BIN = path.join(REPO_ROOT, ".cache", "vllm", "venv", "bin", "vllm");
-const DEFAULT_HF_HOME = "/media/inktomi/Data/vllm-models";
+/** Where the local checkpoints live. The location is machine-specific, so the default sits beside the
+ *  managed vllm venv in the checkout and `--hf-home` is the one door that repoints it — no box path is
+ *  baked into the repo. `variants.json` spells its model paths against the `${HF_HOME}` token below, so
+ *  that single flag moves the whole reboot axis. */
+const DEFAULT_HF_HOME = path.join(REPO_ROOT, ".cache", "vllm", "models");
+const HF_HOME_TOKEN = /\$\{HF_HOME\}/g;
 const STAMP_CHARS = 16;
 const STAMP_SEPARATORS = /[:T]/gu;
 /** The REBOOT axis (model × chat template × serve argv) — data beside its consumer (§2.5). */
@@ -72,13 +77,20 @@ export function parseCli(argv: readonly string[]): CliOptions {
   };
 }
 
-export function loadVariants(filter?: string): Variant[] {
+export function loadVariants(filter?: string, hfHome: string = DEFAULT_HF_HOME): Variant[] {
   const spec = JSON.parse(readFileSync(VARIANTS_FILE, "utf8")) as { variants: Variant[] };
+  // `${HF_HOME}` is expanded HERE rather than in the JSON, so the data file stays portable and the flag
+  // that boots the engine is the same one that resolves the checkpoint it boots.
+  const resolved = spec.variants.map((v) => ({
+    ...v,
+    model: v.model.replace(HF_HOME_TOKEN, hfHome),
+    chatTemplate: v.chatTemplate.replace(HF_HOME_TOKEN, hfHome),
+  }));
   if (filter === undefined) {
-    return spec.variants;
+    return resolved;
   }
   const names = filter.split(",");
-  return spec.variants.filter((v) => names.includes(v.name));
+  return resolved.filter((v) => names.includes(v.name));
 }
 
 function resultExit(results: readonly { readonly ok: boolean }[], outDir: string): ExitCode {
@@ -92,7 +104,7 @@ function resultExit(results: readonly { readonly ok: boolean }[], outDir: string
 
 export async function runModelAb(argv: readonly string[]): Promise<ExitCode> {
   const cli = parseCli(argv);
-  const variants = loadVariants(cli.variants);
+  const variants = loadVariants(cli.variants, cli.hfHome);
 
   if (cli.variants !== undefined && variants.length === 0) {
     warn(`no variants matched --variants ${cli.variants}`);

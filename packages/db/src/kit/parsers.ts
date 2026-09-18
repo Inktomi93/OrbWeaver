@@ -18,7 +18,7 @@ export function parseStringArray(raw: unknown): string[] {
   return stringArray.catch([]).parse(raw);
 }
 
-// Consumer class is the corpus/tags domain not yet ported from neo (neo-tavern's corpus verbs —
+// Consumer class is the corpus/tags domain not yet ported from neo (the previous codebase's corpus verbs —
 // archetypes/tag-suggest/distill — consume the equivalent for tags/subGenres columns). Contract
 // difference vs neo's variant is deliberate: neo's returns `string[]` (never null); ours is
 // `string[] | null` (the world-info.ts keys-column asymmetry) — a future corpus port must decide

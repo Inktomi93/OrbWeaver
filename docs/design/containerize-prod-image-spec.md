@@ -39,8 +39,8 @@ updated: 2026-09-18
 | - | - | - |
 | No prod app Dockerfile exists | **TRUE** | `find -iname Dockerfile` → only `.devcontainer/Dockerfile` (+ worktree copies) and the SillyTavern-goldens probe image. None builds the app. |
 | `.devcontainer/Dockerfile` is a Claude-Code dev sandbox, not a prod image | **TRUE** | It bakes claude-code, zsh, playwright chromium, git-delta, a firewall script; runs as `node`, no app build, no `CMD` (`.devcontainer/Dockerfile:1-127`). Usable as a *toolchain reference* (node:26 + corepack pnpm) only. |
-| App runs bare on host; Caddy proxies `orbweaver.inktomi.tech` → `host.docker.internal:8788` | **TRUE** | `caddy/conf/Caddyfile:370-392` (stack repo, `/home/inktomi/inktomi-stack/caddy/conf/Caddyfile`). |
-| The `host.docker.internal` mapping is flagged for removal | **TRUE, but the note is about neo-tavern** | `docker-compose.yaml:148-150` (`extra_hosts: host.docker.internal:host-gateway` — "drop this once neo-tavern moves into the compose network"). The Orbweaver block reuses the same relic. |
+| App runs bare on host; Caddy proxies `orbweaver.example.com` → `host.docker.internal:8788` | **TRUE** | `caddy/conf/Caddyfile:370-392` (a separate stack repository). |
+| The `host.docker.internal` mapping is flagged for removal | **TRUE, but the note is about the previous codebase** | `docker-compose.yaml:148-150` (`extra_hosts: host.docker.internal:host-gateway` — "drop this once the previous codebase moves into the compose network"). The Orbweaver block reuses the same relic. |
 | Live `.env` is `AUTH_MODE=oidc` | **TRUE** | `.env` (redacted read); also carries live `DEBUG_TOKEN`/`WIRE_CAPTURE`/`RPG_TRACE` that MUST NOT be baked into a shipped image (§5). |
 
 **Two facts the recon did not mention that reshape the image (see §7 forks D & E):**
@@ -536,11 +536,11 @@ and per-IP rate limits see the REAL client IP — provided Caddy sets XFF (defau
   `reverse_proxy host.docker.internal:8788` → `reverse_proxy orbweaver:8788` (service DNS on the shared
   network). Keep `flush_interval -1` and the 1800s read/write timeouts (D118 single multiplexed SSE socket —
   `Caddyfile:386-390`). Once no host-hosted service remains, the `extra_hosts` mapping
-  (`docker-compose.yaml:148-150`) can be dropped — but that is the compose owner's call, and neo-tavern may
+  (`docker-compose.yaml:148-150`) can be dropped — but that is the compose owner's call, and the previous codebase may
   still use it.
 - **TLS / HTTP-3 (I-10 launch items):** Caddy already publishes `443:443` AND `443:443/udp` and `80:80`
   (`docker-compose.yaml:139-141`) — UDP/443 for QUIC is in place. Caddy auto-manages the cert for
-  `orbweaver.inktomi.tech` and emits `Alt-Svc` for h3 by default. No app change; verify at launch that h3 is
+  `orbweaver.example.com` and emits `Alt-Svc` for h3 by default. No app change; verify at launch that h3 is
   negotiated and `Alt-Svc` is present (a live check, out of scope here).
 - **Proxy header contract (must hold for oidc, §3.3):** Caddy `reverse_proxy` must pass `X-Forwarded-Proto`,
   `X-Forwarded-Host`, `X-Forwarded-For` (all default). Do not strip them.

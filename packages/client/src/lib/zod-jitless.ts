@@ -13,7 +13,7 @@ import { z } from "zod";
 // ⚠️ LOAD ORDER IS THE WHOLE FIX. `allowsEval` is MEMOIZED and fires at the first object-schema
 // construction anywhere in the import graph — which happens during `main.tsx`'s IMPORTS, i.e. before
 // `main.tsx`'s body runs. A `z.config({ jitless: true })` in the body is too late and the violation
-// still logs. That was neo-tavern's first attempt (`9a9ae11a`), fixed by `0e96e58a` — this module is
+// still logs. That was the previous codebase's first attempt (`9a9ae11a`), fixed by `0e96e58a` — this module is
 // the ported form of that fix, whose message records the diagnosis and an in-browser verification.
 // Hence: its own side-effect module, imported FIRST in main.tsx. Biome keeps a leading side-effect
 // import as a barrier and will not sort it down.
