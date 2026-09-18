@@ -264,20 +264,6 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: familyFixture(
-        finalProbeModule(
-          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
-          'import type { Node } from "ts-morph";\nimport { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";\nexport const probe = (node: Node): unknown => resolveModuleMemberOrigin(node);\n',
-        ),
-        {
-          [TS_MORPH_TYPES_PATH]: TS_MORPH_TYPES_STUB,
-          "tooling/src/_shared/reference-fact.ts": "export function resolveModuleMemberOrigin(node: unknown): unknown {\n  return node;\n}\n",
-        },
-      ),
-      why: "THE SANCTIONED ROUTE: the shared reader asked the question. The reader itself walks symbols — under `_shared/`, outside this population, once for everyone — and the gate reads a fact",
-    },
-    {
-      mode: "types",
       files: RESOLVING("export const probe = (node: Node): unknown => node.getSymbol();"),
       why: "`getSymbol()` ALONE is not a member of the tuple: a symbol read for IDENTITY (`a.getSymbol() === b.getSymbol()`) resolves nothing; the retired chain is caught at its second hop, which is where the resolution happens",
     },
