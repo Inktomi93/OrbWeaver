@@ -13,6 +13,7 @@
 #   -f docker-compose.yaml -f docker/compose.single-user.yaml    single-user, no login, on bridge networking (any platform)
 #   -f docker-compose.yaml -f docker/compose.host-network.yaml   single-user, no login, via host networking (Linux/Podman)
 #   -f docker-compose.yaml -f docker/compose.secrets.yaml        secrets as mounted files, never env values
+#   -f docker-compose.yaml -f docker/compose.engines.yaml        the app's own vLLM engines as peer containers (GPU; --profile gen …)
 #   -f docker-compose.yaml -f docker/compose.dev.yaml            the DEVELOPMENT stack from this checkout (hot reload)
 #
 # Interpolated knobs (shell env, or a `.env` file beside this compose file):
