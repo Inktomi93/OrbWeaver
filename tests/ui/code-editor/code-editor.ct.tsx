@@ -1,3 +1,4 @@
+// @orb-waive-file test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll
 import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";

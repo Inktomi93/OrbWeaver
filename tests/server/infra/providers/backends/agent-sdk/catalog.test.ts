@@ -1,3 +1,4 @@
+// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 // fetchAgentSdkModels (catalog.ts via the backend's `fetchModels`), driven by a fake `query`. Load-bearing:
 // the discovery opens a HELD-OPEN streaming query through the mode-1 firewall base (tools disabled, strict
 // MCP, no settings), calls the daemon's `supportedModels()` CONTROL call (not a generation turn), normalizes

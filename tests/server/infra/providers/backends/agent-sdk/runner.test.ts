@@ -1,3 +1,4 @@
+// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 //
 // The stream→ChatResult reducer (consumeTurnStream) + the backend factory (createAgentSdkBackend),
 // driven by hand-built message streams + an injected fake `query` — no live spawn. Asserts: a success
