@@ -127,6 +127,9 @@ describe("installEgressFirewall — VLLM_ENGINE_HOST relocates the internal-back
     }
     process.env["VITEST"] = "1";
     process.env["ORB_ENV_NO_FILE"] = "1";
+    // the schema default pairing (single-user + AUTH_FALLBACK=deny) is boot-fatal by design; a hermetic floor
+    // states the launch-time value the way a launcher does (tests/server/foundation/env/index.test.ts).
+    process.env["AUTH_FALLBACK"] = "owner";
     process.env["VLLM_ENGINE_HOST"] = "127.0.0.2";
     vi.resetModules();
     const freshNetwork = await import("@orb/server/infra/network");
