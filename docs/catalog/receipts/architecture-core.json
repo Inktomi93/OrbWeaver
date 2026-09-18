@@ -5,13 +5,13 @@
   "entries": [
     {
       "path": "docs/architecture/core/AGENTS.md",
-      "assignedSha256": "91077aa0f4d81af35deb99af43b3ae2f8441225582079ad43ea2f478155aa45d",
+      "assignedSha256": "06f6b94596dc9b7759e041b43614793239f405007f5c4d9745cae78fee4bfa4f",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "91077aa0f4d81af35deb99af43b3ae2f8441225582079ad43ea2f478155aa45d",
-      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "06f6b94596dc9b7759e041b43614793239f405007f5c4d9745cae78fee4bfa4f",
+      "verifiedCommit": "63a2a01b9a188bdeb37ab47a2bea850035fc322c",
+      "verifiedAt": "2026-09-18",
       "evidence": [
         "Owner ruling 2026-09-10: lanes may commit normally in their assigned worktree or clone, including configured hook checks. Explicit iteration stays scoped; hook bypass requires a specific user/coordinator exception with its reason and executed or owed checks. Main integration and push remain coordinator/owner operations. Coupled doctrine, role and runbook guidance was reconciled without changing hook commands.",
         "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
@@ -59,7 +59,8 @@
           ]
         }
       ],
-      "summary": "Constitution with configured-hook commits in assigned lane checkouts, scoped explicit iteration, and specifically authorized recorded bypass exceptions; integrated verification and push ownership remain separate."
+      "summary": "Constitution with configured-hook commits in assigned lane checkouts, scoped explicit iteration, and specifically authorized recorded bypass exceptions; integrated verification and push ownership remain separate.",
+      "verifiedCanonicalSha256": "06f6b94596dc9b7759e041b43614793239f405007f5c4d9745cae78fee4bfa4f"
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",

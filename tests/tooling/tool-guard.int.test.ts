@@ -355,6 +355,10 @@ const ROWS: Row[] = [
   // `.claude/hooks/*.mjs` — a syntax error there fails the hook OPEN and every Bash call runs unguarded)
   // and `tests:tool-guard` at PUSH (this file). The static one's own spelling is the row below.
   ["pass", null, "node --check .claude/hooks/tool-guard.mjs"],
+  // The #1584 bypass spelling the noVerify refusal recommends since 2026-09-18 (env prefix, not `-c`):
+  // it must pass, or the guard bites the form it told you to use.
+  ["pass", null, "LEFTHOOK_EXCLUDE=check git commit -F /tmp/m.txt -- lefthook.yml"],
+  ["pass", null, "LEFTHOOK_EXCLUDE=check git -C /abs/wt merge main"],
   // ---- playwright CT: every RAW run is routed to `pnpm test:ct` (2026-09-11 vocabulary refresh) ----
   // The old recipe (`rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts`) used to
   // be the PASS arm. It is now rewritten like any other raw run: `playwright/.cache` stopped being the CT
