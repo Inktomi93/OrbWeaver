@@ -18,9 +18,21 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "./config.ts";
-import type { IdentityResolution, ResolveDeps } from "./contract.ts";
+import type { AuthConfig, IdentityResolution, ResolveDeps } from "./contract.ts";
 import { hasCsrfHeader } from "./csrf.ts";
 import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
+import { hasForwardingHeader } from "./forwarded.ts";
+
+/** The widened peer set a request is actually judged against. The LOOPBACK arm lives in
+ *  `ownerFallbackAllowed` and is untouched by this; what this decides is whether the operator's opt-in
+ *  `AUTH_FALLBACK_TRUSTED_PEERS` ranges are in play for THIS request. They are not when the request announces
+ *  a proxy hop: the widened arm's premise is "this peer is the deployer", and a relayed request means the
+ *  peer is a forwarder speaking for a third party (`forwarded.ts` holds the reasoning and the fail-open
+ *  limit). Composed HERE rather than inside the predicate so `dispatch.ts` stays pure over (peer, ranges)
+ *  and the two loopback-only call sites cannot accidentally inherit a header rule they have no headers for. */
+function admissiblePeerRanges(headers: Headers, config: AuthConfig): readonly string[] {
+  return hasForwardingHeader(headers) ? [] : config.fallbackTrustedPeers;
+}
 
 /**
  * VERIFICATION: resolve a request's headers → an `IdentityResolution` (the pre-row identity + the seam's
@@ -34,7 +46,9 @@ import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
  *     peer, the unspoofable socket, NOT the client `Host` header; #298 f2). So `single-user` +
  *     `AUTH_FALLBACK=deny` resolves NOBODY — boot-fatal in `foundation/env`, since that fallback is
  *     single-user's only credential — and a proxied/LAN peer (non-loopback) gets no fallback, making SSO
- *     mandatory everywhere Caddy fronts.
+ *     mandatory everywhere Caddy fronts. A deployer may WIDEN that peer set with
+ *     `AUTH_FALLBACK_TRUSTED_PEERS` (unset = no change); the widened arm alone carries a third condition,
+ *     the no-proxy-hop belt in `admissiblePeerRanges`.
  *
  * `config` is injectable via `deps.config` (tests vary mode/fallback without re-parsing the frozen env);
  * production omits it → `authConfigFromEnv()`.
@@ -50,10 +64,11 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
     return { identity, via: "header", hasCsrfHeader: csrf };
   }
 
-  if (config.fallback === "owner" && ownerFallbackAllowed(deps.peerIp)) {
-    // The un-credentialed owner path, gated on a LOOPBACK TCP peer (#298 f2). `via:"fallback"` is the SAFE
-    // "this IS the owner" discriminator (NEVER `externalId === null`); the seam mints the owner from it. NO
-    // role/userId is resolved here.
+  if (config.fallback === "owner" && ownerFallbackAllowed(deps.peerIp, admissiblePeerRanges(headers, config))) {
+    // The un-credentialed owner path, gated on a LOOPBACK TCP peer (#298 f2) — or, when the deployer opted
+    // in, a peer inside `AUTH_FALLBACK_TRUSTED_PEERS` on a request that announces no proxy hop (see
+    // `admissiblePeerRanges`). `via:"fallback"` is the SAFE "this IS the owner" discriminator (NEVER
+    // `externalId === null`); the seam mints the owner from it. NO role/userId is resolved here.
     return {
       identity: {
         externalId: null,
@@ -98,6 +113,7 @@ export type {
 } from "./contract.ts";
 export { hasCsrfHeader } from "./csrf.ts";
 export { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
+export { hasForwardingHeader } from "./forwarded.ts";
 export { normalizeHost } from "./host.ts";
 export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks.ts";
 export { SESSION_COOKIE_NAME } from "./modes/cookie-session.ts";

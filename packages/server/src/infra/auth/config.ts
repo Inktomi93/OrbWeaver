@@ -3,7 +3,7 @@
 // take the `AuthConfig` explicitly so unit tests construct one directly (the frozen `env` can't be
 // varied per-test); production omits `deps.config` and gets `authConfigFromEnv()`.
 
-import { env } from "#foundation/env";
+import { env, parseOwnerFallbackTrustedPeers } from "#foundation/env";
 import type { AuthConfig } from "./contract.ts";
 import { normalizeHost } from "./host.ts";
 
@@ -61,6 +61,9 @@ export function authConfigFromEnv(): AuthConfig {
     ...(env.FORWARD_AUTH_UID_HEADER !== undefined ? { forwardUidHeader: env.FORWARD_AUTH_UID_HEADER } : {}),
     ...(env.FORWARD_AUTH_EMAIL_HEADER !== undefined ? { forwardEmailHeader: env.FORWARD_AUTH_EMAIL_HEADER } : {}),
     forwardTrustedProxies: parseCsv(env.FORWARD_AUTH_TRUSTED_PROXIES),
+    // The parse is `foundation/env`'s, not a fourth CSV split: the ranges the boot warning names and the
+    // ranges the peer gate matches must be the SAME list or the operator is reading a lie.
+    fallbackTrustedPeers: parseOwnerFallbackTrustedPeers(env.AUTH_FALLBACK_TRUSTED_PEERS),
     jwksAllowlist: jwksAllowlistFromEnv(),
     ...(env.FORWARD_AUTH_JWT_ISSUER !== undefined ? { jwtIssuer: env.FORWARD_AUTH_JWT_ISSUER } : {}),
     ...(env.FORWARD_AUTH_JWT_AUDIENCE !== undefined ? { jwtAudience: env.FORWARD_AUTH_JWT_AUDIENCE } : {}),

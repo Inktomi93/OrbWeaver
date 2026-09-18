@@ -3242,7 +3242,7 @@
     {
       "siteId": "packages/server/src/foundation/env/index.ts::catch::1",
       "path": "packages/server/src/foundation/env/index.ts",
-      "line": 182,
+      "line": 186,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3250,7 +3250,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a missing .env is a normal deploy state —",
-      "markerLine": 177
+      "markerLine": 181
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",

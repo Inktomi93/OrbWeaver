@@ -285,7 +285,7 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   test("#301: a .env WITHOUT AUTH_FALLBACK boots clean at the default (the convention — launch-time only)", async () => {
     const dir = dirWithEnvFile("AUTH_MODE=single-user");
     const mod = await reimportEnvIn(dir, {}, { vitest: false });
-    expect(mod.authFallbackDeclaredInEnvFile()).toBe(false);
+    expect(mod.launchOnlyKeysDeclaredInEnvFile()).toEqual([]);
     expect(mod.env.AUTH_FALLBACK).toBe("owner"); // the default, not a .env pin
   });
 
@@ -555,5 +555,74 @@ describe("foundation/env — the .env load (override semantics + parser toleranc
     // per-file re-stub. A future test author who reverts `vitest.config.ts`'s `env:` block goes red HERE.
     const config = (await import("../../../../vitest.config.ts")).default;
     expect(config.test?.env?.["ORB_ENV_NO_FILE"]).toBe("1");
+  });
+});
+
+// ── AUTH_FALLBACK_TRUSTED_PEERS (PROPOSED — containerize-prod-image-spec §3.1 arm (b)) ───────────────────
+// The opt-in that widens the un-credentialed owner fallback's peer set so a containerized deploy (whose
+// published port never delivers a loopback peer) is usable. The three env-tier properties pinned here:
+// it PARSES into the posture, it is LAUNCH-ONLY like AUTH_FALLBACK (#301 — a `.env` pin is boot-fatal),
+// and it is refused beside AUTH_BREAK_GLASS (widening the on-box recovery door is the whole hole again).
+describe("AUTH_FALLBACK_TRUSTED_PEERS — the opt-in widened fallback peer set", () => {
+  test("unset ⇒ the posture is the shipped loopback-only one (byte-identical default)", async () => {
+    const mod = await reimportEnvWith({ AUTH_MODE: "single-user", AUTH_FALLBACK: "owner" });
+    expect(mod.env.AUTH_FALLBACK_TRUSTED_PEERS).toBeUndefined();
+    expect(mod.resolveOwnerFallbackPeers(mod.ownerFallbackPeerInput())).toEqual({ ranges: [], widened: false });
+  });
+
+  test("a comma list parses into the posture's ranges and reports WIDENED", async () => {
+    const mod = await reimportEnvWith({
+      AUTH_MODE: "single-user",
+      AUTH_FALLBACK: "owner",
+      AUTH_FALLBACK_TRUSTED_PEERS: "172.17.0.0/16, 172.18.0.0/16",
+    });
+    expect(mod.resolveOwnerFallbackPeers(mod.ownerFallbackPeerInput())).toEqual({
+      ranges: ["172.17.0.0/16", "172.18.0.0/16"],
+      widened: true,
+    });
+  });
+
+  test("prod + single-user + the knob boots — this IS the container case the fork exists for", async () => {
+    const { env } = await reimportEnvWith({
+      NODE_ENV: "production",
+      AUTH_MODE: "single-user",
+      AUTH_FALLBACK: "owner",
+      AUTH_FALLBACK_TRUSTED_PEERS: "172.17.0.0/16",
+    });
+    expect(env.AUTH_FALLBACK_TRUSTED_PEERS).toBe("172.17.0.0/16");
+  });
+
+  // The knob widens the fallback's peer set; break-glass is DEFINED as the brief on-box recovery door
+  // (spec §4). Together they hand the whole named range the owner on a prod SSO box — the #298 hole, at
+  // network scale, behind a flag whose own doc says "on-box". Same fail-fast family as the SSO-BYPASS fatal.
+  test("AUTH_BREAK_GLASS + the knob → boot FAILS (break-glass is on-box by definition)", async () => {
+    await expect(
+      reimportEnvWith({
+        NODE_ENV: "production",
+        AUTH_MODE: "oidc",
+        AUTH_FALLBACK: "owner",
+        AUTH_BREAK_GLASS: "true",
+        AUTH_FALLBACK_TRUSTED_PEERS: "172.17.0.0/16",
+        OIDC_ISSUER: "https://idp.example",
+        OIDC_CLIENT_ID: "client",
+        OIDC_CLIENT_SECRET: "x",
+        OIDC_REDIRECT_URIS: "https://app/api/auth/oidc/callback",
+        SESSION_SECRET: VALID_SESSION_SECRET,
+      }),
+    ).rejects.toThrow("AUTH_FALLBACK_TRUSTED_PEERS must not be combined with AUTH_BREAK_GLASS");
+  });
+
+  // #301, GENERALIZED: `.env` loads with override:true, so a value there is forced into EVERY launch from
+  // that dir. A container passes this knob in its container environment, never in the app's own `.env`.
+  test("#301: AUTH_FALLBACK_TRUSTED_PEERS declared in .env → boot FAILS at parse", async () => {
+    const dir = dirWithEnvFile(["AUTH_MODE=single-user", "AUTH_FALLBACK_TRUSTED_PEERS=172.17.0.0/16"].join("\n"));
+    await expect(reimportEnvIn(dir, { AUTH_FALLBACK: "owner" }, { vitest: false })).rejects.toThrow("AUTH_FALLBACK_TRUSTED_PEERS must not be set in .env");
+  });
+
+  test("#301: the container environment (not `.env`) is accepted — the supported way to set it", async () => {
+    const dir = dirWithEnvFile("AUTH_MODE=single-user");
+    const mod = await reimportEnvIn(dir, { AUTH_FALLBACK: "owner", AUTH_FALLBACK_TRUSTED_PEERS: "172.17.0.0/16" }, { vitest: false });
+    expect(mod.launchOnlyKeysDeclaredInEnvFile()).toEqual([]);
+    expect(mod.env.AUTH_FALLBACK_TRUSTED_PEERS).toBe("172.17.0.0/16");
   });
 });

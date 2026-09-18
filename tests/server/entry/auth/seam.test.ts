@@ -47,6 +47,7 @@ function baseConfig(overrides: Partial<AuthConfig>): AuthConfig {
     defaultHandle: OWNER_HANDLE,
     verifyForwardJwt: false,
     forwardTrustedProxies: [],
+    fallbackTrustedPeers: [],
     jwksAllowlist: [],
     ...overrides,
   };

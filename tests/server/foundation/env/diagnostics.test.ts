@@ -79,7 +79,7 @@ describe("resolveDiagnosticsPosture", () => {
 // against the ruled hazard it is the negation of (`foundation/env/index.ts`'s production superRefine).
 describe("resolveOwnerFallbackCredential", () => {
   const credential = (over: Partial<OwnerFallbackCredentialInput> = {}): boolean =>
-    resolveOwnerFallbackCredential({ nodeEnv: "development", authFallback: "owner", ...over });
+    resolveOwnerFallbackCredential({ nodeEnv: "development", authFallback: "owner", fallbackWidened: false, ...over });
 
   test("a DEV box: the loopback owner IS the operator (this is the #1193 fix)", () => {
     expect(credential()).toBe(true);
@@ -98,5 +98,23 @@ describe("resolveOwnerFallbackCredential", () => {
   test("AUTH_FALLBACK=deny is false everywhere — there is no arm to credential", () => {
     expect(credential({ authFallback: "deny" })).toBe(false);
     expect(credential({ nodeEnv: "production", authFallback: "deny" })).toBe(false);
+  });
+});
+
+// The WIDENED-PEER arm of the same credential rule (PROPOSED — spec §3.1 arm (b)). The #1193 justification
+// for crediting `via:"fallback"` at the /api/_debug door is precisely that on a dev box "a loopback peer" MEANS
+// "the human at this machine". `AUTH_FALLBACK_TRUSTED_PEERS` breaks that identity, so the door closes again —
+// the diagnostics surface holds more than the app does (raw provider request bodies with WIRE_CAPTURE=on) and
+// must not inherit a widening the operator opted into for the APP's sake.
+describe("resolveOwnerFallbackCredential — a WIDENED fallback peer set is not an operator credential", () => {
+  const credential = (over: Partial<OwnerFallbackCredentialInput> = {}): boolean =>
+    resolveOwnerFallbackCredential({ nodeEnv: "development", authFallback: "owner", fallbackWidened: false, ...over });
+
+  test("dev + a widened peer set → FALSE (x-debug-token is the door once the peer set stops meaning 'this machine')", () => {
+    expect(credential({ fallbackWidened: true })).toBe(false);
+  });
+
+  test("dev + the UNWIDENED loopback set → TRUE, unchanged (#1193 is not weakened by the knob's existence)", () => {
+    expect(credential()).toBe(true);
   });
 });
