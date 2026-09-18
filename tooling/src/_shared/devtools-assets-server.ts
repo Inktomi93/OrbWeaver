@@ -1,9 +1,14 @@
 // The loopback-only DevTools frontend static server, extracted from devtools-assets.ts.
 // Serves verified-and-hashed resources over HTTP on 127.0.0.1 with immutable caching.
+//
+// Both `VerifiedDevToolsAssets` and `DevToolsAssetServer` live in the shared leaf
+// devtools-assets-types.ts, not in devtools-assets.ts — the front door and this server both
+// import FROM that leaf so the edge between the front door and this file stays one-directional
+// (dependency-cruiser `no-circular` has no type-only exemption).
 import type { Server } from "node:http";
 import { createServer } from "node:http";
 import { normalize } from "node:path";
-import type { DevToolsAssetServer, VerifiedDevToolsAssets } from "./devtools-assets.ts";
+import type { DevToolsAssetServer, VerifiedDevToolsAssets } from "./devtools-assets-types.ts";
 
 const HTTP_OK = 200;
 const HTTP_FORBIDDEN = 403;
