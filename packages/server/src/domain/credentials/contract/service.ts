@@ -6,7 +6,7 @@ import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/creden
 import type { EndpointInspection } from "@orb/contracts/providers";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { UserCredentialId } from "@orb/kit/ids";
+import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import type { RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
 import type { SecretBox } from "#infra/crypto";
@@ -72,6 +72,15 @@ export interface CredentialContext {
   /** Fires `credentialsChanged` with the owner's `userId` after every user-facing credential mutation's
    *  durable write, so a second device's list refetches. */
   readonly emitUserEvent: EmitUserEvent;
+  /** The BOX OWNER's user id — the single `users.role='owner'` row (DDL-unique, D17/D40) — or `undefined`
+   *  when no owner row exists yet (a fresh OIDC box before the first owner-policy login). Bound at the root
+   *  to `sessions.getOwnerUserId`, because only `domain/sessions` may read `users` (`no-direct-users-read`).
+   *
+   *  It exists for ONE caller: the SSRF egress belt's owner-saved endpoint admission
+   *  (`substrate/egress-admission.ts`), whose scope must be the OWNER row and never the acting principal.
+   *  Caller-free ON PURPOSE — it names no entity and returns no caller-scoped data, so there is nothing for
+   *  a caller parameter to scope. */
+  readonly ownerUserId: () => Promise<UserId | undefined>;
 }
 
 /** The credential surface. The turn-time `resolve` is the only consumer-facing construction of a
@@ -101,6 +110,10 @@ export interface CredentialsService {
   readonly markRevokedByUser: (params: MarkRevokedByUserParams) => Promise<void>;
   readonly clearRevoked: (params: ClearRevokedParams) => Promise<void>;
   readonly probeKeyDecrypt: () => Promise<boolean>;
+  /** Re-derive the SSRF egress belt's owner-saved endpoint admissions from the store (boot's call; the
+   *  `add`/`remove` verbs re-derive inline). Param-free like `probeKeyDecrypt`: the answer is a property of
+   *  the OWNER row, identical for every caller, and names no entity. */
+  readonly refreshEgressAdmission: () => Promise<void>;
 
   // Custom endpoint
   readonly fetchModels: (params: FetchModelsParams) => Promise<string[]>;

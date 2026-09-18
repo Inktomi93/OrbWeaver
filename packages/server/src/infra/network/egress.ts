@@ -15,6 +15,11 @@ import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
 // global firewall disabled. The global dispatcher stays the defense-in-depth backstop for
 // non-safeFetch egress (provider calls, OIDC).
 //
+// DECLARED-INTENT AUTO-ALLOW, PORT-SCOPED least-privilege, in TWO classes: the box's own env-declared
+// inference backends (below) and the OWNER's saved connection endpoints (`publishOwnerSavedEndpoints`, the
+// second block further down). Both are operator intent, never attacker input, and both are admitted only at
+// an EXACT host:port.
+//
 // INTERNAL-BACKEND AUTO-ALLOW (installEgressFirewall), PORT-SCOPED least-privilege: the box's OWN inference
 // backends live on loopback (vLLM engines at http://127.0.0.1:<VLLM_*_PORT>). Their server-initiated calls are
 // plain fetch()/ownerConfiguredEndpoint safeFetch → the global dispatcher, so a bare allowlist SSRF-blocks
@@ -52,6 +57,13 @@ function superviseEgressCleanup(reason: string, operation: () => Promise<unknown
 
 const TRAILING_DOT_RE = /\.$/;
 
+/** Strip the `[...]` an IPv6 authority is spelled with. `new URL("http://[::1]:8080").hostname` KEEPS the
+ *  brackets while undici's connector hands the connect wrapper the bare form, so both sides of a host:port
+ *  key must be unbracketed or an IPv6 endpoint could never match its own key. */
+function unbracket(hostname: string): string {
+  return hostname.length > 1 && hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+}
+
 export function privateEgressRanges(): readonly string[] {
   const extra = (env.TRUSTED_PRIVATE_RANGES ?? "")
     .split(",")
@@ -62,7 +74,7 @@ export function privateEgressRanges(): readonly string[] {
 
 // A literal target skips undici's DNS lookup, so the connector must recognize and gate it directly.
 function literalHost(hostname: string): string | null {
-  const bare = hostname.length > 1 && hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+  const bare = unbracket(hostname);
   return isIP(bare) === 0 ? null : bare;
 }
 
@@ -80,7 +92,7 @@ const DEFAULT_PORT_BY_SCHEME: Record<string, string> = { "http:": "80", "https:"
  *  scheme (http→80 / https→443) to keep the connect-side key and the env-derived key comparable. */
 function hostPortKey(hostname: string, port: string, protocol: string): string {
   const p = port !== "" ? port : (DEFAULT_PORT_BY_SCHEME[protocol.toLowerCase()] ?? "");
-  return `${hostname.toLowerCase()}:${p}`;
+  return `${unbracket(hostname).toLowerCase()}:${p}`;
 }
 
 /** The box's OWN configured inference backends, host:PORT-scoped (least-privilege). The host is the SAME
@@ -91,6 +103,87 @@ function hostPortKey(hostname: string, port: string, protocol: string): string {
 function internalBackendHostPorts(): ReadonlySet<string> {
   const host = env.VLLM_ENGINE_HOST.toLowerCase();
   return new Set<string>([`${host}:${env.VLLM_EMBED_PORT}`, `${host}:${env.VLLM_RERANK_PORT}`, `${host}:${env.VLLM_GEN_PORT}`]);
+}
+
+// ── OWNER-SAVED CONNECTION ENDPOINTS — the SECOND declared-intent class ────────────────────────────────
+//
+// WHY IT EXISTS: a user who adds Ollama / KoboldCpp / LM Studio / TabbyAPI at
+// `http://host.docker.internal:11434` (or a LAN box) in Settings → Connections had every request refused
+// by this belt ("blocked … private address") until they hand-edited `EGRESS_ALLOWLIST`. An OWNER-saved
+// connection's endpoint host is DECLARED INTENT — the exact status `VLLM_ENGINE_HOST` already holds above
+// — so it gets the SAME host:PORT-scoped bypass: never a host wildcard, never a prefix, never a range.
+//
+// WHO WIDENS IT: only the box's OWNER — the single `users.role='owner'` row (DDL-unique, D17/D40). The
+// derivation (`domain/credentials/substrate/egress-admission.ts`, which owns the table) resolves that row
+// SERVER-SIDE and lists ITS saved endpoints; the acting principal never selects the scope, so a MEMBER
+// saving `http://169.254.169.254/` widens nothing at all — their rows are not in the query's result set.
+// This module receives only baseUrl STRINGS and mints every key itself, so no caller can hand the belt an
+// admission it would not mint. The set is republished on boot and after every credential add/remove, which
+// is why a deleted or re-pointed connection closes on the next check — it is a derived READ of the store,
+// never persisted into env.
+//
+// WHAT IS NEVER ADMISSIBLE, however the owner spells it ({@link NEVER_ADMISSIBLE_RANGES}): link-local (the
+// 169.254.169.254 cloud-metadata class this belt exists for), multicast, the RFC2544 benchmark block, and
+// the 6to4/Teredo tunnel blocks that embed an arbitrary inner address. Nothing legitimate serves inference
+// there, and admitting one would turn a single owner-scoped credential write into a metadata-credential
+// read. It is enforced TWICE: on the literal at derivation, and on the RESOLVED address at the DNS gate —
+// otherwise a declared hostname (`metadata.google.internal`) would launder a link-local address past it.
+// Everything else the belt blocks today stays admissible, because it is where people actually run models:
+// loopback, RFC1918, CGNAT/Tailscale, IPv6 ULA, and `0.0.0.0` (which routes to loopback, and whose exact
+// host:port admission is no wider than the `127.0.0.1:<same port>` one right beside it).
+const NEVER_ADMISSIBLE_RANGES: readonly string[] = [
+  "169.254.0.0/16", // IPv4 link-local — cloud metadata (169.254.169.254)
+  "fe80::/10", // IPv6 link-local
+  "224.0.0.0/4", // IPv4 multicast — never a unicast backend
+  "198.18.0.0/15", // RFC2544 benchmarking
+  "2002::/16", // 6to4 — embeds an arbitrary IPv4
+  "2001::/32", // Teredo — IPv6-over-UDP tunnel to an arbitrary inner address
+];
+
+/** The OWNER's saved connection endpoints as host:PORT keys. LIVE module state (the env-derived engine set
+ *  is frozen at install; this one is republished by the credentials domain), and EMPTY until the
+ *  composition root publishes — a box whose owner saved nothing behaves exactly as it did before.
+ *
+ *  ASSUMES(single-replica) — per-process BY CONSTRUCTION: it gates THIS process's undici dispatcher, which
+ *  is not a shareable thing. THE DB-BACKED REPLACEMENT SEAM ALREADY EXISTS AND IS WHAT FILLS IT:
+ *  `domain/credentials/substrate/egress-admission.ts` re-derives the whole set from `user_credentials` at
+ *  boot and after every credential write, so a second replica fills its own copy from the same table with
+ *  no coordination, and a replica that has not re-derived yet fails CLOSED (an empty set blocks), never
+ *  open. */
+let ownerSavedEndpoints: ReadonlySet<string> = new Set<string>();
+
+/** Mint the belt's admission key for ONE owner-declared baseUrl, or `null` when it is not admissible: an
+ *  unparseable URL, a non-http(s) scheme, or an IP literal in {@link NEVER_ADMISSIBLE_RANGES}. This is the
+ *  ONE place a saved endpoint becomes an admission — the caller supplies a URL, never a key. */
+function admissionKey(baseUrl: string): string | null {
+  const url = URL.parse(baseUrl);
+  if (url === null || (url.protocol !== "http:" && url.protocol !== "https:")) {
+    return null;
+  }
+  const host = unbracket(url.hostname).toLowerCase();
+  if (host === "" || (isIP(host) !== 0 && isInRanges(host, NEVER_ADMISSIBLE_RANGES))) {
+    return null;
+  }
+  return hostPortKey(host, url.port, url.protocol);
+}
+
+/** Replace the owner-saved admission set from the OWNER's stored connection baseUrls (the whole set every
+ *  time — a removed or re-pointed connection is closed by its ABSENCE from the next publish, so there is no
+ *  accumulate path). Called on boot and after every credential add/remove. The log states COUNTS only; a
+ *  host list would put the operator's LAN topology in every boot log (the `diagnostics.ts` rule). */
+export function publishOwnerSavedEndpoints(baseUrls: readonly string[]): void {
+  const admitted = new Set<string>();
+  let refused = 0;
+  for (const baseUrl of baseUrls) {
+    const key = admissionKey(baseUrl);
+    if (key === null) {
+      refused += 1;
+      continue;
+    }
+    admitted.add(key);
+  }
+  ownerSavedEndpoints = admitted;
+  getLog().info({ admitted: admitted.size, refused }, `security: egress belt admits ${String(admitted.size)} owner-saved connection host:port(s)`);
 }
 
 export function installEgressFirewall(): void {
@@ -144,11 +237,46 @@ export function installEgressFirewall(): void {
   // matched the ORIGINAL host:port against `backends`, so no attacker-influenced target lands here.
   const passthroughConnect = buildConnector({});
 
+  // The owner-saved endpoint connector. Its host:port is declared intent like a backend's, so the
+  // private-range block does not apply — but a declared HOSTNAME still resolves at connect time, and
+  // `NEVER_ADMISSIBLE_RANGES` is exactly the set no declared name may reach (a `metadata.google.internal`
+  // saved as a connection would otherwise launder 169.254.169.254 past the derivation-side literal check).
+  // An IP-literal endpoint never reaches this lookup (undici skips it) and was already filtered at mint.
+  const savedEndpointConnect = buildConnector({
+    lookup(hostname, options, callback): void {
+      dnsLookup(hostname, options, (err, address, family): void => {
+        if (err) {
+          callback(err, address as string, family as number);
+          return;
+        }
+        const addrs: string[] = Array.isArray(address) ? address.map((a) => String((a as { address?: unknown }).address ?? a)) : [String(address)];
+        const blocked = addrs.find((a) => isInRanges(a, NEVER_ADMISSIBLE_RANGES));
+        if (blocked !== undefined) {
+          securityEvent(
+            "egress_blocked",
+            { hostname, address: blocked },
+            "security: egress SSRF blocked (owner-saved host resolved link-local/never-admissible)",
+          );
+          callback(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
+          return;
+        }
+        callback(null, address as string, family);
+      });
+    },
+  });
+
   const connect: buildConnector.connector = (options, callback): void => {
     // Port is available HERE (undici passes options.port to the connector) but NOT reliably in the lookup
     // override — so the port-scoped backend bypass decision must live in the connect wrapper.
-    if (backends.has(hostPortKey(options.hostname, options.port, options.protocol))) {
+    const key = hostPortKey(options.hostname, options.port, options.protocol);
+    if (backends.has(key)) {
       passthroughConnect(options, callback);
+      return;
+    }
+    // The owner's own saved connection endpoint — the same declared-intent class, read live so a deleted or
+    // re-pointed connection is refused on the very next connect.
+    if (ownerSavedEndpoints.has(key)) {
+      savedEndpointConnect(options, callback);
       return;
     }
     const literal = literalHost(options.hostname);

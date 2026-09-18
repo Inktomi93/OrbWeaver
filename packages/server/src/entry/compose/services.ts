@@ -435,6 +435,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     fetchModels: fetchOpenAiModels,
     audit,
     emitUserEvent: publishUserEvent,
+    // The SSRF belt's owner-saved endpoint admission is scoped to the OWNER ROW, never to the acting
+    // principal — and only `domain/sessions` may read `users` (`no-direct-users-read`), so the resolution is
+    // injected here rather than derived inside credentials. Read LIVE (not `deps.ownerId`) so a fresh OIDC
+    // box that lazy-mints its owner after boot resolves it on the next credential write.
+    ownerUserId: (): Promise<UserId | undefined> => sessions.getOwnerUserId(),
   });
   const resolveProviderCredential = mapProviderCredentialResolver(credentials.resolve);
   const providerCredentials: CredentialsService = { ...credentials, resolve: resolveProviderCredential };

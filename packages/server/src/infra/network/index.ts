@@ -17,6 +17,7 @@ export {
   fetchWebDocument,
   installEgressFirewall,
   privateEgressRanges,
+  publishOwnerSavedEndpoints,
   type SafeFetchOptions,
   type SafeFetchResult,
   safeFetch,

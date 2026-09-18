@@ -486,6 +486,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       log.error("boot: SecretBox decrypt-probe FAILED — healthz will report credentials_key_mismatch");
     }
 
+    // Re-open the SSRF egress belt for the OWNER's saved connection endpoints (Ollama/KoboldCpp/LM Studio/
+    // TabbyAPI on loopback or the LAN). `installEgressFirewall()` runs as the FIRST boot step — before the db
+    // exists — so its owner-saved set is empty until this line; without it every restart would re-break a
+    // saved LAN/loopback connection until the owner's next credential write. Logs the admitted COUNT only.
+    await built.services.credentials.refreshEgressAdmission();
+
     // Boot-seed the in-memory OR catalog mirror from the persisted snapshot so a restart preserves catalog
     // warmth (getCatalog's read warms or-model-cache as a side-effect). Without this the mirror is cold
     // until the next refresh — which the daily-cadence scheduler won't run for up to a day — and every OR

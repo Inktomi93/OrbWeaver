@@ -1,3 +1,9 @@
+// SSRF BELT COUPLING: both write paths re-derive the egress belt's OWNER-SAVED endpoint admissions
+// (`substrate/egress-admission.ts`) after the durable write and BEFORE returning, so a saved
+// `custom_openai` endpoint is dialable on the very next turn with no `EGRESS_ALLOWLIST` edit — and a rotate
+// that RE-POINTS a row's `baseUrl` closes the old host:port in the same breath. The derivation is scoped to
+// the OWNER row, not to `params.principal`, so a member's add widens nothing.
+//
 // verb: add — upsert a credential (ownership-scoped). Seals the raw key with AES-256-GCM bound to
 // `${ownerId}|${provider}`, then either rotates the existing (owner, provider, label) row in place
 // (clearing revocation) or inserts a new one. First credential in a slot auto-marks active; later ones
@@ -13,6 +19,7 @@ import type { CredentialsService } from "../contract/service.ts";
 import type { CredentialView } from "../contract/views.ts";
 import { aadFor } from "../persistence/aad.ts";
 import { fetchOwnedCredential, findSlotLabelRow, hasAnyInSlot, insertSealed, rotateSealed, toCredentialView } from "../persistence/queries.ts";
+import { republishOwnerSavedEndpoints } from "../substrate/egress-admission.ts";
 
 const DEFAULT_LABEL = "default";
 
@@ -36,6 +43,7 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
         { actorUserId: ownerId, action: "credential.add", entityType: "credential", entityId: existing.id, metadata: { provider, label, rotated: true } },
         now,
       );
+      await republishOwnerSavedEndpoints(ctx);
       ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId: existing.id });
       return reloadView(ctx, ownerId, existing.id);
     }
@@ -65,6 +73,7 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
       { actorUserId: ownerId, action: "credential.add", entityType: "credential", entityId: id, metadata: { provider, label, rotated: false } },
       now,
     );
+    await republishOwnerSavedEndpoints(ctx);
     ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId: id });
     return reloadView(ctx, ownerId, id);
   };
