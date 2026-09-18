@@ -152,9 +152,8 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
 
 interface ReConsentNoticeProps {
   readonly plugin: PluginView;
-  /** Writes the person's own confirmed SUBSET — which may be narrower than the ask, and may even be
-   *  narrower than the prior grant. Clears `reconsentPending` only when it covers the whole ask; the
-   *  caller supplies the anti-TOCTOU host echo, which is about what was RENDERED, not what was ticked. */
+  /** #1855: approve-all/deny — always grants the full declared set. The caller supplies the anti-TOCTOU
+   *  host echo, which is about what was RENDERED. */
   readonly onAllow: (grant: readonly PluginCapability[]) => void;
   /** Fires the SAME uninstall the row's overflow menu triggers — the notice's other escape action (P1-3).
    *  MAY return a promise (#1563b, widened #1632): it reaches `ConfirmDialog.onConfirm`, which awaits it and
@@ -166,34 +165,25 @@ interface ReConsentNoticeProps {
 }
 
 /** The re-consent notice — what the plugin asks for beyond the confirmed grant, and the paths forward:
- *  allow whatever subset of it you choose, or remove the plugin. `role="alert"` because it renders whenever
- *  `plugin.reconsentPending` is true, which is a standing fact about the row, not a one-shot toast.
+ *  approve all or remove the plugin. `role="alert"` because it renders whenever `plugin.reconsentPending`
+ *  is true, which is a standing fact about the row, not a one-shot toast.
  *
  * THE ESCAPE ACTION LIVES INSIDE THE NOTICE (side-eye #650 P1-3), not just described in its prose and left
- * for a person to hunt down behind the row's unrelated `⋯` menu. Two shapes were wrong here before, and the
- * second is why this component now owns draft state:
- *   1. every ungranted capability rendered as a DISABLED CHECKBOX — a control that looked live and silently
- *      did nothing on click, beside a sentence saying the plugin wanted exactly that permission;
- *   2. then a READ-ONLY list with one all-or-nothing button — honest, but it made the obvious next action
- *      ("tick the one I'm willing to allow") impossible on a surface where install has always allowed it.
- * The rows are now REALLY interactive (the same arm the install card uses), which is the only correct answer
- * to (1): the fix for a control that looks tickable and isn't is a control that IS, not a quieter statement.
- * The read-only "Not granted" arm still exists and is still right — for the DURABLE disclosure below, which
- * reports a settled fact rather than asking a question. */
+ * for a person to hunt down behind the row's unrelated `⋯` menu.
+ *
+ * #1855 (owner ruling): APPROVE-ALL / DENY replaces per-grant toggles. The list is now READ-ONLY, showing
+ * what the plugin asks for and what is new in this update. The person can approve the whole manifest set or
+ * remove the plugin. Per-capability cherry-picking was removed because unchecking capabilities rarely leaves
+ * a working plugin, and the cognitive load of per-capability decisions on a security surface is higher than
+ * the benefit of partial grants. The read-only "Not granted" arm still exists for the DURABLE disclosure
+ * below, which reports a settled fact rather than asking a question. */
 export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing }: ReConsentNoticeProps): ReactElement {
   // The delta this notice exists to explain: everything currently declared that isn't yet granted. Computed
   // from the SAME two durable fields `reconsentPending` itself is judged against, so the notice can never
-  // disagree with the flag that triggered it. Note it is derived from the SERVER's grant, not the draft —
-  // the "New" marks name what this update is asking for and must not flicker off as boxes are ticked.
+  // disagree with the flag that triggered it.
   const ungranted = plugin.declaredCapabilities.filter((capability) => !plugin.grantedCapabilities.includes(capability));
-  // The draft starts at what the owner already allowed — nothing new pre-ticked (file header). Reset from
-  // the server's truth by the `key` at the call site, so this initializer runs again whenever the row's
-  // version or stored grant moves.
-  const [draft, setDraft] = useState<readonly PluginCapability[]>(() => [...plugin.grantedCapabilities]);
-  const onToggle = (capability: PluginCapability, next: boolean): void => {
-    setDraft((current) => (next ? [...current, capability] : current.filter((c) => c !== capability)));
-  };
-  const summary = grantSummaryLine(draft);
+  // #1855: approve-all/deny — the grant summary always shows the full declared set.
+  const summary = grantSummaryLine(plugin.declaredCapabilities);
   return (
     // THE WARNING-CALLOUT SKIN (owner rework 2026-08-29 — "no hierarchy"): this block is the one thing on
     // the row that NEEDS the owner, and it used to render as more of the same prose wall. It is set apart by
@@ -222,30 +212,27 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           `ch` resolves in the element's own font. The per-capability consequence lines are capped at their
           own home (plugin-grant-list.tsx). */}
       <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
-        Orbweaver did not grant the extra permissions, so {plugin.name} stayed off. Tick what you're willing to allow and confirm below — turning it back on is
-        still a separate step, above — or remove it.
+        Orbweaver did not grant the extra permissions, so {plugin.name} stayed off. Review what it asks for below and approve all, or remove the plugin.
       </Text>
-      {/* The INTERACTIVE arm (`onToggle`), defaulting to the prior grant. `addedCapabilities` and
+      {/* #1855: READ-ONLY arm — approve-all/deny replaces per-grant toggles. `addedCapabilities` and
           `addedNetHosts` mark what this update added — the capability half derived from the two projected
           grant fields, the host half taken VERBATIM from the server's recorded delta (a client cannot
           compute it; see plugin-grant-list.tsx's header). `netHosts` is passed ungated on purpose: this
-          screen is asking about reach, including reach that is not granted yet. */}
+          screen is showing reach, including reach that is not granted yet. */}
       <PluginGrantList
         addedCapabilities={ungranted}
         addedNetHosts={plugin.widenedNetHosts}
         capabilitiesLabel={`What ${plugin.name} asks for`}
         declared={plugin.declaredCapabilities}
-        granted={draft}
+        granted={plugin.grantedCapabilities}
         netHosts={plugin.netHosts ?? []}
         netHostsHeading="Hosts this version can reach"
-        onToggle={onToggle}
       />
-      {/* The same roll-up the install card carries at its decision point: at a large ask the per-row marks
-          are what to READ and this is what travels with the click. `null` at an empty selection. */}
+      {/* The roll-up line at the decision point (#1855: always the full declared set). */}
       {summary === null ? null : <Text voice="label">{summary}</Text>}
       <Row gap="field" justify="start">
-        <Button intent="primary" loading={allowing} onClick={(): void => onAllow(draft)} size="sm">
-          Allow selected
+        <Button intent="primary" loading={allowing} onClick={(): void => onAllow(plugin.declaredCapabilities)} size="sm">
+          Approve all
         </Button>
         <ConfirmDialog
           confirmLabel="Remove plugin"

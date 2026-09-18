@@ -38,10 +38,12 @@ export function createUpdateUserSettingsSection(ctx: SettingsContext): SettingsS
       const at = ctx.now();
       const nextConfig = { ...current, [section]: mergedSection };
       await writeUserConfig(ctx.db, ownerId, nextConfig, at);
+      // #2352: derive verb identity from the section discriminant so N callers sharing one wire procedure
+      // never form N identical audit lines — the section IS the verb identity.
       await ctx.audit(
         {
           actorUserId: ownerId,
-          action: "settings.updateUserSettings",
+          action: `settings.update.${section}`,
           entityType: "settings",
           entityId: ownerId,
           // The changed section + the patch's top-level keys only — never the whole config blob.

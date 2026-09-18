@@ -1,4 +1,4 @@
-import type { TagAttachmentView, TagSource, TagStatus, TagTargetType, TagView, TagWithUsage } from "@orb/contracts/tag";
+import type { TagSource, TagTargetType, TagView, TagWithUsage } from "@orb/contracts/tag";
 import {
   createTagSchema,
   TAG_FOLDER_TYPES,
@@ -11,15 +11,12 @@ import {
   tagTargetTypeSchema,
   updateTagSchema,
 } from "@orb/contracts/tag";
-import type { CharacterId, ChatId, TagId, UserId } from "@orb/kit/ids";
+import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Sample branded values built at the sanctioned `castId` seam — no pasted high-entropy literals (noSecrets).
 const SAMPLE_TAG_ID = castId<TagId>("tag-romance");
-const SAMPLE_USER_ID = castId<UserId>("user-alice");
-const SAMPLE_CHARACTER_ID = castId<CharacterId>("character-ada");
-const SAMPLE_CHAT_ID = castId<ChatId>("chat-night");
 
 // ── D24 PIN: the target axis is EXACTLY the five per-type-FK junctions, one home ──────────────────────
 test("tagTargetTypeSchema round-trips the 5 D24 members and rejects others", () => {
@@ -149,42 +146,7 @@ test("TagWithUsage extends TagView with the five-junction rollup", () => {
   expect(row.usage.total).toBe(6);
 });
 
-// ── D30 PIN: the per-user chat-tag overlay vs the four target-derived junctions ───────────────────────
-test("TagAttachmentView: taggerId is non-null ONLY for chat (D30); status only for character", () => {
-  // chat = the per-user overlay: carries its OWN owner (the tagger), no proposed/accepted surface.
-  const chatTag: TagAttachmentView = {
-    tagId: SAMPLE_TAG_ID,
-    targetType: "chat",
-    targetId: SAMPLE_CHAT_ID,
-    taggerId: SAMPLE_USER_ID,
-    status: null,
-  };
-  expect(chatTag.taggerId).toBe(SAMPLE_USER_ID);
-  expect(chatTag.status).toBeNull();
-
-  // character = target-derived owner (no taggerId) + the proposed/accepted status surface.
-  const pendingCharTag: TagAttachmentView = {
-    tagId: SAMPLE_TAG_ID,
-    targetType: "character",
-    targetId: SAMPLE_CHARACTER_ID,
-    taggerId: null,
-    status: "pending",
-  };
-  expect(pendingCharTag.taggerId).toBeNull();
-  const status: TagStatus = pendingCharTag.status ?? "accepted";
-  expect(status).toBe("pending");
-
-  // the other three target-derived junctions: no tagger, no status.
-  const personaTag: TagAttachmentView = {
-    tagId: SAMPLE_TAG_ID,
-    targetType: "persona",
-    targetId: "persona-someone",
-    taggerId: null,
-    status: null,
-  };
-  expect(personaTag.taggerId).toBeNull();
-  expect(personaTag.status).toBeNull();
-});
+// TagAttachmentView test DELETED (#1033 viewgap decision 1): the wire shape was test-only and is removed.
 
 // Type-level pin: the source axis is the inferred union, not a widened string (a drift would fail tsc).
 test("TagSource is the narrow union (derives from tagSourceSchema)", () => {

@@ -1,5 +1,5 @@
 // plugin-install-card — the install half of the Plugins pane: pick a bundle (a FILE or a URL), READ WHAT IT
-// ASKS FOR, confirm the subset you allow, install.
+// ASKS FOR, approve or deny, install.
 //
 // THE TWO-STEP IS THE FEATURE, not ceremony. `plugin.install` takes `{bundle, grant}` in ONE call and no
 // server verb projects a declared capability list from un-installed bytes — so the grant screen has to read
@@ -19,13 +19,13 @@
 // INSTALL act forwards the server's own sentence, because by then the fetch has already succeeded once and
 // its refusals (already-installed, a re-fetch that now fails) are host-readable and leak-free.
 //
-// DEFAULT = EVERYTHING DECLARED, CHECKED. The design's own words: "the caller confirms; `granted_capabilities`
-// is stored as the confirmed SUBSET (a paranoid owner may grant less)". Defaulting to nothing would ship a
-// broken plugin and teach people to check every box without reading; defaulting to the ask, with each row's
-// consequence spelled beside it and the destructive/spendy ones marked, is the confirm this screen is for.
-//
-// The row lands OFF either way (`status: "disabled"` — enabling is a second explicit act, like a rule), and
-// this card says so before the button rather than leaving a person wondering why nothing happened.
+// APPROVE-ALL / DENY (#1855, owner ruling). The prior model had per-grant toggles that defaulted to all
+// checked. The owner ruled that the consent surface shows what the plugin requests and offers exactly two
+// choices: approve all or cancel. Per-grant cherry-picking was conceptually honest but practically useless —
+// unchecking capabilities the plugin declares rarely leaves a working plugin, and it taught people to tick
+// boxes without reading. The display list is now READ-ONLY, and the install always grants the full declared
+// set. The row still lands OFF (`status: "disabled"` — enabling is a second explicit act, like a rule), and
+// this card says so before the button.
 //
 // THE CONFIRM BLOCK SCROLLS INTO VIEW the moment it appears (side-eye #650 P1-4). The settings modal's own
 // scroller does not follow new content — dropping a bundle used to append the whole grant screen BELOW the
@@ -68,12 +68,12 @@ const URL_FETCH_FAILED = "Couldn't fetch a plugin from that URL — it may be un
  *  vs the URL the server re-fetches), and `onInstall` dispatches on this. */
 type InstallSource = { readonly kind: "file"; readonly bytes: Uint8Array } | { readonly kind: "url"; readonly url: string };
 
-/** The pick→confirm→install state. `manifest`, `source` and `granted` travel together: a grant set is only
- *  meaningful against the manifest it was confirmed for, and the source decides which verb installs it. */
+/** The pick→confirm→install state. `manifest` and `source` travel together: the source decides which verb
+ *  installs it. The grant is always the full declared set (#1855: approve-all/deny). */
 type InstallState =
   | { readonly step: "pick" }
   | { readonly step: "reading" }
-  | { readonly step: "confirm"; readonly manifest: PluginManifest; readonly source: InstallSource; readonly granted: readonly PluginCapability[] }
+  | { readonly step: "confirm"; readonly manifest: PluginManifest; readonly source: InstallSource }
   | { readonly step: "rejected"; readonly message: string };
 
 /** The build-provenance line, when the manifest carried one — display/warn only, never an install gate. */
@@ -86,10 +86,9 @@ function BuiltAgainstLine({ manifest }: { readonly manifest: PluginManifest }): 
   );
 }
 
-/** The roll-up line at the decision point (file header, P2-9) — `null` renders nothing rather than a
- *  hollow "Granting 0 permissions" when every box was unchecked. */
-function GrantSummary({ granted }: { readonly granted: readonly PluginCapability[] }): ReactElement | null {
-  const summary = grantSummaryLine(granted);
+/** The roll-up line at the decision point (#1855: always the full declared set). */
+function GrantSummary({ capabilities }: { readonly capabilities: readonly PluginCapability[] }): ReactElement | null {
+  const summary = grantSummaryLine(capabilities);
   return summary === null ? null : <Text voice="label">{summary}</Text>;
 }
 
@@ -194,7 +193,7 @@ export function PluginInstallCard(): ReactElement {
     setState({ step: "reading" });
     readPluginBundle(file).then(
       (preview: PluginBundlePreview) => {
-        setState({ step: "confirm", manifest: preview.manifest, source: { kind: "file", bytes: preview.bytes }, granted: preview.manifest.capabilities });
+        setState({ step: "confirm", manifest: preview.manifest, source: { kind: "file", bytes: preview.bytes } });
       },
       (error: unknown) => {
         setState({
@@ -208,18 +207,7 @@ export function PluginInstallCard(): ReactElement {
   // The URL rides into `source` so `onInstall` re-fetches server-side rather than uploading bytes the client
   // never held (the whole SSRF point). The arm below owns the input + the leak-free failure line.
   const onPreviewed = (manifest: PluginManifest, previewedUrl: string): void => {
-    setState({ step: "confirm", manifest, source: { kind: "url", url: previewedUrl }, granted: manifest.capabilities });
-  };
-
-  const onToggle = (capability: PluginCapability, next: boolean): void => {
-    setState((current) =>
-      current.step !== "confirm"
-        ? current
-        : {
-            ...current,
-            granted: next ? [...current.granted, capability] : current.granted.filter((c) => c !== capability),
-          },
-    );
+    setState({ step: "confirm", manifest, source: { kind: "url", url: previewedUrl } });
   };
 
   const onInstall = (): void => {
@@ -227,7 +215,8 @@ export function PluginInstallCard(): ReactElement {
       return;
     }
     const name = state.manifest.name;
-    const grant = [...state.granted];
+    // #1855: approve-all/deny — always grant the full declared set.
+    const grant = [...state.manifest.capabilities];
     const source = state.source;
     const onDone = (): void => {
       notify.success(`${name} is installed. It's off until you turn it on.`);
@@ -315,9 +304,8 @@ export function PluginInstallCard(): ReactElement {
             <PluginGrantList
               capabilitiesLabel="What it's asking for"
               declared={state.manifest.capabilities}
-              granted={state.granted}
+              granted={state.manifest.capabilities}
               netHosts={state.manifest.netHosts ?? []}
-              onToggle={onToggle}
             />
           </Stack>
 
@@ -327,7 +315,7 @@ export function PluginInstallCard(): ReactElement {
             </Text>
             {/* The roll-up (side-eye P2-9): at a large ask this is the one line that survives the scroll
                 back up to the button — the per-row marks above are what to READ, this is what to REMEMBER. */}
-            <GrantSummary granted={state.granted} />
+            <GrantSummary capabilities={state.manifest.capabilities} />
             <Row gap="field" justify="start">
               <Button intent="primary" loading={installing} onClick={onInstall}>
                 Install
