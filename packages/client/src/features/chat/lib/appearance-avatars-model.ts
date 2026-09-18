@@ -12,6 +12,10 @@ export const APPEARANCE_AVATARS_SUBCATEGORY: ConfigSubcategory = {
   id: "avatars",
   label: "Avatars",
   keywords: ["portrait", "picture"],
+  teach: {
+    summary: "Speaker portrait knobs: visibility, size, frame shape, aspect ratio and accent ring.",
+    affects: ["avatar frames on every message row, in every chat, on this account"],
+  },
   settings: [
     {
       id: "show-avatars",

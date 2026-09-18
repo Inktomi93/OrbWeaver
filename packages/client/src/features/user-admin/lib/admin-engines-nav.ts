@@ -8,6 +8,10 @@ export const ADMIN_ENGINES_SUBCATEGORY: ConfigSubcategory = {
   id: "engines",
   label: "Engines",
   keywords: ["vllm", "gpu", "inference", "restart", "supervisor", "health"],
+  teach: {
+    summary: "Local inference engine health and restart controls. Bounce a hung vLLM process or check embedding and rerank engine status.",
+    affects: ["local engine availability, briefly, during a restart"],
+  },
   settings: [
     {
       id: "engine-restart",

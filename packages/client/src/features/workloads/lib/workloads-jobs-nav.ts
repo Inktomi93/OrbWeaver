@@ -7,6 +7,10 @@ import type { ConfigSubcategory } from "#state";
 
 export const WORKLOADS_JOBS_SUBCATEGORY: ConfigSubcategory = {
   id: "jobs",
+  teach: {
+    summary: "Start, monitor, retry and cancel background jobs: embedding backfills, imports, theme analysis and duplicate detection.",
+    affects: ["your own background job queue"],
+  },
   // "Runs", not "Jobs" (side-eye 2026-08-08 P3, a RULING FORK — see the fork note in `workloads-pane.tsx`):
   // the pane is "Jobs" and this section used to be "Jobs" too, so the settings nav landmark carried two rows
   // with the byte-identical accessible name and nothing to tell them apart. WCAG 2.5.3 (label-in-name)

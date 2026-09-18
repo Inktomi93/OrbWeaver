@@ -8,4 +8,8 @@ export const IMAGERY_TEMPLATES_SUBCATEGORY: ConfigSubcategory = {
   id: "imagery-templates",
   label: "Image prompts",
   keywords: ["image", "imagine", "prompt", "template", "caption", "portrait", "scene", "background", "picture", "generation"],
+  teach: {
+    summary: "Prompt templates for /imagine: the wording the model receives for portrait, scene, background and caption generation modes.",
+    affects: ["every image-generation prompt on this account"],
+  },
 };

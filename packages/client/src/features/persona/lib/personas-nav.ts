@@ -17,6 +17,10 @@ import type { ConfigSubcategory } from "#state";
 export const PERSONA_NOTIFICATIONS_SUBCATEGORY: ConfigSubcategory = {
   id: "notifications",
   label: "Notifications",
+  teach: {
+    summary: "Whether the app confirms persona changes with a toast when you switch who you play as or a restamp lands.",
+    affects: ["persona-switch confirmations, on this account everywhere"],
+  },
   settings: [
     {
       id: "persona-notifications",
@@ -34,6 +38,11 @@ export const PERSONA_LIST_SUBCATEGORY: ConfigSubcategory = {
   id: "your-personas",
   label: "Your personas",
   keywords: ["persona", "new persona", "import", "restore", "current", "default", "avatar"],
+  teach: {
+    summary:
+      "Your persona collection: each row expands into an editor for title, description, injection depth and lore book. The description is what the model reads as you.",
+    affects: ["how the model sees you wherever a persona plays"],
+  },
   settings: [
     {
       id: "editor",
@@ -52,6 +61,10 @@ export const PERSONA_THIS_CHAT_SUBCATEGORY: ConfigSubcategory = {
   id: "this-chat",
   label: "This chat",
   keywords: ["playing as", "switch", "restamp", "reattribute", "chat"],
+  teach: {
+    summary: "Which persona you are playing as in this chat, and the pinned persona every chat without an override resolves to.",
+    affects: ["what {{user}} resolves to in this chat and the global default"],
+  },
   settings: [
     {
       id: "pinned",

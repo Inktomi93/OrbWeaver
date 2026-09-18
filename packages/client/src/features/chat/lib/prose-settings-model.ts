@@ -20,6 +20,11 @@ export const PROSE_SETTINGS_SUBCATEGORY: ConfigSubcategory = {
   label: "Model-facing prose",
   navLabel: "Prose",
   keywords: ["prose", "prompt", "instruction", "wording", "summarizer", "digest", "memory", "arbiter", "injection", "background", "distill"],
+  teach: {
+    summary:
+      "Your overrides for the model-facing instructions the system sends: summarizer wording, memory digest phrasing, arbiter prompts and injection background. An empty field uses the shipped default.",
+    affects: ["what the model reads as system instructions, on this account"],
+  },
 };
 
 /** The TanStack-addressable field name for a slot (dots are path separators — see the header). */

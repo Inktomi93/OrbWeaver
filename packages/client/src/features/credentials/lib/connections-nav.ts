@@ -10,6 +10,10 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
   id: "model-roles",
   label: "Model roles",
   keywords: ["chat", "agent", "embed", "rerank", "summarize", "image", "model", "provider"],
+  teach: {
+    summary: "Which connection each role resolves to by default: chat, embedding, image-embedding and the rest. A room or preset can override any role.",
+    affects: ["the default model for every role, on this account"],
+  },
   settings: [
     {
       id: "chat-model",
@@ -43,12 +47,20 @@ export const CONNECTIONS_HOST_CLAUDE_SUBCATEGORY: ConfigSubcategory = {
   id: "host-claude",
   label: "Host Claude",
   keywords: ["claude", "subscription", "max", "pro", "auth", "health", "probe", "owner"],
+  teach: {
+    summary: "The host's Claude subscription status and health probe. The owner authenticates here; members ride the subscription when allowed.",
+    affects: ["Claude-subscription availability for the whole deployment"],
+  },
 };
 
 export const CONNECTIONS_KEYS_SUBCATEGORY: ConfigSubcategory = {
   id: "saved-keys",
   label: "Saved keys",
   keywords: ["credential", "api key", "provider", "openrouter", "anthropic", "openai"],
+  teach: {
+    summary: "Provider API keys stored once and resolved by every connection to that provider. Add, test and switch the active credential per provider here.",
+    affects: ["every connection that uses a provider whose key is stored here"],
+  },
   settings: [
     {
       id: "add-key",

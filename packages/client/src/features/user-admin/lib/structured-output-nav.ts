@@ -11,6 +11,11 @@ export const STRUCTURED_OUTPUT_SUBCATEGORY: ConfigSubcategory = {
   id: "structured-output",
   label: "Structured output",
   keywords: ["schema", "json", "strict", "required", "optional", "nullable", "grammar", "extraction", "rejected", "400"],
+  teach: {
+    summary:
+      "How the server sends JSON-Schema to models for structured calls: schema strictness level and the delivery vehicle (response_format, tool call or grammar).",
+    affects: ["every structured-output call, deployment-wide"],
+  },
   settings: [
     {
       id: "structuredOutputShape",

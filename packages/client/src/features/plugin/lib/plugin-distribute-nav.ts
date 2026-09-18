@@ -9,6 +9,10 @@ export const PLUGIN_DISTRIBUTE_SUBCATEGORY: ConfigSubcategory = {
   label: "Distribute to everyone",
   navLabel: "Distribute",
   keywords: ["distribute", "everyone", "all users", "server-wide", "deploy", "publish", "admin", "roll out", "withdraw"],
+  teach: {
+    summary: "Publish a plugin to every account on this deployment, or withdraw it. Admin only.",
+    affects: ["every account on this deployment"],
+  },
   settings: [
     {
       id: "published-plugins",

@@ -8,4 +8,8 @@ export const RATE_LIMITS_SUBCATEGORY: ConfigSubcategory = {
   id: "rate-limits",
   label: "Rate limits",
   keywords: ["rate", "limit", "throttle", "requests", "login", "brute", "cap", "abuse"],
+  teach: {
+    summary: "Request throttling and login-attempt caps that protect the deployment from abuse and brute-force attacks.",
+    affects: ["request throughput and sign-in security, deployment-wide"],
+  },
 };

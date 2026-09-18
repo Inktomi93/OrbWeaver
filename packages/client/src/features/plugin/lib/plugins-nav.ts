@@ -15,6 +15,10 @@ export const PLUGINS_INSTALLED_SUBCATEGORY: ConfigSubcategory = {
   id: "installed",
   label: "Installed",
   keywords: ["plugin", "extension", "script", "sandbox", "enable", "disable", "remove", "uninstall", "update", "upgrade", "log"],
+  teach: {
+    summary: "Your installed plugins: enable, disable, remove or update each one, and manage the capabilities you grant it.",
+    affects: ["which plugins run and what they may do, on this account"],
+  },
   settings: [
     {
       id: PLUGIN_PERMISSIONS_SETTING_ID,
@@ -32,4 +36,8 @@ export const PLUGINS_INSTALL_SUBCATEGORY: ConfigSubcategory = {
   id: "install",
   label: "Add a plugin",
   keywords: ["install", "bundle", "zip", "manifest", "add", "sideload", "grant", "permission"],
+  teach: {
+    summary: "Sideload a plugin bundle (zip or manifest) and review its permission requests before granting access.",
+    affects: ["which plugins are available to install on this account"],
+  },
 };

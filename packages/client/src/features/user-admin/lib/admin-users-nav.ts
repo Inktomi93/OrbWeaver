@@ -9,6 +9,10 @@ export const ADMIN_USERS_SUBCATEGORY: ConfigSubcategory = {
   id: "users",
   label: "Users",
   keywords: ["accounts", "people", "members", "roles", "agents"],
+  teach: {
+    summary: "Account management: create local users, assign global roles, and revoke individual sessions.",
+    affects: ["who can sign in and what each account may administer, deployment-wide"],
+  },
   settings: [
     {
       id: "create-user",

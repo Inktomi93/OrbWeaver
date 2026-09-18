@@ -11,6 +11,10 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
   id: "background",
   label: "Background",
   keywords: ["wallpaper", "photo", "image"],
+  teach: {
+    summary: "A decorative photo layer behind the entire app, dimmed by a scrim so text stays readable. Pick a bundled scene or upload your own.",
+    affects: ["the wallpaper behind every panel, on this account everywhere you sign in"],
+  },
   settings: [
     {
       id: "background-image",

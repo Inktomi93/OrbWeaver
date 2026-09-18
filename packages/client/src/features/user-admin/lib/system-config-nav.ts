@@ -13,6 +13,10 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   id: "media-trust",
   label: "Media & trust",
   keywords: ["security", "privacy", "safety"],
+  teach: {
+    summary: "Security and privacy controls for rendered content: block external media URLs, trust rich HTML, and cap generated-image download size.",
+    affects: ["message rendering security and image generation, deployment-wide"],
+  },
   settings: [
     {
       id: "forbid-external-media",
@@ -45,6 +49,10 @@ export const COMPUTE_SUBCATEGORY: ConfigSubcategory = {
   id: "compute",
   label: "Compute",
   keywords: ["vllm", "gpu", "batch", "inference"],
+  teach: {
+    summary: "Local inference concurrency caps for embedding and summarization engines. Higher values speed up indexing at the cost of GPU pressure.",
+    affects: ["indexing and summarization throughput and GPU load, deployment-wide"],
+  },
   settings: [
     {
       id: "vllm-embed-concurrency",
@@ -68,6 +76,10 @@ export const SHARED_ACCESS_SUBCATEGORY: ConfigSubcategory = {
   id: "shared-access",
   label: "Shared access",
   keywords: ["members", "owner", "governance", "sharing"],
+  teach: {
+    summary: "What member accounts may share: local compute access, per-member compute budgets and hosted subscription pass-through.",
+    affects: ["members' access to shared resources, deployment-wide"],
+  },
   settings: [
     {
       id: "allow-non-owner-local",
@@ -97,6 +109,10 @@ export const MULTI_USER_SUBCATEGORY: ConfigSubcategory = {
   id: "multi-user",
   label: "Multi-user",
   keywords: ["auth", "login", "invite", "accounts", "humans", "discreet"],
+  teach: {
+    summary: "Multi-human controls for local mode: allow additional accounts and hide handles on the login screen.",
+    affects: ["sign-up availability and login-screen privacy, deployment-wide"],
+  },
   settings: [
     {
       id: "local-multi-user",
@@ -111,6 +127,10 @@ export const OPERATIONS_SUBCATEGORY: ConfigSubcategory = {
   id: "operations",
   label: "Operations",
   keywords: ["jobs", "logging", "diagnostics"],
+  teach: {
+    summary: "Background-operations switches: corpus auto-indexing and server log verbosity.",
+    affects: ["background indexing load and server log output, deployment-wide"],
+  },
   settings: [
     {
       id: "corpus-autoindex",

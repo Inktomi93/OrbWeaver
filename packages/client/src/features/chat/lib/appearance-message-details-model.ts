@@ -18,6 +18,10 @@ export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
   // half (the action cluster is one of eight knobs here, the metadata chips are the section).
   navLabel: "Message details",
   keywords: ["metadata"],
+  teach: {
+    summary: "Per-message metadata chips (timestamps, token count, cost, model, reasoning icon) and the action cluster (edit/fork/delete/copy).",
+    affects: ["message chrome and hover actions in every chat, on this account"],
+  },
   settings: [
     {
       id: "show-timestamps",
