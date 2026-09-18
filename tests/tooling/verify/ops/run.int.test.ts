@@ -866,6 +866,8 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
     "--cache",
     "--cache-strategy",
     "content",
+    "--cache-location",
+    ".cache/eslint/scoped.eslintcache",
     "tooling/src/verify/lib/registry.ts",
   ]);
   // Every test dir, named individually — a `tests/` regex arm that silently lost one is the exact

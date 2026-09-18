@@ -58,5 +58,20 @@ export function eslintScopedArgv(files: readonly string[]): ScopedArgv {
   if (files.length === 0) {
     return "skip-empty";
   }
-  return ["node", "scripts/eslint.cjs", "--max-warnings", "0", "--no-warn-ignored", "--cache", "--cache-strategy", "content", ...files];
+  // `--cache-location` points at the scoped-run cache under `.cache/eslint/` (#1931). Without it, ESLint
+  // writes `.eslintcache` at the cwd, which the whole-tree partitioned runner never reads (each partition
+  // writes its own per-owner cache under the same `.cache/eslint/` directory).
+  return [
+    "node",
+    "scripts/eslint.cjs",
+    "--max-warnings",
+    "0",
+    "--no-warn-ignored",
+    "--cache",
+    "--cache-strategy",
+    "content",
+    "--cache-location",
+    ".cache/eslint/scoped.eslintcache",
+    ...files,
+  ];
 }

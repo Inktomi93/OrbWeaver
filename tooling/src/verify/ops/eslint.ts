@@ -1,6 +1,15 @@
 // Whole-repository ESLint execution is partitioned by native compiler owner so TypeScript programs die
 // between processes. Discovery asks ESLint itself which files `.` means; actual shards use the unchanged
 // production config, parser, rules, processors, formatter, cache, and diagnostics.
+//
+// CACHE PERSISTENCE (#1931). Each partition's ESLint child runs with `--cache --cache-location` pointing
+// to a PER-OWNER file under `.cache/eslint/`. Without a per-owner location, ESLint's cache `reconcile()`
+// purges entries for files NOT in the current invocation's file list — so every sequential partition
+// REPLACES the shared `.eslintcache` with only its own files, and the next whole-tree run finds zero
+// cache hits for every group except the one that ran last. A per-owner path makes each partition's cache
+// independent and persistent across runs.
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
@@ -17,7 +26,10 @@ refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
 
 const CONFIG_REL = "eslint.config.js";
 const DISCOVERY_ENTRY = fileURLToPath(new URL("./config-snapshot-entry.ts", import.meta.url));
+/** Flags shared by every partition child. `--cache-location` is added per-owner in {@link runEslint}. */
 const CHILD_FLAGS = ["--max-warnings", "0", "--cache", "--cache-strategy", "content", "--concurrency", "off"] as const;
+/** The directory under which per-owner cache files live (inside `.cache/`, already gitignored). */
+const ESLINT_CACHE_DIR = ".cache/eslint";
 
 function ownerFor(path: string, owners: readonly string[]): string {
   if (!isTypeWorldSource(path)) {
@@ -142,10 +154,19 @@ export async function runEslint(root: string): Promise<number> {
   const programs = readCompilerProgramsFromInventory(inventory);
   const groups = partitionEslintFiles(admitted, programs);
 
+  // Ensure the per-owner cache directory exists before the first partition runs.
+  const cacheDir = join(root, ESLINT_CACHE_DIR);
+  mkdirSync(cacheDir, { recursive: true });
+
   let verdict: number = EXIT.clean;
   for (const [owner, paths] of [...groups].toSorted(([left], [right]) => left.localeCompare(right))) {
     process.stderr.write(`[eslint] ${owner}: ${String(paths.length)} file(s)\n`);
-    const result = runNicedSync("pnpm", ["exec", "node", "scripts/eslint.cjs", ...CHILD_FLAGS, ...paths], { cwd: root, stdio: "inherit" });
+    // Each partition gets its own cache file so ESLint's reconcile() does not purge sibling entries (#1931).
+    const ownerCacheFile = join(cacheDir, `${owner.replaceAll("/", "__")}.eslintcache`);
+    const result = runNicedSync("pnpm", ["exec", "node", "scripts/eslint.cjs", ...CHILD_FLAGS, "--cache-location", ownerCacheFile, ...paths], {
+      cwd: root,
+      stdio: "inherit",
+    });
     const childVerdict = eslintScheme(result.status);
     if (childVerdict === EXIT.toolError) {
       return EXIT.toolError;
