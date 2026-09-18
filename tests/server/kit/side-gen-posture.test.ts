@@ -35,8 +35,8 @@ test("the greeting-studio ladder maps to the summarize call: the caller's preset
   expect(toSummarizeOptions(posture)).toEqual({ temperature: 0.85, maxTokens: 600 });
 });
 
-test("the caption ladder: empty floor + no preset params ⇒ {} (byte-identical — caption sent nothing before)", () => {
-  expect(toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.caption))).toEqual({});
+test("the caption ladder: floor + no preset params ⇒ the floor values", () => {
+  expect(toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.caption))).toEqual({ temperature: 0.2, maxTokens: 512 });
 });
 
 test("the caption ladder: a user's preset params now REACH caption (the empty floor lets them through)", () => {
