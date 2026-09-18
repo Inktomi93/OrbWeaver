@@ -15,6 +15,8 @@
 // security finding — this suite goes RED and the failure is a STOP-and-report item (route to
 // security-executor), NOT something the docs/test lane fixes.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../support/composed-real.ts";
 import { assets, characterDocuments, documents, notifications, plugins, themes, userCredentials, workloadSchedules, workloads } from "@orb/db";
 import type {
   AssetId,

@@ -26,6 +26,8 @@
 // SECOND BLOCK (bottom of the file): the other composed-injection gap at this seam — `resolveSeatDeco`'s
 // tighten-only external-media combine, likewise stubbed everywhere else. Its own header explains the exploit.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import process from "node:process";
 import type { Principal } from "@orb/contracts/identity";
 import type { RegexScriptRow } from "@orb/contracts/regex";

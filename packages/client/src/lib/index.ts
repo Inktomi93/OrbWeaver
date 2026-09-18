@@ -22,7 +22,7 @@ export {
   THEME_CARRIER_OBSERVABLES,
 } from "./appearance-carrier-manifest.ts";
 export { setBootReadPending } from "./boot-reads.ts";
-export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
+export { __resetBusDupBursts, busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
 export { deriveChatTitle, UNTITLED_CHAT_TITLE } from "./chat-title.ts";
 export type { ClientErrorPayload } from "./client-error-report.ts";
 export { buildClientErrorPayload } from "./client-error-report.ts";

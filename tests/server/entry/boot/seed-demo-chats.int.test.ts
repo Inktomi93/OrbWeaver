@@ -13,6 +13,8 @@
 // generating stack froze its own display fallback into the prose AND the ST name fields), and the flagship's
 // player actor must be the RECEIVING user's seat, never the generating account's.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { messages as messagesTable } from "@orb/db";

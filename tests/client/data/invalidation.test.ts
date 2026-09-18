@@ -10,6 +10,7 @@
 // no network: `createTrpcClient()` never fires a request until something actually queries.
 
 import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data";
+import { __resetBusDupBursts } from "@orb/client/lib";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
@@ -27,11 +28,16 @@ const CHARACTER_ID = castId<CharacterId>("char_invalidationtest");
 const PLUGIN_ID = castId<PluginId>("plugin_invalidationtest0");
 const PRESET_ID = castId<PresetId>("preset_invalidationtest");
 
-/** Fresh client + proxy per test — no shared cache state to bleed across assertions. */
+/** Fresh client + proxy per test — no shared cache state to bleed across assertions. The duplicate-invalidate
+ *  burst windows are module state in `lib/bus-devlog.ts` and are reset with the client for the SAME reason:
+ *  the alarm they feed is a claim about one app timeline, and this file drives a dozen unrelated waves
+ *  through one module registry inside its 250ms window (before the reset it printed ~39 `[bus] ⚠ … 3×`
+ *  lines describing a storm no app can have — see `__resetBusDupBursts`). */
 function setup(): ReturnType<typeof createInvalidation> & {
   readonly queryClient: QueryClient;
   readonly trpc: ReturnType<typeof createTrpcProxy>;
 } {
+  __resetBusDupBursts();
   const queryClient = new QueryClient();
   const trpc = createTrpcProxy(createTrpcClient("http://localhost/api/trpc"), queryClient);
   return { ...createInvalidation({ queryClient, trpc }), queryClient, trpc };

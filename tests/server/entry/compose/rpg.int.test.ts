@@ -19,6 +19,8 @@
 //     so the second model call is provably gone. The degrade matrix (malformed arg · ghost actor · zero calls)
 //     lands here too — each with the narrative already committed, so none of them may fail or block anything.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import type { ChatApi, ModelCapability } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";

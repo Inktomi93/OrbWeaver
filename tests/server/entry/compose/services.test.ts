@@ -3,6 +3,8 @@
 // throwing and yields every transport `Services` key plus the boot handles. This proves the injection graph
 // wires (the 21 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
 import type { DomainEvent } from "@orb/contracts/events";

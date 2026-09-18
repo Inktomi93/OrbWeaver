@@ -5,6 +5,8 @@
 // entities' DIRECTORIES; a `?kinds=` filter narrows to those dirs; a re-uploaded library bundle imports the
 // ROWS for the uploading owner (the round-trip through the actual HTTP handlers, not the layers below).
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { presets, tags, themes } from "@orb/db";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";

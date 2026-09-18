@@ -22,6 +22,8 @@
 // together, because `runTool`'s own reachability re-check + `resolveTools`' throw are a third belt behind
 // them. It is a defence-in-depth receipt, not a dead assertion.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import type { AutomationActionInput } from "@orb/contracts/automation";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";

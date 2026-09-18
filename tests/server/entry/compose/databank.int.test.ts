@@ -18,6 +18,8 @@
 // The REVERSE pin (an UNWRITTEN databank section reads the grounded defaults) proves the wire is LIVE — a
 // broken binding returning constants regardless of the write would pass the write case vacuously.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

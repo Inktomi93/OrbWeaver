@@ -19,6 +19,8 @@
 // The two observables are the host's own honesty instruments over the REAL resolver: `peekPrompt` (the bytes
 // the next turn ships) and `getMemberCard` (the card-context render). Neither runs a turn.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants } from "@orb/db";
