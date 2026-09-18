@@ -1,14 +1,15 @@
 // Proactive OAuth refresh for the mode-1 Max sub. The bundled runtime refreshes an expired token by
 // tmp-writing + renaming over the config-dir path, which replaces our credentials symlink with a regular
 // file — the refresh never reaches the real host file. This file refreshes the host token itself first,
-// writing the fresh token back to the real ~/.claude/.credentials.json in place before the spawn.
+// writing the fresh token back to the real `<CLAUDE_CONFIG_DIR ?? ~/.claude>/.credentials.json` in place
+// before the spawn (the config-dir rule has ONE home: `foundation/env/host-claude.ts`).
 
 import { readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
 import process from "node:process";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { secondsToMs } from "@orb/kit/time";
+import { env, hostClaudeConfigDir, hostClaudeCredentialsPath } from "#foundation/env";
 import { getLog, securityEvent } from "#foundation/observability";
 
 // Extracted from the pinned SDK bundle: pairs with the platform.claude.com token endpoint (the
@@ -56,7 +57,11 @@ function resolveHostTokenDeps(deps: HostTokenDeps): ResolvedHostTokenDeps {
   return {
     now: deps.now,
     fetch: deps.fetch ?? fetch,
-    credentialsPath: deps.credentialsPath ?? join(homedir(), ".claude", ".credentials.json"),
+    // `CLAUDE_CONFIG_DIR` when set, else `homedir()/.claude` — the SDK's own rule, and the SAME path the
+    // mode-1 isolation symlink and the credential detector resolve. A container that moves its config dir
+    // into the data volume must have its refresh follow it, or the refresh rewrites a file nobody reads
+    // while the live credential expires.
+    credentialsPath: deps.credentialsPath ?? hostClaudeCredentialsPath(hostClaudeConfigDir(env.CLAUDE_CONFIG_DIR, homedir())),
   };
 }
 

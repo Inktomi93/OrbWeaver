@@ -13,7 +13,7 @@
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatRequest, ChatResult, EmbedRequest, EmbedResult, ProviderBackend } from "@orb/server/infra/providers";
-import { createBackendRegistry, createProviderExecutor, ProviderError } from "@orb/server/infra/providers";
+import { createBackendRegistry, createProviderDiagnostics, createProviderExecutor, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { makeModelCapability, makeOpenRouterCredential, makeResolvedCredential } from "../../../support/factories/index.ts";
@@ -190,6 +190,7 @@ describe("createBackendRegistry — the boot-binder factory behind the sealed do
     const { backends, vllmEngine } = createBackendRegistry({
       now: clock.now,
       vllmDisabled: false,
+      hostClaudeDisabled: false,
     });
 
     for (const key of nonVllmKeys) {
@@ -209,6 +210,7 @@ describe("createBackendRegistry — the boot-binder factory behind the sealed do
     const { backends, vllmEngine } = createBackendRegistry({
       now: clock.now,
       vllmDisabled: true,
+      hostClaudeDisabled: false,
     });
 
     for (const key of nonVllmKeys) {
@@ -218,5 +220,51 @@ describe("createBackendRegistry — the boot-binder factory behind the sealed do
     expect(backends.size).toBe(4);
     // no engine to supervise — a role resolving to vllm then fail-closes on the unwired key (correct).
     expect(vllmEngine).toBeNull();
+  });
+
+  // 2026-09-18 — THE SPAWN THAT COULD ONLY FAIL. A production container with no Claude credential forked the
+  // bundled `claude` runtime on every restart: the boot catalog-refresh check enqueues `refresh-model-catalog`,
+  // whose agent-sdk lane calls the discovery op, which calls `query()`. REGISTRATION is the chokepoint —
+  // with the key absent, `requireBackend` refuses BEFORE anything can reach the SDK. The spy proves the
+  // difference between "the call failed" and "the call never happened", which is the whole point: a failed
+  // spawn is still a spawn.
+  test("hostClaudeDisabled:true omits the agent-sdk backend AND makes the discovery op unreachable — no spawn", async () => {
+    const clock = createFrozenClock();
+    let querySpawns = 0;
+    // `as never` is the house spelling for a fake SDK `query` (catalog.test.ts) — the real type is the SDK's
+    // own generator-returning signature and this spy exists to prove it is NEVER called.
+    const spyQuery = (): never => {
+      querySpawns += 1;
+      throw new Error("the SDK query seam must never be reached when host Claude is disabled");
+    };
+
+    const { backends } = createBackendRegistry({
+      now: clock.now,
+      vllmDisabled: false,
+      hostClaudeDisabled: true,
+      query: spyQuery as never,
+    });
+
+    expect(backends.has("agent-sdk")).toBe(false);
+    for (const key of ["openrouter", "custom-openai", "local-light", "vllm"] as const) {
+      expect(backends.get(key)?.key, `${key} must be unaffected`).toBe(key);
+    }
+
+    // The boot catalog warm-up's exact door: a typed refusal, and the SDK seam untouched.
+    const diagnostics = createProviderDiagnostics({ backends });
+    await expect(diagnostics.fetchAgentSdkModels({})).rejects.toBeInstanceOf(ProviderError);
+    expect(querySpawns, "an unregistered backend must not reach the SDK at all — a failed spawn is still a spawn").toBe(0);
+  });
+
+  // POSITIVE CONTROL — the gate must not be a blanket removal: a test that only ever asserts absence would
+  // pass on a `createAgentSdkBackend` call someone deleted. (The "and then it really does reach the SDK"
+  // half is NOT asserted here on purpose: `fetchModels` runs the proactive host-token refresh first, which
+  // reads the real credentials file and can dial the live OAuth endpoint. `catalog.test.ts` drives that
+  // path hermetically with an injected `query`.)
+  test("hostClaudeDisabled:false registers the agent-sdk backend under its own key", () => {
+    const clock = createFrozenClock();
+    const { backends } = createBackendRegistry({ now: clock.now, vllmDisabled: false, hostClaudeDisabled: false });
+    expect(backends.get("agent-sdk")?.key).toBe("agent-sdk");
+    expect(backends.size).toBe(5);
   });
 });

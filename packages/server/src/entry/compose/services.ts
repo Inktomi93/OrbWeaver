@@ -78,8 +78,8 @@ import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseTeachingContributions } from "#domain/tool-use";
 import type { WorkloadContributions } from "#domain/workloads";
 import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
-import type { EnginesPosture } from "#foundation/env";
-import { env } from "#foundation/env";
+import type { EnginesPosture, HostClaudePosture } from "#foundation/env";
+import { env, hostClaudeInput, resolveHostClaudePosture } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { isWireCaptureEnabled, logAudit, recordWireCapture } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
@@ -217,6 +217,12 @@ export interface ServicesDeps {
   /** The fleet MANAGER posture (adopt-or-start) — the supervisor triggers spawns + owns auto-sleep; adopt-only
    *  adopts but never spawns. Absent ⇒ manager default. Derived from ENGINES_POSTURE at boot (lifecycle.ts). */
   readonly vllmManages?: boolean;
+  /** The resolved host-Claude posture (CLAUDE_BACKEND × credential detection — `foundation/env/host-claude.ts`).
+   *  Decides whether the agent-sdk backend is CONSTRUCTED at all, and is carried into the connection domain so
+   *  the surfaces can say "off" and "not set up" as different things. Absent ⇒ resolved here from the
+   *  environment, which is what every test and the dev boot want (a box with no credential composes with the
+   *  backend absent and nothing spawns). */
+  readonly hostClaude?: HostClaudePosture;
   readonly repoRoot?: string;
   readonly providerSeams?: Partial<BackendRegistryDeps>;
   /** This replica's stable lock-holder tag — must match the boot reclaim's match key. */
@@ -369,9 +375,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // TASK-24: wire the provider wire-capture sink ONLY when capture is enabled (env or the force flag). When
   // off, no sink is injected → the send boundaries never record → zero cost, zero retained bytes, prod-safe.
   const wireCaptureOn = deps.wireCapture === true || isWireCaptureEnabled();
+  // One resolution for this process: the registration gate below and the connection surfaces downstream must
+  // agree, and a second `resolveHostClaudePosture` call could disagree with the first (a credential file can
+  // appear between them).
+  const hostClaude = deps.hostClaude ?? resolveHostClaudePosture(hostClaudeInput());
   const registry = createBackendRegistry({
     ...(deps.providerSeams ?? {}),
     now,
+    hostClaudeDisabled: !hostClaude.registered,
     // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
     ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }) } : {}),
     // D8 `session_entries` write path (issue #71) — the sealed agent-sdk backend never touches @orb/db
@@ -437,6 +448,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // the manager default (adopt-or-start). The reachability is a cheap local supervisor read (no network);
     // null handle (vLLM disabled) ⇒ unknown, and the posture-`off` arm short-circuits before it is consulted.
     enginesPosture: derivePosture(deps.vllmDisabled, deps.vllmManages ?? true),
+    // The host-Claude twin of `vllmAvailable` + `enginesPosture`: the verbs need BOTH the boolean (can a
+    // max-pro-sub turn be served at all?) and the posture (did the operator turn it off, or is it merely
+    // not set up?) — the two states get different copy and different fixes.
+    hostClaudeAvailable: hostClaude.registered,
+    claudeBackendPosture: hostClaude.posture,
     localGenEngineReachability: (): LocalEngineReachability => toReachability(registry.vllmEngine?.status()["gen"]),
     // A display fact for the Connections picker; the resolver keeps deriving via its own empty-model
     // pass-through, so this is never stamped.

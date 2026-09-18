@@ -66,6 +66,9 @@ export interface ConnHarness {
   readonly setVllmAvailable: (available: boolean) => void;
   /** Set the effective engine posture the #54 send-availability gate reads (default `adopt-or-start`). */
   readonly setEnginesPosture: (posture: ConnectionContext["enginesPosture"]) => void;
+  /** Set the host-Claude registration facts (default: available, posture `auto`). `false` is a box where
+   *  the agent-sdk backend was never constructed — `CLAUDE_BACKEND=off`, or no credential detected. */
+  readonly setHostClaude: (available: boolean, posture?: ConnectionContext["claudeBackendPosture"]) => void;
   /** Set the gen-engine live reachability the #54 gate reads (default `up`). */
   readonly setGenReachability: (reachability: ReturnType<ConnectionContext["localGenEngineReachability"]>) => void;
   /** Set the window the faked `fetchVllmGenWindow` returns (the gen engine's self-reported max_model_len);
@@ -99,6 +102,8 @@ export function makeConnHarness(db: Db): ConnHarness {
   let orCatalog: ModelCatalogEntry[] = [];
   let agentSdkCatalog: AgentSdkModel[] = [];
   let vllmAvailable = true;
+  let hostClaudeAvailable = true;
+  let claudeBackendPosture: ConnectionContext["claudeBackendPosture"] = "auto";
   let enginesPosture: ConnectionContext["enginesPosture"] = "adopt-or-start";
   let genReachability: ReturnType<ConnectionContext["localGenEngineReachability"]> = "up";
   let vllmGenWindow: number | null = null;
@@ -156,6 +161,13 @@ export function makeConnHarness(db: Db): ConnHarness {
     get enginesPosture(): ConnectionContext["enginesPosture"] {
       return enginesPosture;
     },
+    // The host-Claude registration facts, lazily read for the same reason.
+    get hostClaudeAvailable(): boolean {
+      return hostClaudeAvailable;
+    },
+    get claudeBackendPosture(): ConnectionContext["claudeBackendPosture"] {
+      return claudeBackendPosture;
+    },
     localGenEngineReachability: () => genReachability,
     // Mirrors the compose `requireOwner`-over-`can` boolean; test code may spell the role (the
     // owner-role-split gate scans only packages/server/src).
@@ -189,6 +201,10 @@ export function makeConnHarness(db: Db): ConnHarness {
     },
     setEnginesPosture: (posture: ConnectionContext["enginesPosture"]): void => {
       enginesPosture = posture;
+    },
+    setHostClaude: (available: boolean, posture: ConnectionContext["claudeBackendPosture"] = "auto"): void => {
+      hostClaudeAvailable = available;
+      claudeBackendPosture = posture;
     },
     setGenReachability: (reachability: ReturnType<ConnectionContext["localGenEngineReachability"]>): void => {
       genReachability = reachability;

@@ -53,7 +53,7 @@ function fromDotEnv(name: string): string {
 
 // ONE registry + executor for the whole file — the real production dispatch (real SDK query, real engine
 // client). vllmDisabled:false ADOPTS the warm engines (never spawns here; the client just POSTs loopback).
-const { backends } = createBackendRegistry({ now: () => Date.now(), vllmDisabled: false });
+const { backends } = createBackendRegistry({ now: () => Date.now(), vllmDisabled: false, hostClaudeDisabled: false });
 const executor = createProviderExecutor({ backends });
 
 const CAPABILITY: ModelCapability = makeModelCapability({

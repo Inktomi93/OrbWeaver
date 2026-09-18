@@ -12,11 +12,11 @@ import type {
 } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
-import type { AccountCredits, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
+import type { AccountCredits, GenerationCost, HostClaudeAuthReport, VerifyAuthResult } from "@orb/contracts/providers";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import type { EnginesPosture } from "#foundation/env";
+import type { ClaudeBackendPosture, EnginesPosture } from "#foundation/env";
 import type {
   CheckChatAvailabilityParams,
   GetCatalogParams,
@@ -102,6 +102,14 @@ export interface ConnectionContext {
    *  ONLY under `adopt-only` (a passive consumer that never spawns); under `adopt-or-start` the fleet manager
    *  spawns on the turn, so a down engine is still AVAILABLE (cold-slow, not doomed). `off` = disabled. */
   readonly enginesPosture: EnginesPosture;
+  /** Is the host-Claude (max-pro-sub) backend WIRED for this boot? `false` ⇒ the agent-sdk backend was never
+   *  constructed, so no discovery call, no verify turn and no chat turn on that source can be served — and
+   *  nothing may try, because trying is what forks the bundled runtime. The twin of `vllmAvailable`. */
+  readonly hostClaudeAvailable: boolean;
+  /** WHY it is unavailable, when it is: `off` = the operator said so (CLAUDE_BACKEND=off); `auto`/`on` with
+   *  `hostClaudeAvailable:false` = no credential was detected. Two different user-facing answers with two
+   *  different fixes, which is why the boolean alone is not enough (`foundation/env/host-claude.ts`). */
+  readonly claudeBackendPosture: ClaudeBackendPosture;
   /** The chat GEN engine's live reachability (domain-safe vocab), read by the send-availability gate to refuse
    *  a DOWN local engine under adopt-only. Cheap local read; `unknown` ⇒ never refuse. */
   readonly localGenEngineReachability: LocalGenEngineReachabilityOp;
@@ -143,8 +151,10 @@ export interface ConnectionService {
   /** The agent-sdk daemon's family→version catalog, separate from the OR catalog verbs above. */
   readonly getAgentSdkCatalog: (params: GetCatalogParams) => Promise<AgentSdkCatalogSnapshot>;
   readonly refreshAgentSdkCatalog: (params: RefreshCatalogParams) => Promise<AgentSdkCatalogSnapshot>;
-  /** The max-pro-sub health check: resolve the owner-gated credential, then run a tiny SDK verify turn. */
-  readonly testClaudeAuth: (params: TestClaudeAuthParams) => Promise<VerifyAuthResult>;
+  /** The max-pro-sub health check: resolve the owner-gated credential, then run a tiny SDK verify turn —
+   *  UNLESS the backend is absent on this deployment, in which case the report says so and no turn runs
+   *  (a probe is what would fork the bundled runtime). */
+  readonly testClaudeAuth: (params: TestClaudeAuthParams) => Promise<HostClaudeAuthReport>;
   /** The caller's OpenRouter credit balance. No/revoked key → `DomainNoCredentialError`, never a fabricated zero. */
   readonly getOrCredits: (params: GetOrCreditsParams) => Promise<AccountCredits>;
   /** The settled cost of one OpenRouter generation, read with the caller's billing key. */

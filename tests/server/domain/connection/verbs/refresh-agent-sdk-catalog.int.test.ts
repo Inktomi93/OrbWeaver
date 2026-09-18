@@ -54,4 +54,32 @@ describe("refreshAgentSdkCatalog", () => {
 
     expect(stale.models).toEqual(models);
   });
+
+  // 2026-09-18 — THE BOOT SPAWN'S ORIGIN. The catalog-refresh scheduler runs ONE check immediately at boot,
+  // which enqueues this workload, whose agent-sdk lane calls the discovery op — and that op forks the
+  // bundled claude runtime. On a box where the backend was never registered (CLAUDE_BACKEND=off, or no
+  // credential detected) that child could only ever fail, once per container restart. An absent backend is
+  // a NORMAL state, not an outage: serve the snapshot, dial nothing.
+  test("host Claude absent ⇒ the discovery op is NEVER called and the empty snapshot is served", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setHostClaude(false, "auto");
+
+    const snapshot = await createConnectionService(h.ctx).refreshAgentSdkCatalog({});
+
+    expect(snapshot).toEqual({ fetchedAt: 0, models: [] });
+    expect(h.agentSdkFetches(), "an unregistered backend must not be dialled — the dial IS the spawn").toBe(0);
+  });
+
+  test("host Claude absent WITH a persisted snapshot still serves it (a restart keeps catalog warmth)", async () => {
+    const h = makeConnHarness(await freshDb());
+    const models = [makeAgentSdkModel({ alias: "sonnet" })];
+    h.setAgentSdkCatalog(models);
+    await createConnectionService(h.ctx).refreshAgentSdkCatalog({}); // seed while still registered
+    h.setHostClaude(false, "off");
+
+    const snapshot = await createConnectionService(h.ctx).refreshAgentSdkCatalog({});
+
+    expect(snapshot.models).toEqual(models);
+    expect(h.agentSdkFetches(), "one seeding fetch, and none after the backend went away").toBe(1);
+  });
 });

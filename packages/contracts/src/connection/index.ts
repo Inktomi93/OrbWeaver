@@ -410,12 +410,16 @@ export interface RouteChatAssignment {
  *  composer maps to a specific reason (#54). ENGINE-AGNOSTIC: `engine-off` is a local engine that is
  *  disabled/absent (ENGINES_POSTURE=off / no GPU); `engine-down` is a REGISTERED local engine that is DEAD
  *  and won't come up on its own (down under `adopt-only`, the passive posture that never spawns — start it);
+ *  `host-claude` is the max-pro-sub backend being absent on this deployment — either the operator set
+ *  `CLAUDE_BACKEND=off` or no subscription credential was detected, so the agent-sdk backend was never
+ *  registered (one cause, not two: the composer needs ONE actionable line and the Connections pane is where
+ *  the two fixes are actually told apart — `@orb/contracts/providers::HOST_CLAUDE_STATES`);
  *  `no-connection` is an unconfigured/incoherent connection (no credential row, a routing pairing with no
  *  backend); `unavailable` is the generic fallback (the resolved backend isn't wired). Deterministic-only — a
  *  configured hosted connection reads available and is never pre-flighted (a bad key still fails at send with
  *  the existing provider error). A DOWN engine under `adopt-or-start` reads AVAILABLE (the fleet manager wakes
  *  it on the turn). Client single-homes the reason copy per cause. */
-export const CHAT_UNAVAILABLE_CAUSES = ["engine-off", "engine-down", "no-connection", "unavailable"] as const;
+export const CHAT_UNAVAILABLE_CAUSES = ["engine-off", "engine-down", "host-claude", "no-connection", "unavailable"] as const;
 export type ChatUnavailableCause = (typeof CHAT_UNAVAILABLE_CAUSES)[number];
 // (chatUnavailableCauseSchema deleted 08-03 — orphaned by the TYPO class-B demotion; the type derives from the tuple.)
 

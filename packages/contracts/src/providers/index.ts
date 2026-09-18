@@ -158,3 +158,25 @@ export const verifyAuthResultSchema = z.object({
   account: verifyAuthAccountSchema.optional(),
 });
 export type VerifyAuthResult = z.infer<typeof verifyAuthResultSchema>;
+
+/** WHAT THE HOST-CLAUDE (max-pro-sub) BACKEND IS DOING on this deployment — the one availability axis for
+ *  the agent-sdk backend, read by the owner's "Test Claude auth" surface. `ready` is the only state that
+ *  carries a probe result; the other two are deployment facts no probe can improve, and they are kept
+ *  DISTINCT because their fixes are different: `off` means the operator set `CLAUDE_BACKEND=off` (turn it
+ *  back on), `not-set-up` means no subscription credential was detected (log in, or paste a token).
+ *
+ *  The user-facing COPY is single-homed on the CLIENT, keyed by this member — the same discipline
+ *  `ChatUnavailableCause` follows — so the server states the fact and never ships a sentence. */
+export const HOST_CLAUDE_STATES = ["ready", "off", "not-set-up"] as const;
+export type HostClaudeState = (typeof HOST_CLAUDE_STATES)[number];
+
+/** The `connection.testClaudeAuth` answer. A DISCRIMINATED union rather than a nullable `VerifyAuthResult`
+ *  so "we never ran a probe" cannot be rendered as a failed probe: on a box with the backend absent there is
+ *  no turn to run, no credential to judge, and reporting `ok:false` would tell the owner their subscription
+ *  was rejected when nothing was ever asked. Not a zod schema for the same reason `ChatSendAvailability`
+ *  is not (TYPO class-B): a server→client OUTPUT shape nothing `.parse`s, whose arms derive from the tuple
+ *  above so the states keep one home. */
+export type HostClaudeAuthReport =
+  | { readonly state: "ready"; readonly verify: VerifyAuthResult }
+  | { readonly state: "off" }
+  | { readonly state: "not-set-up" };

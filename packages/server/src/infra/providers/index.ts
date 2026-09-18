@@ -42,6 +42,13 @@ export function createProviderExecutor(deps: ProviderDeps): ProviderExecutor {
 export interface BackendRegistryDeps {
   readonly now: () => number;
   readonly vllmDisabled: boolean;
+  /** Is the host-Claude (agent-sdk / max-pro-sub) backend DISABLED for this boot? The twin of
+   *  `vllmDisabled`, and required for the same reason: a new construction site must DECIDE rather than
+   *  inherit. `true` ⇒ the backend is absent from the registry, so every role/diagnostic that resolves to
+   *  it fail-closes on the unwired key and the bundled `claude` runtime is NEVER forked — which is the
+   *  whole point (`foundation/env/host-claude.ts` holds the posture that decides it, and the 2026-09-18
+   *  container incident where the boot catalog refresh spawned a child on a box with no credential). */
+  readonly hostClaudeDisabled: boolean;
   /** The fleet MANAGER posture (adopt-or-start) triggers the detached spawner + owns auto-sleep; adopt-only
    *  adopts but never spawns. Absent ⇒ the supervisor's manager default (true). Derived from ENGINES_POSTURE. */
   readonly vllmManages?: boolean;
@@ -124,15 +131,14 @@ function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
   };
 }
 
-// vLLM is constructed only when not disabled; when disabled it is absent from the map and a role that
-// resolves to it fail-closes.
+// vLLM and agent-sdk are each constructed only when not disabled; when disabled the key is absent from the
+// map and a role that resolves to it fail-closes (`requireBackend`), with no process spawned either way.
 export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistryResult {
   // One shared local-light model cache — the embed/rerank/imageEmbed backend AND the sprite-sheet matte op
   // load through it (one process-wide model LRU + device/CPU-fallback mechanics; §4.1).
   const localLightCache = createModelCache();
   const backends: ProviderBackend[] = [
     createOpenRouterBackend(openRouterDeps(deps)),
-    createAgentSdkBackend(agentSdkDeps(deps)),
     createCustomByoBackend({
       now: deps.now,
       ...(deps.random !== undefined ? { random: deps.random } : {}),
@@ -140,6 +146,13 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
     }),
     createLocalLightBackend({ cache: localLightCache }),
   ];
+
+  // The agent-sdk backend is CONSTRUCTED ONLY when host Claude is available. Construction is what matters:
+  // every spawn path (turn, summarize, verifyAuth, and the boot catalog discovery) hangs off this object, so
+  // an absent key means `requireBackend` throws a typed error BEFORE anything forks the bundled runtime.
+  if (!deps.hostClaudeDisabled) {
+    backends.push(createAgentSdkBackend(agentSdkDeps(deps)));
+  }
 
   let vllmEngine: VllmEngineHandle | null = null;
   if (!deps.vllmDisabled) {

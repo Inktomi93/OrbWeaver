@@ -13,7 +13,7 @@ import { join } from "node:path";
 import process from "node:process";
 import type { ClaudeIsolationPinKey } from "@orb/contracts/preset";
 import { HOST_OWNED_CLAUDE_ENV_KEYS, isAllowedClaudeRuntimeEnvKey } from "@orb/contracts/preset";
-import { processEnvSnapshot } from "#foundation/env";
+import { env, HOST_CLAUDE_OAUTH_TOKEN_ENV, hostClaudeConfigDir, hostClaudeCredentialsPath, processEnvSnapshot } from "#foundation/env";
 import type { OrSkinTierModels } from "../../contract/index.ts";
 import { ProviderError } from "../../contract/index.ts";
 
@@ -238,6 +238,22 @@ function claudeUserEnv(userOverrides: Record<string, string | null> | undefined)
   return out;
 }
 
+/** The host's Claude login file, THIS build. `CLAUDE_CONFIG_DIR` when set, else `homedir()/.claude` — the
+ *  SDK's own rule, shared with the credential detector (`foundation/env/host-claude.ts`) and the proactive
+ *  token refresh (`host-token.ts`) so all three mean the same file. Read per call, never memoized: a
+ *  container mounts its config dir late and an operator runs `claude login` on a live box (#1406). */
+function hostCredentialsPath(): string {
+  return hostClaudeCredentialsPath(hostClaudeConfigDir(env.CLAUDE_CONFIG_DIR, homedir()));
+}
+
+/** The long-lived `claude setup-token` credential, read LIVE from the process env (not the frozen `env`
+ *  parse) so a token exported into a restarted supervisor or mounted after boot is seen — and so this
+ *  bearer value never sits in the widely-imported frozen env object. An empty string is "unset". */
+function hostOauthToken(): string | undefined {
+  const raw = processEnvSnapshot()[HOST_CLAUDE_OAUTH_TOKEN_ENV];
+  return raw !== undefined && raw.length > 0 ? raw : undefined;
+}
+
 // mode-1 ephemeral CLAUDE_CONFIG_DIR with ONLY .credentials.json symlinked in — the default ~/.claude
 // also holds skills/memory/settings that leak into the spawned (potentially adversarial) RP subprocess.
 // TWO no-symlink outcomes, kept DISTINCT (owner ruling, #751 — FAIL CLOSED):
@@ -259,7 +275,7 @@ function claudeUserEnv(userOverrides: Record<string, string | null> | undefined)
 let mode1IsolatedDir: string | undefined;
 function mode1IsolatedConfigDir(): string | undefined {
   if (mode1IsolatedDir === undefined) {
-    const credSrc = join(homedir(), ".claude", ".credentials.json");
+    const credSrc = hostCredentialsPath();
     if (!existsSync(credSrc)) {
       return;
     }
@@ -306,16 +322,60 @@ function emptyIsolatedConfigDir(): string {
   return mode2IsolatedDir;
 }
 
+// The mode-1 TOKEN arm's own empty dir — deliberately NOT `emptyIsolatedConfigDir()` even though both start
+// empty. A config dir is WRITABLE state the bundled runtime persists into (settings, history, and on a token
+// refresh potentially a `.credentials.json`), so sharing ONE directory between the SUB spawn and the
+// OpenRouter-skin spawn would build the exact pipe the mode-2 firewall exists to prevent: a sub credential
+// written by one child, readable by a child that talks to a paid third party. A second mkdtemp per process
+// is the whole cost.
+let mode1TokenDir: string | undefined;
+function tokenIsolatedConfigDir(): string {
+  if (mode1TokenDir === undefined) {
+    const dir = mkdtempSync(join(tmpdir(), "orbweaver-claude-tok-"));
+    mode1TokenDir = dir;
+    process.on("exit", () => {
+      rmSync(dir, { recursive: true, force: true });
+    });
+  }
+  return mode1TokenDir;
+}
+
+/**
+ * mode-1 (the Max sub). THE TOKEN ARM (2026-09-18): a container has no browser, so the documented headless
+ * subscription credential is `CLAUDE_CODE_OAUTH_TOKEN` (`claude setup-token`,
+ * https://code.claude.com/docs/en/authentication). It reaches the child ONLY from here — the host baseline
+ * excludes the whole `CLAUDE_*`/`ANTHROPIC_*` namespace (`isAmbientClaudeEnvKey`), so before this arm the
+ * token could not reach the runtime at all and a token-only deploy simply failed to authenticate.
+ *
+ * WHICH CREDENTIAL, AND THE CONFIG DIR THAT GOES WITH IT — the file arm wins because it is the one this
+ * process actively REFRESHES (`host-token.ts` rewrites the real file before every spawn), so preferring the
+ * token when both are present would leave a stale, un-refreshable credential in charge:
+ *   • credentials FILE present → the symlink-isolated dir (today's arm, #751), no token in the env.
+ *   • token only             → its OWN empty isolated dir + the token. The token IS the credential, so the
+ *                              child needs no config dir at all — giving it an empty one keeps the host's own
+ *                              `~/.claude` skills/memory/settings out of a potentially-adversarial RP
+ *                              subprocess, which the old un-isolated degrade did not.
+ *   • neither                → the documented un-isolated degrade (PATH 1). Unreachable in practice now: the
+ *                              backend is not registered without a credential (`foundation/env/host-claude.ts`),
+ *                              so nothing constructs a turn to build an env for.
+ * `ANTHROPIC_API_KEY` stays pinned `undefined` on every arm: max-pro-sub is the flat-rate subscription, and
+ * the metered first-party key has its own builder (`buildClaudeAnthEnv`). See the host-claude header.
+ */
 export function buildClaudeSdkEnv(overrides: ClaudeRuntimeOverrides = {}): Record<string, string | undefined> {
   const isoDir = mode1IsolatedConfigDir();
+  const token = isoDir === undefined ? hostOauthToken() : undefined;
+  const configDir = isoDir ?? (token !== undefined ? tokenIsolatedConfigDir() : undefined);
   return {
     ...hostEnvForClaudeChild(),
-    ...(isoDir !== undefined && { CLAUDE_CONFIG_DIR: isoDir, ANTHROPIC_CONFIG_DIR: isoDir }),
+    ...(configDir !== undefined && { CLAUDE_CONFIG_DIR: configDir, ANTHROPIC_CONFIG_DIR: configDir }),
     CLAUDE_CODE_DISABLE_CLAUDE_MDS: DISABLE_CLAUDE_MDS,
     ...claudeRuntimeLayer(overrides),
     ANTHROPIC_API_KEY: undefined,
     ANTHROPIC_BASE_URL: undefined,
     ANTHROPIC_AUTH_TOKEN: undefined,
+    // Written LAST, with the auth pins, so nothing above (including the preset hatch, which reserves this
+    // key) can set, clear or overwrite it. `undefined` on the file arm ⇒ node omits it from the child.
+    [HOST_CLAUDE_OAUTH_TOKEN_ENV]: token,
   };
 }
 

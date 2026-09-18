@@ -288,6 +288,14 @@ async function warmOrCatalog(ctx: ConnectionContext): Promise<void> {
  *  fallback window instead of the daemon's reported one. Same ladder (persisted snapshot → live discovery),
  *  same single-flight, same best-effort posture. */
 async function warmAgentSdkCatalog(ctx: ConnectionContext): Promise<void> {
+  // No backend, no discovery. The live arm of this ladder FORKS the bundled claude runtime, so an
+  // unregistered backend must not reach it — `requireBackend` would throw and the catch below would log a
+  // warn on every resolve, turning "not set up" into recurring noise instead of a quiet, normal state.
+  // The window stays the marked-estimated fallback, which is the honest answer when nothing can be asked.
+  if (!ctx.hostClaudeAvailable) {
+    addSpanEvent("cache.warm", { cache: AGENT_SDK_MODEL_CACHE_NAME, outcome: "skipped" });
+    return;
+  }
   if (getCachedAgentSdkModels(ctx.now()) !== null) {
     addSpanEvent("cache.hit", { cache: AGENT_SDK_MODEL_CACHE_NAME });
     return;
