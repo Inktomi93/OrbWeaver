@@ -1,0 +1,79 @@
+// Reviewed grants: zod-error-issues-home, z-index-tier-permission.
+// Split from reviewed-grants-tooling-to-permission.ts at the 450-line cap — see reviewed-grants.ts for
+// the central home comment.
+import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
+
+export const REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX: readonly ReviewedGateGrant[] = [
+  {
+    id: "zod-error-issues-home:persona-write-guard",
+    policyId: "zod-error-issues-home",
+    subject: "packages/contracts/src/persona/index.ts",
+    operation: "error-issues-read",
+    why: "a write-guard RE-EMIT, not a message render: `personaMetadataWriteSchema`'s superRefine forwards each inner issue as `ctx.addIssue({code:'custom', message, path})`. It keeps `path`, which `prettifyError` cannot — that returns a STRING and would collapse the whole issue array into one opaque message on the outer error.",
+    endsWhen: "the metadata write guard stops re-emitting inner issues (the inner schema is composed directly into the outer one).",
+  },
+  {
+    id: "zod-error-issues-home:rpg-extraction",
+    policyId: "zod-error-issues-home",
+    subject: "packages/contracts/src/rpg/extraction.ts",
+    operation: "error-issues-read",
+    why: "MODEL-facing: `issueLines` renders the salvage drop list in the same `path: message` convention. The shared-plane proof means the structured plane and its tool validate through the identical schema, so the two refusal texts must agree.",
+    endsWhen: "the structured plane and its tool stop sharing one schema, at which point the two texts no longer have to agree.",
+  },
+  {
+    id: "zod-error-issues-home:schema-forge",
+    policyId: "zod-error-issues-home",
+    subject: "packages/server/src/domain/refinery/substrate/schema-forge.ts",
+    operation: "error-issues-read",
+    why: "STRUCTURAL RE-EMIT: the §4.5 lift-refusal bridge maps each document-belt issue into the OUTER envelope parse (`ctx.addIssue({path: issue.path, …})`) so the bounded retry's correction prompt carries construct plus path to the MODEL. The path is forwarded, never dropped, and prettify returns a STRING that would collapse the array.",
+    endsWhen: "the lift refusal stops being re-emitted into an outer parse (the belt reports its own refusal directly).",
+  },
+  {
+    id: "zod-error-issues-home:structured-turn",
+    policyId: "zod-error-issues-home",
+    subject: "packages/server/src/kit/structured-turn/index.ts",
+    operation: "error-issues-read",
+    why: "MODEL-facing: the issue summary is fed straight BACK to the model as the retry prompt (`args.run(first.issues)`), so it must be the schema-addressable `path: message` form rather than a human-formatted tree.",
+    endsWhen: "the structured-turn retry stops re-prompting with the parse issues.",
+  },
+  {
+    id: "zod-error-issues-home:tool-register",
+    policyId: "zod-error-issues-home",
+    subject: "packages/server/src/domain/tool-use/verbs/register.ts",
+    operation: "error-issues-read",
+    why: "MODEL-facing: the tool registry hands the failing model `path.join('.') + ': ' + message` so it can match the refusal against its own arg schema. The path is CARRIED, not dropped — the opposite of the F4 defect — and `z.prettifyError`'s human layout is the wrong shape for a wire the model re-reads.",
+    endsWhen: "tool refusals stop being fed back to a model verbatim, at which point the human renderer is the right one.",
+  },
+  {
+    id: "zod-error-issues-home:tool-register-plugin",
+    policyId: "zod-error-issues-home",
+    subject: "packages/server/src/domain/tool-use/verbs/register-plugin-tool.ts",
+    operation: "error-issues-read",
+    why: "MODEL-facing, the plugin twin of `register.ts` — the identical `path: message` convention, deliberately kept byte-identical between the two registration doors so a model sees one refusal vocabulary.",
+    endsWhen: "the two registration doors stop sharing a refusal vocabulary, or tool refusals stop being model-facing.",
+  },
+  {
+    id: "zod-error-issues-home:versioned-config",
+    policyId: "zod-error-issues-home",
+    subject: "packages/contracts/src/versioned-config/index.ts",
+    operation: "error-issues-read",
+    why: "the structured FIRST issue (path plus message) IS this contract's parse-outcome payload (#1592): the import refusal needs the PATH to name the offending field, which `z.prettifyError` flattens into prose, and nothing here prints a raw message. TRANSLATED FROM A MARKER — the site carried a permanent `@orb-gate-ignore`, and a reviewed-grant policy has no inline door, so the standing permission is this row and the marker is deleted.",
+    endsWhen: "the degraded-parse payload stops carrying a field path (the caller renders the whole refusal itself).",
+  },
+  {
+    id: "zod-error-issues-home:world-info-write-guard",
+    policyId: "zod-error-issues-home",
+    subject: "packages/contracts/src/world-info/index.ts",
+    operation: "error-issues-read",
+    why: "the same write-guard RE-EMIT for `entryMetadataWriteSchema`, whose header cites the persona rationale verbatim — issues forwarded structurally with their paths, never flattened to a display string.",
+    endsWhen: "the entry write guard stops re-emitting inner issues (the inner schema is composed directly into the outer one).",
+  },
+  {
+    id: "z-index-tier-permission:layout",
+    policyId: "z-index-tier-permission",
+    subject: "packages/ui/src/layout/",
+    operation: "spell-z-index-tier",
+    why: "layout primitives implement the shared stacking vocabulary and must remain able to author its raw representation.",
+    endsWhen: "layout primitives stop implementing stacking or move to a different structural home.",
+  },
+];

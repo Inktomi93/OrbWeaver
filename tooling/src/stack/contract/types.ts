@@ -318,3 +318,33 @@ export interface EnginesComposeInput {
   readonly gpuCount: number;
   readonly vllmVersion: string;
 }
+
+// ── `pnpm start` — the PORTABLE one-command production launcher (ops/start.ts) ───────────────────────
+
+/** `--build` forces a client build, `--no-build` skips one; `auto` (neither flag) builds only when the
+ *  bundle is missing or older than client/ui source. */
+export const START_BUILD_MODES = ["auto", "force", "skip"] as const;
+export type StartBuildMode = (typeof START_BUILD_MODES)[number];
+
+export interface StartInvocation {
+  readonly build: StartBuildMode;
+}
+
+export type StartParse = { readonly ok: true; readonly invocation: StartInvocation } | { readonly ok: false; readonly error: string };
+
+export interface StartBuildDecision {
+  readonly run: boolean;
+  /** The ONE line the launcher prints about the build — why it is running one, or why it is not. */
+  readonly reason: string;
+}
+
+/** How to run the operator's OWN pnpm from a child process with `shell: false`, on every platform.
+ *    `node`    — `<node> <pnpm.cjs> <args>`: pnpm's own JS entry, run by the node we are already in. The
+ *                only spelling that works unchanged on win32, where pnpm on PATH is `pnpm.cmd` and node
+ *                refuses to spawn a `.cmd`/`.bat` without `shell: true`.
+ *    `path`    — bare `pnpm` resolved by the OS execvp (POSIX only; no `.cmd` indirection there).
+ *    `refused` — no usable pnpm could be named, and guessing would be a lie. `reason` is the fix. */
+export type PnpmInvocation =
+  | { readonly kind: "node"; readonly command: string; readonly args: readonly string[] }
+  | { readonly kind: "path"; readonly command: string; readonly args: readonly string[] }
+  | { readonly kind: "refused"; readonly reason: string };

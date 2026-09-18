@@ -64,6 +64,9 @@ const config = {
     tooling: {
       // The four BASH-SPAWNED entries are invisible to the import graph: `stack` is a bash-fronted tool
       // (Core-Tooling-Law.md §4.1) whose .sh entrypoints exec these by path, so nothing imports them.
+      // `stack/ops/start-entry.ts` needs NO row for the opposite reason: the root `start` script names it
+      // directly (`node tooling/src/stack/ops/start-entry.ts`), and knip reads package.json scripts — a row
+      // for it is a redundant-entry hint, which is an error here.
       // The GATE CORPUS is an entry glob for the same reason one level up: `verify`'s loader IS the registry
       // — it `globSync`s `gates/*.ts` and imports each by URL at runtime (Core-Tooling-Law.md §4.3), so every
       // descriptor is a plugin nothing statically imports. Without this row knip reads all 219 `export const

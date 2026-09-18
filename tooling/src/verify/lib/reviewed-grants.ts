@@ -19,6 +19,7 @@ import { REVIEWED_GRANTS_SUPPRESSIONS_A } from "./reviewed-grants-suppressions-a
 import { REVIEWED_GRANTS_SUPPRESSIONS_B } from "./reviewed-grants-suppressions-b.ts";
 import { REVIEWED_GRANTS_TOOLING_TO_PERMISSION } from "./reviewed-grants-tooling-to-permission.ts";
 import { REVIEWED_GRANTS_Z_TO_CITATIONS } from "./reviewed-grants-z-to-citations.ts";
+import { REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX } from "./reviewed-grants-zoderrorissues-zindex.ts";
 
 /** Sorted by `policyId`, then `id`; `id` is `<policyId>:<short-kebab-subject>` so a row is greppable by its policy.
  *  The sort is enforced mechanically: the array is sorted at definition time rather than relying on
@@ -37,6 +38,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
       ...REVIEWED_GRANTS_SUPPRESSIONS_B,
       ...REVIEWED_GRANTS_TOOLING_TO_PERMISSION,
       ...REVIEWED_GRANTS_Z_TO_CITATIONS,
+      ...REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX,
       ...REVIEWED_GRANTS_DANGLINGREFCITATIONS,
     ] satisfies ReviewedGateGrant[]
   ).toSorted((a, b) => {
