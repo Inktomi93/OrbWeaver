@@ -26,6 +26,7 @@ const PATH_PREFIXES: readonly string[] = [
   "docs/",
   "scripts/",
   "tests/",
+  "tooling/",
   "domain/",
   "entry/",
   "infra/",
@@ -51,7 +52,7 @@ function pkgRoot(pkg: string): string {
 }
 
 function shorthandTarget(ref: string): string | undefined {
-  if (ref.startsWith("packages/") || ref.startsWith("docs/") || ref.startsWith("scripts/") || ref.startsWith("tests/")) {
+  if (ref.startsWith("packages/") || ref.startsWith("docs/") || ref.startsWith("scripts/") || ref.startsWith("tests/") || ref.startsWith("tooling/")) {
     return ref;
   }
   if (ref.startsWith("domain/") || ref.startsWith("entry/") || ref.startsWith("infra/") || ref.startsWith("transport/") || ref.startsWith("foundation/")) {
