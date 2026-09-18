@@ -66,7 +66,7 @@ const REQUIRED_DIRS = ["contract", "verbs"] as const;
  *    without reading the queue. */
 const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts", "teaching-contribution.ts", "workload-contributions.ts"] as const;
 
-/** Real-tree anchor (GATE-AUTHORING.md §4.5): a domain every real run has and no example builds. The
+/** Real-tree anchor (tooling/src/verify/gates/GATE-AUTHORING.md §4.5): a domain every real run has and no example builds. The
  *  stale-arm findings anchor HERE (a ResourceHost resource can only ever be declared over the domain
  *  tree it already reads — a second `authored-tree` request for the gate's own source would have to
  *  resolve "ready" on EVERY proof, including the ones that plant no `tooling/` tree at all). */
@@ -167,7 +167,7 @@ function checkLooseFiles(entries: readonly ResourceTreeEntry[], feature: string,
   }
 }
 
-/** TWO-SIDED (GATE-AUTHORING.md §4.4): both root-slot allowlists ratchet DOWN. Guarded on a REAL-TREE
+/** TWO-SIDED (tooling/src/verify/gates/GATE-AUTHORING.md §4.4): both root-slot allowlists ratchet DOWN. Guarded on a REAL-TREE
  *  ANCHOR (§4.5): a domain every real run has and no example builds. */
 function staleRootSlotRows(entries: readonly ResourceTreeEntry[], byPath: ReadonlyMap<string, ResourceTreeEntry>): readonly Report[] {
   if (!hasEntry(byPath, `${DOMAIN_REL}/${ANCHOR_DOMAIN}`, "directory")) {

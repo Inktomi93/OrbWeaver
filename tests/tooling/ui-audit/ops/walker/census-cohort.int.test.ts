@@ -76,7 +76,7 @@ test("cohort-anatomy judges a retained animation after its play state is finishe
 // markdown emits (packages/ui/src/markdown/dialogue-paragraph.tsx:54,71) — reported 69/45px desktop,
 // 45/21px Light and 21/45px mobile-coarse, i.e. the majority and the minority TRADE PLACES between arms
 // for byte-identical markup. The rule's premise is "one component, two anatomies"; prose reflowing is not
-// that, and a finding that inverts with the viewport is a mechanism mismatch per RULE-AUTHORING.md.
+// that, and a finding that inverts with the viewport is a mechanism mismatch per tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md.
 //
 // Both directions in ONE fixture, because the failure mode of a fence is a false clean: the wrapped prose
 // cohort goes silent and is PRINTED as `excluded(inlineTextRun)`, while a block cohort carrying the config

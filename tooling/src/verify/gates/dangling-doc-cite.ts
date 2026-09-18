@@ -254,7 +254,7 @@ function reportCite(
         line: cite.line,
         column: cite.column,
         token: cite.ref,
-        message: `comment cites bare doc name \`${cite.ref}\` — no doc under \`docs/\` has that basename. Use the full repo-relative path, or fix the doc name.`,
+        message: `comment cites bare doc name \`${cite.ref}\` — no doc under \`docs/\` has that basename. Use the full repo-relative path, or fix the doc name. (Documentation-Law.md §Relocation)`,
       });
     }
     return;

@@ -5,7 +5,7 @@ import { queryMachineFact } from "../lib/query-machine-fact.ts";
 const ANCHOR = "packages/client/src/data/index.ts";
 const COLLECTION = "packages/client/src/data/create-collection-surface.ts";
 const MESSAGE =
-  "the data public anchor exists but the sole paginated-browse factory is absent or no longer imports useInfiniteQuery; query-machine authority points at stale law.";
+  "the data public anchor exists but the sole paginated-browse factory is absent or no longer imports useInfiniteQuery; query-machine authority points at stale law. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "restore the collection factory and its useInfiniteQuery import, or move the seal and central grant together.";
 
 export const gate = defineGate({

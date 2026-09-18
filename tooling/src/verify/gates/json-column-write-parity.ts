@@ -13,7 +13,7 @@
 // input (`schema.parse(patch.X)`, `patch.X`, `{ ...patch.X }`, a literal). Names prove nothing here: the
 // pre-fix `refinerySelectionSchema.parse(patch.selection)` and the post-fix
 // `mergeSelection(current, refinerySelectionPatchSchema.parse(patch.selection))` BOTH mention `.selection`,
-// so a shape/name matcher would have passed the defect (a LYING PROOF, GATE-AUTHORING.md §5). The taint
+// so a shape/name matcher would have passed the defect (a LYING PROOF, tooling/src/verify/gates/GATE-AUTHORING.md §5). The taint
 // roots are: identifiers in the assignment's own RHS, plus — when the `.set()` argument spreads a local
 // helper (`{ ...parsePatch(patch, sessionViewOf(row).selection) }`, the exact live shape) — that helper's
 // parameters mapped to their call-site arguments, so only the parameters the assignment actually READS
@@ -175,7 +175,7 @@ export const gate = defineGate({
           "function parsePatch(patch) {\n  const set = {};\n  set.selection = refinerySelectionSchema.parse(patch.selection);\n  return set;\n}\nexport async function run(ctx, patch, sessionId) {\n  await ctx.db.update(refinerySessions).set({ ...parsePatch(patch) }).where(sessionId);\n}\n",
         // The live shape, faithfully: `session` is DESTRUCTURED out of an awaited resolver, not handed in
         // as a parameter. Conformance caught an earlier draft of this row that took it as a param and
-        // therefore proved the opposite of the defect — the LYING-PROOF class, GATE-AUTHORING.md §5.
+        // therefore proved the opposite of the defect — the LYING-PROOF class, tooling/src/verify/gates/GATE-AUTHORING.md §5.
         "packages/server/src/domain/refinery/verbs/apply-fields.ts":
           "export async function apply(ctx, removed, sessionId) {\n  const { session } = await resolveApplyBasis(ctx, sessionId);\n  await ctx.db.update(refinerySessions).set({ selection: remapSelection(session.selection, removed) }).where(sessionId);\n}\n",
       },

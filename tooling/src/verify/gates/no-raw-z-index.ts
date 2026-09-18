@@ -11,7 +11,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [uiTierPermissionFact],
   resources: [],
-  message: "raw z-N or unknown semantic z-index outside the reviewed implementation tier — use a governed z-(--z-*) token.",
+  message: "raw z-N or unknown semantic z-index outside the reviewed implementation tier — use a governed z-(--z-*) token. (tooling/src/verify/gates/GATE-AUTHORING.md)",
   fix: "Use a governed semantic z-index token. A deliberate outside occurrence requires an exact @orb-waive no-raw-z-index(<reported token>): <reason> marker.",
   create: (ctx) => ({
     evaluate: () => {

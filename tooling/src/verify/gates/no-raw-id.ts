@@ -63,7 +63,7 @@ import { ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
-const MESSAGE = "an id-named Zod field is a raw string — use `typeIdSchema(ID_PREFIX.x)` or `brandedId<T>()` so the validated output preserves identity.";
+const MESSAGE = "an id-named Zod field is a raw string — use `typeIdSchema(ID_PREFIX.x)` or `brandedId<T>()` so the validated output preserves identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 /** THE FAIL-CLOSED THIRD ANSWER (#944, added #2041), textually DISJOINT from `MESSAGE` rather than a
  *  `${MESSAGE} …` suffix: the unreadable arm reports the same single finding under the same token as the
  *  zod verdict and differs ONLY in message, so a shared prefix leaves both arms unpinnable (guide §6.1).
@@ -76,7 +76,7 @@ const MESSAGE = "an id-named Zod field is a raw string — use `typeIdSchema(ID_
  *  `*Id:` call-rooted properties across the authored corpus — 510 resolved, 93 refusing as case (a), 0
  *  unreadable — so the flip costs zero live findings. */
 const UNREADABLE =
-  "an id-named field is built by a chain whose ROOT call the shared readers cannot place, so whether it is a raw Zod string CANNOT be established. Reported rather than admitted: a brand-preserving boundary an unreadable builder can walk through is not one.";
+  "an id-named field is built by a chain whose ROOT call the shared readers cannot place, so whether it is a raw Zod string CANNOT be established. Reported rather than admitted: a brand-preserving boundary an unreadable builder can walk through is not one. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 function memberReceiver(node: MorphNode): MorphNode | undefined {
   const callee = Node.isCallExpression(node) ? node.getExpression() : node;

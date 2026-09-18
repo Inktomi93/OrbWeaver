@@ -61,7 +61,7 @@ const MESSAGE =
   'the PATH that names the offending field, which `issues[0].message` drops (F4: it printed "Too small: ' +
   'expected string to have >=1 characters" and named no field). A genuinely MODEL-facing `path: message` ' +
   "join, or a structural write-guard re-emit that forwards issues with their paths, takes an exact " +
-  "reviewed grant instead.";
+  "reviewed grant instead. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const UNREADABLE =
   "this reference is spelled like a zod `issues` read but the shared readers cannot place the property's declaration, so whether it flattens a ZodError CANNOT be established. Reported rather than passed. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =

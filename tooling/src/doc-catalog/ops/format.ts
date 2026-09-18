@@ -130,7 +130,7 @@ function isInstructionFile(path: string): boolean {
 
 /**
  * CLASS 2 of the widening (#2144): the SKILLS a role loads on demand, and the `tooling/` guides the
- * constitution cites as law (`GATE-AUTHORING.md`, `RULE-AUTHORING.md`, `TS-MORPH-CAPABILITIES.md`).
+ * constitution cites as law (`tooling/src/verify/gates/GATE-AUTHORING.md`, `tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md`, `tooling/src/verify/gates/TS-MORPH-CAPABILITIES.md`).
  * Recursive, unlike class 1 — both trees nest `reference/` material that is read exactly like its parent.
  *
  * TWO EXCLUSIONS, AND NEITHER IS LAZINESS — both are the `docs/vendor/**` rule applied to a new tree:
@@ -172,11 +172,11 @@ function isClass2File(path: string): boolean {
 
 /**
  * CLASS 3 (#2173): the tracked markdown at the REPO ROOT — the entry points every session loads. A PATH
- * rule, not an enumeration: the row named `CLAUDE.md` and `AGENTS.md`, but `README.md` is a third root
+ * rule, not an enumeration: the row named `./CLAUDE.md` and `AGENTS.md`, but `README.md` is a third root
  * file matching the row's own description ("the last tracked hand-authored markdown outside `docs/`"),
  * and enumerating would have missed it exactly the way omission missed the second archaeology tree.
  *
- * `CLAUDE.md` opens with `@docs/architecture/core/AGENTS.md` — a harness DIRECTIVE the loader resolves,
+ * `./CLAUDE.md` opens with `@docs/architecture/core/AGENTS.md` — a harness DIRECTIVE the loader resolves,
  * not prose. It survives a format byte-for-byte (it is an ordinary paragraph to CommonMark, and nothing
  * in the serializer escapes a leading `@`), and the family test proves that against a file made dirty
  * ELSEWHERE rather than against today's happens-to-be-clean bytes.
@@ -574,7 +574,7 @@ function ambiguousTemplateLiteralRefusal(tree: MarkdownNode, source: string): st
  * backticks land in `text` nodes as literal characters, split across the cells the pipe created. The
  * serializer, correctly for a literal backtick, escapes them: a cell reading (backtick) --theme (angle)
  * name | id | none (angle) (backtick) is written back with every one of those four characters
- * backslash-escaped. That is the exact byte shape #2145 was filed to repair on side-eye.md:170, and
+ * backslash-escaped. That is the exact byte shape #2145 was filed to repair on .claude/agents/side-eye.md:170, and
  * `format --write` produced it at exit 0 with no refusal at all.
  *
  * WHY THE TWO STANDING GUARDS CANNOT SEE IT, and why the check could not be bolted onto either:

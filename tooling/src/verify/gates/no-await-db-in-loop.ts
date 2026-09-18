@@ -58,7 +58,7 @@ const FIX =
  *  drizzle verdict and differs ONLY in message, so a shared prefix would leave both arms unpinnable in
  *  either direction (guide §6.1). The two texts are disjoint. */
 const UNREADABLE =
-  "an awaited call inside a loop names a query verb on a receiver the checker cannot bind, so whether it is a Drizzle round trip CANNOT be established. Reported rather than silently admitted: an untyped seam is exactly where a real db handle hides, and the spelling alone is not the identity.";
+  "an awaited call inside a loop names a query verb on a receiver the checker cannot bind, so whether it is a Drizzle round trip CANNOT be established. Reported rather than silently admitted: an untyped seam is exactly where a real db handle hides, and the spelling alone is not the identity. (Spine-TypeScript-and-Patterns.md §8)";
 
 /** Legacy `scanRoot` was `!(p.includes(".test.") || p.startsWith("tests/"))` over the whole harness corpus;
  *  the nine authored roots minus the test tree and every `*.test.*` basename is the same admitted set. */

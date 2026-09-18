@@ -2,7 +2,7 @@
 // names ONE file: a `pathNot` is an EXEMPTION (this one file may cross the boundary), a `path` is the rule's
 // own subject. Either way, when that file is deleted or moved the row goes SILENTLY dead — an exemption
 // nobody can see, or a rule aimed at nothing — and the next file created at that path inherits an import-law
-// posture nobody re-approved. biome-grant-liveness's shape (GATE-AUTHORING.md §4.4 mode B) on the import-law
+// posture nobody re-approved. biome-grant-liveness's shape (tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode B) on the import-law
 // config. TWO hard parts, and why this is its own policy: (1) the values are CODE, so observation runs the
 // executable config through dependency-cruiser's public loader via the `native-config` ResourceHost fact;
 // imported, called, spread and template-derived selectors retain their runtime values. Liveness judges the

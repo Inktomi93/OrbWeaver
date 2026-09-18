@@ -56,7 +56,7 @@ const MESSAGE =
   "`#lib` (packages/client/src/lib/create-registry-context.tsx). (derive-modernization-audit.md §W3 G26; " +
   "D72 — a machine ships WITH its seal.)";
 const UNREADABLE =
-  "this call is spelled like React's `createContext` but the shared readers cannot place its binding, so whether it is the context constructor CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this call is spelled like React's `createContext` but the shared readers cannot place its binding, so whether it is the context constructor CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "replace the hand `createContext<XRegistry | null>(null)` and its Provider with a " +
   "`createRegistryContext<XRegistry>(name)` mint call from #lib. A deliberate site is waived with " +

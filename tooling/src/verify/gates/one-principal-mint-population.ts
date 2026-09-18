@@ -60,7 +60,7 @@ export const gate = defineGate({
               line: index + 1,
               column: match.index + principalOffset + 1,
               token: "Principal",
-              message: `Principal mint site (${what}) — a new caller identity constructor needs review.`,
+              message: `Principal mint site (${what}) — a new caller identity constructor needs review. (@orb/contracts/identity)`,
             });
           }
         }

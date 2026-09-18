@@ -17,7 +17,7 @@ import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE =
-  "empty-string branded id creates a fake disabled sentinel that can reach the server if its guard drifts — use useGatedQuery/skipToken so no key exists.";
+  "empty-string branded id creates a fake disabled sentinel that can reach the server if its guard drifts — use useGatedQuery/skipToken so no key exists. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 /** THE FAIL-CLOSED THIRD ANSWER (#944, added #2041), textually DISJOINT from `MESSAGE` rather than a
  *  `${MESSAGE} …` suffix: the unreadable arm reports the same single finding on the same callee as the
@@ -29,7 +29,7 @@ const MESSAGE =
  *  question: the shared matcher used to answer it `false`, and a sentinel behind an unreadable door walked
  *  through. Only a PROVEN non-module binding (the `local same-named function` mustPass row) still passes. */
 const UNREADABLE =
-  "a cast seam spelled like the canonical kit `castId` enters through a door the shared readers cannot place, so whether this manufactures a branded disabled sentinel CANNOT be established. Reported rather than admitted: the spelling alone is not the identity.";
+  "a cast seam spelled like the canonical kit `castId` enters through a door the shared readers cannot place, so whether this manufactures a branded disabled sentinel CANNOT be established. Reported rather than admitted: the spelling alone is not the identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 export const gate = defineGate({
   id: "no-fake-disabled-id",

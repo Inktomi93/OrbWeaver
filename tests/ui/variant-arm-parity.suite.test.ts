@@ -129,7 +129,7 @@ describe("plan value coverage (no arm silently dropped)", () => {
   });
 });
 
-/** The arm-dependent set from the 2026-08-31 audit (scratchpad cb-baseui-rule-audit.md §Arm-dependence),
+/** The arm-dependent set from the 2026-08-31 audit (scratchpad the retired cb-baseui-rule-audit review §Arm-dependence),
  *  spelled here as the DURABLE copy: tone/intent pick the colour pair (contrast family), size picks the
  *  box (tap/aspect/text floors), state+carrier arms gate the glows, radius/border arms the accents. */
 const ARM_DEPENDENT_RULES = [

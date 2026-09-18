@@ -99,7 +99,7 @@ test("findTripleSlashLibLeaks flags every distinct quoting/spacing spelling of t
 
 test("findTripleSlashLibLeaks does NOT flag a `///` mention inside ordinary prose (comment-safe, permissive-direction control)", () => {
   withScratchDir((dir) => {
-    // The house rule (GATE-AUTHORING.md §5 "literal-matching gate declares its comment posture"): a
+    // The house rule (tooling/src/verify/gates/GATE-AUTHORING.md §5 "literal-matching gate declares its comment posture"): a
     // scanner over file TEXT must not let a comment DESCRIBING the banned shape absolve or falsely accuse
     // real code. Here: neither a `//`-prefixed mention (2 slashes, not 3) nor the literal substring
     // appearing later in a line (not at line-start) should trip the LINE-START-anchored directive match.

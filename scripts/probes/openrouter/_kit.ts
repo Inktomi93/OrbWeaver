@@ -2,7 +2,7 @@
 //
 // Every probe here answers ONE wire question with ONE moving variable, and writes its raw evidence to
 // `results/<probe>.jsonl` — JSONL, never JSON, so a partial run is still readable and an append never
-// rewrites a prior row. The verdict prose lives in RESULTS.md; this file only captures numbers.
+// rewrites a prior row. The verdict prose lives in scripts/probes/openrouter/RESULTS.md; this file only captures numbers.
 //
 // Wire evidence captured on every call (OpenRouter returns all of it when `usage: {include: true}`):
 //   usage.prompt_tokens_details.cached_tokens        — cache READ

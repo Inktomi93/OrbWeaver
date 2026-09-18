@@ -2,7 +2,7 @@
 // gate (family "serde-core-seal", shared verbatim). The sanction is a claim about who does byte surgery on
 // the PNG card-chunk engine; when a sanctioned domain (import/export) no longer imports ANY card-chunk
 // symbol, the claim behind its permission is dead and the row is a standing permission nobody uses. The
-// arm self-guards on a REAL-TREE ANCHOR (GATE-AUTHORING.md §4.5): the kit module that DEFINES the engine.
+// arm self-guards on a REAL-TREE ANCHOR (tooling/src/verify/gates/GATE-AUTHORING.md §4.5): the kit module that DEFINES the engine.
 //
 // The legacy `serde-core-seal` descriptor (534c1327f682be2578e1dee7c7a2bfa488fb672a) carried this
 // stale-sanction check as one arm of a single gate before this conversion split it out here.

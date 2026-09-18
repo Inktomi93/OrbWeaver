@@ -23,7 +23,7 @@ export function auditReport(stdout: string): string {
  *  fixed-width columns. Read from the TABLE rather than by substring: the same selectors also appear in
  *  the withheld/obscured denominators above it, where their presence says nothing about the verdict.
  *  ONE home (2026-09-05, #1103): census-decor's and census-accent's suites ask the identical question of
- *  the identical output, and a second copy is the shape RULE-AUTHORING.md row 4 was paid for. */
+ *  the identical output, and a second copy is the shape tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 4 was paid for. */
 export function findingSelectors(stdout: string, rule: string): readonly string[] {
   const rows: string[] = [];
   for (const line of stdout.split("\n")) {

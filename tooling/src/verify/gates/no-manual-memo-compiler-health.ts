@@ -7,7 +7,7 @@ const SELF = "tooling/src/verify/gates/no-manual-memo-compiler-health.ts";
 const TOKEN = "@tanstack/react-virtual";
 const REQUEST = { kind: "installed-package", id: "react-compiler", mode: "text", file: "dist/index.js" } as const;
 const MESSAGE =
-  "the installed React Compiler no longer denylists @tanstack/react-virtual; retire the message-list and media-grid manual memo grants and delete their now-redundant memoization.";
+  "the installed React Compiler no longer denylists @tanstack/react-virtual; retire the message-list and media-grid manual memo grants and delete their now-redundant memoization. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const HEALTH_SOURCE = "export const compilerHealthProof = true;\n";
 const CLIENT_PACKAGE = '{"name":"@orb/client","private":true,"dependencies":{"babel-plugin-react-compiler":"1.0.0"}}\n';
 const COMPILER_PACKAGE = '{"name":"babel-plugin-react-compiler","version":"1.0.0"}\n';

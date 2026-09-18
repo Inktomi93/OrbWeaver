@@ -12,11 +12,11 @@ const SERVICE_CONTRACT_SUFFIX_RE = /\/contract\/service\.ts$/u;
 // Verbs DECLARED on a *Service interface with zero test invocation anywhere — the W1i backlog. A new
 // uncovered verb NOT on this list is RED.
 //
-// TWO-SIDED (GATE-AUTHORING.md §4.4/§4.8 — the header always claimed the bus-coverage ratchet precedent;
+// TWO-SIDED (tooling/src/verify/gates/GATE-AUTHORING.md §4.4/§4.8 — the header always claimed the bus-coverage ratchet precedent;
 // this is the arm that makes it true): a row that suppressed nothing this run is RED, because a burn-down
 // list that keeps rows after their tests land stops being a burn-down and starts being a permanent grant.
 // Both ways it can go stale: the verb got its test, or the verb (or its whole domain contract) is gone.
-// The arm self-guards on a REAL-TREE ANCHOR (GATE-AUTHORING.md §4.5): the server entrypoint.
+// The arm self-guards on a REAL-TREE ANCHOR (tooling/src/verify/gates/GATE-AUTHORING.md §4.5): the server entrypoint.
 /** `create` + PascalCase(verb) — the codebase's verb-factory name (verb-naming gate enforces it). */
 function factoryName(verb: string): string {
   return `create${verb.charAt(0).toUpperCase()}${verb.slice(1)}`;

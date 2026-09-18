@@ -13,7 +13,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [uiPrimitiveFact],
   resources: [],
-  message: "UI source re-exports private variants or embeds inline SVG outside the chart layer.",
+  message: "UI source re-exports private variants or embeds inline SVG outside the chart layer. (tooling/src/verify/gates/GATE-AUTHORING.md)",
   fix:
     "keep variants imports internal; use the governed Icon component for non-chart SVG geometry. A " +
     "deliberate exception is waived with `// @orb-waive ui-primitive-structure(<position>): <reason>` " +

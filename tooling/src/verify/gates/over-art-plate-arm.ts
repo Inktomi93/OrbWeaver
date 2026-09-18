@@ -156,7 +156,7 @@ function reportBlindness(ctx: GatePolicyContext, judged: Judgement): void {
       line: 1,
       column: 1,
       token: ANCHOR,
-      message: `BLINDNESS TRIPWIRE — zero \`${GLASS_GATE}…]\` background rules were recognised on a real tree, so this gate's reader has rotted (a renamed attribute, a moved stylesheet, a new value spelling). Zero is "I could not measure", never "clean".`,
+      message: `BLINDNESS TRIPWIRE — zero \`${GLASS_GATE}…]\` background rules were recognised on a real tree, so this gate's reader has rotted (a renamed attribute, a moved stylesheet, a new value spelling). Zero is "I could not measure (UI-Theming-and-Content.md §12.1)", never "clean".`,
     });
   }
 }

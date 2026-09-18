@@ -42,7 +42,7 @@
 //
 // MARKER CENSUS — the private `// terse-ok:` grammar is RETIRED (§12.5 bans a gate-specific exemption
 // vocabulary). Live sites on the tree at conversion: ZERO (`/usr/bin/grep -rn terse-ok packages tests
-// tooling scripts docs` returns only this module's own prose and fixtures, GATE-AUTHORING.md's
+// tooling scripts docs` returns only this module's own prose and fixtures, tooling/src/verify/gates/GATE-AUTHORING.md's
 // house-grammar list, `review-mirror/lib/strip.ts`'s strip list, and two docs — a fact
 // `gate-config-system.md:188` already records as "zero live sites"). So legacy 0 = current 0: no marker was
 // translated and none was dropped. The escape is now the central `@orb-waive diagnostic-legibility(<position>)`.

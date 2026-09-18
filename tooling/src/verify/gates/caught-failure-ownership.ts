@@ -99,7 +99,7 @@ import type { CaughtFailureSite } from "../lib/caught-failure.ts";
 import { catchClauseSite, promiseAbsorberSite } from "../lib/caught-failure.ts";
 
 const MESSAGE =
-  "UNPROVEN OWNERSHIP for a caught failure. A syntactically handled rejection can still erase a user or operator failure: an empty catch, a discarded promise rejection, or an undocumented default says nothing about who owns the failure or how it is surfaced.";
+  "UNPROVEN OWNERSHIP for a caught failure. A syntactically handled rejection can still erase a user or operator failure: an empty catch, a discarded promise rejection, or an undocumented default says nothing about who owns the failure or how it is surfaced. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 /** The arm-specific diagnosis. A mapped Record over the reader's ONE arm tuple, so a fourth arm is a `tsc`
  *  error here rather than a silently generic finding. */

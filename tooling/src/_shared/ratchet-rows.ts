@@ -9,7 +9,7 @@
 // remainder is DEBT (burnable, the default). A stored class beside a count is two facts that can disagree; a
 // partition cannot. `classOf` reads it back as debt | ratified | mixed.
 //
-// THE PROMISE IS TWO-SIDED (GATE-AUTHORING.md §4.4). A ratified portion REQUIRES a `why` AND at least one
+// THE PROMISE IS TWO-SIDED (tooling/src/verify/gates/GATE-AUTHORING.md §4.4). A ratified portion REQUIRES a `why` AND at least one
 // `cite`, and a cite is a REPO-RELATIVE PATH that must resolve on the tree, so a ratification cannot
 // outlive the thing that justified it. NOTHING ENFORCES THAT MECHANICALLY ANY MORE: `ratchet-row-integrity`
 // was the enforcer and it RETIRED 2026-09-14 with its subject — gates are mechanically forbidden from owning
@@ -226,7 +226,7 @@ export function classNote(row: RatchetRow): string {
     return "";
   }
   const scope = row.ratified === row.count ? "RATIFIED" : `PARTLY RATIFIED (${row.ratified} of ${row.count})`;
-  return ` — ${scope}: ${row.why ?? "(no why recorded — a ratified row owes one, GATE-AUTHORING.md §4.4)"} [cites: ${row.cite.join(", ")}]`;
+  return ` — ${scope}: ${row.why ?? "(no why recorded — a ratified row owes one, tooling/src/verify/gates/GATE-AUTHORING.md §4.4)"} [cites: ${row.cite.join(", ")}]`;
 }
 
 function sniffShape(parsed: unknown): RatchetLedgerShape {
@@ -291,7 +291,7 @@ export function serializeRow(row: RatchetRow): number | Readonly<Record<string, 
   };
 }
 
-/** THE SINGLE WRITER's serializer (GATE-AUTHORING.md §4.8): rows sorted by subject, class preserved. A
+/** THE SINGLE WRITER's serializer (tooling/src/verify/gates/GATE-AUTHORING.md §4.8): rows sorted by subject, class preserved. A
  *  generator re-derives COUNTS from the tree; the classification is a RULING and must survive a regenerate,
  *  so `carry` supplies the previous ledger's rows and their class rides through. */
 export function writeBudgetLedger(root: string, rel: string, counts: Readonly<Record<string, number>>, carry: ReadonlyMap<string, RatchetRow>): number {

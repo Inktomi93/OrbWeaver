@@ -66,7 +66,7 @@ const FIX =
  *  arm reports the same single finding under the same token as the ambient verdict and differs ONLY in
  *  message, so a shared prefix would leave both arms unpinnable in either direction (guide §6.1). */
 const UNREADABLE =
-  "a collection constructor spelled like an ambient global enters through a door with no reachable target, so whether it is the runtime's own Map/Set/WeakMap/WeakSet CANNOT be established. Reported rather than admitted by a broken door: the spelling alone is not the identity.";
+  "a collection constructor spelled like an ambient global enters through a door with no reachable target, so whether it is the runtime's own Map/Set/WeakMap/WeakSet CANNOT be established. Reported rather than admitted by a broken door: the spelling alone is not the identity. (Core-0-Architecture-and-Structure.md §7)";
 
 /** Legacy `scanRoot` was `p.includes("/persistence/") && !p.includes(".test.") && !p.startsWith("tests/")`;
  *  the nine authored roots under any `persistence/` directory, minus the test tree and every `*.test.*`

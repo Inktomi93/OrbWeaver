@@ -54,7 +54,7 @@ const FIX =
  *  sealed verdict does and differs ONLY in message, so a shared prefix would leave both arms unpinnable in
  *  either direction (guide §6.1). No fragment of either text occurs in the other. */
 const UNREADABLE =
-  "a single-owned helper NAME reached through a door the shared readers cannot place — whether this binds the db kit's own `fetchOwned`/`OwnedTable` CANNOT be established, so a chat-scope seam an unreadable module can walk through is reported rather than admitted. The spelling alone is not the identity.";
+  "a single-owned helper NAME reached through a door the shared readers cannot place — whether this binds the db kit's own `fetchOwned`/`OwnedTable` CANNOT be established, so a chat-scope seam an unreadable module can walk through is reported rather than admitted. The spelling alone is not the identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 /** Legacy `scanRoot` tested `/packages/server/src/(?:domain/chat/|transport/trpc/(?:routers/chat|chat-events-bus))`
  *  against a slash-prefixed repo path; the two trailing prefixes are open-ended, which `chat**` reproduces. */

@@ -17,7 +17,7 @@
 // toBeInViewport()`, or wrap the read: `await expect.poll(() => <read>).toBe(...)`. Both retry until the
 // value SETTLES. Provably settled at read-time (e.g. asserted only AFTER a poll/web-first on the same state
 // already awaited it)? escape it with the central `@orb-waive ct-no-oneshot-live-read-assert(expect): <reason>`
-// marker on the line immediately above (GATE-AUTHORING.md's central marker grammar; this gate no longer
+// marker on the line immediately above (tooling/src/verify/gates/GATE-AUTHORING.md's central marker grammar; this gate no longer
 // parses its own escape vocabulary — see "FAMILY DECISION" below).
 //
 // NOT flagged (already retrying): `expect.poll(...)` / `expect(...).toPass()` and the web-first locator

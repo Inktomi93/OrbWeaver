@@ -1,4 +1,4 @@
-// The SCOPED-RUN proof net (TSMORPH-SINGLE-PASS-AUDIT.md §4, the driven-for-real deliverable). The scoped
+// The SCOPED-RUN proof net (the retired TSMORPH-SINGLE-PASS-AUDIT audit §4, the driven-for-real deliverable). The scoped
 // runner (tooling/src/verify/ops/scoped.ts) runs ONLY the incremental-safe gates over a subset of the tree and
 // DEFERS every whole-project gate. Four properties, each proven the parity-guard-divergence way — the
 // test introduces the exact divergence, confirms the expected RED/silent, then the fixture is restored to

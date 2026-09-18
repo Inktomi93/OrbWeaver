@@ -3,7 +3,7 @@
 //
 // THE ALLOWLIST IS A TIER PERMISSION, NOT A BURN-DOWN LIST: `packages/ui/src/layout/` and
 // `packages/ui/src/markdown/` are the primitives that IMPLEMENT the intent tokens, so they may spell the
-// raw utility. SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): those homes are SCANNED and exempted
+// raw utility. SCAN-AND-ALLOWLIST (tooling/src/verify/gates/GATE-AUTHORING.md §3, 2026-08-22): those homes are SCANNED and exempted
 // by cited rows, not scoped out of the population, and the RENAME TRIPWIRE is the ONE shared implementation
 // (lib/sanctioned-home.ts) instead of a hand-rolled sweep re-spelled in four sibling gates. The tripwire is
 // a SEPARATE policy in this same family (`typography-tier-home-health`) because the occurrence check below
@@ -59,7 +59,7 @@ import { defineGate } from "../contract/policy.ts";
 import { TIER_IMPLEMENTATION_HOMES } from "../lib/raw-typography-tier.ts";
 import { sanctionedHome } from "../lib/sanctioned-home.ts";
 
-/** The CARRIER FENCE (GATE-AUTHORING.md §5): only a className attribute or a class-composer call
+/** The CARRIER FENCE (tooling/src/verify/gates/GATE-AUTHORING.md §5): only a className attribute or a class-composer call
  *  (`cn`/`clsx`/`cva`/`tv`) counts as a class string for this ambiguous token shape. */
 const CLASS_COMPOSERS: ReadonlySet<string> = new Set(["cn", "clsx", "cva", "tv"]);
 

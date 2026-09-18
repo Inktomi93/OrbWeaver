@@ -125,12 +125,14 @@ const GRANT_CASES: readonly GrantCase[] = [
   },
   {
     policy: noRawClock,
+    // @orb-waive test-determinism(Date.now): test helper emits a synthetic Date.now() value for gate fixture determinism; not ambient nondeterminism
     files: { "packages/server/src/domain/feature/logic.ts": "export function doThing(): number {\n  return Date.now();\n}\n" },
     subject: "packages/server/src/domain/feature/logic.ts",
     operation: "ambient-clock-read",
   },
   {
     policy: noRawRandom,
+    // @orb-waive test-determinism(Math.random): test helper emits a synthetic Math.random() value for gate fixture determinism; not ambient nondeterminism
     files: { "packages/server/src/domain/feature/logic.ts": "export function rollDice(): number {\n  return Math.random();\n}\n" },
     subject: "packages/server/src/domain/feature/logic.ts",
     operation: "ambient-entropy-draw",

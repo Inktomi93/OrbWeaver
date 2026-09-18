@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 // @instrument-proof: this fixture plants every capability the one observed Chrome-MCP navigation trace
 // returned: an image LCP, a stylesheet dependency chain, an oversized uncompressed document/image, and
 // forced synchronous layout. The real perf-meter CLI must start tracing BEFORE its navigation, retain the
@@ -119,6 +118,7 @@ test("beginBootTrace abort stops tracing and removes its browser instrumentation
 });
 
 test("beginBootTrace bounds a stalled presentation, retains raw events, and performs terminal cleanup", async ({ scratch }) => {
+  // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
   vi.useFakeTimers();
   try {
     let tracingComplete: (() => void) | undefined;
@@ -167,6 +167,7 @@ test("beginBootTrace bounds a stalled presentation, retains raw events, and perf
 
 for (const failureMode of ["completion", "presentation-and-completion", "end-command"] as const) {
   test(`beginBootTrace retains collected events when ${failureMode} stalls`, async ({ scratch }) => {
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
     vi.useFakeTimers();
     try {
       const event = { name: "retained-before-stop", ts: 1 };

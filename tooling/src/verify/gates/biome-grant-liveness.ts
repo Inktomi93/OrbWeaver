@@ -1,7 +1,7 @@
 // Policy: biome-grant-liveness — a path in a `biome.json` override `includes` is a SUPPRESSION GRANT (it
 // turns a lint rule off, or lifts a limit, for what it names). When the file is deleted or moved, or the
 // glob stops matching anything, the row goes SILENTLY dead: an over-grant nobody sees, and a future file
-// created at that path inherits a suppression nobody re-approved. That is GATE-AUTHORING.md §4.4 mode (B)
+// created at that path inherits a suppression nobody re-approved. That is tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode (B)
 // applied to the lint config itself — the row's subject is never visited, so nothing ever examines the
 // promise. TWO arms: a DEAD file-exact grant, and a DEAD glob grant (a glob is live when at least one
 // TRACKED file is inside it — never an FS walk, which answers differently depending on whether

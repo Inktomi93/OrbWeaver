@@ -43,7 +43,7 @@ import { canonicalIdBrand, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
-const MESSAGE = "a cast bypasses branded-id type safety with `as never` or `as unknown as <canonical brand>` — use the owning mint/parser/cast seam.";
+const MESSAGE = "a cast bypasses branded-id type safety with `as never` or `as unknown as <canonical brand>` — use the owning mint/parser/cast seam. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 /** Parentheses are transparent to the arm's semantic question. Keep this separate from `castAnchor`:
  *  detection needs the inner AsExpression, while the authored coordinate deliberately varies with where
  *  the author put parentheses. */

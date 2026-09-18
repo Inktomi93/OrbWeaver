@@ -113,7 +113,7 @@ function reportMissingPins(ctx: GatePolicyContext, roster: ReadonlyMap<string, {
     if (!pinned.has(id)) {
       ctx.report.file(path, {
         line: 1,
-        message: `Policy "${id}" has no real-corpus liveness pin — add a RealCorpusLivenessArm in a family test.`,
+        message: `Policy "${id}" has no real-corpus liveness pin — add a RealCorpusLivenessArm in a family test. (tooling/src/verify/gates/GATE-AUTHORING.md)`,
       });
     }
   }
@@ -129,7 +129,7 @@ function reportDanglingPins(
     for (const policyId of policyIds) {
       if (!roster.has(policyId)) {
         ctx.report.file(testPath, {
-          message: `Liveness pin references policy "${policyId}" which does not exist in the roster — remove the stale arm or add the missing policy.`,
+          message: `Liveness pin references policy "${policyId}" which does not exist in the roster — remove the stale arm or add the missing policy. (tooling/src/verify/gates/GATE-AUTHORING.md)`,
         });
       }
     }
@@ -141,7 +141,7 @@ function reportDanglingPins(
 const MESSAGE =
   "Every final policy owes a real-corpus liveness pin: a RealCorpusLivenessArm declaration in a family " +
   "test that runs the policy against the repository's own source via runPolicyPass with a virtual overlay " +
-  "and asserts a report (standing law §6.3).";
+  "and asserts a report (standing law §6.3). (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 const FIX =
   "Add a RealCorpusLivenessArm for this policy in the appropriate family test (either " +

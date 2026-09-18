@@ -16,7 +16,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [uiTierPermissionFact],
   resources: [{ kind: "json", id: "tokens" }],
-  message: "the reviewed z-index home set or governed token vocabulary is unhealthy.",
+  message: "the reviewed z-index home set or governed token vocabulary is unhealthy. (tooling/src/verify/gates/GATE-AUTHORING.md)",
   create: (ctx) => ({
     evaluate: () => {
       const facts = readUiTierFacts(ctx);

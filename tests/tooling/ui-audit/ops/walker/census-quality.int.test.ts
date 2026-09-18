@@ -16,7 +16,7 @@
 // those words, while packages/ui names every such container with `data-slot` (scroll-area-viewport,
 // dialog-viewport, menu-viewport, virtual-list-viewport, media-grid-viewport, …). So the test was BLIND
 // to the real expression mechanism AND latently false-positive against any Tailwind utility containing
-// the word — RULE-AUTHORING.md row 8's class. The two arms below are the two directions.
+// the word — tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 8's class. The two arms below are the two directions.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CliResult, RunCliOpts } from "../../../../support/tool-fixtures.ts";
@@ -131,7 +131,7 @@ auditRuleTest(
   "a visually-hidden positioned child cuts nothing — the paint fence is the same one the in-flow arm applies",
   async ({ runCli, scratch }) => {
     // The two containers differ ONLY in what they hold: same overflow, same size, same position — so the
-    // negative arm is a true control rather than a differently-shaped document (RULE-AUTHORING.md row 14).
+    // negative arm is a true control rather than a differently-shaped document (tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 14).
     const body = `<div id="clip-hidden" style="overflow:hidden;width:120px;height:60px;position:relative">
   <input type="range" aria-label="Temperature" style="${VISUALLY_HIDDEN_INPUT_STYLE}">
 </div>${clippedCarrier("clip-real", "")}`;

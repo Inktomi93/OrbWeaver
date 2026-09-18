@@ -61,7 +61,7 @@ const MESSAGE =
   "Spine invariant #6: the privilege comparison lives at the domain's ONE cited authority chokepoint, so a " +
   "surface that relaxes (or tightens) its gate cannot drift from every other surface. A re-spelled compare " +
   "is also how a refusal's leak-free shape gets lost: the chokepoint owns not-found-vs-forbidden, the verb " +
-  "does not.";
+  "does not. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "route it through your domain's CITED chokepoint: chat → `substrate/auth::assertHost`/`permitsHost`; rpg → `guard.ts::assertHostRole`/`resolveHost` — both ask the injected `can()` seam for the verdict and own only the refusal. If the comparison produces a PAYLOAD field rather than a decision it belongs in the data-projection class (`substrate/member-visibility.ts::viewerReadsHidden`, D106-F1) and must not gate a throw.";
 

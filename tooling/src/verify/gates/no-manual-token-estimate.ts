@@ -58,7 +58,7 @@ const ESTIMATOR_PROOF = { [ESTIMATOR_HOME]: "export function estimateTokens(text
 const MESSAGE =
   "hand-rolled `.length / 4` token estimate — @orb/kit/tokens is the ONE estimator: import { estimateTokens } and call estimateTokens(text). A flat length/N undercounts CJK/emoji ~4x and silently overflows token budgets. This also catches the `.length / CHARS_PER_TOKEN` const dodge. See packages/kit/src/tokens/index.ts.";
 const UNREADABLE =
-  "this division reads a `.length` whose identity the checker cannot resolve, so whether it is a character count divided by a chars-per-token ratio CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this division reads a `.length` whose identity the checker cannot resolve, so whether it is a character count divided by a chars-per-token ratio CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (@orb/kit/tokens)";
 
 /** Every declaration this file's exported `estimateTokens` ultimately names, seen THROUGH a re-export
  *  (`export { estimateTokens } from "./impl.ts"` yields the implementation's declaration, not the specifier). */

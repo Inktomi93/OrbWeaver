@@ -333,9 +333,9 @@ describe("the compaction pair is refused at the env boundary (#1541)", () => {
 });
 
 // #1536 — THE ALLOWLIST'S RESIDUE. Flipping the hatch to the `CLAUDE_*` namespace (#1472) admitted the
-// namespace the APP'S OWN deploy pins live in: `ISOLATION_PINS` + the CLAUDE.md suppression are all
+// namespace the APP'S OWN deploy pins live in: `ISOLATION_PINS` + the ./CLAUDE.md suppression are all
 // `CLAUDE_CODE_*`, and `RESERVED_CLAUDE_ENV_KEYS` covered only auth/routing/config-dir — so a preset could
-// re-enable auto-memory, background tasks, cron, the full system prompt, CLAUDE.md injection and the
+// re-enable auto-memory, background tasks, cron, the full system prompt, ./CLAUDE.md injection and the
 // cache-churning attribution header inside the (potentially adversarial) RP subprocess, or UNSET any of
 // them with `null`. These are HOST/deploy decisions, not generation knobs: the value is compared against
 // the un-hatched baseline rather than re-spelled, so the pin holds whatever the deploy chose.
@@ -385,7 +385,7 @@ describe("mode-1 (Max sub) firewall", () => {
     expect(env["ANTHROPIC_BASE_URL"]).toBeUndefined();
     expect(env["ANTHROPIC_API_KEY"]).toBeUndefined();
     expect(env["ANTHROPIC_AUTH_TOKEN"]).toBeUndefined();
-    // CLAUDE.md injection + the isolation pins are on.
+    // ./CLAUDE.md injection + the isolation pins are on.
     expect(env["CLAUDE_CODE_DISABLE_CLAUDE_MDS"]).toBe("true");
     expect(env["CLAUDE_CODE_DISABLE_1M_CONTEXT"]).toBe("1");
   });

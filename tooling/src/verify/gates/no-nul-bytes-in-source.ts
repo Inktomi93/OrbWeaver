@@ -12,7 +12,7 @@ import { readyResourceValue } from "../lib/resource-declaration.ts";
 const SKIP_DIRS: ReadonlySet<string> = new Set([".git", "node_modules", "dist", "coverage", ".cache", ".turbo", "generated"]);
 const TEXT_EXT_RE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs|json|jsonc|md|css|scss|sql|html|yml|yaml|txt|sh)$/u;
 
-const MESSAGE = "a raw NUL (0x00) byte in a text source can make Git classify its diff as binary, hiding the change from review.";
+const MESSAGE = "a raw NUL (0x00) byte in a text source can make Git classify its diff as binary, hiding the change from review. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "preserve a meaningful separator by spelling it as the source escape \\u0000; delete only an accidental NUL. Check that Git shows a text diff afterward.";
 

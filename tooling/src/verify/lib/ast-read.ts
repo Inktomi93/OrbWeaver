@@ -37,7 +37,7 @@ export function readStringValue(node: Node): string | undefined {
  *
  *  KEYED ON `sf.compilerNode`, NEVER ON THE `SourceFile` WRAPPER: `createSourceFile(…, {overwrite:true})`
  *  reuses the wrapper and forgets its descendants, so a wrapper-keyed cache returns forgotten nodes that
- *  THROW (GATE-AUTHORING.md §5, the overwrite-identity trap). */
+ *  THROW (tooling/src/verify/gates/GATE-AUTHORING.md §5, the overwrite-identity trap). */
 const declarationsByName = new WeakMap<object, ReadonlyMap<string, readonly Node[]>>();
 
 function buildDeclarationIndex(sf: SourceFile): ReadonlyMap<string, readonly Node[]> {

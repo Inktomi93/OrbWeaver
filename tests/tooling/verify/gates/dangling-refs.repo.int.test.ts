@@ -13,7 +13,7 @@
 //
 // #2332 — THIS SUITE USED TO WRITE INTO THE CHECKOUT, AND NO LONGER DOES. Six mutations lived here until
 // 2026-09-14: `packages/client/dist` created and removed, a phantom line appended to and restored in the
-// tracked `GATE-AUTHORING.md`, and a probe doc created and removed under `docs/architecture/history/`. Each
+// tracked `tooling/src/verify/gates/GATE-AUTHORING.md`, and a probe doc created and removed under `docs/architecture/history/`. Each
 // was belted (restore in `finally` plus a process-exit hook, with the working tree asserted byte-identical
 // afterwards), and the belt was never the problem: cleanup reduces residue after a NORMAL exit, and cannot
 // stop a concurrent `git add -A`, a kill outside the registered path, or another lane reading a gate input
@@ -89,7 +89,7 @@ const ISOLATED_DESIGN = "docs/design/__dangling_refs_isolated_design__.md";
 /** A SELF-CONTAINED derived corpus for this gate, at the same RELATIVE paths the real tree uses (#2332).
  *
  *  It exists because every arm below asks a question about the gate's RESOLUTION — is a gitignored path a
- *  phantom, is `GATE-AUTHORING.md` inside the citation net, is `history/**` outside it — and every one of
+ *  phantom, is `tooling/src/verify/gates/GATE-AUTHORING.md` inside the citation net, is `history/**` outside it — and every one of
  *  those is answered against `root`. What it deliberately does NOT carry is `core/AGENTS.md` and the rest of
  *  the living corpus: their cites resolve against the real tree, so importing them would report thousands of
  *  phantoms that say nothing about the arm. Each assertion below therefore FILTERS to its own subject, and
@@ -248,14 +248,14 @@ describe("dangling-ref-citations — central reviewed authority replaces the leg
 });
 
 // THE DERIVED-CORPUS PIN (#1036). The defect was again a LYING INSTRUMENT, not a bad doc: arms 2-4 read a
-// HAND-NAMED pair of directories, so `GATE-AUTHORING.md` — the law every gate author is routed to — sat
+// HAND-NAMED pair of directories, so `tooling/src/verify/gates/GATE-AUTHORING.md` — the law every gate author is routed to — sat
 // outside the citation net entirely and its cite of the population controls rotted with nothing watching.
 // Conformance cannot prove this half: its examples live in a policy-owned mini-project whose file map is
-// authored per row, so it cannot ask whether the corpus derivation reaches `GATE-AUTHORING.md` AT ITS REAL
+// authored per row, so it cannot ask whether the corpus derivation reaches `tooling/src/verify/gates/GATE-AUTHORING.md` AT ITS REAL
 // RELATIVE PATH. Both directions are driven here, on an invocation-owned corpus that carries that path.
 //
 // #2332 — THE PLANT MOVED OUT OF THE CHECKOUT, AND THE PREMISE THAT KEPT IT THERE IS RECORDED REFUTED.
-// Until 2026-09-14 the positive arm APPENDED a line to the tracked `GATE-AUTHORING.md` and restored it in
+// Until 2026-09-14 the positive arm APPENDED a line to the tracked `tooling/src/verify/gates/GATE-AUTHORING.md` and restored it in
 // `finally` plus an exit hook, and the header here argued that no scratch copy could work because the arm's
 // subject is MEMBERSHIP — `dangling-refs.ts`'s `LAW_OUTSIDE_DOCS` is a literal two-entry list, so a copy at
 // any other path is not a member — and because arm 3 resolves every backticked path against the real tree,
@@ -277,7 +277,7 @@ const LAW_OUTSIDE_DOC = "tooling/src/verify/gates/GATE-AUTHORING.md";
 const FROZEN_DOC = "docs/architecture/history/__p1583_frozen_probe__.md";
 
 describe("dangling-refs — the derived corpus reaches living law outside docs/ and stops at frozen evidence", () => {
-  test("a phantom path authored in GATE-AUTHORING.md is FOUND", async ({ plantedTree }) => {
+  test("a phantom path authored in tooling/src/verify/gates/GATE-AUTHORING.md is FOUND", async ({ plantedTree }) => {
     const root = await plantedTree({
       ...isolatedCorpus(),
       [LAW_OUTSIDE_DOC]: `---\nkind: law\n---\n\nThe shape lives at \`${CORPUS_GHOST}\`.\n`,

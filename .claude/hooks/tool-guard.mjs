@@ -35,7 +35,7 @@
 //      `env -C <dir> ./node_modules/.bin/playwright test …` ran un-floored, `nice -n 19 bash -c "git
 //      stash"` and `env -C /tmp bash -c …` passed a LITERAL `git stash`, and `env -C <wt> npx eslint …`
 //      escaped the heap floor — while the `timeout`/`FOO=1` spellings of all three bit. `env -C <dir>` is
-//      the spelling lane-standing-facts.md ORDERS every lane to use, so the guard was blind to the house
+//      the spelling .claude/rules/lane-standing-facts.md ORDERS every lane to use, so the guard was blind to the house
 //      idiom. 110 rows of a 171,473-command replay moved, every one toward a stricter or equal verdict.
 //   R2 A BACKGROUNDING `&` GLUED TO A SCRIPT OPERAND is stripped like a group closer (OPERAND_TAIL_NOISE,
 //      which no longer requires a closer FIRST): `bash /tmp/x.sh&` — no subshell at all — resolved
@@ -1101,7 +1101,7 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
 // `env -C <wt> …` or `nice -n 19 …` raw CT run reached rule 6 and DENIED for want of a rewrite it should
 // have got. Capturing the whole prefix carries it verbatim into the sanctioned call, which is how
 // `env -C <wt> ./node_modules/.bin/playwright test <paths>` becomes `env -C <wt> pnpm test:ct <paths>` —
-// the exact spelling lane-standing-facts.md prescribes. Always matches (possibly empty).
+// the exact spelling .claude/rules/lane-standing-facts.md prescribes. Always matches (possibly empty).
 const PW_CLAUSE_HEAD = new RegExp(
   String.raw`^\s*(${WRAP_PREFIX})(?:(?:npx|pnpm(?:\s+exec)?)\s+)?(?:(?:\S*\/)?playwright|node\s+\S*@playwright\/test\/cli\.js)\s+test\b`,
 );

@@ -13,7 +13,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [uiTierPermissionFact],
   resources: [],
-  message: "reviewed z-index implementation home permission",
+  message: "reviewed z-index implementation home permission (tooling/src/verify/gates/GATE-AUTHORING.md)",
   fix: "Keep the central grant while this exact home implements the z-index tier; otherwise remove it.",
   create: (ctx) => ({
     evaluate: () => {
@@ -31,8 +31,8 @@ export const gate = defineGate({
             ...hits.map((hit) => ({ node: hit.node, subject: path, operation: OPERATION, token: hit.token, offset: hit.offset })),
           ],
           {
-            message: "the reviewed home is live and may spell the tier vocabulary.",
-            unreadableMessage: "the reviewed home could not be read.",
+            message: "the reviewed home is live and may spell the tier vocabulary. (tooling/src/verify/gates/GATE-AUTHORING.md)",
+            unreadableMessage: "the reviewed home could not be read. (tooling/src/verify/gates/GATE-AUTHORING.md)",
             fix: "Move the operation outside the home or retire its central grant.",
           },
         );

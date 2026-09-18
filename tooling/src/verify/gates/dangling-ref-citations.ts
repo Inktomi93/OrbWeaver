@@ -25,8 +25,8 @@ export const DANGLING_SYMBOL_OPERATION = "dangling-symbol-cite";
 
 const MESSAGE =
   "a backticked path or UPPER_SNAKE symbol in a living law/design doc has no matching authored path or declaration. " +
-  "A phantom citation is drift; an intentional temporary or external reference requires one exact central reviewed grant.";
-const UNREADABLE = "a living-doc citation could not be resolved to a grant identity.";
+  "A phantom citation is drift; an intentional temporary or external reference requires one exact central reviewed grant. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const UNREADABLE = "a living-doc citation could not be resolved to a grant identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "repoint the cite to the live path or declaration, strike/rider deliberate history, or add an exact reviewed grant with a cited reason and end condition.";
 

@@ -9,7 +9,7 @@
 // NO BOUNDED-SUBTREE WALK: the legacy shape called `node.getDescendantsOfKind(Identifier)` per parameter to
 // collect every identifier under it (param names, destructured elements, object members). The final
 // contract bans that primitive outright (#1930 — no bounded-subtree API exists). This is INVERTED per
-// GATE-AUTHORING.md's own prescription: every Identifier in the population is visited once, and each one
+// tooling/src/verify/gates/GATE-AUTHORING.md's own prescription: every Identifier in the population is visited once, and each one
 // walks UP via `getFirstAncestorByKind(Parameter)` to ask "am I inside some op candidate's parameter list at
 // all", then up again to the owning `TypeAliasDeclaration` to attribute the name. Pre-order dispatch
 // guarantees the alias visitor registers its candidate slot before any of its own descendant identifiers

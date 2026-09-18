@@ -30,7 +30,7 @@ export function clampRoleHandling(floor: RoleHandling | undefined, knob: RoleHan
 }
 
 /** The separator merged rows are joined with. Matches ST's SERVER-side `mergeMessages` (`'\n\n'`), not its
- *  client pass — see the `INJECT-NAMED-AS-PLAYER` note in `dogfood-tracking.md`. */
+ *  client pass — see the `INJECT-NAMED-AS-PLAYER` note in `docs/history/dogfood-tracking-2026-08-08.md`. */
 const MERGE_SEPARATOR = "\n\n";
 
 /**

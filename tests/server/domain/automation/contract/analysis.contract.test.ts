@@ -95,7 +95,7 @@ test("mergeAnalysisState: the retired bank FIFO-ages at its cap (oldest out firs
 // already over it. So a hand-corrupted / restored / imported row carried its whole payload into every
 // subsequent assembled prompt AND back out through the pass write, forever.
 //
-// THE ARM IS CLAMP, NOT REFUSE (memory `parse-on-read-schemas-cannot-be-tightened.md`): this schema is
+// THE ARM IS CLAMP, NOT REFUSE (memory `the parse-on-read-schemas-cannot-be-tightened memory lesson`): this schema is
 // parsed by the READER, so a new `.max()` refusal would make already-stored rows unreadable — the whole
 // row would fall to EMPTY_ANALYSIS_STATE and RESET THE WATERMARK. The row must still parse; it just reads
 // back bounded.

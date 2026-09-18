@@ -106,7 +106,7 @@ interface DocRow {
 
 /** A description cell ENDING with this marker declares itself a verbatim copy of the descriptor's runtime
  *  `message`. Opt-IN to a stricter check, not a suppression — so, unlike the `@orb-gate-ignore` family
- *  (GATE-AUTHORING.md §4.3), it carries no reason: the reason is the byte-equality it promises. */
+ *  (tooling/src/verify/gates/GATE-AUTHORING.md §4.3), it carries no reason: the reason is the byte-equality it promises. */
 /** Conformance fixture paths — the gate reads exactly these two real-tree coordinates. */
 const GATE_FILE = `${GATES_DIR_REL}/x.ts`;
 const DOC_FILE = DOC_REL;
@@ -171,7 +171,7 @@ const UNDECLARED_MIRROR = (name: string): string =>
   "is exactly the row that drifts unnoticed, because nothing knows it was ever coupled.";
 const MIRROR_READER_BLIND = (total: number): string =>
   `zero of ${total} gate descriptors yielded a readable \`message\` — the ordered string evaluator has rotted ` +
-  "past the whole corpus, so every mirror verdict below is vacuous (GATE-AUTHORING.md §4.6). Re-derive the " +
+  "past the whole corpus, so every mirror verdict below is vacuous (tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Re-derive the " +
   "reader in tooling/src/verify/lib/config-static-read.ts.";
 
 /** The string value of an object literal's `status`/`name` property (inline literal only). */

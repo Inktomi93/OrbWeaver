@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 // Unit tests for the vLLM supervisor's THREE pure decision cores (no IO, injected inputs) — the measured
 // lifecycle matrix (Esoteric §4). `decideTick` is the reconciliation judgment; `breakerAllows` is the
 // crash-loop window math; `findOrphanedEngineCores` is the cwd-based orphan match.
@@ -346,6 +345,7 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
     io.healthy.clear();
     io.occupied.clear();
     io.triggers.length = 0;
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
     vi.useFakeTimers();
     // /health: healthy iff the engine is in the healthy set (a trigger boots the fleet; a crash removes one).
     // /is_sleeping: these lifecycle tests never sleep an engine → always {is_sleeping:false}.
@@ -611,6 +611,7 @@ describe("startVllmEngines — admin restart proves durable process ownership", 
     io.healthy.add("embed");
     io.healthy.add("rerank");
     io.healthy.add("gen");
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
     vi.useFakeTimers();
     vi.stubGlobal("fetch", (input: unknown): Promise<{ ok: boolean; json: () => Promise<unknown> }> => {
       const url = String(input);
@@ -701,6 +702,7 @@ describe("startVllmEngines — auto-sleep idle timer", () => {
   beforeEach(() => {
     io.healthy.clear();
     io.triggers.length = 0;
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
     vi.useFakeTimers();
     vi.stubGlobal("fetch", (input: unknown): Promise<{ ok: boolean; json: () => Promise<unknown> }> => {
       const url = String(input);
@@ -861,6 +863,7 @@ describe("startVllmEngines — the local-GPU requirement is MANAGER-scoped", () 
     io.healthy.clear();
     io.triggers.length = 0;
     io.gpuAbsent = true; // every test in this describe runs on a GPU-less box
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
     vi.useFakeTimers();
     vi.stubGlobal("fetch", (input: unknown): Promise<{ ok: boolean; json: () => Promise<unknown> }> => {
       const url = String(input);

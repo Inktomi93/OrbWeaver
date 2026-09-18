@@ -37,7 +37,7 @@ const BLIND_SECTIONS =
 const MESSAGE =
   "the duplicate-action-door family's plane derivation went blind: either the `SECTION_IDS` vocabulary or the " +
   "co-located rail-section definitions resolved to nothing, which regroups every door under its feature " +
-  "directory instead of its plane. Both derivations are name-keyed, so a rename is the way this happens.";
+  "directory instead of its plane. Both derivations are name-keyed, so a rename is the way this happens. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 const FIX =
   "Re-point the name-keyed derivation the message names (SECTION_IDS_HOME or SECTION_FILE_RE in " +

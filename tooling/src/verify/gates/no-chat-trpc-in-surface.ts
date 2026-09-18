@@ -45,7 +45,7 @@ const SURFACES = "**/features/*/surfaces/**";
 const MESSAGE =
   "trpc.chat.<verb>.mutationOptions outside the sanctioned verb-hook home — push the verb into features/chat/hooks/use-chat-verbs.ts (or use-chat-injection-verbs.ts / use-draft-chat-actions.ts / use-recent-chats-actions.ts depending on scope), and call the verb from this surface. See UI-Architecture-and-Layout.md §2.1 (surfaces compose; verb dispatch lives in hooks/).";
 const UNREADABLE =
-  "this surface reads a tRPC `mutationOptions` whose proxy chain the checker cannot place, so whether it is the CHAT router's verb CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this surface reads a tRPC `mutationOptions` whose proxy chain the checker cannot place, so whether it is the CHAT router's verb CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (UI-Architecture-and-Layout.md §2.1)";
 
 /** The router segment names between the proxy root and this member, plus the root expression itself.
  *  Walks DOWN the delivered node's own receiver chain — bounded navigation on one node, no traversal. */

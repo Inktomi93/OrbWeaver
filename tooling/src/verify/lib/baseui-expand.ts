@@ -276,7 +276,7 @@ function expandNamed(project: Project, sf: SourceFile, name: string): Expansion 
  *  WHY NOT `getProperties()` ON THE INTERFACE AND STOP (the blind spot the expander replaced):
  *  `ComboboxRootProps` is a TYPE ALIAS whose right-hand side is `Omit<AriaCombobox.Props<…>, …> & { … }`, so
  *  a TypeLiteral-only reader returned ZERO props for the single component crunch item 6 is about — a gate
- *  keyed on that would have been silently, confidently green (GATE-AUTHORING.md §5, literal-shape blindness). */
+ *  keyed on that would have been silently, confidently green (tooling/src/verify/gates/GATE-AUTHORING.md §5, literal-shape blindness). */
 export function propsOf(project: Project, sf: SourceFile, symbol: string): Omit<InstalledPart, "kind" | "symbol" | "from"> | undefined {
   const props = expandNamed(project, sf, `${symbol}Props`);
   if (props === undefined) {

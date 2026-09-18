@@ -8,7 +8,7 @@
 // like "clean". Measured live: `[aria-label="Tags"]::after`, 3px × 252px, `oklch(0.72 0.175 52)`, on a
 // 10px-radius card (docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md F12).
 //
-// The three arms below are the RULE-AUTHORING.md checklist in one fixture: the codebase's own idiom must
+// The three arms below are the tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md checklist in one fixture: the codebase's own idiom must
 // FIRE (step 2), the adjacent pseudo idiom the rule does NOT ask about — the full-box gradient RING at
 // packages/ui/src/styles/globals.css:377 — must stay SILENT (step 3), and the ratified illustrated-picker
 // art exemption (#1642, #1151) must reach the new channel the day it lands rather than being re-opened by

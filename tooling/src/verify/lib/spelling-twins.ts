@@ -20,7 +20,7 @@ import { Node, Project, SyntaxKind } from "ts-morph";
 import type { SpellingTwin } from "../contract/spelling-twins.ts";
 
 /** One scratch project for every rewrite in a process. Each parse lands at its OWN virtual path — never
- *  re-create a path on a reused Project (GATE-AUTHORING.md §12: a re-created SourceFile restarts its
+ *  re-create a path on a reused Project (tooling/src/verify/gates/GATE-AUTHORING.md §12: a re-created SourceFile restarts its
  *  script version and the language service then serves the PREVIOUS document). */
 const scratch = new Project({ useInMemoryFileSystem: true });
 let parseSeq = 0;

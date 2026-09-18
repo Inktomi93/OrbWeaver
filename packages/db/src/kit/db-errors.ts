@@ -3,7 +3,7 @@
 // single-active marker). This unifies them into ONE 4-depth `error.cause` walk that also discriminates
 // WHICH constraint fired — so a domain reads `.kind` instead of re-walking, and a FK-on-`ownerId`
 // violation is never swallowed as "row already active". A db-layer concern (driver error shape), no
-// domain knowledge. (Legacy-Migration-and-Gaps.md §3 + Tier-1-DB.md "db-errors unification depth".)
+// domain knowledge. (Core-Legacy-Migration-and-Gaps.md §3 + Tier-1-DB.md "db-errors unification depth".)
 
 import { isPlainObject } from "@orb/kit/guards";
 

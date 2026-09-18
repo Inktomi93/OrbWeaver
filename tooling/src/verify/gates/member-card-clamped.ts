@@ -33,7 +33,7 @@ const VIEW_TYPE = "MemberCardView";
 const CLAMP_SYMBOLS = new Set(["clampMemberCard", "resolveCardVisibility"]);
 const DELETED_VERB = "getRosterCardView";
 
-// Three arms, THREE scopes — ONE group message; the node overload (§1, GATE-AUTHORING.md) carries no
+// Three arms, THREE scopes — ONE group message; the node overload (§1, tooling/src/verify/gates/GATE-AUTHORING.md) carries no
 // per-finding message, so the `token` (VIEW_TYPE / the clamp symbol name / DELETED_VERB) is what
 // distinguishes which arm fired; see mustFlag below.
 const GROUP_MESSAGE =

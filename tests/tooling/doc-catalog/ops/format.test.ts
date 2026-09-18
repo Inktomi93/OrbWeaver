@@ -235,13 +235,13 @@ test("CLASS 3: every root entry point is admitted — including the generated-bl
   // `AGENTS.md` is PRESENT is what stops the fence creeping back the next time the two disagree.
   const targets = formatTargets([]);
 
-  expect(targets).toContain("CLAUDE.md");
+  expect(targets).toContain("./CLAUDE.md");
   expect(targets).toContain("README.md");
   expect(targets).toContain("AGENTS.md");
 });
 
 test("CLASS 3: the `@` import directive survives a REAL write, not just an empty pass", ({ scratch }) => {
-  // `CLAUDE.md` line 1 is `@docs/architecture/core/AGENTS.md` — a directive the harness resolves, not
+  // `./CLAUDE.md` line 1 is `@docs/architecture/core/AGENTS.md` — a directive the harness resolves, not
   // prose. The file happens to be canonical today, so "the formatter proposed nothing" would prove
   // nothing about what happens when it DOES write. So the defect is planted ELSEWHERE (a `\~` the
   // formatter removes, far from line 1) and the assertion is that the write happened AND line 1 came
@@ -284,7 +284,7 @@ test("ESCAPE DELTA: a code span split by bare pipes in a cell is REFUSED, not ce
   // bare `|`. The pipe is a CELL BOUNDARY before it is content, so the parse never forms the span: the
   // backticks land in `text` nodes as literal characters, split across three cells. The serializer then
   // escapes them, and the author's code span is written back as literal escaped backticks — the exact
-  // byte shape #2145 was filed to repair on `side-eye.md:170`.
+  // byte shape #2145 was filed to repair on `.claude/agents/side-eye.md:170`.
   //
   // BOTH EXISTING GUARDS ARE BLIND BY CONSTRUCTION, which is why this arm exists:
   //   · the overflow census fires only when a body row out-widths its HEADER, and here the header is

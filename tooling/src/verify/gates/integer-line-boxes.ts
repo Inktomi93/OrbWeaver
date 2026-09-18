@@ -137,14 +137,14 @@ function readLeadingToken(name: string, node: { readonly [key: string]: JsonValu
   if (node["$type"] !== "dimension") {
     out.problems.push({
       name,
-      message: `leading.${name} is not a dimension — unitless leading ratios are banned (a ratio times a fractional voice size is a fractional box)`,
+      message: `leading.${name} is not a dimension — unitless leading ratios are banned (a ratio times a fractional voice size is a fractional box) (tooling/src/verify/gates/GATE-AUTHORING.md)`,
     });
     return;
   }
   if (outputKind(node) !== "snapped") {
     out.problems.push({
       name,
-      message: `leading.${name} lacks $extensions orb.output kind "snapped" — without the round(<rem>, 1px) belt the continuous --font-scale slider un-grids the box`,
+      message: `leading.${name} lacks $extensions orb.output kind "snapped" — without the round(<rem>, 1px) belt the continuous --font-scale slider un-grids the box (tooling/src/verify/gates/GATE-AUTHORING.md)`,
     });
     return;
   }

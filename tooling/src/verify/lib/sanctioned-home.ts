@@ -1,4 +1,4 @@
-// The SCANNED-HOME reader (GATE-AUTHORING.md §3 + §4) — the ONE home for the shape 27 gates were
+// The SCANNED-HOME reader (tooling/src/verify/gates/GATE-AUTHORING.md §3 + §4) — the ONE home for the shape 27 gates were
 // re-spelling as a `scanRoot` EXCLUSION. A home scoped OUT of `scanRoot` carries its skip silently
 // through a rename or a move; the same home SCANNED, covered by a cited row, and swept by the RENAME
 // TRIPWIRE below goes RED at its new path.
@@ -34,7 +34,7 @@ function coveredFiles(files: readonly SourceFile[], relativePath: (sourceFile: S
 
 /** THE RENAME TRIPWIRE, migrated: the keys among `homes` whose row resolves to zero files among `files`.
  *  Callers guard this on their own real-tree anchor (a fixture/mini-project run never loads the anchor, so
- *  it never falsely claims every row dead) — see `GATE-AUTHORING.md` §4.5 and the callers below. */
+ *  it never falsely claims every row dead) — see `tooling/src/verify/gates/GATE-AUTHORING.md` §4.5 and the callers below. */
 export function unresolvedSanctionedHomeKeys(
   files: readonly SourceFile[],
   relativePath: (sourceFile: SourceFile) => string,

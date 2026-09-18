@@ -12,11 +12,11 @@ import { REACT_LOOKALIKE_HOME, REACT_TYPES_HOME, reactLookalikeProofModule, reac
 const EXPORTS = ["useMemo", "useCallback", "memo"] as const;
 const OPERATION = "manual-react-memo";
 const MESSAGE =
-  "manual React memoization in compiler-managed code. The React Compiler already memoizes compiled components and hooks; a dependency array adds maintenance and can re-arm effects.";
+  "manual React memoization in compiler-managed code. The React Compiler already memoizes compiled components and hooks; a dependency array adds maintenance and can re-arm effects. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "delete the manual memo. A recurring exception needs an exact reviewed grant in tooling/src/verify/lib/reviewed-grants.ts; inline waivers cannot grant this policy.";
 const UNREADABLE =
-  "this reference is spelled like a banned React memo export but its canonical origin cannot be established. It is reported rather than passed because it may still be React's API.";
+  "this reference is spelled like a banned React memo export but its canonical origin cannot be established. It is reported rather than passed because it may still be React's API. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 function position(node: MorphNode, exportedName: string): { readonly token: string; readonly offset: number } | undefined {
   const offset = node.getText().lastIndexOf(exportedName);

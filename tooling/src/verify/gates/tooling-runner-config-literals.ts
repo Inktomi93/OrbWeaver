@@ -100,7 +100,7 @@ export const gate = defineGate({
         }
         const read = runnerConfigLiteralFacts(file.path, file.text, REGISTRY_PORTS);
         if (read.kind === "unparseable") {
-          ctx.report.file(file.path, { line: 1, column: 1, message: `${UNPARSEABLE} (${read.detail}).`, fix: FIX });
+          ctx.report.file(file.path, { line: 1, column: 1, message: `${UNPARSEABLE} (${read.detail}). (Core-Tooling-Law.md §4.4)`, fix: FIX });
           continue;
         }
         for (const literal of read.literals) {

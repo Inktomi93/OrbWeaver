@@ -1,4 +1,4 @@
-// The drift-proof pairing test (hub-caps-parity style, `hub-caps-fixture-parity.md`): every `{{rpg...}}`
+// The drift-proof pairing test (hub-caps-parity style, `the retired hub-caps-fixture-parity review`): every `{{rpg...}}`
 // slot RPG_GM_PRESET_CONFIG references must be a name the macro registry actually registers. Without this,
 // a macro rename in `packages/kit/src/macro/registry.ts` (or `builtin-metadata.ts`) leaves the packaged
 // preset silently rendering a literal `{{typo'd}}` — this test REDs instead.
