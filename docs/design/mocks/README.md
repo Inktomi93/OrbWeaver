@@ -15,6 +15,13 @@ because they kept getting lost behind `git add -f`.
 a11y/button-type/lang diagnostics on it are noise, and its inline-style density is the point. The token
 law, the `@orb/ui` primitive law, and the a11y gates apply to the BUILD, never to the drawing.
 
+**`*.dc.html` files use DCLogic template syntax** (`{{var}}`, `<sc-if>`, `<sc-for>`) evaluated by the
+Claude Design Canvas viewer (#1028). They are NOT renderable through `snap --file` — that mode serves
+raw HTML via `file://` where no template engine runs, so `{{placeholder}}` text appears literally. The
+pre-rendered `.png` files beside each set are the reference renders at true size. Use those for any
+offline or instrument-based comparison; the `.dc.html` sources are the DRAWING (the canvas viewer's
+input), not standalone pages.
+
 ## What's here
 
 | Path | What |
