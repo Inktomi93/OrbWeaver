@@ -67,9 +67,6 @@ function repointedConfig(config: UserSettings, plate: ThemeBackground | null): U
 export async function migrateSeededBackgroundPicks(db: Db, ownerId: UserId | null, resolve: SeededSlugResolver, at: number): Promise<number> {
   let rewritten = 0;
   for (const pick of await selectSeededPicks(db, ownerId)) {
-    // @orb-waive no-await-db-in-loop(where): one read-modify-write per AFFECTED user row, and the write is
-    // `writeUserConfig` (the one guarded whole-blob writer) — the rewrite cannot collapse into a single
-    // statement without bypassing that guard. The population is bounded by the user count, once.
     const plate = pick.slug.length === 0 ? null : await resolve(pick.slug);
     const current = await readUserSettings(db, pick.userId);
     await writeUserConfig(db, pick.userId, repointedConfig(current.config, plate), at);
