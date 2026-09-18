@@ -21,7 +21,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 | - | - |
 | `tooling/src/verify/gates/**` · `tests/tooling/**` · any gate or instrument | `.claude/rules/gates-and-tooling.md` |
 | `tests/**/*.ct.tsx` · `tests/e2e/**` · a rendered/browser probe | `.claude/rules/browser-and-instruments.md` |
-| `packages/db/src/migrations/**` · the drizzle schema | `.claude/rules/db-schema.md` — **it drops the dev db; read it BEFORE you edit** |
+| `packages/db/src/migrations/**` · the drizzle schema | `.claude/rules/db-schema.md` — **a schema change is a FORWARD migration (D163, 2026-09-18); the baseline is frozen and drift is boot-FATAL — read it BEFORE you edit** |
 
 ## Staging and commits
 
