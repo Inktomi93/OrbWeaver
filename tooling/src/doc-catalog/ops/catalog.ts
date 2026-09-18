@@ -42,7 +42,7 @@ function catalogValue(docs: readonly Doc[], assignments: ReadonlyMap<string, Lan
         bytes: doc.bytes,
         sha256: doc.sha256,
         frontmatter: doc.frontmatter,
-        ...catalogReceipt(entries.get(doc.path), doc.sha256),
+        ...catalogReceipt(entries.get(doc.path), doc.sha256, doc.canonicalSha256),
       };
     }),
   };
@@ -144,7 +144,7 @@ export function scopedCatalog(input: {
   // place it — the base has no opinion about where a row it has never seen belongs.
   const rowAsDoc = (row: CatalogDocumentRow): readonly Doc[] => {
     if (!named.has(row.path)) {
-      return [{ path: row.path, lines: row.lines, bytes: row.bytes, sha256: row.sha256, frontmatter: row.frontmatter }];
+      return [{ path: row.path, lines: row.lines, bytes: row.bytes, sha256: row.sha256, canonicalSha256: null, frontmatter: row.frontmatter }];
     }
     return freshByPath.has(row.path) ? [freshByPath.get(row.path) as Doc] : [];
   };

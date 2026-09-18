@@ -43,5 +43,5 @@ export {
 export type { FormatOutcome, FormatRefusal } from "./ops/format.ts";
 export { formatDocs, formatMarkdown, formatTargets } from "./ops/format.ts";
 export { runCatalog, runFormat } from "./ops/run.ts";
-export { __receiptFactsForTest, documents, laneAssignments, loadReceipts } from "./ops/tree.ts";
+export { __receiptFactsForTest, documents, laneAssignments, loadReceipts, withCanonicalHashes } from "./ops/tree.ts";
 export { validate } from "./ops/validate.ts";

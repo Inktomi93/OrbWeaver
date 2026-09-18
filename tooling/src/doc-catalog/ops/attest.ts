@@ -39,6 +39,7 @@ import {
   stableLawSections,
   stableRulingAnchors,
   today,
+  withCanonicalHashes,
 } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc-catalog:attest <doc-path…>");
@@ -118,7 +119,14 @@ function rowRefusals(path: string, doc: Doc | undefined, entry: ReceiptEntry | u
 }
 
 function attestedEntry(entry: ReceiptEntry, doc: Doc, commit: string, at: string): ReceiptEntry {
-  return { ...entry, assignedSha256: doc.sha256, verifiedSha256: doc.sha256, verifiedCommit: commit, verifiedAt: at };
+  return {
+    ...entry,
+    assignedSha256: doc.sha256,
+    verifiedSha256: doc.sha256,
+    verifiedCanonicalSha256: doc.canonicalSha256,
+    verifiedCommit: commit,
+    verifiedAt: at,
+  };
 }
 
 /** The whole verb as a total function over data: what would be written, what was refused, and why. A
@@ -239,7 +247,7 @@ export function runAttestAtRoot(repoRoot: string) {
     resolveEvidenceErrors(selection, docs, receipts, { repoRoot, isolateGitEnvironment });
   return (selection: readonly string[], resolveEvidence: AttestEvidenceResolver = defaultResolver): ExitCode => {
     const config = json<LaneConfig>(LANES_PATH, repoRoot);
-    const docs = documents(repoRoot, isolateGitEnvironment);
+    const docs = withCanonicalHashes(documents(repoRoot, isolateGitEnvironment), repoRoot, new Set(selection));
     const commit = headCommit(repoRoot, isolateGitEnvironment);
     const known = new Set(docs.map((doc) => doc.path));
     const unstagedDocuments = new Set(selection.filter((path) => known.has(path) && !indexFileMatchesWorkingTree(path, repoRoot, isolateGitEnvironment)));

@@ -85,6 +85,7 @@ function setup(root: string): { readonly entry: ReceiptEntry; readonly doc: Doc;
       lines: 1,
       bytes: Buffer.byteLength(CURRENT_DOC),
       sha256: sha256(CURRENT_DOC),
+      canonicalSha256: null,
       frontmatter: { present: false, malformed: false, fields: {}, errors: [] },
     },
     sources: {
