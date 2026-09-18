@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 605,
-    "reported": 1,
+    "sites": 602,
+    "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 604,
-      "unproven": 1
+      "deliberate-absorb": 602,
+      "unproven": 0
     },
     "byGrammar": {
-      "default": 162,
+      "default": 159,
       "empty": 299,
       "promise": 144
     }
@@ -3060,7 +3060,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 455,
+      "line": 449,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -3068,7 +3068,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `requireOwner`/`can()`",
-      "markerLine": 449
+      "markerLine": 443
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::catch::1",
@@ -3255,7 +3255,7 @@
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
       "path": "packages/server/src/foundation/observability/debug/bug-report.ts",
-      "line": 94,
+      "line": 93,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3263,7 +3263,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "git being absent, or the cwd not being a",
-      "markerLine": 89
+      "markerLine": 88
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/log-ring-read.ts::catch::1",
@@ -3342,45 +3342,6 @@
       "verdict": "deliberate-absorb",
       "reason": "documented above the spillChain",
       "markerLine": 271
-    },
-    {
-      "siteId": "packages/server/src/foundation/version/index.ts::catch::1",
-      "path": "packages/server/src/foundation/version/index.ts",
-      "line": 56,
-      "column": 5,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "\"this file did not answer\" IS the result here — it becomes",
-      "markerLine": 51
-    },
-    {
-      "siteId": "packages/server/src/foundation/version/index.ts::catch::2",
-      "path": "packages/server/src/foundation/version/index.ts",
-      "line": 134,
-      "column": 5,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "a manifest that is not JSON degrades to the `unknown`",
-      "markerLine": 127
-    },
-    {
-      "siteId": "packages/server/src/foundation/version/index.ts::catch::3",
-      "path": "packages/server/src/foundation/version/index.ts",
-      "line": 152,
-      "column": 5,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 3,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "a stamp that is not JSON is INDISTINGUISHABLE from an",
-      "markerLine": 146
     },
     {
       "siteId": "packages/server/src/infra/auth/config.ts::catch::1",
@@ -4919,7 +4880,7 @@
     {
       "siteId": "tooling/src/bug-reports/lib/read.ts::catch::1",
       "path": "tooling/src/bug-reports/lib/read.ts",
-      "line": 178,
+      "line": 159,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4927,12 +4888,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an absent directory IS the answer here — it",
-      "markerLine": 173
+      "markerLine": 154
     },
     {
       "siteId": "tooling/src/bug-reports/lib/read.ts::catch::2",
       "path": "tooling/src/bug-reports/lib/read.ts",
-      "line": 191,
+      "line": 172,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4940,12 +4901,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the null is consumed as an `unreadable` ROW in",
-      "markerLine": 185
+      "markerLine": 166
     },
     {
       "siteId": "tooling/src/bug-reports/lib/read.ts::catch::3",
       "path": "tooling/src/bug-reports/lib/read.ts",
-      "line": 206,
+      "line": 187,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4953,7 +4914,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a missing companion degrades the SHOW output to",
-      "markerLine": 201
+      "markerLine": 182
     },
     {
       "siteId": "tooling/src/codemod/lib/apply-project.ts::error::1",
@@ -6360,56 +6321,56 @@
       "markerLine": 110
     },
     {
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::detachError::1",
+      "path": "tooling/src/snap/ops/heap-capture.ts",
+      "line": 88,
+      "column": 16,
+      "grammar": "empty",
+      "position": "detachError",
+      "ordinal": 1,
+      "snippet": "} catch (detachError) {",
+      "verdict": "deliberate-absorb",
+      "reason": "detach failure is retained in cleanup and combined after stream settlement; the arm never closes the owner context. Ends if cleanup stops reaching combineCaptureFailures.",
+      "markerLine": 85
+    },
+    {
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::disableError::1",
+      "path": "tooling/src/snap/ops/heap-capture.ts",
+      "line": 82,
+      "column": 16,
+      "grammar": "empty",
+      "position": "disableError",
+      "ordinal": 1,
+      "snippet": "} catch (disableError) {",
+      "verdict": "deliberate-absorb",
+      "reason": "disable failure is retained in cleanup and combined after stream settlement. Ends if cleanup stops reaching combineCaptureFailures.",
+      "markerLine": 79
+    },
+    {
       "siteId": "tooling/src/snap/ops/heap-capture.ts::error::1",
       "path": "tooling/src/snap/ops/heap-capture.ts",
-      "line": 79,
+      "line": 74,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "tooling/src/snap/ops/heap-capture.ts::error::2",
-      "path": "tooling/src/snap/ops/heap-capture.ts",
-      "line": 87,
-      "column": 16,
-      "grammar": "empty",
-      "position": "error",
-      "ordinal": 2,
-      "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
-      "reason": "disable failure is retained in cleanup and combined after stream settlement. Ends if cleanup stops reaching combineCaptureFailures.",
-      "markerLine": 84
+      "reason": "the primary capture failure is retained and combineCaptureFailures always rethrows it after cleanup, alone or inside the AggregateError with the cleanup failures. Ends if combineCaptureFailures stops throwing the retained primary.",
+      "markerLine": 51
     },
     {
-      "siteId": "tooling/src/snap/ops/heap-capture.ts::error::3",
+      "siteId": "tooling/src/snap/ops/heap-capture.ts::streamError::1",
       "path": "tooling/src/snap/ops/heap-capture.ts",
-      "line": 93,
-      "column": 16,
-      "grammar": "empty",
-      "position": "error",
-      "ordinal": 3,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "detach failure is retained in cleanup and combined after stream settlement; the arm never closes the owner context. Ends if cleanup stops reaching combineCaptureFailures.",
-      "markerLine": 90
-    },
-    {
-      "siteId": "tooling/src/snap/ops/heap-capture.ts::error::4",
-      "path": "tooling/src/snap/ops/heap-capture.ts",
-      "line": 101,
+      "line": 96,
       "column": 14,
       "grammar": "empty",
-      "position": "error",
-      "ordinal": 4,
-      "snippet": "} catch (error) {",
+      "position": "streamError",
+      "ordinal": 1,
+      "snippet": "} catch (streamError) {",
       "verdict": "deliberate-absorb",
       "reason": "stream failure is retained in cleanup and combined with the CDP failures. Ends if cleanup stops reaching combineCaptureFailures.",
-      "markerLine": 98
+      "markerLine": 93
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::catch::1",

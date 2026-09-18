@@ -113,8 +113,8 @@ comment trivia rather than authored code"* and it fires verbatim for every comme
 citation lives in a COMMENT **or in doc prose**, and `locateFinding` refuses an ordinary finding whose
 token does not survive comment blanking."* Markdown body prose is NOT comment trivia:
 `blankResourceComments(text, "markdown")` blanks only `<!-- … -->`, so the restored core-doc arm's finding
-survives blanking. Proven positively, not just by the absence of an alarm — adding
-`<!-- @orb-waive d-citation-integrity(D777): … -->` above the prose line yields **waived 1** and the prose
+survives blanking. Proven positively, not just by the absence of an alarm — adding an HTML-comment marker
+reading `@orb-waive d-citation-integrity(D777): …` above the prose line yields **waived 1** and the prose
 finding disappears, i.e. **that arm has a fully working ordinary door**. (The same run also shows the
 policy reporting the `D777` inside my own HTML-comment marker, at `:5:38`, which DOES take the
 comment-trivia alarm — a neat two-sided control in one fixture.) The same holds for
@@ -415,7 +415,7 @@ ConditionalExpression message, a second widening class the record does not name,
 proves the published number wrong on its own arithmetic. PARTIALLY REFUTED: the text-citation family's
 `hard` justification — the comment-trivia refusal is real and fires verbatim, but
 `d-citation-integrity`'s restored core-doc Markdown arm and `pd-citation-integrity`'s duplicate-id arm
-report on AUTHORED text and the ordinary door demonstrably WORKS there (a markdown `<!-- @orb-waive -->`
+report on AUTHORED text and the ordinary door demonstrably WORKS there (a Markdown HTML-comment marker
 yields waived 1), so both headers state their reason too absolutely. Secondary: no legacy descriptor
 declares `authority` at all, so "all four shipped ordinary with no working door" is a mischaracterisation
 (and legacy `evaluate-no-scope-capture` already reported an authored token); `diagnostic-legibility` is

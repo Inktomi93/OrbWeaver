@@ -5,8 +5,24 @@
 // ARM B: a backticked path matching a packages/ or tooling/ prefix, same check with prefix resolution.
 // DECLARED LIMITS: only file-path-shaped backticked text is checked (must contain a `/` and end with a
 // recognized extension). Bare symbol names, config keys, CSS selectors and inline code samples are not
-// file paths and are intentionally excluded. A path that was never a real file (example pseudocode) will
-// false-positive — those are waivable via @orb-waive.
+// file paths and are intentionally excluded. A path that was never a real file (example pseudocode) is
+// the ONE false-positive class, and its remedy is this policy's ordinary door.
+// THE DOOR (standing law §5, §6.2): an HTML-comment marker on its own line directly ABOVE the ledger line,
+// positioned on the backticked path exactly as written — the central engine reads a Markdown carrier's
+// `<!-- -->` comments and binds one to the FOLLOWING line (`lib/ordinary-waiver.ts#followingResourceCarrier`).
+// The identity arm is the `mustPass` row whose fixture carries that marker over the one illustrative path
+// it names; move the position and the row reds on the dead-position alarm.
+// CARRIER DEMAND, stated because it is the least obvious consequence of `ordinary` here: `tracked-files`
+// publishes every tracked path (`ops/resource-tracked.ts`), the resolver folds a fact's paths into the
+// owner's effective resource population (`lib/resource-declaration.ts#resolveResourceDeclarations`), and an
+// ORDINARY owner's effective resource paths are demanded as waiver carriers
+// (`lib/policy-pass.ts#ordinaryWaiverAcquisition`). So every tracked `.md/.css/.json/.jsonc/.sql` file is a
+// live marker carrier on every run of this policy: the tracked symlink `.codex/agent-doctrine.md` receipts
+// as an `unresolved` carrier each time, and an `@orb-waive` spelled INSIDE an HTML comment in any tracked
+// Markdown file — a review doc quoting a fixture marker — is parsed as a marker and alarmed (the two
+// 2026-09-18 alarms in `docs/reviews/gate-runtime/v-conversions-2026-09-13.md`). Prose about a marker
+// stays outside the comment span; the demand itself is the same one #1947 ruled by design for
+// `native-config`.
 // FAMILY: singleton — subject is the D-ledger prose, not a code shape.
 // POPULATION: resource-only (no source population); the D-ledger and tracked-files.
 import { defineGate } from "../contract/policy.ts";
@@ -49,11 +65,20 @@ const MESSAGE =
   "a backticked file path in a D-ledger entry does not resolve on the tree — the file was renamed or " +
   "deleted but the ledger still directs readers to it. See Core-Path-Registry.md";
 
-const FIX = "update the backticked path to the current location, or remove the reference if the concept was deleted";
+/** The whole remedy, on the descriptor AND on every finding: the repair first, then the door for the one
+ *  class the repair does not fit. The door spells the exact carrier comment and the exact position
+ *  (§7.3): the position is the backticked path as written, and the marker sits on the line above. */
+const FIX =
+  "update the backticked path to the current location, or remove the reference if the concept was deleted. " +
+  "For an ILLUSTRATIVE path that was never a file, add `<!-- @orb-waive ledger-symbol-liveness(<the backticked path, exactly as written>): <reason> -->` " +
+  "on its own line directly ABOVE the ledger line that carries the path — the HTML comment is the Markdown carrier the central engine reads, " +
+  "and the position is the path text the finding points at";
 
 /** Extract backticked file-path-shaped identifiers from markdown text. A file path must contain at
- *  least one `/` and end with a recognized extension. */
-function extractPathCites(document: MarkdownDocument): { path: string; line: number; column: number }[] {
+ *  least one `/` and end with a recognized extension. `scanned` is the line count the receipt reports —
+ *  what the policy MEASURED (standing law §3), never the cites it found, because a clean ledger legitimately
+ *  finds zero and a zero receipt is a refusal, not a verdict. */
+function extractPathCites(document: MarkdownDocument): { cites: { path: string; line: number; column: number }[]; scanned: number } {
   const results: { path: string; line: number; column: number }[] = [];
   const lines = document.text.split("\n");
   for (let i = 0; i < lines.length; i++) {
@@ -64,20 +89,19 @@ function extractPathCites(document: MarkdownDocument): { path: string; line: num
     for (const match of line.matchAll(/`([^`]+)`/gu)) {
       const candidate = match[1];
       // Skip paths inside strikethrough (~~...~~) — historical references to deleted files
-      const matchIdx = match.index ?? 0;
-      const precedingText = line.slice(0, matchIdx);
+      const precedingText = line.slice(0, match.index);
       const strikeOpen = (precedingText.match(/~~/gu) ?? []).length;
       if (strikeOpen % 2 !== 0) {
         continue;
       }
       if (candidate !== undefined && candidate.includes("/") && PATH_EXTENSIONS.test(candidate) && !NON_LITERAL_RE.test(candidate)) {
         // +2 for 1-based columns and to skip the opening backtick
-        const column = (match.index ?? 0) + 2;
+        const column = match.index + 2;
         results.push({ path: candidate, line: i + 1, column });
       }
     }
   }
-  return results;
+  return { cites: results, scanned: lines.length };
 }
 
 /** Check if a cited path resolves against the tracked file set, trying the path as-is first, then
@@ -116,7 +140,7 @@ export const gate = defineGate({
   facts: [],
   resources: [{ kind: "ledger", id: "core-path-registry" }, { kind: "tracked-files" }],
   message: MESSAGE,
-  fix: `@orb-waive ledger-symbol-liveness(<pos>): <reason> — ${FIX}`,
+  fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
       const ledger = readyResourceValue(ctx.resources.ledger("core-path-registry"));
@@ -132,12 +156,12 @@ export const gate = defineGate({
         }
       }
 
-      let citesChecked = 0;
+      let linesScanned = 0;
 
       for (const document of ledger.documents) {
-        const cites = extractPathCites(document);
+        const { cites, scanned } = extractPathCites(document);
+        linesScanned += scanned;
         for (const cite of cites) {
-          citesChecked++;
           if (resolveOnTree(cite.path, trackedSet, trackedSuffixIndex)) {
             continue;
           }
@@ -151,8 +175,11 @@ export const gate = defineGate({
         }
       }
 
+      // Both receipts count what was SCANNED. The retired `path-cites-checked` receipt counted what was
+      // FOUND, so the two clean-ledger `mustPass` rows below — zero path cites by construction — refused
+      // on `members: 0` instead of passing (measured 2026-09-18 through `verifyPolicyProofs`).
       ctx.receipt({ kind: "population", source: "ledger-documents", members: ledger.documents.length, unresolved: 0 });
-      ctx.receipt({ kind: "population", source: "path-cites-checked", members: citesChecked, unresolved: 0 });
+      ctx.receipt({ kind: "population", source: "ledger-lines-scanned", members: linesScanned, unresolved: 0 });
     },
   }),
   mustFlag: [
@@ -174,6 +201,15 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "resource",
+      files: {
+        "docs/architecture/core/Core-Path-Registry.md":
+          "<!-- @orb-waive ledger-symbol-liveness(domain/chat/verbs/illustrative-only.ts): an illustrative path in the entry's own prose, never a file on the tree. Ends if the entry cites a real home. -->\n" +
+          "- **D1** — a read verb shaped like `domain/chat/verbs/illustrative-only.ts` owns the chat read.\n",
+      },
+      why: "THE POSITIVE IDENTITY ARM (standing law §6.2) over the MARKDOWN carrier: the fixture produces exactly ONE finding — the illustrative path resolves nowhere — and the HTML-comment marker on the line above, positioned on the backticked path exactly as written, consumes it (0 effective, 1 waived, 0 alarms). This is the one false-positive class the header declares and the door the `fix` spells; move the position by one character and the row reds on the dead-position alarm",
+    },
     {
       mode: "resource",
       files: {

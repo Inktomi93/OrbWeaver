@@ -114,7 +114,7 @@ const ARM_MESSAGE: Readonly<Record<CaughtFailureArm, string>> = {
 };
 
 const FIX =
-  "make the owner machine-visible: propagate; set error/terminal/form/query state; emit a contextual structured log/span; or route through a named owner boundary. For a deliberately safe fail-closed, cleanup, or outer-engine absorber, add `// @orb-waive caught-failure-ownership(<position>): <owner/surface or why safe + end condition>` immediately above the guarded try/catch or promise statement. THE POSITION IS THE EXACT SOURCE SLICE THIS POLICY REPORTS AT, never a label: for a catch arm it is the caught binding's name (`err`, `error`, `e`) or the keyword `catch` when the clause is bindingless; for a promise arm it is the guarded WORK's callee text and never the plumbing link — `save` for `save().catch(h)`, `a.save` for `a.save().catch(h)`, `p` for `p.catch(h)`. Do not add a marker where a real toast/state/log/terminal path is required.";
+  "make the owner machine-visible: propagate; set error/terminal/form/query state; emit a contextual structured log/span; or route through a named owner boundary. For a deliberately safe fail-closed, cleanup, or outer-engine absorber, add `// @orb-waive caught-failure-ownership(<position>): <owner/surface or why safe + end condition>` immediately above the guarded try/catch or promise statement. THE POSITION IS THE EXACT SOURCE SLICE THIS POLICY REPORTS AT, never a label: for a catch arm it is the caught binding's name (`err`, `error`, `e`) or the keyword `catch` when the clause is bindingless — and a catch NESTED inside another guarded try binds a name of its own (`disableError`, never a second `error`), because the outer marker binds by containment and a shared token makes it over-broad; for a promise arm it is the guarded WORK's callee text and never the plumbing link — `save` for `save().catch(h)`, `a.save` for `a.save().catch(h)`, `p` for `p.catch(h)`. Do not add a marker where a real toast/state/log/terminal path is required.";
 
 function reportSite(ctx: GatePolicyContext, site: CaughtFailureSite | undefined): void {
   if (site === undefined) {
@@ -915,6 +915,22 @@ export const gate = defineGate({
           "export function cleanup(stream: S): void {\n  // @orb-waive caught-failure-ownership(stream.cancel): teardown has no user result; failure only leaves an already-closing stream for process exit. Ends if teardown becomes retryable.\n  void stream.cancel().catch(() => undefined);\n}\n",
       },
       why: "THE POSITIVE IDENTITY ARM (§4.2) for the PROMISE arm, and the row that pins the member-chain anchor: the position is the WORK's whole callee text `stream.cancel`, NOT the legacy `promise:cancel` label and not the bare link name. One finding, suppressed. A cleanup/teardown absorber is the shape that legitimately uses it",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/nested-cleanup.ts":
+          "export async function capture(run: () => Promise<void>, close: () => Promise<void>, settled: Promise<void>): Promise<void> {\n" +
+          "  let primary: unknown = null;\n  const cleanup: unknown[] = [];\n" +
+          "  // @orb-waive caught-failure-ownership(error): the primary failure is retained and combine always rethrows it after cleanup. Ends if combine stops throwing it.\n" +
+          "  try {\n    await run();\n  } catch (error) {\n    primary = error;\n  } finally {\n" +
+          "    // @orb-waive caught-failure-ownership(closeError): close failure is retained in cleanup and combined. Ends if cleanup stops reaching combine.\n" +
+          "    try {\n      await close();\n    } catch (closeError) {\n      cleanup.push(closeError);\n    }\n" +
+          "    // @orb-waive caught-failure-ownership(settleError): settle failure is retained in cleanup and combined. Ends if cleanup stops reaching combine.\n" +
+          "    try {\n      await settled;\n    } catch (settleError) {\n      cleanup.push(settleError);\n    }\n" +
+          "  }\n  combine(primary, cleanup);\n}\n",
+      },
+      why: "THE NESTED-CLEANUP IDENTITY SHAPE (heap-capture.ts): a primary catch whose finally holds two cleanup catches, three markers, every one consumed (0 effective, 3 waived, 0 alarms). The outer marker's carrier is the whole outer try statement, which CONTAINS the nested catches, so the row only holds because each nested catch binds a DISTINCT name — renaming `closeError`/`settleError` back to `error` turns the outer marker over-broad and reds this row on the alarm. That is the reader-header claim (one binding name per carrier) corrected and pinned",
     },
     {
       mode: "types",
