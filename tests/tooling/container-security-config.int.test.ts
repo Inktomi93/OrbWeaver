@@ -59,7 +59,7 @@ test("the entrypoint keeps its single *_FILE allowlist line (the agent-sdk firew
   expect(shim).toContain("keep_generated initial_password");
 });
 
-test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scratch, skip }) => {
+test("every compose shape resolves (base + the five overlays)", ({ repoRoot, scratch, skip }) => {
   const probe = spawnSync("docker", ["compose", "version"], { encoding: "utf8" });
   if (probe.status !== 0) {
     // A LOUD skip, never a silent pass: without compose on the host these shapes were not validated here.
@@ -74,20 +74,24 @@ test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scr
   }
   const interpolation = join(scratch, "compose.env");
   writeFileSync(interpolation, `ORB_SECRETS_DIR=${secretsDir}\n`);
-  const run = (...files: readonly string[]): SpawnSyncReturns<string> =>
-    spawnSync("docker", ["compose", "--env-file", interpolation, ...files.flatMap((f) => ["-f", f]), "config", "--quiet"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-    });
-  for (const files of [
-    ["docker-compose.yaml"],
-    ["docker-compose.yaml", "docker/compose.host-network.yaml"],
-    ["docker-compose.yaml", "docker/compose.single-user.yaml"],
-    ["docker-compose.yaml", "docker/compose.secrets.yaml"],
-    ["docker-compose.yaml", "docker/compose.dev.yaml"],
-  ]) {
-    const result = run(...files);
-    expect(result.status, `${files.join(" + ")}: ${result.stderr}`).toBe(0);
+  const run = (files: readonly string[], profiles: readonly string[] = []): SpawnSyncReturns<string> =>
+    spawnSync(
+      "docker",
+      ["compose", "--env-file", interpolation, ...files.flatMap((f) => ["-f", f]), ...profiles.flatMap((p) => ["--profile", p]), "config", "--quiet"],
+      { cwd: repoRoot, encoding: "utf8" },
+    );
+  const shapes: readonly (readonly [readonly string[], readonly string[]])[] = [
+    [["docker-compose.yaml"], []],
+    [["docker-compose.yaml", "docker/compose.host-network.yaml"], []],
+    [["docker-compose.yaml", "docker/compose.single-user.yaml"], []],
+    [["docker-compose.yaml", "docker/compose.secrets.yaml"], []],
+    [["docker-compose.yaml", "docker/compose.dev.yaml"], []],
+    [["docker-compose.yaml", "docker/compose.engines.yaml"], ["gen"]],
+    [["docker-compose.yaml", "docker/compose.engines.yaml"], ["gen", "embed", "rerank"]],
+  ];
+  for (const [files, profiles] of shapes) {
+    const result = run(files, profiles);
+    expect(result.status, `${files.join(" + ")} ${profiles.join(",")}: ${result.stderr}`).toBe(0);
   }
 });
 
