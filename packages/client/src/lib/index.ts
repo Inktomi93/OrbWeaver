@@ -227,4 +227,4 @@ export { isSilencedTurnAbort, TURN_LOCKED_COPY, TURN_STALE_ABORT_COPY, turnAbort
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { useDebouncedValue } from "./use-debounced-value.ts";
 export { useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
-export { motionIsReduced, withViewTransition } from "./view-transition.ts";
+export { motionIsReduced } from "./view-transition.ts";
