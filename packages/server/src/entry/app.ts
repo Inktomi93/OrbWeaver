@@ -23,6 +23,7 @@ import type { ExportService } from "#domain/export";
 import { env } from "#foundation/env";
 import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
+import { versionIdentity } from "#foundation/version";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
 import { fleetCapacitySnapshot } from "#infra/providers";
@@ -333,6 +334,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     isShuttingDown: deps.isShuttingDown,
     credentialsKeyOk: deps.credentialsKeyOk,
     isHarnessStack: () => env.E2E_HARNESS === "on",
+    version: versionIdentity,
   });
   registerBlob(app, { assets: deps.assets, cas: deps.cas });
 

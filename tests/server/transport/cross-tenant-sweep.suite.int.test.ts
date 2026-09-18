@@ -1665,6 +1665,13 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "chat.setGroupConfig": "group-config wire schema validates before the membership gate; the gate is probed via chat.getGroupConfig",
   "chat.startChat": "self-scoped: creates a chat the caller hosts",
   "chat.listChats": "self-scoped: only the caller's member chats",
+  // The two build-identity reads (owner ask 2026-09-18). NOT exempted as "no input" — a no-id verb is not
+  // automatically exempt (#1627). Exempt because there is no TENANT-PARTITIONED read to get wrong: neither
+  // verb touches the db at all. `getVersion` returns a process constant frozen at boot; `checkForUpdate`
+  // compares that constant to one unauthenticated GET of a PUBLIC upstream branch head. Every authed caller
+  // is answered identically by construction, so there is no WHERE clause whose loss this sweep could detect.
+  "settings.getVersion": "deployment-global: a frozen process fact (foundation/version); no db read, no parameter, identical for every principal",
+  "settings.checkForUpdate": "deployment-global: the same frozen process fact compared to a PUBLIC upstream head; no db read, no parameter",
   "settings.getUserSettings": "self-scoped by principal.userId",
   "settings.updateUserSettingsSection": "self-scoped by principal.userId",
   // The whole-blob repair door (#1771). Self-scoped like its sibling AND unable to express a foreign

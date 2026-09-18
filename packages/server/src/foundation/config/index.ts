@@ -1,18 +1,12 @@
 // The AppSettings floor-merge moved config resolution into the settings domain's
-// effective-config/ subsystem (core/Tier-2-Foundation.md "does NOT own"). This tier
-// keeps only the one thing that isn't a setting: APP_VERSION.
-
-import { readFileSync } from "node:fs";
-
-interface PackageManifest {
-  version: string;
-}
-
-// Three levels up from src/foundation/config to packages/server, where package.json lives.
-const manifest = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8")) as PackageManifest;
-
-/** The `@orb/server` package version. */
-export const APP_VERSION: string = manifest.version;
+// effective-config/ subsystem (core/Tier-2-Foundation.md "does NOT own"). This tier keeps only the outbound
+// app IDENTITY strings.
+//
+// `APP_VERSION` IS GONE (2026-09-18, the build-identity work). It read `packages/server/package.json`'s
+// `version` — a workspace manifest nobody bumps, permanently `0.0.0` — while the release number the owner
+// tags lives in the ROOT manifest. Two homes for one concept, and the wrong one was the one the tracer and
+// the `/api/_debug/config` probe reported. Both now read `#foundation/version`, the single derivation that
+// also answers `/healthz`, the boot line, the bug bundle and Settings → About.
 
 /** App identity for outbound provider attribution (OpenRouter's `HTTP-Referer` / `X-Title` — the app's
  *  name + URL that appear on OpenRouter's leaderboard and let it attribute/scope our traffic). Not a

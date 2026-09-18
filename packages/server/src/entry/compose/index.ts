@@ -19,3 +19,5 @@ export type { DeleteReachCapture } from "./room-reach.ts";
 export { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 export type { ServicesDeps, ServicesResult } from "./services.ts";
 export { createServices } from "./services.ts";
+export type { UpstreamHeadProbeDeps } from "./update-check.ts";
+export { createProbeUpstreamHead, parseUpstream } from "./update-check.ts";

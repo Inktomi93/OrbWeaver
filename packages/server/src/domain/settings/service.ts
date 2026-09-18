@@ -7,6 +7,7 @@ import { createSettingsContext } from "./context.ts";
 import type { SettingsService, SettingsServiceDeps } from "./contract/service.ts";
 import { createAddExternalBackground } from "./verbs/add-external-background.ts";
 import { createAppSettings } from "./verbs/app-settings.ts";
+import { createCheckForUpdate, createGetVersion } from "./verbs/check-for-update.ts";
 import { createCreateTheme } from "./verbs/create-theme.ts";
 import { createDuplicateTheme } from "./verbs/duplicate-theme.ts";
 import { createGetTheme } from "./verbs/get-theme.ts";
@@ -30,6 +31,8 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
     resetUserConfig: createResetUserConfig(ctx),
     addExternalBackground: createAddExternalBackground(ctx),
     loadUserSettings: createLoadUserSettings(ctx),
+    getVersion: createGetVersion(ctx),
+    checkForUpdate: createCheckForUpdate(ctx),
     getGlobalSetting: globalSettings.getGlobalSetting,
     setGlobalSetting: globalSettings.setGlobalSetting,
     getAppSettings: appSettings.getAppSettings,

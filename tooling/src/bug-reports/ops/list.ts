@@ -37,13 +37,16 @@ export function buildLabel(report: BugReportSummary): string {
   return `${report.sha.slice(0, SHORT_SHA)}${report.dirty ? "+dirty" : ""}`;
 }
 
-/** One report, one line. Id first because it is what `pnpm bug:reports <id>` takes. */
+/** One report, one line. Id first because it is what `pnpm bug:reports <id>` takes; the RELEASE identity
+ *  sits ahead of the git build column because it is the field an issue quotes (`v0.4.1 (a1b2c3d4e5f6)`)
+ *  and the one a container report can even carry. */
 function reportLine(report: BugReportSummary): string {
   const truncated = report.truncatedSources.length === 0 ? "" : `  TRUNCATED(${String(report.truncatedSources.length)})`;
   return [
     report.id,
     `${humanAge(report.ageMs)} ago`,
     report.capturedAt,
+    report.version ?? "no-version",
     buildLabel(report),
     report.route ?? "route?",
     `— ${report.noteFirstLine}${truncated}`,

@@ -66,3 +66,37 @@ pnpm run worktree:bootstrap   # pnpm install (deps + hooks) + link .env from the
 Hooks live in the shared common gitdir, so they fire in every worktree automatically once its deps are
 installed; every hook/check script resolves the worktree root via `git rev-parse` (no hardcoded paths).
 External versions are centralized in the pnpm **catalog** (`pnpm-workspace.yaml`).
+
+## Versioning + releases
+
+Every running Orbweaver reports ONE identity block — `{ version, commit, short, builtAt?, source }` — in
+four places, so a bug report can always say what it is running:
+
+| Where | What it shows |
+| - | - |
+| **Settings → Admin → About this install** | `v0.0.0 (823d76f4343a, checkout)` + a Copy button, and a manual "Check for updates" |
+| `GET /healthz` | the same block on every arm, 200 and 503 alike |
+| the boot log's FIRST line | `boot: orbweaver v0.0.0 (823d76f4343a, checkout)` |
+| a captured bug report (`pnpm bug:reports`) | the first header field of the bundle |
+
+`version` is the ROOT `package.json` version — the number a release bumps. `commit` is read from `.git`'s
+plain ref files at boot (no git binary, no child process); a container image has no `.git`, so the build
+stamps `/app/version.json` instead and the reader prefers it. When neither can answer, the commit reads
+`unknown` — never a fabricated sha. There is no `dirty` flag: it cannot be derived without git, and a
+field that is always `false` would lie exactly when it matters.
+
+**Cutting a release:**
+
+```bash
+pnpm version minor        # (or patch/major) — bumps the root package.json AND creates the v<version> tag
+git push origin main --follow-tags
+```
+
+Push the tag, then write the changelog on GitHub's release page for that tag — that page is the
+changelog's one home; nothing in this repository duplicates it.
+
+**Checking for updates** is manual and one-shot: the About section's button performs a single
+unauthenticated `GET https://api.github.com/repos/Inktomi93/orbweaver/commits/main` through the app's
+SSRF-safe egress belt, compares that sha to this build's, and reports `up to date` / `update available` /
+`couldn't check` + why. No polling, no timer, no persisted state, and nothing about your deployment is
+sent anywhere.

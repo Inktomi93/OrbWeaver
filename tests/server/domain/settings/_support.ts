@@ -10,6 +10,7 @@ import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { Handle, ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { UpstreamHeadProbe, VersionIdentity } from "@orb/kit/version-identity";
 import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import type { SettingsServiceDeps, ThemeView } from "@orb/server/domain/settings";
 import { createSettingsService } from "@orb/server/domain/settings";
@@ -64,7 +65,14 @@ export function principal(userId: UserId, role: UserRole, handle: Handle = castI
   return makePrincipal(userId, { role, handle });
 }
 
-export function makeHarness(db: Db, overrides: { readonly materializeBackground?: MaterializeBackgroundOp } = {}): SettingsHarness {
+/** The identity the harness reports — a FIXED block, never a read of the checkout under test: a spec that
+ *  asserted this box's real commit would pass on one machine and fail on the next. */
+export const HARNESS_VERSION: VersionIdentity = { version: "9.9.9", commit: "a".repeat(40), short: "a".repeat(12), source: "checkout" };
+
+export function makeHarness(
+  db: Db,
+  overrides: { readonly materializeBackground?: MaterializeBackgroundOp; readonly probeUpstreamHead?: UpstreamHeadProbe } = {},
+): SettingsHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const audits: AuditCall[] = [];
   const onEmbedModelChanged: Mock<() => void> = vi.fn<() => void>();
@@ -93,6 +101,10 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
       entryCounter += 1;
       return `bg_entry_${entryCounter}`;
     },
+    versionIdentity: (): VersionIdentity => HARNESS_VERSION,
+    // Default REFUSES: no settings test may reach the network, and the refusal is itself a real verdict arm
+    // (`unknown` + reason). The update-check spec injects its own probe per case.
+    probeUpstreamHead: overrides.probeUpstreamHead ?? ((): ReturnType<UpstreamHeadProbe> => Promise.resolve({ ok: false, reason: "no network in tests" })),
   };
   return { svc: createSettingsService(deps), deps, audits, clock, onEmbedModelChanged };
 }

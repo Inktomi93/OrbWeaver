@@ -4,6 +4,7 @@
 
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { AboutSection } from "../../../../packages/client/src/features/user-admin/components/about-section.tsx";
 import { AdminApprovalsSection } from "../../../../packages/client/src/features/user-admin/components/admin-approvals-section.tsx";
 import { AdminEnginesSection } from "../../../../packages/client/src/features/user-admin/components/admin-engines-section.tsx";
 import { AdminLinkSsoSection } from "../../../../packages/client/src/features/user-admin/components/admin-link-sso-section.tsx";
@@ -182,6 +183,21 @@ export function GovernanceSectionsStory(): ReactElement {
 }
 
 /** The Operations SECTION (SET-SEAMS stage 4) in isolation — corpusAutoindex + logLevel. */
+/** The About SECTION in isolation (owner ask 2026-09-18) — `settings.getVersion` on mount and, ONLY on the
+ *  button, `settings.checkForUpdate`. Narrow on purpose (480px): the version line and the verdict row live
+ *  in the config pane's right column, which is the tightest real mount they get. */
+export function AboutSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ overflow: "visible", padding: 16, width: 480 }}>
+          <AboutSection />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
 export function OperationsSectionStory(): ReactElement {
   return (
     <CtDataProviders>

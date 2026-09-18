@@ -71,6 +71,24 @@ function truncatedSourcesOf(record: Readonly<Record<string, unknown>>): readonly
   return names;
 }
 
+/** The bundle's `version` block rendered as the one line the listing prints. Read through the SAME foreign-
+ *  data narrowing as every other field — an older bundle carries no `version` at all, which is `null`, not a
+ *  crash. `formatVersionIdentity` is not reused here because it demands a fully-typed identity and this is a
+ *  hand-parsed object off disk; the two-field degrade below is what an incomplete block should print. */
+function versionLabelOf(record: Readonly<Record<string, unknown>>): string | null {
+  const version = bundleField(record, "version");
+  if (!isRecord(version)) {
+    return null;
+  }
+  const release = asString(version["version"]);
+  const short = asString(version["short"]);
+  const source = asString(version["source"]);
+  if (release === null) {
+    return null;
+  }
+  return `v${release} (${short ?? "no-commit"}${source === null ? "" : `, ${source}`})`;
+}
+
 /** The note's first non-empty line, collapsed to one line and capped — a listing is an index, not a read. */
 function firstLineOf(note: string, cap: number): string {
   const line = note
@@ -101,6 +119,7 @@ function summarize(args: {
   const build = bundleField(record, "build");
   return {
     id,
+    version: versionLabelOf(record),
     stem,
     capturedAt,
     ageMs: Number.isNaN(capturedMs) ? null : now - capturedMs,

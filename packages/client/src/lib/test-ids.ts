@@ -50,6 +50,11 @@ export const TEST_IDS = {
   adminResetPasswordDialog: "admin-reset-password-dialog",
   adminResetPasswordSubmit: "admin-reset-password-submit",
   adminEnginesSection: "admin-engines-section",
+  // The About section (owner ask 2026-09-18) — the build identity a bug report quotes, its copy affordance,
+  // and the manual update check's verdict slot.
+  aboutSection: "about-section",
+  aboutVersionLine: "about-version-line",
+  aboutUpdateVerdict: "about-update-verdict",
   engineLaunchConfig: "engine-launch-config",
   engineLaunchSave: "engine-launch-save",
   engineLaunchPendingRestart: "engine-launch-pending-restart",

@@ -8,6 +8,14 @@ body:
     attributes:
       value: |
         Report observed behavior, not a theory. Paths and line numbers must describe the current tree.
+  - type: input
+    id: version
+    attributes:
+      label: Version (Settings → About)
+      description: "The version line this box reports, copied verbatim — Settings → Admin → About this install has a Copy button. `/healthz` and the boot log's first line carry the same block."
+      placeholder: "v0.4.1 (823d76f4343a, container)"
+    validations:
+      required: true
   - type: textarea
     id: behavior
     attributes:

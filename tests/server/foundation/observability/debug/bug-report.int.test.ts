@@ -44,6 +44,7 @@ afterEach(async () => {
 function record(overrides: Partial<BugReportRecord> = {}): BugReportRecord {
   return {
     id: mintBugReportId(),
+    version: { version: "1.2.3", commit: "c".repeat(40), short: "c".repeat(12), source: "checkout" },
     capturedAt: new Date(NOW).toISOString(),
     build: { sha: "0".repeat(40), dirty: false, statusHead: [] },
     window: resolveEvidenceWindow(NOW, 5),
