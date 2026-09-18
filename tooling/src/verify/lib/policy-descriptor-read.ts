@@ -64,8 +64,16 @@ const WAIVE_OPENER = "@orb-waive ";
 const WAIVE_FILE_OPENER = "@orb-waive-file";
 /** A marker-form line: a comment whose CONTENT BEGINS with the opener (guide §8 — a spelling later in prose,
  *  inside a string or a regex is a MENTION, never a marker). The id group is the contract's kebab-case.
- *  Recognises both `@orb-waive` (line-adjacent) and `@orb-waive-file` (file-scoped) grammars. */
-const MARKER_LINE_RE = /^[ \t]*(?:\/\/|\/\*|\{\/\*)[ \t]*@orb-waive(?:-file)? ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\(/u;
+ *  Recognises both `@orb-waive` (line-adjacent) and `@orb-waive-file` (file-scoped) grammars.
+ *
+ *  THE OPENER SET MIRRORS THE ENGINE'S, not TypeScript's alone: `lib/ordinary-waiver.ts#commentBody` reads a
+ *  `//` or `/*` comment in a syntax carrier and a `<!-- -->` (Markdown) or `--` (SQL) comment in a resource
+ *  carrier, so a resource-only ordinary policy's identity arm is a Markdown or CSS fixture whose marker is
+ *  spelled in that carrier's comment syntax. A recogniser that admitted only the TypeScript openers read a
+ *  real, engine-consumed Markdown arm as "no arm" (`ledger-symbol-liveness`, 2026-09-18) — the instrument
+ *  accusing the one policy that had done the work. The JSX opener `{/*` is the engine's `JsxExpression`
+ *  carrier; `--` sits after `<!--` only for legibility, the two never overlap at a line start. */
+const MARKER_LINE_RE = /^[ \t]*(?:\/\/|\/\*|\{\/\*|<!--|--)[ \t]*@orb-waive(?:-file)? ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\(/u;
 
 function unwrapExpression(node: MorphNode): MorphNode {
   let current = node;

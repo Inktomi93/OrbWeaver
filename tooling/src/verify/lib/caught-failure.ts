@@ -43,8 +43,12 @@
 // `default:catch`) was exactly that, and there is no function from it to a source slice. Each site
 // therefore carries its own `token`/`offset` pair, anchored inside its reported node:
 //   · catch arms  → the caught BINDING's name (`err`, `error`, `e`), or the `catch` keyword when the clause
-//                   is bindingless. One TryStatement holds one catch clause, so the binding name is unique
-//                   inside the carrier the marker binds to.
+//                   is bindingless. One TryStatement holds one catch clause, but a marker's carrier holds
+//                   every try statement NESTED inside it (the engine narrows by containment first, then by
+//                   token), so a catch nested inside a guarded try binds a name DISTINCT from the outer
+//                   one, or the outer marker is over-broad and suppresses none. The live shape is
+//                   tooling/src/snap/ops/heap-capture.ts (one primary catch, three cleanup catches in its
+//                   finally, four markers); the policy's `nested-cleanup` mustPass row pins it.
 //   · promise arm → the WORK's callee text, never the plumbing link: `save`, `a.save`, `cache.evict`, `p`.
 //                   A member chain is a legitimate token (the precedent is `no-form-state-in-useeffect`,
 //                   which reports `form.state.values`), and it is what keeps two same-named absorbers in

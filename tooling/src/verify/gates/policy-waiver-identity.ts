@@ -10,6 +10,10 @@
 //   • an in-module `mustPass` row whose fixture text carries a MARKER-FORM line naming this policy
 //     (`schema-branding.ts:137`); the fixture may be assembled by a helper (`byte-check-cast`'s
 //     `schemaFixture({ waiver: "  // @orb-waive byte-check-cast(…)" })`) — every string inside the row is read;
+//     and the fixture may be a RESOURCE carrier, whose marker is spelled in that carrier's own comment
+//     syntax — `/* */` for CSS, an HTML comment for Markdown, `--` for SQL — so the marker-form recogniser
+//     (`lib/policy-descriptor-read.ts#MARKER_LINE_RE`) reads the same opener set the engine's `commentBody`
+//     accepts; a resource-only ordinary policy proves its door exactly this way (`ledger-symbol-liveness`);
 //   • a family test under `tests/tooling/verify/gates/**` that IMPORTS the module (by resolved specifier,
 //     never by path text) and drives a marker-form fixture inside a `test(…)` whose body reads
 //     `waivedFindings` (`ordinary-visitors-family.suite.test.ts:187-196`). POLARITY is the point: the negative arm
@@ -293,6 +297,15 @@ export const gate = defineGate({
         ),
       ),
       why: "the `byte-check-cast` shape: the fixture is built by a helper and the marker is one of its ARGUMENTS — every string literal inside the row is read, so a helper-built fixture still counts",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${ORDINARY_TRUNK}\n  mustPass: [{ mode: "resource", files: { "docs/architecture/core/Core-Path-Registry.md": "<!-- @orb-waive probe(x): the proof reason. -->\\n- **D1** — x\\n" }, why: "the markdown carrier arm" }],`,
+        ),
+      ),
+      why: "the RESOURCE-CARRIER in-module shape (`ledger-symbol-liveness`): a Markdown fixture's marker is an HTML comment, so the recogniser reads the same opener set the engine's `commentBody` accepts — `//`, `/*`, `{/*`, `<!--` and `--`. Without the HTML opener in `MARKER_LINE_RE` this row reds: the arm is real, the engine consumes it, and this policy could not see it",
     },
     {
       mode: "types",
