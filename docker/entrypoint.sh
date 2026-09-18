@@ -73,6 +73,11 @@ load_secret() {
 for name in SESSION_SECRET OIDC_CLIENT_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD OPENROUTER_API_KEY DEBUG_TOKEN; do
   load_secret "${name}"
 done
+# DELIBERATELY OUTSIDE the loop above: every name in that line is one the agent-sdk credential firewall
+# STRIPS from its child (HOST_SECRET_ENV_KEYS — the two lists are asserted set-identical). This token is the
+# opposite: it is the credential the Claude-subscription child needs to log in, and mode-1's env builder
+# passes it through on purpose. Adding it to the loop would silently disable the Claude backend.
+load_secret CLAUDE_CODE_OAUTH_TOKEN
 
 # ── job 0: run as YOUR user (PUID/PGID), the SillyTavern / linuxserver pattern ───────────────────────
 # The image starts as root ONLY to (a) make the data dir owned by the app user — a bind-mounted host
