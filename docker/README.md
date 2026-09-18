@@ -55,17 +55,26 @@ there is one vLLM setup to maintain, and it is yours.
 
 **Why `single-user` is not the default in a container.** The owner fallback is granted only to a request
 whose TCP peer is loopback (the socket address, which cannot be forged). A port published from a bridge
-network delivers the docker gateway as the peer, never loopback, so `single-user` behind `-p 8788:8788`
-answers 401 to every browser. The one container shape where it works is host networking:
+network delivers the docker gateway as the peer, never loopback, so `single-user` behind a bare
+`-p 8788:8788` answers 401 to every browser. Two overlays make it work; both set `AUTH_MODE` and
+`AUTH_FALLBACK` for you:
 
 ```sh
+# any platform (Docker Desktop, NAS, Podman): bridge networking + an explicit trusted-peer opt-in
+docker compose -f docker-compose.yaml -f docker/compose.single-user.yaml up -d --build
+
+# Linux Engine / Podman: host networking (the app binds 127.0.0.1 on your machine directly)
 docker compose -f docker-compose.yaml -f docker/compose.host-network.yaml up -d --build
 ```
 
-The app then binds `127.0.0.1:8788` on your machine, your browser is a loopback peer, other devices are
-not (they get 401 — the bare-metal posture). Docker Engine on Linux and Podman do this natively; Docker
-Desktop needs its opt-in host networking (Settings → Resources → Network, 4.34+, signed in) and proxies at
-layer 4 — unverified here; if you see 401s on Desktop, use the default `local` mode.
+The first names the docker bridge ranges in `AUTH_FALLBACK_TRUSTED_PEERS`. Under docker's NAT every client
+that reaches the published port arrives as the gateway, so that range means "whoever reaches the port is the
+owner" — which is why the base compose publishes on `127.0.0.1` only (processes on this machine, the same
+boundary as bare-metal loopback) and why you must not pair this overlay with `ORB_BIND=0.0.0.0`. The app
+logs a security warning every boot while the knob is live, refuses the widened grant to any request that
+announces a proxy hop, and closes the diagnostics door's credential-free arm while widened. The second
+overlay needs no widening at all; Docker Desktop's host networking is opt-in (4.34+, signed in) and proxies
+at layer 4, unverified here.
 
 `AUTH_FALLBACK` is what an un-credentialed request gets. It is `deny` for every login mode and must be
 `owner` for `single-user` (its only credential — the overlay sets it; the app refuses the `deny` pairing at
