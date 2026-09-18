@@ -41,6 +41,15 @@ describe("resolveBindPosture — the DEFAULT arm: a non-production build restric
   // and now gets a 502 when a dev stack holds the port). The 502 belongs to the proxy and cannot explain
   // itself, so this line is the one place the answer can be found — it must name the symptom AND both
   // exits, or the next confused operator "fixes" it by deleting the belt.
+  test("production + an explicit loopback BIND_HOST says LOOPBACK, never 'every interface' (the 2026-09-18 container log lie)", () => {
+    const posture = resolveBindPosture({ nodeEnv: "production", bindHost: "127.0.0.1", ...HATCH_SHUT });
+    expect(posture.publicBind).toBe(false);
+    expect(posture.notice).toContain("loopback ONLY");
+    expect(posture.notice).not.toContain("every interface");
+    const open = resolveBindPosture({ nodeEnv: "production", bindHost: undefined, ...HATCH_SHUT });
+    expect(open.notice).toContain("every interface");
+  });
+
   test("the boot notice names the symptom AND both exits (the FQDN/LAN 502 is discoverable, not mysterious)", () => {
     const { notice } = resolveBindPosture({ nodeEnv: "development", bindHost: undefined, ...HATCH_SHUT });
     expect(notice).toContain("LOOPBACK ONLY");

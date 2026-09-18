@@ -9,7 +9,7 @@ Needs Docker Engine 24+ with Compose v2.24+ (or Podman 4+ with `podman compose`)
 
 ```sh
 git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
-docker compose up -d --build        # the first run builds the image (a few minutes); later runs reuse it
+docker compose up -d --build        # builds the image from the checkout (a few minutes the first time)
 docker compose logs orbweaver       # the FIRST boot prints your login
 ```
 
@@ -21,8 +21,8 @@ Connections: add an API key (OpenRouter, Anthropic, …) or a model server (belo
 - Nothing was edited to get here. Every other knob is optional and lives in `docker/orbweaver.env` (the
   tracked defaults, commented) — override any of them in `docker/orbweaver.local.env` (gitignored).
 
-When the published image exists (`ghcr.io/inktomi93/orbweaver`), `docker compose up -d` without `--build`
-pulls it instead of building; `docker compose pull && docker compose up -d` updates.
+There is no published image: the checkout is the source of truth and the build is part of `up`. To update:
+`git pull && docker compose up -d --build` (migrations run at boot, with a backup of the database first).
 
 ## A model server on your machine
 
@@ -137,8 +137,8 @@ the composed posture at boot and warns per open exposure.
 
 ## Troubleshooting
 
-- **`docker compose up` fails to pull `ghcr.io/inktomi93/orbweaver`** — the published image is not there
-  yet; `docker compose up -d --build` builds it from the checkout.
+- **`docker compose up` tries to pull `orbweaver:local` and fails** — you left off `--build`; the image is
+  built from the checkout, never pulled.
 - **Everything answers 401** in `single-user` — you are on a bridge network. Use the host-network overlay or
   `AUTH_MODE=local` (the reason is under "Login modes").
 - **Sign-in "does nothing" on a LAN address** — plain http; the cookie is Secure. HTTPS in front, or use
@@ -155,10 +155,8 @@ the composed posture at boot and warns per open exposure.
   are checked at boot (`packages/server/src/foundation/env/index.ts`), and a misconfigured deploy never
   silently degrades.
 
-## Building and publishing
+## Building
 
-`docker build --target runtime -t orbweaver:dev .` builds the image alone. The image is the server as
+`docker build --target runtime -t orbweaver:local .` builds the image alone. The image is the server as
 source (node 26 runs TypeScript directly), the built client, and a pruned production `node_modules`; how the
-runtime file set is assembled has one home, `docker/assemble-runtime.sh`. `.github/workflows/docker-publish.yml`
-pushes `ghcr.io/inktomi93/orbweaver:<version>` + `:latest` on a `v*` tag (amd64; arm64 once it has been
-booted on real hardware).
+runtime file set is assembled has one home, `docker/assemble-runtime.sh`.

@@ -73,6 +73,9 @@ export interface BindPosture {
  *  reach this process) AND both exits, because that is the line someone reads while confused. */
 const NOTICE = {
   production: "listening on every interface (production — the reverse-proxy target).",
+  // An EXPLICIT loopback bind in production (a same-host proxy in front, or the docker host-network
+  // overlay): the process is deliberately unreachable off-box, and the log must not claim otherwise.
+  productionLoopback: "bound to loopback ONLY (production, explicit BIND_HOST) — reachable by on-box processes and a same-host proxy; the LAN and the FQDN reach it only through that proxy.",
   opened: "publicly reachable on a NON-PRODUCTION build — ALLOW_DEV_PUBLIC_BIND is set (see the security warning below).",
 } as const;
 
@@ -110,11 +113,12 @@ export function resolveBindPosture(input: BindPostureInput): BindPosture {
   const production = input.nodeEnv === "production";
   if (production) {
     // Production binds where the operator says, defaulting to every interface — the proxy target needs it.
+    const publicBind = input.bindHost === undefined || !isLoopbackHost(input.bindHost);
     return {
       host: input.bindHost,
-      publicBind: input.bindHost === undefined || !isLoopbackHost(input.bindHost),
+      publicBind,
       refusal: null,
-      notice: NOTICE.production,
+      notice: publicBind ? NOTICE.production : NOTICE.productionLoopback,
     };
   }
   if (input.bindHost === undefined) {

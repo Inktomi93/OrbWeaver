@@ -400,8 +400,10 @@ const envSchema = z
     // Cross-chat corpus auto-indexing: embed completed raw-message blocks into the search corpus in the
     // background, post-turn. "false" pauses it to offload the GPU.
     CORPUS_AUTOINDEX: envBool(true),
-    // Comma-separated character names (case-insensitive) to exclude at import. Set to "" to import all.
-    IMPORT_SKIP_CHARACTERS: z.string().default("Ruby,Assistant"),
+    // Comma-separated character names (case-insensitive) to exclude at import. Default: skip nothing — the
+    // former "Ruby,Assistant" default was the owner's own library, and a stranger importing a card by either
+    // name silently lost it (2026-09-18). Set per box in the env or the admin import settings.
+    IMPORT_SKIP_CHARACTERS: z.string().default(""),
 
     DEFAULT_USER_HANDLE: z.string().min(1).default("owner"),
     // single-user (default, no SSO) | local (app-stored password, cookie/BFF sessions) | forward-header

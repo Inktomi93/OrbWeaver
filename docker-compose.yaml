@@ -1,7 +1,7 @@
 # ── Orbweaver — docker compose ───────────────────────────────────────────────────────────────────────
 #
 #   git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
-#   docker compose up -d --build          # first run builds the image (a few minutes); later runs reuse it
+#   docker compose up -d --build          # builds the image from this checkout (a few minutes the first time)
 #   docker compose logs orbweaver         # your generated login is printed on the FIRST boot
 #   → http://localhost:8788
 #
@@ -17,14 +17,14 @@
 # Interpolated knobs (shell env, or a `.env` file beside this compose file):
 #   ORB_PORT   host port                     default 8788
 #   ORB_BIND   host interface                default 127.0.0.1 — read "LAN and HTTPS" in docker/README.md before 0.0.0.0
-#   ORB_IMAGE  image to run                  default the GHCR image; `--build` builds this checkout under that name
+#   ORB_IMAGE  the image name/tag to build+run    default orbweaver:local (built from this checkout — no registry)
 # Full guide: docker/README.md.
 
 name: orbweaver
 
 services:
   orbweaver:
-    image: ${ORB_IMAGE:-ghcr.io/inktomi93/orbweaver:latest}
+    image: ${ORB_IMAGE:-orbweaver:local}
     build:
       context: .
       target: runtime
