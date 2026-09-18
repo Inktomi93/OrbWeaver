@@ -254,13 +254,13 @@ function judgeRow(ctx: GatePolicyContext, row: ObjectLiteralExpression, census: 
   const verdict = discriminationOf(substring, census.sources, census.unreadable);
   if (verdict === "tautology") {
     ctx.report.node(includes, {
-      token: "messageIncludes (tooling/src/verify/gates/GATE-AUTHORING.md)",
+      token: "messageIncludes",
       offset: 0,
       message: `${TAUTOLOGY_MESSAGE} — gate-runtime-standardization.md §6.1.`,
     });
   } else if (verdict === "shared") {
     ctx.report.node(includes, {
-      token: "messageIncludes (tooling/src/verify/gates/GATE-AUTHORING.md)",
+      token: "messageIncludes",
       offset: 0,
       message: `${SHARED_MESSAGE} — gate-runtime-standardization.md §6.1.`,
     });
