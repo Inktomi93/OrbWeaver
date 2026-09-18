@@ -255,5 +255,13 @@ export const gate = defineGate({
       files: { "tests/server/trailing-comment.test.ts": "export const t = clock.now(); // not Date.now(), which the gate bans\n" },
       why: "a TRAILING comment on a violation-free line — the blanker is span-based, not line-based, so the code half of the line is still scanned while the prose half is not",
     },
+    {
+      mode: "source",
+      files: {
+        "tests/server/file-waived.test.ts":
+          '// @orb-waive-file test-determinism(Date.now): FIXTURE SOURCE for a reader that parses but never evaluates the call — ends when this fixture stops flagging.\nexport const src = "Date.now()";\n',
+      },
+      why: "#1984 — the file-scoped `@orb-waive-file` grammar waives a finding anywhere in the file, not only carrier-adjacent. This proves the grammar works for test-determinism: a string-literal Date.now() (the DECLARED LIMIT) is waived by a file-level marker at the top",
+    },
   ],
 });

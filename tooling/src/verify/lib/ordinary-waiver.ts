@@ -20,19 +20,26 @@ import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { POSITION } from "./waivable-coordinate.ts";
 
 const MARKER = "@orb-waive";
+const MARKER_FILE = "@orb-waive-file";
 const KEBAB = String.raw`[a-z][a-z0-9]*(?:-[a-z0-9]+)*`;
 const EXACT_MARKER_RE = new RegExp(String.raw`^${MARKER}\s+(${KEBAB})\((${POSITION})\):[\t ]*(\S[^\r\n]*)$`, "u");
-const ATTEMPT_RE = new RegExp(String.raw`^${MARKER}(?:\s|$)`, "u");
-const PARTIAL_POLICY_RE = new RegExp(String.raw`^${MARKER}(?:\s+([^\s(:]+))?`, "u");
+const EXACT_FILE_MARKER_RE = new RegExp(String.raw`^${MARKER_FILE}\s+(${KEBAB})\((${POSITION})\):[\t ]*(\S[^\r\n]*)$`, "u");
+const ATTEMPT_RE = new RegExp(String.raw`^(?:${MARKER_FILE}|${MARKER})(?:\s|$)`, "u");
+const PARTIAL_POLICY_RE = new RegExp(String.raw`^(?:${MARKER_FILE}|${MARKER})(?:\s+([^\s(:]+))?`, "u");
 const UNKNOWN_POLICY = "ordinary-waiver";
 const HTML_COMMENT_OPEN = "<!--";
 const HTML_COMMENT_CLOSE = "-->";
+
+type MarkerScope = "line" | "file";
 
 interface ParsedMarker {
   readonly policyId: string;
   readonly position?: string;
   readonly reason?: string;
   readonly malformed: boolean;
+  /** `"line"` = standard carrier-adjacent binding; `"file"` = binds to ANY finding in the same file
+   *  (the `@orb-waive-file` grammar for findings inside template literals and other unwaivable spans). */
+  readonly scope: MarkerScope;
 }
 
 interface AcquiredMarker extends ParsedMarker {
@@ -42,7 +49,8 @@ interface AcquiredMarker extends ParsedMarker {
   readonly end: number;
   readonly binding:
     | { readonly kind: "typescript"; readonly carriers: readonly ts.Node[]; readonly jsxExpressions: readonly ts.JsxExpression[] }
-    | { readonly kind: "resource"; readonly start: number; readonly end: number };
+    | { readonly kind: "resource"; readonly start: number; readonly end: number }
+    | { readonly kind: "file" };
   readonly initialOutcome: Extract<OrdinaryWaiverMarkerOutcome, "malformed" | "unknown-policy" | "wrong-authority" | "matched">;
 }
 
@@ -89,15 +97,23 @@ function parseMarker(comment: string): ParsedMarker | undefined {
   if (!ATTEMPT_RE.test(body)) {
     return;
   }
+  // Try file-scoped grammar first (longer prefix), then line-scoped.
+  const fileExact = [...body.matchAll(new RegExp(EXACT_FILE_MARKER_RE.source, "gu"))][0];
+  if (fileExact !== undefined) {
+    const policyId = fileExact[1] ?? UNKNOWN_POLICY;
+    const position = fileExact[2]?.trim() ?? "";
+    const reason = fileExact[3]?.trim() ?? "";
+    return position === "" || reason === "" ? { policyId, malformed: true, scope: "file" } : { policyId, position, reason, malformed: false, scope: "file" };
+  }
   const exact = [...body.matchAll(new RegExp(EXACT_MARKER_RE.source, "gu"))][0];
   if (exact === undefined) {
     const partial = [...body.matchAll(new RegExp(PARTIAL_POLICY_RE.source, "gu"))][0];
-    return { policyId: partial?.[1] ?? UNKNOWN_POLICY, malformed: true };
+    return { policyId: partial?.[1] ?? UNKNOWN_POLICY, malformed: true, scope: "line" };
   }
   const policyId = exact[1] ?? UNKNOWN_POLICY;
   const position = exact[2]?.trim() ?? "";
   const reason = exact[3]?.trim() ?? "";
-  return position === "" || reason === "" ? { policyId, malformed: true } : { policyId, position, reason, malformed: false };
+  return position === "" || reason === "" ? { policyId, malformed: true, scope: "line" } : { policyId, position, reason, malformed: false, scope: "line" };
 }
 
 function jsxExpressionOf(node: ts.Node): ts.JsxExpression | undefined {
@@ -180,6 +196,20 @@ function initialOutcome(marker: ParsedMarker, policies: ReadonlyMap<string, Sele
   return policy.authority === "ordinary" ? "matched" : "wrong-authority";
 }
 
+function tsBinding(marker: MutableMarker): AcquiredMarker["binding"] {
+  if (marker.scope === "file") {
+    return { kind: "file" };
+  }
+  return { kind: "typescript", carriers: [...marker.carriers], jsxExpressions: [...marker.jsxExpressions] };
+}
+
+function resourceBinding(parsed: ParsedMarker, source: string, comment: ResourceComment): AcquiredMarker["binding"] {
+  if (parsed.scope === "file") {
+    return { kind: "file" };
+  }
+  return { kind: "resource", ...followingResourceCarrier(source, comment) };
+}
+
 function acquireMarkers(input: OrdinaryWaiverEngineInput, policies: ReadonlyMap<string, SelectedGatePolicy>): readonly AcquiredMarker[] {
   const markers: AcquiredMarker[] = [];
   for (const source of [...input.sources].toSorted((left, right) => left.path.localeCompare(right.path))) {
@@ -193,7 +223,7 @@ function acquireMarkers(input: OrdinaryWaiverEngineInput, policies: ReadonlyMap<
           ...marker,
           id: `${source.path}:${line}:${column}`,
           file: source.path,
-          binding: { kind: "typescript", carriers: [...marker.carriers], jsxExpressions: [...marker.jsxExpressions] },
+          binding: tsBinding(marker),
           initialOutcome: initialOutcome(marker, policies),
         });
       }
@@ -206,14 +236,13 @@ function acquireMarkers(input: OrdinaryWaiverEngineInput, policies: ReadonlyMap<
         continue;
       }
       const { line, column } = textPosition(source.text, comment.pos);
-      const binding = followingResourceCarrier(source.text, comment);
       markers.push({
         ...parsed,
         id: `${source.path}:${line}:${column}`,
         file: source.path,
         pos: comment.pos,
         end: comment.end,
-        binding: { kind: "resource", ...binding },
+        binding: resourceBinding(parsed, source.text, comment),
         initialOutcome: initialOutcome(parsed, policies),
       });
     }
@@ -510,6 +539,9 @@ function adjacentJsxChildren(expression: ts.JsxExpression, root: ts.SourceFile):
 }
 
 function markerBinds(marker: AcquiredMarker, offset: number, root?: ts.SourceFile): boolean {
+  if (marker.binding.kind === "file") {
+    return true;
+  }
   if (marker.binding.kind === "resource") {
     return marker.binding.start <= offset && offset < marker.binding.end;
   }
@@ -525,7 +557,10 @@ function markerBinds(marker: AcquiredMarker, offset: number, root?: ts.SourceFil
 }
 
 function hasAmbiguousTrivia(marker: AcquiredMarker, root: ts.SourceFile): boolean {
-  return marker.binding.kind === "typescript" && marker.binding.jsxExpressions.some((expression) => adjacentJsxChildren(expression, root).length > 1);
+  if (marker.binding.kind !== "typescript") {
+    return false;
+  }
+  return marker.binding.jsxExpressions.some((expression) => adjacentJsxChildren(expression, root).length > 1);
 }
 
 function evaluateMarker(marker: AcquiredMarker, findings: readonly LocatedFinding[], sources: ReadonlyMap<string, OrdinaryWaiverSource>): EvaluatedMarker {
@@ -638,7 +673,7 @@ function markerMessage(marker: OrdinaryWaiverMarkerMatch): string | undefined {
     return;
   }
   const messages: Record<Exclude<OrdinaryWaiverMarkerOutcome, "matched">, string> = {
-    malformed: `malformed ordinary waiver at ${at}; expected ${MARKER} <policy-id>(<position>): <reason>`,
+    malformed: `malformed ordinary waiver at ${at}; expected ${MARKER} (or ${MARKER_FILE}) <policy-id>(<position>): <reason>`,
     "unknown-policy": `ordinary waiver at ${at} targets unknown policy ${marker.policyId}`,
     "wrong-authority": `ordinary waiver at ${at} targets non-ordinary policy ${marker.policyId}`,
     stale: `stale ordinary waiver at ${at}; no live ${marker.policyId} finding is bound to its comment carrier`,

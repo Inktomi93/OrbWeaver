@@ -9,15 +9,14 @@ import { expect, test } from "../../support/tool-fixtures.ts";
 
 // TWO FIXTURE LINES HOISTED OUT OF THEIR TEMPLATES (#1975, 2026-09-11) — the fixture TEXT is unchanged;
 // only its markability is. `test-determinism` is a syntax LINE SCANNER whose per-site waiver binds to the
-// line IMMEDIATELY ABOVE the finding (verify/lib/gate-ignore.ts `findGateIgnoreAtLine`), and a finding
-// inside a multi-line template literal has no such line: every candidate is itself inside the literal
-// span, which the marker's mention fence correctly refuses. So a violation there is UNWAIVABLE where it
-// stands — a structural hole in every line-adjacent escape grammar, not a property of these two sites.
-// Interpolating the one flagged line gives the waiver a markable statement. The calls are spelled on
-// purpose: this suite's subject is that a WRITE to an ambient member poisons the origin of the read.
-// @orb-waive test-determinism(Math.random): FIXTURE SOURCE parsed by ts-morph to prove the origin reader, never evaluated.
+// line IMMEDIATELY ABOVE the finding, and a finding inside a multi-line template literal has no such line:
+// every candidate is itself inside the literal span. The `@orb-waive-file` grammar (#1984) waives at
+// file scope rather than carrier scope, so the hoisted constants are waivable regardless of where the
+// string's text eventually appears. The calls are spelled on purpose: this suite's subject is that a
+// WRITE to an ambient member poisons the origin of the read.
+// @orb-waive-file test-determinism(Math.random): FIXTURE SOURCE parsed by ts-morph to prove the origin reader, never evaluated.
 const AMBIENT_RANDOM_READ = "export const result = Math.random();";
-// @orb-waive test-determinism(Date.now): FIXTURE SOURCE parsed by ts-morph to prove the origin reader, never evaluated.
+// @orb-waive-file test-determinism(Date.now): FIXTURE SOURCE parsed by ts-morph to prove the origin reader, never evaluated.
 const AMBIENT_CLOCK_READ = "export const result = Date.now();";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
