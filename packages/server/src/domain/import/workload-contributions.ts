@@ -61,6 +61,32 @@ type ImportContributions = readonly [
   WorkloadContribution<"import-bundle">,
 ];
 
+/** The narrow slice of `node:path` (or `path.win32`/`path.posix`) the lexical containment check needs —
+ *  parameterized so {@link isContained} is unit-testable for both flavours from a POSIX CI box, while every
+ *  production call site keeps its default binding to the host's own `node:path`. */
+interface PathFlavour {
+  readonly sep: string;
+}
+
+/**
+ * Cheap lexical pass: is `target` a proper strict descendant of `root`? Both are assumed already resolved
+ * (absolute, no `.`/`..` segments) by the caller. On `sep === "\\"` (Windows) the comparison is
+ * case-INSENSITIVE, matching the platform's own case-insensitive filesystem — a root typed
+ * `C:\Staging` and a target resolving to `c:\staging\x` are the same directory there, and a
+ * case-sensitive compare would wrongly refuse a legitimate handle. On `/` (POSIX) the compare stays
+ * case-sensitive, unchanged from before.
+ *
+ * @internal — exported for the unit test (`tests/server/domain/import/workload-contributions.test.ts`),
+ * which drives both `path.win32` and `path.posix` flavours from a Linux CI box.
+ */
+export function isContained(root: string, target: string, flavour: PathFlavour = { sep }): boolean {
+  if (target === root) {
+    return false;
+  }
+  const prefix = root + flavour.sep;
+  return flavour.sep === "\\" ? target.toLowerCase().startsWith(prefix.toLowerCase()) : target.startsWith(prefix);
+}
+
 /**
  * Resolve a server-minted staging handle to an absolute path that is a PROPER STRICT DESCENDANT of
  * `stagingRoot`, or throw. The AUTHORITATIVE containment belt (the contract-layer charset regex is the outer
@@ -78,7 +104,7 @@ type ImportContributions = readonly [
 async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Promise<string> {
   const root = resolve(stagingRoot);
   const target = resolve(root, stagedHandle);
-  if (target === root || !target.startsWith(root + sep)) {
+  if (!isContained(root, target)) {
     throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
   }
   const realRoot = await realpath(root).catch(() => {
@@ -95,13 +121,40 @@ async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Pro
   return target;
 }
 
-/** Read a staged FILE without following a link at the final component — O_NOFOLLOW makes the no-symlink half
- *  of {@link resolveStagedPath} atomic with the read, closing the window between the check and the open
- *  (the same flag the zip stager's own reader carries). */
-async function readStagedFile(path: string): Promise<Uint8Array> {
-  // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the zip + tree staging writers carry the same exemption).
-  const handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+/**
+ * Read a staged FILE without following a link at the final component — O_NOFOLLOW makes the no-symlink half
+ * of {@link resolveStagedPath} atomic with the read, closing the window between the check and the open
+ * (the same flag the zip stager's own reader carries).
+ *
+ * `O_NOFOLLOW` is POSIX-only — on a platform where it is not a number (Windows), the flags would silently
+ * collapse to plain `O_RDONLY` and this belt's no-symlink half would vanish without a sound. There the open
+ * is unguarded, and the atomicity is recovered AFTER the fact instead: `fstat` the open handle and `lstat`
+ * the path, and refuse when they don't name the same inode — a symlink swapped in between the resolve and
+ * the open changes the path's own identity out from under the already-open fd. `noFollowFlag` is a test
+ * seam (real callers always take the host's own flag); it exists because `fs.constants` is not writable.
+ * The seam is typed `number | null`, not `number | undefined` — a default parameter still fires when a
+ * caller explicitly passes `undefined`, so `null` is the only value that reliably overrides the default.
+ *
+ * @internal — exported for the unit test, which simulates the Windows arm (`O_NOFOLLOW` absent) by passing
+ * `noFollowFlag: null` rather than mutating the shared `fs.constants` object.
+ */
+export async function readStagedFile(path: string, noFollowFlag: number | null = fsConstants.O_NOFOLLOW): Promise<Uint8Array> {
+  if (typeof noFollowFlag === "number") {
+    // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the zip + tree staging writers carry the same exemption).
+    const handle = await open(path, fsConstants.O_RDONLY | noFollowFlag);
+    try {
+      const data = await handle.readFile();
+      return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    } finally {
+      await handle.close();
+    }
+  }
+  const handle = await open(path, fsConstants.O_RDONLY);
   try {
+    const [handleStat, pathStat] = await Promise.all([handle.stat(), lstat(path)]);
+    if (handleStat.dev !== pathStat.dev || handleStat.ino !== pathStat.ino) {
+      throw new DomainOperationError("staged_path_escape", `staged handle names a symlink: ${path}`);
+    }
     const data = await handle.readFile();
     return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   } finally {
@@ -119,7 +172,7 @@ async function readStagedFile(path: string): Promise<Uint8Array> {
 async function rmContained(stagingRoot: string, target: string): Promise<void> {
   const root = resolve(stagingRoot);
   const resolved = resolve(target);
-  if (resolved === root || !resolved.startsWith(root + sep)) {
+  if (!isContained(root, resolved)) {
     return;
   }
   // A SYMLINK is never removed here. `rm` would unlink the link rather than its target, so this is not the

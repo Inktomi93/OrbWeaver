@@ -16,13 +16,13 @@
 
 import { mkdir, mkdtemp, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, posix, win32 } from "node:path";
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";
 import type { ImportWorkloadDeps } from "../../../../packages/server/src/domain/import/contract/workloads.ts";
-import { createImportWorkloadContributions } from "../../../../packages/server/src/domain/import/workload-contributions.ts";
+import { createImportWorkloadContributions, isContained, readStagedFile } from "../../../../packages/server/src/domain/import/workload-contributions.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
@@ -381,6 +381,92 @@ describe("staged handles are per-owner, not bearer tokens (#1534)", () => {
     expect(deps.runProfileDirImport).not.toHaveBeenCalled();
     expect(await exists(aStagedDir)).toBe(true);
     expect(await exists(rootDecoy)).toBe(true);
+  });
+});
+
+// #2408: `isContained` is the lexical containment pass shared by `resolveStagedPath` and `rmContained`.
+// Its case-sensitivity flips with the path flavour's separator, so it is driven directly with `path.win32`
+// / `path.posix` — the production call sites still bind to the host's own `node:path` by default.
+describe("isContained — the shared lexical containment check", () => {
+  test("posix: a descendant is contained, case-sensitively", () => {
+    expect(isContained("/staging", "/staging/x", posix)).toBe(true);
+    expect(isContained("/staging", "/Staging/x", posix)).toBe(false);
+  });
+
+  test("posix: the root itself and anything outside it are not contained", () => {
+    expect(isContained("/staging", "/staging", posix)).toBe(false);
+    expect(isContained("/staging", "/other", posix)).toBe(false);
+    expect(isContained("/staging", "/staging-sibling", posix)).toBe(false);
+  });
+
+  test("win32: a drive-letter/case mismatch is still contained (Windows filesystems are case-insensitive)", () => {
+    expect(isContained("c:\\staging", "C:\\Staging\\x", win32)).toBe(true);
+    expect(isContained("C:\\Staging", "c:\\staging\\x", win32)).toBe(true);
+  });
+
+  test("win32: the root itself, a sibling, and a resolved parent escape are not contained", () => {
+    expect(isContained("C:\\Staging", "C:\\Staging", win32)).toBe(false);
+    expect(isContained("C:\\Staging", "C:\\Other", win32)).toBe(false);
+    // `resolve(root, "..")` off `C:\Staging` is `C:\`, which is not a descendant of `C:\Staging`.
+    expect(isContained("C:\\Staging", "C:\\", win32)).toBe(false);
+  });
+
+  test("win32: a UNC root contains its own descendant, case-insensitively", () => {
+    expect(isContained("\\\\server\\share\\staging", "\\\\SERVER\\SHARE\\Staging\\x", win32)).toBe(true);
+  });
+});
+
+// #2409: on a platform without `O_NOFOLLOW` (Windows), `readStagedFile` recovers the no-symlink belt via an
+// fstat/lstat inode comparison instead. `noFollowFlag: null` simulates that platform without mutating
+// the shared (non-writable-by-convention) `fs.constants` object.
+describe("readStagedFile — the O_NOFOLLOW belt and its Windows fallback", () => {
+  const dirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(dirs.splice(0).map((d) => rm(d, { recursive: true, force: true })));
+  });
+
+  async function makeDir(): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), "orb-nofollow-belt-"));
+    dirs.push(dir);
+    return dir;
+  }
+
+  test("a plain file reads normally on the POSIX (O_NOFOLLOW-carrying) arm", async () => {
+    const dir = await makeDir();
+    const file = join(dir, "plain.txt");
+    await writeFile(file, "plain contents");
+    const bytes = await readStagedFile(file);
+    expect(Buffer.from(bytes).toString("utf8")).toBe("plain contents");
+  });
+
+  test("a symlinked file is refused on the POSIX arm — the kernel's own O_NOFOLLOW refusal (ELOOP)", async () => {
+    const dir = await makeDir();
+    const real = join(dir, "real.txt");
+    await writeFile(real, "real contents");
+    const link = join(dir, "link.txt");
+    await symlink(real, link, "file");
+    await expect(readStagedFile(link)).rejects.toThrow(/ELOOP/);
+  });
+
+  test("a plain file reads normally on the fallback arm (O_NOFOLLOW absent)", async () => {
+    const dir = await makeDir();
+    const file = join(dir, "plain.txt");
+    await writeFile(file, "plain contents");
+    const bytes = await readStagedFile(file, null);
+    expect(Buffer.from(bytes).toString("utf8")).toBe("plain contents");
+  });
+
+  // The fallback arm cannot lean on the kernel flag, so it refuses via its OWN belt (the fstat/lstat inode
+  // compare) — a different error SHAPE (a typed `DomainOperationError`, not a raw `ELOOP`) but the same
+  // outcome the POSIX arm gives: the symlinked file's bytes are never read.
+  test("a symlinked file is refused on the fallback arm, via the fstat/lstat inode-mismatch belt", async () => {
+    const dir = await makeDir();
+    const real = join(dir, "real.txt");
+    await writeFile(real, "real contents");
+    const link = join(dir, "link.txt");
+    await symlink(real, link, "file");
+    await expect(readStagedFile(link, null)).rejects.toThrow(/symlink/);
   });
 });
 
