@@ -41,7 +41,7 @@ function resolver(slug: string): Promise<ThemeBackground | null> {
 
 /** One owned card, inserted raw (the CRUD wire cannot author a retired background kind), optionally with a
  *  carried background written straight onto the column — `seedRawCharacter` carries no background override. */
-async function card(db: Db, ownerId: UserId, handle: string, background?: ThemeBackground): Promise<CharacterId> {
+async function card(db: Db, ownerId: UserId, handle: Handle, background?: ThemeBackground): Promise<CharacterId> {
   const id = await seedRawCharacter(db, { id: `character_${handle}`, handle: castId<CharacterHandle>(handle), ownerId });
   if (background !== undefined) {
     await db.update(characters).set({ backgroundOverride: background }).where(eq(characters.id, id));
@@ -53,7 +53,12 @@ async function card(db: Db, ownerId: UserId, handle: string, background?: ThemeB
 async function setLegacyCardBackground(db: Db, characterId: CharacterId, slug: string): Promise<void> {
   await db
     .update(characters)
-    .set({ backgroundOverride: { kind: "seeded", seededId: slug, externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" } as never })
+    .set({
+      // @orb-waive no-test-fabrication(never): raw pre-retirement legacy shape — `ThemeBackground` no
+      // longer types kind:"seeded" at all, so this fixture can only reach the column as `never`; ends if
+      // the retired shape is ever re-admitted to the type.
+      backgroundOverride: { kind: "seeded", seededId: slug, externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" } as never,
+    })
     .where(eq(characters.id, characterId));
 }
 
@@ -65,7 +70,7 @@ async function readBackground(db: Db, characterId: CharacterId): Promise<Record<
 test("THE CONTROL — an un-migrated card parses back to `none`, losing its plate silently", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("ctrlowner") });
-  const subject = await card(db, owner, "ctrlcard");
+  const subject = await card(db, owner, castId<Handle>("ctrlcard"));
   await setLegacyCardBackground(db, subject, SHIPPED_SLUG);
 
   expect((await readBackground(db, subject))?.["kind"], "the stored row really carries the retired kind").toBe("seeded");
@@ -76,7 +81,7 @@ test("THE CONTROL — an un-migrated card parses back to `none`, losing its plat
 test("class 1 — a still-shipped slug becomes the owner's own plate asset (and is GC-rooted by being one)", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("keepowner") });
-  const subject = await card(db, owner, "keepcard");
+  const subject = await card(db, owner, castId<Handle>("keepcard"));
   await setLegacyCardBackground(db, subject, SHIPPED_SLUG);
 
   expect(await migrateSeededCardBackgrounds(db, owner, resolver, AT)).toBe(1);
@@ -94,7 +99,7 @@ test("class 1 — a still-shipped slug becomes the owner's own plate asset (and 
 test("class 2 — a deleted placeholder slug clears to `none` with no smuggled asset reference", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("dropowner") });
-  const subject = await card(db, owner, "dropcard");
+  const subject = await card(db, owner, castId<Handle>("dropcard"));
   await setLegacyCardBackground(db, subject, DELETED_SLUG);
 
   expect(await migrateSeededCardBackgrounds(db, owner, resolver, AT)).toBe(1);
@@ -108,12 +113,12 @@ test("class 2 — a deleted placeholder slug clears to `none` with no smuggled a
 test("class 3 — a card that never carried `seeded` is untouched, and a SECOND pass rewrites nothing", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("ownpick") });
-  const subject = await card(db, owner, "ownpickcard", PLATE);
+  const subject = await card(db, owner, castId<Handle>("ownpickcard"), PLATE);
 
   expect(await migrateSeededCardBackgrounds(db, owner, resolver, AT)).toBe(0);
   expect((await readBackground(db, subject))?.["assetId"]).toBe(PLATE.assetId);
 
-  const legacy = await card(db, owner, "legacycard");
+  const legacy = await card(db, owner, castId<Handle>("legacycard"));
   await setLegacyCardBackground(db, legacy, SHIPPED_SLUG);
   expect(await migrateSeededCardBackgrounds(db, owner, resolver, AT)).toBe(1);
   // Idempotent by its own predicate — the rewritten row no longer matches, so no marker column can disagree.
@@ -124,8 +129,8 @@ test("the sweep is OWNER-SCOPED — another user's legacy card is not rewritten 
   const db = await freshDb();
   const mine = await seedUser(db, { handle: castId<Handle>("mineowner") });
   const theirs = await seedUser(db, { handle: castId<Handle>("theirowner") });
-  const myCard = await card(db, mine, "minecard");
-  const theirCard = await card(db, theirs, "theircard");
+  const myCard = await card(db, mine, castId<Handle>("minecard"));
+  const theirCard = await card(db, theirs, castId<Handle>("theircard"));
   await setLegacyCardBackground(db, myCard, SHIPPED_SLUG);
   await setLegacyCardBackground(db, theirCard, SHIPPED_SLUG);
 
@@ -140,7 +145,7 @@ test("the sweep is OWNER-SCOPED — another user's legacy card is not rewritten 
 test("a `seeded` value with a BLANK slug clears rather than asking the resolver", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("blankowner") });
-  const subject = await card(db, owner, "blankcard");
+  const subject = await card(db, owner, castId<Handle>("blankcard"));
   await setLegacyCardBackground(db, subject, "");
   let asked = 0;
   const counting = (slug: string): Promise<ThemeBackground | null> => {

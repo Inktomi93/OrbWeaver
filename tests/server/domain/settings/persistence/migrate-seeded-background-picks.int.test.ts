@@ -59,6 +59,9 @@ async function seedLegacyPick(db: Db, userId: UserId, slug: string): Promise<voi
   await db.insert(userSettings).values({
     userId,
     schemaVersion: DEFAULT_USER_SETTINGS.schemaVersion,
+    // @orb-waive no-test-fabrication(unknown): raw pre-retirement legacy shape — kind:"seeded" and
+    // backgroundSeededId are retired from UserSettings, so only a double cast can write them into the
+    // fixture; ends if the retired fields are ever re-admitted to the type.
     config: {
       ...DEFAULT_USER_SETTINGS,
       appearance: { ...DEFAULT_USER_SETTINGS.appearance, backgroundImageKind: "seeded", backgroundSeededId: slug },
@@ -69,7 +72,7 @@ async function seedLegacyPick(db: Db, userId: UserId, slug: string): Promise<voi
 
 async function readAppearance(db: Db, userId: UserId): Promise<Record<string, unknown>> {
   const rows = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1);
-  return (rows[0]?.config as unknown as { appearance: Record<string, unknown> }).appearance;
+  return (rows[0]?.config.appearance ?? {}) as Record<string, unknown>;
 }
 
 /** The plate asset the rewrite points at has to exist and be `kind:"background"` — the guarded write path

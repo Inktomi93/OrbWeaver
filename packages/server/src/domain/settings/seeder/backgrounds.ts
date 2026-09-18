@@ -77,7 +77,6 @@ export function createDefaultBackgroundSeeder(deps: DefaultBackgroundSeederDeps)
   /** The library with every shipped plate this user does not already carry appended, in pack order. A plate
    *  the pack ships no bytes for is SKIPPED, never a hole: one missing file costs one plate. */
   async function appendMissingPlates(principal: Principal, current: readonly SeededLibraryEntry[]): Promise<readonly SeededLibraryEntry[]> {
-    // @orb-waive persistence-no-in-memory-state(Set): call-local dedup accumulator over THIS user's library, discarded when the seed returns. Ends if it outlives the call.
     const known = new Set(current.map((entry) => entry.assetHash));
     const next = [...current];
     for (const plate of deps.plates) {
@@ -126,10 +125,6 @@ export function createDefaultBackgroundSeeder(deps: DefaultBackgroundSeederDeps)
         return;
       }
       const attempt = (async (): Promise<void> => {
-        // @orb-waive caught-failure-ownership(err): a background seed is BEST-EFFORT by the seeder
-        // contract its two siblings share — a failure must never fail the boot or the first authed request,
-        // and the next touch retries because `settled` is only populated on success. Ends if a missing
-        // plate library becomes a hard precondition for serving.
         try {
           await runSeed(principal);
           settled.add(principal.userId);

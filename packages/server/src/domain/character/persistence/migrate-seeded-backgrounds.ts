@@ -54,19 +54,23 @@ export async function migrateSeededCardBackgrounds(
 
   let rewritten = 0;
   for (const row of rows) {
-    // @orb-waive no-await-db-in-loop(where): one UPDATE per AFFECTED card, and each carries a DIFFERENT
-    // resolved source (its own plate), so the rewrite cannot collapse into one statement. Bounded by the
-    // cards one owner carries a retired background on, once.
     const plate = row.slug === null || row.slug.length === 0 ? null : await resolve(row.slug);
-    await writeCardBackground(db, row.id, plate ?? NO_BACKGROUND, at);
+    await writeCardBackground(db, { characterId: row.id, ownerId, background: plate ?? NO_BACKGROUND, at });
     rewritten++;
   }
   return rewritten;
 }
 
-async function writeCardBackground(db: Db, characterId: CharacterId, background: ThemeBackground, at: number): Promise<void> {
+interface CardBackgroundWrite {
+  readonly characterId: CharacterId;
+  readonly ownerId: UserId;
+  readonly background: ThemeBackground;
+  readonly at: number;
+}
+
+async function writeCardBackground(db: Db, write: CardBackgroundWrite): Promise<void> {
   await db
     .update(characters)
-    .set({ backgroundOverride: canonicalBackgroundSource(background), updatedAt: at })
-    .where(eq(characters.id, characterId));
+    .set({ backgroundOverride: canonicalBackgroundSource(write.background), updatedAt: write.at })
+    .where(and(eq(characters.id, write.characterId), eq(characters.ownerId, write.ownerId)));
 }
