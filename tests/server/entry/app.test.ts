@@ -12,6 +12,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
 import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/foundation/observability";
+import { versionIdentity } from "@orb/server/foundation/version";
 import { classifyDomainError, createSocketRegistry } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
@@ -147,21 +148,22 @@ describe("createApp", () => {
     const app = createApp(deps({}));
     const res = await hit(app, new Request("http://localhost/healthz"));
     expect(res.status).toBe(OK);
-    expect(await res.json()).toEqual({ status: "ok", harness: false });
+    // every healthz arm carries the build identity (entry/http/healthz.ts) — the same frozen reader the app wires
+    expect(await res.json()).toEqual({ status: "ok", harness: false, version: versionIdentity() });
   });
 
   test("GET /healthz → 503 shutting_down when the shutdown getter flips", async () => {
     const app = createApp(deps({ isShuttingDown: (): boolean => true }));
     const res = await hit(app, new Request("http://localhost/healthz"));
     expect(res.status).toBe(SERVICE_UNAVAILABLE);
-    expect(await res.json()).toEqual({ status: "shutting_down" });
+    expect(await res.json()).toEqual({ status: "shutting_down", version: versionIdentity() });
   });
 
   test("GET /healthz → 503 credentials_key_mismatch when the key probe failed", async () => {
     const app = createApp(deps({ credentialsKeyOk: (): boolean => false }));
     const res = await hit(app, new Request("http://localhost/healthz"));
     expect(res.status).toBe(SERVICE_UNAVAILABLE);
-    expect(await res.json()).toEqual({ status: "credentials_key_mismatch" });
+    expect(await res.json()).toEqual({ status: "credentials_key_mismatch", version: versionIdentity() });
   });
 
   test("anonymous caller → the blob route 401s (the middleware set principal=null on the context)", async () => {
