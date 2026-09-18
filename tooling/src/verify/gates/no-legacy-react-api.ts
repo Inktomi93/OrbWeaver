@@ -22,7 +22,8 @@ const REACT_MATCHERS = new Map(BANNED_REACT_IMPORTS.map((name) => [name, createR
 const COMPONENT = createReactExportMatcher("Component");
 const PURE_COMPONENT = createReactExportMatcher("PureComponent");
 
-const MESSAGE = "a legacy React API: cloneElement, createRef, Children.*, PureComponent, a non-boundary class component, or react-dom useFormState/flushSync. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const MESSAGE =
+  "a legacy React API: cloneElement, createRef, Children.*, PureComponent, a non-boundary class component, or react-dom useFormState/flushSync. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "replace the legacy API with the React 19 function-component equivalent. Error boundaries remain classes and pass structurally. A deliberate library compatibility site uses @orb-waive no-legacy-react-api(<position>): <reason>.";
 

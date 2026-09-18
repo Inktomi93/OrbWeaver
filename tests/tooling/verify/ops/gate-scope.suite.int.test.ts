@@ -251,10 +251,10 @@ test("the PLANTER's own child run is exempt: ORB_GATE_FIXTURES=1 must see what i
   const own = await runCli("verify", ["structure", "--check", SILENT], {
     cwd: root,
     timeoutMs: RUN_TIMEOUT_MS,
+    // @orb-waive no-test-fabrication(Record<string, string>): process.env includes undefined values; the spawned child accepts string-only
     // biome-ignore lint/style/noProcessEnv: passthrough env for the spawned child — harness plumbing, not app config.
     // biome-ignore lint/correctness/noProcessGlobal: same passthrough; this file is node-run tooling.
     // biome-ignore lint/style/useNamingConvention: ORB_GATE_FIXTURES is an environment variable name.
-    // @orb-waive no-test-fabrication(Record<string, string>): process.env includes undefined values; the spawned child accepts string-only
     env: { ...process.env, ORB_GATE_FIXTURES: "1" } as Record<string, string>,
   });
   await expect(own).toExitWith(0);
@@ -284,10 +284,10 @@ test("a FIXTURE-MODE run stamps itself a non-verdict, keeps its exit code, and n
   const fixture = await runCli("verify", ["structure"], {
     cwd: root,
     timeoutMs: RUN_TIMEOUT_MS,
+    // @orb-waive no-test-fabrication(Record<string, string>): process.env includes undefined values; the spawned child accepts string-only
     // biome-ignore lint/style/noProcessEnv: passthrough env for the spawned child — harness plumbing, not app config.
     // biome-ignore lint/correctness/noProcessGlobal: same passthrough; this file is node-run tooling.
     // biome-ignore lint/style/useNamingConvention: ORB_GATE_FIXTURES is an environment variable name.
-    // @orb-waive no-test-fabrication(Record<string, string>): process.env includes undefined values; the spawned child accepts string-only
     env: { ...process.env, ORB_GATE_FIXTURES: "1" } as Record<string, string>,
   });
   // THE EXIT CODE IS UNCHANGED, deliberately: check-gates.repo.int.test.ts parses its own child's stdout

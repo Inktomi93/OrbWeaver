@@ -131,7 +131,7 @@ function resourcePolicy(overrides: Partial<Parameters<typeof defineGate>[0]> = {
     mustFlag: [{ mode: "resource", files: { "biome.json": "{}" }, why: "founding defect" }],
     mustPass: [{ mode: "resource", files: { "biome.json": "{}" }, why: "nearest legal shape" }],
     ...overrides,
-  // @orb-waive no-test-fabrication(Parameters<typeof defineGate>[0]): partial fixture exercising the loader's validation of incomplete input
+    // @orb-waive no-test-fabrication(Parameters<typeof defineGate>[0]): partial fixture exercising the loader's validation of incomplete input
   } as Parameters<typeof defineGate>[0]);
 }
 
@@ -513,7 +513,7 @@ function refusingPolicy(mustRefuse: unknown): unknown {
     mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, expect: { count: 1 }, why: "founding defect" }],
     mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
     ...(mustRefuse === undefined ? {} : { mustRefuse }),
-  // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid authority value
+    // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid authority value
   } as never);
 }
 const REFUSE_ROW = { mode: "source", files: { "tooling/src/proof.ts": "export const refuse = true;\n" }, why: "the designed refusal" } as const;

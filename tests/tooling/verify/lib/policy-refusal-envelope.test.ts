@@ -43,7 +43,7 @@ function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePoli
     mustFlag: [{ mode: "source", files: { "packages/client/src/proof.ts": "export const planted = true;\n" }, why: "the founding defect" }],
     mustPass: [{ mode: "source", files: { "packages/client/src/proof.ts": "export const clean = true;\n" }, why: "the nearest legal shape" }],
     ...overrides,
-  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the refusal envelope exercises; no factory exists
+    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the refusal envelope exercises; no factory exists
   } as GatePolicy);
 }
 

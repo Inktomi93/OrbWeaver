@@ -75,7 +75,8 @@ const NOTICE = {
   production: "listening on every interface (production — the reverse-proxy target).",
   // An EXPLICIT loopback bind in production (a same-host proxy in front, or the docker host-network
   // overlay): the process is deliberately unreachable off-box, and the log must not claim otherwise.
-  productionLoopback: "bound to loopback ONLY (production, explicit BIND_HOST) — reachable by on-box processes and a same-host proxy; the LAN and the FQDN reach it only through that proxy.",
+  productionLoopback:
+    "bound to loopback ONLY (production, explicit BIND_HOST) — reachable by on-box processes and a same-host proxy; the LAN and the FQDN reach it only through that proxy.",
   opened: "publicly reachable on a NON-PRODUCTION build — ALLOW_DEV_PUBLIC_BIND is set (see the security warning below).",
 } as const;
 

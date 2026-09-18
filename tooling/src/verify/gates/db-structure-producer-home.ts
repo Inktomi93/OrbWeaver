@@ -11,7 +11,8 @@ const DOMAIN_REL = "packages/server/src/domain";
 const RESERVED = new Set(["users", "audit", "custom-types", "relations"]);
 const TS_EXTENSION_LENGTH = 3;
 const OPERATION = "non-domain-schema-producer";
-const MESSAGE = "a schema module has no same-named producer domain; non-domain producer ownership requires an exact reviewed grant. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const MESSAGE =
+  "a schema module has no same-named producer domain; non-domain producer ownership requires an exact reviewed grant. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "rename the schema module for its producer, add the producer domain, or take an exact reviewed grant for a deliberate non-domain producer.";
 
 function topLevelSchema(path: string): string | undefined {

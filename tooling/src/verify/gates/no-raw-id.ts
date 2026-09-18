@@ -63,7 +63,8 @@ import { ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
-const MESSAGE = "an id-named Zod field is a raw string — use `typeIdSchema(ID_PREFIX.x)` or `brandedId<T>()` so the validated output preserves identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const MESSAGE =
+  "an id-named Zod field is a raw string — use `typeIdSchema(ID_PREFIX.x)` or `brandedId<T>()` so the validated output preserves identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 /** THE FAIL-CLOSED THIRD ANSWER (#944, added #2041), textually DISJOINT from `MESSAGE` rather than a
  *  `${MESSAGE} …` suffix: the unreadable arm reports the same single finding under the same token as the
  *  zod verdict and differs ONLY in message, so a shared prefix leaves both arms unpinnable (guide §6.1).

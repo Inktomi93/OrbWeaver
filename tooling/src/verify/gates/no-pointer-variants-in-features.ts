@@ -11,7 +11,8 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [uiTierPermissionFact],
   resources: [],
-  message: "pointer/hover capability variant in a feature string — device capability lives at the token or shell layer. (tooling/src/verify/gates/GATE-AUTHORING.md)",
+  message:
+    "pointer/hover capability variant in a feature string — device capability lives at the token or shell layer. (tooling/src/verify/gates/GATE-AUTHORING.md)",
   fix: "Compose a pointer-conditional token or shared component constant. A deliberate outside occurrence requires an exact @orb-waive no-pointer-variants-in-features(<class token>): <reason> marker.",
   create: (ctx) => ({
     evaluate: () => {

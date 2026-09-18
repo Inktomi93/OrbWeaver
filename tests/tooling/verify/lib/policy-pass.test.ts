@@ -44,7 +44,7 @@ function policy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
     mustFlag: [{ mode, files: { [path]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode, files: { [path]: "export const clean = true;\n" }, why: "nearest legal shape" }],
     ...overrides,
-  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the pass runner exercises; no factory exists
+    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the pass runner exercises; no factory exists
   } as GatePolicy);
 }
 
@@ -98,7 +98,7 @@ test("the invocation boundary rejects empty, duplicate, unbranded, and invalid p
     facts: [],
     mustFlag: [],
     mustPass: [],
-  // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the pass runner's handling of an invalid create return
+    // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the pass runner's handling of an invalid create return
   } as never);
 
   expect(() => run([], project)).toThrow(/nonempty|policy/i);

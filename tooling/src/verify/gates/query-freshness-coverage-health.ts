@@ -2,7 +2,8 @@
 import { defineGate } from "../contract/policy.ts";
 import { queryFreshnessFact } from "../lib/query-freshness-fact.ts";
 
-const MESSAGE = "the Invalidation anchor is present but createInvalidation is absent, so the freshness coverage side would be vacuous. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const MESSAGE =
+  "the Invalidation anchor is present but createInvalidation is absent, so the freshness coverage side would be vacuous. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "restore or re-point the canonical createInvalidation factory together with the shared graph fact.";
 export const gate = defineGate({
   id: "query-freshness-coverage-health",
