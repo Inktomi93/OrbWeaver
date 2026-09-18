@@ -5,7 +5,7 @@
 // a real model and exported through the real export verb — never authored by hand. Each conversation was
 // driven through `chat.startChat` → `chat.send` on a fresh install (the casting is
 // `docs/history/design/default-character-roster.md` §Demo-chat casting) and its transcript is the VERBATIM output
-// of `GET /api/export/chat/:id?format=jsonl`, bundled at `entry/boot/seed-assets/demo-chats/<slug>.jsonl`.
+// of `GET /api/export/chat/:id?format=jsonl`, shipped at `@orb/default-content`'s `demo-chats/<slug>.jsonl`.
 // Re-generate a transcript; never edit one.
 //
 // This file carries only what the ST-flavoured transcript CANNOT: which seeded cards sit in the room and in

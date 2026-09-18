@@ -1,28 +1,28 @@
 // Seed imagery wiring — the default-character seeder over the REAL character + assets services with the REAL
-// bundled `seed-assets` reader (the committed avatar PNGs + any gallery WebPs). Proves the end-to-end path
+// `@orb/default-content` reader (the committed avatar PNGs). Proves the end-to-end path
 // the composition root wires (`storeAvatar`/`seedGallery` closures over `assets.store` + `assets.addToGallery`):
 //   • every character the pack SHIPS ART FOR is born with a NON-NULL `avatarAssetId` (bundled PNG stored +
 //     linked) — and a character the pack ships NO art for still seeds, avatar-less (the tolerated arm);
-//   • `assets.store({enforceMagic:true})` ACCEPTS the real bundled bytes (the magic-byte sniff agrees —
-//     avatars are png, gallery pieces are webp);
-//   • each character's gallery holds exactly the pieces the bundle actually carries for it;
+//   • `assets.store({enforceMagic:true})` ACCEPTS the real shipped bytes (the magic-byte sniff agrees — the
+//     avatars are png);
+//   • each character's gallery holds exactly the pieces the pack actually ships for it;
 //   • the whole thing is idempotent (a second run adds no duplicate gallery rows).
 // Real db + real CAS temp dir (assets `makeHarness`) — nothing about the store is faked, so the sniff runs
 // for real over the committed art.
 //
-// INVENTORY-DRIVEN, deliberately: the expected counts are computed from what `readSeedAvatar`/
-// `readSeedGalleryPiece` actually return per handle, not from a hardcoded "every card has 2 items". That
+// INVENTORY-DRIVEN, deliberately: the expected counts are computed from what `readSeedAvatar` actually
+// returns per handle, not from a hardcoded "every card ships art". That
 // keeps this suite honest about the WIRING (which is what it tests) while the art bundle is landed/refreshed
 // by a separate lane. The complementary "the pack ships art for all ten handles" assertion is a PACK
 // COMPLETENESS property and lives with the pack, not here.
 
 import type { Principal } from "@orb/contracts/identity";
+import { readSeedAvatar } from "@orb/default-content";
 import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { describe, onTestFinished } from "vitest";
-import { readSeedAvatar, readSeedGalleryPiece } from "../../../../packages/server/src/entry/boot/seed-assets/index.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
@@ -104,21 +104,6 @@ async function makeSeededHarness(): Promise<{
           subjectCharacterId: characterId,
         });
       }
-      const galleryArt = await readSeedGalleryPiece(handle);
-      if (galleryArt !== null) {
-        const g = await assets.store({
-          principal: p,
-          bytes: galleryArt.bytes,
-          kind: "gallery",
-          mime: galleryArt.mime,
-          enforceMagic: true,
-        });
-        await assets.addToGallery({
-          principal: p,
-          assetId: g.assetId,
-          subjectCharacterId: characterId,
-        });
-      }
     },
   });
 
@@ -158,19 +143,18 @@ describe("seed imagery: default-character avatars + starter gallery", () => {
     expect(rows.filter((r) => r.shipsArt).length, "the bundle must ship at least one avatar for this suite to prove anything").toBeGreaterThan(0);
   });
 
-  test("each seeded character's gallery holds exactly the bundled pieces for it (avatar + optional gallery art)", async () => {
+  test("each seeded character's gallery holds exactly the shipped pieces for it (the avatar, when one ships)", async () => {
     const h = await makeSeededHarness();
     await h.runSeed();
 
     const list = await h.characters.list({ principal: h.actor });
     const rows = await Promise.all(
       list.items.map(async (card) => {
-        const [avatarArt, galleryArt, items] = await Promise.all([
+        const [avatarArt, items] = await Promise.all([
           readSeedAvatar(card.handle),
-          readSeedGalleryPiece(card.handle),
           h.assets.listGallery({ principal: h.actor, subjectCharacterId: card.id as CharacterId, limit: 100 }),
         ]);
-        return { handle: card.handle, expected: (avatarArt === null ? 0 : 1) + (galleryArt === null ? 0 : 1), actual: items.length };
+        return { handle: card.handle, expected: avatarArt === null ? 0 : 1, actual: items.length };
       }),
     );
     for (const row of rows) {

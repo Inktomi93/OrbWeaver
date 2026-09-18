@@ -43,6 +43,7 @@ import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResu
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
+import { readSeedDemoChat } from "@orb/default-content";
 import type { AssetId, CharacterId, ChatId, PersonaId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
@@ -108,7 +109,6 @@ import { createSocketRegistry } from "../../transport/trpc/stream/socket-registr
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder } from "../boot/index.ts";
 import { createDistributedPluginApplier, createExamplePluginSeeder } from "../boot/index.ts";
-import { readSeedDemoChat } from "../boot/seed-assets/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import { buildImportContext } from "../import/index.ts";
 import { buildAdmin } from "./admin.ts";
@@ -1070,7 +1070,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // The ONE demo-chat seeder instance boot + the app first-request hook share (the characterSeeder
   // precedent). Built HERE, last: it needs chat's bulk write (world-info seam), character's handle lookup,
   // rpg's create door, and the settings latch — every one of them composed above. The transcript READ is
-  // injected by the lifecycle (the bytes live in entry/boot/seed-assets, which this seam does not import).
+  // injected by the lifecycle (the bytes ship in @orb/default-content, which the seeder itself never imports).
   const demoChatGameDoor = createDemoChatGameDoor({ rpg });
   const demoChatSeeder = createDemoChatSeeder({
     readTranscript: readSeedDemoChat,

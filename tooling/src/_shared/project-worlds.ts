@@ -15,13 +15,14 @@ export function isWorldHelperPath(rel: string): boolean {
 }
 
 /** Package directory name → the world its `src` is written for. INTENT: kit/contracts are isomorphic (no node,
- *  no dom), db/server/showcase-plugins run under node, ui/client run in the browser. A package absent here has
- *  no world, and `worldOf` says so rather than guessing. */
+ *  no dom), db/server and the two default-content packages run under node, ui/client run in the browser. A
+ *  package absent here has no world, and `worldOf` says so rather than guessing. */
 const PACKAGE_WORLD_DEFINITIONS = {
   kit: "iso",
   contracts: "iso",
   db: "node",
   server: "node",
+  "default-content": "node",
   "showcase-plugins": "node",
   ui: "browser",
   client: "browser",

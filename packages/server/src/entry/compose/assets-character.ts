@@ -23,6 +23,7 @@ import {
   messages as messagesTable,
   personas as personasTable,
 } from "@orb/db";
+import { readSeedAvatar } from "@orb/default-content";
 import type { AssetId, CharacterHandle, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
@@ -49,7 +50,6 @@ import type { Cas, VariantCache } from "#infra/storage";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
 import { createDefaultPersonaSeeder } from "../boot/index.ts";
-import { readSeedAvatar, readSeedGalleryPiece } from "../boot/seed-assets/index.ts";
 import { createMaterializeBackground } from "./materialize-background.ts";
 import { minter } from "./minter.ts";
 
@@ -391,21 +391,6 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
         await assets.addToGallery({
           principal,
           assetId: avatarAsset.assetId,
-          subjectCharacterId: characterId,
-        });
-      }
-      const galleryArt = await readSeedGalleryPiece(handle);
-      if (galleryArt !== null) {
-        const galleryAsset = await assets.store({
-          principal,
-          bytes: galleryArt.bytes,
-          kind: "gallery",
-          mime: galleryArt.mime,
-          enforceMagic: true,
-        });
-        await assets.addToGallery({
-          principal,
-          assetId: galleryAsset.assetId,
           subjectCharacterId: characterId,
         });
       }

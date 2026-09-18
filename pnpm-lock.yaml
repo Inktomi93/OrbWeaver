@@ -378,6 +378,9 @@ importers:
       '@orb/db':
         specifier: workspace:*
         version: link:packages/db
+      '@orb/default-content':
+        specifier: workspace:*
+        version: link:packages/default-content
       '@orb/kit':
         specifier: workspace:*
         version: link:packages/kit
@@ -657,6 +660,12 @@ importers:
         specifier: 'catalog:'
         version: 0.31.10
 
+  packages/default-content:
+    dependencies:
+      '@orb/kit':
+        specifier: workspace:*
+        version: link:../kit
+
   packages/kit:
     dependencies:
       '@marcbachmann/cel-js':
@@ -720,6 +729,9 @@ importers:
       '@orb/db':
         specifier: workspace:*
         version: link:../db
+      '@orb/default-content':
+        specifier: workspace:*
+        version: link:../default-content
       '@orb/kit':
         specifier: workspace:*
         version: link:../kit
@@ -901,6 +913,9 @@ importers:
       '@orb/contracts':
         specifier: workspace:*
         version: link:../packages/contracts
+      '@orb/default-content':
+        specifier: workspace:*
+        version: link:../packages/default-content
       '@orb/kit':
         specifier: workspace:*
         version: link:../packages/kit

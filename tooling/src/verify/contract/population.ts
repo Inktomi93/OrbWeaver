@@ -24,6 +24,13 @@ export const POPULATION_ROOTS = {
    *  whose census records four live sites here; without the root the conversion would have narrowed the
    *  policy and dead-lettered those markers. */
   "@showcase": ["packages/showcase-plugins/src/"],
+  /** The default-content package (D160's second family — the seeded avatars + demo-chat transcripts and
+   *  their reader). Same standing as `@showcase` and for the same reason: an independently selectable
+   *  workspace member that §12.4 admits as a root, deliberately NOT folded into `@packages`. Added
+   *  2026-09-18 with the package itself, because its reader carries two `optional-read-as-absent` waivers
+   *  that the `caught-failure-ownership` policy must be able to BIND — an unbindable waiver is a stale-waiver
+   *  alarm and an ungoverned package, which is the narrowing the `@showcase` row exists to have prevented. */
+  "@default-content": ["packages/default-content/src/"],
   "@tooling": ["tooling/src/"],
   "@tests": ["tests/"],
   "@scripts": ["scripts/"],
@@ -74,6 +81,14 @@ const AUTHORED_MEMBERSHIP = {
       "proof-row failures — the blast radius is empty today because the package holds one file, which is why the decision " +
       "is cheap now and gets more expensive with every file added to it. A policy that needs the package TODAY declares " +
       "both refs (`['@authored', '@showcase']`), which is what the `harnessGlobs`-derived conversions do",
+  },
+  "@default-content": {
+    authored: false,
+    why:
+      "the same OPEN QUESTION as `@showcase`, taken deliberately rather than by omission: widening `@authored` is a " +
+      "behaviour change across every policy declaring it, so a new workspace package joins the vocabulary as its own root " +
+      "and the widening stays a measured, ruled decision. A policy that needs this package TODAY declares both refs " +
+      "(`['@authored', '@default-content']`), which is what `caught-failure-ownership` does",
   },
   "@tooling": { authored: true },
   "@tests": { authored: true },

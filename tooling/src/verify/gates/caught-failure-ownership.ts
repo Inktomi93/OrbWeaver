@@ -70,8 +70,12 @@
 // sites, so the obvious spelling would have silently narrowed the policy and dead-lettered four markers.
 // The `@showcase` ROOT was therefore added to the population vocabulary (contract/population.ts — §12.4
 // admits an independently selectable workspace package; it is deliberately NOT folded into `@packages`,
-// which would widen every existing policy). `["@packages", "@showcase", "@tooling"]` is byte-identical to
-// the legacy predicate. The `{ of: "all", notUnder: [...] }` spelling was tried FIRST and rejected as
+// which would widen every existing policy). `["@packages", "@showcase", "@default-content", "@tooling"]` is
+// byte-identical to the legacy predicate — `@default-content` joined 2026-09-18 with the package of that name
+// (D160's avatars + demo-chat transcripts), whose reader carries two `optional-read-as-absent` waivers; without
+// the root those markers bind to no finding and the policy reports a stale-waiver alarm over an ungoverned
+// package, which is the same narrowing `@showcase` was added to prevent.
+// The `{ of: "all", notUnder: [...] }` spelling was tried FIRST and rejected as
 // dishonest: `of: "all"` admits whatever the invocation's candidate set happens to hold, which on the real
 // tree excludes `packages/client/vite.config.ts` only because `harnessGlobs` never loads it — the declared
 // limit's own mustPass row is what caught it.
@@ -129,7 +133,7 @@ export const gate = defineGate({
   family: "caught-failure-ownership",
   authority: "ordinary",
   severity: "error",
-  population: ["@packages", "@showcase", "@tooling"],
+  population: ["@packages", "@showcase", "@default-content", "@tooling"],
   analysis: "types",
   execution: "selected-files",
   facts: [],

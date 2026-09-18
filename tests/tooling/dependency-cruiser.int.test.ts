@@ -86,6 +86,7 @@ function writeNativeSubstrate(): void {
     "packages/client",
     "packages/ui",
     "packages/showcase-plugins",
+    "packages/default-content",
   ]) {
     copyFixtureFile(`${packageDir}/package.json`);
   }
@@ -142,6 +143,12 @@ function writeAllFixtures(): void {
   fx("packages/showcase-plugins/__dc/target.ts", VAL);
   fx("packages/showcase-plugins/__dc/up.ts", `import "../../db/src/__dc/target.ts";\n`);
   fx("packages/client/src/__dc/showcase.ts", `import "../../../showcase-plugins/__dc/target.ts";\n`);
+  // default-content-cake + browser-no-default-content (D160): the same pair as showcase-plugins, for the
+  // OTHER default-content package — it sits below `server` and may reach only @orb/kit, and the browser
+  // never imports a node reader of shipped bytes.
+  fx("packages/default-content/__dc/target.ts", VAL);
+  fx("packages/default-content/__dc/up.ts", `import "../../db/src/__dc/target.ts";\n`);
+  fx("packages/client/src/__dc/default-content.ts", `import "../../../default-content/__dc/target.ts";\n`);
   fx(`${S}/foundation/__dc/toclient.ts`, `import "../../../../client/src/__dc/target.ts";\n`);
   fx("packages/client/src/__dc/value.ts", `import { t } from "../../../server/src/foundation/__dc/target.ts";\nexport const u = t;\n`);
   fx("packages/client/src/__dc/value-db.ts", `import { t } from "../../../db/src/__dc/target.ts";\nexport const u = t;\n`);
@@ -166,6 +173,13 @@ function writeAllFixtures(): void {
   // shell.css, while the styles-side rule catches another feature-internal target from styles/.
   fx("packages/client/src/routes/__dc_shell_css_bypass.ts", `import "../features/app-shell/surfaces/shell.css";\nexport const bypass = true;\n`);
   fx("packages/client/src/styles/__dc_css_frontdoor_bypass.ts", `import "../features/__dc_cfeat/internal.ts";\nexport const bypass = true;\n`);
+  // view-transition-fence (#1830): `withViewTransition` is shell-store's privilege — any OTHER client module
+  // importing `lib/view-transition.ts` directly is the fenced defect. The rule landed 2026-09-18 (ba641662d)
+  // with no fixture, so the anti-drift `test.each(ACTIVE_RULES)` case had nothing to fire it and this suite
+  // was RED on arrival; the fixture is added here with the D160 package move that had to run it.
+  fx("packages/client/src/lib/view-transition.ts", VAL);
+  fx("packages/client/src/__dc/view-transition.ts", `import "../lib/view-transition.ts";\n`);
+
   // confirm-uses-composite: a features/** module importing the raw @orb/ui/alert-dialog primitive
   // instead of the tier-2 ConfirmDialog composite (client-architecture-lockdown.md §16 G7).
   fx("packages/client/src/features/__dc_confirm/alert.ts", `import { AlertDialog } from "@orb/ui/alert-dialog";\nexport const g = AlertDialog;\n`);

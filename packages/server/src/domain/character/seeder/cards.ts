@@ -8,7 +8,7 @@
 // Pack invariants (all ten): `systemPrompt` null (prompt posture is preset-owned — a card that overrides the
 // user's main prompt fights every preset), `creator: "orbweaver"`, `cardVersion: "1.0.0"`, provenance/dates
 // null, no regex scripts / extensions / residual data, `avatarAssetId` null (the seeder stores the bundled
-// art at entry/boot/seed-assets/avatars/<handle>.png and stamps the id — a missing file seeds art-less).
+// art `@orb/default-content` ships at avatars/<handle>.png and stamps the id — a missing file seeds art-less).
 // `greetings[0]` is NEVER `groupOnly` (the first message is always solo-eligible; contract invariant).
 //
 // WHAT A SEED MAY NEVER HAND-SET (#900 — the derived-field parity rule). A seed row that spells a value the

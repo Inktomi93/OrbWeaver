@@ -49,7 +49,7 @@ function importHashFor(demo: DemoChat): string {
 /** The seeded room's `chats.importedFrom` — the transcript's bundled filename, honest provenance for a row
  *  that really was bulk-written from a file. Not user-facing (only CHARACTER provenance renders). */
 function importedFromFor(demo: DemoChat): string {
-  return `seed-assets/demo-chats/${demo.slug}.jsonl`;
+  return `@orb/default-content/demo-chats/${demo.slug}.jsonl`;
 }
 
 /** What one example's seed attempt did. `present` is a converged SUCCESS (the row is already there), which

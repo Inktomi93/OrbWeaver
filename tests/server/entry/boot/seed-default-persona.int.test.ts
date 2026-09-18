@@ -10,12 +10,12 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CreatePersonaInput } from "@orb/contracts/persona";
+import { readSeedAvatar } from "@orb/default-content";
 import type { AssetId, CharacterHandle, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { createPersonaService } from "@orb/server/domain/persona";
 import { describe, onTestFinished } from "vitest";
-import { readSeedAvatar } from "../../../../packages/server/src/entry/boot/seed-assets/index.ts";
 import { createDefaultPersonaSeeder } from "../../../../packages/server/src/entry/boot/seed-default-persona.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";

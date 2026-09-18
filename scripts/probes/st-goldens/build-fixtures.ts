@@ -6,7 +6,7 @@ import { RIG_DIR, SEED_CHATS_DIR, ST_RUNTIME_DIR } from "./rig-paths.ts";
 const stCharsDir = path.join(ST_RUNTIME_DIR, "data/default-user/characters");
 const stChatsDir = path.join(ST_RUNTIME_DIR, "data/default-user/chats");
 const demoChatsDir = SEED_CHATS_DIR;
-const avatarsDir = path.resolve(RIG_DIR, "../../../packages/server/src/entry/boot/seed-assets/avatars");
+const avatarsDir = path.resolve(RIG_DIR, "../../../packages/default-content/avatars");
 
 fs.mkdirSync(stCharsDir, { recursive: true });
 fs.mkdirSync(stChatsDir, { recursive: true });
