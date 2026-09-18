@@ -3,7 +3,7 @@
 #
 # Worktree-safe: resolves the root via git (no hardcoded paths, no dependence on $CLAUDE_* env).
 # Idempotent. Does a PROPER per-worktree `pnpm install` — NOT a symlink to the main checkout's
-# node_modules (that was neo-tavern's fragile hack: branches can carry different deps, and a shared
+# node_modules (that was the previous codebase's fragile hack: branches can carry different deps, and a shared
 # node_modules then lies). pnpm's global content-addressable store makes the per-worktree install
 # fast via hard-links — no re-download, minimal disk.
 #

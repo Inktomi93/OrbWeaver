@@ -1,10 +1,10 @@
 # Orbweaver
 
-The ground-up remake of **neo-tavern** — a self-hosted, agent-native AI roleplay chat platform
-(SillyTavern-class, with a different internal structure).
+A self-hosted, agent-native AI roleplay chat platform — a ground-up rebuild of an earlier codebase of
+ours, rewritten so the architecture is enforced rather than documented.
 
 **Status: active development.** The rebuild IS the live line (`main`); the pre-rollback code survives
-as the `legacy-main` branch, reference-only. Orbweaver keeps what worked from neo-tavern (the
+as the `legacy-main` branch, reference-only. Orbweaver keeps what worked in the previous codebase (the
 per-feature template) and rebuilds the rest so the **file structure is self-documenting** and the
 **boundaries are physics, not lint**. Mutable work lives in
 [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1).
@@ -32,6 +32,10 @@ macOS and Windows boots are not yet verified on real hardware. **On Linux**, `pn
 watched DEV stack at <http://localhost:5173> instead; that supervisor is a bash script (`setsid`, `ss`,
 `/proc`) and stays Linux-only.
 
+**Develop on Linux or WSL2.** The dev harness leans on `nice`, cgroup fencing and bash hooks, so the
+full loop (`pnpm stack`) is Linux-shaped. macOS can run the tests and `pnpm start`; it cannot run
+`pnpm stack`.
+
 ## Read first
 
 - **`docs/architecture/core/AGENTS.md`** — the cold-start reading router and current architecture map.
@@ -57,7 +61,7 @@ pnpm install     # deps (hard-linked from pnpm's global store) + git hooks (left
 pnpm check       # biome lint + tsc typecheck across all packages
 ```
 
-**Worktrees just work** — and unlike neo-tavern, without a symlink hack. Each `git worktree` gets its
+**Worktrees just work** — without a symlink hack. Each `git worktree` gets its
 OWN `node_modules` (correct when branches carry different deps; fast via the shared global store). In a
 fresh worktree:
 

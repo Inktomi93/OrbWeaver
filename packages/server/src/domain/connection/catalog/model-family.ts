@@ -1,5 +1,5 @@
 // domain/connection/catalog/model-family — family detection for the capability synthesis. Migrated from
-// neo-tavern's `providers/_shared/model-family.ts`; `FAMILY_CAPS` is DISSOLVED into
+// the previous codebase's `providers/_shared/model-family.ts`; `FAMILY_CAPS` is DISSOLVED into
 // `resolve-model-capability.ts` (the ONE descriptor factory) — only the detector lives here.
 //
 // LOAD-BEARING — the anchors (providers.md Esoteric §7): the anthropic regex

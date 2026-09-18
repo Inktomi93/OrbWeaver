@@ -221,7 +221,7 @@ function seatedHuman(role: ParticipantRole, displayName: string): unknown {
 /** The compound worst case the matrix above found: two humans named by their EMAIL (#162 — that is what a
  *  human seat's display name is until a persona names it) beside card-realistic character names. */
 const CROWDED_ROSTER = [
-  seatedHuman("host", "studio@inktomi.tech"),
+  seatedHuman("host", "you@example.com"),
   seatedHuman("member", "casey@example.com"),
   character("aria", "Aria of the Ninth Gate"),
   character("bryn", "Bryn Ashgrove, the Warden"),
@@ -301,7 +301,7 @@ for (const width of [430, 390, 320]) {
         "Bryn Ashgrove, the Warden",
         "Azarael",
         "Sera of the Long Winter Court",
-        "studio@inktomi.tech",
+        "you@example.com",
         "casey@example.com",
       ]);
       // …and none of them SPENDS the row: an sr-only span is clipped to 1px, so no name can push the

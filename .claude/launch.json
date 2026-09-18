@@ -7,13 +7,6 @@
       "runtimeArgs": ["-c", "exec env -u PORT bash scripts/dev/stack.sh start-fg"],
       "port": 5173,
       "autoPort": false
-    },
-    {
-      "name": "neo-tavern",
-      "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd ~/Downloads/neo-tavern && exec ./node_modules/.bin/vite --port 5273 --strictPort"],
-      "port": 5273,
-      "autoPort": false
     }
   ]
 }

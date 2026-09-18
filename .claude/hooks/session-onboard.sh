@@ -30,7 +30,9 @@
 set -uo pipefail
 # The harness pipes a JSON envelope (session_id, source, cwd) on stdin; a terminal run has none.
 HOOK_IN=""; [ -t 0 ] || HOOK_IN=$(cat 2>/dev/null || true)
-cd "${CLAUDE_PROJECT_DIR:-~/dev/orbweaver}" 2>/dev/null || exit 0
+# The fallback is DERIVED from this script's own location (<repo>/.claude/hooks/), never a hardcoded box path.
+SELF_REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)
+cd "${CLAUDE_PROJECT_DIR:-$SELF_REPO_ROOT}" 2>/dev/null || exit 0
 echo "=== AUTO-ONBOARD (SessionStart hook — read, then ACT on it; re-derive nothing below) ==="
 # PER-SESSION CPU/MEMORY CEILING (#1835). One line, one printed line back; it can only ever exit 0. Its
 # own header owns the why (nice cannot cross a cgroup slice boundary; a quota can).

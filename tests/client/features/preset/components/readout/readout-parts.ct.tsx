@@ -136,7 +136,7 @@ test("FAILED — Retry reaches the caller, so a transient read failure is not a 
 // capability row wrapping onto four lines inside a 380px CONTEXT column. Asserted as a reader meets it:
 // the readable name is visible in both places, the raw path is visible in NEITHER, and it is still
 // recoverable from the row it describes.
-const LOCAL_WEIGHTS_PATH = "/media/inktomi/Data/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
+const LOCAL_WEIGHTS_PATH = "/mnt/models/storage/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
 const LOCAL_WEIGHTS_DISPLAY = "Huihui-ThinkingCap-Qwen3.6-27B-abliterated · W8A8";
 /** The settled panel's own column, so the wrap pin is relative to the mount and names no px of its own. */
 const PANEL_WIDTH_PX = 380;

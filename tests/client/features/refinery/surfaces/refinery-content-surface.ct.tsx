@@ -477,7 +477,7 @@ test("#1188 a HELD session read shows the reserved skeleton, never the surface's
 // caps/mono credit line, which wrapped onto a second row under the card's name. `@orb/kit/model-name` is
 // the repo's answer to exactly this shape (#115) and every other model-naming surface already uses it.
 /** A served local checkpoint, in the shape the engine actually reports (the kit's own worked example). */
-const LOCAL_WEIGHTS_PATH = "/media/inktomi/Data/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
+const LOCAL_WEIGHTS_PATH = "/mnt/models/storage/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
 const LOCAL_WEIGHTS_DISPLAY = "Huihui-ThinkingCap-Qwen3.6-27B-abliterated · W8A8";
 
 test("the masthead credits the model by NAME — a local weights path never reaches the credit line", async ({ mount, page }) => {

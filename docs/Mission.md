@@ -6,7 +6,7 @@ updated: 2026-07-03
 
 # Orbweaver — Mission
 
-Orbweaver is a ground-up, maximal-rigor remake of neo-tavern, built to **get it right the first time**.
+Orbweaver is a ground-up, maximal-rigor remake of an earlier codebase of ours, built to **get it right the first time**.
 
 ## The defining fact
 

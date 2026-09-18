@@ -54,7 +54,7 @@
 
 ## Product context (PRODUCT.md-equivalent) — OWNER-RATIFIED 2026-08-16
 
-Provenance: drafted from the prior product context (the neo-tavern repo's `PRODUCT.md` — not a path in this repo — the same product's
+Provenance: drafted from the prior product context (the previous codebase's `PRODUCT.md` — not a path in this repo — the same product's
 earlier impeccable init) + `docs/Mission.md`, neo-era deltas corrected (Base UI not shadcn; the
 theme set is Hearth/Mocha/Light + imported owner themes under D71, not Hearth/Catppuccin/Loom).
 Owner approved all five verbatim ("yes to all"). Reviews may cite these as owner product-voice.

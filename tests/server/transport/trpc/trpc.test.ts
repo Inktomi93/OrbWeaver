@@ -327,7 +327,7 @@ describe("multiHumanProcedure — the multi-human capability 404 belt (PD-106 / 
 /** A leaking `shape.data` exactly as `getErrorShape` builds it under `isDev` (the frames are the real
  *  incident's shape: absolute host paths + the OS username + the dep version). */
 const LEAKING_STACK =
-  "TRPCError: Authentication required.\n    at ~/orbweaver/packages/server/src/transport/trpc/trpc.ts:91:11\n    at ~/node_modules/.pnpm/@trpc+server@11.18.0/dist/index.mjs:1:1";
+  "TRPCError: Authentication required.\n    at /home/devuser/orbweaver/packages/server/src/transport/trpc/trpc.ts:91:11\n    at /home/devuser/node_modules/.pnpm/@trpc+server@11.18.0/dist/index.mjs:1:1";
 
 /** The classifier-mapped TRPCError the formatter receives in production (the DomainError rides as `.cause`,
  *  which is what `domainReason` reads). Sourced from the real classifier — never hand-built. */

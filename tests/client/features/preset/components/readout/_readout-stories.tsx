@@ -269,7 +269,7 @@ export function EffectiveProfileSettledStory(): ReactElement {
 /** A SELF-HOSTED engine's model identifier: a 106-character local weights path (#115). Spelled here AND in
  *  the CT (a `_ct-stories` module may export only components — playwright-ct rewrites named imports into
  *  generated component consts, so a shared constant cannot cross this boundary). */
-const LOCAL_WEIGHTS_PATH = "/media/inktomi/Data/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
+const LOCAL_WEIGHTS_PATH = "/mnt/models/storage/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
 
 /** THE #115 PANEL — both places that name the model, in one 380px CONTEXT-panel column, driven by the model
  *  identifier that broke it. `EffectiveProfile` signs its numbers with `resolved for …`; `CapabilityCard`

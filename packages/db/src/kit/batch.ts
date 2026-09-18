@@ -1,6 +1,6 @@
 // batch — the `Db.batch` tuple bridge. drizzle types `batch()` as a non-empty readonly tuple of
 // `BatchItem<'sqlite'>` (`[U, ...U[]]`); the insert/update builders callers compose don't structurally
-// match that tuple without help, which is why neo-tavern had ~59 inline `as BatchItem` casts on the chat
+// match that tuple without help, which is why the previous codebase had ~59 inline `as BatchItem` casts on the chat
 // send path. These helpers centralize the ONE cast: build a plain array of statements, hand it to
 // `batchMany`. A db-layer primitive — it bridges `Parameters<Db["batch"]>`, a drizzle type, so it cannot
 // be `@orb/kit`-pure. (Core-Legacy-Migration-and-Gaps.md §3.)

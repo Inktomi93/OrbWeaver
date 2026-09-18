@@ -1029,7 +1029,7 @@ for (const style of ["flat", "bubble"] as const) {
 // printed through `@orb/kit/model-name` with the full identifier on `title` only when the derivation
 // shortened it.
 const MODEL_SLOT = '[data-slot="message-metadata-model"]';
-const LOCAL_WEIGHTS_PATH = "/media/inktomi/Data/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
+const LOCAL_WEIGHTS_PATH = "/mnt/models/storage/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
 const LOCAL_WEIGHTS_DIR_RE = /\/media\//u;
 const LOCAL_WEIGHTS_DISPLAY_RE = /Huihui-ThinkingCap-Qwen3\.6-27B-abliterated · W8A8/u;
 const HOSTED_MODEL_RE = /claude-sonnet-5/u;

@@ -7,7 +7,7 @@ import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 // The identifier that motivated the primitive — 106 characters, rendered twice in one panel.
-const LOCAL_QUANT_PATH = "/media/inktomi/Data/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
+const LOCAL_QUANT_PATH = "/mnt/models/storage/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
 
 describe("modelDisplayName", () => {
   test("reduces a local weights path to its basename and folds the quant modifiers into one tag", () => {

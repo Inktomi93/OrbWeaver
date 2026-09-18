@@ -142,7 +142,7 @@ const ROWS: Row[] = [
   ["pass", null, `curl -s http://localhost:8788/x | node -e "JSON.parse(require('fs').readFileSync(0))"`],
   ["pass", null, 'curl -s http://localhost:8788/x | node --eval="1+1"'],
   ["pass", null, "curl -s http://localhost:8788/x | node process-stream.js"],
-  ["ask", "rm-rf-unsafe", "rm -rf ~/homelab"],
+  ["ask", "rm-rf-unsafe", "rm -rf /home/x/dev-stack"],
   ["ask", "rm-rf-unsafe", "rm -rf packages/server/src"],
   ["ask", "sqlite-live", 'sqlite3 data/orb.db "delete from chats"'],
   // ---- QUOTED rm TARGETS (the blindness closed 2026-08-14; every bite row here was pass/none before).
@@ -195,17 +195,17 @@ const ROWS: Row[] = [
   ["pass", null, 'R=/home/x/orb; W=$R/.claude/worktrees/agent-a; rm -rf "$W"'], // resolved through a chain
   ["pass", null, `SP=/tmp/claude/x/scratchpad; rm -rf "\${SP}/y"`], // the braced spelling resolves alike
   // MUST BITE — resolution is what makes the pass safe, so everything it cannot prove still asks
-  ["ask", "rm-rf-unsafe", 'R=~/dev/orbweaver; rm -rf "$R"'],
+  ["ask", "rm-rf-unsafe", 'R=/home/x/dev/orbweaver; rm -rf "$R"'],
   ["ask", "rm-rf-unsafe", 'R=/home/x/orb; W=$R/packages/server; rm -rf "$W"'],
   ["ask", "rm-rf-unsafe", 'rm -rf "$UNSET_VAR/foo"'], // never assigned here ⇒ unknowable ⇒ unsafe
   ["ask", "rm-rf-unsafe", 'SP=$(mktemp -d); rm -rf "$SP"'], // a value that is itself an expansion is DROPPED
-  ["ask", "rm-rf-unsafe", 'SP=/tmp/a; SP=~/real; rm -rf "$SP"'], // last assignment wins, as bash
+  ["ask", "rm-rf-unsafe", 'SP=/tmp/a; SP=/home/x/real; rm -rf "$SP"'], // last assignment wins, as bash
   ["ask", "rm-rf-unsafe", 'echo "SP=/tmp/x" && rm -rf "$SP/y"'], // an assignment inside an ARGUMENT is not one
   ["ask", "rm-rf-unsafe", '# SP=/tmp/x\nrm -rf "$SP/y"'], // …nor is one in a comment
   ["ask", "rm-rf-unsafe", 'rm -rf "$SP/y"; SP=/tmp/x'], // …nor one that happens AFTER the rm
   // the resolution TIGHTENS here, which is the point: a variable NAMED after a safe token used to launder a
   // real path through the substring list (`"$node_modules"` contains `node_modules`), and now it cannot.
-  ["ask", "rm-rf-unsafe", 'node_modules=~/real; rm -rf "$node_modules"'],
+  ["ask", "rm-rf-unsafe", 'node_modules=/home/x/real; rm -rf "$node_modules"'],
   ["ask", "rm-rf-unsafe", 'SP=/tmp/x/scratchpad; rm -rf "$SPARE"'], // longest name wins — no prefix confusion
   // a nested body builds its OWN map from its OWN text, so the sanctioned wrapper shape still runs
   ["pass", null, `bash -c 'SP=/tmp/s/scratchpad; rm -f "$SP/x.log"'`],
@@ -654,7 +654,7 @@ const ROWS: Row[] = [
   ["ask", "inline:rm-rf-unsafe", "sh -c 'rm -rf packages/server/src'"],
   ["deny", "inline:biome-write", "env bash -c 'pnpm lint:fix'"],
   ["deny", "subst:git-destructive", 'echo "$(git stash)"'],
-  ["ask", "subst:rm-rf-unsafe", 'echo "$(rm -rf ~/homelab)"'],
+  ["ask", "subst:rm-rf-unsafe", 'echo "$(rm -rf /home/x/dev-stack)"'],
   ["ask", "subst:sudo", 'X="$(sudo rm -rf /etc)" echo hi'],
   ["deny", "subst:git-destructive", 'echo "`git stash`"'],
   // an UNQUOTED substitution executes too, and the head-anchored rules never saw into one either

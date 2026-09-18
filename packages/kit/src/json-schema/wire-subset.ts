@@ -31,7 +31,7 @@
 // …BUT A SILENT DELETION IS STILL A LOSS OF INTENT (task #40). A stripped bound used to vanish from the wire
 // with nothing in its place, so the model was asked for a 1-10 score with no way to know 10 was the ceiling,
 // and the belt then rejected the reply the model was never told how to write. The fix is the card-refinery
-// precedent (neo-tavern `references/card-refinery/src/domain/schema/auto-fix.ts` — "move unsupported
+// precedent (the previous codebase’s `references/card-refinery/src/domain/schema/auto-fix.ts` — "move unsupported
 // constraints to description", the same move Anthropic's own SDK makes): a stripped bound is APPENDED to that
 // node's `description` as `[Constraints: minimum: 1, maximum: 10]`. Three properties make it safe to run on
 // every hosted request:

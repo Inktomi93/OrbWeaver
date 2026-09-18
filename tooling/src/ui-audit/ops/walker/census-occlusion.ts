@@ -22,7 +22,7 @@
 // collapses is WITHHELD, never silently judged clean.
 //
 // THAT CLIP WALK IS OURS, NOT PORTED, and the claim is scoped to the vintage actually read (2026-09-01,
-// `~/homelab/development/skills-reference/impeccable`, `cli/engine/rules/checks.mjs`
+// the impeccable design-review reference, `cli/engine/rules/checks.mjs`
 // `checkTextOcclusionDOM` at line 5136, and the identical function in the bundled
 // `cli/engine/detect-antipatterns-browser.js` at 6370): both arms there read bare
 // `el.getBoundingClientRect()` — arm (ii) through the shared `textEls` collection, which is itself built
