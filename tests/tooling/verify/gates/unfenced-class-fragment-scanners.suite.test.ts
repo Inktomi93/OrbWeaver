@@ -15,7 +15,7 @@
 // cannot express, and therefore what lives here, is:
 //   §4.2  the positive identity arm driven through `runPolicyPass`, asserting all THREE of
 //         `effectiveFindings []`, `waivedFindings 1` and `authorityAlarms []` — a `mustPass` row separately
-//         asserts none of the last two (gold standard: ordinary-visitors-family.test.ts:187-196).
+//         asserts none of the last two (gold standard: ordinary-visitors-family.suite.test.ts:187-196).
 //   §4.8  the fixture-specifier resolution control, which is part of every family floor.
 //   #1991 the MESSAGE-DISJOINTNESS transplant for `no-color-literals`: it flags three disjoint patterns and
 //         emits a distinct per-finding message for each, and `expectationFailure` matches `messageIncludes`

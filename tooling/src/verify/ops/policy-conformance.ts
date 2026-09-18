@@ -126,6 +126,7 @@ function runPass({ policy, root, project, resourceOptions }: PassTarget, reviewe
 
 function* runPasses(target: PassTarget, grantSets: GrantSets): Generator<ExampleRun, void> {
   for (const reviewedGrants of grantSets) {
+    // @orb-waive caught-failure-ownership(error): proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status
     try {
       yield { result: runPass(target, reviewedGrants), root: target.root };
     } catch (error) {
@@ -148,6 +149,7 @@ interface ExampleInput {
 function* runVirtualExample({ policy, proof, shared, sequence, grantSets = NO_GRANTS }: ExampleInput): Generator<ExampleRun, void> {
   removeSources(shared);
   const root = `${VIRTUAL_ROOT}-${sequence}`;
+  // @orb-waive caught-failure-ownership(error): proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status
   try {
     for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {
       shared.createSourceFile(`${root}/${path}`, content);
@@ -162,6 +164,7 @@ function* runVirtualExample({ policy, proof, shared, sequence, grantSets = NO_GR
 
 function* runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<ExampleInput, "shared" | "sequence">): Generator<ExampleRun, void> {
   const root = mkdtempSync(join(tmpdir(), POLICY_CONFORMANCE_TEMP_PREFIX));
+  // @orb-waive caught-failure-ownership(error): proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status
   try {
     const project = new Project({ skipAddingFilesFromTsConfig: true });
     for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {

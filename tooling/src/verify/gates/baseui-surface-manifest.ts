@@ -40,7 +40,7 @@
 // replaces AND it deletes the anchor heuristic, which existed only because the legacy substrate could not
 // tell "the package is not installed" from "this example is about something else". No proof row can
 // express a refusal (guide §6.3); the pins are `runPolicyPass` drives in
-// `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts` — the LEDGER's three reachable
+// `tests/tooling/verify/gates/baseui-and-surface-family.suite.repo.int.test.ts` — the LEDGER's three reachable
 // non-ready statuses (missing · unparseable · empty, all population-phase withholds, in the loop over this
 // family's four ledger consumers) and the INSTALLED doors' three (the whole package missing, `metadata`
 // unresolved, `ast` unresolved, all `[evaluate]` tool errors), beside the complete run asserting one
@@ -85,7 +85,7 @@
 // the directory it just resolved for that very package, so every path it returns is under it by
 // construction, and a package it cannot resolve comes back `missing` (a refusal, one phase earlier). The
 // branch is pinned one tier down instead, at the reader, in
-// `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts` under "§4.5 — the
+// `tests/tooling/verify/gates/baseui-and-surface-family.suite.repo.int.test.ts` under "§4.5 — the
 // installed-surface READER's own blindness, which no proof row can reach": `installedSurfaceFrom` handed an
 // anchorless path set returns `undefined`, and handed the real set minus one component's `index.d.ts` loses
 // exactly that component.

@@ -114,7 +114,7 @@ away in the same file (`resolveGlobalMemberOrigin`, used by `readsAmbientGlobalP
 **Why every green stayed green.** The legacy arm (`ac0085c91^`, `:126-171`) only pushed a candidate when
 `isPrintResultCall(...)` matched a binding SPELLED `printResult`; no builtin can qualify. The
 conversion's conformance rows and its committed §4.6 differential
-(`mixed-hook-singletons-conversion.test.ts`, 34 legacy examples on a real tmpdir) all pass — none of
+(`mixed-hook-singletons-conversion.suite.test.ts`, 34 legacy examples on a real tmpdir) all pass — none of
 those 34 fixtures calls `String(...)`, `JSON.stringify(...)` or `Math.round(...)` inside an instrument
 file that imports the artifacts door. This is §5b's blind spot exactly, in the over-reporting direction.
 
@@ -245,8 +245,8 @@ program itself, in the same `"<x>" | "other" | "unreadable"` verdict-alias shape
 | new site | minted by |
 | - | - |
 | `lib/artifact-filing.ts:35 PathCalleeVerdict` | `7b80f66a4` — **this wave** |
-| `tests/tooling/verify/gates/tooling-plumbing-family.test.ts:539 LegacyArm` | `35afe3fa8` — **this wave** |
-| `tests/tooling/verify/gates/mixed-hook-singletons-conversion.test.ts:130 Delta` | `ac0085c91` — **this wave** |
+| `tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts:539 LegacyArm` | `35afe3fa8` — **this wave** |
+| `tests/tooling/verify/gates/mixed-hook-singletons-conversion.suite.test.ts:130 Delta` | `ac0085c91` — **this wave** |
 | `lib/id-brand.ts:67 KitIdCallVerdict` | `250c9eb60` |
 | `lib/broadcast-channel-origin.ts:34 BroadcastChannelVerdict` | `f1bbc34e7` |
 | `lib/process-member-origin.ts:29 ProcessMemberVerdict` | `e2b183b80` |
@@ -282,7 +282,7 @@ in a split family owes the POLICY NAME it was driven against* is live and load-b
 
 All three ordinary policies assert all three components (`effectiveFindings []`, `waivedFindings 1`,
 `authorityAlarms []`). `testid-liveness` already ships its dead-position discrimination control in-tree
-(`testid-variant-split-family.test.ts:126-132`); the other two did not, so I flipped the marker position
+(`testid-variant-split-family.suite.test.ts:126-132`); the other two did not, so I flipped the marker position
 in a `cp`-backed copy of the two REAL test files (announced to the orchestrator before and after; both
 restored, `git status --short` empty):
 

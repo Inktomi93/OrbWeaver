@@ -133,7 +133,7 @@ export function slowdownLines(previous: RunHistoryEntry | undefined, advisories:
 // ── #1983 PART 2: THE INSTRUMENT BATTERY'S CADENCE, MADE VISIBLE ──────────────────────────────────────
 //
 // THE DEFECT. A `tests/tooling/**` suite can sit RED on main for DAYS with no signal, and it happened FOUR
-// times in one five-day window: `registry-family.test.ts` (5 days), `gate-ignore-grammar.repo.int.test.ts`
+// times in one five-day window: `registry-family.suite.test.ts` (5 days), `gate-ignore-grammar.repo.int.test.ts`
 // (5 days), `gate-conformance.repo.int.test.ts` and `gate-spelling-twins.int.test.ts`. The mechanism is not
 // a bad test — every one of them fired LOUD the moment its premise moved. It is that `tests/tooling/**` is
 // `--full`-only (#1842, owner's word, unchanged) and NOTHING RUNS `--full` ON A CADENCE, so the observation

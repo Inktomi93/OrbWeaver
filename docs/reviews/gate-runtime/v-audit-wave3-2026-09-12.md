@@ -74,7 +74,7 @@ sets* in this family are the strongest in the corpus so far, and the *headers* a
 | `pnpm check:policy-conformance` (final, restored tree) | `167 final policies · 1667 proof rows · 0 failure(s) · 105 grant rows · 0 invalid · 13145ms`, **exit 0** — restored exactly to baseline |
 | `pnpm gate:contract` (final) | `761 finding(s) across 271 gate module(s)`, exit 1. **The total did NOT rise.** A grep over the whole log for all nine subject ids returns **0** — none of the 761 is theirs |
 | **`pnpm check:structure`** (run alone on the restored tree, after every probe) | exit 1 (the migration baseline). Tail: `final policies: 167 ran · raw 1322 = waived 1127 + granted 105 + effective 90 (90 error, 0 warning) · **0 alarm(s)** · **0 tool error(s)** · **0 withheld**`; `single-pass: ran 271/271 active gate(s) (104/104 legacy · 167/167 final) … run COMPLETE`. **All nine subjects `✓` with non-zero real-tree populations** — the eight fact consumers at `population 30 source · drizzle-schema: 1288 member(s)` (`nullable-column-inequality` at `population 6276 source`, plus `waived 1`, so its live `@orb-waive` door is exercised on the real tree), `contract-banned-shapes` at `population 105 source · ledger contract bans: 2 member(s)`. **Nothing in this family is withheld or blinded on the real tree.** Run id `agent-a56441e9de20b7108-3263957-2026-09-11T23-39-30-857Z` |
-| `pnpm test:scoped` × 4 files | **4 files / 25 tests PASSED, exit 0, no type errors, 8.37 s**: `schema-fact-wave-1.test.ts` (5), `ledger-banned-shapes.test.ts` (1), `verify/lib/schema-fact.test.ts` (16), `verify/lib/ledger-banned-shapes.int.test.ts` (3) |
+| `pnpm test:scoped` × 4 files | **4 files / 25 tests PASSED, exit 0, no type errors, 8.37 s**: `schema-fact-wave-1.suite.test.ts` (5), `ledger-banned-shapes.suite.test.ts` (1), `verify/lib/schema-fact.test.ts` (16), `verify/lib/ledger-banned-shapes.int.test.ts` (3) |
 | 9 probe rounds | 24 narrowing cuts · 1 cluster cut · 4 built falsifiers run in BOTH arms · 6 message transplants · 1 `count: 99` derivation · 2 fail-open arms. Each restored; `git status --short` EMPTY after every round |
 
 `pnpm exec biome` / `pnpm typecheck` were **not** run: this lane wrote one markdown file and modified no
@@ -582,7 +582,7 @@ Legend: **P** pass · **F** fail · **N/A** does not bind · **NE** not evaluate
 6. **P** — **4 of 4 narrowings ENFORCED**; 10 exact counts; the six identity counterfactuals (computed local /
    mutable `let` / same-name-wrong-origin / no-`as const` / composed-over-unproven / composed-over-widened)
    are the best-designed near-miss set I have audited, and each has its green twin. §4.5 refusal is proven
-   family-centrally (`schema-fact-wave-1.test.ts:84-140`, three arms + a healthy control).
+   family-centrally (`schema-fact-wave-1.suite.test.ts:84-140`, three arms + a healthy control).
 7. **P** — no private walk, cache, table, marker parser or fs read.
 
 **THE MODULE TO HAND A CONVERSION LANE**, once its header gains a port line. Its only §5b failure is prose.
@@ -700,7 +700,7 @@ Legend: **P** pass · **F** fail · **N/A** does not bind · **NE** not evaluate
    `id`).
 6. **F** — **three genuinely UNENFORCED narrowings, the most in the family**, each with a falsifier run in
    both arms (D3). 3 exact counts; §4.2 arm present; §4.5 proven centrally — and `schema-branding` is the
-   module the central refusal pins DRIVE (`schema-fact-wave-1.test.ts:81`), which is a real strength.
+   module the central refusal pins DRIVE (`schema-fact-wave-1.suite.test.ts:81`), which is a real strength.
 7. **P**.
 
 **Wave 1's "REFUTED minor" is too generous on today's evidence.** The three gaps are not stylistic: two of
@@ -746,7 +746,7 @@ miniature.
   probe round.
 - **The `analysis: "types"` counterfactual was queued and not run** (see the open question). Eight modules
   declare a types plane they never use; I can neither file nor clear it.
-- **I did not run the §4.6 conversion differential** for any subject. `drizzle-registry-conversion.test.ts`
+- **I did not run the §4.6 conversion differential** for any subject. `drizzle-registry-conversion.suite.test.ts`
   covers `domain-freshness-plane` and `lifecycle-portability`, neither of which is mine. Whether each of these
   nine populations is byte-identical to its legacy predecessor is UNVERIFIED except for
   `nullable-column-inequality`, whose header states a measured delta I took on trust rather than re-deriving.

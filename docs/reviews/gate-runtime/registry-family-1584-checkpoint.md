@@ -121,7 +121,7 @@ Denominator changes worth naming, all verified to produce no new finding on the 
 
 | Check | Result |
 | - | - |
-| family conformance (`tests/tooling/verify/gates/registry-family.test.ts`) | green — every policy's founding, nearest-legal and counterfactual rows, plus three runtime-refusal pins conformance cannot express |
+| family conformance (`tests/tooling/verify/gates/registry-family.suite.test.ts`) | green — every policy's founding, nearest-legal and counterfactual rows, plus three runtime-refusal pins conformance cannot express |
 | shared fact + tuple provider tests | green (registry-fact 6, tuple-vocabulary 7) |
 | ported policy pins (`message-kind-policy-coverage.test.ts`) | green (3) |
 | central grant table (`tests/tooling/verify/lib/reviewed-grants.test.ts`) | green — all seven rows validate against the roster discovered from every `defineGate` module |

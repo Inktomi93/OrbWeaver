@@ -16,7 +16,7 @@
 //                                              finding per call site rather than one per missing key, so its
 //                                              ordinary waiver door is addressable at all.
 //
-// Same recipe as simple-visitors-wave-2.test.ts: `verifyPolicyProofs` runs each final policy's own proofs
+// Same recipe as simple-visitors-wave-2.suite.test.ts: `verifyPolicyProofs` runs each final policy's own proofs
 // through the production runtime; the differential replays every ORIGINAL mustFlag/mustPass example from
 // the frozen pre-conversion source (172485b3a, the commit immediately before this wave) through both the
 // legacy dispatcher and the final one; and a successor-proof section replays persist-partialize's retired

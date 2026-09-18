@@ -68,7 +68,7 @@ and `git status --short` is EMPTY with zero `cbvmw` files left in `gates/` or `l
   control `SIDE1 unclassified=1 (token "planted_extra_table") · SIDE2 stale=96 (= rows-1)`;
   break the UNCLASSIFIED report → `SIDE1 0 · SIDE2 96`; break the STALE report → `SIDE1 1 · SIDE2 0`.
   Each break kills its own side and leaves the other intact.
-- `pnpm test:scoped tests/tooling/verify/gates/tenancy-scope-family.test.ts` → **7 passed**, exit 0.
+- `pnpm test:scoped tests/tooling/verify/gates/tenancy-scope-family.suite.test.ts` → **7 passed**, exit 0.
 - **ONE lib reader**: all four policies reach the classes through `tableScopingClasses()` /
   `ownerScopedTableIdents` / `schemaTableIdents`; `TABLE_SCOPING_CLASSES` appears **zero** times anywhere in
   `tooling/`, `tests/` or `docs/`.
@@ -104,7 +104,7 @@ and `git status --short` is EMPTY with zero `cbvmw` files left in `gates/` or `l
   string matches in `no-context-returntype`, `section-registry-completeness` and `playwright-css-topology`
   are inside fixture STRINGS. Positive control: **257 gate modules / 640 declarations** import `../lib/`.
 - **ARM B reports 0 for the sibling class on the REAL corpus.**
-  `pnpm test:scoped tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` → **13 passed**,
+  `pnpm test:scoped tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts` → **13 passed**,
   exit 0, including the 164 s real-corpus arm that asserts `accusedBy("policy-legacy-imports")` equals a text
   SECOND OPINION whose `importsSiblingGate` half is now empty, with `importOpinion.length > 0` still holding
   from ARM A. No tool errors, nothing withheld.
@@ -213,8 +213,8 @@ Three of the five commits leave ledger rows OPEN for work that shipped, and one 
    asserted to occur exactly once (the harness THROWS otherwise), all removed in `finally`.
 4. `pnpm check:policy-conformance` (whole, once): **250 final policies · 2967 proof rows · 7 refusal rows ·
    0 failure(s) · 206 grant rows · 0 invalid · 38.6 s · corpus 304 modules**, exit 0.
-5. `pnpm test:scoped tests/tooling/verify/gates/tenancy-scope-family.test.ts` → 7/7, exit 0.
-6. `pnpm test:scoped tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` → 13/13, exit 0
+5. `pnpm test:scoped tests/tooling/verify/gates/tenancy-scope-family.suite.test.ts` → 7/7, exit 0.
+6. `pnpm test:scoped tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts` → 13/13, exit 0
    (169 s; the real-corpus arm is 164 s of it).
 7. `pnpm test:scoped tests/client/data/trpc.test.ts` → 3/3, exit 0.
 8. `ast-grep --lang ts` over `tooling/src/verify/gates` for `import`/`import type`/`export … from`, merged and

@@ -7,7 +7,7 @@ updated: 2026-09-12
 # v-audit-wave7 — the home-client family (14 policies) against §5b PRISTINE (#1584)
 
 Read-only adversarial audit of the fourteen sanctioned-home CLIENT policies imported by
-[`tests/tooling/verify/gates/home-client-family.test.ts`](../../../tests/tooling/verify/gates/home-client-family.test.ts),
+[`tests/tooling/verify/gates/home-client-family.suite.test.ts`](../../../tests/tooling/verify/gates/home-client-family.suite.test.ts),
 held to [`gate-runtime-standardization.md`](../../design/gate-runtime-standardization.md) §5b's seven
 criteria and §4's proof rules. Method, verdict shape and the four-way clean-cut classification are copied
 from [`v-audit-wave6-2026-09-12.md`](v-audit-wave6-2026-09-12.md) and
@@ -76,7 +76,7 @@ three answers back into two, in the direction that produces silence.
 ## Premise checks
 
 1. **The 14 subjects the brief named are exactly the 14 the family test imports.** Re-derived from
-   `home-client-family.test.ts:7-20` (imports) and `:25-39` (the `FAMILY` array). **No difference.**
+   `home-client-family.suite.test.ts:7-20` (imports) and `:25-39` (the `FAMILY` array). **No difference.**
 2. **FRESH vs RE-AUDIT: 13 fresh, 1 re-audit.** Receipt: a per-id `grep -c` over the six prior audit
    documents. `no-raw-matchmedia` = 24 hits in `v-exemplar-audit-2026-09-12.md` (the wave-1 REFUTED
    SEVERE audit) + 4/1/1 incidental citations in waves 2/3/5. Every other id returns **zero hits across
@@ -97,7 +97,7 @@ three answers back into two, in the direction that produces silence.
 
 | Instrument | Result |
 | - | - |
-| `verifyPolicyProofs([policy])` per module (the exact function `ops/policy-conformance-stage.ts` and `home-client-family.test.ts:42-44` call) | baseline **0 failures** for all 14 |
+| `verifyPolicyProofs([policy])` per module (the exact function `ops/policy-conformance-stage.ts` and `home-client-family.suite.test.ts:42-44` call) | baseline **0 failures** for all 14 |
 | **instrument controls, run FIRST** | `TOKEN_PREFIX "--color-"`→`"--nope-"` on `theme-override-only-via-scope` → **RED 4**; `count: 1`→`count: 99` → **RED 1**; a comment-only no-op → **CLEAN**. The harness discriminates in both directions |
 | 85 §4.1 narrowing cuts + 4 CLUSTER cuts | 56 RED / 29 clean, every cut `cp`-backed and restored in a `finally` |
 | 8 falsifier rows, each run in BOTH arms (row alone → row + its cut) | **8 of 8 PASS unmodified and RED under their cut** |
@@ -105,7 +105,7 @@ three answers back into two, in the direction that produces silence.
 | 2 `messageIncludes` transplants + 1 substring-trap control | both transplants RED; the trap control (`UNREADABLE` rebuilt as `` `${MESSAGE} …` ``) **passes CLEAN** — the disjointness is real but unpinned |
 | §4.2 dead-position control + foreign-policy-id control on `registry-context-via-mint` | **both RED** |
 | planted fail-open in `no-raw-matchmedia` (`classifyOriginRefusal` → `return "other"`), family test run | **2 of 14 family tests FAIL**, incl. the DOM-less arm — the family pin discriminates |
-| `pnpm test:scoped tests/tooling/verify/gates/home-client-family.test.ts` (clean tree) | **14 passed, exit 0**, 11.36s |
+| `pnpm test:scoped tests/tooling/verify/gates/home-client-family.suite.test.ts` (clean tree) | **14 passed, exit 0**, 11.36s |
 | `ast-grep --lang ts` over `tooling/src/verify/gates/` | `getDescendantsOfKind` 155 matches in the corpus, **0 in my 14**; `forEachDescendant` 61 / 0; `getSourceFiles()` 45 / 0; `new Project` 2 (`enforcement-registry-parity.ts:280`, `dangling-refs.ts:186`), **neither mine** |
 | `pnpm check:structure` (ONCE) | **`0 tool error(s)` · `0 withheld`**; `complete: true`, `ran 275` (104 legacy + 171 final), `0 alarm(s)`, `raw 1452 = waived 1150 + granted 105 + effective 197`. Read from the run's own artifact, slot `reports/runs/structure/agent-a4f55c05277e8bc3d-3655892-2026-09-12T00-32-35-971Z/`. Exit **1** (violations), not exit 2 — a verdict, not a tool error |
 
@@ -310,7 +310,7 @@ M8 flip the policy id → no-raw-matchmedia(Registry)    | RED 1
 **It discriminates.** `proofFailure` runs `toolFailure` first and fails on any `authorityAlarms`, so the
 three assertions §4.2 demands are all live inside the row. No negative arm is present and none is owed.
 The other 13 are reviewed-grant and owe no waiver arm at all; their grant identity is proved beside the
-family (§4.3) by four `runPolicyPass` pins in `home-client-family.test.ts:259-305` — exact consumption,
+family (§4.3) by four `runPolicyPass` pins in `home-client-family.suite.test.ts:259-305` — exact consumption,
 dedupe to exactly one, staleness, and wrong-operation — which I ran and which pass.
 
 ## §4.5 — refusal and receipt pins: 7 of 7 owed, all present

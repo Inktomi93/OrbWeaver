@@ -174,7 +174,7 @@ population is: `content-part-seam` 2.9 s over 3,367 files, `scrubber-home` 1.1 s
 
 | Check | Result |
 | - | - |
-| family conformance (`tests/tooling/verify/gates/home-server-family.test.ts`) | green — 11 policies, 8 test cases: **122 policy proofs** (70 `mustFlag` + 52 `mustPass`, summed from the descriptors) plus 7 runtime pins |
+| family conformance (`tests/tooling/verify/gates/home-server-family.suite.test.ts`) | green — 11 policies, 8 test cases: **122 policy proofs** (70 `mustFlag` + 52 `mustPass`, summed from the descriptors) plus 7 runtime pins |
 | the shared readers' own specs (`tests/tooling/verify/lib/{ambient-determinism,role-vocabulary,origin-verdict}.test.ts`) | green — **17 tests across 3 files**. The two new readers are ARMED: neutralising the identity comparison reds **3 of 6** rows in each. `origin-verdict` asserts the prefilter and the classifier directly, including the const hop's two invisible properties |
 | fixture-specifier resolution control | 59 relative specifiers across all 11 policies' proofs; **0 accidental unresolved**, 5 deliberate `./missing*.ts` fail-closed rows |
 | receipt refusals, pinned through `runPolicyPass` | the D51 declaration home leaving `contracts/src/chat/`; the kit content home holding no source; the participant vocabulary absent AND relocated |

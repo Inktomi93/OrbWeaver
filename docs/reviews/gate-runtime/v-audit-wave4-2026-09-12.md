@@ -91,14 +91,14 @@ copying — the narrowing pins and the identity arms.
 | `pnpm check:policy-conformance` (final, after all six probe rounds) | `167 · 1679 · 0 failure(s) · 105 · 0 invalid · 16121ms`, **exit 0** — restored byte-for-byte |
 | `pnpm gate:contract` | `761 finding(s) across 271 gate module(s)`, exit 1. Total did NOT rise. **grep over the log for all nine FINAL subject ids returns 0**; the only subject-named findings are the legacy `no-arbitrary-tw-values`'s six |
 | **`pnpm check:structure`** (run ALONE, once) | exit 1 (migration baseline). Tail: `final policies: 167 ran · raw 1323 = waived 1141 + granted 105 + effective 77 (77 error, 0 warning) · 0 alarm(s) · **0 tool error(s)** · **0 withheld**`; `single-pass: ran 271/271 active gate(s) (104/104 legacy · 167/167 final) … run COMPLETE`. **All ten subjects `✓` with non-zero real-tree populations** (receipts in D2/D6). Run id `agent-acb7c8ea57e1b987a-3440227-2026-09-11T23-52-30-216Z` |
-| `pnpm test:scoped tests/tooling/verify/gates/` | 57 files, **55 passed / 2 failed**; 3 failing tests. **All three of my subjects' test files PASSED**: `ui-token-surface-wave-1.test.ts` (68 ms), `no-raw-color-in-css.test.ts` (155 ms), `no-tailwind-dark-variant.int.test.ts` (2 tests, 380 ms) |
+| `pnpm test:scoped tests/tooling/verify/gates/` | 57 files, **55 passed / 2 failed**; 3 failing tests. **All three of my subjects' test files PASSED**: `ui-token-surface-wave-1.suite.test.ts` (68 ms), `no-raw-color-in-css.test.ts` (155 ms), `no-tailwind-dark-variant.int.test.ts` (2 tests, 380 ms) |
 | quiet re-run of the two failing files alone | **STILL 3 failed, in 20 s.** NOT contention — see D6 |
 | `pnpm test:scoped tests/tooling/gate-conformance.repo.int.test.ts` | **2 failed / 5 passed**, and one failure is caused by a subject of mine — D5 |
 | 6 probe rounds through the production door | 31 narrowing cuts · 2 cluster cuts (mutual-redundancy detectors) · 1 narrow-direction population control · 10 count derivations · 22 sibling-arm transplants · 4 dead-position controls · 1 foreign-policy-id control · 10 built-falsifier rows run in BOTH arms. Every round `cp`-backed and restored; `git status --short` EMPTY after every round and at the end |
 
 **Instrument control, run first.** Every probe ran through `verifyPolicyProofs` — the exact function the
 production stage calls (`ops/policy-conformance-stage.ts:56`) and the exact function every family test in this
-area calls (`ui-token-surface-wave-1.test.ts:29`). I proved the driver is not lying before trusting it: a
+area calls (`ui-token-surface-wave-1.suite.test.ts:29`). I proved the driver is not lying before trusting it: a
 planted `count: 99` on `no-raw-spacing-in-features` `mustFlag[0]` produced
 `expected effective finding count=99 but got 1`, and the tree was restored clean.
 
@@ -307,11 +307,11 @@ execute.** A header claiming a proof that structurally cannot run is the §5b.5 
 `Test timed out in 5000ms` — the shape the brief named as the contention tell. **A quiet re-run of just those
 two files reproduced all three failures in 20 s total**, so it is not contention:
 
-- `tests/tooling/verify/gates/grant-liveness-family.test.ts:25` — `verifyPolicyProofs([depcruiseGrantLiveness, eslintGrantLiveness])` with **no timeout argument**, so it inherits the 5 s default. `check:structure` measured `eslint-grant-liveness` at 5022.9 ms in its population phase alone. The file next door (`ui-token-surface-wave-1.test.ts:24`) declares `scaledBudget(120_000)` for exactly this reason and passes in 68 ms.
-- `tests/tooling/verify/gates/drizzle-registry-conversion.test.ts` — two tests, same shape.
+- `tests/tooling/verify/gates/grant-liveness-family.suite.test.ts:25` — `verifyPolicyProofs([depcruiseGrantLiveness, eslintGrantLiveness])` with **no timeout argument**, so it inherits the 5 s default. `check:structure` measured `eslint-grant-liveness` at 5022.9 ms in its population phase alone. The file next door (`ui-token-surface-wave-1.suite.test.ts:24`) declares `scaledBudget(120_000)` for exactly this reason and passes in 68 ms.
+- `tests/tooling/verify/gates/drizzle-registry-conversion.suite.test.ts` — two tests, same shape.
 
 These are outside my subject family; I report them because a lane reading the family-test floor as green would
-be reading a red one. **`ui-token-surface-wave-1.test.ts` itself is a further finding:** its only content is
+be reading a red one. **`ui-token-surface-wave-1.suite.test.ts` itself is a further finding:** its only content is
 `expect(verifyPolicyProofs(FAMILY)).toEqual([])` over three policies, which §4.9 says the conformance stage
 already covers by construction — so the one file that exists for `no-off-token-radius-shadow` carries none of
 the four things §4.9 says a family test is FOR (the §4.2 arm, §4.3 grants, §4.5 pins, the §4.6 differential),
@@ -759,8 +759,8 @@ and it certifies one level above the claim it defends. A lane that copies its st
 > `tests/tooling/gate-conformance.repo.int.test.ts:49` RED (reproduced on a quiet tree — NOT baseline), and all
 > three carriers of `gate-ignore-grammar.repo.int.test.ts` — the only real-tree proof of the `@orb-gate-ignore`
 > vocabulary — are now final while it loads via `loadGates` (legacy only); `no-color-literals`'s header cites
-> that dead pin as its real-tree receipt. **D6:** `grant-liveness-family.test.ts` and
-> `drizzle-registry-conversion.test.ts` are red on a quiet tree (5 s default timeout, no `scaledBudget`).
+> that dead pin as its real-tree receipt. **D6:** `grant-liveness-family.suite.test.ts` and
+> `drizzle-registry-conversion.suite.test.ts` are red on a quiet tree (5 s default timeout, no `scaledBudget`).
 > **D7:** 7 of 9 roster rows wrong — two bare labels, one asserting the "in className/cn" context #1954
 > removed, two describing retired allowlists, one stale row count. **Sweeps:** 31 narrowings cut → 19 enforced
 > / **10 unenforced (32%)** each with a both-arms falsifier / 2 unfalsifiable-and-documented / **0 mutually

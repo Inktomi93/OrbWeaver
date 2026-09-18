@@ -1,5 +1,5 @@
 // CONVERSION-TIME EVIDENCE for the `freeze-provenance` family of #1584 — the occurrence policy and its
-// `-health` sibling — written to the `drizzle-registry-conversion.test.ts` recipe. NOT a standing
+// `-health` sibling — written to the `drizzle-registry-conversion.suite.test.ts` recipe. NOT a standing
 // regression gate: it freezes the legacy source at one commit and RETIRES once the differential is
 // trusted (design guide §6.4). Delete it with the legacy loader.
 //

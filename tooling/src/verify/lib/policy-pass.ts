@@ -173,6 +173,7 @@ function guard(run: PolicyRun, phase: Exclude<PolicyPhase, "population">, errors
   if (run.owner.status !== "success") {
     return;
   }
+  // @orb-waive caught-failure-ownership(error): gate evaluation guard: markIncomplete converts error to a structured PolicyToolError with phase and message; the gate run reports tool-error status
   try {
     charge(run.timing, phase, operation);
   } catch (error) {
@@ -192,6 +193,7 @@ function guardFact(run: FactRun, phase: Exclude<GateFactPhase, "population">, co
   if (run.status !== "success") {
     return;
   }
+  // @orb-waive caught-failure-ownership(error): fact evaluation guard: markFactIncomplete converts error to a structured FactToolError with phase and message; the fact run reports tool-error status
   try {
     chargeFact(run.timing, phase, operation);
   } catch (error) {
@@ -406,6 +408,7 @@ function factDependencyPaths(policies: readonly GatePolicy[], candidates: readon
     if (byId.has(fact.id)) {
       continue;
     }
+    // @orb-waive caught-failure-ownership(catch): fact population resolution: on failure the fact gets an empty population and the run continues; downstream gates see EMPTY_POPULATION, not silence
     try {
       byId.set(fact.id, [...resolvePopulation(fact.population, candidates).paths, ...resolveResourceDeclarations(resources, fact.resources)]);
     } catch {
@@ -441,6 +444,7 @@ function resolveRuns(
   const dependencies = factDependencyPaths(input.policies, candidates, resources);
   const runs = input.policies.map(newRun);
   for (const run of runs) {
+    // @orb-waive caught-failure-ownership(error): policy population resolution: markIncomplete converts error to a structured PolicyToolError; the run reports tool-error status with EMPTY_POPULATION
     try {
       charge(run.timing, "population", () => {
         const declaredResources = resolveResourceDeclarations(resources, run.policy.resources);
@@ -487,6 +491,7 @@ function resolveFactRuns({ facts, sourceFiles, resources, control }: ResolveFact
   return facts.map((fact) => {
     const run = newFactRun(fact);
     control.values.set(fact, { status: "pending" });
+    // @orb-waive caught-failure-ownership(error): fact population resolution: markFactIncomplete converts error to a structured FactToolError; the run reports tool-error status with EMPTY_POPULATION
     try {
       chargeFact(run.timing, "population", () => {
         const declaredSourcePaths = resolvePopulation(fact.population, candidates).paths;

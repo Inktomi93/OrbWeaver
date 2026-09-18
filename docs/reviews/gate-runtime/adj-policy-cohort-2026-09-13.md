@@ -23,8 +23,8 @@ planted positive control in the same invocation; every code-presence claim was d
 
 | Run | Result |
 | - | - |
-| `pnpm test:scoped tests/tooling/verify/gates/duplicate-action-doors.test.ts css-home-topology-family.test.ts css-hook-provenance-family.test.ts` | 3 files, **24/24 passed**, exit 0 |
-| `pnpm test:scoped tests/tooling/verify/gates/suppressions-family.test.ts` | 1 file, **9/9 passed**, exit 0 |
+| `pnpm test:scoped tests/tooling/verify/gates/duplicate-action-doors.test.ts css-home-topology-family.suite.test.ts css-hook-provenance-family.suite.test.ts` | 3 files, **24/24 passed**, exit 0 |
+| `pnpm test:scoped tests/tooling/verify/gates/suppressions-family.suite.test.ts` | 1 file, **9/9 passed**, exit 0 |
 | `pnpm exec ast-grep --lang ts --pattern 'defineGate($$$)'` on `no-blanket-suppression.ts` | **zero matches**; positive control on `suppressions.ts` → `:174` |
 | three independent key counts over `git show d23150315:tooling/src/verify/gates/suppressions.ts` span 40–188 | 46 / 46 / 0 duplicates |
 | python parse of `packages/ui/src/styles/theme.css` `@theme` block + `packages/ui/src/tokens/tokens.json` | 203 / 203 / 188+15 |
@@ -80,7 +80,7 @@ as ONE lane, one cold read. That is a lifecycle note and is satisfied by closing
 test-layout.ts:21           // POPULATION PORT — legacy at 6b1d01be0 (the parent of the conversion commit aecbc6c6c), …
 test-presence.ts:54         // POPULATION PORT — legacy at 6b1d01be0 (the parent of the conversion commit aecbc6c6c), …
 test-presence-client.ts:25  // POPULATION PORT — legacy at 6b1d01be0 (the parent of the conversion commit aecbc6c6c), …
-mirror-index-family.test.ts:1-4   … converted from legacy `GateDescriptor`s at `aecbc6c6c` (#2061/#2062). The legacy
+mirror-index-family.suite.test.ts:1-4   … converted from legacy `GateDescriptor`s at `aecbc6c6c` (#2061/#2062). The legacy
                                    tree is that conversion's PARENT, `6b1d01be0` … (#2136: this line read
                                    "the child of 90bbeb04f", which is a different commit, `90c7be9e7`).
 ```
@@ -122,8 +122,8 @@ Negative claim with control: `grep -nE "count: [0-9]"` over the three count-ratc
 `expect:` proof-row counts and comment prose; the same pattern matches in **299** files under
 `tooling/src/verify/gates/`, so the scan is live.
 
-Proof run: `duplicate-action-doors.test.ts` + `css-home-topology-family.test.ts` +
-`css-hook-provenance-family.test.ts` → **24/24 passed, exit 0**. (`css-length-tokens` is a LEGACY module: its
+Proof run: `duplicate-action-doors.test.ts` + `css-home-topology-family.suite.test.ts` +
+`css-hook-provenance-family.suite.test.ts` → **24/24 passed, exit 0**. (`css-length-tokens` is a LEGACY module: its
 proof rows are visible only to the orchestrator-only planter `gate-conformance.repo.int`, so its arms are read,
 not driven, here — the planter run is primary's and is already owed.)
 
@@ -155,7 +155,7 @@ not a collision with.
   `requireRunChatTurn` guard); the rest were UNRECORDED RULINGS rather than unresolved findings, because seven
   of the thirteen debt classes were already ruled in the SOURCE table for the same technical reason. §4.4
   ("debt is never converted into a grant to make a run clean") governs the latter and was honoured.
-- Proof run: `suppressions-family.test.ts` → **9/9 passed, exit 0**.
+- Proof run: `suppressions-family.suite.test.ts` → **9/9 passed, exit 0**.
 
 **Half 1 — the `no-blanket-suppression` A+B split: STILL MISSING.**
 `tooling/src/verify/gates/no-blanket-suppression.ts:512` is `export const gate: GateDescriptor`, importing
@@ -415,7 +415,7 @@ ledger rows OWED: 2
   reading the tables and by the `count: [0-9]` sweep with its 299-file control; I did not prove the 13
   `(file, candidate)` rows each match exactly one occurrence on the real tree. That planter run is already owed
   by primary and is the honest closure receipt for the `e7e3f083b` half.
-- **#2063 half 2's 65 grant rows were not each driven.** I ran `suppressions-family.test.ts` (9/9) and read the
+- **#2063 half 2's 65 grant rows were not each driven.** I ran `suppressions-family.suite.test.ts` (9/9) and read the
   conversion header's own census figures (597 / 283 / 65, and 46 source + 19 tests grants); I did not
   independently re-derive the 597 occurrences or confirm each grant is consumed exactly once on the real tree —
   that is the `stale-reviewed-grant` engine's job and it runs in `check:structure`, which I did not run.

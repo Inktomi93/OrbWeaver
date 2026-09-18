@@ -174,7 +174,7 @@ violations**.
 
 **No catch was lost.** At the frozen legacy sha `519242add` the three named specs each carried
 `import { expect, test } from "vitest"` — two `ImportSpecifier` nodes apiece, the six. Today all three import
-from `../../../support/tool-fixtures.ts`. `schema-fact-wave-1.test.ts:2` still carries
+from `../../../support/tool-fixtures.ts`. `schema-fact-wave-1.suite.test.ts:2` still carries
 `import { describe } from "vitest"` and NEITHER engine flags it, so the two agree on that too.
 
 ### #2025 — `--fail-on-warnings`
@@ -402,10 +402,10 @@ module — the disjointness is confirmed by the enforcer as well as by reading.
 
 **The eight modules given a family test**, by file:
 
-- `tests/tooling/verify/gates/singleton-ordinary-policies.test.ts` — `baseui-render-prop-composition`,
+- `tests/tooling/verify/gates/singleton-ordinary-policies.suite.test.ts` — `baseui-render-prop-composition`,
   `bus-on-data-no-store-write`, `membership-fan-guard`, `no-caller-user-id`,
   `no-external-media-without-gate`, `test-factory-contract` (**6**).
-- `tests/tooling/verify/gates/unfenced-class-fragment-scanners.test.ts` — `no-color-literals`,
+- `tests/tooling/verify/gates/unfenced-class-fragment-scanners.suite.test.ts` — `no-color-literals`,
   `no-raw-container-widths` (**2**).
 
 Both carry what a proof row structurally cannot: the §4.2 identity arm through `runPolicyPass` asserting all

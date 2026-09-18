@@ -21,7 +21,7 @@ flipped, no `EXEMPT` deleted, no `Core-Enforcement-Active-Gates.md` edit (its pr
 | - | - |
 | worktree | `/home/inktomi/inktomi-stack/development/orbweaver/.claude/worktrees/agent-a321f493895bbe228` |
 | base | `d7ceedfb1` (branch `wt/agent-a321f493895bbe228`), `git rev-list --left-right --count main...HEAD` = `0 0` at start |
-| files | `tooling/src/verify/gates/policy-legacy-imports.ts` · `tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` · this report |
+| files | `tooling/src/verify/gates/policy-legacy-imports.ts` · `tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts` · this report |
 
 ## 1. Historical initial receipt rule and boundary (current contract: §12)
 
@@ -173,7 +173,7 @@ These decisions describe `a9536a2cb`. The type-name prefilter and private annota
 3. **The `fix` text's ARM B clause was narrowed, because it is what authorized the relocation.** It read
    *"debt data with one owner (a deferral list) moves to `contract/` or `lib/` the same way"*. It now says a
    ROW TYPE may move to `contract/` and a TABLE moves nowhere.
-4. **The family test's second opinion gained ARM D's half** (`tests/…/policy-soundness-family.repo.int.test.ts`):
+4. **The family test's second opinion gained ARM D's half** (`tests/…/policy-soundness-family.suite.repo.int.test.ts`):
    a `../lib/` binding whose target text declares it `export const <NAME>: ExemptionTable|ExemptionRow`. It is
    TEXT on both ends deliberately, and it is two-sided — a future relocation that lands unaccused fails there.
    A single-binding regex called `contract-derives-not-respells` clean while the arm accused it (the door
@@ -211,7 +211,7 @@ references alone do not prove containment, and ordinary data members are now wit
 
 | check | result |
 | - | - |
-| `pnpm test:scoped tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` | **15 passed / 15** (includes `verifyPolicyProofs(FAMILY)`, the real-corpus arm, the second opinions, and the closed-classes-at-zero pin) |
+| `pnpm test:scoped tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts` | **15 passed / 15** (includes `verifyPolicyProofs(FAMILY)`, the real-corpus arm, the second opinions, and the closed-classes-at-zero pin) |
 | `pnpm check:structure --check policy-legacy-imports` before / after | 5 → 11, both `0 tool error(s) · 0 withheld`, sets named in §2 |
 | `pnpm check:structure --check policy-soundness` | used as a diagnostic during §5.1; the family test's real-corpus arm is the standing verdict |
 | `pnpm exec biome check <both files> --diagnostic-level=error` | exit 0 |
@@ -266,7 +266,7 @@ keep ARM D from becoming a shape heuristic, the independence of the real-corpus 
 current `../lib/` doors, and the two shared-reader ledger rows in §6 as gaps rather than laundered closure.
 
 **Floor state for this revision:** biome, eslint and `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` all exit 0; `verifyPolicyProofs` and the bounded `--check` re-run as above.
-**`pnpm test:scoped tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` — RUN on the
+**`pnpm test:scoped tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts` — RUN on the
 repaired tree at `ebdab0a62` once the coordinator freed the parser slot: exit 0, 15 passed / 15**,
 including the real-corpus arm (no tool errors, nothing withheld, closed classes at zero) and the
 conformance arm over every declared row. It was committed at `ebdab0a62` as OWED/PENDING-GO because
@@ -724,7 +724,7 @@ The paired reader and production tests cover direct data, one-hop swap, two-hop 
 conditional transport, stable swap, expanding `Readonly` and stable identity-losing `Readonly`. The tripwire
 counts distinct instantiated generic targets instead of recognizing a fixture alias name. Red-first recurrence
 tests on the intermediate repair produced **12 failures**. The final required command
-`pnpm test:scoped tests/tooling/verify/lib/type-member-origin.test.ts tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts`
+`pnpm test:scoped tests/tooling/verify/lib/type-member-origin.test.ts tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts`
 passes **161/161** (72 reader + 89 production family), including declared conformance and the real corpus; report
 `reports/runs/test/agent-a6646bc6706ca2732-4134949-2026-09-13T19-03-15-309Z/test-report.json`.
 

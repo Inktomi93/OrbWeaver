@@ -3501,6 +3501,240 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
         why: "The CT story reproduces the app MutationCache error-toast channel and must drive a raw mutation without inserting the production entity-mutation belt into the behavior under test.",
         endsWhen: "the CT story stops importing useMutation or the tested global mutation-error channel moves to a different harness",
       },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-ops-gen-density-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/ops/gen/density.ts",
+        operation: "dangling-path-cite",
+        why: "density generator was restructured into tooling/src/verify/gates/density-tier.ts + lib/density-tier.ts; the law doc still names the pre-restructure path",
+        endsWhen:
+          "the owning doc (UI-Density-Law.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-snap-ops-lighthouse-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/snap/ops/lighthouse.ts",
+        operation: "dangling-path-cite",
+        why: "lighthouse op moved to tooling/src/snap/ops/arms/lighthouse.ts; the retirement design doc names the pre-move path as the historical shape it describes",
+        endsWhen:
+          "the owning doc (1195-devtools-mcp-retirement.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-snap-ops-request-log-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/snap/ops/request-log.ts",
+        operation: "dangling-path-cite",
+        why: "request-log op split into contract/request-log.ts + lib/request-log.ts; the retirement design doc names the pre-split path as the historical shape it describes",
+        endsWhen:
+          "the owning doc (1195-devtools-mcp-retirement.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-stack-stack-sh-start",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/stack/stack.sh start",
+        operation: "dangling-path-cite",
+        why: "the path includes a CLI subcommand suffix; tooling/src/stack/stack.sh exists but the backticked slice `stack.sh start` does not resolve as a file path",
+        endsWhen:
+          "the owning doc (1208-instrument-substrate.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-stage",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/stage/",
+        operation: "dangling-path-cite",
+        why: "the stage tool directory was never built or was merged into snap; the substrate design doc describes planned architecture",
+        endsWhen:
+          "the owning doc (1208-instrument-substrate.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-_shared-browser-attach-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/_shared/browser-attach.ts",
+        operation: "dangling-path-cite",
+        why: "browser-attach was split into the browser-*.ts family in _shared/; the substrate design doc describes the planned single-file shape",
+        endsWhen:
+          "the owning doc (1208-instrument-substrate.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-screen-record",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/screen-record/",
+        operation: "dangling-path-cite",
+        why: "screen-record tool was never built as a separate directory; the filmstrip design doc describes planned architecture",
+        endsWhen:
+          "the owning doc (1310-snap-filmstrip.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-ui-audit-ops-matrix-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/ui-audit/ops/matrix.ts",
+        operation: "dangling-path-cite",
+        why: "matrix op was restructured; the appearance-invariant design doc names the pre-restructure path",
+        endsWhen:
+          "the owning doc (953-appearance-invariant-matrix.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-motion-audit-ops-matrix-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/motion-audit/ops/matrix.ts",
+        operation: "dangling-path-cite",
+        why: "motion matrix op was split into matrix-contract.ts + matrix-verdict.ts; the appearance-invariant design doc names the pre-split path",
+        endsWhen:
+          "the owning doc (953-appearance-invariant-matrix.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-bus-onData-no-store-write-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/bus-onData-no-store-write.ts",
+        operation: "dangling-path-cite",
+        why: "the gate was renamed to bus-on-data-no-store-write.ts (kebab-case); the doc names the historical camelCase path as context for the naming-convention suppression it describes",
+        endsWhen:
+          "the owning doc (962-blanket-suppression-control-plane.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-ui-audit-ops-run-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/ui-audit/ops/run.ts",
+        operation: "dangling-path-cite",
+        why: "ui-audit run.ts was restructured into the snap ops tree; the population-semantics design doc names the pre-restructure path",
+        endsWhen:
+          "the owning doc (983-984-ui-audit-population-semantics.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-shared-appearance-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/_shared/appearance.ts",
+        operation: "dangling-path-cite",
+        why: "appearance.ts was restructured into the _shared/appearance-matrix.ts family; the config-revamp design doc names the pre-restructure path",
+        endsWhen:
+          "the owning doc (DESIGN.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-membership-fan-guard-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/membership-fan-guard.ts:10, 23",
+        operation: "dangling-path-cite",
+        why: "the gate was renamed or restructured during #1584; the regex-section proposal doc names the pre-conversion gate and line range as a historical citation",
+        endsWhen:
+          "the owning doc (PROPOSAL-sys.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-user-bus-coverage-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/user-bus-coverage.ts",
+        operation: "dangling-path-cite",
+        why: "gate was renamed during #1584 conversion; the bus-pair review and census docs record the pre-conversion gate name as a point-in-time snapshot",
+        endsWhen:
+          "the owning docs (bus-pair-1584.md, uncovered-gate-conversion-census.md) are repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-cli-ts-structure",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/cli.ts structure",
+        operation: "dangling-path-cite",
+        why: "the backticked path includes a CLI subcommand suffix; tooling/src/verify/cli.ts exists but the complete slice does not resolve as a file path. The planner-cli integration review doc cites the invocation form",
+        endsWhen:
+          "the owning doc (planner-cli-integration.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-lib-section-defs-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/lib/section-defs.ts",
+        operation: "dangling-path-cite",
+        why: "section-defs was restructured during #1584; the registry-family checkpoint review doc names the pre-restructure path as a point-in-time snapshot",
+        endsWhen:
+          "the owning doc (registry-family-1584-checkpoint.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-tooling-shared-plumbing-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/tooling-shared-plumbing.ts",
+        operation: "dangling-path-cite",
+        why: "gate was renamed during #1584 conversion; the census doc records the pre-conversion gate name as a point-in-time snapshot",
+        endsWhen:
+          "the owning doc (uncovered-gate-conversion-census.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-asset-refs-fk-coverage-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/asset-refs-fk-coverage.ts",
+        operation: "dangling-path-cite",
+        why: "gate was renamed during #1584 conversion; the census doc records the pre-conversion gate name as a point-in-time snapshot",
+        endsWhen:
+          "the owning doc (uncovered-gate-conversion-census.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-automation-bus-coverage-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/automation-bus-coverage.ts",
+        operation: "dangling-path-cite",
+        why: "gate was renamed during #1584 conversion; the census doc records the pre-conversion gate name as a point-in-time snapshot",
+        endsWhen:
+          "the owning doc (uncovered-gate-conversion-census.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-bus-coverage-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/bus-coverage.ts",
+        operation: "dangling-path-cite",
+        why: "gate was renamed during #1584 conversion; the census doc records the pre-conversion gate name as a point-in-time snapshot",
+        endsWhen:
+          "the owning doc (uncovered-gate-conversion-census.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-domain-events-coverage-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/domain-events-coverage.ts",
+        operation: "dangling-path-cite",
+        why: "gate was renamed during #1584 conversion; the census doc records the pre-conversion gate name as a point-in-time snapshot",
+        endsWhen:
+          "the owning doc (uncovered-gate-conversion-census.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-monotonic-tests-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/monotonic-tests.ts",
+        operation: "dangling-path-cite",
+        why: "gate was deleted (monotonic-tests manifest removed #2217); the census doc records the pre-deletion gate name as a point-in-time snapshot",
+        endsWhen:
+          "the owning doc (uncovered-gate-conversion-census.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-rpg-bus-coverage-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/rpg-bus-coverage.ts",
+        operation: "dangling-path-cite",
+        why: "gate was renamed during #1584 conversion; the census doc records the pre-conversion gate name as a point-in-time snapshot",
+        endsWhen:
+          "the owning doc (uncovered-gate-conversion-census.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-gates-finding-overload-provenance-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/gates/finding-overload-provenance.ts",
+        operation: "dangling-path-cite",
+        why: "gate was renamed during #1584 conversion; the census doc records the pre-conversion gate name as a point-in-time snapshot",
+        endsWhen:
+          "the owning doc (uncovered-gate-conversion-census.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-ops-policy-conformance-ts-145-147",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/ops/policy-conformance.ts:145-147, ",
+        operation: "dangling-path-cite",
+        why: "the file exists but the backticked path includes a line-range suffix with a trailing comma-space; the review doc cites a historical line range that may have shifted",
+        endsWhen:
+          "the owning doc (v-wave-2026-09-13.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
+      {
+        id: "dangling-ref-citations:tooling-src-verify-lib-population-ts",
+        policyId: "dangling-ref-citations",
+        subject: "tooling/src/verify/lib/population.ts",
+        operation: "dangling-path-cite",
+        why: "population.ts was renamed to population-resolver.ts; the review doc names the pre-rename path as a point-in-time snapshot",
+        endsWhen:
+          "the owning doc (v-wave-2026-09-13.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
+      },
     ] satisfies ReviewedGateGrant[]
   ).toSorted((a, b) => {
     const p = a.policyId.localeCompare(b.policyId);

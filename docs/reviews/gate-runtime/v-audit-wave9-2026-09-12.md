@@ -7,7 +7,7 @@ updated: 2026-09-12
 # v-audit-wave9 — closing the debt wave 8 left: `origin-server`'s 14 on §4.1 and the third answer (#1584)
 
 Read-only adversarial audit of the fourteen SERVER-plane policies imported by
-[`tests/tooling/verify/gates/origin-server-family.test.ts`](../../../tests/tooling/verify/gates/origin-server-family.test.ts).
+[`tests/tooling/verify/gates/origin-server-family.suite.test.ts`](../../../tests/tooling/verify/gates/origin-server-family.suite.test.ts).
 [`v-audit-wave8-2026-09-12.md`](v-audit-wave8-2026-09-12.md) audited them on the corpus-wide axes only and
 declared, in its own "What I did NOT cover" list, that **`origin-server`'s §4.1 narrowing cuts and §4.5/#944
 reachability probes were uncovered for all 14**. This document closes exactly those axes, plus a

@@ -61,7 +61,7 @@ zero-byte tracked config are both in it) therefore never reaches `readCompilerCo
 
 All from `env -C`-equivalent inside the worktree; scratch logs under this session's scratchpad.
 
-1. `pnpm test:scoped tests/tooling/verify/gates/grant-liveness-family.test.ts tests/tooling/verify/gates/biome-grant-liveness.int.test.ts tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts tests/tooling/verify/lib/policy-program-membership.test.ts`
+1. `pnpm test:scoped tests/tooling/verify/gates/grant-liveness-family.suite.test.ts tests/tooling/verify/gates/biome-grant-liveness.int.test.ts tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts tests/tooling/verify/lib/policy-program-membership.test.ts`
    → exit 0, **4 files / 25 tests passed**.
 2. `pnpm check:structure` (the serialized structure leg, GO given by the orchestrator) → exit 1 (baseline red),
    `0 tool error(s)` · `0 withheld` · `0 alarm(s)`, corpus `300/300 (54 legacy · 246 final)`, final pass
@@ -102,7 +102,7 @@ All from `env -C`-equivalent inside the worktree; scratch logs under this sessio
 C12 is the harness's own positive control: the cut reaches the code and the rows can die.
 7\. **§4.2 does not apply and §4.3 does.** Both grant-carrying halves are `authority: "reviewed-grant"`, not
 `ordinary`, so there is no waiver position to flip; the brief's "positive identity arm for each ordinary half"
-has no subject here. The §4.3 substitute is present and I ran it: `grant-liveness-family.test.ts`'s three arms
+has no subject here. The §4.3 substitute is present and I ran it: `grant-liveness-family.suite.test.ts`'s three arms
 (intended grant consumed once and licensing; wrong operation → finding stays effective + alarm; renamed subject
 → stale) all pass, and step 5 is my own independent version of the third.
 8\. **Independent plants (brief item 4).** A dead file-exact exclude and a dead glob in a NON-ROOT config

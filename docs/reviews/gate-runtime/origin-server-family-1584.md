@@ -191,7 +191,7 @@ is an owner-adjacent call. **This needs its own row.**
 
 | Check | Result |
 | - | - |
-| family conformance (`tests/tooling/verify/gates/origin-server-family.test.ts`) | green — 14 policies, 159 proofs |
+| family conformance (`tests/tooling/verify/gates/origin-server-family.suite.test.ts`) | green — 14 policies, 159 proofs |
 | the four shared readers' own specs (`tests/tooling/verify/lib/{sealed-origin,drizzle-client-call,test-runner-door,template-static-text}.test.ts`) | green — 29 tests; each reader ARMED (neutering its comparison reds exactly the rows that assert it) |
 | fixture-resolution control (every relative specifier in every final proof) | 323 checked corpus-wide; within the fourteen the only 5 unresolved are the deliberate `./missing*.ts` fail-closed rows (the other 2 belong to `no-raw-id` / `no-mint-via-cast`, below) |
 | tooling type program (`ts7.cjs -p tooling/tsconfig.json`) | green, zero errors |

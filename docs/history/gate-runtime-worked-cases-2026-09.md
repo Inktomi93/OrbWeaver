@@ -319,7 +319,7 @@ array as a PREFIX**, so a row at index 9 forces every fixture to also carry 6, 7
 fixture repo and each report as a DEAD SELECTOR. Land new fences at the first indices after the last ratified key
 and let the unratified live entries shift down; nothing references them by position.
 
-**AND THE FIXTURES ARE IN THE GATE MODULE, NOT IN THE FAMILY TEST.** `grant-liveness-family.test.ts` drives
+**AND THE FIXTURES ARE IN THE GATE MODULE, NOT IN THE FAMILY TEST.** `grant-liveness-family.suite.test.ts` drives
 `verifyPolicyProofs` and needed no edit at all; the four `mustFlag`/`mustPass` fixtures that hand-spell the array
 live in `gates/eslint-grant-liveness.ts` itself. A brief that sends a lane to the family test for this sends it to
 the wrong file.

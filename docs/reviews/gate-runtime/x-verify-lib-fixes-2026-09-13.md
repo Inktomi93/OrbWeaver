@@ -259,7 +259,7 @@ ZERO rows is exit 2 (blindness), mirroring `ledgers-fresh`'s own refusal.
 | `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | **0** — PASS both |
 | `pnpm check:docs <the one doc>` | **1, and RED AT HEAD TOO** (control run on the `git show HEAD:` copy) |
 | `pnpm test:scoped tests/tooling/verify/ops/run.int.test.ts` (tier composition) | **0** — 69 tests |
-| `pnpm test:scoped tests/tooling/verify/gates/resource-layout-wave-3.test.ts` (the parity gate's family) | **0** |
+| `pnpm test:scoped tests/tooling/verify/gates/resource-layout-wave-3.suite.test.ts` (the parity gate's family) | **0** |
 | `pnpm check:structure --check verify-registry-parity` (the #1964 SCOPED door) before / after the manual row | **1 / 0** |
 | `vitest list tests/tooling/gate-spelling-twins.int.test.ts` | 3 cases COLLECT (never executed — orchestrator-only planter) |
 

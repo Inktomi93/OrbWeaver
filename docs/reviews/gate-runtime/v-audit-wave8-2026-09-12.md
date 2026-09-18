@@ -7,9 +7,9 @@ updated: 2026-09-12
 # v-audit-wave8 — the SERVER plane (home-server 11 + origin-server 14) against §5b PRISTINE (#1584)
 
 Read-only adversarial audit of the SERVER-plane policies imported by
-[`tests/tooling/verify/gates/home-server-family.test.ts`](../../../tests/tooling/verify/gates/home-server-family.test.ts)
+[`tests/tooling/verify/gates/home-server-family.suite.test.ts`](../../../tests/tooling/verify/gates/home-server-family.suite.test.ts)
 and
-[`tests/tooling/verify/gates/origin-server-family.test.ts`](../../../tests/tooling/verify/gates/origin-server-family.test.ts),
+[`tests/tooling/verify/gates/origin-server-family.suite.test.ts`](../../../tests/tooling/verify/gates/origin-server-family.suite.test.ts),
 held to [`gate-runtime-standardization.md`](../../design/gate-runtime-standardization.md) §5b's seven
 criteria and §4's proof rules. Method, verdict shape and the four-way clean-cut classification are copied
 from [`v-audit-wave7-2026-09-12.md`](v-audit-wave7-2026-09-12.md) and
@@ -287,11 +287,11 @@ of whether the sealed symbol is a value or a type, and a type-only seal gets `Im
 ## §4.3 — reviewed-grant identity, and a family-test header that overstates itself
 
 **D7 — 7 of the 10 reviewed-grant policies have NO §4.3 grant pin anywhere, and
-`home-server-family.test.ts`'s header says every policy has one (HIGH).**
+`home-server-family.suite.test.ts`'s header says every policy has one (HIGH).**
 
 §4.2 is explicit that `runPass` pins `knownPolicies: [policy]` with `reviewedGrants: []`, so a
 reviewed-grant policy **cannot** prove grant consumption in a module row — it belongs in the family test.
-Census of `home-server-family.test.ts` (its four `test(` blocks beyond the conformance call):
+Census of `home-server-family.suite.test.ts` (its four `test(` blocks beyond the conformance call):
 
 | Policy | Authority | Family-test pin |
 | - | - | - |
@@ -307,7 +307,7 @@ Census of `home-server-family.test.ts` (its four `test(` blocks beyond the confo
 | `single-stream-transport` | reviewed-grant | **NONE** |
 | `sole-env-reader` | reviewed-grant | **NONE** |
 
-`grep '"<id>"' tests/tooling/**` returns `home-server-family.test.ts` for only four of the eleven, and the
+`grep '"<id>"' tests/tooling/**` returns `home-server-family.suite.test.ts` for only four of the eleven, and the
 other three families' tests name none of them.
 
 The file's own header states:
@@ -320,7 +320,7 @@ Grant liveness is pinned for **one** policy. Seven policies' `(subject, operatio
 over-broad behaviour — the entire mechanism their headers cite as the replacement for the legacy
 `SANCTIONED_HOMES` rename tripwire — are asserted by nothing. **This is the same class as wave 7's
 finding (a header claiming a proof it was never shown to catch), one level up: the FAMILY TEST's header,
-not a module's.** It matters more here, because `home-server-family.test.ts` is the file the remaining
+not a module's.** It matters more here, because `home-server-family.suite.test.ts` is the file the remaining
 sanctioned-home conversions will copy.
 
 **D8 — `owner-role-split`'s withholding claim is unenforced, while its twin's is pinned (MEDIUM).** Both
@@ -456,7 +456,7 @@ a §5b.5 header paragraph.
 - **`reviewed-grant-identity-has-no-module-row-home`** — `runPass` pins `reviewedGrants: []`, so a
   reviewed-grant policy's `(subject, operation)` grain, STALE alarm and over-broad behaviour cannot be
   proven by ANY module row; the pin only exists if the family test has a grant block. Census the family
-  test by policy id, not by reading its header — `home-server-family.test.ts` claims grant liveness for
+  test by policy id, not by reading its header — `home-server-family.suite.test.ts` claims grant liveness for
   "every policy here" and has it for one of ten.
 - **`widening-a-home-fence-is-the-wrong-direction`** — For a fence that DEFINES a policy's population or
   home (`isHomeFile`, a path infix used to build the subject set), widening it makes the policy flag LESS

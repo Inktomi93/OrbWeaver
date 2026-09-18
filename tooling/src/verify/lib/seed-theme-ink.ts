@@ -23,7 +23,7 @@
 // caught by the next verifier: there are more classes than four, and two of the four it listed had no
 // test). So the set is ENUMERATED FROM A DRIVEN DIFFERENTIAL rather than from memory — the frozen
 // pre-fold TEXT reader (`680d66e7c^`) against the tip reader over identical bytes. The differences below
-// each carry a pin in tests/tooling/verify/gates/seed-theme-ink-family.test.ts.
+// each carry a pin in tests/tooling/verify/gates/seed-theme-ink-family.suite.test.ts.
 // Frozen → tip:
 //   WIDER    a final declaration with no `;` before its `}` is READ (`hearth{x}` → `hearth{x,last}`) — the
 //            old `DECLARATION` regex required the semicolon.

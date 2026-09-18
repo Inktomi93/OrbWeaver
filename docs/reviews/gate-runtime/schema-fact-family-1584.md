@@ -370,7 +370,7 @@ policies supplied as `knownPolicies` so their live waivers resolve as known-but-
 - Zero fact errors, zero policy tool errors, zero authority tool errors, **zero authority alarms**, nothing
   withheld.
 
-Conformance: `schema-fact-wave-1.test.ts` (both waves) and `ledger-banned-shapes.test.ts` green; the
+Conformance: `schema-fact-wave-1.suite.test.ts` (both waves) and `ledger-banned-shapes.suite.test.ts` green; the
 asset-refs suites 15/15 including the live reconciliation.
 
 ### `gate:contract` delta

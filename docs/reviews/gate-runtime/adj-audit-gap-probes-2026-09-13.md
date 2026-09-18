@@ -23,7 +23,7 @@ Load-bearing source:
   only `foreignKey.onDelete.kind === "unspecified"`.
 - Its existing rows at `:47-95` cover absent/empty options and ordinary explicit options, but not spread
   syntax directly.
-- `tests/tooling/verify/gates/schema-fact-wave-1.test.ts` dispatches this policy through the shared fact;
+- `tests/tooling/verify/gates/schema-fact-wave-1.suite.test.ts` dispatches this policy through the shared fact;
   `schema-fact-parity.test.ts:704-763` independently carries legacy/final parity shapes.
 
 Focused in-memory controls through `verifyPolicyProofs`:
@@ -102,7 +102,7 @@ policy run into a tool error. This is fail-loud rather than false-clean, but it 
 to judge a shape the policy exists to reject. It is the same coordinate-family boundary described in the
 module's #2197 comment, one transparent cast layer deeper.
 
-Recommended bounded repair scope: `no-loose-id-cast.ts` and `id-brand-flow.test.ts`. Preserve the current
+Recommended bounded repair scope: `no-loose-id-cast.ts` and `id-brand-flow.suite.test.ts`. Preserve the current
 single-cast and `satisfies` behavior. Add the parenthesized const-asserted double-cast regression plus the
 unparenthesized twin; make anchor selection descend through only the exact transparent cast wrappers needed to
 reach the authored carrier, without broadening what counts as a brand-laundering pair. This should receive its

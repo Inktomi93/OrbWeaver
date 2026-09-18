@@ -145,7 +145,7 @@ const MESSAGE =
 
 const FIX =
   "Add a RealCorpusLivenessArm for this policy in the appropriate family test (either " +
-  "real-corpus-liveness-family.repo.int.test.ts or the policy's own family test), then run the test to " +
+  "real-corpus-liveness-family.suite.repo.int.test.ts or the policy's own family test), then run the test to " +
   "prove the arm fires.";
 
 const POLICY_CONTRACT_STUB = `export function ${DEFINE_GATE}<const Policy>(policy: Policy): Policy {\n  return policy;\n}\n`;

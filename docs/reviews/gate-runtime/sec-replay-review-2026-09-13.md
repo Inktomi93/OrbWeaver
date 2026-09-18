@@ -382,7 +382,7 @@ materialization it is building is where the grammar belongs, once.
   an adapter that hard-wires "init + add" into one shared materialization removes the only thing proving the
   index is inert on the legacy side. If the adapter lands, `index: boolean` has to survive as a parameter.
 - **Three copies of `NON_AUTHORED_SEGMENT_RE`** (`ops/policy-conformance.ts:37`,
-  `tests/support/legacy-differential.ts:608`, `tests/tooling/verify/gates/css-hook-provenance-family.test.ts:201`).
+  `tests/support/legacy-differential.ts:608`, `tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts:201`).
   The repair honored "the grammar is IMPORTED, never re-spelled" for the traversal rule and not for this one.
   One-home nit, no security weight; worth folding when the conformance fix above lands.
 - **`grant-liveness-legacy-replay.test.ts:606`** writes its sentinel directly into `os.tmpdir()` (not into

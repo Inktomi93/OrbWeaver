@@ -104,7 +104,7 @@ Probe on a copy in my own worktree (`cp` backup, one command per call, `mv` rest
 `stash`/`checkout`/`restore`): `resolveCalleeBody`'s
 `callable.value.sourceFile === call.getSourceFile()` deleted, everything else untouched.
 
-- `pnpm test:scoped tests/tooling/verify/gates/callback-provenance-family.test.ts` → **exit 1**,
+- `pnpm test:scoped tests/tooling/verify/gates/callback-provenance-family.suite.test.ts` → **exit 1**,
   `Tests 1 failed | 11 passed`, and the single failure is
   `{ policyId: 'audit-client-tests', arm: 'mustFlag', exampleIndex: 8, detail: 'expected at least one
   effective finding but got 0' }`.
@@ -158,7 +158,7 @@ Everything else in §2.2 verifies: the return index is keyed by ts-morph NODE id
 
 - Falsifier: I cut `callable.value.sourceFile.compilerNode === membrane.compilerNode` from
   `negatedGuardCall` (copy/restore as above) and ran
-  `pnpm test:scoped tests/tooling/verify/gates/ordinary-visitors-family.test.ts` → **exit 1**, one
+  `pnpm test:scoped tests/tooling/verify/gates/ordinary-visitors-family.suite.test.ts` → **exit 1**, one
   failure, `policyId: plugin-dump-guard`, `arm: mustFlag`, `exampleIndex: 5`. So the HOME test — not the
   `FunctionDeclaration` kind test — is what refuses the imported guard, which is the claim.
   Corroborating reader receipt: an imported `export function f` resolves to the real
@@ -192,8 +192,8 @@ against `b1a23e534` — ten commits later, the number and every row are unchange
 
 ## 7. Proof rows and the bounded real-tree run (CONFIRMED)
 
-- `pnpm test:scoped` over `reference-fact-callable.test.ts`, `callback-provenance-family.test.ts`,
-  `class-string-literal-wave.test.ts`, `ordinary-visitors-family.test.ts`, `port-parity-tier3.test.ts`
+- `pnpm test:scoped` over `reference-fact-callable.test.ts`, `callback-provenance-family.suite.test.ts`,
+  `class-string-literal-wave.suite.test.ts`, `ordinary-visitors-family.suite.test.ts`, `port-parity-tier3.test.ts`
   → **exit 0, 5 files, 47/47**. Those four gate suites are the `verifyPolicyProofs` entry for the three
   subjects (`callback-provenance-family` imports `audit-client-tests`, `class-string-literal-wave`
   imports `class-token-splice`, `ordinary-visitors-family` imports `plugin-dump-guard`), plus the frozen
@@ -348,7 +348,7 @@ I ran is exactly the followup diff.
 
 **Receipts.** All through `verifyPolicyProofs([classTokenSplice])` — the production conformance runner —
 from a lane-unique scratch spec that also printed `mustFlag.length` / `mustPass.length`, plus
-`pnpm test:scoped tests/tooling/verify/gates/class-string-literal-wave.test.ts` → exit 0, 4/4.
+`pnpm test:scoped tests/tooling/verify/gates/class-string-literal-wave.suite.test.ts` → exit 0, 4/4.
 
 | gate content in my tree | mustFlag | mustPass | total | `verifyPolicyProofs` failures |
 | - | -: | -: | -: | - |
@@ -395,7 +395,7 @@ reader, and my §1 finding (the module-axis raw accept, and the write-refusal ga
 unchanged on the tree.
 
 **Scoped floor for this section, in my worktree:** `pnpm test:scoped
-tests/tooling/verify/gates/class-string-literal-wave.test.ts` (exit 0, 4/4) · `verifyPolicyProofs` four
+tests/tooling/verify/gates/class-string-literal-wave.suite.test.ts` (exit 0, 4/4) · `verifyPolicyProofs` four
 times as tabled · `pnpm exec biome check tooling/src/verify/gates/class-token-splice.ts --diagnostic-level=error` (exit 0, 1 file) · `pnpm exec eslint <same>` (exit 0). Not run for this
 section: any whole-tree check, `check:structure`, typecheck, and the author's own report through
 `check:docs` (their file, their tree). `git status --short` EMPTY after the restore; my copy of the gate

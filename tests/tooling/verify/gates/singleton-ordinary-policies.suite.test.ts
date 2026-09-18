@@ -29,7 +29,7 @@
 // `authorityAlarms === []`: a row is green when the marker suppressed the finding AND green when the
 // fixture's finding was never produced in the first place, and it cannot distinguish "suppressed" from
 // "consumed nothing". The §4.2 triple — `effectiveFindings []`, `waivedFindings 1`, `authorityAlarms []` —
-// is the arm (gold standard: ordinary-visitors-family.test.ts:187-196, the POSITIVE arm only). §4.8's
+// is the arm (gold standard: ordinary-visitors-family.suite.test.ts:187-196, the POSITIVE arm only). §4.8's
 // fixture-specifier resolution control is the other standing piece of every family floor.
 //
 // §4.3 (reviewed grants) and §4.5 (refusal/receipt) do not apply to any of the seven: all declare `facts: []`
@@ -38,7 +38,7 @@
 // law" clause was RETIRED by #2000 deliverable 3 (`2084c403e`) — evidence may no longer vanish. Three of
 // the seven (`baseui-render-prop-composition`, `no-external-media-without-gate`,
 // `no-array-literal-querykey`) are on the Tier-3 CLOSE-BY-RULE roster, whose membership test, receipts and
-// stated limits live in `tier3-close-by-rule.test.ts`; the other four are not, and their differentials are
+// stated limits live in `tier3-close-by-rule.suite.test.ts`; the other four are not, and their differentials are
 // open #2000 work rather than something this file claims.
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";

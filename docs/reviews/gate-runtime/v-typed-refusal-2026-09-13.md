@@ -16,7 +16,7 @@ written. Neither lane's report was taken as evidence for anything.
 | | |
 | - | - |
 | stack A | `f95d26233` (`a9536a2cb` → `ebdab0a62` → `f95d26233`), base `d7ceedfb1` — identical to my HEAD for the two touched source paths (`git diff --stat d7ceedfb1 HEAD -- <paths>` empty) |
-| stack B | `630793eb7` (seven commits), base `db6e5bbd6` — my HEAD differs from that base only in two unrelated suites (`eslint-grant-liveness.int.test.ts`, `mirror-index-family.test.ts`), neither naming a module in the debt set |
+| stack B | `630793eb7` (seven commits), base `db6e5bbd6` — my HEAD differs from that base only in two unrelated suites (`eslint-grant-liveness.int.test.ts`, `mirror-index-family.suite.test.ts`), neither naming a module in the debt set |
 
 ## Module verdicts
 
@@ -83,7 +83,7 @@ assertion read. Codex's refutation of `a9536a2cb` is repaired at `ebdab0a62`.
 
 ### A3 — the other positives and the controls · **CONFIRMED**
 
-`pnpm test:scoped tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` with stack A applied:
+`pnpm test:scoped tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts` with stack A applied:
 **exit 0, 15 passed / 15**, including `verifyPolicyProofs(FAMILY)` (which runs every `mustFlag`/`mustPass`/
 `mustRefuse` row of this module through the production dispatcher: alias, namespace, identifier-behind-
 default, two-hop shim, `ExemptionRow`; and the `StageTrigger`, reader-parameter, retype, foreign-same-name

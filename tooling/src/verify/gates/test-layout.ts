@@ -52,7 +52,7 @@
 // the POPULATION phase, and the owner is withheld before `create` runs (guide §3's acquisition-refusal rule). So this
 // module owns no not-ready branch: it reads through `readyResourceValue`, whose throw asserts that
 // refusal. Every reachable refusal and the complete run's receipt pair are pinned through `runPolicyPass`
-// in `tests/tooling/verify/gates/mirror-index-family.test.ts`, because no proof row can express a refusal
+// in `tests/tooling/verify/gates/mirror-index-family.suite.test.ts`, because no proof row can express a refusal
 // (guide §6.3).
 //
 // DECLARED LIMITS: the exemption classes themselves, each of which carries the row that holds it —
@@ -76,7 +76,7 @@
 //     findings, every one the §4.7 tooling arm ("mirror miss — no source for …"). LEGACY side: 53, measured
 //     by cb-v-wave-8c on `50e31c534`, where the final side also read 53 — the pair MATCHES on that tree. The
 //     +4 since is not a catch delta: each member is a test file that landed after, named path-by-path in
-//     `tests/tooling/verify/gates/mirror-index-family.test.ts`'s parked roster (#2270/#2142).
+//     `tests/tooling/verify/gates/mirror-index-family.suite.test.ts`'s parked roster (#2270/#2142).
 //   · POPULATION. `population: { of: "none" }` both sides in effect — the legacy descriptor walked `tests`
 //     itself and the final policy declares it. Resource members on the real tree: `package-test` 6525,
 //     `tooling-test` 2228, `unresolved` 0 on both, which is the membership the legacy `readdirSync` built

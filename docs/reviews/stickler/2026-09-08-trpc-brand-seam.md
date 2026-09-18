@@ -92,7 +92,7 @@ cruise remained clean at 4,717 modules / 27,170 edges.
   `reports/runs/test/codex-world-gate-integration-3115926-2026-09-08T13-49-11-827Z/test-report.json`.
 - `pnpm test:types tests/kit/ids/index.test-d.ts tests/tooling/trpc-brand-input.test-d.ts` — 2 files,
   8 type tests passed under `types-node`, with no type errors.
-- `pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.test.ts` — 1 composed ID-gate conformance
+- `pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.suite.test.ts` — 1 composed ID-gate conformance
   test passed. Artifact:
   `reports/runs/test/codex-world-gate-integration-3129322-2026-09-08T13-53-28-311Z/test-report.json`.
 - `pnpm typecheck` and `pnpm typecheck:graph` — both exited 0 with no diagnostics.

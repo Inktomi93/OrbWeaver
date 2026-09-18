@@ -155,6 +155,7 @@ export function loadInstalledPackage(root: string, request: InstalledPackageRequ
     // two different instructions, and a lane in a worktree that skipped bootstrap hits the first every time.
     return { status: "missing", paths: [], members: 0, reason: `installed package ${request.id} is not resolvable: ${message(error)}` };
   }
+  // @orb-waive caught-failure-ownership(error): installed-resource resolution: error surfaces as a structured tool-error; the broken resource is excluded from the installed set
   try {
     if (request.mode === "metadata") {
       return { status: "ready", value: metadataFacts(root, request.id, manifest), paths: [], members: 1 };

@@ -8,7 +8,7 @@
 // The classifier and every liveness arm — dead row, containment (including the in-repo symlink that escapes
 // the tree), the field-specific include-must-be-a-file rule, the named-const spread, the glob skips and the
 // classifier-rot tripwire — are now the policy's own `mustFlag`/`mustPass` rows, run through the production
-// dispatcher by `tests/tooling/verify/gates/grant-liveness-family.test.ts` and by the
+// dispatcher by `tests/tooling/verify/gates/grant-liveness-family.suite.test.ts` and by the
 // `structure:policy-conformance` stage. What THIS file keeps is what those isolated resource fixtures
 // cannot express:
 //   1. the three REFUSAL arms the conversion moved out of the policy — a MISSING, an UNPARSEABLE and an

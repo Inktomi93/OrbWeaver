@@ -95,7 +95,7 @@ On every criterion wave 1 found rotten, this family is markedly better:
 | `pnpm check:policy-conformance` (final, post-merge, after all twelve probe rounds) | `167 final policies · **1667** proof rows · 0 failure(s) · 105 grant rows · 0 invalid · 15812ms`, **exit 0** — restored (+5 rows are other lanes', landed by the two merges) |
 | `pnpm gate:contract` (before and after) | `761 finding(s) across 271 gate module(s)`, exit 1. Total did NOT rise. **grep over the final log for all seven FINAL subject ids returns 0**; the only subject-named findings in the corpus are the legacy `home-tile-registry-completeness`'s five |
 | **`pnpm check:structure`** (run ALONE, once — the instrument wave 1 skipped) | exit 1 (migration baseline). Tail: `final policies: 167 ran · raw 1322 = waived 1127 + granted 105 + effective 90 (90 error, 0 warning) · 0 alarm(s) · **0 tool error(s)** · **0 withheld**`; `single-pass: ran 271/271 active gate(s) … run COMPLETE`. **All eight subjects `✓` with non-zero real-tree populations** — chrome 1319 src / `CHROME_ZONES: 4` / `ChromeEntry: 7`; config-group 1319 / 4+1+13 across its three denominators; modal 1319 / 11; section 1319 / 10; placeholder 1319 / 10; message-kind 2917 / axis 3; warning-code 1598 / `CHAT_WARNING_CODES: 14` + `WARNING_CODES: 12`. **Nothing in this family is withheld or blinded on the real tree.** Run id `agent-a6d7dedbf06f8f479-3102881-2026-09-11T23-08-04-162Z` |
-| `pnpm test:scoped tests/tooling/verify/gates/` | 57 files, **53 passed / 4 failed**; 6 failing tests, triaged below. **Both family tests covering my subjects PASSED**: `registry-family.test.ts` (10 tests, 15.7 s) and `message-kind-policy-coverage.test.ts` (3 tests, 1.5 s) |
+| `pnpm test:scoped tests/tooling/verify/gates/` | 57 files, **53 passed / 4 failed**; 6 failing tests, triaged below. **Both family tests covering my subjects PASSED**: `registry-family.suite.test.ts` (10 tests, 15.7 s) and `message-kind-policy-coverage.test.ts` (3 tests, 1.5 s) |
 | quiet re-run of the three timing-out files | **3/3 files PASS, exit 0** |
 | 12 `cp`/`mv` probe rounds | 30 narrowing cuts · 2 cluster cuts · 1 direction control · 6 message transplants · 7 dead-position controls · 7 population-escape probes · 2 denominator probes · 6 built-falsifier rows run in BOTH arms. Each restored; `git status --short` EMPTY after every round |
 
@@ -233,7 +233,7 @@ explicit "deleting X REDS this row" `why` — and every one of those claims was 
 
 ### D6 — two modules' declared denominators are SOUND but UNPINNED (§4.5, LOW)
 
-`tests/tooling/verify/gates/registry-family.test.ts` holds real `runPolicyPass` refusal pins for `chrome`
+`tests/tooling/verify/gates/registry-family.suite.test.ts` holds real `runPolicyPass` refusal pins for `chrome`
 (`:242`, the zone vocabulary stops resolving), `modal` + `section` (`:134`, one kind's blind provider) and
 `warning-code` (`:197-228`, three arms — declared-outside-home / absent / empty — plus the `:230` positive
 control proving the withholding is the rebinding and not the fixture). `message-kind-policy-coverage.test.ts`
@@ -297,7 +297,7 @@ buckets, and an UNENFORCED verdict is issued only with a falsifier run in both a
 | | canonical mapper binding `getName() === CHAT_MAPPER` (:148) | any function's returns | `mustFlag[4]` | ENFORCED |
 | | per-channel chat-emitter admission `channel.chat &&` (:127) | both channels admit `emit`/`emitQuiet` | — | **UNENFORCED** — falsifier built |
 | | a pushed record must carry `message` (:116) | drop it | — | **UNENFORCED** — falsifier built (a "flags LESS" fence: it prevents a false CLEAN, so the falsifier is a row the cut turns GREEN) |
-| | vocabulary HOME BINDING `declared === channel.home` (:157) | adopt any same-named tuple | — | **PINNED ELSEWHERE, not a gap** — `registry-family.test.ts:197-228` ("declared outside its home"), the legitimate §4.5 home for it |
+| | vocabulary HOME BINDING `declared === channel.home` (:157) | adopt any same-named tuple | — | **PINNED ELSEWHERE, not a gap** — `registry-family.suite.test.ts:197-228` ("declared outside its home"), the legitimate §4.5 home for it |
 | `message-kind` | single-arm exemption `axis.singleArm \|\|` (:236) | demand a reader for literal axes | `mustPass[1]` | ENFORCED |
 | | reader-scope fence in `directAxes` (:139) | count non-behaviour-tier reads as coverage | — | **UNENFORCED** — falsifier built on the second attempt (see below); D4 |
 | | `homeCarriers` `path === HOME` (:122) · `enclosingCarrier` `isExported()` (:105) · `carriedAxes` `importedNames.has(carrier)` (:188) | individually | — | **MUTUALLY REDUNDANT.** Cut TOGETHER they kill `mustFlag[2]` (the local-shadow row): with all three gone, the local `MESSAGE_KIND_POLICY` in the server fixture becomes a "home carrier" named `p` and covers `prompt`. The cluster IS enforced; none of the three is individually pinnable, and the fix is **not** three `mustPass` rows |
@@ -427,7 +427,7 @@ Legend: **P** pass · **F** fail · **N/A** does not bind · **NE** not evaluate
    PRIMITIVE rather than a second family.
 5. **F** — the header is excellent (two-denominator rationale, the #942 drift, the assembler-by-type boundary);
    the ROSTER row `:160` refutes the header on subject identity (D2).
-6. **F** — §4.2 arm PROVEN; §4.5 refusal pin present and strong (`registry-family.test.ts:242`); five exact
+6. **F** — §4.2 arm PROVEN; §4.5 refusal pin present and strong (`registry-family.suite.test.ts:242`); five exact
    counts; the rail-only fence ENFORCED. **One genuine gap:** the unreadable-id gate (`:134`), falsifier built.
    The population cut was wrong-direction and is not a gap.
 7. **P** — `gate:contract` zero; no walk, cache, table, marker parser or fs read.
@@ -444,7 +444,7 @@ Legend: **P** pass · **F** fail · **N/A** does not bind · **NE** not evaluate
    (`dd862e988^`), the M3 factory amendment, and WHY the ROUTES fence stays inside the arm rather than in the
    population. Roster row `:114` matches. The densest honest header in the batch.
 6. **P** — §4.2 arm PROVEN; **all four narrowings ENFORCED**, and the two fence rows' `why` strings each name
-   the row that dies — re-cut and verified correct. §4.5 pin present (`registry-family.test.ts:134`). Seven
+   the row that dies — re-cut and verified correct. §4.5 pin present (`registry-family.suite.test.ts:134`). Seven
    exact counts.
 7. **P**.
 
@@ -498,7 +498,7 @@ wave 1's ten.
 6. **F** — §4.2 arm PROVEN; the home fence, the emit-scope fence and the mapper binding are ENFORCED and each
    names its own dying row correctly; §4.5 refusal pins are the strongest in the batch (a three-arm `test.each`
    PLUS a positive control that the withholding is the rebinding and not the fixture,
-   `registry-family.test.ts:230`); seven exact counts. **Two genuine gaps**, both with built falsifiers: the
+   `registry-family.suite.test.ts:230`); seven exact counts. **Two genuine gaps**, both with built falsifiers: the
    chat-emitter channel gate and the pushed-record `message` requirement.
 7. **P**.
 
@@ -565,22 +565,22 @@ fact's canonical-type identity replaced in `chrome`, and which the chrome SHADOW
 
 A scoped red is never baseline, so each is attributed.
 
-- **Contention, not regressions (4 tests in 3 files).** `drizzle-registry-conversion.test.ts` (×2),
-  `grant-liveness-family.test.ts`, `runner-config-path-liveness.int.test.ts` — all four failed with
+- **Contention, not regressions (4 tests in 3 files).** `drizzle-registry-conversion.suite.test.ts` (×2),
+  `grant-liveness-family.suite.test.ts`, `runner-config-path-liveness.int.test.ts` — all four failed with
   `Test timed out in 5000ms` (the per-test default). Re-run ALONE: **3/3 files PASS, exit 0.**
 - **Pre-existing, other lane's scope (2 tests).** `caught-failure-ownership.repo.int.test.ts` — the committed
   `.catch` census over `packages/client/**` has drifted from a fresh derivation. That is the `ledgers:fresh`
   class, untouched by anything in this family and unreachable from any gate module I read. **Not mine, not a
   finding of this audit**; I did not triage its origin.
 
-**Both family tests covering my subjects PASSED**: `registry-family.test.ts` 10/10, 15.7 s;
+**Both family tests covering my subjects PASSED**: `registry-family.suite.test.ts` 10/10, 15.7 s;
 `message-kind-policy-coverage.test.ts` 3/3, 1.5 s.
 
 ## What I did NOT cover
 
 - **`home-tile-registry-completeness` was not audited against §5b** — it is legacy (premise correction 1). I
   read it in full and characterised it as a conversion candidate only.
-- **I did not run the §4.6 conversion differential** for any subject. `drizzle-registry-conversion.test.ts` is
+- **I did not run the §4.6 conversion differential** for any subject. `drizzle-registry-conversion.suite.test.ts` is
   the only committed differential under `tests/tooling/verify/gates/` and it covers none of these eight.
   Whether each conversion's population is byte-identical to the legacy predecessor named in its header
   (`9055cfe6a`, `dd862e988^`, `577d03d63^`, `58370d705^`, `ed8b96aef`) is UNVERIFIED — I took the headers' port

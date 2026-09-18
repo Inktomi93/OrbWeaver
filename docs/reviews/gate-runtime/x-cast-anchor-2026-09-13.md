@@ -23,21 +23,21 @@ double-cast coordinate remains `value as unknown`; it also leaves a zero-argumen
 The policy proof corpus now pins the parenthesized const-asserted violation and its exact ordinary-waiver
 identity, the unparenthesized control already present, `satisfies` around double and single branded casts,
 the existing single-cast and non-brand boundaries, and the genuinely unnameable arrow refusal. These are
-production-dispatched by the complete `id-brand-flow.test.ts` family test.
+production-dispatched by the complete `id-brand-flow.suite.test.ts` family test.
 
 ## Evidence
 
 Red first on the unmodified implementation:
 
 ```text
-pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.test.ts
+pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.suite.test.ts
 1 failed; mustFlag[3] returned PASS TOOL ERROR [visit]
 token "(\"\" as const) as unknown" cannot be named by an @orb-waive marker
 ```
 
 After the bounded anchor repair:
 
-- `pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.test.ts`: 1/1 passed; artifact
+- `pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.suite.test.ts`: 1/1 passed; artifact
   `reports/runs/test/codex-planter-residue-786358-2026-09-13T08-12-17-625Z/test-report.json`.
 - Scoped Biome: passed on the gate and family test.
 - Scoped ESLint: passed on the gate and family test.
@@ -80,10 +80,10 @@ nameable branded double cast. A neighboring legal parenthesis placement silently
 
 ## Confirmed working behavior
 
-I read the complete changed gate and report, the complete `id-brand-flow.test.ts`, and the coordinate/brand
+I read the complete changed gate and report, the complete `id-brand-flow.suite.test.ts`, and the coordinate/brand
 helpers used by the finding path.
 
-`pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.test.ts` passed 1/1 in 1.26 s; artifact:
+`pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.suite.test.ts` passed 1/1 in 1.26 s; artifact:
 `reports/runs/test/codex-planter-residue-793067-2026-09-13T08-14-20-687Z/test-report.json`.
 
 The committed rows establish:
@@ -169,7 +169,7 @@ made all four independent controls pass. The nested-value control retained its e
 Verification on the corrective tip:
 
 - `pnpm exec tsx /tmp/codex-2325-controls.ts`: four controls, no failures.
-- `pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.test.ts`: 1/1 passed; artifact
+- `pnpm test:scoped tests/tooling/verify/gates/id-brand-flow.suite.test.ts`: 1/1 passed; artifact
   `reports/runs/test/codex-planter-residue-821467-2026-09-13T08-20-52-778Z/test-report.json`.
 
 This verdict covers the corrected aggregate through `46b8639d2`. I did not run broader structure,

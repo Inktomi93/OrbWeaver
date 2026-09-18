@@ -20,7 +20,7 @@
 // load-bearing half.
 //
 // POPULATION PORT: identical to the occurrence sibling; the analysis and receipts are in its header and in
-// `tests/tooling/verify/gates/chat-viewer-plane-family.test.ts`.
+// `tests/tooling/verify/gates/chat-viewer-plane-family.suite.test.ts`.
 // RETIRED PRIVATE-MARKER CENSUS: the legacy module's fourth file-level arm — the `ALLOWLIST` stale ratchet
 // ("a sanctioned pair whose call site is gone must be deleted") — is NOT reproduced here. Its subject, the
 // gate-local allowlist, did not survive conversion (standing law §5/§8); its three rows are central

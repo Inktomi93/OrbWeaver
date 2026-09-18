@@ -77,6 +77,7 @@ export function loadPackageMetadata(reader: ResourceReader, id: PackageResourceI
     return loaded;
   }
   let parsed: unknown;
+  // @orb-waive caught-failure-ownership(error): native config resolution: error surfaces as a structured tool-error diagnostic; the broken config is excluded from the resource set
   try {
     parsed = JSON.parse(loaded.value);
   } catch (error) {
@@ -107,6 +108,7 @@ export function loadStaticConfig(reader: ResourceReader, id: StaticConfigResourc
     return loaded;
   }
   let source: SourceFile;
+  // @orb-waive caught-failure-ownership(error): native config resolution: error surfaces as a structured tool-error diagnostic; the broken config is excluded from the resource set
   try {
     source = parseSource(path, loaded.value);
   } catch (error) {

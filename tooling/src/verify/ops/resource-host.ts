@@ -81,6 +81,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
       }
       const started = performance.now();
       let loaded: ResourceLoad<T>;
+      // @orb-waive caught-failure-ownership(error): resource-host resolution: error surfaces as a structured tool-error in the resource-host report; the broken host is excluded from the resource set
       try {
         loaded = load();
       } catch (error) {

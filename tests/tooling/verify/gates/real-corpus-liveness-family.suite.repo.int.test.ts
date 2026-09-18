@@ -19,7 +19,7 @@
 // helper groups arms by glob-set and builds each corpus ONCE. Measured here: two corpora (`@server`, and
 // `@server`+`@db`) cost ~9s of test time, which blew the fast `tooling` project's 7.2s timeout on the first
 // run. A real-corpus arm belongs in the INTEGRATION project beside its siblings
-// (`no-blanket-suppression.repo.int.test.ts`, `policy-soundness-family.repo.int.test.ts`) — landing one in the unit project makes it a load-shaped
+// (`no-blanket-suppression.repo.int.test.ts`, `policy-soundness-family.suite.repo.int.test.ts`) — landing one in the unit project makes it a load-shaped
 // flake. **That ~4.5s-per-corpus figure is the planning input for chunking the remaining ~220: group by
 // POPULATION, not by family name, or the chunk pays for a corpus per module.**
 //
@@ -91,7 +91,7 @@ const ARMS: readonly RealCorpusLivenessArm[] = [
     // named. That policy retired with the table (#2176 Phase F): the two rows are central reviewed grants and
     // a dead row is now `stale-reviewed-grant`, which is an authority ALARM and not a policy report, so no
     // liveness arm can express it — its successor is the grant-reconciliation pin in
-    // `contract-shape-wave-1.test.ts`. What is pinned HERE is the surviving occurrence policy, and an ADD is
+    // `contract-shape-wave-1.suite.test.ts`. What is pinned HERE is the surviving occurrence policy, and an ADD is
     // the only shape that can speak for it: a NEW domain `contract/` file hand-spelling a real table's row.
     // `characters` is a live `sqliteTable` export in `packages/db/src/schema/`, so `CharacterRow` matches it
     // and no grant names this path — which is exactly the third successor obligation, that an UNGRANTED

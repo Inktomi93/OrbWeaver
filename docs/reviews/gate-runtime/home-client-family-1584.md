@@ -195,7 +195,7 @@ including its identifier index); the other eleven total under 2 s combined.
 
 | Check | Result |
 | - | - |
-| family conformance (`tests/tooling/verify/gates/home-client-family.test.ts`) | green — 14 policies, 131 proofs (10 of them the cast-dodge/limit rows added at review), 12 tests |
+| family conformance (`tests/tooling/verify/gates/home-client-family.suite.test.ts`) | green — 14 policies, 131 proofs (10 of them the cast-dodge/limit rows added at review), 12 tests |
 | wave 3's `no-inline-optimistic-in-surface` (same reader, same leak) | green — routed through `classifyPackageMemberOrigin` with its own cast-dodge row |
 | fixture-specifier resolution control (every relative import in every row of the family) | green — 51 relative specifiers checked, 0 unresolved |
 | receipt-refusal pins (7 policies, through `runPolicyPass`) | green — each REFUSES and is withheld when its home/vocabulary is gone |

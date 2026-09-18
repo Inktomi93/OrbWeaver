@@ -155,11 +155,11 @@ on a real policy. See §7 row L1.
 `tooling/src/verify/gates/bus-payload-allowlist.ts` `mustFlag[0]` gains
 `grant: { subject: "apiKey", operation: "bus-payload-field" }`. Picked by reading, not by the brief's list:
 its family test already proves the §4.3 triple, its grant identity is the FIELD NAME (which is what makes
-the live `credentialId` row grantable at all), and its family test is neither `registry-family.test.ts` nor
+the live `credentialId` row grantable at all), and its family test is neither `registry-family.suite.test.ts` nor
 `resource-layout-wave-*.test.ts`. Driven before it was written — that fixture's raw finding carries
 `subject: "apiKey"`, `operation: "bus-payload-field"`.
 
-`tests/tooling/verify/gates/bus-payload-family.test.ts` is UNCHANGED and green before and after.
+`tests/tooling/verify/gates/bus-payload-family.suite.test.ts` is UNCHANGED and green before and after.
 
 The subject is `apiKey` rather than `credentialId` on purpose: the claim is that the policy's emitted
 identity can reach the central door, not that this field deserves a grant. A `credentialId` fixture would
@@ -204,51 +204,51 @@ signal at all: `css-family-direct-client-mechanism`, `package-layout`, `seed-the
 
 | # | policy | central grant rows | `mustFlag` rows | witness candidate (row · subject · operation) | class | family-test file asserting `grantedFindings` (WEAK) |
 | -: | - | -: | -: | - | :-: | - |
-| 1 | `biome-grant-liveness` | 1 | 4 | `mustFlag[2]` · `packages/nonexistent/**` · `biome-glob-grant` | B | `grant-liveness-family.test.ts` |
-| 2 | `bound-field-via-hook` | 1 | 6 | `mustFlag[0]` · `packages/client/src/forms/editor/bound-fields/x-field.tsx` · `raw-field-context-read` | B | `home-client-family.test.ts` |
-| 3 | `bus-channel-primitive` | 1 | 7 | `mustFlag[0]` · `packages/server/src/transport/trpc/probe-bus.ts` · `event-emitter-construction` | B | `home-server-family.test.ts` |
-| 4 | `bus-payload-allowlist` | 1 | 12 | `mustFlag[0]` · `apiKey` · `bus-payload-field` | B | `bus-payload-family.test.ts` |
-| 5 | `chat-stream-writes-in-bus-only` | 2 | 5 | `mustFlag[0]` · `packages/client/src/features/chat/components/turn.tsx` · `chat-stream-write-handle` | B | `home-client-family.test.ts` |
-| 6 | `client-cache-surgery-only-in-data` | 9 | 7 | `mustFlag[0]` · `packages/client/src/features/some-feature/surfaces/surface.tsx` · `cache-surgery:invalidateQueries` | B | `home-client-family.test.ts` |
-| 7 | `config-anchor-in-registry` | 2 | 5 | `mustFlag[0]` · `packages/client/src/features/b/components/orphan-section.tsx` · `config-anchor-stamp` | B | `registry-family.test.ts` |
-| 8 | `content-part-seam` | 9 | 5 | `mustFlag[0]` · `packages/server/src/domain/chat/verbs/assemble.ts` · `chat-content-part-reference` | B | `home-server-family.test.ts` |
+| 1 | `biome-grant-liveness` | 1 | 4 | `mustFlag[2]` · `packages/nonexistent/**` · `biome-glob-grant` | B | `grant-liveness-family.suite.test.ts` |
+| 2 | `bound-field-via-hook` | 1 | 6 | `mustFlag[0]` · `packages/client/src/forms/editor/bound-fields/x-field.tsx` · `raw-field-context-read` | B | `home-client-family.suite.test.ts` |
+| 3 | `bus-channel-primitive` | 1 | 7 | `mustFlag[0]` · `packages/server/src/transport/trpc/probe-bus.ts` · `event-emitter-construction` | B | `home-server-family.suite.test.ts` |
+| 4 | `bus-payload-allowlist` | 1 | 12 | `mustFlag[0]` · `apiKey` · `bus-payload-field` | B | `bus-payload-family.suite.test.ts` |
+| 5 | `chat-stream-writes-in-bus-only` | 2 | 5 | `mustFlag[0]` · `packages/client/src/features/chat/components/turn.tsx` · `chat-stream-write-handle` | B | `home-client-family.suite.test.ts` |
+| 6 | `client-cache-surgery-only-in-data` | 9 | 7 | `mustFlag[0]` · `packages/client/src/features/some-feature/surfaces/surface.tsx` · `cache-surgery:invalidateQueries` | B | `home-client-family.suite.test.ts` |
+| 7 | `config-anchor-in-registry` | 2 | 5 | `mustFlag[0]` · `packages/client/src/features/b/components/orphan-section.tsx` · `config-anchor-stamp` | B | `registry-family.suite.test.ts` |
+| 8 | `content-part-seam` | 9 | 5 | `mustFlag[0]` · `packages/server/src/domain/chat/verbs/assemble.ts` · `chat-content-part-reference` | B | `home-server-family.suite.test.ts` |
 | 9 | `css-family-direct-client-mechanism` | 3 | 3 | `mustFlag[0]` · `packages/client/src/styles/globals.css` · `direct-client-mechanism:slot:dialog-popup` | B | — |
-| 10 | `no-direct-useform` | 2 | 6 | `mustFlag[1]` · `packages/client/src/forms/editor/use-app-form.ts` · `tanstack-form-mint:createFormHook` | B | `home-client-family.test.ts` |
-| 11 | `no-direct-users-read` | 7 | 6 | `mustFlag[0]` · `packages/server/src/domain/billing/x.ts` · `users-table-reference` | B | `home-server-family.test.ts` |
-| 12 | `no-effect-on-shared-selection` | 0 | 6 | `mustFlag[0]` · `packages/client/src/features/chat/hooks/x.ts` · `effect-on-shared-selection` | C | `home-client-family.test.ts` |
-| 13 | `no-inline-invalidate-outside-seam` | 1 | 5 | `mustFlag[0]` · `packages/client/src/features/a/mutation.ts` · `inline-invalidate-queries` | B | `home-client-family.test.ts` |
-| 14 | `no-raw-clock` | 2 | 9 | `mustFlag[0]` · `packages/server/src/domain/feature/logic.ts` · `ambient-clock-read` | B | `home-server-family.test.ts` |
-| 15 | `no-raw-egress` | 8 | 8 | `mustFlag[0]` · `packages/server/src/domain/hub/verbs/browse.ts` · `raw-fetch` | B | `ordinary-visitors-family.test.ts` |
-| 16 | `no-raw-interactive-intrinsics` | 1 | 6 | `mustFlag[0]` · `packages/client/src/features/demo/thing.tsx` · `raw-interactive-intrinsic:button` | B | `ordinary-visitors-family.test.ts` |
-| 17 | `no-raw-intl-time` | 1 | 9 | `mustFlag[2]` · `packages/client/src/alias.ts` · `intl-formatter` | B | `home-client-family.test.ts` |
-| 18 | `no-raw-matchmedia` | 5 | 9 | `mustFlag[0]` · `packages/client/src/features/x/x.tsx` · `raw-match-media` | B | `home-client-family.test.ts` |
-| 19 | `no-raw-random` | 1 | 8 | `mustFlag[0]` · `packages/server/src/domain/feature/logic.ts` · `ambient-entropy-draw` | B | `home-server-family.test.ts` |
-| 20 | `no-raw-zustand-persist` | 4 | 8 | `mustFlag[0]` · `packages/client/src/features/x/store.ts` · `zustand-persist-mint` | B | `home-client-family.test.ts` |
-| 21 | `no-untrusted-html-in-main-dom` | 0 | 3 | `mustFlag[0]` · `packages/client/src/components/foo.tsx` · `raw-html-injection` | C | `home-client-family.test.ts` |
-| 22 | `no-untyped-soft-ref` | 6 | 4 | `mustFlag[0]` · `t.widgetId` · `soft-reference` | B | `ordinary-visitors-family.test.ts` |
-| 23 | `owner-role-split` | 5 | 8 | `mustFlag[0]` · `packages/server/src/domain/hub/x.ts` · `global-role-comparison` | B | `home-server-family.test.ts` |
+| 10 | `no-direct-useform` | 2 | 6 | `mustFlag[1]` · `packages/client/src/forms/editor/use-app-form.ts` · `tanstack-form-mint:createFormHook` | B | `home-client-family.suite.test.ts` |
+| 11 | `no-direct-users-read` | 7 | 6 | `mustFlag[0]` · `packages/server/src/domain/billing/x.ts` · `users-table-reference` | B | `home-server-family.suite.test.ts` |
+| 12 | `no-effect-on-shared-selection` | 0 | 6 | `mustFlag[0]` · `packages/client/src/features/chat/hooks/x.ts` · `effect-on-shared-selection` | C | `home-client-family.suite.test.ts` |
+| 13 | `no-inline-invalidate-outside-seam` | 1 | 5 | `mustFlag[0]` · `packages/client/src/features/a/mutation.ts` · `inline-invalidate-queries` | B | `home-client-family.suite.test.ts` |
+| 14 | `no-raw-clock` | 2 | 9 | `mustFlag[0]` · `packages/server/src/domain/feature/logic.ts` · `ambient-clock-read` | B | `home-server-family.suite.test.ts` |
+| 15 | `no-raw-egress` | 8 | 8 | `mustFlag[0]` · `packages/server/src/domain/hub/verbs/browse.ts` · `raw-fetch` | B | `ordinary-visitors-family.suite.test.ts` |
+| 16 | `no-raw-interactive-intrinsics` | 1 | 6 | `mustFlag[0]` · `packages/client/src/features/demo/thing.tsx` · `raw-interactive-intrinsic:button` | B | `ordinary-visitors-family.suite.test.ts` |
+| 17 | `no-raw-intl-time` | 1 | 9 | `mustFlag[2]` · `packages/client/src/alias.ts` · `intl-formatter` | B | `home-client-family.suite.test.ts` |
+| 18 | `no-raw-matchmedia` | 5 | 9 | `mustFlag[0]` · `packages/client/src/features/x/x.tsx` · `raw-match-media` | B | `home-client-family.suite.test.ts` |
+| 19 | `no-raw-random` | 1 | 8 | `mustFlag[0]` · `packages/server/src/domain/feature/logic.ts` · `ambient-entropy-draw` | B | `home-server-family.suite.test.ts` |
+| 20 | `no-raw-zustand-persist` | 4 | 8 | `mustFlag[0]` · `packages/client/src/features/x/store.ts` · `zustand-persist-mint` | B | `home-client-family.suite.test.ts` |
+| 21 | `no-untrusted-html-in-main-dom` | 0 | 3 | `mustFlag[0]` · `packages/client/src/components/foo.tsx` · `raw-html-injection` | C | `home-client-family.suite.test.ts` |
+| 22 | `no-untyped-soft-ref` | 6 | 4 | `mustFlag[0]` · `t.widgetId` · `soft-reference` | B | `ordinary-visitors-family.suite.test.ts` |
+| 23 | `owner-role-split` | 5 | 8 | `mustFlag[0]` · `packages/server/src/domain/hub/x.ts` · `global-role-comparison` | B | `home-server-family.suite.test.ts` |
 | 24 | `package-layout` | 0 | 1 | `mustFlag[0]` · `packages/kit/src/loose.ts` · `loose-package-root-module` | C | — |
-| 25 | `persistence-boundary` | 4 | 7 | `mustFlag[0]` · `packages/client/src/features/x/x.ts` · `raw-storage:localStorage` | B | `ordinary-visitors-family.test.ts` |
-| 26 | `render-error-via-battery` | 3 | 6 | `mustFlag[0]` · `packages/client/src/features/a/x.tsx` · `custom-render-error` | B | `home-client-family.test.ts` |
-| 27 | `route-imports-no-feature` | 5 | 3 | `mustFlag[0]` · `packages/client/src/routes/some-route.tsx` · `feature-front-door-import:#features/chat` | B | `registry-family.test.ts` |
-| 28 | `scrubber-home` | 1 | 5 | `mustFlag[0]` · `packages/server/src/transport/trpc/leak.ts` · `hidden-span-scrubber-construction` | B | `home-server-family.test.ts` |
+| 25 | `persistence-boundary` | 4 | 7 | `mustFlag[0]` · `packages/client/src/features/x/x.ts` · `raw-storage:localStorage` | B | `ordinary-visitors-family.suite.test.ts` |
+| 26 | `render-error-via-battery` | 3 | 6 | `mustFlag[0]` · `packages/client/src/features/a/x.tsx` · `custom-render-error` | B | `home-client-family.suite.test.ts` |
+| 27 | `route-imports-no-feature` | 5 | 3 | `mustFlag[0]` · `packages/client/src/routes/some-route.tsx` · `feature-front-door-import:#features/chat` | B | `registry-family.suite.test.ts` |
+| 28 | `scrubber-home` | 1 | 5 | `mustFlag[0]` · `packages/server/src/transport/trpc/leak.ts` · `hidden-span-scrubber-construction` | B | `home-server-family.suite.test.ts` |
 | 29 | `seed-theme-ink-contrast` | 9 | 9 | `mustFlag[6]` · `packages/ui/src/charts/meter/variants.ts` · `ink:border` | B | — |
-| 30 | `selection-store-via-factory` | 3 | 5 | `mustFlag[0]` · `packages/client/src/state/x-selection-store.ts` · `raw-gated-store-mint` | B | `home-client-family.test.ts` |
-| 31 | `single-stream-transport` | 2 | 5 | `mustFlag[0]` · `packages/server/src/transport/trpc/routers/probe.ts` · `sse-subscription:live` | C | `home-server-family.test.ts` |
-| 32 | `sole-env-reader` | 9 | 11 | `mustFlag[2]` · `packages/server/src/domain/hub/door.ts` · `process-env-read:OWNER_HANDLES` | B | `home-server-family.test.ts` |
-| 33 | `suppressions` | 65 | 13 | `mustFlag[0]` · `lint/foo` · `source` | B | `suppressions-family.test.ts` |
-| 34 | `theme-override-only-via-scope` | 0 | 4 | `mustFlag[0]` · `packages/client/src/components/foo.tsx` · `color-token-inline-override` | C | `home-client-family.test.ts` |
-| 35 | `tooling-argv-front-door` | 6 | 7 | `mustFlag[0]` · `tooling/src/codemod/lib/diagnostics.ts` · `process-argv-read` | B | `tooling-front-door-family.test.ts` |
-| 36 | `tooling-artifact-path-home` | 1 | 7 | `mustFlag[0]` · `tooling/src/snap/ops/out.ts` · `reports-path-literal` | B | `tooling-plumbing-family.test.ts` |
-| 37 | `tooling-browser-door` | 2 | 6 | `mustFlag[0]` · `tooling/src/snap/ops/capture.ts` · `browser-launch` | B | `tooling-plumbing-family.test.ts` |
-| 38 | `tooling-child-process-door` | 5 | 7 | `mustFlag[0]` · `tooling/src/seed/ops/raw.ts` · `child-process-import` | B | `tooling-plumbing-family.test.ts` |
-| 39 | `tooling-port-registry` | 1 | 6 | `mustFlag[0]` · `tooling/src/stack/ops/up.ts` · `port-literal` | B | `tooling-plumbing-family.test.ts` |
-| 40 | `tooling-process-exit-home` | 1 | 5 | `mustFlag[0]` · `tooling/src/ast/ops/bail.ts` · `process-exit` | B | `tooling-plumbing-family.test.ts` |
-| 41 | `tooling-project-home` | 9 | 5 | `mustFlag[0]` · `tooling/src/ast/ops/load.ts` · `ts-morph-project-construction` | B | `tooling-plumbing-family.test.ts` |
-| 42 | `tooling-root-config-import` | 1 | 3 | `mustFlag[1]` · `tooling/src/aa/ops/x.ts` · `root-config-import:knip.ts` | B | `tooling-front-door-family.test.ts` |
-| 43 | `tsconfig-entry-liveness` | 8 | 5 | `mustFlag[0]` · `packages/client/src/gone.ts` · `tsconfig-exact-entry` | B | `grant-liveness-family.test.ts` |
-| 44 | `two-class-role-authority` | 3 | 9 | `mustFlag[0]` · `packages/server/src/domain/rpg/verbs/patch-actor.ts` · `enforcement-role-comparison` | B | `home-server-family.test.ts` |
-| 45 | `zod-error-issues-home` | 8 | 5 | `mustFlag[0]` · `packages/contracts/src/x.ts` · `error-issues-read` | B | `ordinary-visitors-family.test.ts` |
+| 30 | `selection-store-via-factory` | 3 | 5 | `mustFlag[0]` · `packages/client/src/state/x-selection-store.ts` · `raw-gated-store-mint` | B | `home-client-family.suite.test.ts` |
+| 31 | `single-stream-transport` | 2 | 5 | `mustFlag[0]` · `packages/server/src/transport/trpc/routers/probe.ts` · `sse-subscription:live` | C | `home-server-family.suite.test.ts` |
+| 32 | `sole-env-reader` | 9 | 11 | `mustFlag[2]` · `packages/server/src/domain/hub/door.ts` · `process-env-read:OWNER_HANDLES` | B | `home-server-family.suite.test.ts` |
+| 33 | `suppressions` | 65 | 13 | `mustFlag[0]` · `lint/foo` · `source` | B | `suppressions-family.suite.test.ts` |
+| 34 | `theme-override-only-via-scope` | 0 | 4 | `mustFlag[0]` · `packages/client/src/components/foo.tsx` · `color-token-inline-override` | C | `home-client-family.suite.test.ts` |
+| 35 | `tooling-argv-front-door` | 6 | 7 | `mustFlag[0]` · `tooling/src/codemod/lib/diagnostics.ts` · `process-argv-read` | B | `tooling-front-door-family.suite.test.ts` |
+| 36 | `tooling-artifact-path-home` | 1 | 7 | `mustFlag[0]` · `tooling/src/snap/ops/out.ts` · `reports-path-literal` | B | `tooling-plumbing-family.suite.test.ts` |
+| 37 | `tooling-browser-door` | 2 | 6 | `mustFlag[0]` · `tooling/src/snap/ops/capture.ts` · `browser-launch` | B | `tooling-plumbing-family.suite.test.ts` |
+| 38 | `tooling-child-process-door` | 5 | 7 | `mustFlag[0]` · `tooling/src/seed/ops/raw.ts` · `child-process-import` | B | `tooling-plumbing-family.suite.test.ts` |
+| 39 | `tooling-port-registry` | 1 | 6 | `mustFlag[0]` · `tooling/src/stack/ops/up.ts` · `port-literal` | B | `tooling-plumbing-family.suite.test.ts` |
+| 40 | `tooling-process-exit-home` | 1 | 5 | `mustFlag[0]` · `tooling/src/ast/ops/bail.ts` · `process-exit` | B | `tooling-plumbing-family.suite.test.ts` |
+| 41 | `tooling-project-home` | 9 | 5 | `mustFlag[0]` · `tooling/src/ast/ops/load.ts` · `ts-morph-project-construction` | B | `tooling-plumbing-family.suite.test.ts` |
+| 42 | `tooling-root-config-import` | 1 | 3 | `mustFlag[1]` · `tooling/src/aa/ops/x.ts` · `root-config-import:knip.ts` | B | `tooling-front-door-family.suite.test.ts` |
+| 43 | `tsconfig-entry-liveness` | 8 | 5 | `mustFlag[0]` · `packages/client/src/gone.ts` · `tsconfig-exact-entry` | B | `grant-liveness-family.suite.test.ts` |
+| 44 | `two-class-role-authority` | 3 | 9 | `mustFlag[0]` · `packages/server/src/domain/rpg/verbs/patch-actor.ts` · `enforcement-role-comparison` | B | `home-server-family.suite.test.ts` |
+| 45 | `zod-error-issues-home` | 8 | 5 | `mustFlag[0]` · `packages/contracts/src/x.ts` · `error-issues-read` | B | `ordinary-visitors-family.suite.test.ts` |
 
 <!-- prettier-ignore-end -->
 
@@ -263,12 +263,12 @@ signal at all: `css-family-direct-client-mechanism`, `package-layout`, `seed-the
   final · 42 legacy · 0 unregistered; authorities `hard 96 · ordinary 126 · reviewed-grant 45`; 45 witnesses
   across 45 policies.
 - Not run: `pnpm check:policy-conformance` whole (publishes a pointer; the brief required a GO that the
-  checkpoint pre-empted) and `policy-soundness-family.repo.int.test.ts` (no meta-policy vocabulary changed,
+  checkpoint pre-empted) and `policy-soundness-family.suite.repo.int.test.ts` (no meta-policy vocabulary changed,
   and it is parser-heavy). Both are owed before the flip. **LANDED 2026-09-13 (`b29dc50ab`)** —
   `pnpm check:policy-conformance` was driven ONCE by the independent P7 security review (lane
   `cb-sec-p7-review`, its own worktree) and exits **0**: 267 final policies · 3229 proof rows · 30 refusal
   rows · **45 identity-proof rows** as its own segment · 0 failures · 218 grant rows · 0 invalid.
-  `policy-soundness-family.repo.int.test.ts` remains NOT RUN and stays owed to the orchestrator's train.
+  `policy-soundness-family.suite.repo.int.test.ts` remains NOT RUN and stays owed to the orchestrator's train.
 - Owed LAW DELTA, not landed here (the guide is a multi-lane file and law deltas are the orchestrator's):
   `docs/design/gate-runtime-standardization.md` §12.1's hand-restated descriptor block and its "THE FIELD
   VOCABULARY IS DATA" paragraph do not mention `grant` / `POLICY_PROOF_GRANT_KEYS`, and §4 item 3 still
@@ -368,7 +368,7 @@ Floor: `pnpm test:scoped` over `policy-loader.test.ts`, `ops/policy-conformance.
 files / 132 tests, exit 0**; `pnpm exec biome check` and `pnpm exec eslint` over the two touched files, exit
 0 each; `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` — 11 discovered, 2 runnable,
 both PASS; `pnpm check:docs` on this file. NOT run and owed to the integrator: the whole
-`check:policy-conformance`, `check:structure`, any planter, `policy-soundness-family.repo.int.test.ts`.
+`check:policy-conformance`, `check:structure`, any planter, `policy-soundness-family.suite.repo.int.test.ts`.
 
 One editorial change beyond the annotations: the LEDGER ROWS section below was a bullet list, and
 `reportLedgerRows` (`tooling/src/verify/lib/gate-program-docs.ts`) reconciles a report against the refutation

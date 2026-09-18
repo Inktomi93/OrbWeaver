@@ -50,7 +50,7 @@
 // and symlinks (`GatePolicyProof.files` / `.links`). The arm is fail-closed and carries its own message; no
 // row is invented for it, per guide §6.1's structurally-unfalsifiable classification.
 // §4.1 NARROWING CUTS, measured 2026-09-12 in the guide's direction (make the policy flag MORE), each run
-// against this module's own rows through `grant-liveness-family.test.ts`:
+// against this module's own rows through `grant-liveness-family.suite.test.ts`:
 //   · the field fence (`FILE_ONLY_FIELDS`) → widened to every directory identity: RED across both arms.
 //   · the glob classifier (`classifyGlob` returning every value) → RED across both arms.
 //   · the containment arm (`status === "outside"` no longer reported) → RED on the two containment rows (`mustFlag[1]`, `mustFlag[2]`), which is the receipt that the new SYMLINK row discriminates rather than passing by luck.

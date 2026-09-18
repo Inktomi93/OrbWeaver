@@ -59,6 +59,7 @@ const STATES: BoardStates = new Map<number, BoardIssueRow>([
 /** A descriptor carrying only the fields the citation derivation reads. */
 function policy(id: string, workItem?: number): GatePolicy {
   const severity = workItem === undefined ? { severity: "error" as const } : { severity: "warning" as const, workItem };
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the citation checker exercises; no factory exists
   return { id, ...severity } as GatePolicy;
 }
 

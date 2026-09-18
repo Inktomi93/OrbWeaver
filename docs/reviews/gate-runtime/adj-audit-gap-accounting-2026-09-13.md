@@ -145,7 +145,7 @@ already individually tracked.
 | Reviewed-grants 105-row prose quality not audited | **Still a bounded review limit, not a defect** | Sorting/identity/liveness were separately controlled (#2298/#2306 and grant-liveness suites). Semantic truth of all prose remains reviewer-owned; file only concrete false rows. |
 | Orchestrator suites not run / structure only once | **Later covered; timing caveat historical** | No row. |
 | Real-tree truth not re-derived | **Standing review limit** | No blanket row. |
-| `no-raw-zustand-persist` ARM C not checked against live `durable-local.ts` | **Covered** | Current `home-client-family.test.ts` has a real-file absence/refusal control and the gate carries durable-local fixtures; the ledger records all three cells closed. |
+| `no-raw-zustand-persist` ARM C not checked against live `durable-local.ts` | **Covered** | Current `home-client-family.suite.test.ts` has a real-file absence/refusal control and the gate carries durable-local fixtures; the ledger records all three cells closed. |
 
 ### Wave 8 — server plane
 

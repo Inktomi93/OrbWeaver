@@ -17,7 +17,7 @@
 // `effectiveFindings []`, `waivedFindings 1`, `authorityAlarms []`. A `mustPass` waiver row is green when
 // the marker suppressed the finding AND green when the fixture never flagged at all, so on its own it
 // cannot distinguish "suppressed" from "consumed nothing". Gold standard:
-// ordinary-visitors-family.test.ts:187-196, the POSITIVE arm only.
+// ordinary-visitors-family.suite.test.ts:187-196, the POSITIVE arm only.
 //
 // It also carries the §4.6 FIXTURE-LEVEL DIFFERENTIAL for `form-factory-for-multifield`, which replaced
 // this file's predecessor. `tests/tooling/verify/gates/form-factory-for-multifield.int.test.ts` was the

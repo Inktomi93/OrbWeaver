@@ -44,6 +44,7 @@ function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePoli
     mustFlag: [SOURCE_FLAG],
     mustPass: [SOURCE_PASS],
     ...overrides,
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   } as GatePolicy);
 }
 
@@ -212,7 +213,9 @@ test("the invocation boundary refuses invalid policy sets before any example run
     },
   });
   const duplicate = sourcePolicy("a-counted");
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   const unbranded = { ...counted, id: "z-unbranded", family: "z-unbranded" } as GatePolicy;
+  // @orb-waive no-test-fabrication(never): deliberate type-erasure to test conformance handling of an invalid proof row
   const invalid = defineGate({ ...counted, id: "z-invalid", family: "z-invalid", mustFlag: [] } as never);
 
   expect(() => verifyPolicyProofs([])).toThrow(/nonempty|policy/i);
@@ -286,6 +289,7 @@ test("a countFrom row names a driver the policy's own module declares, and an un
     ...verifyRegistryParity,
     mustFlag: [{ ...first.row, expect: { ...first.row.expect, countFrom: "NO_SUCH_DRIVER" } }],
     mustPass: verifyRegistryParity.mustPass.slice(0, 1),
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   } as GatePolicy);
   const failures = verifyPolicyProofs([forged]);
   expect(failures.map(({ arm, exampleIndex }) => `${arm}[${exampleIndex}]`)).toEqual(["mustFlag[0]"]);
@@ -639,6 +643,7 @@ test("a link nested under an earlier link cannot write outside the fixture root,
         why: "a destination under an earlier link resolves through that link",
       },
     ],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   } as GatePolicy);
 
   let refusal: unknown;
@@ -677,6 +682,7 @@ test("a .git/config fixture cannot run a command during the runner's git add —
         why: "repository config written before `git init` survives the reinitialize and names fsmonitor for `git add --all`",
       },
     ],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   } as GatePolicy);
 
   let refusal: unknown;
@@ -975,6 +981,7 @@ function reviewedPolicy(id: string, options: ReviewedPolicyOptions = {}): GatePo
       },
     ],
     mustPass: [{ ...SOURCE_PASS, files: { [GRANT_FLAG_FILE]: "export const clean = true;\n" } }],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   } as GatePolicy);
 }
 
@@ -1089,6 +1096,7 @@ test("the identity verdict never accepts one half alone — a second unlicensed 
         }
       },
     }),
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   } as GatePolicy);
   const failures = verifyPolicyProofs([policy]);
   expect(failures).toHaveLength(1);
@@ -1140,6 +1148,7 @@ test("a SECOND valid witness on another row is legal and is proven too", () => {
         why: "a second emitted identity, equally bindable",
       },
     ],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   } as GatePolicy);
   expect(verifyPolicyProofs([twoWitnesses])).toEqual([]);
 
@@ -1150,6 +1159,7 @@ test("a SECOND valid witness on another row is legal and is proven too", () => {
     id: "grant-identity-two-witnesses-crossed",
     family: "grant-identity-two-witnesses-crossed",
     mustFlag: [twoWitnesses.mustFlag[0] as GatePolicyProof, { ...(twoWitnesses.mustFlag[1] as GatePolicyProof), grant: MATCHING_GRANT }],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
   } as GatePolicy);
   const failures = verifyPolicyProofs([crossed]);
   expect(failures.map(({ arm, exampleIndex }) => [arm, exampleIndex])).toEqual([["mustFlag", 1]]);

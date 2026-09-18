@@ -245,15 +245,15 @@ both type imports) · `tooling/src/verify/gates/depcruise-grant-liveness.ts` (de
 ### Commit 2 — the two config-registry migrations (`eslint`, `depcruise`) + the count ratchet
 
 **Files:** `gates/eslint-grant-liveness.ts` · `gates/depcruise-grant-liveness.ts` ·
-`lib/reviewed-grants.ts` (+10 rows) · `tests/tooling/verify/gates/grant-liveness-family.test.ts` ·
+`lib/reviewed-grants.ts` (+10 rows) · `tests/tooling/verify/gates/grant-liveness-family.suite.test.ts` ·
 `docs/architecture/core/Core-Enforcement-Active-Gates.md` (count line, IF a `-health` split lands).
 
 **Proof obligations.**
 
-1. **`tests/tooling/verify/gates/grant-liveness-family.test.ts:74-81` REDS BY CONSTRUCTION.** It is a
+1. **`tests/tooling/verify/gates/grant-liveness-family.suite.test.ts:74-81` REDS BY CONSTRUCTION.** It is a
    `toEqual` over the exact `[id, family, authority]` triples and its own comment calls itself the tripwire
    on both halves. Update it in the same commit; do not treat the red as noise.
-2. **Grant identity, four pins each** (§4.3, copy `home-client-family.test.ts:259-305`): the intended row
+2. **Grant identity, four pins each** (§4.3, copy `home-client-family.suite.test.ts:259-305`): the intended row
    consumed exactly once · a wrong `operation` stays effective · a renamed subject stales or withholds ·
    `authorityAlarms` empty. A `runPass` module row CANNOT prove grant consumption (`reviewedGrants: []`), so
    this lives in the family test.
@@ -271,7 +271,7 @@ both type imports) · `tooling/src/verify/gates/depcruise-grant-liveness.ts` (de
    §12.5 bans in one sentence. It is not a reviewed grant (a count is not a `(subject, operation)`
    identity). The two honest arms are: express the sixteen backreference rows as sixteen grant rows keyed
    on the rule pair, or delete the budget arm and record what it stops holding. **Fork for the root.**
-6. Named floor: `grant-liveness-family.test.ts`, `tests/tooling/verify/ops/eslint.int.test.ts` (its
+6. Named floor: `grant-liveness-family.suite.test.ts`, `tests/tooling/verify/ops/eslint.int.test.ts` (its
    `:227` comment names `eslint-grant-liveness`'s RATIFIED row as the `#2213` coupled site and its
    assertions pin the real config), `biome-grant-liveness.int.test.ts`,
    `tsconfig-entry-liveness.int.test.ts`, `enforcement-registry-parity.int.test.ts` if split,
@@ -289,7 +289,7 @@ aggregate report) · DELETE `gates/spacing-tier-home-health.ts` and `gates/typog
 **Proof obligations.**
 
 1. **The predecessor's hazard, confirmed and sharpened:**
-   `tests/tooling/verify/gates/tier-home-health-family.int.test.ts:200-206` pins that
+   `tests/tooling/verify/gates/tier-home-health-family.suite.int.test.ts:200-206` pins that
    `lib/sanctioned-home.ts` *"changed only ADDITIVELY since BASE"* and rewrites the
    `from "../lib/sanctioned-home.ts"` specifier. **`homeFiles`/`reportUnresolvedHomes` CANNOT be deleted in
    this commit** — their consumers `no-pointer-variants-in-features:14`, `no-raw-z-index:20` and
@@ -311,9 +311,9 @@ aggregate report) · DELETE `gates/spacing-tier-home-health.ts` and `gates/typog
 5. **§4.6 differential, all three axes named separately** (findings · populations · tool errors), plus the
    §12.5 delta for the deleted `-health` pair: the central alarm's red condition is STRICTLY WIDER than the
    rename tripwire's. Say which of §4.6's vacuity shapes the record is.
-6. Named floor: `tier-home-health-family.int.test.ts`, `injected-op-caller-param-split.test.ts`,
-   `contract-shape-wave-1.test.ts` (`:34` names the `CALLER_FREE_OPS` staleness claim),
-   `home-server-family.test.ts` (`:16`/`:202`/`:232` assert the family's reviewed-grant set and the rename
+6. Named floor: `tier-home-health-family.suite.int.test.ts`, `injected-op-caller-param-split.test.ts`,
+   `contract-shape-wave-1.suite.test.ts` (`:34` names the `CALLER_FREE_OPS` staleness claim),
+   `home-server-family.suite.test.ts` (`:16`/`:202`/`:232` assert the family's reviewed-grant set and the rename
    arm — a new sanctioned-home policy joining the grant table touches it), `enforcement-registry-parity`,
    `pnpm check:policy-conformance` whole, `pnpm check:structure --check policy-legacy-imports` expecting
    **0**.
@@ -412,8 +412,8 @@ relocation escape itself) stands unchanged and is REPRODUCED here on a second sh
 - **I did not run ARM D.** It does not exist. Every claim about what ARM D would catch is a claim about the
   code I read (`judgeDoor`, `launderedThrough`, `evaluate`), not a measurement. The red-first control in
   commit 1's floor is exactly the measurement I could not take.
-- **I did not run any test.** `grant-liveness-family.test.ts:74-81`, `injected-op-caller-param-split.test.ts`
-  and `tier-home-health-family.int.test.ts:200-206` are read receipts, not run receipts. My claim that they
+- **I did not run any test.** `grant-liveness-family.suite.test.ts:74-81`, `injected-op-caller-param-split.test.ts`
+  and `tier-home-health-family.suite.int.test.ts:200-206` are read receipts, not run receipts. My claim that they
   RED under the migration is derived from their assertion text, and a lane owes the actual run.
 - **My ast-grep control returned nothing and I am reporting that as a non-result.** The pattern
   `export const $N = { $$$ }` over `tooling/src/verify/lib` (174 `.ts` files) matched no `why:`-bearing
@@ -692,7 +692,7 @@ measured:
 | - | - | - |
 | `sanctionedHome(homes: ExemptionTable, rel)` | `no-raw-spacing-in-features:76` (FINAL) · `no-raw-typography-in-features:93` (FINAL) · `no-pointer-variants-in-features:101` (**LEGACY**) · `no-raw-z-index:85` (**LEGACY**) · `ui-skin-fragment-purity:76` (**LEGACY**) | **SIGNATURE PRESERVED VERBATIM.** The two FINAL callers stop calling it (they report an aggregate instead of skipping); the three LEGACY callers still pass their own in-module tables, so the parameter type stays `ExemptionTable` until the last of them converts |
 | `unresolvedSanctionedHomeKeys(...)` | `spacing-tier-home-health:58` · `typography-tier-home-health:52` — **both FINAL, and nobody else** | **DELETABLE** in commit 3, together with the two `-health` modules it exists for. `coveredFiles` has no caller outside this module and goes with it |
-| `homeFiles` / `reportUnresolvedHomes` | `no-pointer-variants-in-features:113` · `no-raw-z-index:100` · `ui-skin-fragment-purity:95` — all three **LEGACY** | **UNTOUCHED.** §4's hazard stands: `tier-home-health-family.int.test.ts:200-206` pins that this module *"changed only ADDITIVELY since BASE"*, so a deletion reds it. Deleting `unresolvedSanctionedHomeKeys`/`coveredFiles` is itself non-additive and reds that pin — **budget for updating it, and say in the commit that the legacy pair survives on purpose** |
+| `homeFiles` / `reportUnresolvedHomes` | `no-pointer-variants-in-features:113` · `no-raw-z-index:100` · `ui-skin-fragment-purity:95` — all three **LEGACY** | **UNTOUCHED.** §4's hazard stands: `tier-home-health-family.suite.int.test.ts:200-206` pins that this module *"changed only ADDITIVELY since BASE"*, so a deletion reds it. Deleting `unresolvedSanctionedHomeKeys`/`coveredFiles` is itself non-additive and reds that pin — **budget for updating it, and say in the commit that the legacy pair survives on purpose** |
 
 **So the answer to (c) in one line: `sanctionedHome` keeps `ExemptionTable` and keeps its three legacy
 consumers; `unresolvedSanctionedHomeKeys` + `coveredFiles` retire with the two `-health` siblings; the
@@ -832,17 +832,17 @@ edit — no module is added or removed**).
 `gates/depcruise-grant-liveness.ts` (3 RATIFIED rows out; `hard` → `reviewed-grant`; **probable SPLIT** of
 `MSG_NO_ROWS` + the budget arm into a `hard` `-health` sibling, per the biome precedent) ·
 `lib/reviewed-grants.ts` (+10 rows) · `lib/grant-liveness.ts` (the §R4 fork, once root rules it) ·
-`tests/tooling/verify/gates/grant-liveness-family.test.ts` · `Core-Enforcement-Active-Gates.md` (count line
+`tests/tooling/verify/gates/grant-liveness-family.suite.test.ts` · `Core-Enforcement-Active-Gates.md` (count line
 +1 **only if** the split lands).
 
 **Proof obligations.**
 
-1. **`grant-liveness-family.test.ts:74-81` reds by construction** — a `toEqual` over the exact
+1. **`grant-liveness-family.suite.test.ts:74-81` reds by construction** — a `toEqual` over the exact
    `[id, family, authority]` triples, which its own comment calls the tripwire on both halves. Update in
    the same commit.
 2. **Subjects are VALUE-KEYED, never position-keyed** (§R8) — and the #2302 index-shift assertion lands
    with them.
-3. §4.3 grant identity, four pins per policy (copy `home-client-family.test.ts:259-305`): consumed exactly
+3. §4.3 grant identity, four pins per policy (copy `home-client-family.suite.test.ts:259-305`): consumed exactly
    once · wrong `operation` stays effective · renamed subject stales or withholds · `authorityAlarms` empty.
    A `runPass` module row cannot prove consumption (`reviewedGrants: []`), so these live in the family test.
 4. **The `cite` dead-arm loss is stated PER ROW, ten times** (#2147's standing ruling;
@@ -851,7 +851,7 @@ edit — no module is added or removed**).
    pending root's word. **A lane that deletes it has taken an owner decision.**
 6. **A SPLIT reds `enforcement-registry-parity.int.test.ts` and the `(309 registered gates)` line at
    `Core-Enforcement-Active-Gates.md:387`** — no id-grep finds that suite (§8.8).
-7. **Floor (lane):** `grant-liveness-family.test.ts` · `eslint-grant-liveness.int.test.ts` ·
+7. **Floor (lane):** `grant-liveness-family.suite.test.ts` · `eslint-grant-liveness.int.test.ts` ·
    `biome-grant-liveness.int.test.ts` · `tsconfig-entry-liveness.int.test.ts` ·
    `tests/tooling/verify/ops/eslint.int.test.ts` (its `:227` names this exact RATIFIED row as the #2213
    coupled site) · `enforcement-registry-parity.int.test.ts` if split · `--check` per touched policy ·
@@ -883,15 +883,15 @@ one aggregate finding per subject) · their three `-health` siblings · **DELETE
    promising the `@orb-waive` spelling are rewritten — otherwise the policy instructs its user to use a
    door it no longer has (§5b item 3). Zero live product-tree markers are orphaned (measured, §1).
 5. **Deleting `unresolvedSanctionedHomeKeys`/`coveredFiles` is NON-ADDITIVE and reds
-   `tier-home-health-family.int.test.ts:200-206`.** Budget for it. **The legacy pair
+   `tier-home-health-family.suite.int.test.ts:200-206`.** Budget for it. **The legacy pair
    (`homeFiles`/`reportUnresolvedHomes`) survives on purpose — say so in the commit**, with its three
    LEGACY consumers named.
 6. **§4.6 differential, all three axes named separately** (findings · populations · tool errors), plus the
    deleted-`-health` delta: the central `stale-reviewed-grant` alarm's red condition is STRICTLY WIDER than
    the rename tripwire's (it also fires when a home still exists but stops spelling the utility — which is
    the end condition both rows' `why` already declares). Name which §4.6 vacuity shape the record is.
-7. **Floor (lane):** `tier-home-health-family.int.test.ts` · `injected-op-caller-param-split.test.ts` ·
-   `contract-shape-wave-1.test.ts` · `home-server-family.test.ts` · `enforcement-registry-parity.int.test.ts`
+7. **Floor (lane):** `tier-home-health-family.suite.int.test.ts` · `injected-op-caller-param-split.test.ts` ·
+   `contract-shape-wave-1.suite.test.ts` · `home-server-family.suite.test.ts` · `enforcement-registry-parity.int.test.ts`
    · `--check policy-legacy-imports` expecting **0** and `--check` per touched policy · biome/eslint ·
    `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` (a contract type moves).
    **Barrier (root):** whole conformance, structure before/after, structure-delta.

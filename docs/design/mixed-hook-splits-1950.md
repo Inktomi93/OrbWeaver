@@ -91,7 +91,7 @@ the new position is what makes an aliased construction (`new BC("x")`) waivable 
 file-level finding when the real-tree anchor (`packages/client/src/lib/index.ts`, the legacy [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 anchor) is
 loaded and the home constructs nothing — the home moved, or its construction left. The finding is anchored
 on the ANCHOR at line 1 because the legacy anchor (the gate module's own path) is outside `@client` and
-`report.file` cannot express it — the same classified difference `tier-home-health-family.int.test.ts`
+`report.file` cannot express it — the same classified difference `tier-home-health-family.suite.int.test.ts`
 records for the spacing family. No waiver door by construction (an absence verdict has no node).
 
 **Rejected alternative — ONE reviewed-grant policy, no `-health` sibling.** The 2026-09-06 ruling (sanctioned
@@ -126,7 +126,7 @@ no anchor + silent home (legacy `mustFlag[2]`'s "exactly ONE finding" half, whic
 the local-class row reds, since an unprefiltered global resolver reports every `new`? no — the cut that
 discriminates is the IDENTITY comparison `globalName === CTOR`: replace with `true` and the local-class row
 reds), the anchor guard in the health policy (delete → the no-anchor `mustPass` reds). Family test
-`tests/tooling/verify/gates/session-channel-family.test.ts`: conformance over both, the [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 triple through
+`tests/tooling/verify/gates/session-channel-family.suite.test.ts`: conformance over both, the [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 triple through
 `runPolicyPass`, the [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 narrowed-request deferral pin for the health policy, and the [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differential
 replaying every legacy example (SHA `774231540`) through the frozen legacy `runPass` and the union of both
 final policies, with the classified differences: SPLIT, TRIPWIRE ANCHOR (gate file → `lib/index.ts`),
@@ -214,7 +214,7 @@ refusal) and is asserted as such; position delta on every file-level finding: le
 | `tooling/src/verify/lib/broadcast-channel-origin.ts` | NEW shared reader (the family) |
 | `tooling/src/verify/gates/tooling-ops-direct-invocation.ts` | rewrite as the hard policy |
 | `tooling/src/_shared/ts-workspace.ts` | add `moduleScopeCalls`; header comment corrected |
-| `tests/tooling/verify/gates/session-channel-family.test.ts` | NEW: conformance, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 |
+| `tests/tooling/verify/gates/session-channel-family.suite.test.ts` | NEW: conformance, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 |
 | `tests/tooling/verify/gates/tooling-ops-direct-invocation.test.ts` | NEW: conformance, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 pins, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 |
 | `docs/architecture/core/Core-Enforcement-Active-Gates.md` | two rows rewritten, one row added, count 277 → 278 |
 | `tests/tooling/_shared/entrypoint.int.test.ts` | unchanged; its "one home" comment stays true through `moduleScopeCalls` |
@@ -249,7 +249,7 @@ occur exactly once (harness: `fmh-cut.ts`, kept in the lane scratchpad):
 | `tooling-ops-direct-invocation` | `GUARD_HOME.names` | widened to admit `other` | `mustFlag[4]` (the other-export call) alone reads green; 8 other rows die as receipt refusals because their fixtures do not export `other` | ENFORCED |
 | `tooling-ops-direct-invocation` | the runner arm | dropped | `mustPass[1]` (the `runTool` program) | ENFORCED |
 
-[gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials are committed (`session-channel-family.test.ts`, `tooling-ops-direct-invocation.test.ts`):
+[gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials are committed (`session-channel-family.suite.test.ts`, `tooling-ops-direct-invocation.test.ts`):
 legacy side executed on every original example; coverage of the moved/changed arms is nonzero on both
 (tripwire 1 of 5; blindness 1 of 6) and asserted in the tests. Classified differences: session-channel —
 SPLIT, TRIPWIRE ANCHOR (gate file → `lib/index.ts`), POSITION (callee, +4 columns, token `BroadcastChannel`),
@@ -349,7 +349,7 @@ what the legacy guarded on and is the honest subject).
 | `gates/tooling-front-door.ts` · `gates/tooling-argv-front-door.ts` | rewritten |
 | `gates/tooling-root-config-import.ts` · `gates/tooling-argv-front-door-health.ts` | NEW |
 | `lib/reviewed-grants.ts` | +7 rows (1 root-config, 6 argv), sorted by `policyId` then `id` |
-| `tests/tooling/verify/gates/tooling-front-door-family.test.ts` | NEW: conformance ×4, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 arm, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 grant identity for both grant policies, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 deferral pins, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials ×2, the real-tree prodonly/knip fact |
+| `tests/tooling/verify/gates/tooling-front-door-family.suite.test.ts` | NEW: conformance ×4, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 arm, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 grant identity for both grant policies, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 deferral pins, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials ×2, the real-tree prodonly/knip fact |
 | `tests/tooling/verify/gates/tooling-front-door.int.test.ts` | DELETED (drove the legacy descriptor's hooks directly; every pin has a successor above) |
 | `tests/tooling/_shared/entrypoint.int.test.ts` | derives the governed argv entries from `REVIEWED_GRANTS` instead of importing the gate's table door |
 | roster | 2 rows rewritten, 2 rows added, count +2 |
@@ -393,7 +393,7 @@ a planted lookalike global (`declare var lookalike: { argv }`), the zustand-look
 | `tooling-argv-front-door-health` | the global-branch comparison (shared reader) | `"other"` | `mustPass[1]` (the ambient cli reader) | the global branch is EXERCISED by the planted types |
 | `tooling-argv-front-door-health` | the unreadable arm | `"reads"` | `mustFlag[1]` · `mustFlag[3]` | REACHED |
 
-[gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials are committed in `tooling-front-door-family.test.ts` (14/14): every legacy example of
+[gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials are committed in `tooling-front-door-family.suite.test.ts` (14/14): every legacy example of
 both descriptors (6 and 11) replayed through the frozen legacy `runPass` and the union of each pair, with
 the classified differences enumerated in the test header (position → quoted specifier; the root-config row
 and the six entry rows are findings licensed by grants the differential does not carry; the stale sweep is
@@ -487,7 +487,7 @@ anchored arm D on the gate module's own path.
 | the two live `@sub-floor-ok` sites | translated in place to `@orb-waive sub-floor-disclosure("text"): <legacy reason verbatim>` |
 | the 8 prose sites | re-worded to the central spelling |
 | `tests/tooling/check-gates.repo.int.test.ts` | the two `__g_` fixture blocks deleted |
-| `tests/tooling/verify/gates/disclosure-reservation-family.test.ts` | NEW: conformance ×4, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 arms (both real carrier shapes), the real-site binding pin, retired-arm successor pins, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 deferral pins, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials ×2 |
+| `tests/tooling/verify/gates/disclosure-reservation-family.suite.test.ts` | NEW: conformance ×4, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 arms (both real carrier shapes), the real-site binding pin, retired-arm successor pins, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 deferral pins, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials ×2 |
 | roster | 2 rows rewritten (the false `tests/` claim corrected), 2 added, count +2 |
 
 ### 3.5 Group 3 measured (2026-09-12, this worktree)
@@ -509,7 +509,7 @@ anchored arm D on the gate module's own path.
 | `query-boundary-reservation-health` | the home-loaded guard | dropped | `mustFlag[0]` · `mustPass[0]` · `[1]` · `[3]` (as `[evaluate]` tool errors — the fence firing) | ENFORCED |
 | `query-boundary-reservation-health` | string-literal keys only | expression keys admitted | `mustPass[1]` (the shared exported const) | ENFORCED |
 
-[gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials are committed in `disclosure-reservation-family.test.ts` (11/11): every legacy example
+[gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials are committed in `disclosure-reservation-family.suite.test.ts` (11/11): every legacy example
 of both descriptors (9 and 12) replayed through the frozen legacy `runPass` — over the fixture with the
 retired grammar BLANKED, which is the legacy verdict the final policies must reproduce since to them the
 marker is inert — and the union of each pair over the fixture as written. Classified: the retired grammar
@@ -536,7 +536,7 @@ which is worth an engine row.
 | - | - |
 | The module is byte-identical to its legacy SHA | `git diff --stat 2c1a1d37c HEAD -- …/tooling-shared-plumbing.ts` prints nothing |
 | Zero live `@orb-gate-ignore tooling-shared-plumbing` markers | `rg` over `packages/`, `tests/`, `tooling/`, `scripts/`, the repo-root `*.ts`: 0 lines |
-| **The legacy gate is RED on the live tree, hidden under the `check:structure` baseline red** | the legacy descriptor run through the frozen `runPass` over its own jurisdiction (tooling/src + tests/tooling + tests/e2e/support, 1,596 files): **12 findings** — 8 fixed wall clocks (arm J drift in `home-server-family.test.ts:28`, `origin-server-family.test.ts:22`, `test-world-browser-contracts.repo.int.test.ts:154`, `program-routing.test.ts:60`, `reviewed-grants.test.ts:16`, `_shared/test-tags.ts:14`, `verify/lib/config-snapshot.ts:29`, `verify/ops/resource-tracked.ts:12`), 1 stale `CLOCK_SITES` row (`structure.int.test.ts` no longer carries its 4 s kill literal), 3 un-censused `new Project(` in `verify/ops/policy-conformance.ts`. Orchestrator ruling 2026-09-12: pre-existing-exposed violations are fixed IN LANE (route the clocks through `scaledBudget`/`budget`, let the stale row die, grant the conformance runner's Projects) — `ops/policy-conformance.ts` itself is another lane's and is NOT edited |
+| **The legacy gate is RED on the live tree, hidden under the `check:structure` baseline red** | the legacy descriptor run through the frozen `runPass` over its own jurisdiction (tooling/src + tests/tooling + tests/e2e/support, 1,596 files): **12 findings** — 8 fixed wall clocks (arm J drift in `home-server-family.suite.test.ts:28`, `origin-server-family.suite.test.ts:22`, `test-world-browser-contracts.repo.int.test.ts:154`, `program-routing.test.ts:60`, `reviewed-grants.test.ts:16`, `_shared/test-tags.ts:14`, `verify/lib/config-snapshot.ts:29`, `verify/ops/resource-tracked.ts:12`), 1 stale `CLOCK_SITES` row (`structure.int.test.ts` no longer carries its 4 s kill literal), 3 un-censused `new Project(` in `verify/ops/policy-conformance.ts`. Orchestrator ruling 2026-09-12: pre-existing-exposed violations are fixed IN LANE (route the clocks through `scaledBudget`/`budget`, let the stale row die, grant the conformance runner's Projects) — `ops/policy-conformance.ts` itself is another lane's and is NOT edited |
 | The five HOMES still carry their capability | ts-workspace 3 `new Project(`, browser.ts 2 launch/attach, artifacts.ts 2 `"reports` literals, run-tool.ts 2 `process.exit(`, proc.ts 1 `node:child_process` |
 | All 7 `PROJECT_SITES` rows still construct; the 4 `FULL_PRIORITY_CALLERS` still call a door | measured per file (`rg -c`) |
 | The root runner configs | `vitest.config.ts`, `playwright.config.ts`, `playwright-ct.config.ts` exist; the legacy run reported ZERO findings in them (their clocks are derived, they hold no port literals) — both root-config halves are silent tripwires today |
@@ -608,7 +608,7 @@ honest declaration, and it names the reader rather than a topic.
 | the 8 clock drift sites | routed through `scaledBudget` (tests) / `budget` (tooling libs); `tests/tooling/tool-guard.int.test.ts` gains the translated waiver |
 | roster | the plumbing row replaced by ten rows; count +9 |
 | `docs/architecture/core/Core-Tooling-Law.md` §4.4 | mechanism sentences truth-repaired |
-| `tests/tooling/verify/gates/tooling-plumbing-family.test.ts` | NEW: conformance ×10, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 arm for the clock policy, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 grant identity per grant policy, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 pins (home receipts, exact-file refusals, deferral), [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differential over all 36 legacy examples through the union, plus the real-tree replay of the 12-finding baseline |
+| `tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts` | NEW: conformance ×10, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 arm for the clock policy, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 grant identity per grant policy, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 pins (home receipts, exact-file refusals, deferral), [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differential over all 36 legacy examples through the union, plus the real-tree replay of the 12-finding baseline |
 | `tests/tooling/gate-spelling-twins.baseline.json` | untouched — a legacy-roster ledger that retires at cutover (already red for 54 converted gates; its `tooling-shared-plumbing` row is one more) |
 
 ### 4.4 What was built (2026-09-12) — deviations from §4.2 recorded
@@ -628,8 +628,8 @@ honest declaration, and it names the reader rather than a topic.
   the orchestrator requested was withdrawn on measurement (the exemption reaches nothing; it would have been
   born stale) and is not in the tree.
 - **The eight clock fixes and the playwright routing, per id (quiet-box value before → after):**
-  `home-server-family.test.ts` `FAMILY_TIMEOUT_MS` 300_000 → `scaledBudget(300_000)` (300_000);
-  `origin-server-family.test.ts` same; `test-world-browser-contracts.repo.int.test.ts` `timeout`
+  `home-server-family.suite.test.ts` `FAMILY_TIMEOUT_MS` 300_000 → `scaledBudget(300_000)` (300_000);
+  `origin-server-family.suite.test.ts` same; `test-world-browser-contracts.repo.int.test.ts` `timeout`
   120_000 → `scaledBudget(120_000)`; `program-routing.test.ts` 30_000 → `scaledBudget(30_000)`;
   `reviewed-grants.test.ts` `ROSTER_TIMEOUT_MS` 120_000 → `scaledBudget(120_000)`; `_shared/test-tags.ts`
   `slow.timeout` 30_000 → `budget(SLOW_TIMEOUT_BASE_MS)` (30_000); `verify/lib/config-snapshot.ts`
@@ -763,7 +763,7 @@ lie rather than a harmless extra. Same shape as `sub-floor-disclosure-health` (�
 | `lib/testid-registry.ts` | NEW shared reader (the family) |
 | `gates/testid-liveness.ts` · `gates/testid-liveness-health.ts` | 1 rewritten, 1 new |
 | `tests/tooling/check-gates.repo.int.test.ts` | the `__g_testidlive` fixture block deleted |
-| `tests/tooling/verify/gates/testid-variant-split-family.test.ts` | NEW (shared with group 6): conformance ×4, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 arms ×2 + the dead-position discrimination control, the measured population-port equality, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 refusal/deferral pins, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials ×2 |
+| `tests/tooling/verify/gates/testid-variant-split-family.suite.test.ts` | NEW (shared with group 6): conformance ×4, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 arms ×2 + the dead-position discrimination control, the measured population-port equality, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 refusal/deferral pins, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differentials ×2 |
 | roster | 1 row rewritten, 1 added, count 285 → 287 (with group 6) |
 
 ### 5.4 Group 5 measured (`testid-liveness` half, 2026-09-12, this worktree)
@@ -792,7 +792,7 @@ readability. **A `lib/` cut in a SPLIT family must name the sibling whose rows t
 against `testid-liveness-health.ts` both cuts reddened immediately. Same class as [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.1's "a cut that did not
 reach the code proves nothing", one axis over: here the cut reached the code and the WRONG POLICY was driven.
 
-[gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differential is committed in `testid-variant-split-family.test.ts`: all 9 legacy examples replayed
+[gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differential is committed in `testid-variant-split-family.suite.test.ts`: all 9 legacy examples replayed
 through the frozen legacy `runPass` (SHA `9e2eca320`) and through the UNION of the final pair. Differences
 CLASSIFIED: (1) ARM SPLIT + ANCHOR MOVE — the A3 tripwire is its own policy and the final contract forbids a
 zero coordinate, so `test-ids.ts:0:0` becomes `test-ids.ts:1:1`; (2) ANCHOR MOVE on the consumer arms,
@@ -910,7 +910,7 @@ a split that silently softened the authority would be caught.
 | `gates/ui-variant-axes-stamped.baseline.json` · `ops/gen/ui-variant-axes-stamped.ts` | DELETED |
 | `ops/baseline.ts` · `verify/index.ts` · `ops/debt.ts` | the verb row, the export and the debt-ledger row removed (the last also drops the `BASELINE_REL` import that would otherwise fail the program to parse) |
 | `tests/tooling/check-gates.repo.int.test.ts` | the `__g_variantaxes` fixture block deleted |
-| `tests/tooling/verify/gates/testid-variant-split-family.test.ts` | shared with group 5 |
+| `tests/tooling/verify/gates/testid-variant-split-family.suite.test.ts` | shared with group 5 |
 | roster | 1 row rewritten (the ratchet paragraph replaced by its terminal statement), 1 added |
 
 ### 6.4 Group 6 measured (`ui-variant-axes-stamped` half, 2026-09-12, this worktree)
@@ -944,7 +944,7 @@ constructed attempt rather than an argument.**
 opening one makes it flag FEWER and its falsifier is a `mustFlag` going GREEN). A tripwire whose cells all
 read clean is the tell that the direction was wrong.
 
-[gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differential is committed in `testid-variant-split-family.test.ts`: all 8 legacy examples replayed
+[gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differential is committed in `testid-variant-split-family.suite.test.ts`: all 8 legacy examples replayed
 through the frozen legacy `runPass` (SHA `da01f7eb9`, with the legacy `lib/variant-axis-stamp.ts` frozen
 BESIDE it because this conversion changed the shared reader) and through the UNION of the final pair.
 POSITION is byte-identical on every recipe arm (both sides anchor the declaration's own name node).

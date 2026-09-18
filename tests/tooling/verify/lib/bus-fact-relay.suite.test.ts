@@ -167,7 +167,7 @@ function danglingSpecifiers(project: Project): readonly string[] {
 
 /** BUDGETS, audited 2026-09-06 with the sibling spec: every test here pays exactly ONE project and ONE
  *  policy pass, so adding a row adds a TEST (with its own budget) rather than more work inside an existing
- *  one. That is why these rows keep the scaled default while `bus-pair.test.ts` must declare its own — its
+ *  one. That is why these rows keep the scaled default while `bus-pair.suite.test.ts` must declare its own — its
  *  controls quantify over the whole family's proof set inside a single test, and growth there concentrates
  *  instead of spreading. If a row here ever loops over fixtures, it owes an explicit `scaledBudget` too. */
 function projectOf(files: Readonly<Record<string, string>>): Project {

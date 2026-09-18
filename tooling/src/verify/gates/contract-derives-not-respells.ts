@@ -51,7 +51,7 @@
 // not by a declared row: the retired mustPass fixture's marker now raises the central
 // `ordinary-waiver … targets non-ordinary policy` alarm, and §6.2 puts an expected authority alarm in an
 // importing family test driven through `runPolicyPass`, never in a proof row — so it lives in
-// `tests/tooling/verify/gates/contract-shape-wave-1.test.ts`.
+// `tests/tooling/verify/gates/contract-shape-wave-1.suite.test.ts`.
 //
 // SINGLETON REASON (§2, §7.4): with the health sibling retired this policy has no partner, and none is
 // meaningful — the only other production consumer of a contract-shape-vs-table match would be a second

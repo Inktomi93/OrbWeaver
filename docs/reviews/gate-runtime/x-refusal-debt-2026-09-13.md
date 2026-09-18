@@ -58,7 +58,7 @@ receipt — a receipt-phase tool error, not a population-phase one.
 ## 4. THE INSTRUMENT DEFECT (#2330) — a false accusation of #2274's family
 
 `freeze-provenance-write-pairing-health` was accused while carrying a real §4.5 refusal pin at
-`tests/tooling/verify/gates/freeze-provenance-conversion.test.ts:110`, whose own header advertises it as
+`tests/tooling/verify/gates/freeze-provenance-conversion.suite.test.ts:110`, whose own header advertises it as
 item 4. Cause, source-read: `descriptorValue` correctly returns a SHORTHAND property's name node, but
 `hopParameter` gates on `bindsParameter` (`lib/policy-descriptor-read.ts:127`), which asks
 `getSymbol()?.getDeclarations()` for a `ParameterDeclaration` — on a shorthand's name TypeScript resolves
@@ -68,17 +68,17 @@ the PROPERTY symbol, never the value binding. So `{ knownPolicies: policies, pol
 `--check policy-refusal-coverage` 11 → 10 with nothing else touched; restored, 11.
 
 **Blast radius — ten live family tests spell the driven set this way:**
-`bus-payload-family.test.ts:87` · `client-query-pair-conversion.test.ts:209` ·
-`disclosure-reservation-family.test.ts:83` · `freeze-provenance-conversion.test.ts:110` ·
-`session-channel-family.test.ts:63` · `testid-variant-split-family.test.ts:82` ·
-`tier-home-health-family.int.test.ts:182` · `tooling-front-door-family.test.ts:95` ·
-`tooling-plumbing-family.test.ts:139`, plus the THIRD binding shape at
+`bus-payload-family.suite.test.ts:87` · `client-query-pair-conversion.suite.test.ts:209` ·
+`disclosure-reservation-family.suite.test.ts:83` · `freeze-provenance-conversion.suite.test.ts:110` ·
+`session-channel-family.suite.test.ts:63` · `testid-variant-split-family.suite.test.ts:82` ·
+`tier-home-health-family.suite.int.test.ts:182` · `tooling-front-door-family.suite.test.ts:95` ·
+`tooling-plumbing-family.suite.test.ts:139`, plus the THIRD binding shape at
 `split-arm-parity.test.ts:207` (`function runScenarios({ legacy, policies, … })`, an object pattern).
 Only one subject was accused today, so the debt count was inflated by one — but the channel was live.
 
 **Why the family's own two-sided second opinion did not catch it:** the "NOT DEAD" arm
-(`policy-soundness-family.repo.int.test.ts`) only asserts discharge for a module whose family test imports
-EXACTLY ONE gate module, and `freeze-provenance-conversion.test.ts` imports two.
+(`policy-soundness-family.suite.repo.int.test.ts`) only asserts discharge for a module whose family test imports
+EXACTLY ONE gate module, and `freeze-provenance-conversion.suite.test.ts` imports two.
 
 **The fix** (orchestrator-approved arm (a), commit `b5f2c7f9d`): a `bindsShorthandValue` branch local to
 `policy-refusal-coverage.ts`, feeding the existing `declaringFunction` hop — which still demands an
@@ -154,6 +154,6 @@ or not at all) and never restates the id.
 
 | Row | Class | Statement |
 | - | - | - |
-| #2330 | INSTRUMENT — false accusation (#2274 family) | `policy-refusal-coverage`'s driven-set walk gated the parameter hop on `bindsParameter`, which cannot see a SHORTHAND property's value binding, so `runPolicyPass({ knownPolicies: policies, policies })` — the spelling of ten live family tests — credited nothing and `freeze-provenance-write-pairing-health` was falsely accused for the module's whole life while carrying a real §4.5 pin. Receipt: the one-token probe at `freeze-provenance-conversion.test.ts:110` moved the real-tree count 11 → 10 and back. The proof set only ever spelled the driven set one way, which is exactly why its own fixtures could not see it. FIXED at `b5f2c7f9d` with a red-first receipt, a `mustPass` on the shorthand shape and a `mustFlag` landing the object-pattern shape as a fail-closed declared limit. The family's two-sided second opinion missed it because its "NOT DEAD" arm only binds modules whose family test imports exactly one gate module. |
+| #2330 | INSTRUMENT — false accusation (#2274 family) | `policy-refusal-coverage`'s driven-set walk gated the parameter hop on `bindsParameter`, which cannot see a SHORTHAND property's value binding, so `runPolicyPass({ knownPolicies: policies, policies })` — the spelling of ten live family tests — credited nothing and `freeze-provenance-write-pairing-health` was falsely accused for the module's whole life while carrying a real §4.5 pin. Receipt: the one-token probe at `freeze-provenance-conversion.suite.test.ts:110` moved the real-tree count 11 → 10 and back. The proof set only ever spelled the driven set one way, which is exactly why its own fixtures could not see it. FIXED at `b5f2c7f9d` with a red-first receipt, a `mustPass` on the shorthand shape and a `mustFlag` landing the object-pattern shape as a fail-closed declared limit. The family's two-sided second opinion missed it because its "NOT DEAD" arm only binds modules whose family test imports exactly one gate module. |
 
 ledger rows OWED: 1

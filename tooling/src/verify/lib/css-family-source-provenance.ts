@@ -18,7 +18,7 @@
 // THREE, NOT FIVE, AND THE COUNT IS PINNED (#2305, `v-css-family-2026-09-13.md` ledger row 5). Four prose
 // homes said FIVE by counting the FAMILY rather than the consumers: both `-health` siblings declare
 // `facts: []` and never call `ctx.fact`, because their subjects are the CSS identity and the vendor surface
-// rather than the TS writer census. `tests/tooling/verify/gates/css-hook-provenance-family.test.ts` now
+// rather than the TS writer census. `tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` now
 // holds the declared consumer set two-sided against a literal census of `ctx.fact(cssHookProvenanceFact)`
 // call sites under `gates/`, with a planted control, so the prose cannot overstate again.
 //

@@ -29,7 +29,7 @@ and the legacy dispatcher `lib/pass.ts`) as the shared reader of four final modu
 ### 1.1 The family and the one arm that judges imports
 
 The policing home is the **`policy-soundness` family**, nine members, read off the family test's own `FAMILY` array
-(`tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts:37-47`): `policy-binding-resolution`,
+(`tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts:37-47`): `policy-binding-resolution`,
 `policy-family-readers`, `policy-fixture-substrate`, `policy-legacy-imports`, `policy-proof-expectations`,
 `policy-refusal-coverage`, `policy-soundness`, `policy-waiver-identity`, `policy-waiver-spelling`.
 
@@ -237,7 +237,7 @@ spellings.
 
 ## WHAT I DID NOT COVER
 
-- **The real-corpus arm.** I did not run `tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` (its
+- **The real-corpus arm.** I did not run `tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts` (its
   real-corpus leg is ~112 s and the brief holds me off heavy runs while root has the heavy slot). Every real-tree
   number here is from the bounded resolver census, corroborated by `pnpm ast` where a lens exists. The ARM A live
   count I report (5 direct `contract/gate.ts` importers) is a shape census, not that policy's own verdict.

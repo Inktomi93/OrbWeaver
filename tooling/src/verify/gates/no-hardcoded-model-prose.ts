@@ -34,7 +34,7 @@
 // are now single population-wide visitors (`SyntaxKind.Identifier`, `SyntaxKind.ImportSpecifier`) collected
 // once and read by every candidate.
 //
-// §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.test.ts): every legacy
+// §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.suite.test.ts): every legacy
 // mustFlag/mustPass PROSE-DETECTION example (the word-count/lower-run/operator-facing/aggregation shapes)
 // replays byte-identically. The two marker-mechanics rows (bare marker, stale marker) do NOT carry forward —
 // they tested the PRIVATE grammar this conversion retires; the central engine's own suppression/staleness

@@ -59,15 +59,15 @@ command per call, `git status --short` verified after):
 | scratch family test at the RETIRED shape `runPolicyPass(testLayout, {})` | **59** | credits a signature that exists nowhere; `test-layout` dropped |
 | the SAME test at the PRODUCTION shape `runPolicyPass({ policies: [testLayout], … })` | **60** | the real shape credits NOTHING — the half was dead |
 
-`tests/tooling/verify/gates/mirror-index-family.test.ts` carries fifteen refusal pins over all three mirror
+`tests/tooling/verify/gates/mirror-index-family.suite.test.ts` carries fifteen refusal pins over all three mirror
 gates, and all three sat in the accused list.
 
 ### After
 
 With the repaired recognizer and no probe: **17**, with **43 discharged and 0 newly accused** (`comm` over the
 two sorted accused lists). Spot-checked four of the discharged against their real drives
-(`motion-token-purity.test.ts:36`, `text-citation-family.test.ts:57`, `integer-line-boxes.int.test.ts`,
-`resource-layout-wave-1.test.ts`). The drop is a READER fix, not a burn-down, and the header says so.
+(`motion-token-purity.test.ts:36`, `text-citation-family.suite.test.ts:57`, `integer-line-boxes.int.test.ts`,
+`resource-layout-wave-1.suite.test.ts`). The drop is a READER fix, not a burn-down, and the header says so.
 
 ### The proof set, and the §4.1 cut per fence
 
@@ -89,7 +89,7 @@ now puts the JUDGED module there, and the cut kills it.
 
 ### The coupled site the repair broke, and why the fix is not a weakening
 
-`policy-soundness-family.repo.int.test.ts:350`'s second opinion for this policy asserted ONE-SIDED containment
+`policy-soundness-family.suite.repo.int.test.ts:350`'s second opinion for this policy asserted ONE-SIDED containment
 ("every module whose text owes a pin is accused") and its own comment explained that the reverse could not be
 asserted "because no text predicate over the gate corpus can see the pin half". That arm was **green for the
 wrong reason for a week**: nothing could ever be discharged, so containment held trivially. Repairing the
@@ -256,8 +256,8 @@ exactly the two edits this lane owns — five changed lines against main.
 | `pnpm exec biome check <8 files> --diagnostic-level=error` | exit 0 |
 | `pnpm exec eslint <8 files>` | exit 0 |
 | `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | PASS / PASS |
-| id sweep of `tests/tooling/**` for each touched gate id | `policy-soundness-family.repo.int.test.ts` only; run |
-| `mirror-index-family.test.ts` (main's `183e49714` pin: `test-layout`'s 57-path population, exact set equality) | 17/17 GREEN — this lane added a gate MODULE and no new `*-family.test.ts`, so the enumerated test population is unchanged |
+| id sweep of `tests/tooling/**` for each touched gate id | `policy-soundness-family.suite.repo.int.test.ts` only; run |
+| `mirror-index-family.suite.test.ts` (main's `183e49714` pin: `test-layout`'s 57-path population, exact set equality) | 17/17 GREEN — this lane added a gate MODULE and no new `*-family.test.ts`, so the enumerated test population is unchanged |
 
 ## Proposed lessons
 
@@ -280,7 +280,7 @@ exactly the two edits this lane owns — five changed lines against main.
 
 | # | Module / site | Class | What is wrong | Evidence | State |
 | -: | - | - | - | - | - |
-| 1 | `tooling/src/verify/gates/policy-refusal-coverage.ts` (recognizer) + `tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts:350` | dead arm / green-for-the-wrong-reason | The family-test half required a first POSITIONAL argument the dispatcher never had, so no real pin could be recognised; its `mustPass` was green over an invented signature, and the family test's one-sided second opinion held trivially because nothing could discharge. Two dead branches (`_proof` id fence, alias-to-non-array hop) were unfalsifiable by any row. | Red-first at `80b0693cb`: invented shape 60 → 59, production shape 60 → 60; after 60 → 17 (43 discharged, 0 added). Both dead branches cut in both directions with no row and no tree change. | **OPEN** (fixed at `1e2b60fae`; row for the record) |
+| 1 | `tooling/src/verify/gates/policy-refusal-coverage.ts` (recognizer) + `tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts:350` | dead arm / green-for-the-wrong-reason | The family-test half required a first POSITIONAL argument the dispatcher never had, so no real pin could be recognised; its `mustPass` was green over an invented signature, and the family test's one-sided second opinion held trivially because nothing could discharge. Two dead branches (`_proof` id fence, alias-to-non-array hop) were unfalsifiable by any row. | Red-first at `80b0693cb`: invented shape 60 → 59, production shape 60 → 60; after 60 → 17 (43 discharged, 0 added). Both dead branches cut in both directions with no row and no tree change. | **OPEN** (fixed at `1e2b60fae`; row for the record) |
 | 2 | `docs/reviews/gate-runtime/policing-surface-audit-2026-09-12.md` §RECOMMENDED ADDITIONS #5 | census reading | The ordering census counts SPLIT FAMILIES under an intersection reading. Enforced literally it accuses eight `policy-soundness` members for one sibling's different shared module. The enforceable reading is per member. | 250 policies / 154 families / 47 multi-member; 9 families under intersection, 11 members under the member reading, both measured on `3b68aa44e`. | **OPEN** (implemented per member at `8d22e8e20`; the audit's number is not wrong, it answers a different question) |
 | 3 | `tooling/src/verify/contract/policy-pass.ts` header + `tooling/src/verify/lib/policy-pass-context.ts` | header claim outran the file | The contract named `policy-pass-context.ts` as an emitter composing from `POLICY_PASS_REFUSALS` while that file held zero references; eleven sentences were literals and one had no key. The envelope was complete over the TABLE and blind to the EMITTERS. | `grep -c POLICY_PASS_REFUSALS` = 0 before, 11 after; five of eight reachable doors pinned before, seven of seven after; 32 invariants censused two-sided with a planted control. | **OPEN** (fixed at `9568d86f1`; row for the record) |
 

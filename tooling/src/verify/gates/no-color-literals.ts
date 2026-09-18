@@ -43,7 +43,7 @@
 //     carried the gate-level `MESSAGE_HEX`. The three arms are distinct only on this side of the
 //     conversion. The class is EMPTY on today's legacy roster: a two-method census of the 39 surviving
 //     legacy gate modules returns zero, with this frozen blob as the positive control that finds the shape.
-//   · CLOSE-BY-RULE, MEASURED: `tier3-close-by-rule.test.ts` refuses this module on EXACTLY ONE clause —
+//   · CLOSE-BY-RULE, MEASURED: `tier3-close-by-rule.suite.test.ts` refuses this module on EXACTLY ONE clause —
 //     clause 6's LABEL half, one re-authored `why` on `mustPass[1]`. All twelve legacy fixture payload
 //     literals are carried byte-for-byte and every other clause passes. Do NOT re-author that `why` back
 //     to buy roster membership: the replay is strictly stronger than the row would have been.

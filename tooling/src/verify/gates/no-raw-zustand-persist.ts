@@ -67,7 +67,7 @@ const MESSAGE =
 /** DISJOINT FROM `MESSAGE` BY CONSTRUCTION, and that is load-bearing rather than stylistic: the fail-closed
  *  arms are pinned by `messageIncludes`, so if this text were built by INTERPOLATING `MESSAGE` into it the
  *  base string would be a substring of BOTH and neither arm would be pinnable. Checked by literal comparison — neither
- *  string contains the other — and `home-client-family.test.ts` holds the same equality for the sibling
+ *  string contains the other — and `home-client-family.suite.test.ts` holds the same equality for the sibling
  *  policy whose pair a future edit is most likely to fold.
  *
  *  It names all THREE arms because one string serves every candidate this policy reports: `persist` (the

@@ -36,7 +36,7 @@ No arm hand-loads the config, and no arm writes a tracked file.
 ## 3. The four controls and their receipts
 
 All from `pnpm test:scoped tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts
-tests/tooling/verify/gates/grant-liveness-family.test.ts` — **12 passed (12), 2 files**, in this worktree.
+tests/tooling/verify/gates/grant-liveness-family.suite.test.ts` — **12 passed (12), 2 files**, in this worktree.
 
 **(c) UNMODIFIED config → green.** `every RATIFIED index names the RECORDED selector in the REAL
 eslint.config.js` (9.8s): for each of the SEVEN `RATIFIED` keys (`config[0].ignores[0,1,3,4,5,6,7]`) the live

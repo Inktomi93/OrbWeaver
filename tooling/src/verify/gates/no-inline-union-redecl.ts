@@ -72,7 +72,7 @@
 //   sites reported the token `re-spell <Tuple>`); the conversion neither introduces nor repairs it, and the
 //   repair if it ever bites is to home the axis, which is what the finding asks for.
 //
-// ── §4.6 DIFFERENTIAL: committed, `tests/tooling/verify/gates/union-axis-family.test.ts` ────────────────
+// ── §4.6 DIFFERENTIAL: committed, `tests/tooling/verify/gates/union-axis-family.suite.test.ts` ────────────────
 // Every legacy example replayed through the frozen legacy descriptor at 2030ab180 and through this policy,
 // over each example's OWN file map with this population applied. Legacy-side coverage: 5 of 10 examples
 // flag (both arms, all three sub-kinds) — nonzero, so the replay is evidence. One classified difference,

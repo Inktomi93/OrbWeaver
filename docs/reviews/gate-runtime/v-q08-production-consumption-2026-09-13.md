@@ -79,7 +79,7 @@ Full pinned changed files:
 - `tooling/src/verify/lib/policy-descriptor-read.ts`
 - `tooling/src/verify/gates/policy-family-readers.ts`
 - `tests/tooling/verify/lib/policy-descriptor-read.test.ts`
-- `tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts`
+- `tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts`
 
 Load-bearing unchanged readers/call paths read in full:
 
@@ -101,7 +101,7 @@ The committed control has two same-family canonical final modules calling the sa
 | Red before repair: actual policy proof | `/tmp/codex-q08-method-create-red.json`: exactly `policy-family-readers:mustPass[0]` fails, expected zero findings but got two; all 19 prior rows pass |
 | Red before repair: reader control | `pnpm test:scoped tests/tooling/verify/lib/policy-descriptor-read.test.ts -t 'method-form create roots'`, exit 1, one failure and 24 skipped; `/tmp/codex-q08-method-reader-red.log` |
 | Repaired actual policy proofs | `nice -n 19 pnpm exec node /tmp/codex-q08-family-proof-run.mjs /tmp/codex-q08-method-create-green.json`: 20 rows, zero failures |
-| Reader and family suites | `pnpm test:scoped tests/tooling/verify/lib/policy-descriptor-read.test.ts tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts`, exit 0, 40 tests passed across two suites; `/tmp/codex-q08-method-tests.log` |
+| Reader and family suites | `pnpm test:scoped tests/tooling/verify/lib/policy-descriptor-read.test.ts tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts`, exit 0, 40 tests passed across two suites; `/tmp/codex-q08-method-tests.log` |
 | Discriminating method-root cut | Replace only the method-root branch with `descriptorValue(descriptor, "create")`; actual policy conformance fails exactly `mustPass[0]` with two findings. `/tmp/codex-q08-method-cut.json` records restoration=true and restored reader SHA-256 `47c4703f3272ebd33d27ffec9df8a769983cee7c62566befe4e9bd2f7ca3bfed` |
 | Scoped lint | Biome and ESLint over the three changed TypeScript files, exit 0; `/tmp/codex-q08-method-biome.log` and `/tmp/codex-q08-method-eslint.log` |
 | Native TypeScript | `nice -n 19 pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json`, both selected programs pass, exit 0; `/tmp/codex-q08-method-types.log` |
@@ -116,7 +116,7 @@ This repair does not expand the graph's guarantee beyond possible source reach a
 
 **CONFIRMED.** Independent review at `241fa70301d74c7d812b498ad2d4c2f80f00a38f` found the #2337 repair correctly scoped. `policyProductionDependencies` roots a method-form `create` at its `MethodDeclaration`, while `descriptorValue` still accepts only property assignments and shorthand assignments. The reader control pins both sides of that boundary, and the new `policy-family-readers` `mustPass[0]` sends two same-family method-form descriptors through the production policy path; both consume the same canonical imported reader declaration.
 
-Independent command: `pnpm test:scoped tests/tooling/verify/lib/policy-descriptor-read.test.ts tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts`, exit 0, 40/40 tests passed (25 reader, 15 family), report `reports/runs/test/agent-a6646bc6706ca2732-2508587-2026-09-13T13-15-41-532Z/test-report.json`. The author cut was also inspected: removing only the method-root branch fails exactly `policy-family-readers:mustPass[0]` with two findings and restores the source SHA. This closes `Q08-METHOD-ROOT` at the author checkpoint; integration verification remains coordinator-owned. The graph's stated limit remains source reach and canonical identity, not semantic fitness or branch execution. Q06/#2333 is outside this review.
+Independent command: `pnpm test:scoped tests/tooling/verify/lib/policy-descriptor-read.test.ts tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts`, exit 0, 40/40 tests passed (25 reader, 15 family), report `reports/runs/test/agent-a6646bc6706ca2732-2508587-2026-09-13T13-15-41-532Z/test-report.json`. The author cut was also inspected: removing only the method-root branch fails exactly `policy-family-readers:mustPass[0]` with two findings and restores the source SHA. This closes `Q08-METHOD-ROOT` at the author checkpoint; integration verification remains coordinator-owned. The graph's stated limit remains source reach and canonical identity, not semantic fitness or branch execution. Q06/#2333 is outside this review.
 
 ## LEDGER ROWS (1 row)
 

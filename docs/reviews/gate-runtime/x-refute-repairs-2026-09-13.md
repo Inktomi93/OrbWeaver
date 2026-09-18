@@ -168,7 +168,7 @@ exactly two hits, both the DEFECT row itself: `refutation-ledger-2026-09-12.md:7
 
 ### (a) The class pin — PRESERVED
 
-No edit to the assertions. `pnpm test:scoped tests/tooling/verify/gates/mirror-index-family.test.ts` (run
+No edit to the assertions. `pnpm test:scoped tests/tooling/verify/gates/mirror-index-family.suite.test.ts` (run
 together with the load-budget suite) → **36 passed across 2 files, exit 0**, of which 23 are this file.
 
 ### (b) #2142 correction delivered by the orchestrator
@@ -180,28 +180,28 @@ The lane drafted §6; Claude B subsequently posted the number correction and a f
 `183e49714`'s 57-path literal was replaced by the class invariant at `6049dcded`, which was right, but it
 took the only in-code record of WHO joined with it. The class deliberately does not red on an in-class
 addition, so growth is auditable only if it is written down. **What changed:**
-`tests/tooling/verify/gates/mirror-index-family.test.ts`, header only — a `THE POST-PARK RECORD` block
+`tests/tooling/verify/gates/mirror-index-family.suite.test.ts`, header only — a `THE POST-PARK RECORD` block
 naming the six with the commit that ADDED each (`git log --diff-filter=A`), all six dated 2026-09-12:
 
 | adding commit | member |
 | - | - |
-| `a196a35d7` | `tests/tooling/verify/gates/bus-payload-family.test.ts` |
-| `2dabae9ce` | `tests/tooling/verify/gates/seed-theme-ink-family.test.ts` |
-| `a97454714` | `tests/tooling/verify/gates/token-contract-family.test.ts` |
-| `17a59099b` | `tests/tooling/verify/gates/css-home-topology-family.test.ts` |
-| `ae7a40e0b` | `tests/tooling/verify/gates/real-corpus-liveness-family.repo.int.test.ts` |
-| `61cae0710` | `tests/tooling/doc-catalog/ops/catalog-scope.test.ts` — **NOT in the class**; it is the first `PARKED_EXCEPTIONS` row, and the member that vindicates the roster argument |
+| `a196a35d7` | `tests/tooling/verify/gates/bus-payload-family.suite.test.ts` |
+| `2dabae9ce` | `tests/tooling/verify/gates/seed-theme-ink-family.suite.test.ts` |
+| `a97454714` | `tests/tooling/verify/gates/token-contract-family.suite.test.ts` |
+| `17a59099b` | `tests/tooling/verify/gates/css-home-topology-family.suite.test.ts` |
+| `ae7a40e0b` | `tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts` |
+| `61cae0710` | `tests/tooling/doc-catalog/ops/catalog-scope.suite.test.ts` — **NOT in the class**; it is the first `PARKED_EXCEPTIONS` row, and the member that vindicates the roster argument |
 
 **AND THE POPULATION MOVED AGAIN WHILE I WAS WRITING THE RECORD — 57 is stale, tip is 59.**
 `pnpm check:structure --check test-layout` at `204607e84`: `✗ test-layout (59) · raw 59 = waived 0 +
 granted 0 + effective 59 · 0 alarm(s) · 0 tool error(s) · 0 withheld`. Attribution derived by diffing the
 tip finding list against the 57-path literal recovered from
-`git show 183e49714:tests/tooling/verify/gates/mirror-index-family.test.ts` (60 path tokens = 57 members +
+`git show 183e49714:tests/tooling/verify/gates/mirror-index-family.suite.test.ts` (60 path tokens = 57 members +
 3 overlay FIXTURE paths — `use-thing`, `start-chat`, `snapx/cli` — which are not members):
 
 | adding commit | new member since wave-12b |
 | - | - |
-| `9104f718f` (2026-09-12) | `tests/tooling/verify/gates/css-hook-provenance-family.test.ts` |
+| `9104f718f` (2026-09-12) | `tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` |
 | `158dbdd96` (2026-09-13) | `tests/tooling/verify/gates/no-color-literals-parity.test.ts` |
 
 Both in-class; both entered SILENTLY; nothing red. That is the ruled trade working as designed — and it is
@@ -269,7 +269,7 @@ the module does not flag its own header).
 | the closure cites | the truth at `204607e84` |
 | - | - |
 | `tooling/src/verify/gates/dangling-refs.ts:262` as the Arm-B membership rule | `:262` is `LAW_OUTSIDE_DOCS`, a two-entry `.md` list; `dangling-refs` does NOT include root `.cjs`. The membership rule is a DIFFERENT module: `tooling/src/verify/gates/dangling-doc-cite.ts:134-140` (`isArmBMember`), `ROOT_EXTS` at `:103` |
-| `tests/tooling/verify/gates/dangling-refs.test.ts:106,190` | **that path does not exist.** `ls` → `No such file or directory`. The only file there is `dangling-refs.repo.int.test.ts`, and its arms are `dangling-refs`'s own planted-file and population receipts — not controls on `dangling-doc-cite`. The membership control that DOES exist is the one I planted above; the module's committed refusal pins are in `tests/tooling/verify/gates/text-citation-family.test.ts` (named by `dangling-doc-cite.ts:61-62,72-73`) |
+| `tests/tooling/verify/gates/dangling-refs.test.ts:106,190` | **that path does not exist.** `ls` → `No such file or directory`. The only file there is `dangling-refs.repo.int.test.ts`, and its arms are `dangling-refs`'s own planted-file and population receipts — not controls on `dangling-doc-cite`. The membership control that DOES exist is the one I planted above; the module's committed refusal pins are in `tests/tooling/verify/gates/text-citation-family.suite.test.ts` (named by `dangling-doc-cite.ts:61-62,72-73`) |
 
 ## 5. Proposed ledger cells
 
@@ -295,13 +295,13 @@ appended rows. `f946a501e` is this lane's commit.
 **Row 785 (review's 787) — `test-layout`, board #2270**
 
 - current STATE cell: `**OPEN** (board #2270)`
-- proposed STATE cell: `**CLOSED** — `f946a501e`(board #2270): the NAMING half is discharged — the six post-park members are recorded in`mirror-index-family.test.ts`'s header with a per-member `git log --diff-filter=A`sha, and the +2 that landed SINCE wave-12b (57 → 59) is named there too. The naming was`183e49714`/wave-12b's, never `6049dcded`'s. The correction was posted by Claude B (bridge 1021/1030); #2142 remains the separate parked-work owner (cb-x-refute-repairs)`
-- proposed RECEIPT-cell APPENDIX: ``· RE-MEASURED 2026-09-13 at `204607e84` (cb-x-refute-repairs): `pnpm check:structure --check test-layout` → `raw 59 = effective 59, 0 tool errors, 0 withheld`. The 57 → 59 delta is `9104f718f` `css-hook-provenance-family.test.ts` and `158dbdd96` `no-color-literals-parity.test.ts`, both in-class and both SILENT under the class invariant by design``
+- proposed STATE cell: `**CLOSED** — `f946a501e`(board #2270): the NAMING half is discharged — the six post-park members are recorded in`mirror-index-family.suite.test.ts`'s header with a per-member `git log --diff-filter=A`sha, and the +2 that landed SINCE wave-12b (57 → 59) is named there too. The naming was`183e49714`/wave-12b's, never `6049dcded`'s. The correction was posted by Claude B (bridge 1021/1030); #2142 remains the separate parked-work owner (cb-x-refute-repairs)`
+- proposed RECEIPT-cell APPENDIX: ``· RE-MEASURED 2026-09-13 at `204607e84` (cb-x-refute-repairs): `pnpm check:structure --check test-layout` → `raw 59 = effective 59, 0 tool errors, 0 withheld`. The 57 → 59 delta is `9104f718f` `css-hook-provenance-family.suite.test.ts` and `158dbdd96` `no-color-literals-parity.test.ts`, both in-class and both SILENT under the class invariant by design``
 
 **Row 902 (review's 905) — `test-layout` (family pin), board #2270**
 
 - current STATE cell: `**OPEN** (board #2270)`
-- proposed STATE cell: `**CLOSED** — `6049dcded`(board #2270): the exact-set pin is gone;`mirror-index-family.test.ts:314-406`holds the two-conjunct class plus two named exceptions asserted live,`realTreeMisses`asserts`toolErrors: \[]`and`withheldPolicyIds: \[]`before any arm reads a finding, and four discriminating overlay arms judge the predicate against real gate output in both directions. 23/23 green at`204607e84` (cb-x-refute-repairs, independent re-run)`
+- proposed STATE cell: `**CLOSED** — `6049dcded`(board #2270): the exact-set pin is gone;`mirror-index-family.suite.test.ts:314-406`holds the two-conjunct class plus two named exceptions asserted live,`realTreeMisses`asserts`toolErrors: \[]`and`withheldPolicyIds: \[]`before any arm reads a finding, and four discriminating overlay arms judge the predicate against real gate output in both directions. 23/23 green at`204607e84` (cb-x-refute-repairs, independent re-run)`
 
 **Row 842 (review's 844) — `.dependency-cruiser.cjs` · `dangling-refs`, board #2288**
 
@@ -323,24 +323,24 @@ not exist.
 > (59 error, 0 warning), 0 alarms, 0 tool errors, 0 withheld.**
 >
 > The +8 is fully attributed: seven are gate-conversion family tests and one is the named non-family
-> `catalog-scope.test.ts` exception. All are tooling tests; the distinction is preserved by the class pin:
+> `catalog-scope.suite.test.ts` exception. All are tooling tests; the distinction is preserved by the class pin:
 >
 > | | member | added by |
 > | - | - | - |
-> | 51 → 57 | `bus-payload-family.test.ts` | `a196a35d7` |
-> | | `seed-theme-ink-family.test.ts` | `2dabae9ce` |
-> | | `token-contract-family.test.ts` | `a97454714` |
-> | | `css-home-topology-family.test.ts` | `17a59099b` |
-> | | `real-corpus-liveness-family.repo.int.test.ts` | `ae7a40e0b` |
-> | | `tests/tooling/doc-catalog/ops/catalog-scope.test.ts` | `61cae0710` — the one NON-family member; a concept-named unit test, held as a NAMED EXCEPTION rather than in the class |
-> | 57 → 59 | `css-hook-provenance-family.test.ts` | `9104f718f` |
+> | 51 → 57 | `bus-payload-family.suite.test.ts` | `a196a35d7` |
+> | | `seed-theme-ink-family.suite.test.ts` | `2dabae9ce` |
+> | | `token-contract-family.suite.test.ts` | `a97454714` |
+> | | `css-home-topology-family.suite.test.ts` | `17a59099b` |
+> | | `real-corpus-liveness-family.suite.repo.int.test.ts` | `ae7a40e0b` |
+> | | `tests/tooling/doc-catalog/ops/catalog-scope.suite.test.ts` | `61cae0710` — the one NON-family member; a concept-named unit test, held as a NAMED EXCEPTION rather than in the class |
+> | 57 → 59 | `css-hook-provenance-family.suite.test.ts` | `9104f718f` |
 > | | `no-color-literals-parity.test.ts` | `158dbdd96` |
 >
 > All five family-test paths in the first block, and both in the second, sit under
 > `tests/tooling/verify/gates/`. Reconciliation method: per-member `git cat-file -e <sha>:<path>` across
 > `78a411ab0` / `50e31c534` / `9ad17fb5a` (`docs/reviews/gate-runtime/v-wave-12b-2026-09-13.md` §2) for the
 > first six, and a diff of the tip finding list against the 57-path literal recovered from
-> `git show 183e49714:tests/tooling/verify/gates/mirror-index-family.test.ts` for the last two.
+> `git show 183e49714:tests/tooling/verify/gates/mirror-index-family.suite.test.ts` for the last two.
 >
 > **PROPOSED WAKE TEXT (replacing "the test-mirror revamp program is filed or the owner rules on the 51
 > sites"):** *the test-mirror revamp program is filed, or the owner rules on the parked sites — whose count
@@ -348,7 +348,7 @@ not exist.
 > `78a411ab0`, 53 at `50e31c534`, 57 at `9ad17fb5a` and 59 at `204607e84`. The park covers the CLASS (a
 > tooling mirror miss under `tests/tooling/verify/gates/`), not a number, and the class grows by design at
 > roughly one member per gate conversion; a member of any OTHER class entering is NOT parked and reds
-> `tests/tooling/verify/gates/mirror-index-family.test.ts`.*
+> `tests/tooling/verify/gates/mirror-index-family.suite.test.ts`.*
 >
 > Nothing here asks the owner to re-decide anything: arms A/B/C and the default are untouched, and the
 > parked findings stay reported under the standing red.
@@ -370,7 +370,7 @@ not exist.
 | module | wave·path:line | defect | class | state | receipt |
 | - | - | - | - | - | - |
 | `tests/tooling/_load-budget.ts` | cb-x-refute-repairs · `tests/tooling/_load-budget.ts:132-138` (pre-fix) | the `#2197` comment justifying the `stdio` triple asserted a node mechanism that does not exist — *"execFileSync's DEFAULT leaves the child's stderr inherited by the parent, so `err.stderr` is null"*. The default is `["pipe","pipe","pipe"]` and already yields a populated string; only `stdio:"inherit"` nulls it, and this call site never used it. The CHANGE was correct for two other real reasons, so the comment made a correct fix unfalsifiable — a reader checking the stated mechanism finds it false and has no way to tell whether the code is wrong too | drifted comment / a commit message's stated mechanism carried into code as fact | **FIXED** — `f946a501e` (board #2197) | node v26.5.0, one child writing both streams and exiting 2: DEFAULT → `stderr="fatal-words"` (string) AND echoed to the parent; `["ignore","pipe","pipe"]` → `"fatal-words"` (string), not echoed; `"inherit"` → `null`. Comment rewritten to the two effects the measurement shows (stdin isolation, echo suppression); triple preserved |
-| `test-layout` (park accounting) | cb-x-refute-repairs · `tooling/src/verify/gates/test-layout.ts` · `#2142` body | the parked population is 59 at `204607e84` while #2142's body reads 51 and wave-12b's report reads 57 — the park's number goes stale roughly once per gate conversion and NOTHING re-measures it. The class invariant is right not to red (that was #2270/905), so the drift is structurally invisible; the only defence is that the number is DERIVED at read time, which the row's wake condition does not say | parked baseline with no re-measurement door (the #2270 residue, one layer out) | **OPEN** (board #2142) | `pnpm check:structure --check test-layout` at `204607e84` → `raw 59 = effective 59, 0 tool errors, 0 withheld`; +2 since wave-12b attributed to `9104f718f` and `158dbdd96` by diffing the tip list against `git show 183e49714:…mirror-index-family.test.ts`'s 57-path literal (60 tokens − 3 overlay fixture paths). Proposed wake text in §6 makes the count derived rather than quoted |
+| `test-layout` (park accounting) | cb-x-refute-repairs · `tooling/src/verify/gates/test-layout.ts` · `#2142` body | the parked population is 59 at `204607e84` while #2142's body reads 51 and wave-12b's report reads 57 — the park's number goes stale roughly once per gate conversion and NOTHING re-measures it. The class invariant is right not to red (that was #2270/905), so the drift is structurally invisible; the only defence is that the number is DERIVED at read time, which the row's wake condition does not say | parked baseline with no re-measurement door (the #2270 residue, one layer out) | **OPEN** (board #2142) | `pnpm check:structure --check test-layout` at `204607e84` → `raw 59 = effective 59, 0 tool errors, 0 withheld`; +2 since wave-12b attributed to `9104f718f` and `158dbdd96` by diffing the tip list against `git show 183e49714:…mirror-index-family.suite.test.ts`'s 57-path literal (60 tokens − 3 overlay fixture paths). Proposed wake text in §6 makes the count derived rather than quoted |
 
 `ledger rows OWED: 0`
 
@@ -378,7 +378,7 @@ not exist.
 
 | check | result |
 | - | - |
-| `pnpm test:scoped tests/tooling/load-budget.int.test.ts tests/tooling/verify/gates/mirror-index-family.test.ts` | exit 0 — **36 passed / 2 files** (13 + 23) |
+| `pnpm test:scoped tests/tooling/load-budget.int.test.ts tests/tooling/verify/gates/mirror-index-family.suite.test.ts` | exit 0 — **36 passed / 2 files** (13 + 23) |
 | `pnpm check:structure --check dangling-doc-cite --check dangling-refs --check no-loose-id-cast` | exit 0 — all three ✓, `0 tool error(s) · 0 withheld` |
 | `pnpm check:structure --check test-layout` | exit 1 — 59 findings, the standing parked red (baseline, not this lane's) |
 | `pnpm exec biome check <3 files> --diagnostic-level=error` | exit 0 — 3 files checked |
@@ -441,9 +441,9 @@ If any bounded obligation is considered unfinished, keep that row `OPEN`; never 
 
 ### MEDIUM — the proposed #2142 text contradicts the preserved class distinction
 
-Report lines 332-344 say all eight additions are “gate-conversion FAMILY TEST\[s]” and then correctly identify `tests/tooling/doc-catalog/ops/catalog-scope.test.ts` as the one non-family, concept-named exception. The class distinction is the reason the replacement pin is safe; flattening the exception back into the family misstates the proof.
+Report lines 332-344 say all eight additions are “gate-conversion FAMILY TEST\[s]” and then correctly identify `tests/tooling/doc-catalog/ops/catalog-scope.suite.test.ts` as the one non-family, concept-named exception. The class distinction is the reason the replacement pin is safe; flattening the exception back into the family misstates the proof.
 
-**Minimal fix.** Say seven additions are in the family-test class and `catalog-scope.test.ts` is the named non-family exception. Preserve the current `PARKED_EXCEPTIONS` classification. The #2142 comment is already posted per bridge 1021, so its correction belongs in the owner-facing follow-up/outbox rather than in repository source.
+**Minimal fix.** Say seven additions are in the family-test class and `catalog-scope.suite.test.ts` is the named non-family exception. Preserve the current `PARKED_EXCEPTIONS` classification. The #2142 comment is already posted per bridge 1021, so its correction belongs in the owner-facing follow-up/outbox rather than in repository source.
 
 ### LOW — #2259's durable lifecycle statement needs the 1022 correction
 
@@ -468,8 +468,8 @@ The report records #2259 as Ready at its timestamp and proposes a closed ledger 
 
 ### #2270 — CONFIRMED after state/text corrections
 
-- The commit changes only the header of `mirror-index-family.test.ts`; `inParkedClass`, `PARKED_EXCEPTIONS`, `realTreeMisses`, the non-vacuity checks, and all four discriminating arms are byte-unchanged.
-- Historical presence checks independently reproduce the growth: at `50e31c534`, the two additions beyond 51 are `real-corpus-liveness-family.repo.int.test.ts` and the named non-family `catalog-scope.test.ts`; at `9ad17fb5a`, all six additions through 57 are present; at `204607e84`, the two further in-class additions bring the reported population to 59.
+- The commit changes only the header of `mirror-index-family.suite.test.ts`; `inParkedClass`, `PARKED_EXCEPTIONS`, `realTreeMisses`, the non-vacuity checks, and all four discriminating arms are byte-unchanged.
+- Historical presence checks independently reproduce the growth: at `50e31c534`, the two additions beyond 51 are `real-corpus-liveness-family.suite.repo.int.test.ts` and the named non-family `catalog-scope.suite.test.ts`; at `9ad17fb5a`, all six additions through 57 are present; at `204607e84`, the two further in-class additions bring the reported population to 59.
 - Root main `da3f25f63` adds no new `tests/tooling/verify/gates` family member, so the 59 snapshot has not been superseded by the eight newer main commits. It remains a snapshot, not a pin.
 - Bridge 1021 says the #2142 correction was posted. Therefore #2270's bounded naming/fold requirement can close, while #2142 remains the separate owner. The report's proposed `PARTIAL` state and “all eight family tests” sentence must not be used.
 

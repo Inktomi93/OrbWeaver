@@ -40,7 +40,7 @@ Thus the measured source and evaluator inputs are byte-identical to the requeste
 - `readRoleComparison` uses `readStaticString`, so const string aliases are included; `readAxisVerdict` uses the TypeScript type of the role read and fails closed for `any`, plain `string`, and supersets while acquitting closed foreign unions (`tooling/src/verify/lib/role-vocabulary.ts:29-117`).
 - The vocabulary comes from the exported tuple fact, is bound to the contracts identity home, and withholds the policy when absent/unresolved (`two-class-role-authority.ts:146-151`; `tooling/src/verify/lib/tuple-vocabulary-fact.ts:109-168`). The production tuple is `PARTICIPANT_ROLES = ["host", "member"]` (`packages/contracts/src/identity/index.ts:74-75`).
 - The three designed omissions have committed `mustPass` rows: switch at `two-class-role-authority.ts:285-294`, guard inversion at `:345-354`, and hoisted const at `:355-364`. Those rows prove the current reader deliberately does not flag the shapes. They do **not** prove the live tree has no instances; that missing corpus census is what this audit supplied.
-- The family test runs all policy proof rows and separately pins reviewed-grant identity/liveness (`tests/tooling/verify/gates/home-server-family.test.ts:60-75`, `:174-214`, `:276-288`). It likewise does not enumerate live instances of the omitted classes.
+- The family test runs all policy proof rows and separately pins reviewed-grant identity/liveness (`tests/tooling/verify/gates/home-server-family.suite.test.ts:60-75`, `:174-214`, `:276-288`). It likewise does not enumerate live instances of the omitted classes.
 
 ## Production named-gate drive
 

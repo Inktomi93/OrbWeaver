@@ -200,7 +200,7 @@ describe("Orb semantic controls", () => {
   // pair's issue, until #2294/#2314): `tokens-contract` is a final `defineGate` policy, so its rows run through
   // the POLICY runner rather than the legacy `verifyGateProofs`, and the real-worktree removal ratchet is no
   // longer a `ctx.root` conditional — it is the `token-contract` resource's `removalBaseline`, read by the
-  // provider and pinned in tests/tooling/verify/gates/token-contract-family.test.ts.
+  // provider and pinned in tests/tooling/verify/gates/token-contract-family.suite.test.ts.
   test("the canonical policy proof stays green without weakening the real-worktree removal ratchet", () => {
     expect(verifyPolicyProofs([tokensContractGate])).toEqual([]);
   });

@@ -126,7 +126,7 @@ lane / orchestrator.**
 
 ### (1) RED-FIRST, production-driven, both siblings
 
-`tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts` §2309 (6 arms, 3 per sibling), run
+`tests/tooling/verify/gates/baseui-and-surface-family.suite.repo.int.test.ts` §2309 (6 arms, 3 per sibling), run
 against the UNMODIFIED sources (`git show HEAD:` for both `lib/` files, the new helper moved out of the tree,
 restored after; `git status --short` verified clean):
 
@@ -236,7 +236,7 @@ the reason, and the `028e278ee` measurement so the next reader does not restore 
 
 | module | wave · `path:line` | defect | class | state | receipt |
 | - | - | - | - | - | - |
-| `baseui-derives-not-respells` · `baseui-derives-not-respells-health` · `baseui-state-data-attributes` | #2309 `lib/policy-plan.ts:262` · `lib/policy-pass.ts:326` | a changed-mode request naming ONLY a declared resource scheduled the policy, visited ZERO source files and reported a SUCCESSFUL CLEAN — a manifest edit could invalidate every seal silently | runtime selection (false clean) | **CLOSED** | one shared `lib/policy-effective-population.ts` read by both doors; production control in `baseui-and-surface-family.repo.int.test.ts` §2309, red-first 4 failed / 41 passed at `028e278ee`, 45 passed after |
+| `baseui-derives-not-respells` · `baseui-derives-not-respells-health` · `baseui-state-data-attributes` | #2309 `lib/policy-plan.ts:262` · `lib/policy-pass.ts:326` | a changed-mode request naming ONLY a declared resource scheduled the policy, visited ZERO source files and reported a SUCCESSFUL CLEAN — a manifest edit could invalidate every seal silently | runtime selection (false clean) | **CLOSED** | one shared `lib/policy-effective-population.ts` read by both doors; production control in `baseui-and-surface-family.suite.repo.int.test.ts` §2309, red-first 4 failed / 41 passed at `028e278ee`, 45 passed after |
 | `baseui-derives-not-respells` · `baseui-derives-not-respells-health` · `baseui-state-data-attributes` | #2309 `lib/policy-pass.ts:252` (the deleted `requestStaysDeclared`) | a changed-mode request naming ONLY a `@ui` source WITHDREW the declared `json:baseui-manifest` and refused the owner `[create] … is undeclared` — exit-2 on the commonest scoped invocation | runtime selection (tool error) | **CLOSED** | resources are never narrowed for a running owner; the tautological filter is deleted with its ruling recorded at its position; pinned by the same §2309 block, both siblings |
 | `lib/policy-plan.ts` · `lib/policy-pass.ts` | #2309 `policy-plan.ts:238` vs `policy-pass.ts:318` | planner and dispatcher computed the split independently and disagreed: a consumed fact's population counted in the planner's completeness denominator only, so an entire-population consumer was planned `deferred` and resolved `success`, which `applyOwnerPlan` throws on | runtime selection (planner/dispatcher divergence) | **CLOSED** | one calculation, both callers; agreement pinned over four request shapes by planning AND executing each (`policy-effective-population.test.ts`), and the previously plan-only fact fixture in `policy-plan.test.ts` now executes |
 

@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 601,
-    "reported": 34,
+    "sites": 602,
+    "reported": 1,
     "byVerdict": {
-      "deliberate-absorb": 567,
-      "unproven": 34
+      "deliberate-absorb": 601,
+      "unproven": 1
     },
     "byGrammar": {
-      "default": 158,
+      "default": 159,
       "empty": 299,
       "promise": 144
     }
@@ -707,7 +707,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-install-card.tsx::previewFromUrl.mutateAsync::1",
       "path": "packages/client/src/features/plugin/components/plugin-install-card.tsx",
-      "line": 123,
+      "line": 122,
       "column": 5,
       "grammar": "promise",
       "position": "previewFromUrl.mutateAsync",
@@ -715,12 +715,12 @@
       "snippet": "previewFromUrl.mutateAsync({ url: trimmedUrl }).then(",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is caught below and sets a",
-      "markerLine": 120
+      "markerLine": 119
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-install-card.tsx::settled::1",
       "path": "packages/client/src/features/plugin/components/plugin-install-card.tsx",
-      "line": 243,
+      "line": 232,
       "column": 5,
       "grammar": "promise",
       "position": "settled",
@@ -728,7 +728,7 @@
       "snippet": "settled.then(onDone, () => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "both useInstallPlugin and useInstallPluginFromUrl",
-      "markerLine": 240
+      "markerLine": 229
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::applyUpgrade::1",
@@ -2943,7 +2943,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1201,
+      "line": 1202,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -2951,12 +2951,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 1197
+      "markerLine": 1198
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::3",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1234,
+      "line": 1235,
       "column": 9,
       "grammar": "empty",
       "position": "catch",
@@ -2964,12 +2964,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1223
+      "markerLine": 1224
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::4",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1271,
+      "line": 1272,
       "column": 11,
       "grammar": "empty",
       "position": "catch",
@@ -2977,12 +2977,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1263
+      "markerLine": 1264
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 980,
+      "line": 981,
       "column": 16,
       "grammar": "empty",
       "position": "err",
@@ -2990,7 +2990,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 974
+      "markerLine": 975
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::runChatTurn::1",
@@ -3060,7 +3060,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 446,
+      "line": 449,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -3068,7 +3068,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `requireOwner`/`can()`",
-      "markerLine": 440
+      "markerLine": 443
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::catch::1",
@@ -3255,7 +3255,7 @@
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
       "path": "packages/server/src/foundation/observability/debug/bug-report.ts",
-      "line": 78,
+      "line": 93,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3263,7 +3263,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "git being absent, or the cwd not being a",
-      "markerLine": 73
+      "markerLine": 88
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/log-ring-read.ts::catch::1",
@@ -4971,46 +4971,46 @@
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::cleanup::1",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 222,
+      "line": 227,
       "column": 14,
       "grammar": "empty",
       "position": "cleanup",
       "ordinal": 1,
       "snippet": "} catch (cleanup) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "start-failure cleanup: pushed to failures[] and re-thrown via startCleanupError at L231; the start error is the primary owner",
+      "markerLine": 224
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::cleanup::2",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 227,
+      "line": 233,
       "column": 14,
       "grammar": "empty",
       "position": "cleanup",
       "ordinal": 2,
       "snippet": "} catch (cleanup) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "start-failure cleanup: pushed to failures[] and re-thrown via startCleanupError at L231; the start error is the primary owner",
+      "markerLine": 230
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::cleanupObserver::1",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 238,
+      "line": 244,
       "column": 11,
       "grammar": "promise",
       "position": "cleanupObserver",
       "ordinal": 1,
       "snippet": "await cleanupObserver().catch((error: unknown) => warn(`BOOT LCP CLEANUP     ${errorMessage(error)}`));",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "terminal cleanup after trace stop: warn() prints the exact failure text; the owning Snap session closes the browser next",
+      "markerLine": 243
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::detach::1",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 240,
+      "line": 246,
       "column": 11,
       "grammar": "promise",
       "position": "detach",
@@ -5018,77 +5018,77 @@
       "snippet": "await detach().catch((error: unknown) => warn(`BOOT TRACE DETACH   ${errorMessage(error)}`));",
       "verdict": "deliberate-absorb",
       "reason": "detach is terminal cleanup after trace stop/abort; warn prints the exact failure and the owning Snap session still closes the browser. Ends if this warning or the following session close disappears.",
-      "markerLine": 239
+      "markerLine": 245
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::1",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 137,
+      "line": 138,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "error-collection cleanup: pushed to failures[] and re-thrown as AggregateError at L148-152; partial-trace evidence is preserved",
+      "markerLine": 134
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::2",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 145,
+      "line": 147,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 2,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "error-collection cleanup: pushed to failures[] and re-thrown as AggregateError at L148-152; partial-trace evidence is preserved",
+      "markerLine": 142
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::3",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 183,
+      "line": 186,
       "column": 14,
       "grammar": "empty",
       "position": "error",
       "ordinal": 3,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "CDP cleanup error-collection: pushed to failures[] and re-thrown as AggregateError at L197-199; observer disposal is terminal",
+      "markerLine": 183
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::4",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 194,
+      "line": 198,
       "column": 14,
       "grammar": "empty",
       "position": "error",
       "ordinal": 4,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "CDP cleanup error-collection: pushed to failures[] and re-thrown as AggregateError at L197-199; observer disposal is terminal",
+      "markerLine": 189
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::error::5",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 264,
+      "line": 271,
       "column": 18,
       "grammar": "empty",
       "position": "error",
       "ordinal": 5,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "trace-start recovery: re-thrown at L233 after cleanup collects secondary failures; start error is the primary owner",
+      "markerLine": 268
     },
     {
       "siteId": "tooling/src/cpu-profile/ops/boot-trace.ts::stopTrace::1",
       "path": "tooling/src/cpu-profile/ops/boot-trace.ts",
-      "line": 248,
+      "line": 254,
       "column": 13,
       "grammar": "promise",
       "position": "stopTrace",
@@ -5096,7 +5096,7 @@
       "snippet": "await stopTrace(cdp, complete.promise).catch((error: unknown) => warn(`BOOT TRACE CLEANUP  ${errorMessage(error)}`));",
       "verdict": "deliberate-absorb",
       "reason": "warn receives the caught cleanup error and prints it as BOOT TRACE CLEANUP; the surrounding session close remains the terminal cleanup owner. Ends if this warning stops carrying the failure or session close stops following this block.",
-      "markerLine": 247
+      "markerLine": 253
     },
     {
       "siteId": "tooling/src/doc-catalog/ops/catalog.ts::catch::1",
@@ -5114,7 +5114,7 @@
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::catch::1",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 76,
+      "line": 77,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -5122,12 +5122,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "every caller (receiptFacts) treats a git command failure as \"this receipt fact is unverified\", not as a tool crash — null downgrades verifiedCommitExists/IsAncestor/blob to false/null rather than aborting the whole catalog build. Ends if a caller starts treating null as \"verified\".",
-      "markerLine": 67
+      "markerLine": 68
     },
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::catch::2",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 94,
+      "line": 95,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -5135,12 +5135,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "same optional-read contract as gitOutput above — a failed verified-commit or candidate-index read returns null and the receipt stays unverified. Ends if a caller starts treating null as \"verified\".",
-      "markerLine": 87
+      "markerLine": 88
     },
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::catch::3",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 159,
+      "line": 160,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -5148,7 +5148,20 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "null means the candidate-path census is unavailable; every receipt pair is then treated as touched and must pass the exact-index proof, so failure widens verification instead of reading clean. Ends if null stops selecting every pair.",
-      "markerLine": 146
+      "markerLine": 147
+    },
+    {
+      "siteId": "tooling/src/doc-catalog/ops/tree.ts::catch::4",
+      "path": "tooling/src/doc-catalog/ops/tree.ts",
+      "line": 283,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 4,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a formatter crash is not a catalog crash — the canonical arm is unavailable and only the raw hash decides. Ends if null stops meaning \"unavailable\".",
+      "markerLine": 279
     },
     {
       "siteId": "tooling/src/model-ab/lib/verify.ts::catch::1",
@@ -7233,15 +7246,15 @@
     {
       "siteId": "tooling/src/verify/lib/config-snapshot.ts::error::1",
       "path": "tooling/src/verify/lib/config-snapshot.ts",
-      "line": 228,
+      "line": 229,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "native-config parse error: surfaced as a structured tool-error diagnostic in the config-snapshot report; the broken config is excluded from the snapshot",
+      "markerLine": 212
     },
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::catch::1",
@@ -7350,106 +7363,106 @@
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::catch::1",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 411,
+      "line": 414,
       "column": 7,
       "grammar": "empty",
       "position": "catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "fact population resolution: on failure the fact gets an empty population and the run continues; downstream gates see EMPTY_POPULATION, not silence",
+      "markerLine": 411
     },
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::error::1",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 178,
+      "line": 179,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "gate evaluation guard: markIncomplete converts error to a structured PolicyToolError with phase and message; the gate run reports tool-error status",
+      "markerLine": 176
     },
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::error::2",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 197,
+      "line": 199,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 2,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "fact evaluation guard: markFactIncomplete converts error to a structured FactToolError with phase and message; the fact run reports tool-error status",
+      "markerLine": 196
     },
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::error::3",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 455,
+      "line": 459,
       "column": 14,
       "grammar": "empty",
       "position": "error",
       "ordinal": 3,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "policy population resolution: markIncomplete converts error to a structured PolicyToolError; the run reports tool-error status with EMPTY_POPULATION",
+      "markerLine": 447
     },
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::error::4",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 519,
+      "line": 524,
       "column": 14,
       "grammar": "empty",
       "position": "error",
       "ordinal": 4,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "fact population resolution: markFactIncomplete converts error to a structured FactToolError; the run reports tool-error status with EMPTY_POPULATION",
+      "markerLine": 494
     },
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::1",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 427,
+      "line": 428,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "drizzle schema parse error: surfaced as a structured tool-error in the schema-fact report; the broken schema is excluded from the fact census",
+      "markerLine": 406
     },
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::2",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 480,
+      "line": 482,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 2,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "drizzle column parse error: surfaced as a structured tool-error in the schema-fact report; the broken column is excluded from the fact census",
+      "markerLine": 479
     },
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::3",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 562,
+      "line": 565,
       "column": 22,
       "grammar": "empty",
       "position": "error",
       "ordinal": 3,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "FK resolution error: surfaced as a structured tool-error in the schema-fact report; the broken FK is excluded from the fact census",
+      "markerLine": 559
     },
     {
       "siteId": "tooling/src/verify/ops/asset-refs-coverage.ts::err::1",
@@ -7558,210 +7571,210 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::1",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 131,
+      "line": 132,
       "column": 14,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status",
+      "markerLine": 129
     },
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::2",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 156,
+      "line": 158,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 2,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status",
+      "markerLine": 152
     },
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::3",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 204,
+      "line": 207,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 3,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status",
+      "markerLine": 167
     },
     {
       "siteId": "tooling/src/verify/ops/resource-config.ts::error::1",
       "path": "tooling/src/verify/ops/resource-config.ts",
-      "line": 82,
+      "line": 83,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "native config resolution: error surfaces as a structured tool-error diagnostic; the broken config is excluded from the resource set",
+      "markerLine": 80
     },
     {
       "siteId": "tooling/src/verify/ops/resource-config.ts::error::2",
       "path": "tooling/src/verify/ops/resource-config.ts",
-      "line": 112,
+      "line": 114,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 2,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "native config resolution: error surfaces as a structured tool-error diagnostic; the broken config is excluded from the resource set",
+      "markerLine": 111
     },
     {
       "siteId": "tooling/src/verify/ops/resource-host.ts::error::1",
       "path": "tooling/src/verify/ops/resource-host.ts",
-      "line": 86,
+      "line": 87,
       "column": 16,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "resource-host resolution: error surfaces as a structured tool-error in the resource-host report; the broken host is excluded from the resource set",
+      "markerLine": 84
     },
     {
       "siteId": "tooling/src/verify/ops/resource-index.ts::error::1",
       "path": "tooling/src/verify/ops/resource-index.ts",
-      "line": 66,
+      "line": 67,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "resource-index resolution: error surfaces as a structured tool-error in the resource-index report; the broken index is excluded",
+      "markerLine": 62
     },
     {
       "siteId": "tooling/src/verify/ops/resource-installed.ts::error::1",
       "path": "tooling/src/verify/ops/resource-installed.ts",
-      "line": 167,
+      "line": 168,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "installed-resource resolution: error surfaces as a structured tool-error; the broken resource is excluded from the installed set",
+      "markerLine": 158
     },
     {
       "siteId": "tooling/src/verify/ops/resource-path.ts::catch::1",
       "path": "tooling/src/verify/ops/resource-path.ts",
-      "line": 68,
+      "line": 69,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "resource-path stat error: ENOENT is the expected missing-file signal; all other errors re-throw at L71",
+      "markerLine": 66
     },
     {
       "siteId": "tooling/src/verify/ops/resource-path.ts::error::1",
       "path": "tooling/src/verify/ops/resource-path.ts",
-      "line": 77,
+      "line": 79,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "resource-path resolution: error surfaces as a structured tool-error; the broken path is excluded from the resource set",
+      "markerLine": 76
     },
     {
       "siteId": "tooling/src/verify/ops/resource-path.ts::error::2",
       "path": "tooling/src/verify/ops/resource-path.ts",
-      "line": 92,
+      "line": 95,
       "column": 12,
       "grammar": "empty",
       "position": "error",
       "ordinal": 2,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "resource-path resolution: error surfaces as a structured tool-error; the broken path is excluded from the resource set",
+      "markerLine": 92
     },
     {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::error::1",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 108,
+      "line": 109,
       "column": 14,
       "grammar": "empty",
       "position": "error",
       "ordinal": 1,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set",
+      "markerLine": 102
     },
     {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::error::2",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 166,
+      "line": 168,
       "column": 14,
       "grammar": "empty",
       "position": "error",
       "ordinal": 2,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set",
+      "markerLine": 160
     },
     {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::error::3",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 185,
+      "line": 188,
       "column": 16,
       "grammar": "empty",
       "position": "error",
       "ordinal": 3,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set",
+      "markerLine": 184
     },
     {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::error::4",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 296,
+      "line": 300,
       "column": 14,
       "grammar": "empty",
       "position": "error",
       "ordinal": 4,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set",
+      "markerLine": 297
     },
     {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::error::5",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 331,
+      "line": 336,
       "column": 14,
       "grammar": "empty",
       "position": "error",
       "ordinal": 5,
       "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set",
+      "markerLine": 332
     },
     {
       "siteId": "tooling/src/verify/ops/tests-type-membership.ts::catch::1",

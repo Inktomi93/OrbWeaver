@@ -258,7 +258,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: { [CHAT_BUS]: 'export type ChatBusEvent = { type: "wi.updated"; bookId: string };\n' },
-      why: "THE BLINDNESS SWEEP ABSTAINS below REAL_CORPUS_MIN: a conformance mini-project loads a handful of files, so every OTHER root name here is legitimately 'missing' and the whole-corpus claim stays quiet. Its bite on a real-sized corpus — and its silence on a healthy one — are proven in tests/tooling/verify/gates/bus-payload-family.test.ts, which is the only substrate that can carry a padded corpus",
+      why: "THE BLINDNESS SWEEP ABSTAINS below REAL_CORPUS_MIN: a conformance mini-project loads a handful of files, so every OTHER root name here is legitimately 'missing' and the whole-corpus claim stays quiet. Its bite on a real-sized corpus — and its silence on a healthy one — are proven in tests/tooling/verify/gates/bus-payload-family.suite.test.ts, which is the only substrate that can carry a padded corpus",
     },
     {
       mode: "types",

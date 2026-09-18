@@ -105,7 +105,7 @@ no `git stash`/`checkout`/`restore` anywhere in this lane.
   with a scratch probe before the row was written, not hoped for), so an unfenced cross-file body
   satisfies a stub that asserts nothing. Planted-break receipt: fence cut → `mustFlag[7]` green,
   `mustFlag[8]` **RED**; fence restored → both green.
-- The family test's prose pin (`callback-provenance-family.test.ts`) asserted the OLD mechanism in a
+- The family test's prose pin (`callback-provenance-family.suite.test.ts`) asserted the OLD mechanism in a
   comment ("the import never yields a body"). Same one finding is still asserted; the comment now states
   the fence and points at `mustFlag[8]`.
 

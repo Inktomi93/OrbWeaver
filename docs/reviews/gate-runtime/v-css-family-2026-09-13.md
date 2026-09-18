@@ -215,7 +215,7 @@ raw 3 = waived 0 + granted 2 + effective 1 (1 error, 0 warning) · 1 alarm(s)
 A grant whose subject/operation vanishes ALARMS (liveness), and the now-ungranted mechanism becomes an
 EFFECTIVE error at a real coordinate. That also proves the baseline `raw 3 = granted 3` is not a vacuous zero:
 three live findings are really consumed. Restored. The family test additionally pins the identity three ways
-(`css-hook-provenance-family.test.ts` — exact consumption, wrong-hook stales, stopped-being-painted stales)
+(`css-hook-provenance-family.suite.test.ts` — exact consumption, wrong-hook stales, stopped-being-painted stales)
 and holds the three rows two-sided against the policy.
 
 **REFUTED: two of the three surviving seams are NOT "derived from declared vocabularies".**
@@ -312,10 +312,10 @@ each converted module, as claimed. `check:structure --check enforcement-registry
   at `9104f718f^`'s bytes installed at the same path** (md5 `3383bbc5…`). Restored to `a2a1d9a7…`. Classified
   INHERITED, not a lane defect.
 
-### Claim 10 — the `mirror-index-family.test.ts` `+1` line · **CONFIRMED**
+### Claim 10 — the `mirror-index-family.suite.test.ts` `+1` line · **CONFIRMED**
 
-`git diff 9104f718f^ 3c685ce6a -- tests/tooling/verify/gates/mirror-index-family.test.ts` is exactly one added
-line, `"tests/tooling/verify/gates/css-hook-provenance-family.test.ts",`, in `PARKED_TEST_LAYOUT_MISSES`, in
+`git diff 9104f718f^ 3c685ce6a -- tests/tooling/verify/gates/mirror-index-family.suite.test.ts` is exactly one added
+line, `"tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts",`, in `PARKED_TEST_LAYOUT_MISSES`, in
 sorted position. Nothing else in the file changed.
 
 **Suites run (`pnpm test:scoped`, the niced door):**
@@ -323,7 +323,7 @@ sorted position. Nothing else in the file changed.
 | suites | result |
 | - | - |
 | `css-hook-provenance-family` + `static-class-collection.int` + `static-class-consumers.int` + `mirror-index-family` | **4 files / 25 tests passed**, exit 0 |
-| `verify/ops/resource-css.test.ts` + `verify/gates/baseui-and-surface-family.repo.int.test.ts` | passed |
+| `verify/ops/resource-css.test.ts` + `verify/gates/baseui-and-surface-family.suite.repo.int.test.ts` | passed |
 | `verify/lib/reviewed-grants.test.ts` | **FAILED — and it is INHERITED, see row 6** |
 
 The literal grep the accreted lesson demands: each of the five ids plus `css-hook-provenance` grepped as a
@@ -501,7 +501,7 @@ under `docs/`.
 
 The original verifier report above this heading is preserved with repository formatting normalized. Its six ledger rows map forward as follows:
 
-- Rows 1, 2, 4, and 5 were repaired by `dd98eb356`; residual cardinality prose was corrected by `f56e83d52`. Independent source review accepted the repairs. The current-main artifact `reports/runs/test/main-4128511-2026-09-13T05-44-47-564Z/test-report.json` passed 11/11 tests across `static-class-collection.int.test.ts`, `static-class-consumers.int.test.ts`, and `css-hook-provenance-family.test.ts`. Final B re-lens remains pending, so these rows are FIXED awaiting final review rather than closed.
+- Rows 1, 2, 4, and 5 were repaired by `dd98eb356`; residual cardinality prose was corrected by `f56e83d52`. Independent source review accepted the repairs. The current-main artifact `reports/runs/test/main-4128511-2026-09-13T05-44-47-564Z/test-report.json` passed 11/11 tests across `static-class-collection.int.test.ts`, `static-class-consumers.int.test.ts`, and `css-hook-provenance-family.suite.test.ts`. Final B re-lens remains pending, so these rows are FIXED awaiting final review rather than closed.
 - Row 3 remains open under #2297. The successor mechanism is stronger, but the vanished-part and vanished-component proof dependency is not closed by this fold.
 - Row 6 closed separately under #2306: `78ec56ea6` preserved each grant record while restoring lexical order; the focused suite passed 3/3, its sort-predicate red swap produced 1 failed / 2 passed, and restoration passed 3/3.
 - \#2309 remains pending; #2310's refusal-pin work remains active in B. Neither is resolved or reclassified here.

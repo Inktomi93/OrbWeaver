@@ -42,9 +42,9 @@ Four secondary findings (S1–S4) are listed after the main items.
 ## 0 — The floor
 
 ```
-pnpm test:scoped tests/tooling/verify/gates/callback-provenance-family.test.ts \
+pnpm test:scoped tests/tooling/verify/gates/callback-provenance-family.suite.test.ts \
   tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts \
-  tests/tooling/verify/gates/text-citation-family.test.ts \
+  tests/tooling/verify/gates/text-citation-family.suite.test.ts \
   tests/tooling/diagnostic-legibility.residual.test.ts
 → EXIT=0 · Test Files 4 passed · Tests 35 passed · Type Errors no errors
    callback-provenance-family 12 · enforcement-registry-parity 12 · text-citation-family 10 · residual 1

@@ -60,7 +60,7 @@ a reader arriving from §3's caveat paragraph needs to see what "3 of 9" actuall
    home does not answer); the roster row at `Core-Enforcement-Active-Gates.md:288` enumerates all five.
    `refutation-ledger-2026-09-12.md:151` already records this CLOSED.
 2. **`spacing-tier-home-health` does NOT owe a §4.5 pin — it landed at `ec336d41c`.**
-   `tests/tooling/verify/gates/tier-home-health-family.int.test.ts:57-89` is the narrowed-request deferral pin
+   `tests/tooling/verify/gates/tier-home-health-family.suite.int.test.ts:57-89` is the narrowed-request deferral pin
    (`owner.status: "not-applicable"`, `population: "complete"`) WITH its whole-project control, and the same
    file carries the §4.6 split-arm differential (`6f815e95e`). It is not "a copy target for a HARD tripwire
    only" on that ground; its remaining gaps are C5 and one C6 discriminator.

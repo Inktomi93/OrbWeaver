@@ -17,7 +17,7 @@
 // ["packages/server/src/entry/http/**"] }`.
 // LEGACY at 86ce80b6c.
 //
-// §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.test.ts): every legacy
+// §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.suite.test.ts): every legacy
 // mustFlag/mustPass example (minus the census row, ported to the `-health` sibling) replays identically —
 // same finding count, same reported method-name token. No finding or tool-error delta on this arm.
 //

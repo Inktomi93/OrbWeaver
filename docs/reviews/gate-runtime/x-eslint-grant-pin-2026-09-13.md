@@ -22,7 +22,7 @@ re-points every RATIFIED row, while the real-tree `runPolicyPass` gave 15 findin
 `docs/design/gate-runtime-standardization.md` §12.7 ("AND THE `RATIFIED` TABLES ARE KEYED BY POSITIONAL
 INDEX … an entry inserted ABOVE an existing key silently re-points every row beneath it"). Neither
 `tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts` (the permanent pin) nor
-`tests/tooling/verify/gates/grant-liveness-family.test.ts` (the family conformance net, which drives
+`tests/tooling/verify/gates/grant-liveness-family.suite.test.ts` (the family conformance net, which drives
 `verifyPolicyProofs` over every gate's own declared `mustFlag`/`mustPass` rows) had a row exercising this
 shape before this lane.
 
@@ -51,7 +51,7 @@ APPEND findings: 1 [ 'config[0].ignores[8]: an evaluated ESLint files/ignores se
 ## The fix
 
 Two `mustFlag` rows added to `eslint-grant-liveness.ts` (`gate.mustFlag`), run automatically by
-`grant-liveness-family.test.ts`'s `verifyPolicyProofs(policies)` — no new test file needed; the row is
+`grant-liveness-family.suite.test.ts`'s `verifyPolicyProofs(policies)` — no new test file needed; the row is
 exactly what `mustFlag` exists to express (constitution/gates-and-tooling.md: "A committed family test is
 owed only for what a ROW CANNOT EXPRESS").
 
@@ -104,7 +104,7 @@ placement for a NEW ratified row, but it does not corrupt existing ones).
 ## Discrimination proof (the pin actually catches a regression)
 
 Probed the real fixed file: `cp` backup, temporarily changed arm (a)'s `expect.count` from `15` to `14`
-(a wrong value, one command per Bash call, `mv` restore), re-ran `grant-liveness-family.test.ts`:
+(a wrong value, one command per Bash call, `mv` restore), re-ran `grant-liveness-family.suite.test.ts`:
 
 ```
 AssertionError: expected [ { policyId: 'eslint-grant-liveness', arm: 'mustFlag', exampleIndex: 3,
@@ -118,7 +118,7 @@ was restored before the working tree was inspected).
 
 ## Floor (all green, in order)
 
-- `pnpm test:scoped tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts tests/tooling/verify/gates/grant-liveness-family.test.ts` — 2 files, 7 tests passed (both before adding the rows at 7/7, and after at 7/7 — the row count did not change because rows attach inside `verifyPolicyProofs`'s single test, not as new `test()` blocks).
+- `pnpm test:scoped tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts tests/tooling/verify/gates/grant-liveness-family.suite.test.ts` — 2 files, 7 tests passed (both before adding the rows at 7/7, and after at 7/7 — the row count did not change because rows attach inside `verifyPolicyProofs`'s single test, not as new `test()` blocks).
 - `pnpm check:structure --check eslint-grant-liveness` — real tree, before AND after: `raw 0 = waived 0 + granted 0 + effective 0`, 0 tool errors, 0 alarms, 1/1 selected gate ran. No change on the real corpus (expected — the fix only adds fixture rows, never touches `evaluate()` or the real `RATIFIED` table).
 - `pnpm exec biome check tooling/src/verify/gates/eslint-grant-liveness.ts --diagnostic-level=error` — clean.
 - `pnpm exec eslint tooling/src/verify/gates/eslint-grant-liveness.ts` — clean, no output.
@@ -138,7 +138,7 @@ was restored before the working tree was inspected).
   reproduced the real-tree's exact measured count (15), so it is both safer and sufficient.
 - **No new test FILE.** Per `.claude/rules/gates-and-tooling.md`, "a committed family test is owed only for
   what a ROW CANNOT EXPRESS" — this property is fully expressible as `mustFlag` rows, which
-  `grant-liveness-family.test.ts` already drives through the real dispatcher. Adding a bespoke `.int.test.ts`
+  `grant-liveness-family.suite.test.ts` already drives through the real dispatcher. Adding a bespoke `.int.test.ts`
   would have duplicated that harness for no additional coverage.
 
 ## LEDGER ROWS (0 rows)

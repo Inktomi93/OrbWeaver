@@ -27,7 +27,7 @@
 // `if (fact.status !== "ready") return;` here would be unreachable code AND would teach the next resource
 // conversion that a silent return is the correct answer to a broken resource. It is not. Every reachable
 // refusal (tree missing, tree empty, manifest missing, manifest malformed) and the complete run's receipt
-// pair are pinned through `runPolicyPass` in resource-layout-wave-1.test.ts, because no proof row can
+// pair are pinned through `runPolicyPass` in resource-layout-wave-1.suite.test.ts, because no proof row can
 // express a refusal (guide §6.3).
 // DECLARED LIMITS: none beyond the vocabulary itself — `mustPass[0]` is the complete legal root, and every
 // arm is pinned by a row whose count the §4.1 cut moves.
@@ -155,7 +155,7 @@ export const gate = defineGate({
         "packages/server/src/index.ts": "export const x = 1;\n",
       },
       // The boundary between a REFUSAL and a VERDICT. An EMPTY server tree is a population-phase tool error
-      // (pinned in resource-layout-wave-1.test.ts); ONE file is a tree, and a tree missing every tier is six
+      // (pinned in resource-layout-wave-1.suite.test.ts); ONE file is a tree, and a tree missing every tier is six
       // findings, one per tier, all anchored at the manifest. `count: 6` pins that the missing-tier loop
       // counts every member of the closed vocabulary rather than stopping at the first. It shares
       // `mustFlag[1]`'s arm and message shape — the count is what carries it.

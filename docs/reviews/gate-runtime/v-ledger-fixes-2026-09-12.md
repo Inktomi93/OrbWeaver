@@ -128,7 +128,7 @@ occur exactly once, baseline 0 failures before each cut:
 `["@client","@ui"]` population. No fixture placed under an ADDED population root can ever land on one, so
 no discriminating fixture EXISTS — guide §4.1's fourth outcome, recorded in the header together with the
 INVERTED cut direction a tripwire needs. The §4.5 deferral pin
-(`tests/tooling/verify/gates/tier-home-health-family.int.test.ts`) passed 3/3 in my battery.
+(`tests/tooling/verify/gates/tier-home-health-family.suite.int.test.ts`) passed 3/3 in my battery.
 
 ### #1999 — the origin-client narrowings
 
@@ -202,7 +202,7 @@ LEGACY-SIDE coverage asserted so a vacuous replay cannot read as a pass. It pass
 What the row's own re-scope comment lists as remaining, and what is NOT on the tree:
 
 - **Tier 2b (2 modules)** — `contract-banned-shapes`, `nullable-column-inequality`. No frozen-legacy
-  replay exists: `tests/tooling/verify/gates/schema-fact-wave-1.test.ts` contains no `BASE`, no
+  replay exists: `tests/tooling/verify/gates/schema-fact-wave-1.suite.test.ts` contains no `BASE`, no
   `runPass`, no frozen-legacy import.
 - **Tier 2c (7 modules)** — schema-fact's remainder. Same receipt: no differential anywhere.
 - **Tier 3 (17 one-to-one ports)** — guide §4.6 carries the GENERAL close-by-rule form (*"a 1:1 port whose
@@ -313,7 +313,7 @@ Written in `refutation-ledger-2026-09-12.md`'s row format for verbatim append un
 | `policy-proof-expectations` | cb-v-ledger-fixes `tooling/src/verify/gates/policy-proof-expectations.ts` (enforcer worklist) | the enforcer's real-tree residue is **50**, not the 11 the #1968 commit and the ledger's cross-cutting row both cite; the extra **39 are ARM M** (non-discriminating `messageIncludes`) accrued by later conversions across 18 modules | other | **OPEN** | `check:structure` `2474787-…T12-26-32`: 50 findings / 23 modules; classified by message text ARM C 11 · ARM M 39. **ARM C is still exactly 11 and exactly #2001's five modules** — the #1968 burn-down HELD; only the forward-citable total is wrong |
 | `#2001` (the exemption's own text) | cb-v-ledger-fixes `#2001` body | *"Each of the 11 carries `token` + an arm-specific `messageIncludes`"* is FALSE for three of them, and the heading says "11 rows across 6 files" while the table lists five modules | other | **OPEN** | `ownerid-registry:182`, `persisted-store-registry:381`, `verify-registry-parity:109` carry `messageIncludes` only, no `token` |
 | `no-inline-types` | w5 (the ledger's one UNADJUDICATED row) | wave 5's real-tree finding count could not be adjudicated because `check:structure` was fenced | other | **CLOSED (adjudicated)** | `check:structure` this session: **raw 26**, `ok=false`, all `exported type/zod-schema outside a type home`. Pre-existing #1988 debt, explicitly out of `8ad418868`'s scope |
-| `#2000` | cb-v-ledger-fixes `tests/tooling/verify/gates/split-arm-parity.test.ts` | the row's re-scoped spec is Tier 2a + 2b + 2c + a Tier 3 ruling; only Tier 2a landed | §4.6 differential | **OPEN (PARTIAL)** | `split-arm-parity.test.ts` covers the four wave-5 splits (8 policies) against `BASE 5dd83aaa4`, 8/8 green. `schema-fact-wave-1.test.ts` contains no `BASE`, no `runPass`, no frozen-legacy import → Tier 2b/2c absent; no per-module Tier 3 closure recorded and `turn-identity` / `plugin-dump-guard` unaddressed |
+| `#2000` | cb-v-ledger-fixes `tests/tooling/verify/gates/split-arm-parity.test.ts` | the row's re-scoped spec is Tier 2a + 2b + 2c + a Tier 3 ruling; only Tier 2a landed | §4.6 differential | **OPEN (PARTIAL)** | `split-arm-parity.test.ts` covers the four wave-5 splits (8 policies) against `BASE 5dd83aaa4`, 8/8 green. `schema-fact-wave-1.suite.test.ts` contains no `BASE`, no `runPass`, no frozen-legacy import → Tier 2b/2c absent; no per-module Tier 3 closure recorded and `turn-identity` / `plugin-dump-guard` unaddressed |
 
 ## WHAT I DID NOT COVER
 

@@ -7,7 +7,7 @@ updated: 2026-09-12
 # v-audit-wave5 — the `ordinary-visitors` family (15 policies) against §5b PRISTINE (#1584)
 
 Read-only adversarial audit of the fifteen `defineGate` policies imported by
-`tests/tooling/verify/gates/ordinary-visitors-family.test.ts`, held to
+`tests/tooling/verify/gates/ordinary-visitors-family.suite.test.ts`, held to
 [`gate-runtime-standardization.md`](../../design/gate-runtime-standardization.md) §5b's seven criteria and
 §4's proof rules. Method, receipt style and verdict-block format follow
 [`v-audit-wave3-2026-09-12.md`](v-audit-wave3-2026-09-12.md), which in turn follows wave 2's corrected
@@ -15,7 +15,7 @@ four-way cut classification.
 
 **Why this family and not a bigger one.** `.claude/rules/gates-and-tooling.md` — a rule injected into every
 gate lane in this repo — tells every remaining conversion to copy the positive identity arm from
-`ordinary-visitors-family.test.ts:187-205`. That shape is the transmission mechanism for the ~104
+`ordinary-visitors-family.suite.test.ts:187-205`. That shape is the transmission mechanism for the ~104
 conversions still to come, so a defect here is not local.
 
 Every number below came out of a run produced in this session in an isolated worktree
@@ -79,7 +79,7 @@ DISCRIMINATE** under a dead-position control.
    the `factoryCandidateName` prefilter — cut together, `mustPass[5]` (`z.string()`) dies, so the pair IS
    jointly enforced. The "27 audited / 2 copyable" denominator double-counts this module.
 2. **The exemplar citation is ambiguous across the program's own documents.** `.claude/rules/gates-and-tooling.md`
-   and §4.2 both cite `ordinary-visitors-family.test.ts:187-205`; `v-exemplar-audit-2026-09-12.md:146`
+   and §4.2 both cite `ordinary-visitors-family.suite.test.ts:187-205`; `v-exemplar-audit-2026-09-12.md:146`
    cites `:187-195` for the same thing. `:187-196` is the POSITIVE arm and `:198-205` is a dead-position
    NEGATIVE arm — so the range lanes are told to copy includes an arm §4.2 tells them not to copy.
 3. **The subject list is exactly as briefed.** Re-derived from the family test's fifteen `import { gate as … }`
@@ -90,7 +90,7 @@ DISCRIMINATE** under a dead-position control.
 | Instrument | Result |
 | - | - |
 | `pnpm check:policy-conformance` (baseline) | `167 final policies · 1679 proof rows · 0 failure(s) · 105 grant rows · 0 invalid · 16858ms`, **exit 0** |
-| `pnpm test:scoped tests/tooling/verify/gates/ordinary-visitors-family.test.ts` (baseline) | **14 tests PASSED, exit 0**, no type errors, 12.46 s |
+| `pnpm test:scoped tests/tooling/verify/gates/ordinary-visitors-family.suite.test.ts` (baseline) | **14 tests PASSED, exit 0**, no type errors, 12.46 s |
 | **`pnpm check:structure`** (ONCE, restored tree) | **exit 1** (the migration baseline). Tail: `final policies: 167 ran · raw 1323 = waived 1141 + granted 105 + effective 77 (77 error, 0 warning) · **0 alarm(s)** · **0 tool error(s)** · **0 withheld**`; `single-pass: ran 271/271 active gate(s) (104/104 legacy · 167/167 final) … run COMPLETE`. Run id `agent-a38b61736dbc0b8c0-3540351-2026-09-12T00-10-52-788Z` |
 | A lane-private `verifyPolicyProofs` driver over the 15 subjects | `DRIVER policies=15 rows=133 failures=0` in 4.0 s. **Positive control planted first**: cutting `node.hasExportKeyword()` from `no-inline-domain-interface` turned `mustPass[1]` red, so the driver bites |
 | 7 probe rounds | **95 module cuts** (single, paired and one triple), **26 BUILT FALSIFIERS** added as real proof rows and run on unmodified source, **22 of them re-run WITH their cut** to prove they discriminate, **4 `messageIncludes` transplants**, **1 `count: 99` derivation**, **6 identity dead-position controls**, **3 family-test pin probes**. Every module restored; `git status --short` EMPTY after every round |
@@ -280,7 +280,7 @@ marker's position token to a dead one and the arm went red.
 | `registry-assembly-at-door-only` | in-module `mustPass[3]` | `(createRegistry)` → `(assemble)`: row died |
 | `zod-modern-spellings` | in-module `mustPass[5]`, `[6]`, `[7]` | `(strict)`→`(object)`, `(union)`→`(literal)`, `(enum)`→`(flag)`: **all three died independently** |
 
-### Is `ordinary-visitors-family.test.ts:187-205` a good exemplar? YES — with one citation fix
+### Is `ordinary-visitors-family.suite.test.ts:187-205` a good exemplar? YES — with one citation fix
 
 **The positive arm at `:187-196` is the best identity-arm shape in the corpus and should keep being the
 thing lanes copy.** It meets §4.2 in full and for the right reasons:

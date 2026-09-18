@@ -209,6 +209,7 @@ export function readConfigSnapshot(
   let transaction: ReturnType<typeof materializeConfigSnapshotTransaction> | undefined;
   let requestDirectory: string | undefined;
   let child: ReturnType<typeof runNicedSync>;
+  // @orb-waive caught-failure-ownership(error): native-config parse error: surfaced as a structured tool-error diagnostic in the config-snapshot report; the broken config is excluded from the snapshot
   try {
     transaction = Object.keys(overlay).length === 0 ? undefined : materializeConfigSnapshotTransaction({ root, overlay });
     const args = [SNAPSHOT_ENTRY, runner, config];

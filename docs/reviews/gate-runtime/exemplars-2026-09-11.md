@@ -24,7 +24,7 @@ lead, not a precedent.
 > - **The §3 preference for `server-layout` over `ui-exports-map-complete` is WITHDRAWN.** Both carry the
 >   same defect, and the audit found `server-layout`'s worse.
 > - **The five "no dedicated test file was located" entries RESOLVE**:
->   `tests/tooling/verify/gates/resource-layout-wave-1.test.ts` covers BOTH resource policies (§3) — and
+>   `tests/tooling/verify/gates/resource-layout-wave-1.suite.test.ts` covers BOTH resource policies (§3) — and
 >   holds no pin for either; `no-array-literal-querykey` (§1) and the four raw-CSS modules genuinely have
 >   none. The scout was right to mark them unconfirmed rather than absent.
 >
@@ -177,10 +177,10 @@ Why exhaustive: schema-branding.ts owns zero schema parsing (its own header comm
 type/symbol identity; this policy owns intent") - the clean separation the design doc's shared-query-
 boundary section demands.
 
-Test: tests/tooling/verify/gates/schema-fact-wave-1.test.ts - confirmed by grep, imports schemaBranding
+Test: tests/tooling/verify/gates/schema-fact-wave-1.suite.test.ts - confirmed by grep, imports schemaBranding
 alongside schemaFactHealth, fkColumnsIndexed, and others, and asserts verifyPolicyProofs on the family
 equals an empty array. For the denser bus exemplar: tests/tooling/verify/gates/bus-fact-health.test.ts and
-bus-pair.test.ts.
+bus-pair.suite.test.ts.
 
 ---
 
@@ -224,7 +224,7 @@ tests/tooling/verify/lib/reviewed-grants.test.ts (malformed/stale/over-broad rec
 tooling/src/verify/lib/reviewed-grant-findings.ts (the shared reportReviewedGrantCandidates helper, used
 by every reviewed-grant policy), and tests/tooling/verify/lib/reviewed-grant-findings.test.ts.
 
-Test for this specific gate: tests/tooling/verify/gates/home-client-family.test.ts - confirmed by grep
+Test for this specific gate: tests/tooling/verify/gates/home-client-family.suite.test.ts - confirmed by grep
 (imports noRawMatchmedia, runs verifyPolicyProofs, and separately drives runPolicyPass directly to assert
 the reviewed-grant-consumption count on a granted fixture and a stale-reviewed-grant authority alarm on a
 stale one - the malformed/stale cases a proof row cannot express).
@@ -234,10 +234,10 @@ stale one - the malformed/stale cases a proof row cannot express).
 ## 6. Ordinary policy proving its own marker identity, plus the central authority
 
 The gate tooling/src/verify/gates/no-inline-types.ts (authority ordinary; consumed by the central marker
-engine) is exercised in tests/tooling/verify/gates/ordinary-visitors-family.test.ts, which - beyond
+engine) is exercised in tests/tooling/verify/gates/ordinary-visitors-family.suite.test.ts, which - beyond
 running verifyPolicyProofs - separately drives runPolicyPass directly to assert that a mismatched-waiver
 fixture's authority alarms equal one row with kind ordinary-waiver and policyId no-inline-types, when an
-inline waiver marker names a type the carrier does not declare (ordinary-visitors-family.test.ts lines
+inline waiver marker names a type the carrier does not declare (ordinary-visitors-family.suite.test.ts lines
 190-204). That is, the test proves the report's policy id and position identity are exactly what the
 central reconciler keys on, not just that a finding fired.
 
@@ -284,7 +284,7 @@ tooling/src/verify/gates/\*.ts).
   comment lines 13-21
 - refuses, by throwing, if the deferred member is no longer declared at all - a vanished subject cannot
   silently keep passing, lines 77-79; the header states this refusal is pinned via runPolicyPass in
-  bus-pair.test.ts because a refusal cannot be expressed as a mustFlag/mustPass row
+  bus-pair.suite.test.ts because a refusal cannot be expressed as a mustFlag/mustPass row
 
 Wart to flag honestly: this is authority hard, meaning unsuppressible, combined with severity warning - an
 unusual pairing. It demonstrates the two axes ARE independent (the design doc states authority and
@@ -309,7 +309,7 @@ mode instead of fake real-tree anchors.
 
 ## 10. Frozen-legacy differential proof, conversion-time only, not standing law
 
-File: tests/tooling/verify/gates/simple-visitors-wave-2.test.ts (header plus first ~55 lines read) - the
+File: tests/tooling/verify/gates/simple-visitors-wave-2.suite.test.ts (header plus first ~55 lines read) - the
 proof shape for last night's 7be684811 conversion of member-card-clamped and test-determinism:
 
 - pins BASE to the commit hash 99b7429e2b0377aa5a6ae62341f9a22aa40de94c, the commit immediately before

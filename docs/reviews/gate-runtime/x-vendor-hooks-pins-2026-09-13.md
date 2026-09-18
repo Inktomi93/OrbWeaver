@@ -35,7 +35,7 @@ about the file. Fence respected: `css-vendor-hooks.ts` itself was read but not t
 
 ## Red-first + control-for-the-control receipts
 
-- **Red-first (reachable pin):** on first write, the new refusal test's `expect(result.authority.toolErrors).toEqual([])` assertion failed against the **unmodified** `css-selector-has-a-writer.ts` — the run reported one `owner-incomplete` entry restating the evaluate-phase message. This proves nothing before this commit asserted this refusal's shape or text: the failure came from my own wrong expectation about an empty array, not from a gate change. Corrected to `toMatchObject([{ kind: "owner-incomplete", policyId: selectorWriter.id }])`. Full run: `tests/tooling/verify/gates/css-hook-provenance-family.test.ts` → 11 passed / 1 failed (first write), then 12/12 (corrected).
+- **Red-first (reachable pin):** on first write, the new refusal test's `expect(result.authority.toolErrors).toEqual([])` assertion failed against the **unmodified** `css-selector-has-a-writer.ts` — the run reported one `owner-incomplete` entry restating the evaluate-phase message. This proves nothing before this commit asserted this refusal's shape or text: the failure came from my own wrong expectation about an empty array, not from a gate change. Corrected to `toMatchObject([{ kind: "owner-incomplete", policyId: selectorWriter.id }])`. Full run: `tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` → 11 passed / 1 failed (first write), then 12/12 (corrected).
 - **Control-for-the-control:** mutated the expected refusal text by one word (`version` → `versionX`) via `cp`/edit/`mv` probe-and-restore on the test file itself (one command per call, per lane-standing-facts). Re-run reds exactly that assertion:
   ```
   AssertionError: expected { ... messages: [ '...has no string `version`' ] ... }
@@ -45,10 +45,10 @@ about the file. Fence respected: `css-vendor-hooks.ts` itself was read but not t
 
 ## Floor (all green, unchanged corpus)
 
-- `pnpm test:scoped tests/tooling/verify/gates/css-hook-provenance-family.test.ts` → 12/12 pass, exit 0.
+- `pnpm test:scoped tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` → 12/12 pass, exit 0.
 - `pnpm check:structure --check css-family-ownership --check css-family-ownership-health --check css-family-direct-client-mechanism --check css-selector-has-a-writer --check css-selector-has-a-writer-health` → `final policies: 5 ran · raw 3 = waived 0 + granted 3 + effective 0 (0 error, 0 warning) · 0 alarm(s) · 0 tool error(s) · 0 withheld` — a test-only change, corpus unchanged.
-- `pnpm exec biome check tests/tooling/verify/gates/css-hook-provenance-family.test.ts --diagnostic-level=error` → clean.
-- `pnpm exec eslint tests/tooling/verify/gates/css-hook-provenance-family.test.ts` → clean (exit 0, no output).
+- `pnpm exec biome check tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts --diagnostic-level=error` → clean.
+- `pnpm exec eslint tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` → clean (exit 0, no output).
 - `pnpm typecheck --config tsconfig.json` → `PASS tsconfig.json` (plan verb confirmed this is the one program rooting the file).
 
 ## Deviations, with receipts
@@ -78,7 +78,7 @@ No instrument defect was measured beyond the row this lane was dispatched for. `
 
 ## Git receipts
 
-- `git show --stat HEAD` (`21bf17a9f`): `tests/tooling/verify/gates/css-hook-provenance-family.test.ts | 114 ++++++++++++++++++++-` (1 file changed, 113 insertions(+), 1 deletion(-)).
+- `git show --stat HEAD` (`21bf17a9f`): `tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts | 114 ++++++++++++++++++++-` (1 file changed, 113 insertions(+), 1 deletion(-)).
 - `git status --short`: empty (before this untracked report file).
 - `git rev-list --left-right --count main...HEAD`: `3  1` (main is 3 ahead — pre-existing lane-base commits from `f56e83d52`; this lane's own commit is the `1` on the right).
 
@@ -130,24 +130,24 @@ never produces an unreachable-branch slice on this corpus shape — not merely t
   (matching the shape already documented in the LEG-1 table above for the sibling `manifest.ok` throw) — never
   a silent finding, never a clean pass.
 - **Exact restore:** `mv /tmp/cbxvh-provenance.ts.bak tooling/src/verify/lib/css-family-selector-provenance.ts`.
-  `git status --short` after restore: only `M tests/tooling/verify/gates/css-hook-provenance-family.test.ts`
+  `git status --short` after restore: only `M tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts`
   and this untracked report — `css-family-selector-provenance.ts` carries no diff.
-- **Post-restore floor re-run:** `pnpm test:scoped tests/tooling/verify/gates/css-hook-provenance-family.test.ts`
+- **Post-restore floor re-run:** `pnpm test:scoped tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts`
   → 13/13 pass.
 
 ### Floor (LEG 2, all green, unchanged corpus)
 
-- `pnpm test:scoped tests/tooling/verify/gates/css-hook-provenance-family.test.ts` → 13/13 pass, exit 0.
+- `pnpm test:scoped tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` → 13/13 pass, exit 0.
 - `pnpm check:structure --check css-selector-has-a-writer --check css-selector-has-a-writer-health` →
   `final policies: 2 ran · raw 0 = waived 0 + granted 0 + effective 0 (0 error, 0 warning) · 0 alarm(s) ·
   0 tool error(s) · 0 withheld` — a test-only change, real-tree verdict unchanged.
-- `pnpm exec biome check tests/tooling/verify/gates/css-hook-provenance-family.test.ts --diagnostic-level=error` → clean.
-- `pnpm exec eslint tests/tooling/verify/gates/css-hook-provenance-family.test.ts` → clean (exit 0).
+- `pnpm exec biome check tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts --diagnostic-level=error` → clean.
+- `pnpm exec eslint tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` → clean (exit 0).
 - `pnpm typecheck --config tsconfig.json` → `PASS tsconfig.json`.
 
 ### Git receipts (LEG 2)
 
-- `git -C <wt> show --stat HEAD` (`69fd0ec8f`): `tests/tooling/verify/gates/css-hook-provenance-family.test.ts | 33 +++++++++++++++++++++++++++++++` (1 file changed, 33 insertions(+)).
+- `git -C <wt> show --stat HEAD` (`69fd0ec8f`): `tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts | 33 +++++++++++++++++++++++++++++++` (1 file changed, 33 insertions(+)).
 - `git -C <wt> status --short`: `?? docs/reviews/gate-runtime/x-vendor-hooks-pins-2026-09-13.md` only (the untracked report).
 - `git -C <wt> rev-list --left-right --count main...HEAD`: `6  2` (main advanced independently since LEG 1's
   `3  1` reading; this lane's two commits — `21bf17a9f` then `69fd0ec8f` — are the `2` on the right).
@@ -227,7 +227,7 @@ non-ready statuses.
 All three statuses are `population`-phase withholds — `json` is a POPULATED resource kind
 (`GATE_RESOURCE_UNPOPULATED_KINDS` in `contract/resource-declaration.ts` names only `installed-package` /
 `authored-path` / `authored-text`), so `resolveResourceDeclarations` throws before `evaluate` ever runs,
-exactly matching the shape `baseui-and-surface-family.repo.int.test.ts` pins for the other five consumers of
+exactly matching the shape `baseui-and-surface-family.suite.repo.int.test.ts` pins for the other five consumers of
 this resource. No private loader and no duplicated policy logic were written: every test drives the real
 `selectorWriter` policy declaration through `runPolicyPass` via the already-existing `passResource`/
 `refusalShape` helpers from LEG 1/2, reusing the family's own fixture constants
@@ -235,7 +235,7 @@ this resource. No private loader and no duplicated policy logic were written: ev
 
 ### Red-first receipt
 
-`grep 'baseui-manifest' tests/tooling/verify/gates/css-hook-provenance-family.test.ts` before this leg's
+`grep 'baseui-manifest' tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` before this leg's
 edit: exactly **one** hit — LEG 1's own comment about the schema-invalid-but-parseable-JSON case (a
 different, already-pinned defect). Zero assertions existed for the missing/empty/unresolved statuses on
 this consumer. Positive control (from LR-1's own method, re-verified): the same literal across the six
@@ -258,16 +258,16 @@ tooling/src/verify/gates/baseui-surface.manifest.json' to contain 'resource decl
 ```
 
 Restored via `mv` from the backup; `git status --short` after restore showed only the legitimate diff
-(`M tests/tooling/verify/gates/css-hook-provenance-family.test.ts`); floor re-ran green (17/17).
+(`M tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts`); floor re-ran green (17/17).
 
 ### Floor (LEG 3, all green, unchanged corpus)
 
-- `pnpm test:scoped tests/tooling/verify/gates/css-hook-provenance-family.test.ts` → 17/17 pass, exit 0.
+- `pnpm test:scoped tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` → 17/17 pass, exit 0.
 - `pnpm check:structure --check css-selector-has-a-writer --check css-selector-has-a-writer-health` →
   `final policies: 2 ran · raw 0 = waived 0 + granted 0 + effective 0 (0 error, 0 warning) · 0 alarm(s) ·
   0 tool error(s) · 0 withheld` — a test-only change, real-tree verdict unchanged.
-- `pnpm exec biome check tests/tooling/verify/gates/css-hook-provenance-family.test.ts --diagnostic-level=error` → clean.
-- `pnpm exec eslint tests/tooling/verify/gates/css-hook-provenance-family.test.ts` → clean (exit 0).
+- `pnpm exec biome check tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts --diagnostic-level=error` → clean.
+- `pnpm exec eslint tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` → clean (exit 0).
 - `pnpm typecheck --config tsconfig.json` → `PASS tsconfig.json`.
 
 ### Notes / ledger

@@ -47,7 +47,7 @@
 // which is the structural half rather than a gap:
 //   missing     `mustRefuse[0]` — no `packages` tree.
 //   empty       a `runPolicyPass` arm over a real `mkdtemp` root
-//               (`css-home-topology-family.test.ts`, with its own `:17-23` stating why): a proof row's
+//               (`css-home-topology-family.suite.test.ts`, with its own `:17-23` stating why): a proof row's
 //               substrate is a `files` MAP and a map cannot spell a directory that exists with no members.
 //   unresolved  the same file's symlink arm — the authored walk throws on a symbolic link, and a `files`
 //               map cannot spell one of those either. Beside a healthy twin on the same substrate.

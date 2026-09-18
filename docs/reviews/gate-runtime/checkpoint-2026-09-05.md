@@ -199,7 +199,7 @@ mutant until a proof planted a second bus's row. All 21 proof rows of the five r
 a clause naming the union or the consolidated behaviour — plus one new row only the consolidated shape can
 express (two belted unions, one produced and one not, judged by
 one policy). Conformance and the two refusal pins are in `bus-fact-health.test.ts` — that spec already WAS the
-producer family's entry — and `bus-pair.test.ts` keeps the definition family plus the deferral pins. Real
+producer family's entry — and `bus-pair.suite.test.ts` keeps the definition family plus the deferral pins. Real
 pass over the family: 0/0/0/0; producer fact 66 members / **271 emitter anchors** / 0 unresolved, compared as
 a SET difference against the pre arm and IDENTICAL. Full evidence: [bus-pair-1584.md](bus-pair-1584.md) §5.
 

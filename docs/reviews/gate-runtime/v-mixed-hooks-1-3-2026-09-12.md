@@ -153,10 +153,10 @@ legacy side EXECUTED (no both-sides-zero replay):
 
 | Family test | Legacy examples | Asserted coverage |
 | - | -: | - |
-| `session-channel-family.test.ts` | 5 | `OCCURRENCE` 2, `TRIPWIRE` 1 |
+| `session-channel-family.suite.test.ts` | 5 | `OCCURRENCE` 2, `TRIPWIRE` 1 |
 | `tooling-ops-direct-invocation.test.ts` | 6 | `findings` 5, `blind` 1 |
-| `tooling-front-door-family.test.ts` | 6 + 11 | import arm 3; argv `READ` 3 / `STALE` 6 / `BLIND` 1 |
-| `disclosure-reservation-family.test.ts` | 9 + 12 | `{occurrence 3, markerVerdicts 2, markerConsumed 1, tripwire 2}` and `{occurrence 4, markerVerdicts 2, markerConsumed 1, duplicate 2, seam 1}` |
+| `tooling-front-door-family.suite.test.ts` | 6 + 11 | import arm 3; argv `READ` 3 / `STALE` 6 / `BLIND` 1 |
+| `disclosure-reservation-family.suite.test.ts` | 9 + 12 | `{occurrence 3, markerVerdicts 2, markerConsumed 1, tripwire 2}` and `{occurrence 4, markerVerdicts 2, markerConsumed 1, duplicate 2, seam 1}` |
 
 These are counts asserted in the test, not prose — the shape §4.6 asks for.
 

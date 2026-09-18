@@ -301,7 +301,7 @@ deliberate:
 - `tests/tooling/static-class-consumers.int.test.ts` — the two converted consumers left the legacy
   `verifyGateProofs` call.
 - `tests/tooling/verify/gates/css-selector-has-a-writer.int.test.ts` — DELETED, superseded by the family test.
-- `tests/tooling/verify/gates/mirror-index-family.test.ts` — the new family test's path appended to the
+- `tests/tooling/verify/gates/mirror-index-family.suite.test.ts` — the new family test's path appended to the
   parked roster (main's `183e49714` pin).
 - **`tests/tooling/static-class-collection.int.test.ts` — the one an ID-GREP CANNOT FIND.** It names no gate
   id; it imported the four retired lifecycle functions. It is the SUCCESSOR PROOF and is rewritten, not
@@ -446,7 +446,7 @@ serves all five family members" in the roster row. All four corrected: both `-he
 `facts: []` and read the CSS identity alone. (This report's own deviation section said "THREE policies
 needing it" and was already right — the code prose counted the FAMILY.)
 
-**Pinned two-sided** in `css-hook-provenance-family.test.ts`, because a prose count nothing holds is exactly
+**Pinned two-sided** in `css-hook-provenance-family.suite.test.ts`, because a prose count nothing holds is exactly
 what recurs: the DECLARED half (`policy.facts.includes(cssHookProvenanceFact)`, an identity check over the
 five loaded descriptors — which is what `selectedFacts` dedupes on) must equal the CALL half (a literal
 census of `ctx.fact(cssHookProvenanceFact)` across the whole `gates/` directory), with a planted positive
@@ -638,7 +638,7 @@ DECLARED POPULATION, not the planner, so the repair changes neither the statemen
   `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` exit 0, `2 runnable, both PASS`.
 
 **Every floor above was then RE-RUN after the pre-commit fast-forward onto main (`1b80182a7` → `06ebd7298`,
-10 commits, no conflict), because that ff changed `css-hook-provenance-family.test.ts` by +147 lines and
+10 commits, no conflict), because that ff changed `css-hook-provenance-family.suite.test.ts` by +147 lines and
 landed the `policy-effective-population` seam under my policies.** Post-ff: the three suites pass **3 files /
 17 tests** (the family test now carries 13), `--family css-hook-provenance` is again exit 0 with
 `raw 3 = granted 3 + effective 0 · 0 withheld`, and biome / eslint / typecheck are all exit 0. The pre-ff

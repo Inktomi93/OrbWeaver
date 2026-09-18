@@ -34,7 +34,7 @@
 // `runPolicyPass` against the REAL repo root — so the provider's git read resolves a merge base — with the
 // vault OVERLAID to drop `spacing.tight`, which reports `removed.unrecorded` through the policy and goes
 // GREEN the moment the baseline stops being handed in. It lives in
-// tests/tooling/verify/gates/token-contract-family.test.ts beside three companions: the live-worktree
+// tests/tooling/verify/gates/token-contract-family.suite.test.ts beside three companions: the live-worktree
 // `ready` assertion, a planted merge-base document (both ledger sections), and the
 // `unavailable` → diagnostic / `empty` → silent discriminator that keeps every consumer's fixtures clean.
 //
@@ -67,7 +67,7 @@
 //   empty       `mustRefuse[1]` — a member present but zero-length, on `read`'s own empty arm.
 //   unresolved  NOT expressible as a row (a proof row's `files` map is a JS STRING map and no string
 //               carries an invalid UTF-8 byte), so it is a `runPolicyPass` pin in
-//               tests/tooling/verify/gates/token-contract-family.test.ts — bytes `0x7b 0xff 0x7d` on a
+//               tests/tooling/verify/gates/token-contract-family.suite.test.ts — bytes `0x7b 0xff 0x7d` on a
 //               real `mkdtemp` root with NO overlay, beside a healthy twin on the same substrate.
 // The receipt PAIR is pinned in that same family test, which a row also cannot express.
 //
@@ -192,7 +192,7 @@ export const gate = defineGate({
       // document and an unrecognised key is a finding, not a tolerated extension. The RATCHET that consumes
       // this ledger cannot be reached from a proof row at all — a `mode: "resource"` root is `git init`ed
       // with no commit, so its baseline is `empty` by construction — and is pinned in
-      // tests/tooling/verify/gates/token-contract-family.test.ts instead.
+      // tests/tooling/verify/gates/token-contract-family.suite.test.ts instead.
       expect: { count: 1, token: "removed.schema", messageIncludes: 'Unrecognized key: "$schema"' },
       why: "the removed-token ledger is a closed document; an unrecognised key in it is a finding rather than a tolerated extension",
     },

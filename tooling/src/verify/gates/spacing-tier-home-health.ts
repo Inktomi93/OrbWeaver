@@ -25,7 +25,7 @@
 // CUT DIRECTION IS INVERTED HERE (guide §6.1) — this is a tripwire, so its fences ACQUIT and opening one
 // makes it flag FEWER. The ANCHOR self-guard's falsifier is `mustPass[1]` going RED; the resolution reader's
 // is `mustFlag[0]` going GREEN. A lane applying the occurrence direction reads both as unenforced.
-// §4.5 and §4.6 live in `tests/tooling/verify/gates/tier-home-health-family.int.test.ts`: the narrowed-request
+// §4.5 and §4.6 live in `tests/tooling/verify/gates/tier-home-health-family.suite.int.test.ts`: the narrowed-request
 // DEFERRAL pin with its whole-project control (ec336d41c), and the split-arm differential replaying every
 // legacy example through the frozen d6f36904f descriptor and the UNION of both final policies (6f815e95e).
 //

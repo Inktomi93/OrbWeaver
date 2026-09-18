@@ -21,7 +21,7 @@
 // no gate module walks. WHAT THE CONVERSION MOVED OUT: the legacy's MISSING-CONFIG tripwire ("a rename
 // would retire the arm in silence") is the `exact-file` door's own fail-closed refusal — a missing id refuses
 // the WHOLE fact at the population phase, before `create` (pinned in
-// tests/tooling/verify/gates/tooling-plumbing-family.test.ts, since conformance has no must-refuse arm).
+// tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts, since conformance has no must-refuse arm).
 // An UNPARSEABLE config, whose text still arrives, stays a finding here (mustFlag[4]).
 //
 // NEW EVIDENCE at conversion: `playwright.config.ts` carried three literal clocks (`timeout: 180_000`,

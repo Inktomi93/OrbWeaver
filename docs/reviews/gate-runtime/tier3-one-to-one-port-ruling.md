@@ -12,7 +12,7 @@ because in that shape `check:policy-conformance` already runs the legacy corpus 
 dispatcher on every static pass, and a replay adds nothing a carried row does not already assert.
 
 **The roster is the rule's OUTPUT, not an inherited list**, and it is held two-sidedly by
-`tests/tooling/verify/gates/tier3-close-by-rule.test.ts`, which re-derives it over the whole final corpus
+`tests/tooling/verify/gates/tier3-close-by-rule.suite.test.ts`, which re-derives it over the whole final corpus
 and fails when a conversion changes who qualifies.
 
 ## Why this is a membership test and not seventeen names
@@ -39,7 +39,7 @@ sets. **This ruling implements `:650`.**
 ## The membership test
 
 A module is CLOSED BY RULE when every clause holds. Any single refusal means a differential is OWED. The
-executable form, with a planted break per clause, is `tier3-close-by-rule.test.ts`; the clause numbers
+executable form, with a planted break per clause, is `tier3-close-by-rule.suite.test.ts`; the clause numbers
 below are its comment anchors.
 
 1. **One-to-one.** The conversion parent holds exactly one exported legacy `GateDescriptor`, and the final

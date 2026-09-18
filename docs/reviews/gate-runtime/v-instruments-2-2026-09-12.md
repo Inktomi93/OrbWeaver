@@ -194,7 +194,7 @@ IN-FENCE sections reconcilable …)` — the new wording, 0 strays.
 
 ### #2149 — CONFIRMED
 
-- `pnpm test:scoped tests/tooling/verify/gates/real-corpus-liveness-family.repo.int.test.ts` → **exit 0**,
+- `pnpm test:scoped tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts` → **exit 0**,
   1 test, 24.5 s (the six arms).
 - **The blinded control is mine and it REDS.** I wrote a scratch sibling
   `gates/cbvi2-blinded-windowed.ts` — `windowed-infinite-query-health` with its single
@@ -314,7 +314,7 @@ main tip `9e14a5d93`.
 9. `pnpm check:ledgers-fresh` → exit 1 (see below), with the #2166 line `fresh … 18 of 31 IN-FENCE`.
 10. `pnpm test:scoped` × the four instrument suites → 1 failed / 65 passed; the failure is the arm-B corpus
     arm.
-11. `pnpm test:scoped tests/tooling/verify/gates/real-corpus-liveness-family.repo.int.test.ts` → exit 0,
+11. `pnpm test:scoped tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts` → exit 0,
     24.5 s.
 12. My own blinded-policy control through `assertRealCorpusLiveness` → RED, as required.
 13. Direct drives of `strayLedgerSections` (7 inputs), `judgeRuleLiveness` (4 inputs),

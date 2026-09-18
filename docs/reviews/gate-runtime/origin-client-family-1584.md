@@ -123,7 +123,7 @@ exporting every one of the same names. The lookalike is the counterfactual half 
 ## Proofs
 
 120 policy proofs, plus 2 blindness-tripwire pins and 12 focused reader controls — all green
-(`tests/tooling/verify/gates/origin-client-family.test.ts`, `tests/tooling/verify/lib/type-member-origin.test.ts`).
+(`tests/tooling/verify/gates/origin-client-family.suite.test.ts`, `tests/tooling/verify/lib/type-member-origin.test.ts`).
 
 | Policy | mustFlag | mustPass | total |
 | - | -: | -: | -: |

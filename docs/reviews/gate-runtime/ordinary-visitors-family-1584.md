@@ -246,7 +246,7 @@ They are deliberately **UNWAIVED** — a waiver here would be a `// TODO` wearin
 
 | Check | Result |
 | - | - |
-| family conformance (`tests/tooling/verify/gates/ordinary-visitors-family.test.ts`) | green — 15 policies, 126 proofs, 14 tests, 2.1 s |
+| family conformance (`tests/tooling/verify/gates/ordinary-visitors-family.suite.test.ts`) | green — 15 policies, 126 proofs, 14 tests, 2.1 s |
 | fixture-resolution control (every relative specifier in every proof of this wave) | zero dangling, visited-count derived from the descriptors |
 | receipt refusals (4) + ordinary marker identity (3) + grant liveness (4) | pinned through `runPolicyPass` in the same file |
 | population equality over a frozen 7,262-path manifest | 8 exact, 2 classified |

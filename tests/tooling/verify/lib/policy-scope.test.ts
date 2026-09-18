@@ -143,6 +143,7 @@ test("asserted scopes refuse empty, duplicate, missing, ignored, malformed, trav
   for (const request of cases) {
     expect(() => resolvePolicyScope(scratch, request), JSON.stringify(request)).toThrow();
   }
+  // @orb-waive no-test-fabrication(never): deliberate type-erasure to test scope resolution with an invalid execution value
   expect(() => resolvePolicyScope(scratch, { kind: "whole", extra: true } as never)).toThrow(/scope request/i);
 });
 

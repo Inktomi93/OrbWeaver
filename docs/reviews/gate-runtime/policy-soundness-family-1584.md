@@ -20,7 +20,7 @@ An AST prototype of the arm predicates ran over `tooling/src/verify/gates/*.ts` 
 
 | Brief said | Measured | Consequence |
 | - | - | - |
-| §4.2 identity arms: 0 of 88 outstanding, pin at `error` | **4 outstanding** — `no-color-literals`, `no-off-token-radius-shadow`, `no-raw-container-widths` (their only `@orb-waive <id>(` is header prose at `:17`/`:10`/`:17`) and `no-form-state-in-useeffect` (its only marker is the NEGATIVE arm in `simple-visitors-wave-4.test.ts:94`, a `no-default-props` fixture). The four family-test arms the brief predicted are exactly the four found | `warning` + `workItem: 1952` (the row that recorded "0 of 86 CLOSED"); orchestrator-approved |
+| §4.2 identity arms: 0 of 88 outstanding, pin at `error` | **4 outstanding** — `no-color-literals`, `no-off-token-radius-shadow`, `no-raw-container-widths` (their only `@orb-waive <id>(` is header prose at `:17`/`:10`/`:17`) and `no-form-state-in-useeffect` (its only marker is the NEGATIVE arm in `simple-visitors-wave-4.suite.test.ts:94`, a `no-default-props` fixture). The four family-test arms the brief predicted are exactly the four found | `warning` + `workItem: 1952` (the row that recorded "0 of 86 CLOSED"); orchestrator-approved |
 | ordinary `fix` names `@orb-waive <own id>(`: 0 today | **51 of 88** lack it (wave-1 D7's `no-array-literal-querykey:26` and `no-inline-types:42` still among them) | `warning` + its own row (filed by this lane on the orchestrator's instruction); orchestrator-approved |
 | `mustFlag` rows with no `expect.count`: 64 rows / 20 modules | 60 rows / 20 modules (lanes landed since) | `warning` + `workItem: 1968` as briefed |
 | inert `ext: ["ts","tsx"]`: swept to 0 | 0 | `error` — pins the closed class |
@@ -110,7 +110,7 @@ second opinion (`^export const gate = defineGate(` per file — the guide's own 
 | - | - |
 | `tooling/src/verify/gates/policy-{soundness,proof-expectations,waiver-identity,waiver-spelling}.ts` | new final policies; auto-discovered by the mixed loader |
 | `tooling/src/verify/lib/policy-descriptor-read.ts` | the family's shared reader |
-| `tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` | conformance + refusal pins + real-corpus control |
+| `tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts` | conformance + refusal pins + real-corpus control |
 | `tests/tooling/verify/lib/policy-descriptor-read.test.ts` | the segment reader's own controls (join boundaries, conditional branches, dynamic spans) |
 | `docs/architecture/core/Core-Enforcement-Active-Gates.md` | four Layer-3 ACTIVE rows beside `gate-modernization`'s; the count line 271 → 275 (`enforcement-registry-parity` reads both) |
 | the former `docs/test-baseline/manifest.json` | two new tracked specs — regenerated in this worktree after `git add` |
@@ -151,7 +151,7 @@ Every number below came out of a run in this lane's worktree at `8257071ee` + th
 | - | - | - |
 | `pnpm check:policy-conformance` | 167 final · 1,662 rows · 0 failures · exit 0 | **171 final · 1,709 rows · 0 failures · exit 0** (13.7 s; corpus 275 modules, 104 legacy) |
 | `pnpm gate:contract` | 761 findings / 271 modules | **761 findings / 275 modules** — zero naming any file of this family |
-| `pnpm test:scoped tests/tooling/verify/lib/policy-descriptor-read.test.ts tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` | — | **18 passed / 18** (real-corpus arm 63 s; 180 s beside a sibling suite on the first run) |
+| `pnpm test:scoped tests/tooling/verify/lib/policy-descriptor-read.test.ts tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts` | — | **18 passed / 18** (real-corpus arm 63 s; 180 s beside a sibling suite on the first run) |
 | `pnpm typecheck` (all 11 runnable programs) | — | PASS ×11 |
 | `pnpm exec eslint <9 new files>` · scoped biome | — | clean |
 | `pnpm check:docs <this doc> <roster>` | — | 2 file(s) formatted |
@@ -185,7 +185,7 @@ through the dispatcher (34 s, 0 tool errors, nothing withheld, receipt 171): `po
 `policy-proof-expectations` **78** (58 no-`count` rows, 18 tautologies, 2 shared — `server-layout` and
 `ui-exports-map-complete` dropped out exactly as their repairs landed, which is the burn-down working) ·
 `policy-waiver-identity` **4** (unchanged; `no-form-state-in-useeffect`'s +50 lines on main are #1951 narrowing rows,
-and its only marker is still wave-4's negative arm at `simple-visitors-wave-4.test.ts:94`) · `policy-waiver-spelling`
+and its only marker is still wave-4's negative arm at `simple-visitors-wave-4.suite.test.ts:94`) · `policy-waiver-spelling`
 **51** (unchanged; D7's two still among them).
 
 ## 10. The wave-1 re-find table — the ten exemplars against the finished family

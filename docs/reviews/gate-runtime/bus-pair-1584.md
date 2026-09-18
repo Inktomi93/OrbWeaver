@@ -99,7 +99,7 @@ policies. The resolution splits the two meanings a refusal had been carrying:
 
 ### Receipts
 
-Fact-level spec: `tests/tooling/verify/lib/bus-fact-relay.test.ts` (9 rows) reads the fact's own census
+Fact-level spec: `tests/tooling/verify/lib/bus-fact-relay.suite.test.ts` (9 rows) reads the fact's own census
 through a probe policy rather than any coverage verdict. It reproduces the live shape hermetically: the
 overloaded channel mint, the coarse republish, the conditional local, the two-hop caller, and a
 `connectionsChanged`-style member that must not be counted.
@@ -186,7 +186,7 @@ descriptor may fake and the roster derives — and the FINDING is the retirement
 - the member gains a producer ⇒ report (warning, `hard`: no waiver door), with the deletion instruction;
 - the member stops being DECLARED ⇒ REFUSE the run. A standing exception over a vanished subject is a
   loaded gun, and a refusal cannot be written as a proof row, so it is pinned through `runPolicyPass` in
-  `tests/tooling/verify/gates/bus-pair.test.ts`;
+  `tests/tooling/verify/gates/bus-pair.suite.test.ts`;
 - the member is declared and unproduced ⇒ silent, and `user-bus-coverage` is silent too because it
   imports the former `USER_BUS_DEFERRED_MEMBERS` from this module. That import is the retirement mechanism: deleting
   the debt module when #1822 lands makes the sibling own the member in the same edit, and `tsc` refuses
@@ -234,7 +234,7 @@ than a stale permission, and the census above is where it will show.
 
 ## 3. Verification
 
-- **Conformance** — `tests/tooling/verify/gates/bus-pair.test.ts`: 6 policies, 32 proof rows (derived from
+- **Conformance** — `tests/tooling/verify/gates/bus-pair.suite.test.ts`: 6 policies, 32 proof rows (derived from
   the descriptors: belt-total 1+3, consumer-belt 2+4, coverage-owner 4+3, definition-belts 3+3,
   user-bus-coverage 3+3, deferred-member 1+2), plus four
   `runPolicyPass` pins (the deferral refusal, the deferred member's exclusive ownership in both states,
@@ -248,7 +248,7 @@ than a stale permission, and the census above is where it will show.
   NAME-CHECK mutant of the door it exists to pin. With the specifier repaired it goes RED under that
   mutant (receipt in §3).
 
-- **Fact spec** — `tests/tooling/verify/lib/bus-fact-relay.test.ts`, 13 rows, red-first as above.
+- **Fact spec** — `tests/tooling/verify/lib/bus-fact-relay.suite.test.ts`, 13 rows, red-first as above.
 
 - **Scoped suites** — 122 tests across 7 files green (`bus-pair`, `bus-fact-relay`, `bus-fact-health`,
   `bus-payload-allowlist`, `bus-coverage`, `reviewed-grants`, `policy-pass`).
@@ -372,7 +372,7 @@ owns — the per-union `message`/`fix` become the generic pair, and three `why` 
 the union or the consolidated behaviour. Plus one new mustFlag row that only the consolidated shape can
 express: two belted unions in one corpus, one produced and one not, judged by one policy. Conformance lives in
 `tests/tooling/verify/gates/bus-fact-health.test.ts` (that spec WAS the producer family's entry — the four
-coverage modules plus the health policy — so it stays the producer family's entry; `bus-pair.test.ts` keeps
+coverage modules plus the health policy — so it stays the producer family's entry; `bus-pair.suite.test.ts` keeps
 the definition family and the deferral pins, and imports the generic policy only for the two-policy deferral
 pin). It also carries the fixture-specifier resolution control and the two refusal pins above.
 

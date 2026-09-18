@@ -359,7 +359,7 @@ ledger rows OWED: 3
 - **The witness obligation covers FINAL policies only.** The 42 legacy modules are not subject to it, by
   design. I checked the consequence is empty: zero of the 218 `REVIEWED_GRANTS` rows names a legacy gate.
 - **Not run:** `pnpm check` / `check:structure` / `verify --push`, any planter, any mutation run,
-  `policy-soundness-family.repo.int.test.ts`, `check-gates.repo.int.test.ts` (not concurrency-safe; the
+  `policy-soundness-family.suite.repo.int.test.ts`, `check-gates.repo.int.test.ts` (not concurrency-safe; the
   orchestrator's during a train), and the `gate:contract` corpus total. `pnpm check:docs` on this file only.
 - **`pnpm check:policy-conformance` was run exactly ONCE**, in my own worktree; it published a pointer only
   under my worktree's `reports/`. No subject-tree artifact was written by me at any point.
@@ -480,7 +480,7 @@ original measured text preserved as history — the right pattern for a checkpoi
 `:9-14` (the flip and adoption both landed), `:37-42` (the constant is deleted, and the bullet now tells a
 future grepper it is HISTORY, not a live gate — which is exactly the false positive I hit), `:260-264`
 (unconditional, 45 of 45, re-derived through the loader), `:265-271` (`check:policy-conformance` driven and
-clean, with `policy-soundness-family.repo.int.test.ts` correctly still declared NOT RUN).
+clean, with `policy-soundness-family.suite.repo.int.test.ts` correctly still declared NOT RUN).
 
 Machine-readability driven through the production reader `reportLedgerRows`
 (`lib/gate-program-docs.ts:238`), with its negative control:

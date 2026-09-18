@@ -11,7 +11,7 @@ blocked. Two brief premises and one row premise were REFUTED and are recorded be
 
 ## #2270 — the parked `test-layout` population is a CLASS, not a 57-path roster
 
-**Commit `1dcfc057c`** · `tests/tooling/verify/gates/mirror-index-family.test.ts` (+124 / −80).
+**Commit `1dcfc057c`** · `tests/tooling/verify/gates/mirror-index-family.suite.test.ts` (+124 / −80).
 
 Re-derived first: `runPolicyPass(test-layout, empty Project, repoRoot)` = **57 effective findings, 0 tool
 errors**, member-for-member the committed `PARKED_TEST_LAYOUT_MISSES`. `cb-v-wave-12b`'s refutation stands
@@ -25,8 +25,8 @@ errors**, member-for-member the committed `PARKED_TEST_LAYOUT_MISSES`. `cb-v-wav
   several policy modules and so have no single source module to prefix-swap to. That is the class #2142
   froze.
 
-Everything else is a **named exception earned per member**, and there are two, not one: `catalog-scope.test.ts`
-(already named at `183e49714`) and **`tests/tooling/verify/lib/bus-fact-relay.test.ts`** — a concept-named
+Everything else is a **named exception earned per member**, and there are two, not one: `catalog-scope.suite.test.ts`
+(already named at `183e49714`) and **`tests/tooling/verify/lib/bus-fact-relay.suite.test.ts`** — a concept-named
 fact-level control spanning `lib/bus-definition-fact.ts` and `lib/bus-fact.ts`. The verifier's fix spec
 proposed absorbing the latter into the class as `tests/tooling/verify/lib/**`; I took the tighter cut
 instead, because a `lib/` widening admits any future unmirrored `verify/lib` test with no author deciding
@@ -39,7 +39,7 @@ re-introduces the refuted defect in the opposite direction (one legitimate renam
 and the number must be hand-bumped), and a shrinking family class is the revamp arriving, not a defect.
 A separate arm asserts the class is non-empty, so when the park empties it says so once and retires.
 
-**Receipts** (`pnpm test:scoped tests/tooling/verify/gates/mirror-index-family.test.ts`, 23/23 EXIT 0):
+**Receipts** (`pnpm test:scoped tests/tooling/verify/gates/mirror-index-family.suite.test.ts`, 23/23 EXIT 0):
 
 | control | result |
 | - | - |
@@ -83,7 +83,7 @@ kind and the vocabulary is CLOSED (#1930). The `AUTHORED_MEMBERSHIP` pattern (#1
 no longer exists reds.
 
 **Receipts** (`pnpm test:scoped` over the new test + `population-resolver.test.ts` +
-`mirror-index-family.test.ts` = 78/78 EXIT 0; `package-roster.test.ts` green):
+`mirror-index-family.suite.test.ts` = 78/78 EXIT 0; `package-roster.test.ts` green):
 
 - real-tree arm: 0 violations, with a positive control that the member set actually contains `packages/*`
   (an empty enumeration would make the forward direction vacuously green);
@@ -183,7 +183,7 @@ parallel load; **11/11 alone, EXIT 0**, it uses a stubbed `pnpm` and a fixture c
 | biome scope (`vcs.useIgnoreFile`) | cb-x-test-population · `scripts/probes/openrouter/.gitignore:7` · `scripts/probes/rpg-extraction/.gitignore:4` | biome reads NESTED ignore files but drops their NEGATIONS, so `rpg-extraction`'s `!*.ts` was inert and a deliberate lint exemption rode another tool's semantics where no instrument could see it. §12.7's fence table named only `useIgnoreFile` + `"!.claude"` | undeclared fence / doc incompleteness | **FIXED — #2299** (`54b98560d`) | census 32 tracked `.ts` = 19 checked-and-clean + 13 invisible, per-file drive; fence now two explicit `files.includes` negations kept live by `tests/tooling/biome-scripts-probe-scope.int.test.ts`; §12.7 row + paragraph corrected |
 | `biome` CLI contract | cb-x-test-population · row text of #2299 · `.claude/rules/lane-standing-facts.md` §Tool hazards | the recorded claim "biome exits 0 on an ignored path / exits as if nothing was wrong" is FALSE on biome 2.5.1 — a bare scoped `biome check <ignored>` exits **1** with "These paths were provided but ignored". Exit 0 requires `--no-errors-on-unmatched`. A lane trusting the recorded claim mis-diagnoses which instrument is lying | stale recorded fact | **OPEN — none** (rules-file edit is not a lane's) | three measured spellings: bare → 1, `--diagnostic-level=error` → 1, `--no-errors-on-unmatched` → 0; `pnpm exec biome --version` = 2.5.1 |
 | `POPULATION_ROOTS` | cb-x-test-population · `tooling/src/verify/contract/population.ts:4-21` | the hand-typed root table had no enforcer against the workspace: a new `packages/foo` joins no root, is admitted by no population, is judged by no policy, and no instrument reports it | missing enforcer | **FIXED — #2267** (`26315e791`) | live control `packages/cbxtp-probe-pkg/package.json` → real-tree arm red with the exact message (and pnpm re-resolved `pnpm-lock.yaml`, restored from HEAD); four committed fixture arms cover both directions plus stale-exclusion liveness |
-| `mirror-index-family` / `verifyPolicyProofs` | cb-x-test-population · `tests/tooling/verify/gates/mirror-index-family.test.ts:46-48` | the file's first assertion drives `verifyPolicyProofs` over THREE policies against vitest's 5 s default with no explicit timeout: 2.8 s alone, **8.5 s under a 3-file scoped run and 5.9 s cold**, so it times out whenever it shares a runner. Pre-existing (reproduced before any edit of mine) and it reds where nobody looks — `tests/tooling/**` is `--full`-only (#1842) | load-sensitive instrument / false red | **OPEN — none** | 3-file run `× the mirror-index family keeps its two-sided proofs 8505ms` exit 1, alone `✓ 2769ms` 23/23 exit 0; same shape on the very first pre-edit run (5920 ms vs a 5077 ms timeout). Same class as `biome-check-hook.int > planner failure and admission contention` (5091 ms under 8-file load, 11/11 alone) |
+| `mirror-index-family` / `verifyPolicyProofs` | cb-x-test-population · `tests/tooling/verify/gates/mirror-index-family.suite.test.ts:46-48` | the file's first assertion drives `verifyPolicyProofs` over THREE policies against vitest's 5 s default with no explicit timeout: 2.8 s alone, **8.5 s under a 3-file scoped run and 5.9 s cold**, so it times out whenever it shares a runner. Pre-existing (reproduced before any edit of mine) and it reds where nobody looks — `tests/tooling/**` is `--full`-only (#1842) | load-sensitive instrument / false red | **OPEN — none** | 3-file run `× the mirror-index family keeps its two-sided proofs 8505ms` exit 1, alone `✓ 2769ms` 23/23 exit 0; same shape on the very first pre-edit run (5920 ms vs a 5077 ms timeout). Same class as `biome-check-hook.int > planner failure and admission contention` (5091 ms under 8-file load, 11/11 alone) |
 
 ledger rows OWED: 5
 

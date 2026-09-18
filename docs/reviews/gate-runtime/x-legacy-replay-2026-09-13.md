@@ -24,7 +24,7 @@ for that class is *"replay a filesystem-reading legacy gate on a REAL TMPDIR, ne
 
 **The refusal was BUILT AROUND, never relaxed.** `filesystemReach` is untouched; the in-memory door still
 throws on both blobs, and that arm stays where it was, with its two-way controls, in
-`grant-liveness-family.test.ts:96`. The new door carries the OPPOSITE fence.
+`grant-liveness-family.suite.test.ts:96`. The new door carries the OPPOSITE fence.
 
 ## 2. The real-tmpdir door — design, and the refusals it preserves
 
@@ -95,7 +95,7 @@ gate modules embed `defineGate({` inside FIXTURE STRINGS (`policy-soundness`, `g
 is the read-first doc's "a bare `defineGate` grep overcounts" lesson, measured at 33 rather than 2.
 
 **The 69 is an UPPER bound and must not be read as coverage.** A file NAMING a module is the weakest rung:
-`grant-liveness-family.test.ts` imports seven gates and, before this lane, replayed zero. The honest
+`grant-liveness-family.suite.test.ts` imports seven gates and, before this lane, replayed zero. The honest
 statement is **the backlog is between 130 and 183 modules**, and closing the gap needs a per-file read of
 the 26 harness-calling test files — which is itself a dispatchable job and is NOT done here.
 
@@ -988,7 +988,7 @@ lane wrote.
   for as long as it stood. The first caller through a newly opened door pays for every latent defect
   behind it, so budget the door itself as work, not just the table it enables.
 - **`a file naming a gate is not a replay pin`** — the replay-coverage census swings 16 → 69 depending on
-  which rung of the evidence ladder you count. `grant-liveness-family.test.ts` imports seven gates and
+  which rung of the evidence ladder you count. `grant-liveness-family.suite.test.ts` imports seven gates and
   replayed zero. Any "N of M converted" coverage claim about §4.6 owes both bounds.
 - **`defineGate greps overcount by the fixture strings`** — measured 300 literal vs 267 real call sites
   (33, not the read-first doc's 2), because `policy-soundness` and `gate-modernization` embed

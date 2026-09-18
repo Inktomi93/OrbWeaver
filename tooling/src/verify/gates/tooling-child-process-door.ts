@@ -20,7 +20,7 @@
 // caught by the import arm, mustFlag[6]) and an aliased import is (mustFlag[3]); a callee the readers cannot
 // place is REPORTED under the disjoint UNREADABLE text (mustFlag[5]). The home is located and RECEIPTED, so an
 // absent proc.ts or a renamed door refuses the run at the receipt phase (pinned through `runPolicyPass` in
-// tests/tooling/verify/gates/tooling-plumbing-family.test.ts). The home's own body is skipped for the door
+// tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts). The home's own body is skipped for the door
 // arm by derivation — it DEFINES the doors — never by a row.
 //
 // THE REPORTED POSITION is the quoted specifier for an import and the callee as written for a door call.

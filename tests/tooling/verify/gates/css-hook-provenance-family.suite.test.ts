@@ -214,7 +214,7 @@ function passResource(policy: GatePolicy, root: string, files: Readonly<Record<s
   return runPolicyPass({ knownPolicies: [policy], policies: [policy], root, project, resourceOptions: { overlay }, reviewedGrants: [], failOnWarnings: false });
 }
 
-/** The shape a designed refusal shares (`baseui-and-surface-family.repo.int.test.ts:206-213`'s house
+/** The shape a designed refusal shares (`baseui-and-surface-family.suite.repo.int.test.ts:206-213`'s house
  *  idiom): a single object so a refusal that drifted on ONE axis — a finding leaking through, an owner
  *  completing anyway — fails with the whole picture in the diff. */
 function refusalShape(result: PolicyPassResult): Record<string, unknown> {
@@ -312,12 +312,12 @@ test("PRODUCTION PATH: every REAL derived selector-hook slice — parenthesis-wr
 // §4.5 refusal pin — reachable, and outside #2297's fence (that fix pinned the four-consumer derives loop
 // plus `baseui-state-data-attributes`; this policy's own declaration was never touched). `json` is a
 // POPULATED resource kind, so a non-ready `json:baseui-manifest` withholds the OWNER at the POPULATION
-// phase, before `evaluate` ever runs — the same shape `baseui-and-surface-family.repo.int.test.ts:256-294`
+// phase, before `evaluate` ever runs — the same shape `baseui-and-surface-family.suite.repo.int.test.ts:256-294`
 // pins for the other five consumers. `resource-policy-contract.md` §3.6: one pin per declared resource per
 // REACHABLE non-ready status. `ops/resource-json.ts`'s header states the closed set: `missing | empty |
 // unresolved` (the third being an unparseable-but-present file) — never a fourth.
 //
-// RED-FIRST: `grep 'baseui-manifest' tests/tooling/verify/gates/css-hook-provenance-family.test.ts` before
+// RED-FIRST: `grep 'baseui-manifest' tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` before
 // this block returns exactly one hit — LEG 1's own comment about the SEMANTICALLY-invalid-but-parseable-JSON
 // case (a different defect, already pinned above) — never a missing/empty/unresolved assertion. Nothing here
 // today plants an empty manifest and checks that `css-selector-has-a-writer`'s owner goes incomplete.

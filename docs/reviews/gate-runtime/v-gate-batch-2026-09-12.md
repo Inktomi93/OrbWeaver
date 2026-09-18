@@ -229,9 +229,9 @@ A scoped suite red is never baseline, so each was dated or reproduced on a quiet
 **D2**.
 
 **Contention, NOT regressions (5 tests).** `structure.int.test.ts` (4 tests) and
-`grant-liveness-family.test.ts` (1 test) failed with file-level `STACK_TRACE_ERROR`s at ~5,000 ms each — the
+`grant-liveness-family.suite.test.ts` (1 test) failed with file-level `STACK_TRACE_ERROR`s at ~5,000 ms each — the
 5 s per-test default under load. Re-run ALONE
-(`pnpm test:scoped tests/tooling/verify/ops/structure.int.test.ts tests/tooling/verify/gates/grant-liveness-family.test.ts tests/tooling/verify/ops/conformance.int.test.ts`):
+(`pnpm test:scoped tests/tooling/verify/ops/structure.int.test.ts tests/tooling/verify/gates/grant-liveness-family.suite.test.ts tests/tooling/verify/ops/conformance.int.test.ts`):
 both files PASS. A second vitest was live on the MAIN checkout during my run
 (`vitest.mjs run tests/tooling/static-class-consumers.int.test.ts`, pid 2759255, main's reports dir), which
 is the load.
@@ -468,7 +468,7 @@ and not introduced here, but these are exemplar files and a copying lane will co
   effective findings other than `engines-ctl.ts:103` and `heap-capture.ts:79`, I confirmed only that their
   files carried ZERO legacy markers (so none lost a suppression) — NOT that each was also a finding under the
   legacy classifier. Some may be new findings from the stronger reader. The lane has no committed differential
-  for this gate (unlike `freeze-provenance-conversion.test.ts`), and that gap is worth a row.
+  for this gate (unlike `freeze-provenance-conversion.suite.test.ts`), and that gap is worth a row.
 - **I did not exercise the seven new doors through a consuming POLICY.** There is none yet. I read every
   contract and op in full and ran their committed pins as part of the directory suite; I did not plant a
   synthetic consumer for each door.
@@ -544,6 +544,6 @@ added as a population root without being added to `@authored`, which 19 policies
 conversion pushes down — 749 now, and already under the floor before this batch), two stale hard-coded row
 counts in `policy-conformance-stage.int.test.ts` dated to `9e362ff00` (#1952), and three phantom cites in
 `Core-Enforcement-Active-Gates.md:143,146,194` that are byte-identical pre-batch. Five further failures in
-`structure.int.test.ts` and `grant-liveness-family.test.ts` were 5 s contention timeouts and PASS on a quiet
+`structure.int.test.ts` and `grant-liveness-family.suite.test.ts` were 5 s contention timeouts and PASS on a quiet
 re-run. Highest-value follow-up: a full per-file legacy-marker-count vs translated-count diff across all 335
 files, which is the only sweep that would find a second dropped marker.

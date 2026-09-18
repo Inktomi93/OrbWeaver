@@ -38,6 +38,7 @@ const KNOWN_RETAINING: readonly string[] = [
 
 function coverage(): ReturnType<typeof compareAssetRefsCoverage> {
   return compareAssetRefsCoverage({
+    // @orb-waive no-test-fabrication(unknown): deliberate widening — drizzle schema object passed to a Record<string, unknown> consumer
     schema: schema as unknown as Readonly<Record<string, unknown>>,
     retaining: ASSET_REFS,
     derived: DERIVED_ASSET_COLUMNS,

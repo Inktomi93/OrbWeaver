@@ -194,7 +194,7 @@ the exit code.
 
 | Check | Result |
 | - | - |
-| `pnpm test:scoped tests/tooling/verify/ops/gen/theme-css.test.ts tests/tooling/verify/ops/ledgers-fresh.test.ts tests/tooling/verify/gates/css-hook-provenance-family.test.ts` | **63/63 passed**, 3 files, exit 0 |
+| `pnpm test:scoped tests/tooling/verify/ops/gen/theme-css.test.ts tests/tooling/verify/ops/ledgers-fresh.test.ts tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts` | **63/63 passed**, 3 files, exit 0 |
 | `pnpm test:scoped tests/ui/tokens/index.test.ts tests/ui/tokens/theme-emit-pairing.suite.test.ts tests/ui/tokens/near-duplicate.suite.test.ts` | **50/50 passed**, exit 0 (the `generateArtifacts` signature change does not disturb the UI generator suite) |
 | `pnpm exec node tooling/src/verify/cli.ts typecheck-plan --affected --file …` | selects `{tooling/tsconfig.json, tsconfig.json}` for all three changed source files; the new test selects `tsconfig.json`; `packages/ui/package.json` is not-type-input |
 | `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | **11 discovered, 2 runnable, PASS PASS**, exit 0 |

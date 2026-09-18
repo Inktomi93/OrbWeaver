@@ -36,7 +36,7 @@ added lines matching `contract/gate\.ts|ExemptionTable|ExemptionRow` returns **n
 | - | - |
 | `pnpm check:structure --check policy-legacy-imports` | **exit 1 · 5 findings** · `final policies: 1 ran · raw 5 = waived 0 + granted 0 + effective 5 (5 error, 0 warning) · 0 alarm(s) · 0 tool error(s) · 0 withheld` · slot `agent-a38a067eb4df68d82-373387-2026-09-13T06-48-24-313Z` |
 | `pnpm test:scoped port-parity-tier3 split-arm-parity schema-fact-parity` | **exit 0 · 3 files · 20 tests passed** · slot `agent-a38a067eb4df68d82-406615-2026-09-13T06-53-54-710Z` |
-| `pnpm test:scoped tier3-close-by-rule.test.ts` | **exit 0 · 2 tests passed, 20.3 s** · slot `agent-a38a067eb4df68d82-416972-2026-09-13T06-55-34-873Z` |
+| `pnpm test:scoped tier3-close-by-rule.suite.test.ts` | **exit 0 · 2 tests passed, 20.3 s** · slot `agent-a38a067eb4df68d82-416972-2026-09-13T06-55-34-873Z` |
 | §5b.5 header census over the 28 (scratchpad script, planted controls) | **FAMILY 28/28 · POPULATION PORT 28/28 · legacy SHA 26/28 by label field, 28/28 by second method** |
 
 ### Method notes that are load-bearing
@@ -221,7 +221,7 @@ modules to **five**, with the two-remedy split above stated in the body.
 | 2a | `tests/tooling/verify/gates/split-arm-parity.test.ts` (8 tests) | `23b31b3ca` |
 | 2b + 2c | `tests/tooling/verify/gates/schema-fact-parity.test.ts` (9 tests) | `c97de9d2f` |
 | Tier 3 ruling | `docs/reviews/gate-runtime/tier3-one-to-one-port-ruling.md` | `c97de9d2f`, strengthened at `ef044b12e` |
-| Tier 3's executable membership test | `tests/tooling/verify/gates/tier3-close-by-rule.test.ts` (2 tests) | with the ruling |
+| Tier 3's executable membership test | `tests/tooling/verify/gates/tier3-close-by-rule.suite.test.ts` (2 tests) | with the ruling |
 | the two carve-outs | `tests/tooling/verify/gates/port-parity-tier3.test.ts` (3 tests) | `c97de9d2f` |
 
 **I ran all four suites myself: 20 + 2 tests, exit 0 in both invocations.**
@@ -238,10 +238,10 @@ legacy descriptor, not the final module.
 
 **The ledger's row for this issue is STALE and would misroute a lane.**
 `refutation-ledger-2026-09-12.md:357` reads *"Still owed: the Tier 3 ruling, `turn-identity` and
-`plugin-dump-guard`"*, with the evidence cell *"`schema-fact-wave-1.test.ts` contains no `BASE`, no
+`plugin-dump-guard`"*, with the evidence cell *"`schema-fact-wave-1.suite.test.ts` contains no `BASE`, no
 `runPass`, no frozen-legacy import → Tier 2b/2c absent; no per-module Tier 3 closure recorded and
 `turn-identity` / `plugin-dump-guard` unaddressed."* Two independent errors: it measured
-`schema-fact-wave-1.test.ts` when the artifact is `schema-fact-parity.test.ts`, and all three of the
+`schema-fact-wave-1.suite.test.ts` when the artifact is `schema-fact-parity.test.ts`, and all three of the
 "still owed" items landed in `c97de9d2f` — **the very commit the row's own state cell cites**. Ledger row 2.
 
 **One honest tension to record rather than absorb.** The tier-3 ruling's own derived receipt is
@@ -335,15 +335,15 @@ FINDINGS differential only — no population and no tool-error comparison — *"
   **positive control `test-layout` 1**. (`biome-grant-liveness:45` mentions "§4.6 classifier-rot tripwire"
   — a different clause, read and excluded.)
 - Test-file method — `grep -rln` over `tests/tooling/verify/gates/` for the three ids returns exactly four
-  files: `biome-grant-liveness.int.test.ts`, `grant-liveness-family.test.ts`,
-  `tsconfig-entry-liveness.int.test.ts`, `unfenced-class-fragment-scanners.test.ts`. Grepping each for
+  files: `biome-grant-liveness.int.test.ts`, `grant-liveness-family.suite.test.ts`,
+  `tsconfig-entry-liveness.int.test.ts`, `unfenced-class-fragment-scanners.suite.test.ts`. Grepping each for
   `4\.6|differential|legacyReplay|frozenLegacyGate`: **0, 1, 0, 0** — and the single hit
-  (`grant-liveness-family.test.ts:15`) reads *"`hard` `-health` sibling holding its §4.6 blindness
+  (`grant-liveness-family.suite.test.ts:15`) reads *"`hard` `-health` sibling holding its §4.6 blindness
   tripwires"*, which is not a differential. Corroborated: the only three files on the tree naming
   `legacy-differential` are `schema-fact-parity.test.ts`, `port-parity-tier3.test.ts` and the shared
   harness `tests/support/legacy-differential.ts`.
 - Commit-message method **discarded** — its positive control also read zero (see §1).
-- **None of the three qualifies for close-by-rule.** `tier3-close-by-rule.test.ts` passed in my own run
+- **None of the three qualifies for close-by-rule.** `tier3-close-by-rule.suite.test.ts` passed in my own run
   (2 tests, exit 0) and its assertion is that the ruling doc's roster IS the membership test's output on
   today's corpus. That roster is 11 modules and contains none of the three (`no-color-literals`'s sibling
   `no-raw-container-widths` IS on it at `99b7429e2^`, which is exactly why its absence is meaningful, not
@@ -403,7 +403,7 @@ Two lane-sized chunks. Both are gate-touching, so both read
 
 **Cut direction / proof shape**
 
-- Each migrated table's grant rows are proven the way `home-client-family.test.ts:259-305` proves its
+- Each migrated table's grant rows are proven the way `home-client-family.suite.test.ts:259-305` proves its
   family's: the intended row is consumed exactly once, a wrong `operation` stays effective, a renamed
   subject stales or withholds. That is the four-pin set to copy.
 - The success condition is a run, not a read: `pnpm check:structure --check policy-legacy-imports` reaching
@@ -412,14 +412,14 @@ Two lane-sized chunks. Both are gate-touching, so both read
   `grep -rn ': ExemptionTable = {' tooling/src/verify/lib/` returning nothing and
   `grep -rn 'ExemptionTable\|ExemptionRow' tooling/src/verify/lib/` returning nothing for the four family
   files.
-- Family tests to name in the floor: `tests/tooling/verify/gates/grant-liveness-family.test.ts`,
-  `tests/tooling/verify/gates/tier-home-health-family.int.test.ts`,
-  `tests/tooling/verify/gates/contract-shape-wave-1.test.ts`,
+- Family tests to name in the floor: `tests/tooling/verify/gates/grant-liveness-family.suite.test.ts`,
+  `tests/tooling/verify/gates/tier-home-health-family.suite.int.test.ts`,
+  `tests/tooling/verify/gates/contract-shape-wave-1.suite.test.ts`,
   `tests/tooling/verify/gates/injected-op-caller-param-split.test.ts` (it imports
   `CALLER_FREE_OP_ROWS` **by symbol** at `:43` and builds its expectations from the live rows, so a
   migration breaks it by construction — retarget in the same commit), plus
   `pnpm check:policy-conformance` whole.
-- **Hazard to brief:** `tier-home-health-family.int.test.ts:200-206` pins that
+- **Hazard to brief:** `tier-home-health-family.suite.int.test.ts:200-206` pins that
   `lib/sanctioned-home.ts` *"changed only ADDITIVELY since BASE"* and rewrites the
   `from "../lib/sanctioned-home.ts"` specifier. Deleting `homeFiles`/`reportUnresolvedHomes` will red it —
   and their last three consumers (`no-pointer-variants-in-features:113`, `no-raw-z-index:100`,
@@ -448,17 +448,17 @@ never "the differential".
 - `no-color-literals` has no measurement yet. Its sibling `no-raw-container-widths` is on the close-by-rule
   roster at `99b7429e2^`; `no-color-literals` is not, so run the replay through
   `tests/support/legacy-differential.ts` (read its header first) or, if it turns out to satisfy the clause
-  set, land it on the roster and let `tier3-close-by-rule.test.ts` be the receipt — that test asserts the
+  set, land it on the roster and let `tier3-close-by-rule.suite.test.ts` be the receipt — that test asserts the
   doc's table equals its own output, so a roster addition is self-proving.
 
-**Proof shape:** `pnpm test:scoped tests/tooling/verify/gates/tier3-close-by-rule.test.ts` (it reds if the
+**Proof shape:** `pnpm test:scoped tests/tooling/verify/gates/tier3-close-by-rule.suite.test.ts` (it reds if the
 roster and the derivation disagree) plus, if a replay is written,
 `pnpm test:scoped tests/tooling/verify/gates/port-parity-tier3.test.ts` or the new file. A header-only
 change to the two config modules additionally names their own suites:
 `tests/tooling/verify/gates/biome-grant-liveness.int.test.ts`,
 `tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts`,
-`tests/tooling/verify/gates/grant-liveness-family.test.ts`, and for `no-color-literals`
-`tests/tooling/verify/gates/unfenced-class-fragment-scanners.test.ts`.
+`tests/tooling/verify/gates/grant-liveness-family.suite.test.ts`, and for `no-color-literals`
+`tests/tooling/verify/gates/unfenced-class-fragment-scanners.suite.test.ts`.
 
 **Hazard:** the guide's §5b.5 census caveat applies — a header block must be read by hand after it lands;
 my own census in §1 shows a label field silently false-negating a real citation.
@@ -479,7 +479,7 @@ The only file this lane created is this report.
 | module | wave · `path:line` | defect | class | state | receipt |
 | - | - | - | - | - | - |
 | `policy-legacy-imports` | cb-adj-authority L1 · `tooling/src/verify/gates/policy-legacy-imports.ts:120-136` (`FORBIDDEN_IMPORT_HOMES`) and its `fix` string | **ARM A's stated remedy VOIDS the §12.5 property the arm exists to enforce.** The arm judges the IMPORT ORIGIN of a specifier, and `#2201`'s re-export chase follows only `export … from`. A gate-owned `ExemptionTable` moved into `lib/<family>.ts` as `import type { ExemptionTable } from "../contract/gate.ts"` + `export const T: ExemptionTable = {…}` is therefore invisible: `lib/x.ts` is neither a forbidden home nor a registering gate module, and it is outside the declared population (`under: ["tooling/src/verify/gates/**"]`, 309 source files). §12.5 says *"Gate modules receive neither grant tables nor marker parsers"* — a final module importing that table still receives one. The arm's own `fix` ARM B authorizes the move (*"debt data with one owner (a deferral list) moves to `contract/` or `lib/` the same way"*), so this is a designed escape rather than a false negative — but nothing then holds §12.5, and #1922's migration can reach 0 red at 0% done | other (coverage gap created by the stated remedy) | **OPEN** (board #2147 / #1922) | `pnpm check:structure --check policy-legacy-imports` on `1ea2c2a0e`: **5 findings** (the invocation's own positive control — the recognizer fires) and NONE of them is `no-raw-spacing-in-features:34`, `no-raw-typography-in-features:51`, `contract-derives-not-respells:54` or `injected-op-caller-param-health:22`, each of which imports a live exemption table from `lib/`. The four tables are intact: `lib/raw-spacing-tier.ts:22`, `lib/raw-typography-tier.ts:21`, `lib/contract-derives-not-respells.ts:32` (all three still `ExemptionTable`-typed off `contract/gate.ts`) and `lib/injected-op-caller-param.ts:37` (retyped `CallerFreeOpRow[]`). Four of the nine modules the arm named at mint went green by exactly this move (`3420a81e9`, `d9d1e3524`) and **zero reviewed grants were minted** — no `REVIEWED_GRANTS` row names any of the five sanctioned-home policies · FIX: judge the exemption-table SHAPE at the final module's import boundary (a `defineGate` module importing a value whose declared type resolves to `contract/gate.ts#ExemptionTable`/`ExemptionRow`, wherever it sits), or widen the population to `tooling/src/verify/lib/**` with an `ExemptionTable`-declaration arm. Either way the arm needs a `mustFlag` fixture for the one-hop-lib shape, which it has for the `export … from` shim (`:434`) and not for this one |
-| `#2000` | cb-adj-authority L2 · `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md:357` | the row's OPEN cell says *"Still owed: the Tier 3 ruling, `turn-identity` and `plugin-dump-guard`"* — **all three landed in `c97de9d2f`, the commit the same cell already cites for Tier 2b/2c.** Its evidence cell measured the WRONG FILE (`schema-fact-wave-1.test.ts`, which indeed has no `BASE`/`runPass`/frozen-legacy import) instead of the artifact `schema-fact-parity.test.ts`. A lane reading the queue is routed to build three things that exist | other (stale work-queue row) | **OPEN → should flip CLOSED** | `docs/reviews/gate-runtime/tier3-one-to-one-port-ruling.md` exists (9,954 bytes), `tests/tooling/verify/gates/port-parity-tier3.test.ts` exists (19,730 bytes) and names both carve-outs in its header, `tests/tooling/verify/gates/tier3-close-by-rule.test.ts` exists (17,248 bytes); all three landed at `c97de9d2f` (per-path `git log`), strengthened at `ef044b12e`, both in HEAD's ancestry. RUN THIS SESSION: `pnpm test:scoped port-parity-tier3 split-arm-parity schema-fact-parity` → exit 0, **20 tests**; `pnpm test:scoped tier3-close-by-rule` → exit 0, 2 tests, 20.3 s. Frozen-blob spot check: `5dd83aaa42c…:plugin-dump-guard.ts` carries `GateDescriptor` at `:6`/`:95`, so the replay is against real legacy bytes · FIX: flip `:357` CLOSED with `c97de9d2f` / `ef044b12e`, and open the disposition of the ruling's own derived **237 REPLAY-OWED of 248** as its own row rather than letting it ride a closed #2000 |
+| `#2000` | cb-adj-authority L2 · `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md:357` | the row's OPEN cell says *"Still owed: the Tier 3 ruling, `turn-identity` and `plugin-dump-guard`"* — **all three landed in `c97de9d2f`, the commit the same cell already cites for Tier 2b/2c.** Its evidence cell measured the WRONG FILE (`schema-fact-wave-1.suite.test.ts`, which indeed has no `BASE`/`runPass`/frozen-legacy import) instead of the artifact `schema-fact-parity.test.ts`. A lane reading the queue is routed to build three things that exist | other (stale work-queue row) | **OPEN → should flip CLOSED** | `docs/reviews/gate-runtime/tier3-one-to-one-port-ruling.md` exists (9,954 bytes), `tests/tooling/verify/gates/port-parity-tier3.test.ts` exists (19,730 bytes) and names both carve-outs in its header, `tests/tooling/verify/gates/tier3-close-by-rule.suite.test.ts` exists (17,248 bytes); all three landed at `c97de9d2f` (per-path `git log`), strengthened at `ef044b12e`, both in HEAD's ancestry. RUN THIS SESSION: `pnpm test:scoped port-parity-tier3 split-arm-parity schema-fact-parity` → exit 0, **20 tests**; `pnpm test:scoped tier3-close-by-rule` → exit 0, 2 tests, 20.3 s. Frozen-blob spot check: `5dd83aaa42c…:plugin-dump-guard.ts` carries `GateDescriptor` at `:6`/`:95`, so the replay is against real legacy bytes · FIX: flip `:357` CLOSED with `c97de9d2f` / `ef044b12e`, and open the disposition of the ruling's own derived **237 REPLAY-OWED of 248** as its own row rather than letting it ride a closed #2000 |
 
 **ledger rows OWED: 2**
 

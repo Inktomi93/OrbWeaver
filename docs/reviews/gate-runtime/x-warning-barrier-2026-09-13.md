@@ -141,7 +141,7 @@ minted #2326 and #2327 from these receipts and both pointers were repointed at `
 `work:item`); each repoint is then a ONE-LINE edit with **no coupled fixture**: a grep of
 `tests/tooling/verify/` for `2024`/`2184` returns only prose comments —
 `over-art-plate-arm.int.test.ts:138` explicitly records that the literal assertion was REMOVED at #2053
-because pinning the number is what rotted, and `policy-soundness-family.repo.int.test.ts` mentions both
+because pinning the number is what rotted, and `policy-soundness-family.suite.repo.int.test.ts` mentions both
 numbers only in comments.
 
 Proposed rows (verbatim in the mid-run note):

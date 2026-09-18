@@ -142,7 +142,7 @@ claims all three statuses), plus the complete-run receipt assertion for the thre
 Mechanism note for the next lane: the installed doors need **REAL planted files**. `loadInstalledPackage`
 goes through node's resolver and `readdirSync`; the `resourceOptions.overlay` reaches neither, by design.
 
-`pnpm test:scoped tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts` → **39/39**.
+`pnpm test:scoped tests/tooling/verify/gates/baseui-and-surface-family.suite.repo.int.test.ts` → **39/39**.
 
 ## 4. The phantom citations — SIX, and one of them cites a phantom TEST TITLE (commit `e299ff5f9`)
 
@@ -313,7 +313,7 @@ that dies if the guard is failed shut.
 
 | command | result |
 | - | - |
-| `pnpm test:scoped tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts` | **39/39 pass**, exit 0 |
+| `pnpm test:scoped tests/tooling/verify/gates/baseui-and-surface-family.suite.repo.int.test.ts` | **39/39 pass**, exit 0 |
 | `pnpm test:scoped` ui-gate-structural-regressions.int · port-parity-tier3 · verify/ops/conformance.int · verify/lib/baseui-read.int | **16/16 pass**, exit 0 (every other `tests/**` file naming these six policy ids as a literal, except the orchestrator-only planter) |
 | `pnpm check:structure --check baseui-surface-manifest --check baseui-anatomy-completeness` | exit 0, clean, before AND after |
 | `pnpm check:structure --check baseui-derives-not-respells --check …-health --check baseui-state-data-attributes --check baseui-portal-container-seam` | exit 0, `raw 7 = waived 7 + granted 0 + effective 0`, 0 alarms, 0 tool errors, 0 withheld |
@@ -331,7 +331,7 @@ e89180923  fix(gates): pin baseui-surface-manifest's three unenforced drift arms
 9aac27daf  fix(gates): baseui-anatomy-completeness asks the AST, and its two unenforced carves get rows
              tooling/src/verify/gates/baseui-anatomy-completeness.ts | 82 ++++-  (76 ins, 6 del)
 9bf69177e  test(gates): the baseui-read family's §4.5 pins cover every REACHABLE resource status
-             tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts | 126 ++- (124 ins, 2 del)
+             tests/tooling/verify/gates/baseui-and-surface-family.suite.repo.int.test.ts | 126 ++- (124 ins, 2 del)
 e299ff5f9  docs(gates): the baseui family stops citing a test that never existed, and stops spelling a
            retired opener
              baseui-derives-not-respells-health.ts |  6 +-

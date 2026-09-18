@@ -126,7 +126,7 @@ final policies: 1 ran · raw 9 = waived 0 + granted 9 + effective 0 · 0 alarm(s
 ```
 
 `raw 9 = granted 9 + effective 0`, zero alarms — the nine rows still consume 1:1. The `(carrier, ink)`
-identity cut still discriminates: `seed-theme-ink-family.test.ts` passes 5/5, including the arm where a
+identity cut still discriminates: `seed-theme-ink-family.suite.test.ts` passes 5/5, including the arm where a
 grant naming the FILE with the WRONG ink licenses nothing and raises `stale-reviewed-grant`, and the arm
 where a grant whose ink stopped being painted stales. The pair-count and the ink×ground×seed total are
 unchanged by the fold (`5856`, `3 member(s)`).
@@ -315,7 +315,7 @@ restored to HEAD (`cp` + `git show`, restored by `mv`, `git status` verified) an
 
 | module | wave · `path:line` | defect | class | state | receipt |
 | - | - | - | - | - | - |
-| `seed-theme-ink-contrast` | x-css-train-fixes leg 2 · `tooling/src/verify/lib/seed-theme-ink.ts:110` (at `75b99ea89`) | The fold onto the shared declaration facts read only each declaration's IMMEDIATE owner, so a `--color-*` nested one level inside `@theme` or inside a `[data-theme]` seed left the palette — a NARROWING the module header denied ("three deltas, all in the widening direction"). Invisible to the real-sheet parity twin because the shipped `theme.css` has no such nesting | §4.6 catch-regression · false header claim | **CLOSED (`53d3d74ec`)** | frozen `e8593887a^` reader vs the folded one on the same bytes: case (a) lost `--color-y`, case (b) lost `--color-z`. Repaired via `CssRule.end` + `rulesContaining()` on the shared reader; four cases pinned in `seed-theme-ink-family.test.ts`, reader pinned both directions in `css-rules.test.ts` |
+| `seed-theme-ink-contrast` | x-css-train-fixes leg 2 · `tooling/src/verify/lib/seed-theme-ink.ts:110` (at `75b99ea89`) | The fold onto the shared declaration facts read only each declaration's IMMEDIATE owner, so a `--color-*` nested one level inside `@theme` or inside a `[data-theme]` seed left the palette — a NARROWING the module header denied ("three deltas, all in the widening direction"). Invisible to the real-sheet parity twin because the shipped `theme.css` has no such nesting | §4.6 catch-regression · false header claim | **CLOSED (`53d3d74ec`)** | frozen `e8593887a^` reader vs the folded one on the same bytes: case (a) lost `--color-y`, case (b) lost `--color-z`. Repaired via `CssRule.end` + `rulesContaining()` on the shared reader; four cases pinned in `seed-theme-ink-family.suite.test.ts`, reader pinned both directions in `css-rules.test.ts` |
 | `tests/tooling/verify/ops/resource-tree.test.ts` | x-css-train-fixes leg 2 · `tests/tooling/verify/ops/resource-tree.test.ts:112` | Its whole-object `toEqual` over an `AuthoredCssFile` never learned the `statements` key `17a59099b` added, so the suite has been RED on main since #2183 — unobservable because `tests/tooling/**` is `--full`-only | stale coupled literal · silent suite red | **CLOSED (`53d3d74ec`)** | both files restored to HEAD and re-run: still `1 failed \| 4 passed`, `+ "statements": []`. Not caused by this lane; found by its control |
 
 `ledger rows OWED: 2`
@@ -395,7 +395,7 @@ have killed all three compound roots, which is why they are pinned as positive c
 
 | module | wave · `path:line` | defect | class | state | receipt |
 | - | - | - | - | - | - |
-| `seed-theme-ink-contrast` | x-css-train-fixes leg 3 · `tooling/src/verify/lib/seed-theme-ink.ts:139-144` (at `53d3d74ec`) | `rootName` matched the unanchored `SEED_SELECTOR` against the whole `selectorList`, so a FLATTENED descendant (`[data-theme="x"] .a`) and a SIBLING (`[data-theme="x"] + .b`) were absorbed as the seed root while their nested twins were excluded — the same CSS answered two ways by authoring style. Separately, `.card &` was silently DROPPED as a "descendant subject" although its subject is the seed under an ancestor condition, losing a reachable palette arm | half-built narrowing · dropped arm · false header prose | **CLOSED (`4552bdf24`)** | before/after matrix over 8 shapes through the live reader (table above); membership now `splitSelectorList` → `selectorSubject` (shared, reused); 5 new pins in `seed-theme-ink-family.test.ts` incl. flattened-EQUALS-nested and the three compound-root controls; real-tree verdict and receipts unchanged |
+| `seed-theme-ink-contrast` | x-css-train-fixes leg 3 · `tooling/src/verify/lib/seed-theme-ink.ts:139-144` (at `53d3d74ec`) | `rootName` matched the unanchored `SEED_SELECTOR` against the whole `selectorList`, so a FLATTENED descendant (`[data-theme="x"] .a`) and a SIBLING (`[data-theme="x"] + .b`) were absorbed as the seed root while their nested twins were excluded — the same CSS answered two ways by authoring style. Separately, `.card &` was silently DROPPED as a "descendant subject" although its subject is the seed under an ancestor condition, losing a reachable palette arm | half-built narrowing · dropped arm · false header prose | **CLOSED (`4552bdf24`)** | before/after matrix over 8 shapes through the live reader (table above); membership now `splitSelectorList` → `selectorSubject` (shared, reused); 5 new pins in `seed-theme-ink-family.suite.test.ts` incl. flattened-EQUALS-nested and the three compound-root controls; real-tree verdict and receipts unchanged |
 
 `ledger rows OWED: 1`
 
@@ -461,7 +461,7 @@ parser fork, no second reader, nothing else moved.
 
 | module | wave · `path:line` | defect | class | state | receipt |
 | - | - | - | - | - | - |
-| `seed-theme-ink-contrast` | x-css-train-fixes leg 4 · `tooling/src/verify/lib/seed-theme-ink.ts:178-187` (at `4552bdf24`) | `seedRootOf` returned on the FIRST matching root and `Placement` carried one name, so a selector list naming two shipped seeds filed into one and silently dropped the other — including the conditional-arm path, where only one seed got an arm. The header claimed "decided per complex selector"; the code decided once | half-built rule · prose exceeds behaviour | **CLOSED (`893d44b49`)** | before/after over four shapes (table above): (a) mocha gains the value, (b) two arms with `light`/`dark` polarity, (c) the descendant still excluded, (d) the duplicate still files once. 4 new pins in `seed-theme-ink-family.test.ts`; real-tree verdict, receipts and sheet parity all unchanged; the live sheet has no multi-root list (0 comma-bearing seed rules) so the defect was latent |
+| `seed-theme-ink-contrast` | x-css-train-fixes leg 4 · `tooling/src/verify/lib/seed-theme-ink.ts:178-187` (at `4552bdf24`) | `seedRootOf` returned on the FIRST matching root and `Placement` carried one name, so a selector list naming two shipped seeds filed into one and silently dropped the other — including the conditional-arm path, where only one seed got an arm. The header claimed "decided per complex selector"; the code decided once | half-built rule · prose exceeds behaviour | **CLOSED (`893d44b49`)** | before/after over four shapes (table above): (a) mocha gains the value, (b) two arms with `light`/`dark` polarity, (c) the descendant still excluded, (d) the duplicate still files once. 4 new pins in `seed-theme-ink-family.suite.test.ts`; real-tree verdict, receipts and sheet parity all unchanged; the live sheet has no multi-root list (0 comma-bearing seed rules) so the defect was latent |
 
 `ledger rows OWED: 1`
 
@@ -494,7 +494,7 @@ exit 1; fence-wide across all six of this lane's files → no match). Editing th
 no-op commit asserting a fix that already exists three commits down.
 
 Floor on the unchanged tree: `pnpm exec biome check` exit 0 · `pnpm exec eslint` exit 0 ·
-`pnpm test:scoped tests/tooling/verify/gates/seed-theme-ink-family.test.ts` 18/18 exit 0. HEAD stays
+`pnpm test:scoped tests/tooling/verify/gates/seed-theme-ink-family.suite.test.ts` 18/18 exit 0. HEAD stays
 `893d44b49`; `ledger rows OWED: 0`.
 
 **Note for the integrator:** the row is not wrong, it is *unmerged*. It closes when this branch lands —
@@ -553,14 +553,14 @@ Statuses enumerated from `ops/resource-reader.ts#read`/`#tree`, `ops/resource-tr
 | - | - | - | - | - |
 | `token-contract` missing | ROW | `mustRefuse[0]` | — | pre-existing |
 | `token-contract` empty | ROW | `mustRefuse[1]` | — | pre-existing |
-| `token-contract` unresolved | NOT a row — no JS string carries an invalid UTF-8 byte | NEW `token-contract-family.test.ts` pin, bytes `0x7b 0xff 0x7d` | NEW, same helper/substrate | text asserted in full incl. the member path |
+| `token-contract` unresolved | NOT a row — no JS string carries an invalid UTF-8 byte | NEW `token-contract-family.suite.test.ts` pin, bytes `0x7b 0xff 0x7d` | NEW, same helper/substrate | text asserted in full incl. the member path |
 | `product-css` missing (×2) | ROW | `mustRefuse[0]` each | — | pre-existing |
 | `product-css` malformed (×2) | ROW | `mustRefuse` each (#2294) | — | pre-existing |
 | `product-css` empty (×2) | ROW | NEW `mustRefuse` in EACH consumer | — | `s2314a`, `p2314b` → `rowsThatDied=1`, that row only |
 | `product-css` unresolved (×2) | NOT a row | NEW pin in each family test, bytes `0x40 0xff 0x0a` | NEW, same substrate | full text asserted |
 | `exact-file` missing | ROW | `mustRefuse[0]` | — | pre-existing |
 | `exact-file` empty | ROW | NEW `mustRefuse[4]` | — | `p2314a` → `rowsThatDied=1`, that row only |
-| `exact-file` unresolved | NOT a row | NEW `css-home-topology-family.test.ts` pin | shares the topology twin | full text asserted |
+| `exact-file` unresolved | NOT a row | NEW `css-home-topology-family.suite.test.ts` pin | shares the topology twin | full text asserted |
 | `exact-file` zero-ids / unknown-id | **UNREACHABLE by construction** | none — `ANCHOR_IDS` is a non-empty compile-time tuple `satisfies readonly ExactResourceId[]` | — | stated in the header |
 | `authored-tree` missing | ROW | `mustRefuse[0]` | — | pre-existing |
 | `authored-tree` empty | NOT a row — a map cannot spell an empty directory | existing family pin | — | pre-existing |
@@ -592,7 +592,7 @@ quoted from `git log`. A blanket replace would have broken seven true citations.
 
 | site | verdict |
 | - | - |
-| `gates/tokens-contract.ts:14` · `contract/resource-artifact.ts:40` · `tests/tooling/token-contract.test.ts:199` · `verify/gates/token-contract-family.test.ts:19` · `verify/gates/seed-theme-ink-family.test.ts:211` | DRIFTED → #2182, each with its receipt |
+| `gates/tokens-contract.ts:14` · `contract/resource-artifact.ts:40` · `tests/tooling/token-contract.test.ts:199` · `verify/gates/token-contract-family.suite.test.ts:19` · `verify/gates/seed-theme-ink-family.suite.test.ts:211` | DRIFTED → #2182, each with its receipt |
 | `gates/playwright-css-topology.ts:43` · `lib/css-home-topology.ts:5` · `check-gates.repo.int.test.ts:716` · `:1101` · `verify/ops/resource-tree.test.ts:113` · `verify/lib/css-rules.test.ts:43` · `check-gates.repo.int.test.ts:1084` | CORRECT — the pair's own conversion or the statement at-rule fact built for it; left alone |
 
 ### C. #2315 — the delta table, driven

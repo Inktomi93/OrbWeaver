@@ -220,5 +220,5 @@ reviewed-grant authority and deleted its count ratchet; `ops/gen/suppressions.ts
 four sites this line used to name no longer exist): `tooling/src/verify/gates/suppressions.ts` ·
 the `policyId: "suppressions"` rows in `tooling/src/verify/lib/reviewed-grants.ts` · the shared file
 door `tooling/src/verify/lib/reviewed-grant-findings.ts` · the doc row ·
-`tests/tooling/verify/gates/suppressions-family.test.ts`. Config: `biome.json` (four overrides) · `biome-grant-liveness.int`'s
+`tests/tooling/verify/gates/suppressions-family.suite.test.ts`. Config: `biome.json` (four overrides) · `biome-grant-liveness.int`'s
 real-tree row count (grows, stays green). Migration: 70 files + 8 rename files + their suites.

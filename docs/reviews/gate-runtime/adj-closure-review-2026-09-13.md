@@ -30,7 +30,7 @@ proposal assertion is re-quoted as its own receipt.
   `git status --short` empty verified after each).
 - **Runs executed** (all `pnpm test:scoped` / bounded `pnpm check:structure --check <id>`, logs in the
   session scratchpad): `artifacts.int.test.ts` ×2 · `structure.int.test.ts` ×2 · `ledger-claims.int +
-  ledger-claims` ×1 · `proc.int + proc` ×1 · `mirror-index-family.test.ts` ×1 · `artifact-naming.test.ts`
+  ledger-claims` ×1 · `proc.int + proc` ×1 · `mirror-index-family.suite.test.ts` ×1 · `artifact-naming.test.ts`
   ×1 · `eslint.int.test.ts` ×1 · `check:structure --check dangling-doc-cite` ×2.
 - **Probes planted and restored (five, all in this isolated worktree, none on main):**
   `tooling/src/verify/ops/structure.ts` · `tooling/src/verify/ops/ledger-claims.ts` ·
@@ -259,7 +259,7 @@ Two demands were live: ledger 787 (name the two sites that drifted 51 → 53, fo
 and give the parked count a two-sided pin) and ledger 905 (the exact-set pin is a false red by
 construction).
 
-**905 is closed, and well.** `tests/tooling/verify/gates/mirror-index-family.test.ts:314-406` replaces the
+**905 is closed, and well.** `tests/tooling/verify/gates/mirror-index-family.suite.test.ts:314-406` replaces the
 57-path roster with a two-conjunct class (`message` starts `mirror miss — no source for tooling/src/` AND
 path under `tests/tooling/verify/gates/`) plus two named exceptions each carrying a `why` and a
 `git log --diff-filter=A` justification. `realTreeMisses` drives the real `runPolicyPass` and asserts
@@ -271,7 +271,7 @@ exception rows asserted live, so a fixed member goes stale and reds. `pnpm test:
 **CORRECTION — the naming half of 787 is not `6049dcded`'s and #2142 was not folded.**
 
 - The 51/53/57 reconciliation and the SIX named new members
-  (`doc-catalog/ops/catalog-scope.test.ts`, `bus-payload-family`, `css-home-topology-family`,
+  (`doc-catalog/ops/catalog-scope.suite.test.ts`, `bus-payload-family`, `css-home-topology-family`,
   `real-corpus-liveness-family.repo.int`, `seed-theme-ink-family`, `token-contract-family`) live in
   `docs/reviews/gate-runtime/v-wave-12b-2026-09-13.md:57-61`, produced by `183e49714`/wave-12b. The test
   header cites that report rather than restating it — fine — but the proposal credits `6049dcded` alone.

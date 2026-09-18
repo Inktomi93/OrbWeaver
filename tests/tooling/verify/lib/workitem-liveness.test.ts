@@ -17,6 +17,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 /** A descriptor carrying only the fields the derivation reads; the corpus arm above uses real modules. */
 function policy(id: string, workItem?: number): GatePolicy {
   const severity = workItem === undefined ? { severity: "error" as const } : { severity: "warning" as const, workItem };
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the liveness checker exercises; no factory exists
   return { id, ...severity } as GatePolicy;
 }
 

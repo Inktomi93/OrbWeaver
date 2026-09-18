@@ -46,7 +46,7 @@ behaviour that **does not happen**.
 | `pnpm check:policy-conformance` (after all nine probe rounds) | same line, **exit 0** — restored |
 | `pnpm gate:contract` | `762 finding(s) across 271 gate module(s)`, exit 1 (the legacy corpus). Total did not rise. **ZERO findings naming any of the eleven subject modules** (grep count 0 over the 765-line log) |
 | `pnpm test:scoped tests/tooling/verify/gates/` | 57 files, 399 tests, **393 passed / 6 failed**, 241.9 s — triaged below. Every family test covering a subject PASSED |
-| quiet re-run `drizzle-registry-conversion.test.ts` | **3/3 PASS, exit 0, 4.4 s** — the two failures above were 5 s contention timeouts |
+| quiet re-run `drizzle-registry-conversion.suite.test.ts` | **3/3 PASS, exit 0, 4.4 s** — the two failures above were 5 s contention timeouts |
 | 9 `cp`/`mv` probe rounds (30 narrowing cuts, 4 dead-position controls, 8 expectation rewrites, 2 resource-absence probes) | each restored; `git status --short` EMPTY after every round |
 
 `pnpm exec biome` / `pnpm typecheck` were **not** run: this lane wrote one markdown file and modified no
@@ -90,7 +90,7 @@ the production conformance door, `mv` back. A cut that kills no row means the na
 | `no-raw-typography-in-features` | the four narrowings mirrored from `no-raw-spacing-in-features` | same cuts | `mustPass[0]` only | **same result: 3 of 4 UNENFORCED** |
 | `typography-tier-home-health` | ANCHOR guard · population | same cuts | `mustPass[1]` · — | ENFORCED · **UNENFORCED** |
 | `user-bus-deferred-member` | `bus.emitters.some(...)` (:80) | `if (true)` | `mustPass[0]` + `mustPass[1]` | ENFORCED |
-| `user-bus-deferred-member` | `deferralsFor` union filter (:45) | — | pinned in `bus-pair.test.ts` with a planted second bus | ENFORCED (by pin) |
+| `user-bus-deferred-member` | `deferralsFor` union filter (:45) | — | pinned in `bus-pair.suite.test.ts` with a planted second bus | ENFORCED (by pin) |
 | `ui-exports-map-complete` | `files.has(topIndex)` top-module short-circuit (:40) | `if (false)` | `mustPass[2]` | ENFORCED |
 | `ui-exports-map-complete` | `!path.includes("/")` (:30) | drop it | `mustFlag[0,1,3]` + `mustPass[0,1]` | ENFORCED |
 | `ui-exports-map-complete` | `target.startsWith("./") && target.length > 2` (:54) | always resolve | — | **UNENFORCED** |
@@ -143,7 +143,7 @@ first by the runner's own ordering (`toolFailure` at `:163` precedes the arm ver
     AUTHORITY ALARM [ordinary-waiver] … packages/db/src/schema/plain.ts:3:3 names a dead position
 ```
 
-`no-inline-types`'s arm is the family-test shape (`ordinary-visitors-family.test.ts:187-195`, asserting
+`no-inline-types`'s arm is the family-test shape (`ordinary-visitors-family.suite.test.ts:187-195`, asserting
 `effectiveFindings === []`, `waivedFindings` length 1, `authorityAlarms === []`), with the dead-position
 negative immediately after at `:197-204`. **All five ordinary policies satisfy §4.2.** That is the one
 criterion the whole set passes cleanly.
@@ -210,7 +210,7 @@ behaviour is UNMEASURED by me (see "what I did not cover").
 > The limit is *conditionally* true of a DOM-less program: built with the root `tsconfig.json`
 > (`lib: ["es2025","esnext.disposable","esnext.temporal"]`), `window`/`self`/bare go UNREADABLE while
 > `globalThis` stays PRECISE because it is checker-intrinsic. That residue is now pinned in
-> `home-client-family.test.ts` with an explicit `compilerOptions.lib`, with a default-lib control arm beside it.
+> `home-client-family.suite.test.ts` with an explicit `compilerOptions.lib`, with a default-lib control arm beside it.
 >
 > **The generalisable rule, and it is why this amendment exists:** a gate claiming *"the analysis program
 > cannot see X"* is asserting a property of the **LOADER**, not of the tree — measure it by driving
@@ -380,7 +380,7 @@ Legend: **P** pass · **F** fail · **N/A** does not bind · **NE** not evaluate
 3. **N/A** (hard); `fix` is present and sound.
 4. **F** — singleton with no declared reason.
 5. **F** — D9; the header records no family, no population port, no decisions beyond the rule.
-6. **F** — D1 (8 findings under a one-finding `why`, no `count`); the `startsWith` fence UNENFORCED; **no §4.5 refusal/receipt pin exists** — `tests/tooling/verify/gates/resource-layout-wave-1.test.ts` contains exactly one `runPolicyPass` pin and it is for `package-layout`, not this policy.
+6. **F** — D1 (8 findings under a one-finding `why`, no `count`); the `startsWith` fence UNENFORCED; **no §4.5 refusal/receipt pin exists** — `tests/tooling/verify/gates/resource-layout-wave-1.suite.test.ts` contains exactly one `runPolicyPass` pin and it is for `package-layout`, not this policy.
 7. **P**.
 
 ### 5. `schema-branding` — REFUTED (minor: criteria 5, 6)
@@ -390,7 +390,7 @@ Legend: **P** pass · **F** fail · **N/A** does not bind · **NE** not evaluate
 3. **P** — `FIX` names `@orb-waive schema-branding(<column>)`; the dead-position control proves `<column>` is the property name.
 4. **P** — family `drizzle-schema`; provider `lib/schema-fact.ts`; the header states the ownership split in one line.
 5. **F** — roster row `:100` is a bare label (D9); the header records no population port (it is delegated to the imported `DRIZZLE_SCHEMA_POPULATION`, which is defensible) and no marker census.
-6. **F** — §4.2 arm PROVEN; §4.5 refusal pins genuinely present (`schema-fact-wave-1.test.ts:85`, `:103`, `:118`). But THREE arm narrowings are UNENFORCED: nothing proves the primary-brand arm is scoped to a column named `id` , nothing proves it is scoped to a PRIMARY KEY, and nothing proves an FK to an UNBRANDED parent passes.
+6. **F** — §4.2 arm PROVEN; §4.5 refusal pins genuinely present (`schema-fact-wave-1.suite.test.ts:85`, `:103`, `:118`). But THREE arm narrowings are UNENFORCED: nothing proves the primary-brand arm is scoped to a column named `id` , nothing proves it is scoped to a PRIMARY KEY, and nothing proves an FK to an UNBRANDED parent passes.
 7. **P**.
 
 ### 6. `no-raw-matchmedia` — REFUTED, severe (criteria 2, 4, 5, 6). "Wart: none found — as thorough as the corpus gets" is FALSE
@@ -399,7 +399,7 @@ Legend: **P** pass · **F** fail · **N/A** does not bind · **NE** not evaluate
 2\. **F** — D2. §5b.2's exact failure: a context clause that is a claim, and the claim is untrue.
 4\. **P (partial)** — the identity is genuinely resolved through four named shared readers; but "singleton" is never declared with its reason.
 5\. **F** — the header and the roster row both record a decision the code does not implement (D2).
-6\. **F** — FOUR unenforced narrowings (D-table), the fail-closed arm exercised by no row (D5), and `mustPass[1]` not proving its own declared narrowing (D6). §4.3 grant-identity pins DO exist and are correct (`home-client-family.test.ts`).
+6\. **F** — FOUR unenforced narrowings (D-table), the fail-closed arm exercised by no row (D5), and `mustPass[1]` not proving its own declared narrowing (D6). §4.3 grant-identity pins DO exist and are correct (`home-client-family.suite.test.ts`).
 7\. **P**.
 
 ### 7. `no-inline-types` — REFUTED (criteria 3, 4, 6)
@@ -407,7 +407,7 @@ Legend: **P** pass · **F** fail · **N/A** does not bind · **NE** not evaluate
 1\. **P** · 2. **P** · 5. **P** — the header is one of the two best in the set (population-as-homes rationale, the `no-inline-domain-interface` split, identity-not-spelling, the declared non-fail-closed limit), and roster row `:277` describes the converted implementation.
 3\. **F** — D7.
 4\. **P (partial)** — shared readers named (`readMemberReference`, `resolveModuleMemberOrigin`); singleton not declared.
-6\. **F** — §4.2 arm present in `ordinary-visitors-family.test.ts:187-195` with its dead-position negative at `:197`. But `doors.has(ZOD_DOOR)` is UNENFORCED — **nothing proves the factory must come from `zod` at all**, which is the module's own headline identity claim; the VariableStatement export fence is UNENFORCED; and 7 of the 10 population clauses (4 `notUnder`, all 3 `notNamed`) have no row.
+6\. **F** — §4.2 arm present in `ordinary-visitors-family.suite.test.ts:187-195` with its dead-position negative at `:197`. But `doors.has(ZOD_DOOR)` is UNENFORCED — **nothing proves the factory must come from `zod` at all**, which is the module's own headline identity claim; the VariableStatement export fence is UNENFORCED; and 7 of the 10 population clauses (4 `notUnder`, all 3 `notNamed`) have no row.
 7\. **P**.
 
 ### 8. `no-raw-typography-in-features` + `typography-tier-home-health` — REFUTED, identically to #3 and #2
@@ -426,7 +426,7 @@ about, already happening inside the exemplar set itself.**
 3. **N/A** (hard); `fix` names the retirement, which is the correct instruction for an unsuppressible policy.
 4. **P** — family `bus-fact`, provider `lib/bus-fact.ts`, sibling relationship stated and enforced by the shared `BUS_MEMBER_DEFERRALS` import.
 5. **P** — the densest header in the set: the split reason, the debt identity, why the FINDING is the retirement rather than the debt, the refusal and where it is pinned. Roster row `:141` matches it.
-6. **P** — `mustFlag[0]` ENFORCED under cut; §4.5 refusal pin present and asserted through `runPolicyPass` (`bus-pair.test.ts`, "a deferral that outlives its subject REFUSES"); the union-filter narrowing has a planted-second-bus observability pin — which is §4.7 done correctly, including the honest note that an unfiltered mutant left every spec green; and the family test carries a dangling-specifier control with a derived did-the-sweep-run assertion.
+6. **P** — `mustFlag[0]` ENFORCED under cut; §4.5 refusal pin present and asserted through `runPolicyPass` (`bus-pair.suite.test.ts`, "a deferral that outlives its subject REFUSES"); the union-filter narrowing has a planted-second-bus observability pin — which is §4.7 done correctly, including the honest note that an unfiltered mutant left every spec green; and the family test carries a dangling-specifier control with a derived did-the-sweep-run assertion.
 7. **P**.
 
 **This is the module to point a conversion lane at.** Its header is the only one that prices the alternative,
@@ -454,15 +454,15 @@ That document is what conversion lanes trust, so these are the rows to fix.
 | §3 "`server-layout.ts` is the minimal clean version", preferred over `ui-exports-map-complete.ts` | **Withdraw the preference.** Both carry the same dead guard; `ui-exports-map-complete` additionally has real declared-limit `mustPass` rows and a dense roster row, and `server-layout` has the worse expectation row |
 | §5 (`no-raw-matchmedia`) "Wart: none found — this is as thorough as the corpus gets" | **FALSE, and it is the worst module in the set on §4.1.** Four unenforced narrowings, a fail-closed arm no row exercises, a `mustPass` that does not prove the narrowing it names, and a DECLARED LIMIT that is false in three documents |
 | §1 "no dedicated test file was located for `no-array-literal-querykey`" | **RESOLVED: none exists.** No test under `tests/` imports it (symbol grep) and no test names its id or path except two legacy-era comments in `check-gates.repo.int.test.ts:582`. Its rows run through conformance only |
-| §2 "no dedicated test file was located for this pair" | **RESOLVED: none exists** for `no-raw-spacing-in-features` / `spacing-tier-home-health` / `no-raw-typography-in-features` / `typography-tier-home-health`. `ui-token-surface-wave-1.test.ts:8` mentions the split in a comment; `check-gates.repo.int.test.ts:811,813` are legacy-era comments |
-| §3 "did not locate a dedicated test file named for `server-layout`" · §10 the same for `ui-exports-map-complete` | **RESOLVED: one exists.** `tests/tooling/verify/gates/resource-layout-wave-1.test.ts` imports BOTH (`:6`, `:7`) and runs `verifyPolicyProofs` on a six-policy array. It contains no pin for either policy beyond that |
+| §2 "no dedicated test file was located for this pair" | **RESOLVED: none exists** for `no-raw-spacing-in-features` / `spacing-tier-home-health` / `no-raw-typography-in-features` / `typography-tier-home-health`. `ui-token-surface-wave-1.suite.test.ts:8` mentions the split in a comment; `check-gates.repo.int.test.ts:811,813` are legacy-era comments |
+| §3 "did not locate a dedicated test file named for `server-layout`" · §10 the same for `ui-exports-map-complete` | **RESOLVED: one exists.** `tests/tooling/verify/gates/resource-layout-wave-1.suite.test.ts` imports BOTH (`:6`, `:7`) and runs `verifyPolicyProofs` on a six-policy array. It contains no pin for either policy beyond that |
 | §8 "the only severity warning policy in the 146-module `defineGate` corpus" | Count is stale by construction; the corpus is **167 final** policies today (`check:policy-conformance`). The "only warning policy" half I did not re-derive |
 
 ## Red triage — `pnpm test:scoped tests/tooling/verify/gates/` (6 failures)
 
 A scoped red is never baseline, so each is attributed.
 
-- **Contention, not regressions (2 tests).** `drizzle-registry-conversion.test.ts` — both failed with
+- **Contention, not regressions (2 tests).** `drizzle-registry-conversion.suite.test.ts` — both failed with
   `Test timed out in 5000ms` (the per-test default). Re-run ALONE: **3/3 PASS, exit 0, 4.4 s.**
 - **Sibling lane / pre-existing (1 test).** `enforcement-registry-parity.int.test.ts` real-tree arm — the
   count line `Core-Enforcement-Active-Gates.md:348` still says "270 registered gates" against 271 active
@@ -487,7 +487,7 @@ A scoped red is never baseline, so each is attributed.
   policies' `unresolvedSanctionedHomeKeys` internals) — each has a declared row and cutting them would have
   cost a round for a likely-enforced result. A follow-up should close them.
 - **I did not replay any LEGACY descriptor** (§4.6 differential). Only two of my subjects have a committed
-  differential (`drizzle-registry-conversion.test.ts` covers neither); whether each conversion's population is
+  differential (`drizzle-registry-conversion.suite.test.ts` covers neither); whether each conversion's population is
   byte-identical to its legacy predecessor is out of this audit's scope.
 - **I did not audit the shared readers** (`lib/sanctioned-home.ts`, `lib/reference-fact.ts`,
   `lib/origin-verdict.ts`, `lib/reviewed-grant-findings.ts`, `lib/schema-fact.ts`, `lib/bus-fact.ts`) for the
@@ -564,5 +564,5 @@ dense; all four raw-CSS modules still carry a legacy `ExemptionTable` (#1922); a
 a planted dead-position control (`AUTHORITY ALARM … names a dead position` on every one). Corrections owed to
 `exemplars-2026-09-11.md`: three "Wart: none found" lines are false, the `server-layout`-over-
 `ui-exports-map-complete` preference should be withdrawn, and its five "no test file located" entries resolve
-— `resource-layout-wave-1.test.ts` covers both resource policies, while `no-array-literal-querykey` and the
+— `resource-layout-wave-1.suite.test.ts` covers both resource policies, while `no-array-literal-querykey` and the
 four raw-CSS modules genuinely have none.

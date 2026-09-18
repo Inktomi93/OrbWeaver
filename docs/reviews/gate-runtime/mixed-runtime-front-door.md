@@ -24,7 +24,7 @@ sites enumerated before building, and the proof plan — not a task roster.
 | `enforcement-registry-parity` | reads `name`/`status` off an `ObjectLiteralExpression` initializer (`gates/enforcement-registry-parity.ts:201-210`); a `CallExpression` initializer yields nothing, so every final policy's doc row reads as an ORPHAN | read |
 | `gate-modernization` arm A | `descriptorOf` (`:80-82`) is `asKind(ObjectLiteralExpression)`; a final module reads as "exports no `gate` descriptor" and its message asserts the loader skips it — false under the mixed door | read |
 | `check-gates.repo.int.test.ts` | scrapes `renderPass`'s exact line shapes (`:60-63`); `GATE_FILES` (271 basenames) must all appear in the scraped registry; `UNFIXTURABLE_GATES` has 20 rows | read |
-| `schema-fact-health` mustFlag rows 0/1 | red on the unmodified tree (`FACT TOOL ERROR [drizzle-schema:receipt] fact receipt refused: … resolved zero members`), reproduced in this worktree | `pnpm test:scoped tests/tooling/verify/gates/schema-fact-wave-1.test.ts` → 1 failed / 1 passed |
+| `schema-fact-health` mustFlag rows 0/1 | red on the unmodified tree (`FACT TOOL ERROR [drizzle-schema:receipt] fact receipt refused: … resolved zero members`), reproduced in this worktree | `pnpm test:scoped tests/tooling/verify/gates/schema-fact-wave-1.suite.test.ts` → 1 failed / 1 passed |
 
 Premise checks against the brief: "271 modules: 163 defineGate, 108 legacy" holds byte-exactly. "21 converted modules
 imported by no test" was not re-counted — the conformance stage makes it moot by construction.
@@ -247,7 +247,7 @@ renamed in a scratch copy.
   reachable only past the `calls.length === 0` guard (`:407`) so it always carries members ≥ 1; `factReceiptFailures`
   (`policy-pass.ts:642`, ab675b23b) refuses members 0 or unresolved > 0 and withholds every consumer before `evaluate`.
   The mapping is total: `if (fact.status !== "ready")` in the health policy is provably dead. The two guarantees move
-  to `runPolicyPass` pins in `schema-fact-wave-1.test.ts` over a real consumer; the module and its enforcement-doc row
+  to `runPolicyPass` pins in `schema-fact-wave-1.suite.test.ts` over a real consumer; the module and its enforcement-doc row
   are deleted; the conformance stage would have caught the dead rows (exit 2 on this exact tree before the retirement).
 
 ## 8. Rejected alternatives
@@ -443,7 +443,7 @@ feature`, a singleton family — a lone member of a two-policy family is the loa
 ### 11.9 The retirement (#1948) and the final read
 
 - `schema-fact-health` deleted; its doc row (added in leg 5) removed; count 271 → 270; `gate:contract` 815 → 815
-  findings across 271 → 270 modules (the module carried none). Successor pins in `schema-fact-wave-1.test.ts`
+  findings across 271 → 270 modules (the module carried none). Successor pins in `schema-fact-wave-1.suite.test.ts`
   (5/5): the two fixtures through `runPolicyPass` over `schema-branding` — `factErrors` exactly
   `[{ factId: "drizzle-schema", phase: "receipt", message: "fact receipt refused: population "drizzle-schema"
   resolved zero members" }]` (impostor: `… ; population "drizzle-schema" left 1 unresolved`), the consumer's owner

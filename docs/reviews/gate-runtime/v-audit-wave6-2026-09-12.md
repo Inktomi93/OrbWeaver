@@ -7,7 +7,7 @@ updated: 2026-09-12
 # v-audit-wave6 — the origin-client family (12 policies) against §5b PRISTINE (#1584)
 
 Read-only adversarial audit of the twelve canonical-origin client policies imported by
-[`tests/tooling/verify/gates/origin-client-family.test.ts`](../../../tests/tooling/verify/gates/origin-client-family.test.ts),
+[`tests/tooling/verify/gates/origin-client-family.suite.test.ts`](../../../tests/tooling/verify/gates/origin-client-family.suite.test.ts),
 held to [`gate-runtime-standardization.md`](../../design/gate-runtime-standardization.md) §5b's seven
 criteria and §4's proof rules. Method, verdict shape and the four-way clean-cut classification are copied
 from [`v-audit-wave4-2026-09-12.md`](v-audit-wave4-2026-09-12.md) so the waves are comparable. Every
@@ -64,7 +64,7 @@ advertises a refusal nothing exercises.
 ## Premise checks (brief corrections, verified)
 
 1. **The 12 subjects the brief named are exactly the 12 the family test imports.** Re-derived from
-   `origin-client-family.test.ts:2-16`. No difference.
+   `origin-client-family.suite.test.ts:2-16`. No difference.
 2. **All 12 are FRESH — none is a re-audit.** Receipt: a single `grep -nE` over the five prior audit
    documents (`v-exemplar-audit-2026-09-12.md`, `v-audit-wave2/3/4-2026-09-12.md`, `v-gate-batch-2026-09-12.md`
    — 2,907 non-empty lines combined) for all twelve ids returns **zero hits, exit 1**; the same pattern
@@ -73,7 +73,7 @@ advertises a refusal nothing exercises.
 3. **All 12 are FINAL `defineGate` policies**, not legacy — loaded and branded by the conformance driver
    in this session (`verifyPolicyProofs` accepted each as a `GatePolicy`), and none appears in
    `loadGates()`'s 104-module legacy roster (D9's receipt).
-4. **Judged against §4.2's POSITIVE arm only** (`ordinary-visitors-family.test.ts:187-196`), per the
+4. **Judged against §4.2's POSITIVE arm only** (`ordinary-visitors-family.suite.test.ts:187-196`), per the
    orchestrator's correction. No per-module negative arm is counted as owed, and none of the twelve
    carries one.
 
@@ -95,7 +95,7 @@ advertises a refusal nothing exercises.
 
 Every probe ran through `verifyPolicyProofs` — the exact function the production stage calls
 (`ops/policy-conformance-stage.ts`) and the exact function this family's own test calls
-(`origin-client-family.test.ts:19`). `git status --short` was EMPTY after every batch and at the end.
+(`origin-client-family.suite.test.ts:19`). `git status --short` was EMPTY after every batch and at the end.
 
 ## DEFECTS
 
@@ -210,7 +210,7 @@ spelling laziness" — correctly; but the RANGE half beside it, in the same expr
 **And its rename tripwire is unpinned.** The module files a population receipt for `estimateTokens` and its
 header promises *"a rename of the estimator's home REFUSES the run"*. Its two siblings with the identical
 design (`zustand-selector-stability`, `no-multiplexed-mutation-error`) have a `runPolicyPass` pin in
-`origin-client-family.test.ts:55-96`; this one has none. I measured both sides by hand (§4.5b's honest
+`origin-client-family.suite.test.ts:55-96`; this one has none. I measured both sides by hand (§4.5b's honest
 output) — the tripwire WORKS:
 
 ```
@@ -379,7 +379,7 @@ explaining.
    `report.node` call (§5b.3). Copy `zustand-selector-stability:112`.
 3. **Two `mustPass` rows in `lib/react-origin.ts`'s consumers** (D3) — the opaque-member call and the
    unresolvable import door. They protect three policies at once.
-4. **One `runPolicyPass` pin** for `no-manual-token-estimate` in `origin-client-family.test.ts`, copied from
+4. **One `runPolicyPass` pin** for `no-manual-token-estimate` in `origin-client-family.suite.test.ts`, copied from
    the two beside it; the exact refusal message is in D5.
 5. **Twenty-two `mustPass` rows** for the remaining unenforced cuts; every one is written out above or in
    the cut ledger with its fixture.

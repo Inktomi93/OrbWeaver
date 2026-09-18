@@ -46,7 +46,7 @@ The second slice converts three more policies:
   and const/wrapper spellings cannot hide an empty sentinel.
 
 All identity policy descriptors share `gates/_proof/id-brand.ts` for isolated kit brand/cast fixtures and
-run through one `id-brand-flow.test.ts` conformance entry. No test owns a Project walker or policy runner.
+run through one `id-brand-flow.suite.test.ts` conformance entry. No test owns a Project walker or policy runner.
 
 The first unfiltered real cast-family pass took 66.30 s because canonical module resolution ran on every call
 expression. The invocation-local matcher now indexes kit import aliases once per source before resolving

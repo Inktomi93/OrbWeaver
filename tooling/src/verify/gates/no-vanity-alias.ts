@@ -23,7 +23,7 @@
 // used to walk every Identifier under the SourceFile per import candidate; it is now a single
 // `SyntaxKind.Identifier` visitor accumulating a per-file frequency map once, read by every candidate.
 //
-// §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.test.ts): every legacy
+// §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.suite.test.ts): every legacy
 // mustFlag/mustPass example replays byte-identically — same finding count, same reported original-name
 // token. No finding or tool-error delta on this arm.
 //

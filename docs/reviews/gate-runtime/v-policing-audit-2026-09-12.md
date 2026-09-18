@@ -29,7 +29,7 @@ which weakens a live verdict today), one is a live blocking alarm owned by a dif
 | 7 | E7 (non-literal `defineGate`) and `entire-population ⇒ evaluate` | **CONFIRMED** | E7: `defineGate({…})` literal → 0 findings; `const DESCRIPTOR = {…}; defineGate(DESCRIPTOR)` → 1, `the defineGate argument must be an object literal [descriptor-wrapper]`. Entire-population: `create` returning only `visitors` → 1 tool error at phase `create` naming `declares execution entire-population but exposes no evaluate hook`; the same policy with an `evaluate` hook → 0 tool errors |
 | 8 | roster coupled sites, parity, manifest | **CONFIRMED** | `Core-Enforcement-Active-Gates.md` carries ONE `policy-soundness` row (line 336, single writer) plus new rows for `policy-legacy-imports` (337) and `policy-binding-resolution` (338); the declared count line reads 302 (line 380) and the loader discovers 302. `tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts` **12/12 green** (34.7 s on the whole-roster arm). `docs/test-baseline/manifest.json` `testFiles` 2659 → 2660 across the merge and contains the new spec. `pnpm check:ledgers-fresh` exit 0, all seven derivations FRESH |
 
-Two suites re-run whole, not sampled: `policy-soundness-family.repo.int.test.ts` **10/10** (108 s, the
+Two suites re-run whole, not sampled: `policy-soundness-family.suite.repo.int.test.ts` **10/10** (108 s, the
 real-corpus arm included), and a nine-file scoped batch (`enforcement-registry-parity.int`,
 `policy-loader`, `policy-refusal-envelope`, `policy-pass`, `policy-plan`, `policy-descriptor-read`,
 `ops/policy-conformance`, `bus-pair`, `bus-fact-health`) **179/179, exit 0**.
@@ -69,7 +69,7 @@ resolve, `rm`'d in `finally`. The anchor
 | 13 | gap hunt (9 shapes the arms may not cover) | 3 real gaps, 1 covered-elsewhere — rows below |
 | 14 | reader-level localisation of the element-access gap | `isTsMorphMember(member,"Symbol")` false only for an optional-chained element access |
 | 15 | `pnpm test:scoped` ×9 files | 179/179, exit 0 |
-| 16 | `pnpm test:scoped policy-soundness-family.repo.int.test.ts` | 10/10, exit 0, 108 s |
+| 16 | `pnpm test:scoped policy-soundness-family.suite.repo.int.test.ts` | 10/10, exit 0, 108 s |
 | 17 | `pnpm check:ledgers-fresh` | exit 0, 7 derivations FRESH (manifest 2660, caught-failure 598) |
 | 18 | `#2025` literal sweep over 1670 files with a planted positive control | 7 benign proximity hits |
 

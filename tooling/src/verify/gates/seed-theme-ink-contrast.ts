@@ -85,7 +85,7 @@
 //   empty       `mustRefuse[2]` — a zero-length sheet, on `read`'s own empty arm, which never reaches the
 //               `malformed` test at all.
 //   unresolved  NOT expressible as a row (no JS string carries an invalid UTF-8 byte), so it is a
-//               `runPolicyPass` pin in tests/tooling/verify/gates/seed-theme-ink-family.test.ts — bytes
+//               `runPolicyPass` pin in tests/tooling/verify/gates/seed-theme-ink-family.suite.test.ts — bytes
 //               on a real `mkdtemp` root with NO overlay, beside a healthy twin on the same substrate.
 //
 // DECLARED LIMITS, each with its row: a `-foreground` PAIR ink is judged on its own fill by

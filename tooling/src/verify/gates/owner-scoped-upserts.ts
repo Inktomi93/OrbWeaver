@@ -14,7 +14,7 @@
 // distinct from the sibling gates': a `@orb-waive owner-scoped-writes(<ident>)` marker sitting on an
 // upsert candidate targets the WRONG policy id and must not suppress it — the retired legacy scenario
 // "a WRITE marker does not exempt an UPSERT" — proven via runPolicyPass in
-// tests/tooling/verify/gates/tenancy-scope-family.test.ts (a report-identity assertion, not a conformance
+// tests/tooling/verify/gates/tenancy-scope-family.suite.test.ts (a report-identity assertion, not a conformance
 // row: an authority alarm from a mismatched marker is itself a conformance FAILURE, so this case can only
 // be proven by driving the dispatcher directly and asserting the alarm).
 //

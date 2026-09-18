@@ -23,7 +23,7 @@
 // the effective difference is zero — and a matrix moved OUT of domain/chat now reports blindness through
 // the health sibling instead of resolving invisibly from outside the fence. `final − legacy` = none: the
 // `under` glob admits exactly the `.ts`/`.tsx` the scanRoot regex did. Measured receipts are in
-// `tests/tooling/verify/gates/chat-viewer-plane-family.test.ts`.
+// `tests/tooling/verify/gates/chat-viewer-plane-family.suite.test.ts`.
 //
 // RETIRED PRIVATE-MARKER CENSUS. The legacy `@orb-gate-ignore chat-viewer-plane-canon-reads(<verb>:<reader>)`
 // door had ZERO live occurrences repo-wide at conversion (the single match was this module's own MESSAGE

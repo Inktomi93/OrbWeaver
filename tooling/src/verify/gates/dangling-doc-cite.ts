@@ -59,7 +59,7 @@
 // THROW during the POPULATION phase and the receipt phase withholds every consumer, both before
 // `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/design/resource-policy-contract.md` §4). This module
 // owns no not-ready branch. The refusal pins are in
-// `tests/tooling/verify/gates/text-citation-family.test.ts`.
+// `tests/tooling/verify/gates/text-citation-family.suite.test.ts`.
 //
 // TWO IN-POLICY REFUSALS, BOTH TOOL ERRORS RATHER THAN FINDINGS, BECAUSE BOTH MEAN "I COULD NOT JUDGE".
 // (1) A demanded arm-B member the text door will not serve. (2) A tracked inventory from which the

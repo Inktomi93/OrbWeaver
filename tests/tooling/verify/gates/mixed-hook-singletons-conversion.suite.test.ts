@@ -1,5 +1,5 @@
 // CONVERSION-TIME EVIDENCE for the three §12.6 single-policy mixed-hook modules (#1584) — the §4.6
-// DIFFERENTIAL, written to the `freeze-provenance-conversion.test.ts` recipe. NOT a standing regression
+// DIFFERENTIAL, written to the `freeze-provenance-conversion.suite.test.ts` recipe. NOT a standing regression
 // gate: it freezes each legacy descriptor at the pre-conversion commit and RETIRES with the legacy loader.
 //
 // What it proves, and the reason each piece is here rather than in a proof row:

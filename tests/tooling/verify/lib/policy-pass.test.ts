@@ -44,6 +44,7 @@ function policy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
     mustFlag: [{ mode, files: { [path]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode, files: { [path]: "export const clean = true;\n" }, why: "nearest legal shape" }],
     ...overrides,
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the pass runner exercises; no factory exists
   } as GatePolicy);
 }
 
@@ -86,6 +87,7 @@ test("the invocation boundary rejects empty, duplicate, unbranded, and invalid p
       },
     });
   const valid = counted("valid-policy");
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the pass runner exercises; no factory exists
   const unbranded = { ...valid, id: "unbranded-policy", family: "unbranded-policy" } as GatePolicy;
   const invalid = defineGate({
     ...valid,
@@ -96,6 +98,7 @@ test("the invocation boundary rejects empty, duplicate, unbranded, and invalid p
     facts: [],
     mustFlag: [],
     mustPass: [],
+  // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the pass runner's handling of an invalid create return
   } as never);
 
   expect(() => run([], project)).toThrow(/nonempty|policy/i);
@@ -459,6 +462,7 @@ test("semantic and resource receipt failures remain visible and withhold their o
   });
   const bogus = policy("bogus-receipt", {
     authority: "ordinary",
+    // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the pass runner's handling of an unknown evaluation result
     create: (ctx) => ({ evaluate: () => ctx.receipt({ kind: "bogus", source: "bogus-kind", resources: 1 } as never) }),
   });
 
@@ -1424,6 +1428,7 @@ test("resource injection cannot substitute a different root with the same relati
   });
   const result = run([gate], projectOf({}), {
     root,
+    // @orb-waive no-test-fabrication(never): deliberate type-erasure to test report handling of non-file findings
     resourceOptions: { root: otherRoot } as never,
   });
   expect(names).toEqual(["root-a"]);
