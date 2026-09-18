@@ -516,7 +516,7 @@ test("SIDE_GEN_POSTURES: every kind carries today's exact floor values (byte-ide
   expect(SIDE_GEN_POSTURES.greeting_studio).toEqual({ temperature: 0.3, maxOutputTokens: 1024 });
   expect(SIDE_GEN_POSTURES.autobg).toEqual({ temperature: 0.2, maxOutputTokens: 32 });
   expect(SIDE_GEN_POSTURES.rule_analysis).toEqual({ temperature: 0.3, maxOutputTokens: 1024 });
-  expect(SIDE_GEN_POSTURES.caption).toEqual({});
+  expect(SIDE_GEN_POSTURES.caption).toEqual({ temperature: 0.2, maxOutputTokens: 512 });
 });
 
 test("greeting_rewrite default carries the {{base}} token; greeting_new does not (audit §3)", () => {

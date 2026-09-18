@@ -140,9 +140,9 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // The ONE vision caption op (D45/D47-6): the multimodal template + the avatar bytes over the summarize
     // lane (IC-B: runSummarize forwards images as multimodal content parts).
     captionImage: async ({ caller, instruction, bytes }): Promise<{ text: string; costUsd: number | null }> => {
-      // The side-gen sampling ladder: the `caption` floor is EMPTY (this call historically passed no options —
-      // the backend default stood) ← the caller's default-preset params. A user with no preset params still
-      // gets an empty options object ⇒ byte-identical to before; a user WITH preset params now reaches caption.
+      // The side-gen sampling ladder: the `caption` floor (temperature 0.2, maxOutputTokens 512) ← the
+      // caller's default-preset params. A user with no preset params gets the floor; a user WITH preset
+      // params overrides it through the ladder.
       const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.caption, await deps.resolveUserPresetParams(caller.userId));
       const res = await roleClients.summarize(
         [{ systemPrompt: instruction, userPrompt: "Describe the attached image.", images: [bytes] }],
