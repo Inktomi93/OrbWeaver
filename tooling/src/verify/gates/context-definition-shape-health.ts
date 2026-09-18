@@ -56,7 +56,7 @@ interface CountedSite {
 
 const MESSAGE =
   "the CONTEXT pane's head band has more than one writer — a SECOND `defineContextRegion(` call site, or a " +
-  `SECOND writer of the \`${REGION_ATTR}\` probe attribute (hud-home-spec §8 arms 6 and 8).`;
+  `SECOND writer of the \`${REGION_ATTR}\` probe attribute (UI-Architecture-and-Layout.md, hud-home-spec §8 arms 6 and 8).`;
 const SECOND_MINT_MESSAGE =
   "a SECOND `defineContextRegion(` call site — one CONTEXT pane's head band has ONE owner (hud-home-spec §8 " +
   "arm 6). A second claimant makes 'which one wins' a declaration-order accident at the seam that decides " +

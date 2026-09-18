@@ -196,7 +196,7 @@ function violationFor(packages: MirrorIndex, tooling: MirrorIndex, rel: string, 
   const pkg = segs[0];
   const classification = classifyTestFilename(name);
   if (classification === undefined && looksLikeTestFilename(name)) {
-    return { file: `tests/${rel}`, message: `unregistered test kind — use a registered suffix: ${TEST_KIND_SUFFIXES.join(", ")}` };
+    return { file: `tests/${rel}`, message: `unregistered test kind — use a registered suffix: ${TEST_KIND_SUFFIXES.join(", ")} (Spine-Testing.md)` };
   }
   // Non-mirror trees: support/ (fixtures), e2e/ (full-stack Playwright); native e2e is checked first.
   // tooling/ is CONDITIONAL since the @orb/tooling tree exists (Core-Tooling-Law.md §4.7):

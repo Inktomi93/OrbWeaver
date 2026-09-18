@@ -128,7 +128,7 @@ function outputKind(node: { readonly [key: string]: JsonValue }): string | undef
 function readLeadingToken(name: string, node: { readonly [key: string]: JsonValue }, out: { leading: Map<string, number>; problems: LeadingProblem[] }): void {
   if (name === "none") {
     if (node["$type"] !== "number" || node["$value"] !== 1) {
-      out.problems.push({ name, message: "leading.none must stay the number 1 (box = the paired font-size)" });
+      out.problems.push({ name, message: "leading.none must stay the number 1 (box = the paired font-size) — docs/design/integer-line-boxes.md" });
       return;
     }
     out.leading.set(name, Number.NaN);
@@ -150,11 +150,14 @@ function readLeadingToken(name: string, node: { readonly [key: string]: JsonValu
   }
   const px = dimensionPx(node["$value"]);
   if (px === undefined) {
-    out.problems.push({ name, message: `leading.${name} has an unreadable dimension value` });
+    out.problems.push({ name, message: `leading.${name} has an unreadable dimension value — docs/design/integer-line-boxes.md` });
     return;
   }
   if (Math.abs(px - Math.round(px)) > INTEGER_EPSILON) {
-    out.problems.push({ name, message: `leading.${name} resolves ${String(px)}px at the 16px root — fractional line box; author an integer` });
+    out.problems.push({
+      name,
+      message: `leading.${name} resolves ${String(px)}px at the 16px root — fractional line box; author an integer (docs/design/integer-line-boxes.md)`,
+    });
     return;
   }
   out.leading.set(name, px);

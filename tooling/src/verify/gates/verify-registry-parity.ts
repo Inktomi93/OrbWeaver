@@ -64,7 +64,7 @@ const ROOT_DEP = (name: string): string =>
   `the repo-root package.json declares a runtime dependency "${name}" — the root is a PRIVATE monorepo ` +
   "root that is NEVER prod-installed, so a `dependencies` entry here is a category error: nothing installs " +
   "it and a runtime `import` of it from a package would not resolve. Script runners and tooling (tsx, " +
-  "biome, …) are devDependencies. Move it to devDependencies, or into the workspace package that imports it.";
+  "biome, …) are devDependencies. Move it to devDependencies, or into the workspace package that imports it (Core-Tooling-Law.md).";
 
 /** The set of package.json script names a registry stage invokes via its whole-scope `pnpm <script>` argv.
  *  A stage whose argv isn't `pnpm <script>` (a raw bin) contributes nothing here. */

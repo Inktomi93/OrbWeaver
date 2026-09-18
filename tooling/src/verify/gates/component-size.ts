@@ -60,7 +60,11 @@ export const gate = defineGate({
       const cap = path.startsWith(ROUTES_PREFIX) ? CAP_ROUTE : CAP_DEFAULT;
       const lines = authoredLineCount(sourceFile);
       if (lines > cap) {
-        ctx.report.file(path, { line: cap + 1, column: 1, message: `${lines} lines (cap ${cap}) — split the file; the cap is a structural guard.` });
+        ctx.report.file(path, {
+          line: cap + 1,
+          column: 1,
+          message: `${lines} lines (cap ${cap}) — split the file; the cap is a structural guard (UI-Architecture-and-Layout.md §2.1).`,
+        });
       }
     },
   }),

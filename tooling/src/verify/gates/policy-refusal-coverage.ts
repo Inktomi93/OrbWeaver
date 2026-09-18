@@ -381,7 +381,9 @@ function judgeDeclaration(
   for (const field of unreadable) {
     const property = descriptor.getProperty(field);
     const anchor = property !== undefined && !Node.isSpreadAssignment(property) ? property.getNameNode() : descriptor;
-    ctx.report.node(anchor, { message: `${field} declaration is not statically readable; its dependency/refusal presence cannot be established.` });
+    ctx.report.node(anchor, {
+      message: `${field} declaration is not statically readable; its dependency/refusal presence cannot be established — gate-runtime-standardization.md §6.3.`,
+    });
   }
   if (unreadable.length > 0) {
     return;

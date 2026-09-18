@@ -57,7 +57,7 @@ const FIX =
   "inherits ONE owning FK) · `global` (a system table with no tenancy). Write the reason — what an " +
   "authorization check for this table actually predicates on.";
 
-const UNCLASSIFIED = "no TABLE_SCOPING_ROWS row — classify it";
+const UNCLASSIFIED = "no TABLE_SCOPING_ROWS row — classify it (Spine-Identity-and-Auth.md, tooling/src/verify/lib/tenancy-scope.ts)";
 
 /** The INCOHERENCE KINDS — a closed vocabulary naming the SHAPE FACT that contradicts the declared class, so
  *  it does not move when a table gains an unrelated column. */
@@ -136,7 +136,7 @@ function judgeTable(ctx: GatePolicyContext, table: SchemaTable): void {
   }
   const bad = incoherence(table.sqlName, row.scope, tableShapeOf(table));
   if (bad !== undefined) {
-    ctx.report.node(nameArg, { token, offset: 0, message: `${bad} — ${INCOHERENCE_MESSAGE[bad]}` });
+    ctx.report.node(nameArg, { token, offset: 0, message: `${bad} — ${INCOHERENCE_MESSAGE[bad]} (Spine-Identity-and-Auth.md)` });
   }
 }
 

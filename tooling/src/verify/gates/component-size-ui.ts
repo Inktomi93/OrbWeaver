@@ -61,7 +61,11 @@ export const gate = defineGate({
     visitFile: (sourceFile) => {
       const lines = authoredLineCount(sourceFile);
       if (lines > CAP) {
-        ctx.report.file(ctx.relativePath(sourceFile), { line: CAP + 1, column: 1, message: `${lines} lines (cap ${CAP}) — split the primitive.` });
+        ctx.report.file(ctx.relativePath(sourceFile), {
+          line: CAP + 1,
+          column: 1,
+          message: `${lines} lines (cap ${CAP}) — split the primitive (UI-Primitives-and-Reuse.md §13.7).`,
+        });
       }
     },
   }),

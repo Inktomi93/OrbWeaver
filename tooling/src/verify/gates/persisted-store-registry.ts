@@ -198,7 +198,7 @@ const MESSAGE =
   "synced user_settings blob instead.";
 const FIX = "register the store name with a §12.1 rationale, or move the preference into the synced user_settings blob.";
 const UNREADABLE_NAME =
-  "a persist-factory call whose store NAME cannot be read statically — the registry ratchet cannot judge a name the workspace cannot resolve, so the call is reported rather than silently admitted.";
+  "a persist-factory call whose store NAME cannot be read statically — the registry ratchet cannot judge a name the workspace cannot resolve, so the call is reported rather than silently admitted (UI-Theming-and-Content.md §12.1).";
 /** The FAIL-CLOSED DOOR arm's own text. Deliberately shares no sentence with `MESSAGE` or `UNREADABLE_NAME`:
  *  an unreadable message built from another one is a substring of both and neither arm is then pinnable by
  *  `messageIncludes` (§4.1). "FACTORY DECLARATION this run cannot read" appears here and nowhere else. */
@@ -304,7 +304,7 @@ export const gate = defineGate({
             }
             seen.add(name);
             if (!Object.hasOwn(DEVICE_LOCAL_REGISTRY, name)) {
-              ctx.report.node(callee, { message: `${MESSAGE} Store: "${name}".`, fix: FIX });
+              ctx.report.node(callee, { message: `${MESSAGE} Store: "${name}" — UI-Theming-and-Content.md §12.1.`, fix: FIX });
             }
           },
         },

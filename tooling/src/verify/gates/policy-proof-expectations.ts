@@ -253,16 +253,24 @@ function judgeRow(ctx: GatePolicyContext, row: ObjectLiteralExpression, census: 
   }
   const verdict = discriminationOf(substring, census.sources, census.unreadable);
   if (verdict === "tautology") {
-    ctx.report.node(includes, { token: "messageIncludes (tooling/src/verify/gates/GATE-AUTHORING.md)", offset: 0, message: TAUTOLOGY_MESSAGE });
+    ctx.report.node(includes, {
+      token: "messageIncludes (tooling/src/verify/gates/GATE-AUTHORING.md)",
+      offset: 0,
+      message: `${TAUTOLOGY_MESSAGE} — gate-runtime-standardization.md §6.1.`,
+    });
   } else if (verdict === "shared") {
-    ctx.report.node(includes, { token: "messageIncludes (tooling/src/verify/gates/GATE-AUTHORING.md)", offset: 0, message: SHARED_MESSAGE });
+    ctx.report.node(includes, {
+      token: "messageIncludes (tooling/src/verify/gates/GATE-AUTHORING.md)",
+      offset: 0,
+      message: `${SHARED_MESSAGE} — gate-runtime-standardization.md §6.1.`,
+    });
   }
 }
 
 function judgeModule(ctx: GatePolicyContext, descriptor: ObjectLiteralExpression, walk: ModuleWalk, sourceFile: SourceFile): void {
   const rows = proofRowsOf(descriptorValue(descriptor, "mustFlag"));
   for (const node of rows.unreadable) {
-    ctx.report.node(node, { message: UNREADABLE_ROW_MESSAGE });
+    ctx.report.node(node, { message: `${UNREADABLE_ROW_MESSAGE} — gate-runtime-standardization.md §6.1.` });
   }
   const census = messageCensus(descriptor, walk);
   for (const row of rows.rows) {

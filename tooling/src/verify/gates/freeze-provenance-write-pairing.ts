@@ -107,7 +107,7 @@ const UNREADABLE_PAYLOAD = `${MESSAGE} This write's payload cannot read as a fix
 const UNREADABLE_TABLE =
   "a `message_variants` write builder in a file that imports this table names a table this gate cannot read " +
   "(a computed lookup, a namespace member). Silence here is exactly how an aliased or computed table walks " +
-  "past a column invariant, so it is REFUSED: name the table INLINE at the builder.";
+  "past a column invariant, so it is REFUSED: name the table INLINE at the builder — packages/server/src/domain/chat/persistence/canon-write.ts.";
 
 /** ARM 1 — an UPDATE that replaces `content` without deciding the provenance pair: the row keeps a record
  *  describing bytes that are gone. A both-columns write with NO content is legal (see {@link violatesPair}). */

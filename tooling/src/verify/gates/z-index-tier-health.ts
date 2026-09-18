@@ -26,7 +26,7 @@ export const gate = defineGate({
       }
       for (const { path } of UI_TIER_HOMES["z-index"]) {
         if (liveHomeFiles(facts, path).length === 0) {
-          ctx.report.node(anchor, { message: `missing reviewed z-index home: ${path}` });
+          ctx.report.node(anchor, { message: `missing reviewed z-index home: ${path} — UI-Architecture-and-Layout.md` });
         }
       }
       const value = readyResourceValue(ctx.resources.json("tokens")).value;
@@ -34,7 +34,9 @@ export const gate = defineGate({
       const live = isJsonObject(z) ? Object.keys(z).toSorted() : [];
       const expected = [...Z_TOKEN_NAMES].toSorted();
       if (live.join("\n") !== expected.join("\n")) {
-        ctx.report.node(anchor, { message: `z-index vocabulary drift: expected [${expected.join(", ")}], found [${live.join(", ")}]` });
+        ctx.report.node(anchor, {
+          message: `z-index vocabulary drift: expected [${expected.join(", ")}], found [${live.join(", ")}] — UI-Architecture-and-Layout.md`,
+        });
       }
     },
   }),

@@ -344,7 +344,7 @@ function referenceViolations(descriptors: readonly DescriptorCite[], links: read
     .map(({ file, field, ref }) => ({ file, line: 0, message: ARM1_MSG(field, ref) }));
   const linkViolations = links
     .filter(({ file, ref }) => !resolvesAny(paths, linkCandidates(file, ref)))
-    .map(({ file, ref }) => ({ file, line: 0, message: ARM2_MSG(ref) }));
+    .map(({ file, ref }) => ({ file, line: 0, message: `${ARM2_MSG(ref)} — Documentation-Law.md` }));
   return [...descriptorViolations, ...linkViolations];
 }
 

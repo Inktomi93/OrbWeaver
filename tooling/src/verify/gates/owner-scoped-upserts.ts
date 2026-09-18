@@ -150,9 +150,9 @@ function judgeUpsert(node: CallExpression, ownerTableIdents: ReadonlySet<string>
   if (target.kind === "unresolvable") {
     // The `onConflictDoUpdate` above already proved this is a drizzle statement, so the target being
     // unreadable is the whole finding: no conflict guard can be verified against a table nobody named.
-    return { argNode: arg, message: UNRESOLVABLE_MESSAGE };
+    return { argNode: arg, message: `${UNRESOLVABLE_MESSAGE} — Spine-Identity-and-Auth.md` };
   }
-  return guardsOwner(config, target.ident) ? undefined : { argNode: arg, message: MESSAGE };
+  return guardsOwner(config, target.ident) ? undefined : { argNode: arg, message: `${MESSAGE} — Spine-Identity-and-Auth.md` };
 }
 
 export const gate = defineGate({

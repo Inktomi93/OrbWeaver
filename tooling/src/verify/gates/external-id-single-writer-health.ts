@@ -71,8 +71,8 @@ import {
 } from "../lib/external-id-writer.ts";
 
 const STALE_PREFIX =
-  "stale sanctioned-writer — this file no longer writes `users.externalId`, so its carve-out is dead (either the U1 detector broke, or the writer moved — ratchet down / re-point): ";
-const LINK_STALE = `${LINK_CAPABILITY} no longer calls ${CLAIM_WRITER} — the U1 admin link capability lost its atomic writer, or the writer was renamed`;
+  "stale sanctioned-writer — this file no longer writes `users.externalId`, so its carve-out is dead (either the U1 detector broke, or the writer moved — ratchet down / re-point, Spine-Identity-and-Auth.md): ";
+const LINK_STALE = `${LINK_CAPABILITY} no longer calls ${CLAIM_WRITER} — the U1 admin link capability lost its atomic writer, or the writer was renamed (Spine-Identity-and-Auth.md)`;
 
 export const gate = defineGate({
   id: "external-id-single-writer-health",
