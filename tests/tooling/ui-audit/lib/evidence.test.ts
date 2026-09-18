@@ -114,6 +114,7 @@ const LIGHT_SHIM: SettingsShimEvidence = {
   themeApplied: true,
   themeResolution: { request: "Light", id: "theme_light", name: "Light", source: "seed" },
   themeCatalog: [],
+  backgroundLibraryFirst: null,
 };
 
 test("requested, catalog-resolved, rendered Light with whole-subject polarity is proven", () => {

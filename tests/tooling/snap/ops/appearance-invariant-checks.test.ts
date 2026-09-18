@@ -168,7 +168,7 @@ function context(current: AppearanceDomSnapshot, before?: AppearanceDomSnapshot)
     current,
     ...(before === undefined ? {} : { before }),
     environment: DESKTOP_ENVIRONMENT,
-    settings: { appearanceApplied: true, themeApplied: null, themeResolution: null, themeCatalog: null },
+    settings: { appearanceApplied: true, themeApplied: null, themeResolution: null, themeCatalog: null, backgroundLibraryFirst: null },
     pixel: { "composited-contrast": { sampled: 1, passed: true, actual: "7:1" } },
     animations: { total: 0, dirty: 0, properties: [] },
   };

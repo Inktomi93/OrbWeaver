@@ -27,7 +27,6 @@ function metadata(assetId: AssetId): ChatMetadata {
   return {
     background: {
       kind: "asset",
-      seededId: "",
       externalUrl: "",
       assetId,
       assetHash: "hash",

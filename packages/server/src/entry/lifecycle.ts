@@ -79,6 +79,7 @@ import {
   runBootMigrations,
   seedCasSchedules,
   seedCredentialFromEnv,
+  seedDefaultBackgrounds,
   seedDefaultCharacters,
   seedDefaultPersona,
   seedDefaultPreset,
@@ -519,6 +520,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         owner,
         openrouterApiKey: env.OPENROUTER_API_KEY,
       });
+      // BEFORE the cards: both packs dress through this seeder, and seeding it first is what lands the
+      // owner's background library in pack order. It also carries the `kind:"seeded"` retirement's data
+      // rewrite for this user (see `boot/seed-default-backgrounds.ts`).
+      await seedDefaultBackgrounds({ seeder: built.backgroundSeeder, owner });
       await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
       await seedDefaultPersona({ seeder: built.personaSeeder, owner });
       // AFTER the cards — each bundled example attaches to seeded characters by handle.
@@ -682,8 +687,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       seedUserCharacters: (principal: Principal): void => {
         // CHAINED, not parallel: the demo chats attach to the cards this user is getting right now, so they
         // must not race the pack. `ensureSeeded` never throws, so the `.then` is unconditional.
+        // CHAINED behind the scene plates too: both packs dress through the background seeder, so running it
+        // first lands this user's library in pack order (and carries their `kind:"seeded"` data rewrite).
         superviseDetached(`seed-user:${principal.userId}:characters:${randomUUID()}`, "seed.user.characters", { userId: principal.userId }, () =>
-          built.characterSeeder.ensureSeeded(principal).then((): Promise<void> => built.demoChatSeeder.ensureSeeded(principal)),
+          built.backgroundSeeder
+            .ensureSeeded(principal)
+            .then((): Promise<void> => built.characterSeeder.ensureSeeded(principal))
+            .then((): Promise<void> => built.demoChatSeeder.ensureSeeded(principal)),
         );
         superviseDetached(`seed-user:${principal.userId}:persona:${randomUUID()}`, "seed.user.persona", { userId: principal.userId }, () =>
           built.personaSeeder.ensureSeeded(principal),

@@ -284,7 +284,15 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
   if (opts.motion) {
     return await runMotionMatrix(opts, baseName, discovery, host);
   }
-  const matrix = planSnapAppearanceMatrix(discovery.contract, discovery.themes, preferredCustom);
+  // The `asset` arm of `backgroundImageKind` paints from the account's OWN library (the retired `seeded`
+  // catalog was the last statically completable arm). An account with no background asset cannot render the
+  // arm the plan commits to, so it refuses here rather than at the cell — the ten seeded scene plates are
+  // what make this non-empty on any install.
+  const background = discovery.settings.backgroundLibraryFirst;
+  if (background === null) {
+    return instrumentRefusal("matrix discovery found no background-library asset to paint the `asset` Appearance arm with");
+  }
+  const matrix = planSnapAppearanceMatrix(discovery.contract, discovery.themes, preferredCustom, background);
   print(`MATRIX PLAN  target=${destination.url} cells=${matrix.plan.cells.length} pairs-uncovered=${matrix.plan.receipt.uncoveredPairs.length}`);
   print(
     `MATRIX INPUT declared=${discovery.contract.declared} executable=${discovery.contract.executable} dependencies=${discovery.contract.dependencies} ` +

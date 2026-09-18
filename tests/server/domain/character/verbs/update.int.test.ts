@@ -169,7 +169,7 @@ describe("update", () => {
       svc.update({
         principal: principal(owner),
         characterId: created.id,
-        input: { backgroundOverride: { kind: "asset", seededId: "", externalUrl: "", assetId: foreign, assetHash: "h", mime: "image/png", provenanceUrl: "" } },
+        input: { backgroundOverride: { kind: "asset", externalUrl: "", assetId: foreign, assetHash: "h", mime: "image/png", provenanceUrl: "" } },
       }),
     ).rejects.toBeInstanceOf(AssetNotFoundError);
 
@@ -192,10 +192,10 @@ describe("update", () => {
     const updated = await svc.update({
       principal: principal(owner),
       characterId: created.id,
-      input: { backgroundOverride: { kind: "none", seededId: "", externalUrl: "", assetId: foreign, assetHash: "h", mime: "image/png", provenanceUrl: "" } },
+      input: { backgroundOverride: { kind: "none", externalUrl: "", assetId: foreign, assetHash: "h", mime: "image/png", provenanceUrl: "" } },
     });
 
-    expect(updated.backgroundOverride).toEqual({ kind: "none", seededId: "", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" });
+    expect(updated.backgroundOverride).toEqual({ kind: "none", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" });
     const reread = await svc.get({ principal: principal(owner), characterId: created.id });
     expect(reread.backgroundOverride?.assetId).toBe("");
   });
@@ -216,12 +216,11 @@ describe("update", () => {
     const updated = await svc.update({
       principal: principal(owner0),
       characterId: created.id,
-      input: { backgroundOverride: { kind: "external", seededId: "", externalUrl: url, assetId: "", assetHash: "", mime: "", provenanceUrl: "" } },
+      input: { backgroundOverride: { kind: "external", externalUrl: url, assetId: "", assetHash: "", mime: "", provenanceUrl: "" } },
     });
 
     expect(updated.backgroundOverride).toEqual({
       kind: "asset",
-      seededId: "",
       externalUrl: "",
       assetId: storedAssetId,
       assetHash: "hash_cardbg",
@@ -245,7 +244,6 @@ describe("update", () => {
         input: {
           backgroundOverride: {
             kind: "external",
-            seededId: "",
             externalUrl: "https://cdn.example/gone.jpg",
             assetId: "",
             assetHash: "",
@@ -283,7 +281,7 @@ describe("update", () => {
 
     function externalInput(url: string): { backgroundOverride: ThemeBackground } {
       return {
-        backgroundOverride: { kind: "external", seededId: "", externalUrl: url, assetId: "", assetHash: "", mime: "", provenanceUrl: "" },
+        backgroundOverride: { kind: "external", externalUrl: url, assetId: "", assetHash: "", mime: "", provenanceUrl: "" },
       };
     }
 
@@ -360,7 +358,6 @@ describe("update", () => {
       input: {
         backgroundOverride: {
           kind: "asset",
-          seededId: "",
           externalUrl: "",
           assetId: stored.assetId,
           assetHash: stored.hash,
@@ -399,7 +396,6 @@ describe("update", () => {
       input: {
         backgroundOverride: {
           kind: "asset",
-          seededId: "",
           externalUrl: "",
           assetId: stored.assetId,
           assetHash: stored.hash,

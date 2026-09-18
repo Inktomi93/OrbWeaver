@@ -99,7 +99,7 @@ describe("reapIfOrphan", () => {
       .update(chats)
       .set({
         metadata: {
-          background: { kind: "asset", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
+          background: { kind: "asset", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
         },
       })
       .where(eq(chats.id, chatId));
@@ -150,7 +150,7 @@ describe("reapIfOrphan", () => {
       .update(chats)
       .set({
         metadata: {
-          background: { kind: "asset", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
+          background: { kind: "asset", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
         },
       })
       .where(eq(chats.id, chatId));

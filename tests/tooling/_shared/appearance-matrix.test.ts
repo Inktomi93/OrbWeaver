@@ -49,14 +49,25 @@ test("seeded background arm receives a real catalog id without promoting its dep
       id: "appearance.backgroundImageKind",
       values: [
         { id: '"none"', payload: "none" },
-        { id: '"seeded"', payload: "seeded" },
+        { id: '"asset"', payload: "asset" },
       ],
     },
   ];
 
-  expect(appearancePatchForAssignment(axes, { "appearance.backgroundImageKind": '"seeded"' })).toMatchObject({
-    backgroundImageKind: "seeded",
-    backgroundSeededId: expect.any(String),
+  // The LIVE background capability — one entry of the authenticated account's own `backgroundLibrary`. The
+  // `asset` arm cannot be completed from a constant the way the retired `seeded` catalog slug could, which
+  // is why the projection takes it as an argument instead of reading a static list.
+  const background = { assetId: "asset_matrix", assetHash: "hash_matrix", mime: "image/jpeg" };
+
+  expect(appearancePatchForAssignment(axes, { "appearance.backgroundImageKind": '"asset"' }, background)).toMatchObject({
+    backgroundImageKind: "asset",
+    backgroundAssetId: "asset_matrix",
+    backgroundAssetHash: "hash_matrix",
+    backgroundAssetMime: "image/jpeg",
   });
-  expect(appearancePatchForAssignment(axes, { "appearance.backgroundImageKind": '"none"' })).toEqual({ backgroundImageKind: "none" });
+  expect(appearancePatchForAssignment(axes, { "appearance.backgroundImageKind": '"none"' }, background)).toEqual({ backgroundImageKind: "none" });
+  // THE PLANTED NEGATIVE CONTROL. An account with no background asset must make the arm REFUSE loudly — a
+  // silent fall-through would have the plan claim `asset` while the cell rendered the `none` arm, and
+  // `data-has-bg-image` would read false against a receipt that says otherwise.
+  expect(() => appearancePatchForAssignment(axes, { "appearance.backgroundImageKind": '"asset"' }, null)).toThrow("INSTRUMENT ERROR");
 });

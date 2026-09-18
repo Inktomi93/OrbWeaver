@@ -32,6 +32,7 @@
 // stale first frame. `installSettingsShim` seeds exactly those carried axes before navigation; the
 // appearance-carrier-contract gate keeps this copied browser boundary set-equal to the live manifest.
 import type { BrowserContext, Route } from "@playwright/test";
+import type { BackgroundCapability } from "./appearance-matrix.ts";
 import { installAppearancePrepaintRecorder } from "./appearance-prepaint.ts";
 import { warn } from "./log.ts";
 import { isPlainObject } from "./page-validate.ts";
@@ -192,12 +193,47 @@ export function applySettingsToBody(body: unknown, index: number, patch: Setting
   return { body: patched.value, applied: patched.applied };
 }
 
-async function fulfilPatched(route: Route, patch: SettingsPatch, index: number): Promise<boolean> {
+/** The FIRST `appearance.backgroundLibrary` entry of the authenticated account, read out of the settings
+ *  envelope this shim is already fetching. Pure, so it is unit-testable without a browser.
+ *
+ *  It exists because the appearance matrix's only paintable `backgroundImageKind` arm is now `asset`: the
+ *  static `kind:"seeded"` catalog that used to complete that axis was retired 2026-09-18, and an owned
+ *  background is per-user state no tool can name from a constant. `null` ⇒ the account carries no background
+ *  asset at all, which the matrix reports as an instrument refusal rather than silently measuring `none`. */
+export function readBackgroundCapability(body: unknown, index: number): BackgroundCapability | null {
+  const single = index === 0 ? body : undefined;
+  const envelope = Array.isArray(body) ? body[index] : single;
+  if (!isPlainObject(envelope)) {
+    return null;
+  }
+  const result = envelope["result"];
+  const data = isPlainObject(result) ? result["data"] : undefined;
+  const config = isPlainObject(data) ? data["config"] : undefined;
+  const appearance = isPlainObject(config) ? config["appearance"] : undefined;
+  const library = isPlainObject(appearance) ? appearance["backgroundLibrary"] : undefined;
+  const first = Array.isArray(library) ? library[0] : undefined;
+  if (!isPlainObject(first)) {
+    return null;
+  }
+  const assetId = first["assetId"];
+  const assetHash = first["assetHash"];
+  const mime = first["mime"];
+  if (typeof assetId !== "string" || typeof assetHash !== "string" || typeof mime !== "string" || assetId.length === 0 || assetHash.length === 0) {
+    return null;
+  }
+  return { assetId, assetHash, mime };
+}
+
+async function fulfilPatched(
+  route: Route,
+  patch: SettingsPatch,
+  index: number,
+): Promise<{ readonly applied: boolean; readonly background: BackgroundCapability | null }> {
   const response = await route.fetch();
   const body = (await response.json()) as unknown;
   const patched = applySettingsToBody(body, index, patch);
   await route.fulfill({ response, json: patched.body });
-  return patched.applied;
+  return { applied: patched.applied, background: readBackgroundCapability(body, index) };
 }
 
 /** The theme library, asked of the app's OWN API on the context's cookie jar — the same origin the
@@ -295,6 +331,10 @@ export interface SettingsShimEvidence {
   themeResolution: ThemeResolutionEvidence | null;
   /** The authenticated catalog used for resolution, including derived source/polarity capabilities. */
   themeCatalog: readonly ThemeEntry[] | null;
+  /** The account's first `appearance.backgroundLibrary` entry — the matrix's only paintable background arm
+   *  since `kind:"seeded"` retired (2026-09-18). Null until a settings read is intercepted, and null on an
+   *  account with no background asset, which the matrix refuses on rather than measuring `none` twice. */
+  backgroundLibraryFirst: BackgroundCapability | null;
 }
 
 function recordAppliedEvidence(evidence: SettingsShimEvidence, applied: boolean, appearanceRequested: boolean, themeResolved: boolean): void {
@@ -324,6 +364,7 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
     themeApplied: shim.theme === null ? null : false,
     themeResolution: null,
     themeCatalog: null,
+    backgroundLibraryFirst: null,
   };
   if (shim.appearance === null && shim.theme === null) {
     return evidence;
@@ -352,8 +393,11 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
         ...(shim.appearance === null ? {} : { appearance: shim.appearance }),
         ...(themeOutcome === null ? {} : themeConfigPatch(themeOutcome.id)),
       };
-      const applied = await fulfilPatched(route, patch, index);
-      recordAppliedEvidence(evidence, applied, shim.appearance !== null, themeOutcome !== null);
+      const outcome = await fulfilPatched(route, patch, index);
+      // First read wins: later reads are the SAME account, and re-reading after the app has written its own
+      // settings would let a mid-run library edit silently move the arm the plan already committed to.
+      evidence.backgroundLibraryFirst ??= outcome.background;
+      recordAppliedEvidence(evidence, outcome.applied, shim.appearance !== null, themeOutcome !== null);
     } catch {
       await route.fallback();
     }

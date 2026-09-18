@@ -34,6 +34,7 @@ function shimEvidence(overrides: Partial<SettingsShimEvidence["themeResolution"]
     themeApplied: true,
     themeResolution: { request: "Light", id: "theme_light", name: "Light", source: "seed", ...overrides },
     themeCatalog: null,
+    backgroundLibraryFirst: null,
   };
 }
 

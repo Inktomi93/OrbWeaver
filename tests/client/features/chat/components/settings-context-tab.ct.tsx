@@ -808,7 +808,7 @@ const SOLO_ROSTER_WITH_CARD_BG = [
     kind: "character",
     characterId: "character_birdie",
     displayName: "Birdie Mae Holloway",
-    backgroundOverride: { kind: "seeded", seededId: "birdie-bg", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" },
+    backgroundOverride: { kind: "asset", externalUrl: "", assetId: "asset_birdie_bg", assetHash: "hash_birdie_bg", mime: "image/jpeg", provenanceUrl: "" },
   },
 ];
 
@@ -828,7 +828,11 @@ test("BG-C: with no chat-set background, the Background row names the CARD-carri
   await openContextSections(component, HOST_BAND);
 
   const group = component.locator("section").filter({ hasText: "Host controls" }).first();
-  await expect(group.getByText("Hobby & Repair", { exact: false })).toBeVisible();
+  // The gloss DESCRIBES the carried source rather than naming it: the card author's library entry name is
+  // not on this wire (it lives in THEIR appearance library). It used to read the plate's catalog label, which
+  // only existed because `kind:"seeded"` carried a slug into a catalog this surface could look up; that kind
+  // retired 2026-09-18, and a shipped plate is one of the author's own owned backgrounds now.
+  await expect(group.getByText("an uploaded image", { exact: false })).toBeVisible();
   await expect(group.getByText("from Birdie Mae Holloway's card", { exact: false })).toBeVisible();
 });
 

@@ -232,7 +232,6 @@ describe("forkChat — D27 deep copy", () => {
       metadata: {
         background: {
           kind: "asset",
-          seededId: "",
           externalUrl: "",
           assetId: missingAssetId,
           assetHash: "gone",

@@ -37,8 +37,10 @@ const FONT_SCALE_DEFAULT = 1;
 // THE WALLPAPER SCRIM HAS A FLOOR, AND THE FLOOR IS DERIVED (#487). `theme-background-layer.tsx` calls the
 // scrim "mandatory … non-negotiable for text legibility"; a MIN of 0 made that sentence false — a legal
 // setting rendered the guard at `opacity: 0` and handed the transcript's reading contrast to the user's
-// picture (measured live pre-fix on `misty-highlands`: the plate's worst backdrop over its bright band
-// read Y 0.0874 at dim 0 vs Y 0.0476 at 0.45).
+// picture (measured live pre-fix on the `misty-highlands` landscape plate: its worst backdrop over the
+// bright band read Y 0.0874 at dim 0 vs Y 0.0476 at 0.45). That plate was one of the four placeholder
+// landscapes deleted with the `kind:"seeded"` retirement (2026-09-18) — the MEASUREMENT stands as the
+// evidence for the floor; the file it was taken on no longer ships.
 //
 // WHY A DIM FLOOR AND NOT A HEAVIER PLATE. D144(d) + the #217 rider rule the other arm OUT: "Inks are
 // guaranteed vs their BASE, not worst-case art pixels — closing that would move the sacred dark rooms
@@ -172,12 +174,11 @@ export const appearanceSettingsSchema = z
     surfaceTexture: z.enum(SURFACE_TEXTURES).catch("none").default("none"),
     reducedMotion: z.boolean().catch(false).default(false),
     backgroundImageKind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
-    // @orb-waive no-raw-id(backgroundSeededId): not an entity FK — a seeded-background CATALOG slug (matched against the static `listSeededBackgrounds()` set at render), so it stays a plain slug string; an empty/stale value degrades to "no image" at resolution.
-    backgroundSeededId: z
-      .string()
-      .regex(/^[a-z0-9-]*$/u)
-      .catch("")
-      .default(""),
+    // NOTE: there was a flat `backgroundSeededId` (the `kind:"seeded"` catalog slug) — RETIRED 2026-09-18
+    // with the kind itself; the WHY is on `BACKGROUND_IMAGE_KINDS` in `#theme`. A stored blob's leftover
+    // `backgroundSeededId` is stripped by zod (unknown key), and the kind heals to `none` — the per-user
+    // background seeder's migration pass rewrites the pick to the plate's now-owned asset before that
+    // heal is ever reached on a box that carried one.
     // NOTE: there is no flat `backgroundExternalUrl` — an external URL can never paint (CSP `img-src`
     // self/data/blob only, by design), so the global appearance surface materializes a pasted URL server-side
     // (`settings.addExternalBackground`) into a `backgroundLibrary` ASSET entry rather than persisting a

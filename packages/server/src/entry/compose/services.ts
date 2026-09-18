@@ -71,7 +71,7 @@ import type { RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
-import type { SettingsContext, SettingsServiceDeps } from "#domain/settings";
+import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
 import { createSettingsContext, createSettingsService } from "#domain/settings";
 import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
@@ -278,6 +278,8 @@ export interface ServicesResult {
   /** Mirrors `characterSeeder`, for the bundled EXAMPLE conversations. MUST run AFTER `characterSeeder` —
    *  each example attaches to seeded cards (a missing handle skips that example, never a partial room). */
   readonly demoChatSeeder: DemoChatSeeder;
+  /** The per-user SCENE-PLATE seeder (`domain/settings`) — boot + the first-authed-request hook run it. */
+  readonly backgroundSeeder: DefaultBackgroundSeeder;
   /** Mirrors `characterSeeder`, for the two SHOWCASE PLUGIN examples. Independent of the three above (it
    *  attaches to nothing), and it seeds the rows INSTALLED-BUT-UNGRANTED — the user's first act is consent. */
   readonly examplePluginSeeder: ExamplePluginSeeder;
@@ -608,11 +610,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
     imageVariantQuality: () => effectiveConfig.getEffectiveConfig().imageVariantQuality,
     settings,
+    newBackgroundEntryId: settingsDeps.newBackgroundEntryId,
     getPreset: () => preset,
     getPersona: () => persona,
     resolveUserPresetParams,
   });
-  const { assets, character, galleryCtx, characterSeeder, personaSeeder } = assetsCharacter;
+  const { assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder } = assetsCharacter;
   // Now that `assets` exists, rebind the real materializeBackground op (the holder above forwards to it).
   materializeBackgroundOp = assetsCharacter.materializeBackgroundOp;
 
@@ -1104,6 +1107,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const demoChatGameDoor = createDemoChatGameDoor({ rpg });
   const demoChatSeeder = createDemoChatSeeder({
     readTranscript: readSeedDemoChat,
+    // The curated room plate, resolved into the RECEIVING user's own owned asset (the card pack's twin).
+    resolveSeededBackground: backgroundSeeder.resolvePlate,
     findCharacterByHandle: async ({ principal, handle }) => {
       const ref = await character.findByHandle({ ownerId: principal.userId, handle });
       if (ref === null) {
@@ -1248,6 +1253,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     characterSeeder,
     personaSeeder,
     demoChatSeeder,
+    backgroundSeeder,
     examplePluginSeeder,
     distributedPluginApplier,
     rpgChatOps: rpgCompose.chatOps,

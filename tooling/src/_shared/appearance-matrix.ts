@@ -1,6 +1,5 @@
 // Live Appearance/theme inputs shared by the representative-matrix consumers. The browser bridge owns
 // carrier keys/arms; the authenticated catalog owns theme ids. Tool policies own only projections.
-import { listSeededBackgrounds } from "@orb/contracts/theme";
 import type { Page } from "@playwright/test";
 import { z } from "zod";
 import { instrumentRefusal } from "./page-validate.ts";
@@ -8,9 +7,12 @@ import type { ThemeEntry } from "./theme.ts";
 import { themeCatalogCapabilities } from "./theme.ts";
 import type { VariantAssignment, VariantAxis } from "./variant-matrix.ts";
 
-const EXPECTED_DECLARED_APPEARANCE = 41;
+// All three dropped by one on 2026-09-18: `backgroundSeededId` left `AppearanceSettings` with the retired
+// `kind:"seeded"` background source, and it was a DEPENDENCY row (no arms), so declared and dependencies
+// move together while executable is unchanged.
+const EXPECTED_DECLARED_APPEARANCE = 40;
 const EXPECTED_EXECUTABLE_APPEARANCE = 36;
-const EXPECTED_DEPENDENCIES = 5;
+const EXPECTED_DEPENDENCIES = 4;
 const EXPECTED_HISTORICAL_ROWS = 7;
 const READ_APPEARANCE_MATRIX_CONTRACT = `(() => {
   const read = globalThis.__orb?.appearanceMatrixContract;
@@ -324,7 +326,22 @@ export function appearanceArmValueId(axes: readonly VariantAxis[], key: string, 
   return id;
 }
 
-export function appearancePatchForAssignment(axes: readonly VariantAxis[], assignment: VariantAssignment): Readonly<Record<string, unknown>> {
+/** The LIVE background a matrix cell paints with — one entry of the authenticated user's
+ *  `appearance.backgroundLibrary`. The `asset` arm of `backgroundImageKind` cannot be completed from a
+ *  static source the way the retired `seeded` arm could (a slug into a bundled `public/` catalog), so the
+ *  arm's dependent carriers come from the real account state instead. The ten seeded scene plates are what
+ *  guarantee the library is non-empty on any install this tool runs against. */
+export interface BackgroundCapability {
+  readonly assetId: string;
+  readonly assetHash: string;
+  readonly mime: string;
+}
+
+export function appearancePatchForAssignment(
+  axes: readonly VariantAxis[],
+  assignment: VariantAssignment,
+  background: BackgroundCapability | null = null,
+): Readonly<Record<string, unknown>> {
   const patch = Object.fromEntries(
     axes.map((axis) => {
       const valueIdForCell = assignment[axis.id];
@@ -335,16 +352,19 @@ export function appearancePatchForAssignment(axes: readonly VariantAxis[], assig
       return [axis.id.slice("appearance.".length), value.payload];
     }),
   );
-  if (patch["backgroundImageKind"] !== "seeded") {
+  if (patch["backgroundImageKind"] !== "asset") {
     return patch;
   }
-  const seeded = [...listSeededBackgrounds()].sort((left, right) => left.id.localeCompare(right.id))[0];
-  if (seeded === undefined) {
-    return instrumentRefusal("seeded Appearance arm has no real seeded-background catalog member");
+  if (background === null) {
+    // LOUD, never a silent fall-through to the `none` arm: a cell that cannot paint its background is a cell
+    // that measured a DIFFERENT arm than the plan claims, and `data-has-bg-image` would read false while the
+    // receipt said `asset`. An empty library on a real install is itself the finding (the scene-plate seed
+    // did not run), so the instrument reports it rather than quietly narrowing its own coverage.
+    return instrumentRefusal("asset Appearance arm has no live background-library member to paint");
   }
-  // backgroundSeededId is a declared dependency, not an axis. Complete the selected `seeded` carrier
-  // from its one real catalog rather than copying a slug or promoting the dependency into fake pairwise
+  // backgroundAssetId/Hash/Mime are declared dependencies, not axes. Complete the selected `asset` carrier
+  // from the authenticated account's own library rather than promoting the dependencies into fake pairwise
   // coverage. Both thin consumers use this shared projection, so `data-has-bg-image` cannot mean two
   // different things in Snap and design-audit.
-  return { ...patch, backgroundSeededId: seeded.id };
+  return { ...patch, backgroundAssetId: background.assetId, backgroundAssetHash: background.assetHash, backgroundAssetMime: background.mime };
 }

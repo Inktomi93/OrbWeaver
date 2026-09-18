@@ -352,7 +352,7 @@ describe("collectGarbage", () => {
     await db
       .update(characters)
       .set({
-        backgroundOverride: { kind: "asset", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
+        backgroundOverride: { kind: "asset", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
       })
       .where(eq(characters.id, characterId));
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
@@ -374,7 +374,7 @@ describe("collectGarbage", () => {
     // The ONLY liveness signal is the JSON metadata.background sub-blob on the chat row.
     await db.insert(chats).values({
       id: castId<ChatId>("chat_bgc"),
-      metadata: { background: { kind: "asset", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" } },
+      metadata: { background: { kind: "asset", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" } },
       createdAt: FROZEN_AT_MS,
       updatedAt: FROZEN_AT_MS,
     });
@@ -467,7 +467,7 @@ describe("collectGarbage", () => {
     // kind guard must NOT root it — nothing legitimately references the blob, so it is reaped past grace.
     await db.insert(chats).values({
       id: castId<ChatId>("chat_smuggle"),
-      metadata: { background: { kind: "none", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" } },
+      metadata: { background: { kind: "none", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" } },
       createdAt: FROZEN_AT_MS,
       updatedAt: FROZEN_AT_MS,
     });
@@ -491,7 +491,7 @@ describe("collectGarbage", () => {
     await db
       .update(characters)
       .set({
-        backgroundOverride: { kind: "none", seededId: "", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
+        backgroundOverride: { kind: "none", externalUrl: "", assetId: stored.assetId, assetHash: stored.hash, mime: PNG, provenanceUrl: "" },
       })
       .where(eq(characters.id, characterId));
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);

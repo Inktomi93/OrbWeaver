@@ -25,8 +25,15 @@ export interface DemoChat {
   /** The seeded-card HANDLES seated in this room, PRIMARY FIRST (the primary is the header character the
    *  dedup + branch scoping key off). A handle the pack does not seed skips the whole example. */
   readonly handles: readonly string[];
-  /** The room-behavior blob (group config / opening policy). Absent ⇒ a plain solo room. */
+  /** The room-behavior blob (group config / opening policy). Absent ⇒ a plain solo room. Deliberately does
+   *  NOT carry the curated background — see `backgroundSlug`. */
   readonly metadata?: ChatMetadata;
+  /** The curated room background, by shipped scene-plate SLUG. It rides here rather than inside `metadata`
+   *  because a plate is an OWNED asset per user since 2026-09-18 (it was a static `kind:"seeded"` catalog
+   *  slug), so the manifest can only name WHICH plate; the seeder resolves it to the receiving user's own
+   *  `kind:"asset"` ref through the injected `resolveSeededBackground`. Absent ⇒ the room paints whatever
+   *  its cards carry (which is the SOLO answer — a solo example needs no curated background at all). */
+  readonly backgroundSlug?: string;
   /** Mint a lite rpg game for this room after the transcript lands (the flagship). Absent ⇒ no game. */
   readonly game?: DemoChatGame;
 }
@@ -171,6 +178,11 @@ export interface DemoChatSeederDeps {
   /** Set the curated room background on an already-seeded example (chat's own `setChatBackground` door).
    *  Called only when the room carries none. */
   readonly setChatBackground?: (args: { readonly principal: Principal; readonly chatId: ChatId; readonly background: ThemeBackground }) => Promise<void>;
+  /** Resolve an example's `backgroundSlug` to THIS user's own plate asset (`kind:"asset"`), lifting the
+   *  shipped bytes into their CAS on first ask. `null` ⇒ the room seeds background-less rather than with a
+   *  dangling reference. Wired at the composition root off `domain/settings`' scene-plate seeder — chat
+   *  never imports settings, and this seeder never touches the filesystem. */
+  readonly resolveSeededBackground?: (principal: Principal, slug: string) => Promise<ThemeBackground | null>;
   /** The injected clock — the fallback timestamp for a transcript that carries no dates. */
   readonly now: () => number;
 }

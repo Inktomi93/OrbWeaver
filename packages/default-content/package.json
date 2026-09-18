@@ -10,6 +10,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./avatars/*": "./avatars/*",
+    "./backgrounds/*": "./backgrounds/*",
     "./demo-chats/*": "./demo-chats/*"
   },
   "dependencies": {

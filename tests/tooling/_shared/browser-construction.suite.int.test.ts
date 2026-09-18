@@ -26,7 +26,7 @@ const DEBUG_PORT_ATTEMPTS = 200;
 const DEBUG_PORT_RETRY_MS = 25;
 const VIEWPORT = { width: 720, height: 480 } as const;
 const SECOND_VIEWPORT = { width: 412, height: 823 } as const;
-const NULL_SETTINGS = { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null } as const;
+const NULL_SETTINGS = { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null, backgroundLibraryFirst: null } as const;
 
 vi.setConfig({ testTimeout: RUN_TIMEOUT_MS, hookTimeout: RUN_TIMEOUT_MS });
 

@@ -13,9 +13,14 @@ export function appearanceSettingsForCarrierArm(arm: 0 | 1, backgroundKindUnderT
     ]),
   );
   const settings = appearanceSettingsSchema.parse({ ...DEFAULT_APPEARANCE_SETTINGS, ...overrides });
-  settings.backgroundSeededId = "misty-highlands";
+  // The painted arm is `asset` since `kind:"seeded"` retired (2026-09-18) — its dependent carriers have to
+  // be spelled here because they name an ASSET, which the arm value alone cannot carry. The hash is a
+  // fixture, not a real blob: this matrix compares CARRIER attributes, never a rendered image.
+  settings.backgroundAssetId = "asset_carriermatrix";
+  settings.backgroundAssetHash = "carriermatrixhash";
+  settings.backgroundAssetMime = "image/jpeg";
   if (!backgroundKindUnderTest) {
-    settings.backgroundImageKind = "seeded";
+    settings.backgroundImageKind = "asset";
   }
   return settings;
 }

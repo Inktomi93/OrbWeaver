@@ -54,7 +54,6 @@ export const APPEARANCE_OWNER_KEYS = {
   effects: ["blurSurfaces", "blurStrength", "shadowEffects", "surfaceTexture", "enableThemeColorization"],
   background: [
     "backgroundImageKind",
-    "backgroundSeededId",
     "backgroundAssetId",
     "backgroundAssetHash",
     "backgroundAssetMime",
@@ -135,8 +134,11 @@ export const APPEARANCE_CARRIER_MANIFEST = {
   surfaceTexture: { owner: "effects", ...ROOT, requiredDistinctArms: ["none", "grain"] },
   enableThemeColorization: { owner: "effects", ...ROOT, requiredDistinctArms: [false, true] },
 
-  backgroundImageKind: { owner: "background", ...BACKGROUND, consumer: BACKGROUND_SOURCE, requiredDistinctArms: ["none", "seeded"] },
-  backgroundSeededId: { owner: "background", ...BACKGROUND, consumer: BACKGROUND_SOURCE, dependsOn: ["backgroundImageKind"] },
+  // The painted arm is `asset` since `seeded` retired (2026-09-18). `seeded` was the only NON-none kind a
+  // tool could complete from a static source, so the matrix's second arm now needs a LIVE background —
+  // supplied by `appearancePatchForAssignment`'s background capability, which the ten per-user seeded scene
+  // plates guarantee is non-empty. `external` is not a candidate: it is input-only and never paints.
+  backgroundImageKind: { owner: "background", ...BACKGROUND, consumer: BACKGROUND_SOURCE, requiredDistinctArms: ["none", "asset"] },
   backgroundAssetId: { owner: "background", ...BACKGROUND, consumer: BACKGROUND_SOURCE, dependsOn: ["backgroundImageKind"] },
   backgroundAssetHash: { owner: "background", ...BACKGROUND, consumer: BACKGROUND_SOURCE, dependsOn: ["backgroundImageKind"] },
   backgroundAssetMime: { owner: "background", ...BACKGROUND, consumer: BACKGROUND_SOURCE, dependsOn: ["backgroundImageKind"] },

@@ -640,7 +640,6 @@ test("transform_draft is a typed arm_error refusal (no op)", async () => {
 // ── 1.8 set_chat_background (BG-F — the /autobg quiet-pick engine) ─────────────────────────────────────
 const BG_ALICE: ThemeBackground = {
   kind: "asset",
-  seededId: "",
   externalUrl: "",
   assetId: "asset_dawn",
   assetHash: "hash_dawn",
@@ -649,7 +648,6 @@ const BG_ALICE: ThemeBackground = {
 };
 const BG_BOB: ThemeBackground = {
   kind: "asset",
-  seededId: "",
   externalUrl: "",
   assetId: "asset_dusk",
   assetHash: "hash_dusk",

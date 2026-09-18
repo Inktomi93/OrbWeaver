@@ -133,7 +133,11 @@ test("F10 — a session matrix inherits the daemon base, isolates every cell con
     expect(maxBrowserChildren).toBe(1);
     await expect(matrix).toExitWith(EXIT.clean);
     expect(matrix.stdout).toContain("RESULT snap-matrix");
-    expect(matrix.stdout).toContain("variants=16");
+    // 16 → 14 with the `kind:"seeded"` retirement (2026-09-18): the background arm moved
+    // `none|seeded` → `none|asset` and its risk row moved with it, so the same required rows pack into two
+    // fewer cells. The count is DERIVED — `tests/tooling/snap/ops/matrix-contract.test.ts` owns the claim
+    // that the smaller plan still covers every pair (`uncoveredPairs === []`).
+    expect(matrix.stdout).toContain("variants=14");
     expect(occurrenceCount(matrix.stdout, String.raw`\"origin\":\"${fixture.base}`)).toBe(16);
     expect(occurrenceCount(matrix.stdout, String.raw`\"owner\":null`)).toBe(16);
     expect(occurrenceCount(matrix.stdout, String.raw`\"cell\":null`)).toBe(16);

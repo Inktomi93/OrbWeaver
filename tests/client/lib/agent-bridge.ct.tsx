@@ -61,7 +61,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       motionFlaggersSettled: true,
       motionFlaggersDrain: drain.completedGeneration >= drain.requestedGeneration,
       appearanceMatrixContract:
-        orb.appearanceMatrixContract().declared === 41 &&
+        orb.appearanceMatrixContract().declared === 40 &&
         orb.appearanceMatrixContract().executable === 36 &&
         orb.appearanceMatrixContract().rows.some((row) => row.key === "fontScale" && row.reached >= 1),
       setMotionAuditDropTrackingPaused: true,

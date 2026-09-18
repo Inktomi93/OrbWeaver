@@ -2,10 +2,6 @@
 // modules never ride a shared barrel): ./dev-tools (main.tsx lazy-mounts it), ./long-task-tracer
 // (main.tsx dynamic-imports it).
 
-// The seeded-background catalog has ONE home in @orb/contracts/theme (the server's /autobg arm reads the
-// same list); re-exported here so every client consumer keeps importing it from `#lib`.
-export type { SeededBackground } from "@orb/contracts/theme";
-export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "@orb/contracts/theme";
 export { cn } from "@orb/ui/lib";
 export type { AppFailureKind, AppFailureSurfaceProps } from "./app-failure-surface.tsx";
 export { AppFailureSurface } from "./app-failure-surface.tsx";

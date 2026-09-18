@@ -37,8 +37,6 @@
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
-import type { ThemeBackground } from "@orb/contracts/theme";
-import { canonicalBackgroundSource, themeBackgroundSchema } from "@orb/contracts/theme";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SeedCard } from "../contract/seeder.ts";
@@ -68,23 +66,30 @@ const AUTHORED_CARD_DEFAULTS = {
   avatarAssetId: null,
 } satisfies Partial<CreateCharacterInput>;
 
-/** THE CARD'S OWN SCENE PLATE, DERIVED FROM ITS HANDLE — never a hand-typed blob (#900).
+/** THE CARD'S OWN SCENE PLATE, DERIVED FROM ITS HANDLE — never a hand-typed slug (#900).
  *
- *  Every card in this pack points at a bundled SEEDED catalog slug and the slug IS `<handle>-bg` (published by
- *  `@orb/contracts/theme` `listSeededBackgrounds()`), so the id is computed here rather than retyped beside
- *  each card: a pack card can no longer point at a sibling's plate, or at a slug the catalog never shipped
- *  with a matching name.
+ *  Every card in this pack ships a plate, and the plate's content slug IS `<handle>-bg` (the file
+ *  `@orb/default-content` ships at `backgrounds/<handle>-bg.jpg`), so it is computed here rather than
+ *  retyped beside each card: a pack card can no longer point at a sibling's plate, or at a slug the pack
+ *  never shipped a file for.
  *
- *  The five non-`seeded` fields are not spelled either. They come from `themeBackgroundSchema`'s own defaults
- *  and then through `canonicalBackgroundSource` — the SAME canonicalizer every carried-background WRITE path
- *  runs — so the pack ships exactly the persisted shape the boundary produces, and a future edit cannot
- *  smuggle an `assetId` onto a non-asset kind (the GC-root hazard `canonicalBackgroundSource` exists to
- *  close). Hand-spelling those blanks is what made that smuggle one keystroke away. */
-function seededBackground(handle: CharacterHandle): ThemeBackground {
-  return canonicalBackgroundSource(themeBackgroundSchema.parse({ kind: "seeded", seededId: `${handle}-bg` }));
+ *  IT IS A SLUG, NOT A BACKGROUND, and that is the 2026-09-18 change. The pack used to spell a whole
+ *  `kind:"seeded"` `ThemeBackground` here, because a plate was a static catalog entry every install resolved
+ *  to the same vite `public/` URL. A plate is now an OWNED asset, minted per user in their own CAS, so the
+ *  pack cannot name the reference — only WHICH plate. The seeder turns it into the receiving user's own
+ *  `kind:"asset"` ref through the injected `resolveSeededBackground`, which runs the same
+ *  `canonicalBackgroundSource` every carried-background write path runs — so the pack still never
+ *  hand-spells a persisted background shape, which was the point of the derivation in the first place. */
+function backgroundSlugFor(handle: CharacterHandle): string {
+  return `${handle}-bg`;
 }
 
-const AUTHORED_CARDS: readonly SeedCard[] = [
+/** The authored cards MINUS their derived scene-plate slug — the shape the literals below actually spell.
+ *  `DEFAULT_CHARACTER_CARDS` completes them; naming the omission here is what keeps a hand-typed
+ *  `backgroundSlug` from being possible at all. */
+type AuthoredCard = Omit<SeedCard, "backgroundSlug">;
+
+const AUTHORED_CARDS: readonly AuthoredCard[] = [
   {
     tags: ["assistant", "default", "utility"],
     presentation: {
@@ -593,10 +598,10 @@ const AUTHORED_CARDS: readonly SeedCard[] = [
   },
 ];
 
-/** The shipped pack. The authored literals above carry the CONTENT and the palette; the scene plate is
- *  attached HERE, from each card's own handle, so the card ↔ catalog coupling is structural rather than a
+/** The shipped pack. The authored literals above carry the CONTENT and the palette; the scene plate's SLUG
+ *  is attached HERE, from each card's own handle, so the card ↔ plate coupling is structural rather than a
  *  convention ten literals have to keep (#900 — a fixture/seed field the product derives is derived, and the
- *  contract suite pins the result against `listSeededBackgrounds()`). */
+ *  contract suite pins the result against the shipped `SEED_BACKGROUND_PLATES` manifest). */
 export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = AUTHORED_CARDS.map(
-  (card): SeedCard => ({ ...card, presentation: { ...card.presentation, backgroundOverride: seededBackground(card.input.handle) } }),
+  (card): SeedCard => ({ ...card, backgroundSlug: backgroundSlugFor(card.input.handle) }),
 );

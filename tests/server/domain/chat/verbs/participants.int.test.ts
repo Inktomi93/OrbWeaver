@@ -384,7 +384,6 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
   // the service param type is the full `ThemeBackground`, so the test spells the whole shape).
   const bg = (o: Partial<ThemeBackground>): ThemeBackground => ({
     kind: "none",
-    seededId: "",
     externalUrl: "",
     assetId: "",
     assetHash: "",
@@ -413,7 +412,6 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     // A raw external URL can never paint (CSP); it is persisted as a same-origin `asset` with the URL as provenance.
     expect(result).toEqual({
       kind: "asset",
-      seededId: "",
       externalUrl: "",
       assetId: storedAssetId,
       assetHash: "hash_ext",
@@ -448,10 +446,17 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const participants = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
+    // The FIRST background has to be a real OWNED asset: `asset` is the only persisted paintable kind since
+    // `kind:"seeded"` retired (2026-09-18), and the verb's ownership gate refuses any other asset id.
+    const duskId = await seedAsset(db, host, "dusk-background");
+    const participants = createParticipants(makeChatContext(db, { filterOwnedAssetIds: () => Promise.resolve([duskId]) }), { emit, claimChat: noClaim });
     await participants.setRoomOverrides({ principal: principal(host), chatId, overrides: { scenario: "a tavern" } });
 
-    await participants.setChatBackground({ principal: principal(host), chatId, background: bg({ kind: "seeded", seededId: "dusk" }) });
+    await participants.setChatBackground({
+      principal: principal(host),
+      chatId,
+      background: bg({ kind: "asset", assetId: duskId, assetHash: "hash_dusk", mime: "image/jpeg" }),
+    });
     await participants.setChatBackground({ principal: principal(host), chatId, background: bg({ kind: "none" }) });
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.metadata?.background?.kind).toBe("none");
@@ -573,7 +578,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
       chatId,
       background: bg({ kind: "none", assetId: foreign, assetHash: "h", mime: "image/png" }),
     });
-    expect(result).toEqual({ kind: "none", seededId: "", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" });
+    expect(result).toEqual({ kind: "none", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" });
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.metadata?.background?.assetId).toBe("");
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);

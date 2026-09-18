@@ -30,6 +30,7 @@
 // file never imports domain/settings.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { ThemeBackground } from "@orb/contracts/theme";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
@@ -157,9 +158,22 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
     }
   }
 
+  /** The card's LOOK for THIS user: the authored theme plus the scene plate resolved into their own owned
+   *  asset. The plate is resolved per user rather than carried on the pack because a plate is an owned
+   *  `background` asset now, not a static catalog slug (2026-09-18) — `resolveSeededBackground` lifts the
+   *  shipped bytes into the caller's CAS and hands back the `kind:"asset"` ref. Unwired or unresolvable ⇒
+   *  the card is dressed theme-only, never with a dangling reference. */
+  async function presentationFor(principal: Principal, card: SeedCard): Promise<SeedCard["presentation"] & { backgroundOverride?: ThemeBackground }> {
+    if (card.backgroundSlug === null || deps.resolveSeededBackground === undefined) {
+      return card.presentation;
+    }
+    const background = await deps.resolveSeededBackground(principal, card.backgroundSlug);
+    return background === null ? card.presentation : { ...card.presentation, backgroundOverride: background };
+  }
+
   /** The two post-create steps.
-   *  1. PRESENTATION (carried theme + seeded background): a post-create edit because both fields live on the
-   *     UPDATE arm only — the create schema carries neither.
+   *  1. PRESENTATION (carried theme + the card's own scene plate): a post-create edit because both fields
+   *     live on the UPDATE arm only — the create schema carries neither.
    *  2. The starter gallery — failures are swallowed by the caller so a gallery seed never breaks the seed.
    *
    *  `force` is FALSE for every row this seeder did not just create (the resumed-seed arm and the pack
@@ -168,7 +182,7 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
    *  unconditionally — one code path, one difference, stated. */
   async function dressCard(principal: Principal, card: SeedCard, characterId: CharacterId, force: boolean): Promise<void> {
     if (force || (await presentationIsUnset(principal, characterId))) {
-      await deps.characters.update({ principal, characterId, input: card.presentation });
+      await deps.characters.update({ principal, characterId, input: await presentationFor(principal, card) });
     }
     if (deps.seedGallery !== undefined) {
       await deps.seedGallery(principal, characterId, card.input.handle);

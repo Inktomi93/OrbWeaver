@@ -140,7 +140,6 @@ async function resolveBackgroundOverride(
     ...input,
     backgroundOverride: {
       kind: "asset",
-      seededId: "",
       externalUrl: "",
       provenanceUrl: url,
       assetId: result.asset.assetId,

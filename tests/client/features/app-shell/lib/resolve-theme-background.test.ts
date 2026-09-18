@@ -27,7 +27,6 @@ import { makeParticipant } from "../../chat/lib/_support.ts";
 
 const CHAT_BG: ThemeBackground = {
   kind: "asset",
-  seededId: "",
   externalUrl: "",
   assetId: "asset_chat",
   assetHash: "hash_chat",
@@ -36,14 +35,13 @@ const CHAT_BG: ThemeBackground = {
 };
 const CARD_BG: ThemeBackground = {
   kind: "asset",
-  seededId: "",
   externalUrl: "",
   assetId: "asset_card",
   assetHash: "hash_card",
   mime: "image/png",
   provenanceUrl: "",
 };
-const NONE: ThemeBackground = { kind: "none", seededId: "", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" };
+const NONE: ThemeBackground = { kind: "none", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" };
 
 const HUMAN = makeParticipant({ kind: "human", characterId: null, displayName: "Nate" });
 const HUMAN2 = makeParticipant({ kind: "human", characterId: null, displayName: "Sam" });
@@ -153,7 +151,6 @@ test("resolveThemeBackgroundUrl resolves an asset to its blob url; none/external
   expect(
     resolveThemeBackgroundUrl({
       kind: "external",
-      seededId: "",
       externalUrl: "https://cdn.example/x.jpg",
       assetId: "",
       assetHash: "",
@@ -166,14 +163,12 @@ test("resolveThemeBackgroundUrl resolves an asset to its blob url; none/external
 test("appearanceBackgroundSource projects the flat appearance fields onto the nested source shape", () => {
   const appearance = {
     backgroundImageKind: "asset",
-    backgroundSeededId: "",
     backgroundAssetId: "asset_bg1",
     backgroundAssetHash: "hash_bg1",
     backgroundAssetMime: "video/mp4",
-  } satisfies Pick<AppearanceSettings, "backgroundImageKind" | "backgroundSeededId" | "backgroundAssetId" | "backgroundAssetHash" | "backgroundAssetMime">;
+  } satisfies Pick<AppearanceSettings, "backgroundImageKind" | "backgroundAssetId" | "backgroundAssetHash" | "backgroundAssetMime">;
   expect(appearanceBackgroundSource(appearance)).toEqual({
     kind: "asset",
-    seededId: "",
     externalUrl: "",
     provenanceUrl: "",
     assetId: "asset_bg1",

@@ -22,9 +22,19 @@
 import { z } from "zod";
 
 /** The decorative-background source kind — the ONE home (viewer `appearance` + the carried twin). `asset`
- *  is an own-upload pinned by `assetId`/`assetHash` (GC-rooted via the asset-refs JSON live-sources for
- *  each carried location); `seeded` a static catalog slug; `external` a URL. */
-export const BACKGROUND_IMAGE_KINDS = ["none", "seeded", "external", "asset"] as const;
+ *  is an OWNED background asset pinned by `assetId`/`assetHash` (GC-rooted via the asset-refs JSON
+ *  live-sources for each carried location); `external` a URL, input-only per the INVARIANT above.
+ *
+ *  `seeded` — a slug into a static `public/`-served catalog of bundled plates — was RETIRED 2026-09-18
+ *  (owner ask, "the weird seeded backgrounds"). It was a parallel background channel no user-owned
+ *  background could join: not in the library, not renameable, not deletable, not exportable, invisible to
+ *  the CAS and to asset GC. The ten shipped scene plates are now seeded per user as ordinary
+ *  `background`-kind assets from `@orb/default-content` and every carried reference to one is a
+ *  `kind:"asset"` ref; the four landscape placeholders were deleted outright. A stored `"seeded"` reference
+ *  is rewritten to its asset (or to `none`) by the per-user background seeder's migration pass
+ *  (`domain/settings/seeder/backgrounds.ts`), and the `.catch("none")` below is the floor under anything it
+ *  did not reach. */
+export const BACKGROUND_IMAGE_KINDS = ["none", "external", "asset"] as const;
 
 /** The carried decorative-background SOURCE (BG-C) — a `ThemeOverride` twin. Source-only: fit/dim/blur are
  *  never carried (the viewer keeps their own appearance treatment). `kind:"none"` (or an empty ref for the
@@ -32,12 +42,6 @@ export const BACKGROUND_IMAGE_KINDS = ["none", "seeded", "external", "asset"] as
  *  `appearance` background fields minus the `background` prefix (`kind`, not `backgroundImageKind`). */
 export const themeBackgroundSchema = z.object({
   kind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
-  // @orb-waive no-raw-id(seededId): not an entity FK — a seeded-background CATALOG slug (matched against the static `listSeededBackgrounds()` set at render), so it stays a plain slug string; an empty/stale value degrades to "no image" at resolution. The TWIN of settings/index.ts `backgroundSeededId`, which carries the same granted exemption. ENDS WHEN: seeded backgrounds become a real owned entity with minted ids.
-  seededId: z
-    .string()
-    .regex(/^[a-z0-9-]*$/u)
-    .catch("")
-    .default(""),
   externalUrl: z
     .string()
     .refine((s) => s === "" || z.url().safeParse(s).success)

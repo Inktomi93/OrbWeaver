@@ -13,7 +13,7 @@ import { expect, test } from "../../support/fixtures.ts";
 
 describe("themeBackgroundSchema", () => {
   test("an empty blob parses to the all-default no-image source (incl. provenanceUrl)", () => {
-    expect(themeBackgroundSchema.parse({})).toEqual({ kind: "none", seededId: "", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" });
+    expect(themeBackgroundSchema.parse({})).toEqual({ kind: "none", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" });
   });
 
   test("fault isolation: a garbage kind heals to none, a malformed externalUrl heals to ''", () => {
@@ -36,7 +36,6 @@ describe("themeBackgroundSchema", () => {
 describe("canonicalBackgroundSource", () => {
   const assetSource: ThemeBackground = {
     kind: "asset",
-    seededId: "",
     externalUrl: "",
     assetId: "asset_keep",
     assetHash: "hash_keep",
@@ -49,7 +48,7 @@ describe("canonicalBackgroundSource", () => {
   });
 
   test("every NON-asset kind has assetId/assetHash/mime AND provenanceUrl forced empty (GC-smuggle + external-never-paints guard)", () => {
-    for (const kind of ["none", "seeded", "external"] as const) {
+    for (const kind of ["none", "external"] as const) {
       const smuggled: ThemeBackground = { ...assetSource, kind };
       const clean = canonicalBackgroundSource(smuggled);
       expect(clean.assetId).toBe("");

@@ -9,14 +9,48 @@
 // re-stamped; and the pack's own shape invariants (unique handles, greetings[0] never groupOnly).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { ThemeBackground } from "@orb/contracts/theme";
+import { canonicalBackgroundSource } from "@orb/contracts/theme";
+import type { Db } from "@orb/db";
+import { assets } from "@orb/db";
+import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterDetail, CharacterService } from "@orb/server/domain/character";
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedAsset, seedRawCharacter, seedUser } from "../_support.ts";
+
+/** The per-user plate resolver the composition root wires off `domain/settings`' scene-plate seeder. Faked
+ *  here as a pure slug→asset mapping: this suite is about the CARD DRESSING, not the CAS, and the real op's
+ *  own behaviour (lift the shipped bytes once, hand back a `kind:"asset"` ref) is pinned in
+ *  `tests/server/domain/settings/seeder/backgrounds.int.test.ts`. The ref goes through the SAME canonicalizer
+ *  the real one uses, so what lands here is the persisted shape. */
+function fakePlateResolver(db: Db, ownerId: UserId): (principal: Principal, slug: string) => Promise<ThemeBackground> {
+  return async (_principal, slug): Promise<ThemeBackground> => {
+    // It really SEEDS an owned asset row: the card update path's own belt (`ensureBackgroundOverrideOwned`)
+    // refuses a carried `assetId` the caller does not own, so a resolver handing back a bare ref would be
+    // testing a shape the product cannot persist. IDEMPOTENT, like the CAS it stands in for — a plate asked
+    // for twice (a resumed seed, a pack migration) resolves the same row rather than colliding on its PK.
+    const id = `asset_plate_${slug.replaceAll("-", "_")}`;
+    const existing = await db
+      .select({ id: assets.id })
+      .from(assets)
+      .where(eq(assets.id, castId<AssetId>(id)))
+      .limit(1);
+    const assetId = existing[0]?.id ?? (await seedAsset(db, { id, ownerId, hash: `hash_plate_${slug}` }));
+    return canonicalBackgroundSource({
+      kind: "asset",
+      assetId,
+      assetHash: `hash_plate_${slug}`,
+      mime: "image/jpeg",
+      externalUrl: "",
+      provenanceUrl: "",
+    });
+  };
+}
 
 const ALL_HANDLES = DEFAULT_CHARACTER_CARDS.map((c) => c.input.handle);
 const ASSISTANT_CARD = DEFAULT_CHARACTER_CARDS.find((c) => c.input.handle === WELCOME_ASSISTANT_HANDLE);
@@ -196,17 +230,18 @@ describe("createDefaultCharacterSeeder", () => {
     expect(latch.marks).toHaveLength(0); // latch NOT set — the next touch retries
   });
 
-  test("each freshly-created card is stamped with its authored presentation (theme + seeded background)", async () => {
+  test("each freshly-created card is stamped with its authored presentation (theme + its own scene plate)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
     const seeder = createDefaultCharacterSeeder({
       characters: svc,
       attachCardTag: noopAttach,
+      resolveSeededBackground: fakePlateResolver(db, owner),
       ...latch,
     });
-    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
 
     await seeder.ensureSeeded(actor);
 
@@ -218,9 +253,10 @@ describe("createDefaultCharacterSeeder", () => {
     );
     for (const { card, detail } of seeded) {
       expect(detail.themeOverride, `${card.input.handle} themeOverride`).toEqual(card.presentation.themeOverride);
-      // The carried background is this card's own seeded catalog slug — kind + slug are what paint.
-      expect(detail.backgroundOverride?.kind, `${card.input.handle} background kind`).toBe("seeded");
-      expect(detail.backgroundOverride?.seededId, `${card.input.handle} background slug`).toBe(`${card.input.handle}-bg`);
+      // The carried background is this card's own scene plate, resolved into an OWNED asset for this user
+      // (the `kind:"seeded"` catalog retired 2026-09-18) — kind + hash are what paint.
+      expect(detail.backgroundOverride?.kind, `${card.input.handle} background kind`).toBe("asset");
+      expect(detail.backgroundOverride?.assetHash, `${card.input.handle} background plate`).toBe(`hash_plate_${card.input.handle}-bg`);
     }
   });
 
@@ -272,7 +308,7 @@ describe("createDefaultCharacterSeeder", () => {
         return svc.update(params);
       },
     };
-    const deps = { characters: flaky, attachCardTag: noopAttach, ...latch };
+    const deps = { characters: flaky, attachCardTag: noopAttach, resolveSeededBackground: fakePlateResolver(db, owner), ...latch };
 
     await createDefaultCharacterSeeder(deps).ensureSeeded(actor);
     expect(latch.marks).toHaveLength(0);
@@ -287,7 +323,7 @@ describe("createDefaultCharacterSeeder", () => {
 
     const detail = await svc.get({ principal: actor, characterId: half?.characterId ?? MISSING_ID });
     expect(detail.themeOverride).toEqual(ASSISTANT_CARD?.presentation.themeOverride);
-    expect(detail.backgroundOverride?.seededId).toBe(`${WELCOME_ASSISTANT_HANDLE}-bg`);
+    expect(detail.backgroundOverride?.assetHash).toBe(`hash_plate_${WELCOME_ASSISTANT_HANDLE}-bg`);
     expect(latch.marks).toHaveLength(1);
   });
 

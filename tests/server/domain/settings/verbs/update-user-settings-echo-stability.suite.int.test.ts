@@ -198,7 +198,7 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
     const p = principal(await seedUser(db, { id: "user_idem" }), "user");
     await h.svc.updateUserSettingsSection({
       principal: p,
-      input: { section: "appearance", patch: { ...DEFAULT_APPEARANCE_SETTINGS, backgroundImageKind: "seeded" as const, backgroundSeededId: "sunset" } },
+      input: { section: "appearance", patch: { ...DEFAULT_APPEARANCE_SETTINGS, backgroundImageKind: "none" as const } },
     });
     const row = await readRow(db, castId("user_idem"));
     let acc = parseUserSettings(row.config, row.schemaVersion);

@@ -64,7 +64,6 @@ describe("setRpgPointer", () => {
       metadata: {
         background: {
           kind: "asset",
-          seededId: "",
           externalUrl: "",
           assetId: missingAssetId,
           assetHash: "gone",

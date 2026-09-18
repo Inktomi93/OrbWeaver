@@ -13,13 +13,23 @@ export type {
 } from "./contract/params.ts";
 export type { ImportedAppearance, ImportedAppearanceOutcome, SettingsImportOutcome, SettingsPortableFile } from "./contract/portability.ts";
 export type {
+  DefaultBackgroundSeeder,
+  DefaultBackgroundSeederDeps,
+  SeedBackgroundPlateRef,
+  SeededLibraryEntry,
+  SeededPlateAsset,
+  SeededSlugResolver,
+} from "./contract/seeder.ts";
+export type {
   SettingsContext,
   SettingsService,
   SettingsServiceDeps,
 } from "./contract/service.ts";
 export type { GlobalSettingView, ThemeView, UserSettingsView } from "./contract/views.ts";
 export { healLegacyBackgroundPins } from "./persistence/heal-legacy-background-pins.ts";
+export { migrateSeededBackgroundPicks } from "./persistence/migrate-seeded-background-picks.ts";
 export { ensureSeedThemes } from "./seed-themes.ts";
+export { createDefaultBackgroundSeeder } from "./seeder/backgrounds.ts";
 export { createSettingsService } from "./service.ts";
 export { createApplyImportedAppearance } from "./verbs/apply-imported-appearance.ts";
 export { createExportTheme } from "./verbs/export-theme.ts";

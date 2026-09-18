@@ -6,8 +6,11 @@
 // boundary stays with the caller).
 //
 // REBUILT ON THE LOOKS GRAMMAR (#866 S4, owner R-BG addendum — the kind Select + name Selects were a
-// seen-not-read shoehorn): ONE thumbnail grid — a None tile · the seeded plates · the viewer's own
-// `backgroundLibrary` entries — where the KIND derives from the tapped tile and is never a control. The
+// seen-not-read shoehorn): ONE thumbnail grid — a None tile · the viewer's own `backgroundLibrary`
+// entries — where the KIND derives from the tapped tile and is never a control. The bundled scene plates
+// used to be a SECOND tile family here, drawn from a static `kind:"seeded"` catalog; they are now seeded
+// into the library itself (`@orb/default-content`), so the grid has ONE image population again and a
+// shipped plate can be renamed and removed exactly like an upload. The
 // grid is the house `MediaGrid` cell family (selected wears the aria-selected ring). NO upload/manage
 // here: the Add affordance is the LINK to Settings → Appearance → Background (the existing "points users
 // here to add one" contract). The external-URL arm keeps its DISCRETE draft → Apply commit (F-P0-2: the
@@ -30,7 +33,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryErrorState, useTRPC } from "#data";
-import { listSeededBackgrounds } from "#lib";
 import { openConfigTo } from "#state";
 import { QueryBoundary } from "./query-boundary.tsx";
 
@@ -41,7 +43,6 @@ const EMPTY_BACKGROUND: ThemeBackground = themeBackgroundSchema.parse({});
 
 const THUMB_WIDTH = 96;
 const NONE_TILE_ID = "none";
-const SEEDED_PREFIX = "seeded:";
 const ASSET_PREFIX = "asset:";
 
 interface BackgroundTile extends MediaGridItem {
@@ -67,9 +68,6 @@ export interface BackgroundSourceFieldProps {
 function currentTileId(current: ThemeBackground): string | null {
   if (current.kind === "none") {
     return NONE_TILE_ID;
-  }
-  if (current.kind === "seeded") {
-    return `${SEEDED_PREFIX}${current.seededId}`;
   }
   if (current.kind === "asset") {
     return `${ASSET_PREFIX}${current.assetId}`;
@@ -138,7 +136,7 @@ interface BackgroundTileGridProps {
   readonly onPick: ((patch: Partial<ThemeBackground>) => void) | null;
 }
 
-/** The ONE tile population: None · the seeded plates · the viewer's own library (BG-D). */
+/** The ONE tile population: None · the viewer's own library (BG-D), which now carries the seeded plates. */
 function BackgroundTileGrid({ current, onPick }: BackgroundTileGridProps): ReactElement {
   const trpc = useTRPC();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -146,9 +144,6 @@ function BackgroundTileGrid({ current, onPick }: BackgroundTileGridProps): React
 
   const tiles: readonly BackgroundTile[] = [
     { id: NONE_TILE_ID, alt: "No background", pick: { ...EMPTY_BACKGROUND, kind: "none" } },
-    ...listSeededBackgrounds().map(
-      (bg): BackgroundTile => ({ id: `${SEEDED_PREFIX}${bg.id}`, alt: bg.label, url: bg.url, pick: { ...EMPTY_BACKGROUND, kind: "seeded", seededId: bg.id } }),
-    ),
     ...library.map(
       (entry): BackgroundTile => ({
         id: `${ASSET_PREFIX}${entry.assetId}`,

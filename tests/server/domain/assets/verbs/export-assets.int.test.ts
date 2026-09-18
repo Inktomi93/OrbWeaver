@@ -65,7 +65,7 @@ async function seedBackgroundSettings(db: Db, owner: UserId, pickedId: AssetId, 
 async function setCharacterBackground(db: Db, characterId: CharacterId, assetId: AssetId): Promise<void> {
   await db
     .update(characters)
-    .set({ backgroundOverride: { kind: "asset", seededId: "", externalUrl: "", assetId, assetHash: "", mime: PNG, provenanceUrl: "" } })
+    .set({ backgroundOverride: { kind: "asset", externalUrl: "", assetId, assetHash: "", mime: PNG, provenanceUrl: "" } })
     .where(eq(characters.id, characterId));
 }
 

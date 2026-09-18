@@ -20,12 +20,13 @@
 // the pins are what keep the next hand-edit from quietly minting a row the server cannot.
 
 import { AUTHORED_CARD_CREATOR, characterProvenanceOf, createCharacterSchema } from "@orb/contracts/character";
-import { CARD_EMBEDDABLE_THEME_KEYS, canonicalBackgroundSource, listSeededBackgrounds, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
+import { CARD_EMBEDDABLE_THEME_KEYS, themeOverrideSchema } from "@orb/contracts/theme";
+import { SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-const CATALOG_IDS = new Set(listSeededBackgrounds().map((b) => b.id));
+const SHIPPED_PLATE_SLUGS = new Set(SEED_BACKGROUND_PLATES.map((plate) => plate.slug));
 const EMBEDDABLE = new Set<string>(CARD_EMBEDDABLE_THEME_KEYS);
 
 // Every palette field a card is expected to author. The pack's palettes used to be pinned byte-equal to the
@@ -72,20 +73,16 @@ describe("DEFAULT_CHARACTER_CARDS — the authored pack parses at the write boun
       // ROUND-TRIP still carries every authored value (a dropped colour would be a silent palette hole).
       expect(theme.success ? theme.data : null, `${handle} themeOverride survives the clamp`).toEqual(card.presentation.themeOverride);
 
-      const background = themeBackgroundSchema.safeParse(card.presentation.backgroundOverride);
-      expect(background.success, `${handle} backgroundOverride`).toBe(true);
-      expect(background.success ? background.data.kind : null, `${handle} background kind`).toBe("seeded");
-      const slug = background.success ? background.data.seededId : "";
-      expect(slug, `${handle} background slug`).toBe(`${handle}-bg`);
-      expect(CATALOG_IDS.has(slug), `${slug} exists in listSeededBackgrounds()`).toBe(true);
-
-      // #900 — the pack ships the PERSISTED shape, not a hand-typed lookalike. The parse drops nothing
-      // (a field the schema healed away would be a value the pack claims and never stores), and the write
-      // boundary's own canonicalizer is a no-op on it: a `seeded` blob carrying an assetId would be
-      // reshaped here, which is the GC-root smuggle the canonicalizer exists to close.
-      const parsed = background.success ? background.data : null;
-      expect(parsed, `${handle} backgroundOverride survives the parse`).toEqual(card.presentation.backgroundOverride);
-      expect(parsed === null ? null : canonicalBackgroundSource(parsed), `${handle} backgroundOverride is canonical`).toEqual(parsed);
+      // #900, RESTATED FOR OWNED PLATES (2026-09-18). The pack used to spell a whole `kind:"seeded"`
+      // background here and this pin compared it against the static catalog. A plate is an OWNED asset now,
+      // minted per user, so the pack CANNOT name the reference — only which plate — and the derivation the
+      // pin protects is `<handle>-bg`. The reference itself is built by the seeder through
+      // `canonicalBackgroundSource`, which is where the GC-smuggle guard moved with it.
+      expect(card.backgroundSlug, `${handle} background slug`).toBe(`${handle}-bg`);
+      expect(SHIPPED_PLATE_SLUGS.has(card.backgroundSlug ?? ""), `${handle}-bg is a plate @orb/default-content ships`).toBe(true);
+      // The pack must NOT carry a background of its own: a hand-typed one would be a per-install asset
+      // reference the pack has no way to own, which is exactly the shape this retirement removed.
+      expect(Object.hasOwn(card.presentation, "backgroundOverride"), `${handle} presentation carries no background`).toBe(false);
     });
 
     test(`${handle}: authors a COMPLETE palette, and only card-embeddable keys`, () => {

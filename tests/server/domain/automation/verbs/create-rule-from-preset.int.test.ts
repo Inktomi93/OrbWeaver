@@ -909,7 +909,10 @@ function needleReply(score: number): string {
 
 /** Seed the author's background library and the pick that matches it. */
 function armBackdrop(f: Fixture): ThemeBackground {
-  const background = themeBackgroundSchema.parse({ kind: "seeded", seededId: "storm" });
+  // An OWNED library background — the only paintable candidate shape since `kind:"seeded"` retired
+  // (2026-09-18). The `/autobg` candidate set IS the author's `appearance.backgroundLibrary`, so a candidate
+  // a fixture builds is an `asset` ref, exactly like one the real compose seam projects.
+  const background = themeBackgroundSchema.parse({ kind: "asset", assetId: "asset_storm", assetHash: "hash_storm", mime: "image/jpeg" });
   f.setBackgroundChoices([{ name: STORM_BACKDROP, background }]);
   f.setAutobgReply(STORM_BACKDROP);
   return background;
