@@ -7,6 +7,8 @@
 // CRUD trio LEFT that list with #1627) and stays open in multi-user mode; and the errorFormatter's
 // PROD-LEAK belt keeps `stack` off the wire shape in EVERY env.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInviteId, UserId } from "@orb/kit/ids";

@@ -12,7 +12,7 @@ import { readAutomationFires } from "./agent-plugin-bridge.ts";
 import { appReady, isAppReady } from "./app-ready-signal.ts";
 import { enableAppearanceMessageRegistry } from "./appearance-message-registry.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
-import { __resetBusEventRing, busEventRing, busLiveCount } from "./bus-devlog.ts";
+import { __resetBusDupBursts, __resetBusEventRing, busEventRing, busLiveCount } from "./bus-devlog.ts";
 import { __resetConsoleErrors, consoleErrorRing, installConsoleErrorRing } from "./console-error-ring.ts";
 import { __resetLongTaskEvidence } from "./long-task-tracer.ts";
 import type { AnimationRecord } from "./motion-animation-record.ts";
@@ -281,7 +281,12 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     consoleErrors: consoleErrorRing().records.length,
   });
   const resetters = {
-    "bus-events": __resetBusEventRing,
+    // The ring AND the duplicate-invalidate burst windows: a window left half-counted across a checkpoint
+    // would charge pre-reset waves to the measurement taken after it.
+    "bus-events": (): void => {
+      __resetBusEventRing();
+      __resetBusDupBursts();
+    },
     flags: __resetMotionFlags,
     motion: (): void => {
       __resetLongTaskEvidence();

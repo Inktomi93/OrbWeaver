@@ -29,6 +29,11 @@
 // dynamic-imported INSIDE the fixture bodies: fixture laziness defers construction, but only a dynamic
 // import defers the module graph, and a kit/ui/client unit test must not pay (or crash on) the server
 // env parse. Server/db types ride in `import type` (erased).
+//
+// THE COST OF THAT LAZINESS IS CHARGED TO THE FIRST TEST THAT USES THE FIXTURE (vitest counts fixture
+// setup inside `testTimeout`), and the server graph is seconds — so a COMPOSED-REAL file states the load
+// once, in its own import list, with `import "…/support/composed-real.ts";` (#2386). That module owns the
+// measurement, the rejected alternatives, and the list of graphs to keep in sync with the fixtures below.
 
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

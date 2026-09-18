@@ -59,6 +59,24 @@ export function __resetBusEventRing(): void {
   busEventLog.length = 0;
 }
 
+/** Drop every open duplicate-invalidate burst window.
+ *
+ *  THE ALARM BELOW IS A CLAIM ABOUT ONE APP TIMELINE — "this key was invalidated 3× inside 250ms, so the
+ *  same read is being refetched by a doubled delivery or by a mutation re-invalidating a bus-covered key".
+ *  The window is wall-clock and the burst map is module state, so it is only honest while every wave it
+ *  counts came from the SAME stream of events. A caller that drives unrelated waves back to back breaks
+ *  that premise and the alarm reports a storm nobody can have: `tests/client/data/invalidation.test.ts`
+ *  drives fifteen independent scenarios through one module registry in ~3ms and printed ~39 warnings (its
+ *  own `collapse` pins prove each wave spends one invalidate per distinct root), and a `__orb.reset` taken
+ *  mid-burst would attribute pre-checkpoint waves to the window after it.
+ *
+ *  So this is the seam for BOTH: a test resets between scenarios, and the `bus-events` checkpoint reset
+ *  clears the window with the ring. It never changes the alarm's model — a genuine 3× burst inside one
+ *  window still fires (`tests/client/lib/bus-devlog.test.ts` arms both directions). */
+export function __resetBusDupBursts(): void {
+  invalidateBursts.clear();
+}
+
 /** The live subscription count (a value climbing past 1 for one open chat = a double-subscription). */
 export function busLiveCount(): number {
   return liveSubscriptions;

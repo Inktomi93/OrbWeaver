@@ -14,6 +14,8 @@
 // `seedDefaultPersona`) and every user's first authed request (`app.ts` → `seedUserCharacters`) — and the
 // force must gate BOTH, or the deployment owner is the one user who never gets asked.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

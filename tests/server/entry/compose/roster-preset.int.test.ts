@@ -5,6 +5,8 @@
 // actual setGroupConfig parse-and-persist, and chat's actual requireHost refusal — so a stubbed or
 // mis-mapped compose op cannot pass on fakes alone.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import { chatParticipants } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";

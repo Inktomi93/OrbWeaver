@@ -6,6 +6,8 @@
 // byte-identically, the rows land, the character↔chat seating + gallery handle re-link) AND a re-import is
 // idempotent (zero dupes). This is the machine-checked proof the bundle is self-contained.
 
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import "../../../support/composed-real.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
