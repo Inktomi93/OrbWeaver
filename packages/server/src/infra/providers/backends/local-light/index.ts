@@ -16,8 +16,17 @@ import { createLocalLightRerank } from "./rerank.ts";
 export { DEFAULT_EMBED_MODEL } from "./embed.ts";
 export { DEFAULT_IMAGE_EMBED_MODEL } from "./image-embed.ts";
 export { createLocalLightMatte, DEFAULT_MATTE_MODEL } from "./matte.ts";
-export type { LocalLightModelCache, ModelCacheConfig } from "./model-cache.ts";
-export { createModelCache } from "./model-cache.ts";
+export type { LocalLightLoadProgress, LocalLightModelCache, LocalLightModelSlot, ModelCacheConfig } from "./model-cache.ts";
+export { createModelCache, LOCAL_LIGHT_MODEL_SLOTS } from "./model-cache.ts";
+export type { LocalLightPrefetchDeps, LocalLightPrefetchHandle, LocalLightPrefetchRecord, LocalLightPrefetchTarget } from "./prefetch.ts";
+export {
+  __resetLocalLightPrefetchForTest,
+  allLocalLightPrefetchStatuses,
+  createLocalLightPrefetch,
+  LOCAL_LIGHT_PREFETCH_STATUSES,
+  LOCAL_LIGHT_STATUS_PREFIX,
+  recordLocalLightLoadProgress,
+} from "./prefetch.ts";
 export { DEFAULT_RERANK_MODEL } from "./rerank.ts";
 
 /** Deps for the local-light backend. Extends the model-cache runtime knobs (device/dtype/cacheDir/

@@ -29,6 +29,7 @@ function fakeCache(record: { query?: string; docs?: readonly string[] }): LocalL
     embedImages: (): Promise<Float32Array[]> => Promise.resolve([]),
     embedClipTexts: (): Promise<Float32Array[]> => Promise.resolve([]),
     removeBackground: (): Promise<Uint8Array> => Promise.resolve(new Uint8Array()),
+    preload: (): Promise<void> => Promise.resolve(),
   };
 }
 
@@ -100,6 +101,7 @@ describe("createLocalLightRerank", () => {
       embedImages: (): Promise<Float32Array[]> => Promise.resolve([]),
       embedClipTexts: (): Promise<Float32Array[]> => Promise.resolve([]),
       removeBackground: (): Promise<Uint8Array> => Promise.resolve(new Uint8Array()),
+      preload: (): Promise<void> => Promise.resolve(),
     };
     const res = await rerankOf(cache)({
       credential: CRED,

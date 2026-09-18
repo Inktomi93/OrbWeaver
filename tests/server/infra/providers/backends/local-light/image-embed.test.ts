@@ -37,6 +37,7 @@ function fakeCache(record: { imageCount?: number; textCount?: number }): LocalLi
       return Promise.resolve(texts.map(() => Float32Array.from([0, 6, 8])));
     },
     removeBackground: (): Promise<Uint8Array> => Promise.resolve(new Uint8Array()),
+    preload: (): Promise<void> => Promise.resolve(),
   };
 }
 
@@ -82,6 +83,7 @@ describe("createLocalLightImageEmbed", () => {
       embedClipTexts: (_modelId, texts): Promise<Float32Array[]> =>
         Promise.resolve(texts.map(() => Float32Array.from({ length: VECTOR_DIM }, (_v, i) => VECTOR_DIM - i))),
       removeBackground: (): Promise<Uint8Array> => Promise.resolve(new Uint8Array()),
+      preload: (): Promise<void> => Promise.resolve(),
     };
     const embed = imageEmbedOf(cache);
 

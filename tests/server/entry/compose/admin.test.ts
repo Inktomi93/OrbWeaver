@@ -57,6 +57,10 @@ interface Fakes {
   readonly status: ReturnType<typeof vi.fn>;
   readonly deployment: ReturnType<typeof vi.fn>;
   readonly restart: ReturnType<typeof vi.fn>;
+  /** The in-process local-light warm-up handle: its rows ride the SAME engine read, and its `retry` is what
+   *  a Restart on one of those rows means. */
+  readonly localLightStatus: ReturnType<typeof vi.fn>;
+  readonly localLightRetry: ReturnType<typeof vi.fn>;
   /** The MUTABLE active embed-model tag — the thunk must read it per call, not at compose. */
   embedModel: string;
 }
@@ -77,6 +81,8 @@ function fakes(): Fakes {
     status: vi.fn(() => ({})),
     deployment: vi.fn(() => ({})),
     restart: vi.fn(() => Promise.resolve("restarted")),
+    localLightStatus: vi.fn(() => ({})),
+    localLightRetry: vi.fn(() => Promise.resolve("retrying")),
     embedModel: "model-v1",
   };
 }
@@ -102,6 +108,7 @@ function build(f: Fakes, withEngine = true): ReturnType<typeof buildAdmin> {
     },
     sockets: { evictUser: f.evictUser, evictSession: f.evictSession },
     vllmEngine: engine,
+    localLightPrefetch: { start, status: f.localLightStatus, retry: f.localLightRetry },
     character: { getCard: f.getCard, loadCardText: f.loadCardText },
     embeddings: { store: f.store },
     embedModel: () => f.embedModel,
@@ -208,6 +215,39 @@ describe("buildAdmin — the vLLM read-model merges status with DEPLOYMENT facts
     expect(await build(f).admin.vllmEngines({ principal: ADMIN })).toStrictEqual({
       ghost: { status: "down", detail: "gone", updatedAt: 5, port: 0, storePath: "" },
     });
+  });
+
+  test("the IN-PROCESS local-light rows ride the same read even with NO vLLM supervisor (the GPU-less box)", async () => {
+    const f = fakes();
+    f.localLightStatus.mockReturnValue({ "local-light:embed": { status: "downloading", detail: "downloading jina — 12%", updatedAt: 7 } });
+
+    const rows = await build(f, false).admin.vllmEngines({ principal: ADMIN });
+
+    // port 0 — nothing listens, the tier is in this process; the store path is the weights cache.
+    expect(rows["local-light:embed"]).toMatchObject({ status: "downloading", detail: "downloading jina — 12%", updatedAt: 7, port: 0 });
+    expect(rows["local-light:embed"]?.storePath).toContain("models");
+  });
+
+  test("a namespaced local-light key never collides with the vLLM engine of the same role", async () => {
+    const f = fakes();
+    f.status.mockReturnValue({ embed: { status: "owned", detail: "", updatedAt: 5 } });
+    f.deployment.mockReturnValue({ embed: { port: 8002, storePath: "/models" } });
+    f.localLightStatus.mockReturnValue({ "local-light:embed": { status: "ready", detail: "jina ready", updatedAt: 6 } });
+
+    const rows = await build(f).admin.vllmEngines({ principal: ADMIN });
+
+    expect(rows["embed"]).toMatchObject({ status: "owned", port: 8002 });
+    expect(rows["local-light:embed"]).toMatchObject({ status: "ready", port: 0 });
+  });
+
+  test("Restart on a local-light row RE-ATTEMPTS its download instead of answering about a supervisor", async () => {
+    const f = fakes();
+    const { admin } = build(f, false);
+
+    expect(await admin.restartVllmEngine({ principal: ADMIN, engine: "local-light:embed" })).toBe("retrying");
+    expect(f.localLightRetry).toHaveBeenCalledWith("local-light:embed");
+    // The vLLM handle is not consulted for a local-light key (here there is not even one).
+    expect(f.restart).not.toHaveBeenCalled();
   });
 
   test("a non-admin cannot read the engine panel or restart an engine", async () => {

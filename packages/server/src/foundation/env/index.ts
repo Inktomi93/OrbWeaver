@@ -337,6 +337,12 @@ const envSchema = z
     // fails and local-light is dead for exactly the audience it exists for, and (b) on bare metal puts
     // multi-GB weights inside node_modules, where every `pnpm install` throws them away.
     LOCAL_LIGHT_CACHE_DIR: z.string().min(1).default("./data/models/transformers"),
+    // Warm the local-light weights in the BACKGROUND just after the listener binds, instead of paying the
+    // whole download on the first search/import/avatar. ON by default: the stranger who clones this repo and
+    // runs it is exactly the person who would otherwise meet a several-minute stall with no explanation. Set
+    // `off` on a metered/air-gapped box, or when the operator wants nothing fetched until something needs it
+    // — the lazy path is unchanged either way, so `off` costs nothing but the first-use wait.
+    LOCAL_LIGHT_PREFETCH: z.enum(["on", "off"]).default("on"),
     // The controlled root the bundle-import extractor stages its per-upload dir under (a portability zip
     // decompresses to disk, not RAM). Unset ⇒ the app-owned `DEFAULT_IMPORT_STAGING_DIR`
     // (`domain/import/substrate/staging.ts`), deliberately NOT the OS temp dir: a shared world-listable

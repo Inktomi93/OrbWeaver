@@ -90,7 +90,7 @@ import { createSecretBox } from "#infra/crypto";
 import { createExtractText } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
 import { fetchOpenAiModels, probeOpenAiEndpoint } from "#infra/network";
-import type { BackendRegistryDeps, EngineStatusRecord, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
+import type { BackendRegistryDeps, EngineStatusRecord, LocalLightPrefetchHandle, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
 import {
   createBackendRegistry,
   createProviderDiagnostics,
@@ -270,6 +270,10 @@ export interface ServicesResult {
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
   readonly vllmEngine: VllmEngineHandle | null;
+  /** The local-light BOOT WARM-UP handle (`infra/providers/backends/local-light/prefetch.ts`) — always
+   *  present (the in-process tier is unconditionally registered) and silent until `lifecycle.ts` hands it a
+   *  plan after the listener binds. */
+  readonly localLightPrefetch: LocalLightPrefetchHandle;
   /** The default-card seeder — the one instance both boot and the app first-request hook share, so the
    *  in-process memo + persisted latch hold across both call sites. */
   readonly characterSeeder: DefaultCharacterSeeder;
@@ -679,6 +683,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // built above in this same function (transport state, entry-owned clock), so the port wires here.
     sockets: { evictSession: (sessionId) => sockets.evictSession(sessionId), evictUser: (userId) => sockets.evictUser(userId) },
     vllmEngine: registry.vllmEngine,
+    localLightPrefetch: registry.localLightPrefetch,
     character,
     embeddings,
     embedModel: () => roleClients.embedModel,
@@ -1255,6 +1260,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     effectiveConfig,
     secretBox,
     vllmEngine: registry.vllmEngine,
+    localLightPrefetch: registry.localLightPrefetch,
     characterSeeder,
     personaSeeder,
     demoChatSeeder,

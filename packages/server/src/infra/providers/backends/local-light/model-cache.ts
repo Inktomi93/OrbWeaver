@@ -39,6 +39,50 @@ const DEFAULT_DEVICE: DeviceType = "auto";
 const CPU_DEVICE: DeviceType = "cpu";
 const DEFAULT_DTYPE: DataType = "fp32";
 
+/** The MODEL SLOTS this cache loads, in PREFETCH ORDER — smallest weights first. One home for both the slot
+ *  vocabulary and the order the boot prefetch walks it in: `rerank` (~92 MB ms-marco-MiniLM) lands in
+ *  seconds, `embed` (~3.5 GB fp32 jina-clip-v2, the one a user FEELS — search/import stall on it) next, and
+ *  `matte` (~176 MB RMBG-1.4) last because only a deliberate avatar/expression action reaches it.
+ *
+ *  A slot is a PAIR of memos, not a model file: `embed` is the processor + the joint encoder, `rerank` the
+ *  tokenizer + the sequence classifier. `preload` warms exactly what the matching inference method leases,
+ *  which is what makes a request arriving mid-download join that download instead of starting a second. */
+export const LOCAL_LIGHT_MODEL_SLOTS = ["rerank", "embed", "matte"] as const;
+// @orb-waive no-inline-types(LocalLightModelSlot): DERIVED from the tuple one line above, which is this vocabulary's one home — re-homing the alias to `@orb/contracts` would separate them and publish an INFRA-SEALED word (which transformers.js memo pair to warm) to every package below the cake, the same seal `runner`/`family` keep (Tier-3b-Providers.md). Ends if a model slot ever crosses the providers boundary as wire or persisted data.
+export type LocalLightModelSlot = (typeof LOCAL_LIGHT_MODEL_SLOTS)[number];
+
+/** A model-level download progress tick, normalized off transformers.js's `progress_total` event (the ONLY
+ *  event that aggregates across a repo's files — the per-file `progress` arm cannot say how far the MODEL
+ *  is). `total` is 0 when the hub served no content-length, which is why the status line falls back to
+ *  phase-level text rather than rendering a percentage of nothing. */
+export interface LocalLightLoadProgress {
+  /** The HuggingFace repo id being fetched (transformers.js's `name`). */
+  readonly modelId: string;
+  readonly loaded: number;
+  readonly total: number;
+}
+
+/** What transformers.js hands a `progress_callback`, narrowed to the fields we read. Declared structurally
+ *  (not imported) because the lib's `ProgressInfo` union is a JSDoc typedef whose arms disagree on which
+ *  fields exist; every arm is assignable to this. */
+interface TransformersProgressInfo {
+  readonly status: string;
+  readonly name?: string | undefined;
+  readonly loaded?: number | undefined;
+  readonly total?: number | undefined;
+}
+
+// The lib emits `progress_total` only while bytes are actually moving; a cache hit emits initiate/done with
+// no totals. Anything else is dropped rather than published as a zero-byte "download".
+function toLoadProgress(info: TransformersProgressInfo): LocalLightLoadProgress | null {
+  if (info.status !== "progress_total" || info.name === undefined) {
+    return null;
+  }
+  const loaded = Number.isFinite(info.loaded) ? Math.max(0, info.loaded ?? 0) : 0;
+  const total = Number.isFinite(info.total) ? Math.max(0, info.total ?? 0) : 0;
+  return { modelId: info.name, loaded, total };
+}
+
 /** The inference seam the role files depend on. Each method returns clean numeric data (no transformers
  *  Tensor leaks) — raw un-normalized Float32Arrays; role files own L2-normalization and MRL truncation. */
 export interface LocalLightModelCache {
@@ -56,6 +100,13 @@ export interface LocalLightModelCache {
    *  model-id/abort wrapper, mirroring the rerank/embed split. */
   // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   readonly removeBackground: (modelId: string, image: ImageInput) => Promise<Uint8Array>;
+  /** Warm a slot's memos WITHOUT running inference — the boot prefetch's whole surface (`prefetch.ts`).
+   *  Deliberately goes through the SAME memos the inference methods lease, so the single-flight is the
+   *  memo's and a request that arrives mid-download awaits the in-flight load rather than starting a
+   *  second one. Resolves when the weights are loaded; rejects exactly as a first inference call would
+   *  (the memo evicts a rejected entry, so the lazy path stays intact after a failed prefetch). */
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+  readonly preload: (slot: LocalLightModelSlot, modelId: string) => Promise<void>;
 }
 
 export interface ModelCacheConfig {
@@ -70,6 +121,12 @@ export interface ModelCacheConfig {
    *  every composed graph; only a hand-built backend (a test that never downloads) omits it. */
   readonly cacheDir?: string | undefined;
   readonly allowRemoteModels?: boolean | undefined;
+  /** Model-level download progress sink, threaded into EVERY `from_pretrained`/`pipeline` call this cache
+   *  makes. Present ⇒ the boot prefetch's status surface can say "42% of 3.5 GB"; absent ⇒ the lib's
+   *  callback is never installed and a load costs exactly what it did before. It fires for a LAZY load too
+   *  (a user request that beat the prefetch), which is what keeps the status honest about who is
+   *  downloading. */
+  readonly onProgress?: ((progress: LocalLightLoadProgress) => void) | undefined;
 }
 
 export function resolveModelId(requested: string, fallback: string): string {
@@ -313,10 +370,25 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
     return mod;
   };
 
+  // The lib's own option object, built ONCE: `progress_callback` is omitted entirely when compose injected
+  // no sink, so a cache with no status surface installs no callback at all.
+  const { onProgress } = config;
+  const loadOpts =
+    onProgress === undefined
+      ? {}
+      : {
+          progress_callback: (info: TransformersProgressInfo): void => {
+            const progress = toLoadProgress(info);
+            if (progress !== null) {
+              onProgress(progress);
+            }
+          },
+        };
+
   const jinaEmbedder = createMemo(
     async (id) => {
       const { AutoModel } = await transformers();
-      return await loadWithCpuFallback(device, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype }));
+      return await loadWithCpuFallback(device, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype, ...loadOpts }));
     },
     (m) => {
       superviseDetached(`local-light:dispose:jina:${randomUUID()}`, "local-light.model.dispose", { modelKind: "jina" }, () => m.dispose());
@@ -325,7 +397,7 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
   const reranker = createMemo(
     async (id) => {
       const { AutoModelForSequenceClassification } = await transformers();
-      return await loadWithCpuFallback(device, (dev) => AutoModelForSequenceClassification.from_pretrained(id, { device: dev, dtype }));
+      return await loadWithCpuFallback(device, (dev) => AutoModelForSequenceClassification.from_pretrained(id, { device: dev, dtype, ...loadOpts }));
     },
     (m) => {
       superviseDetached(`local-light:dispose:reranker:${randomUUID()}`, "local-light.model.dispose", { modelKind: "reranker" }, () => m.dispose());
@@ -334,14 +406,14 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
   const tokenizer = createMemo(
     async (id) => {
       const { AutoTokenizer } = await transformers();
-      return await AutoTokenizer.from_pretrained(id);
+      return await AutoTokenizer.from_pretrained(id, loadOpts);
     },
     () => undefined,
   );
   const processor = createMemo(
     async (id) => {
       const { AutoProcessor } = await transformers();
-      return await AutoProcessor.from_pretrained(id);
+      return await AutoProcessor.from_pretrained(id, loadOpts);
     },
     () => undefined,
   );
@@ -350,7 +422,7 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
   const bgRemover = createMemo(
     async (id) => {
       const { pipeline } = await transformers();
-      return await loadWithCpuFallback(device, (dev) => pipeline("background-removal", id, { device: dev, dtype }));
+      return await loadWithCpuFallback(device, (dev) => pipeline("background-removal", id, { device: dev, dtype, ...loadOpts }));
     },
     (p) => {
       superviseDetached(`local-light:dispose:background-removal:${randomUUID()}`, "local-light.model.dispose", { modelKind: "background-removal" }, () =>
@@ -370,7 +442,19 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
       }),
     );
 
+  // Slot → the memos that slot's inference path leases. Exhaustive over LOCAL_LIGHT_MODEL_SLOTS by the
+  // mapped type, so a new slot cannot be added without deciding what warming it means.
+  const SLOT_LOADERS: { readonly [K in LocalLightModelSlot]: (modelId: string) => Promise<unknown> } = {
+    rerank: (modelId) => Promise.all([tokenizer(modelId), reranker(modelId)]),
+    embed: (modelId) => Promise.all([processor(modelId), jinaEmbedder(modelId)]),
+    matte: (modelId) => bgRemover(modelId),
+  };
+
   return {
+    async preload(slot, modelId): Promise<void> {
+      await SLOT_LOADERS[slot](modelId);
+    },
+
     embedTexts(modelId, texts): Promise<Float32Array[]> {
       return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts);
     },
