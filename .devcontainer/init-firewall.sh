@@ -38,8 +38,9 @@ iptables -P FORWARD ACCEPT
 # First allow DNS and localhost before any restrictions
 # Allow outbound DNS
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-# Allow inbound DNS responses
-iptables -A INPUT -p udp --sport 53 -j ACCEPT
+# Allow inbound DNS responses (conntrack-gated: only packets that are replies to our
+# own outbound queries, not unsolicited inbound UDP spoofing source port 53)
+iptables -A INPUT -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
 # Allow outbound SSH
 iptables -A OUTPUT -p tcp --dport 22 -j ACCEPT
 # Allow inbound SSH responses
