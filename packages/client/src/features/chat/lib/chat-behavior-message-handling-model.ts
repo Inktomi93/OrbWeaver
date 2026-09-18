@@ -27,6 +27,11 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
   // "Chat &" half is the pane's own context anyway, so the nav row is unambiguous without it.
   navLabel: "Message handling",
   keywords: ["send", "continue", "keyboard", "temporary"],
+  teach: {
+    summary:
+      "Composer keyboard grammar (Enter to send), empty-send behavior, auto-continue rounds, swipe navigation, stopping strings and temporary chat retention.",
+    affects: ["the composer and message lifecycle in every chat, on this account"],
+  },
   settings: [
     {
       id: "enter-sends",

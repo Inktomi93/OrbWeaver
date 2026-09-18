@@ -10,6 +10,10 @@ export const APPEARANCE_READING_SUBCATEGORY: ConfigSubcategory = {
   id: "reading-typography",
   label: "Reading typography",
   keywords: ["text", "prose", "font"],
+  teach: {
+    summary: "Fine-grained control over how message text reads: line height, letter spacing, paragraph gaps, speaker-name sizing and message-body scaling.",
+    affects: ["message body and speaker-name text in every chat, on this account"],
+  },
   settings: [
     {
       id: "line-height",

@@ -23,6 +23,10 @@ export const CHAT_STREAMING_SUBCATEGORY: ConfigSubcategory = {
   id: "streaming",
   label: "Streaming",
   keywords: ["stream", "reveal", "typing"],
+  teach: {
+    summary: "How replies appear while they stream: scroll behavior, smooth reveal pacing and whether reasoning traces auto-collapse.",
+    affects: ["the streaming experience in every chat, on this account"],
+  },
   settings: [
     {
       id: "stream-follow",

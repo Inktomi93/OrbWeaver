@@ -8,6 +8,10 @@ export const ADMIN_LINK_SSO_SUBCATEGORY: ConfigSubcategory = {
   id: "link-sso",
   label: "Link SSO identity",
   keywords: ["sso", "oidc", "external id", "subject", "migrate", "mode switch", "link account", "orphan"],
+  teach: {
+    summary: "Attach an SSO identity to an existing local account so a mode switch keeps all its data without database surgery.",
+    affects: ["accounts migrating between local and SSO sign-in"],
+  },
   settings: [
     {
       id: "linkable-accounts",

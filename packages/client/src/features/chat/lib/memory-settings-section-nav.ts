@@ -8,4 +8,8 @@ export const MEMORY_SETTINGS_SUBCATEGORY: ConfigSubcategory = {
   id: "memory",
   label: "Memory",
   keywords: ["memory", "remember", "recall", "long", "digest", "history"],
+  teach: {
+    summary: "Per-chat memory: how the model recalls earlier conversation, digest depth and summarization behavior.",
+    affects: ["long-term recall quality and context usage in this chat"],
+  },
 };

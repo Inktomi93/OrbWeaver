@@ -10,6 +10,10 @@ import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "./appearance-select-i
 export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
   id: "effects",
   label: "Effects",
+  teach: {
+    summary: "Surface treatments layered over the app: frosted-glass blur, prose readability shadows, film-grain texture and accent tinting.",
+    affects: ["panels, dialogs, composer and message text across the app, on this account"],
+  },
   settings: [
     {
       id: "frosted-glass",

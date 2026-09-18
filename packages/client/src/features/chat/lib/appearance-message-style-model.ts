@@ -15,6 +15,10 @@ import { CHAT_STYLE_ITEMS } from "./appearance-select-items.ts";
 export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
   id: "message-style",
   label: "Message style",
+  teach: {
+    summary: "The shape of every message: bubbles, flat rows, document flow or the immersive skins, plus quoted-speech coloring and auto-fixed formatting.",
+    affects: ["message row anatomy and text rendering in every chat, on this account"],
+  },
   settings: [
     {
       id: "chat-style",

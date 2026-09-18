@@ -16,6 +16,10 @@ import { ELEVATION_ITEMS } from "./appearance-select-items.ts";
 export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
   id: "sizing",
   label: "Sizing & motion",
+  teach: {
+    summary: "Global layout knobs: chat column width, text scale, density, surface elevation and the app-wide reduced-motion override.",
+    affects: ["the entire app's spacing, depth and animation behavior, on this account"],
+  },
   settings: [
     {
       id: "chat-width",

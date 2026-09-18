@@ -7,6 +7,10 @@ import type { ConfigSubcategory } from "#state";
 export const SYSTEM_TUNING_SUBCATEGORY: ConfigSubcategory = {
   id: "system-tuning",
   label: "System tuning",
+  teach: {
+    summary: "Low-level deployment knobs: prompt-cache depth floor, summarize deadlines, transform budgets and catalog refresh intervals.",
+    affects: ["cost, latency and cache behavior for the whole deployment"],
+  },
   keywords: [
     "concurrency",
     "summarize",

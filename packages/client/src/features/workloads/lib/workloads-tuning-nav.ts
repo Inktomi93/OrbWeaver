@@ -8,4 +8,8 @@ export const WORKLOADS_TUNING_SUBCATEGORY: ConfigSubcategory = {
   id: "tuning",
   label: "Analysis tuning",
   keywords: ["tuning", "duplicates", "threshold", "themes", "clusters", "cooccurrence", "hub", "pairs", "analysis"],
+  teach: {
+    summary: "Thresholds for the corpus analysis jobs: duplicate detection sensitivity, theme-cluster granularity and co-occurrence pair limits.",
+    affects: ["discovery analysis quality and compute cost when analysis jobs run"],
+  },
 };

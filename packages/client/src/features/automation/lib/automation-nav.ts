@@ -9,10 +9,18 @@ export const AUTOMATION_RULES_SUBCATEGORY: ConfigSubcategory = {
   id: "rules",
   label: "Library-wide rules",
   keywords: ["automation", "rule", "trigger", "global"],
+  teach: {
+    summary: "Automation rules that fire across the whole library: triggers, conditions and actions that run without a specific chat open.",
+    affects: ["automated actions across every chat and character in the library"],
+  },
 };
 
 export const AUTOMATION_BUDGET_SUBCATEGORY: ConfigSubcategory = {
   id: "budget",
   label: "Rate limit",
   keywords: ["budget", "limit", "runs per hour", "spend"],
+  teach: {
+    summary: "A cap on how many automation runs may fire per hour, preventing runaway rules from burning through your budget.",
+    affects: ["automation throughput and spend on this account"],
+  },
 };

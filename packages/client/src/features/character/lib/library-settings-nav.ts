@@ -8,6 +8,10 @@ export const LIBRARY_SETTINGS_SUBCATEGORY: ConfigSubcategory = {
   id: "library",
   label: "Library",
   keywords: ["library", "pagination", "page size", "rows"],
+  teach: {
+    summary: "Character library display settings: how many rows each page shows.",
+    affects: ["the character library's pagination, on this account"],
+  },
   settings: [
     {
       id: "rows-per-page",

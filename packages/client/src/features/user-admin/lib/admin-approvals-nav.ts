@@ -8,6 +8,10 @@ export const ADMIN_APPROVALS_SUBCATEGORY: ConfigSubcategory = {
   id: "approvals",
   label: "Approvals",
   keywords: ["pending", "approve", "sso", "oidc", "disabled", "grant access", "new users"],
+  teach: {
+    summary: "SSO sign-ins awaiting admin approval when the deployment requires it. Approve an account to let it finish signing in.",
+    affects: ["who can finish signing in to this deployment"],
+  },
   settings: [
     {
       id: "pending-accounts",
