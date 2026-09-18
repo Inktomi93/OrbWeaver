@@ -4,7 +4,7 @@
 // arm named a TEXT step: `h-control-sm px-block text-label` — a pointer-conditional HEIGHT (44 coarse /
 // 32 fine) with a content WIDTH of `px-block × 2 + a 16px glyph` = 40px at both pointers. So the theme
 // Looks rows' ⋯ measured 40×44 under a finger and design-audit's `tap-target` filed it P2 on
-// `[aria-label="Actions for Hearth"]` / "Light" / "Mocha" — "3 affected of 3 judged; short side 40px"
+// `[aria-label="Theme actions: Hearth"]` / "Light" / "Mocha" — "3 affected of 3 judged; short side 40px"
 // (settings:appearance --mobile, 2026-09-05). The two icon-only arms carried the floor by construction
 // and the text arm did not, which is a property of the AXIS, so the pin is on the axis: every arm, both
 // pointer classes, against the RESOLVED `--spacing-touch-target` rather than a literal 44.

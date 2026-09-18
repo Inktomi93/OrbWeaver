@@ -243,7 +243,7 @@ test("nothing modified ⇒ no marks anywhere, and @modified is an honest empty",
 //   · `pnpm snap /config --mobile --design-audit --dirty` came back nav=OK / p1=0 with `command-root`
 //     absent from the whole census — on a phone the stage landed on CONTENT, so the LIST and its search
 //     were not in the audited DOM at all. The one 40px tap-target population in that run is three
-//     `[aria-label="Actions for …"]` theme-row menus, which is a different element and its own row.
+//     `[aria-label="Theme actions: …"]` theme-row menus, which is a different element and its own row.
 // The `@orb/ui` Command primitive has carried `pointer-coarse:h-touch-target` on its input wrapper since
 // 275c0e40d and pins it in `tests/ui/primitives/command/command.ct.tsx`. What is NOT pinned anywhere else,
 // and is why this arm is worth keeping: that the floor SURVIVES THIS CONSUMER'S MOUNT. The search block is

@@ -325,12 +325,18 @@ export async function openDetailPanel(page: Page): Promise<void> {
  *  ONE affordance in every room (#860): a rail cell is a BUTTON carrying `aria-current` (#112), inside a
  *  toolbar named "Chat" or "Game state". Exact-name matched, so the lookup cannot widen onto some other
  *  control that merely contains the label; scoped to the rails so a body button named like a tab (the
- *  band's "Members — N" chip is `exact`-safe already) can never be seated as the cell. */
+ *  band's "Members — N" chip is `exact`-safe already) can never be seated as the cell.
+ *
+ *  The `.or()` wraps the FULL PATH (toolbar→button), not just the toolbar (#2251): chaining
+ *  `.getByRole("button", …)` on a two-toolbar `.or()` union hangs when the first-matched toolbar
+ *  does not contain the target button — Playwright's `.or()` resolves to the first match, so the
+ *  chained lookup searches only that branch. Distributing the button lookup into each arm ensures the
+ *  locator resolves in GAME rooms (two rails) and plain chats (one rail) alike. */
 export async function openContextTab(page: Page, label: string): Promise<void> {
   const tab = page
     .getByRole("toolbar", { name: "Chat" })
-    .or(page.getByRole("toolbar", { name: "Game state" }))
-    .getByRole("button", { name: label, exact: true });
+    .getByRole("button", { name: label, exact: true })
+    .or(page.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: label, exact: true }));
   await expect(tab).toBeVisible({ timeout: 15_000 });
   await tab.click();
 }
