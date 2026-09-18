@@ -407,12 +407,14 @@ const envSchema = z
     // single-user (default, no SSO) | local (app-stored password, cookie/BFF sessions) | forward-header
     // (proxy forward-auth) | oidc (the app is an OIDC client, cookie/BFF sessions).
     AUTH_MODE: z.enum(AUTH_MODES).default("single-user"),
-    // What an un-credentialed request gets. owner (default) → the owner; deny → 401. The owner fallback is
-    // gated on a LOOPBACK TCP peer (#298 f2 — the unspoofable socket, NOT the client `Host`). In production
-    // an SSO mode with `owner` is BOOT-FATAL unless AUTH_BREAK_GLASS=true (see the superRefine below): behind a
-    // same-host reverse proxy every request arrives on a loopback socket, which would mint owner for everyone
-    // and bypass SSO — so prod SSO deploys MUST set `deny` (the fallback is break-glass only).
-    AUTH_FALLBACK: z.enum(["owner", "deny"]).default("owner"),
+    // What an un-credentialed request gets. deny (default) → 401; owner → the owner. The owner fallback is
+    // gated on a LOOPBACK TCP peer (#298 f2 — the unspoofable socket, NOT the client `Host`). Default changed
+    // to `deny` (#1864, owner ruling): a prod deploy that omits AUTH_FALLBACK now boots safely with SSO instead
+    // of hitting the SSO-BYPASS fatal below. In production an SSO mode with `owner` is BOOT-FATAL unless
+    // AUTH_BREAK_GLASS=true (see the superRefine below): behind a same-host reverse proxy every request arrives
+    // on a loopback socket, which would mint owner for everyone and bypass SSO. The dev stack sets
+    // AUTH_FALLBACK=owner in its own env (stack.sh), so single-user dev is unaffected.
+    AUTH_FALLBACK: z.enum(["owner", "deny"]).default("deny"),
     // BREAK-GLASS: deliberately permit the loopback-owner fallback in an otherwise-fatal prod SSO deploy (see
     // AUTH_FALLBACK). Default false (accepts only `true`/`false`, the house envBool vocabulary — `1`/`on` are
     // a loud boot refusal). `true` is the operator's acknowledgment for an on-box recovery session (SSH +

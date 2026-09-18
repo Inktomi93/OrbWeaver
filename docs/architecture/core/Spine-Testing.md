@@ -181,8 +181,10 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playw
 - **The CT `QueryClient` is bare** — no `MutationCache.onError` → `errorToast`/`notify` seam. Mutation-error
   COPY is unobservable in a CT; prove the mapper with a unit test, or render the error inline.
 
-- **`page.addInitScript` never fires** (the `page` fixture has already navigated) — install pre-mount
-  instrumentation with `page.evaluate` BEFORE `mount()`.
+- **`page.addInitScript` does not affect the CURRENT page** (the `page` fixture has already navigated) —
+  it fires on SUBSEQUENT navigations, so for pre-module-init state (persisted stores, localStorage seeds)
+  use `page.addInitScript` + `page.reload()` to re-run the page with the script installed. For
+  instrumentation that only needs to run before `mount()`, use `page.evaluate` BEFORE `mount()` instead.
 
 - **CDP media emulation LEAKS across tests in a file**, and `page.emulateMedia` does NOT clear a feature it
   doesn't model — every emulation caller states the TOTAL media state in one call, including explicit
