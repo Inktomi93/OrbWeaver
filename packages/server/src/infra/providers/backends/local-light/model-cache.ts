@@ -4,6 +4,8 @@
 // space; one load serves both the embed and imageEmbed roles.
 
 import { randomUUID } from "node:crypto";
+import { mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
 import process from "node:process";
 import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
 import type { ImageInput } from "@orb/contracts/role-clients";
@@ -59,6 +61,13 @@ export interface LocalLightModelCache {
 export interface ModelCacheConfig {
   readonly device?: DeviceType | undefined;
   readonly dtype?: DataType | undefined;
+  /** Where the downloaded model weights live (`LOCAL_LIGHT_CACHE_DIR`, under the data root). Relative
+   *  values are resolved against the PROCESS cwd here, before the lib ever sees them: transformers.js
+   *  hands `env.cacheDir` straight to `FileCache`, which `path.join`s it with each file name and lets
+   *  node's fs resolve it — so a relative value silently follows whatever cwd the process happens to
+   *  have. Absent ⇒ the lib's own default, `node_modules/@huggingface/transformers/.cache/`, which is
+   *  read-only in the container and disposable on bare metal. `entry/compose/services.ts` passes it on
+   *  every composed graph; only a hand-built backend (a test that never downloads) omits it. */
   readonly cacheDir?: string | undefined;
   readonly allowRemoteModels?: boolean | undefined;
 }
@@ -260,6 +269,24 @@ export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value:
   return memo;
 }
 
+// The lib's FileCache would mkdir lazily, per FILE, mid-download — so an unwritable root surfaces as a
+// stray fs error inside a loader frame with no mention of the knob that fixes it. Creating the root up
+// front, once, turns the read-only-rootfs case (the container audience local-light exists for) into one
+// typed failure that names the path.
+async function ensureCacheDir(dir: string): Promise<void> {
+  try {
+    await mkdir(dir, { recursive: true });
+  } catch (err) {
+    // biome-ignore lint/style/useErrorCause: cause IS chained below (`cause: err`) — the rule misses ProviderError's own cause-forwarding ctor.
+    throw new ProviderError({
+      kind: "server",
+      retryable: false,
+      message: `local-light model cache directory "${dir}" is not creatable (${err instanceof Error ? err.message : String(err)}) — set LOCAL_LIGHT_CACHE_DIR to a writable path under the data root`,
+      cause: err,
+    });
+  }
+}
+
 export function createModelCache(config: ModelCacheConfig = {}): LocalLightModelCache {
   const device = config.device ?? DEFAULT_DEVICE;
   const dtype = config.dtype ?? DEFAULT_DTYPE;
@@ -267,6 +294,9 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
   // The `env` writes used to run HERE, at construction — which is precisely what forced the eager import.
   // They now run once, on this cache's first model load, still before any `from_pretrained`: same ordering
   // guarantee (env is configured before the lib reads it), no import cost for a cache nobody ever uses.
+  // Resolved ONCE, at construction, against the process cwd: the lib treats `env.cacheDir` as a plain
+  // fs path (FileCache path.joins it per file), so a relative value would follow the ambient cwd.
+  const cacheDir = config.cacheDir === undefined ? undefined : resolve(config.cacheDir);
   let configured = false;
   const transformers = async (): Promise<TransformersModule> => {
     const mod = await loadTransformers();
@@ -275,8 +305,9 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
       if (config.allowRemoteModels !== undefined) {
         mod.env.allowRemoteModels = config.allowRemoteModels;
       }
-      if (config.cacheDir !== undefined) {
-        mod.env.cacheDir = config.cacheDir;
+      if (cacheDir !== undefined) {
+        await ensureCacheDir(cacheDir);
+        mod.env.cacheDir = cacheDir;
       }
     }
     return mod;

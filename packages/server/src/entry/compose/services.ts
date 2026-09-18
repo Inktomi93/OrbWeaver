@@ -36,6 +36,7 @@
 // before chat composes; the real const into automation after).
 
 import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, LiveOnlyChatEventType } from "@orb/contracts/chat";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
@@ -388,6 +389,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // D8 `session_entries` write path (issue #71) — the sealed agent-sdk backend never touches @orb/db
     // itself; this is the compose-root op it persists a lineage entry through.
     sessionWriter: createSessionEntryWriter(db),
+    // ABSOLUTE on purpose: transformers.js hands `env.cacheDir` straight to its FileCache, which path.joins
+    // it per file and lets node's fs resolve the rest — so a cwd-relative value would follow whatever cwd
+    // the process happens to have rather than the data root this knob names. Read off env here (not a
+    // `ServicesDeps` field) so every composition root — boot, the seed tools, tests — gets the data-root
+    // cache without a caller remembering; the lib's own fallback (`node_modules/@huggingface/transformers/
+    // .cache/`) is read-only in the container and erased by every `pnpm install`.
+    localLightCacheDir: resolve(env.LOCAL_LIGHT_CACHE_DIR),
     vllmDisabled: deps.vllmDisabled,
     ...(deps.vllmManages !== undefined ? { vllmManages: deps.vllmManages } : {}),
     vllmConcurrency: {

@@ -3060,7 +3060,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 471,
+      "line": 479,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -3068,7 +3068,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `requireOwner`/`can()`",
-      "markerLine": 465
+      "markerLine": 473
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::catch::1",
@@ -3255,7 +3255,7 @@
     {
       "siteId": "packages/server/src/foundation/env/index.ts::catch::2",
       "path": "packages/server/src/foundation/env/index.ts",
-      "line": 852,
+      "line": 859,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3263,7 +3263,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a probe whose ONLY verdict is a boolean — an unreadable/missing/permission-denied credentials file all mean the same thing to every caller (\"not detected\"), and the false answer FAILS CLOSED (the backend stays unregistered, nothing spawns). Ends if this probe ever gates something that opens rather than closes.",
-      "markerLine": 848
+      "markerLine": 855
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
@@ -3736,7 +3736,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/model-cache.ts::created::1",
       "path": "packages/server/src/infra/providers/backends/local-light/model-cache.ts",
-      "line": 231,
+      "line": 240,
       "column": 10,
       "grammar": "promise",
       "position": "created",
@@ -3744,12 +3744,12 @@
       "snippet": "void created.catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "this .catch is eviction bookkeeping only — a rejected load removes its own cache entry so it never poisons the model; the rejection is still delivered to every caller who awaits memo(id)'s promise, so nothing is swallowed. Ends if callers stop receiving the entry promise.",
-      "markerLine": 230
+      "markerLine": 239
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/model-cache.ts::entry.promise::1",
       "path": "packages/server/src/infra/providers/backends/local-light/model-cache.ts",
-      "line": 218,
+      "line": 227,
       "column": 10,
       "grammar": "promise",
       "position": "entry.promise",
@@ -3757,7 +3757,7 @@
       "snippet": "void entry.promise.then(dispose).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.",
-      "markerLine": 217
+      "markerLine": 226
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/probe.ts::err::1",
@@ -4683,9 +4683,9 @@
       "markerLine": 14
     },
     {
-      "siteId": "tooling/src/_shared/load-budget.ts::catch::1",
-      "path": "tooling/src/_shared/load-budget.ts",
-      "line": 239,
+      "siteId": "tooling/src/_shared/load-budget-cgroup.ts::catch::1",
+      "path": "tooling/src/_shared/load-budget-cgroup.ts",
+      "line": 79,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -4693,7 +4693,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly \"no ceiling is declared here\", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell \"unbounded\" from \"could not ask\"; the absence then becomes a value and this catch becomes a branch.",
-      "markerLine": 236
+      "markerLine": 76
     },
     {
       "siteId": "tooling/src/_shared/nav.ts::page.evaluate::1",
@@ -7480,7 +7480,7 @@
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::1",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 428,
+      "line": 141,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7488,12 +7488,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "drizzle schema parse error: surfaced as a structured tool-error in the schema-fact report; the broken schema is excluded from the fact census",
-      "markerLine": 406
+      "markerLine": 119
     },
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::2",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 482,
+      "line": 195,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7501,12 +7501,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "drizzle column parse error: surfaced as a structured tool-error in the schema-fact report; the broken column is excluded from the fact census",
-      "markerLine": 479
+      "markerLine": 192
     },
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::3",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 565,
+      "line": 278,
       "column": 22,
       "grammar": "empty",
       "position": "error",
@@ -7514,7 +7514,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "FK resolution error: surfaced as a structured tool-error in the schema-fact report; the broken FK is excluded from the fact census",
-      "markerLine": 559
+      "markerLine": 272
     },
     {
       "siteId": "tooling/src/verify/ops/asset-refs-coverage.ts::err::1",

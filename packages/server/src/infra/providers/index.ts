@@ -79,6 +79,11 @@ export interface BackendRegistryDeps {
   /** TASK-24: the provider wire-capture sink. When present, threaded into the agent-sdk + vLLM backends so
    *  their send boundaries record the final request body; absent ⇒ no capture (the prod default). */
   readonly captureWire?: WireCaptureSink;
+  /** Where the shared local-light model cache downloads its weights (`LOCAL_LIGHT_CACHE_DIR`, resolved
+   *  absolute). Absent ⇒ transformers.js's own `node_modules/@huggingface/transformers/.cache/`, which is
+   *  read-only in the container and erased by every `pnpm install` — acceptable only in a test that never
+   *  downloads. Every composed graph passes it (`entry/compose/services.ts`, off `LOCAL_LIGHT_CACHE_DIR`). */
+  readonly localLightCacheDir?: string | undefined;
   readonly vllmClient?: VllmBackendDeps["client"];
   readonly vllmEmbedDim?: VllmBackendDeps["embedDim"];
   readonly vllmChunkSize?: VllmBackendDeps["chunkSize"];
@@ -136,7 +141,7 @@ function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
 export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistryResult {
   // One shared local-light model cache — the embed/rerank/imageEmbed backend AND the sprite-sheet matte op
   // load through it (one process-wide model LRU + device/CPU-fallback mechanics; §4.1).
-  const localLightCache = createModelCache();
+  const localLightCache = createModelCache(deps.localLightCacheDir !== undefined ? { cacheDir: deps.localLightCacheDir } : {});
   const backends: ProviderBackend[] = [
     createOpenRouterBackend(openRouterDeps(deps)),
     createCustomByoBackend({
