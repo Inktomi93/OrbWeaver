@@ -7,6 +7,21 @@
 // to "go look at /api/_debug/wire/captures later" is asking for evidence that will not exist by then. The
 // capture happens AT REPORT TIME, in the same process that holds the rings.
 //
+// RING COVERAGE AND INTENTIONAL BOUNDARIES (#1168, inventory of #1095):
+//   COVERED: logRing (error-level log lines), requests (HTTP-level with method/path/status/duration/userId),
+//   traces (OTel spans with per-procedure timing), wireCaptures (provider request payloads),
+//   wireOutcomes (turn outcomes), rpgTraces (injected), memoryRecalls (injected).
+//   INTENTIONAL GAPS:
+//   - `[trpc] devlog ring`: tRPC procedure calls are already attributed by the OTel trace ring — each
+//     procedure is a child span of the request root with its own timing and status. A separate procedure-level
+//     devlog would duplicate what traces carry. The request ring covers HTTP-level data.
+//   - `perf() startTime`: correctly handled. `captureNowMs()` uses `performance.timeOrigin + performance.now()`
+//     (the house wall-clock spelling, shared with the client's `bus-devlog.ts` `clockMs`). OTel spans use
+//     `hrToMs(readable.startTime)`. Both clocks are process-relative; neither leaks a wall-clock epoch.
+//   - `flushSync` timing: a CLIENT-side React concern (synchronous render flushing). The server observability
+//     module has no visibility into the client's React commit cycle — that is instrumented on the client side
+//     by `motion-stats.ts` (LoAF scripts carry `forcedStyleAndLayoutDuration`) and the motion flaggers.
+//
 // WHERE IT LIVES: foundation/observability, beside `/api/_debug` — the debug surface is observability, not a
 // domain (AGENTS §6). The domain-owned recorders arrive as the SAME structural-injection ports the debug routes
 // already take (`RpgTraceInspector`/`MemoryRecallInspector`), so this tier still imports zero domains.

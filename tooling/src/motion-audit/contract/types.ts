@@ -1,6 +1,18 @@
 // The run shapes of motion-audit: parsed args, the reach queue, the in-page motion snapshot
 // (mirrors packages/client/src/lib/motion-stats.ts — the probe reads it via __orb), the CDP trace
 // event shape, and the audit result. Split from the pre-move motion-audit.ts (P3 of #393).
+//
+// REACH VOCABULARY LIMITATION (#1072): the audit's reach vocabulary is `click` (a measured
+// `page.mouse.click`) and `nav` (a dev-bridge navigation). Gesture-driven motion — drag, swipe,
+// pinch (guide §3 rule 6: "springs for gesture-driven/interruptible") — is architecturally outside
+// this tool's measurement window. The audit observes a DISCRETE click→settle interval via CDP
+// tracing; a gesture is a CONTINUOUS input sequence whose frame budget, settle behavior (spring
+// physics vs. tween) and interruptibility properties require a fundamentally different driver and
+// verdict shape. Playwright supports `page.locator.dragTo()` but not multi-touch/pinch, and the
+// tool's single-click→window architecture would need a gesture driver that emits input events over
+// time and measures frames DURING the interaction, not after a settle. Coverage of gesture-driven
+// surfaces (drawer swipe, drag-reorder release) therefore requires live manual measurement or a
+// purpose-built gesture-audit instrument — it cannot be bolted onto this tool's reach queue.
 import type { AppearancePatch } from "@orb/tooling/_shared/appearance";
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import type { BrowserEnvironmentEvidence } from "@orb/tooling/_shared/browser-environment";
