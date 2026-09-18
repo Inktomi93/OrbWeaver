@@ -218,6 +218,17 @@ module.exports = {
       from: { path: `${CLIENT}features/` },
       to: { path: "^packages/ui/src/primitives/alert-dialog/" },
     },
+    {
+      name: "view-transition-fence",
+      comment:
+        "withViewTransition is fenced to state/shell-store.ts — a #state content swap through view-transition outside that one sanctioned file is a defect (view-transition.ts header, UI-Arch §4a, #1830). motionIsReduced reaches features through the lib barrel; the direct import of the module is shell-store's privilege. The barrel (lib/index.ts) re-exports motionIsReduced only; withViewTransition is deliberately absent from it.",
+      severity: "error",
+      from: {
+        path: CLIENT,
+        pathNot: [`${CLIENT}lib/index\\.ts$`, `${CLIENT}lib/view-transition\\.ts$`, `${CLIENT}state/shell-store\\.ts$`],
+      },
+      to: { path: `${CLIENT}lib/view-transition\\.ts$` },
+    },
 
     // ════════════════════ @orb/ui — the frontend cake leaf (D42; ui-package-design.md §8) ═══════════
     {

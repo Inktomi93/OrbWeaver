@@ -28,7 +28,7 @@
 // section's own layout.
 
 import { isPlainObject } from "@orb/kit/guards";
-import { withViewTransition } from "#lib";
+import { withViewTransition } from "../lib/view-transition.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
 import type { ModalSlotId } from "./modal-slot-ids.ts";
 import { MODAL_CONTENT_LIFETIME } from "./modal-slot-ids.ts";
