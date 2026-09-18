@@ -31,6 +31,13 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   exception with its reason and executed/owed checks recorded. **The gate-runtime #1584 standing
   exception lives in constitution §0.1 item 6.** It permits scoped commits during the integration train;
   it does not classify an observed failure as inherited or discharge the consolidated barrier.
+- **COMMIT MESSAGES ARE A CONTRACT, enforced by lefthook `commit-msg` (2026-09-18, `scripts/commit-msg-check.sh`):**
+  header `type(scope): subject` with type in `feat fix docs test chore refactor perf style build ci revert`, scope
+  optional, header <= 200 chars, body optional, and at least one well-formed `Co-Authored-By: Name <local@domain>`
+  trailer (no spaces in the address). **The #1584 bypass spelling is now `LEFTHOOK_EXCLUDE=check git commit …`** —
+  it skips only the whole-tree `check` command (pre-commit AND pre-merge-commit) and keeps the message contract;
+  `git -c core.hooksPath=/dev/null` skipped everything and is retired for lane commits. The orchestrator re-runs the
+  same contract at landing: `scripts/commit-msg-check.sh --range main..<branch>`.
 - **Stage by PATHSPEC on `main` or any SHARED tree; `git add -A` is FINE in your own isolated worktree**
   (owner correction 2026-08-24). The two failure modes are opposite: on a shared tree a broad `git add`
   sweeps a sibling's in-flight probe into your commit (it has shipped a BLINDED gate, which then reports

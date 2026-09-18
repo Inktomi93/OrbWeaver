@@ -8,7 +8,7 @@
     "node": ">=26"
   },
   "scripts": {
-    "prepare": "lefthook install",
+    "prepare": "lefthook install --force",
     "agents:sync": "node tooling/src/agent-sync/cli.ts",
     "check:agents": "node tooling/src/agent-sync/cli.ts --check",
     "agent-memory:link": "bash scripts/agent-memory-link.sh",

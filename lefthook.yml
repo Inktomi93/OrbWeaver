@@ -95,6 +95,16 @@ pre-merge-commit:
 # (plus a path baked in by whichever tree last ran `lefthook install`), so on a hand-added worktree whose
 # baked path is dead this hook prints "Can't find lefthook in PATH" and exits 0 — the gap re-opens for that
 # one case, and `pnpm install --prefer-offline` by hand is still the fallback (§L rule 5).
+# Commit-message contract (2026-09-18): `type(scope): subject`, a body, and a well-formed
+# `Co-Authored-By: Name <local@domain>` trailer. Cheap (pure bash, no toolchain), so it stays on even when a
+# lane bypasses the whole-tree pre-commit under #1584 — and because a bypass skips THIS too, the orchestrator
+# runs the same script at landing: `scripts/commit-msg-check.sh --range main..<branch>`. Rules + the
+# ORB_HUMAN_COMMIT=1 owner waiver (trailer rule only) are in the script header.
+commit-msg:
+  commands:
+    message-contract:
+      run: bash scripts/commit-msg-check.sh {1}
+
 post-checkout:
   commands:
     bootstrap-deps:

@@ -165,6 +165,9 @@ it into the linked Project issue — no lane touches `work:item`.
   into load spikes that flake gates and starve the foreground. This paragraph is the cap's home.
 - **A merge landed while a whole-tree check is running VOIDS that check** — its verdict describes a tree
   that no longer exists. Barrier first, merge second.
+- **Every landing runs `scripts/commit-msg-check.sh --range main..<branch>` first** — lanes commit with the whole-tree
+  check excluded (`LEFTHOOK_EXCLUDE=check`), so the message contract is re-verified at the merge; a refused row is
+  reworded on the branch, never merged as-is.
 - **Hook bypass is an explicit measured-load exception, never the lane default.** Lanes commit normally
   through configured hooks in their assigned worktrees/clones. Only the user or coordinator may
   authorize a specific bypass when measured load or coordinated integration makes the hook run
