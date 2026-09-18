@@ -110,8 +110,8 @@ function renderRowIdentity(args: {
  *     shell's `data-has-bg-image`: no wallpaper, no chip.
  *   · `STICKY_ATTRIBUTION_CHROME` / `…_INSIDE` (#113) — pin + OPAQUE band, any mode, only for a row the
  *     virtualizer measured as taller than the scrollport. It is the row's one RAISED layer (z-order:
- *     message-row-backing.ts). The two spellings differ in the `-my-row` gate and in chip rounding —
- *     see the constants; the layout-neutrality invariant is identical.
+ *     message-row-backing.ts). The two spellings differ in which padding they cancel and in chip rounding
+ *     — see the constants; the layout-neutrality invariant is identical.
  *
  *  The sticky band SUPERSEDES the wallpaper chip because an opaque fill is a strict superset of a
  *  translucent plate, and both spell the same property: applied together,
@@ -127,9 +127,9 @@ function renderRowIdentity(args: {
  *  bands, and the ~17px of painted-then-empty space below the name was the detachment. The cluster rides
  *  a ZERO-HEIGHT flex wrapper (`h-0` + centered items): it keeps its full WIDTH in flow (the A3 geometry
  *  pin — a name can never be starved sideways), its buttons keep painting/hit-testing at full size, and
- *  reveal stays opacity-only. The non-sticky inside arm moves only the rail down by one token block and
- *  reserves the following section gap, containing its paint without overlapping prose or moving the
- *  bubble outside its content-column owner. */
+ *  reveal stays opacity-only. The inside arm reserves the following section gap (in BOTH sticky arms since
+ *  #1873 — see the class list) and moves the rail down by one token block while the header is not pinned,
+ *  containing its paint without overlapping prose or moving the bubble outside its content-column owner. */
 function nameRowFrame(args: {
   readonly identity: ReactNode;
   readonly actions: ReactNode;
@@ -149,7 +149,15 @@ function nameRowFrame(args: {
       data-sticky={args.stickyAttribution ? "" : undefined}
       className={cn(
         headerBacking(args.placement, args.stickyAttribution),
-        args.placement === "inside" && !args.stickyAttribution && "mb-section",
+        // THE ACTION CLUSTER'S RESERVATION, AND IT IS UNCONDITIONAL (#1873). It used to be dropped the
+        // moment the row went sticky — which took --spacing-section out of the row at the exact instant
+        // the verdict landed, and `exceedsViewport` (the verdict's own input) is the MEASURED row height.
+        // The shrunken row stopped exceeding the scrollport, the verdict inverted, the row grew back, and
+        // the transcript oscillated forever: measured 250px ↔ 226px against a 234px port the moment a
+        // capability notice took its height out of the content column. Keeping it in both arms restores
+        // the invariant the backing constants state ("going sticky changes NO box"); the band pays for its
+        // own padding on the top only (`STICKY_ATTRIBUTION_CHROME_INSIDE`).
+        args.placement === "inside" && "mb-section",
         // At rest an inside header paints on the role bubble, so every datum must inherit that bubble's
         // paired foreground. Speaker/gloss inks derive from the scope's BASE and are invalid on an
         // independently-picked bubble fill. A sticky row paints its own reading band and keeps that
@@ -210,7 +218,8 @@ export function renderRowNameRow(args: {
  *
  *  Riding the shared frame is what buys #113's sticky pin for the live turn for free — once the growing
  *  ghost exceeds the scrollport the surface passes `stickyAttribution` and the name pins to the top of the
- *  scrollport with the stream flowing under it, layout-neutral (`-my-row` cancels `py-row`).
+ *  scrollport with the stream flowing under it, layout-neutral (the band's `pt-row` is cancelled by
+ *  `-mt-row`, and the action cluster's `mb-section` reservation stands in both arms — #1873).
  *
  *  ARIA: plain text inside the ghost ROW's own live region, and nothing more. Post-#1499 the transcript
  *  CONTAINER is explicitly `aria-live="off"` (its implicit `role="log"` politeness announced every

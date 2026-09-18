@@ -405,6 +405,20 @@ const ROW_BODY = '[data-slot="message-row-body"]';
 const CONTENT_COLUMN = '[data-slot="message-content-column"]';
 const NAME_ROW = '[data-slot="message-name-row"]';
 
+/** The name row's OUTER extent — border box PLUS its own block margins — and BOTH arms of a layout-
+ *  neutrality comparison must be read this way (#1873). The height-only read the sticky comparisons used
+ *  on their non-sticky arm was blind to the box that actually moved: an inside header reserves the
+ *  zero-height action cluster's paint with `mb-section` (#204), which the sticky arm used to drop, taking
+ *  --spacing-section out of the row at the exact moment the verdict landed — and since `exceedsViewport`
+ *  (the verdict's own input) IS the measured row height, that inverted the verdict and oscillated the
+ *  transcript. The margins are the whole question, so neither arm may omit them. */
+async function nameRowOuterExtent(nameRow: Locator): Promise<number> {
+  return await nameRow.evaluate((el: HTMLElement) => {
+    const cs = getComputedStyle(el);
+    return el.getBoundingClientRect().height + Number.parseFloat(cs.marginTop) + Number.parseFloat(cs.marginBottom);
+  });
+}
+
 test("the avatar is a SIBLING of the content column, never nested inside the name row (§B.1)", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
   const body = component.locator(ROW_BODY);
@@ -992,7 +1006,7 @@ test("the sticky chip SUPERSEDES the wallpaper one without doubling the box: a s
       <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />
     </div>,
   );
-  const bareHeight = await bare.locator(NAME_ROW).evaluate((el: HTMLElement) => el.getBoundingClientRect().height);
+  const bareOuter = await nameRowOuterExtent(bare.locator(NAME_ROW));
   await bare.unmount();
 
   const stuck = await mount(
@@ -1002,11 +1016,8 @@ test("the sticky chip SUPERSEDES the wallpaper one without doubling the box: a s
   );
   const stuckRow = stuck.locator(NAME_ROW);
   await expect(stuckRow).toHaveCSS("position", "sticky");
-  const stuckOuter = await stuckRow.evaluate((el: HTMLElement) => {
-    const cs = getComputedStyle(el);
-    return el.getBoundingClientRect().height + Number.parseFloat(cs.marginTop) + Number.parseFloat(cs.marginBottom);
-  });
-  expect(Math.abs(stuckOuter - bareHeight)).toBeLessThan(1);
+  const stuckOuter = await nameRowOuterExtent(stuckRow);
+  expect(Math.abs(stuckOuter - bareOuter)).toBeLessThan(1);
 });
 
 for (const style of ["flat", "bubble"] as const) {
@@ -1784,7 +1795,7 @@ test("at a desktop-width column the portrait keeps its full size — the step-do
 for (const chatStyle of THEME_CHAT_STYLES) {
   test(`#113 ${chatStyle}: a viewport-exceeding row pins its name row and backs it, without changing the row's height`, async ({ mount }) => {
     const bare = await mount(<MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
-    const bareHeight = await bare.locator(NAME_ROW).evaluate((el: HTMLElement) => el.getBoundingClientRect().height);
+    const bareOuter = await nameRowOuterExtent(bare.locator(NAME_ROW));
     await expect(bare.locator(NAME_ROW)).toHaveCSS("position", "static");
     await bare.unmount();
 
@@ -1811,13 +1822,12 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     await expect.poll(async () => (await readRaisedAtAssertion()).z).toBe(raised.token);
     // The chip is unconditional here (not wallpaper-gated) — it backs the row's own prose scrolling under it.
     await expect.poll(async () => await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
-    // LAYOUT-NEUTRAL: `py-row` is cancelled by `-my-row`, so the virtualizer's measured extent cannot move
-    // when the sticky verdict lands (which happens AFTER measurement — an uncancelled pad would be a CLS).
-    const stuckOuter = await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => {
-      const cs = getComputedStyle(el);
-      return el.getBoundingClientRect().height + Number.parseFloat(cs.marginTop) + Number.parseFloat(cs.marginBottom);
-    });
-    expect(Math.abs(stuckOuter - bareHeight)).toBeLessThan(1);
+    // LAYOUT-NEUTRAL: the band's padding is cancelled and the action cluster's `mb-section` reservation
+    // stands in BOTH arms (#1873), so the virtualizer's measured extent cannot move when the sticky verdict
+    // lands — which happens AFTER measurement, so any change re-enters the verdict as its own input.
+    // Both arms are read as OUTER extent (`nameRowOuterExtent`): the margins ARE the invariant.
+    const stuckOuter = await nameRowOuterExtent(stuck.locator(NAME_ROW));
+    expect(Math.abs(stuckOuter - bareOuter)).toBeLessThan(1);
   });
 }
 

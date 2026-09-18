@@ -12,6 +12,7 @@
 
 import type { MountResult } from "@playwright/experimental-ct-react";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { GhostRowScriptedStory, GhostRowStory } from "../_ct-stories.tsx";
 
 const ERROR_FALLBACK = "Content failed to render.";
@@ -340,6 +341,15 @@ test("§4.5: an ABORT after the card mounted drops the card with the ghost row (
 // mid-stream state. `speakerName` is what a group turn's resolved attribution carries.
 
 const NAME_ROW = '[data-slot="message-name-row"]';
+
+/** The name row's OUTER extent — border box PLUS its own block margins. Both arms of a layout-neutrality
+ *  comparison are read this way (#1873): the margins are where the difference lives. */
+async function nameRowOuterExtent(nameRow: Locator): Promise<number> {
+  return await nameRow.evaluate((el: HTMLElement) => {
+    const cs = getComputedStyle(el);
+    return el.getBoundingClientRect().height + Number.parseFloat(cs.marginTop) + Number.parseFloat(cs.marginBottom);
+  });
+}
 const GHOST_ROW = '[data-slot="ghost-message-row"]';
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
@@ -384,11 +394,13 @@ test("#116: with no resolved attribution the ghost is byte-identically bare — 
 test("#116: the ghost's name row takes #113's pin — sticky, backed, and layout-neutral", async ({ mount }) => {
   // Layout neutrality is the load-bearing half: the sticky verdict arrives AFTER the virtualizer measures
   // the row, so any height the chip added would land as a post-paint reflow on exactly the tall streaming
-  // rows this helps. `py-row` is cancelled by `-my-row` — measured as outer extent, not eyeballed.
+  // rows this helps. The band's padding is cancelled — measured as outer extent on BOTH arms, which is the
+  // #1873 correction: reading the bare arm's HEIGHT against the sticky arm's MARGIN-INCLUSIVE extent was
+  // blind to the `mb-section` the sticky arm used to drop.
   const bare = await mount(<GhostRowScriptedStory chunks={["A long reply. "]} speakerName="Marguerite" />);
   await driveScript(bare, 1);
   await expect(bare.locator(NAME_ROW)).toHaveCSS("position", "static");
-  const bareHeight = await bare.locator(NAME_ROW).evaluate((el: HTMLElement) => el.getBoundingClientRect().height);
+  const bareOuter = await nameRowOuterExtent(bare.locator(NAME_ROW));
   await bare.unmount();
 
   const stuck = await mount(<GhostRowScriptedStory chunks={["A long reply. "]} speakerName="Marguerite" stickyAttribution={true} />);
@@ -397,12 +409,18 @@ test("#116: the ghost's name row takes #113's pin — sticky, backed, and layout
   await expect(stuckRow).toHaveCSS("position", "sticky");
   await expect(stuckRow).toHaveCSS("top", "0px");
   await expect.poll(async () => await stuckRow.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
-  const stuckOuter = await stuckRow.evaluate((el: HTMLElement) => {
-    const cs = getComputedStyle(el);
-    return el.getBoundingClientRect().height + Number.parseFloat(cs.marginTop) + Number.parseFloat(cs.marginBottom);
-  });
-  expect(Math.abs(stuckOuter - bareHeight)).toBeLessThan(1);
+  const stuckOuter = await nameRowOuterExtent(stuckRow);
+  expect(Math.abs(stuckOuter - bareOuter)).toBeLessThan(1);
 });
+
+// WHY THE UNIT ABOVE IS THE NAME ROW'S OUTER EXTENT AND NOT THE WHOLE ROW (#1873). The whole row would be
+// the stricter reading of "going sticky changes NO box", but it cannot be measured across two MOUNTS: the
+// ghost's body is paced (`useSmoothText`), so two mounts driven to the same chunk settle at different
+// reveal states and the row differs by a sub-line amount that has nothing to do with the verdict (measured
+// 7.25px with both arms' header extents identical at 40px). The whole-row form of this invariant is pinned
+// where it can be taken inside ONE mount and against the live scrollport that consumes it — the #1873
+// oscillation test in `message-list-surface.ct.tsx`, which compares the row's settled height across the
+// verdict flip in a single tree.
 
 test("#116: a MULTI-VIEWPORT stream keeps the speaker on screen — the name pins as the prose scrolls under it", async ({ mount }) => {
   // The rendered proof the issue asks for, in CT form: a real bounded scrollport, content taller than it,

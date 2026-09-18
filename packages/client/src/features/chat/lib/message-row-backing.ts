@@ -310,12 +310,25 @@ export const STICKY_ATTRIBUTION_CHROME =
 // can afford them. This is the reasoning `BG_PHOTO_BAND_PLATE` states one constant up — a BAND that spans
 // its column is not a floating CHIP, and giving it chip geometry fights the box it lives in.
 //
-// (2) `-my-row` IS UNCONDITIONAL HERE. The sibling constant gates its cancellation on
-// `not-in-data-[has-bg-image]` because over art the header ALREADY carried `BG_PHOTO_CHROME_PLATE`'s
-// `py-row`, and cancelling a padding this constant did not own shrank the row by 2×--spacing-row at the
-// exact moment the sticky verdict landed (#167's measured 16px reflow). A header inside its container
-// takes no chip in EITHER arm — the container backs it — so the `py-row` below is always this constant's
-// own to cancel, and the wallpaper gate would now be the thing that breaks layout neutrality. Same
-// invariant ("going sticky changes NO box"), restored to its pre-#167 spelling because the reason for the
-// gate went away with the chip.
-export const STICKY_ATTRIBUTION_CHROME_INSIDE = "-my-row sticky top-0 z-(--z-raised) bg-reading-band py-row text-reading-plate-foreground";
+// (2) THE CANCELLATION IS UNCONDITIONAL HERE, AND IT IS TOP-ONLY (#1873). The sibling constant gates its
+// cancellation on `not-in-data-[has-bg-image]` because over art the header ALREADY carried
+// `BG_PHOTO_CHROME_PLATE`'s `py-row`, and cancelling a padding this constant did not own shrank the row by
+// 2×--spacing-row at the exact moment the sticky verdict landed (#167's measured 16px reflow). A header
+// inside its container takes no chip in EITHER arm — the container backs it — so the padding below is
+// always this constant's own to cancel, and the wallpaper gate would now be the thing that breaks layout
+// neutrality.
+//
+// WHY TOP-ONLY, i.e. why `-mt-row pt-row` and not the `-my-row py-row` pair this shipped with. The arm this
+// has to be neutral AGAINST is not a bare name row: an inside header at rest reserves the action cluster's
+// paint with `mb-section` (`message-row-header.tsx`, #204's zero-height cluster). That reservation is now
+// UNCONDITIONAL — a verdict that dropped it took --spacing-section out of the row (measured 250px → 226px
+// against a 234px scrollport, #1873), and since `exceedsViewport` is computed FROM the measured row height,
+// the shrunken row stopped exceeding, the verdict inverted, the row grew back, and the transcript
+// oscillated for as long as the notice that shrank the scrollport stayed up. With the reservation constant,
+// this constant may only add the band's own padding — and a bottom padding cannot be cancelled any more,
+// because `mb-section` owns the bottom margin. So the band takes its breathing on the TOP only: the name
+// lands on exactly the pixel it occupied at rest (`-mt-row` cancels `pt-row`), the outer box is the same
+// h + --spacing-section in both arms, and the opaque fill starts one --spacing-row above the name instead
+// of surrounding it. Same invariant as ever — "going sticky changes NO box" — now true against the arm the
+// row actually renders. Pinned by the box-neutrality CTs (message-list-surface.ct.tsx, #1873).
+export const STICKY_ATTRIBUTION_CHROME_INSIDE = "-mt-row sticky top-0 z-(--z-raised) bg-reading-band pt-row text-reading-plate-foreground";
