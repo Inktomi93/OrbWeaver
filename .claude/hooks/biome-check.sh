@@ -324,8 +324,25 @@ fi
   fi
   if [ -s "$tout" ]; then
     { [ -n "$biome_f" ] || [ -n "$dep_f" ]; } && echo
-    printf '── ts7 (types; full selected-program diagnostics) ──\n'
-    cat "$tout"
+    # Group TS errors by code, show basename + line positions. Saves ~1-2KB context per error
+    # vs the full expanded generic types. Full output stays in $tout.
+    grep -E '^── ' "$tout"
+    grep -oP '[^/]+\(\d+,\d+\): error (TS\d+): .{0,60}' "$tout" \
+      | awk -F'[():]' '{
+          file=$1; line=$2; col=$3; code=""; msg=""
+          match($0, /error (TS[0-9]+): (.*)/, m)
+          code=m[1]; msg=m[2]
+          key=code" "msg
+          files[key]=files[key] ? files[key]" "file":"line : file":"line
+          counts[key]++
+        }
+        END {
+          for (key in counts) {
+            printf "%s (%d): %s\n", key, counts[key], files[key]
+          }
+        }' | sort
+    total=$(grep -c 'error TS[0-9]\+:' "$tout" 2>/dev/null || echo 0)
+    printf '── %s type error(s) ──\n' "$total"
   fi
   if [ -s "$diag" ]; then
     { [ -n "$biome_f" ] || [ -n "$dep_f" ] || [ -s "$tout" ]; } && echo
