@@ -211,7 +211,7 @@ fi
 set -- "$STACK_VERB" ${STACK_FORCE:+--force} ${STACK_REST[@]+"${STACK_REST[@]}"}
 
 # ── env pins (host export wins; `:=` only fills the gap) ─────────────────────
-PIN_VARS=(VLLM_DISABLED AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED)
+PIN_VARS=(VLLM_DISABLED AUTH_FALLBACK AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED)
 declare -A PIN_SRC
 for v in "${PIN_VARS[@]}"; do
   if [ -n "${!v:+x}" ]; then PIN_SRC[$v]=host; else PIN_SRC[$v]=pinned; fi
@@ -314,6 +314,9 @@ posture_report() {
   fi
   echo "$line"
 }
+# #1864: the env schema defaults AUTH_FALLBACK=deny (the secure prod posture). Dev single-user mode's only
+# credential IS the owner fallback, so the dev stack pins `owner` here. A caller-set value wins (`:=`).
+: "${AUTH_FALLBACK:=owner}"
 : "${AUTH_MODE:=single-user}"
 # DEV-ONLY deterministic secrets — INSECURE BY DESIGN, never for a real deploy.
 # They exist so AUTH_MODE=local (superRefine: SESSION_SECRET ≥32 chars +
@@ -324,7 +327,7 @@ posture_report() {
 # The dev-stack seed stamp (see ENV PINS above): a dev stack auto-seeds the default persona, so the
 # FORCED first-run ask stays a real-stack behavior instead of firing on every regen.
 : "${DEV_SEED:=on}"
-export AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED
+export AUTH_FALLBACK AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED
 
 port_pid() { ss -tlnp 2>/dev/null | grep ":$1 " | grep -oP 'pid=\K[0-9]+' | head -1; }
 own_pgid() {

@@ -60,6 +60,7 @@ import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
   backfillPluginProvenanceOnBoot,
   DB_LAUNCHED,
+  repairStaleJoinSeqOnBoot,
   healLegacyBackgroundPinsOnBoot,
   migrateHandoffOfferVocabOnBoot,
   migratePluginToolWireNamesOnBoot,
@@ -346,6 +347,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // until this runs. Idempotent — a no-op on every boot once the candidate set is drained. Runs before
     // compose, which is where the first character read lives.
     await backfillPluginProvenanceOnBoot({ db });
+    // #2253 DATA repair: before eba8ef526 the invite-redeem's `canonHeadSeq` subquery was unqualified,
+    // recording the table-wide max(messages.seq) instead of the per-chat head. Clamp any stale join_seq
+    // to the actual per-chat canon head. Idempotent — a no-op on every boot once the candidates are drained.
+    await repairStaleJoinSeqOnBoot({ db });
 
     // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
     // transient sessions service is built only to run the owner seed; compose owns the real one.
