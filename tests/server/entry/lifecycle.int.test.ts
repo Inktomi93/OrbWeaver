@@ -9,6 +9,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { versionIdentity } from "@orb/server/foundation/version";
 import { afterAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -79,7 +80,7 @@ test("boot migrates + serves healthz 200; shutdown flips it to 503 and stops acc
 
   const live = await waitForHealthz(healthzUrl);
   expect(live.status).toBe(OK);
-  expect(await live.json()).toEqual({ status: "ok", harness: false });
+  expect(await live.json()).toEqual({ status: "ok", harness: false, version: versionIdentity() });
 
   await lifecycle.shutdown();
 

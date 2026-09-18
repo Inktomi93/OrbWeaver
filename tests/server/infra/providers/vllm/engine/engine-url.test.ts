@@ -63,6 +63,9 @@ describe("engineBaseUrl — VLLM_ENGINE_HOST relocates the engine host (ports in
     // Hermetic floor: keep the runner pin + skip any cwd `.env` so ONLY the crafted overrides apply.
     process.env["VITEST"] = "1";
     process.env["ORB_ENV_NO_FILE"] = "1";
+    // The schema default pairing (single-user + AUTH_FALLBACK=deny) is boot-fatal by design — single-user's only
+    // credential IS the owner fallback — so a hermetic floor states the launch-time value the way a launcher does.
+    process.env["AUTH_FALLBACK"] = "owner";
     for (const [k, v] of Object.entries(overrides)) {
       process.env[k] = v;
     }
