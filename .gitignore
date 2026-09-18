@@ -136,3 +136,7 @@ scratch/
 *.cpuprofile
 
 .claude/apisurface-*.txt
+
+# External agent workspaces
+.lsp.json
+.qwen/
