@@ -7,8 +7,9 @@ updated: 2026-09-18
 # Motion & Animation Guide
 
 The motion law (promoted proposed/ → core/ under D66). How motion is built in this app: **CSS
-/ Tailwind keyed off Base UI data-attributes and CSS vars, on three duration tokens plus one
-easing curve** — never a React animation hook, never a second easing curve. §1 is the Base UI
+/ Tailwind keyed off Base UI data-attributes and CSS vars, on three INTERACTION duration tokens
+(`fast`/`base`/`layout`) plus continuous/ambient tokens (`shimmer`/`breathe`/`precip`/`transit`/`ambient`)
+and one easing curve** — never a React animation hook, never a second easing curve. §1 is the Base UI
 mechanics an agent needs to add motion; §2 the taxonomy → token map; §3 the house principles
 (numbering is stable — code cites `guide §3.7`/`§3.9`); §4 the motion inventory (what's built,
 where, and what was deliberately left out). The pre-build gap analysis and the inspiration
@@ -287,7 +288,10 @@ in order. The sourced synthesis and design-writing quotes behind these live in
 5. **Sane defaults: ~150–250ms, ease-out for entrances, ease-in-out for on-screen movement,
    linear for continuous loops.** The three-tier token set already encodes this taxonomy
    (`--motion-fast` 130ms micro / `--motion-base` 220ms small-surface / `--motion-layout`
-   360ms layout-scale). Do NOT add a 4th/5th duration token or a 2nd easing curve.
+   360ms layout-scale). Do NOT add a 4th interaction duration token or a 2nd easing curve.
+   The continuous/ambient tokens (`--motion-shimmer`/`breathe`/`precip`/`transit`/`ambient`)
+   serve loops and environmental effects — a separate class, never a substitute for the
+   three-tier interaction taxonomy.
 
 6. **Spring vs. tween — springs for gesture-driven/interruptible, tweens for programmatic.**
    A finger-dragged drawer settles with a spring; a click-opened menu is pure tween (a spring
@@ -521,9 +525,10 @@ per-block `dir` wrapper and drops to a new line).
   daily" litmus. (The old clause here also banned animating streamed token text; the owner
   superseded that 2026-08-09 — the streamed-word reveal fade is §4.2 item 10, and its reveal-time
   anchoring is the technique that makes a hot-loop fade correct.)
-- Don't invent a 4th/5th duration token or a 2nd easing curve without a category that
-  genuinely doesn't fit `fast`/`base`/`layout` + `ease-out-expo`. The existing 3-tier system
-  already covers the full taxonomy in §2.
+- Don't invent a 4th interaction duration token or a 2nd easing curve without a category that
+  genuinely doesn't fit `fast`/`base`/`layout` + `ease-out-expo`. The existing 3-tier interaction
+  system covers the full taxonomy in §2; continuous/ambient tokens (`shimmer`/`breathe`/`precip`/
+  `transit`/`ambient`) serve loops and environmental effects and are a separate class.
 
 ## 5. The Base UI animation/styling contract (house law — #1088)
 

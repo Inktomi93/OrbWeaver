@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-08
+updated: 2026-09-18
 ---
 
 # UI-Architecture-and-Layout
@@ -29,7 +29,7 @@ updated: 2026-09-08
 | button · dialog · popover · tooltip · select · switch · slider · menu · field (+ the Wave-3 controls/disclosure/display set) | Base UI | §2 |
 | command · sortable · macro-textarea | cmdk · `@dnd-kit/react` · minisearch | §2 / §11.3 |
 | toast · drawer | Base UI native (D54 — dropped sonner + vaul) | §2 |
-| icons | lucide-react (gate `icons-lucide-only`) | §2 |
+| icons | lucide-react (dep-cruiser `ui-satellite-seals`) | §2 |
 | diff | `diff` (jsdiff — snapshot/edit-history diffs, D28) | §2 |
 | layout (Stack/Row/Section/Toolbar/Container) | `container-type` | §4 |
 | chart · bar-list · histogram · stat-figure | ECharts | §11.3 (D52) |
