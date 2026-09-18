@@ -307,6 +307,32 @@ body {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
     }
+    /* THE COMPOSER TAKES D144'S POLARITY FLOOR OVER ART — the pane rule's twin, one surface over
+     * (UI-Theming-and-Content.md §12.1). The rule above mixes the composer's tint at a fixed
+     * `--blur-fill-chrome`, so over a room wallpaper the remainder of the art lands inside the box a person
+     * TYPES INTO — the one surface on the chat surface whose ink is the user's own words and whose caret has
+     * to stay findable against whatever photo scrolls behind it. Same defect class, same fix: mix over
+     * `--color-reading-plate` (D144(b)'s already-derived, already-polarity-aware over-art backing —
+     * `readingPlateAlpha`, #217) instead of over `transparent`.
+     *
+     * NO NEW NUMBER IS INVENTED: both partners of the mix are at or above the plate's own derived alpha
+     * (the tint is opaque, the plate IS the floor), so the composite is too, by construction, at every value
+     * of `--blur-fill-chrome` including the reduced-transparency and prefers-contrast arms' 100%/92%.
+     *
+     * ONLY THE LIGHT ARM MOVES (D144(d)): the dark arm re-spells the plateless base verbatim, so the sacred
+     * dark rooms render byte-identically.
+     *
+     * THE WALLPAPER GATE IS A DESCENDANT SELECTOR OFF `.shell-grid`, which is the anatomy the composer
+     * actually has — shell.css already reaches it exactly this way
+     * (`.shell-grid[data-has-bg-image] [data-slot="composer"] { text-shadow: none }`), so this is the sheet's
+     * own established path to this subject rather than a new one. It sets `background-color` alone and
+     * therefore does not touch the reduced-transparency arm's `backdrop-filter` ties below. */
+    html[data-blur-composer] .shell-grid[data-has-bg-image] [data-slot="composer"] {
+      background-color: light-dark(
+        color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--color-reading-plate)),
+        color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent)
+      );
+    }
     /* The reading/document content backing upgrades to glass in lock-step with the side panels, so a
      * frosted look carries through instead of leaving it an opaque slab beside glass panels.
      *
@@ -427,6 +453,44 @@ body {
     html[data-blur-messages] [data-role="system"] [data-slot="message-bubble"] {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), transparent);
+    }
+    /* THE THREE BUBBLES TAKE D144'S POLARITY FLOOR OVER ART (UI-Theming-and-Content.md §12.1) — the same
+     * arm the panes (#237), the reading surface (#1173) and the modal slots (#623) already carry, finally
+     * reaching the surface that holds the ACTUAL PROSE. The three rules above mix each role's tint at a
+     * fixed `--blur-fill-dense`, so over a room wallpaper the remainder of the art composites straight
+     * under the transcript's ink — and a bubble is the one glass surface a reader is asked to READ rather
+     * than glance at.
+     *
+     * ONE ARM PER ROLE, NOT ONE `[data-role]` CATCH-ALL, because the plate law pairs (subject, TINT): each
+     * base mixes a different token, so each owes its own `light-dark()` provider spelling that token. A
+     * single merged rule would leave two of the three tints plateless while looking like it covered them.
+     *
+     * NO NEW NUMBER IS INVENTED, and ONLY THE LIGHT ARM MOVES — the same two constructions the pane rule
+     * ~200 lines up states in full: both partners of the mix are at or above `--color-reading-plate`'s own
+     * derived alpha (`readingPlateAlpha`, #217), so the composite is too at every value of
+     * `--blur-fill-dense` including the reduced-transparency and prefers-contrast arms' raises; and the dark
+     * arm re-spells the plateless base verbatim so the sacred dark rooms (D144(d)) do not move a pixel.
+     *
+     * The wallpaper gate is the same `.shell-grid[data-has-bg-image] [data-slot="message-bubble"]` descendant
+     * path shell.css already uses for this exact subject, and these rules set `background-color` alone, so
+     * the reduced-transparency arm's `backdrop-filter: none` ties below are untouched. */
+    html[data-blur-messages] .shell-grid[data-has-bg-image] [data-role="user"] [data-slot="message-bubble"] {
+      background-color: light-dark(
+        color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), var(--color-reading-plate)),
+        color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), transparent)
+      );
+    }
+    html[data-blur-messages] .shell-grid[data-has-bg-image] [data-role="assistant"] [data-slot="message-bubble"] {
+      background-color: light-dark(
+        color-mix(in oklab, var(--color-ai-bubble) var(--blur-fill-dense), var(--color-reading-plate)),
+        color-mix(in oklab, var(--color-ai-bubble) var(--blur-fill-dense), transparent)
+      );
+    }
+    html[data-blur-messages] .shell-grid[data-has-bg-image] [data-role="system"] [data-slot="message-bubble"] {
+      background-color: light-dark(
+        color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), var(--color-reading-plate)),
+        color-mix(in oklab, var(--color-system-bubble) var(--blur-fill-dense), transparent)
+      );
     }
   }
 }

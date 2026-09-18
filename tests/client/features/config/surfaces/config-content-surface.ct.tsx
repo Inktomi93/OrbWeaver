@@ -1330,28 +1330,36 @@ for (const width of [1440, 990] as const) {
   });
 }
 
-// …AND THE THIRD PANE STATE IS THE ZERO ARM, WHICH IS A RECORDED-RULING FORK, NOT A DRIFT.
+// …AND THE THIRD PANE STATE IS THE ZERO ARM, WHICH THE OWNER RECONCILED RATHER THAN LEFT FORKED.
 //
-// "One register" is a claim about THREE renderings, not two: a library with no members draws no glance at
-// all — it draws an `EmptyState` whose own `titleAs="h2"` IS the pane's heading (the primitive's
-// headingless-`main` note, `config-collection-landing.tsx`'s zero arm) — and that heading measures the
-// DISPLAY step while both other panes measure the headline one. Caught by this file: the first draft of
-// the pin above stubbed the library at zero and read 24px against the settings pane's 20.
+// THE HISTORY, because this arm used to assert the OPPOSITE and a reader finding it should know why it
+// flipped. "One register" is a claim about THREE renderings, not two, and the third one used to differ: a
+// library with no members drew no glance at all — it drew an `EmptyState` whose own `titleAs="h2"` WAS the
+// pane's heading — and that heading measured the DISPLAY step while both other panes measured the headline
+// one. That divergence was PINNED here with its cause rather than silently reversed, because it sat between
+// two recorded rulings: `packages/ui/src/styles/globals.css`'s unlayered
+// `[data-slot="empty-state-title"][data-title-step="focal"]` rule holds `var(--text-display)` at every width
+// on purpose (side-eye 2026-08-21 P4 — "`focal` is the surface's one focal statement, and a statement that
+// shrinks with its column is not one"), while #1839 F24 says a CONFIG pane's title register must be ONE
+// value, and a first-timer opening an empty library is exactly the reader the inconsistency lands on. The
+// note then handed the reconciliation to the orchestrator, naming its two arms.
 //
-// IT IS DELIBERATE, AND THE DELIBERATION IS OLDER THAN #1839. `globals.css`'s
-// `[data-slot="empty-state-title"][data-title-step="focal"]` is an UNLAYERED rule that holds
-// `var(--text-display)` at every width, and its own header states why (side-eye 2026-08-21 P4): "`focal` is
-// the surface's one focal statement, and a statement that shrinks with its column is not one." Today's
-// F24 says the opposite thing about this surface: the CONFIG pane's title register must be ONE value, and
-// a first-timer opening an empty library is precisely the reader the inconsistency lands on.
+// #1845 TOOK THE FIRST ARM (`76806c510`, "fix zero-member library EmptyState to open on the same register as
+// the populated arm via ConfigPaneGlance"). The zero arm stopped being the EmptyState's heading:
+// `config-collection-landing.tsx`'s `count === 0` branch now draws `ConfigPaneGlance level={2}` — the same
+// component, at the same step, as the populated and settings panes — and the EmptyState below it carries the
+// TEACHING as `titleAs="p"`. The copy worry the fork named (a glance above the EmptyState printing the
+// library's name twice) is answered by the two texts saying different things: the glance names the library,
+// the empty state says it is empty and offers the verb.
 //
-// NEITHER TEXT IS SILENTLY REVERSED HERE. The divergence is PINNED WITH ITS CAUSE — measured against the
-// resolved tokens rather than against 24 and 20 — so the number is visible in the tree instead of absent,
-// and this arm reds the moment either ruling's mechanism moves. The reconciliation (does the zero arm
-// stop being the pane's heading, or does the config surface accept a display-step empty landing?) is the
-// orchestrator's; it is a copy decision as much as a type one, because a glance above the EmptyState would
-// print the library's name twice.
-test("#1839 FORK: the zero-member library keeps the EmptyState focal step, and it is the one pane that differs", async ({ mount, page }) => {
+// THE 2026-08-21 RULING SURVIVES — ITS INPUT CHANGED. The unlayered focal rule is untouched and still holds
+// the display step for every caller that asks for `titleStep="focal"`; it is pinned by computed value in
+// tests/ui/primitives/empty-state/empty-state.ct.tsx and exercised live by the preset library welcome
+// (preset-library-surface.ct.tsx). What moved is that the config surface no longer asks for it. So this arm
+// now pins BOTH halves of that sentence: the zero pane opens at the one register, and it does so by NOT
+// carrying the focal step — a future revision that re-promotes this title reds here rather than quietly
+// re-opening the fork.
+test("#1845: the zero-member library opens at the SAME register as every other pane, and its EmptyState is not the heading", async ({ mount, page }) => {
   await stub(page, { "tag.listTagsWithUsage": () => [] });
   const component = await mount(<ConfigHostStory width={1440} />);
   const content = component.locator(CONTENT_PANE);
@@ -1365,9 +1373,11 @@ test("#1839 FORK: the zero-member library keeps the EmptyState focal step, and i
   await expect(zeroTitle).toBeVisible();
   const zero = await headingRegister(zeroTitle);
 
-  // Both sides read as RESOLVED TOKENS, never as 20 and 24: the claim is which STEP each pane takes, and a
-  // literal would go stale the moment the ramp is retuned — which is exactly the kind of change this arm
-  // exists to make visible.
+  // Read as a RESOLVED TOKEN, never as 20: the claim is which STEP the pane takes, and a literal would go
+  // stale the moment the ramp is retuned — which is exactly the kind of change this arm exists to make
+  // visible. `display` is resolved too, because the second half of the claim is that the zero pane is NOT on
+  // it, and a probe that only knew the headline number could not tell "one register" from "both steps are
+  // 20px today".
   const steps = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement);
     const px = (name: string): number => {
@@ -1380,7 +1390,23 @@ test("#1839 FORK: the zero-member library keeps the EmptyState focal step, and i
     };
     return { display: px("--text-display"), headline: px("--text-headline") };
   });
+  expect(steps.display, "the two steps must still differ, or this arm proves nothing about which one is taken").toBeGreaterThan(steps.headline);
   expect(settings.size, "a config pane's title is the HEADLINE step (voice=focal)").toBe(steps.headline);
-  expect(zero.size, "the zero arm rides the unlayered EmptyState focal rule — the DISPLAY step, at every width").toBe(steps.display);
-  expect(steps.display, "the fork only exists while the two steps differ").toBeGreaterThan(steps.headline);
+  expect(zero, `settings ${JSON.stringify(settings)} vs zero ${JSON.stringify(zero)}`).toEqual(settings);
+
+  // THE STRUCTURE, not just the size. The glance IS the pane's heading now, so the pane owes EXACTLY ONE
+  // `h2`: two would print the library's name twice (the copy objection the fork recorded), and zero would
+  // leave `main` headingless (the `titleAs` prop's own reason for existing). A size-only assertion passes
+  // happily on a pane that grew a second h2 at the same step.
+  await expect(content.getByRole("heading", { level: 2 })).toHaveCount(1);
+
+  // …and the teaching below it is a paragraph that does NOT ride the focal display step. Asserted through
+  // the attribute the unlayered rule keys on AND through the computed size, because the attribute alone
+  // would not catch the rule being re-spelled to match the slot instead.
+  const emptyTitle = content.locator('[data-slot="empty-state-title"]');
+  await expect(emptyTitle).toHaveCount(1);
+  await expect(emptyTitle).toHaveText("No tags yet");
+  await expect(emptyTitle, "the EmptyState is the teaching, never the pane's heading (titleAs='p')").not.toHaveAttribute("data-title-step", "focal");
+  const teaching = await headingRegister(emptyTitle);
+  expect(teaching.size, "a teaching line that had crept back onto the display step would be the fork re-opening").toBeLessThan(steps.display);
 });

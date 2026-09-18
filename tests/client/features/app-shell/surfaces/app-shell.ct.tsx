@@ -6075,27 +6075,101 @@ test("#623: with NO wallpaper the LIGHT arm's dialog popup is byte-identical (th
   expect(alphaOf(artFill)).toBeGreaterThan(alphaOf(plainFill));
 });
 
-// The CENSUS the fix did NOT change, reported so the next reader knows which glass spellings are already safe
-// and which are the same defect waiting to be filed. `.shell-panel` took the floor at #237 and is the control
-// (it must PASS, or the instrument is lying). `.shell-main` and `[data-slot="composer"]` are the two
-// remaining `color-mix(…, transparent)` glass surfaces that were never threaded — out of #623's lane,
-// MEASURED here rather than guessed at, and annotated whichever way they land.
-test("#623 census: every other glass surface over worst-case art, LIGHT arm — measured, not assumed", async ({ mount, page }) => {
+// THE CENSUS IS NOW A FENCE, NOT A REPORT — and the sentence it used to carry is why.
+//
+// It was written as "the census the fix did NOT change": `.shell-panel` took D144's floor at #237 and was the
+// only ASSERTED row (the positive control — a census that reds on surfaces its lane was fenced out of would
+// be parking someone else's work inside a failing test), while `.shell-main` and `[data-slot="composer"]`
+// were measured-and-annotated as "the same defect waiting to be filed". Both have since been filed and
+// fixed: `.shell-main`'s carrier took the arm at `a743e4799` (#1173), and the composer plus the three
+// `[data-slot="message-bubble"]` roles take it here, off the `over-art-plate-arm` gate's own warnings
+// (globals.css:306/419/423/427 — "mixes `var(--color-…)` over `transparent` and no `[data-has-bg-image]`
+// rule gives that pair a `light-dark()` plate arm").
+//
+// So every `color-mix(…, transparent)` glass surface in the sheet now has a plate arm, and the honest shape
+// of this test flips with that: what was a report of an open gap is the CLOSURE PIN.
+//
+// MEASURED BOTH WAYS, AND THE TWO HALVES OF THE SET DIFFER — stated because a reader should not take this
+// arm as evidence that all four newly-threaded surfaces were failing. Against the UNMODIFIED globals.css
+// (`git show HEAD:…` restored, this same mount): panel 6.40 · shell-main 6.99 · composer 3.30 · bubble/user
+// 4.81 · bubble/assistant 5.41 · bubble/system 4.84. The COMPOSER was a live AA failure at 3.30:1 — a person
+// typing over a dark room photo, which is the whole defect class. The three bubbles already cleared AA on
+// their own denser fill and take the arm for CONFORMANCE (D144's floor is derived, not designed: a bubble
+// whose alpha happens to clear today is still an undeclared number the next palette can move), and their
+// ratios rise with it. A census that reported "all six red" would be overclaiming; this comment is the
+// receipt that they were not.
+//
+// STILL MEASURED ON THE WEAKEST INK (`--color-muted-foreground`, `landedMutedContrast`'s own reason): a
+// surface's full-strength foreground survives the fixed fill on its own margin, so a pin on it passes while
+// the surface is still failing where it hurts. And still on the LANDED PIXELS over pure-black art — the
+// css-resolve path reports a clean number here and misses the defect entirely, because a wallpaper is a
+// PAINT layer, not a computed background (#237's own receipt: 7.01 computed against 3.69 sampled).
+test("#623 census: EVERY glass surface over worst-case art clears AA on the LIGHT arm", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.evaluate(() => {
     document.body.style.background = "#000";
   });
   const light = await mount(<OverArtGlassCensusFixture dataTheme="light" />);
-  const panel = await landedMutedContrast(page, light.getByTestId("census-panel"));
-  const main = await landedMutedContrast(page, light.getByTestId("census-main"));
-  const composer = await landedMutedContrast(page, light.getByTestId("census-composer"));
+  const rows = [
+    { label: "panel(#237, control)", probe: "census-panel" },
+    { label: "shell-main(#1173)", probe: "census-main" },
+    { label: "composer", probe: "census-composer" },
+    { label: "bubble/user", probe: "census-bubble-user" },
+    { label: "bubble/assistant", probe: "census-bubble-assistant" },
+    { label: "bubble/system", probe: "census-bubble-system" },
+  ] as const;
+  const measured: { readonly label: string; readonly ratio: number }[] = [];
+  for (const row of rows) {
+    measured.push({ label: row.label, ...(await landedMutedContrast(page, light.getByTestId(row.probe))) });
+  }
   test.info().annotations.push({
-    description: `panel(#237, control) ${panel.ratio.toFixed(2)}:1 · shell-main ${main.ratio.toFixed(2)}:1 · composer ${composer.ratio.toFixed(2)}:1 — AA floor ${AA_NORMAL}`,
+    description: `${measured.map((m) => `${m.label} ${m.ratio.toFixed(2)}:1`).join(" · ")} — AA floor ${AA_NORMAL}`,
     type: "over-art-census",
   });
-  // Only the surface #237 already fixed is ASSERTED: it is this census's positive control, and a census that
-  // RED on surfaces this lane is fenced out of would be parking someone else's work inside a failing test.
-  expect(panel.ratio).toBeGreaterThanOrEqual(AA_NORMAL);
+  for (const m of measured) {
+    expect(m.ratio, `${m.label} over black art`).toBeGreaterThanOrEqual(AA_NORMAL);
+  }
+});
+
+// THE DARK ARM DOES NOT MOVE (D144(d) — the sacred dark rooms), for the surfaces this lane threaded. The
+// plate rides the LIGHT arm of a `light-dark()` whose DARK arm re-spells the plateless base verbatim, so the
+// claim is byte-identity rather than a ratio: a dark room with a wallpaper renders exactly what it rendered
+// before the arm existed. Asserted against the SAME mount with no wallpaper, which is what "the rule cannot
+// touch it at all" means — the #237 pane arm's own construction, on the four surfaces that just took it.
+// THE PER-ROLE CONTROL IS A SEPARATE MOUNT, NOT A DISTINCTNESS HEURISTIC. A first cut of this test proved
+// the role selector still reached by asserting the three dark fills were three distinct values; it RED on the
+// tree at `oklab(0.255 …/0.88) · oklab(0.205 …/0.88) · oklab(0.255 …/0.88)` — `--color-user-bubble` and
+// `--color-system-bubble` resolve to the SAME value in the default dark palette, which is a palette fact and
+// not a defect. So each role is compared to ITS OWN no-wallpaper twin (`ShellCascadeFixture`'s `messageRole`
+// switch), which is a stronger claim than distinctness and does not depend on how a seed happens to be tuned.
+test("the composer and the three bubbles do not move on the DARK arm (D144(d))", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const roles = ["user", "assistant", "system"] as const;
+  const overArt = await mount(<OverArtGlassCensusFixture />);
+  const composerOverArt = await bgColorOf(overArt.getByTestId("census-composer"));
+  const bubblesOverArt: string[] = [];
+  for (const role of roles) {
+    bubblesOverArt.push(await bgColorOf(overArt.getByTestId(`census-bubble-${role}`)));
+  }
+  await overArt.unmount();
+
+  // `hasBgImage` is baked into the census fixture's grid, so the no-wallpaper control is a DIFFERENT fixture:
+  // `ShellCascadeFixture` carries the switch, and its composer/bubble probes are the same two slots under the
+  // same glass surfaces. One mount per role, because its bubble probe wears one `data-role` at a time.
+  const plainBubbles: string[] = [];
+  let composerPlain = "";
+  for (const role of roles) {
+    const plain = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} messageRole={role} />);
+    composerPlain = await bgColorOf(plain.getByTestId("composer-probe"));
+    plainBubbles.push(await bgColorOf(plain.getByTestId("bubble-probe")));
+    await plain.unmount();
+  }
+  test.info().annotations.push({
+    description: `over-art composer ${composerOverArt} · bubbles ${bubblesOverArt.join(" · ")} || plain composer ${composerPlain} · bubbles ${plainBubbles.join(" · ")}`,
+    type: "dark-arm",
+  });
+  expect(composerOverArt, "the dark composer over art is the plateless base verbatim").toBe(composerPlain);
+  expect(bubblesOverArt, "each dark bubble role over art is its own plateless base verbatim").toEqual(plainBubbles);
 });
 
 // -- #1669 arm A: THE CHARACTERS PANE'S PHONE CHROME, MEASURED ON THE REAL SCREEN --------------------

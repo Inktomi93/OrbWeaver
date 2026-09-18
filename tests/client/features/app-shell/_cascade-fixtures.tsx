@@ -200,6 +200,18 @@ export function OverArtGlassCensusFixture({ dataTheme = null }: { readonly dataT
         <div className="shell-panel" data-panel-side="list" data-testid="census-panel" style={{ ...CENSUS_PROBE, left: 0 }} />
         <div className="shell-main" data-testid="census-main" style={{ ...CENSUS_PROBE, left: "220px" }} />
         <div data-slot="composer" data-testid="census-composer" style={{ ...CENSUS_PROBE, left: "440px" }} />
+        {/* THE THREE BUBBLE ROLES, each under its own `[data-role]` ancestor because that is what the glass
+            rules key on — a bare `[data-slot="message-bubble"]` takes no tint at all and would census a
+            surface production never paints. They are the transcript's own reading surface, so they are the
+            over-art case that matters most and the last one the plate arm reached. */}
+        {/* A SECOND ROW (`top: 220px`), not more columns: the dialog probe already sits at 660 and the CT
+            viewport is 1280 wide, so three more 200px columns would either overlap it or fall outside the
+            frame — and a pixel sample outside the viewport reads nothing while looking like a measurement. */}
+        {(["user", "assistant", "system"] as const).map((role, index) => (
+          <div data-role={role} key={role}>
+            <div data-slot="message-bubble" data-testid={`census-bubble-${role}`} style={{ ...CENSUS_PROBE, left: `${String(index * 220)}px`, top: "220px" }} />
+          </div>
+        ))}
       </div>
       {/* The production home of a dialog popup: a SIBLING of the grid, not a descendant. */}
       <div className="contents" data-slot="portal-root">

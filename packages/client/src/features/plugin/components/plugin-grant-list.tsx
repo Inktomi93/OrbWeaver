@@ -1,5 +1,17 @@
 // plugin-grant-list — THE SECURITY SURFACE of the plugin feature: the list of everything a bundle is
-// asking for, and (in the editable arm) the subset the person actually confirms.
+// asking for, and what of it is already granted.
+//
+// IT IS READ-ONLY, AND THAT IS AN OWNER RULING, NOT A MISSING FEATURE (#1855, landed `5e713309e`). This
+// component used to carry an EDITABLE arm — an `onToggle` prop that made each row a live checkbox and let a
+// person cherry-pick a subset — and both of its call sites (the install card's confirm block and the row's
+// re-consent notice) drove it. The owner replaced that with APPROVE-ALL / DENY on both surfaces: "unchecking
+// capabilities the plugin declares rarely leaves a working plugin, and it taught people to tick boxes
+// without reading". The prop and its arm are DELETED here rather than left behind with no caller, because a
+// dead editable arm on a security surface is an affordance a later revision can re-enable by accident —
+// which is exactly the shape #650 P1-3 was filed about, one level up.
+// A ROW THEREFORE HAS TWO STATES, not three: GRANTED (a checked, non-interactive checkbox — "you already
+// have this" is a true state) and NOT GRANTED (a `w-checkbox` spacer plus a word-mark, see the last
+// paragraph of this header). Nothing here is clickable.
 //
 // THE CONTRACT THIS COMPONENT OWES, from #24: a person must be able to see exactly what they are agreeing
 // to. Concretely, three things every arm renders:
@@ -28,16 +40,17 @@
 // marked because the SERVER said it was added, never because a client inferred it. Do not compute this
 // prop from anything else — the host fold (case, trailing dot) lives server-side and has exactly one home.
 //
-// A11Y + GEOMETRY: each interactive row is CHECKBOX-LEADING with a real `<label htmlFor>` wrapping the
-// name AND the consequence (the character-greeting-preview.tsx:320 precedent — a bare `<label>` with no
-// className is the sanctioned raw intrinsic for exactly this), so the WHOLE text block toggles the box and
-// the box sits ADJACENT to the words it grants. The prior shape — `Field orientation="horizontal"` — docked
-// the checkbox in the fixed control column at the row's FAR edge (`justify-between`), which at the 560-746px
-// pane put a security checkbox ~400px of dead gap away from its own label and left only the 18px box
-// clickable (side-eye 2026-08-29 P2-2; the same primitive's geometry stranded a checkbox ~370px once
-// before, `field-forces-a11y-suppression` layout sibling). A control-leading Field variant was REJECTED as
-// the fix: it would grow a sealed primitive's axis for one consumer and still could not make the
-// DESCRIPTION clickable (Base UI wires the label only).
+// A11Y + GEOMETRY: each row is CHECKBOX-LEADING — the control sits ADJACENT to the words it reports on. The
+// prior shape — `Field orientation="horizontal"` — docked the checkbox in the fixed control column at the
+// row's FAR edge (`justify-between`), which at the 560-746px pane put a security checkbox ~400px of dead gap
+// away from its own label (side-eye 2026-08-29 P2-2; the same primitive's geometry stranded a checkbox ~370px
+// once before, `field-forces-a11y-suppression` layout sibling). A control-leading Field variant was REJECTED
+// as the fix: it would grow a sealed primitive's axis for one consumer.
+// THE `<label htmlFor>` HIT TARGET LEFT WITH THE EDITABLE ARM (#1855). While the rows were live, the name,
+// the pills AND the consequence sat inside a bare `<label htmlFor>` so the whole text block toggled the box
+// — P2-2's other half, "a security decision should not demand an 18px aim". With nothing to toggle there is
+// no target to widen, and a `<label>` over a non-interactive checkbox would advertise one. The ADJACENCY
+// half of that finding is what still holds and is still pinned; the hit-area half is retired with its arm.
 //
 // THE ACCESSIBLE NAME IS AN EXPLICIT `aria-labelledby` NAMING EXACTLY TWO NODES — the capability's own
 // label Text, plus the "New" pill on a re-consent row. Never the wrapping label's textContent, and never
@@ -64,7 +77,17 @@
 // update)" suffix stays GONE from the label text — the "New" badge beside it said the identical thing 8px
 // away (P3-5's redundancy half).
 //
-// A READ-ONLY row that is NOT granted renders a "Not granted" word-mark instead of a disabled checkbox
+// TRUTH-REPAIR (#1855): the paragraph above argues against a generated `aria-labelledby` that Base UI derived
+// from the WRAPPING `<label htmlFor>`. That wrapper is gone with the editable arm, so there is no generated
+// name left to outrank — the explicit `aria-labelledby` is now simply the only name, and it still names
+// exactly the label node plus the "New" pill. The ruling holds unchanged; what it was competing with does
+// not exist any more, and the explicit spelling is kept rather than dropped because it is what PINS the
+// pills out of the name (a bare `aria-label`-less checkbox would fall back to the same subtree run-on the
+// moment anything re-wraps this row). One claim it can no longer make: an UNGRANTED row has no checkbox at
+// all now, so its "New" mark rides no accessible NAME — it is the plain adjacent text beside "Not granted",
+// which is the shape #1855 chose when it made those rows statements rather than questions.
+//
+// A ROW THAT IS NOT GRANTED renders a "Not granted" word-mark instead of a disabled checkbox
 // (side-eye #650 P1-3). A `disabled` Checkbox still computes `cursor:pointer` (the shared selection-control
 // skin's base class — `SELECTION_CONTROL`, `packages/ui/src/lib/selection-control.ts` — never overrides it
 // for the disabled state) and `pointer-events:none` gives zero feedback on click, so an unchecked disabled
@@ -92,9 +115,8 @@ export interface PluginGrantListProps {
   /** The exact hosts `net.fetch` may reach, straight off the manifest. */
   readonly netHosts: readonly string[];
   /**
-   * The confirmed subset. In the editable arm this is component state the caller owns; in the read-only arm
-   * it is what the server already recorded, and the difference between it and `declared` is what a person
-   * is being asked to confirm.
+   * What the server already recorded as granted. The difference between it and `declared` is what a person
+   * is being asked to approve (#1855: as a whole, or not at all).
    */
   readonly granted: readonly PluginCapability[];
   /** CAPABILITIES that are new versus the previous grant — the re-consent highlight. */
@@ -112,8 +134,6 @@ export interface PluginGrantListProps {
    *  under it). Every call site already has this phrase sitting right above the list; pass it through
    *  rather than inventing a second copy of it here. */
   readonly capabilitiesLabel: string;
-  /** Omit to render read-only (the row's checkbox becomes a non-interactive state mark). */
-  readonly onToggle?: (capability: PluginCapability, next: boolean) => void;
 }
 
 /** The declared capabilities in display order, skipping any this build has no sentence for. */
@@ -133,11 +153,9 @@ interface GrantRowProps {
   readonly capability: PluginCapability;
   readonly checked: boolean;
   readonly isNew: boolean;
-  readonly onToggle: PluginGrantListProps["onToggle"];
 }
 
-function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): ReactElement | null {
-  const boxId = useId();
+function GrantRow({ capability, checked, isNew }: GrantRowProps): ReactElement | null {
   const nameId = useId();
   const newMarkId = useId();
   const consequenceId = useId();
@@ -149,24 +167,22 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
   // re-consent row. Explicit beats the one Base UI derives from the wrapping `<label htmlFor>`, which is what
   // silently swallowed the pills and the consequence.
   const nameIds = isNew ? `${nameId} ${newMarkId}` : nameId;
-  const interactive = onToggle !== undefined;
   const labelBlock = (
-    // `cursor-pointer` when interactive: the WHOLE label row is the toggle's hit target (the bare `<label
-    // htmlFor>` below), but a raw `<label>` cannot carry the class (feature paint law — G16 bans className on
-    // a raw intrinsic), so the pointer affordance rides this Stack instead, matching the already-correct hit
-    // area (side-eye 2026-08-29 residual P3). Read-only rows stay default-cursor.
-    <Stack className={interactive ? "cursor-pointer" : undefined} gap="tight">
+    // NO `cursor-pointer` ANY MORE (#1855): it rode the editable arm, where the whole block was the toggle's
+    // hit target. Nothing here is clickable, and a pointer cursor over a statement is the same false
+    // affordance the disabled-checkbox finding (#650 P1-3) is about, one property down.
+    <Stack gap="tight">
       <Row align="center" className="flex-wrap" gap="field">
         <Text id={nameId} voice="label">
           {copy.label}
         </Text>
-        {/* An UNCHECKED read-only row's state, as a word beside the name it refuses — adjacent, where the
-            far-docked control column used to strand it (file header). */}
-        {!(interactive || checked) ? (
+        {/* An UNGRANTED row's state, as a word beside the name it refuses — adjacent, where the far-docked
+            control column used to strand it (file header). */}
+        {checked ? null : (
           <Text className="text-muted-foreground" voice="label">
             Not granted
           </Text>
-        ) : null}
+        )}
         {/* "New" reads INFO (informational — this row changed) against "Costs money"'s WARNING (a real
             caution) — two amber "warning/soft" pills at a glance were indistinguishable (side-eye P2-8). */}
         {isNew ? (
@@ -201,37 +217,25 @@ function GrantRow({ capability, checked, isNew, onToggle }: GrantRowProps): Reac
       </Text>
     </Stack>
   );
-  // The whole text block is the hit target when the row is live: a bare `<label htmlFor>` (the
-  // greetings-toggle precedent — no className on a raw intrinsic, the paint law) forwards every click on
-  // the name, the pills or the consequence to the checkbox — a security decision should not demand an 18px
-  // aim (P2-2). The Stack wrapper below carries the flex geometry AND blockifies/stretches the
-  // inline-by-default label to the full remaining row width, so the target is the row, not the run of text.
-  const textColumn = interactive ? <label htmlFor={boxId}>{labelBlock}</label> : labelBlock;
   return (
     <Row align="start" gap="row">
-      {/* THE LEAD COLUMN: the control, adjacent to its words. A CHECKED read-only row keeps the checkbox
-          ("you already have this" is a true state, not a false affordance — its ≥44px touch pseudo is moot,
-          it is disabled); an UNCHECKED read-only row gets a `w-checkbox` spacer so mixed rows keep one left
-          rail, with the "Not granted" word-mark on the label row above (P1-3, see the file header). */}
-      {interactive || checked ? (
-        <Checkbox
-          aria-describedby={consequenceId}
-          aria-labelledby={nameIds}
-          checked={checked}
-          disabled={!interactive}
-          id={boxId}
-          onCheckedChange={(next): void => onToggle?.(capability, next)}
-        />
+      {/* THE LEAD COLUMN: the control, adjacent to its words. A GRANTED row keeps the checkbox ("you already
+          have this" is a true state, not a false affordance — its ≥44px touch pseudo is moot, it is
+          disabled); an UNGRANTED row gets a `w-checkbox` spacer so mixed rows keep one left rail, with the
+          "Not granted" word-mark on the label row above (P1-3, see the file header). */}
+      {checked ? (
+        <Checkbox aria-describedby={consequenceId} aria-labelledby={nameIds} checked={true} disabled={true} />
       ) : (
         <Stack aria-hidden={true} className="w-checkbox shrink-0" />
       )}
-      <Stack className="min-w-0 flex-1">{textColumn}</Stack>
+      <Stack className="min-w-0 flex-1">{labelBlock}</Stack>
     </Row>
   );
 }
 
-/** The reach list. Editable when `onToggle` is supplied (the install/upgrade confirm), read-only otherwise
- *  (an installed row's "what it can do" disclosure). */
+/** The reach list — always read-only (#1855: the consent decision is approve-all or deny, never per row).
+ *  Drawn at three moments: the install confirm, the upgrade re-consent notice, and an installed row's
+ *  "what it can do" disclosure. */
 export function PluginGrantList({
   declared,
   netHosts,
@@ -240,7 +244,6 @@ export function PluginGrantList({
   addedNetHosts,
   netHostsHeading = "Hosts it can reach",
   capabilitiesLabel,
-  onToggle,
 }: PluginGrantListProps): ReactElement {
   const grantedSet = new Set<PluginCapability>(granted);
   const addedSet = new Set<PluginCapability>(addedCapabilities ?? []);
@@ -267,7 +270,7 @@ export function PluginGrantList({
         // threaded through rather than re-spelled, so the two can never drift apart.
         <Stack aria-label={capabilitiesLabel} gap="block" role="group">
           {rows.map((capability) => (
-            <GrantRow key={capability} capability={capability} checked={grantedSet.has(capability)} isNew={addedSet.has(capability)} onToggle={onToggle} />
+            <GrantRow key={capability} capability={capability} checked={grantedSet.has(capability)} isNew={addedSet.has(capability)} />
           ))}
         </Stack>
       )}

@@ -16,8 +16,14 @@
 // reach-widening upgrade `disabled` (`domain/plugin/verbs/upgrade.ts`) with `reconsentPending: true`, and
 // these assert the row SAYS WHAT WIDENED — the new capability by name and consequence, the new host
 // verbatim AND MARKED, the carried-forward host verbatim and UNMARKED — then drive the REAL escape path
-// (`plugin.setGrant`) end to end, in both its arms: a covering answer that clears the notice, and a PARTIAL
-// one that records exactly the narrower subset and leaves the notice standing.
+// (`plugin.setGrant`) end to end, at both ask sizes: one outstanding capability and two.
+//
+// CONSENT IS APPROVE-ALL / DENY (#1855, owner ruling, `5e713309e`). Every arm below that used to tick a
+// per-capability box now reads the list as the read-only statement it is and presses ONE button. The CT was
+// not swept with that landing, which is what board row #2390 was: five tests clicking checkboxes the product
+// had deliberately disabled. Each rewritten arm carries its own before/after note rather than a bare new
+// assertion, because the claims INVERTED and a reader meeting only the new text would not know a recorded
+// ruling (#658's per-row granularity) was superseded rather than forgotten.
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -233,15 +239,25 @@ test("the grant screen shows the ui.surface consent line when a plugin declares 
   await expect(page.getByText("Reaches further")).toHaveCount(0);
 });
 
-test("unchecking a permission installs the NARROWED subset, not what the bundle asked for", async ({ mount, page }) => {
+// APPROVE-ALL / DENY, AND THIS ARM USED TO ASSERT THE OPPOSITE (#1855, owner ruling, landed `5e713309e`).
+// It was "unchecking a permission installs the NARROWED subset, not what the bundle asked for", and it drove
+// a real per-row checkbox. The owner replaced cherry-picking with two choices: approve the whole declared set,
+// or cancel — "unchecking capabilities the plugin declares rarely leaves a working plugin, and it taught
+// people to tick boxes without reading" (plugin-install-card.tsx's header carries the ruling verbatim).
+//
+// SO THE CLAIM INVERTED, AND BOTH HALVES ARE PINNED HERE, because a ruling this shape fails in two opposite
+// ways: a list that is still editable (the old behaviour surviving the copy change), and an install that
+// sends something OTHER than the full ask (a narrowing the person was never offered, which is worse than the
+// feature it replaced). The screen is read-only AND the wire carries the whole manifest set.
+test("#1855: the consent list is read-only and Install grants the FULL declared set", async ({ mount, page }) => {
   // The list read is STATEFUL so the test can barrier on a SETTLED rendered state — the installed row
   // appearing after the write's own invalidate — rather than on a toast or an in-flight flash.
   let installed = false;
   const recorder: TrpcRecorder = await routeTrpc(page, {
-    "plugin.list": () => (installed ? [INSTALLED_ROW] : []),
+    "plugin.list": () => (installed ? [{ ...INSTALLED_ROW, grantedCapabilities: WEATHER_MANIFEST.capabilities }] : []),
     "plugin.install": () => {
       installed = true;
-      return { ...INSTALLED_ROW, grantedCapabilities: ["chat.read", "net.fetch"] };
+      return { ...INSTALLED_ROW, grantedCapabilities: WEATHER_MANIFEST.capabilities };
     },
     "plugin.listSurfaces": () => [],
     "sessions.me": () => USER_VIEWER,
@@ -249,15 +265,27 @@ test("unchecking a permission installs the NARROWED subset, not what the bundle 
   await mount(<PluginsSurfaceStory />);
   await pickBundle(page, WEATHER_MANIFEST);
 
-  // The default is the full ask, CONFIRMED — the design's "a paranoid owner may grant less" is the lever,
-  // not the default. Then the owner takes the spendy one away.
-  await page.getByRole("checkbox", { name: "Ask for a reply on its own" }).click();
+  // EVERY declared row is shown as already-granted and NOT operable. Asserted through `toBeDisabled` rather
+  // than through a click that times out: a timeout proves the click failed, never that the control is
+  // deliberately inert, and it costs 15s per row to say so.
+  const spendyRow = page.getByRole("checkbox", { name: "Ask for a reply on its own" });
+  await expect(spendyRow).toBeChecked();
+  await expect(spendyRow).toBeDisabled();
+  // …and NOTHING on the consent screen is operable, not merely this one row — the fence is the count, because
+  // a per-row assertion passes on a screen where one arm quietly stayed live.
+  await expect(page.getByRole("checkbox", { disabled: false })).toHaveCount(0);
+  // The editable arm's tell was a pointer cursor over the whole label block; its absence is what says the
+  // affordance is gone to the EYE, not just to the DOM (#650 P1-3 is this exact defect one property down).
+  await expect(page.getByText("Sees recent messages and the room's variables", { exact: false })).toHaveCSS("cursor", "auto");
+
   await page.getByRole("button", { name: "Install" }).click();
 
   // SETTLED: the row is in the list and the confirm step is gone.
   await expect(page.getByRole("switch", { name: "Turn Weather Teller on" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Install" })).toHaveCount(0);
-  await expect.poll(async () => (recorder.lastInput("plugin.install") as { grant: string[] } | undefined)?.grant).toEqual(["chat.read", "net.fetch"]);
+  // The WHOLE manifest set, in the manifest's own order — never a subset, and never a set this screen
+  // recomputed. A person who did not want all of it had Cancel.
+  await expect.poll(async () => (recorder.lastInput("plugin.install") as { grant: string[] } | undefined)?.grant).toEqual([...WEATHER_MANIFEST.capabilities]);
 });
 
 test("a bundle that is not a plugin is refused with a reason, before anything is uploaded", async ({ mount, page }) => {
@@ -507,24 +535,22 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   // decision a person can make; "re-read these hostnames" is not.
   await expect(notice).toContainText("adds a new host it can reach");
 
-  // THE ROWS ARE REALLY INTERACTIVE (#658) — the same arm install uses. Two shapes were wrong here before:
-  // a DISABLED checkbox that looked live and silently did nothing (#650 P1-3), then a read-only statement
-  // with one all-or-nothing button. The ungranted capability is now a live, UNTICKED control.
-  const newCapability = notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY });
-  await expect(newCapability).toBeEnabled();
-  await expect(newCapability).not.toBeChecked();
-  // …and it is live in the RENDERED sense, not just the DOM sense. #650 P1-3 was a control that carried
-  // `cursor:pointer` over `pointer-events:none` — it looked exactly like something you could tick and
-  // swallowed the click in silence. A disabled Checkbox still computes `cursor:pointer` from the shared
-  // selection-control skin, so "enabled" alone would not have caught it; the computed style is what does.
-  await expect(newCapability).toHaveCSS("pointer-events", "auto");
-  // The DEFAULT is the PRIOR GRANT with nothing new ticked — pre-ticking the row the system refused on the
-  // owner's behalf would hand back consent they never gave, one click after we said we withheld it.
+  // THE ROWS ARE READ-ONLY, AND THIS ARM USED TO ASSERT THE OPPOSITE (#1855, `5e713309e`). Three shapes have
+  // stood here: a DISABLED checkbox beside a sentence saying the plugin wanted exactly that permission (#650
+  // P1-3 — a control that looked live and silently did nothing); then a REALLY interactive row (#658), the
+  // same editable arm install used; and now approve-all/deny, by owner ruling, on BOTH surfaces at once.
+  //
+  // P1-3's finding is NOT re-opened by that, and this is the assertion that proves it rather than asserting
+  // it: an ungranted row no longer renders a checkbox AT ALL. It renders the "Not granted" word-mark beside
+  // the name it refuses, which is the one shape P1-3 said was honest — the defect was specifically an empty
+  // box that looked tickable, not a statement.
+  await expect(notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY })).toHaveCount(0);
+  await expect(notice.getByText("Not granted")).toHaveCount(1);
+  // The rows already granted keep their checkbox ("you already have this" is a true state), and every one of
+  // them is inert — the count is the fence, so a surviving live arm anywhere in the notice reds here.
   await expect(notice.getByRole("checkbox", { name: "Read this room's messages" })).toBeChecked();
   await expect(notice.getByRole("checkbox", { name: "Reach the internet" })).toBeChecked();
-  // The read-only "Not granted" STATEMENT belongs to the durable disclosure, which reports a settled fact.
-  // It has no place in a notice that is asking a question — every row here is answerable.
-  await expect(notice.getByText("Not granted")).toHaveCount(0);
+  await expect(notice.getByRole("checkbox", { disabled: false })).toHaveCount(0);
 
   // Both destinations verbatim: the host list IS the reach for net.fetch, and consent is to the SET…
   await expect(notice).toContainText("collector.elsewhere.example");
@@ -553,9 +579,10 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   // away behind the row's unrelated ⋯ menu, and it is now a REAL path (P1-1), not a dead end.
   await expect(notice.getByRole("button", { name: REMOVE_WEATHER_TELLER })).toBeVisible();
 
-  // The owner allows the whole ask — which now takes an explicit tick, not a button that decided for them.
-  await newCapability.click();
-  await notice.getByRole("button", { name: "Allow selected" }).click();
+  // The owner approves the whole ask. ONE act — the per-row tick this test used to perform is gone, and the
+  // button's own words are what changed with it ("Allow selected" → "Approve all"), so a revision that kept
+  // the old label beside the new behaviour reds here rather than reading as a working screen.
+  await notice.getByRole("button", { name: "Approve all" }).click();
 
   // SETTLED: barrier on the notice clearing (the server's own post-grant truth) BEFORE reading the recorder
   // — the mutation is provably complete only once the invalidate has repainted the row.
@@ -563,8 +590,8 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   await expect(page.getByText("Off — asked for more than you allowed")).toHaveCount(0);
   // The ANTI-TOCTOU ECHO: the server refuses a `setGrant` whose `acknowledgedNetHosts` doesn't match its
   // own manifest, so the client MUST send exactly the host list it RENDERED (`plugin.netHosts`) — not an
-  // empty array, not a client-computed guess, and NOT a function of which boxes were ticked. Both hosts
-  // are echoed even though the person only ticked one capability.
+  // empty array, not a client-computed guess. Both hosts are echoed, including the one carried forward from
+  // v1 — the echo is about what was RENDERED, which is why it survived the #1855 rewrite unchanged.
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the settle assertions above prove the call completed before this read.
   expect(recorder.lastInput("plugin.setGrant")).toEqual({
     pluginId: INSTALLED_ROW.id,
@@ -573,12 +600,21 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   });
 });
 
-test("a PARTIAL re-consent records exactly the narrower subset, and the notice keeps saying so", async ({ mount, page }) => {
-  // THE GRANULARITY THIS ROW EXISTS FOR (#658). Install has always let a person tick individual boxes; the
-  // notice offered "the whole ask, or remove". The server never had that limit — `setGrant` takes an
-  // arbitrary subset and computes `pendingReconsent` honestly for a partial one — so the gap was client-only.
-  // This drives the middle path end to end: allow ONE of the two newly-declared capabilities, and assert
-  // both that the recorded input is the narrower set and that the surface still says an ask is outstanding.
+// A MULTI-CAPABILITY ASK, AND THE CLIENT'S PARTIAL PATH IS GONE (#1855, `5e713309e`).
+//
+// THIS ARM USED TO BE "a PARTIAL re-consent records exactly the narrower subset, and the notice keeps saying
+// so" — #658's granularity, driven end to end: tick ONE of the two newly-declared capabilities, and watch the
+// headline drop from two outstanding to one while the notice stayed up. The owner removed the client half of
+// that. The SERVER is untouched and still takes an arbitrary subset (`setGrant` still computes
+// `pendingReconsent` honestly for a partial one), so nothing below claims the server lost the capability —
+// what is pinned is that this SCREEN no longer offers it.
+//
+// IT IS A DIFFERENT CLAIM FROM THE SINGLE-OUTSTANDING ARM ABOVE, which is why it survives as its own test
+// rather than collapsing into it: the plural COUNT grammar ("2 permissions"), a notice carrying TWO "Not
+// granted" statements at once, and — the fence that matters — one "Approve all" recording the WHOLE declared
+// set rather than "prior grant plus whatever was ticked". The old code path would have produced the latter,
+// and against a two-capability ask the two answers actually differ.
+test("#1855: a two-capability re-consent counts both, offers no partial path, and Approve all grants the whole ask", async ({ mount, page }) => {
   let upgraded = false;
   let partiallyAllowed = false;
   const upgradedRow = {
@@ -591,16 +627,21 @@ test("a PARTIAL re-consent records exactly the narrower subset, and the notice k
     reconsentPending: true,
     widenedNetHosts: ["collector.elsewhere.example"],
   };
-  // The server's verdict for a partial answer: the extra capability IS granted, and the flag STAYS UP
-  // because the plugin is still asking for something unallowed. Not faked client-side — the surface reads
-  // the same `reconsentPending` it always did.
-  const partialRow = { ...upgradedRow, grantedCapabilities: ["chat.read", "net.fetch", "worldinfo.write"] };
+  // The server's settled row after the approve: the whole ask is granted and BOTH halves of the recorded
+  // refusal clear. Named `allowedRow` for what it is — the partial arm this fixture used to model has no
+  // client path left to reach it.
+  const allowedRow = {
+    ...upgradedRow,
+    grantedCapabilities: upgradedRow.declaredCapabilities,
+    reconsentPending: false,
+    widenedNetHosts: [],
+  };
   const recorder = await routeTrpc(page, {
     "plugin.list": () => {
       if (!upgraded) {
         return [INSTALLED_ROW];
       }
-      return [partiallyAllowed ? partialRow : upgradedRow];
+      return [partiallyAllowed ? allowedRow : upgradedRow];
     },
     "plugin.upgrade": () => {
       upgraded = true;
@@ -608,7 +649,7 @@ test("a PARTIAL re-consent records exactly the narrower subset, and the notice k
     },
     "plugin.setGrant": () => {
       partiallyAllowed = true;
-      return partialRow;
+      return allowedRow;
     },
     "plugin.getLog": () => [],
     "plugin.listSurfaces": () => [],
@@ -628,30 +669,31 @@ test("a PARTIAL re-consent records exactly the narrower subset, and the notice k
   });
 
   const notice = page.getByRole("alert").filter({ hasText: "stayed off" });
-  // TWO capabilities are outstanding, and the headline counts them — this is also the pre-state the settle
-  // below is read against, so the barrier cannot pass on the local draft.
+  // TWO capabilities are outstanding, and the headline counts them in the PLURAL grammar — the singular
+  // sentence is what the one-outstanding arm above reads, so this is the branch that pin does not cover.
   await expect(notice).toContainText("asks for 2 permissions you hadn't allowed and adds a new host it can reach");
-  // The owner allows the world book one and leaves the spendy one alone.
-  await notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY }).click();
-  await expect(notice.getByRole("checkbox", { name: NEW_TURN_CAPABILITY })).not.toBeChecked();
-  await notice.getByRole("button", { name: "Allow selected" }).click();
+  // BOTH outstanding rows render as statements, and NEITHER is a control: the count is the fence, because a
+  // per-name assertion would pass on a notice where the other row stayed live.
+  await expect(notice.getByText("Not granted")).toHaveCount(2);
+  await expect(notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY })).toHaveCount(0);
+  await expect(notice.getByRole("checkbox", { name: NEW_TURN_CAPABILITY })).toHaveCount(0);
+  await expect(notice.getByRole("checkbox", { disabled: false })).toHaveCount(0);
+  // …and there is no second door beside "Approve all" and "Remove" — a surviving "Allow selected" would be
+  // the old partial path still reachable behind new copy.
+  await expect(notice.getByRole("button", { name: "Allow selected" })).toHaveCount(0);
 
-  // SETTLED: the headline dropped to ONE outstanding permission. That count is derived from the SERVER's
-  // `grantedCapabilities`, never from the local draft, so only the write plus its invalidate can produce it
-  // — a checkbox assertion here would have passed the instant it was clicked and read the recorder before
-  // the mutation ever fired.
-  await expect(notice).toContainText("asks for a permission you hadn't allowed and adds a new host it can reach");
-  // …and the notice is STILL STANDING, because `turn.trigger` is still unallowed. A surface that went quiet
-  // here would be claiming the person had answered an ask they explicitly declined half of.
-  await expect(notice).toBeVisible();
-  await expect(page.getByText("Off — asked for more than you allowed")).toBeVisible();
-  // The row the owner just allowed now reads as granted — from the server's truth, after the reset.
-  await expect(notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY })).toBeChecked();
+  await notice.getByRole("button", { name: "Approve all" }).click();
 
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settle assertions above prove the call completed before this read. The recorded input is the NARROWER subset — prior grant plus the one row ticked, and NOT `turn.trigger`. The host echo is unchanged by the narrowing: it is about what was RENDERED, not what was ticked.
+  // SETTLED: barrier on the notice clearing (the server's own post-grant truth) BEFORE reading the recorder,
+  // so the mutation is provably complete. The headline sentence is derived from the SERVER's
+  // `grantedCapabilities`, never from a local draft — there is no draft left to pass on.
+  await expect(notice).toHaveCount(0);
+  await expect(page.getByText("Off — asked for more than you allowed")).toHaveCount(0);
+
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settle assertions above prove the call completed before this read. THE WHOLE DECLARED SET, all four — against a TWO-capability ask this is what separates approve-all from the retired "prior grant plus what was ticked", which would have recorded three. The host echo is about what was RENDERED, so both hosts ride regardless.
   expect(recorder.lastInput("plugin.setGrant")).toEqual({
     pluginId: INSTALLED_ROW.id,
-    grant: ["chat.read", "net.fetch", "worldinfo.write"],
+    grant: upgradedRow.declaredCapabilities,
     acknowledgedNetHosts: upgradedRow.netHosts,
   });
 });
@@ -847,24 +889,24 @@ test.describe("coarse pointer — the disclosure triggers meet the touch floor (
   });
 });
 
-// THE CONSENT ROW'S TARGET IS THE WHOLE TEXT BLOCK, NOT THE 18px BOX (side-eye 2026-08-29 P2-2). The prior
-// `Field orientation="horizontal"` shape docked the checkbox in the fixed control column at the row's FAR
-// edge, so the only clickable pixels on a capability that grants net access / model spend / message rewrite
-// were an 18×18 square ~400px away from the words describing it. The fix is a checkbox-LEADING row whose
-// name, pills AND consequence sit inside a bare `<label htmlFor>` (plugin-grant-list.tsx).
+// THE CONSENT ROW'S CONTROL SITS BESIDE ITS OWN WORDS (side-eye 2026-08-29 P2-2, the half that survives).
+// The prior `Field orientation="horizontal"` shape docked the checkbox in the fixed control column at the
+// row's FAR edge, so the box reporting on a capability that grants net access / model spend / message rewrite
+// sat ~400px of dead gap away from the words describing it, at the 560-746px pane. The fix is a
+// checkbox-LEADING row (plugin-grant-list.tsx), and that geometry is what this pins.
 //
-// This asserts the fix the way a person meets it — a click on the CONSEQUENCE sentence, the text furthest
-// from the box, toggles the grant — plus the adjacency the far-docked column destroyed. Both are blind to
-// `aria-label`/`id` plumbing on purpose: the failure being pinned is "the words do nothing when clicked".
-test("clicking a capability's CONSEQUENCE text toggles its grant, and the box sits beside its own words (P2-2)", async ({ mount, page }) => {
-  // Stateful, so the barrier below is the SETTLED installed row the write's own invalidate repaints.
-  let installed = false;
-  const recorder = await routeTrpc(page, {
-    "plugin.list": () => (installed ? [{ ...INSTALLED_ROW, grantedCapabilities: ["turn.trigger", "net.fetch"] }] : []),
-    "plugin.install": () => {
-      installed = true;
-      return { ...INSTALLED_ROW, grantedCapabilities: ["turn.trigger", "net.fetch"] };
-    },
+// THE OTHER HALF OF P2-2 IS RETIRED WITH ITS ARM, and this test used to be named for it: "clicking a
+// capability's CONSEQUENCE text toggles its grant". That finding was about a HIT TARGET — only an 18×18
+// square was clickable, so the fix wrapped the name, pills and consequence in a bare `<label htmlFor>`. #1855
+// (`5e713309e`, owner ruling) made the list read-only on every surface, so there is nothing to toggle and no
+// target to widen; the label wrapper went with it. A test that kept clicking the sentence would be asserting
+// an affordance the owner deliberately removed.
+//
+// What replaces it here is the fence that the removal was CLEAN: no wrapping label survives to advertise a
+// target that does nothing, and the words carry no pointer cursor — the rendered tell #650 P1-3 is about.
+test("a consent row's box leads its own words, and the words advertise no target (P2-2)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "plugin.list": () => [],
     "plugin.getLog": () => [],
     "plugin.listSurfaces": () => [],
     "sessions.me": () => USER_VIEWER,
@@ -872,29 +914,28 @@ test("clicking a capability's CONSEQUENCE text toggles its grant, and the box si
   await mount(<PluginsSurfaceStory />);
   await pickBundle(page, WEATHER_MANIFEST);
 
-  // The install default is the full ask, CONFIRMED — so an unchecked box here can only come from this click.
+  // The install screen shows the full ask as granted, so every row here carries its (inert) box.
   const readBox = page.getByRole("checkbox", { name: "Read this room's messages" });
   await expect(readBox).toBeChecked();
 
-  // ADJACENCY FIRST, on the settled screen: the control LEADS its words. The old shape put it right of them,
-  // a `justify-between` pane width away — so "is the box left of its label, within one row gap" is exactly
-  // the geometry that moved, and it is measured before any interaction disturbs the layout.
+  // ADJACENCY, on the settled screen: the control LEADS its words. The old shape put it right of them, a
+  // `justify-between` pane width away — so "is the box left of its label, within one row gap" is exactly the
+  // geometry that moved.
   const boxRect = await readBox.boundingBox();
   const wordsRect = await page.getByText("Read this room's messages", { exact: true }).boundingBox();
   expect(boxRect === null || wordsRect === null).toBe(false);
   expect(boxRect?.x ?? 0).toBeLessThan(wordsRect?.x ?? 0);
   expect((wordsRect?.x ?? 0) - ((boxRect?.x ?? 0) + (boxRect?.width ?? 0))).toBeLessThanOrEqual(24);
 
-  // The sentence, not the name and not the box: the label's furthest text from the control.
-  await page.getByText("Sees recent messages and the room's variables", { exact: false }).click();
-  await expect(readBox).not.toBeChecked();
-  // …and it is a REAL grant edit, not a visual toggle — the narrowed subset is what actually gets installed.
-  await page.getByRole("button", { name: "Install" }).click();
-  // SETTLED: the row is in the list and the confirm step is gone, so the write is provably complete.
-  await expect(page.getByRole("switch", { name: "Turn Weather Teller on" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Install" })).toHaveCount(0);
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): the settled read above only renders after `plugin.install` was called and recorded.
-  expect((recorder.lastInput("plugin.install") as { grant: readonly string[] } | undefined)?.grant).toEqual(["turn.trigger", "net.fetch"]);
+  // NO LABEL WRAPS THE TEXT any more. Asserted through the accessibility tree rather than through the DOM
+  // tag: a `<label htmlFor>` over a live control is what Playwright reports as a clickable label, and its
+  // absence is the structural half of "the words are a statement, not a control".
+  const consequence = page.getByText("Sees recent messages and the room's variables", { exact: false });
+  await expect(consequence).toBeVisible();
+  await expect.poll(async () => await consequence.evaluate((el: Element) => el.closest("label") !== null)).toBe(false);
+  // …and the RENDERED half: a pointer cursor over a statement promises a click that cannot happen. This is
+  // the exact property #650 P1-3 measured on the old disabled-checkbox shape, read one level out.
+  await expect(consequence).toHaveCSS("cursor", "auto");
 });
 
 // THE GRANT CHECKBOX'S ACCESSIBLE NAME IS EXACT (side-eye 2026-08-29 P3-5, and its first fix's correction).
@@ -910,7 +951,16 @@ test("clicking a capability's CONSEQUENCE text toggles its grant, and the box si
 //
 // The VISIBLE half of the same finding: "(new in this update)" is gone from the rendered label, because the
 // "New" badge 8px away said the identical thing twice.
-test("a re-consent row's checkbox name is exactly the label + the new-mark, with no badge run-on (P3-5)", async ({ mount, page }) => {
+//
+// #1855 NARROWED WHAT THIS CAN ASK, AND THE NARROWING IS STATED RATHER THAN QUIETLY DROPPED. The ruling made
+// the grant list read-only, and an UNGRANTED row now renders a "Not granted" statement instead of a checkbox
+// (plugin-grant-list.tsx's header) — so the row that carried BOTH pills, the strictest name case this test
+// was written for, has no accessible name left to be wrong about. The run-on defect can only exist where a
+// name exists, so the exact-name claim moves to a GRANTED row (which still renders its box) and the changed
+// row is pinned by the three things it renders instead. The one claim genuinely lost: the "New" mark no
+// longer rides a NAME on that row. That is the owner's call, recorded here so a reader does not read the
+// smaller assertion as drift.
+test("a re-consent row's checkbox name is exactly its label, with no badge run-on (P3-5)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "plugin.list": () => [PENDING_ROW],
     "plugin.getLog": () => [],
@@ -921,13 +971,18 @@ test("a re-consent row's checkbox name is exactly the label + the new-mark, with
 
   const notice = page.getByRole("alert").filter({ hasText: "stayed off" });
   await expect(notice).toBeVisible();
-  // The NEWLY-asked row carries BOTH pills and a consequence — the strictest case. Exact name ⇒ the "New"
-  // mark is spoken (a re-consent screen has to say which rows changed), "Reaches further" is not, and the
-  // consequence is not (it reaches AT via `aria-describedby`, once).
-  await expect(notice.getByRole("checkbox", { name: "Write world book entries New", exact: true })).toHaveCount(1);
-  // A carried-forward row has no mark at all — the mark is a fact about THIS update, never decoration.
+  // A GRANTED row is the case this pin still owns: it renders a checkbox, so it HAS a computed name, and that
+  // name must be exactly the label — not the label plus its two pills plus the consequence.
   await expect(notice.getByRole("checkbox", { name: "Read this room's messages", exact: true })).toHaveCount(1);
-  // Both pills are still on the screen and still in the a11y tree as plain text; they are simply not the NAME.
+  // THE NEWLY-ASKED ROW IS NO LONGER A CHECKBOX (#1855, `5e713309e`): it is a "Not granted" statement, so it
+  // computes no accessible name at all and the "New" mark is plain adjacent text rather than part of one.
+  // This arm used to assert `name: "Write world book entries New"` on a live control; the run-on defect it
+  // pins (a name swallowing the badge text and the consequence) can only exist where a name exists, so the
+  // claim moves to the row that still has one and the changed row is pinned by what it now renders.
+  await expect(notice.getByRole("checkbox", { name: NEW_LORE_CAPABILITY })).toHaveCount(0);
+  await expect(notice.getByText("Write world book entries", { exact: true })).toHaveCount(1);
+  await expect(notice.getByText("Not granted", { exact: true })).toHaveCount(1);
+  // Both pills are still on the screen and still in the a11y tree as plain text; they are simply not a NAME.
   await expect(notice.getByText("New", { exact: true })).toHaveCount(1);
   // `net.fetch` wears the same mark, so this counts 2 — the claim is that the pill still RENDERS, not that
   // this row is the only risky one.
