@@ -10,22 +10,24 @@ import {
   descriptorArrayPresence,
   descriptorProperty,
   descriptorValue,
-  discriminationOf,
-  enclosingStringExpression,
   finalDescriptorOf,
   finalRegistrationOf,
   isContextRooted,
-  markerFormIdsOf,
-  mentionsWaiverOf,
-  messageAlternatives,
   policyIdOfPath,
   policyProductionDependencies,
   proofRowsOf,
   reportSiteMessage,
   reportSiteOf,
+} from "../../../../tooling/src/verify/lib/policy-descriptor-read.ts";
+import {
+  discriminationOf,
+  enclosingStringExpression,
+  markerFormIdsOf,
+  mentionsWaiverOf,
+  messageAlternatives,
   staticSegments,
   staticText,
-} from "../../../../tooling/src/verify/lib/policy-descriptor-read.ts";
+} from "../../../../tooling/src/verify/lib/policy-static-text.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CONTRACT_STUB = "export function defineGate<const Policy>(policy: Policy): Policy {\n  return policy;\n}\n";

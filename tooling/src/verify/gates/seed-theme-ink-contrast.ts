@@ -114,8 +114,10 @@ import { THEME } from "../contract/css-family.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
-import type { InkUse, SeedPalette } from "../lib/seed-theme-ink.ts";
-import { collectInkUses, compositeOver, readSeedPalettes, toRgb, worstContrast } from "../lib/seed-theme-ink.ts";
+import type { SeedPalette } from "../lib/seed-theme-ink.ts";
+import { readSeedPalettes } from "../lib/seed-theme-ink.ts";
+import type { InkUse } from "../lib/seed-theme-ink-census.ts";
+import { collectInkUses, compositeOver, toRgb, worstContrast } from "../lib/seed-theme-ink-census.ts";
 import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
 
 const PERCENT = 100;

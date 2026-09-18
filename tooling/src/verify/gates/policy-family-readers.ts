@@ -27,7 +27,8 @@
 import type { Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import { descriptorProperty, descriptorValue, finalDescriptorOf, policyProductionDependencies, rootOf, staticText } from "../lib/policy-descriptor-read.ts";
+import { descriptorProperty, descriptorValue, finalDescriptorOf, policyProductionDependencies, rootOf } from "../lib/policy-descriptor-read.ts";
+import { staticText } from "../lib/policy-static-text.ts";
 import { familyFixture, finalProbeModule, ORDINARY_TRUNK } from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-family-readers.ts";

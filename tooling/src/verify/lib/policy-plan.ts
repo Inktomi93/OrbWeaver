@@ -1,5 +1,7 @@
 // Deterministic final-policy planner. It consumes the loader roster, reviewed six-kind scope manifest,
 // and the external ResourceHost population manifest without owning another registry or path predicate.
+// Execution of a validated plan is `policy-plan-execute.ts` (split out at the size cap 2026-09-18); it
+// consumes this module's corpus validation and exit mapping.
 import type { GateFact } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
@@ -9,8 +11,6 @@ import type {
   PlannedFact,
   PlannedPolicy,
   PolicyCommandRequest,
-  PolicyPlanExecutionInput,
-  PolicyPlanExecutionResult,
   PolicyPlannerInput,
   PolicyPlanningResult,
   PolicyRosterEntry,
@@ -20,7 +20,6 @@ import type { PolicyScopeResolution, PolicySemanticPath } from "../contract/poli
 import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { parsePolicyCommand } from "./policy-command.ts";
 import { resolveEffectivePopulation } from "./policy-effective-population.ts";
-import { runPolicyPass } from "./policy-pass.ts";
 import { policyProofArmCounts } from "./policy-proof-rows.ts";
 import { resolvePolicyScope } from "./policy-scope.ts";
 import { refuseSelection } from "./policy-selection.ts";
@@ -55,7 +54,7 @@ function rosterEntry(policy: GatePolicy): PolicyRosterEntry {
   };
 }
 
-function validateCorpus(input: Pick<PolicyPlannerInput, "corpus">): readonly GatePolicy[] {
+export function validateCorpus(input: Pick<PolicyPlannerInput, "corpus">): readonly GatePolicy[] {
   if (!Array.isArray(input.corpus.gates) || input.corpus.gates.length === 0) {
     throw new Error("policy planner received an empty loaded corpus");
   }
@@ -153,7 +152,7 @@ function explicitNone(owner: GatePolicy | GateFact): boolean {
   return typeof owner.population === "object" && !Array.isArray(owner.population) && "of" in owner.population && owner.population.of === "none";
 }
 
-function factsForPolicies(policies: readonly GatePolicy[]): readonly GateFact[] {
+export function factsForPolicies(policies: readonly GatePolicy[]): readonly GateFact[] {
   const byId = new Map<string, GateFact>();
   for (const policy of policies) {
     for (const fact of policy.facts) {
@@ -402,121 +401,4 @@ export function policyPassExitCode(result: PolicyPassResult): 0 | 1 | 2 {
     return 2;
   }
   return result.authority.verdict.blocking > 0 ? 1 : 0;
-}
-
-function executionPolicies(input: PolicyPlanExecutionInput): readonly GatePolicy[] {
-  const policies = validateCorpus({ corpus: input.corpus });
-  const byId = new Map(policies.map((policy) => [policy.id, policy]));
-  const ids = normalizePathSet(input.plan.policyIds, "planned policy id");
-  if (ids.length === 0 || JSON.stringify(ids) !== JSON.stringify(input.plan.policyIds)) {
-    throw new Error("policy execution plan ids must be nonempty, sorted, and unique");
-  }
-  if (JSON.stringify(input.plan.policies.map(({ policyId }) => policyId)) !== JSON.stringify(ids)) {
-    throw new Error("policy execution plan rows disagree with selected policy ids");
-  }
-  return ids.map((id) => {
-    const policy = byId.get(id);
-    if (policy === undefined) {
-      throw new Error(`policy execution plan names an unloaded policy ${id}`);
-    }
-    return policy;
-  });
-}
-
-function assertExecutionResourcePaths(plan: PolicyPlanExecutionInput["plan"]): void {
-  const selected = new Set(plan.policyIds);
-  const unknown = Object.keys(plan.resourcePathsByPolicy)
-    .filter((policyId) => !selected.has(policyId))
-    .toSorted();
-  if (unknown.length > 0) {
-    throw new Error(`policy execution resource population names unselected policies: ${unknown.join(", ")}`);
-  }
-  const expected = Object.fromEntries(
-    plan.policies
-      .filter(({ population }) => population.declaredResourcePaths.length > 0)
-      .map(({ policyId, population }) => [policyId, population.declaredResourcePaths] as const),
-  );
-  const actual = Object.fromEntries(
-    Object.entries(plan.resourcePathsByPolicy)
-      .map(([policyId, paths]) => [policyId, normalizePathSet(paths, `resource path for ${policyId}`)] as const)
-      .toSorted(([left], [right]) => left.localeCompare(right)),
-  );
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error("policy execution resource manifest disagrees with planned populations");
-  }
-
-  const selectedFacts = new Set(plan.facts.map(({ factId }) => factId));
-  const unknownFacts = Object.keys(plan.resourcePathsByFact)
-    .filter((factId) => !selectedFacts.has(factId))
-    .toSorted();
-  if (unknownFacts.length > 0) {
-    throw new Error(`policy execution resource population names unselected facts: ${unknownFacts.join(", ")}`);
-  }
-  const expectedFacts = Object.fromEntries(
-    plan.facts
-      .filter(({ population }) => population.declaredResourcePaths.length > 0)
-      .map(({ factId, population }) => [factId, population.declaredResourcePaths] as const),
-  );
-  const actualFacts = Object.fromEntries(
-    Object.entries(plan.resourcePathsByFact)
-      .map(([factId, paths]) => [factId, normalizePathSet(paths, `resource path for fact ${factId}`)] as const)
-      .toSorted(([left], [right]) => left.localeCompare(right)),
-  );
-  if (JSON.stringify(actualFacts) !== JSON.stringify(expectedFacts)) {
-    throw new Error("policy execution fact resource manifest disagrees with planned populations");
-  }
-}
-
-function assertExecutionFacts(plan: PolicyPlanExecutionInput["plan"], policies: readonly GatePolicy[]): void {
-  const running = new Set(plan.policies.filter(({ mode }) => mode === "run").map(({ policyId }) => policyId));
-  const expected = factsForPolicies(policies.filter(({ id }) => running.has(id))).map(({ id }) => id);
-  const actual = plan.facts.map(({ factId }) => factId);
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error("policy execution fact plan disagrees with runnable policy dependencies");
-  }
-}
-
-function assertExecutedPopulations(plan: PolicyPlanExecutionInput["plan"], pass: PolicyPassResult): void {
-  const actual = new Map(pass.policies.map((result) => [result.id, result]));
-  for (const planned of plan.policies) {
-    const result = actual.get(planned.policyId);
-    if (result === undefined || JSON.stringify(result.population) !== JSON.stringify(planned.population)) {
-      throw new Error(`policy execution population disagrees with its plan: ${planned.policyId}`);
-    }
-    if (planned.mode !== "run" && (result.owner.status !== "not-applicable" || result.owner.reason !== planned.reason)) {
-      throw new Error(`policy execution disposition disagrees with its plan: ${planned.policyId}`);
-    }
-  }
-  const actualFacts = new Map(pass.facts.map((result) => [result.id, result]));
-  for (const planned of plan.facts) {
-    const result = actualFacts.get(planned.factId);
-    if (result === undefined || JSON.stringify(result.population) !== JSON.stringify(planned.population)) {
-      throw new Error(`policy execution fact population disagrees with its plan: ${planned.factId}`);
-    }
-  }
-}
-
-/** Execute one validated plan through the production pass, including its bound ResourceHost seam. */
-export function executePolicyPlan(input: PolicyPlanExecutionInput): PolicyPlanExecutionResult {
-  try {
-    const policies = executionPolicies(input);
-    assertExecutionFacts(input.plan, policies);
-    assertExecutionResourcePaths(input.plan);
-    const requestedPaths = input.plan.scope.requestedPaths?.map(({ path }) => path);
-    const pass = runPolicyPass({
-      knownPolicies: input.corpus.gates,
-      policies,
-      root: input.root,
-      project: input.project,
-      ...(requestedPaths === undefined ? {} : { requestedPaths }),
-      ownerPlansByPolicy: new Map(input.plan.policies.map(({ policyId, mode, reason, population }) => [policyId, { mode, reason, population }])),
-      reviewedGrants: input.reviewedGrants,
-      failOnWarnings: input.plan.failOnWarnings,
-      ...(input.resourceOptions === undefined ? {} : { resourceOptions: input.resourceOptions }),
-    });
-    assertExecutedPopulations(input.plan, pass);
-    return { ok: true, exitCode: policyPassExitCode(pass), plan: input.plan, pass };
-  } catch (error) {
-    return { ok: false, exitCode: 2, message: error instanceof Error ? error.message : String(error) };
-  }
 }

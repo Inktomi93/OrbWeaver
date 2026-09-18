@@ -1,6 +1,7 @@
 // Final spelling-independent binding/reference facts for the shared gate runtime.
 import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
 import type {
   GlobalMemberOrigin,
   MemberReference,
@@ -14,7 +15,7 @@ import type {
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import { readMemberReferenceWith } from "./reference-fact-member.ts";
 import { resolveModuleMemberOriginWith } from "./reference-fact-module.ts";
-import { lexicalReferenceSymbol, reassignedReferenceSymbols, writtenReferenceSymbols } from "./reference-fact-writes.ts";
+import { reassignedReferenceSymbols, writtenReferenceSymbols } from "./reference-fact-writes.ts";
 
 interface ResolutionState {
   readonly declarations: MorphNode[];

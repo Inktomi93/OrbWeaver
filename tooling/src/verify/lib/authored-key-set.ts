@@ -38,9 +38,9 @@
 // change. No hop cap: the walk is bounded by a node-identity cycle guard, not by a depth budget.
 
 import { resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
+import { lexicalReferenceSymbol } from "@orb/tooling/_shared/reference-fact-alias";
 import { resolveCallableOrigin } from "@orb/tooling/_shared/reference-fact-call";
 import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
-import { lexicalReferenceSymbol } from "@orb/tooling/_shared/reference-fact-writes";
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readStringValue, unwrapExpression } from "./ast-read.ts";
