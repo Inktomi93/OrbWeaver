@@ -1,10 +1,15 @@
 ---
 kind: design
 status: draft
-updated: 2026-09-05
+updated: 2026-09-18
 ---
 
 # Plugin distribution (#1238) — the teaching-plugins package + three install doors
+
+> **STATUS 2026-09-18 — the package move LANDED (#1692, `@orb/showcase-plugins`) and the sibling families
+> followed the same day (`@orb/default-content`: avatars + demo chats, D160 amendment). The "before-state"
+> paths below (`packages/server/src/entry/boot/seed-assets/…`) no longer exist; read them as history. The
+> three distribution doors are the live remainder of this design.**
 
 > **Commission (owner rulings, verbatim, 2026-09-02).** (1) *"our seeded teaching plugins are not in an easy to reach place and they rot — make a new package for them, like we did with tooling."* (2) *"not forcing folks to zip them."* (3) *"chrome style where you can load unpacked or install from a github by git cloning into a directory in the app — the app does the clone like sillytavern."* (4) Final door set: *"load unpacked and folder upload like we already have with our import shit and then an install from github that clones."* (5) Mid-design, on a separate confirm step for the clone door: *"maybe just a disclaimer text? no separate click."* (6) Mid-design, on container-time asset copying: *"if dockerfile which we don't even use yet is moving default assets around that's a nah from me dog — that's crunchy and fragile."* — default content ships in the workspace and arrives at runtime through the app's own doors; a container adds nothing but a filesystem.
 

@@ -769,28 +769,28 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 575,
-      "bytes": 305849,
-      "sha256": "37fb4158c6caac3caa3e7fda001340f36905adf3e6117f84118d50cbaa5f7950",
+      "lines": 579,
+      "bytes": 309365,
+      "sha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "reference",
           "status": "active",
-          "updated": "2026-09-06"
+          "updated": "2026-09-18"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "3fe6dbda4329d8f5920efc88a6b0501c40769b15b03f3db23b3db65fa45c5d0f",
+        "assignedSha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "cdd6826a66d53621fbed42c306e31b503ddb6427d74f68076d18a45ce677bf33",
-        "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
-        "verifiedAt": "2026-09-13",
+        "verifiedSha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e",
+        "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
+        "verifiedAt": "2026-09-18",
         "evidence": [
           "Bounded D61 repair independently investigated under #2312; root read the complete relevant entry and exact diff. Prior whole-document read and claims below are retained, not repeated. Final selected dangling-refs drive over199 docs was clean: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. Historical note is a separate line so it does not suppress current citations.",
           "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; current source retains tests/support/browser/ct-data-providers.tsx and the old tests/support/ct path is absent; #1351 remains the live program",
@@ -875,9 +875,10 @@
             ]
           }
         ],
-        "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims."
+        "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims.",
+        "verifiedCanonicalSha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -11412,28 +11413,28 @@
       "path": "docs/design/1238-plugin-distribution.md",
       "lane": "design",
       "issue": 5,
-      "lines": 115,
-      "bytes": 27341,
-      "sha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
+      "lines": 120,
+      "bytes": 27733,
+      "sha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-09-05"
+          "updated": "2026-09-18"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/1238-plugin-distribution.md",
-        "assignedSha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
+        "assignedSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
-        "verifiedCommit": "5fdea267b3155c4c6a58910bed0ee81a30677321",
-        "verifiedAt": "2026-09-05",
+        "verifiedSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
+        "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
+        "verifiedAt": "2026-09-18",
         "claims": [
           {
             "claim": "The teaching plugins live in the server package's entry tier and their guest .js sources are typechecked by NO program (allowJs is false repo-wide); only the SDK mirror is pinned, and the seeds ride the image's whole-src copy — the rot and reachability the ruling names are structural.",
@@ -11448,7 +11449,7 @@
               },
               {
                 "kind": "code",
-                "target": "packages/server/src/entry/boot/seed-assets/index.ts:1"
+                "target": "packages/default-content/src/index.ts:1"
               },
               {
                 "kind": "test",
@@ -11513,7 +11514,8 @@
           "re-attested at 5fdea267b by the orchestrator after reading the #1692 edit in full: §2 gains a LANDED note (the package exists; the seeder resolves packShowcaseBundle by node resolution; the checkJs program over the guest sources deliberately did NOT land with the move and is its own row); the before-state finding's tense updated; citation targets re-pointed to the package; updated 2026-09-05.",
           "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
           "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
-        ]
+        ],
+        "verifiedCanonicalSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5"
       },
       "receiptCurrent": true
     },
@@ -13986,27 +13988,27 @@
       "lane": "design",
       "issue": 5,
       "lines": 513,
-      "bytes": 40874,
-      "sha256": "50f5c2bee7ff3a794df1230e6bef925bf862a4c78fb4c822d2db0f9814da5b16",
+      "bytes": 41054,
+      "sha256": "b5ed4ec0292000a513aba88542860a9b182068dd36288c7006045802031c491e",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-08-14"
+          "updated": "2026-09-18"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/openwebui-auth-methods-study.md",
-        "assignedSha256": "12cd2491a28f081c53adbcd345de22da02f828b9d49572ed4d0cd5fdffefcc9b",
+        "assignedSha256": "b5ed4ec0292000a513aba88542860a9b182068dd36288c7006045802031c491e",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "12cd2491a28f081c53adbcd345de22da02f828b9d49572ed4d0cd5fdffefcc9b",
-        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "b5ed4ec0292000a513aba88542860a9b182068dd36288c7006045802031c491e",
+        "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
+        "verifiedAt": "2026-09-18",
         "evidence": [
           "docs/design/openwebui-auth-methods-study.md:1 (design; draft)",
           "git log --oneline -1 -- docs/design/openwebui-auth-methods-study.md: 3c944f854 docs(design): auth study III — first-run bootstrap + mode-switch (§7); MS-W1 non-owner orphan gap + B5 admin-link-SSO verb",
@@ -14027,9 +14029,10 @@
               }
             ]
           }
-        ]
+        ],
+        "verifiedCanonicalSha256": "b5ed4ec0292000a513aba88542860a9b182068dd36288c7006045802031c491e"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/pane-standardization-design.md",
@@ -14345,27 +14348,27 @@
       "lane": "design",
       "issue": 5,
       "lines": 225,
-      "bytes": 20910,
-      "sha256": "408499a7e0fcc2a9a9c3781757b599e93454fc8131a2f434e82e80bd38908ada",
+      "bytes": 21016,
+      "sha256": "a1516fb86a21eb1efe5943b95ce39548d29b6c68ab346540a10206e69a90c83a",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-09-05"
+          "updated": "2026-09-18"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/plugin-showcase-set.md",
-        "assignedSha256": "408499a7e0fcc2a9a9c3781757b599e93454fc8131a2f434e82e80bd38908ada",
+        "assignedSha256": "a1516fb86a21eb1efe5943b95ce39548d29b6c68ab346540a10206e69a90c83a",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "408499a7e0fcc2a9a9c3781757b599e93454fc8131a2f434e82e80bd38908ada",
-        "verifiedCommit": "49b456e8919546121ca6ff8cb37ec1d1f5f2455b",
-        "verifiedAt": "2026-09-12",
+        "verifiedSha256": "a1516fb86a21eb1efe5943b95ce39548d29b6c68ab346540a10206e69a90c83a",
+        "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
+        "verifiedAt": "2026-09-18",
         "evidence": [
           "re-attested at 49b456e89 by the orchestrator after lane p-doc-formatter-lossy repaired this doc to INTENT (#2154): the parse at 91d9a2ab7^ and at main both read the §8 block as list items=3, so 91d9a2ab7 never renumbered the RENDER -- the source had disagreed with its own render since authoring. The twelve-step plan now renders as twelve steps, the Floors continuation is one sentence again (recovering a character the pre-damage revision had already eaten), and the file is formatter-stable (a second format --write writes 0 files). No design change.",
           "re-attested at 5fdea267b by the orchestrator after reading the #1692 edit in full: the authoring guide and the host-v1.d.ts homes re-pointed from entry/boot/seed-assets to packages/showcase-plugins/bundles/; no design change; updated 2026-09-05.",
@@ -14398,7 +14401,8 @@
               }
             ]
           }
-        ]
+        ],
+        "verifiedCanonicalSha256": "a1516fb86a21eb1efe5943b95ce39548d29b6c68ab346540a10206e69a90c83a"
       },
       "receiptCurrent": true
     },

@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-09-05
+updated: 2026-09-18
 ---
 
 # The plugin SHOWCASE set (#774) — nine seeded plugins, full capability coverage, developer teaching material
@@ -41,7 +41,7 @@ vocabulary arm.
 | Fact | Receipt |
 | - | - |
 | The full API is landed: 20 capabilities / 33 gated host fns incl. U5–U8 (commands+typed args, toast, dialog, page, footer, display transforms, macros, frame, pubsub, ingest ×2, card_state) | `packages/contracts/src/plugin/manifest.ts:13-64` · `host-v1.ts:489-548` |
-| Adding a seeded plugin = source dir + one tuple member; the packer + `pnpm plugin:pack` + the seeder all derive from `EXAMPLE_PLUGIN_SLUGS` | `seed-example-plugins.ts:38` · `seed-assets/index.ts:88-108` · `scripts/pack-plugin.ts` |
+| Adding a seeded plugin = source dir + one tuple member; the packer + `pnpm plugin:pack` + the seeder all derive from `EXAMPLE_PLUGIN_SLUGS` | `seed-example-plugins.ts:38` · `packages/showcase-plugins/src/index.ts` (the packer moved there with #1692; `entry/boot/seed-assets/` no longer exists — 2026-09-18) · `scripts/pack-plugin.ts` |
 | A STATIC surface's collection nodes are SPEC-fixed in cardinality; `setState` feeds values only — ghost tiles render for unresolved bindings (no skip in `SurfaceGrid` or `MediaTileGrid`) | `contracts/plugin/ui.ts:441-465` · `features/plugin/components/plugin-browse-nodes.tsx:53-71` · `ui/src/primitives/media-tile-grid/media-tile-grid.tsx:110-121` |
 | A SCRIPTED surface renders dynamic trees but CANNOT fire effects: events go only into `ui.js`; the proxy tuple is reads + 2 KV planes (no fetch, no ingest) | `plugin-scripted-surface.tsx:144-146` · `host-v1.ts:624-634` |
 | A `message-footer` spec must be STATIC (bound specs are skipped at the mount) and decoration-only — per-row facts are inexpressible | `plugin-message-footer-surfaces.tsx:57-66` · `ui.ts:220-244` |

@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-14
+updated: 2026-09-18
 ---
 
 # Open WebUI's other login methods (local / LDAP / SCIM), read against ours — the unification study
@@ -260,7 +260,7 @@ door, reached by exactly the two modes that need it.
 derivation, owner-flip adoption, and the singleton reconcile (`provision-identity.ts:35-43,70-72,
 277-320`). Local login is *separate by design* and correctly so: it resolves no external claim — the
 row already exists (boot-seeded or admin-created), so `authenticate` only verifies a password
-(`authenticate.ts:12-24`); single-user JITs the owner row by handle with `externalId=null`, origin-gated.
+(`authenticate.ts:12-24`); single-user JITs the owner row by handle with `externalId=null`, gated on a LOOPBACK TCP PEER (#298 f2, 2026-08-19 — the old Host-origin gate is gone; the peer set widens ONLY by the explicit `AUTH_FALLBACK_TRUSTED_PEERS` opt-in, 2026-09-18).
 
 ### 5.1 The one nuance, reported honestly — the unguarded owner-row FIRST bind
 
@@ -332,7 +332,7 @@ second linking site.
 - **A hard-delete deprovision path** (S-W2).
 - **bcrypt / unpinned KDF cost** (L1) — ours is stronger.
 - **No-auth dev mode** (`WEBUI_AUTH=False` → hardcoded `admin`/`admin`, `OW:routers/auths.py:774-802`).
-  Our `single-user` + origin-gated owner-fallback is the equivalent and does not ship a guessable
+  Our `single-user` + loopback-peer-gated owner-fallback is the equivalent and does not ship a guessable
   credential.
 
 ---
@@ -386,7 +386,7 @@ first" and no open-registration window:
   its `onConflictDoNothing` and **fails loudly** rather than returning a fabricated id if the insert hit
   that index (`domain/sessions/verbs/ensure-user.ts:12-19,42-47`). Boot is a single process, so there
   is no concurrent-first-signup race to begin with.
-- `single-user` mode: the owner row is JIT-created by the origin-gated fallback →
+- `single-user` mode: the owner row is JIT-created by the loopback-peer-gated fallback →
   `ensureUser(ownerHandle)` → `determineRole(handle,[]) → owner` for the `OWNER_HANDLES` handle
   (`entry/auth/seam.ts:161-167`; `role-policy.ts:95-98`). No password, no signup.
 
