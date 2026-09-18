@@ -61,9 +61,11 @@ const REPORT_METHODS: ReadonlySet<string> = new Set(["node", "file"]);
  *  `report.*(_, { message })` (policy-pass-context.ts) and `text.unreadableMessage` (reviewed-grant-findings.ts:57). */
 const MESSAGE_PROPERTY_NAMES: ReadonlySet<string> = new Set(["message", "unreadableMessage"]);
 const WAIVE_OPENER = "@orb-waive ";
+const WAIVE_FILE_OPENER = "@orb-waive-file";
 /** A marker-form line: a comment whose CONTENT BEGINS with the opener (guide §8 — a spelling later in prose,
- *  inside a string or a regex is a MENTION, never a marker). The id group is the contract's kebab-case. */
-const MARKER_LINE_RE = /^[ \t]*(?:\/\/|\/\*|\{\/\*)[ \t]*@orb-waive ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\(/u;
+ *  inside a string or a regex is a MENTION, never a marker). The id group is the contract's kebab-case.
+ *  Recognises both `@orb-waive` (line-adjacent) and `@orb-waive-file` (file-scoped) grammars. */
+const MARKER_LINE_RE = /^[ \t]*(?:\/\/|\/\*|\{\/\*)[ \t]*@orb-waive(?:-file)? ([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\(/u;
 
 function unwrapExpression(node: MorphNode): MorphNode {
   let current = node;
@@ -621,10 +623,11 @@ export function proofRowsOf(expression: MorphNode | undefined): ProofRows {
   return out;
 }
 
-/** Does a piece of static text MENTION the waiver spelling for this policy id (`@orb-waive <id>(`)? The test
- *  a `fix` must pass — a mention is what an author needs to type, wherever in the sentence it sits. */
+/** Does a piece of static text MENTION the waiver spelling for this policy id (`@orb-waive <id>(` or
+ *  `@orb-waive-file <id>(`)? The test a `fix` must pass — a mention is what an author needs to type,
+ *  wherever in the sentence it sits. Either form satisfies the requirement. */
 export function mentionsWaiverOf(segment: string, policyId: string): boolean {
-  return segment.includes(`${WAIVE_OPENER}${policyId}(`);
+  return segment.includes(`${WAIVE_OPENER}${policyId}(`) || segment.includes(`${WAIVE_FILE_OPENER} ${policyId}(`);
 }
 
 /** The policy ids named by MARKER-FORM lines inside a piece of static text: a line whose comment content

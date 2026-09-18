@@ -366,3 +366,89 @@ test("#2205 — the SAME shape with the finding UNCLAIMED still reads unbound: r
   expect(result.match.waiverIds).toEqual([null]);
   expect(result.alarms.map(({ message }) => message)).toEqual([expect.stringContaining("cannot bind through comment trivia")]);
 });
+
+// --- @orb-waive-file grammar (#1984) ---
+
+test("@orb-waive-file binds to a finding anywhere in the same file, not carrier-constrained", () => {
+  // The file-level marker at line 1 waives a finding deep inside a later statement — this is the case
+  // line-adjacent binding cannot reach (findings inside template literals).
+  const source = [
+    `// @orb-waive-file ${ORDINARY}(forbidden): file-scoped waiver for a template-literal finding`,
+    "export const unrelated = 1;",
+    "export const deep = forbidden();",
+    "",
+  ].join("\n");
+  const { engine } = fixture({ [FILE]: source });
+  const result = completed(engine, [finding(source, "forbidden", { nth: 2 })]);
+
+  expect(result.match.waiverIds[0]).toBe(`${FILE}:1:1`);
+  expect(result.alarms).toEqual([]);
+});
+
+test("@orb-waive-file still requires matching position token — no blanket suppression", () => {
+  const source = [`// @orb-waive-file ${ORDINARY}(other): file-scoped waiver naming a DIFFERENT position`, "export const deep = forbidden();", ""].join("\n");
+  const { engine } = fixture({ [FILE]: source });
+  const result = completed(engine, [finding(source, "forbidden")]);
+
+  // The marker is well-formed but its position doesn't match the finding's token.
+  expect(result.match.waiverIds).toEqual([null]);
+  expect(result.match.markers.map(({ outcome }) => outcome)).toEqual(["dead-position"]);
+});
+
+test("@orb-waive-file is over-broad when it matches multiple same-token findings in one file", () => {
+  const source = [
+    `// @orb-waive-file ${ORDINARY}(forbidden): file-scoped waiver`,
+    "export const first = forbidden();",
+    "export const second = forbidden();",
+    "",
+  ].join("\n");
+  const { engine } = fixture({ [FILE]: source });
+  const result = completed(engine, [finding(source, "forbidden", { nth: 2 }), finding(source, "forbidden", { nth: 3 })]);
+
+  expect(result.match.waiverIds).toEqual([null, null]);
+  expect(result.match.markers.map(({ outcome }) => outcome)).toEqual(["over-broad"]);
+});
+
+test("@orb-waive-file is stale when no finding of the named position exists", () => {
+  const source = [
+    `// @orb-waive-file ${ORDINARY}(forbidden): file-scoped waiver for a finding that no longer exists`,
+    "export const clean = allowed();",
+    "",
+  ].join("\n");
+  const result = completed(fixture({ [FILE]: source }).engine, []);
+
+  expect(result.match.markers.map(({ outcome }) => outcome)).toEqual(["stale"]);
+  expect(result.alarms[0]?.message).toContain("stale ordinary waiver");
+});
+
+test("@orb-waive-file grammar requires policy id, position, and reason — same as line-scoped", () => {
+  const sources = [
+    "// @orb-waive-file\nexport const value = forbidden();\n",
+    `// @orb-waive-file ${ORDINARY}: reason\nexport const value = forbidden();\n`,
+    `// @orb-waive-file ${ORDINARY}(): reason\nexport const value = forbidden();\n`,
+    `// @orb-waive-file ${ORDINARY}(forbidden):   \nexport const value = forbidden();\n`,
+  ];
+  for (const source of sources) {
+    const { engine } = fixture({ [FILE]: source });
+    const result = completed(engine, [lastFinding(source, "forbidden")]);
+    expect(result.match.waiverIds).toEqual([null]);
+    expect(result.match.markers.map(({ outcome }) => outcome)).toEqual(["malformed"]);
+  }
+});
+
+test("@orb-waive-file does not interfere with a co-located line-scoped marker", () => {
+  // Both forms in one file: the file-scoped marker reaches a distant finding, and the line-scoped
+  // marker reaches its carrier-adjacent finding. Neither interferes with the other.
+  const source = [
+    `// @orb-waive-file ${ORDINARY}(distant): file-scoped waiver for the distant occurrence`,
+    `// @orb-waive ${ORDINARY}(forbidden): line-scoped waiver for the adjacent occurrence`,
+    "export const adjacent = forbidden();",
+    "export const far = distant();",
+    "",
+  ].join("\n");
+  const { engine } = fixture({ [FILE]: source });
+  const result = completed(engine, [finding(source, "forbidden", { nth: 2 }), finding(source, "distant", { nth: 3 })]);
+
+  expect(result.match.waiverIds).toEqual([`${FILE}:2:1`, `${FILE}:1:1`]);
+  expect(result.alarms).toEqual([]);
+});
