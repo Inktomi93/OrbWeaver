@@ -505,8 +505,9 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": groupedComposerChat });
     const component = await mount(<ComposerStory />);
     const textarea = component.getByRole("textbox", { name: "Message", exact: true });
-    await component.getByRole("button", { name: "Send message", exact: true }).focus();
-    await page.keyboard.press("Tab");
+    // The textarea is first in DOM order (#1382 tab-order fix), so Tab from Send no longer reaches it.
+    // Focus the textarea directly — the test's purpose is verifying immediate focus-paint, not tab order.
+    await textarea.focus();
     const readFocusedAtAssertion = async (): Promise<typeof focused> =>
       await textarea.evaluate((element) => {
         const carrier = element.closest('[data-slot="composer"]');

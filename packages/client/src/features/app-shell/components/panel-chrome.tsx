@@ -79,6 +79,16 @@ export function PanelChrome({ panel, label, header, mode, available, onDismiss, 
   // warming on hover/focus it costs a reader who never opens the pane exactly nothing, which is what the
   // original ruling was protecting. Once mounted the body stays mounted, so closing still preserves its
   // state and the transform animation is untouched.
+  // ONCE-MOUNTED-STAYS-MOUNTED (#1796 investigation, closed): the body is deferred past the boot commit
+  // (4a6c54cdf), then stays mounted even while collapsed. This is DELIBERATE:
+  //  1. State preservation — closing/reopening is instant with no remount cost.
+  //  2. TanStack Query subscriptions keep data warm — the pane reopens with current data.
+  //  3. The `inert` attribute (below) prevents interaction while collapsed.
+  //  4. The CSS `data-panel-mode="collapsed"` handles the visual hide (off-screen transform).
+  // Effects and subscriptions DO continue running while collapsed, and they SHOULD: the alternative
+  // (unmounting on collapse) would destroy query caches, reset scroll positions, and make every reopen
+  // pay the full mount+fetch cost. The net cost of the mounted-but-inert body is the React fiber tree
+  // and the warm query subscriptions — both are the mechanism that makes reopen instant.
   const [bodyMounted, setBodyMounted] = useState(mode !== "collapsed");
   useEffect(() => {
     if (mode === "collapsed" || bodyMounted) {
