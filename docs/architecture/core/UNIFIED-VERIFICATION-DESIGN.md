@@ -511,9 +511,8 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   sibling above: `structure:db-baseline` compares the schema to the baseline's CONTENT, this one validates
   the `migrations/meta` CHAIN (every `_journal.json` entry has its snapshot; no two snapshots claim the
   same parent — the forked-chain collision two concurrently-generated migrations produce, probe-verified
-  to exit 1). Against today's single squashed baseline it is a near-no-op (~1s) and that is the POINT
-  (owner ruling): the guardrail is built BEFORE the need, so the first post-launch incremental migration
-  lands into an armed one rather than minting it under pressure. Whole-only (one migrations dir). The
+  to exit 1). Built before the need (owner ruling) and ARMED since D163 (2026-09-18): the baseline is frozen and every
+  schema change is an incremental migration, so this is the check that catches a forked chain. Whole-only (one migrations dir). The
   post-baseline procedure it guards is `Tier-1-DB.md` §"When we migrate for real".
 - **`quality:boot-chunk`** (#460, re-scoped by #591 — `tooling/src/verify/ops/boot-chunk-ratchet.ts`) — builds
   `@orb/client` for production and REDs when the BOOT PAYLOAD exceeds a committed byte ceiling. The measured

@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-05
+updated: 2026-09-18
 ---
 
 # Config revamp — ONE configuration surface, search-first, with the context pane as the teacher (#866)
@@ -474,9 +474,9 @@ summary/affects/related without the "default vs current + Reset door" block unti
 
 - **The background grid (R-BG).** `appearance-background-section.tsx` rebuilds its body: PICK = one
   `media-grid` (the selectable house cell family — `selectedIds`/`aria-selected` built in): a None tile ·
-  `listSeededBackgrounds()` thumbnails (their `public/` urls) · every `backgroundLibrary` entry
-  (`blobUrl(assetHash)`); tap writes the derived patch through the SAME autosave form (seeded ⇒
-  `{backgroundImageKind:"seeded", backgroundSeededId}`; library ⇒ kind `asset` + the three asset fields;
+  every `backgroundLibrary` entry (`blobUrl(assetHash)`) — the ten bundled plates are ordinary library
+  entries seeded per user from `@orb/default-content` since 2026-09-18 (kind `seeded` retired, D160); tap
+  writes the derived patch through the SAME autosave form (library ⇒ kind `asset` + the three asset fields;
   None ⇒ kind `none`) — BG-D's one-atomic-patch invariant holds because it is still one form. MANAGE =
   a per-library-tile ⋯ (Remove from library — filters the entry; removing the SELECTED entry also resets
   kind to `none` in the same patch). ADD = one "Add background" door at the grid's end opening the

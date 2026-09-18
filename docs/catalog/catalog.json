@@ -770,8 +770,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 581,
-      "bytes": 311601,
-      "sha256": "f5c1569e53183cd9385394dad8634530f3af39d9109bb406affaae72ead6720f",
+      "bytes": 312261,
+      "sha256": "bfc4cff68aba2778cb21b93b76ddbf205fa33f476e256efd8c5382192593cdcc",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -784,12 +784,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "f5c1569e53183cd9385394dad8634530f3af39d9109bb406affaae72ead6720f",
+        "assignedSha256": "bfc4cff68aba2778cb21b93b76ddbf205fa33f476e256efd8c5382192593cdcc",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "f5c1569e53183cd9385394dad8634530f3af39d9109bb406affaae72ead6720f",
-        "verifiedCommit": "8fc4f390d1cdabab547d16816a864fcc83ac81d1",
+        "verifiedSha256": "bfc4cff68aba2778cb21b93b76ddbf205fa33f476e256efd8c5382192593cdcc",
+        "verifiedCommit": "31247426185b7216659c79c71c93619db32fb1e7",
         "verifiedAt": "2026-09-18",
         "evidence": [
           "Bounded D61 repair independently investigated under #2312; root read the complete relevant entry and exact diff. Prior whole-document read and claims below are retained, not repeated. Final selected dangling-refs drive over199 docs was clean: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. Historical note is a separate line so it does not suppress current citations.",
@@ -876,7 +876,7 @@
           }
         ],
         "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims.",
-        "verifiedCanonicalSha256": "f5c1569e53183cd9385394dad8634530f3af39d9109bb406affaae72ead6720f"
+        "verifiedCanonicalSha256": "bfc4cff68aba2778cb21b93b76ddbf205fa33f476e256efd8c5382192593cdcc"
       },
       "receiptCurrent": true
     },
@@ -1768,30 +1768,31 @@
       "path": "docs/architecture/core/Tier-5-Entry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 101,
-      "bytes": 9716,
-      "sha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
+      "lines": 103,
+      "bytes": 10027,
+      "sha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-07-16"
+          "updated": "2026-09-18"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Tier-5-Entry.md",
-        "assignedSha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
+        "assignedSha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3",
+        "verifiedCommit": "31247426185b7216659c79c71c93619db32fb1e7",
+        "verifiedAt": "2026-09-18",
         "evidence": [
           "docs/architecture/core/Tier-5-Entry.md:1 (full read; header/status evaluated)",
+          "re-attested 2026-09-18 by the default-content-pkg lane after reading the whole document: the boot/ inventory line no longer names seed-assets/, because the avatars + demo-chat transcripts moved to the @orb/default-content workspace package (D160); no other line changed",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
         ],
@@ -1806,7 +1807,8 @@
             ]
           }
         ],
-        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+        "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
+        "verifiedCanonicalSha256": "294a656ff9f90236481af98a0de8632307346e6233dd68a1b36cf138da064ca3"
       },
       "receiptCurrent": true
     },
@@ -2113,27 +2115,27 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 573,
-      "bytes": 48743,
-      "sha256": "6c24b828b05a8018153db5589d5ef8fcf74d7dc45449e5f859d72b756eacdc6d",
+      "bytes": 48844,
+      "sha256": "bd0370a2bc35b1a06ee2395e7b1626590a72c10d73265fa5f9b02e71c9d8f15a",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-13"
+          "updated": "2026-09-18"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
-        "assignedSha256": "87f5d76ae246decc5d6d5f120ae7722bf4f3962596ac1e09b844ef104d580570",
+        "assignedSha256": "bd0370a2bc35b1a06ee2395e7b1626590a72c10d73265fa5f9b02e71c9d8f15a",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "6c24b828b05a8018153db5589d5ef8fcf74d7dc45449e5f859d72b756eacdc6d",
-        "verifiedCommit": "9c451ed6f2263970e0541f50e7e67888b63801fa",
-        "verifiedAt": "2026-09-13",
+        "verifiedSha256": "bd0370a2bc35b1a06ee2395e7b1626590a72c10d73265fa5f9b02e71c9d8f15a",
+        "verifiedCommit": "31247426185b7216659c79c71c93619db32fb1e7",
+        "verifiedAt": "2026-09-18",
         "evidence": [
           "Full document read by root and independent operations reviewer for #2323. Corrected current operational pointers, successful finish semantics, CT owner, parity prefix, Vitest project names, and affected native compiler routing through 9c451ed6f. Scoped docs check and source review pass. Historical timings and whole-runtime behavior were not replayed; prior evidence remains dated provenance.",
           "Full document read by the reconciliation lane; independent review accepted ee165b3a7, 8f765deda and final11a359f84 cleanup. Root checked final scope changes against registry/ledgers-fresh source; document formatting passed. Prior evidence below remains historical and is not a new whole-runtime certification.",
@@ -2212,7 +2214,8 @@
             ]
           }
         ],
-        "summary": "Current tier membership is owned by the executable registry; this document retains purpose, execution semantics and historical measurements without a copied current stage roster."
+        "summary": "Current tier membership is owned by the executable registry; this document retains purpose, execution semantics and historical measurements without a copied current stage roster.",
+        "verifiedCanonicalSha256": "bd0370a2bc35b1a06ee2395e7b1626590a72c10d73265fa5f9b02e71c9d8f15a"
       },
       "receiptCurrent": true
     },

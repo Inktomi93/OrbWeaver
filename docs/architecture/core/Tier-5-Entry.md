@@ -82,7 +82,7 @@ The split is load-bearing: **only `seedOwner` runs pre-compose** (compose binds 
 
 1. **`installEgressFirewall()`** — the FIRST boot step (swaps undici's global dispatcher before anything else can open a socket; `core/Tier-3-Infra.md`).
 2. **env** (`foundation/env`) — the one `process.env` read (at module load); `superRefine` boot-fatality per `AUTH_MODE`.
-3. **migrate** — `backupBeforeMigrate` → baseline drift check (pre-launch auto-resets the dev db, data loss by design; post-launch it's boot-FATAL) → migrations → `assertReferentialIntegrity`.
+3. **migrate** — `backupBeforeMigrate` → chain-aware baseline drift check (boot-FATAL on a db whose applied migration is in no shipped journal entry — D163; the pre-launch auto-reset is retired, `pnpm seed:demo --fresh` is the only wipe) → migrations → `assertReferentialIntegrity`.
 4. **seed-owner (pre-compose)** — resolves the owner id the compose graph binds against, via a TRANSIENT sessions service (compose owns the real one). The ONLY pre-compose seed.
 5. **compose** — event bus + subscriptions, role clients, every domain service + injected ops, the auth seam, the effective-config getter.
 6. **crypto decrypt-probe** — `built.services.credentials.probeKeyDecrypt()`, immediately after compose (a failure flips healthz to `credentials_key_mismatch`; boot continues).
