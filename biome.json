@@ -13,7 +13,7 @@
     "includes": [
       "**",
       "!**/*.grit",
-      "!.claude",
+      "!.claude/worktrees",
       "!.ds-sync",
       "!ds-bundle",
       "!**/routeTree.gen.ts",
@@ -868,6 +868,33 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "includes": [".claude/hooks/**"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "useSimplifiedLogicExpression": "off",
+            "useMaxParams": "off",
+            "noUselessUndefined": "off",
+            "useOptionalChain": "off"
+          },
+          "style": {
+            "noProcessEnv": "off",
+            "noNestedTernary": "off",
+            "noMagicNumbers": "off",
+            "useNumericSeparators": "off",
+            "useForOf": "off"
+          },
+          "suspicious": {
+            "noUnnecessaryConditions": "off"
+          },
+          "nursery": {
+            "useNullishCoalescing": "off"
           }
         }
       }

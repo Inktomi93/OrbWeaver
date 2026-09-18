@@ -567,16 +567,14 @@ const CHECKOUT_INDEX_OVERWRITE = /(^|\s)--(?:force|all)\b|(^|\s)-[a-zA-Z]*[fa]/;
 // side, discarding any hand-edit already made there. Named explicitly (not left to the extension list)
 // because the pathspec is often extension-less or an unlisted suffix — and refused UNIFORMLY per #497:
 // the house spelling `git show MERGE_HEAD:<path> > <path>` covers the legitimate merge case.
-const CHECKOUT_PATHISH =
-  /(^|\s)(--(\s|$)|--(ours|theirs)\b|\.(\s|$)|\S+\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|json|md|css|html|sql|sh|yml|yaml|txt|svg|png|lock)\b)/;
+const CHECKOUT_PATHISH = /(^|\s)(--(\s|$)|--(ours|theirs)\b|\.(\s|$)|\S+\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|json|md|css|html|sql|sh|yml|yaml|txt|svg|png|lock)\b)/;
 const BIOME_WRITE_MODE = /\bbiome\s+(?:check|lint|format)\b[^\n;|&]*--(?:write|fix|apply|unsafe)\b/;
 const BIOME_SUBCOMMAND = /\bbiome\s+(?:check|lint|format)\b/;
 const BIOME_ONLY_SCOPED = /--only=\S/;
 const PNPM_LINT_FIX = /\bpnpm\s+(?:run\s+)?lint:fix\b/;
 const HARNESS_OR_TRUE =
   /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b|\bpnpm\s+(?:exec\s+)?vitest\b)[^\n;]*\|\|\s*(?:true|echo|:)(?:\s|$)/;
-const HARNESS_SEMI_TRUE =
-  /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b)[^\n;]*;\s*true\s*$/;
+const HARNESS_SEMI_TRUE = /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b)[^\n;]*;\s*true\s*$/;
 // THE RAW-CT HEAD VOCABULARY (2026-09-11, #1943 F1): this named only `npx`, `pnpm exec`, line-start and
 // `&&`, and 268 of the 782 raw CT rows in main's 179,120-row decision log are `./node_modules/.bin/
 // playwright test` or `pnpm playwright test` — a third of them, every one running with the stock shared
@@ -942,8 +940,7 @@ const CONTEXTS = {
     "`--no-verify` is legitimate only immediately after a green gate receipt in THIS session. Lanes: prefer `git -c core.hooksPath=/dev/null …` (the sanctioned spelling) so the skip is visible and scoped.",
   gitAddAll:
     "`git add -A` / `git add .` stages everything — including sibling-lane debris and untracked scratch. Repo law is pathspec staging: `git add <paths>` and `git commit -- <paths>`. Check `git status --short` first.",
-  rmRf:
-    "`rm -rf` outside scratch/cache territory — double-check the target: uncommitted work here is unrecoverable, and git-based undo (stash/restore) is banned.",
+  rmRf: "`rm -rf` outside scratch/cache territory — double-check the target: uncommitted work here is unrecoverable, and git-based undo (stash/restore) is banned.",
   biomeWriteScoped:
     "Scoped `biome --write` — the sanctioned mechanical-migration form. Read the WHOLE diff before committing (INFO-level autofixes have changed behavior here before), and never widen it to the bare tree.",
   pushInFlight:
@@ -1105,7 +1102,9 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
 // have got. Capturing the whole prefix carries it verbatim into the sanctioned call, which is how
 // `env -C <wt> ./node_modules/.bin/playwright test <paths>` becomes `env -C <wt> pnpm test:ct <paths>` —
 // the exact spelling lane-standing-facts.md prescribes. Always matches (possibly empty).
-const PW_CLAUSE_HEAD = new RegExp(String.raw`^\s*(${WRAP_PREFIX})(?:(?:npx|pnpm(?:\s+exec)?)\s+)?(?:(?:\S*\/)?playwright|node\s+\S*@playwright\/test\/cli\.js)\s+test\b`);
+const PW_CLAUSE_HEAD = new RegExp(
+  String.raw`^\s*(${WRAP_PREFIX})(?:(?:npx|pnpm(?:\s+exec)?)\s+)?(?:(?:\S*\/)?playwright|node\s+\S*@playwright\/test\/cli\.js)\s+test\b`,
+);
 // Playwright flags that take their value as a SEPARATE word. Load-bearing for the rewrite (#1943 F6): the
 // rewritten `pnpm test:ct` runs `scoped-test`, whose preflight reads every non-flag operand carrying a `/`
 // (or a test-file extension) as a PATH CLAIM (`_shared/scoped-run-paths.ts` isPathShaped) — so a forwarded
@@ -1748,9 +1747,7 @@ export function scriptTargets(command, blank, clauses) {
         const prev = clause.stages[si - 1];
         const prevWords = shellWords(command.slice(prev.start, prev.end));
         const prevHead = execHead(blank.slice(prev.start, prev.end)).exec?.[0] ?? "";
-        const files = CAT_HEAD.test(prevHead)
-          ? prevWords.slice(1).filter((w) => !w.value.startsWith("-") && !REDIRECT_WORD.test(w.raw))
-          : [];
+        const files = CAT_HEAD.test(prevHead) ? prevWords.slice(1).filter((w) => !w.value.startsWith("-") && !REDIRECT_WORD.test(w.raw)) : [];
         if (files.length > 0) {
           for (const f of files) {
             push(resolveScriptOperand(f, assignedVars(command, blank, clauses, prev.start)));
@@ -1958,9 +1955,7 @@ function oneScriptVerdict(operand, ctx, depth, writes, grouped = false) {
     // stripping above is the real fix; this arm is the honesty backstop for the next glued character
     // nobody has thought of, and it obeys #631: a guard that cannot identify what will execute must not
     // return a content verdict (silence IS a content verdict now that pass means allow).
-    return grouped
-      ? { decision: "ask", rule: "script-grouped-unresolvable", reason: REASONS.scriptGroupedMissing(file), contexts: [] }
-      : null;
+    return grouped ? { decision: "ask", rule: "script-grouped-unresolvable", reason: REASONS.scriptGroupedMissing(file), contexts: [] } : null;
   }
   return liftScriptVerdict(file, body, classify(body, { ...ctx, scriptDepth: depth + 1 }), ctx, depth);
 }
@@ -2000,7 +1995,10 @@ function scriptBodyVerdict(command, blank, clauses, ctx) {
       if (verdict === null) {
         continue;
       }
-      worst = worst === null || DECISION_RANK[verdict.decision] > DECISION_RANK[worst.decision] ? { ...verdict, contexts: [...(worst?.contexts ?? []), ...verdict.contexts] } : { ...worst, contexts: [...worst.contexts, ...verdict.contexts] };
+      worst =
+        worst === null || DECISION_RANK[verdict.decision] > DECISION_RANK[worst.decision]
+          ? { ...verdict, contexts: [...(worst?.contexts ?? []), ...verdict.contexts] }
+          : { ...worst, contexts: [...worst.contexts, ...verdict.contexts] };
     }
     return worst;
   } catch (err) {
@@ -2256,7 +2254,10 @@ function nestedCommandVerdict(command, blank, clauses, ctx) {
         unresolved === undefined
           ? liftNestedVerdict(kind, inner, classify(inner, { ...ctx, nestedDepth: depth + 1 }))
           : { decision: "ask", rule: "inline-unresolved-operand", reason: REASONS.inlineUnresolvedOperand(unresolved), contexts: [] };
-      worst = worst === null || DECISION_RANK[verdict.decision] > DECISION_RANK[worst.decision] ? { ...verdict, contexts: [...(worst?.contexts ?? []), ...verdict.contexts] } : { ...worst, contexts: [...worst.contexts, ...verdict.contexts] };
+      worst =
+        worst === null || DECISION_RANK[verdict.decision] > DECISION_RANK[worst.decision]
+          ? { ...verdict, contexts: [...(worst?.contexts ?? []), ...verdict.contexts] }
+          : { ...worst, contexts: [...worst.contexts, ...verdict.contexts] };
     }
     return worst;
   } catch (err) {
