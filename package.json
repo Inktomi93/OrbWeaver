@@ -9,6 +9,7 @@
   },
   "scripts": {
     "prepare": "lefthook install --force",
+    "build": "pnpm --filter @orb/ui tokens:build && pnpm --filter @orb/client build",
     "agents:sync": "node tooling/src/agent-sync/cli.ts",
     "check:agents": "node tooling/src/agent-sync/cli.ts --check",
     "agent-memory:link": "bash scripts/agent-memory-link.sh",

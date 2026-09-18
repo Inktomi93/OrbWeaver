@@ -1,10 +1,19 @@
 ---
 kind: design
 status: active
-updated: 2026-08-22
+updated: 2026-09-18
 ---
 
 # Containerize — build plan (the forge lane's phase-1 artifact)
+
+> **STATUS 2026-09-18 — SUPERSEDED IN PART.** The image was first built for real on 2026-09-18 and three of
+> this plan's premises fell: (1) `node:26` ships no corepack (the deps stage now installs the pinned pnpm with
+> npm, reading `packageManager`), (2) the manifest-list `COPY` was replaced by `pnpm fetch` + an offline
+> install (a new workspace package never needs a Dockerfile edit), and (3) the runtime file set has ONE home,
+> `docker/assemble-runtime.sh`, which discovers the `@orb/*` package set from the deploy output (D160 content
+> packages ride for free). §1.1/§1.2's two-target + profiles shape is RETIRED with the GPU image (owner ruling
+> 2026-09-18: one engine story). §1.3 (the `*_FILE` shim) and §1.4 (workspace-shaped sources behind symlinks,
+> hoisted `pnpm deploy`) survive unchanged and are what the built image runs.
 
 > Executes [`containerize-prod-image-spec.md`](containerize-prod-image-spec.md) (WHAT) using
 > [`docker-modern-practices-research.md`](docker-modern-practices-research.md) (HOW). This file holds the

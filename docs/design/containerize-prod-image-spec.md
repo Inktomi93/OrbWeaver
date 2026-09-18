@@ -1,10 +1,22 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-22
+updated: 2026-09-18
 ---
 
 # Production container image + deployment spec (all auth modes)
+
+> **STATUS 2026-09-18 — PARTIALLY SUPERSEDED by the shipped container surface (owner ruling, 2026-09-18).** The
+> two-profile image (§2 Profile 1 all-in-one GPU + the vLLM sibling) is RETIRED: ONE app-only image ships
+> (`Dockerfile` target `runtime`, `docker-compose.yaml` ONE service), and local engines are the deployer's own
+> server in every setup (`ENGINES_POSTURE=adopt-only` + `VLLM_ENGINE_HOST`, identical bare-metal and in a
+> container) — the owner does not maintain two vLLM setups. §3.1's OWNER FORK on the container default is
+> resolved at the compose layer for now: the shipped default is `AUTH_MODE=local` with a generated first-boot
+> password (`docker/entrypoint.sh`), and `single-user` works only via host networking
+> (`docker/compose.host-network.yaml`) because a bridge-published port never delivers a loopback peer (verified
+> in a running container 2026-09-18: bridge + single-user 401s, host-network + single-user mints owner). A
+> trusted-peer opt-in (§3.1 arm b) is proposed on a lane branch and awaits the owner's word. The user-facing
+> guide is `docker/README.md`; §3/§4's mode matrix and trust model remain the law for the app's behavior.
 
 > DESIGN-ONLY. No code was touched, no stack run. This spec is read against TODAY's tree; every
 > load-bearing claim carries a `path:line` receipt. A build lane follows once the owner rules §7.

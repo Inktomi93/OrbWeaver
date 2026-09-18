@@ -1,93 +1,164 @@
-# Orbweaver in containers — deploy quickstart
+# Orbweaver in Docker
 
-The full design (trust model, exploit analysis, per-mode receipts):
-[`docs/design/containerize-prod-image-spec.md`](../docs/design/containerize-prod-image-spec.md).
-Build/artifact decisions: [`docs/design/containerize-build-plan.md`](../docs/design/containerize-build-plan.md).
+One image, one service, your models. The app ships without any model server: paste a cloud API key in
+Settings, or point it at a model server you already run.
 
-## Pick a profile
+## Quick start
 
-| profile | what runs | GPU | image target | typical deployer |
-| - | - | - | - | - |
-| `all-in-one` | orb + the 3-engine vLLM fleet in ONE container | REQUIRED (`nvidia-container-toolkit`, ~34 GiB VRAM/card class) | `runtime-gpu` | the owner / turnkey GPU self-hosters |
-| `slim` | orb only — cloud models (OpenRouter / agent-sdk), or a remote engine you point at | none | `runtime-slim` | cloud/CPU deployers |
-| `sibling` | orb (slim) + an upstream `vllm/vllm-openai` container serving the GEN engine | required (for the sibling) | `runtime-slim` | GPU box, engines outside the app container |
+Needs Docker Engine 24+ with Compose v2.24+ (or Podman 4+ with `podman compose`) and git.
 
 ```sh
-docker compose --profile slim build          # or: --profile all-in-one / --profile sibling
-docker compose --profile slim up -d
+git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
+docker compose up -d --build        # the first run builds the image (a few minutes); later runs reuse it
+docker compose logs orbweaver       # the FIRST boot prints your login
 ```
 
-The `sibling` profile serves chat via the local GEN engine only; embed/rerank report down and the app
-absence-degrades those features (the full local trio is `all-in-one`). Its serve command
-(`docker-compose.yaml` → `vllm.command`) is pinned to the app's defaults and gets its Qwen3-VL flag
-tune on first live run.
+Open <http://localhost:8788> and sign in as `owner` with the password from the log. Then Settings →
+Connections: add an API key (OpenRouter, Anthropic, …) or a model server (below), pick a character, chat.
 
-## The four auth modes (spec §3 — the shipped default is SECURE, not convenient)
+- Prefer to choose the password? Put `LOCAL_INITIAL_PASSWORD=…` in `docker/orbweaver.local.env` (copy
+  `docker/orbweaver.local.env.example`) BEFORE the first boot. Change it later in Settings.
+- Nothing was edited to get here. Every other knob is optional and lives in `docker/orbweaver.env` (the
+  tracked defaults, commented) — override any of them in `docker/orbweaver.local.env` (gitignored).
 
-| `AUTH_MODE` | secrets to fill (`docker/secrets/`) | must sit behind HTTPS proxy? | note |
-| - | - | - | - |
-| `single-user` (shipped default) | none | no — but the port must stay UNREACHABLE by untrusted clients | every request that reaches the port IS the owner; the control is network reachability, and co-tenant containers on the same network count as reachable |
-| `local` | `session_secret`, `local_initial_password` | YES (`__Host-`/Secure cookie — plain-HTTP logins silently fail) | multi-user is a runtime admin setting |
-| `oidc` | `session_secret`, `oidc_client_secret` + the `OIDC_*` block in `docker/orbweaver.env` | YES (callback derives from `X-Forwarded-Proto/Host`) | misconfig is boot-fatal, never a silent owner-fallback |
-| `forward-header` | none hard-required (signed path needs a JWKS source) | recommended | prefer SIGNED; the unsigned path is fail-closed until `FORWARD_AUTH_TRUSTED_PROXIES` names the proxy `/32` |
+When the published image exists (`ghcr.io/inktomi93/orbweaver`), `docker compose up -d` without `--build`
+pulls it instead of building; `docker compose pull && docker compose up -d` updates.
 
-`AUTH_FALLBACK` is **not** inert under `single-user` — the fallback flag is checked before the mode's
-unconditional arm (`infra/auth/index.ts:48`), so `deny` there 401s every request and the box serves
-nobody. The shipped file pairs `single-user` with `owner` (that fallback is the mode's only credential)
-and puts `AUTH_FALLBACK=deny` inside each SSO mode's block — flip AUTH_MODE and AUTH_FALLBACK together.
+## A model server on your machine
 
-Shipped hard lines (do not soften): `AUTH_FALLBACK=deny` in every SSO mode (un-credentialed ≠ owner,
-even from inside the network), `DEBUG_TOKEN` unset (the whole `/api/_debug/*` surface 404s),
-`WIRE_CAPTURE=off`, `RPG_TRACE=off`, no `ports:` on any service, `TRUSTED_LOCAL_HOSTS` never set to a
-public FQDN.
-
-### Diagnostics posture — three planes of one door
-
-`IP_ALLOWLIST`, `DEBUG_TOKEN` and `WIRE_CAPTURE`/`RPG_TRACE` are not three unrelated switches; they are
-the three planes of who can look inside a running box and how much is there. Read the block in
-`docker/orbweaver.env` for the per-knob detail — the sentence that ties them together is:
-
-> The **perimeter** (`IP_ALLOWLIST`) bounds who may knock. The **credential** (`DEBUG_TOKEN`, or an
-> admin session) bounds who gets in. **Retention** (`WIRE_CAPTURE`/`RPG_TRACE`) decides what getting in
-> is worth — with a recorder on, the `/api/_debug` ring holds raw provider request bodies: system
-> prompts, full transcripts, persona and world text.
-
-So a recorder ON with no `IP_ALLOWLIST` is the one combination that always deserves a second look, and
-**turning a recorder on is a two-knob edit**. You do not have to remember this: the app resolves the
-composed posture at boot, logs one info line stating it, and logs a `security`-tagged WARN naming the
-exact knob for each exposure still open. The same verdict — plus its warnings, and never a secret value
-— is served live at `GET /api/_debug/info` under `diagnostics`. The model and its wording live in
-`packages/server/src/foundation/env/diagnostics.ts`.
-
-Not done for you, on purpose: the app does **not** refuse to wire a capture sink when the perimeter is
-open. Silently disabling capture on a box that has it on today is a posture flip the operator owns, so
-the warning names the fix instead of taking it.
-
-## Wiring your reverse proxy
-
-Join the proxy to this compose network (or flip the `networks:` block per the comment at the bottom of
-`docker-compose.yaml`) and target `orbweaver:8788` — the alias answers for whichever profile runs. The
-proxy MUST pass `X-Forwarded-Proto/Host/For` (Caddy `reverse_proxy` does by default) and must NOT
-duplicate the app's CSP. For SSE keep long read/write timeouts and no buffering (the owner's Caddyfile
-carries `flush_interval -1` + 1800s).
-
-## Data & models
-
-- `orbweaver-data` volume → `/app/data`: sqlite + assets. Backup = this volume (plus your secrets).
-- `vllm-models` volume → `/models`: HF + vLLM caches, shared by `all-in-one` and `sibling`. First boot
-  pulls models (several GB) unless the image was built with `--build-arg BAKE_MODELS=true
-  --secret id=hf_token,src=<file>` (gated repos only; Qwen3-VL is open).
-- Rotating `credentials_key` orphans every stored BYOK credential — treat the key file as part of the
-  backup set.
-
-## Building with provenance (push-time, CI)
+Ollama, KoboldCpp, LM Studio, TabbyAPI, llama.cpp's server, vLLM — anything OpenAI-compatible. From inside the
+container your machine is `host.docker.internal`, so the connection URL is `http://host.docker.internal:11434`
+(Ollama), `:5001` (KoboldCpp), `:1234` (LM Studio), and so on. The app's outbound firewall blocks private
+addresses by default (an SSRF belt), so allow that host once:
 
 ```sh
-docker buildx build --target runtime-slim \
-  --build-arg GIT_SHA=$(git rev-parse HEAD) --build-arg IMAGE_VERSION=<tag> \
-  --sbom=true --provenance=mode=max \
-  -t ghcr.io/<org>/orbweaver:<tag>-slim --push .
+# docker/orbweaver.local.env
+EGRESS_ALLOWLIST=host.docker.internal
 ```
 
-Attestations persist only on push with the containerd/OCI store; verify with
-`docker buildx imagetools inspect <ref>`.
+A server on another machine on your network: its address goes in `EGRESS_ALLOWLIST` too (host only, no port).
+
+**Your own vLLM, the way the app expects it** (embed `:8701`, rerank `:8702`, chat `:8703` — the same env and
+ports a bare-metal install uses): `ENGINES_POSTURE=adopt-only` + `VLLM_ENGINE_HOST=host.docker.internal`.
+The app adopts what is up and reports the rest down; search and memory need the embed + rerank engines, so
+without them those features degrade rather than break. The app never spawns engines from a container —
+there is one vLLM setup to maintain, and it is yours.
+
+## Login modes
+
+| `AUTH_MODE` | who gets in | needs |
+| - | - | - |
+| `local` (default) | username + password stored by the app | nothing — the session secret and first password are generated on the first boot into the data volume (`/app/data/secrets/`) |
+| `single-user` | no login; whoever reaches the process over a **loopback** socket is the owner | host networking — see below |
+| `oidc` | your identity provider (Authentik, Authelia, Keycloak, …) | the `OIDC_*` block in `docker/orbweaver.env`, HTTPS |
+| `forward-header` | a forward-auth proxy | `FORWARD_AUTH_*` — prefer the signed JWT path |
+
+**Why `single-user` is not the default in a container.** The owner fallback is granted only to a request
+whose TCP peer is loopback (the socket address, which cannot be forged). A port published from a bridge
+network delivers the docker gateway as the peer, never loopback, so `single-user` behind `-p 8788:8788`
+answers 401 to every browser. The one container shape where it works is host networking:
+
+```sh
+docker compose -f docker-compose.yaml -f docker/compose.host-network.yaml up -d --build
+```
+
+The app then binds `127.0.0.1:8788` on your machine, your browser is a loopback peer, other devices are
+not (they get 401 — the bare-metal posture). Docker Engine on Linux and Podman do this natively; Docker
+Desktop needs its opt-in host networking (Settings → Resources → Network, 4.34+, signed in) and proxies at
+layer 4 — unverified here; if you see 401s on Desktop, use the default `local` mode.
+
+`AUTH_FALLBACK` is what an un-credentialed request gets. It is `deny` for every login mode and must be
+`owner` for `single-user` (its only credential — the overlay sets it; the app refuses the `deny` pairing at
+boot rather than serving nobody). Never `owner` with an SSO mode in production: the app refuses to boot,
+because a same-host proxy would turn every visitor into the owner.
+
+## LAN and HTTPS
+
+The port is published on `127.0.0.1` only. To reach the app from your phone or another computer:
+
+1. `ORB_BIND=0.0.0.0` — in a `.env` file beside `docker-compose.yaml` or on the command line
+   (`ORB_BIND=0.0.0.0 docker compose up -d`). Keep `AUTH_MODE=local`.
+2. **HTTPS in front.** The session cookie is `Secure` + `__Host-`, so a plain-http address other than
+   `localhost` cannot keep a login (the sign-in silently fails). Any TLS terminator works: Caddy (automatic
+   certs, or its internal CA on a LAN), nginx, Traefik, a Tailscale `serve`. Point it at `127.0.0.1:8788` on
+   this machine, or join it to this compose network and target `orbweaver:8788` (the stanza at the bottom of
+   `docker-compose.yaml`). The proxy must pass `X-Forwarded-Proto/Host/For` and must not buffer SSE.
+3. Optionally bound who may knock at all: `IP_ALLOWLIST=192.168.1.0/24`. Behind a proxy the peer is the
+   proxy, so allowlist the proxy's address, not your laptop's.
+
+Anything reachable from the internet runs an SSO mode (`oidc` / `forward-header`) with `AUTH_FALLBACK=deny`.
+
+## Where your data lives
+
+- `orbweaver-data` (named volume) → `/app/data`: the sqlite database (plus `-wal`/`-shm`), uploaded and
+  seeded assets, import staging, and `secrets/` (the generated session secret, first password and
+  credentials key). **Backup = this volume.** Losing `secrets/credentials_key` makes every stored provider
+  key unreadable (the same blast radius as losing the database).
+- To keep it in a directory instead: replace the volume line with `./data:/app/data`. The container starts
+  as root only to make that directory owned by `PUID`/`PGID` (default 1000), then drops to that user before
+  the app runs — the SillyTavern / linuxserver pattern, so no manual `chown`. Match your own user with
+  `PUID=$(id -u) PGID=$(id -g) docker compose up -d`. Started non-root (`user:`, rootless podman) it skips the
+  chown and refuses to boot on an unwritable data dir, saying so.
+- The image itself holds no state; `docker compose down` keeps the volume, `down -v` deletes it.
+
+## Secrets as files
+
+Values in an env file are readable from `docker inspect`. For anything you consider a real secret use the
+file overlay — the container gets files at `/run/secrets/*` and the entrypoint exports each as its env var:
+
+```sh
+ORB_SECRETS_DIR=/etc/orbweaver/secrets docker compose -f docker-compose.yaml -f docker/compose.secrets.yaml up -d
+```
+
+Which file feeds which mode, and how to create them: [`secrets/README.md`](secrets/README.md).
+
+## Developing in a container
+
+The development stack (watched server + vite hot reload, the dev pins, seeded demo content) from your
+checkout, with node and pnpm supplied by the container — a fresh clone has no `node_modules`; the first boot
+installs them into the checkout:
+
+```sh
+docker compose -f docker-compose.yaml -f docker/compose.dev.yaml up
+# http://localhost:5173 (vite)   http://localhost:8788 (api)   Ctrl-C stops it
+```
+
+Host networking is required (a dev build binds loopback by design), so this is Linux Engine / Podman;
+`ORB_PORT` / `ORB_VITE_PORT` move the ports when 8788/5173 are busy. It writes `node_modules` and `.cache/`
+into the checkout as your uid (`PUID`/`PGID`). On a machine with node 26 + pnpm this is the same as
+`pnpm install && pnpm stack up` (the root README).
+
+## Diagnostics
+
+`WIRE_CAPTURE` / `RPG_TRACE` (off) turn on recorders that keep the final provider request bodies — system
+prompts, transcripts, persona and world text — behind `/api/_debug/*`, which opens only to `DEBUG_TOKEN`
+or an admin session. Turning one on is a two-knob edit: set `IP_ALLOWLIST` in the same change. The app logs
+the composed posture at boot and warns per open exposure.
+
+## Troubleshooting
+
+- **`docker compose up` fails to pull `ghcr.io/inktomi93/orbweaver`** — the published image is not there
+  yet; `docker compose up -d --build` builds it from the checkout.
+- **Everything answers 401** in `single-user` — you are on a bridge network. Use the host-network overlay or
+  `AUTH_MODE=local` (the reason is under "Login modes").
+- **Sign-in "does nothing" on a LAN address** — plain http; the cookie is Secure. HTTPS in front, or use
+  `http://localhost` on the machine itself.
+- **"blocked … private address"** when adding a local model server — `EGRESS_ALLOWLIST` (above).
+- **`/app/data is not a writable directory`** — you started the container as a non-root user (`user:`,
+  rootless podman) on a data dir that user cannot write. Either let the entrypoint start as root with
+  `PUID`/`PGID` (the default), or make the directory writable by that user.
+- **Forgot the generated password** — it is kept at `/app/data/secrets/initial_password` until you delete it:
+  `docker compose exec orbweaver cat /app/data/secrets/initial_password`. If you already changed it in
+  Settings, that file is stale; `docker compose exec orbweaver rm /app/data/secrets/initial_password` then
+  set `LOCAL_INITIAL_PASSWORD` for the next boot only if the owner row still has no password.
+- Boot refuses with a message naming an env key — that message is the fix: every mode's required values
+  are checked at boot (`packages/server/src/foundation/env/index.ts`), and a misconfigured deploy never
+  silently degrades.
+
+## Building and publishing
+
+`docker build --target runtime -t orbweaver:dev .` builds the image alone. The image is the server as
+source (node 26 runs TypeScript directly), the built client, and a pruned production `node_modules`; how the
+runtime file set is assembled has one home, `docker/assemble-runtime.sh`. `.github/workflows/docker-publish.yml`
+pushes `ghcr.io/inktomi93/orbweaver:<version>` + `:latest` on a `v*` tag (amd64; arm64 once it has been
+booted on real hardware).

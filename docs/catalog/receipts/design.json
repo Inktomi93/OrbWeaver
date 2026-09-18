@@ -818,13 +818,13 @@
     },
     {
       "path": "docs/design/containerize-build-plan.md",
-      "assignedSha256": "e4012e6be66eda06e48fcf38081085210b34c8868b29e55d286cb545eac33037",
+      "assignedSha256": "81b3c14a652120e27bb8590e05b15f2caf3fe658ce61989e29480fcc8755bdf3",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "e4012e6be66eda06e48fcf38081085210b34c8868b29e55d286cb545eac33037",
-      "verifiedCommit": "535266f00954e2c612036a2bee1825609c59be09",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "81b3c14a652120e27bb8590e05b15f2caf3fe658ce61989e29480fcc8755bdf3",
+      "verifiedCommit": "c6ae3615288f75ef0d8c570b7ab6853f10c7ed3d",
+      "verifiedAt": "2026-09-18",
       "evidence": [
         "docs/design/containerize-build-plan.md:1 (design; active)",
         "delta re-verify 2026-08-22 (#421, lane oneoff-rehome): re-read in full at the re-home commit; the ONE changed passage is the same §2.2 gpu-image coupled-site bullet — vllm-setup.sh re-homed scripts/dev/ → tooling/src/stack/, so the Dockerfile's separate scripts/dev COPY is gone and the shell rides the existing tooling/src/stack/ COPY (Dockerfile:187-190); engines.sh calls it as a sibling via $HERE (tooling/src/stack/engines.sh:86). Other cites re-derived: engines.sh's TSX line and the VLLM_STORE_ROOT venv check still hold. ONE STALE CLAIM FOUND AND LEFT (out of this lane's scope, reported to the orchestrator): §2.1 says `vllm-setup.sh:37 pins vllm>=0.22,<0.23`; line 37 is still the pin line but reads `vllm>=0.26,<0.27` today, so the dev pin and the image's baked `--torch-backend=cu130` install of 0.22 have diverged — that is a containerize decision, not a cite repoint",
@@ -849,17 +849,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "81b3c14a652120e27bb8590e05b15f2caf3fe658ce61989e29480fcc8755bdf3"
     },
     {
       "path": "docs/design/containerize-prod-image-spec.md",
-      "assignedSha256": "490d051ca21d373b6712fc3769023dc17d7bb018e71092d5d85f83b0f81868b6",
+      "assignedSha256": "516da7e5395afa14d60cf883fc896b69e6cf28b7fa7ba20c358b0bc30d7451fc",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "06f1e5abcc14dc540cc8245c683c6875b5cb0e8de284c07c94822fa7f25d6a68",
-      "verifiedCommit": "080bd09493a38432c96f69e055fdd6767f531f60",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "516da7e5395afa14d60cf883fc896b69e6cf28b7fa7ba20c358b0bc30d7451fc",
+      "verifiedCommit": "c6ae3615288f75ef0d8c570b7ab6853f10c7ed3d",
+      "verifiedAt": "2026-09-18",
       "evidence": [
         "delta re-verify 2026-09-02 (#1193): three §3.1/§3.2/§4 debug-gate lines re-derived at a67ef0ea8 — the fallback arm is posture-scoped (foundation/env::resolveOwnerFallbackCredential, false whenever NODE_ENV=production, which both supported prod launchers set in buildProdSpawnPlan), the second belt (isAdmin's peer-less re-resolution) is deliberately gone, and §4's accepted residual now also carries /api/_debug because the gate reads the same omitted NODE_ENV",
         "docs/design/containerize-prod-image-spec.md:1 (design; draft; full read 2026-08-19)",
@@ -893,7 +894,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "516da7e5395afa14d60cf883fc896b69e6cf28b7fa7ba20c358b0bc30d7451fc"
     },
     {
       "path": "docs/design/context-bracket-build.md",
@@ -1057,19 +1059,20 @@
     },
     {
       "path": "docs/design/docker-modern-practices-research.md",
-      "assignedSha256": "543bdf62e156d3391528c4799336a1646adc72e4f248fa003fd7fdb26c46673b",
+      "assignedSha256": "463f086213d949c9012a8c8f1e55513bc88744abe7c4126d2bbfe051c566f995",
       "disposition": "needs-owner",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "543bdf62e156d3391528c4799336a1646adc72e4f248fa003fd7fdb26c46673b",
-      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "463f086213d949c9012a8c8f1e55513bc88744abe7c4126d2bbfe051c566f995",
+      "verifiedCommit": "c6ae3615288f75ef0d8c570b7ab6853f10c7ed3d",
+      "verifiedAt": "2026-09-18",
       "evidence": [
         "docs/design/docker-modern-practices-research.md:1 (research; draft)",
         "git log --oneline -1 -- docs/design/docker-modern-practices-research.md: a7c550e3e docs(design): modern Docker practices research (2026, cited) — pnpm deploy --legacy gotcha, per-profile bases, compose/GPU/secrets/PID-1, anti-patterns",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Modern Docker/BuildKit/Compose practices — builder brief for the two-profile prod image: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "Modern Docker/BuildKit/Compose practices — builder brief for the two-profile prod image: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "verifiedCanonicalSha256": "463f086213d949c9012a8c8f1e55513bc88744abe7c4126d2bbfe051c566f995"
     },
     {
       "path": "docs/design/entity-room-member-freshness-bridge.md",

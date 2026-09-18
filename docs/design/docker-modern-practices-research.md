@@ -1,10 +1,13 @@
 ---
 kind: research
 status: draft
-updated: 2026-08-14
+updated: 2026-09-18
 ---
 
 # Modern Docker/BuildKit/Compose practices — builder brief for the two-profile prod image
+
+> **STATUS 2026-09-18 — reference only.** The shipped surface is `Dockerfile` + `docker-compose.yaml` +
+> `docker/README.md`; the GPU/vLLM-in-image sections here describe a retired design (owner ruling 2026-09-18).
 
 > Companion to `docs/design/containerize-prod-image-spec.md`. That spec decides WHAT to ship (two
 > profiles, four auth modes, the AUTHFIX-2 trust model). This brief decides HOW to build it with
