@@ -1392,6 +1392,55 @@
       ]
     },
     {
+      "path": "docs/reviews/gate-runtime/structure-irreducibles-disposition-2026-09-18.md",
+      "assignedSha256": "d745799f6d248e0831fa0ba80d832345c9810b6504c70f23ea73328c10280c31",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "d745799f6d248e0831fa0ba80d832345c9810b6504c70f23ea73328c10280c31",
+      "verifiedCommit": "defb3d078a335ba30cfd567e02130a36805bb317",
+      "verifiedAt": "2026-09-18",
+      "evidence": [
+        "docs/reviews/gate-runtime/structure-irreducibles-disposition-2026-09-18.md:1",
+        "structure run agent-a0c354fb6113d2798-3634274-2026-09-18T15-21-07-658Z on base 3f27ec4a8 (the four findings) and run agent-a0c354fb6113d2798-4012168-2026-09-18T16-44-48-228Z after defb3d078 (34 blocking, 1 alarm)",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Design-and-disposition record for the four irreducible structure:full findings of 2026-09-18: the heap-capture nested-catch waiver (distinct bindings, reader-header correction, nested-cleanup mustPass), the ledger gate's markdown identity arm plus the recogniser widening that made it visible, and the two review-doc marker spellings — each with rejected alternatives, coupled sites and planted breaks.",
+      "claims": [
+        {
+          "claim": "caught-failure-ownership's nested-catch waiver shape is pinned by the nested-cleanup mustPass row, and heap-capture.ts carries the four markers the record describes.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/caught-failure-ownership.ts:922"
+            },
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        },
+        {
+          "claim": "ledger-symbol-liveness proves its ordinary door with an in-module markdown identity row, and policy-waiver-identity's recogniser reads the engine's full opener set.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/ledger-symbol-liveness.ts:208"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/lib/policy-descriptor-read.ts:76"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/lib/policy-descriptor-read.test.ts:203"
+            }
+          ]
+        }
+      ],
+      "verifiedCanonicalSha256": "d745799f6d248e0831fa0ba80d832345c9810b6504c70f23ea73328c10280c31"
+    },
+    {
       "path": "docs/reviews/gate-runtime/theme-freshness-doc-disposition-2026-09-13.md",
       "assignedSha256": "7390e66e48f1f8254a008f9c50e6c8225e2e36e3199ed4f378214ea566d32b14",
       "disposition": "current",
@@ -1701,13 +1750,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/v-conversions-2026-09-13.md",
-      "assignedSha256": "bdff65a78283c8c904f4bfbb2b7e879a8ab5f20c63982880ce878ba0906832f2",
+      "assignedSha256": "a0410c254ed906b298bca69ff01798ecdea386fa2fd038cd8b626781865dfa44",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "bdff65a78283c8c904f4bfbb2b7e879a8ab5f20c63982880ce878ba0906832f2",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "a0410c254ed906b298bca69ff01798ecdea386fa2fd038cd8b626781865dfa44",
+      "verifiedCommit": "defb3d078a335ba30cfd567e02130a36805bb317",
+      "verifiedAt": "2026-09-18",
       "evidence": [
         "docs/reviews/gate-runtime/v-conversions-2026-09-13.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1724,7 +1773,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "a0410c254ed906b298bca69ff01798ecdea386fa2fd038cd8b626781865dfa44"
     },
     {
       "path": "docs/reviews/gate-runtime/v-css-family-2026-09-13.md",
