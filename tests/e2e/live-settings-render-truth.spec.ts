@@ -83,7 +83,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // The shipped looks render as CARDS; picking one applies it (the `selectedThemeId` patch).
     // THE CARD IS A RADIO, NOT A BUTTON (#2245). The looks collection is a `RadioGroupPicker`
     // (appearance-looks-section.tsx) whose items carry the theme name; the only BUTTON carrying "Mocha" is
-    // that card's own ⋯, accessible-named "Actions for Mocha". A substring role=button lookup therefore
+    // that card's own ⋯, accessible-named "Theme actions: Mocha". A substring role=button lookup therefore
     // resolved UNIQUELY — to the kebab — so this line opened a modal `ThemeRowMenu` instead of applying the
     // theme, and Base UI's `InternalBackdrop` (fixed, inset-0, cut out only over the 32px trigger) then ate
     // every later click in the pane, which is how the background gridcell below timed out for 17s.

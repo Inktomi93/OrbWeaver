@@ -8,6 +8,14 @@
 // Delete is confirm-gated (UI-Primitives §13.8 R4 — destructive → AlertDialog; deleting an authored theme
 // incl. its custom CSS is unrecoverable, so a misclick under Export must not fire it). A COMPONENT, not
 // part of the section surface, so the destructive <AlertDialog> stays legal (client-structure rule 7).
+//
+// A11Y / TESTABILITY NOTE (#2252): the trigger's accessible name is `Theme actions: <name>`, NOT
+// `Actions for <name>`. The bare `Actions for Mocha` pattern collides with Playwright's default
+// substring matching on the theme card's own name (`role=radio, name="Mocha"`): `getByRole("button",
+// { name: "Mocha" })` silently matches the kebab instead of failing, then opens a modal backdrop that
+// eats every subsequent click. The `Theme actions:` prefix makes the name unambiguous with `exact: true`
+// and clearly distinguishable even under substring matching (a locator for "Mocha" still matches, but a
+// locator for "Theme actions" scopes to exactly the kebab).
 
 import type { Theme } from "@orb/contracts/theme";
 import { Check, Copy, Download, Icon, Pencil } from "@orb/ui/icons";
@@ -55,7 +63,7 @@ export function ThemeRowMenu({ theme, onApply, onEdit, onDuplicate, onExport, on
   // user's row, and a greyed item would teach a capability that does not exist.
   if (theme.isSeed) {
     return (
-      <RowActionsMenu label={`Actions for ${theme.name}`} triggerSize="sm">
+      <RowActionsMenu label={`Theme actions: ${theme.name}`} triggerSize="sm">
         {items}
       </RowActionsMenu>
     );
@@ -64,10 +72,10 @@ export function ThemeRowMenu({ theme, onApply, onEdit, onDuplicate, onExport, on
     <RowActionsMenu
       destructive={{
         title: "Delete this theme?",
-        description: `This permanently deletes “${theme.name}”, including its custom CSS. This can't be undone.`,
+        description: `This permanently deletes "${theme.name}", including its custom CSS. This can't be undone.`,
         onConfirm: onDelete,
       }}
-      label={`Actions for ${theme.name}`}
+      label={`Theme actions: ${theme.name}`}
       triggerSize="sm"
     >
       {items}

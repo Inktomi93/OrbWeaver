@@ -39,8 +39,13 @@ export const pickerCellVariants = tv({
     grid: "grid grid-cols-1 items-stretch gap-row @sm:grid-cols-2 @lg:grid-cols-3",
     // `items-stretch` + `h-full` is the equal-height half of F27: an auto-fit grid gives equal WIDTHS, and
     // a cell that fills its row track gives equal HEIGHTS even when one gloss wraps to two lines.
+    // `@container` (inline-size containment) makes the frame a query container so the art aperture can
+    // derive its height from the frame's content-box width via `cqw` and pixel-snap it with CSS `round()`
+    // (#1836): `aspect-ratio` produces fractional heights from non-integer widths (a third of a container
+    // minus gaps is always a runtime fraction), and every later section on the same scrollable pane
+    // INHERITS the sub-pixel offset. The declared `round(nearest, …, 1px)` length is what CSS can round.
     frame: [
-      "relative flex h-full min-w-0 flex-col gap-field overflow-hidden rounded-control border border-border bg-card p-field text-left outline-none",
+      "@container relative flex h-full min-w-0 flex-col gap-field overflow-hidden rounded-control border border-border bg-card p-field text-left outline-none",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "hover:border-ring",
       FOCUS_RING,
@@ -56,6 +61,11 @@ export const pickerCellVariants = tv({
     // The art APERTURE: a fixed aspect box, so every cell in a grid reserves the same picture area before
     // its art has computed anything. `bg-background` is the ground a feature's art draws on — the same
     // surface the real thing paints on, so a diagram is never floating on the card tone.
+    //
+    // Height is an EXPLICIT `round()` length, NOT `aspect-ratio` (#1836): the frame is `@container`
+    // (inline-size), so `100cqw` = the frame's content-box width = the art's own width (it is `w-full`).
+    // `round(nearest, 100cqw * <ratio>, 1px)` pixel-snaps the height that `aspect-ratio` left fractional.
+    // The variant `shape` sets the height; `w-full` sets the width; the combination replaces aspect-ratio.
     art: "pointer-events-none relative w-full shrink-0 select-none overflow-hidden rounded-inset bg-background",
     // The FOOTER is reserved whether or not a description exists — the reason two cards in one row used to
     // differ by 13px of height.
@@ -73,10 +83,12 @@ export const pickerCellVariants = tv({
   variants: {
     /** The art aperture's shape — the ONE thing a picker family gets to choose about the cell's geometry. */
     shape: {
-      /** A wide picture: a transcript, a shell diagram, a spacing stack, a palette. */
-      landscape: { art: "aspect-video" },
-      /** A square picture: a wallpaper thumbnail, an avatar shape. */
-      square: { art: "aspect-square" },
+      /** A wide picture: a transcript, a shell diagram, a spacing stack, a palette.
+       *  16:9 → height = width * 9/16 = width * 0.5625, pixel-snapped. */
+      landscape: { art: "h-[calc(round(nearest,100cqw*0.5625,1px))]" },
+      /** A square picture: a wallpaper thumbnail, an avatar shape.
+       *  1:1 → height = width, pixel-snapped. */
+      square: { art: "h-[calc(round(nearest,100cqw,1px))]" },
       /** No picture at all — a label-only cell that must still sit in the same grid as its picture siblings. */
       none: { art: "hidden" },
     },
