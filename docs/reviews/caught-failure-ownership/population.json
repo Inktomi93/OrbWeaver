@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 606,
+    "sites": 607,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 606,
+      "deliberate-absorb": 607,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 163,
+      "default": 164,
       "empty": 299,
       "promise": 144
     }
@@ -1565,7 +1565,7 @@
     {
       "siteId": "packages/default-content/src/index.ts::catch::1",
       "path": "packages/default-content/src/index.ts",
-      "line": 61,
+      "line": 69,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -1573,12 +1573,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a missing/unreadable",
-      "markerLine": 55
+      "markerLine": 63
     },
     {
       "siteId": "packages/default-content/src/index.ts::catch::2",
       "path": "packages/default-content/src/index.ts",
-      "line": 75,
+      "line": 83,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -1586,7 +1586,20 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — the header states the",
-      "markerLine": 70
+      "markerLine": 78
+    },
+    {
+      "siteId": "packages/default-content/src/index.ts::catch::3",
+      "path": "packages/default-content/src/index.ts",
+      "line": 127,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a missing/unreadable shipped",
+      "markerLine": 121
     },
     {
       "siteId": "packages/kit/src/cel/index.ts::err::1",
@@ -1981,7 +1994,7 @@
     {
       "siteId": "packages/server/src/domain/character/seeder/seed.ts::err::1",
       "path": "packages/server/src/domain/character/seeder/seed.ts",
-      "line": 107,
+      "line": 108,
       "column": 14,
       "grammar": "empty",
       "position": "err",
@@ -1989,7 +2002,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — only a handle-conflict",
-      "markerLine": 99
+      "markerLine": 100
     },
     {
       "siteId": "packages/server/src/domain/character/verbs/bulk-add-card-tag.ts::failed::1",
@@ -2878,7 +2891,7 @@
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 543,
+      "line": 539,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -2886,12 +2899,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a refusal",
-      "markerLine": 537
+      "markerLine": 533
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::2",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 562,
+      "line": 558,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -2899,12 +2912,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a",
-      "markerLine": 556
+      "markerLine": 552
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::3",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 582,
+      "line": 578,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -2912,12 +2925,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: `[]` if",
-      "markerLine": 571
+      "markerLine": 567
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::4",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
-      "line": 733,
+      "line": 729,
       "column": 11,
       "grammar": "default",
       "position": "catch",
@@ -2925,7 +2938,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: any",
-      "markerLine": 722
+      "markerLine": 718
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::1",
@@ -3060,7 +3073,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 479,
+      "line": 481,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -3068,7 +3081,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `requireOwner`/`can()`",
-      "markerLine": 473
+      "markerLine": 475
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::catch::1",
@@ -3255,7 +3268,7 @@
     {
       "siteId": "packages/server/src/foundation/env/index.ts::catch::2",
       "path": "packages/server/src/foundation/env/index.ts",
-      "line": 859,
+      "line": 852,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3263,7 +3276,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a probe whose ONLY verdict is a boolean — an unreadable/missing/permission-denied credentials file all mean the same thing to every caller (\"not detected\"), and the false answer FAILS CLOSED (the backend stays unregistered, nothing spawns). Ends if this probe ever gates something that opens rather than closes.",
-      "markerLine": 855
+      "markerLine": 848
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
@@ -4295,7 +4308,7 @@
     {
       "siteId": "tooling/src/_shared/appearance.ts::catch::1",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 86,
+      "line": 87,
       "column": 9,
       "grammar": "empty",
       "position": "catch",
@@ -4303,12 +4316,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative.",
-      "markerLine": 83
+      "markerLine": 84
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::catch::2",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 96,
+      "line": 97,
       "column": 9,
       "grammar": "empty",
       "position": "catch",
@@ -4316,12 +4329,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source.",
-      "markerLine": 93
+      "markerLine": 94
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::catch::3",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 139,
+      "line": 140,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4329,12 +4342,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative.",
-      "markerLine": 136
+      "markerLine": 137
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::catch::4",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 210,
+      "line": 246,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4342,12 +4355,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator.",
-      "markerLine": 207
+      "markerLine": 243
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::catch::5",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 357,
+      "line": 401,
       "column": 7,
       "grammar": "empty",
       "position": "catch",
@@ -4355,12 +4368,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget.",
-      "markerLine": 342
+      "markerLine": 383
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::e::1",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 266,
+      "line": 302,
       "column": 14,
       "grammar": "default",
       "position": "e",
@@ -4368,7 +4381,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure.",
-      "markerLine": 258
+      "markerLine": 294
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::1",
@@ -6479,7 +6492,7 @@
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::error::1",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 382,
+      "line": 390,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -6487,12 +6500,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
-      "markerLine": 378
+      "markerLine": 386
     },
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::error::2",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 389,
+      "line": 397,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -6500,7 +6513,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
-      "markerLine": 386
+      "markerLine": 394
     },
     {
       "siteId": "tooling/src/snap/ops/request-ring.ts::error::1",
