@@ -82,6 +82,7 @@ function stubSessions(validate: SessionsService["validate"]): SessionsService {
     settleUnclaimedLink: unused("settleUnclaimedLink") as SessionsService["settleUnclaimedLink"],
     ownerNeedsPassword: unused("ownerNeedsPassword") as SessionsService["ownerNeedsPassword"],
     claimOwnerPassword: unused("claimOwnerPassword") as SessionsService["claimOwnerPassword"],
+    getOwnerUserId: unused("getOwnerUserId") as SessionsService["getOwnerUserId"],
   };
 }
 

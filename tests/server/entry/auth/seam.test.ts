@@ -80,6 +80,7 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     settleUnclaimedLink: unused("settleUnclaimedLink") as SessionsService["settleUnclaimedLink"],
     ownerNeedsPassword: unused("ownerNeedsPassword") as SessionsService["ownerNeedsPassword"],
     claimOwnerPassword: unused("claimOwnerPassword") as SessionsService["claimOwnerPassword"],
+    getOwnerUserId: unused("getOwnerUserId") as SessionsService["getOwnerUserId"],
     ...overrides,
   };
 }
