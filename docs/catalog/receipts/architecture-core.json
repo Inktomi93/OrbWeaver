@@ -414,12 +414,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e",
+      "assignedSha256": "f5c1569e53183cd9385394dad8634530f3af39d9109bb406affaae72ead6720f",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e",
-      "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
+      "verifiedSha256": "f5c1569e53183cd9385394dad8634530f3af39d9109bb406affaae72ead6720f",
+      "verifiedCommit": "8fc4f390d1cdabab547d16816a864fcc83ac81d1",
       "verifiedAt": "2026-09-18",
       "evidence": [
         "Bounded D61 repair independently investigated under #2312; root read the complete relevant entry and exact diff. Prior whole-document read and claims below are retained, not repeated. Final selected dangling-refs drive over199 docs was clean: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. Historical note is a separate line so it does not suppress current citations.",
@@ -506,7 +506,7 @@
         }
       ],
       "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims.",
-      "verifiedCanonicalSha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e"
+      "verifiedCanonicalSha256": "f5c1569e53183cd9385394dad8634530f3af39d9109bb406affaae72ead6720f"
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
