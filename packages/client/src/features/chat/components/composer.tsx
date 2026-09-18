@@ -333,34 +333,14 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
         <AriaAnnouncer message={stripOpen ? `${String(slashMatches.length)} slash commands` : ""} />
         <ComposerAttachmentStrip attachments={attachments} onRemove={removeAttachment} />
         {/* TWO ROWS (wand v2): the guided cluster sits ABOVE the textarea so the busy controls aren't crammed
-            beside it. One outer card holds both rows so the focus-lift/backing spans the whole composer. */}
+            beside it. One outer card holds both rows so the focus-lift/backing spans the whole composer.
+            DOM ORDER is textarea-first (#1382): Tab from the message field reaches the action buttons (Send,
+            Swipe, Response…) instead of dropping focus out of the chat. CSS `order-last` on the textarea row
+            keeps the visual layout — actions on top, textarea below — while the DOM order fixes the tab
+            sequence for keyboard and screen-reader users. */}
         <ComposerDropTarget dragActive={mediaDrop.dragActive} dropTargetProps={mediaDrop.dropTargetProps}>
-          {/* ROW 1 — four truthful action homes on explicit container-responsive tracks. */}
-          <ComposerGuidedCluster
-            chatId={chatId}
-            value={value}
-            onChange={onChange}
-            busy={sendMessage.isPending}
-            tailIsAssistant={tailRole === "assistant"}
-            imageControls={imageControls}
-            sendUnavailable={sendAvailability.unavailable}
-            sendUnavailableReason={sendAvailability.reason}
-            chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
-            sendControl={
-              <ComposerSendControl
-                showStop={showStop}
-                stopping={stopping}
-                onStop={stopTurn.stop}
-                onSend={submit}
-                sendDisabled={sendAvailability.unavailable || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
-                sendPending={sendMessage.isPending || continueOnEmpty.isPending}
-                unavailable={sendAvailability.unavailable}
-                unavailableReason={sendAvailability.reason}
-              />
-            }
-          />
-          {/* ROW 2 — the textarea owns the full input line; speaker selection lives with Their reply above. */}
-          <Row gap="field" align="center" data-slot="composer-input">
+          {/* ROW 2 (DOM-first for tab order) — the textarea owns the full input line. */}
+          <Row gap="field" align="center" data-slot="composer-input" className="order-last">
             <Textarea
               ref={textareaRef}
               aria-label="Message"
@@ -387,6 +367,30 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
               rows={1}
             />
           </Row>
+          {/* ROW 1 (DOM-second for tab order) — four truthful action homes on explicit container-responsive tracks. */}
+          <ComposerGuidedCluster
+            chatId={chatId}
+            value={value}
+            onChange={onChange}
+            busy={sendMessage.isPending}
+            tailIsAssistant={tailRole === "assistant"}
+            imageControls={imageControls}
+            sendUnavailable={sendAvailability.unavailable}
+            sendUnavailableReason={sendAvailability.reason}
+            chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
+            sendControl={
+              <ComposerSendControl
+                showStop={showStop}
+                stopping={stopping}
+                onStop={stopTurn.stop}
+                onSend={submit}
+                sendDisabled={sendAvailability.unavailable || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
+                sendPending={sendMessage.isPending || continueOnEmpty.isPending}
+                unavailable={sendAvailability.unavailable}
+                unavailableReason={sendAvailability.reason}
+              />
+            }
+          />
         </ComposerDropTarget>
       </Stack>
     </footer>
