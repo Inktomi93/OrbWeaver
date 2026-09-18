@@ -74,7 +74,8 @@ import type { ObjectLiteralExpression, PropertyAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { isMessageProperty, staticSegments } from "../lib/policy-descriptor-read.ts";
+import { isMessageProperty } from "../lib/policy-descriptor-read.ts";
+import { staticSegments } from "../lib/policy-static-text.ts";
 
 // A pointer token: a doc, a concrete source file, a code dir path, or an @orb package specifier.
 const MD = /[\w.-]+\.md\b/u;

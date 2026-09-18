@@ -36,14 +36,16 @@
 // regression is still measured against the author's declared base on the run that matters, and the only
 // runs that get headroom are the ones whose wall clock was never a statement about the code. The factor is
 // therefore a statement about the BOX, and the one way to break that guarantee is to make the denominator
-// dishonest — which is what #1985 found and fixed (see `cgroupQuotaCores` below).
+// dishonest — which is what #1985 found and fixed (`load-budget-cgroup.ts#cgroupQuotaCores`).
 //
-// PURE except for `readBoxLoad` (the one `os.loadavg()` read) and `budgetCeilingMs` (the one env read).
+// PURE except for `readBoxLoad` (the one `os.loadavg()` read) and `budgetCeilingMs` (the one env read); the
+// cgroup fence `readBoxLoad` folds in (quota ceiling + throttle sample) is read by `load-budget-cgroup.ts`.
 // Every judging function takes the reading as a value, so a planted control forces the loaded condition
 // instead of spinning the box.
-import { readFileSync } from "node:fs";
-import { cpus, loadavg } from "node:os";
+import { loadavg } from "node:os";
 import process from "node:process";
+import type { CpuThrottleSample } from "./load-budget-cgroup.ts";
+import { effectiveCpuCount, liveThrottle } from "./load-budget-cgroup.ts";
 
 /** The one distinctive token every load-kill error carries. A lane greps for it to classify exit-2. */
 export const LOAD_KILL_MARKER = "ORB-LOAD-KILL";
@@ -78,13 +80,6 @@ export const DEFAULT_BUDGET_CEILING_MS = 600_000;
 /** The env override for the absolute ceiling — a calibration drive on a dedicated box may raise it. ONE
  *  spelling: the read below uses this constant, never a second string literal. */
 const BUDGET_CEILING_ENV = "ORB_BUDGET_CEILING_MS";
-
-/** THE KERNEL'S OWN RECORD OF THE FENCE BITING (#2206). `cpu.stat` counts scheduling PERIODS and how many
- *  of them ended with this tree THROTTLED — i.e. the quota, not the machine, stopped the work. */
-export interface CpuThrottleSample {
-  readonly periods: number;
-  readonly throttled: number;
-}
 
 /** The box's contention inputs, as ONE value so the reader is injectable. */
 export interface BoxLoad {
@@ -172,141 +167,6 @@ function plantedBoxLoad(): BoxLoad | undefined {
   // only thing that can answer "did THIS number come from the plant", and it survives every carrier that
   // spreads the reading (snap's rate posture does, and its contract now names the field).
   return { loadavg1: Number(load), cpuCount: Number(cores), planted: true };
-}
-
-/** cgroup v2 writes exactly one `0::<path>` line into `/proc/self/cgroup`; v1's numbered lines are not it. */
-const CGROUP_V2_PREFIX = "0::";
-const CGROUP_V2_ROOT = "/sys/fs/cgroup";
-const PROC_SELF_CGROUP = "/proc/self/cgroup";
-
-/** How the quota walk reads a cgroup file: the bytes, or `undefined` for absent/unreadable. Injectable so a
- *  planted control drives the ancestry instead of the box's real one. */
-export type CgroupFileReader = (path: string) => string | undefined;
-
-/** PURE: one `cpu.max` body — `"<quota|max> <period>"` — as whole CPUs, or `undefined` for `max`/garbage. */
-function cpuMaxCores(body: string | undefined): number | undefined {
-  if (body === undefined) {
-    return;
-  }
-  const [quota, period] = body.trim().split(/\s+/u);
-  const quotaUs = Number(quota);
-  const periodUs = Number(period);
-  return Number.isFinite(quotaUs) && Number.isFinite(periodUs) && quotaUs > 0 && periodUs > 0 ? quotaUs / periodUs : undefined;
-}
-
-/** PURE (given the reader): THE CGROUP v2 QUOTA CEILING on this process tree in whole-CPU units, or
- *  `undefined` when the tree is unbounded (no cgroup v2, an unreadable path, every `cpu.max` reading `max`).
- *
- *  WHY IT IS AN INPUT TO THE DENOMINATOR AND NOT A CURIOSITY (#1985, measured 2026-09-12). Since #1835
- *  `.claude/hooks/cpu-fence.sh` sets `CPUQuota=<sessionCpuQuotaPct>` on each agent session's scope — 800%,
- *  i.e. EIGHT of this box's 24 threads. `cpus().length` still answers 24, so `computeLoadFactor` divided a
- *  box-wide loadavg by cores this process tree is FORBIDDEN to use, and returned a flat factor 1 for every
- *  realistic multi-lane load: the fence itself holds loadavg well under 24, which is the number the factor
- *  had to exceed before it moved at all. The measured consequence is the row this closes —
- *  `enforcement-registry-parity.int.test.ts` carries `scaledBudget(60_000)`, timed out under concurrent
- *  lanes and passed under lighter load inside one session on one commit, with the scaling never once
- *  engaging. The budget WAS scaled; the scaling was reading the wrong box.
- *
- *  The ceiling is the MINIMUM over the whole cgroup ANCESTRY, not the leaf: a quota on any ancestor bounds
- *  the tree. `ORB_DEDICATED_BOX=1` sets no ceiling at all, so the walk finds `max` everywhere and this
- *  returns `undefined` — the solo box keeps the physical count and its budgets stay byte-identical. */
-export function cgroupQuotaCores(read: CgroupFileReader): number | undefined {
-  const own = read(PROC_SELF_CGROUP)
-    ?.split("\n")
-    .find((line) => line.startsWith(CGROUP_V2_PREFIX))
-    ?.slice(CGROUP_V2_PREFIX.length);
-  if (own === undefined || !own.startsWith("/")) {
-    return;
-  }
-  const segments = own.split("/").filter((segment) => segment !== "");
-  let cores: number | undefined;
-  for (let depth = segments.length; depth >= 0; depth -= 1) {
-    const quota = cpuMaxCores(read(`${CGROUP_V2_ROOT}/${segments.slice(0, depth).join("/")}/cpu.max`));
-    if (quota !== undefined) {
-      cores = cores === undefined ? quota : Math.min(cores, quota);
-    }
-  }
-  return cores;
-}
-
-function readCgroupFile(path: string): string | undefined {
-  // ONE TAIL RETURN (the `pass.ts` accumulator idiom): biome's noUselessReturn refuses a bare `return` in
-  // the catch and tsc's noImplicitReturns refuses falling out of it, so the verdict is a binding.
-  let body: string | undefined;
-  // @orb-waive caught-failure-ownership(catch): ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly "no ceiling is declared here", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell "unbounded" from "could not ask"; the absence then becomes a value and this catch becomes a branch.
-  try {
-    body = readFileSync(path, "utf8");
-  } catch {
-    body = undefined;
-  }
-  return body;
-}
-
-/** Read ONCE: the fence is applied at session start, before any lane's children exist, and a per-call
- *  filesystem walk would sit on the hot path of every budget in the fleet. */
-let quotaCores: number | undefined | "unread" = "unread";
-
-/** The cores a budget's denominator may honestly use: the physical count, capped by whatever ceiling the
- *  kernel is actually enforcing on this process tree. Never below 1, never above the physical count. */
-export function effectiveCpuCount(read: CgroupFileReader = readCgroupFile): number {
-  const physical = cpus().length;
-  if (read !== readCgroupFile) {
-    const injected = cgroupQuotaCores(read);
-    return injected === undefined ? physical : Math.max(1, Math.min(physical, injected));
-  }
-  if (quotaCores === "unread") {
-    quotaCores = cgroupQuotaCores(read);
-  }
-  return quotaCores === undefined ? physical : Math.max(1, Math.min(physical, quotaCores));
-}
-
-/** PURE (given the reader): the `nr_periods` / `nr_throttled` pair from a `cpu.stat` body, or `undefined`
- *  when the file is absent or does not carry both counters. */
-function parseCpuStat(body: string | undefined): CpuThrottleSample | undefined {
-  if (body === undefined) {
-    return;
-  }
-  const read = (key: string): number | undefined => {
-    const line = body.split("\n").find((candidate) => candidate.startsWith(`${key} `));
-    const value = line === undefined ? Number.NaN : Number(line.slice(key.length + 1).trim());
-    return Number.isFinite(value) && value >= 0 ? value : undefined;
-  };
-  const periods = read("nr_periods");
-  const throttled = read("nr_throttled");
-  return periods === undefined || throttled === undefined || periods === 0 ? undefined : { periods, throttled };
-}
-
-/** PURE (given the reader): the TIGHTEST throttling record over this tree's cgroup ANCESTRY — the same walk
- *  `cgroupQuotaCores` makes, for the same reason: a quota on any ancestor bounds this tree, so the
- *  enforcement that hurts most is the one that counts. `undefined` on an unfenced box. */
-export function readCpuThrottle(read: CgroupFileReader): CpuThrottleSample | undefined {
-  const own = read(PROC_SELF_CGROUP)
-    ?.split("\n")
-    .find((line) => line.startsWith(CGROUP_V2_PREFIX))
-    ?.slice(CGROUP_V2_PREFIX.length);
-  if (own === undefined || !own.startsWith("/")) {
-    return;
-  }
-  const segments = own.split("/").filter((segment) => segment !== "");
-  let worst: CpuThrottleSample | undefined;
-  for (let depth = segments.length; depth >= 0; depth -= 1) {
-    const sample = parseCpuStat(read(`${CGROUP_V2_ROOT}/${segments.slice(0, depth).join("/")}/cpu.stat`));
-    if (sample !== undefined && (worst === undefined || sample.throttled / sample.periods > worst.throttled / worst.periods)) {
-      worst = sample;
-    }
-  }
-  return worst;
-}
-
-/** Read ONCE, same reasoning as the quota: these are cumulative counters on a scope created at session
- *  start, and a per-budget filesystem walk would sit on the hot path of every budget in the fleet. */
-let throttleSample: CpuThrottleSample | undefined | "unread" = "unread";
-
-function liveThrottle(): CpuThrottleSample | undefined {
-  if (throttleSample === "unread") {
-    throttleSample = readCpuThrottle(readCgroupFile);
-  }
-  return throttleSample;
 }
 
 export function readBoxLoad(): BoxLoad {

@@ -2,6 +2,7 @@
 import type { Identifier, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { inspectBindingReassignment, readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin } from "./reference-fact.ts";
+import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
 import type {
   CallableDeclaration,
   CallableOrigin,
@@ -13,7 +14,6 @@ import type {
 } from "./reference-fact-contract.ts";
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import { overloadHome } from "./reference-fact-overload.ts";
-import { lexicalReferenceSymbol } from "./reference-fact-writes.ts";
 
 const INVOCATION_WRAPPERS = new Set(["apply", "bind", "call"]);
 

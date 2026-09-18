@@ -86,7 +86,6 @@ export { readStringValue, unwrapExpression } from "./lib/ast-read.ts";
 export { signatureArity } from "./lib/baseui-expand.ts";
 export {
   BASE_UI_MANIFEST_REL,
-  BASE_UI_MODULE_PREFIX,
   BASE_UI_PKG_REL,
   baseUiBindings,
   blindParts,
@@ -98,6 +97,7 @@ export {
   truncatedParts,
   UI_SRC,
 } from "./lib/baseui-read.ts";
+export { BASE_UI_MODULE_PREFIX } from "./lib/baseui-surface-derive.ts";
 export { auditBiomeTranscript, biomeStageAudit, controlProbeCount, parseCheckedFileCount } from "./lib/biome-verdict.ts";
 export { aggregateExit, asViolations, eslintScheme, noVerdictStages, ownScheme, producedNoVerdict } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
@@ -123,7 +123,8 @@ export { stripProbePolicyFindings } from "./lib/planted-fixtures.ts";
 export { parsePolicyCommand } from "./lib/policy-command.ts";
 export { loadPolicies, loadPolicyCorpus } from "./lib/policy-loader.ts";
 export { runPolicyPass } from "./lib/policy-pass.ts";
-export { executePolicyPlan, planPolicyArgv, planPolicyCommand, policyPassExitCode } from "./lib/policy-plan.ts";
+export { planPolicyArgv, planPolicyCommand, policyPassExitCode } from "./lib/policy-plan.ts";
+export { executePolicyPlan } from "./lib/policy-plan-execute.ts";
 export { readCompilerPrograms } from "./lib/policy-program-membership.ts";
 export { resolvePolicyScope } from "./lib/policy-scope.ts";
 export { isPolicySourceCandidate, policySourceCandidates } from "./lib/policy-source-candidate.ts";

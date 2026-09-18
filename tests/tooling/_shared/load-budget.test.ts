@@ -19,9 +19,7 @@ import {
   boxFactor,
   boxLoadKnobError,
   budget,
-  cgroupQuotaCores,
   computeLoadFactor,
-  effectiveCpuCount,
   FACTOR_CAP,
   hasMeasurement,
   isJudgeableMeasurement,
@@ -40,8 +38,8 @@ import {
   loadSuspectSummary,
   ratePair,
   readBoxLoad,
-  readCpuThrottle,
 } from "@orb/tooling/_shared/load-budget";
+import { cgroupQuotaCores, effectiveCpuCount, readCpuThrottle } from "@orb/tooling/_shared/load-budget-cgroup";
 import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 

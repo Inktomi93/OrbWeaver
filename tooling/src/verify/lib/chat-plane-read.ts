@@ -39,7 +39,8 @@
 // `{...BASE_AUTHORITY, listMessages:"member"}` used to yield ONE verb while staying non-empty — so the
 // blindness arm was satisfied, the gate reported a live matrix, and every spread-in viewer-plane verb was
 // simply not judged. Composition shapes the matrix's own law does not sanction (a spread of a call, an
-// unresolvable binding, a cycle) refuse loudly instead.
+// unresolvable binding, a cycle) refuse loudly instead. The fold itself is `chat-plane-matrix.ts` (split out
+// at the size cap 2026-09-18); `resolveChatMatrix` below is its family door.
 //
 // AND EVERY MEMBER KIND IS ANSWERED, NONE IS SKIPPED (#1091, the #1035 rule carried here). The fold read
 // exactly one shape — a `PropertyAssignment` whose value unwraps to a StringLiteral — and let every other
@@ -57,12 +58,13 @@
 // or a per-candidate descendant re-walk. `callsIn` reproduces the legacy `fn.getDescendantsOfKind(Call)`
 // exactly, because a call is registered under EVERY function that encloses it.
 
-import { readStaticString, resolveLexicalValueDeclaration, resolveStableExpression } from "@orb/tooling/_shared/reference-fact";
-import type { ReferenceUnresolvedReason } from "@orb/tooling/_shared/reference-fact-contract";
-import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
+import { resolveLexicalValueDeclaration } from "@orb/tooling/_shared/reference-fact";
+import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyVisitor } from "../contract/policy-primitives.ts";
-import { readStringValue, unwrapExpression } from "./ast-read.ts";
+import { unwrapExpression } from "./ast-read.ts";
+import type { ChatVerbMatrix } from "./chat-plane-matrix.ts";
+import { resolveAuthorityMatrix } from "./chat-plane-matrix.ts";
 
 export const CHAT_DOMAIN_UNDER = "packages/server/src/domain/chat/**";
 export const CHAT_MATRIX_FILE = "packages/server/src/domain/chat/substrate/auth/matrix.ts";
@@ -70,9 +72,6 @@ export const CHAT_QUERIES_FILE = "packages/server/src/domain/chat/persistence/qu
 export const MATRIX_CONST = "CHAT_VERB_AUTHORITY";
 export const SERVICE_TYPE = "ChatService";
 const CLAMP_FN = "isBelowHistoryFloor";
-
-/** How many characters of an unsupported matrix expression a refusal quotes. */
-const DIAGNOSTIC_PREVIEW_CHARS = 120;
 
 const FLOOR_BINDING_RE = /^(?:floor|floorSeq|historyFloorSeq)$/u;
 const MEMBERSHIP_BINDING_RE = /(?:^|\.)membership$/u;
@@ -93,29 +92,6 @@ const BULK_CANON_READERS: ReadonlySet<string> = new Set([
  *  direction. Every caller must decide what an unclassified verb means BEFORE asking. */
 export function isViewerPlane(authority: string): boolean {
   return !ROOM_PLANE_AUTHORITIES.has(authority);
-}
-
-/** A refusal reason's class. `cycle` and `missing`-family reasons keep the vocabulary the legacy reader's
- *  own refusals used, so a matrix this reader cannot establish never reads as a SMALLER matrix. */
-const REFUSAL_CLASS = {
-  cycle: "cycle",
-  missing: "unbound",
-  ambiguous: "unbound",
-  unsupported: "shape",
-  dynamic: "shape",
-  write: "shape",
-} as const satisfies Record<ReferenceUnresolvedReason, "cycle" | "unbound" | "shape">;
-
-function preview(node: MorphNode): string {
-  return node.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS);
-}
-
-/** A source-manifest key: `<repo-relative file>#<CONST>`, so the scan line reads the same as every other
- *  policy's rather than leaking an absolute worktree path. */
-function sourceKey(node: MorphNode, name: string): string {
-  const path = node.getSourceFile().getFilePath();
-  const idx = path.indexOf("/packages/");
-  return `${idx === -1 ? path : path.slice(idx + 1)}#${name}`;
 }
 
 interface VerbImpl {
@@ -228,148 +204,10 @@ export function chatPlaneVisitors(index: ChatPlaneIndex): readonly GatePolicyVis
   ];
 }
 
-// ── the matrix fold ────────────────────────────────────────────────────────────────────────────────────
-
-/** The fold's accumulator: the resolved verb→authority map and the SOURCE manifest behind it. */
-interface MatrixFold {
-  readonly verbs: Map<string, string>;
-  readonly sources: string[];
-}
-
-export interface ChatVerbMatrix {
-  readonly verbs: ReadonlyMap<string, string>;
-  readonly sources: readonly string[];
-}
-
-/** Every refusal in this family carries the legacy opener, so a `mustRefuse` needle names authored text
- *  rather than a generic runner envelope sentence. */
-function refuse(message: string): never {
-  throw new Error(`chat-viewer-plane-canon-reads: ${message}`);
-}
-
-/** The object literal an expression denotes, following identifier/alias hops through the SHARED stable
- *  binding reader. It refuses on any other shape, on an unresolvable binding, and on a cycle, because a
- *  matrix this reader cannot establish must never read as a SMALLER matrix. */
-function matrixObject(expression: MorphNode): ObjectLiteralExpression {
-  const direct = unwrapExpression(expression);
-  if (Node.isObjectLiteralExpression(direct)) {
-    return direct;
-  }
-  const fact = resolveStableExpression(expression);
-  if (fact.kind === "resolved") {
-    const terminal = unwrapExpression(fact.value);
-    if (Node.isObjectLiteralExpression(terminal)) {
-      return terminal;
-    }
-    return refuse(`unsupported ${MATRIX_CONST} expression in ${expression.getSourceFile().getFilePath()}: ${preview(expression)}`);
-  }
-  const kind = REFUSAL_CLASS[fact.reason];
-  if (kind === "cycle") {
-    return refuse(`${MATRIX_CONST} composition cycle at ${sourceKey(fact.node, direct.getText())}`);
-  }
-  if (kind === "unbound") {
-    return refuse(`${MATRIX_CONST} binding "${direct.getText()}" resolves to no local declaration or named import`);
-  }
-  return refuse(`unsupported ${MATRIX_CONST} expression in ${expression.getSourceFile().getFilePath()}: ${preview(expression)}`);
-}
-
-/** A member's KEY: an identifier / numeric / quoted name read as written, or a COMPUTED key whose
- *  expression is a string literal. A computed key this reader cannot NAME must not enter the map: before
- *  #1091 it entered as the bracket text (`["listMessages"]`), which matches no factory — so the gate
- *  reported an UNCHECKED verb that does not exist while the real one went unjudged. */
-function memberKey(name: MorphNode): string {
-  if (Node.isComputedPropertyName(name)) {
-    const computed = readStringValue(name.getExpression());
-    if (computed === undefined) {
-      return refuse(`computed ${MATRIX_CONST} key in ${name.getSourceFile().getFilePath()} is not a string literal: ${preview(name)}`);
-    }
-    return computed;
-  }
-  return readStringValue(name) ?? name.getText();
-}
-
-/** The authority STRING a member's value denotes — through `as const`/`satisfies`/parens and through an
- *  identifier's BINDING, the same local-or-named-import hop the matrix object itself takes, answered by the
- *  shared reader. Every other shape REFUSES: an authority this reader cannot establish would drop its verb
- *  out of the classified set entirely, and `isViewerPlane` never sees the verb it was supposed to protect. */
-function authorityValue(expression: MorphNode): string {
-  const fact = readStaticString(expression);
-  if (fact.kind === "resolved") {
-    return fact.value;
-  }
-  const kind = REFUSAL_CLASS[fact.reason];
-  const named = unwrapExpression(expression);
-  if (kind === "cycle") {
-    return refuse(`${MATRIX_CONST} value binding cycle at ${sourceKey(fact.node, named.getText())}`);
-  }
-  if (kind === "unbound") {
-    return refuse(`${MATRIX_CONST} value binding "${named.getText()}" resolves to no local declaration or named import`);
-  }
-  return refuse(`unsupported ${MATRIX_CONST} value in ${expression.getSourceFile().getFilePath()}: ${preview(expression)}`);
-}
-
-/** Fold one matrix object's rows into the accumulator, resolving object spreads first so a locally-written
- *  row always WINS over the base it overrides (the live `{...BASE, listMessages:"member"}` precedence).
- *
- *  `seen` is threaded ACROSS the fold/resolve boundary, not re-seeded per spread: a cycle runs
- *  fold → resolve → fold, so a per-call seed detects nothing and the recursion blows the stack instead of
- *  refusing. */
-function foldMatrix(obj: ObjectLiteralExpression, out: MatrixFold, seen: ReadonlySet<string>): void {
-  const key = sourceKey(obj, obj.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() ?? MATRIX_CONST);
-  if (seen.has(key)) {
-    refuse(`${MATRIX_CONST} composition cycle at ${key}`);
-  }
-  out.sources.push(key);
-  const nested: ReadonlySet<string> = new Set([...seen, key]);
-  for (const prop of obj.getProperties()) {
-    if (Node.isSpreadAssignment(prop)) {
-      const before = out.verbs.size;
-      foldMatrix(matrixObject(prop.getExpression()), out, nested);
-      if (out.verbs.size === before) {
-        refuse(`${MATRIX_CONST} at ${key} spreads "${prop.getExpression().getText()}", which resolved to zero verbs`);
-      }
-      continue;
-    }
-    if (Node.isPropertyAssignment(prop)) {
-      const initializer = prop.getInitializer();
-      if (initializer === undefined) {
-        refuse(`${MATRIX_CONST} row "${prop.getName()}" at ${key} has no value`);
-      }
-      out.verbs.set(memberKey(prop.getNameNode()), authorityValue(initializer));
-      continue;
-    }
-    // A SHORTHAND row (`{ previewAssembly, listMessages }`) is the same row one hop away: its NAME is both
-    // the verb and the value expression, so the binding hop answers it.
-    if (Node.isShorthandPropertyAssignment(prop)) {
-      out.verbs.set(prop.getName(), authorityValue(prop.getNameNode()));
-      continue;
-    }
-    refuse(`unsupported ${MATRIX_CONST} member kind ${prop.getKindName()} at ${key}: ${preview(prop)}`);
-  }
-}
-
-/** `CHAT_VERB_AUTHORITY` as verb → authority, RESOLVED through object spreads of local/imported sibling
- *  matrices (#947); `undefined` when no readable declaration exists in the effective population, which is
- *  the BLINDNESS condition the health sibling reports and the reach sibling refuses on. */
+/** `CHAT_VERB_AUTHORITY` as verb → authority: the family door onto `chat-plane-matrix.ts#resolveAuthorityMatrix`
+ *  over the delivered declarations, naming `MATRIX_CONST` as every refusal's subject. */
 export function resolveChatMatrix(index: ChatPlaneIndex): ChatVerbMatrix | undefined {
-  let found: ChatVerbMatrix | undefined;
-  for (const declaration of index.matrixDeclarations) {
-    if (!Node.isVariableDeclaration(declaration)) {
-      continue;
-    }
-    const initializer = declaration.getInitializer();
-    const obj = initializer === undefined ? undefined : unwrapExpression(initializer);
-    if (obj === undefined || !Node.isObjectLiteralExpression(obj)) {
-      continue;
-    }
-    const fold: MatrixFold = { verbs: new Map<string, string>(), sources: [] };
-    foldMatrix(obj, fold, new Set());
-    if (fold.verbs.size > 0) {
-      found = { verbs: fold.verbs, sources: fold.sources };
-      break;
-    }
-  }
-  return found;
+  return resolveAuthorityMatrix(index.matrixDeclarations, MATRIX_CONST);
 }
 
 // ── reachability and the structural discharge ──────────────────────────────────────────────────────────

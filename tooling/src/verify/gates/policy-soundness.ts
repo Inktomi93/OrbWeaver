@@ -103,9 +103,8 @@ import {
   objectLiteralOf,
   rootOf,
   stableTerminal,
-  staticSegments,
-  staticText,
 } from "../lib/policy-descriptor-read.ts";
+import { staticSegments, staticText } from "../lib/policy-static-text.ts";
 import { MEMBER_ACCESS_KINDS, readMemberAccess } from "../lib/symbol-reference.ts";
 import {
   familyFixture,

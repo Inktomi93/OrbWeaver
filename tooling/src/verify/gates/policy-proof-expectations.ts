@@ -73,18 +73,16 @@ import {
   declaresModuleName,
   descriptorProperty,
   descriptorValue,
-  discriminationOf,
   finalDescriptorOf,
   isContextRooted,
   isMessageProperty,
   isStringTyped,
-  messageAlternatives,
   objectLiteralOf,
   proofRowsOf,
   reportSiteMessage,
   reportSiteOf,
-  staticText,
 } from "../lib/policy-descriptor-read.ts";
+import { discriminationOf, messageAlternatives, staticText } from "../lib/policy-static-text.ts";
 import { familyFixture, finalProbeModule, HARD_TRUNK } from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-proof-expectations.ts";

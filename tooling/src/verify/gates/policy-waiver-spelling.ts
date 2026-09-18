@@ -28,15 +28,8 @@
 import type { ObjectLiteralExpression } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import {
-  descriptorProperty,
-  descriptorValue,
-  finalDescriptorOf,
-  mentionsWaiverOf,
-  policyIdOfPath,
-  staticSegments,
-  staticText,
-} from "../lib/policy-descriptor-read.ts";
+import { descriptorProperty, descriptorValue, finalDescriptorOf, policyIdOfPath } from "../lib/policy-descriptor-read.ts";
+import { mentionsWaiverOf, staticSegments, staticText } from "../lib/policy-static-text.ts";
 import { familyFixture, finalProbeModule, HARD_TRUNK, ORDINARY_TRUNK } from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-waiver-spelling.ts";

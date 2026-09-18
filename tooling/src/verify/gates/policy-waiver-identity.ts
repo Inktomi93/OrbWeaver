@@ -47,17 +47,8 @@ import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, Source
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import {
-  descriptorProperty,
-  descriptorValue,
-  enclosingStringExpression,
-  enclosingTestCall,
-  finalDescriptorOf,
-  markerFormIdsOf,
-  policyIdOfPath,
-  staticSegments,
-  staticText,
-} from "../lib/policy-descriptor-read.ts";
+import { descriptorProperty, descriptorValue, enclosingTestCall, finalDescriptorOf, policyIdOfPath } from "../lib/policy-descriptor-read.ts";
+import { enclosingStringExpression, markerFormIdsOf, staticSegments, staticText } from "../lib/policy-static-text.ts";
 import { familyFixture, finalProbeModule, HARD_TRUNK, ORDINARY_TRUNK, PROBE_FAMILY_TEST_PATH, PROBE_IMPORT_FROM_TEST } from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-waiver-identity.ts";
