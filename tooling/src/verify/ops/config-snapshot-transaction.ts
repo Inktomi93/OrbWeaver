@@ -11,6 +11,16 @@ import { createResourceReader } from "./resource-reader.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
+/** Resolve `relativePath` under `root` and refuse if the result escapes. */
+function containedTarget(root: string, relativePath: string): string {
+  const target = resolve(root, relativePath);
+  const rel = relative(root, target);
+  if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+    throw new Error(`staged path escapes the transaction root: ${relativePath}`);
+  }
+  return target;
+}
+
 function packageName(bytes: Uint8Array, path: string): string {
   const value: unknown = JSON.parse(Buffer.from(bytes).toString("utf8"));
   if (typeof value !== "object" || value === null || !("name" in value) || typeof value.name !== "string" || value.name === "") {
@@ -96,12 +106,13 @@ export function materializeConfigSnapshotTransaction(options: ResourceReaderOpti
     const entries = new Map(loaded.value.map((entry) => [entry.path, entry]));
     const workspaceLinks = workspaceLinkPlans(options.root, stage, entries);
     for (const entry of loaded.value) {
-      const target = join(stage, entry.path);
+      const target = containedTarget(stage, entry.path);
       mkdirSync(dirname(target), { recursive: true });
       if (entry.kind === "file") {
         writeFileSync(target, entry.bytes);
       } else {
-        symlinkSync(relative(dirname(target), join(stage, entry.targetPath)), target);
+        const linkTarget = containedTarget(stage, entry.targetPath);
+        symlinkSync(relative(dirname(target), linkTarget), target);
       }
     }
     linkWorkspacePackages(workspaceLinks);

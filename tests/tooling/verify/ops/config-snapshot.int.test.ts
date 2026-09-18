@@ -228,6 +228,18 @@ test("the overlay transaction refuses a deleted workspace target instead of reso
   expect(deleted.kind === "unreadable" ? deleted.detail : "").toContain('Missing "./_shared/test-kinds" specifier');
 });
 
+test("an overlay entry with a parent-traversal path refuses instead of escaping the stage root", ({ scratch }) => {
+  writeFileSync(join(scratch, CONFIG_REL), 'export default { test: { include: ["tests/live.test.ts"] } };\n');
+  execFileSync("git", ["init", "-q"], { cwd: scratch });
+  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  const read = readConfigSnapshot(scratch, "vitest", CONFIG_REL, {
+    overlay: { "../../escape.ts": "export const ESCAPED = true;\n" },
+  });
+
+  expect(read).toMatchObject({ kind: "unreadable" });
+  expect(read.kind === "unreadable" ? read.detail : "").toContain("invalid segment");
+});
+
 test("an overlaid workspace manifest cannot redirect a package link outside the owned stage", ({ scratch }) => {
   mkdirSync(join(scratch, "tooling"));
   writeFileSync(join(scratch, "tooling/package.json"), JSON.stringify({ name: "@orb/tooling", private: true }));
