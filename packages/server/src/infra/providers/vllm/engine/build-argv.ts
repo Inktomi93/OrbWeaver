@@ -60,8 +60,11 @@ export interface EngineLaunchConfig {
   readonly genMaxBatchedTokens: number;
   /** Emit `--enable-sleep-mode` on every engine (force-enables vLLM's cumem allocator so /sleep can pin
    *  weights→CPU and free VRAM on idle). Resolved `override ?? env floor` (VLLM_SLEEP_MODE), default true.
-   *  Paired with `VLLM_SERVER_DEV_MODE=1` on the child (spawn-engine.ts) to register the loopback /sleep,
-   *  /wake_up, /is_sleeping endpoints — loopback bind is already enforced by `--host 127.0.0.1`. */
+   *  Paired with `VLLM_SERVER_DEV_MODE=1` on the child (spawn-engine.ts) to register the /sleep, /wake_up,
+   *  /is_sleeping endpoints. vLLM's precondition for registering them is that the engine is not publicly
+   *  reachable: on bare metal that is the `--host 127.0.0.1` bind (EngineArgvContext.bindHost's default);
+   *  in the generated engine-container overlay it is the container network, which publishes no engine
+   *  port. */
   readonly sleepMode: boolean;
   /** The ENGINE-SIDE flight recorder (VLLM_DEBUG_REQUESTS, default off). On, adds --enable-log-requests
    *  --enable-log-outputs --max-log-len 2048: wire captures show what WE sent, these show what the engine
@@ -202,6 +205,19 @@ export interface EngineArgvContext {
   readonly gpuCount: number;
   /** The huggingface snapshot path for the rerank model (resolved by the caller — a Python call). */
   readonly rerankModelPath: string;
+  /** The `--host` bind address. DEPLOYMENT tier, and LOOPBACK BY DEFAULT — omitting it keeps the bare-metal
+   *  security posture (an engine is reachable only from its own box, which is also vLLM's stated
+   *  precondition for registering the VLLM_SERVER_DEV_MODE /sleep endpoints). The ONE caller that moves it
+   *  is the container-compose generator (tooling/src/stack/lib/engines-compose.ts): a process inside a
+   *  container namespace that binds 127.0.0.1 is unreachable from its peers, so an engine CONTAINER must
+   *  bind 0.0.0.0 — its reachability is then bounded by the container network (the overlay publishes no
+   *  engine port), not by the bind address. Every other caller passes nothing and gets the loopback bind. */
+  readonly bindHost?: string | undefined;
+}
+
+/** The bind address this argv serves on: the caller's explicit `bindHost`, else the loopback default. */
+function bindHostOf(ctx: EngineArgvContext): string {
+  return ctx.bindHost ?? LOOPBACK_HOST;
 }
 
 function embedArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
@@ -219,7 +235,7 @@ function embedArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[]
     "--mm-processor-kwargs",
     `{"max_pixels": ${config.poolingMaxPixels}}`,
     "--host",
-    LOOPBACK_HOST,
+    bindHostOf(ctx),
     "--port",
     String(config.ports.embed),
     "--gpu-memory-utilization",
@@ -242,7 +258,7 @@ function rerankArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[
     "pooling",
     // enforce-eager removed with the embed arm's (same 2026-08-18 ruling).
     "--host",
-    LOOPBACK_HOST,
+    bindHostOf(ctx),
     "--port",
     String(config.ports.rerank),
     "--gpu-memory-utilization",
@@ -288,7 +304,7 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
     "--tensor-parallel-size",
     String(tp),
     "--host",
-    LOOPBACK_HOST,
+    bindHostOf(ctx),
     "--port",
     String(config.ports.gen),
     "--gpu-memory-utilization",

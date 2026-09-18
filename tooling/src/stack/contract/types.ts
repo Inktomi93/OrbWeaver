@@ -304,3 +304,17 @@ export interface EngineSpawnObservation {
    *  be recorded or signalled, so it is not a member of the fleet even when its process is alive. */
   readonly identityCaptured: boolean;
 }
+
+/** The whole input the engine-container compose GENERATOR turns into `docker/compose.engines.yaml`
+ *  (lib/engines-compose.ts). Every field is already RESOLVED by the caller — the generator is pure, so the
+ *  committed overlay is a function of the shipped env floor + this file's two literals and nothing else.
+ *    `config`      — the launch config (`resolveEngineLaunchConfig(engineLaunchEnvFloor(), undefined)`);
+ *                    the SAME value the bare-metal launcher passes to `buildEngineArgv`.
+ *    `gpuCount`    — the TOPOLOGY the overlay is generated FOR (not a detection of the generating box:
+ *                    a committed artifact must not carry whatever hardware regenerated it last).
+ *    `vllmVersion` — read from lib/vllm-version.env, the one home of the version line. */
+export interface EnginesComposeInput {
+  readonly config: EngineLaunchConfig;
+  readonly gpuCount: number;
+  readonly vllmVersion: string;
+}

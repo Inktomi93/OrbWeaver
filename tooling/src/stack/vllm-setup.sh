@@ -11,8 +11,8 @@
 # are no-ops unless the pin changes.
 #
 # TORCH BACKEND NOTE: `auto` is only safe when vLLM's own compiled kernels
-# were built against the same CUDA major the driver reports. vLLM 0.26 builds
-# against torch 2.11 (cu13x) which matches CUDA-13 drivers, so auto works.
+# were built against the same CUDA major the driver reports. The pinned vLLM
+# builds against a cu13x torch which matches CUDA-13 drivers, so auto works.
 # If a future bump dies at boot with `ImportError: libcudart.so.NN`, the wheel
 # was built against a different CUDA than auto picked — pin TORCH_BACKEND to
 # vLLM's build target (e.g. "cu129") instead. (Measured 2026-06-11 on 0.17:
@@ -25,16 +25,20 @@
 # Output contract (probe convention): last line is `RESULT vllm-setup …`.
 
 set -euo pipefail
-REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO="$(cd "$HERE/../../.." && pwd)"
 # Model/venv stores are SHARED across git worktrees: root them at the MAIN checkout (the git common
 # dir's parent) so a linked worktree reuses the multi-GB caches instead of re-downloading. Falls back
 # to this checkout outside a linked worktree; an explicit env override still wins.
 STORE_ROOT="$(dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO/.git")")"
 VENV="$STORE_ROOT/.cache/vllm/venv"
 
-# Pinned vLLM line. Bump deliberately; the venv rebuilds when the marker
-# below doesn't match.
-VLLM_PIN="vllm>=0.26,<0.27"
+# THE pinned vLLM line is NOT spelled here: lib/vllm-version.env is its one home (the container image tag
+# in docker/compose.engines.yaml reads the same file, so the bare-metal venv and the engine containers can
+# never run different vLLM majors). Bump it there; the venv rebuilds when the marker below stops matching.
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=lib/vllm-version.env
+. "$HERE/lib/vllm-version.env"
 TORCH_BACKEND="auto"
 PIN_MARKER="$VENV/.orb-pin"
 

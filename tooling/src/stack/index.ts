@@ -22,6 +22,7 @@ export type {
   EngineLaunchProbes,
   EngineRole,
   EngineSpawnObservation,
+  EnginesComposeInput,
   InstanceClassification,
   InstanceVerdict,
   LockHolder,
@@ -62,6 +63,18 @@ export {
 } from "./lib/dev-process-identity.ts";
 export { engineAdoptionMismatch, probeEngineAdoption } from "./lib/engine-adoption.ts";
 export { classifyEngineBoot, decideEngineLaunch, ENGINE_LAUNCH_IDENTITY_FAILURE, expectedAdoptionModels, stopSpawnedEngines } from "./lib/engine-launch.ts";
+export {
+  buildEnginesCompose,
+  deriveVllmPin,
+  ENGINES_COMPOSE_DEFAULT_GPU_COUNT,
+  ENGINES_COMPOSE_REL,
+  ENGINES_COMPOSE_REPO_ROOT,
+  launchEnvKeysSetIn,
+  parseVllmPin,
+  parseVllmVersion,
+  renderEnginesComposeFromEnv,
+  VLLM_VERSION_ENV_REL,
+} from "./lib/engines-compose.ts";
 export { classifyInstance, decideDown, decideUp } from "./lib/identity.ts";
 export { parseListenerPid, parseProcStartTicks } from "./lib/proc-parse.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";

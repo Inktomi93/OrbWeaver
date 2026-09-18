@@ -1,0 +1,218 @@
+# ── overlay: the app's OWN vLLM engines, as peer containers ────────────────────────────────────────
+#
+# GENERATED — DO NOT HAND-EDIT. Regenerate with `pnpm engines compose` (writes this file); a stale copy
+# is a RED row in tests/tooling/stack/lib/engines-compose.test.ts. The serve flags come from the ONE argv
+# builder the bare-metal fleet uses (packages/server/src/infra/providers/vllm/engine/build-argv.ts), so
+# these containers and `pnpm engines` can never run different flags. The generator, and the reasons for
+# every departure from the bare-metal spawn, are tooling/src/stack/lib/engines-compose.ts.
+#
+#   docker compose -f docker-compose.yaml -f docker/compose.engines.yaml --profile gen up -d
+#   docker compose -f docker-compose.yaml -f docker/compose.engines.yaml \
+#       --profile gen --profile embed --profile rerank up -d
+#
+# `gen` IS THE BASE PROFILE: embed and rerank join gen's network namespace, so they cannot run without
+# it. First boot downloads the models into the `vllm-models` volume (tens of GB) and the cold load is
+# minutes — the healthcheck's start_period allows for it. Needs the NVIDIA Container Toolkit on the host.
+#
+# Generated for 2 GPU(s) — vLLM 0.29.0. Regenerate for other hardware:
+# `pnpm engines compose --gpus 1`. VRAM per engine, as the serve argv asks for it:
+#   gen    vllm-gen     :8703  --gpu-memory-utilization 0.6 on 2 cards
+#   embed  vllm-embed   :8701  --gpu-memory-utilization 0.14 on 1 card
+#   rerank vllm-rerank  :8702  --gpu-memory-utilization 0.14 on 1 card
+#
+# The app side is two env values and NO app change: `adopt-only` (the app never spawns a container) and
+# the one engine host name. The egress firewall's internal-backend allowlist reads that same key, so
+# the app→engine hop is allowed by construction (infra/network/egress.ts, engine-url.ts).
+services:
+  orbweaver:
+    environment:
+      ENGINES_POSTURE: adopt-only
+      VLLM_ENGINE_HOST: vllm-gen
+
+  vllm-gen:
+    profiles: [gen]
+    image: vllm/vllm-openai:v0.29.0
+    container_name: orbweaver-vllm-gen
+    command:
+      - "Qwen/Qwen3-VL-8B-Instruct"
+      - "--served-model-name"
+      - "Qwen3-VL-8B-Instruct"
+      - "Qwen/Qwen3-VL-8B-Instruct"
+      - "--tensor-parallel-size"
+      - "2"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8703"
+      - "--gpu-memory-utilization"
+      - "0.6"
+      - "--max-num-batched-tokens"
+      - "8192"
+      - "--max-model-len"
+      - "65536"
+      - "--reasoning-parser"
+      - "qwen3"
+      - "--chat-template"
+      - "/app/packages/server/src/infra/providers/vllm/engine/templates/qwen3_gen_thinking_serve.jinja"
+      - "--default-chat-template-kwargs"
+      - "{\"enable_thinking\": false, \"preserve_thinking\": true}"
+      - "--structured-outputs-config"
+      - "{\"enable_in_reasoning\":false}"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "qwen3_coder"
+      - "--speculative-config"
+      - "{\"method\":\"mtp\",\"num_speculative_tokens\":3}"
+      - "--enable-prefix-caching"
+      - "--mm-encoder-tp-mode"
+      - "data"
+      - "--mm-processor-cache-type"
+      - "shm"
+      - "--mm-processor-kwargs"
+      - "{\"max_pixels\": 4194304, \"fps\": 4, \"max_frames\": 512}"
+      - "--disable-access-log-for-endpoints"
+      - "/health,/metrics,/ping"
+      - "--enable-request-id-headers"
+      - "--enable-force-include-usage"
+      - "--enable-sleep-mode"
+    environment:
+      HF_HOME: /models/hf
+      VLLM_CACHE_ROOT: /models/vllm-cache
+      VLLM_SERVER_DEV_MODE: "1"
+    volumes:
+      - vllm-models:/models
+      - ./packages/server/src/infra/providers/vllm/engine/templates:/app/packages/server/src/infra/providers/vllm/engine/templates:ro
+    expose:
+      - "8701"
+      - "8702"
+      - "8703"
+    shm_size: "16gb"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8703/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 900s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  vllm-embed:
+    profiles: [embed]
+    image: vllm/vllm-openai:v0.29.0
+    container_name: orbweaver-vllm-embed
+    command:
+      - "Qwen/Qwen3-VL-Embedding-2B"
+      - "--runner"
+      - "pooling"
+      - "--hf_overrides"
+      - "{\"is_matryoshka\": true}"
+      - "--chat-template"
+      - "/app/packages/server/src/infra/providers/vllm/engine/templates/qwen3_vl_embedding_serve.jinja"
+      - "--mm-processor-kwargs"
+      - "{\"max_pixels\": 1843200}"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8701"
+      - "--gpu-memory-utilization"
+      - "0.14"
+      - "--max-model-len"
+      - "8192"
+      - "--trust-remote-code"
+      - "--disable-access-log-for-endpoints"
+      - "/health,/metrics,/ping"
+      - "--enable-request-id-headers"
+      - "--enable-force-include-usage"
+      - "--enable-sleep-mode"
+    environment:
+      HF_HOME: /models/hf
+      VLLM_CACHE_ROOT: /models/vllm-cache
+      VLLM_SERVER_DEV_MODE: "1"
+    volumes:
+      - vllm-models:/models
+      - ./packages/server/src/infra/providers/vllm/engine/templates:/app/packages/server/src/infra/providers/vllm/engine/templates:ro
+    network_mode: "service:vllm-gen"
+    depends_on:
+      vllm-gen:
+        condition: service_started
+    shm_size: "2gb"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8701/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 900s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+
+  vllm-rerank:
+    profiles: [rerank]
+    image: vllm/vllm-openai:v0.29.0
+    container_name: orbweaver-vllm-rerank
+    command:
+      - "Qwen/Qwen3-VL-Reranker-2B"
+      - "--served-model-name"
+      - "Qwen/Qwen3-VL-Reranker-2B"
+      - "--runner"
+      - "pooling"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8702"
+      - "--gpu-memory-utilization"
+      - "0.14"
+      - "--max-model-len"
+      - "8192"
+      - "--trust-remote-code"
+      - "--hf_overrides"
+      - "{\"architectures\": [\"Qwen3VLForSequenceClassification\"],\"classifier_from_token\": [\"no\", \"yes\"],\"is_original_qwen3_reranker\": true}"
+      - "--chat-template"
+      - "/app/packages/server/src/infra/providers/vllm/engine/templates/qwen3_vl_reranker_serve.jinja"
+      - "--mm-processor-kwargs"
+      - "{\"max_pixels\": 1843200}"
+      - "--disable-access-log-for-endpoints"
+      - "/health,/metrics,/ping"
+      - "--enable-request-id-headers"
+      - "--enable-force-include-usage"
+      - "--enable-sleep-mode"
+    environment:
+      HF_HOME: /models/hf
+      VLLM_CACHE_ROOT: /models/vllm-cache
+      VLLM_SERVER_DEV_MODE: "1"
+    volumes:
+      - vllm-models:/models
+      - ./packages/server/src/infra/providers/vllm/engine/templates:/app/packages/server/src/infra/providers/vllm/engine/templates:ro
+    network_mode: "service:vllm-gen"
+    depends_on:
+      vllm-gen:
+        condition: service_started
+    shm_size: "2gb"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8702/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 900s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: [gpu]
+
+volumes:
+  vllm-models: {}
