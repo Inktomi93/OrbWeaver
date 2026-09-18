@@ -380,6 +380,17 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
     expect(env.NODE_ENV).toBe("development");
   });
 
+  // The local-light (transformers.js/ONNX) weights must land under the DATA ROOT, not in the lib's own
+  // `node_modules/@huggingface/transformers/.cache/`: that path is on the read-only rootfs in the
+  // container — so the first download fails and the GPU-less tier is dead for exactly the audience it
+  // exists for — and on bare metal every `pnpm install` throws multi-GB weights away.
+  test("LOCAL_LIGHT_CACHE_DIR defaults under the data root and takes an override", async () => {
+    const { env } = await reimportEnvWith({});
+    expect(env.LOCAL_LIGHT_CACHE_DIR).toBe("./data/models/transformers");
+    const overridden = await reimportEnvWith({ LOCAL_LIGHT_CACHE_DIR: "/srv/orb-models" });
+    expect(overridden.env.LOCAL_LIGHT_CACHE_DIR).toBe("/srv/orb-models");
+  });
+
   test("rate-limit budgets are boot-env with the documented floor", async () => {
     const { env } = await reimportEnvWith({});
     expect(env.RATE_LIMIT_AI_TURN).toBe(30);

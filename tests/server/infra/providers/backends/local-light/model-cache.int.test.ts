@@ -11,9 +11,14 @@
 // network, no multi-GB download.
 
 import { spawn } from "node:child_process";
-import { dirname, resolve } from "node:path";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { describe } from "vitest";
+import { afterAll, describe } from "vitest";
+import { DEFAULT_EMBED_MODEL } from "../../../../../../packages/server/src/infra/providers/backends/local-light/embed.ts";
+import { createModelCache } from "../../../../../../packages/server/src/infra/providers/backends/local-light/model-cache.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -58,4 +63,53 @@ describe("local-light model-loader lib-boundary belt", () => {
     },
     CHILD_TIMEOUT_MS,
   );
+});
+
+// WHERE THE WEIGHTS LAND. transformers.js's own default cache is `node_modules/@huggingface/transformers/
+// .cache/`: on the container's READ-ONLY rootfs the first download fails, so the GPU-less tier is dead for
+// exactly the audience it exists for — and on bare metal that directory is emptied by every `pnpm install`.
+// The cache root is therefore `LOCAL_LIGHT_CACHE_DIR`, under the data root, and the two halves the lib will
+// not do for us are pinned here against the REAL loader with remote models OFF (nothing is downloaded —
+// the load is expected to fail; what it wrote to disk BEFORE trying is the subject): the configured path is
+// resolved against the PROCESS cwd (the lib hands `env.cacheDir` straight to `path.join`, so a relative
+// value would otherwise follow whatever cwd the process happens to have), and the root EXISTS before the
+// first load rather than being created per-file mid-download inside a loader frame.
+describe("local-light model cache directory", () => {
+  const roots: string[] = [];
+  const makeRoot = (): string => {
+    const dir = mkdtempSync(join(tmpdir(), "orb-ll-cache-"));
+    roots.push(dir);
+    return dir;
+  };
+  const failedLoad = async (cacheDir: string): Promise<void> => {
+    const cache = createModelCache({ cacheDir, allowRemoteModels: false });
+    await expect(cache.embedTexts(DEFAULT_EMBED_MODEL, ["a character card to index"])).rejects.toThrow();
+  };
+
+  afterAll(() => {
+    for (const dir of roots) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("creates the configured cache root before the first load", async () => {
+    const dir = join(makeRoot(), "models", "transformers");
+    expect(existsSync(dir)).toBe(false);
+
+    await failedLoad(dir);
+
+    expect(existsSync(dir)).toBe(true);
+  });
+
+  test("resolves a RELATIVE configured root against the process cwd, never leaving it relative", async () => {
+    const dir = join(makeRoot(), "models");
+    const asRelative = relative(process.cwd(), dir);
+    expect(isAbsolute(asRelative)).toBe(false);
+
+    await failedLoad(asRelative);
+
+    // Resolved against the cwd — NOT left relative for the lib to join per model file, and not created
+    // under the lib's own directory.
+    expect(existsSync(dir)).toBe(true);
+  });
 });

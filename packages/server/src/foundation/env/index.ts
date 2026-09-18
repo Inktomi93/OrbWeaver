@@ -337,6 +337,13 @@ const envSchema = z
     CLIENT_DIST_DIR: z.string().min(1).default("./packages/client/dist"),
     // Content-addressed asset blob root (card PNGs, avatars); the DB holds metadata, bytes live here.
     ASSETS_DIR: z.string().min(1).default("./data/assets"),
+    // Where the in-process local-light tier (transformers.js/ONNX — the GPU-less box's embed/rerank/
+    // imageEmbed/background-removal) downloads and keeps its model weights. cwd-relative like ASSETS_DIR.
+    // It MUST be under the data root: transformers.js's own default is `node_modules/@huggingface/
+    // transformers/.cache/`, which (a) is on the READ-ONLY rootfs in the container, so the first download
+    // fails and local-light is dead for exactly the audience it exists for, and (b) on bare metal puts
+    // multi-GB weights inside node_modules, where every `pnpm install` throws them away.
+    LOCAL_LIGHT_CACHE_DIR: z.string().min(1).default("./data/models/transformers"),
     // The controlled root the bundle-import extractor stages its per-upload dir under (a portability zip
     // decompresses to disk, not RAM). Unset ⇒ the app-owned `DEFAULT_IMPORT_STAGING_DIR`
     // (`domain/import/substrate/staging.ts`), deliberately NOT the OS temp dir: a shared world-listable

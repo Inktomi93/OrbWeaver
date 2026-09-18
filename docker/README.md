@@ -110,6 +110,10 @@ Anything reachable from the internet runs an SSO mode (`oidc` / `forward-header`
   seeded assets, import staging, and `secrets/` (the generated session secret, first password and
   credentials key). **Backup = this volume.** Losing `secrets/credentials_key` makes every stored provider
   key unreadable (the same blast radius as losing the database).
+- The built-in CPU model tier downloads its weights into `models/transformers/` in the same volume, the
+  first time a feature asks for that job: ~3.5 GB embedder, ~92 MB reranker, ~176 MB background-removal.
+  Nothing is fetched until then, and `LOCAL_LIGHT_CACHE_DIR` moves the directory elsewhere. It must stay
+  writable — the rest of the image is read-only, which is why the weights cannot live beside the code.
 - To keep it in a directory instead: replace the volume line with `./data:/app/data`. The container starts
   as root only to make that directory owned by `PUID`/`PGID` (default 1000), then drops to that user before
   the app runs — the SillyTavern / linuxserver pattern, so no manual `chown`. Match your own user with
