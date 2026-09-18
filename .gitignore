@@ -3,6 +3,10 @@
 .env
 .env.*
 !.env.example
+# container: your settings + the file-secrets overlay's files (docker/README.md)
+docker/orbweaver.local.env
+docker/secrets/*
+!docker/secrets/README.md
 *.pem
 *.key
 
