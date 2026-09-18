@@ -34,6 +34,7 @@ transition, claude-b/bridge action, or worktree sweep.
 | `verifier` | fresh-context CODE-correctness check (logic, tests, edge cases, trust boundaries) before reporting work done |
 | `side-eye` | fresh-context UX / visual / a11y check of anything a user SEES |
 | `stickler` | fresh-context FRONTIER-TIER diff/branch review before merge, and deep investigation assignments; expensive by design (trivial diffs → `verifier`; security-DOMINANT → `security-executor`, never Fable) |
+| `qwen-run` (shell, not an agent) | mech-executor-class volume off the Claude budget on the local Qwen3.8-Flash-Next: `qwen-run -C <dir> --worktree <slug> "<cold brief>"`; load the **`qwen-lane`** skill (global) before the first dispatch — brief standard, receipts, landing |
 
 **Two verification lenses — route by what changed:** logic / data / server → `verifier`; UI / rendered /
 a11y → `side-eye`; both if the change spans both.

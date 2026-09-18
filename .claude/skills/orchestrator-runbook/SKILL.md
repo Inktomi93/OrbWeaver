@@ -114,6 +114,11 @@ named by its exact filename. Assume the index, never the body.
 
 ## §2 The second Claude account (claude-b): overflow, swap, and the bridge
 
+**A third route exists since 2026-09-18: the local Qwen lane.** `qwen-run -C <dir> --worktree <slug> "<cold brief>"` hands
+mech-executor-class work to Qwen Code on the local Flash-Next vLLM (no Claude usage, no bridge, no sentinel gate). Same
+cold-brief standard as the `claude -p` spelling below; the procedure is the GLOBAL `qwen-lane` skill (`~/.claude/skills/qwen-lane`),
+server lifecycle `flashnext up|down|status`.
+
 **Dated state, 2026-08-24 (owner) — read this BEFORE the recorded rule below.** The PRIMARY account ran
 out of usage and the operator SWAPPED the session to claude-b. claude-b is not receiving overflow
 delegations right now — **it IS the driving account**: every lane, every merge, every board transition
