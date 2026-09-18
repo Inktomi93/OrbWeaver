@@ -6,9 +6,18 @@ import type { Db } from "@orb/db";
 import { assertReferentialIntegrity, backupBeforeMigrate, checkBaseline, hasPendingMigrations, pruneDbBackups, resetDevDatabase, runMigrations } from "@orb/db";
 import { getLog } from "#foundation/observability";
 
-// Pre-launch a baseline-hash mismatch auto-resets the dev db (data loss by design); post-launch it becomes
-// boot-FATAL (never auto-wipe a launched db). Flip together with the baseline-single-migration gate.
-// Widened to `boolean` (not the `false` literal) so flipping it doesn't trip a "always falsy" lint.
+// LAUNCHED since 2026-09-18 (owner ruling on #316, Arm A — "might as well flip it"). A baseline-hash
+// mismatch is now boot-FATAL on EVERY database this binary opens: the dev box's own db carries the owner's
+// real corpus, and on 2026-08-19 the pre-launch arm read a hand-edited baseline as "regenerated" and
+// dropped 344 characters / 895 chats / 22,784 messages at a prod boot (restored from the pre-migrate
+// backup within the hour — that it was recoverable at all was luck). The switch is a CONSTANT, not
+// posture-scoped: a posture-scoped flip would leave exactly the auto-wipe arm that fired, armed, on the
+// one box that holds the data. Schema changes ship as forward incremental migrations from here
+// (Tier-1-DB.md §"Regime 2"); its former twin, the `baseline-single-migration` gate, was DELETED in the
+// same commit as its own header demanded.
+// The `: boolean` annotation stays: it is the EXPORTED type every caller's `launched` key is checked
+// against, so the posture remains a value the guard below reasons about rather than a literal the checker
+// folds away at each call site.
 //
 // EXPORTED, and passed EXPLICITLY by every caller (#1392). It used to be a private fallback behind an
 // optional `deps.launched`, and the production caller (`entry/lifecycle`) simply never passed the key — so
@@ -16,7 +25,7 @@ import { getLog } from "#foundation/observability";
 // armed outside a test. Its inertness would have first mattered on the first launched deployment, at the
 // exact moment nothing about the transition would make anyone look. The key is REQUIRED now: a caller that
 // forgets it is a compile error, not a silent auto-wipe.
-export const DB_LAUNCHED: boolean = false;
+export const DB_LAUNCHED: boolean = true;
 
 const HASH_LOG_PREFIX = 12;
 
@@ -32,19 +41,20 @@ export interface MigrateDeps {
   readonly databaseUrl: string;
   /** Override the resolved migrations folder (tests). */
   readonly migrationsFolder?: string;
-  /** The deployment posture, REQUIRED (#1392): `false` is the pre-launch dev db whose regenerated baseline
-   *  auto-resets by design, `true` is a launched db where the same mismatch is boot-FATAL. Callers pass
-   *  {@link DB_LAUNCHED} — the required key is what makes forgetting it a compile error rather than an
-   *  accidental auto-wipe. Absence at RUNTIME (an untyped caller) is fail-CLOSED: only an explicit `false`
-   *  buys the reset. */
+  /** The deployment posture, REQUIRED (#1392): `true` (what {@link DB_LAUNCHED} ships since #316) makes a
+   *  divergence between the recorded and the shipped migration chain boot-FATAL; `false` buys the
+   *  pre-launch auto-reset (drop + re-migrate, ALL DATA DROPPED) and survives only as the arm the reset
+   *  tests drive — no production caller passes it. The required key is what makes forgetting it a compile
+   *  error rather than an accidental auto-wipe. Absence at RUNTIME (an untyped caller) is fail-CLOSED:
+   *  only an explicit `false` buys the reset. */
   readonly launched: boolean;
 }
 
 /**
  * Boot step: baseline drift check → backup (only if this boot will CHANGE the db) → migrate →
  * referential-integrity assert → backup retention sweep. Any failure throws, aborting boot. A
- * `regenerated` baseline drops + re-migrates pre-launch (data loss by design); post-launch it's
- * boot-FATAL instead.
+ * `regenerated` baseline — the db recorded a migration that is not in the shipped chain — is boot-FATAL
+ * under {@link DB_LAUNCHED}; only an explicit `launched: false` still drops + re-migrates.
  *
  * The backup is conditional because the overwhelmingly common boot is a NO-OP one (every dev-stack /
  * lane restart re-runs this step with nothing pending) and each backup is a full copy of the db — the
@@ -63,7 +73,7 @@ export async function runBootMigrations(deps: MigrateDeps): Promise<void> {
   // (#1392 — the omission that made this whole guard inert was exactly that shape).
   if (baseline.status === "regenerated" && deps.launched !== false) {
     throw new Error(
-      `boot/migrate: the shipped 0000_baseline (${baseline.currentHash.slice(0, HASH_LOG_PREFIX)}…) differs from what this LAUNCHED database recorded (${baseline.appliedHash.slice(0, HASH_LOG_PREFIX)}…) — refusing to auto-wipe a launched db. Ship a forward incremental migration instead (a squash-reset would destroy live data).`,
+      `boot/migrate: this LAUNCHED database recorded migration ${baseline.appliedHash.slice(0, HASH_LOG_PREFIX)}…, which is in no entry of the shipped migration chain (newest: ${baseline.currentHash.slice(0, HASH_LOG_PREFIX)}…) — refusing to auto-wipe a launched db. An applied migration is never edited or deleted; ship a forward incremental migration instead (a squash-reset would destroy live data).`,
     );
   }
   const willChange = baseline.status === "regenerated" || (await hasPendingMigrations(deps.db, folder));

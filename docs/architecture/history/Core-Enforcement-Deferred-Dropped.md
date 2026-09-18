@@ -1,12 +1,12 @@
 ---
 kind: reference
 status: active
-updated: 2026-08-17
+updated: 2026-09-18
 ---
 
 # Orbweaver — Enforcement Registry: Deferred + Dropped
 
-> The NOT-yet-active gates (each with a named activation trigger) and the explicitly-rejected neo gates (why they don't apply to a greenfield build). Active gates: `Core-Enforcement-Active-Gates.md`. Dropped-experiment postmortems in full: `history/enforcement-archaeology-record.md`. Each row here is ONE ruling line — the what + the trigger; the saga is in history.
+> The NOT-yet-active gates (each with a named activation trigger), the explicitly-rejected neo gates (why they don't apply to a greenfield build), and — since 2026-09-18 — the gates that WERE active and were deleted when the law they enforced ended (§"Retired"). Active gates: `Core-Enforcement-Active-Gates.md`. Dropped-experiment postmortems in full: `history/enforcement-archaeology-record.md`. Each row here is ONE ruling line — the what + the trigger; the saga is in history.
 
 ---
 
@@ -98,3 +98,13 @@ consumers outside their own CT — those markers are doing their job and STAY.
 | `clean-break` | retrofit-diff rule (delete-home-as-you-add-replacement); orbweaver is greenfield, no retrofits |
 | `shared-structure` | governs neo's `src/shared/`; orbweaver has no `_shared` (kit/contracts replace it) |
 | `import-alias` | neo aliased cross-LAYER imports because it was ONE package; orbweaver's layers are PHYSICAL packages, so it's now cross-PACKAGE `@orb/*` physics (dep-cruiser + not-in-package.json) + `no-cross` for cross-feature — the intra-package residual is cosmetic, YAGNI to gate (rationale in history) |
+
+### Retired — gates that were ACTIVE and were deleted when their era ended
+
+A row here was a live `pnpm check` policy. It is not deferred and not rejected: the condition it enforced
+stopped being the law, and the module was deleted in the same commit as the ruling that ended it. The
+`Core-Enforcement-Active-Gates.md` count moves with it, which is what `enforcement-registry-parity` holds.
+
+| Gate | What it enforced | Retired |
+| - | - | - |
+| `baseline-single-migration` | pre-launch, `packages/db/src/migrations` held exactly one `.sql` (the regenerated `0000_baseline`) and one matching journal entry — an incremental `0001+` or a second journal entry was RED | RETIRED 2026-09-18 (#316 Arm A, owner-ruled) — the launch flip INVERTED its subject: the baseline is frozen and every schema change is now a forward incremental, so the policy's own sunset clause ("when `LAUNCHED` flips, delete this policy in the same change") fired. Its runtime twin `DB_LAUNCHED` (`packages/server/src/entry/boot/migrate.ts`) went `true` in the same commit, and its three closed resource ids (the migration tree, the exact baseline SQL, the strict journal JSON) were removed with it — it was their only consumer. What still holds the chain: `pnpm check:drizzle-kit` (journal/snapshot integrity, incl. the concurrent-generation fork) and `pnpm check:db-baseline` (the chain accounts for the live schema). Regime law: `Tier-1-DB.md` §"Regime 2" |

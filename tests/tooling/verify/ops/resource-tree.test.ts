@@ -60,7 +60,6 @@ test("the authored-tree axis resolves every closed id to its exact gate-root pat
     "ui-primitive": "packages/ui/src/primitives",
     "tooling-slot": "tooling/src",
     "db-schema": "packages/db/src/schema",
-    "db-migration": "packages/db/src/migrations",
     server: "packages/server/src",
     packages: "packages",
     tests: "tests",

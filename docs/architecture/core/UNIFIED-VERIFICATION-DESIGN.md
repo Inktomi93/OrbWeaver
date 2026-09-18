@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-13
+updated: 2026-09-18
 ---
 
 # Unified Verification Design
@@ -478,15 +478,16 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   Vitest runtime projects plus the two Playwright configs, each counted separately. The
   `types-node`/`types-browser` projects are typecheck-only (`test.include: []`), so neither is a runtime
   executor.
-- **`structure:db-baseline`** (`tooling/src/verify/ops/db-baseline-parity.ts`) — the
-  committed squashed migration (`packages/db/src/migrations/0000_baseline.sql`) vs what the live
-  `@orb/db/schema` generates, statement-set equal after whitespace/semicolon normalization
-  (order-insensitive — FK order is proven applicable elsewhere). Pre-launch, schema changes SQUASH into that
-  baseline and `freshDb` PUSHES schema-derived DDL, so every per-table `.int` test passes while the
-  committed file rots: TWICE a bump shipped without a regen and sat ~10 hours until `verify --push` caught
-  it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process via `drizzle-kit/api`
-  (~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
-  `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` calls (one home, two callers).
+- **`structure:db-baseline`** (`tooling/src/verify/ops/db-baseline-parity.ts`) — the committed migration
+  CHAIN (`packages/db/src/migrations`) vs what the live `@orb/db/schema` declares: it generates from the
+  chain TIP's `meta/<n>_snapshot.json` to the live schema and requires the result to be EMPTY, each
+  statement whitespace/semicolon-normalized. RE-POINTED at the chain 2026-09-18 with the launch flip
+  (#316) — it used to generate from `{}` and compare against `0000_baseline.sql` alone, which reds on every
+  legitimate forward migration. `freshDb` PUSHES schema-derived DDL, so every per-table `.int` test passes
+  while the committed migrations rot: TWICE a bump shipped without a regen and sat ~10 hours until
+  `verify --push` caught it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process
+  via `drizzle-kit/api` (~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the
+  SAME comparator `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` calls (one home, two callers).
 - **`ledgers:fresh`** (#817 — `tooling/src/verify/ops/ledgers-fresh.ts`) — every
   committed SINGLE-WRITER output vs a fresh derivation of itself, the oldest being
   `docs/reviews/caught-failure-ownership/population.json` (the caught-failure census — every row carries the

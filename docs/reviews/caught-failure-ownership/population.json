@@ -1552,7 +1552,7 @@
     {
       "siteId": "packages/db/src/client/index.ts::client.execute::1",
       "path": "packages/db/src/client/index.ts",
-      "line": 686,
+      "line": 728,
       "column": 11,
       "grammar": "promise",
       "position": "client.execute",
@@ -1560,7 +1560,7 @@
       "snippet": "await client.execute(\"ROLLBACK\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "the rollback is best-effort BY DESIGN —",
-      "markerLine": 682
+      "markerLine": 724
     },
     {
       "siteId": "packages/default-content/src/index.ts::catch::1",
@@ -7584,7 +7584,7 @@
     {
       "siteId": "tooling/src/verify/ops/db-baseline-parity.ts::err::1",
       "path": "tooling/src/verify/ops/db-baseline-parity.ts",
-      "line": 121,
+      "line": 165,
       "column": 12,
       "grammar": "default",
       "position": "err",
@@ -7592,12 +7592,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "printed via noticeLine — this is a Never-throws/never-gates forecast function per the doc comment above, and the notice itself says \"could not read\", never claiming safety. Ends if this forecast starts gating the run's exit code.",
-      "markerLine": 118
+      "markerLine": 162
     },
     {
       "siteId": "tooling/src/verify/ops/db-baseline-parity.ts::err::2",
       "path": "tooling/src/verify/ops/db-baseline-parity.ts",
-      "line": 151,
+      "line": 195,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -7605,7 +7605,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.",
-      "markerLine": 148
+      "markerLine": 192
     },
     {
       "siteId": "tooling/src/verify/ops/orphan-export-ratchet.ts::err::1",

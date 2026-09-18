@@ -37,9 +37,11 @@ only when a rule's edge case is genuinely unclear.
   `pnpm snap`), not the source; assert geometry against the resolved token, never a hardcoded px.
 - **Read the FULL gate / test output.** A run that "looks done" isn't verified until you have read its
   result; a builder whose last message is "waiting on the background run" is NOT done.
-- **DB (pre-launch): schema changes SQUASH into `0000_baseline.sql`**, never an incremental `0001` — the
-  `db-structure` gate does not catch it. Procedure + the dev-db drop: `.claude/rules/db-schema.md` →
-  `Tier-1-DB.md` §"The migration lifecycle".
+- **DB (LAUNCHED since 2026-09-18, #316): a schema change is a FORWARD incremental migration** —
+  `0000_baseline.sql` is frozen, never regenerated and never hand-patched, and an applied migration is
+  never edited (a mistake in one is fixed by a new forward migration). Baseline drift is boot-FATAL, not a
+  dev-db wipe; a deliberate wipe is `pnpm seed:demo --fresh`. Procedure: `.claude/rules/db-schema.md` →
+  `Tier-1-DB.md` §"Regime 2".
 - **Verify with our instruments, cheaply:** `pnpm snap <route> --map/--contrast/--eval/--aria`,
   `window.__orb` for render/query/bus state, wait on `data-app-ready`. These ARE the browser — there is
   no devtools MCP (retired 2026-09-02, #1255); wanting one means naming the gap and building the arm.

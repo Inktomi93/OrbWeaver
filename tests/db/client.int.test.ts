@@ -14,6 +14,7 @@ import {
   assertReferentialIntegrity,
   backupBeforeMigrate,
   buildResetDropScript,
+  checkBaseline,
   createDb,
   forecastDevDbReset,
   hasPendingMigrations,
@@ -441,14 +442,41 @@ test("pruneDbBackups is a no-op for :memory: / non-file urls", () => {
 const PAD_MIB = 9; // > MIN_FORECAST_BYTES (8 MiB) — the threshold that silences a fresh checkout's db.
 const SHIPPED_TAG = "0000_baseline";
 const SHIPPED_WHEN = 1_700_000_000_000;
+const NEXT_TAG = "0001_probe";
+const NEXT_WHEN = SHIPPED_WHEN + 1000;
 
-/** A migrations folder shaped exactly as drizzle's own: `meta/_journal.json` + `<tag>.sql`. */
-function migrationsFixture(dir: string, sqlText: string): string {
+interface ChainEntry {
+  readonly tag: string;
+  readonly when: number;
+  readonly sqlText: string;
+}
+
+/** A migrations folder shaped exactly as drizzle's own: `meta/_journal.json` + one `<tag>.sql` per entry,
+ *  in journal (apply) order. The CHAIN form, not a single baseline, because since #316 the identity a db
+ *  is judged against is the SET of shipped migrations rather than the newest one. */
+function chainFixture(dir: string, entries: readonly ChainEntry[]): string {
   const folder = join(dir, "migrations");
   mkdirSync(join(folder, "meta"), { recursive: true });
-  writeFileSync(join(folder, `${SHIPPED_TAG}.sql`), sqlText);
-  writeFileSync(join(folder, "meta", "_journal.json"), JSON.stringify({ entries: [{ when: SHIPPED_WHEN, tag: SHIPPED_TAG }] }));
+  for (const entry of entries) {
+    writeFileSync(join(folder, `${entry.tag}.sql`), entry.sqlText);
+  }
+  writeFileSync(join(folder, "meta", "_journal.json"), JSON.stringify({ entries: entries.map((e) => ({ when: e.when, tag: e.tag })) }));
   return folder;
+}
+
+/** The one-entry pre-launch shape, still the committed reality today. */
+function migrationsFixture(dir: string, sqlText: string): string {
+  return chainFixture(dir, [{ tag: SHIPPED_TAG, when: SHIPPED_WHEN, sqlText }]);
+}
+
+const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
+
+/** A `:memory:` db carrying exactly one `__drizzle_migrations` row — what drizzle's migrator writes. */
+async function dbRecording(applied: { hash: string; when: number }): Promise<Awaited<ReturnType<typeof createDb>>> {
+  const db = await createDb(":memory:");
+  await db.run(sql`CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash TEXT NOT NULL, created_at NUMERIC)`);
+  await db.run(sql`INSERT INTO __drizzle_migrations (hash, created_at) VALUES (${applied.hash}, ${applied.when})`);
+  return db;
 }
 
 /** A real file db, padded past the trivial threshold, optionally carrying a `__drizzle_migrations` row. */
@@ -482,21 +510,77 @@ test("forecastDevDbReset is silent where there is nothing to warn about (no db /
   }
 });
 
-test("a populated dev db whose recorded baseline differs from the shipped one is `will-reset`", async () => {
-  // THE pin: this exact state is what boot/migrate turns into `resetDevDatabase` (ALL DATA DROPPED) at the
-  // next respawn. The forecast must say so while the data is still there.
+test("a populated db whose recorded migration is in NO shipped entry is `diverged`", async () => {
+  // THE pin: this exact state is what boot/migrate turns into a boot REFUSAL since #316 (and turned into
+  // `resetDevDatabase` — ALL DATA DROPPED — before it). The forecast must say so while the data is still
+  // there. A TWO-entry chain, so the arm is judged against the whole chain and the reported `shippedHash`
+  // is provably the newest entry rather than the only one.
   const dir = mkdtempSync(join(tmpdir(), `orb-forecast-${pid}-`));
   try {
-    const folder = migrationsFixture(dir, "CREATE TABLE a (id TEXT);");
+    const folder = chainFixture(dir, [
+      { tag: SHIPPED_TAG, when: SHIPPED_WHEN, sqlText: "CREATE TABLE a (id TEXT);" },
+      { tag: NEXT_TAG, when: NEXT_WHEN, sqlText: "ALTER TABLE a ADD COLUMN b TEXT;" },
+    ]);
     const url = await forecastDb(dir, { hash: "a".repeat(64), when: SHIPPED_WHEN });
     const forecast = await forecastDevDbReset(url, folder);
     // One object assertion, not a narrowed branch: a conditional expect can pass by never running.
     expect({ ...forecast, path: "<path>", bytes: 0 }).toEqual({
-      status: "will-reset",
+      status: "diverged",
       path: "<path>",
       bytes: 0,
       appliedHash: "a".repeat(64),
-      shippedHash: createHash("sha256").update("CREATE TABLE a (id TEXT);").digest("hex"),
+      shippedHash: sha256("ALTER TABLE a ADD COLUMN b TEXT;"),
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a db BEHIND the chain (applied 0000, 0001 shipped) is `current` — pending is not divergence", async () => {
+  // The #316 regression arm. While the chain was a single baseline, "matches the newest shipped entry" and
+  // "is in the shipped chain" were the same question; post-flip they are not, and reading the first as the
+  // second would make every forward migration a FATAL boot (`DB_LAUNCHED` turns `regenerated` into a
+  // throw). A db that simply has not applied 0001 yet is the ordinary case, not drift.
+  const dir = mkdtempSync(join(tmpdir(), `orb-forecast-${pid}-`));
+  try {
+    const baselineSql = "CREATE TABLE a (id TEXT);";
+    const folder = chainFixture(dir, [
+      { tag: SHIPPED_TAG, when: SHIPPED_WHEN, sqlText: baselineSql },
+      { tag: NEXT_TAG, when: NEXT_WHEN, sqlText: "ALTER TABLE a ADD COLUMN b TEXT;" },
+    ]);
+    const url = await forecastDb(dir, { hash: sha256(baselineSql), when: SHIPPED_WHEN });
+    expect((await forecastDevDbReset(url, folder)).status).toBe("current");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// `checkBaseline` is the same verdict the BOOT reads (the forecast is its answerable-without-booting
+// twin), and it is the one `DB_LAUNCHED` turns into a refusal — so both chain arms are pinned here too,
+// against a real `__drizzle_migrations` row rather than through the file-size-gated forecast.
+test("checkBaseline: a db behind the chain is `current`, a db holding an unshipped migration is `regenerated`", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-checkbaseline-${pid}-`));
+  try {
+    const baselineSql = "CREATE TABLE a (id TEXT);";
+    const nextSql = "ALTER TABLE a ADD COLUMN b TEXT;";
+    const folder = chainFixture(dir, [
+      { tag: SHIPPED_TAG, when: SHIPPED_WHEN, sqlText: baselineSql },
+      { tag: NEXT_TAG, when: NEXT_WHEN, sqlText: nextSql },
+    ]);
+    const behind = await dbRecording({ hash: sha256(baselineSql), when: SHIPPED_WHEN });
+    expect(await checkBaseline(behind, folder)).toEqual({ status: "current" });
+
+    // The same db against a REWRITTEN 0000 — an applied migration edited under a live database, the one
+    // thing regime 2 forbids. It is in no shipped entry, so the verdict is drift and the reported
+    // `currentHash` is the chain TIP a fresh db would end at.
+    const rewritten = chainFixture(join(dir, "rewritten"), [
+      { tag: SHIPPED_TAG, when: SHIPPED_WHEN, sqlText: `${baselineSql} -- hand-edited` },
+      { tag: NEXT_TAG, when: NEXT_WHEN, sqlText: nextSql },
+    ]);
+    expect(await checkBaseline(behind, rewritten)).toEqual({
+      status: "regenerated",
+      appliedHash: sha256(baselineSql),
+      currentHash: sha256(nextSql),
     });
   } finally {
     rmSync(dir, { recursive: true, force: true });

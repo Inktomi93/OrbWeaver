@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-23
+updated: 2026-09-18
 ---
 
 # Orbweaver — `@orb/db`: the schema floor (drizzle + libSQL + migrations)
@@ -12,8 +12,8 @@ updated: 2026-08-23
 
 - **The drizzle schema** — every `sqliteTable`, one file per **producing** domain (`schema/<feature>.ts`) plus the reserved cross-cutting set (`users` · `audit` · `relations`; `custom-types/` is its own top-level dir, not a schema file — the former `agent-principals` schema file died with the 2026-07-25 agent-principal purge; only dormant DDL in `users.ts`/`chat.ts` survives, per the D60 build-state rider). `schema/index.ts` is the source-of-truth barrel; the `db-structure` gate enforces the domain split AND the re-export (a file missing from the barrel silently drops its tables from `typeof schema` and migrations).
 - **The DB row types** — `$inferSelect`/`$inferInsert` (the §7.4 DB-row home). The TypeID brand lives AT the column (`$type<CharacterId>()`), so rows come back branded with no `castId` at the row→view seam.
-- **The libSQL client + lifecycle** (`client/`) — `createDb(url, wrap?)`, the per-connection PRAGMA block, `runMigrations`, `assertReferentialIntegrity`, `backupBeforeMigrate` + the pinnable `pruneDbBackups` sweep, `forecastDevDbReset` (the dev-db drop tripwire `pnpm check` reads), `optimizeDb`, `preCloseHousekeeping`, and the `LibSqlWrap` injection seam (the OTel wrapper is passed IN from `foundation/observability` because `db` can't import `server`).
-- **The migrations** — the fresh `0000_baseline.sql` + `meta/_journal.json` (born with every ledger decision already applied — no cv-pin, no `chats.ownerId`, `content_hash` on all five vector tables (character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks), …).
+- **The libSQL client + lifecycle** (`client/`) — `createDb(url, wrap?)`, the per-connection PRAGMA block, `runMigrations`, `assertReferentialIntegrity`, `backupBeforeMigrate` + the pinnable `pruneDbBackups` sweep, `forecastDevDbReset` (the chain-divergence tripwire `pnpm check` reads), `optimizeDb`, `preCloseHousekeeping`, and the `LibSqlWrap` injection seam (the OTel wrapper is passed IN from `foundation/observability` because `db` can't import `server`).
+- **The migrations** — the FROZEN `0000_baseline.sql` + every forward `000N` after it + `meta/` (the snapshot chain, committed, never gitignored, never hand-edited). The baseline was born with every ledger decision already applied — no cv-pin, no `chats.ownerId`, `content_hash` on all five vector tables (character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks).
 - **The native vector column** (`custom-types/`) — `vector32` (libSQL `F32_BLOB(dim)`, raw little-endian Float32 blob), consumed by `schema/embeddings.ts` + `schema/discovery.ts` (the k-means `centroid`).
 - **`@orb/db/kit`** — db-layer primitives that need drizzle types and cannot be kit-pure: `batch`, `db-errors` (the deep cause-walk constraint classifier), `fetch-owned` (`fetchOwned`/`OwnedTable`), `insert-chunk` (the libSQL 32766 bound-variable cap), `parsers` (the read-seam zod `.catch(null)` JSON-column coercion; the deliberate `null`-vs-`[]` contract asymmetry is load-bearing).
 
@@ -47,12 +47,17 @@ Enforcement: the `own-tables-only` gate makes the ownership half structural — 
 - **TypeID brands → `kit`**; the brand is type-only (SQL stays `TEXT`), so adding/removing a brand is never a migration.
 - **Wire schemas / domain params never live here.** Gates: `types-in-contract`, `no-inline-types`, `schema-branding`, dep-cruiser `db-cake`.
 
-## The migration lifecycle — today's squash, and "when we migrate for real"
+## The migration lifecycle — forward-only, since launch day
 
-There are exactly TWO regimes, separated by launch day. Both are written here NOW so the first
-incremental migration lands into a documented procedure instead of minting one under pressure.
+There are exactly TWO regimes, separated by launch day. **LAUNCH DAY WAS 2026-09-18** (owner ruling on
+\#316, Arm A): regime 2 below is TODAY'S law, and regime 1 is kept as history because every db built before
+that date carries its assumptions, and because the reasoning is what makes the current rules legible.
 
-### Regime 1 — PRE-LAUNCH (today): one squashed baseline, regenerated
+### Regime 1 — PRE-LAUNCH (history — the law until 2026-09-18): one squashed baseline, regenerated
+
+> **THIS REGIME IS OVER. Do not follow this procedure.** It is recorded for the readers of the artifacts
+> it produced (a single `0000_baseline`, a dev db that was expected to be disposable) and for the ledger
+> trail. The operative procedure is regime 2, below.
 
 A schema change is a SOURCE edit plus a REGENERATED baseline. There is no `0001`. The whole procedure:
 
@@ -64,9 +69,9 @@ A schema change is a SOURCE edit plus a REGENERATED baseline. There is no `0001`
    pnpm --filter @orb/db exec drizzle-kit generate --name baseline --config=drizzle.config.ts
    ```
 
-   The `--name baseline` is not cosmetic: the journal's single entry must stay
+   The `--name baseline` was not cosmetic: the journal's single entry had to stay
    `{ idx: 0, tag: "0000_baseline" }`, and generating into a NON-empty dir emits a `0001_*.sql` — regime 2,
-   which the `baseline-single-migration` gate reds. If you clear the dir IN PLACE instead of moving it,
+   which the then-live `baseline-single-migration` gate red (that gate was DELETED at the flip). If you clear the dir IN PLACE instead of moving it,
    `drizzle-kit generate` REFUSES without `meta/_journal.json` — write one carrying `"entries": []` first.
 3. `biome format --write` the two `migrations/meta` files (drizzle emits unformatted JSON; `lint:biome`
    reds otherwise). Scope the `--write` to those files — never a repo-wide fix-all.
@@ -85,47 +90,64 @@ A schema change is a SOURCE edit plus a REGENERATED baseline. There is no `0001`
 > being recoverable only from git. Name the backup with your LANE PREFIX and the `.bak` suffix — the guard
 > treats `*.bak` as scratch, so its eventual removal needs no escalation either.
 
-**The dev-db consequence is automatic and lossy by design.** `entry/boot/migrate.ts` hashes the shipped
-baseline against what the dev db recorded; a mismatch takes a backup, DROPS the database, and re-migrates
-from the fresh baseline (logged `BASELINE REGENERATED … RESETTING`). So a regen means: the next stack boot
-re-mints the dev db and every seeded row is gone. That is the pre-launch bargain — no migration debt in
-exchange for a disposable dev db.
+**The dev-db consequence was automatic and lossy by design.** `entry/boot/migrate.ts` hashes the shipped
+migrations against what the db recorded; under `DB_LAUNCHED = false` a mismatch took a backup, DROPPED the
+database, and re-migrated from the fresh baseline (logged `BASELINE REGENERATED … RESETTING`). So a regen
+meant: the next stack boot re-mints the dev db and every seeded row is gone. That was the pre-launch
+bargain — no migration debt in exchange for a disposable dev db. **That arm is no longer reachable in
+production: `DB_LAUNCHED` is `true` and the same mismatch ABORTS the boot** (regime 2).
 
 > **"Disposable" is a claim about the SCHEMA, not about the hours in the data (2026-08-23, #533/#534).**
 > A hand-patched baseline line dropped a 1,242-chat import and ten corpus-analysis passes (~8h GPU); the
 > only signal was a `server.log` line read hours later. Two things now stand between that state and the
 > loss, and both are worth knowing BEFORE you regenerate:
 >
-> - **The tripwire.** `pnpm check`'s db-baseline stage compares the committed baseline against what the
->   LIVE dev db recorded and prints `THE NEXT SERVER RESPAWN WILL DROP THE DEV DB` in the run's tail
->   NOTICES block (`forecastDevDbReset` in `packages/db/src/client/index.ts`). It is advisory BY DESIGN —
->   regenerating is legitimate work and a hard red would block it — so a PASS verdict never means the
->   notice was absent. Read the tail.
+> - **The tripwire.** `pnpm check`'s db-baseline stage compares the committed migrations against what the
+>   LOCAL db recorded and prints a `[verify-notice]` line in the run's tail NOTICES block
+>   (`forecastDevDbReset` in `packages/db/src/client/index.ts`). It said `THE NEXT SERVER RESPAWN WILL DROP
+>   THE DEV DB` under regime 1; since the flip the forecast arm is `diverged` and the line reads `THE NEXT
+>   SERVER BOOT WILL REFUSE TO START`, because that is what now happens. Still advisory BY DESIGN — a
+>   developer's own db is not a property of the commit — so a PASS verdict never means the notice was
+>   absent. Read the tail.
 > - **The pin.** The boot takes ONE pre-migrate backup (`backupBeforeMigrate`) and `pruneDbBackups` ages
 >   backups out on a recent-5 + daily-7 budget. `touch data/orbweaver.db.backup-<stamp>.keep` exempts one
 >   from the sweep forever. Pin the pre-reset copy the moment it exists; it is the only record of what was
 >   dropped.
 
-**Two lanes with baseline regens cannot be unioned** — two independently regenerated `0000_baseline.sql`s
-each miss the other's tables and the generated files do not hand-merge. The orchestrator sequences them:
-the first lane's baseline merges to main, the second regenerates ONLY on a post-merge main merged into its
-own worktree. (A lane doing this is merge-window-scheduled; say so in your report.)
+**Two lanes with baseline regens could not be unioned** — two independently regenerated `0000_baseline.sql`s
+each miss the other's tables and the generated files do not hand-merge. The orchestrator sequenced them:
+the first lane's baseline merged to main, the second regenerated ONLY on a post-merge main merged into its
+own worktree. The regime-2 analogue is narrower and is CHECKED rather than scheduled: two lanes each
+generating `000N` off the same parent is the concurrent-generation FORK that `pnpm check:drizzle-kit`
+reds (regime 2, step 5).
 
-Enforcement of the regime itself: the `baseline-single-migration` gate (exactly one `.sql`, exactly one
-journal entry) and its runtime twin `LAUNCHED` in `entry/boot/migrate.ts`.
+Enforcement of that regime was the `baseline-single-migration` gate (exactly one `.sql`, exactly one
+journal entry) and its runtime twin `DB_LAUNCHED` in `entry/boot/migrate.ts`. The gate is DELETED (its row
+is in `../history/Core-Enforcement-Deferred-Dropped.md` §"Retired"); the constant is `true`.
 
-### Regime 2 — POST-LAUNCH: forward-only incremental migrations
+### Regime 2 — POST-LAUNCH (TODAY, since 2026-09-18): forward-only incremental migrations
 
 The instant a database exists that we cannot drop, the squash policy INVERTS: regenerating the baseline
 would mean destroying live data, so the baseline freezes and every change ships as a forward `000N`.
 
-**Launch day is a two-switch flip, both in the same commit:** `LAUNCHED = true` in
-`tooling/src/verify/gates/baseline-single-migration.ts` (the gate stops demanding a single baseline) AND
-`LAUNCHED` in `packages/server/src/entry/boot/migrate.ts` (baseline drift becomes boot-FATAL instead of an
-auto-wipe). Flipping one without the other is the worst state: either the gate refuses every new migration,
-or a launched db silently auto-wipes.
+**That instant was 2026-08-19 in fact and 2026-09-18 on paper.** A prod boot read a hand-edited baseline as
+`regenerated` and auto-wiped the owner's live corpus — 344 characters / 895 chats / 22,784 messages,
+recovered only because the pre-migrate backup existed and someone noticed within the hour (#316). The owner
+ruled Arm A ("might as well flip it") on 2026-09-18 and the two-switch flip LANDED:
 
-The per-change procedure after that:
+- `DB_LAUNCHED = true` in `packages/server/src/entry/boot/migrate.ts` — a db holding a migration that is in
+  no shipped journal entry is boot-FATAL instead of auto-wiped. **The switch is a CONSTANT, not
+  posture-scoped**: the dev box is the box that holds the data, so scoping the refusal to production would
+  have left the auto-wipe armed on exactly the machine the incident happened on. A dev stack whose boot
+  aborts on drift is the intended, designed outcome.
+- the `baseline-single-migration` gate DELETED, as its own header demanded ("when it flips, delete this
+  policy in the same change") — with it went its three closed resource ids, which had no other consumer.
+
+**Every lane that edits `packages/db/src/schema/**` now emits an incremental migration and commits `meta/`.**
+There is no squash procedure to reach for and no dev-db wipe to expect: a deliberate local reset is
+`pnpm seed:demo --fresh` (it wipes the `file:` db + its WAL/SHM sidecars, re-migrates, and reseeds).
+
+The per-change procedure:
 
 1. Edit `schema/<feature>.ts`.
 2. `pnpm --filter @orb/db exec drizzle-kit generate --name <what-changed> --config=drizzle.config.ts` —
@@ -145,11 +167,13 @@ The per-change procedure after that:
      the same parent. This is the ONE that catches the concurrent-generation FORK (two branches each
      generating `0003` off `0002`) — the failure mode that goes from impossible to routine the moment the
      chain grows past one entry, and precisely why the stage is wired now.
-   - `pnpm check:db-baseline` — schema ≡ the CUMULATIVE migrations. It compares the live schema to
-     `0000_baseline.sql` alone, so **it must be re-pointed at the applied chain when regime 2 begins**
-     (`tooling/src/verify/ops/db-baseline-parity.ts` — generate from the last snapshot instead of from `{}`); until
-     then it would red on every legitimate incremental. Left in place for regime 1's benefit; this line is
-     the reminder that it is regime-1-shaped.
+   - `pnpm check:db-baseline` — schema ≡ the CUMULATIVE migrations. RE-POINTED at the chain on 2026-09-18
+     with the flip (`tooling/src/verify/ops/db-baseline-parity.ts`): it generates from the chain TIP's
+     `meta/<n>_snapshot.json` to the live schema and requires the result to be EMPTY, so a legitimate
+     `000N` advances the recorded schema instead of reading as drift. Anything it prints is DDL the tree
+     owes a migration for. DECLARED LIMIT: the subject is the snapshot chain — a `.sql` hand-edited without
+     its snapshot is invisible here and is caught by the two checks either side of it (`check:drizzle-kit`
+     for chain integrity, `tests/db/client.int.test.ts` for "the committed chain applies").
    - the boot path against a COPY of a real db — `assertReferentialIntegrity` after the run is the belt
      that a 12-step rebuild did not orphan rows.
 

@@ -429,13 +429,23 @@ export async function assertReferentialIntegrity(db: Db): Promise<void> {
 }
 
 /**
- * The pre-launch baseline drift check. Compares what THIS db recorded in `__drizzle_migrations` (the
- * `hash` + `created_at` = folderMillis drizzle's own migrator writes) against the shipped
- * `0000_baseline.sql` (sha256 of the file + the journal `when`), computed identically to drizzle so a
- * byte-identical baseline compares equal. Pre-launch the schema is ONE regenerated baseline (the
- * `baseline-single-migration` gate enforces it), so any drift means the baseline was regenerated since
- * this db was built — drizzle would then RE-APPLY it over existing tables and die on a "table already
- * exists" error. `entry/boot/migrate.ts` reads this to decide reset-vs-fatal.
+ * The migration-chain drift check. Compares what THIS db recorded in `__drizzle_migrations` (the newest
+ * `hash` + `created_at` = folderMillis drizzle's own migrator writes) against the identity of EVERY
+ * shipped migration (sha256 of each `<tag>.sql` + its journal `when`), computed identically to drizzle so
+ * a byte-identical file compares equal.
+ *
+ * MATCH ANY ENTRY, NOT THE NEWEST ONE (2026-09-18, #316 Arm A). Until launch the chain was a single
+ * regenerated `0000_baseline` and "the newest shipped entry" and "the chain" were the same fact, so this
+ * compared against `.at(-1)` alone. Post-launch that read is a trap: a db sitting at `0000` with a freshly
+ * committed `0001` is BEHIND, not diverged, and `.at(-1)` reports it `regenerated` — which under
+ * `DB_LAUNCHED` is the FATAL arm, i.e. no forward migration could ever be applied. A db whose newest
+ * applied migration IS one of the shipped entries is `current` on this axis; `hasPendingMigrations` owns
+ * the orthogonal "is there anything left to apply" question and drizzle's migrator applies it.
+ *
+ * `regenerated` therefore now means: this db applied a migration that is in no shipped entry — an applied
+ * `.sql` was edited or deleted (pre-launch that was the routine baseline squash; post-launch it is the
+ * thing that must never happen, because drizzle would RE-APPLY over existing tables and die on "table
+ * already exists"). `entry/boot/migrate.ts` reads this to decide fatal-vs-reset.
  */
 export type BaselineCheck =
   | { readonly status: "fresh" }
@@ -485,10 +495,10 @@ function readJournalEntries(migrationsFolder: string): readonly { readonly when:
     }
     return { when: entry["when"], tag: entry["tag"] };
   });
-  // ORDER IS AN ASSUMPTION EVERY CONSUMER MAKES (#1377 item 6) — `shippedBaselineIdentity` takes `.at(-1)`
-  // as "the newest". Drizzle generates the file in apply order, so this asserts an invariant rather than
-  // imposing one; stating it means a regenerator that ever stopped sorting is a loud error instead of a
-  // baseline identity computed off the wrong migration.
+  // ORDER IS AN ASSUMPTION EVERY CONSUMER MAKES (#1377 item 6) — `shippedMigrationChain` takes `.at(-1)`
+  // as "the newest" and `hasPendingMigrations` walks the list in apply order. Drizzle generates the file in
+  // apply order, so this asserts an invariant rather than imposing one; stating it means a generator that
+  // ever stopped sorting is a loud error instead of a chain tip computed off the wrong migration.
   for (let i = 1; i < entries.length; i += 1) {
     if ((entries[i]?.when ?? 0) < (entries[i - 1]?.when ?? 0)) {
       throw new Error(`@orb/db: migrations journal at ${path} is not ordered by 'when' (entry ${i} predates ${i - 1})`);
@@ -514,57 +524,87 @@ export async function hasPendingMigrations(db: Db, migrationsFolder: string): Pr
   return entries.some((entry) => entry.when > applied.folderMillis);
 }
 
-// The shipped baseline's identity, computed EXACTLY as drizzle's `readMigrationFiles` records it: sha256
-// of the raw `<tag>.sql` bytes + the journal entry's `when`. Pre-launch the journal holds one entry (the
-// baseline); `.at(-1)` reads it without hard-coding the tag.
-function shippedBaselineIdentity(migrationsFolder: string): { hash: string; folderMillis: number } {
-  const entry = readJournalEntries(migrationsFolder).at(-1);
-  if (entry === undefined) {
-    throw new Error("@orb/db: migrations journal has no entries — cannot compute baseline identity");
-  }
-  const sqlText = readFileSync(join(migrationsFolder, `${entry.tag}.sql`), "utf-8");
-  return { hash: createHash("sha256").update(sqlText).digest("hex"), folderMillis: entry.when };
+interface MigrationIdentity {
+  readonly hash: string;
+  readonly folderMillis: number;
 }
 
-/** Classify this db against the shipped baseline (see {@link BaselineCheck}). */
+interface ShippedChain {
+  /** Every shipped migration, in journal (apply) order. */
+  readonly all: readonly MigrationIdentity[];
+  /** The last entry — the identity a fresh db ends at once the whole chain has been applied. */
+  readonly newest: MigrationIdentity;
+}
+
+// Every shipped migration's identity, computed EXACTLY as drizzle's `readMigrationFiles` records it:
+// sha256 of the raw `<tag>.sql` bytes + the journal entry's `when`, in journal (apply) order. The whole
+// chain rather than its tip, because "the db recorded something we no longer ship" is a claim about the
+// SET (the drift check above), while the tip is only the identity a full apply ends at.
+function shippedMigrationChain(migrationsFolder: string): ShippedChain {
+  const all = readJournalEntries(migrationsFolder).map((entry) => ({
+    hash: createHash("sha256")
+      .update(readFileSync(join(migrationsFolder, `${entry.tag}.sql`), "utf-8"))
+      .digest("hex"),
+    folderMillis: entry.when,
+  }));
+  const newest = all.at(-1);
+  if (newest === undefined) {
+    throw new Error("@orb/db: migrations journal has no entries — cannot compute migration identities");
+  }
+  return { all, newest };
+}
+
+/** Is this db's newest applied migration one of the shipped ones? Identity is (hash, folderMillis) — the
+ *  two fields drizzle's own migrator writes and compares on. */
+function isShippedMigration(applied: MigrationIdentity, shipped: readonly MigrationIdentity[]): boolean {
+  return shipped.some((entry) => entry.hash === applied.hash && entry.folderMillis === applied.folderMillis);
+}
+
+/** Classify this db against the shipped migration chain (see {@link BaselineCheck}). */
 export async function checkBaseline(db: Db, migrationsFolder: string): Promise<BaselineCheck> {
   const applied = await readAppliedBaseline(db);
   if (applied === undefined) {
     return { status: "fresh" };
   }
-  const shipped = shippedBaselineIdentity(migrationsFolder);
-  if (applied.hash === shipped.hash && applied.folderMillis === shipped.folderMillis) {
+  const shipped = shippedMigrationChain(migrationsFolder);
+  if (isShippedMigration(applied, shipped.all)) {
     return { status: "current" };
   }
-  return { status: "regenerated", appliedHash: applied.hash, currentHash: shipped.hash };
+  // The newest shipped identity is what a fresh db would end at — the most useful thing to print beside
+  // the orphaned one the db actually holds.
+  return { status: "regenerated", appliedHash: applied.hash, currentHash: shipped.newest.hash };
 }
 
-// ── the dev-db DROP FORECAST (issue #534, minted from #533) ──────────────────────────────────────────
-// The reset below is BY DESIGN pre-launch. What was missing is a tripwire at the DECISION point: on
-// 2026-08-23 a lane hand-edited `0000_baseline.sql`, the hash changed, and the next `node --watch` respawn
-// dropped a 1,242-chat import plus ten corpus-analysis passes (~8h GPU). The only warning was a server.log
-// line, read hours later. This is the same verdict {@link checkBaseline} gives the boot step, answerable
-// WITHOUT booting: any tool holding a database URL and the migrations folder can ask "would the next boot
-// wipe this?" and say so where the author is looking. `pnpm check`'s db-baseline stage is the live caller.
+// ── the CHAIN-DIVERGENCE FORECAST (issue #534, minted from #533; re-aimed 2026-09-18 by #316) ────────
+// Minted as a DROP forecast: pre-launch the reset below was by design, and what was missing was a tripwire
+// at the DECISION point — on 2026-08-23 a lane hand-edited `0000_baseline.sql`, the hash changed, and the
+// next `node --watch` respawn dropped a 1,242-chat import plus ten corpus-analysis passes (~8h GPU), the
+// only warning being a server.log line read hours later. Since the launch flip the consequence it forecasts
+// is the OPPOSITE one: the next boot REFUSES to start. The question is unchanged and still answerable
+// WITHOUT booting — "is what this db recorded still in the shipped chain?" — and it is the same verdict
+// {@link checkBaseline} gives the boot step. `pnpm check`'s db-baseline stage is the live caller.
 //
 // READ-ONLY BY CONSTRUCTION: it opens a bare client (NO pragmas — not even the tuning block) and issues
 // two SELECTs. It never migrates, never writes, and never decides anything.
 const MIN_FORECAST_BYTES = 8_388_608; // 8 MiB — a freshly-migrated, never-used db is well under this.
 
 /**
- * What the next boot would do to the dev db at this URL.
+ * What the next boot would make of the db at this URL.
  * · `no-db` — not a file URL, or nothing on disk yet.
  * · `trivial` — smaller than {@link MIN_FORECAST_BYTES}; a fresh checkout's db is not worth a warning.
  *   NOTE the direction: SQLite does not shrink on DROP, so a reset db keeps its pages and stays
  *   "non-trivial" — this threshold silences a NEW db, it never certifies that a big one holds data.
  *   STATED PLAINLY (#1376 item 4, resolved as a documented limit rather than a fix): a REAL dataset that
  *   happens to be under 8 MiB — a handful of chats, a small import — is classified `trivial` and gets NO
- *   warning before the next respawn drops it. The threshold is kept because the alternative (warn on every
- *   fresh checkout) is the alarm nobody reads; the recovery for that case is the pre-migrate backup, which
- *   is taken unconditionally regardless of this forecast.
- * · `current` — the applied baseline matches the shipped one; nothing pending on this axis.
- * · `will-reset` — the shipped baseline was regenerated since this db was built: the next respawn DROPS
- *   EVERY ROW (pre-launch by design). The pre-migrate backup is the only copy; pin it (`.keep`).
+ *   warning. Post-#316 the cost of that silence is far lower than it was (the un-warned boot now refuses
+ *   rather than wipes), and the threshold is kept because the alternative (warn on every fresh checkout)
+ *   is the alarm nobody reads.
+ * · `current` — this db's newest applied migration is one of the shipped ones; nothing to warn about.
+ * · `diverged` — this db applied a migration that is in NO shipped journal entry: an applied `.sql` was
+ *   edited or deleted under a live database. SINCE #316 THAT IS A BOOT REFUSAL, NOT A WIPE — the arm was
+ *   called `will-reset` while the pre-launch auto-reset existed, and keeping that name past the flip would
+ *   have made this tripwire print a consequence that no longer happens. The repair is a forward
+ *   incremental migration, or restoring the migration the checkout deleted.
  * · `unknown` — the db could not be read (locked, corrupt, mid-write). A silence here would be a lie of
  *   the "I could not measure" kind, so it is its own arm and the caller reports it.
  */
@@ -572,7 +612,7 @@ export type DevDbResetForecast =
   | { readonly status: "no-db" }
   | { readonly status: "trivial"; readonly path: string; readonly bytes: number }
   | { readonly status: "current"; readonly path: string; readonly bytes: number }
-  | { readonly status: "will-reset"; readonly path: string; readonly bytes: number; readonly appliedHash: string; readonly shippedHash: string }
+  | { readonly status: "diverged"; readonly path: string; readonly bytes: number; readonly appliedHash: string; readonly shippedHash: string }
   | { readonly status: "unknown"; readonly path: string; readonly reason: string };
 
 /** The applied (hash, folderMillis) read off a db FILE through a bare client — no pragmas, no drizzle. */
@@ -594,7 +634,7 @@ async function readAppliedBaselineFromFile(url: string): Promise<{ hash: string;
   }
 }
 
-/** Classify the db file at `url` against the shipped baseline — see {@link DevDbResetForecast}. */
+/** Classify the db file at `url` against the shipped migration chain — see {@link DevDbResetForecast}. */
 export async function forecastDevDbReset(url: string, migrationsFolder: string): Promise<DevDbResetForecast> {
   const path = localPath(url);
   if (path === undefined || !existsSync(path)) {
@@ -614,11 +654,11 @@ export async function forecastDevDbReset(url: string, migrationsFolder: string):
     // A non-trivial file with no migrations bookkeeping is not a db this forecast can speak about.
     return { status: "unknown", path, reason: "no __drizzle_migrations row" };
   }
-  const shipped = shippedBaselineIdentity(migrationsFolder);
-  if (applied.hash === shipped.hash && applied.folderMillis === shipped.folderMillis) {
+  const shipped = shippedMigrationChain(migrationsFolder);
+  if (isShippedMigration(applied, shipped.all)) {
     return { status: "current", path, bytes };
   }
-  return { status: "will-reset", path, bytes, appliedHash: applied.hash, shippedHash: shipped.hash };
+  return { status: "diverged", path, bytes, appliedHash: applied.hash, shippedHash: shipped.newest.hash };
 }
 
 // The order objects are dropped in: dependents (triggers/views/indexes) before the tables they hang off,
@@ -650,13 +690,15 @@ export function buildResetDropScript(objects: readonly Record<string, unknown>[]
 }
 
 /**
- * Full pre-launch dev-db reset on the OPEN client (the ONE connection — no file-deletion race): drop
+ * Full dev-db reset on the OPEN client (the ONE connection — no file-deletion race): drop
  * EVERY user object (tables/views/triggers/indexes, INCLUDING `__drizzle_migrations`) with FK enforcement
  * toggled OFF on the connection for the duration (restored at scope exit — {@link fkEnforcementSuspended}).
  * Internal `sqlite_%` objects (autoindexes, sequence,
  * stat tables) are managed by SQLite and left alone. Dropping `__drizzle_migrations` too means the very
  * next `runMigrations` re-applies the fresh baseline from a clean bookkeeping slate. Called ONLY by the
- * boot migrate step when {@link checkBaseline} reports `regenerated` and the db is not launched.
+ * boot migrate step when {@link checkBaseline} reports `regenerated` and the caller passed an explicit
+ * `launched: false` — which since #316 (2026-09-18) NO production caller does: `DB_LAUNCHED` is `true`, so
+ * this path is reachable only from the tests that pin the reset arm itself.
  * ATOMIC: the drops run inside the one transaction {@link buildResetDropScript} wraps them in, and a
  * mid-script failure is rolled back rather than left half-applied.
  */
