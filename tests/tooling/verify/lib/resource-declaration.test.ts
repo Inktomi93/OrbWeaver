@@ -83,9 +83,7 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
     documents: () => fact("documents", ["docs/Mission.md", DOCUMENT_CATALOG_PATH], { documents: [], refusals: [], catalogMisses: [] }),
     ledger: ((id: LedgerId) => {
       const definition = LEDGER_DEFINITIONS[id];
-      return definition.nature === "markdown"
-        ? fact(`ledger:${id}`, definition.paths, { id, nature: "markdown", documents: [] })
-        : fact(`ledger:${id}`, [`${definition.tree}/x${definition.suffix}`], { id, nature: "json", documents: [] });
+      return fact(`ledger:${id}`, definition.paths, { id, nature: "markdown", documents: [] });
     }) as ResourceHost["ledger"],
     exactFiles: (ids) =>
       fact(

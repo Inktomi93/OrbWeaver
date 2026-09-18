@@ -166,10 +166,8 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
       return [MIRROR_FAMILY_DEFINITIONS[request.id].sourceRoot, MIRROR_FAMILY_DEFINITIONS[request.id].testRoot].some((root) => path.startsWith(`${root}/`));
     case "documents":
       return path.startsWith(`${DOCUMENT_CORPUS_ROOT}/`);
-    case "ledger": {
-      const definition = LEDGER_DEFINITIONS[request.id];
-      return definition.nature === "markdown" ? (definition.paths as readonly string[]).includes(path) : path.startsWith(`${definition.tree}/`);
-    }
+    case "ledger":
+      return (LEDGER_DEFINITIONS[request.id].paths as readonly string[]).includes(path);
     case "exact-file":
       return path === EXACT_RESOURCE_PATHS[request.id];
     // Only the COMMITTED mirror side of the vendor surface publishes repo paths; the installed halves are
