@@ -1,7 +1,10 @@
 // Policy array validation for conformance runs, extracted from policy-conformance.ts.
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { GatePolicy } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import { assertGatePolicyDescriptor } from "../lib/policy-validation.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/ops/policy-conformance.test.ts");
 
 export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
