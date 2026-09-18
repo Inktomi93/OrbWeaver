@@ -17,35 +17,14 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { DevToolsAssetEntry, DevToolsAssetManifest, DevToolsAssetPin, VerifiedDevToolsAssets } from "./devtools-assets-types.ts";
+
+// biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting these shared types to a sibling leaf
+export type { DevToolsAssetEntry, DevToolsAssetManifest, DevToolsAssetPin, DevToolsAssetServer, VerifiedDevToolsAssets } from "./devtools-assets-types.ts";
 
 const SHA256_RE = /^[a-f0-9]{64}$/u;
 const REVISION_RE = /^[a-f0-9]{40}$/u;
 const SAFE_PATH_RE = /^[A-Za-z0-9_@./-]+$/u;
-export interface DevToolsAssetPin {
-  readonly schemaVersion: 1;
-  readonly playwrightVersion: string;
-  readonly browserVersion: string;
-  readonly chromiumRevision: string;
-  readonly devtoolsFrontendRevision: string;
-  readonly protocolVersion: string;
-  readonly resourceCount: number;
-  readonly decodedBytes: number;
-  readonly manifestSha256: string;
-}
-
-export interface DevToolsAssetEntry {
-  readonly url: string;
-  readonly file: string;
-  readonly bytes: number;
-  readonly sha256: string;
-  readonly mimeType: string;
-  readonly licenseFamily: string;
-}
-
-export interface DevToolsAssetManifest {
-  readonly schemaVersion: 1;
-  readonly resources: readonly DevToolsAssetEntry[];
-}
 
 export interface DevToolsLicenseFile {
   readonly file: string;
@@ -63,13 +42,6 @@ export interface DevToolsLicenseFamily {
 export interface DevToolsLicenseManifest {
   readonly schemaVersion: 1;
   readonly families: readonly DevToolsLicenseFamily[];
-}
-
-export interface VerifiedDevToolsAssets {
-  readonly root: string;
-  readonly pin: DevToolsAssetPin;
-  readonly manifest: DevToolsAssetManifest;
-  readonly filesByUrl: ReadonlyMap<string, { readonly entry: DevToolsAssetEntry; readonly body: Buffer }>;
 }
 
 /** One closure member. `file` is relative to the closure ROOT, because that is the spelling the manifest
@@ -103,12 +75,6 @@ export interface DevToolsInstalledTuple {
 export interface AdjudicatedDevToolsClosure {
   readonly pin: DevToolsAssetPin;
   readonly manifest: DevToolsAssetManifest;
-}
-
-export interface DevToolsAssetServer {
-  readonly origin: string;
-  readonly unexpectedRequests: readonly string[];
-  readonly close: () => Promise<void>;
 }
 
 function sha256(bytes: Buffer | string): string {
