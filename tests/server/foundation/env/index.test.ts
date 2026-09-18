@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { AUTH_MODES } from "@orb/contracts/identity";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -53,14 +54,13 @@ async function reimportEnvIn(
   if (opts.vitest !== false) {
     process.env["VITEST"] = "1";
   }
-  // The schema default for AUTH_FALLBACK is "deny" (the secure SSO posture). single-user mode's only
-  // credential IS the owner fallback, so a test env without an explicit AUTH_FALLBACK boots fatal under
-  // single-user. Inject the bootable default here so every caller that doesn't explicitly test the deny
-  // path gets a working env. The dev stack pins this via stack.sh; tests pin it here.
-  const mode = overrides["AUTH_MODE"] ?? "single-user";
-  const needsFallback = mode === "single-user" && !("AUTH_FALLBACK" in overrides);
-  const effective = needsFallback ? { AUTH_FALLBACK: "owner", ...overrides } : overrides;
-  for (const [k, v] of Object.entries(effective)) {
+  // NOTHING IS INJECTED HERE, and that is load-bearing (#2406). Between #1864 and #2406 this helper had to
+  // slip `AUTH_FALLBACK: "owner"` into every single-user env because the flat `deny` default paired
+  // boot-fatally with the mode — which made the two "the zero-config default boots" tests below assert the
+  // HELPER's pin rather than the schema's answer. The conditional default (`AUTH_MODE_DEFAULT_FALLBACK`)
+  // removed the need, so a wiped process.env is now the honest input it reads as, and re-adding a pin here
+  // would re-blind the same two tests.
+  for (const [k, v] of Object.entries(overrides)) {
     if (v !== undefined) {
       process.env[k] = v;
     }
@@ -271,6 +271,60 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   test("prod + single-user + AUTH_FALLBACK=owner boots (single-user is not an SSO mode — its only credential IS the fallback)", async () => {
     const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "single-user", AUTH_FALLBACK: "owner" });
     expect(env.AUTH_MODE).toBe("single-user");
+  });
+
+  // ── THE CONDITIONAL DEFAULT (#2406) — what SILENCE means, per mode ────────────────────────────────────
+  // Between #1864 and #2406 the schema default was a flat `deny`, which paired boot-fatally with the schema's
+  // OWN AUTH_MODE default: an empty environment could not boot at all, and every launcher plus the vitest
+  // floor plus each hermetic env-wiping test carried a pin for a value none of them cared about. The fix
+  // resolves the unset key per mode. The SECURITY property
+  // the flat `deny` existed for is the one thing that may not move, so it is pinned FIRST and per mode:
+  // OMISSION NEVER PRODUCES `owner` OUTSIDE `single-user`.
+  const modeRequiredEnv: Record<(typeof AUTH_MODES)[number], Record<string, string>> = {
+    "single-user": {},
+    local: { SESSION_SECRET: VALID_SESSION_SECRET },
+    oidc: { ...oidcRequired },
+    "forward-header": {},
+  };
+
+  for (const mode of AUTH_MODES) {
+    const expected = mode === "single-user" ? "owner" : "deny";
+    test(`#2406: AUTH_MODE=${mode} with AUTH_FALLBACK UNSET resolves to ${expected}`, async () => {
+      const { env } = await reimportEnvWith({ AUTH_MODE: mode, ...modeRequiredEnv[mode] });
+      expect(env.AUTH_FALLBACK).toBe(expected);
+    });
+
+    if (mode !== "single-user") {
+      // #1864's whole point, restated as the property rather than the mechanism: a PRODUCTION SSO deploy that
+      // never mentions AUTH_FALLBACK boots, and boots DENIED — it must not trip the SSO-BYPASS fatal (which
+      // would be a dead box) and it must not silently open the loopback owner arm (which would be #298's hole
+      // behind a same-host reverse proxy). Iterating AUTH_MODES makes a fifth mode inherit this pin for free.
+      test(`#2406/#1864: prod + ${mode} + AUTH_FALLBACK UNSET boots DENIED (no fatal, no implicit owner)`, async () => {
+        const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: mode, ...modeRequiredEnv[mode] });
+        expect(env.AUTH_FALLBACK).toBe("deny");
+      });
+    }
+  }
+
+  test("#2406: a COMPLETELY empty environment boots — single-user + the resolved owner fallback, no pin anywhere", async () => {
+    const { env } = await reimportEnvWith({});
+    expect(env.AUTH_MODE).toBe("single-user");
+    expect(env.AUTH_FALLBACK).toBe("owner");
+  });
+
+  // The conditional default decides what SILENCE means; it never softens a stated value. An operator who
+  // TYPED the incoherent pair still hits the fatal — pinned beside the resolution so the two cannot drift.
+  test("#2406: an EXPLICIT deny under single-user is still boot-fatal (the default resolves silence, not a typed value)", async () => {
+    await expect(reimportEnvWith({ AUTH_MODE: "single-user", AUTH_FALLBACK: "deny" })).rejects.toThrow("leaves NO way to authenticate");
+  });
+
+  // The break-glass × widened-peers refusal judges the EFFECTIVE fallback, not the declared one — so it must
+  // still fire when `owner` arrives implicitly. (The two refusals above deliberately read the DECLARED value;
+  // this one deliberately does not, and that asymmetry is the thing this pin defends.)
+  test("#2406: break-glass + a widened peer set is refused even when `owner` is IMPLICIT (the refusal reads the resolved value)", async () => {
+    await expect(reimportEnvWith({ AUTH_MODE: "single-user", AUTH_BREAK_GLASS: "true", AUTH_FALLBACK_TRUSTED_PEERS: "172.17.0.0/16" })).rejects.toThrow(
+      "AUTH_FALLBACK_TRUSTED_PEERS must not be combined with AUTH_BREAK_GLASS",
+    );
   });
 
   // ── #301 — AUTH_FALLBACK must NOT live in `.env` (owner ruling 2026-08-19: BOOT-FATAL) ───────────────────

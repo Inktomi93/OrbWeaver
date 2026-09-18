@@ -34,8 +34,10 @@
 # 2. The zero-config first boot. Two things a fresh container cannot get from a browser, because the app's
 #    un-credentialed owner fallback and its first-run password screen are both gated on a LOOPBACK TCP peer
 #    (infra/auth/dispatch.ts — a published bridge port never delivers one):
-#      AUTH_MODE=single-user  → AUTH_FALLBACK defaults to `owner` here (that mode's ONLY credential; the
-#                               schema refuses the `deny` pairing as a box that serves nobody). Only
+#      AUTH_MODE=single-user  → AUTH_FALLBACK is exported as `owner` here (that mode's ONLY credential; the
+#                               schema refuses an EXPLICIT `deny` pairing as a box that serves nobody, and
+#                               since #2406 resolves an UNSET key to `owner` for this mode anyway — so this
+#                               export restates the resolved value rather than supplying it). Only
 #                               reachable from a loopback peer: host networking (docker/compose.host-network.yaml)
 #                               or an on-box process — a published bridge port 401s, and boot says so.
 #      AUTH_MODE=local        → SESSION_SECRET is generated once and kept in the data volume when neither the

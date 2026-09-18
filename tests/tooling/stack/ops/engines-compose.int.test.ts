@@ -3,10 +3,11 @@
 // RUNNING `engines.sh compose` HERE IS SAFE, and it is the only engines verb of which that is true. The
 // standing ban (lane-standing-facts.md) is on invocations that SPAWN vLLM: `ensure`/`start`. This verb's
 // case arm is selected before any spawn path is reached and `exec`s a program that reads config and
-// writes a file — no port, no GPU, no process. Exercising the real shell is the point: the dispatch, the
-// `ORB_ENV_NO_FILE=1` that keeps a local `.env` out of a tracked artifact, and the schema-satisfying
-// `AUTH_FALLBACK` are all in the SHELL, so a test that called the node program directly would prove none
-// of them.
+// writes a file — no port, no GPU, no process. Exercising the real shell is the point: the dispatch and
+// the `ORB_ENV_NO_FILE=1` that keeps a local `.env` out of a tracked artifact are both in the SHELL, so a
+// test that called the node program directly would prove neither. (It also proves the arm needs NO auth
+// env at all — the `AUTH_FALLBACK=owner` this line used to name was removed with #2406's per-mode
+// resolution, and a re-appearing boot fatal here would surface as a non-zero status below.)
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";

@@ -221,7 +221,7 @@ function loadEnvFileWithOverride(override: boolean): void {
 const LAUNCH_ONLY_ENV_KEYS = [
   {
     key: "AUTH_FALLBACK",
-    why: ".env's override:true would force it into every mode including dev (lockout risk). Set it in the prod launcher's environment (`stack up prod`/`start`); dev falls to the default 'owner'.",
+    why: ".env's override:true would force it into every mode including dev (lockout risk). Leave it unset and it resolves per AUTH_MODE — 'owner' for single-user, 'deny' for local/oidc/forward-header; to override that, set it in the launcher's environment (`stack up prod` / `docker run -e`), never here.",
   },
   {
     key: "AUTH_FALLBACK_TRUSTED_PEERS",
@@ -272,6 +272,48 @@ const AUTH_MODE_REQUIRED_ENV = {
   oidc: ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_REDIRECT_URIS", "SESSION_SECRET"],
   "forward-header": [],
 } as const satisfies Record<(typeof AUTH_MODES)[number], readonly string[]>;
+
+/** What an UNSET `AUTH_FALLBACK` resolves to, PER MODE (#2406, 2026-09-18 — the conditional default). A
+ *  mapped-type `Record` over `AUTH_MODES`, the same shape and for the same reason as the table above: a
+ *  fifth mode fails `tsc` here and its author must state the value, instead of silently inheriting one.
+ *
+ *  WHY IT IS CONDITIONAL AND NOT ONE FLAT VALUE. The knob answers "what does an UN-CREDENTIALED request
+ *  get", and the safe answer is genuinely different per mode, so a single default is wrong for half the
+ *  deployments whichever way it points:
+ *    • `single-user` has NO other credential — the peer-gated owner fallback IS the mode (the superRefine
+ *      below refuses the `deny` pairing as a box that authenticates nobody). `deny` there is not
+ *      fail-CLOSED, it is fail-DEAD: the box refuses to boot, so the value protects nothing, and the only
+ *      thing a flat `deny` bought was a boot-fatal that every launcher, the vitest floor, the engines
+ *      compose tool (a program that writes one file and exits) and every hermetic test that wipes
+ *      `process.env` had to paper over with a pin for a value none of them care about (#1864's cost).
+ *    • every SSO mode (`local`/`oidc`/`forward-header`) has its own credential, so an un-credentialed
+ *      request must be DENIED — and it must be denied BY OMISSION, because #298's hole is a prod SSO
+ *      deploy behind a same-host reverse proxy where every request is a loopback peer. That is the half
+ *      #1864 was right about and it is preserved here EXACTLY: no SSO mode can reach `owner` implicitly.
+ *  Both owner rulings therefore survive with their inputs unchanged — 2026-08-08 ("the image ships
+ *  single-user + owner so a stranger's first run is usable with no setup") and #1864 2026-09-18 ("a prod
+ *  deploy that omits AUTH_FALLBACK boots safely with SSO"). The refusals are untouched: an EXPLICIT `deny`
+ *  under `single-user` and an EXPLICIT `owner` under a prod SSO mode are both still boot-fatal, and
+ *  `AUTH_FALLBACK` in the `.env` FILE is still boot-fatal (#301) — the operator's own words are still
+ *  judged, this table only decides what SILENCE means.
+ *
+ *  ENFORCER: `tests/server/foundation/env/index.test.ts` iterates `AUTH_MODES` and asserts the implicit
+ *  value is `deny` for every mode but `single-user`, so a fifth mode added with the wrong row here is RED
+ *  behaviorally as well as reviewed. */
+const AUTH_MODE_DEFAULT_FALLBACK = {
+  "single-user": "owner",
+  local: "deny",
+  oidc: "deny",
+  "forward-header": "deny",
+} as const satisfies Record<(typeof AUTH_MODES)[number], "owner" | "deny">;
+
+/** The resolved `AUTH_FALLBACK`: the operator's explicit value when they stated one, else the per-mode
+ *  default above. Called TWICE — once inside the superRefine (the break-glass × widened-peers refusal
+ *  judges the EFFECTIVE value, not the declared one) and once in the schema's `.transform`, so the frozen
+ *  `env` carries the resolved literal and no consumer has to re-derive it. */
+function resolveAuthFallback(mode: (typeof AUTH_MODES)[number], declared: "owner" | "deny" | undefined): "owner" | "deny" {
+  return declared ?? AUTH_MODE_DEFAULT_FALLBACK[mode];
+}
 
 const envSchema = z
   .object({
@@ -477,14 +519,16 @@ const envSchema = z
     // single-user (default, no SSO) | local (app-stored password, cookie/BFF sessions) | forward-header
     // (proxy forward-auth) | oidc (the app is an OIDC client, cookie/BFF sessions).
     AUTH_MODE: z.enum(AUTH_MODES).default("single-user"),
-    // What an un-credentialed request gets. deny (default) → 401; owner → the owner. The owner fallback is
-    // gated on a LOOPBACK TCP peer (#298 f2 — the unspoofable socket, NOT the client `Host`). Default changed
-    // to `deny` (#1864, owner ruling): a prod deploy that omits AUTH_FALLBACK now boots safely with SSO instead
-    // of hitting the SSO-BYPASS fatal below. In production an SSO mode with `owner` is BOOT-FATAL unless
-    // AUTH_BREAK_GLASS=true (see the superRefine below): behind a same-host reverse proxy every request arrives
-    // on a loopback socket, which would mint owner for everyone and bypass SSO. The dev stack sets
-    // AUTH_FALLBACK=owner in its own env (stack.sh), so single-user dev is unaffected.
-    AUTH_FALLBACK: z.enum(["owner", "deny"]).default("deny"),
+    // What an un-credentialed request gets: deny → 401; owner → the owner, gated on a LOOPBACK TCP peer
+    // (#298 f2 — the unspoofable socket, NOT the client `Host`). OPTIONAL in the SCHEMA and resolved by
+    // MODE in the `.transform` below (`AUTH_MODE_DEFAULT_FALLBACK`, #2406): unset ⇒ `owner` under
+    // `single-user` (its only credential) and `deny` under every SSO mode. `undefined` here therefore means
+    // "the operator said nothing", which is exactly the distinction the two refusals below need — they judge
+    // the EXPLICIT value, so an implicit `owner` can never exist outside `single-user`. In production an SSO
+    // mode with an explicit `owner` is BOOT-FATAL unless AUTH_BREAK_GLASS=true (see the superRefine): behind
+    // a same-host reverse proxy every request arrives on a loopback socket, which would mint owner for
+    // everyone and bypass SSO. READ AFTER THE PARSE, `env.AUTH_FALLBACK` is always the RESOLVED literal.
+    AUTH_FALLBACK: z.enum(["owner", "deny"]).optional(),
     // BREAK-GLASS: deliberately permit the loopback-owner fallback in an otherwise-fatal prod SSO deploy (see
     // AUTH_FALLBACK). Default false (accepts only `true`/`false`, the house envBool vocabulary — `1`/`on` are
     // a loud boot refusal). `true` is the operator's acknowledgment for an on-box recovery session (SSH +
@@ -616,12 +660,14 @@ const envSchema = z
     // serves no one, which is how it shipped as the container image's default env
     // (docs/history/reviews/security/2026-08-08-containerize-surface-review.md F1, three docs asserting the knob
     // was inert here). Scoped to the pair: `deny` stays the SSO modes' secure default.
+    // The condition reads the DECLARED value, so it fires only on an operator who TYPED `deny` here — an
+    // unset key resolves to `owner` under this mode (`AUTH_MODE_DEFAULT_FALLBACK`) and never reaches it.
     if (val.AUTH_MODE === "single-user" && val.AUTH_FALLBACK === "deny") {
       ctx.addIssue({
         code: "custom",
         path: ["AUTH_FALLBACK"],
         message:
-          "AUTH_FALLBACK=deny with AUTH_MODE=single-user leaves NO way to authenticate — single-user's only credential IS the owner fallback. Set AUTH_FALLBACK=owner, or pick an SSO mode (local/oidc/forward-header) where deny is the secure default.",
+          "AUTH_FALLBACK=deny with AUTH_MODE=single-user leaves NO way to authenticate — single-user's only credential IS the owner fallback. UNSET AUTH_FALLBACK (single-user resolves it to owner on its own), set it to owner explicitly, or pick an SSO mode (local/oidc/forward-header), where an unset AUTH_FALLBACK already resolves to the secure deny.",
       });
     }
     // THE SSO-FALLBACK LEAK (#298, owner ruling 2026-08-19) — same fail-fast class: a deploy must never
@@ -655,11 +701,16 @@ const envSchema = z
     // hand-rolled `node entry/index.ts` that omits NODE_ENV, behind a loopback proxy, with default owner) is
     // ACCEPTED defense-in-depth risk, documented (containerize-prod-image-spec.md §4), not guarded — the
     // supported launchers all set it, and #301 makes the effective mode/fallback legible per launch.
+    //
+    // #2406: this reads the DECLARED value, and that is the whole safety argument for the conditional
+    // default. An SSO mode's unset key resolves to `deny` (`AUTH_MODE_DEFAULT_FALLBACK`), so `owner` in an
+    // SSO mode can ONLY come from an operator typing it — which is precisely what this refusal catches.
+    // There is no path by which omission produces `owner` outside `single-user`.
     if (val.NODE_ENV === "production" && val.AUTH_MODE !== "single-user" && val.AUTH_FALLBACK === "owner" && !val.AUTH_BREAK_GLASS) {
       ctx.addIssue({
         code: "custom",
         path: ["AUTH_FALLBACK"],
-        message: `AUTH_FALLBACK=owner with AUTH_MODE=${val.AUTH_MODE} in production is a SSO BYPASS: behind a same-host reverse proxy every request arrives on a loopback socket and the owner fallback would mint owner for everyone, bypassing SSO. Set AUTH_FALLBACK=deny (the secure prod default — the owner logs in via SSO, seeded at boot). For a deliberate on-box recovery session ONLY, set AUTH_BREAK_GLASS=true to acknowledge the risk.`,
+        message: `AUTH_FALLBACK=owner with AUTH_MODE=${val.AUTH_MODE} in production is a SSO BYPASS: behind a same-host reverse proxy every request arrives on a loopback socket and the owner fallback would mint owner for everyone, bypassing SSO. UNSET AUTH_FALLBACK — every SSO mode resolves it to deny, the secure prod value (the owner logs in via SSO, seeded at boot) — or set deny explicitly. For a deliberate on-box recovery session ONLY, set AUTH_BREAK_GLASS=true to acknowledge the risk.`,
       });
     }
     // #301 (owner ruling 2026-08-19) — AUTH_FALLBACK is a LAUNCH-TIME decision, NEVER a `.env` KEY, and this
@@ -667,9 +718,11 @@ const envSchema = z
     // makes the shortcut impossible). The file loads with `override:true`, so a value in `.env` is forced into
     // EVERY launch from that dir — dev AND prod, every mode — which is a dev-lockout footgun (a prod-intended
     // `.env` run in dev, or an SSO mode + a pinned `deny`, kills dev's loopback auto-owner) and confusingly
-    // collides downstream with the two prod fatals above. There is no legitimate `.env` pin: `single-user`
-    // already DEFAULTS to `owner` (so a redundant pin is deletable at zero cost), dev wants the default, and a
-    // prod launcher exports `deny` in ITS environment. Same fail-fast family as the two blocks above.
+    // collides downstream with the two prod fatals above. There is no legitimate `.env` pin: since #2406 the
+    // per-mode default (`AUTH_MODE_DEFAULT_FALLBACK`) is already the value each mode wants — `owner` under
+    // `single-user`, `deny` under every SSO mode — so a pin can only either restate it (deletable at zero
+    // cost) or invert it for every launch from this directory at once. Same fail-fast family as the two
+    // blocks above.
     // GENERALIZED: the rule is now a TABLE (`LAUNCH_ONLY_ENV_KEYS`) rather than one predicate, because
     // `AUTH_FALLBACK_TRUSTED_PEERS` is launch-only for the same reason with a different consequence — each
     // key carries its own operator sentence, and a third knob is a row, not a second copy of this block.
@@ -682,9 +735,14 @@ const envSchema = z
     // production SSO box with no credential, which is #298's hole at network scale behind a flag whose own
     // documentation promises the opposite. The recovery procedure does not need the widening: it is run from
     // an on-box shell over the loopback listener, which the unwidened gate already admits.
+    // Unlike the two refusals above, this one judges the RESOLVED value: `resolveOwnerFallbackPeers` asks
+    // whether the widening is live, which is a fact about the running box, not about what the operator typed.
     if (
       val.AUTH_BREAK_GLASS &&
-      resolveOwnerFallbackPeers({ authFallback: val.AUTH_FALLBACK, trustedPeers: val.AUTH_FALLBACK_TRUSTED_PEERS }).ranges.length > 0
+      resolveOwnerFallbackPeers({
+        authFallback: resolveAuthFallback(val.AUTH_MODE, val.AUTH_FALLBACK),
+        trustedPeers: val.AUTH_FALLBACK_TRUSTED_PEERS,
+      }).ranges.length > 0
     ) {
       ctx.addIssue({
         code: "custom",
@@ -717,7 +775,13 @@ const envSchema = z
         });
       }
     }
-  });
+  })
+  // THE ONE RESOLUTION STEP, and it runs AFTER every refusal above on purpose: the refusals need to know
+  // what the operator actually TYPED (an unset key is not a `deny` they chose), while every consumer of the
+  // frozen `env` needs the EFFECTIVE value and must never re-derive it. Placing it here is what keeps
+  // `AUTH_FALLBACK` a `"owner" | "deny"` for the whole tree — `infra/auth/config`, the two posture inputs
+  // and `entry/lifecycle` all read it unchanged and no site branches on `undefined`.
+  .transform((val) => ({ ...val, AUTH_FALLBACK: resolveAuthFallback(val.AUTH_MODE, val.AUTH_FALLBACK) }));
 
 /** The parsed, frozen env floor. Read down by every tier; the AUTH_MODE superRefine throws here (at
  *  module load) on a misconfigured deploy. */
