@@ -436,16 +436,5 @@ export function operationIdentity(context: GateFactContext, call: CallExpression
   return { kind: "injected", owner: bus, memberPath: [callName(call) ?? "<call>"] };
 }
 
-export function typeDiscriminators(type: Type, at: MorphNode): ReadonlySet<string> {
-  const property = type.getProperty("type");
-  if (property === undefined) {
-    return new Set();
-  }
-  const propertyType = property.getTypeAtLocation(at);
-  return new Set(
-    (propertyType.isUnion() ? propertyType.getUnionTypes() : [propertyType]).flatMap((part) => {
-      const value = part.getLiteralValue();
-      return typeof value === "string" ? [value] : [];
-    }),
-  );
-}
+// biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting typeDiscriminators to a sibling
+export { typeDiscriminators } from "./bus-fact-read-discriminators.ts";

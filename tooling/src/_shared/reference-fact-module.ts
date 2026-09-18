@@ -3,6 +3,8 @@ import type { BindingElement, ExportSpecifier, ImportClause, ImportSpecifier, No
 import { Node, SyntaxKind } from "ts-morph";
 import { bindingElementName } from "./reference-fact-binding-name.ts";
 import type { ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices, ResolvedReferenceFact } from "./reference-fact-contract.ts";
+import type { CanonicalModuleTarget, NamespaceBinding } from "./reference-fact-module-helpers.ts";
+import { externalTarget, importDeclarationOf, originFromTarget, projectTarget, requiresResolvedSource } from "./reference-fact-module-helpers.ts";
 import { overloadHome } from "./reference-fact-overload.ts";
 import type { ModuleState } from "./reference-fact-state.ts";
 import {
@@ -17,35 +19,6 @@ import {
   resolved,
   unresolved,
 } from "./reference-fact-state.ts";
-
-type NamespaceBinding =
-  | { readonly kind: "project"; readonly moduleSpecifier: string; readonly declaration: MorphNode; readonly sourceFile: SourceFile }
-  | { readonly kind: "external"; readonly moduleSpecifier: string; readonly declaration: MorphNode };
-type CanonicalModuleTarget = ModuleMemberOrigin["canonical"];
-function importDeclarationOf(node: MorphNode): import("ts-morph").ImportDeclaration | undefined {
-  return node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
-}
-
-const requiresResolvedSource = (moduleSpecifier: string): boolean =>
-  moduleSpecifier.startsWith(".") || moduleSpecifier.startsWith("/") || moduleSpecifier.startsWith("#");
-
-const projectTarget = (declaration: MorphNode, exportedName: string): CanonicalModuleTarget => ({
-  kind: "project",
-  sourceFile: declaration.getSourceFile(),
-  exportedName,
-  declaration,
-});
-
-const externalTarget = (declaration: MorphNode, moduleSpecifier: string, exportedName: string): CanonicalModuleTarget => ({
-  kind: "external-door",
-  moduleSpecifier,
-  exportedName,
-  declaration,
-});
-
-function originFromTarget(moduleSpecifier: string, exportedName: string, canonical: CanonicalModuleTarget): ModuleMemberOrigin {
-  return { kind: "module", moduleSpecifier, exportedName, memberPath: [], declaration: canonical.declaration, canonical };
-}
 
 /** The named import that binds `exportName` locally, or `undefined` when none does OR the one that does
  *  RENAMES (`import { record as pick }`) — a renamed binding publishes a name the leaf does not own. */

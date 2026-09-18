@@ -60,8 +60,7 @@
 //   with it. That member therefore declares the DRIZZLE-SCHEMA family's shared population while belonging
 //   to THIS family: the classification data is tenancy's, the files it reads are the schema's, and the two
 //   are deliberately not merged.
-import type { GatePolicyContext } from "../contract/policy.ts";
-import type { ReadySchemaFact, SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
+import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 import type { ScopingRow, TableShape } from "../contract/tenancy-scope.ts";
 
 /** EVERY table in `packages/db/src/schema/**`, classified. TOTAL and TWO-SIDED: an unlisted table is RED,
@@ -429,25 +428,5 @@ export function schemaTableIdents(model: SchemaModel): ReadonlySet<string> {
   return tableIdents(model, () => true);
 }
 
-const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
-
-/** The shared "blind derivation" arm all three owner-scoped-* gates carry: an empty (a)-class set means the
- *  schema shape or the registry moved and the gate now matches nothing, which would otherwise report ✓
- *  forever. Guarded on the real schema barrel actually being in the loaded population, exactly like
- *  `own-tables-only`'s real-tree anchor — a conformance mini-project carries neither the full schema nor the
- *  full server tree, and would "prove" the derivation blind. */
-export function reportBlindWhenEmpty(
-  ctx: GatePolicyContext,
-  schemaFact: ReadySchemaFact<SchemaModel>,
-  ownerTableIdents: ReadonlySet<string>,
-  message: string,
-): void {
-  if (!schemaFact.receipt.paths.includes(SCHEMA_BARREL) || ownerTableIdents.size > 0) {
-    return;
-  }
-  const anchor = ctx.files[0];
-  if (anchor === undefined) {
-    throw new Error("owner-scoped gate received an empty effective population");
-  }
-  ctx.report.file(ctx.relativePath(anchor), { message });
-}
+// biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting reportBlindWhenEmpty to a sibling
+export { reportBlindWhenEmpty } from "./tenancy-scope-blind.ts";
