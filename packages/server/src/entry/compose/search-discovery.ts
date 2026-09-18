@@ -232,6 +232,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
       // Prefer the surviving default; else the newest remaining persona; else null.
       const survivingDefault = defaultHit ? firstRemaining : seeds.defaultPersonaId;
       const nextCurrent = currentHit ? (survivingDefault ?? firstRemaining) : seeds.currentPersonaId;
+      // @orb-waive one-principal-mint-population(Principal): synthetic principal for persona-seed settings update; ends when a shared factory replaces it
       const principal: Principal = {
         userId: ownerId,
         role: "user",

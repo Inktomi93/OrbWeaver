@@ -78,6 +78,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
 
   // The synthetic host principal for the extraction shaper's card reads (the chat.ts hostPrincipal precedent —
   // role-irrelevant getCard reads under the room host's ownership).
+  // @orb-waive one-principal-mint-population(Principal): synthetic role-irrelevant principal for imagery card reads; ends when a shared factory replaces it
   const imageryCardPrincipal = (userId: UserId): Principal => ({ userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "fallback" });
 
   const imagery = createImageryService({

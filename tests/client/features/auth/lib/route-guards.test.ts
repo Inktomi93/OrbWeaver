@@ -1,3 +1,4 @@
+// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 // features/auth/lib/route-guards — the `beforeLoad` gate decisions (FINAL-Auth-Modes §7 P0; the P1-a
 // reachability fix). The axis is `me.authenticated`, NOT `config.requiresLogin` — so the matrix is keyed
 // on the seam-resolved identity alone:

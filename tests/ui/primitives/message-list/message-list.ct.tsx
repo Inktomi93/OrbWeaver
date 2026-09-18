@@ -1,3 +1,4 @@
+// @orb-waive-file test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll
 // CT: the MessageList seal — a bottom-anchored TanStack Virtual chat-thread list (ui-package-design
 // §6.1/§9, un-parked). Asserts virtualization + bottom-anchor + stick-to-bottom (+ the no-yank flip
 // side, + reduced-motion), matching virtual-list.ct.tsx's tripwire test for the shared discipline.

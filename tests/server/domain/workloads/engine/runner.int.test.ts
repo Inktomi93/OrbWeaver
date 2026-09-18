@@ -1,3 +1,4 @@
+// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 // Engine test: runWorkload — the per-row state machine. Pins the success lifecycle (claim → succeeded +
 // result + bus events), failure (→ failed + the PD-113 WORKLOAD_FAILED audit through the injected op),
 // the claim-loser early-return, the cancelling→cancelled PIN (an aborted run that returned normally), and

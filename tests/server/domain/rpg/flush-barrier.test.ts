@@ -1,3 +1,4 @@
+// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 // tests/server/domain/rpg/flush-barrier — the per-chat in-flight FLUSH BARRIER (domain/rpg/flush-barrier.ts).
 // A stateful feature-root collaborator: `register` records a chat's in-flight flush, `awaitInFlight` blocks the
 // next turn's gather until the chat's flush(es) settle (bounded). Unit-tested directly (no engine/db) — the

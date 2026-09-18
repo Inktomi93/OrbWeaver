@@ -77,6 +77,14 @@ const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
     re: /\bperformance\.timeOrigin\b/u,
     what: "performance.timeOrigin — ambient clock property",
   },
+  {
+    re: /\bvi\.useFakeTimers\s*\(/u,
+    what: "vi.useFakeTimers() — replaces the ambient clock globally; inject the frozen clock via the composition seam instead (tests/support/clock.ts)",
+  },
+  {
+    re: /\.waitForTimeout\s*\(/u,
+    what: ".waitForTimeout() — Playwright flaky-wait anti-pattern; biome's noPlaywrightWaitForTimeout misses non-`page` receivers (locator.page().waitForTimeout) and does not fire on CT files at all (#2385). Use a locator assertion or `expect.poll` instead",
+  },
 ];
 
 export const gate = defineGate({
@@ -92,7 +100,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message:
-    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/performance.now/process.hrtime/performance.timeOrigin) — inject the frozen clock + seeded ids via the fixture seam (core/Spine-Testing.md §3).",
+    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/performance.now/process.hrtime/performance.timeOrigin/vi.useFakeTimers/waitForTimeout) — inject the frozen clock + seeded ids via the fixture seam (core/Spine-Testing.md §3).",
   fix:
     "inject the frozen clock (tests/support/clock.ts) + seeded ids (tests/support/ids.ts) through the " +
     "composition seam production uses. A deliberate site (a test whose SUBJECT is elapsed real time) is " +
@@ -196,6 +204,24 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "performance.timeOrigin" },
       why: "#831 — performance.timeOrigin is an ambient clock property (not a call); the old performance.now()-only regex missed it and a guest-realm probe string spelled it undetected",
     },
+    {
+      mode: "source",
+      files: { "tests/server/faketimers.test.ts": "vi.useFakeTimers();\nexport const t = 1;\n" },
+      expect: { count: 1, messageIncludes: "vi.useFakeTimers" },
+      why: "#2384 — vi.useFakeTimers() replaces the ambient clock globally rather than injecting through the composition seam; 9 post-law drifters found by the Qwen audit",
+    },
+    {
+      mode: "source",
+      files: { "tests/client/wft.ct.tsx": "await page.waitForTimeout(100);\nexport const t = 1;\n" },
+      expect: { count: 1, messageIncludes: "waitForTimeout" },
+      why: "#2385 — page.waitForTimeout() is a Playwright flaky-wait anti-pattern; biome's noPlaywrightWaitForTimeout does not fire on CT files at all",
+    },
+    {
+      mode: "source",
+      files: { "tests/client/wft-chain.ct.tsx": "await locator.page().waitForTimeout(60);\nexport const t = 1;\n" },
+      expect: { count: 1, messageIncludes: "waitForTimeout" },
+      why: "#2385 — locator.page().waitForTimeout() escapes biome's noPlaywrightWaitForTimeout because the receiver is not literally `page`; this regex catches all receiver forms",
+    },
   ],
   mustPass: [
     {
@@ -262,6 +288,22 @@ export const gate = defineGate({
           '// @orb-waive-file test-determinism(Date.now): FIXTURE SOURCE for a reader that parses but never evaluates the call — ends when this fixture stops flagging.\nexport const src = "Date.now()";\n',
       },
       why: "#1984 — the file-scoped `@orb-waive-file` grammar waives a finding anywhere in the file, not only carrier-adjacent. This proves the grammar works for test-determinism: a string-literal Date.now() (the DECLARED LIMIT) is waived by a file-level marker at the top",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/server/faketimers-waived.test.ts":
+          "// @orb-waive test-determinism(vi.useFakeTimers): legacy test not yet migrated to the composition seam; ends when this test adopts the frozen clock\nvi.useFakeTimers();\nexport const t = 1;\n",
+      },
+      why: "#2384 — the per-site escape for vi.useFakeTimers proving the marker reaches it identically to the other BANNED entries",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/client/wft-waived.ct.tsx":
+          "// @orb-waive test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll\nawait page.waitForTimeout(100);\nexport const t = 1;\n",
+      },
+      why: "#2385 — the per-site escape for waitForTimeout proving the marker reaches it",
     },
   ],
 });

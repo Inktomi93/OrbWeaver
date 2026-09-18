@@ -1,3 +1,4 @@
+// @orb-waive-file test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll
 // AppShell CT — the composed four-region frame end-to-end: the default chats CONTENT renders, a rail
 // click switches the section (store → CONTENT/LIST slots), the topbar panel toggle collapses a panel
 // via the §11.1 clamp-overlay (data-panel-mode + zero rendered width, not just a class string), the

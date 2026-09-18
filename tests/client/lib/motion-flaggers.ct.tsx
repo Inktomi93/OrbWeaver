@@ -1,3 +1,4 @@
+// @orb-waive-file test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll
 // CT: the `[space]` half of motion-flaggers.ts (task #39/#40's dead-flagger fix). A node/jsdom test
 // cannot reach this — `getComputedStyle` on a replaced element only resolves a real box in an actual
 // layout engine, which is exactly the bug this file guards: `hasReservedBox` used to read the

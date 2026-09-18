@@ -250,6 +250,7 @@ async function resolveHeaderOrFallbackPrincipal(
  * an invented grant. Role-sensitive ops need this read because a fabricated `role:"user"` would
  * fail-closed-DENY the owner's own privileged turn.
  */
+// @orb-waive one-principal-mint-population(Principal): the canonical row-to-Principal mapper; ends never (this is the ONE home for the fallback/bridge mint)
 function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {
   return {
     userId,

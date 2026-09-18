@@ -101,12 +101,20 @@ import { scanTextCitations } from "../lib/text-cite-scan.ts";
 //      cite is a finding only when some `docs/` path with that basename USED TO exist (i.e. it is in the
 //      basename vocabulary) but is now absent from the tracked tree, OR when no such basename exists (which
 //      means the comment names a doc that never existed). A bare cite whose basename matches a LIVE doc is
-//      clean. The `§`/`:` trailing fence is inherited from the character class.
+//      clean. The `§`/`:` trailing fence is inherited from the character class. WIDENED by the adversarial
+//      review at #1334: the original grammar required a Capital letter or digit after a hyphen, which missed
+//      438 all-lowercase hyphenated docs (`gate-runtime-standardization.md`, `ui-package-design.md`, etc.).
+//      The grammar now matches any hyphenated `.md` basename, using the hyphen itself as the fence against
+//      unhyphenated prose words (`readme.md`, `changelog.md`).
 const DOC_TOKEN_RE = /(?<![\w./-])docs\/[A-Za-z0-9_./+-]*\.md/gu;
-// A bare `.md` basename: at least one Capital letter or digit-after-hyphen to stay in the doc-naming
+// A bare `.md` basename: at least one Capital letter OR at least one hyphen to stay in the doc-naming
 // convention. Must start at a word boundary (the lookbehind) and end at `.md`. Group 1 captures the
-// basename so `scanTextCitations` reports it as the token.
-const BARE_DOC_RE = /(?<![/\w.-])([A-Z][A-Za-z0-9_-]*\.md|[A-Za-z]+-[A-Z0-9][A-Za-z0-9_-]*\.md)/gu;
+// basename so `scanTextCitations` reports it as the token. The FIRST alternative catches names starting
+// with an uppercase letter (`Documentation-Law.md`). The SECOND catches any hyphenated name
+// (`gate-runtime-standardization.md`, `ui-package-design.md`) — requiring a hyphen is the fence that
+// keeps unhyphenated lowercase prose words (`readme.md`, `changelog.md`) out. Together the two
+// alternatives cover all 500+ docs under `docs/` (measured 2026-09-18).
+const BARE_DOC_RE = /(?<![/\w.-])([A-Z][A-Za-z0-9_-]*\.md|[A-Za-z]+-[A-Za-z0-9][A-Za-z0-9_-]*\.md)/gu;
 // A token carrying a glob / brace / placeholder / elision is a PROSE PATTERN, never a literal cite.
 // ONLY THE ELISION HALF IS LIVE, and the split is measured rather than assumed (§4.1 cut, this lane):
 // `*`, `{`, `}`, `<`, `>` and `…` are all OUTSIDE `DOC_TOKEN_RE`'s character class, so a token carrying
@@ -401,6 +409,16 @@ export const gate = defineGate({
       expect: { count: 1, token: "Gone-Forever-Design.md" },
       why: "#1334: a bare-basename doc cite (no `docs/` prefix) to a doc that does not exist under `docs/` — the house idiom the original grammar missed",
     },
+    {
+      mode: "resource",
+      files: {
+        "knip.ts": "export const config = 1;\n",
+        // #1334 WIDENED: an all-lowercase hyphenated doc cite to a doc that does not exist.
+        "packages/kit/src/lower-hyph.ts": "// See gate-runtime-gone-forever.md for the design.\nexport const x = 1;\n",
+      },
+      expect: { count: 1, token: "gate-runtime-gone-forever.md" },
+      why: "#1334 WIDENED: an all-lowercase hyphenated bare-basename cite — the dominant pattern (438 docs) the original grammar missed by requiring uppercase after a hyphen",
+    },
   ],
   mustPass: [
     {
@@ -498,11 +516,21 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "knip.ts": "export const config = 1;\n",
-        // #1334: a lowercase `.md` reference (like `readme.md`) is NOT a doc cite — the `BARE_DOC_RE`
-        // grammar requires a Capital letter to stay in the doc-naming convention.
+        // #1334 WIDENED: an all-lowercase hyphenated basename whose doc EXISTS — resolves, so no finding.
+        "docs/design/gate-runtime-real.md": "---\nkind: design\n---\n\nplanted.\n",
+        "packages/kit/src/lower-hyph-ok.ts": "// See gate-runtime-real.md for the design.\nexport const x = 1;\n",
+      },
+      why: "#1334 WIDENED: an all-lowercase hyphenated bare-basename cite to a doc that EXISTS under `docs/` — the basename resolves and is not a finding",
+    },
+    {
+      mode: "resource",
+      files: {
+        "knip.ts": "export const config = 1;\n",
+        // #1334: an unhyphenated all-lowercase `.md` reference (like `readme.md`) is NOT a doc cite — the
+        // `BARE_DOC_RE` grammar requires either a Capital start or at least one hyphen.
         "packages/kit/src/lower.ts": "// See readme.md for setup instructions.\nexport const x = 1;\n",
       },
-      why: "#1334 NARROWING ROW: a lowercase bare `.md` (like `readme.md`) is NOT a doc cite — the grammar requires a Capital, and dropping the capital requirement reds this row",
+      why: "#1334 NARROWING ROW: an unhyphenated all-lowercase bare `.md` (like `readme.md`) is NOT a doc cite — the grammar requires either a Capital start or a hyphen, and removing both fences reds this row",
     },
     {
       mode: "resource",
