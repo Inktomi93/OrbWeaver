@@ -61,6 +61,24 @@ done
 mkdir -p "$out/packages/client"
 cp -R "$src/packages/client/dist" "$out/packages/client/dist"
 
+# ── the build identity stamp (owner ask 2026-09-18) ──────────────────────────────────────────────────
+# /app/version.json is how a CONTAINER answers "which commit am I?" — an image ships no .git, so nothing
+# else could. `foundation/version` PREFERS this file over .git at runtime, which also covers the build
+# stage's own throwaway `git init` (HEAD names a branch that was never committed → `unknown`).
+#
+# The derivation is NOT forked here: this invokes the server's own reader (`buildVersionStamp`), the same
+# code that reads the stamp back at boot, so the stamp can never disagree with the reader's rules. The
+# workspace's .git is present in this stage because .dockerignore un-ignores exactly four plain ref files.
+# `builtAt` is passed IN rather than read inside the package: production source reads time from the
+# injected clock (the `no-raw-clock` law), and a build script is the one place that legitimately knows the
+# wall instant.
+ORB_STAMP_ROOT="$src" \
+ORB_STAMP_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  node --input-type=module -e \
+    'import { buildVersionStamp } from "@orb/server/foundation/version"; process.stdout.write(JSON.stringify(buildVersionStamp(process.env.ORB_STAMP_ROOT, process.env.ORB_STAMP_BUILT_AT)));' \
+    > "$out/version.json"
+echo "assemble-runtime: stamped version.json = $(cat "$out/version.json")"
+
 # ── prune what this image can never execute (measured 2026-09-18: ~620 MB of a 1.2 GB node_modules) ──
 # onnxruntime-node ships every platform's binaries plus the CUDA/TensorRT providers; the slim image runs the
 # CPU provider on ONE platform (the local-light embedding backend). onnxruntime-web is the browser build

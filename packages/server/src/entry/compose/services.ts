@@ -82,6 +82,7 @@ import type { EnginesPosture } from "#foundation/env";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { isWireCaptureEnabled, logAudit, recordWireCapture } from "#foundation/observability";
+import { versionIdentity } from "#foundation/version";
 import { createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
@@ -135,6 +136,7 @@ import { buildRpg } from "./rpg.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
 import { createSessionEntryWriter } from "./session-entries.ts";
 import { buildSideGenParams } from "./side-gen-params.ts";
+import { createProbeUpstreamHead } from "./update-check.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
 
@@ -337,6 +339,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     onEmbedModelChanged: () => enqueueEmbedReindex(),
     materializeBackground,
     newBackgroundEntryId: () => randomUUID(),
+    versionIdentity,
+    // The manual update check's one GET. Wired here (never imported by the domain) so the egress belt stays
+    // on this side of the tier line, exactly like `materializeBackground` above it.
+    probeUpstreamHead: createProbeUpstreamHead({ localVersion: () => versionIdentity().version }),
   };
   // The workload contribution registry is assembled LAST (it spans every owning domain, chat included) but
   // the workloads SERVICE is built mid-graph and needs it as its params validator — so the service holds this

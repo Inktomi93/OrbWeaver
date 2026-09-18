@@ -15,6 +15,7 @@ function summary(id: string, overrides: Partial<BugReportSummary> = {}): BugRepo
     ageMs: 0,
     noteFirstLine: `note for ${id}`,
     route: "/",
+    version: "v1.2.3 (abcdef123456, checkout)",
     sha: "abcdef1234567890abcdef1234567890abcdef12",
     dirty: false,
     truncatedSources: [],

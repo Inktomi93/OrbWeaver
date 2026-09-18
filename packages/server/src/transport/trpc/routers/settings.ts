@@ -16,6 +16,14 @@ import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 const MAX_BACKGROUND_URL_LENGTH = 2048;
 
 export const settingsRouter = t.router({
+  // ── build identity (owner ask 2026-09-18) — the two DEPLOYMENT-GLOBAL reads behind Settings → About.
+  //    `authedProcedure`, not `adminProcedure`: the version string is what a bug report quotes, so anyone who
+  //    can file one must be able to read it. Neither takes an input, neither touches a user row, and the
+  //    per-user rate bucket the authed ladder already debits is the limiter on the update check's one
+  //    outbound GET (`entry/rate-limit-gate.ts`'s `general` scope) — no second bucket exists to add. ──
+  getVersion: authedProcedure.query(({ ctx }) => ctx.services.settings.getVersion()),
+  checkForUpdate: authedProcedure.query(({ ctx }) => ctx.services.settings.checkForUpdate()),
+
   getUserSettings: authedProcedure.query(({ ctx }) => ctx.services.settings.getUserSettings({ principal: ctx.auth })),
 
   updateUserSettingsSection: authedProcedure

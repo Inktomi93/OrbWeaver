@@ -21,6 +21,16 @@ packages/client/dist
 
 # VCS + dev tooling
 .git
+# …EXCEPT the four plain-text ref files the build stage reads to stamp /app/version.json (the build
+# identity every surface reports — docker/assemble-runtime.sh). No objects, no history, no packfiles: HEAD
+# plus the loose branch/tag refs plus the packed table. Measured on this repo 2026-09-18: HEAD 21 B,
+# packed-refs ~14.4 KiB, refs/heads ~861 B over 21 files, refs/tags 0 — well under 16 KiB total, against a
+# .git/objects store three orders of magnitude larger, which stays excluded. Without these the image can
+# only report `unknown` for its own commit, which is the exact thing a bug report needs.
+!.git/HEAD
+!.git/refs/heads/**
+!.git/refs/tags/**
+!.git/packed-refs
 .github
 .claude
 .devcontainer

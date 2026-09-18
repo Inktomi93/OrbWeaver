@@ -44,6 +44,8 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     onEmbedModelChanged: deps.onEmbedModelChanged,
     materializeBackground: deps.materializeBackground,
     newBackgroundEntryId: deps.newBackgroundEntryId,
+    versionIdentity: deps.versionIdentity,
+    probeUpstreamHead: deps.probeUpstreamHead,
     getEffectiveConfig,
     reloadEffectiveConfig: () => reloadEffectiveConfig(deps.db),
   };

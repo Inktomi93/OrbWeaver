@@ -24,8 +24,8 @@ import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler, Next } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
-import { APP_VERSION } from "#foundation/config";
 import { diagnosticsPostureInput, diagnosticsPostureWarnings, env, resolveDiagnosticsPosture } from "#foundation/env";
+import { versionIdentity } from "#foundation/version";
 import { getAuditFailureSnapshot } from "../audit.ts";
 import { logRing, recentRequests } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
@@ -322,7 +322,9 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     // present — the resolver reduces DEBUG_TOKEN to a boolean before it ever leaves `foundation/env`.
     const diagnostics = resolveDiagnosticsPosture(diagnosticsPostureInput());
     return c.json({
-      version: APP_VERSION,
+      // The WHOLE identity block, not a bare version string: an operator reading this probe is nearly always
+      // asking "is this box running what I think it is", and the commit is the half that answers it.
+      version: versionIdentity(),
       nodeEnv: env.NODE_ENV,
       pid: process.pid,
       uptimeSec: Math.round(process.uptime()),
@@ -359,6 +361,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     const repoRoot = process.cwd();
     const record: BugReportRecord = {
       id: mintBugReportId(),
+      version: versionIdentity(),
       capturedAt: capturedAt.toISOString(),
       build: readBuildIdentity(repoRoot),
       window: resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes),

@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 602,
+    "sites": 605,
     "reported": 1,
     "byVerdict": {
-      "deliberate-absorb": 601,
+      "deliberate-absorb": 604,
       "unproven": 1
     },
     "byGrammar": {
-      "default": 159,
+      "default": 162,
       "empty": 299,
       "promise": 144
     }
@@ -3060,7 +3060,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 449,
+      "line": 455,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -3068,7 +3068,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `requireOwner`/`can()`",
-      "markerLine": 443
+      "markerLine": 449
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::catch::1",
@@ -3255,7 +3255,7 @@
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
       "path": "packages/server/src/foundation/observability/debug/bug-report.ts",
-      "line": 93,
+      "line": 94,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3263,7 +3263,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "git being absent, or the cwd not being a",
-      "markerLine": 88
+      "markerLine": 89
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/log-ring-read.ts::catch::1",
@@ -3342,6 +3342,45 @@
       "verdict": "deliberate-absorb",
       "reason": "documented above the spillChain",
       "markerLine": 271
+    },
+    {
+      "siteId": "packages/server/src/foundation/version/index.ts::catch::1",
+      "path": "packages/server/src/foundation/version/index.ts",
+      "line": 56,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "\"this file did not answer\" IS the result here — it becomes",
+      "markerLine": 51
+    },
+    {
+      "siteId": "packages/server/src/foundation/version/index.ts::catch::2",
+      "path": "packages/server/src/foundation/version/index.ts",
+      "line": 134,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a manifest that is not JSON degrades to the `unknown`",
+      "markerLine": 127
+    },
+    {
+      "siteId": "packages/server/src/foundation/version/index.ts::catch::3",
+      "path": "packages/server/src/foundation/version/index.ts",
+      "line": 152,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a stamp that is not JSON is INDISTINGUISHABLE from an",
+      "markerLine": 146
     },
     {
       "siteId": "packages/server/src/infra/auth/config.ts::catch::1",
@@ -4880,7 +4919,7 @@
     {
       "siteId": "tooling/src/bug-reports/lib/read.ts::catch::1",
       "path": "tooling/src/bug-reports/lib/read.ts",
-      "line": 159,
+      "line": 178,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4888,12 +4927,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an absent directory IS the answer here — it",
-      "markerLine": 154
+      "markerLine": 173
     },
     {
       "siteId": "tooling/src/bug-reports/lib/read.ts::catch::2",
       "path": "tooling/src/bug-reports/lib/read.ts",
-      "line": 172,
+      "line": 191,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4901,12 +4940,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the null is consumed as an `unreadable` ROW in",
-      "markerLine": 166
+      "markerLine": 185
     },
     {
       "siteId": "tooling/src/bug-reports/lib/read.ts::catch::3",
       "path": "tooling/src/bug-reports/lib/read.ts",
-      "line": 187,
+      "line": 206,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4914,7 +4953,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a missing companion degrades the SHOW output to",
-      "markerLine": 182
+      "markerLine": 201
     },
     {
       "siteId": "tooling/src/codemod/lib/apply-project.ts::error::1",

@@ -7,6 +7,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import type { UpdateCheck, UpstreamHeadProbe, VersionIdentity } from "@orb/kit/version-identity";
 import type { RequireAdmin, RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -56,6 +57,13 @@ export interface SettingsContext {
   readonly materializeBackground: MaterializeBackgroundOp;
   /** Mints the stable per-row id for a new `BackgroundLibraryEntry` (crypto uuid in prod; deterministic in tests). */
   readonly newBackgroundEntryId: () => string;
+  /** This process's frozen build identity (`#foundation/version` at the root). Injected rather than imported
+   *  so the update-check verdict table is drivable from a spec without a checkout on disk. */
+  readonly versionIdentity: () => VersionIdentity;
+  /** ONE unauthenticated GET of the upstream branch head, wired at the composition root over the SSRF-safe
+   *  egress belt. Returns a typed refusal instead of throwing, so this domain branches on it without
+   *  importing an infra error class. */
+  readonly probeUpstreamHead: UpstreamHeadProbe;
 }
 
 /** What the entry composition root supplies to stand up the domain. */
@@ -70,6 +78,8 @@ export interface SettingsServiceDeps {
   readonly onEmbedModelChanged: OnEmbedModelChanged;
   readonly materializeBackground: MaterializeBackgroundOp;
   readonly newBackgroundEntryId: () => string;
+  readonly versionIdentity: () => VersionIdentity;
+  readonly probeUpstreamHead: UpstreamHeadProbe;
 }
 
 /** The settings API surface. UserSettings verbs scope by `principal.userId`; AppSettings verbs gate on the
@@ -95,6 +105,14 @@ export interface SettingsService {
   readonly addExternalBackground: (params: AddExternalBackgroundParams) => Promise<BackgroundLibraryEntry>;
   /** The lenient typed-blob loader for cross-feature callers (raw `userId`, not a gated user-facing verb). */
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
+
+  /** WHAT THIS BOX IS — version + commit + where the answer came from, frozen at boot. Deployment-global and
+   *  principal-less by construction: every authed caller reads the same block, and there is no id to accept. */
+  readonly getVersion: () => VersionIdentity;
+  /** The MANUAL update check: one click, one unauthenticated GET of the upstream branch head, one verdict
+   *  (`up-to-date` | `behind` | `unknown` + reason). No polling, no timer, no persisted state — and nothing
+   *  about this deployment is sent upstream. */
+  readonly checkForUpdate: () => Promise<UpdateCheck>;
 
   /** Read one raw global-KV row; `null` if absent. Admin-gated at the router. */
   readonly getGlobalSetting: (key: string) => Promise<GlobalSettingView | null>;

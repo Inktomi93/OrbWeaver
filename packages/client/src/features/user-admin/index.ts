@@ -2,6 +2,7 @@
 // client-feature-front-door). Owns the Admin settings pane (client-architecture-lockdown.md §8/O3,
 // M6.2 de-god move) — a real feature imports no other feature; cross-domain reads ride trpc.*.
 
+export { aboutSection } from "./lib/about-section.tsx";
 export { adminApprovalsSection } from "./lib/admin-approvals-section.tsx";
 export { adminEnginesSection } from "./lib/admin-engines-section.tsx";
 export { adminGroup } from "./lib/admin-group.tsx";

@@ -58,6 +58,7 @@ import type { BugReportBuildIdentity, BugReportRecord } from "@orb/kit/bug-repor
 import { BUG_REPORT_DIR, bugReportStem } from "@orb/kit/bug-report";
 import type { EvidenceSlice, EvidenceWindow } from "@orb/kit/evidence-window";
 import { sliceByWindow } from "@orb/kit/evidence-window";
+import { formatVersionIdentity } from "@orb/kit/version-identity";
 import { redactKnownSecrets, secretRedactionLiterals } from "#kit/secret-redaction";
 import { logRing, recentRequests } from "../logger.ts";
 import { recentTraces } from "../tracing.ts";
@@ -253,6 +254,9 @@ function noteMarkdown(record: BugReportRecord, stem: string): string {
   return [
     `# Bug report ${record.id}`,
     "",
+    // FIRST, ahead of the capture instant: the triager's opening question is "what is this box", and the
+    // answer has to survive being pasted into a GitHub issue on its own.
+    `- version: ${formatVersionIdentity(record.version)}`,
     `- captured: ${record.capturedAt}`,
     `- build: ${build}`,
     `- asked for: ${asked}`,

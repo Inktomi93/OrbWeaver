@@ -30,6 +30,7 @@ import { personaListSection, personaNotificationsSection, personaThisChatSection
 import { pluginDistributeSection, pluginsInstalledSection, pluginsInstallSection } from "#features/plugin";
 import { appearanceLooksSection } from "#features/settings";
 import {
+  aboutSection,
   adminApprovalsSection,
   adminCatalogSection,
   adminEmbeddingsSection,
@@ -103,6 +104,9 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
   rateLimitsSection,
   systemTuningSection,
   structuredOutputSection,
+  // … and LAST at this anchor: what this box IS (owner ask 2026-09-18). Last on purpose — it is the row a
+  // reader scrolls to deliberately when filing a bug, never one they pass through on the way to a knob.
+  aboutSection,
   // workloads ← the DECOMPOSED workloads pane (SET-SEAMS stage 3): the jobs list and the schedules, ahead of
   // the analysis-tuning knobs (dupThreshold/computeThemesK/maxPairs/hubFraction) that were already a
   // contribution — reproducing the pre-split pane exactly.

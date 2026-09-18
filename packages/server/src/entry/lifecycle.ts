@@ -16,6 +16,7 @@ import type { Db } from "@orb/db";
 import { createDb, preCloseHousekeeping } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { Configuration } from "openid-client";
 import { authorizationCodeGrant, discovery } from "openid-client";
 import { startAutomationWatcher } from "#domain/automation";
@@ -41,6 +42,7 @@ import {
   resolveOwnerFallbackPeers,
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
+import { versionIdentity } from "#foundation/version";
 import {
   createBackchannelLogoutVerifier,
   createForwardJwtVerifier,
@@ -307,6 +309,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // the listener bind concurrently. A boot FAILURE never leaves it stale either: `entry/index.ts` exits
     // the process (there is no in-process retry to unblock).
     booted = true;
+
+    // THE FIRST LINE OF EVERY BOOT NAMES THE BUILD. Before tracing, before the db, before anything that can
+    // fail: a log whose opening line does not say which build produced it makes every line under it
+    // unattributable, and the lines most worth attributing are the ones from a boot that died at step two.
+    const build = versionIdentity();
+    log.info({ ...build }, `boot: orbweaver ${formatVersionIdentity(build)}`);
 
     // Boot the OTel SDK BEFORE any span opens (the db wrap below opens the first spans). Idempotent — the
     // composition-root call; without it the first query would lazy-boot tracing implicitly.

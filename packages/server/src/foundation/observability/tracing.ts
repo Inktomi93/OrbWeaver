@@ -14,7 +14,7 @@ import type { ReadableSpan, SpanExporter, SpanProcessor } from "@opentelemetry/s
 import { BasicTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { errorMessage } from "@orb/kit/error-message";
-import { APP_VERSION } from "#foundation/config";
+import { versionIdentity } from "#foundation/version";
 import { getLog } from "./logger.ts";
 
 const TRACER_NAME = "orbweaver";
@@ -243,7 +243,7 @@ export function initTracing(): void {
   const provider = new BasicTracerProvider({
     resource: resourceFromAttributes({
       [ATTR_SERVICE_NAME]: TRACER_NAME,
-      [ATTR_SERVICE_VERSION]: APP_VERSION,
+      [ATTR_SERVICE_VERSION]: versionIdentity().version,
     }),
     spanProcessors: [processor],
   });

@@ -16,6 +16,7 @@
 // id sits or lookup degrades to a scan that sometimes works.
 
 import type { EvidenceSourceMeta, EvidenceWindow } from "#evidence-window";
+import type { VersionIdentity } from "#version-identity";
 
 /** The durable home, relative to the repo root (the process cwd in every launch — `entry/lifecycle.ts`'s own
  *  `repoRoot: process.cwd()` derivation). Gitignored: these are the owner's raw session evidence, not
@@ -37,8 +38,18 @@ export interface BugReportBuildIdentity {
 export interface BugReportRecord {
   /** The correlation id — also the file stem's tail, so a bundle and its files name each other. */
   readonly id: string;
+  /** WHAT THIS BOX IS — the first header field of the envelope, deliberately ahead of everything but the id
+   *  (owner ask 2026-09-18). A report is triaged by someone who was not there; `v0.4.1 (a1b2c3d4e5f6)` is
+   *  the field that decides whether the behavior is even reproducible on today's tree. Derived by
+   *  `@orb/server`'s `foundation/version` — plain-file, no git binary, and the same block `/healthz`,
+   *  the boot line and Settings → About report. */
+  readonly version: VersionIdentity;
   /** ISO-8601 of the capture. */
   readonly capturedAt: string;
+  /** The CHECKOUT-only half {@link version} cannot answer: `git rev-parse HEAD` plus the DIRTY flag. In dev
+   *  the served client IS the working tree, so a capture from an uncommitted tree must say so — which needs
+   *  git, which an image does not have. Distinct fact, distinct source; never a second spelling of
+   *  {@link version}. */
   readonly build: BugReportBuildIdentity;
   readonly window: EvidenceWindow;
   /** The owner's typed note, verbatim. */
