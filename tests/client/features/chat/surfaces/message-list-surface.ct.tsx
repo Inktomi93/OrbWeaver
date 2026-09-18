@@ -31,6 +31,7 @@ import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   MessageListFooterDisclosureStory,
+  MessageListNoticeBandStory,
   MessageListOverArtStory,
   MessageListStoppingStory,
   MessageListSurfaceStory,
@@ -1319,4 +1320,133 @@ test("#113 CONTROL: a short turn is left alone — no sticky, no chip, no measur
   await expect(component.locator(NAME_ROW)).toHaveCount(1);
   await expect(component.locator(STUCK_NAME_ROW)).toHaveCount(0);
   await expect(component.locator(NAME_ROW)).toHaveCSS("position", "static");
+});
+
+// ── #1873: a capability WARNING landing mid-turn must not leave the transcript oscillating ──────────
+// The owner's report: generating against an endpoint that lacks a requested capability raises the
+// `tools_unsupported` notice, and when it arrives DURING a turn the streaming message enters an infinite
+// rendering jitter and never settles.
+//
+// THE MECHANISM THIS PINS (measured — the story's own header carries the mount):
+//   1. the engine emits its capability drops AFTER the last delta and BEFORE the turn terminal
+//      (`emitCapabilityDropWarnings`, engine.ts) — exactly ONCE per turn — so the notice lands while the
+//      turn is still live on the client and the ghost has STOPPED growing;
+//   2. `AppToaster` puts the notice in the shell's NOTICE BAND, a flow row of `.shell-main`, so the
+//      transcript's containing block genuinely SHRINKS (`shell.css`, #193);
+//   3. a smaller scrollport flips `MessageListRowMeta.exceedsViewport` for the live row, which is the
+//      `stickyAttribution` verdict — and that verdict must change NO BOX (`message-row-backing.ts`:
+//      "going sticky changes NO box", the #167 precedent). When it does, the row's own height re-crosses
+//      the threshold that produced the verdict and the verdict inverts, forever.
+// The scrollport is therefore CALIBRATED onto that boundary rather than guessed: the test measures the
+// live row and the band, then sets the column so the row sits just past the port — the one state where a
+// height-changing verdict cannot converge.
+
+const JITTER_SCROLLER = '[data-slot="message-list-scroll"]';
+const GHOST_LI = 'li[data-slot="message-list-row"]:has([data-slot="ghost-message-row"])';
+const TOAST_ROOT = '[data-slot="toast-root"]';
+const NOTICE_BAND = '[data-slot="notice-band"]';
+
+/** Eight paragraphs: taller than a phone's transcript, shorter than the 900px calibration column. */
+const JITTER_REPLY = Array.from({ length: 8 }, (_, i) => `Paragraph ${i} of a reply that keeps going for a while yet.`).join("\n\n");
+
+const WARNED_TURN: ChatBusEvent[] = [
+  {
+    type: "turnStarted",
+    chatId: CHAT_ID,
+    intent: "send",
+    api: "chat-completions",
+    source: "openrouter",
+    model: "test-model",
+    speakerCharacterId: null,
+    targetMessageId: null,
+  },
+  { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: JITTER_REPLY } },
+  // The production ORDER: the drop warning rides between the last delta and the terminal.
+  { type: "warning", chatId: CHAT_ID, code: "tools_unsupported" },
+];
+
+/** A room whose output dial is `narrator`, so the GHOST resolves a real speaker name (and therefore a
+ *  real name row to make sticky) against this file's empty roster — the #113 test's own idiom. */
+const NARRATOR_ROSTER_STUB = {
+  ...PREVIEW_FIT_STUB,
+  "chat.getChat": (): { participants: never[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
+    participants: [],
+    anchorPersonaId: null,
+    identities: [],
+    group: { ...DEFAULT_GROUP_CONFIG, output: "narrator" },
+  }),
+};
+
+/** Tall enough that the live row fits inside it with the band up — the calibration state. */
+const CALIBRATION_COLUMN_PX = 900;
+/** How far INSIDE the live row's own height the calibrated scrollport lands: the row then exceeds the
+ *  port (⇒ sticky) by less than the box a height-changing sticky verdict removes (⇒ not sticky). */
+const PORT_INSET_PX = 16;
+
+test("#1873 a capability warning raised mid-turn settles: the notice band reflows the transcript ONCE, it does not oscillate", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...NARRATOR_ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([USER_VIEW]) });
+  await routeOrbSocket(page, { frames: chatFrames(WARNED_TURN), awaitAttaches: 1 });
+
+  const component = await mount(<MessageListNoticeBandStory columnHeight={CALIBRATION_COLUMN_PX} />);
+  const ghost = component.locator(GHOST_LI);
+  await expect(ghost).toContainText("Paragraph 7");
+
+  // The notice arrived through the real reducer → the real copy mapper → the real outlet, and it landed
+  // in the BAND (a flow row), which is what makes the reflow half reachable at all.
+  await expect(component.locator(TOAST_ROOT)).toContainText("Tools were turned off");
+  const band = component.locator(NOTICE_BAND);
+  await expect.poll(async () => await band.evaluate((el: HTMLElement) => el.getBoundingClientRect().height)).toBeGreaterThan(0);
+
+  // CALIBRATION + the planted control: in a column this tall the live row fits, so the verdict is a
+  // settled NO — were it already sticky here, the height measured below would be of the wrong arm.
+  await expect(component.locator(STUCK_NAME_ROW)).toHaveCount(0);
+  const rowPx = await ghost.evaluate((el: HTMLElement) => el.getBoundingClientRect().height);
+  const portPx = await component.locator(JITTER_SCROLLER).evaluate((el: HTMLElement) => el.clientHeight);
+  const chromePx = CALIBRATION_COLUMN_PX - portPx;
+
+  // …now put the scrollport just inside the row, which is where the reported defect lives.
+  await component.update(<MessageListNoticeBandStory columnHeight={Math.round(rowPx) - PORT_INSET_PX + chromePx} />);
+
+  // THE OBSERVABLE IS THE ROW'S RENDERED HEIGHT, SAMPLED PER FRAME — a judder is a geometry fact, and a
+  // two-point read across two idle windows catches the same phase of a per-frame alternation half the time
+  // (measured: 250 → 226 → 250 on three consecutive 400ms samples of the defect). 30 frames of DISTINCT
+  // heights answers "did it settle" without a phase lottery: a settled row reports exactly one.
+  const heightsOverFrames = async (): Promise<readonly number[]> =>
+    await ghost.evaluate(
+      async (el: HTMLElement) =>
+        await new Promise<number[]>((resolve) => {
+          const seen: number[] = [];
+          const tick = (): void => {
+            seen.push(Math.round(el.getBoundingClientRect().height));
+            if (seen.length < 30) {
+              requestAnimationFrame(tick);
+              return;
+            }
+            resolve([...new Set(seen)]);
+          };
+          requestAnimationFrame(tick);
+        }),
+    );
+  await page.evaluate(
+    async () =>
+      await new Promise<void>((resolve) => {
+        // One settle window for the reflow the resize legitimately causes.
+        setTimeout(resolve, 400);
+      }),
+  );
+  const distinctHeights = await heightsOverFrames();
+
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — `distinctHeights` is a frozen 30-frame sample captured after its own 400ms in-page settle window.
+  expect(distinctHeights).toHaveLength(1);
+  // The sticky verdict changed NO box: the row measures what it measured before it went sticky.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — same frozen sample as above.
+  expect(distinctHeights[0]).toBe(Math.round(rowPx));
+
+  // The notice is STILL up (its 12s life has not expired) — otherwise the band would have released its
+  // height and the sampling above would be of a state the defect cannot occur in.
+  await expect(component.locator(TOAST_ROOT)).toBeVisible();
+  // …and the row really is past the port, i.e. the sample was taken at the boundary this test exists for
+  // — and the verdict SETTLED there, rather than alternating across it.
+  await expect(component.locator(STUCK_NAME_ROW)).toHaveCount(1);
 });
