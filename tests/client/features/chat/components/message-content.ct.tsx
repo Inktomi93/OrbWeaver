@@ -14,7 +14,7 @@ const SPANS_CONTAINER = '[data-slot="message-content-spans"]';
 
 // ── The NARRATOR plain-`Name:` span grammar (the TOLERANCE + RETROACTIVE half of §12.4) ───────────
 // The `<speaker>` wire format is INSTRUCTED, not guaranteed: the shipped demo transcripts (generated live
-// against a real model, `seed-assets/demo-chats/second-opinion.jsonl`) attribute with plain `JFC:` /
+// against a real model, `@orb/default-content`'s `demo-chats/second-opinion.jsonl`) attribute with plain `JFC:` /
 // `Charlotte:` line-start labels and carry ZERO markers. The bodies below are that real shape.
 
 const CHARLOTTE_ID = castId<CharacterId>("char_charlotte");

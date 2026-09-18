@@ -17,6 +17,7 @@
     "@orb/kit": "workspace:*",
     "@orb/contracts": "workspace:*",
     "@orb/db": "workspace:*",
+    "@orb/default-content": "workspace:*",
     "@orb/showcase-plugins": "workspace:*",
     "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@anthropic-ai/sdk": "catalog:",

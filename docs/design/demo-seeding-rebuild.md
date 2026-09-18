@@ -24,7 +24,7 @@ and I'd rather properly make our demo stuff the actual way."
 The seeder GENERATES NOTHING. It replays committed static bytes + a hand-authored board.
 
 1. **Transcripts are frozen committed files.** `seedOne` reads `deps.readTranscript(slug)`
-   (`seed.ts:158`) = `entry/boot/seed-assets/demo-chats/<slug>.jsonl`, parses, bulk-writes. Zero
+   (`seed.ts:158`) = `@orb/default-content`'s `demo-chats/<slug>.jsonl`, parses, bulk-writes. Zero
    turn-pipeline calls at seed. "Generated live once, exported, committed" = a human drove them by
    hand previously; the bytes are frozen.
 2. **The rpg board is hand-transcribed manifest DATA.** `ASHEN_SPIRE_SETUP`

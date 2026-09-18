@@ -90,6 +90,10 @@ const config = {
     // @orb/showcase-plugins: the TS surface is one reader module; `bundles/**` is guest .js + content that
     // no import graph reaches by construction (the QuickJS realm has no module loader), so the project glob
     // stays scoped to src/ rather than accusing nine shipped bundles of being dead files.
+    // @orb/default-content: same shape as showcase-plugins — one reader module under src/, while
+    // `avatars/**` + `demo-chats/**` are shipped BYTES no import graph reaches, so the project glob stays
+    // scoped to src/ rather than accusing the content of being dead files.
+    "packages/default-content": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/showcase-plugins": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/ui": {
       // Entry set = the package.json subpath exports map (knip reads it) + tokens.build.ts, which is

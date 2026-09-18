@@ -260,7 +260,7 @@
             },
             {
               "kind": "code",
-              "target": "packages/server/src/entry/boot/seed-assets/index.ts:1"
+              "target": "packages/default-content/src/index.ts:1"
             },
             {
               "kind": "test",

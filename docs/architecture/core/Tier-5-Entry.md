@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-16
+updated: 2026-09-18
 ---
 
 # Orbweaver — `entry`: the composition root
@@ -32,7 +32,9 @@ packages/server/src/entry/
 ├── boot/                     migrate.ts (backup → FK-off migrations → foreign_key_check) · seed-owner.ts ·
 │                             seed-credential.ts (env→DB-once) · seed-default-preset.ts ·
 │                             seed-default-characters.ts · seed-default-persona.ts (+ seed-default-persona-step.ts) ·
-│                             seed-themes.ts · seed-assets/ · reclaim-locks.ts
+│                             seed-themes.ts · reclaim-locks.ts. The default CONTENT the seeders lay
+│                             down is NOT here — avatars + demo-chat transcripts ship as
+│                             `@orb/default-content`, plugin bundles as `@orb/showcase-plugins` (D160)
 ├── compose/                  THE COMPOSITION ROOT (non-auth wiring; no logic)
 │   ├── services.ts           constructs every domain service with its Context; the injection graph
 │   ├── chat.ts               the chat domain's slice of the graph

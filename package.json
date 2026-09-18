@@ -110,6 +110,7 @@
     "@orb/client": "workspace:*",
     "@orb/contracts": "workspace:*",
     "@orb/db": "workspace:*",
+    "@orb/default-content": "workspace:*",
     "@orb/kit": "workspace:*",
     "@orb/server": "workspace:*",
     "@orb/showcase-plugins": "workspace:*",

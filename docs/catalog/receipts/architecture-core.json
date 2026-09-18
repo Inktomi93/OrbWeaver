@@ -1089,15 +1089,16 @@
     },
     {
       "path": "docs/architecture/core/Tier-5-Entry.md",
-      "assignedSha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
+      "assignedSha256": "1bb494a7caa993f1f2d7a145030983ee56531711fdf36e9d7258014cbf879aec",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "c9064cbd56cb78c4fdc2a45c970ea2586961021c3f556e821f030117f95f9383",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "1bb494a7caa993f1f2d7a145030983ee56531711fdf36e9d7258014cbf879aec",
+      "verifiedCommit": "6adb38c654919834708a9f129030fc0b693b8440",
+      "verifiedAt": "2026-09-18",
       "evidence": [
         "docs/architecture/core/Tier-5-Entry.md:1 (full read; header/status evaluated)",
+        "re-attested 2026-09-18 by the default-content-pkg lane after reading the whole document: the boot/ inventory line no longer names seed-assets/, because the avatars + demo-chat transcripts moved to the @orb/default-content workspace package (D160); no other line changed",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],

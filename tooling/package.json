@@ -16,6 +16,7 @@
   "dependencies": {
     "@eslint/config-array": "catalog:",
     "@orb/contracts": "workspace:*",
+    "@orb/default-content": "workspace:*",
     "@orb/kit": "workspace:*",
     "@orb/server": "workspace:*",
     "@playwright/test": "catalog:",

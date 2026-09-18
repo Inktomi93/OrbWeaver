@@ -169,7 +169,7 @@ export function resolveEngineLaunchConfig(floor: EngineLaunchEnvFloor, override?
  *  RUNTIME data — this file is their ONLY consumer and the prod image serves with them — so a `scripts/`
  *  home meant the cake read a runtime file out of the dev-tooling tree through an unguarded path string.
  *  Under `packages/server/src/**` they also ride the image's existing `packages/server/src` COPY instead
- *  of a hand-maintained Dockerfile line (same shape as `entry/boot/seed-assets/`).
+ *  of a hand-maintained Dockerfile line (unlike default CONTENT, which ships as `@orb/default-content`, D160).
  *
  *  Still REPO-ROOT-relative rather than `import.meta.dirname`-resolved: the engine argv is a DEPLOYMENT
  *  fact the caller owns (`EngineArgvContext.repoRoot`), and the container lays the workspace out at the

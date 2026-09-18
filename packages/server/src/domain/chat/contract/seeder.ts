@@ -14,7 +14,7 @@ import type { CharacterHandle, CharacterId, ChatId, PersonaId } from "@orb/kit/i
 import type { BulkImportChats } from "./import.ts";
 
 /** One bundled EXAMPLE conversation. The transcript itself is NOT here — it is the verbatim output of the
- *  real export verb, bundled as `entry/boot/seed-assets/demo-chats/<slug>.jsonl` and handed in by the
+ *  real export verb, shipped as `@orb/default-content`'s `demo-chats/<slug>.jsonl` and handed in by the
  *  injected `readTranscript`. This manifest carries only what an ST transcript CANNOT: which cards sit in
  *  the room, in what order, and the room-behavior blob the group/rpg grammar needs. */
 export interface DemoChat {

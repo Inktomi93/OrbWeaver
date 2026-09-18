@@ -1,5 +1,5 @@
 // entry/boot — THE VIRGIN-BOOT PROOF for the shipped EXAMPLE pack, over the REAL composition root and the
-// REAL bundled fixture bytes (`entry/boot/seed-assets/demo-chats/*.jsonl`), on a fresh db.
+// REAL shipped fixture bytes (`@orb/default-content`'s `demo-chats/*.jsonl`), on a fresh db.
 //
 // The owner's requirement this exists for, verbatim: "the transcripts and game and etc should all be seeded so
 // we don't have to redo this every time." The pack is generated ONCE against live models and then ships as
@@ -93,7 +93,7 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
   test("the SHIPPED transcript bytes carry the persona'd identity — no fixture may say 'You' again", async () => {
     const { readFile } = await import("node:fs/promises");
     const { fileURLToPath } = await import("node:url");
-    const dir = fileURLToPath(new URL("../../../../packages/server/src/entry/boot/seed-assets/demo-chats/", import.meta.url));
+    const dir = fileURLToPath(new URL("../../../../packages/default-content/demo-chats/", import.meta.url));
 
     const identities = await Promise.all(
       DEMO_CHATS.map(async (demo) => {
@@ -126,7 +126,7 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
     const { readFile } = await import("node:fs/promises");
     const { fileURLToPath } = await import("node:url");
     const { parseSpeakerSpans } = await import("@orb/kit/speaker-label");
-    const dir = fileURLToPath(new URL("../../../../packages/server/src/entry/boot/seed-assets/demo-chats/", import.meta.url));
+    const dir = fileURLToPath(new URL("../../../../packages/default-content/demo-chats/", import.meta.url));
 
     const rows = (await readFile(`${dir}second-opinion.jsonl`, "utf8"))
       .split("\n")
@@ -161,7 +161,7 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
   test("the shipped pack DECLARES its narrator rows, and they land as narrator CANON", async ({ db, app }) => {
     const { readFile } = await import("node:fs/promises");
     const { fileURLToPath } = await import("node:url");
-    const dir = fileURLToPath(new URL("../../../../packages/server/src/entry/boot/seed-assets/demo-chats/", import.meta.url));
+    const dir = fileURLToPath(new URL("../../../../packages/default-content/demo-chats/", import.meta.url));
     const rows = (await readFile(`${dir}second-opinion.jsonl`, "utf8"))
       .split("\n")
       .filter((l) => l.trim() !== "")
@@ -196,7 +196,7 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
     const { readFile } = await import("node:fs/promises");
     const { fileURLToPath } = await import("node:url");
     const { parseChatJsonl } = await import("@orb/server/kit/serde/chat");
-    const dir = fileURLToPath(new URL("../../../../packages/server/src/entry/boot/seed-assets/demo-chats/", import.meta.url));
+    const dir = fileURLToPath(new URL("../../../../packages/default-content/demo-chats/", import.meta.url));
     const text = await readFile(`${dir}ashen-spire.jsonl`, "utf8");
     const rows = text
       .split("\n")

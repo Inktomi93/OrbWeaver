@@ -369,7 +369,7 @@
     {
       "siteId": "packages/client/src/features/app-shell/lib/bug-report-capture.ts::catch::1",
       "path": "packages/client/src/features/app-shell/lib/bug-report-capture.ts",
-      "line": 214,
+      "line": 215,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -377,7 +377,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means \"say only what is true\". Ends if a refusal body ever becomes required rather than additive.",
-      "markerLine": 208
+      "markerLine": 209
     },
     {
       "siteId": "packages/client/src/features/auth/lib/route-guards.ts::catch::1",
@@ -1513,7 +1513,7 @@
     {
       "siteId": "packages/contracts/src/preset/index.ts::catch::1",
       "path": "packages/contracts/src/preset/index.ts",
-      "line": 3120,
+      "line": 3121,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -1521,7 +1521,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ST mirror — JSON.parse of custom_stopping_strings",
-      "markerLine": 3115
+      "markerLine": 3116
     },
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::catch::1",
@@ -1561,6 +1561,32 @@
       "verdict": "deliberate-absorb",
       "reason": "the rollback is best-effort BY DESIGN —",
       "markerLine": 682
+    },
+    {
+      "siteId": "packages/default-content/src/index.ts::catch::1",
+      "path": "packages/default-content/src/index.ts",
+      "line": 61,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — a missing/unreadable",
+      "markerLine": 55
+    },
+    {
+      "siteId": "packages/default-content/src/index.ts::catch::2",
+      "path": "packages/default-content/src/index.ts",
+      "line": 75,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "optional-read-as-absent — the header states the",
+      "markerLine": 70
     },
     {
       "siteId": "packages/kit/src/cel/index.ts::err::1",
@@ -2848,32 +2874,6 @@
       "verdict": "deliberate-absorb",
       "reason": "a cookie value that fails to percent-decode is not a session token, and `null` here means exactly \"no cookie session\" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.",
       "markerLine": 123
-    },
-    {
-      "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::catch::1",
-      "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 37,
-      "column": 5,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — a missing/unreadable",
-      "markerLine": 31
-    },
-    {
-      "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::catch::2",
-      "path": "packages/server/src/entry/boot/seed-assets/index.ts",
-      "line": 61,
-      "column": 5,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — the header states the",
-      "markerLine": 56
     },
     {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::1",
@@ -5335,7 +5335,7 @@
     {
       "siteId": "tooling/src/seed/ops/demo.ts::err::1",
       "path": "tooling/src/seed/ops/demo.ts",
-      "line": 155,
+      "line": 147,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -5343,12 +5343,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "the JSDoc above states the intent directly — a best-effort seeded turn where the greeting transcript is already committed, so an offline-model failure is logged with the honest limitation and the demo db stays valid. Ends if the failure stops being logged.",
-      "markerLine": 151
+      "markerLine": 143
     },
     {
       "siteId": "tooling/src/seed/ops/demo.ts::error::1",
       "path": "tooling/src/seed/ops/demo.ts",
-      "line": 339,
+      "line": 331,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -5356,7 +5356,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the message is warned to the operator and the function returns EXIT.toolError — propagated through both channels, not dropped. Ends if either the warn or the return code is removed.",
-      "markerLine": 336
+      "markerLine": 328
     },
     {
       "siteId": "tooling/src/snap/lib/browser-evidence-redaction.ts::catch::1",

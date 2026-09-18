@@ -61,6 +61,7 @@ const SRV = "^packages/server/src/";
 const CLIENT_TRPC = `${CLIENT}data/trpc\\.ts$`;
 const SERVER_ROOT = `${SRV}index\\.ts$`;
 const SHOWCASE = "^packages/showcase-plugins/";
+const DEFAULT_CONTENT = "^packages/default-content/";
 const TEST_FILES = `(?:${TEST_KIND_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
@@ -127,6 +128,22 @@ module.exports = {
       severity: "error",
       from: { path: DB },
       to: { path: ["^packages/server/", CLIENT] },
+    },
+    {
+      name: "default-content-cake",
+      comment:
+        "@orb/default-content is CONTENT plus its reader (D160 — the avatar PNGs + demo-chat transcripts, the family @orb/showcase-plugins was the first half of). It sits BELOW `server` in the cake because the server's seeders consume it AT RUNTIME, so it may reach only @orb/kit (the CharacterHandle brand) — never @orb/contracts, @orb/db, @orb/server, @orb/client or @orb/ui. The package.json dependency list is the resolve-time physics; this is the tier-3 backstop that names the direction.",
+      severity: "error",
+      from: { path: DEFAULT_CONTENT },
+      to: { path: [CONTRACTS, DB, "^packages/server/", CLIENT, UI] },
+    },
+    {
+      name: "browser-no-default-content",
+      comment:
+        "The browser packages must never import @orb/default-content: it is a NODE reader (it reads shipped files off disk with node:fs) and its bytes reach the client only as stored assets through the assets/chat verbs. (D160.)",
+      severity: "error",
+      from: { path: [CLIENT, UI] },
+      to: { path: DEFAULT_CONTENT },
     },
     {
       name: "showcase-plugins-cake",
