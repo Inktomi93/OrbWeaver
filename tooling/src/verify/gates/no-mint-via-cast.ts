@@ -69,7 +69,8 @@ import { createKitIdCallMatcher, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
-const MESSAGE = "castId wraps a fresh-id generator — use `mintTypeId(ID_PREFIX.x)` for TypeIDs or `newId<T>()` for deliberately prefixless brands. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const MESSAGE =
+  "castId wraps a fresh-id generator — use `mintTypeId(ID_PREFIX.x)` for TypeIDs or `newId<T>()` for deliberately prefixless brands. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 /** THE FAIL-CLOSED THIRD ANSWER, kept DISJOINT from `MESSAGE` on purpose: the unreadable arm emits the
  *  same finding COUNT as the ordinary verdict and differs only here, so a shared prefix would leave both
  *  arms unpinnable in either direction (guide §6.1). No fragment of either text occurs in the other. */

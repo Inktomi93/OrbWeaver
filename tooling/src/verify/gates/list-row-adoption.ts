@@ -127,7 +127,8 @@ function jsxElementName(node: Node): string {
   return "";
 }
 
-const MESSAGE = "a LIST-region row render returns interactive JSX outside ListRow/LibraryRow; root the row in the shared row primitive. (client-architecture-lockdown.md §14)";
+const MESSAGE =
+  "a LIST-region row render returns interactive JSX outside ListRow/LibraryRow; root the row in the shared row primitive. (client-architecture-lockdown.md §14)";
 
 export const gate = defineGate({
   id: "list-row-adoption",

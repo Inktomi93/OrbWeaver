@@ -6,7 +6,8 @@ import { reportReviewedGrantFileCandidates } from "../lib/reviewed-grant-finding
 import { uiPrimitiveFact } from "../lib/ui-primitive-fact.ts";
 import { readUiPrimitiveStructure } from "../lib/ui-primitive-structure-read.ts";
 
-const MESSAGE = "a primitive shape, CT obligation, inline provider or color test value requires repair or exact reviewed authority. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const MESSAGE =
+  "a primitive shape, CT obligation, inline provider or color test value requires repair or exact reviewed authority. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "repair the named sites; deliberate topology or test-data exceptions require a central grant for the exact subject and operation.";
 export const gate = defineGate({
   id: "ui-primitive-permissions",

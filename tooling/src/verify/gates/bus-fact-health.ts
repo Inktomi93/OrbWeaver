@@ -50,7 +50,8 @@ import { describeBusFactFailure } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { busProducerFact } from "../lib/bus-fact.ts";
 
-const MESSAGE = "shared bus fact is incomplete — bus policy verdicts are withheld until every union, belt, member, and emitter identity resolves. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const MESSAGE =
+  "shared bus fact is incomplete — bus policy verdicts are withheld until every union, belt, member, and emitter identity resolves. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 export const gate = defineGate({
   id: "bus-fact-health",

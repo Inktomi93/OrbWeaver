@@ -5,7 +5,8 @@ import { defineGate } from "../contract/policy.ts";
 import { macroResolutionFact } from "../lib/macro-resolution-fact.ts";
 import { reportReviewedGrantFileCandidates } from "../lib/reviewed-grant-findings.ts";
 
-const MESSAGE = "macro resolution requires an exact reviewed read-only home; editable surfaces must display and persist RAW template text. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const MESSAGE =
+  "macro resolution requires an exact reviewed read-only home; editable surfaces must display and persist RAW template text. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "render the raw template in writable fields. Review an exact read-only home centrally; editor-adjacent readouts also need a token-roundtrip CT.";
 export const gate = defineGate({
   id: "macro-resolution-home",
