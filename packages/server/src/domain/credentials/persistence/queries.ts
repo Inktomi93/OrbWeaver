@@ -41,6 +41,13 @@ export function listOwnedCredentials(db: Db, ownerId: UserId): Promise<Credentia
   return db.select().from(userCredentials).where(eq(userCredentials.ownerId, ownerId)).orderBy(asc(userCredentials.provider), asc(userCredentials.createdAt));
 }
 
+/** The `metadata` blob of every credential the user owns — the egress-admission derivation's read
+ *  (`substrate/egress-admission.ts`). Projects the metadata COLUMN ONLY: the SSRF belt needs the declared
+ *  endpoint URL and has no business loading sealed secret material to get it. */
+export function listOwnedCredentialMetadata(db: Db, ownerId: UserId): Promise<{ metadata: ProviderMetadata }[]> {
+  return db.select({ metadata: userCredentials.metadata }).from(userCredentials).where(eq(userCredentials.ownerId, ownerId));
+}
+
 /** The existing row in this `(owner, provider, label)` slot (the rotate-vs-insert decision), or `undefined`. */
 export async function findSlotLabelRow(db: Db, ownerId: UserId, provider: CredentialProvider, label: string): Promise<{ id: UserCredentialId } | undefined> {
   const rows = await db

@@ -18,6 +18,7 @@ import type { FetchModelsArgs } from "../../../../packages/server/src/domain/cre
 import type { CredentialView } from "../../../../packages/server/src/domain/credentials/contract/views.ts";
 import type { CredentialsService } from "../../../../packages/server/src/domain/credentials/index.ts";
 import { createCredentialsService } from "../../../../packages/server/src/domain/credentials/index.ts";
+import { selectOwnerUserId } from "../../../../packages/server/src/domain/sessions/persistence/users.ts";
 import { createSecretBox } from "../../../../packages/server/src/infra/crypto/secrets.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 
@@ -137,6 +138,10 @@ export function makeHarness(db: Db): CredentialHarness {
     },
     // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
     emitUserEvent: (): void => undefined,
+    // The REAL owner resolution (`users.role='owner'`), not a fake: the egress-admission derivation's whole
+    // security property is that its scope is the OWNER ROW rather than the acting principal, and a fake
+    // returning "the seeded user" would assert that property away.
+    ownerUserId: (): Promise<UserId | undefined> => selectOwnerUserId(db),
   };
 
   return {

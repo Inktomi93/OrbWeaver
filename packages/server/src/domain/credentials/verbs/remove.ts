@@ -8,6 +8,7 @@ import type { RemoveCredentialParams } from "../contract/params.ts";
 import type { CredentialsService } from "../contract/service.ts";
 import { deleteOwnedCredential, fetchOwnedCredential } from "../persistence/queries.ts";
 import { requireOwned } from "../substrate/credential-not-found.ts";
+import { republishOwnerSavedEndpoints } from "../substrate/egress-admission.ts";
 
 export function createRemove(ctx: CredentialContext): CredentialsService["remove"] {
   return async (params: RemoveCredentialParams): Promise<void> => {
@@ -16,6 +17,9 @@ export function createRemove(ctx: CredentialContext): CredentialsService["remove
     requireOwned(await fetchOwnedCredential(ctx.db, ownerId, credentialId), credentialId);
     await deleteOwnedCredential(ctx.db, ownerId, credentialId);
     await ctx.audit({ actorUserId: ownerId, action: "credential.remove", entityType: "credential", entityId: credentialId }, ctx.now());
+    // The removed row may have been an OWNER-declared endpoint holding the SSRF belt open for its host:port
+    // — re-derive BEFORE returning so the door is shut by the time the caller sees the delete succeed.
+    await republishOwnerSavedEndpoints(ctx);
     ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId });
   };
 }

@@ -25,14 +25,16 @@ There is no published image: the checkout is the source of truth and the build i
 Ollama, KoboldCpp, LM Studio, TabbyAPI, llama.cpp's server, vLLM — anything OpenAI-compatible. From inside the
 container your machine is `host.docker.internal`, so the connection URL is `http://host.docker.internal:11434`
 (Ollama), `:5001` (KoboldCpp), `:1234` (LM Studio), and so on. The app's outbound firewall blocks private
-addresses by default (an SSRF belt), so allow that host once:
+addresses by default (an SSRF belt), but a connection the OWNER saves opens its own exact host and port
+automatically — so a single-user box needs no firewall edit at all, and removing the connection closes it again.
+
+`EGRESS_ALLOWLIST` is still there for the hosts nothing saves a connection for (a proxy, a webhook), and for a
+multi-user box where a non-owner needs a private host — only the owner's saved connections open themselves:
 
 ```sh
 # docker/orbweaver.local.env
 EGRESS_ALLOWLIST=host.docker.internal
 ```
-
-A server on another machine on your network: its address goes in `EGRESS_ALLOWLIST` too (host only, no port).
 
 **Your own vLLM, the way the app expects it** (embed `:8701`, rerank `:8702`, chat `:8703` — the same env and
 ports a bare-metal install uses): `ENGINES_POSTURE=adopt-only` + `VLLM_ENGINE_HOST=host.docker.internal`.
@@ -195,7 +197,7 @@ the composed posture at boot and warns per open exposure.
   mode; switch to `AUTH_MODE=local` as described under "LAN and HTTPS".
 - **Sign-in "does nothing" on a LAN address** — plain http; the cookie is Secure. HTTPS in front, or use
   `http://localhost` on the machine itself.
-- **"blocked … private address"** when adding a local model server — `EGRESS_ALLOWLIST` (above).
+- **"blocked … private address"** when adding a local model server — an owner-saved connection opens its own host:port, so this means the connection is not saved (test it after saving) or the saver is not the owner; `EGRESS_ALLOWLIST` (above) is the manual door.
 - **`/app/data is not a writable directory`** — you started the container as a non-root user (`user:`,
   rootless podman) on a data dir that user cannot write. Either let the entrypoint start as root with
   `PUID`/`PGID` (the default), or make the directory writable by that user.
