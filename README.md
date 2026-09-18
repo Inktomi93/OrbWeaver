@@ -22,9 +22,13 @@ Open <http://localhost:8788>, sign in, add an API key or point a connection at a
 (Ollama, KoboldCpp, LM Studio, vLLM, …). The full guide — login modes, LAN/HTTPS, your own vLLM, secrets,
 the dev overlay — is [`docker/README.md`](docker/README.md).
 
-**From source** (Node 26 + pnpm, see Develop below): `pnpm install && pnpm stack up` boots the dev stack at
-<http://localhost:5173>. A production server from a checkout: `pnpm build` once, then
+**From source, Linux** (Node 26 + pnpm, see Develop below): `pnpm install && pnpm stack up` boots the dev
+stack at <http://localhost:5173>. A production server from a checkout: `pnpm build` once, then
 `AUTH_FALLBACK=owner pnpm stack start-fg prod` (single-user; settings go in `.env` — copy `.env.example`).
+The `pnpm stack` supervisor is a Linux bash script (`setsid`, `ss`, `/proc`); on macOS or Windows use
+Docker, or WSL2 on Windows. The bare server itself is portable — what the container runs is exactly
+`NODE_ENV=production node packages/server/src/entry/index.ts` after `pnpm build` — but that path is
+unverified off Linux today.
 
 ## Read first
 
