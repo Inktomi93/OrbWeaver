@@ -58,7 +58,10 @@ test("derived selectors and runtime dispatch cover the registry without duplicat
   expect(TYPE_TEST_SUFFIXES.every((suffix) => !RUNTIME_TEST_SUFFIXES.includes(suffix))).toBe(true);
   expect(BROWSER_TEST_SUFFIXES).toEqual(expect.arrayContaining([".dom.test.ts", ".dom.test-d.ts", ".ct.tsx", ".spec.ts"]));
   expect(runtimeForTestFamily("integration")).toBe("vitest");
-  expect(TEST_KIND_DEFINITIONS.filter(({ resource }) => resource === "repository").map(({ suffix }) => suffix)).toEqual([".repo.int.test.ts"]);
+  expect(TEST_KIND_DEFINITIONS.filter(({ resource }) => resource === "repository").map(({ suffix }) => suffix)).toEqual([
+    ".suite.repo.int.test.ts",
+    ".repo.int.test.ts",
+  ]);
   expect(TEST_RESOURCE_NAMES).toEqual(["repository"]);
   expect(VITEST_RUNTIME_FAMILY_GROUPS).toEqual(["contract", "integration", "unit"]);
   expect(VITEST_TYPECHECK_GROUP_NAMES).toEqual([vitestTypecheckGroupName("browser"), vitestTypecheckGroupName("node")]);
