@@ -179,7 +179,7 @@ const UTF8_BOM = "﻿";
  *  ASSUMES(single-replica) — and it holds BY CONSTRUCTION, so no DB-backed seam is warranted (unlike a
  *  per-request process cache, the shape this gate exists to catch). This Set is written EXACTLY ONCE, at
  *  module load, by the single `loadEnvFileWithOverride(...)` call at the bottom of this file; nothing mutates
- *  it per request, and its only reader is `launchOnlyKeysDeclaredInEnvFile()`. Every replica loads the SAME
+ *  it per request, and its only reader is the #301 superRefine below. Every replica loads the SAME
  *  `.env` with `override:true` and computes byte-identical contents, so there is no cross-replica state to
  *  reconcile — it is boot-constant deployment provenance, not runtime accumulator state. */
 const envFileKeys = new Set<string>();
@@ -194,7 +194,7 @@ function loadEnvFileWithOverride(override: boolean): void {
   }
   let raw: string;
   // @orb-waive caught-failure-ownership(catch): a missing .env is a normal deploy state —
-  // envFileKeys stays empty, correctly consumed by launchOnlyKeysDeclaredInEnvFile as "not declared". Ends
+  // envFileKeys stays empty, correctly read by the #301 superRefine as "not declared". Ends
   // if the loader stops treating a missing file as absence rather than an error.
   try {
     raw = readFileSync(resolve(process.cwd(), ENV_FILE), "utf8");
@@ -228,13 +228,6 @@ const LAUNCH_ONLY_ENV_KEYS = [
     why: "it widens who is the un-credentialed OWNER, and .env's override:true would carry that widening into every launch from this directory — including a dev or prod run that never meant to open it. A container passes it in the CONTAINER environment (compose `environment:`/`docker run -e`), never in the app's own .env.",
   },
 ] as const;
-
-/** #301 — which LAUNCH-ONLY keys did the loaded `.env` FILE declare? Provenance the parsed `env` cannot carry
- *  (the file wins over a launcher export), so the refusal has to ask the loader, not the schema. Empty when
- *  the file is absent/unreadable or skipped (`ORB_ENV_NO_FILE`, e.g. under vitest). */
-export function launchOnlyKeysDeclaredInEnvFile(): readonly string[] {
-  return LAUNCH_ONLY_ENV_KEYS.filter((entry) => envFileKeys.has(entry.key)).map((entry) => entry.key);
-}
 
 /** The #301 refusal itself, lifted out of the superRefine so a THIRD launch-only knob costs one table row and
  *  no branch in the parse. Every declared key gets its own issue — an operator who pinned two sees two. */

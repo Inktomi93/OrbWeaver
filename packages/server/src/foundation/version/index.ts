@@ -186,11 +186,6 @@ export function versionIdentity(): VersionIdentity {
   return cached;
 }
 
-/** Test seam — drops the memo so a spec can point `versionIdentity()` at a different cwd. */
-export function __resetVersionIdentityForTest(): void {
-  cached = null;
-}
-
 /** The CONTENT of the build stamp, derived from a workspace root. Separate from the write so the image
  *  build's one derivation is the same code the server reads back, and a spec can assert it without a disk.
  *
