@@ -11,7 +11,7 @@
 // the panel has exactly one consumer.
 //
 // IT ALSO ANSWERS THE SECOND QUESTION — "would this ever run?". The probe deliberately neutralises
-// `enabled` and `placement` so a switched-off draft still previews (ST does the same), which would be a lie
+// `enabled` and `placement` so a switched-off draft still previews, which would be a lie
 // if the panel stopped there: so when the row is off, or bites no stream, the panel says so in the same
 // breath as the result. That is the F3 class — a script that can never fire, with nothing on screen saying
 // so — caught at authoring time instead of at silence time.

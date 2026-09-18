@@ -1,4 +1,4 @@
-// Policy: chat-viewer-plane-canon-reads (ledger D79, chat read-visibility: two planes, one verdict) — a
+// Policy: chat-viewer-plane-canon-reads (ledger D161, chat read-visibility: two planes, one verdict) — a
 // VIEWER-PLANE chat verb may not reach a ROOM-PLANE floorless canon reader. THE OCCURRENCE ARM; the three
 // fail-loud blindness arms are the `-health` sibling, because they are unsuppressible and this door is not.
 //
@@ -38,7 +38,7 @@ import { CHAT_DOMAIN_UNDER, chatPlaneVisitors, createChatPlaneIndex, judgeChatPl
 const MESSAGE =
   "a VIEWER-PLANE chat verb (matrix authority other than host/non-chat-scoped) reaches a ROOM-PLANE floorless " +
   "canon reader. Those readers return canon CONTENT with no history floor, so the caller silently hands a " +
-  "`from-join` member the pre-join transcript every other read path withholds (D79 — substrate/auth/clamp.ts). " +
+  "`from-join` member the pre-join transcript every other read path withholds (D161 — substrate/auth/clamp.ts). " +
   "The finding is anchored on the reader CALL, so two banned reads in one body are two independently " +
   "waivable findings.";
 const FIX =
@@ -161,7 +161,7 @@ export const gate = defineGate({
           'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
       },
       expect: { count: 1, token: "loadCanonHistory" },
-      why: "a `member`-classified verb calling the floorless loadCanonHistory — the exact shape D79 says must be RED",
+      why: "a `member`-classified verb calling the floorless loadCanonHistory — the exact shape D161 says must be RED",
     },
     {
       mode: "types",

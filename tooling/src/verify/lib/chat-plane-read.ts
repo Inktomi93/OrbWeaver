@@ -1,4 +1,4 @@
-// THE CHAT TWO-PLANE READER (ledger D79) — the canonical vocabulary and the visitor-fed evidence both
+// THE CHAT TWO-PLANE READER (ledger D161) — the canonical vocabulary and the visitor-fed evidence both
 // `chat-viewer-plane-canon-reads` (ordinary reach) and `chat-viewer-plane-canon-reads-health` (hard
 // matrix/reader/coverage health) judge. It is the family's shared declaration: the authority matrix fold,
 // the bulk-reader vocabulary, the reachability index and the clamp discharge live here once, so the two
@@ -46,7 +46,7 @@
 // member kind fall out of the loop with no throw and no count. Measured: `getChat: MEMBER_AUTHORITY_PROBE`
 // beside `const MEMBER_AUTHORITY_PROBE = "member" as const` took the live census 93 -> 92 with the gate
 // still green. A verb missing from the matrix is a verb nothing classifies, so its factory is judged for
-// nothing — the D79 leak class going invisible in the one direction that is silent. The fold is TOTAL:
+// nothing — the D161 leak class going invisible in the one direction that is silent. The fold is TOTAL:
 // every member either writes a row or THROWS. A value resolves through `as const`/`satisfies`/parens and
 // through an identifier's binding (local const or named import); a SHORTHAND resolves through the same hop;
 // a COMPUTED key resolves when its expression is a string literal. Everything else — a non-literal value

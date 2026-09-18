@@ -64,9 +64,8 @@ const SUBSTITUTE_BY_VALUE: ReadonlyMap<string, SubstituteFindRegex> = new Map([
 ]);
 
 /** Trim strings round-trip through ONE textarea, one per line — and the split is NOT filtered. Dropping
- *  blank lines here (as ST does, but only at its save button) would delete the newline the user just typed
- *  on an autosaving form, so the empty entry is kept: the executor skips a falsy trim string, making it
- *  inert rather than wrong. */
+ *  blank lines would delete the newline the user just typed on an autosaving form, so the empty entry is
+ *  kept: the executor skips a falsy trim string, making it inert rather than wrong. */
 function splitTrimStrings(value: string): string[] {
   return value === "" ? [] : value.split("\n");
 }

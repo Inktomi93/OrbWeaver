@@ -1,4 +1,4 @@
-// Policy: chat-viewer-plane-canon-reads-health (ledger D79) — THE THREE FAIL-LOUD ARMS of the chat
+// Policy: chat-viewer-plane-canon-reads-health (ledger D161) — THE THREE FAIL-LOUD ARMS of the chat
 // two-plane family, split off its occurrence sibling because a structural gate's real failure mode is
 // going silently GREEN and a blindness alarm must not be suppressible:
 //  • matrix missing / unreadable in the declared population → the family keys every verdict off it;
@@ -44,7 +44,7 @@ import {
 
 const MESSAGE =
   "the chat two-plane family is BLIND: the authority matrix, a banned bulk canon reader, or a viewer-plane " +
-  "verb's factory could not be resolved in packages/server/src/domain/chat. Every D79 verdict keys off those " +
+  "verb's factory could not be resolved in packages/server/src/domain/chat. Every D161 verdict keys off those " +
   "three, so the occurrence policy would report a clean domain for a reason that has nothing to do with " +
   "safety. The finding names which one, anchored on an admitted chat source.";
 const FIX =
@@ -87,7 +87,7 @@ export const gate = defineGate({
         }
         for (const reader of rottedReaders(index)) {
           ctx.report.file(anchor(CHAT_QUERIES_FILE), {
-            message: `the room-plane reader "${reader}" is no longer declared in domain/chat — the family's BULK_CANON_READERS vocabulary has rotted (a rename would leave every D79 verdict silently green). Update tooling/src/verify/lib/chat-plane-read.ts.`,
+            message: `the room-plane reader "${reader}" is no longer declared in domain/chat — the family's BULK_CANON_READERS vocabulary has rotted (a rename would leave every D161 verdict silently green). Update tooling/src/verify/lib/chat-plane-read.ts.`,
           });
         }
         const { covered } = judgeChatPlane(index, matrix);
@@ -128,7 +128,7 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/server/src/domain/chat/persistence/queries.ts": QUERIES_SRC },
       expect: { count: 1, messageIncludes: "it is now blind" },
-      why: "THE MATRIX IS GONE: the key every D79 verdict hangs off cannot be read, so the family reports blindness on an ADMITTED anchor rather than a clean chat domain",
+      why: "THE MATRIX IS GONE: the key every D161 verdict hangs off cannot be read, so the family reports blindness on an ADMITTED anchor rather than a clean chat domain",
     },
   ],
   mustPass: [
