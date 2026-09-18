@@ -769,28 +769,28 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 579,
-      "bytes": 309365,
-      "sha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e",
+      "lines": 575,
+      "bytes": 305849,
+      "sha256": "37fb4158c6caac3caa3e7fda001340f36905adf3e6117f84118d50cbaa5f7950",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "reference",
           "status": "active",
-          "updated": "2026-09-18"
+          "updated": "2026-09-06"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e",
+        "assignedSha256": "3fe6dbda4329d8f5920efc88a6b0501c40769b15b03f3db23b3db65fa45c5d0f",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e",
-        "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
-        "verifiedAt": "2026-09-18",
+        "verifiedSha256": "cdd6826a66d53621fbed42c306e31b503ddb6427d74f68076d18a45ce677bf33",
+        "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
+        "verifiedAt": "2026-09-13",
         "evidence": [
           "Bounded D61 repair independently investigated under #2312; root read the complete relevant entry and exact diff. Prior whole-document read and claims below are retained, not repeated. Final selected dangling-refs drive over199 docs was clean: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. Historical note is a separate line so it does not suppress current citations.",
           "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; current source retains tests/support/browser/ct-data-providers.tsx and the old tests/support/ct path is absent; #1351 remains the live program",
@@ -875,10 +875,9 @@
             ]
           }
         ],
-        "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims.",
-        "verifiedCanonicalSha256": "b79fb3136d3556ff3f808b7fe7a34599af7766eefab38fb0236290e83f14b73e"
+        "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -11413,28 +11412,28 @@
       "path": "docs/design/1238-plugin-distribution.md",
       "lane": "design",
       "issue": 5,
-      "lines": 120,
-      "bytes": 27733,
-      "sha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
+      "lines": 115,
+      "bytes": 27341,
+      "sha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-09-18"
+          "updated": "2026-09-05"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/1238-plugin-distribution.md",
-        "assignedSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
+        "assignedSha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
-        "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
-        "verifiedAt": "2026-09-18",
+        "verifiedSha256": "a9ad2fe8799e0c3dc7025afb252d425ea2f32da78ee421d40d18f6712a5a9418",
+        "verifiedCommit": "5fdea267b3155c4c6a58910bed0ee81a30677321",
+        "verifiedAt": "2026-09-05",
         "claims": [
           {
             "claim": "The teaching plugins live in the server package's entry tier and their guest .js sources are typechecked by NO program (allowJs is false repo-wide); only the SDK mirror is pinned, and the seeds ride the image's whole-src copy — the rot and reachability the ruling names are structural.",
@@ -11449,7 +11448,7 @@
               },
               {
                 "kind": "code",
-                "target": "packages/default-content/src/index.ts:1"
+                "target": "packages/server/src/entry/boot/seed-assets/index.ts:1"
               },
               {
                 "kind": "test",
@@ -11514,8 +11513,7 @@
           "re-attested at 5fdea267b by the orchestrator after reading the #1692 edit in full: §2 gains a LANDED note (the package exists; the seeder resolves packShowcaseBundle by node resolution; the checkJs program over the guest sources deliberately did NOT land with the move and is its own row); the before-state finding's tense updated; citation targets re-pointed to the package; updated 2026-09-05.",
           "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
           "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
-        ],
-        "verifiedCanonicalSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5"
+        ]
       },
       "receiptCurrent": true
     },
@@ -13988,27 +13986,27 @@
       "lane": "design",
       "issue": 5,
       "lines": 513,
-      "bytes": 41054,
-      "sha256": "b5ed4ec0292000a513aba88542860a9b182068dd36288c7006045802031c491e",
+      "bytes": 40874,
+      "sha256": "50f5c2bee7ff3a794df1230e6bef925bf862a4c78fb4c822d2db0f9814da5b16",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-09-18"
+          "updated": "2026-08-14"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/openwebui-auth-methods-study.md",
-        "assignedSha256": "b5ed4ec0292000a513aba88542860a9b182068dd36288c7006045802031c491e",
+        "assignedSha256": "12cd2491a28f081c53adbcd345de22da02f828b9d49572ed4d0cd5fdffefcc9b",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "b5ed4ec0292000a513aba88542860a9b182068dd36288c7006045802031c491e",
-        "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
-        "verifiedAt": "2026-09-18",
+        "verifiedSha256": "12cd2491a28f081c53adbcd345de22da02f828b9d49572ed4d0cd5fdffefcc9b",
+        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
+        "verifiedAt": "2026-08-14",
         "evidence": [
           "docs/design/openwebui-auth-methods-study.md:1 (design; draft)",
           "git log --oneline -1 -- docs/design/openwebui-auth-methods-study.md: 3c944f854 docs(design): auth study III — first-run bootstrap + mode-switch (§7); MS-W1 non-owner orphan gap + B5 admin-link-SSO verb",
@@ -14029,10 +14027,9 @@
               }
             ]
           }
-        ],
-        "verifiedCanonicalSha256": "b5ed4ec0292000a513aba88542860a9b182068dd36288c7006045802031c491e"
+        ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/pane-standardization-design.md",
@@ -14348,27 +14345,27 @@
       "lane": "design",
       "issue": 5,
       "lines": 225,
-      "bytes": 21016,
-      "sha256": "a1516fb86a21eb1efe5943b95ce39548d29b6c68ab346540a10206e69a90c83a",
+      "bytes": 20910,
+      "sha256": "408499a7e0fcc2a9a9c3781757b599e93454fc8131a2f434e82e80bd38908ada",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-09-18"
+          "updated": "2026-09-05"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/plugin-showcase-set.md",
-        "assignedSha256": "a1516fb86a21eb1efe5943b95ce39548d29b6c68ab346540a10206e69a90c83a",
+        "assignedSha256": "408499a7e0fcc2a9a9c3781757b599e93454fc8131a2f434e82e80bd38908ada",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "a1516fb86a21eb1efe5943b95ce39548d29b6c68ab346540a10206e69a90c83a",
-        "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
-        "verifiedAt": "2026-09-18",
+        "verifiedSha256": "408499a7e0fcc2a9a9c3781757b599e93454fc8131a2f434e82e80bd38908ada",
+        "verifiedCommit": "49b456e8919546121ca6ff8cb37ec1d1f5f2455b",
+        "verifiedAt": "2026-09-12",
         "evidence": [
           "re-attested at 49b456e89 by the orchestrator after lane p-doc-formatter-lossy repaired this doc to INTENT (#2154): the parse at 91d9a2ab7^ and at main both read the §8 block as list items=3, so 91d9a2ab7 never renumbered the RENDER -- the source had disagreed with its own render since authoring. The twelve-step plan now renders as twelve steps, the Floors continuation is one sentence again (recovering a character the pre-damage revision had already eaten), and the file is formatter-stable (a second format --write writes 0 files). No design change.",
           "re-attested at 5fdea267b by the orchestrator after reading the #1692 edit in full: the authoring guide and the host-v1.d.ts homes re-pointed from entry/boot/seed-assets to packages/showcase-plugins/bundles/; no design change; updated 2026-09-05.",
@@ -14401,8 +14398,7 @@
               }
             ]
           }
-        ],
-        "verifiedCanonicalSha256": "a1516fb86a21eb1efe5943b95ce39548d29b6c68ab346540a10206e69a90c83a"
+        ]
       },
       "receiptCurrent": true
     },
@@ -32785,8 +32781,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 426,
-      "bytes": 29874,
-      "sha256": "a0410c254ed906b298bca69ff01798ecdea386fa2fd038cd8b626781865dfa44",
+      "bytes": 29842,
+      "sha256": "a9803fc9444083e860d1d55efe62be947304294a7bb9c3bfa497a8f9f5c9b9ec",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32799,13 +32795,13 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-conversions-2026-09-13.md",
-        "assignedSha256": "a0410c254ed906b298bca69ff01798ecdea386fa2fd038cd8b626781865dfa44",
+        "assignedSha256": "bdff65a78283c8c904f4bfbb2b7e879a8ab5f20c63982880ce878ba0906832f2",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "a0410c254ed906b298bca69ff01798ecdea386fa2fd038cd8b626781865dfa44",
-        "verifiedCommit": "defb3d078a335ba30cfd567e02130a36805bb317",
-        "verifiedAt": "2026-09-18",
+        "verifiedSha256": "bdff65a78283c8c904f4bfbb2b7e879a8ab5f20c63982880ce878ba0906832f2",
+        "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+        "verifiedAt": "2026-09-12",
         "evidence": [
           "docs/reviews/gate-runtime/v-conversions-2026-09-13.md:1",
           "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -32822,10 +32818,9 @@
               }
             ]
           }
-        ],
-        "verifiedCanonicalSha256": "a0410c254ed906b298bca69ff01798ecdea386fa2fd038cd8b626781865dfa44"
+        ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/gate-runtime/v-css-family-2026-09-13.md",
@@ -44672,70 +44667,85 @@
       "receiptCurrent": true
     },
     {
-      "path": "docs/reviews/gate-runtime/structure-irreducibles-disposition-2026-09-18.md",
-      "lane": "reviews",
-      "issue": 7,
-      "lines": 230,
-      "bytes": 17115,
-      "sha256": "d745799f6d248e0831fa0ba80d832345c9810b6504c70f23ea73328c10280c31",
+      "path": "docs/design/tooling-size-mid-band-splits.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 65,
+      "bytes": 15838,
+      "sha256": "c78a4e7a27132aef3437185549185d79faba8b01f5286bb335183c57f7c78588",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
-          "kind": "review",
+          "kind": "design",
           "status": "active",
           "updated": "2026-09-18"
         },
         "errors": []
       },
       "receipt": {
-        "path": "docs/reviews/gate-runtime/structure-irreducibles-disposition-2026-09-18.md",
-        "assignedSha256": "d745799f6d248e0831fa0ba80d832345c9810b6504c70f23ea73328c10280c31",
+        "path": "docs/design/tooling-size-mid-band-splits.md",
+        "assignedSha256": "c78a4e7a27132aef3437185549185d79faba8b01f5286bb335183c57f7c78588",
         "disposition": "current",
-        "authority": "review",
+        "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "d745799f6d248e0831fa0ba80d832345c9810b6504c70f23ea73328c10280c31",
-        "verifiedCommit": "defb3d078a335ba30cfd567e02130a36805bb317",
+        "verifiedSha256": "c78a4e7a27132aef3437185549185d79faba8b01f5286bb335183c57f7c78588",
+        "verifiedCommit": "8fcdc21e124accf5ca3558825a67d7514cf9c6ed",
         "verifiedAt": "2026-09-18",
-        "evidence": [
-          "docs/reviews/gate-runtime/structure-irreducibles-disposition-2026-09-18.md:1",
-          "structure run agent-a0c354fb6113d2798-3634274-2026-09-18T15-21-07-658Z on base 3f27ec4a8 (the four findings) and run agent-a0c354fb6113d2798-4012168-2026-09-18T16-44-48-228Z after defb3d078 (34 blocking, 1 alarm)",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
-        ],
-        "summary": "Design-and-disposition record for the four irreducible structure:full findings of 2026-09-18: the heap-capture nested-catch waiver (distinct bindings, reader-header correction, nested-cleanup mustPass), the ledger gate's markdown identity arm plus the recogniser widening that made it visible, and the two review-doc marker spellings — each with rejected alternatives, coupled sites and planted breaks.",
         "claims": [
           {
-            "claim": "caught-failure-ownership's nested-catch waiver shape is pinned by the nested-cleanup mustPass row, and heap-capture.ts carries the four markers the record describes.",
+            "claim": "Every module the tooling-size gate reported between 480 and 900 lines on 2026-09-18 is under the 450-line cap after its split, every new sibling is under it too, and the 13 out-of-band files the gate still reports are that run's positive control.",
             "evidence": [
               {
                 "kind": "gate",
-                "target": "tooling/src/verify/gates/caught-failure-ownership.ts:922"
+                "target": "tooling/src/verify/gates/tooling-size.ts:1"
               },
               {
-                "kind": "issue",
-                "target": "#1584"
+                "kind": "provenance",
+                "target": "git:8fcdc21e124accf5ca3558825a67d7514cf9c6ed"
               }
             ]
           },
           {
-            "claim": "ledger-symbol-liveness proves its ordinary door with an in-module markdown identity row, and policy-waiver-identity's recogniser reads the engine's full opener set.",
+            "claim": "Every sibling is a strict leaf its original imports, no cycle type-only included, because the cruiser preset's no-circular rule carries no type-only exemption.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": ".dependency-cruiser.cjs:78"
+              }
+            ]
+          },
+          {
+            "claim": "A value re-export is biome-RED outside the index.ts barrels, so a moved value keeps its consumers through a delegating function in the original or a repointed import, never a barrel line.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "biome.json:311"
+              }
+            ]
+          },
+          {
+            "claim": "No lib/ or ops/ sibling exports a type alias, and the grant-pinned Project constructions and the fenced waiver engine stay in the modules their gates name.",
             "evidence": [
               {
                 "kind": "gate",
-                "target": "tooling/src/verify/gates/ledger-symbol-liveness.ts:208"
+                "target": "tooling/src/verify/gates/no-inline-types.ts:136"
               },
               {
                 "kind": "gate",
-                "target": "tooling/src/verify/lib/policy-descriptor-read.ts:76"
+                "target": "tooling/src/verify/gates/tooling-project-home.ts:1"
               },
               {
-                "kind": "test",
-                "target": "tests/tooling/verify/lib/policy-descriptor-read.test.ts:203"
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/policy-legacy-imports.ts:157"
               }
             ]
           }
         ],
-        "verifiedCanonicalSha256": "d745799f6d248e0831fa0ba80d832345c9810b6504c70f23ea73328c10280c31"
+        "summary": "Design record for the seventeen 480-900-line @orb/tooling splits of 2026-09-18: the four laws that shaped every cut (no value re-exports, no cycles, no new lib/ops type aliases, pinned capabilities stay), the per-module seam table with each new leaf and its consumer changes, the rejected alternatives, the coupled sites and the floor.",
+        "evidence": [
+          "born-reviewed by the forge lane (author) 2026-09-18 at 8fcdc21e124accf5ca3558825a67d7514cf9c6ed: the seventeen splits landed in that commit with the scoped floor named in its message (biome/eslint 0; both native programs PASS; check:structure tooling-size 17 -> 0 in the band with the 13 out-of-band files still reported; gate:contract 0; depcruise 0; 31 node suites 511 passed with the 9 reds re-derived as 4 load timeouts green alone and 5 identical on the unmodified base tree)."
+        ]
       },
       "receiptCurrent": true
     }

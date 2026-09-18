@@ -2672,6 +2672,70 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/design/tooling-size-mid-band-splits.md",
+      "assignedSha256": "c78a4e7a27132aef3437185549185d79faba8b01f5286bb335183c57f7c78588",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "c78a4e7a27132aef3437185549185d79faba8b01f5286bb335183c57f7c78588",
+      "verifiedCommit": "8fcdc21e124accf5ca3558825a67d7514cf9c6ed",
+      "verifiedAt": "2026-09-18",
+      "claims": [
+        {
+          "claim": "Every module the tooling-size gate reported between 480 and 900 lines on 2026-09-18 is under the 450-line cap after its split, every new sibling is under it too, and the 13 out-of-band files the gate still reports are that run's positive control.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/tooling-size.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:8fcdc21e124accf5ca3558825a67d7514cf9c6ed"
+            }
+          ]
+        },
+        {
+          "claim": "Every sibling is a strict leaf its original imports, no cycle type-only included, because the cruiser preset's no-circular rule carries no type-only exemption.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": ".dependency-cruiser.cjs:78"
+            }
+          ]
+        },
+        {
+          "claim": "A value re-export is biome-RED outside the index.ts barrels, so a moved value keeps its consumers through a delegating function in the original or a repointed import, never a barrel line.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "biome.json:311"
+            }
+          ]
+        },
+        {
+          "claim": "No lib/ or ops/ sibling exports a type alias, and the grant-pinned Project constructions and the fenced waiver engine stay in the modules their gates name.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/no-inline-types.ts:136"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/tooling-project-home.ts:1"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/policy-legacy-imports.ts:157"
+            }
+          ]
+        }
+      ],
+      "summary": "Design record for the seventeen 480-900-line @orb/tooling splits of 2026-09-18: the four laws that shaped every cut (no value re-exports, no cycles, no new lib/ops type aliases, pinned capabilities stay), the per-module seam table with each new leaf and its consumer changes, the rejected alternatives, the coupled sites and the floor.",
+      "evidence": [
+        "born-reviewed by the forge lane (author) 2026-09-18 at 8fcdc21e124accf5ca3558825a67d7514cf9c6ed: the seventeen splits landed in that commit with the scoped floor named in its message (biome/eslint 0; both native programs PASS; check:structure tooling-size 17 -> 0 in the band with the 13 out-of-band files still reported; gate:contract 0; depcruise 0; 31 node suites 511 passed with the 9 reds re-derived as 4 load timeouts green alone and 5 identical on the unmodified base tree)."
+      ]
     }
   ]
 }
