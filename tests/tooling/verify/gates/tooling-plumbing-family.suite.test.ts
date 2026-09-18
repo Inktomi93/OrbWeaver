@@ -95,8 +95,11 @@ const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifac
 // 19 at mint; 17 since `tooling-project-home:dangling-refs` (d32dbde26) and `:enforcement-registry-parity`
 // (ed4b7588a) retired with their gates' conversions — a converted policy owns no Project, so its grant died
 // with the act it licensed; 16 since `tooling-project-home:ops-conformance` died with the legacy conformance
-// runner at df2a54b09 (#2176 Phase F). The exact-subject arm below still pins every survivor to a live file.
-const PLUMBING_GRANT_COUNT = 16;
+// runner at df2a54b09 (#2176 Phase F); 17 since `tooling-child-process-door:stack-start` licensed the
+// portable `pnpm start` launcher, whose children are the production server and its client build and which
+// cannot ride the niced doors at all (they exec POSIX `nice`, absent on Windows). The exact-subject arm
+// below still pins every survivor to a live file.
+const PLUMBING_GRANT_COUNT = 17;
 const REAL_TREE_BUDGET_MS = scaledBudget(300_000);
 
 const PROC_HOME = "tooling/src/_shared/proc.ts";

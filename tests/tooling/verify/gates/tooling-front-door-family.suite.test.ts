@@ -166,7 +166,9 @@ test("an argv grant whose entry stopped reading argv is STALE after a complete r
 
 test("every argv grant row in the central table names a subject that exists on the tree and is not a cli.ts", ({ repoRoot }) => {
   const rows = REVIEWED_GRANTS.filter((grant) => grant.policyId === argvFrontDoor.id);
-  expect(rows).toHaveLength(6);
+  // 6 at the conversion; 7 since `stack/ops/start-entry.ts` — the root `start` script's target, the one
+  // launcher with no `.sh` in front of it because `pnpm start` must run where bash does not.
+  expect(rows).toHaveLength(7);
   for (const row of rows) {
     expect(existsSync(join(repoRoot, row.subject)), row.id).toBe(true);
     expect(row.subject.endsWith("/cli.ts"), row.id).toBe(false);

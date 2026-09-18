@@ -28,6 +28,7 @@ export type {
   LockHolder,
   ObservedInstance,
   ObservedStackProcess,
+  PnpmInvocation,
   PortHealth,
   ProdRecord,
   ProdSpawnPlan,
@@ -40,9 +41,13 @@ export type {
   StackParse,
   StackSpawner,
   StackVerb,
+  StartBuildDecision,
+  StartBuildMode,
+  StartInvocation,
+  StartParse,
   UpAction,
 } from "./contract/types.ts";
-export { DEBUG_ENV_KEYS, ENGINE_HEALTH_WAITS, ENGINE_LAUNCH_ACTIONS, STACK_MODES, STACK_VERBS } from "./contract/types.ts";
+export { DEBUG_ENV_KEYS, ENGINE_HEALTH_WAITS, ENGINE_LAUNCH_ACTIONS, STACK_MODES, STACK_VERBS, START_BUILD_MODES } from "./contract/types.ts";
 export { formatDispatch, parseStackArgv, STACK_USAGE } from "./lib/argv.ts";
 export { debugConflictMessage, resolveDebugArming, stripDebugEnv } from "./lib/debug-env.ts";
 export {
@@ -85,6 +90,19 @@ export { acquireSpawnLock, handleHeldSpawnLock, pidIsAlive, releaseSpawnLock } f
 export { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL, CLIENT_DIST_REL, SERVER_ENTRY_REL } from "./lib/spawn-plan.ts";
 export { STACK_SPAWNERS, spawnerForPort } from "./lib/spawners.ts";
 export {
+  childExitCode,
+  decideStartBuild,
+  effectiveAuthMode,
+  PNPM_EXECPATH_ENV,
+  parseStartArgv,
+  resolvePnpmInvocation,
+  SINGLE_USER_MODE,
+  START_USAGE,
+  singleUserFallbackEnv,
+  startBannerLines,
+  startSpawnPlan,
+} from "./lib/start-plan.ts";
+export {
   classifyDebugPosture,
   classifyDist,
   classifyDrainTail,
@@ -97,3 +115,4 @@ export {
 } from "./lib/verdicts.ts";
 export { runStackProd } from "./ops/prod.ts";
 export { probeServedTransform } from "./ops/served-probe.ts";
+export { FORWARDED_SIGNALS, forwardSignalsTo, runStart } from "./ops/start.ts";
