@@ -16,8 +16,6 @@ const CATALOG = "docs/catalog/catalog.json";
 const REGISTRY = "docs/architecture/core/Core-Path-Registry.md";
 const ACTIVE_DEBT = "docs/architecture/core/Core-Audits-and-Debt.md";
 const CLEARED_DEBT = "docs/architecture/history/Core-Debt-Cleared-Ledger.md";
-const BASELINE = "tooling/src/verify/gates/thing.baseline.json";
-
 function catalog(paths: readonly string[]): string {
   return JSON.stringify({ documents: paths.map((path) => ({ path })) });
 }
@@ -96,19 +94,4 @@ test("an EMPTY but valid registry is a policy-visible population, not a refusal"
 
   expect(empty.status).toBe("ready");
   expect(empty.status === "ready" && empty.value.nature === "markdown" ? empty.value.documents[0]?.headings.length : 0).toBe(1);
-});
-
-test("the ratchet ledger set is DISCOVERED, and discovering nothing refuses", ({ scratch }) => {
-  const found = ledger(scratch, { [BASELINE]: '{"rows":[]}\n', "tooling/src/verify/gates/other.ts": "" }, "ratchet-baselines");
-  expect(found.status === "ready" && found.value.nature === "json" ? found.value.documents.map((document) => document.path) : []).toEqual([BASELINE]);
-
-  // Control: a gate corpus with no ledger at all. "There are no ratchet ledgers" and "the gate tree is
-  // gone" are byte-identical from a zero, so the second must never read as the first.
-  const none = ledger(scratch, { "tooling/src/verify/gates/other.ts": "" }, "ratchet-baselines");
-  expect(none.status).toBe("empty");
-
-  // And an unparseable ledger is its own answer, never an empty row set.
-  const broken = ledger(scratch, { [BASELINE]: "{oops" }, "ratchet-baselines");
-  expect(broken.status).toBe("unresolved");
-  expect(broken.status === "unresolved" ? broken.reason : "").toContain("strict JSON");
 });

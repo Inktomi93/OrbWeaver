@@ -15,7 +15,6 @@ import type {
   DocumentRefusal,
   LedgerFacts,
   LedgerId,
-  LedgerJsonDocument,
   MarkdownDocument,
   MarkdownHeading,
   MarkdownLink,
@@ -180,39 +179,9 @@ function ledgerMarkdown(reader: ResourceReader, id: LedgerId, paths: readonly st
   return { status: "ready", value: { id, nature: "markdown", documents: Object.freeze(documents) }, paths, members: documents.length };
 }
 
-function ledgerJson(reader: ResourceReader, id: LedgerId, tree: string, suffix: string): ResourceLoad<LedgerFacts> {
-  const members = treeMembersWithSuffix(reader, tree, suffix);
-  if (members.status !== "ready") {
-    return { status: members.status, paths: members.paths, members: 0, reason: `ledger ${id} tree ${tree} is unavailable: ${members.reason}` };
-  }
-  const documents: LedgerJsonDocument[] = [];
-  for (const path of members.value) {
-    const text = reader.read(path);
-    if (text.status !== "ready") {
-      return { status: text.status, paths: members.value, members: documents.length, reason: `ledger ${id} member ${path} is unavailable: ${text.reason}` };
-    }
-    try {
-      documents.push(Object.freeze({ path, value: JSON.parse(text.value) as JsonValue }));
-    } catch (error) {
-      return {
-        status: "unresolved",
-        paths: members.value,
-        members: documents.length,
-        reason: `ledger ${id} member ${path} did not parse as strict JSON: ${error instanceof Error ? error.message : String(error)}`,
-      };
-    }
-  }
-  // A discovered member set that discovered NOTHING is a refusal: "there are no ratchet ledgers" and "the
-  // gate corpus is not there" are byte-identical from a zero, and the second must never read as the first.
-  return documents.length === 0
-    ? { status: "empty", paths: [], members: 0, reason: `ledger ${id} discovered no ${suffix} member under ${tree}` }
-    : { status: "ready", value: { id, nature: "json", documents: Object.freeze(documents) }, paths: members.value, members: documents.length };
-}
-
 export function loadLedger(reader: ResourceReader, id: LedgerId): ResourceLoad<LedgerFacts> {
   if (!Object.hasOwn(LEDGER_DEFINITIONS, id)) {
     return { status: "unresolved", paths: [], members: 0, reason: `unknown ledger id: ${String(id)}` };
   }
-  const definition = LEDGER_DEFINITIONS[id];
-  return definition.nature === "markdown" ? ledgerMarkdown(reader, id, definition.paths) : ledgerJson(reader, id, definition.tree, definition.suffix);
+  return ledgerMarkdown(reader, id, LEDGER_DEFINITIONS[id].paths);
 }

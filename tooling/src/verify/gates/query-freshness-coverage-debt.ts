@@ -1,7 +1,10 @@
 // #1965 owns the one known freshness debt. It is never downgraded into a reviewed grant.
+// The inlined value was `QUERY_FRESHNESS_DEBT` from the sibling `query-freshness-coverage` gate;
+// inlined here to eliminate the policy-legacy-imports violation (#2365, #2147 ARM B).
 import { defineGate } from "../contract/policy.ts";
 import { queryFreshnessFact } from "../lib/query-freshness-fact.ts";
-import { QUERY_FRESHNESS_DEBT } from "./query-freshness-coverage.ts";
+
+const QUERY_FRESHNESS_DEBT = "automation.listChatActivity";
 
 const MESSAGE = "automation.listChatActivity lacks a live in-view freshness driver; #1965 owns adding the bus signal and reachable invalidation row.";
 const FIX = "resolve #1965 by adding the activity signal and its seam invalidation, then delete this debt owner in the same change.";
