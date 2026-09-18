@@ -117,7 +117,7 @@ function walkFieldContainer(typeNode: MorphNode, frame: WalkFrame): boolean {
  *  NAMED reference is never resolved — that is the non-transitive boundary, and `Record` is the one name
  *  matched literally. AND IT FAILS CLOSED ON EVERY OTHER KIND (#1066): a kind that is neither WALKED, READ,
  *  deliberately STOPPED nor provably KEYLESS is REFUSED as `unsupported-shape:<Kind>`. */
-export function walkFieldType(typeNode: MorphNode | undefined, frame: WalkFrame): void {
+function walkFieldType(typeNode: MorphNode | undefined, frame: WalkFrame): void {
   if (typeNode === undefined) {
     return;
   }

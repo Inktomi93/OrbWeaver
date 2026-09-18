@@ -9,7 +9,7 @@ export interface OrdinaryWaiverEngineInput {
   readonly knownPolicies: readonly SelectedGatePolicy[];
 }
 
-export const ORDINARY_WAIVER_MARKER_OUTCOMES = [
+const ORDINARY_WAIVER_MARKER_OUTCOMES = [
   "malformed",
   "unknown-policy",
   "wrong-authority",

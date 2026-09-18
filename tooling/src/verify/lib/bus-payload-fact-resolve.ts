@@ -137,7 +137,7 @@ export function resolveNamedTypes(nameNode: MorphNode, state: CollectorState): r
 
 /** Strip parentheses off a type node so the shape underneath is reachable (the type-node twin of
  *  `ast-read.ts`'s `unwrapExpression`). */
-export function unwrapType(typeNode: MorphNode): MorphNode {
+function unwrapType(typeNode: MorphNode): MorphNode {
   let current = typeNode;
   while (N.isParenthesizedTypeNode(current)) {
     current = current.getTypeNode();
@@ -148,7 +148,7 @@ export function unwrapType(typeNode: MorphNode): MorphNode {
 /** The tuple's members, or an EMPTY set when `tuple-read` refuses it. Its THROW becomes the family's own
  *  loud refusal (the caller refuses on a zero-member vocabulary) rather than an exit-2 tool error: under D16
  *  a wire shape the reader cannot establish IS the violation, not a broken checker. */
-export function tupleMembersOrEmpty(decl: VariableDeclaration): ReadonlySet<string> {
+function tupleMembersOrEmpty(decl: VariableDeclaration): ReadonlySet<string> {
   // @orb-waive caught-failure-ownership(catch): the failure IS owned and surfaced — tuple-read THROWS to say "I cannot establish this vocabulary", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REFUSES `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this module's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed refusal.
   try {
     return readTupleDeclaration(decl).members;
@@ -213,7 +213,7 @@ function soleAliasFor(node: TypeReferenceNode, state: CollectorState): TypeAlias
 /** The FINITE set of string members a type position enumerates, or undefined when this reader cannot
  *  establish it. Sanctioned spellings and no others: an inline string-literal union, an alias chain of them,
  *  and `(typeof <TUPLE>)[number]`. */
-export function literalUnionMembers(typeNode: MorphNode | undefined, state: CollectorState, hops: number): ReadonlySet<string> | undefined {
+function literalUnionMembers(typeNode: MorphNode | undefined, state: CollectorState, hops: number): ReadonlySet<string> | undefined {
   if (typeNode === undefined || hops > CONSTRAINT_HOPS) {
     return;
   }

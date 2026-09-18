@@ -120,7 +120,7 @@ function scanSchemaCall(expr: MorphNode, callee: MemberRead, strict: boolean, fr
 /** Walk one schema expression, recording every wire key it contributes. `strict` marks an ARM position — the
  *  event's own identity, where an unmodeled shape is REFUSED and an identifier is RESOLVED. A property VALUE
  *  is walked non-strictly: a leaf validator contributes no key. */
-export function scanSchemaExpr(node: MorphNode, strict: boolean, frame: WalkFrame): void {
+function scanSchemaExpr(node: MorphNode, strict: boolean, frame: WalkFrame): void {
   const expr = unwrapExpression(node);
   if (N.isIdentifier(expr)) {
     scanSchemaIdentifier(expr, strict, frame);
