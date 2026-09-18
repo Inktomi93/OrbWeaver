@@ -4,7 +4,7 @@
 // `ownerId` (the tagger) — `taggerId` is populated ONLY for `targetType: "chat"`. `status` (pending/
 // accepted) is a `character_tags`-only junction column, not a parallel store.
 
-import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
+import type { CharacterId, TagId } from "@orb/kit/ids";
 import { z } from "zod";
 
 const NAME_MIN_LENGTH = 1;
@@ -88,17 +88,8 @@ export interface TagWithUsage extends TagView {
   usage: TagUsage;
 }
 
-/** One junction row — the wire shape for "tag X is attached to target Y". `targetType` discriminates
- *  which per-type FK table the row lives in; `targetId` is the plain-text target ref. */
-export interface TagAttachmentView {
-  tagId: TagId;
-  targetType: TagTargetType;
-  targetId: string;
-  /** The chat-tag overlay's own tagger — non-null ONLY for `targetType: "chat"`. */
-  taggerId: UserId | null;
-  /** The proposed/accepted surface — non-null ONLY for `targetType: "character"`. */
-  status: TagStatus | null;
-}
+// TagAttachmentView DELETED (#1033 viewgap decision 1): test-only wire shape — no production consumer
+// existed, and the junction row is read through domain-specific projections instead.
 
 /** One PENDING auto/card tag suggestion staged on a character, joined to its tag row so the review UI
  *  can render the chip with its name + colors. Accept = `attachTag(status:'accepted')`; Reject = `detachTag`. */

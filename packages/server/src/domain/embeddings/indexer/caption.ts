@@ -26,6 +26,9 @@
 import { imageBreakdownSchema } from "@orb/contracts/embeddings";
 import type { ResponseFormat, RoleClients } from "@orb/contracts/role-clients";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
+import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import { getLog } from "#foundation/observability";
 import type { AvatarAnalysis } from "../contract/results.ts";
@@ -43,10 +46,11 @@ const ANALYSIS_USER_PROMPT = "Describe and classify this image.";
 
 const ANALYSIS_RESPONSE_FORMAT: ResponseFormat = { name: "image_breakdown", schema: projectJsonSchema(imageBreakdownSchema) };
 
-/** Near-deterministic: this is a classification, and a warm sampler on a closed vocabulary only adds jitter
- *  between two equally-allowed labels. `maxTokens` fits the sentence plus sixteen short fields. */
-const ANALYSIS_TEMPERATURE = 0.2;
-const ANALYSIS_MAX_TOKENS = 512;
+/** The side-gen posture FLOOR for avatar analysis (#1816): near-deterministic because this is a
+ *  classification, and a warm sampler on a closed vocabulary only adds jitter between two equally-allowed
+ *  labels. `maxOutputTokens` fits the sentence plus sixteen short fields. The floor defers to the owner's
+ *  preset params through `resolveSideGenSampling` when available. */
+const ANALYSIS_FLOOR: SideGenSampling = { temperature: 0.2, maxOutputTokens: 512 };
 
 const skipped = (model: string): AvatarAnalysis => ({ caption: "", captionMeta: { model } });
 
@@ -54,15 +58,18 @@ const skipped = (model: string): AvatarAnalysis => ({ caption: "", captionMeta: 
  * Analyse ONE avatar through the vision-capable summarize role: a caption plus the grammar-enforced facet
  * breakdown, in one call. Returns the skip shape (empty caption, facetless meta) when the structured turn
  * fails both attempts — the store verb then writes nothing and the next sweep tries the asset again.
+ *
+ * `presetParams` is the owner's default-preset sampling params (the top rung of the side-gen posture
+ * ladder). Pass `undefined` when no preset context is available — the floor stands alone.
  */
-export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8Array): Promise<AvatarAnalysis> {
+export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8Array, presetParams?: SideGenSampling | undefined): Promise<AvatarAnalysis> {
   const model = roleClients.summarizerModel;
+  const posture = toSummarizeOptions(resolveSideGenSampling(ANALYSIS_FLOOR, presetParams));
   const run = async (correction?: string): Promise<string> => {
     const userPrompt = correction === undefined ? ANALYSIS_USER_PROMPT : `${ANALYSIS_USER_PROMPT}\n\n${correction}`;
     const result = await roleClients.summarize([{ systemPrompt: ANALYSIS_SYSTEM_PROMPT, userPrompt, images: [bytes] }], {
       responseFormat: ANALYSIS_RESPONSE_FORMAT,
-      temperature: ANALYSIS_TEMPERATURE,
-      maxTokens: ANALYSIS_MAX_TOKENS,
+      ...posture,
     });
     return result.items[0]?.text ?? "";
   };
