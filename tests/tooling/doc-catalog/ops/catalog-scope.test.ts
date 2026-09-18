@@ -45,7 +45,7 @@ const ASSIGNMENTS = new Map(
 );
 
 function doc(path: string, sha256: string): Doc {
-  return { path, lines: 10, bytes: 100, sha256, frontmatter: FRONTMATTER };
+  return { path, lines: 10, bytes: 100, sha256, canonicalSha256: sha256, frontmatter: FRONTMATTER };
 }
 
 function entry(path: string, sha256: string): ReceiptEntry {

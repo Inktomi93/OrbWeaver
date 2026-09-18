@@ -20,6 +20,7 @@ import {
   TEXT_EVIDENCE_EXTENSIONS,
   VENDOR_PREFIX,
 } from "../lib/vocab.ts";
+import { formatMarkdown } from "./format.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
@@ -211,8 +212,11 @@ function receiptFactsAtRoot(input: ReceiptFactsInput): ReceiptFacts {
     verifiedCommitExists && gitResult(["merge-base", "--is-ancestor", commit as string, "HEAD"], repoRoot, isolateGitEnvironment) !== null;
   const blob = verifiedCommitExists ? gitBlob(["show", `${commit}:${entry.path}`], repoRoot, isolateGitEnvironment) : null;
   const verifiedBlobSha256 = blob === null ? null : sha256(blob);
+  const verifiedBlobCanonicalSha256 = blob === null ? null : canonicalSha256(blob.toString("utf8"));
   return {
     currentSha256: doc.sha256,
+    currentCanonicalSha256: doc.canonicalSha256,
+    verifiedBlobCanonicalSha256,
     verifiedBlobSha256,
     currentReceiptSnapshotExists:
       (entry.verifiedSha256 !== verifiedBlobSha256 || candidateTouchesReceiptPair) && receiptSourcePath !== undefined && indexCarriesCurrentPair(input),
@@ -268,6 +272,19 @@ export function __receiptFactsForTest(
   });
 }
 
+/** The sha256 of a document's CANONICAL form — the bytes the repo's own markdown formatter would produce.
+ *  Null when the formatter refuses (the document has a defect like a split code span, #2067/#2235) or
+ *  when the format throws unexpectedly. */
+function canonicalSha256(content: string): string | null {
+  // @orb-waive caught-failure-ownership(catch): a formatter crash is not a catalog crash — the canonical arm is unavailable and only the raw hash decides. Ends if null stops meaning "unavailable".
+  try {
+    const { output, refusal } = formatMarkdown(content);
+    return refusal === null ? sha256(output) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The catalog's corpus = TRACKED markdown under docs/ (git, not a glob — an untracked draft is not a
  *  document, and a deleted-but-unstaged one is). */
 function trackedDocs(repoRoot = root, isolateGitEnvironment = false): readonly string[] {
@@ -293,12 +310,27 @@ export function documents(repoRoot = root, isolateGitEnvironment = false): reado
       lines: countLines(content),
       bytes: content.length,
       sha256: sha256(content),
+      canonicalSha256: null,
       frontmatter: {
         ...frontmatter,
         malformed: vendor ? false : frontmatter.malformed,
         errors: frontmatterErrors(path, frontmatter),
       },
     };
+  });
+}
+
+/** Enrich documents with their CANONICAL sha256 — the hash of the markdown-formatted bytes. Expensive
+ *  (runs the remark formatter over every document) so it is a separate step from `documents()`, called
+ *  only by the paths that need the canonical comparison (catalog generation and receipt truth checks).
+ *  When `only` is provided, only the named paths are enriched — the rest keep `canonicalSha256: null`. */
+export function withCanonicalHashes(docs: readonly Doc[], repoRoot = root, only?: ReadonlySet<string>): readonly Doc[] {
+  return docs.map((doc) => {
+    if (only !== undefined && !only.has(doc.path)) {
+      return doc;
+    }
+    const content = readFileSync(join(repoRoot, doc.path), "utf8");
+    return { ...doc, canonicalSha256: canonicalSha256(content) };
   });
 }
 

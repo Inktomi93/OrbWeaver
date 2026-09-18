@@ -21,6 +21,11 @@ export interface ReceiptEntry {
   readonly authority: string;
   readonly fullRead: boolean;
   readonly verifiedSha256: string | null;
+  /** The sha256 of the verified document AFTER the repo's markdown formatter normalizes it — absent on
+   *  receipts attested before this field existed, null when the formatter refused the document at attest
+   *  time. When present AND the current document's canonical hash matches, the receipt survives a
+   *  format-only rewrite without a re-read. */
+  readonly verifiedCanonicalSha256?: string | null;
   readonly verifiedCommit: string | null;
   readonly verifiedAt: string | null;
   readonly evidence: readonly string[];
@@ -160,12 +165,25 @@ export interface Doc {
   readonly lines: number;
   readonly bytes: number;
   readonly sha256: string;
+  /** The sha256 of the document AFTER the repo's markdown formatter normalizes it — null when the
+   *  formatter refuses (#2067/#2235) or the document is not markdown the formatter can process. Two
+   *  documents whose canonicalSha256 match are format-equivalent even when their raw bytes differ, which
+   *  is the signal that lets a receipt survive a `pnpm format:docs` reformat without a re-read. */
+  readonly canonicalSha256: string | null;
   readonly frontmatter: Frontmatter;
 }
 
 /** Everything a receipt row is judged against, resolved ONCE per run from git + the tree. */
 export interface ReceiptFacts {
   readonly currentSha256: string;
+  /** The sha256 of the current document after the markdown formatter normalizes it. Null when the
+   *  formatter refuses — the canonical arm is unavailable and only the raw hash decides. */
+  readonly currentCanonicalSha256: string | null;
+  /** The sha256 of the VERIFIED blob (at `verifiedCommit`) after the markdown formatter normalizes it.
+   *  Null when the blob is absent or the formatter refuses. Used as a fallback for receipts attested
+   *  before `verifiedCanonicalSha256` was introduced — when the receipt's own canonical hash is absent,
+   *  this derived canonical from the verified blob answers the same question. */
+  readonly verifiedBlobCanonicalSha256: string | null;
   readonly verifiedBlobSha256: string | null;
   /** The exact current document and complete current receipt file coexist in the Git index. */
   readonly currentReceiptSnapshotExists: boolean;

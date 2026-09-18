@@ -214,7 +214,12 @@ function receiptTruthErrors(entry: ReceiptEntry, facts: ReceiptFacts | undefined
     return [];
   }
   const errors: string[] = [];
-  if (entry.verifiedSha256 !== facts.currentSha256) {
+  const rawMatch = entry.verifiedSha256 === facts.currentSha256;
+  // The canonical hash from the receipt (set at attest time), OR the canonical hash of the verified blob
+  // from git (computed at check time). The fallback covers receipts attested before this field existed.
+  const entryCanonical = entry.verifiedCanonicalSha256 ?? facts.verifiedBlobCanonicalSha256;
+  const canonicalMatch = !rawMatch && entryCanonical !== null && facts.currentCanonicalSha256 !== null && entryCanonical === facts.currentCanonicalSha256;
+  if (!(rawMatch || canonicalMatch)) {
     errors.push(`${entry.path}: verifiedSha256 does not match the current document`);
   }
   if ((entry.verifiedSha256 !== facts.verifiedBlobSha256 || facts.candidateTouchesReceiptPair) && !facts.currentReceiptSnapshotExists) {
@@ -256,16 +261,32 @@ export function validateReceiptEntry(entry: ReceiptEntry, facts?: ReceiptFacts):
 }
 
 /** The catalog's per-document receipt projection — `receiptCurrent` is FALSE the moment the document's
- *  bytes change, which is the hash-invalidation half of D139. */
+ *  bytes change, which is the hash-invalidation half of D139.
+ *
+ *  THE CANONICAL FALLBACK: when raw hashes differ but `verifiedCanonicalSha256` matches
+ *  `currentCanonicalSha256`, the document was reformatted without a content change (a `pnpm format:docs`
+ *  pass) and the receipt survives without a re-read. The raw hash stays as provenance; the canonical
+ *  comparison eliminates false-stale noise. */
 export function catalogReceipt(
   receipt: ReceiptEntry | undefined,
   currentSha256: string,
+  currentCanonicalSha256: string | null = null,
 ): {
   readonly receipt: ReceiptEntry | null;
   readonly receiptCurrent: boolean;
 } {
+  if (receipt === undefined || receipt.disposition === "pending") {
+    return { receipt: receipt ?? null, receiptCurrent: false };
+  }
+  const rawMatch = receipt.verifiedSha256 === currentSha256;
+  const canonicalMatch =
+    !rawMatch &&
+    receipt.verifiedCanonicalSha256 !== null &&
+    receipt.verifiedCanonicalSha256 !== undefined &&
+    currentCanonicalSha256 !== null &&
+    receipt.verifiedCanonicalSha256 === currentCanonicalSha256;
   return {
-    receipt: receipt ?? null,
-    receiptCurrent: receipt !== undefined && receipt.disposition !== "pending" && receipt.verifiedSha256 === currentSha256,
+    receipt,
+    receiptCurrent: rawMatch || canonicalMatch,
   };
 }

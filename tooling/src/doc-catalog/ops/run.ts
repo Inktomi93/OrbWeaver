@@ -25,7 +25,7 @@ import {
   writeCatalog,
 } from "./catalog.ts";
 import { formatDocs, formatTargets } from "./format.ts";
-import { documents, indexChangedPaths, json, laneAssignments, loadReceipts, worktreeIndexChangedPaths } from "./tree.ts";
+import { documents, indexChangedPaths, json, laneAssignments, loadReceipts, withCanonicalHashes, worktreeIndexChangedPaths } from "./tree.ts";
 import { validate } from "./validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
@@ -124,7 +124,7 @@ function runScopedWrite(input: {
  *  door. The `--sync`/`--ratchet` writes are unchanged: their subject IS the whole corpus by definition. */
 export function runCatalog(mode: CatalogMode, request: CatalogWriteRequest = { paths: [], barrier: false }): ExitCode {
   const config = json<LaneConfig>(LANES_PATH);
-  const docs = documents();
+  const docs = withCanonicalHashes(documents());
   const assignments = laneAssignments(config, docs);
   if (mode === "--bootstrap") {
     bootstrap(config, docs, assignments);

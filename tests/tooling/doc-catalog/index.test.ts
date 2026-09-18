@@ -18,6 +18,8 @@ const LAW_PATH = "docs/architecture/core/Core-Laws-and-Precedents.md";
 function facts(overrides: Partial<ReceiptFacts> = {}): ReceiptFacts {
   return {
     currentSha256: HASH,
+    currentCanonicalSha256: HASH,
+    verifiedBlobCanonicalSha256: HASH,
     verifiedBlobSha256: HASH,
     currentReceiptSnapshotExists: false,
     candidateTouchesReceiptPair: false,
@@ -114,9 +116,30 @@ test("a reviewed receipt binds current document bytes to a durable receipt snaps
     "docs/example.md: current document and receipt do not coexist in a verified commit or the Git index",
   ]);
   expect(validateReceiptEntry(reviewed(), facts({ candidateTouchesReceiptPair: true, currentReceiptSnapshotExists: true }))).toEqual([]);
-  expect(validateReceiptEntry(reviewed(), facts({ currentSha256: "d".repeat(HASH_LENGTH), currentReceiptSnapshotExists: true }))).toEqual([
-    "docs/example.md: verifiedSha256 does not match the current document",
-  ]);
+  // A genuine content change: raw AND canonical hashes both differ.
+  expect(
+    validateReceiptEntry(
+      reviewed(),
+      facts({
+        currentSha256: "d".repeat(HASH_LENGTH),
+        currentCanonicalSha256: "d".repeat(HASH_LENGTH),
+        verifiedBlobCanonicalSha256: HASH,
+        currentReceiptSnapshotExists: true,
+      }),
+    ),
+  ).toEqual(["docs/example.md: verifiedSha256 does not match the current document"]);
+  // A format-only change: raw hashes differ but canonical hashes match — the receipt survives.
+  expect(
+    validateReceiptEntry(
+      reviewed(),
+      facts({
+        currentSha256: "d".repeat(HASH_LENGTH),
+        currentCanonicalSha256: HASH,
+        verifiedBlobCanonicalSha256: HASH,
+        currentReceiptSnapshotExists: true,
+      }),
+    ),
+  ).toEqual([]);
   expect(validateReceiptEntry(reviewed(), facts({ verifiedBlobSha256: "d".repeat(HASH_LENGTH) }))).toEqual([
     "docs/example.md: current document and receipt do not coexist in a verified commit or the Git index",
   ]);

@@ -28,12 +28,13 @@ const CONFIG: LaneConfig = {
   ],
 };
 
-function doc(path: string, sha256: string): Doc {
+function doc(path: string, sha256: string, canonicalSha256: string | null = sha256): Doc {
   return {
     path,
     lines: 10,
     bytes: 100,
     sha256,
+    canonicalSha256,
     frontmatter: { present: true, malformed: false, fields: { kind: "law", status: "active", updated: TODAY }, errors: [] },
   };
 }
@@ -83,6 +84,7 @@ test("a named, reviewed, changed row is re-attested in exactly the four mechanic
     ...reviewedEntry(REVIEWED),
     assignedSha256: NEW_HASH,
     verifiedSha256: NEW_HASH,
+    verifiedCanonicalSha256: NEW_HASH,
     verifiedCommit: HEAD,
     verifiedAt: TODAY,
   });
