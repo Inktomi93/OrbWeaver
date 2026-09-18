@@ -26,7 +26,7 @@
 //
 // Run:  node_modules/.bin/tsx scripts/probes/rpg-extraction/local-8b-vehicles.ts
 // Env:  SPIKE_ARMS=folded,cheap,structured · SPIKE_RUNS=3 · SPIKE_OUT=v2 · SPIKE_ENDPOINT · SPIKE_MODEL
-// Cost: $0 (local gen engine). Writes per-run JSON + a SUMMARY.md under SPIKE_OUT.
+// Cost: $0 (local gen engine). Writes per-run JSON + a the probe's sibling ./SUMMARY.md under SPIKE_OUT.
 
 import fs from "node:fs";
 import path from "node:path";

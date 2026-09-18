@@ -22,7 +22,7 @@ const STORE_BLOB_HOME: SealedHome = {
 const OPERATION = "asset-write-site";
 const WRITE_METHODS = new Set(["insert", "update", "delete"]);
 const MESSAGE =
-  "an assets-table write or storeBlob use exists outside the reviewed CAS-coherence sites; every asset write must remain explicit and singular (D21).";
+  "an assets-table write or storeBlob use exists outside the reviewed CAS-coherence sites; every asset write must remain explicit and singular (D21). (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "route the write through the existing domain/assets storeBlob seam, then review the exact calling module if it is a legitimate CAS-coherence site.";
 
 function storeBlobReference(node: MorphNode): MorphNode | undefined {

@@ -12,7 +12,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [uiTierPermissionFact],
   resources: [],
-  message: "the reviewed skin-fragment definition home is missing.",
+  message: "the reviewed skin-fragment definition home is missing. (tooling/src/verify/gates/GATE-AUTHORING.md)",
   create: (ctx) => ({
     evaluate: () => {
       const facts = readUiTierFacts(ctx);

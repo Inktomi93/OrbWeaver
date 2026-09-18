@@ -12,7 +12,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [macroResolutionFact],
   resources: [],
-  message: "a macro resolver declaration disappeared; the name-keyed policy is now blind to that entry point.",
+  message: "a macro resolver declaration disappeared; the name-keyed policy is now blind to that entry point. (tooling/src/verify/gates/GATE-AUTHORING.md)",
   fix: "retarget the resolver vocabulary in lib/macro-resolution-fact.ts at the renamed entry point and retain its editor protection.",
   create: (ctx) => ({
     evaluate: () => {

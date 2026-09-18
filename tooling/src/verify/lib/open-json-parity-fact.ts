@@ -25,7 +25,7 @@ export interface OpenJsonColumn {
 /** A stored PRIMITIVE (or an array of anything) names no top-level key — `settings.value`'s `JsonValue`
  *  string arm and `automation_rules.actions` are the live shapes. Without this, `getProperties()` returns
  *  the String/Array PROTOTYPE (`charAt`, `padEnd`, `flatMap`, …) and every such column claims a 40-key
- *  vocabulary it does not have — a false GREEN factory, the permissive direction (GATE-AUTHORING.md §5). */
+ *  vocabulary it does not have — a false GREEN factory, the permissive direction (tooling/src/verify/gates/GATE-AUTHORING.md §5). */
 function namesNoKey(arm: Type): boolean {
   return arm.isString() || arm.isNumber() || arm.isBoolean() || arm.isLiteral() || arm.isArray() || arm.isTuple() || arm.isNull() || arm.isUndefined();
 }

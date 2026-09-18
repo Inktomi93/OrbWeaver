@@ -14,7 +14,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [uiTierPermissionFact],
   resources: [],
-  message: "reviewed skin-fragment definition-home permission",
+  message: "reviewed skin-fragment definition-home permission (tooling/src/verify/gates/GATE-AUTHORING.md)",
   fix: "Keep the central grant while this exact home defines the fragment tier; otherwise remove it.",
   create: (ctx) => ({
     evaluate: () => {
@@ -31,8 +31,8 @@ export const gate = defineGate({
           ...hits.map((hit) => ({ node: hit.node, subject: HOME, operation: OPERATION, token: hit.token, offset: hit.offset })),
         ],
         {
-          message: "the reviewed home is live and may define the tier vocabulary.",
-          unreadableMessage: "the reviewed home could not be read.",
+          message: "the reviewed home is live and may define the tier vocabulary. (tooling/src/verify/gates/GATE-AUTHORING.md)",
+          unreadableMessage: "the reviewed home could not be read. (tooling/src/verify/gates/GATE-AUTHORING.md)",
           fix: "Move the operation outside the home or retire its central grant.",
         },
       );

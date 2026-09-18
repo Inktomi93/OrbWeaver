@@ -22,7 +22,7 @@
 // and perishes at the cutover); driving BOTH engines is not, because the final half is what survives it. At
 // the cutover the legacy loop simply finds an empty list and this control keeps its subject.
 //
-// THE LEDGER IS TWO-SIDED AND SHRINK-ONLY (GATE-AUTHORING.md §4.8). A gate that becomes blind is RED even
+// THE LEDGER IS TWO-SIDED AND SHRINK-ONLY (tooling/src/verify/gates/GATE-AUTHORING.md §4.8). A gate that becomes blind is RED even
 // if it is new; a ledger row whose gate is no longer blind is RED ("delete the row"). The mint over the
 // mixed corpus measured **47 blind gates of 245 examined, 52 skipped** — 40 of the old 74 rows GONE and
 // every one of them EXAMINED rather than skipped (i.e. the conversions genuinely closed them), 13 final

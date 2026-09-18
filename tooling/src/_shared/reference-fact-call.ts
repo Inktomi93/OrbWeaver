@@ -45,7 +45,7 @@ function resolveReferenceOrigin(node: MorphNode): ReferenceFact<ReferenceOrigin>
 // ── WHICH CALLABLE DECLARATION DOES THIS CALL DENOTE? (#2097) ────────────────────────────────────────
 //
 // `resolveCallableOrigin` above answers "which module EXPORT is this", and that is a different question:
-// it cannot reach a module-LOCAL factory at all (TS-MORPH-CAPABILITIES.md limit 2), which is why three
+// it cannot reach a module-LOCAL factory at all (tooling/src/verify/gates/TS-MORPH-CAPABILITIES.md limit 2), which is why three
 // policies finished it with their own `getSymbol().getDeclarations()` chain and each answered alias,
 // multiplicity, reassignment and cycle DIFFERENTLY — `class-token-splice` demanded exactly one
 // declaration, `audit-client-tests` took the first with a body, `plugin-dump-guard` asked whether ANY of

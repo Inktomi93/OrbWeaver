@@ -1,6 +1,6 @@
 // Shared core for the registry-liveness gates — biome-grant-liveness's siblings (#607). A
 // registry (a lint/type config) that names a SPECIFIC FILE to grant a suppression, an override, an
-// include/exclude, or a rule exemption has, per GATE-AUTHORING.md §4.4 mode (B), a row whose subject is
+// include/exclude, or a rule exemption has, per tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode (B), a row whose subject is
 // never visited by anything — so when the file is deleted or moved the row goes SILENTLY dead: an
 // over-grant nobody can see, and a future file recreated at that path inherits an exemption nobody
 // re-approved (the loaded gun). Each sibling gate does its own registry-specific EXTRACTION and FAIL-LOUD

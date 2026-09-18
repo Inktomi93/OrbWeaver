@@ -242,7 +242,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   // packages/ui names an intentional clipping viewport with data-slot (scroll-area-viewport,
   // dialog-viewport, menu-viewport, virtual-list-viewport, media-grid-viewport, drawer-viewport,
   // toast-viewport, popover-viewport, tooltip-viewport, message-list-viewport), while ZERO className
-  // strings in packages/{ui,client} carry any word in this list. RULE-AUTHORING.md row 8's class, in
+  // strings in packages/{ui,client} carry any word in this list. tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 8's class, in
   // both directions at once. data-slot + id + aria-roledescription are the authored positions.
   var VIEWPORT_IDENT_RE = /\\b(carousel|comparison|compare|fisheye|marquee|preview|scroller|slider|slideshow|split|viewport|demo-area|demo-stage|demo-viewport)\\b/i;
   var CHILD_SUBSTANTIVE_SEL = ${CHILD_SUBSTANTIVE_SEL_JS};

@@ -63,7 +63,7 @@ function renderAttributionName(attribution: RowAttribution): ReactElement | null
 // timestamp beside it. Renders nothing when there is neither a name nor a shown timestamp.
 //
 // `mirrored` (#288) is the ST user-side order — `datetime · name`, packed to the trailing edge
-// (skin-parity-2026-08-18.md:219, rated MINOR against ours, taken in the header-anatomy pass). It is
+// (the retired skin-parity-2026-08-18 review:219, rated MINOR against ours, taken in the header-anatomy pass). It is
 // spelled as PAINT (`flex-row-reverse`), never as a reordered JSX pair: the DOM order stays name-then-
 // timestamp, so every assistive reading order still announces the SPEAKER first — the row's one datum —
 // on both sides of the transcript. A skin whose header sits outside its container is never mirrored: the

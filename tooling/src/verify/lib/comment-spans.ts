@@ -1,6 +1,6 @@
 // Comment blanking for the LINE-SCANNING gates (issue #117): a `#106` issue citation in a comment read as
 // a 3-digit hex color and reddened two lanes in one day. The harness is pure-AST by its own law
-// (GATE-AUTHORING.md §1) — comments are trivia a value scan must skip. Both helpers return text of the
+// (tooling/src/verify/gates/GATE-AUTHORING.md §1) — comments are trivia a value scan must skip. Both helpers return text of the
 // SAME LENGTH with comment characters replaced by spaces and newlines preserved, so a caller's
 // `split("\n")` line numbers and column offsets stay exact.
 import type { SourceFile } from "ts-morph";
@@ -47,7 +47,7 @@ const blanked = new WeakMap<SourceFile, string>();
  *  follows or precedes it, and that is routinely a `)` / `}` / EOF that a node-only walk never reaches.
  *  Measured 2026-09-02 over 1,712 real files (462 `*.ct.tsx` + 1,250 `packages/client/src`),
  *  `forEachDescendant` lost 41 and 831 comment ranges respectively — in the PERMISSIVE direction, which is
- *  the dangerous one (GATE-AUTHORING.md §5; issue #117 is the incident).
+ *  the dangerous one (tooling/src/verify/gates/GATE-AUTHORING.md §5; issue #117 is the incident).
  *
  *  WHY A GAP SCANNER AND NOT `node.getChildren()`: the previous walk reached the tokens through TypeScript's
  *  `getChildren`, which SYNTHESISES a token node for every keyword and punctuation mark and caches the whole
@@ -179,7 +179,7 @@ const STRING_PROSE_KINDS: readonly SyntaxKind[] = [
  *  quotes: a vitest description `it("calls doThing( …")` is prose, not coverage — test-presence-client
  *  clause C reported clean over exactly that shape until 2026-08-24). It parses into ONE lazily-created
  *  in-memory scratch project (reused, file overwritten per call), which is NOT the banned "a gate never
- *  does `new Project(`" shape from GATE-AUTHORING.md §1: nothing here walks the workspace or resolves a
+ *  does `new Project(`" shape from tooling/src/verify/gates/GATE-AUTHORING.md §1: nothing here walks the workspace or resolves a
  *  dependency. String literals, template CHUNKS (head/middle/tail — interpolated expressions stay), JSX
  *  text, and regex literals are blanked; length and newlines preserved, same as every other door here. */
 export function blankTsCommentsAndStringsInText(text: string): string {

@@ -15,7 +15,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [dialogRootImportFact],
   resources: [],
-  message: "a temporary chat-lane raw Dialog remains pending migration to a composite (#2350).",
+  message: "a temporary chat-lane raw Dialog remains pending migration to a composite (#2350). (tooling/src/verify/gates/GATE-AUTHORING.md)",
   fix: "migrate this dialog to FormDialog or the appropriate composite, then remove its resolved #2350 debt path from the shared classifier.",
   create: (ctx) => ({
     evaluate: () => {

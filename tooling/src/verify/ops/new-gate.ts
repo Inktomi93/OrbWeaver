@@ -4,7 +4,7 @@
 //
 // #2102: it emitted the LEGACY one. Until 2026-09-12 this scaffold wrote a `GateDescriptor` with an
 // `ExemptionTable`, a `scanRoot` predicate, `visit`/`finalize` hooks and a hand-rolled stale arm, and its
-// ritual sent the operator to `GATE-AUTHORING.md`, to a `check-gates.repo.int.test.ts` fixture and to the
+// ritual sent the operator to `tooling/src/verify/gates/GATE-AUTHORING.md`, to a `check-gates.repo.int.test.ts` fixture and to the
 // legacy proof shape. §5 forbids an `ExemptionTable` in a final policy, so every gate minted from this
 // template was born owing an authority migration — a generator that teaches the shape its own program
 // bans. The template below is a `defineGate` FINAL policy: it loads, validates, and its `mustFlag` /

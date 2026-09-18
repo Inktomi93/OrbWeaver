@@ -1,7 +1,7 @@
 // The ONE ts-morph workspace bootstrap — the single home for "load the repo into a Project", shared by
 // the check harness (pure-AST gate run) and (later) the codemod kit. Extracting it here kills the two
 // divergent bootstrap paths (harness globbed packages+tests; the kit globs src/tests/scripts under a
-// tsconfig) so scope decisions live in one place (TSMORPH-SINGLE-PASS-AUDIT.md §1.5, phase 0).
+// tsconfig) so scope decisions live in one place (the retired TSMORPH-SINGLE-PASS-AUDIT audit §1.5, phase 0).
 //
 //   • types:false → today's harness project: skipAddingFilesFromTsConfig + the packages/tests globs,
 //     pure AST, no type graph (the fast ~1s load — no Program/binder until a gate asks for the checker).

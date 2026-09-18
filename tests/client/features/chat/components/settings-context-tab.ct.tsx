@@ -1071,7 +1071,7 @@ test("#640: a room with NO books attached says so rather than rendering an empty
 //              kicker's own type axes instead of establishing its own flex box, so the arrival is now a
 //              paint, not a layout; pinned directly by the #829 test below. The number here is left at
 //              20 rather than tightened to the ~3px residual: this file exercises one mount width
-//              (380px) and the standing rule (`lane-standing-facts.md`, "a point measurement never
+//              (380px) and the standing rule (`.claude/rules/lane-standing-facts.md`, "a point measurement never
 //              proves a range property") requires a width matrix before a fence's budget is narrowed.
 // Pre-#821 the reserve term alone was ~280px (an 89px line standing in for a ~370px open editor), so this
 // budget is failable by an order of magnitude on the source it was written against.

@@ -306,7 +306,7 @@ test("establish-when-unset: an already-SET scene stays OPTIONAL (ongoing turn ke
 });
 
 // ── cacheStableExtractionRefs (F4 — the folded turn's tool payload is prompt-cache-key bytes) ───────────
-// RESULTS.md F4 measured that ANY byte change in the `tools` payload drops `cached_tokens` to zero and re-bills
+// the probe's sibling ./RESULTS.md F4 measured that ANY byte change in the `tools` payload drops `cached_tokens` to zero and re-bills
 // the WHOLE prefix. The folded vehicle mounts these tools on the character turn, so the schema they carry must
 // not move when the SCENE moves — while every config-derived constraint must survive intact.
 
@@ -786,7 +786,7 @@ test("R1: an all-good round reports nothing dropped (a quiet log on the happy pa
   ).toEqual([]);
 });
 
-// ── SCENE-DROPPED salvage (property test — dogfood-tracking.md) ─────────────────────────────────────────
+// ── SCENE-DROPPED salvage (property test — docs/history/dogfood-tracking-2026-08-08.md) ─────────────────────────────────────────
 // "Every closed enum reachable from a tool arg can express what the reminder can RENDER" — for weather, the
 // reminder (`weatherLine`/`rpgWeatherText`) renders WHATEVER STRING the model wrote in the free `label` field
 // (label wins over type when present), so the render side is effectively unconstrained while the WRITE side

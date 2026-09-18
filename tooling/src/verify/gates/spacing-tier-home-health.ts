@@ -1,5 +1,5 @@
 // Policy: spacing-tier-home-health — the RENAME TRIPWIRE for `no-raw-spacing-in-features`'s tier
-// permission (GATE-AUTHORING.md §4.4a mode B): a sanctioned home whose row resolves to zero files on the
+// permission (tooling/src/verify/gates/GATE-AUTHORING.md §4.4a mode B): a sanctioned home whose row resolves to zero files on the
 // tree either moved or died, and an exclusion carried in a `population` predicate would follow it into the
 // void silently. This policy shares the exact `TIER_IMPLEMENTATION_HOMES` table with its sibling and runs over the
 // ENTIRE population (never a narrowed subset), because "does this row resolve to a file" is a whole-tree
@@ -41,7 +41,7 @@ import { defineGate } from "../contract/policy.ts";
 import { TIER_IMPLEMENTATION_HOMES } from "../lib/raw-spacing-tier.ts";
 import { unresolvedSanctionedHomeKeys } from "../lib/sanctioned-home.ts";
 
-/** The real-tree anchor (GATE-AUTHORING.md §4.5): the generated token vocabulary the spacing gate's
+/** The real-tree anchor (tooling/src/verify/gates/GATE-AUTHORING.md §4.5): the generated token vocabulary the spacing gate's
  *  message points at — present on every real run, inside neither sanctioned home, needed by no example
  *  that is not deliberately arming this arm. Guards the tripwire off a fixture/mini-project run, where
  *  the anchor is never loaded and every row would falsely "prove" itself dead. */

@@ -396,7 +396,7 @@ function staleArmStrings(module: GateModernizationModuleSyntax): readonly string
 }
 
 /** Arm B for one gate module: every one-sided exemption collection it carries. Unsuppressed by
- *  construction — the RETRO handoff baseline reached its terminal state `{}` (GATE-AUTHORING.md §4.8) and was
+ *  construction — the RETRO handoff baseline reached its terminal state `{}` (tooling/src/verify/gates/GATE-AUTHORING.md §4.8) and was
  *  deleted with its generator, so a NEW one-sided table is red on arrival with no ledger to add it to. */
 function armExemptions(module: GateModernizationModuleSyntax, ctx: GatePolicyContext): void {
   if (hasStaleArm(module)) {

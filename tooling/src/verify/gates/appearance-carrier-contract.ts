@@ -13,7 +13,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [appearanceCarrierFact],
   resources: [],
-  message: "Appearance carrier graph drift: a manifest key has no executable carrier declaration.",
+  message: "Appearance carrier graph drift: a manifest key has no executable carrier declaration. (tooling/src/verify/gates/GATE-AUTHORING.md)",
   fix:
     "declare the key's carrier without flattening the theme/custom-CSS planes; a deliberately empty carrier is " +
     "waived with `// @orb-waive appearance-carrier-contract(<key>): <reason>` on the line above the manifest " +

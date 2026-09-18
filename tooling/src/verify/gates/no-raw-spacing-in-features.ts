@@ -3,7 +3,7 @@
 //
 // THE ALLOWLIST IS A TIER PERMISSION, NOT A BURN-DOWN LIST: `packages/ui/src/layout/` and
 // `packages/ui/src/markdown/` are the primitives that IMPLEMENT the intent tokens, so they may spell the
-// raw utility. SCAN-AND-ALLOWLIST (GATE-AUTHORING.md §3, 2026-08-22): those homes are SCANNED and exempted
+// raw utility. SCAN-AND-ALLOWLIST (tooling/src/verify/gates/GATE-AUTHORING.md §3, 2026-08-22): those homes are SCANNED and exempted
 // by cited rows, not scoped out of the population, and the RENAME TRIPWIRE is the ONE shared implementation
 // (lib/sanctioned-home.ts) instead of a hand-rolled sweep re-spelled in four sibling gates. The tripwire is
 // a SEPARATE policy in this same family (`spacing-tier-home-health`) because the occurrence check below is
@@ -51,7 +51,7 @@ const MESSAGE =
 
 const SPACING_REGEX = /\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])/u;
 
-/** The CARRIER FENCE (GATE-AUTHORING.md §5): a spacing token is ambiguous enough that only a className
+/** The CARRIER FENCE (tooling/src/verify/gates/GATE-AUTHORING.md §5): a spacing token is ambiguous enough that only a className
  *  attribute or a class-composer call (`cn`/`clsx`/`cva`/`tv`) counts as a class string. */
 const CLASS_COMPOSERS: ReadonlySet<string> = new Set(["cn", "clsx", "cva", "tv"]);
 

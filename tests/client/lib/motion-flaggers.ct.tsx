@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll
 // CT: the `[space]` half of motion-flaggers.ts (task #39/#40's dead-flagger fix). A node/jsdom test
 // cannot reach this — `getComputedStyle` on a replaced element only resolves a real box in an actual
 // layout engine, which is exactly the bug this file guards: `hasReservedBox` used to read the
@@ -526,6 +525,7 @@ test("motion-audit pause skips duplicate CSS/WAAPI lifetime work and ordinary [d
   await component.getByRole("button", { name: "plant CSS drop" }).click();
   await component.getByRole("button", { name: "plant WAAPI drop" }).click();
   // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: this negative control must leave enough wall time for forbidden observer work to occur.
+  // @orb-waive test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll
   await page.waitForTimeout(250);
   const paused = await page.evaluate(() => {
     const root = document.documentElement as HTMLElement & { __orbDropTargetInspections?: number; __orbDropTimingReads?: number };
@@ -551,6 +551,7 @@ test("the audit CDP rail still sees a real dropped-frame plant while in-page [dr
   await component.getByRole("button", { name: "pause audit drop tracking" }).click();
   await component.getByRole("button", { name: "plant CDP drop" }).click();
   // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: Chrome tracing has no DOM condition; the plant owns a fixed 250ms block inside this capture interval.
+  // @orb-waive test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll
   await page.waitForTimeout(500);
   const completed = new Promise<void>((resolve) => cdp.once("Tracing.tracingComplete", () => resolve()));
   await cdp.send("Tracing.end");

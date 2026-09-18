@@ -2,7 +2,7 @@
 // `.dependency-cruiser.cjs` are JS/CJS, so a file-exact row hides behind a named const, an array const, a
 // spread, or a template literal built from consts. A gate that reads only bare StringLiterals there would
 // SILENTLY SEE ALMOST NOTHING and print a clean zero over a registry it never read — the lying-proof class
-// (GATE-AUTHORING.md §5 literal-shape blindness). This module resolves the shapes it CAN prove and REFUSES
+// (tooling/src/verify/gates/GATE-AUTHORING.md §5 literal-shape blindness). This module resolves the shapes it CAN prove and REFUSES
 // LOUDLY on every shape it cannot: `read()` returns resolved values AND an explicit `unresolved` list, and
 // the caller is obliged to turn a non-empty `unresolved` into a finding. Nothing here ever guesses, and an
 // unreadable shape is never silently dropped. The ordered-evaluation approach is `dangling-refs.ts`'s
@@ -274,7 +274,7 @@ function readValueInner(node: Node, seen: Set<Node>, escaped: ReadonlySet<object
  *  `unresolved` is printing a clean zero over a value it never read. Exported because a second reader of
  *  authored CODE strings (`enforcement-registry-parity`, comparing a doc row against a gate descriptor's
  *  runtime `message`) must not re-spell this evaluation: a hand-rolled `Node.isStringLiteral(x)` read is
- *  the literal-shape blindness class (GATE-AUTHORING.md §5), and every message in the gate corpus is built
+ *  the literal-shape blindness class (tooling/src/verify/gates/GATE-AUTHORING.md §5), and every message in the gate corpus is built
  *  from `+`-concatenated fragments. */
 export function readExpressionString(node: Node): StaticRead {
   return readValue(node);
@@ -300,7 +300,7 @@ export function readExpressionStrings(nodes: readonly Node[]): readonly StaticRe
  *  cannot serve them without widening every gate's jurisdiction. This is the `comment-spans.ts` /
  *  `baseui-read.ts` precedent and carries the reviewed grant `tooling-project-home:config-static-read`
  *  in `lib/reviewed-grants.ts` (the construction below is the licensed non-workspace Project).
- *  Each file is created at its OWN path, so the overwrite-identity trap (GATE-AUTHORING.md §5 — one reused SourceFile
+ *  Each file is created at its OWN path, so the overwrite-identity trap (tooling/src/verify/gates/GATE-AUTHORING.md §5 — one reused SourceFile
  *  object answering every later call with the FIRST file's text) cannot arise between reads. */
 let scratch: Project | undefined;
 

@@ -93,7 +93,7 @@ test("an import RENAME and a re-export RENAME both land on the leaf declaration"
     "use.ts": 'import { renamed } from "./barrel.ts";\nexport const out = renamed();\n',
   });
 
-  // The LOCAL SPELLING is not identity (TS-MORPH-CAPABILITIES.md): both of these are `api.ts`'s `f`, and a
+  // The LOCAL SPELLING is not identity (tooling/src/verify/gates/TS-MORPH-CAPABILITIES.md): both of these are `api.ts`'s `f`, and a
   // reader keying on the callee's text would answer three different things for one callable.
   expect(renamedImport.sourceFile.getBaseName()).toBe("api.ts");
   expect(renamedExport.sourceFile.getBaseName()).toBe("api.ts");

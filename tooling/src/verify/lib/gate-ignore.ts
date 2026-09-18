@@ -12,7 +12,7 @@ import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateIgnoreMarker } from "../contract/gate-ignore-marker.ts";
 
-/** The house exemption-marker grammar (GATE-AUTHORING.md §4.3):
+/** The house exemption-marker grammar (tooling/src/verify/gates/GATE-AUTHORING.md §4.3):
  *  `// @orb-gate-ignore <gate-name>[(<position>)]: <reason>`.
  *
  *  The pattern is deliberately PERMISSIVE about the tail so a malformed marker is still RECOGNISED as an

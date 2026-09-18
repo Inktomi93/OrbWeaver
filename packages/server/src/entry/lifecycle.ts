@@ -137,7 +137,7 @@ export async function drainWorkloadsWorker(worker: OwnedWorkloadsWorker): Promis
  *  a client saw a truncated stream.
  *
  *  Exported (not a `createLifecycle` closure) so the forced path is directly testable against a real open
- *  socket, rather than only provable live (`DRAIN-UNBOUNDED`, dogfood-tracking.md).
+ *  socket, rather than only provable live (`DRAIN-UNBOUNDED`, docs/history/dogfood-tracking-2026-08-08.md).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export async function drainHttpServer(handle: ServerType, log: DrainLog, drainMs: number = SHUTDOWN_DRAIN_MS): Promise<void> {

@@ -51,7 +51,7 @@ const CONFIG_REL = "eslint.config.js";
 const MESSAGE =
   "an evaluated ESLint files/ignores selector has ZERO members in its native scope — the rule block or " +
   "grant is dead, and a later file can inherit policy nobody re-approved. Re-point or delete the selector; " +
-  "only a by-construction absent population may be granted, with a reason and an end condition.";
+  "only a by-construction absent population may be granted, with a reason and an end condition. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 const FIX =
   "delete or re-point the zero-member selector in eslint.config.js. If its population is absent BY DESIGN " +

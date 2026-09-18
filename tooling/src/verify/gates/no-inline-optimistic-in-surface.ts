@@ -36,7 +36,7 @@ const SURFACES = "**/features/*/surfaces/**";
 const MESSAGE =
   "Optimistic-mutation plumbing (`cancelQueries` / `setQueryData`) belongs in `features/<x>/hooks/`, not a surface. Surfaces compose JSX; data plumbing drifts when it lives at the call site. Use `optimisticOptions({queryClient, queryKey, merge, invalidateOnSettled})` from `features/_shared` (see docs/architecture/history/UI-Lib-TanStack-Query.md), OR extract a hook that wraps the inline pattern (the wide-TInput tRPC exception — see `use-star-toggle.ts`).";
 const UNREADABLE =
-  "this surface calls a member named `cancelQueries`/`setQueryData` whose receiver the checker cannot place, so whether it is TanStack Query's client CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this surface calls a member named `cancelQueries`/`setQueryData` whose receiver the checker cannot place, so whether it is TanStack Query's client CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 /** The method name a call's callee reads, across dotted and computed-literal spellings. */
 function calledMemberName(callee: MorphNode): string | undefined {

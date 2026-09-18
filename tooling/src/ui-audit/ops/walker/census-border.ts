@@ -8,7 +8,7 @@
 // of EVERY form control on the surface, so the boundary a designer declared and the boundary a user can
 // see stop being two different facts nobody compares.
 //
-// MECHANISM MATCH (RULE-AUTHORING.md step 1). Two receipts, both re-derivable:
+// MECHANISM MATCH (tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md step 1). Two receipts, both re-derivable:
 //   • the ink is authored as an OKLCH token, so the colour is read through `parseRgb` — the canvas probe
 //     from ops/walker/resolve.ts (table row 1), never an rgb()/hex regex;
 //   • what the border is measured AGAINST is `resolveBackdropUnder(el)` — the paint the control's own box
@@ -36,7 +36,7 @@ export const WALKER_CENSUS_BORDER = `  // ── form-control boundary census (b
   var borderContrasts = [];
   // The control roles a boundary is an AFFORDANCE for: a text field, a text area, a native select, and
   // the composite triggers Base UI renders as a div carrying the role (a bare <div role=combobox> is
-  // structurally invisible to a tag-only selector — RULE-AUTHORING.md row 3's class, one axis over).
+  // structurally invisible to a tag-only selector — tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 3's class, one axis over).
   var BORDER_CONTROL_SEL = "input,textarea,select,[role=combobox],[role=textbox],[role=searchbox],[role=spinbutton],[role=listbox]";
   var BORDER_SIDES = ${JSON.stringify(BORDER_CONTRAST_SIDES)};
   var borderControls = document.querySelectorAll(BORDER_CONTROL_SEL);

@@ -2827,7 +2827,7 @@ test("Escape closes an open modal without any panel-dismiss side effect (the yie
 });
 
 // ── Co-motion parity: the shell push + panel slide animate as ONE event (never-desync) ────────────
-// BASEUI-MOTION-AUDIT.md §5 Layer 2 — the rendered-output guard the corpus desync needed. The track
+// the retired BASEUI-MOTION-AUDIT review §5 Layer 2 — the rendered-output guard the corpus desync needed. The track
 // change and the collapsed panel (`transform`) are one visual event; they MUST carry the SAME duration +
 // timing-function, and NEITHER may be `0s`/`none` (the `0s` arm is what catches ABSENCE — the actual
 // corpus bug, where the track had NO motion while the panel slid). Layer 1's co-motion vars

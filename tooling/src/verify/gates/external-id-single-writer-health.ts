@@ -1,7 +1,7 @@
 // Gate: external-id-single-writer-health — the WHOLE-POPULATION half of the `external-id-single-writer`
 // family (Spine-Identity-and-Auth.md U1). `external-id-single-writer.ts` judges each file's own writes;
 // this sibling proves the carve-out ITSELF is still earned: each of the two sanctioned files must still
-// contain an externalId write (a dead carve-out is RED — GATE-AUTHORING.md §4.4a mode A), and
+// contain an externalId write (a dead carve-out is RED — tooling/src/verify/gates/GATE-AUTHORING.md §4.4a mode A), and
 // link-external-id.ts must still call the one atomic claim writer (mode A for the caller half). Both
 // checks only fire when their target file is actually present in this run's resolved population — a
 // narrower request that never reaches these files is not a stale claim, so `execution: "entire-population"`

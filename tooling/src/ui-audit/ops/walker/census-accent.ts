@@ -4,7 +4,7 @@
 // Split out of census-decor.ts (2026-09-05, #1103) on the census-glow.ts precedent — the pseudo sweep
 // took that file past the tooling-size cap, and an accent edge is one rule family, so it gets one file.
 //
-// THE PSEUDO BAR IS THE SPELLING THIS TREE ACTUALLY USES (#1103, RULE-AUTHORING.md checklist step 1).
+// THE PSEUDO BAR IS THE SPELLING THIS TREE ACTUALLY USES (#1103, tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md checklist step 1).
 // The census as born read `borderTopWidth/RightWidth/BottomWidth/LeftWidth` on the element and nothing
 // else, and reported `side-tab candidates=0 judged=0 affected=0 withheld() excluded()` — a clean-looking
 // zero — on the very surface carrying the §6-banned bar it exists to catch. Measured live on the config
@@ -23,7 +23,7 @@
 // those three are FULL-BOX rings rather than bars and must stay unjudged by this arm — which is what the
 // geometry predicate below is for, and what the fixture's negative control pins.
 //
-// ONE PREDICATE, NOT A SECOND COPY OF THE RULE (RULE-AUTHORING.md checklist step 5). The pseudo arm does
+// ONE PREDICATE, NOT A SECOND COPY OF THE RULE (tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md checklist step 5). The pseudo arm does
 // not re-derive the chroma/alpha/dominance/radius question: it lands a row in the SAME `accentBorders`
 // family, shaped as the SAME `AccentBorderInput`, and `lib/checks-decor.ts` judges it with the identical
 // `classifyAccentSide`. The bar's measured thickness stands in for the accent side's border width, its

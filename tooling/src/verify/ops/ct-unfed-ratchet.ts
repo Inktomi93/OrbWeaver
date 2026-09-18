@@ -21,7 +21,7 @@
 // an unfed `chat.getChat` and start having an unfed `foo.bar` while the number holds — the ratchet would read
 // a swapped defect as green. Every row is therefore exactly ONE (file, procedure) membership, `count: 1`.
 //
-// FIVE ARMS, TWO OF THEM REFUSALS (GATE-AUTHORING.md §4.4a — every exemption is two-sided from birth):
+// FIVE ARMS, TWO OF THEM REFUSALS (tooling/src/verify/gates/GATE-AUTHORING.md §4.4a — every exemption is two-sided from birth):
 //   • NEW      — an observed (file, proc) with no baseline row is RED. This is the arm that stops the 14
 //                coming back.
 //   • SHRINK   — a baseline row whose file RAN, with the instrument proven live in it, and which no longer

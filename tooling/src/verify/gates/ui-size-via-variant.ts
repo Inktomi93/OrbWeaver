@@ -76,7 +76,7 @@ function classNameLiteral(el: JsxOpeningElement | JsxSelfClosingElement): Node |
 
 const UI_SPECIFIER_RE = /^@orb\/ui(?:\/|$)/u;
 const MESSAGE =
-  "sizes come from variants — a call-site sizing utility overrides the primitive's sealed box; add a size/layout variant to the primitive instead.";
+  "sizes come from variants — a call-site sizing utility overrides the primitive's sealed box; add a size/layout variant to the primitive instead. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 export const gate = defineGate({
   id: "ui-size-via-variant",

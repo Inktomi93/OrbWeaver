@@ -11,7 +11,7 @@
 // imported — and it FAILS LOUD (throws ⇒ a ToolError attributed to the calling gate, exit 2) on every other
 // shape, on an unresolvable binding, on a composition cycle, and on a spread that resolves to zero members.
 // It is deliberately NOT a general AST-graph helper: interface members and drizzle column objects are
-// different semantics with their own resolvers (GATE-AUTHORING.md §4.6 blindness discipline).
+// different semantics with their own resolvers (tooling/src/verify/gates/GATE-AUTHORING.md §4.6 blindness discipline).
 import type { Node, Project, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node as TsNode } from "ts-morph";
 import { readStringValue, unwrapExpression } from "./ast-read.ts";
@@ -22,7 +22,7 @@ const DIAGNOSTIC_PREVIEW_CHARS = 120;
 /** One resolved member, with the provenance a diagnostic needs: an imported member's node lives in the
  *  declaration that CONTRIBUTED it, not in the tuple that spread it in. Reached STRUCTURALLY through
  *  `TupleVocabulary.entries` — not exported by name, because no consumer has ever needed to spell it and an
- *  unused export beside a one-home claim is the dead-export archetype (GATE-AUTHORING.md §9). */
+ *  unused export beside a one-home claim is the dead-export archetype (tooling/src/verify/gates/GATE-AUTHORING.md §9). */
 interface TupleMember {
   readonly value: string;
   /** The element expression itself — its own file and line. */

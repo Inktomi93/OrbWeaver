@@ -50,7 +50,7 @@ const FIX =
  *  arm reports the same single finding the sealed verdict does and differs ONLY in message, so a shared
  *  prefix would leave both arms unpinnable in either direction (guide §6.1). The two texts are disjoint. */
 const UNREADABLE =
-  "a rollup table NAME reached through a door the shared readers cannot place — whether this binds the stats schema's own table CANNOT be established, so a seam an unreadable barrel can walk through is reported rather than admitted. The spelling alone is not the identity.";
+  "a rollup table NAME reached through a door the shared readers cannot place — whether this binds the stats schema's own table CANNOT be established, so a seam an unreadable barrel can walk through is reported rather than admitted. The spelling alone is not the identity. (Knowledge-Cluster.md)";
 
 /** Legacy `scanRoot` tested `/packages\\/server\\/src\\/domain\\/discovery\\//` against the repo path; the
  *  `@server` root plus this `under` glob admits exactly that set. */

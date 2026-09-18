@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 // fetchAgentSdkModels (catalog.ts via the backend's `fetchModels`), driven by a fake `query`. Load-bearing:
 // the discovery opens a HELD-OPEN streaming query through the mode-1 firewall base (tools disabled, strict
 // MCP, no settings), calls the daemon's `supportedModels()` CONTROL call (not a generation turn), normalizes
@@ -106,6 +105,7 @@ describe("agent-sdk fetchModels (supportedModels discovery)", () => {
     // The ROBUSTNESS guarantee: a spawn whose control-channel call never resolves can't hang the refresh.
     // withTimeout races the 15s bound → a retryable `server` ProviderError, and interrupt() STILL runs in
     // the finally (no leaked subprocess on the timeout branch).
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
     vi.useFakeTimers();
     try {
       const interruptSpy = vi.fn();
@@ -142,6 +142,7 @@ describe("agent-sdk fetchModels (supportedModels discovery)", () => {
   // caller pending forever despite the advertised 15s bound. The teardown is best-effort billing cleanup;
   // it may never be the thing that outlives the call it is cleaning up after.
   test("a wedged interrupt() cannot hold the caller — the teardown is bounded too, and the models still return", async () => {
+    // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
     vi.useFakeTimers();
     try {
       const query = vi.fn(

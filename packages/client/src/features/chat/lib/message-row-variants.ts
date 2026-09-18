@@ -377,7 +377,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     bubbleDecoration: echoDecoration,
     bubbleLayout: "single",
     columnStyle: ECHO_MAX_WIDTH_STYLE,
-    // DELIBERATE DIVERGENCE FROM ECHO'S OWN REFERENCE (skin-parity-2026-08-18.md:138 rates ST's
+    // DELIBERATE DIVERGENCE FROM ECHO'S OWN REFERENCE (the retired skin-parity-2026-08-18 review:138 rates ST's
     // name-above-the-card as MINOR against ours). Echo is a FILLED container, so leaving its header
     // outside would keep exactly the two-object read #288 exists to kill; the owner's attachment ruling
     // outranks a MINOR ref row. One word here reverts it if the reference ever wins.
@@ -390,7 +390,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: whisperDecoration,
     bubbleLayout: "single",
-    // DELIBERATE DIVERGENCE (skin-parity-2026-08-18.md:171/:173): ST OVERLAYS whisper's header on the
+    // DELIBERATE DIVERGENCE (the retired skin-parity-2026-08-18 review:171/:173): ST OVERLAYS whisper's header on the
     // banner art; ours sits inside the card BELOW the band. The band is a real block child precisely so
     // text can never sit on art (the §0 reading-surface law the same report credits us for) — the
     // anatomy question #288 asked is "one container or two", and below-the-band answers it as one.
@@ -414,7 +414,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: rippleAvatarTreatment,
     bubbleLayout: "single",
     // The welded portrait is a sibling INSIDE the bubble, so `inside` lands the header exactly where
-    // ripple's reference has it: in the card, right of the portrait (skin-parity-2026-08-18.md:121 —
+    // ripple's reference has it: in the card, right of the portrait (the retired skin-parity-2026-08-18 review:121 —
     // "ours reads as a caption floating above a picture card, ref reads as a titled panel").
     headerPlacement: "inside",
   },

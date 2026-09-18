@@ -49,6 +49,6 @@ export interface ExemptionRow {
 
 /** A keyed exemption table: the KEY is the thing exempted (a repo-relative path, a domain name, a table
  *  name, a settings key); the VALUE carries the reason. Every table declared with this type owes a stale
- *  arm — a row matching zero live sites must be RED, not silence (GATE-AUTHORING.md §"The exemption
+ *  arm — a row matching zero live sites must be RED, not silence (tooling/src/verify/gates/GATE-AUTHORING.md §"The exemption
  *  grammar"). Kept as an alias rather than a branded type so a gate can widen the row by intersection. */
 export type ExemptionTable<Row extends ExemptionRow = ExemptionRow> = Readonly<Record<string, Row>>;

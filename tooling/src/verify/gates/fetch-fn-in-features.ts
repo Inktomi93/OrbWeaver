@@ -37,7 +37,7 @@ const MESSAGE =
   "gets ONE data/ fetch fn each (beside upload-asset.ts / auth-session.ts), imported via #data; " +
   "everything else is tRPC. See client-architecture-lockdown.md §10/§16 R5.";
 const UNREADABLE =
-  "this feature call is spelled like the global `fetch` but the shared readers cannot place its binding, so whether it is the wire primitive R5 bans CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this feature call is spelled like the global `fetch` but the shared readers cannot place its binding, so whether it is the wire primitive R5 bans CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (client-architecture-lockdown.md §10)";
 
 /** Could this callee name the global at all? A bare `fetch`, or any member read whose leaf is `fetch`
  *  (`globalThis.fetch`, `window.fetch`, `self["fetch"]`). `q.refetch()` has a different leaf and is not a

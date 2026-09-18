@@ -14,7 +14,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [uiTierPermissionFact],
   resources: [],
-  message: "reviewed shell permission for raw pointer capability variants",
+  message: "reviewed shell permission for raw pointer capability variants (tooling/src/verify/gates/GATE-AUTHORING.md)",
   fix: "Keep the central grant while this exact home owns shell capability adaptation; otherwise remove it.",
   create: (ctx) => ({
     evaluate: () => {
@@ -31,8 +31,8 @@ export const gate = defineGate({
           ...hits.map((hit) => ({ node: hit.node, subject: HOME, operation: OPERATION, token: hit.token, offset: hit.offset })),
         ],
         {
-          message: "the reviewed shell home is live and may spell capability variants.",
-          unreadableMessage: "the reviewed shell home could not be read.",
+          message: "the reviewed shell home is live and may spell capability variants. (tooling/src/verify/gates/GATE-AUTHORING.md)",
+          unreadableMessage: "the reviewed shell home could not be read. (tooling/src/verify/gates/GATE-AUTHORING.md)",
           fix: "Move the operation outside the home or retire its central grant.",
         },
       );

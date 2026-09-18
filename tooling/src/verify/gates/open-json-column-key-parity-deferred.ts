@@ -6,7 +6,7 @@ import { openJsonParityFact } from "../lib/open-json-parity-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
 const MESSAGE =
-  "messageVariants.metadata has a named reasoning_duration reader but no proven live-turn writer; issue #184 owns the product decision and repair.";
+  "messageVariants.metadata has a named reasoning_duration reader but no proven live-turn writer; issue #184 owns the product decision and repair. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "resolve #184 by stamping reasoning_duration on live turns or sourcing the statistic from a typed first-class column.";
 
 export const gate = defineGate({

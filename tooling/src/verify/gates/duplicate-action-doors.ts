@@ -107,7 +107,7 @@ const MESSAGE =
  *  never marks a candidate unreadable. A vocabulary shape the tuple reader cannot establish THROWS out of
  *  `lib/tuple-read.ts` and withholds the owner, and a call site whose procedure cannot be read is not a door
  *  at all. Nothing enforces that this text is never printed; the two refusals above are what make it so. */
-const UNREADABLE = "a duplicate-door pair was censused without a readable door — the plane census is unreadable, which is itself the violation.";
+const UNREADABLE = "a duplicate-door pair was censused without a readable door — the plane census is unreadable, which is itself the violation. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 const FIX =
   "Give the section ONE component that owns the verb and let the other affordances reach it (a shared hook, " +

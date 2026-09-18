@@ -16,6 +16,21 @@ import { readyResourceValue } from "../lib/resource-declaration.ts";
 /** Extensions that identify a backticked token as a file-path reference. */
 const PATH_EXTENSIONS = /\.(ts|tsx|md|json|sql|cjs|mjs|css|html|sh|yaml|yml)$/u;
 
+/** A token carrying a glob, brace, placeholder, relative prefix, absolute path or package specifier
+ *  is a PROSE PATTERN or a non-resolvable reference, never a literal file cite. */
+const NON_LITERAL_RE = /[*{}<>]|^\.\.\/|^\.\/|^\/|^@orb\//u;
+
+/** Package-name-to-prefix mapping: D-ledger paths like `contracts/rpg/foo.ts` mean
+ *  `packages/contracts/src/rpg/foo.ts` — the first segment is the package name. */
+const PACKAGE_NAME_PREFIXES: Readonly<Record<string, string>> = {
+  contracts: "packages/contracts/src/",
+  kit: "packages/kit/src/",
+  db: "packages/db/src/",
+  ui: "packages/ui/src/",
+  client: "packages/client/src/",
+  server: "packages/server/src/",
+};
+
 /** Common prefix patterns: D-entries often cite paths relative to a package root. */
 const RESOLUTION_PREFIXES = [
   "packages/server/src/",
@@ -38,8 +53,8 @@ const FIX = "update the backticked path to the current location, or remove the r
 
 /** Extract backticked file-path-shaped identifiers from markdown text. A file path must contain at
  *  least one `/` and end with a recognized extension. */
-function extractPathCites(document: MarkdownDocument): { path: string; line: number }[] {
-  const results: { path: string; line: number }[] = [];
+function extractPathCites(document: MarkdownDocument): { path: string; line: number; column: number }[] {
+  const results: { path: string; line: number; column: number }[] = [];
   const lines = document.text.split("\n");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -48,8 +63,17 @@ function extractPathCites(document: MarkdownDocument): { path: string; line: num
     }
     for (const match of line.matchAll(/`([^`]+)`/gu)) {
       const candidate = match[1];
-      if (candidate !== undefined && candidate.includes("/") && PATH_EXTENSIONS.test(candidate)) {
-        results.push({ path: candidate, line: i + 1 });
+      // Skip paths inside strikethrough (~~...~~) — historical references to deleted files
+      const matchIdx = match.index ?? 0;
+      const precedingText = line.slice(0, matchIdx);
+      const strikeOpen = (precedingText.match(/~~/gu) ?? []).length;
+      if (strikeOpen % 2 !== 0) {
+        continue;
+      }
+      if (candidate !== undefined && candidate.includes("/") && PATH_EXTENSIONS.test(candidate) && !NON_LITERAL_RE.test(candidate)) {
+        // +2 for 1-based columns and to skip the opening backtick
+        const column = (match.index ?? 0) + 2;
+        results.push({ path: candidate, line: i + 1, column });
       }
     }
   }
@@ -57,8 +81,8 @@ function extractPathCites(document: MarkdownDocument): { path: string; line: num
 }
 
 /** Check if a cited path resolves against the tracked file set, trying the path as-is first, then
- *  with common prefix patterns. */
-function resolveOnTree(citedPath: string, trackedSet: ReadonlySet<string>): boolean {
+ *  with common prefix patterns, package-name resolution, and suffix matching. */
+function resolveOnTree(citedPath: string, trackedSet: ReadonlySet<string>, trackedSuffixIndex: ReadonlyMap<string, boolean>): boolean {
   if (trackedSet.has(citedPath)) {
     return true;
   }
@@ -67,7 +91,18 @@ function resolveOnTree(citedPath: string, trackedSet: ReadonlySet<string>): bool
       return true;
     }
   }
-  return false;
+  // Package-name resolution: `contracts/rpg/foo.ts` -> `packages/contracts/src/rpg/foo.ts`
+  const firstSlash = citedPath.indexOf("/");
+  if (firstSlash > 0) {
+    const firstSegment = citedPath.slice(0, firstSlash);
+    const rest = citedPath.slice(firstSlash + 1);
+    const packagePrefix = PACKAGE_NAME_PREFIXES[firstSegment];
+    if (packagePrefix !== undefined && trackedSet.has(`${packagePrefix}${rest}`)) {
+      return true;
+    }
+  }
+  // Suffix match: a D-ledger path relative to a domain root
+  return trackedSuffixIndex.has(`/${citedPath}`);
 }
 
 export const gate = defineGate({
@@ -87,6 +122,15 @@ export const gate = defineGate({
       const ledger = readyResourceValue(ctx.resources.ledger("core-path-registry"));
       const tracked = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
       const trackedSet = new Set(tracked);
+      // Build a suffix index for domain-relative path resolution
+      const trackedSuffixIndex = new Map<string, boolean>();
+      for (const p of tracked) {
+        let idx = p.indexOf("/");
+        while (idx !== -1) {
+          trackedSuffixIndex.set(p.slice(idx), true);
+          idx = p.indexOf("/", idx + 1);
+        }
+      }
 
       let citesChecked = 0;
 
@@ -94,12 +138,12 @@ export const gate = defineGate({
         const cites = extractPathCites(document);
         for (const cite of cites) {
           citesChecked++;
-          if (resolveOnTree(cite.path, trackedSet)) {
+          if (resolveOnTree(cite.path, trackedSet, trackedSuffixIndex)) {
             continue;
           }
           ctx.report.file(document.path, {
             line: cite.line,
-            column: 1,
+            column: cite.column,
             token: cite.path,
             message: `\`${cite.path}\` does not resolve on the tree — ${MESSAGE}`,
             fix: FIX,

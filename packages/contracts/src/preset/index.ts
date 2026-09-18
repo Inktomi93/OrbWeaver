@@ -49,10 +49,10 @@ const MAX_SEPARATOR_LENGTH = 64;
 /**
  * The deploy's OWN `CLAUDE_CODE_*` pins — the isolation set the subprocess builder writes
  * (`infra/providers/backends/agent-sdk/env.ts` `ISOLATION_PINS`, which is typed BY this tuple, so the two
- * cannot drift) plus the CLAUDE.md suppression each builder sets. THE NAMES LIVE HERE, IN CONTRACTS,
+ * cannot drift) plus the ./CLAUDE.md suppression each builder sets. THE NAMES LIVE HERE, IN CONTRACTS,
  * BECAUSE THE WRITE SCHEMA MUST REFUSE THEM (#1536): they sit inside the `CLAUDE_*` namespace the hatch
  * admits, so an allowlist that stopped at the namespace let a preset re-enable auto-memory, background
- * tasks, cron, the full system prompt, CLAUDE.md injection or the cache-churning attribution header inside
+ * tasks, cron, the full system prompt, ./CLAUDE.md injection or the cache-churning attribution header inside
  * the RP subprocess — or UNSET any of them with `null`. Their VALUES stay in the server: what the pin is
  * set to is a deploy decision, only WHICH NAMES are host-owned is shared vocabulary.
  */
@@ -73,7 +73,7 @@ export const CLAUDE_ISOLATION_PIN_KEYS = [
 ] as const;
 /** The pin names the server's `ISOLATION_PINS` record is keyed by — a missing or extra pin is a tsc error. */
 export type ClaudeIsolationPinKey = (typeof CLAUDE_ISOLATION_PIN_KEYS)[number];
-/** Every `CLAUDE_*` name a preset may neither set nor unset: the isolation pins plus the CLAUDE.md
+/** Every `CLAUDE_*` name a preset may neither set nor unset: the isolation pins plus the ./CLAUDE.md
  *  suppression (set per-builder rather than through the pin record, hence the append). */
 export const HOST_OWNED_CLAUDE_ENV_KEYS = [...CLAUDE_ISOLATION_PIN_KEYS, "CLAUDE_CODE_DISABLE_CLAUDE_MDS"] as const;
 const HOST_OWNED_CLAUDE_ENV_KEY_SET: ReadonlySet<string> = new Set<string>(HOST_OWNED_CLAUDE_ENV_KEYS);

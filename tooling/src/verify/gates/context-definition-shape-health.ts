@@ -60,7 +60,7 @@ const MESSAGE =
 const SECOND_MINT_MESSAGE =
   "a SECOND `defineContextRegion(` call site — one CONTEXT pane's head band has ONE owner (hud-home-spec §8 " +
   "arm 6). A second claimant makes 'which one wins' a declaration-order accident at the seam that decides " +
-  "what the panel's head looks like.";
+  "what the panel's head looks like. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const SECOND_BRACKET_MESSAGE =
   `a SECOND writer of \`${REGION_ATTR}\` — the probe attribute has ONE writer (the context bracket), so a ` +
   "geometry probe can never resolve to two different elements, and a second column composition is exactly " +

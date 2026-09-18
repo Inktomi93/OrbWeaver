@@ -140,7 +140,7 @@ function union(a: readonly string[] | undefined, b: readonly string[] | undefine
 
 /** The expression a NAME stands for, through the shared binding reader. A `dynamic` refusal is not a dead
  *  end: `resolveStableExpression` treats a call/ternary as a TERMINAL, and the walk continues at the
- *  refusal's own node (TS-MORPH-CAPABILITIES.md, limit 1). A binding that is written to refuses for real. */
+ *  refusal's own node (tooling/src/verify/gates/TS-MORPH-CAPABILITIES.md, limit 1). A binding that is written to refuses for real. */
 function boundExpression(expr: Node): Node | undefined {
   const stable = resolveStableExpression(expr);
   if (stable.kind === "resolved") {

@@ -2,7 +2,7 @@
 // nodes. When that set becomes EMPTY the entry goes SILENTLY dead: a dead exclude is stale weight that the
 // next file created under it inherits, and a dead include silently drops the coverage it was carrying — a
 // whole program checking nothing, or (tsconfig.tests-dom.json) a moved DOM-coupled escapee that stops being
-// libbed at all. This is `biome-grant-liveness`'s shape (GATE-AUTHORING.md §4.4 mode B) turned on the TYPE
+// libbed at all. This is `biome-grant-liveness`'s shape (tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode B) turned on the TYPE
 // configs, which feed the unified native typecheck list. THREE arms: a dead FILE-EXACT entry, a dead GLOB
 // entry, and a `${configDir}` TEMPLATE entry, which is irreducible rather than dead.
 //

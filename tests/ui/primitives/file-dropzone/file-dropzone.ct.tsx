@@ -1,6 +1,6 @@
 // CT: the file-dropzone seal — a REAL <input type="file"> under the hood (keyboard/SR operable is
 // the primary path, drag-and-drop is progressive enhancement only), the maxSizeBytes pre-check, and
-// the inline error display (ui-primitive-carve-out-work-order.md item 10).
+// the inline error display (the retired ui-primitive-carve-out-work-order plan item 10).
 import { Field } from "@orb/ui/field";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { expect, test } from "@playwright/experimental-ct-react";

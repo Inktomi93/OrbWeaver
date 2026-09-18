@@ -112,7 +112,7 @@ export function readsMemberNamed(node: Node, names: ReadonlySet<string>): Member
  *  RESOLVED SYNTACTICALLY, ON PURPOSE — a namespace binding is FILE-LOCAL by construction (it can only be
  *  introduced by an import declaration in the same file), so the file's own import list is a COMPLETE
  *  answer and the language service is not needed. That matters: `getDefinitionNodes()` is the expensive
- *  door and it is the one that goes quiet inside a reused conformance Project (GATE-AUTHORING.md §12).
+ *  door and it is the one that goes quiet inside a reused conformance Project (tooling/src/verify/gates/GATE-AUTHORING.md §12).
  *  DECLARED LIMIT: a function-scoped `const ns = …` shadowing a namespace import of the same name reads as
  *  the namespace — the widening direction, which cannot hide a violation. */
 export function namespaceImportSpecifier(node: Node): string | undefined {

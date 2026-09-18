@@ -11,7 +11,7 @@ export const QUERY_FRESHNESS_OPERATION = "uncovered-query-freshness";
 export const QUERY_FRESHNESS_DEBT = "automation.listChatActivity";
 const MESSAGE =
   "a client-consumed tRPC query key appears in zero reachable invalidation rows, so with staleTime:Infinity " +
-  "and no focus refetch its surface freezes at the first fetch. The token and subject are the query key.";
+  "and no focus refetch its surface freezes at the first fetch. The token and subject are the query key. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "add the narrowest reachable pathFilter/queryFilter row in the invalidation seam, or take one exact central " +
   "reviewed grant documenting the independent freshness driver. automation.listChatActivity is warning debt owned by #1965.";

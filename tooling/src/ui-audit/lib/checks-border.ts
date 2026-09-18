@@ -76,7 +76,7 @@ function everySideUnreadable(sides: readonly BorderContrastSide[]): boolean {
 
 export function classifyBorderContrast(input: BorderContrastInput): CandidateDisposition {
   // NO DECLARED BORDER IS NOT A DEFECT. A control separated by fill, elevation or a label made no
-  // boundary claim for this rule to judge — a closed, printed exclusion (RULE-AUTHORING.md step 4), and
+  // boundary claim for this rule to judge — a closed, printed exclusion (tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md step 4), and
   // the single biggest false-positive class this rule would otherwise carry.
   if (input.sides.length === 0) {
     return { kind: "excluded", reason: "noDeclaredBorder" };

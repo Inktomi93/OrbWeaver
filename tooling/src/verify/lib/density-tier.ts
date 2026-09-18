@@ -1,4 +1,4 @@
-// The SHARED module for the `density-tier` family (GATE-AUTHORING.md §2): the readers and canonical
+// The SHARED module for the `density-tier` family (tooling/src/verify/gates/GATE-AUTHORING.md §2): the readers and canonical
 // vocabulary the two final density policies judge. It holds NO permission of any kind.
 //
 // WHY THERE IS NO SANCTIONED-HOME TABLE HERE, and the precedent that misled this conversion. The legacy

@@ -62,7 +62,7 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   expect(projectInstructions).toContain("Do not reread unchanged material already present in context");
   expect(projectInstructions).toContain("Full reads still apply to changed or reviewed source and tests");
   expect(projectInstructions).not.toMatch(/^@/mu);
-  for (const ruleName of ["browser-and-instruments.md", "db-schema.md", "gates-and-tooling.md", "lane-standing-facts.md", "orchestration.md"]) {
+  for (const ruleName of ["browser-and-instruments.md", "db-schema.md", "gates-and-tooling.md", ".claude/rules/lane-standing-facts.md", "orchestration.md"]) {
     expect(projectInstructions).toContain(`\`.claude/rules/${ruleName}\``);
   }
   expect(projectInstructions).not.toContain("@.codex/rules/");

@@ -42,7 +42,7 @@ const EXPORT = "forwardRef";
 const MESSAGE =
   "React 19 deprecates `forwardRef`. Pass `ref` as a normal prop instead (e.g. `function MyInput({ ref, ...props })`). Drop the `forwardRef` wrapper. (Spine-TypeScript-and-Patterns.md §1)";
 const UNREADABLE =
-  "this reference is spelled like React's `forwardRef` but the shared readers cannot resolve where it comes from — it may be a mutable binding, a dynamic member, or a door with no resolvable source, so the React-19 claim CANNOT be established either way. Reported rather than passed: the spelling alone is not the identity.";
+  "this reference is spelled like React's `forwardRef` but the shared readers cannot resolve where it comes from — it may be a mutable binding, a dynamic member, or a door with no resolvable source, so the React-19 claim CANNOT be established either way. Reported rather than passed: the spelling alone is not the identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 const REACT_PROOF = { [REACT_TYPES_HOME]: reactProofModule() };
 

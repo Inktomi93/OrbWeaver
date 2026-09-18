@@ -12,7 +12,7 @@ const CONTRACTS_DIR = "/packages/contracts/src/";
 const JSON_BLIND_MESSAGE =
   'DERIVED NOTHING — no `text(..., { mode: "json" })` column was found in packages/db/src/schema/** on a ' +
   "tree that HAS a db schema. The column derivation is json-column-write-parity's whole basis, so a green " +
-  "verdict would be a placebo (GATE-AUTHORING.md §4.6). Re-point the shared schema reader.";
+  "verdict would be a placebo (tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Re-point the shared schema reader.";
 const MESSAGE = `${JSON_BLIND_MESSAGE} ${JSON_VERSIONED_BLIND_MESSAGE} ${JSON_UNREADABLE_CONFIG_MESSAGE}`;
 const DRIZZLE_IMPORT = 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n';
 const VALID_CONFIG = "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n";
@@ -58,7 +58,7 @@ export const gate = defineGate({
         ctx.report.node(call, {
           token: "defineVersionedConfig",
           offset: 0,
-          message: `${JSON_UNREADABLE_CONFIG_MESSAGE} Unreadable declaration: ${binding}.`,
+          message: `${JSON_UNREADABLE_CONFIG_MESSAGE} Unreadable declaration: ${binding}. (tooling/src/verify/gates/GATE-AUTHORING.md)`,
         });
       }
     },

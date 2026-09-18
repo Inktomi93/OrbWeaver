@@ -3,7 +3,7 @@
 // viewport-aware; features stay @container-only. useIsMobileViewport feeds the panel-resolve (a mobile
 // sheet is transient device-state, not the persisted desktop dock) and the mobile-aware toggles.
 // useIsShellNarrowViewport feeds resolvePanel's narrow-desktop auto-overlay regime (UI-Architecture-and-
-// Layout.md §4.1) — it has NO matching CSS @media: overlay is mode-gated rendering (PanelChrome branches
+// UI-Architecture-and-Layout.md §4.1) — it has NO matching CSS @media: overlay is mode-gated rendering (PanelChrome branches
 // on data-panel-mode), not width-gated, so this stays the shell's one CSS @media.
 //
 // The 48rem/64rem literals are deliberately duplicated with shell.css where applicable (CSS can't read a

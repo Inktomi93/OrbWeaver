@@ -1,7 +1,7 @@
 // THE SCAFFOLD IS A TEACHING SURFACE, and until 2026-09-12 it taught the RETIRED contract (#2102). Every
 // gate minted by `pnpm gate:new` was born with an `ExemptionTable`, a `scanRoot` predicate and
 // `visit`/`finalize` hooks — a private exemption table that §12.5 bans in a final policy outright — plus a
-// ritual pointing at `GATE-AUTHORING.md` and a `check-gates.repo.int.test.ts` fixture. A generator that
+// ritual pointing at `tooling/src/verify/gates/GATE-AUTHORING.md` and a `check-gates.repo.int.test.ts` fixture. A generator that
 // emits a banned shape does not merely fail once: it manufactures the violation, signed by the repo's own
 // tool, for every gate anybody scaffolds.
 //
@@ -128,7 +128,7 @@ test("scaffold output and CLI help route to the final policy guide", { timeout: 
   const help = await runCli("verify", ["new-gate", "--help"]);
   await expect(created).toExitWith(0);
   await expect(help).toExitWith(0);
-  expect(created.stdout).toContain("GATE-AUTHORING.md` is the final policy guide");
+  expect(created.stdout).toContain("tooling/src/verify/gates/GATE-AUTHORING.md` is the final policy guide");
   expect(created.stdout).toContain("gate-authoring-legacy-2026-09-13.md");
   expect(created.stdout).not.toContain("bump the");
   expect(help.stdout).toContain("final defineGate policy");

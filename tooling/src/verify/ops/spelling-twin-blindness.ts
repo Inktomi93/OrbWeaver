@@ -46,7 +46,7 @@ refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/gate-spe
 /** The caller's scratch parser for every "what did this gate report" pre-pass. This module CONSTRUCTS NO
  *  WORKSPACE: `tooling-project-home` makes one ts-morph loader the law under `tooling/src/**`, and a scratch
  *  parser here would owe a reviewed grant for a Project its caller already has. Each example lands under its
- *  OWN virtual root, never a re-created path (GATE-AUTHORING.md §12: a re-created SourceFile restarts its
+ *  OWN virtual root, never a re-created path (tooling/src/verify/gates/GATE-AUTHORING.md §12: a re-created SourceFile restarts its
  *  script version and the language service then serves the PREVIOUS document). */
 let shared: Project | undefined;
 let exampleSeq = 0;

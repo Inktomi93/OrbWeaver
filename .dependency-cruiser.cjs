@@ -638,7 +638,7 @@ module.exports = {
     {
       name: "credential-firewall-openrouter-not-agent-sdk",
       comment:
-        "TRANSITIVE credential firewall (CLAUDE.md hard-won fact: the Max-sub OAuth credential must NEVER leak into the OpenRouter paths — token extraction is what got an account banned). strategy-isolation blocks the DIRECT edge; `reachable: true` closes the transitive hole — no openrouter module may reach agent-sdk through ANY chain (e.g. via a backends/kit helper). (Tier-3b-Providers.md §7.1 firewall; Core-Shared-Dissolution.md §9.)",
+        "TRANSITIVE credential firewall (./CLAUDE.md hard-won fact: the Max-sub OAuth credential must NEVER leak into the OpenRouter paths — token extraction is what got an account banned). strategy-isolation blocks the DIRECT edge; `reachable: true` closes the transitive hole — no openrouter module may reach agent-sdk through ANY chain (e.g. via a backends/kit helper). (Tier-3b-Providers.md §7.1 firewall; Core-Shared-Dissolution.md §9.)",
       severity: "error",
       from: { path: `${SRV}infra/providers/backends/openrouter/` },
       to: { path: `${SRV}infra/providers/backends/agent-sdk/`, reachable: true },

@@ -22,7 +22,7 @@
  *     READ the artifact. When it is missing or its run did not finish, this says so and prints NO number
  *     (a fabricated zero here would be the lying-instrument shape this repo keeps paying for).
  *
- * BLINDNESS TRIPWIRE (both directions, GATE-AUTHORING.md §4.4a). The declared table below is reconciled
+ * BLINDNESS TRIPWIRE (both directions, tooling/src/verify/gates/GATE-AUTHORING.md §4.4a). The declared table below is reconciled
  * against every `*.baseline.json` discovered under `tooling/src/`: a ledger on disk that this walk does
  * not know is a TOOL ERROR (a new ratchet would otherwise be silently under-reported forever), and a
  * declared row whose file is gone is a TOOL ERROR (the walk would print a short listing that reads clean).
@@ -110,7 +110,7 @@ interface StructureReportView {
   readonly gates?: readonly { readonly name: string; readonly scan?: GateScanView }[];
 }
 
-/** The two-sided tripwire (GATE-AUTHORING.md §4.4a). Returns the operator lines for every disagreement
+/** The two-sided tripwire (tooling/src/verify/gates/GATE-AUTHORING.md §4.4a). Returns the operator lines for every disagreement
  *  between the declared table and the tree — empty means the walk can see every committed ledger. */
 export function reconcileLedgers(declared: readonly Ledger[], discovered: readonly string[]): readonly string[] {
   const problems: string[] = [];
@@ -270,7 +270,7 @@ function liveLine(ledger: Ledger, rowCount: number, live: LiveAdmission): string
     return `not in the single-pass artifact — \`${ledger.owner}\` is not a gate the structure run reports (a push-tier stage judges it), so its live admission has no single-pass number`;
   }
   if (admitted === 0 && rowCount > 0) {
-    return `0 reported (run ${live.runId}) — AMBIGUOUS, because this ledger still carries ${rowCount} row(s): either the tree stopped earning them (regenerate the shrink) or this gate declares no \`ctx.scan({ admitted })\` and its debt is missing from the single-pass total (GATE-AUTHORING.md §1)`;
+    return `0 reported (run ${live.runId}) — AMBIGUOUS, because this ledger still carries ${rowCount} row(s): either the tree stopped earning them (regenerate the shrink) or this gate declares no \`ctx.scan({ admitted })\` and its debt is missing from the single-pass total (tooling/src/verify/gates/GATE-AUTHORING.md §1)`;
   }
   return `${admitted} finding(s) admitted by this ratchet on the last single-pass (run ${live.runId})`;
 }

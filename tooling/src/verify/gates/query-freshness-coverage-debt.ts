@@ -6,7 +6,7 @@ import { queryFreshnessFact } from "../lib/query-freshness-fact.ts";
 
 const QUERY_FRESHNESS_DEBT = "automation.listChatActivity";
 
-const MESSAGE = "automation.listChatActivity lacks a live in-view freshness driver; #1965 owns adding the bus signal and reachable invalidation row.";
+const MESSAGE = "automation.listChatActivity lacks a live in-view freshness driver; #1965 owns adding the bus signal and reachable invalidation row. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "resolve #1965 by adding the activity signal and its seam invalidation, then delete this debt owner in the same change.";
 export const gate = defineGate({
   id: "query-freshness-coverage-debt",

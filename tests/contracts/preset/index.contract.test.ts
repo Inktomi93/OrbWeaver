@@ -431,7 +431,7 @@ test("userIntentSchema admits only the Claude runtime knob namespace into claude
   }
 });
 
-// #1536: the `CLAUDE_*` namespace also holds the app's OWN deploy pins (isolation + the CLAUDE.md
+// #1536: the `CLAUDE_*` namespace also holds the app's OWN deploy pins (isolation + the ./CLAUDE.md
 // suppression). Those are host decisions, not generation knobs, so the write schema refuses them by name —
 // the builder's `RESERVED_CLAUDE_ENV_KEYS` drop is the second belt, not the only one.
 test("userIntentSchema refuses the host-owned isolation pins even though they are in the CLAUDE namespace", () => {

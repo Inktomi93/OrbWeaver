@@ -1,4 +1,4 @@
-// The grouped, per-occurrence reporter (TSMORPH-SINGLE-PASS-AUDIT.md §9.3 + owner rulings 1/2): the
+// The grouped, per-occurrence reporter (the retired TSMORPH-SINGLE-PASS-AUDIT audit §9.3 + owner rulings 1/2): the
 // dispatcher emits EXHAUSTIVE per-token findings carrying only {file,line,column,token}; the reporter
 // GROUPS by gate → prints the reason (message + fix) ONCE as the group header → lists ALL occurrences
 // beneath as clickable `path:line:col` + the offending token. This pins that grouped shape: reason once,

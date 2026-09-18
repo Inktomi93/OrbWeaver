@@ -69,12 +69,12 @@ import { createKitIdCallMatcher, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
-const MESSAGE = "castId wraps a fresh-id generator — use `mintTypeId(ID_PREFIX.x)` for TypeIDs or `newId<T>()` for deliberately prefixless brands.";
+const MESSAGE = "castId wraps a fresh-id generator — use `mintTypeId(ID_PREFIX.x)` for TypeIDs or `newId<T>()` for deliberately prefixless brands. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 /** THE FAIL-CLOSED THIRD ANSWER, kept DISJOINT from `MESSAGE` on purpose: the unreadable arm emits the
  *  same finding COUNT as the ordinary verdict and differs only here, so a shared prefix would leave both
  *  arms unpinnable in either direction (guide §6.1). No fragment of either text occurs in the other. */
 const UNREADABLE =
-  "a cast seam or its argument enters through a door the shared readers cannot place, so whether this launders a fresh-id generator into a brand CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "a cast seam or its argument enters through a door the shared readers cannot place, so whether this launders a fresh-id generator into a brand CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const MODULE_GENERATORS: Readonly<Record<string, ReadonlySet<string>>> = {
   "node:crypto": new Set(["randomUUID"]),
   crypto: new Set(["randomUUID"]),

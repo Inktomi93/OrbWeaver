@@ -193,7 +193,7 @@ export const gate = defineGate({
             ctx.report.node(candidate.node, {
               token: candidate.name,
               offset: 0,
-              message: `${candidate.name} is bare string, but canonical ${expected.typeName} (${expected.brand}) owns this position.`,
+              message: `${candidate.name} is bare string, but canonical ${expected.typeName} (${expected.brand}) owns this position. (@orb/kit/ids)`,
             });
           }
         }

@@ -12,7 +12,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [floorlessControlFact],
   resources: [],
-  message: "the floorless Button vocabulary no longer matches its declaring source",
+  message: "the floorless Button vocabulary no longer matches its declaring source (tooling/src/verify/gates/GATE-AUTHORING.md)",
   create: (ctx) => ({
     evaluate: () => {
       const fact = ctx.fact(floorlessControlFact);

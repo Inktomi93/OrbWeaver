@@ -290,7 +290,7 @@ export type EngineLaunch = z.infer<typeof engineLaunchSchema>;
 export const DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE = true;
 export const DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB = false;
 
-// FINAL-Auth-Modes-and-Onboarding.md §9 — runtime-flippable, so AppSettings not ENV.
+// the retired FINAL-Auth-Modes-and-Onboarding design set §9 — runtime-flippable, so AppSettings not ENV.
 export const DEFAULT_LOCAL_MULTI_USER = false;
 export const DEFAULT_DISCREET_LOGIN = false;
 

@@ -12,7 +12,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [uiPrimitiveFact],
   resources: [],
-  message: "the primitive overlay is missing its required anatomy.",
+  message: "the primitive overlay is missing its required anatomy. (tooling/src/verify/gates/GATE-AUTHORING.md)",
   fix: "anchored popups need Positioner; modal overlays need Backdrop and Popup without Positioner.",
   create: (ctx) => ({
     evaluate: () => {

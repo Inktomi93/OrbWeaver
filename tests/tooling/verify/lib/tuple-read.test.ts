@@ -3,7 +3,7 @@
 // direct-element reader saw ONE of four zones while `no-parallel-section-map` reported a healthy file scan
 // and `chrome-registry-completeness` rejected the legitimate `rail.brand` entry its copied list omitted.
 // The permissive direction is the dangerous one here, so every unsupported composition shape must REFUSE
-// loudly rather than yield a smaller set (GATE-AUTHORING.md §4.6 / §5).
+// loudly rather than yield a smaller set (tooling/src/verify/gates/GATE-AUTHORING.md §4.6 / §5).
 import { Project } from "ts-morph";
 import { readTupleDeclaration, readTupleVocabulary } from "../../../../tooling/src/verify/lib/tuple-read.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

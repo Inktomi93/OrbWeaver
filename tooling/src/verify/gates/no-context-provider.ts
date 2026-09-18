@@ -52,7 +52,7 @@ const MEMBER = "Provider";
 const MESSAGE =
   "React 19 deprecates `<Context.Provider>`. You can now render `<Context>` directly. Drop the `.Provider` property access. (Spine-TypeScript-and-Patterns.md §1)";
 const UNREADABLE =
-  "this JSX tag ends in `.Provider` but the checker resolves no readable identity for that member, so whether it is React's deprecated `Context.Provider` or an unrelated namespace component CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this JSX tag ends in `.Provider` but the checker resolves no readable identity for that member, so whether it is React's deprecated `Context.Provider` or an unrelated namespace component CANNOT be established. Reported rather than passed: the spelling alone is not the identity. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 
 const REACT_PROOF = { [REACT_TYPES_HOME]: reactProofModule() };
 

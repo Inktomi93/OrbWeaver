@@ -47,7 +47,7 @@ const HOME_RECEIPT = "kit content home";
 const MESSAGE =
   "the kit content home no longer EXPORTS `createHiddenSpanStreamScrubber` — the hidden-span scrubber's " +
   "declaration site is what `scrubber-home` resolves every reference against, so a rename or a move here " +
-  "silently retires that trust boundary rather than breaking it (§3.6, ed2aafc5).";
+  "silently retires that trust boundary rather than breaking it (§3.6, ed2aafc5). (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "keep the stateful hidden-span scrubber factory exported from packages/kit/src/content/, or move `scrubber-home`'s declared home with it in the same commit.";
 

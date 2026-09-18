@@ -49,7 +49,7 @@ const NAMED_SUPERSETS = 3;
 
 /** Strip the wrappers that sit between a call argument and its object literal — `(x)`, `x as T`,
  *  `x satisfies T`. A narrow `isObjectLiteralExpression` check would call every wrapped literal
- *  UNRESOLVED and quietly shrink the comparable set (GATE-AUTHORING.md §5, literal-shape blindness). */
+ *  UNRESOLVED and quietly shrink the comparable set (tooling/src/verify/gates/GATE-AUTHORING.md §5, literal-shape blindness). */
 function unwrap(node: Node): Node {
   let current = node;
   while (TsNode.isParenthesizedExpression(current) || TsNode.isAsExpression(current) || TsNode.isSatisfiesExpression(current)) {

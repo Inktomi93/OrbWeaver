@@ -12,7 +12,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [firehoseImportFact],
   resources: [],
-  message: `\`${FIREHOSE_SYMBOL}\` is no longer declared at the canonical chat-events-bus home; the D162 policy is now blind.`,
+  message: `\`${FIREHOSE_SYMBOL}\` is no longer declared at the canonical chat-events-bus home; the D162 policy is now blind. (tooling/src/verify/gates/GATE-AUTHORING.md)`,
   fix: "retarget the shared firehose vocabulary and canonical home at the renamed declaration, preserving every import, re-export, and namespace arm.",
   create: (ctx) => ({
     evaluate: () => {
