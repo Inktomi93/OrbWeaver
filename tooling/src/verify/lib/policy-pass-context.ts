@@ -16,6 +16,7 @@ import type { GatePolicyReceipt } from "../contract/policy-primitives.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { declarationHome } from "./declaration-home.ts";
+import { acceptReceipt } from "./policy-pass-context-receipts.ts";
 import { assertRepoPathIdentity } from "./policy-validation.ts";
 import { populationIncludes } from "./population-resolver.ts";
 import { resourceRequestIdentity } from "./resource-declaration.ts";
@@ -25,8 +26,6 @@ import { isWaivablePosition } from "./waivable-coordinate.ts";
 const COMMON_DETAIL_KEYS = ["message", "fix", "subject", "operation"] as const;
 const NODE_DETAIL_KEYS = new Set([...COMMON_DETAIL_KEYS, "token", "offset"]);
 const FILE_DETAIL_KEYS = new Set([...COMMON_DETAIL_KEYS, "line", "column", "token"]);
-const POPULATION_RECEIPT_KEYS = new Set(["kind", "source", "members", "unresolved"]);
-const RESOURCE_RECEIPT_KEYS = new Set(["kind", "source", "resources", "unresolved"]);
 
 interface ContextInput {
   readonly policy: GatePolicy;
@@ -165,63 +164,6 @@ function assertCoordinate(value: number | undefined, label: string): number {
     throw new Error(`${label} must be a positive integer`);
   }
   return coordinate;
-}
-
-function assertCount(value: unknown, label: string): number {
-  if (!(Number.isInteger(value) && (value as number) >= 0)) {
-    throw new Error(`${label} must be a nonnegative integer`);
-  }
-  return value as number;
-}
-
-function receiptRecord(value: unknown): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("policy receipt must be an object with an exact discriminant");
-  }
-  return value as Record<string, unknown>;
-}
-
-function acceptPopulationReceipt(receipts: Map<string, PolicySemanticReceipt>, receipt: Record<string, unknown>): void {
-  exactKeys(receipt, POPULATION_RECEIPT_KEYS, "policy receipt");
-  const source = requiredText(receipt["source"], "policy receipt source");
-  const members = assertCount(receipt["members"], "policy receipt members");
-  const unresolved = assertCount(receipt["unresolved"] ?? 0, "policy receipt unresolved");
-  const key = JSON.stringify(["population", source]);
-  const prior = receipts.get(key);
-  receipts.set(key, {
-    kind: "population",
-    source,
-    members: (prior?.kind === "population" ? prior.members : 0) + members,
-    unresolved: (prior?.unresolved ?? 0) + unresolved,
-  });
-}
-
-function acceptResourceReceipt(receipts: Map<string, PolicySemanticReceipt>, receipt: Record<string, unknown>): void {
-  exactKeys(receipt, RESOURCE_RECEIPT_KEYS, "policy receipt");
-  const source = requiredText(receipt["source"], "policy receipt source");
-  const resources = assertCount(receipt["resources"], "policy receipt resources");
-  const unresolved = assertCount(receipt["unresolved"] ?? 0, "policy receipt unresolved");
-  const key = JSON.stringify(["resource", source]);
-  const prior = receipts.get(key);
-  receipts.set(key, {
-    kind: "resource",
-    source,
-    resources: (prior?.kind === "resource" ? prior.resources : 0) + resources,
-    unresolved: (prior?.unresolved ?? 0) + unresolved,
-  });
-}
-
-function acceptReceipt(receipts: Map<string, PolicySemanticReceipt>, value: unknown): void {
-  const receipt = receiptRecord(value);
-  if (receipt["kind"] === "population") {
-    acceptPopulationReceipt(receipts, receipt);
-    return;
-  }
-  if (receipt["kind"] === "resource") {
-    acceptResourceReceipt(receipts, receipt);
-    return;
-  }
-  throw new Error(`policy receipt has invalid discriminant ${JSON.stringify(receipt["kind"])}`);
 }
 
 function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntime {

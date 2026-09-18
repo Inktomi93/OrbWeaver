@@ -9,7 +9,6 @@ import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation, GatePolicyProofGrant } from "../contract/policy.ts";
-import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type { PolicyConformanceFailure, PolicyProofArm } from "../contract/policy-conformance.ts";
 import { POLICY_REFUSAL_PREFIXES } from "../contract/policy-conformance.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
@@ -18,8 +17,8 @@ import { declaresModuleName } from "../lib/policy-descriptor-read.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyProofRows } from "../lib/policy-proof-rows.ts";
 import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
-import { assertGatePolicyDescriptor } from "../lib/policy-validation.ts";
 import { FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment, ROOT } from "../lib/repo-paths.ts";
+import { invocationPolicies, messageOf } from "./policy-conformance-validation.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/ops/policy-conformance.test.ts");
 
@@ -49,10 +48,6 @@ interface ProofRunInput {
   readonly exampleIndex: number;
   readonly sequence: number;
   readonly shared: Project;
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 /** The policy modules already parsed for a `countFrom` resolution, by repo-relative path. Reading a module is
@@ -426,27 +421,6 @@ function proofFailure(input: ProofRunInput): PolicyConformanceFailure | null {
   } finally {
     runs.return();
   }
-}
-
-function invocationPolicies(policies: readonly GatePolicy[]): readonly GatePolicy[] {
-  const candidates: unknown = policies;
-  if (!Array.isArray(candidates) || candidates.length === 0) {
-    throw new Error("verifyPolicyProofs requires a nonempty policy array");
-  }
-  const ids = new Set<string>();
-  const validated: GatePolicy[] = [];
-  for (const candidate of candidates) {
-    if (!isDefinedGatePolicy(candidate)) {
-      throw new Error("verifyPolicyProofs accepts only policies branded by defineGate");
-    }
-    assertGatePolicyDescriptor(candidate);
-    if (ids.has(candidate.id)) {
-      throw new Error(`verifyPolicyProofs received duplicate policy id ${candidate.id}`);
-    }
-    ids.add(candidate.id);
-    validated.push(candidate);
-  }
-  return validated.toSorted((left, right) => left.id.localeCompare(right.id));
 }
 
 /** Verify every policy proof in stable policy/arm/example order. Empty result means every proof holds. */
