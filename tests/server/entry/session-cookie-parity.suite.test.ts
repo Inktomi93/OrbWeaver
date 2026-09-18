@@ -54,6 +54,7 @@ function seamConfig(): AuthConfig {
     defaultHandle: "owner",
     verifyForwardJwt: false,
     forwardTrustedProxies: [],
+    fallbackTrustedPeers: [],
     jwksAllowlist: [],
   };
 }

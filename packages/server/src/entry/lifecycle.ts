@@ -31,11 +31,14 @@ import {
   enginesPostureInput,
   env,
   ownerFallbackCredentialInput,
+  ownerFallbackPeerInput,
+  ownerFallbackPeerWarnings,
   postureManages,
   resolveBindPosture,
   resolveDiagnosticsPosture,
   resolveEnginesPosture,
   resolveOwnerFallbackCredential,
+  resolveOwnerFallbackPeers,
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
 import {
@@ -183,7 +186,14 @@ function scheduleInterval(fn: () => void, ms: number): () => void {
  *  share ONE gate (`ownerFallbackAllowed`, #298 f2), so the setup screen appears exactly where the setup
  *  endpoint accepts a claim: a LOOPBACK TCP peer (the unspoofable socket, not the client `Host`). A
  *  public-origin/LAN local deploy still uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ the owner has a
- *  password ⇒ first-run never triggers). */
+ *  password ⇒ first-run never triggers).
+ *
+ *  BOTH CALLS BELOW DELIBERATELY PASS NO TRUSTED-PEER RANGES — they stay LOOPBACK-ONLY while
+ *  `AUTH_FALLBACK_TRUSTED_PEERS` widens `resolve`'s fallback arm, and that asymmetry is the point, not an
+ *  oversight. This route consults no `AUTH_FALLBACK`: widening it would make the knob admit an
+ *  un-credentialed owner-PASSWORD claim on a box whose operator set `AUTH_FALLBACK=deny`, which is the one
+ *  property the knob promises it cannot do. A containerized local deploy sets `LOCAL_INITIAL_PASSWORD`
+ *  instead (containerize-prod-image-spec.md §3.2 — already its documented state). */
 function buildLocalAuthDeps(sessions: SessionsService): {
   authenticate: LocalAuthenticator;
   firstRun: FirstRunRouteDeps;
@@ -684,6 +694,14 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // and the 502 belongs to the proxy — it cannot carry the hint.
     log.info({ nodeEnv: env.NODE_ENV, bindHost: bind.host ?? "*", publicBind: bind.publicBind }, `boot: ${bind.notice}`);
     for (const warning of bindPostureWarnings(bindPostureInput(), bind)) {
+      log.warn({ security: true }, `boot: ${warning}`);
+    }
+
+    // THE WIDENED OWNER-FALLBACK PEER SET (`AUTH_FALLBACK_TRUSTED_PEERS` — foundation/env/fallback-peers.ts
+    // holds the model). Silent unless the knob is actually admitting somebody; while it is, it announces
+    // itself every boot, names the ranges back, and names the mitigation — it re-opens on purpose the exact
+    // property #298 f2 removed, and an operator must never rediscover that from an incident.
+    for (const warning of ownerFallbackPeerWarnings(resolveOwnerFallbackPeers(ownerFallbackPeerInput()))) {
       log.warn({ security: true }, `boot: ${warning}`);
     }
 

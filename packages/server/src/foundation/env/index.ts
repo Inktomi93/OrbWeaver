@@ -15,6 +15,8 @@ import { z } from "zod";
 import type { BindPostureInput } from "./bind.ts";
 import { resolveBindPosture } from "./bind.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
+import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
+import { resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 import type { EnginesPosture } from "./posture.ts";
 import { ENGINES_POSTURES } from "./posture.ts";
 
@@ -22,6 +24,8 @@ export type { BindPosture, BindPostureInput } from "./bind.ts";
 export { bindPostureWarnings, resolveBindPosture } from "./bind.ts";
 export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
+export type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./fallback-peers.ts";
+export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 export type { EnginesPosture } from "./posture.ts";
 export { ENGINES_POSTURES, effectiveVllmDisabled, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture.ts";
 
@@ -160,7 +164,7 @@ const UTF8_BOM = "﻿";
  *  ASSUMES(single-replica) — and it holds BY CONSTRUCTION, so no DB-backed seam is warranted (unlike a
  *  per-request process cache, the shape this gate exists to catch). This Set is written EXACTLY ONCE, at
  *  module load, by the single `loadEnvFileWithOverride(...)` call at the bottom of this file; nothing mutates
- *  it per request, and its only reader is `authFallbackDeclaredInEnvFile()`. Every replica loads the SAME
+ *  it per request, and its only reader is `launchOnlyKeysDeclaredInEnvFile()`. Every replica loads the SAME
  *  `.env` with `override:true` and computes byte-identical contents, so there is no cross-replica state to
  *  reconcile — it is boot-constant deployment provenance, not runtime accumulator state. */
 const envFileKeys = new Set<string>();
@@ -175,7 +179,7 @@ function loadEnvFileWithOverride(override: boolean): void {
   }
   let raw: string;
   // @orb-waive caught-failure-ownership(catch): a missing .env is a normal deploy state —
-  // envFileKeys stays empty, correctly consumed by authFallbackDeclaredInEnvFile as "not declared". Ends
+  // envFileKeys stays empty, correctly consumed by launchOnlyKeysDeclaredInEnvFile as "not declared". Ends
   // if the loader stops treating a missing file as absence rather than an error.
   try {
     raw = readFileSync(resolve(process.cwd(), ENV_FILE), "utf8");
@@ -192,13 +196,39 @@ function loadEnvFileWithOverride(override: boolean): void {
   }
 }
 
-/** #301 — did the loaded `.env` FILE declare `AUTH_FALLBACK`? The convention is that it must NOT: `.env` loads
- *  with `override:true`, so a value there is forced into EVERY launch (dev AND prod, every mode), which is a
- *  dev-lockout footgun (SSO mode + a pinned `deny` kills dev's loopback auto-owner) and defeats "prod exports
- *  deny while dev falls to the default owner". The env superRefine makes this BOOT-FATAL (owner ruling
- *  2026-08-19) — AUTH_FALLBACK is a launch-time decision, not a `.env` key. */
-export function authFallbackDeclaredInEnvFile(): boolean {
-  return envFileKeys.has("AUTH_FALLBACK");
+/** #301 — the LAUNCH-ONLY env keys: a key here must NEVER appear in the app's own `.env` FILE, and the env
+ *  superRefine makes that BOOT-FATAL (owner ruling 2026-08-19) rather than merely discouraged. The reason is
+ *  the loader above: `.env` loads with `override:true`, so a value there is forced into EVERY launch from that
+ *  directory — dev AND prod, every mode — which defeats "the prod launcher exports its own posture while dev
+ *  falls to the schema default" and is a dev-lockout footgun besides. Each entry carries the sentence an
+ *  operator needs to fix it; the generalized shape is what keeps a SECOND launch-time knob from arriving as a
+ *  copy of the first predicate. */
+const LAUNCH_ONLY_ENV_KEYS = [
+  {
+    key: "AUTH_FALLBACK",
+    why: ".env's override:true would force it into every mode including dev (lockout risk). Set it in the prod launcher's environment (`stack up prod`/`start`); dev falls to the default 'owner'.",
+  },
+  {
+    key: "AUTH_FALLBACK_TRUSTED_PEERS",
+    why: "it widens who is the un-credentialed OWNER, and .env's override:true would carry that widening into every launch from this directory — including a dev or prod run that never meant to open it. A container passes it in the CONTAINER environment (compose `environment:`/`docker run -e`), never in the app's own .env.",
+  },
+] as const;
+
+/** #301 — which LAUNCH-ONLY keys did the loaded `.env` FILE declare? Provenance the parsed `env` cannot carry
+ *  (the file wins over a launcher export), so the refusal has to ask the loader, not the schema. Empty when
+ *  the file is absent/unreadable or skipped (`ORB_ENV_NO_FILE`, e.g. under vitest). */
+export function launchOnlyKeysDeclaredInEnvFile(): readonly string[] {
+  return LAUNCH_ONLY_ENV_KEYS.filter((entry) => envFileKeys.has(entry.key)).map((entry) => entry.key);
+}
+
+/** The #301 refusal itself, lifted out of the superRefine so a THIRD launch-only knob costs one table row and
+ *  no branch in the parse. Every declared key gets its own issue — an operator who pinned two sees two. */
+function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx): void {
+  for (const entry of LAUNCH_ONLY_ENV_KEYS) {
+    if (envFileKeys.has(entry.key)) {
+      ctx.addIssue({ code: "custom", path: [entry.key], message: `${entry.key} must not be set in .env — ${entry.why}` });
+    }
+  }
 }
 
 // Load a local .env before parsing. override:true so a checked-in dev .env wins over a stale shell
@@ -423,6 +453,15 @@ const envSchema = z
     // loopback curl); it unlocks the boot guard but does NOT itself enable the fallback — set AUTH_FALLBACK=owner
     // too. Revert both when recovery is done. Lifecycle logs a loud SECURITY warning while it is on.
     AUTH_BREAK_GLASS: envBool(false),
+    // PROPOSED (containerize-prod-image-spec.md §3.1 arm (b)) — the documented, NON-DEFAULT opt-in that widens
+    // the owner fallback's peer set beyond loopback: a comma CIDR list (v4/v6) whose peers are admitted IN
+    // ADDITION to loopback. Unset (the default) is byte-identical to the loopback-only rule. It exists because
+    // a container's published port never delivers a loopback peer, so `single-user` — whose ONLY credential is
+    // that fallback — 401s every browser request in docker. READ `fallback-peers.ts` BEFORE SETTING IT: under
+    // docker NAT this names a SOCKET, not a machine, and a port published on all interfaces turns "the bridge
+    // range" into "the internet". LAUNCH-ONLY (a `.env` pin is boot-fatal, above) and refused beside
+    // AUTH_BREAK_GLASS. Inert unless AUTH_FALLBACK=owner, so the prod SSO boot guard still governs it.
+    AUTH_FALLBACK_TRUSTED_PEERS: z.string().optional(),
     // Extra CIDR ranges added to the built-in private set for the EGRESS/SSRF belt (infra/network/egress.ts).
     // NOT the auth fallback (that gates on the loopback peer only, #298 f2) and NOT the ingress trusted-proxy
     // gate (FORWARD_AUTH_TRUSTED_PROXIES owns that).
@@ -593,12 +632,27 @@ const envSchema = z
     // collides downstream with the two prod fatals above. There is no legitimate `.env` pin: `single-user`
     // already DEFAULTS to `owner` (so a redundant pin is deletable at zero cost), dev wants the default, and a
     // prod launcher exports `deny` in ITS environment. Same fail-fast family as the two blocks above.
-    if (authFallbackDeclaredInEnvFile()) {
+    // GENERALIZED: the rule is now a TABLE (`LAUNCH_ONLY_ENV_KEYS`) rather than one predicate, because
+    // `AUTH_FALLBACK_TRUSTED_PEERS` is launch-only for the same reason with a different consequence — each
+    // key carries its own operator sentence, and a third knob is a row, not a second copy of this block.
+    refuseLaunchOnlyEnvFileKeys(ctx);
+    // THE WIDENED FALLBACK PEER SET × BREAK-GLASS (PROPOSED — containerize-prod-image-spec.md §3.1 arm (b)).
+    // Same fail-fast family as the blocks above, and the one combination the widening may never enter.
+    // `AUTH_BREAK_GLASS=true` exists to unlock ONE thing: a brief, on-box, proxy-off recovery session in an
+    // otherwise-fatal prod SSO deploy (§4 Break-glass). `AUTH_FALLBACK_TRUSTED_PEERS` widens exactly the
+    // "on-box" half of that sentence — together they hand every peer in the named ranges the owner of a
+    // production SSO box with no credential, which is #298's hole at network scale behind a flag whose own
+    // documentation promises the opposite. The recovery procedure does not need the widening: it is run from
+    // an on-box shell over the loopback listener, which the unwidened gate already admits.
+    if (
+      val.AUTH_BREAK_GLASS &&
+      resolveOwnerFallbackPeers({ authFallback: val.AUTH_FALLBACK, trustedPeers: val.AUTH_FALLBACK_TRUSTED_PEERS }).ranges.length > 0
+    ) {
       ctx.addIssue({
         code: "custom",
-        path: ["AUTH_FALLBACK"],
+        path: ["AUTH_FALLBACK_TRUSTED_PEERS"],
         message:
-          "AUTH_FALLBACK must not be set in .env — .env's override:true would force it into every mode including dev (lockout risk). Set it in the prod launcher's environment (`stack up prod`/`start`); dev falls to the default 'owner'.",
+          "AUTH_FALLBACK_TRUSTED_PEERS must not be combined with AUTH_BREAK_GLASS — break-glass is the brief ON-BOX recovery door (run it from a shell on the box, over the loopback listener, with the front proxy stopped). Widening its peer set hands every listed peer the owner of a production SSO deployment with no credential. Unset one of the two.",
       });
     }
     // THE DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09) — same fail-fast class again: a NON-PRODUCTION build
@@ -721,7 +775,14 @@ export function diagnosticsPostureInput(): DiagnosticsPostureInput {
  *  holds the rule and the WHY). Same seam shape as `bindPostureInput`: this file stays the pure `process.env`
  *  reader; `entry/lifecycle` composes it into the auth seam, which owns no copy of the rule. */
 export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
-  return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK };
+  return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK, fallbackWidened: resolveOwnerFallbackPeers(ownerFallbackPeerInput()).widened };
+}
+
+/** The raw inputs the OWNER-FALLBACK PEER-SET resolver reads (`fallback-peers.ts` holds the rule, the hazard
+ *  and the standing warning). Same seam shape as `bindPostureInput`: this file stays the pure `process.env`
+ *  reader; `entry/lifecycle` composes + logs, and `infra/auth/config` reads the same parse into `AuthConfig`. */
+export function ownerFallbackPeerInput(): OwnerFallbackPeerInput {
+  return { authFallback: env.AUTH_FALLBACK, trustedPeers: env.AUTH_FALLBACK_TRUSTED_PEERS };
 }
 
 /** The DEPLOYMENT-fact env slice the engine spawner reads (binary + cache stores). All optional — unset ⇒

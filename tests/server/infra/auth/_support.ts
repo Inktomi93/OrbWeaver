@@ -10,6 +10,7 @@ export function makeAuthConfig(over: Partial<AuthConfig> = {}): AuthConfig {
     defaultHandle: "owner",
     verifyForwardJwt: false,
     forwardTrustedProxies: [],
+    fallbackTrustedPeers: [],
     jwksAllowlist: [],
     ...over,
   };

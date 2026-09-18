@@ -54,6 +54,9 @@
 export interface OwnerFallbackCredentialInput {
   readonly nodeEnv: "development" | "production" | "test";
   readonly authFallback: "owner" | "deny";
+  /** `AUTH_FALLBACK_TRUSTED_PEERS` resolved to an ACTIVE widening (`fallback-peers.ts::resolveOwnerFallbackPeers`
+   *  `.widened`). `true` retracts this credential — see the rule below. */
+  readonly fallbackWidened: boolean;
 }
 
 /**
@@ -84,9 +87,15 @@ export interface OwnerFallbackCredentialInput {
  * WHAT IT DOES NOT WEAKEN: it says nothing about who may reach the socket. A LAN caller never mints
  * `via:"fallback"` at all (the peer gate), so a `true` here cannot admit anyone the box does not already
  * serve as the owner. ENFORCER: `tests/server/entry/debug-gate.suite.test.ts` (both postures, both peers).
+ *
+ * A WIDENED PEER SET RETRACTS THE CREDENTIAL (`AUTH_FALLBACK_TRUSTED_PEERS`, `fallback-peers.ts`). The whole
+ * argument above rests on "loopback peer MEANS the human at this machine" on a dev box — the sentence the
+ * knob deliberately falsifies. The app-level widening is the deployer's to accept; this door is not, because
+ * it holds more than the app does (principal-blind whole-db reads, and RAW PROVIDER REQUEST BODIES with
+ * `WIRE_CAPTURE=on`). An operator who widened the fallback still opens it with `x-debug-token`.
  */
 export function resolveOwnerFallbackCredential(input: OwnerFallbackCredentialInput): boolean {
-  return input.authFallback === "owner" && input.nodeEnv !== "production";
+  return input.authFallback === "owner" && input.nodeEnv !== "production" && !input.fallbackWidened;
 }
 
 /** The composed verdict. Keys on RETENTION × PERIMETER — the credential planes are reported as facts
