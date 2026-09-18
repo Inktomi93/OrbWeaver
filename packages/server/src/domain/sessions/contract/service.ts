@@ -106,6 +106,9 @@ export interface SessionsService {
    *  not explain it, it was never an identity refusal and the original error is RETHROWN unchanged (a failed
    *  audit insert riding the same batch lands there). @internal */
   settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown) => Promise<UnclaimedLinkOutcome>;
+  /** The current owner's id, or `undefined` when no owner row exists yet (a fresh OIDC box before the
+   *  first owner-policy login). Used by boot to decide whether owner-dependent seeds can run. @internal */
+  getOwnerUserId: () => Promise<UserId | undefined>;
   /** B4 — is this a fresh local box whose owner row has no password yet (first-run setup pending)? Drives
    *  the `localFirstRun` config flag. @internal */
   ownerNeedsPassword: () => Promise<boolean>;

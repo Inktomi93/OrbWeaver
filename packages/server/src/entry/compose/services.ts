@@ -128,7 +128,7 @@ import { buildPortabilityRunner } from "./portability-runner.ts";
 import { mapProviderCredentialResolver } from "./provider-credential.ts";
 import { buildRefinery } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
-import { bindRoleClientsForUser } from "./role-clients.ts";
+import { bindRoleClientsForUser, createUnboundRoleClients } from "./role-clients.ts";
 import { buildRosterPreset } from "./roster-preset.ts";
 import type { RpgComposeResult } from "./rpg.ts";
 import { buildRpg } from "./rpg.ts";
@@ -198,7 +198,10 @@ function toReachability(record: EngineStatusRecord | undefined): LocalEngineReac
 export interface ServicesDeps {
   readonly db: Db;
   readonly now: () => number;
-  readonly ownerId: UserId;
+  /** The boot-time owner id. `undefined` in OIDC mode when no owner row exists yet (the first
+   *  owner-policy OIDC login will create it). When absent, role-client binding is deferred and every
+   *  provider call fails closed until the owner provisions. */
+  readonly ownerId: UserId | undefined;
   readonly secretBoxKey: Buffer | null;
   readonly casDir: string;
   readonly variantDir: string;
@@ -472,7 +475,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       },
       ownerId,
     );
-  const roleClients = await bindRoleClients(deps.ownerId);
+  // OIDC lazy-mint (#1853): when no owner exists at boot the role-clients bundle is a fail-closed stub;
+  // every provider call throws until the first owner-policy OIDC login provisions the row and the
+  // per-call `live()` re-resolution succeeds naturally (role-clients are already hot-reloadable per call).
+  const roleClients = deps.ownerId !== undefined ? await bindRoleClients(deps.ownerId) : createUnboundRoleClients();
 
   // Built before character so character's by-name card-tag attach port wires to the real tag verb.
   const tagCtx: TagContext = {
