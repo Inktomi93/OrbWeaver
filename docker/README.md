@@ -60,6 +60,28 @@ the shipped defaults: `gen` 60% of every card (tensor-parallel across all of the
 Sleep/wake works exactly as on bare metal, over the same HTTP endpoints; the engine ports are published
 nowhere, so only the app reaches them.
 
+## Claude subscription backend (optional)
+
+The app can drive a Claude subscription (the same login `claude` uses) as a chat backend. It is off unless
+a credential is present, and it never starts the bundled runtime without one:
+
+| `CLAUDE_BACKEND` | behaviour |
+| - | - |
+| `auto` (default) | registered only when a subscription credential is found; otherwise absent and the boot log says so |
+| `off` | never registered, nothing spawns |
+| `on` | registered on your word (a machine whose login the container cannot see, such as a macOS Keychain) |
+
+Two ways to give it a credential, either one on every OS: a long-lived token from `claude setup-token`
+(run on any machine with a browser) as `CLAUDE_CODE_OAUTH_TOKEN` in `docker/orbweaver.local.env` or as the
+`claude_oauth_token` file secret; or a one-time login inside the container, kept in the data volume:
+
+```sh
+docker compose exec -it -u node orbweaver claude      # then /login, then restart once
+```
+
+`ANTHROPIC_API_KEY` is a different thing (a metered first-party key added in Settings → Connections); this
+backend ignores it and the boot log says which one it saw.
+
 ## Login modes
 
 | `AUTH_MODE` | who gets in | needs |
