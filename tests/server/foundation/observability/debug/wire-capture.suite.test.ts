@@ -52,13 +52,9 @@ async function reimportWireCaptureWith(wireCapture: "on" | "off"): Promise<typeo
     delete process.env[k];
   }
   process.env["VITEST"] = "1";
-  // The schema default pairing (single-user + AUTH_FALLBACK=deny) is boot-fatal by design — single-user's only
-  // credential IS the owner fallback — and this wipe leaves the env at its defaults, so the reimport of the
-  // observability barrel (which pulls the frozen env floor) throws before any wire-capture code runs. A
-  // hermetic floor states the launch-time value the way a launcher does (#301: AUTH_FALLBACK is launch-time,
-  // never a `.env` key), the same way tests/server/foundation/env/index.test.ts and
-  // tests/server/infra/providers/vllm/engine/engine-url.test.ts state it.
-  process.env["AUTH_FALLBACK"] = "owner";
+  // NO AUTH_FALLBACK pin: #2406 made it resolve per mode, so this wipe leaves a bootable env (single-user +
+  // owner) and the observability barrel's pull of the frozen env floor no longer throws before any
+  // wire-capture code runs. Between #1864 and #2406 this floor had to state the value the way a launcher does.
   process.env["WIRE_CAPTURE"] = wireCapture;
   vi.resetModules();
   const previousCwd = process.cwd();

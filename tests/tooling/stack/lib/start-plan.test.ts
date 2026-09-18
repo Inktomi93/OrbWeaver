@@ -58,8 +58,10 @@ test("the build decision always says WHY, so the one printed line is never a bar
   expect(decideStartBuild(MISSING, "skip").reason).toContain("--no-build");
 });
 
-test("single-user with no AUTH_FALLBACK gets `owner` on the CHILD env — the gap docker/entrypoint.sh job 2 fills", () => {
-  // AUTH_MODE unset ⇒ the schema default is single-user, so the bare-metal default needs the fill too.
+test("single-user with no AUTH_FALLBACK gets `owner` on the CHILD env — the value docker/entrypoint.sh job 2 also states", () => {
+  // AUTH_MODE unset ⇒ the schema default is single-user, so the bare-metal default is filled too. Since
+  // #2406 this RESTATES what the env schema resolves for the mode rather than rescuing a boot fatal; the
+  // launcher keeps it so `startPostureLine` can name the posture from a value it can actually see.
   expect(singleUserFallbackEnv({}, {})).toEqual(env(["AUTH_FALLBACK", "owner"]));
   expect(singleUserFallbackEnv(env(["AUTH_MODE", "single-user"]), {})).toEqual(env(["AUTH_FALLBACK", "owner"]));
 });

@@ -314,8 +314,10 @@ posture_report() {
   fi
   echo "$line"
 }
-# #1864: the env schema defaults AUTH_FALLBACK=deny (the secure prod posture). Dev single-user mode's only
-# credential IS the owner fallback, so the dev stack pins `owner` here. A caller-set value wins (`:=`).
+# #2406: the env schema resolves an unset AUTH_FALLBACK per mode — `owner` under single-user (its only
+# credential), `deny` under every SSO mode — so this pin RESTATES what the server would reach anyway; it is
+# no longer what keeps a dev stack out of the #1864 flat-`deny` boot fatal. Kept so the stack's own env
+# report names the value instead of implying it. A caller-set value wins (`:=`).
 : "${AUTH_FALLBACK:=owner}"
 : "${AUTH_MODE:=single-user}"
 # DEV-ONLY deterministic secrets — INSECURE BY DESIGN, never for a real deploy.

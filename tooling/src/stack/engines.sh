@@ -337,13 +337,13 @@ case "${1:-ensure}" in
   # `.env` would bake this box's model paths into a TRACKED, shipped artifact. Skipping the file entirely
   # is what makes the committed overlay the SHIPPED defaults; the program additionally refuses if a
   # launch-floor key survives in the environment.
-  # AUTH_FALLBACK=owner: foundation/env parses the WHOLE schema at import, and with no `.env` at all its
-  # own AUTH_MODE default (single-user) pairs boot-fatally with AUTH_FALLBACK's (deny). This is the same
-  # value vitest's config supplies for the same reason, so the drift row and this front door resolve under
-  # identical env; it reaches nothing beyond a process that writes one file and exits.
+  # NO AUTH_FALLBACK here: foundation/env parses the WHOLE schema at import, and between #1864 and #2406
+  # its own AUTH_MODE default (single-user) paired boot-fatally with AUTH_FALLBACK's flat `deny` — so this
+  # config generator, a process that writes one file and exits with no auth surface at all, had to state an
+  # auth value. #2406 resolves the key per mode, so the front door now carries only what it actually needs.
   compose)
     shift
-    exec env ORB_ENV_NO_FILE=1 AUTH_FALLBACK=owner "$RUNNER" "$COMPOSE_TS" "$@"
+    exec env ORB_ENV_NO_FILE=1 "$RUNNER" "$COMPOSE_TS" "$@"
     ;;
   *)
     echo "usage: engines.sh {ensure|start|stop|status|sleep|wake|reconcile|compose}"

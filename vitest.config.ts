@@ -117,7 +117,10 @@ export function vitestConfig(runtimeOnly = false): ViteUserConfig {
       testTimeout: budget(5000),
       hookTimeout: budget(10_000),
       // Keep fixtures independent of the operator's .env and avoid loading live embedding providers.
-      env: { AUTH_FALLBACK: "owner", CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1", VLLM_DISABLED: "true" },
+      // No AUTH_FALLBACK: #2406 resolves it per AUTH_MODE, so the suite's default (unset ⇒ single-user)
+      // boots at `owner` on its own. Between #1864 and #2406 this line carried the pin the flat `deny`
+      // default made mandatory.
+      env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1", VLLM_DISABLED: "true" },
       // Native bindings need process isolation; module isolation stays at Vitest's true default.
       pool: "forks",
       maxWorkers: CONCURRENCY.vitestMaxWorkers,

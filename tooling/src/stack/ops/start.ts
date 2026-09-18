@@ -6,9 +6,12 @@
 //
 // THE AUDIENCE IS A STRANGER on macOS, Windows or Linux with node 26, pnpm and a clone. The other
 // launcher, `pnpm stack` (stack.sh), is a bash supervisor built on setsid/ss//proc — Linux only — and
-// even there it made a newcomer know two more things: to `pnpm build` first, and to export
-// AUTH_FALLBACK=owner because the schema's `deny` default pairs boot-fatally with the default
-// AUTH_MODE=single-user. This op closes all three, and `pnpm stack` is unchanged as the Linux dev path.
+// even there it made a newcomer know two more things: to `pnpm build` first, and — while AUTH_FALLBACK's
+// schema default was a flat `deny` (#1864..#2406) — to export AUTH_FALLBACK=owner, because that default
+// paired boot-fatally with the default AUTH_MODE=single-user. This op closes all three; #2406 also closed
+// the third at the schema (unset now resolves per mode), so the fill below is now a restatement of the
+// resolved value rather than the thing that makes a bare boot possible. `pnpm stack` is unchanged as the
+// Linux dev path.
 //
 // PORTABILITY IS THE CONTRACT, so nothing here may reach for a POSIX-ism:
 //   • every spawn is `shell: false` with an argv array (no shell string, no quoting, no injection door);

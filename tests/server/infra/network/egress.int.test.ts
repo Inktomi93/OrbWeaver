@@ -127,9 +127,8 @@ describe("installEgressFirewall — VLLM_ENGINE_HOST relocates the internal-back
     }
     process.env["VITEST"] = "1";
     process.env["ORB_ENV_NO_FILE"] = "1";
-    // the schema default pairing (single-user + AUTH_FALLBACK=deny) is boot-fatal by design; a hermetic floor
-    // states the launch-time value the way a launcher does (tests/server/foundation/env/index.test.ts).
-    process.env["AUTH_FALLBACK"] = "owner";
+    // NO AUTH_FALLBACK pin: #2406 made it resolve per mode, so a wiped env boots at single-user + owner.
+    // (Between #1864 and #2406 this floor had to state it or the re-import threw before any egress code ran.)
     process.env["VLLM_ENGINE_HOST"] = "127.0.0.2";
     vi.resetModules();
     const freshNetwork = await import("@orb/server/infra/network");

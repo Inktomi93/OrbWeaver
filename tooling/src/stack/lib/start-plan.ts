@@ -72,9 +72,15 @@ export function effectiveAuthMode(fileEnv: Readonly<Record<string, string | unde
   return declared === undefined || declared === "" ? SINGLE_USER_MODE : declared;
 }
 
-/** The single-user gap the container entrypoint fills (docker/entrypoint.sh job 2), filled the same way
- *  for a bare-metal run: `AUTH_MODE=single-user` pairs with the schema's `AUTH_FALLBACK=deny` default as a
- *  box that authenticates nobody and 401s every request — boot-fatal by the env schema's own refusal.
+/** The single-user fallback the container entrypoint also states (docker/entrypoint.sh job 2), stated the
+ *  same way for a bare-metal run.
+ *
+ *  IT IS NO LONGER LOAD-BEARING FOR BOOT, and that is deliberate (#2406): the env schema resolves an unset
+ *  `AUTH_FALLBACK` per mode — `owner` under `single-user`, `deny` under every SSO mode — so this fill now
+ *  RESTATES the value the server would reach anyway instead of being what keeps a bare-metal launch from
+ *  the boot-fatal `single-user` + flat-`deny` pairing (#1864's cost, 2026-09-18). It is kept because it is
+ *  what makes the launch's posture legible: `startPostureLine` below tells the operator, in one sentence,
+ *  who can log in, and it can only say that honestly about a value this launcher can see.
  *
  *  IT GOES ON THE CHILD ENV, NEVER IN `.env` (#301): AUTH_FALLBACK is a LAUNCH-ONLY key, and `.env`'s
  *  `override:true` would carry it into every launch from this directory including dev. An explicit value
