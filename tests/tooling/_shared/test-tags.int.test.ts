@@ -134,15 +134,22 @@ test("every test module that directly invokes process.chdir registers the worker
   expect(unregisteredProcessChdirModules(directModules)).toEqual([]);
 });
 
-test("the runtime census includes an ordinary untracked module and excludes the governed transient namespace", ({ scratch }) => {
+// The `__g_*` transient-namespace exclusion retired at #2176 Phase F (2026-09-14,
+// type-config-intent.ts:80-86): its only producer was the LEGACY gate self-test materializing `__g_`
+// files inside the real tree for the length of its own child run, and that planter retired with the
+// legacy runtime. A `__g_`-prefixed module under tests/ is now an ORDINARY module with no special
+// census treatment — this pins that both a plain module and a `__g_`-prefixed one register alike.
+test("the runtime census includes both an ordinary and a __g_-prefixed module — the transient namespace has no producer anymore", ({ scratch }) => {
   const dir = join(scratch, "tests", "tooling");
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "new.test.ts"), 'process.chdir("/tmp");\n');
   writeFileSync(join(dir, "__g_transient.test.ts"), 'process.chdir("/tmp");\n');
 
   const sourceFiles = getWorkspace({ root: scratch, globs: vitestRuntimeGlobs(scratch) }).getSourceFiles();
-  expect(sourceFiles.map((sourceFile) => sourceFile.getBaseName())).toEqual(["new.test.ts"]);
-  expect(unregisteredProcessChdirModules(directProcessChdirModules(sourceFiles))).toEqual([join(dir, "new.test.ts")]);
+  expect(sourceFiles.map((sourceFile) => sourceFile.getBaseName()).toSorted()).toEqual(["__g_transient.test.ts", "new.test.ts"]);
+  expect(unregisteredProcessChdirModules(directProcessChdirModules(sourceFiles)).toSorted()).toEqual(
+    [join(dir, "__g_transient.test.ts"), join(dir, "new.test.ts")].toSorted(),
+  );
 });
 
 test("the process.chdir census rejects an unregistered direct call, including an aliased node:process import", () => {
