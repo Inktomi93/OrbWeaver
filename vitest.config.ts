@@ -117,7 +117,7 @@ export function vitestConfig(runtimeOnly = false): ViteUserConfig {
       testTimeout: budget(5000),
       hookTimeout: budget(10_000),
       // Keep fixtures independent of the operator's .env and avoid loading live embedding providers.
-      env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1", VLLM_DISABLED: "true" },
+      env: { AUTH_FALLBACK: "owner", CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1", VLLM_DISABLED: "true" },
       // Native bindings need process isolation; module isolation stays at Vitest's true default.
       pool: "forks",
       maxWorkers: CONCURRENCY.vitestMaxWorkers,

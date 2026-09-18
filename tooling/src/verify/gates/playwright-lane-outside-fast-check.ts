@@ -64,7 +64,7 @@ export const gate = defineGate({
   family: "playwright-lane-outside-fast-check",
   authority: "hard",
   severity: "error",
-  population: { in: ["@tooling"], under: [TEST_KINDS], also: [VITEST_CONFIG] },
+  population: "@tooling",
   analysis: "syntax",
   execution: "entire-population",
   facts: [],
