@@ -10,7 +10,8 @@
 # http://host.docker.internal:<port>. Settings live in docker/orbweaver.env (the shipped defaults, tracked)
 # and docker/orbweaver.local.env (yours, gitignored). The overlays under docker/ change the SHAPE, not the
 # settings — stack them with -f:
-#   -f docker-compose.yaml -f docker/compose.host-network.yaml   single-user, no login (Linux/Podman host networking)
+#   -f docker-compose.yaml -f docker/compose.single-user.yaml    single-user, no login, on bridge networking (any platform)
+#   -f docker-compose.yaml -f docker/compose.host-network.yaml   single-user, no login, via host networking (Linux/Podman)
 #   -f docker-compose.yaml -f docker/compose.secrets.yaml        secrets as mounted files, never env values
 #   -f docker-compose.yaml -f docker/compose.dev.yaml            the DEVELOPMENT stack from this checkout (hot reload)
 #

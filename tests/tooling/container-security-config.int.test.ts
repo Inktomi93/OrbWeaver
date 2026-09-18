@@ -59,7 +59,7 @@ test("the entrypoint keeps its single *_FILE allowlist line (the agent-sdk firew
   expect(shim).toContain("keep_generated initial_password");
 });
 
-test("every compose shape resolves (base + the three overlays)", ({ repoRoot, scratch, skip }) => {
+test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scratch, skip }) => {
   const probe = spawnSync("docker", ["compose", "version"], { encoding: "utf8" });
   if (probe.status !== 0) {
     // A LOUD skip, never a silent pass: without compose on the host these shapes were not validated here.
@@ -82,6 +82,7 @@ test("every compose shape resolves (base + the three overlays)", ({ repoRoot, sc
   for (const files of [
     ["docker-compose.yaml"],
     ["docker-compose.yaml", "docker/compose.host-network.yaml"],
+    ["docker-compose.yaml", "docker/compose.single-user.yaml"],
     ["docker-compose.yaml", "docker/compose.secrets.yaml"],
     ["docker-compose.yaml", "docker/compose.dev.yaml"],
   ]) {

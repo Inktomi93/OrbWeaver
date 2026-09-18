@@ -124,7 +124,9 @@ case "${mode}" in
     if [ -z "${AUTH_FALLBACK:-}" ]; then
       export AUTH_FALLBACK=owner
     fi
-    echo "entrypoint: AUTH_MODE=single-user — the owner is whoever reaches this process over a LOOPBACK socket; a published bridge port is NOT loopback (every request would 401). Use host networking (docker/compose.host-network.yaml) or pick AUTH_MODE=local." >&2
+    if [ -z "${AUTH_FALLBACK_TRUSTED_PEERS:-}" ]; then
+      echo "entrypoint: AUTH_MODE=single-user — the owner is whoever reaches this process over a LOOPBACK socket; a published bridge port is NOT loopback (every request would 401). Use docker/compose.single-user.yaml (bridge + the AUTH_FALLBACK_TRUSTED_PEERS opt-in), docker/compose.host-network.yaml, or AUTH_MODE=local." >&2
+    fi
     ;;
   local)
     if [ -z "${SESSION_SECRET:-}" ]; then
