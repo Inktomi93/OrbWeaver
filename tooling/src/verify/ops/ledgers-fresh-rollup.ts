@@ -1,10 +1,13 @@
 // CLASS ROLLUP and ledger-section drift checkers, extracted from ledgers-fresh.ts.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { LedgerFreshness } from "../contract/scoped.ts";
 import { ledgerSections, readDoc, reportLedgerRows, strayLedgerSections } from "../lib/gate-program-docs.ts";
 import type { ClassRollupRow } from "../lib/gate-program-rollup.ts";
 import { committedClassRollup, deriveClassRollup, otherCensusDrift, STATE_BINS } from "../lib/gate-program-rollup.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm check:ledgers-fresh");
 
 const GATE_REVIEWS_DIR = "docs/reviews/gate-runtime";
 const REFUTATION_LEDGER_REL = `${GATE_REVIEWS_DIR}/refutation-ledger-2026-09-12.md`;
