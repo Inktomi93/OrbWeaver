@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-13
+updated: 2026-09-18
 ---
 
 # Orbweaver — Constitution (AGENTS)
@@ -28,7 +28,12 @@ updated: 2026-09-13
    executed/owed checks are recorded. Main integration and push remain coordinator/owner scope. End the
    message with the `Co-Authored-By` trailer. **STANDING EXCEPTION (owner, 2026-09-11, until the gate-runtime
    cutover, #1584): lanes and the orchestrator may commit and merge with
-   `git -c core.hooksPath=/dev/null …`, run the scoped floor by hand, and name it in the commit message.
+   `LEFTHOOK_EXCLUDE=check git commit …` / `LEFTHOOK_EXCLUDE=check git merge …` (skips ONLY the whole-tree
+   `check` command; the `commit-msg` contract — `type(scope): subject` + a well-formed `Co-Authored-By`
+   trailer, `scripts/commit-msg-check.sh` — still fires; re-spelled 2026-09-18, `git -c
+   core.hooksPath=/dev/null` is retired for commits because it skipped that contract too), run the scoped
+   floor by hand, and name it in the commit message. At landing the orchestrator runs
+   `scripts/commit-msg-check.sh --range main..<branch>` before the merge.
    The loader runs both legacy descriptors and final policies. The exception does not establish a
    baseline: inspect each verdict and distinguish inherited findings from new defects, tool errors,
    and withheld owners. Consolidated verification remains owed by the orchestrator.**
