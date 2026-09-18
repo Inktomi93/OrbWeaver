@@ -37,7 +37,7 @@ import { Icon, X } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Tabs, TabsPanel } from "@orb/ui/tabs";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
 import { GAME_STRIP_LABEL } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
@@ -89,6 +89,18 @@ export function ContextBracket({ view, band, railLabel, dismissLabel, onDismiss 
   const tabKey = view.tabs.map((tab) => tab.id).join(",");
   /** The selection this bracket last scrolled for — `undefined` until the first commit. */
   const seenTab = useRef<string | null | undefined>(undefined);
+  // #908 — DEFER INACTIVE TAB SUBTREES. Only mount a tab's body when it has been selected at least once.
+  // The initial active tab mounts immediately; every other tab defers its tree until first visit. Once
+  // mounted, a tab stays mounted (Base UI's `inert` hides it) so a revisit is free. The set grows
+  // monotonically: `visited` includes the active tab by construction, and clearing it would re-mount a
+  // tab's queries from scratch.
+  const [visited, setVisited] = useState<ReadonlySet<string>>(() => new Set(view.activeTab === null ? [] : [view.activeTab]));
+  // Grow the set on each selection change. The derived-state-in-render form (React-sanctioned setState
+  // during render) fires in the same commit the selection changes, so the panel's children are present
+  // before Base UI removes `inert`.
+  if (view.activeTab !== null && !visited.has(view.activeTab)) {
+    setVisited((prev) => new Set([...prev, view.activeTab as string]));
+  }
 
   // Keep the active cell fully in view when the SELECTION CHANGES — a programmatic change most of all (the
   // band's roster chip picking Members, a deep link), where nothing else scrolls an overflowing rail to the
@@ -172,6 +184,10 @@ export function ContextBracket({ view, band, railLabel, dismissLabel, onDismiss 
           nothing about a body changes when the bracket draws the frame around it. The padding is the bracket's
           own now (the shell's panel-body padding is dropped under it), so a body keeps its breathing room while
           the chrome around it reaches the pane's edges. */}
+      {/* #908 — only mount a tab's subtree once it has been selected at least once. The TabsPanel
+          shell is always rendered (Base UI needs it for its `inert`/`hidden` bookkeeping), but its
+          CHILDREN are deferred until first visit, cutting the initial commit-phase cost from 169-214ms
+          to only the active tab's tree. */}
       {view.tabs.map((tab) => (
         <TabsPanel
           key={tab.id}
@@ -182,7 +198,7 @@ export function ContextBracket({ view, band, railLabel, dismissLabel, onDismiss 
           aria-labelledby={cellDomId(tab.id)}
           className="relative min-h-0 flex-initial overflow-y-auto overscroll-contain px-row py-row"
         >
-          {tab.node}
+          {visited.has(tab.id) ? tab.node : null}
         </TabsPanel>
       ))}
       {/* THE PHONE'S GROUND IS A RULED, ACCEPTED VOID (#899 N8, owner-ruled 2026-08-30). The post-fix drive

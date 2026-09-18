@@ -119,20 +119,8 @@ test("time-to-first-token stays hidden with the timer toggle off", async ({ moun
   await expect(component.locator('[data-slot="message-metadata-ttft"]')).toHaveCount(0);
 });
 
-// THE ONE UNGATED DATUM. A reply the model truncated is a fact about the text on screen, not a preference —
-// a reader with every number turned off still has to be told the answer was clipped mid-sentence.
-test("a CUT-OFF reply says so with EVERY toggle off — the outcome notice is not an appearance datum", async ({ mount }) => {
-  const component = await mount(<MessageMetadataRowStory visibility={ALL_OFF} message={{ finishReason: "length", stopReason: "max_tokens" }} />);
-  await expect(component.locator('[data-slot="message-metadata-outcome"]')).toHaveText("cut off — length cap");
-  // The raw provider word is provenance beside the copy, never instead of it.
-  await expect(component.locator('[data-slot="message-metadata-outcome"]')).toHaveAttribute("title", "max_tokens");
-});
-
-test("a CLEAN reply grows nothing from the outcome arm — no notice, no empty shell", async ({ mount }) => {
-  const component = await mount(<MessageMetadataRowStory visibility={ALL_OFF} message={{ finishReason: "stop", stopReason: "end_turn" }} />);
-  await expect(component.locator('[data-slot="message-metadata-outcome"]')).toHaveCount(0);
-  await expect(component.locator(ROW)).toHaveCount(0);
-});
+// THE OUTCOME NOTICE WAS KILLED (#1876, owner ruling). The "cut off — length cap" badge and its
+// supporting derivation were removed entirely. The two CTs that pinned it are deleted with the feature.
 
 test("timestamps never render here even when showTimestamps is on (they live in the name row)", async ({ mount }) => {
   const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showTimestamps: true }} />);

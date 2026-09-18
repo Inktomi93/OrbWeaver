@@ -2,12 +2,14 @@
 // ChatListRowMenu (rollup-audit C1: byte-identical Rename anatomy in both). §13.4's single-rename
 // carve-out (a controlled Input in a Dialog, not a form factory) still applies — this only dedupes the
 // two identical wrappers around it.
+//
+// #2350 — migrated to `FormDialog` PROMPT mode. The anatomy is unchanged: a controlled Input plus
+// Cancel/Save. The migration removes the raw `@orb/ui/dialog` import, resolving the
+// `dialog-via-composite-debt` gate finding for this path.
 
-import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
+import { FormDialog } from "#components";
 
 export interface RenameChatDialogProps {
   readonly open: boolean;
@@ -20,19 +22,8 @@ export interface RenameChatDialogProps {
 /** The chat rename dialog — a controlled title Input + Cancel/Save. */
 export function RenameChatDialog({ open, onOpenChange, value, onValueChange, onSave }: RenameChatDialogProps): ReactElement {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup size="sm">
-        <Stack gap="block">
-          <DialogTitle>Rename chat</DialogTitle>
-          <Input aria-label="Chat title" value={value} onValueChange={onValueChange} placeholder="Untitled chat" />
-          <Row gap="row" justify="end">
-            <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-            <Button intent="primary" onClick={onSave}>
-              Save
-            </Button>
-          </Row>
-        </Stack>
-      </DialogPopup>
-    </Dialog>
+    <FormDialog open={open} onOpenChange={onOpenChange} title="Rename chat" size="sm" submit={{ label: "Save", onSubmit: onSave }}>
+      <Input aria-label="Chat title" value={value} onValueChange={onValueChange} placeholder="Untitled chat" />
+    </FormDialog>
   );
 }

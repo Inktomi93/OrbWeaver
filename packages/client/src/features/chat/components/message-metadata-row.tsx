@@ -37,10 +37,9 @@
 //   · TIME-TO-FIRST-TOKEN → `showGenerationTimer`. Same subject as the duration, same `durationLabel` shape.
 //   · The EDITED marker → `showTimestamps`, in the NAME ROW beside the timestamp ({@link MessageTimestamp}) —
 //     it is a fact about WHEN this text became what it is.
-// The OUTCOME notice ("cut off — length cap") is the one datum on NO toggle: a reply the model truncated is
-// a correctness fact about the text you are reading, not a preference, and a host who turned the numbers off
-// still needs to know the answer was clipped. It is also self-limiting — `message-readout.ts` speaks only
-// for the arms that name a real problem, so a healthy transcript never grows a datum from it.
+// The outcome notice ("cut off — length cap") was KILLED (#1876, owner ruling): the badge caused confusion
+// (not role-gated, an edit triggered it, unreadable on some themes). The `messageOutcomeNotice` export and
+// its types were removed from `message-readout.ts` in the same commit.
 //
 // EVERYTHING HERE STAYS OFF THE PROSE BLOCK (the reading-surface law). These are chrome data in the metadata
 // footer and the name row; not one of them touches the message body.
@@ -52,7 +51,7 @@ import type { ReactElement } from "react";
 import { Fragment } from "react";
 import { cn, timeLib } from "#lib";
 import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
-import { cacheTokensLabel, messageOutcomeNotice } from "../lib/message-readout.ts";
+import { cacheTokensLabel } from "../lib/message-readout.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 
 /** The metadata-datum subset of the appearance prefs (mirrors `useMessageAppearance`'s row-display
@@ -146,12 +145,6 @@ export function MessageMetadataRow({ message, visibility, backingClass }: Messag
   // of the timer a reader actually feels (how long the reply sat blank), and it is recorded per variant.
   if (visibility.showGenerationTimer && message.ttftMs !== null) {
     items.push(<Fragment key="ttft">{metadatum("message-metadata-ttft", `${durationLabel(message.ttftMs)} to first token`)}</Fragment>);
-  }
-  // #1032 — the OUTCOME notice, on no toggle (see this file's header): a truncated or filtered reply is a
-  // fact about the text, not a preference. `null` on every clean finish, which is nearly all of them.
-  const outcome = messageOutcomeNotice(message);
-  if (outcome !== null) {
-    items.push(<Fragment key="outcome">{metadatum("message-metadata-outcome", outcome.text, outcome.title)}</Fragment>);
   }
   // PD-137 — the on-demand settled-cost readout (renders its own null-guard for a non-OR row); the paid
   // fetch fires only on the user's reveal click, never here.

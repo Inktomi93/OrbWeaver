@@ -1,5 +1,6 @@
-// Two temporary chat-lane raw Dialog migrations. The shared fact classifies only these exact #2350 paths;
-// every other raw Dialog import remains an error in dialog-via-composite.
+// #2350 RESOLVED — both chat-lane raw Dialog paths migrated to FormDialog. The debt set is now empty, so
+// this gate fires on zero paths. It survives as a proof that the migration landed and a regression guard:
+// any future chat raw Dialog import will be caught by the sibling error gate, not by a dead debt tracker.
 import { defineGate } from "../contract/policy.ts";
 import { dialogRootImportFact } from "../lib/dialog-root-import.ts";
 
@@ -26,31 +27,28 @@ export const gate = defineGate({
       }
     },
   }),
-  mustFlag: [
+  mustFlag: [],
+  mustPass: [
     {
       mode: "source",
       files: {
         "packages/client/src/features/chat/components/rename-chat-dialog.tsx": 'import { Dialog } from "@orb/ui/dialog";\nexport const X = () => <Dialog />;\n',
       },
-      expect: { count: 1, token: "Dialog" },
-      why: "legacy mustPass[2], reclassified as live warning debt owned by #2350",
+      why: "#2350 regression guard: rename-chat-dialog was migrated to FormDialog; a raw import here is a regression",
     },
     {
       mode: "source",
       files: {
         "packages/client/src/features/chat/components/invite-dialog.tsx": 'import { Dialog } from "@orb/ui/dialog";\nexport const X = () => <Dialog />;\n',
       },
-      expect: { count: 1, token: "Dialog" },
-      why: "the second temporary chat-lane exception is the same #2350 debt species",
+      why: "#2350 regression guard: invite-dialog was migrated to FormDialog; a raw import here is a regression",
     },
-  ],
-  mustPass: [
     {
       mode: "source",
       files: {
         "packages/client/src/features/chat/components/other-dialog.tsx": 'import { Dialog } from "@orb/ui/dialog";\nexport const X = () => <Dialog />;\n',
       },
-      why: "a new chat raw import is not in the two-path debt class; the error sibling owns it",
+      why: "a new chat raw import is not in the debt class; the error sibling owns it",
     },
   ],
 });
