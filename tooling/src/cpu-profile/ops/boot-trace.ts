@@ -234,7 +234,6 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
   }
   let active = true;
   const detachReported = async (): Promise<void> => {
-    // @orb-waive caught-failure-ownership(cleanup): terminal browser instrumentation cleanup; warn preserves the failure and the owning Snap session still closes the page. Ends if the warning or following session close disappears.
     await cleanupObserver().catch((error: unknown) => warn(`BOOT LCP CLEANUP     ${errorMessage(error)}`));
     // @orb-waive caught-failure-ownership(detach): detach is terminal cleanup after trace stop/abort; warn prints the exact failure and the owning Snap session still closes the browser. Ends if this warning or the following session close disappears.
     await detach().catch((error: unknown) => warn(`BOOT TRACE DETACH   ${errorMessage(error)}`));

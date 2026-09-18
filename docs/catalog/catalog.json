@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 1,
+    "pending": 49,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -452,16 +452,16 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 498,
-      "bytes": 393534,
-      "sha256": "c2c106b2c98d48616dc7c997dc8a4273b4fd0dc25f8e79274d68472bef2af3ab",
+      "lines": 499,
+      "bytes": 394580,
+      "sha256": "c99524cc7c6bde88c0e9ff98d172eba9a0d1fcbea4ea7315114c348f6cf4d9aa",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-13"
+          "updated": "2026-09-14"
         },
         "errors": []
       },
@@ -11211,8 +11211,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 1539,
-      "bytes": 193097,
-      "sha256": "47c3289b51aa7d2d66e581803ae2c4e11fa0ad05324e8de2b25b4a57178aa62c",
+      "bytes": 193094,
+      "sha256": "e90bc94b8afd917a212712e0415730e4ab21d8e41b3ae127e5086ba049878d9a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11874,8 +11874,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 224,
-      "bytes": 21080,
-      "sha256": "4e34d88912a2c007c0eca0b6190abc92b26172a35dbf1e369a1737da3bcd5d30",
+      "bytes": 21116,
+      "sha256": "9f3aa8cbaf62753944a4962e40e32089f9fa58380bf325bfa5a4dbad3e405e0d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12744,9 +12744,9 @@
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
       "lane": "design",
       "issue": 5,
-      "lines": 228,
-      "bytes": 17964,
-      "sha256": "83279c5a7ea18bf79b241d77db5ced5ee01a8adcbe4beb622d9c8df53d13140c",
+      "lines": 227,
+      "bytes": 17785,
+      "sha256": "f9323025535949b4a3ec5d05a96ee448d9d6a06554524c638e1bcd6d2409ea5f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12805,7 +12805,7 @@
       "issue": 5,
       "lines": 58,
       "bytes": 4461,
-      "sha256": "47a250b6de643854450ca8bc57340017f4e0b4984f628495545709ab527dca0c",
+      "sha256": "325473fc9c96bfac680cd186c19f8cde55184703a04602e848b0088d6fa63643",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12981,8 +12981,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 440,
-      "bytes": 32617,
-      "sha256": "939015ff93a4b4d63544804721a8b09d0729f69fe02423f008bbbf2c5d2b5cc2",
+      "bytes": 32635,
+      "sha256": "dd87039e1d745bfbac472d7aee74aa4923f6f905a5460f214d8834673b9e4d9e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -30547,7 +30547,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/bypass-enumeration-2026-09-12.md",
+        "assignedSha256": "95e5f6c43f3f779a21f624cb3d6798e109010984a8c4b071021e20bf1e4663ad",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -30695,15 +30706,15 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 213,
-      "bytes": 20971,
-      "sha256": "261a37cbfc16c54caeb81c87bd39f24f5ac9a4ff38731b30aa5be7525c99fbdf",
+      "bytes": 21159,
+      "sha256": "c97fabfa12552bef37c64b3f05a0de208c9f331fdfee82dbd5bf4a8899e34194",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "review",
           "status": "active",
-          "updated": "2026-09-13"
+          "updated": "2026-09-15"
         },
         "errors": []
       },
@@ -31421,7 +31432,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/policing-surface-audit-2026-09-12.md",
+        "assignedSha256": "df2232f5a4145e3b3605d57d84a908759e14fd95bd1dc4b4b4f7f710a395298f",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -31732,12 +31754,105 @@
       "receiptCurrent": false
     },
     {
+      "path": "docs/reviews/gate-runtime/sec-barrier-review-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 439,
+      "bytes": 48504,
+      "sha256": "e47c751a98a10c159af6305f1f49e953eee307d0a556471a7810900969be004b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/sec-barrier-review-2026-09-13.md",
+        "assignedSha256": "e47c751a98a10c159af6305f1f49e953eee307d0a556471a7810900969be004b",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/sec-p7-review-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 517,
+      "bytes": 42633,
+      "sha256": "d47e26d5afc97841a1d27dd65d93e128ffd5224ee6e714e42bfff1af08865a7c",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/sec-p7-review-2026-09-13.md",
+        "assignedSha256": "d47e26d5afc97841a1d27dd65d93e128ffd5224ee6e714e42bfff1af08865a7c",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/sec-replay-review-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 669,
+      "bytes": 53754,
+      "sha256": "6ca51b65ff80a0730e750a4fea41888d838ae828d7bfe6ae6ad4a126297bf184",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/sec-replay-review-2026-09-13.md",
+        "assignedSha256": "6ca51b65ff80a0730e750a4fea41888d838ae828d7bfe6ae6ad4a126297bf184",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/reviews/gate-runtime/shared-semantic-readers.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 140,
-      "bytes": 17577,
-      "sha256": "24f24c5dee3f12c5d19f436cd1d1afc0622ae97bf91b5882e1033d35cf306abe",
+      "bytes": 17571,
+      "sha256": "638550bc3fc8e5d7db1bb1518df210cd7c9a17cffdb0a94fb88552ca04d64dd0",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31775,7 +31890,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/gate-runtime/simple-visitors-a-m.md",
@@ -31939,7 +32054,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/tier3-one-to-one-port-ruling.md",
+        "assignedSha256": "24c4b844efa35713fd8af48774cd8d4745fba6018146373365ea41d4426dbee7",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -32093,6 +32219,37 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/gate-runtime/v-2358-reference-fact-shared-2026-09-14.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 245,
+      "bytes": 21148,
+      "sha256": "83b7aa835b673354a5d7cd03713820d2d95b45a2878550f1c3866387e4af9bab",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-14"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-2358-reference-fact-shared-2026-09-14.md",
+        "assignedSha256": "83b7aa835b673354a5d7cd03713820d2d95b45a2878550f1c3866387e4af9bab",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/reviews/gate-runtime/v-additions-wave-2026-09-12.md",
       "lane": "reviews",
       "issue": 7,
@@ -32109,7 +32266,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-additions-wave-2026-09-12.md",
+        "assignedSha256": "c5658de0da484e6ae6a06065b94c979a5dce468f52df66bd2e45449173081fb0",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -32452,7 +32620,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-authority-census-2026-09-12.md",
+        "assignedSha256": "ef64c1ed053cc91dd0dc3675cb8bdb82d3a3e86e0253bf16211bc3001a5ac4ee",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -32504,6 +32683,37 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/gate-runtime/v-callable-reader-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 402,
+      "bytes": 30570,
+      "sha256": "615e46b67a8c63287b42746ef289de381bd1b0bd4e4a2713f78a9b67893fdc60",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-callable-reader-2026-09-13.md",
+        "assignedSha256": "615e46b67a8c63287b42746ef289de381bd1b0bd4e4a2713f78a9b67893fdc60",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/reviews/gate-runtime/v-config-liveness-2026-09-12.md",
       "lane": "reviews",
       "issue": 7,
@@ -32520,7 +32730,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-config-liveness-2026-09-12.md",
+        "assignedSha256": "b0dd9ccdc747c437d5b43bc4165695c4a5a44ab536a1c98851b7335065c5fc36",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -32540,7 +32761,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-conversions-11-2026-09-13.md",
+        "assignedSha256": "97de3a362e948ad43836f165acf317eaadacdb7a69e02410957ce5cc88afdbc2",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -32548,8 +32780,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 426,
-      "bytes": 29774,
-      "sha256": "8f0e2b9eee24a79a80edf1a189954a499c645b93c8ea9cecb9e3100d73d90ff1",
+      "bytes": 29842,
+      "sha256": "a9803fc9444083e860d1d55efe62be947304294a7bb9c3bfa497a8f9f5c9b9ec",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32654,7 +32886,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-css-train-3-2026-09-13.md",
+        "assignedSha256": "53357b5d593a244024757c5904d0b7574496c2be1d683f8953c64737a2f3d14f",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33092,7 +33335,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-hooks-wave-2026-09-12.md",
+        "assignedSha256": "92cd1fbcd8476c1f7ae42f6ee07e3a5b55583fa448ff4757a09bd922a55a714a",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33112,7 +33366,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-instruments-2-2026-09-12.md",
+        "assignedSha256": "a0c0e3e1914a9b31756c734001628909a08ffe97ed8513180d56372a248a80b3",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33132,7 +33397,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-instruments-2026-09-12.md",
+        "assignedSha256": "da04bbb65dcd25cdbe5f23189818375bdce79339ec4a705ef8ffa8cc9689cc48",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33152,7 +33428,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-instruments-3-2026-09-13.md",
+        "assignedSha256": "174aeb9351c62d646a8604c27e49b0b61463d9e4bd0d55ffc0ae8e9cb60ba54f",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33216,7 +33503,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-ledger-fixes-2026-09-12.md",
+        "assignedSha256": "3a7a171f6576d8bdefeed8f0d98310e458aa385ddfb5ef80ddb91e5c26639194",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33236,7 +33534,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-ledger-reconcile-2026-09-12.md",
+        "assignedSha256": "fe13c3823149d9d77d7baed69fb7fdca8e8980b30b2cb527c7377068ddb192f5",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33256,7 +33565,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-ledger-wave-2026-09-12.md",
+        "assignedSha256": "a6b339c0a9096df882c0e064a23e34ce70d2e9a3655525ebe3bb9da00ca89f00",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33353,7 +33673,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-mirror-suppressions-2026-09-12.md",
+        "assignedSha256": "f87fa585e964c0b92e473b7765cbcfbe76e26b1ed88159eddca5229776b24a70",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33373,7 +33704,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-mixed-hooks-1-3-2026-09-12.md",
+        "assignedSha256": "434889beba14bef9a716f38a9f6fe2a0ffd7ad02f70b68d09d297b244ba91d5a",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33437,7 +33779,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-parity-instruments-2026-09-12.md",
+        "assignedSha256": "c1f3574324132c2aaa27e98fa05d40aab7175e658f61c51ca38a2f0d56ced14c",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33457,7 +33810,49 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-policing-audit-2026-09-12.md",
+        "assignedSha256": "0b932b991fba3c64ba1f3da117416f16a78d81ab8ac603df777461ab3d10801e",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-q08-grammar-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 363,
+      "bytes": 26446,
+      "sha256": "e511db55fd5c2705f4155ef949868b75318d08cb0b769799d67ae5f153b941f8",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-q08-grammar-2026-09-13.md",
+        "assignedSha256": "e511db55fd5c2705f4155ef949868b75318d08cb0b769799d67ae5f153b941f8",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33477,7 +33872,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-q08-production-consumption-2026-09-13.md",
+        "assignedSha256": "73d1ecf9ecb48ecac884b40c936ce9e92703f73f46885581337b53eb7675700e",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33631,6 +34037,68 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/gate-runtime/v-theme-freshness-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 277,
+      "bytes": 25326,
+      "sha256": "b28047f224a4d91b87ad0c7d3392d665b6e4c2aea035e32ce8f1b69b372ef0b9",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-theme-freshness-2026-09-13.md",
+        "assignedSha256": "b28047f224a4d91b87ad0c7d3392d665b6e4c2aea035e32ce8f1b69b372ef0b9",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-typed-refusal-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 277,
+      "bytes": 26336,
+      "sha256": "72ab8137881f9339b840a12025b5dcf3ccadf47ffd1eed644fa39ee0d6fd297b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-typed-refusal-2026-09-13.md",
+        "assignedSha256": "72ab8137881f9339b840a12025b5dcf3ccadf47ffd1eed644fa39ee0d6fd297b",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/reviews/gate-runtime/v-unaudited-finals-2026-09-12.md",
       "lane": "reviews",
       "issue": 7,
@@ -33647,7 +34115,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-unaudited-finals-2026-09-12.md",
+        "assignedSha256": "4b756bbe6585c8996786a1c8b3572bc10ba88c0454451a1c724144ce7817c10e",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33667,7 +34146,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-verify-lib-4-2026-09-13.md",
+        "assignedSha256": "acbd80043b6814c5d8c81dbca9658365811ba5ec317b180d295845da3fde52a3",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33687,7 +34177,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-wave-10-2026-09-13.md",
+        "assignedSha256": "df9d667c5b47e5ba2545439b21238fd6de9f26800d901d1ef0ac39464daaf80c",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33887,7 +34388,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-wave-6-2026-09-12.md",
+        "assignedSha256": "cace5a124dbeef9027e548fc8466c46275c891d40800e3441ba83b02ac266005",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33907,7 +34419,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-wave-7-2026-09-13.md",
+        "assignedSha256": "704476692449d4c4a511cf8a19d79129021a07f547dceab9642f3af35d446a68",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33927,7 +34450,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-wave-8a-2026-09-13.md",
+        "assignedSha256": "cfbe2fdf41e77e4257955253d15cfc10219f2137926f10d33caced34f4c3bc15",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33947,7 +34481,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-wave-8b-2026-09-13.md",
+        "assignedSha256": "760d332a38a2e90e9800f7657731d30143f414e8a204d0bca18d68d4f84d4479",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33967,7 +34512,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-wave-8c-2026-09-13.md",
+        "assignedSha256": "c7ae04d3687ae6e120f3565c6f45d624a08dc8cf21a13e1d3bc558f5e96de05b",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -33987,7 +34543,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-wave-9a-2026-09-13.md",
+        "assignedSha256": "4b0d31fe63f393555d7a873db2016c81239f6caf69a271aee97c77d40d8a4de0",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34007,7 +34574,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-wave-9b-2026-09-13.md",
+        "assignedSha256": "a3614f1215f80988aea3dde451b70a744dbc0dc3baabe4c2f32c2faee30e0185",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34102,7 +34680,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-world-gates-2026-09-12.md",
+        "assignedSha256": "856a9b2e5881a7a0c6b95b2ceb2329460b55846ab411a2bb0da0d39dc61ad4eb",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34122,7 +34711,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-world-type-config-preservation-2026-09-13.md",
+        "assignedSha256": "bd0e82450a662473c6640abccd134c2a1bc405c7372966109d9d9fd4659ee1ce",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34278,7 +34878,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-binding-reader-a-2026-09-13.md",
+        "assignedSha256": "ff06d621393ae50949892b01ba982743054572347c97c3c5789f2edf396757e0",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34434,7 +35045,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-css-train-2026-09-13.md",
+        "assignedSha256": "ae35ae29b8f294c53a9345df62e6d73218277c16b79346cc47780fe1cfc38b5f",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34638,7 +35260,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-grant-proof-2026-09-13.md",
+        "assignedSha256": "a2421a7402bf5299af18500c03154f4a809bcdd1a14ed08779fd9e492a91ae21",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34746,7 +35379,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-instruments-batch-2026-09-13.md",
+        "assignedSha256": "792b440b13bc7348b3ab2699cb1b975492e7fe43fe3a85f582680f7601cafc18",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34909,7 +35553,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-refusal-debt-2026-09-13.md",
+        "assignedSha256": "89c981c9d2699ee5a99d723717224441117b69d51e41c385625df13c2aed1fde",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -35065,7 +35720,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-typed-import-arm-2026-09-13.md",
+        "assignedSha256": "7eca2517f984fd35b89425721c28795fbb80208176a5da61e83ae63af48f08a6",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -35133,7 +35799,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-verify-lib-fixes-2026-09-13.md",
+        "assignedSha256": "e44f8a6ed518a5f7d20962dcee7cf15c765bed1920c204340af04605032fd949",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -35153,7 +35830,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-warning-barrier-2026-09-13.md",
+        "assignedSha256": "f883344eb11ae7d2b768c6d586c808f976228fc0fa459dca696f32e736085af4",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
