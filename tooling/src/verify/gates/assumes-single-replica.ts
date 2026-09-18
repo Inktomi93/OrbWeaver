@@ -17,7 +17,7 @@
 // ["packages/server/src/**/persistence/**"] }`, an end-anchored glob equivalent over the same tree.
 // LEGACY at 86ce80b6c (this module's content there is byte-identical to the parent it was converted from).
 //
-// §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.test.ts): every legacy
+// §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.suite.test.ts): every legacy
 // mustFlag/mustPass example replays byte-identically against the final policy (same finding count, same
 // token shape). Population equality: `notUnder` glob vs `PERSISTENCE.test` regex agree on every corpus path
 // (both admit nothing under any `persistence/` segment inside `@server`); no finding or tool-error delta.

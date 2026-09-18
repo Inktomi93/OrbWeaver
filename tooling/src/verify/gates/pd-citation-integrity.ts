@@ -40,7 +40,7 @@
 // that the runtime's own refusal already held. The registry is a `ledger` and not a `documents` member
 // precisely because it is an IDENTITY: reading half of it is how a LIVE id reads as an orphan cite, so an
 // absent member must refuse rather than yield a smaller row set (`contract/resource-document.ts`). The
-// refusal pins are in `tests/tooling/verify/gates/text-citation-family.test.ts`.
+// refusal pins are in `tests/tooling/verify/gates/text-citation-family.suite.test.ts`.
 //
 // ANCHOR MOVE (guide §6.4's ANCHOR MOVE classification, receipted). The legacy duplicate-id finding anchored at the ACTIVE
 // registry's line 1; it now anchors on the SECOND authored occurrence of the id — the collision site.

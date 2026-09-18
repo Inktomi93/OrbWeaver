@@ -3,7 +3,7 @@
 // `${configDir}` irreducible entry, the config-directory resolution, the directory oracle, the
 // one-finding-per-grant-identity rule, and the `-health` sibling's unparseable and classifier-rot arms — is
 // proven by the policies' own `mustFlag`/`mustPass` rows, which
-// `tests/tooling/verify/gates/grant-liveness-family.test.ts` runs through `verifyPolicyProofs`.
+// `tests/tooling/verify/gates/grant-liveness-family.suite.test.ts` runs through `verifyPolicyProofs`.
 //
 // This integration file retains the runtime and real-root assertions around the refusal rows:
 //   1. an empty `tsconfig*.json` roster produces a tool error naming that census;

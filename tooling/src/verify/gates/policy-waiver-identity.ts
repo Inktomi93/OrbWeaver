@@ -12,7 +12,7 @@
 //     `schemaFixture({ waiver: "  // @orb-waive byte-check-cast(…)" })`) — every string inside the row is read;
 //   • a family test under `tests/tooling/verify/gates/**` that IMPORTS the module (by resolved specifier,
 //     never by path text) and drives a marker-form fixture inside a `test(…)` whose body reads
-//     `waivedFindings` (`ordinary-visitors-family.test.ts:187-196`). POLARITY is the point: the negative arm
+//     `waivedFindings` (`ordinary-visitors-family.suite.test.ts:187-196`). POLARITY is the point: the negative arm
 //     right below it (`:198-205`) carries the same marker and asserts alarms, and "a marker naming your
 //     policy inside another policy's negative arm is not your arm" (§4.2) — which is exactly how
 //     `no-form-state-in-useeffect` had no arm while a grep counted one.
@@ -71,7 +71,7 @@ const MESSAGE =
 const FIX =
   "add a `mustPass` row whose fixture produces exactly ONE finding and carries `// @orb-waive <id>(<position>): <reason>` at the " +
   "reported position (schema-branding.ts:137), or a `runPolicyPass` pin in the family test asserting `waivedFindings` length 1 " +
-  "(ordinary-visitors-family.test.ts:187-196). Build it on a one-finding fixture; a wrong position alarms and fails the row.";
+  "(ordinary-visitors-family.suite.test.ts:187-196). Build it on a one-finding fixture; a wrong position alarms and fails the row.";
 const BLIND =
   `BLINDNESS: ${SELF} is in the effective population and does not read as a final policy — the import-origin recognizer ` +
   "(lib/gate-contract-origin.ts isCanonicalDefineGate) is dead, so every module would read out of scope. Refusing the run.";
@@ -272,7 +272,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: familyFixture(ORDINARY_NO_ARM, { [PROBE_FAMILY_TEST_PATH]: familyTest(POSITIVE_BODY) }),
-      why: "the family-test shape (ordinary-visitors-family.test.ts:187-196): the test imports the module by resolved specifier and its `test(…)` drives the marker fixture and reads `waivedFindings`",
+      why: "the family-test shape (ordinary-visitors-family.suite.test.ts:187-196): the test imports the module by resolved specifier and its `test(…)` drives the marker fixture and reads `waivedFindings`",
     },
     {
       mode: "types",

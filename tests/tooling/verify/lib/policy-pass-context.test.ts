@@ -73,6 +73,7 @@ function context(): { readonly ctx: ReturnType<typeof makePolicyContext>["contex
     paths,
     files: [narrow],
     resourcePaths: [],
+    // @orb-waive no-test-fabrication(ResourceHost): partial fixture — only the fields the context builder exercises; no factory exists
     resources: {} as ResourceHost,
     resourceRequests: [],
     checker: () => project.getTypeChecker(),
@@ -151,6 +152,7 @@ const runtimeProbe = defineGate({
   message: "runtime probe",
   create: (ctx) => ({
     evaluate: () => {
+      // @orb-waive no-test-fabrication(unknown): deliberate partial — only the fields the context builder exercises
       Reflect.apply(ctx.report as unknown as (...args: readonly unknown[]) => unknown, undefined, [
         { file: "packages/client/src/x.ts", line: 1, column: 1, message: "legacy finding" },
       ]);

@@ -549,6 +549,7 @@ test("a client door whose verb is a RULED pair is annotated with the ruling and 
       site: { node: undefined, keys: [], via: null, door: "`mutation` ← useContinueTurnMutation → trpc.chat.continueTurn", unresolved: null },
       missing: [],
       supersets: [],
+    // @orb-waive no-test-fabrication(unknown): deliberate partial SubsetFinding — only the fields the assertion exercises
     } as unknown as SubsetFinding,
     ruled,
   );
@@ -564,6 +565,7 @@ test("a door on a verb NO ruling names is not annotated — the repair joins on 
       site: { node: undefined, keys: [], via: null, door: "`mutation` ← useForkChatMutation → trpc.chat.forkChat", unresolved: null },
       missing: [],
       supersets: [],
+    // @orb-waive no-test-fabrication(unknown): deliberate partial SubsetFinding — only the fields the assertion exercises
     } as unknown as SubsetFinding,
     ruledDoorPairs(),
   );

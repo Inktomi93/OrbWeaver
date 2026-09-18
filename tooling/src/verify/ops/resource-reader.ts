@@ -99,6 +99,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
       return cached;
     }
     let load: ResourceLoad<readonly Dirent[]>;
+    // @orb-waive caught-failure-ownership(error): resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set
     try {
       if (path !== "") {
         assertDiskPath(path);
@@ -156,6 +157,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
       return cached;
     }
     let load: ResourceLoad<Buffer>;
+    // @orb-waive caught-failure-ownership(error): resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set
     try {
       if (hidden(path)) {
         load = unavailable("missing", path, `resource deleted by overlay: ${path}`);
@@ -179,6 +181,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
     if (content.status !== "ready") {
       load = content;
     } else {
+      // @orb-waive caught-failure-ownership(error): resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set
       try {
         const value = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(content.value);
         load = value.length === 0 ? unavailable("empty", path, `resource file is empty: ${path}`) : { ...content, value };
@@ -291,6 +294,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
       return cached;
     }
     let load: ResourceLoad<readonly ResourceTreeEntry[]>;
+    // @orb-waive caught-failure-ownership(error): resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set
     try {
       load = loadTree(path);
     } catch (error) {
@@ -325,6 +329,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
     });
   };
   const snapshot = (paths: readonly string[]): ResourceLoad<readonly ResourceFileSnapshot[]> => {
+    // @orb-waive caught-failure-ownership(error): resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set
     try {
       const files = [...new Set(paths)].toSorted(comparePath).map(snapshotFile);
       return freezeLoad({ status: "ready", value: Object.freeze(files), paths: files.map((entry) => entry.path), members: files.length });

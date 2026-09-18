@@ -23,7 +23,7 @@
 // (the #2153/#2103 class: an inherited property restated in a new arrangement without re-measuring).
 // Three arms, each deleting and running `pnpm typecheck --config tsconfig.json`, 2026-09-12:
 //
-//   1. DELETE THE GATE MODULE ALONE      → RED, but ONLY from `tests/tooling/verify/gates/bus-pair.test.ts`
+//   1. DELETE THE GATE MODULE ALONE      → RED, but ONLY from `tests/tooling/verify/gates/bus-pair.suite.test.ts`
 //                                          (it imports the `gate`). `bus-producer-coverage` is CLEAN — it
 //                                          reads this module now, not that one.
 //   2. DELETE THIS MODULE ALONE          → RED from THREE sites: the family test, `bus-producer-coverage:59`

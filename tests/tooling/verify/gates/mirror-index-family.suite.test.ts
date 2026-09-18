@@ -474,12 +474,12 @@ test("state store mirrors are NOT all .ct.tsx — the false premise that made cl
  *  0 tool errors, 0 withheld). The six that took 51 → 57 are named below with the commit that ADDED each
  *  (`git log --diff-filter=A`), so the +6 is attributable per member rather than through a report that
  *  ages. All six landed 2026-09-12 — one day — which is the measurement that killed the exact-set pin:
- *    `a196a35d7`  tests/tooling/verify/gates/bus-payload-family.test.ts
- *    `2dabae9ce`  tests/tooling/verify/gates/seed-theme-ink-family.test.ts
- *    `a97454714`  tests/tooling/verify/gates/token-contract-family.test.ts
- *    `17a59099b`  tests/tooling/verify/gates/css-home-topology-family.test.ts
- *    `ae7a40e0b`  tests/tooling/verify/gates/real-corpus-liveness-family.repo.int.test.ts
- *    `61cae0710`  tests/tooling/doc-catalog/ops/catalog-scope.test.ts  — NOT in the class; it is the first
+ *    `a196a35d7`  tests/tooling/verify/gates/bus-payload-family.suite.test.ts
+ *    `2dabae9ce`  tests/tooling/verify/gates/seed-theme-ink-family.suite.test.ts
+ *    `a97454714`  tests/tooling/verify/gates/token-contract-family.suite.test.ts
+ *    `17a59099b`  tests/tooling/verify/gates/css-home-topology-family.suite.test.ts
+ *    `ae7a40e0b`  tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts
+ *    `61cae0710`  tests/tooling/doc-catalog/ops/catalog-scope.suite.test.ts  — NOT in the class; it is the first
  *                 `PARKED_EXCEPTIONS` row below, and it is the member that vindicates the roster argument:
  *                 a bare count would have absorbed it silently.
  *  So five of the six are the family-test class this program mints per conversion and one is an exception.
@@ -490,7 +490,7 @@ test("state store mirrors are NOT all .ct.tsx — the false premise that made cl
  *  57 → 59 delta, derived by diffing the roster literal `183e49714` shipped against the tip drive above
  *  (the literal also carried three overlay FIXTURE paths — `use-thing`, `start-chat`, `snapx/cli` — which
  *  are not members, so 60 tokens is 57 members):
- *    `9104f718f`  tests/tooling/verify/gates/css-hook-provenance-family.test.ts   (2026-09-12)
+ *    `9104f718f`  tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts   (2026-09-12)
  *    `158dbdd96`  tests/tooling/verify/gates/no-color-literals-parity.test.ts     (2026-09-13)
  *  Both are in-class, both entered SILENTLY under the class invariant, and neither reds anything. An
  *  exact-set pin would have reported them as two red proofs on the lanes that landed them.
@@ -510,11 +510,11 @@ interface ParkedException {
 
 const PARKED_EXCEPTIONS: readonly ParkedException[] = [
   {
-    file: "tests/tooling/doc-catalog/ops/catalog-scope.test.ts",
+    file: "tests/tooling/doc-catalog/ops/catalog-scope.suite.test.ts",
     why: "`61cae0710` — a CONCEPT-named unit test whose subject is `tooling/src/doc-catalog/ops/catalog.ts` reached through the package barrel; no `catalog-scope.ts` has ever existed, and a family-test revamp would not absorb it.",
   },
   {
-    file: "tests/tooling/verify/lib/bus-fact-relay.test.ts",
+    file: "tests/tooling/verify/lib/bus-fact-relay.suite.test.ts",
     why: "`d9ac09d58` — a CONCEPT-named fact-level control spanning `lib/bus-definition-fact.ts` and `lib/bus-fact.ts` through a locally defined probe policy; no `bus-fact-relay.ts` has ever existed, and its two subjects mean no prefix swap can name it.",
   },
 ];

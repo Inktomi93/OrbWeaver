@@ -63,6 +63,7 @@ function nodeIdentity(subject: Subject, entry: { isFile: () => boolean; isDirect
 function linkIdentity(rootReal: string, subject: Subject): AuthoredPathIdentity {
   const { selector, form, path, targetAbs } = subject;
   let canonical: string;
+  // @orb-waive caught-failure-ownership(catch): resource-path stat error: ENOENT is the expected missing-file signal; all other errors re-throw at L71
   try {
     canonical = realpathSync(targetAbs);
   } catch {
@@ -72,6 +73,7 @@ function linkIdentity(rootReal: string, subject: Subject): AuthoredPathIdentity 
   if (!contained(rootReal, canonical)) {
     return { selector, form, status: "outside", reason: "selector resolves outside the repository root through a symbolic link" };
   }
+  // @orb-waive caught-failure-ownership(error): resource-path resolution: error surfaces as a structured tool-error; the broken path is excluded from the resource set
   try {
     return nodeIdentity(subject, statSync(targetAbs));
   } catch (error) {
@@ -87,6 +89,7 @@ function identify(rootAbs: string, rootReal: string, selector: string): Authored
   }
   const subject: Subject = { selector, form, path: repoRelative(rootAbs, targetAbs), targetAbs };
   let link: ReturnType<typeof lstatSync>;
+  // @orb-waive caught-failure-ownership(error): resource-path resolution: error surfaces as a structured tool-error; the broken path is excluded from the resource set
   try {
     link = lstatSync(targetAbs);
   } catch (error) {

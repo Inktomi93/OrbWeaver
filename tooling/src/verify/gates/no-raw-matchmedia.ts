@@ -136,7 +136,7 @@ function classify(node: MorphNode): MediaVerdict {
   // whose binding no shared reader can place at all — a member of an OPAQUE receiver (`mustFlag[8]`), and any
   // ambiguous `write`/`cycle` binding. A DOM-LESS program would additionally move the three root spellings
   // onto it rather than into silence; that is a `lib` a proof row cannot choose, so it is pinned in
-  // `tests/tooling/verify/gates/home-client-family.test.ts` beside the refusal control.
+  // `tests/tooling/verify/gates/home-client-family.suite.test.ts` beside the refusal control.
   if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [MATCH_MEDIA])) {
     return "global";
   }

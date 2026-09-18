@@ -130,6 +130,7 @@ function tokenMintingPolicy(door: "node" | "file", token: string): GatePolicy {
     }),
     mustFlag: [{ mode: "source", files: { [PROOF_PATH]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "source", files: { [PROOF_PATH]: "export const clean = 1;\n" }, why: "nearest legal shape" }],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the coordinate resolver exercises; no factory exists
   } as GatePolicy);
 }
 

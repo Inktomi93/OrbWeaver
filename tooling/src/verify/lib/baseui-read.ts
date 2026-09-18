@@ -130,7 +130,7 @@ function globbedSurfaceProject(pkgDir: string): Project {
  *  different surfaces. Keyed by directory, the second call silently returns the first call's project — the
  *  exact "one-slot cache serves example #1's surface to every later example" failure this module's cache
  *  comment already warns about, one level in, and it is worse here because the fs half's key genuinely IS
- *  the directory. Caught by `baseui-and-surface-family.repo.int.test.ts`'s drop-one-component control,
+ *  the directory. Caught by `baseui-and-surface-family.suite.repo.int.test.ts`'s drop-one-component control,
  *  which returned the full surface. A WeakMap on the array identity is the key that cannot be wrong: the
  *  resource host hands every consumer in one invocation the SAME fact object, so the siblings share a hit,
  *  and a genuinely different list is a genuinely different key. */

@@ -59,7 +59,7 @@
 // ledger is now a DECLARED `json:baseui-manifest` resource, so `resolveResourceDeclarations` throws at the
 // POPULATION phase and this policy is WITHHELD — exit 2, never a green zero. A ready-but-degenerate ledger
 // is `baseui-surface-manifest`'s finding, not this one. Pins: the three reachable ledger statuses (missing ·
-// unparseable · empty) in `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts`, under
+// unparseable · empty) in `tests/tooling/verify/gates/baseui-and-surface-family.suite.repo.int.test.ts`, under
 // "§4.5 — the baseui-read ledger consumers all refuse, and the phase depends on the KIND", which drives THIS
 // policy by name. The path this line carried until 2026-09-13 — `baseui-family.test.ts` — never existed.
 //

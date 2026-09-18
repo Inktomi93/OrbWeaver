@@ -23,7 +23,7 @@
 // FAMILY: a SINGLETON under its own id.
 //
 // `entire-population` because grant liveness is only sound after a complete run; a narrowed request DEFERS
-// this policy (pinned in tests/tooling/verify/gates/tooling-plumbing-family.test.ts). POPULATION PORT:
+// this policy (pinned in tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts). POPULATION PORT:
 // byte-identical (`@tooling`) — the legacy fenced arm H before `capability()` ever ran, which is what keeps
 // test-owned browsers under `tests/**` out of the substrate (§2.1) and out of this population by derivation.
 //

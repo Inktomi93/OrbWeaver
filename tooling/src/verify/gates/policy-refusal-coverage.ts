@@ -57,7 +57,7 @@
 // `bindsParameter`, which cannot see a SHORTHAND property's value binding (`{ knownPolicies: policies,
 // policies }`) — TypeScript resolves that name node to the PROPERTY symbol. Ten live family tests spell the
 // dispatcher input that way, and `freeze-provenance-write-pairing-health` sat accused for the module's whole
-// life while carrying a real §4.5 refusal pin at `freeze-provenance-conversion.test.ts:110`. Measured with a
+// life while carrying a real §4.5 refusal pin at `freeze-provenance-conversion.suite.test.ts:110`. Measured with a
 // one-token probe (`policies` → `policies: policies`): 11 → 10, restored, 11. The lesson is the same one the
 // section above paid for: THE PROOF SET ONLY EVER SPELLED THE SHAPE ONE WAY, so its own fixtures could not
 // see the gap. Both the repaired shape and the still-unreachable OBJECT-PATTERN shape are now rows.
@@ -97,7 +97,7 @@
 // recognised, and the `mustPass` "TEST HALF" row was green only because its fixture `declare`d a two-positional
 // dispatcher that exists nowhere on the tree. Measured by `cb-v-wave-8b` on `50e31c534` and reproduced here at
 // `80b0693cb`: a fixture-shaped scratch test moved the real-tree count 60 → 59, while
-// `tests/tooling/verify/gates/mirror-index-family.test.ts` — fifteen refusal pins over all three mirror gates —
+// `tests/tooling/verify/gates/mirror-index-family.suite.test.ts` — fifteen refusal pins over all three mirror gates —
 // discharged nothing, and all three of its subjects sat in the accused list. With the recognizer below the same
 // real-tree drive reads 17, and NOTHING newly accused (43 discharged, 0 added) — the repair's two-sided receipt.
 // THE LESSON, which is the reason this
@@ -260,7 +260,7 @@ function declaringForOf(node: MorphNode, name: string): MorphNode | undefined {
 }
 
 /** THE LOOP HOP — the fifth authored shape, and a FALSE ACCUSATION until it was read (measured on this lane's
- *  own re-run: `bus-pair.test.ts:162` drives three policies through `for (const policy of [a, b, c])` and two of
+ *  own re-run: `bus-pair.suite.test.ts:162` drives three policies through `for (const policy of [a, b, c])` and two of
  *  them stayed accused). A loop binding has no single authored value either, so the subject is the ITERATED
  *  expression — every member of it is driven, which is exactly what the loop does. */
 function hopIteration(node: MorphNode, subjects: Subjects): void {
@@ -358,7 +358,7 @@ function collectDriven(node: MorphNode, subjects: Subjects): void {
  *  header promised one ("inside a `test(…)`") and the founding code never checked; adding it here took the
  *  helper arm from a pin to a false accusation on this lane's own fixture, because the DOMINANT authored shape
  *  puts the dispatcher call in a MODULE-SCOPE `pass(policy, …)` helper that only the test body calls
- *  (`mirror-index-family.test.ts:48-56` is the exemplar). "Executed by a test" is a call-graph question, and a
+ *  (`mirror-index-family.suite.test.ts:48-56` is the exemplar). "Executed by a test" is a call-graph question, and a
  *  reader that answers it approximately accuses the correct majority. What survives is the fence that is real
  *  and checkable: the call is IN A FAMILY TEST FILE (the population), and it DRIVES this module (the walk).
  *  The remaining fence is the field: the driven set is `policies`, never `knownPolicies`. */
@@ -471,7 +471,7 @@ const DRIVEN = driving("probe");
  *  hop exists for. The driven set is a PARAMETER; only its call site names the subject. */
 const DRIVEN_THROUGH_HELPER = `  function pass(policy: unknown): { authority: { toolErrors: unknown[] } } {\n    return ${DISPATCHER}({ knownPolicies: [policy], policies: [policy] });\n  }\n  expect(pass(probe).authority.toolErrors).toHaveLength(1);`;
 /** THE LOOP SHAPE — a for-of binding has no single authored value either, so the subject is the ITERATED
- *  expression (`bus-pair.test.ts:162` drives three policies this way). */
+ *  expression (`bus-pair.suite.test.ts:162` drives three policies this way). */
 const DRIVEN_THROUGH_LOOP = `  for (const policy of [probe]) {\n    const refused = ${DISPATCHER}({ knownPolicies: [policy], policies: [policy] });\n    expect(refused.authority.toolErrors).toHaveLength(1);\n  }`;
 /** THE ALIAS-AND-SPREAD SHAPE — a module const of the family, spread into the driven set. Two hops in one
  *  fixture on purpose: the spread element and the const alias behind it are separate branches of the walk. */
@@ -672,7 +672,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN) }),
-      why: "THE TEST HALF, AT THE PRODUCTION SIGNATURE: a family test that IMPORTS this module and drives it through `runPolicyPass({ policies: [<it>] , … })` inside a `test(…)`. This is the arm a row cannot express — an owner status, an empty finding set, a phase — and #1977 exists because it used to live in a header instead. The fixture is the shape `mirror-index-family.test.ts:55` actually writes; #2274 is what an invented one costs",
+      why: "THE TEST HALF, AT THE PRODUCTION SIGNATURE: a family test that IMPORTS this module and drives it through `runPolicyPass({ policies: [<it>] , … })` inside a `test(…)`. This is the arm a row cannot express — an owner status, an empty finding set, a phase — and #1977 exists because it used to live in a header instead. The fixture is the shape `mirror-index-family.suite.test.ts:55` actually writes; #2274 is what an invented one costs",
     },
     {
       mode: "types",
@@ -682,12 +682,12 @@ export const gate = defineGate({
     {
       mode: "types",
       files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_LOOP) }),
-      why: "THE LOOP SHAPE: a `for (const policy of […])` driving several policies through one dispatcher call. The binding has no single authored value, so the subject is the ITERATED expression — every member is driven, which is exactly what the loop does. Live at `bus-pair.test.ts:162`, where three policies share one loop and two of them stayed accused until the hop was read",
+      why: "THE LOOP SHAPE: a `for (const policy of […])` driving several policies through one dispatcher call. The binding has no single authored value, so the subject is the ITERATED expression — every member is driven, which is exactly what the loop does. Live at `bus-pair.suite.test.ts:162`, where three policies share one loop and two of them stayed accused until the hop was read",
     },
     {
       mode: "types",
       files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_SHORTHAND) }),
-      why: "THE SHORTHAND SHAPE (#2330), and it was a FALSE ACCUSATION for the module's whole life: a helper whose parameter is NAMED `policies` writes the driven set as `{ knownPolicies: policies, policies }`, and `descriptorValue` correctly returns a shorthand's NAME NODE — but `bindsParameter` asks `getSymbol()` for a ParameterDeclaration, and on a shorthand's name TypeScript resolves the PROPERTY symbol, never the value binding. The guard read false, the parameter hop never ran, and a real pin credited nothing. Measured: `freeze-provenance-conversion.test.ts:110` carries a live §4.5 refusal pin and the one-token edit `policies` → `policies: policies` moved the real-tree count 11 → 10 with nothing else touched. Ten live family tests spell it this way, so the blast radius was the dominant helper shape's twin",
+      why: "THE SHORTHAND SHAPE (#2330), and it was a FALSE ACCUSATION for the module's whole life: a helper whose parameter is NAMED `policies` writes the driven set as `{ knownPolicies: policies, policies }`, and `descriptorValue` correctly returns a shorthand's NAME NODE — but `bindsParameter` asks `getSymbol()` for a ParameterDeclaration, and on a shorthand's name TypeScript resolves the PROPERTY symbol, never the value binding. The guard read false, the parameter hop never ran, and a real pin credited nothing. Measured: `freeze-provenance-conversion.suite.test.ts:110` carries a live §4.5 refusal pin and the one-token edit `policies` → `policies: policies` moved the real-tree count 11 → 10 with nothing else touched. Ten live family tests spell it this way, so the blast radius was the dominant helper shape's twin",
     },
     {
       mode: "types",

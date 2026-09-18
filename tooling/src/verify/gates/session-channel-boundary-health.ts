@@ -11,9 +11,9 @@
 //
 // POPULATION PORT: byte-identical (`@client`, the legacy `scanRoot`). `entire-population` because whether
 // ONE file constructs is a question no per-file subset can answer; a narrowed request DEFERS this policy
-// (pinned in tests/tooling/verify/gates/session-channel-family.test.ts) instead of declaring the home dead.
+// (pinned in tests/tooling/verify/gates/session-channel-family.suite.test.ts) instead of declaring the home dead.
 //
-// THE ANCHOR MOVE (§4.6 classified difference, the same one tier-home-health-family.int.test.ts records for
+// THE ANCHOR MOVE (§4.6 classified difference, the same one tier-home-health-family.suite.int.test.ts records for
 // the spacing family): the legacy tripwire reported on line 1 of the GATE MODULE ITSELF, which is outside
 // `@client` and therefore a path `ctx.report.file` cannot express. The finding now anchors on the real-tree
 // anchor (`packages/client/src/lib/index.ts`) the legacy arm already self-guarded on. The SELF-GUARD is

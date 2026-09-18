@@ -2,7 +2,7 @@
 // (#1930). The matcher/classifier and every self-proof arm (dead row, template-literal code-config,
 // ambiguous-pattern skip, dependency-pattern liveness, the classifier-rot tripwire) are proven through the
 // policy's own `mustFlag`/`mustPass` rows against `verifyPolicyProofs`, which the family conformance test
-// `tests/tooling/verify/gates/grant-liveness-family.test.ts` runs. (#1932 correction: this header used to
+// `tests/tooling/verify/gates/grant-liveness-family.suite.test.ts` runs. (#1932 correction: this header used to
 // cite `tests/tooling/verify/ops/policy-conformance.test.ts` as that harness. It is not — that file proves
 // `verifyPolicyProofs` ITSELF against synthetic policies and imports no gate module, so until the family
 // test landed, NO committed test executed this policy's proofs.) What THIS file keeps is

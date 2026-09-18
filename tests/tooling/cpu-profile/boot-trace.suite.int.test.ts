@@ -54,6 +54,7 @@ function plantedStartFailure(detachFailure?: Error): {
     removeListener,
     detach,
     send,
+  // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
   } as unknown as CDPSession;
   // @orb-waive no-test-fabrication(unknown): this page exposes only the real newCDPSession boundary because the planted start rejection prevents every Page read. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const page = { context: () => ({ newCDPSession: (): Promise<CDPSession> => Promise.resolve(cdp) }) } as unknown as Page;
@@ -105,7 +106,9 @@ test("beginBootTrace abort stops tracing and removes its browser instrumentation
     removeListener: vi.fn(),
     detach,
     send,
+  // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
   } as unknown as CDPSession;
+  // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
   const page = { context: () => ({ newCDPSession: (): Promise<CDPSession> => Promise.resolve(cdp) }) } as unknown as Page;
   const active = await beginBootTrace(page);
   await active.abort();
@@ -139,11 +142,13 @@ test("beginBootTrace bounds a stalled presentation, retains raw events, and perf
       removeListener: vi.fn(),
       detach,
       send,
+    // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
     } as unknown as CDPSession;
     const page = {
       context: () => ({ newCDPSession: (): Promise<CDPSession> => Promise.resolve(cdp) }),
       waitForLoadState: vi.fn(() => Promise.resolve()),
       evaluate: vi.fn(() => new Promise<never>(() => undefined)),
+    // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
     } as unknown as Page;
     const rawTracePath = join(scratch, "stalled-presentation.trace.json");
     const active = await beginBootTrace(page);
@@ -189,6 +194,7 @@ for (const failureMode of ["completion", "presentation-and-completion", "end-com
         evaluate: vi.fn(() =>
           failureMode === "presentation-and-completion" ? new Promise<never>(() => undefined) : Promise.resolve({ count: 1, latestStartTime: 1 }),
         ),
+      // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
       } as unknown as Page;
       const rawTracePath = join(scratch, `${failureMode}.trace.json`);
       const active = await beginBootTrace(page);

@@ -28,7 +28,7 @@
 // carries an entry) and ORPHAN arm (an entry names a vanished member) are both the central
 // `stale-reviewed-grant` alarm: a grant consumed zero times after a complete owner run is an error either
 // way. The over-broad alarm is the third direction the tables never had. Driven in
-// tests/tooling/verify/gates/knob-wire-family.test.ts.
+// tests/tooling/verify/gates/knob-wire-family.suite.test.ts.
 //
 // POPULATION PORT (bidirectional, measured — see the family test's `population port` case). LEGACY: no
 // `scanRoot`, so the whole shared workspace Project, filtered by seven gate-local path regexes that between

@@ -24,7 +24,7 @@
 //   • the member STOPS BEING DECLARED (renamed, deleted) -> this policy REFUSES. A silent pass over a
 //     vanished subject is how a standing exception becomes a loaded gun, so the run reports a tool error
 //     instead. A refusal cannot be expressed as a proof row, so it is pinned through `runPolicyPass` in
-//     `tests/tooling/verify/gates/bus-pair.test.ts`.
+//     `tests/tooling/verify/gates/bus-pair.suite.test.ts`.
 //
 // The legacy `user-bus-coverage` descriptor (d9ac09d580d98188caae64ba04f24deee7402ef6) carried the
 // DEFERRED allowlist as a citation string parked inside its single gate before this split gave the
@@ -119,7 +119,7 @@ export const gate = defineGate({
       why: "the deferred member gained its canonical injected producer — the deferral is stale and must be deleted, which is the only self-cleaning direction a proof row can express. The `messageIncludes` names WHICH member retired, which a bare count cannot: the report appends the member to a single policy-level message, so a reader that matched the wrong declared member — or dropped the `deferralsFor` union filter and retired a same-named member of another bus — would still produce exactly one finding here",
     },
   ],
-  // THE REFUSAL ARM (§4.5b, #1977; migrated from `bus-pair.test.ts`'s `runPolicyPass` pin by #2109 item 2 / #2111).
+  // THE REFUSAL ARM (§4.5b, #1977; migrated from `bus-pair.suite.test.ts`'s `runPolicyPass` pin by #2109 item 2 / #2111).
   mustRefuse: [
     {
       mode: "types",

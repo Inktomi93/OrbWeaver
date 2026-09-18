@@ -2,7 +2,7 @@
 // (#2021). Every arm the policies can express — a dead file-exact grant, a dead glob grant, the
 // negated-entry limit, the directory oracle, the one-finding-per-grant-identity rule, and the `-health`
 // sibling's classifier-rot tripwire — is proven by the policies' own `mustFlag`/`mustPass` rows, which
-// `tests/tooling/verify/gates/grant-liveness-family.test.ts` runs through `verifyPolicyProofs`.
+// `tests/tooling/verify/gates/grant-liveness-family.suite.test.ts` runs through `verifyPolicyProofs`.
 //
 // This integration file pins runtime refusal shape and repository-scope runnability beyond the policy's
 // declared rows. Missing or unparseable `biome.json` and an empty tracked corpus produce population-phase

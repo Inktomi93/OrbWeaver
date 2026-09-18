@@ -7,7 +7,7 @@
 // `evaluate` at all: `resolveResourceDeclarations` refuses during the POPULATION phase, the owner is marked
 // incomplete and WITHHELD, and the run surfaces a TOOL ERROR. The conformance runner's `toolFailure`
 // precedes every arm verdict (`ops/policy-conformance.ts`), so a row written for that state fails as a
-// harness error rather than proving the refusal — which is exactly why `resource-layout-wave-1.test.ts`
+// harness error rather than proving the refusal — which is exactly why `resource-layout-wave-1.suite.test.ts`
 // holds the same shape for its two exemplars.
 //
 // The pin is TWO-SIDED on purpose: the same overlay minus ONE authored tree flips a green verdict into a

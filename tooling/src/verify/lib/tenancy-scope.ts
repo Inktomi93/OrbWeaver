@@ -40,7 +40,7 @@
 //     (row) => row.scope)).map(([scope, rows]) => scope + "=" + rows.length)))'`);
 //   · registry = schema, both directions — `table-scoping-class`'s UNCLASSIFIED/STALE arms over the real
 //     `drizzleSchemaFact` on every structure run, pinned in both directions by the RATCHET SIDE tests in
-//     `tests/tooling/verify/gates/tenancy-scope-family.test.ts`, which assert relative to the row array
+//     `tests/tooling/verify/gates/tenancy-scope-family.suite.test.ts`, which assert relative to the row array
 //     rather than a literal (pinning a count would make adding a table a red proof).
 // Re-derived 2026-09-13 with the command above: the registry and `sqliteTable(` declarations under
 // `packages/db/src/schema/**` agree in size — a dated observation, not a figure to maintain.

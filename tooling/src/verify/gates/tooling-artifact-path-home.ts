@@ -26,7 +26,7 @@
 //
 // THE REPORTED POSITION is the literal (or the const) as written, inside the call. `entire-population`
 // because grant liveness is only sound after a complete run; a narrowed request DEFERS this policy (pinned in
-// tests/tooling/verify/gates/tooling-plumbing-family.test.ts). POPULATION PORT: byte-identical (`@tooling`).
+// tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts). POPULATION PORT: byte-identical (`@tooling`).
 //
 // Legacy descriptor: `2c1a1d37c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arm C). No private
 // marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at conversion.

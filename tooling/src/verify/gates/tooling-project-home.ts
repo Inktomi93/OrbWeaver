@@ -23,7 +23,7 @@
 // THE REPORTED POSITION is `new <callee>` as written; grant granularity is one finding per (file, operation)
 // however many constructions the file carries (mustFlag[3]). `entire-population` because grant liveness is
 // only sound after a complete run; a narrowed request DEFERS this policy (pinned in
-// tests/tooling/verify/gates/tooling-plumbing-family.test.ts). POPULATION PORT: byte-identical — the legacy
+// tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts). POPULATION PORT: byte-identical — the legacy
 // fenced arms A–H to `tooling/src/` inside `visit`, which is `@tooling`.
 //
 // Legacy descriptor: `2c1a1d37c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arm A + HOMES +

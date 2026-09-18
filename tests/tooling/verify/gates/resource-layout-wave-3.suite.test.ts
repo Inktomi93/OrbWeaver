@@ -46,7 +46,7 @@ function parityPass(scratch: string, overlay: Readonly<Record<string, string>>):
 
 /** The four facts that together say "this run is not a verdict" rather than "the tree is clean", read as
  *  one object so a refusal that drifted on ONE axis (a finding leaking through, an owner completing) fails
- *  with the whole shape in the diff. Same shape as `resource-layout-wave-1.test.ts`'s. */
+ *  with the whole shape in the diff. Same shape as `resource-layout-wave-1.suite.test.ts`'s. */
 function refusalShape(result: PolicyPassResult): Record<string, unknown> {
   return {
     findings: result.authority.effectiveFindings,

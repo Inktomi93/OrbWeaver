@@ -62,7 +62,7 @@
 // the CSS and adds `malformed`; `ops/resource-exact.ts#loadExactFiles` forwards it per demanded id.
 //   product-css  missing `mustRefuse[1]` · malformed `mustRefuse[2]` (#2294) · empty `mustRefuse[3]` (on
 //                `read`'s own empty arm, which never reaches the `malformed` test) · unresolved — a
-//                `runPolicyPass` pin in tests/tooling/verify/gates/css-home-topology-family.test.ts,
+//                `runPolicyPass` pin in tests/tooling/verify/gates/css-home-topology-family.suite.test.ts,
 //                because no proof row's STRING map can carry an invalid UTF-8 byte.
 //   exact-file   missing `mustRefuse[0]` · empty `mustRefuse[4]` (a present but zero-length anchor, which
 //                a text arm would otherwise read as "imports nothing") · unresolved — the same family-test

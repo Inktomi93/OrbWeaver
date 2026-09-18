@@ -404,7 +404,7 @@ export const gate = defineGate({
         // STORE_STORIES` fallback stood here and was UNREACHABLE by the guarantee its own comment asserted:
         // `mirror.testFiles` is empty only when the test space is empty, and that refuses one phase earlier
         // (`ops/resource-mirror.ts` — `testFiles.length === 0` → status `empty`, so `readyResourceValue`
-        // never returns and `create` never runs; the refusal is driven in `mirror-index-family.test.ts`).
+        // never returns and `create` never runs; the refusal is driven in `mirror-index-family.suite.test.ts`).
         // §4.1 deletes an unreachable clause rather than documenting it, and the slice is the TOTAL
         // expression that needs none: were that guarantee ever withdrawn, an empty demand is the door's own
         // named refusal rather than a silently substituted subject.

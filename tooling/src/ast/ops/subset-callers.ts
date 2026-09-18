@@ -331,7 +331,7 @@ export function ruledDoorPairs(): readonly RuledPair[] {
  *  rendered for a client door at all, which is the only door class #572 asked for it. A chain ends in the bare
  *  verb, so the join runs through the shared {@link procedureMatches} grammar — the one home for
  *  "`chat.generate` answers to `generate` and to its full path" — rather than a second spelling of it. Pinned
- *  in `tests/tooling/verify/gates/action-doors-family.test.ts`. */
+ *  in `tests/tooling/verify/gates/action-doors-family.suite.test.ts`. */
 function ruledPairFor(door: string, ruled: readonly RuledPair[]): ActionDoorRuling | undefined {
   const tail = door.split(".").at(-1);
   return tail === undefined ? undefined : ruled.find((row) => procedureMatches(row.procedure, tail))?.ruling;

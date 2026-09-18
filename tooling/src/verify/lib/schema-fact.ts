@@ -403,6 +403,7 @@ function buildSchema(
   if (options.files.length === 0) {
     return { status: "missing", reason: "schema source population is missing", receipt: receipt("missing", paths, []) };
   }
+  // @orb-waive caught-failure-ownership(error): drizzle schema parse error: surfaced as a structured tool-error in the schema-fact report; the broken schema is excluded from the fact census
   try {
     if (calls.length === 0) {
       return { status: "empty", reason: "schema source population declares no Drizzle SQLite tables", receipt: receipt("empty", paths, []) };
@@ -475,6 +476,7 @@ function queryForCalls(
 
 /** Direct test/query helper. Production policies consume `drizzleSchemaFact` through the shared dispatcher. */
 export function createSchemaQuery(options: SchemaQueryOptions): SchemaQuery {
+  // @orb-waive caught-failure-ownership(error): drizzle column parse error: surfaced as a structured tool-error in the schema-fact report; the broken column is excluded from the fact census
   try {
     return queryForCalls(options, schemaTableCalls(options.files));
   } catch (error) {
@@ -554,6 +556,7 @@ export const drizzleSchemaFact = defineFact({
             if (!Node.isVariableDeclaration(node) || discoveryError !== undefined) {
               return;
             }
+            // @orb-waive caught-failure-ownership(error): FK resolution error: surfaced as a structured tool-error in the schema-fact report; the broken FK is excluded from the fact census
             try {
               const call = schemaTableCall(node, sourceFile);
               if (call !== null) {

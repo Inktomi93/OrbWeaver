@@ -19,7 +19,7 @@
 // BY DECLARATION to the runner home's `runTool` export; a callee the readers cannot place is no proven entry
 // and the cli is reported (mustFlag[3]). The runner home is LOCATED and RECEIPTED, so an absent home or a
 // renamed export refuses the run at the receipt phase — the runtime is the accuser (pinned through
-// `runPolicyPass` in tests/tooling/verify/gates/tooling-plumbing-family.test.ts). DECLARED LIMIT, carried:
+// `runPolicyPass` in tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts). DECLARED LIMIT, carried:
 // the legacy accepted the runner call ANYWHERE in the cli (not only at module scope); so does this policy
 // (mustPass[2]) — the module-scope rule belongs to `tooling-ops-direct-invocation`'s program arm.
 //

@@ -10,7 +10,7 @@
 // which an aliased import (`import { persist as durable } from "zustand/middleware"`) walks straight past;
 // `no-raw-zustand-persist` resolves the callee's package-export origin instead and catches the alias.
 // Converting ARM A again would ship a second, weaker gate over the identical subject. Its successor proof
-// lives in tests/tooling/verify/gates/simple-visitors-wave-4.test.ts (replays every legacy ARM A
+// lives in tests/tooling/verify/gates/simple-visitors-wave-4.suite.test.ts (replays every legacy ARM A
 // mustFlag/mustPass example through no-raw-zustand-persist and asserts it still holds).
 //
 // This policy now covers ONLY the genuinely distinct arm: inside each factory, the persist() options

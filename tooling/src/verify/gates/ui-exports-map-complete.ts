@@ -15,7 +15,7 @@
 // §12.4). Four deltas, each deliberate: (1) the legacy A4 "reader learned nothing" arm is RETIRED and split
 // into its two halves — a manifest with NO `exports` key resolves to `{}` and is a VERDICT (one A1 per
 // derived module, `mustFlag[5]`); a missing/malformed manifest or a non-string-map `exports` block is a
-// population-phase REFUSAL, pinned through `runPolicyPass` in resource-layout-wave-1.test.ts; (2) the legacy
+// population-phase REFUSAL, pinned through `runPolicyPass` in resource-layout-wave-1.suite.test.ts; (2) the legacy
 // `existsSync(join(root, "packages/ui", target))` accepted any spelling that happened to resolve (`../kit/…`
 // escaped the package), while the final requires a package-relative `./` specifier (`mustFlag[4]`) — a
 // tightening; (3) non-authored directory names (`node_modules`, `dist`, `.git`, `.cache`) under `src` were
@@ -282,7 +282,7 @@ export const gate = defineGate({
       // what carries this row — it shares `mustFlag[0]`'s arm and message, and differs in CAUSE (no map,
       // rather than one missing entry) and in cardinality. The other half of A4 — a missing/malformed
       // manifest or an `exports` block that is not a string map — is a population-phase REFUSAL, which no
-      // proof row can express; it is pinned through `runPolicyPass` in resource-layout-wave-1.test.ts.
+      // proof row can express; it is pinned through `runPolicyPass` in resource-layout-wave-1.suite.test.ts.
       expect: { count: 2, messageIncludes: "no entry at all" },
       why: "a manifest with no exports key seals every module out — one A1 finding per derived module, never a silent zero",
     },

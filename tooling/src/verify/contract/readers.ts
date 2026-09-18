@@ -4,7 +4,7 @@
 // AND THE RE-EXPORT BLOCK IS GONE (#2228). This module used to end with `export type { BusAnchor, … } from
 // "./bus-fact.ts"` — fourteen names forwarded from the final contract through the residue. Nothing imported
 // one: every consumer already reaches `bus-fact.ts` directly (`lib/bus-fact-read.ts`, `lib/bus-fact-output.ts`,
-// `gates/bus-producer-coverage.ts`, `tests/tooling/verify/lib/bus-fact-relay.test.ts`), which is exactly what
+// `gates/bus-producer-coverage.ts`, `tests/tooling/verify/lib/bus-fact-relay.suite.test.ts`), which is exactly what
 // the sentence above claims and what the block quietly contradicted. `BusCoverageSpec` — the one thing this
 // file actually owns, and `lib/bus-coverage.ts`'s only import from here — stays.
 type BusKeyShape = "object" | "array";

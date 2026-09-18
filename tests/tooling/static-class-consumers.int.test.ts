@@ -14,7 +14,7 @@ const PROOF_BUDGET_MS = 30_000;
 // `css-family-ownership` and `css-selector-has-a-writer` LEFT this suite on 2026-09-13 (#2181, #2182): both
 // converted and SPLIT by authority into five final policies under the `css-hook-provenance` family, whose
 // declared rows the conformance stage runs and whose arms a row cannot express live in
-// tests/tooling/verify/gates/css-hook-provenance-family.test.ts. The two remaining consumers now also use
+// tests/tooling/verify/gates/css-hook-provenance-family.suite.test.ts. The two remaining consumers now also use
 // final policies; this suite keeps the shared static-class proof entry point without calling the retired
 // legacy verifier on final descriptors.
 test(

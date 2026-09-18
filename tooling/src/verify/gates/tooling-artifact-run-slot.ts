@@ -18,7 +18,7 @@
 // cannot place still FILES (its tool owes a slot, mustFlag[3]), and a slot opener the readers cannot place
 // opens NOTHING. The home is located and RECEIPTED (one receipt per half — filers, run slot), so an absent
 // home or a renamed export refuses the run at the receipt phase rather than reading green (pinned through
-// `runPolicyPass` in tests/tooling/verify/gates/tooling-plumbing-family.test.ts).
+// `runPolicyPass` in tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts).
 //
 // THE REPORTED POSITION is the tool's FIRST filing call: the legacy anchored on `<tool>/cli.ts` at line 0,
 // which the final sink refuses and which need not exist for a tool that files; the filing site is always in

@@ -23,7 +23,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 // central engine now owns as `stale-reviewed-grant` after a complete owner run — so the successor evidence is
 // the REAL-CORPUS grant reconciliation below, not another declared row. The third successor obligation (an
 // ungranted hand-row on the real corpus IS an effective finding) is the policy's real-corpus liveness arm in
-// `real-corpus-liveness-family.repo.int.test.ts`, which is where every such arm lives as censusable DATA.
+// `real-corpus-liveness-family.suite.repo.int.test.ts`, which is where every such arm lives as censusable DATA.
 const FAMILY_TIMEOUT_MS = scaledBudget(120_000);
 
 test(

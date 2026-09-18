@@ -129,7 +129,7 @@
 //     fixture rather than in prose.
 //   · 3 VACUOUS-BOTH-ZERO, labelled as such — evidence of nothing, and the harness makes them say so.
 // THE IN-MEMORY REFUSAL IS UNCHANGED and still pinned with both controls in
-// `grant-liveness-family.test.ts`; the tmpdir door carries the opposite fence (a replay root inside the
+// `grant-liveness-family.suite.test.ts`; the tmpdir door carries the opposite fence (a replay root inside the
 // running checkout is refused) so a frozen `existsSync` arm can never answer about this repository.
 //
 // COMMENT POSTURE: n/a — the scanned unit is STRICT JSON, which has no comment syntax.

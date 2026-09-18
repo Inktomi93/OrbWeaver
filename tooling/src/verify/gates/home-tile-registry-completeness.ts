@@ -22,7 +22,7 @@
 // a strictly stronger detector over a strictly wider subject through the same door, so carrying the arm
 // here would ship two findings and two waiver positions for one site (guide §8 MERGE rule, §7 item 1 smallest
 // complete contract). The successor proof is a committed `runPolicyPass` pin on the retired fixture in
-// `tests/tooling/verify/gates/registry-family.test.ts`.
+// `tests/tooling/verify/gates/registry-family.suite.test.ts`.
 //
 // THE DORMANT ARM'S DECLARED LIMIT, carried from legacy unchanged: the arm engages only when `body`
 // resolves to an authored object literal. A `body: () => null` (every live tile) and a `body` built by a

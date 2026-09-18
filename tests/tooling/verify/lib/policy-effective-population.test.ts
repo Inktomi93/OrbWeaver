@@ -5,7 +5,7 @@
 // ERROR: a request naming only a SOURCE withdrew the resource the same policy declares, so the read that
 // obligation 1 of `docs/design/resource-policy-contract.md` requires came back `is undeclared`. Both were
 // measured on the two live `baseui-derives-not-respells` siblings; the production control for them lives in
-// `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts` under "§2309".
+// `tests/tooling/verify/gates/baseui-and-surface-family.suite.repo.int.test.ts` under "§2309".
 //
 // What a proof row cannot express, and therefore what is here: the calculation is a PROPERTY of the pair of
 // doors (`lib/policy-plan.ts` and `lib/policy-pass.ts`), not of any one policy, and its most dangerous failure
@@ -176,6 +176,7 @@ function hybridPolicy(visited: string[]): GatePolicy {
     }),
     mustFlag: [{ mode: "resource", files: { [SOURCE_A]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "resource", files: { [SOURCE_A]: "export const clean = true;\n" }, why: "nearest legal shape" }],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the population resolver exercises; no factory exists
   } as GatePolicy);
 }
 
@@ -201,6 +202,7 @@ function disjointPolicy(visited: string[]): GatePolicy {
     }),
     mustFlag: [{ mode: "resource", files: { [SOURCE_A]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "resource", files: { [SOURCE_A]: "export const clean = true;\n" }, why: "nearest legal shape" }],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the population resolver exercises; no factory exists
   } as GatePolicy);
 }
 
@@ -378,6 +380,7 @@ test("a consumed fact is an INPUT: touching only its population keeps the consum
     }),
     mustFlag: [{ mode: "source", files: { [SOURCE_A]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "source", files: { [SOURCE_A]: "export const clean = true;\n" }, why: "nearest legal shape" }],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the population resolver exercises; no factory exists
   } as GatePolicy);
 
   const project = projectOf();
@@ -431,6 +434,7 @@ test("a source population that admits nothing is still refused before any select
     create: () => ({ evaluate: () => undefined }),
     mustFlag: [{ mode: "source", files: { "packages/server/src/x.ts": "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "source", files: { "packages/server/src/x.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the population resolver exercises; no factory exists
   } as GatePolicy);
   const result = dispatch([orphan], [SOURCE_A]);
   expect(result.toolErrors).toMatchObject([{ policyId: "selection-orphan", phase: "population" }]);
@@ -461,6 +465,7 @@ test("a visitor is indexed for every reselected file — the dispatcher's own Sy
     }),
     mustFlag: [{ mode: "resource", files: { [SOURCE_A]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "resource", files: { [SOURCE_A]: "export const clean = true;\n" }, why: "nearest legal shape" }],
+  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the population resolver exercises; no factory exists
   } as GatePolicy);
   expect(dispatch([gate], [NOTES]).toolErrors).toEqual([]);
   expect(seen).toEqual(["a.ts", "b.ts"]);

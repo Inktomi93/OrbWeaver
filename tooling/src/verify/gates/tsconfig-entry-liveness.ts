@@ -106,7 +106,7 @@
 //     granted 1 → effective 29, the falsifier answered per fixture.
 //   · 1 VACUOUS-BOTH-ZERO, labelled as such.
 // THE IN-MEMORY REFUSAL IS UNCHANGED and still pinned with both controls in
-// `grant-liveness-family.test.ts`; the tmpdir door carries the opposite fence (a replay root inside the
+// `grant-liveness-family.suite.test.ts`; the tmpdir door carries the opposite fence (a replay root inside the
 // running checkout is refused) so a frozen `readdirSync` arm can never walk this repository.
 //
 // COMMENT POSTURE: comment-SAFE — a tsconfig is JSONC and the reader parses it as such, so a comment is

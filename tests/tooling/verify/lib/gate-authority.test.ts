@@ -84,6 +84,7 @@ test("each authority uses only its own exception door and findings derive policy
 });
 
 test("raw findings cannot spoof policy identity or severity", () => {
+  // @orb-waive no-test-fabrication(RawGateFinding): partial fixture — only the fields the authority resolver exercises; no factory exists
   const spoofed = { ...finding("spoof.ts"), policyId: "other", severity: "warning" } as RawGateFinding;
   const result = coordinate({
     selectedPolicies: [POLICIES[0] as SelectedGatePolicy],

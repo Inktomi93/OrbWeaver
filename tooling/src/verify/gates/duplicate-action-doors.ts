@@ -73,7 +73,7 @@
 // and over-broad judgment are unchanged and entirely central; THIS POLICY READS NEITHER FILE.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED. See the header of `lib/action-door-fact.ts` for the shared
-// expression and `tests/tooling/verify/gates/action-doors-family.test.ts` for the measured differences and
+// expression and `tests/tooling/verify/gates/action-doors-family.suite.test.ts` for the measured differences and
 // the inside/outside controls. Legacy `scanRoot` admitted `packages/client/src/features/**` plus the single
 // path `packages/client/src/state/section-ids.ts`; the final admits `features/**` + `state/**`.
 // legacy − final = ∅. final − legacy = the rest of `packages/client/src/state/**`, which is an INTENTIONAL

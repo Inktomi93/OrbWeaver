@@ -50,7 +50,7 @@
 // here is INVERTED rather than merely uncertain, so it must refuse the whole run
 // (`contract/resource-document.ts`). The core-doc corpus is the other door on purpose — a corpus
 // tolerates a refused member. The refusal pins are in
-// `tests/tooling/verify/gates/text-citation-family.test.ts`.
+// `tests/tooling/verify/gates/text-citation-family.suite.test.ts`.
 //
 // A CORE DOC ADMITTED BY THE TREE AND NOT SERVED BY THE TEXT DOOR IS A TOOL ERROR, NOT A SKIP. Dropping
 // it would be absence, and absence is exactly how a citation policy reports a clean corpus it never read.
