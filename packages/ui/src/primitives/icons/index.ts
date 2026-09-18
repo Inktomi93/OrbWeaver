@@ -1,5 +1,5 @@
 /**
- * `@orb/ui/icons` — the ONE icon home (gate icons-lucide-only; UI-Arch §2). A curated lucide-react
+ * `@orb/ui/icons` — the ONE icon home (dep-cruiser `ui-satellite-seals`; UI-Arch §2). A curated lucide-react
  * re-export for the shell + primitives, plus the `<Icon>` sizing wrapper. Grow the set per
  * consumer chunk — never import `lucide-react` outside this dir (dep-cruiser ui-satellite-seals).
  *

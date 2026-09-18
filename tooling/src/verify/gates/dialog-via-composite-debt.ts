@@ -27,7 +27,16 @@ export const gate = defineGate({
       }
     },
   }),
-  mustFlag: [],
+  mustFlag: [
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/chat/components/debt-probe.tsx": 'import { Dialog } from "@orb/ui/dialog";\nexport const X = () => <Dialog />;\n',
+      },
+      expect: { count: 1 },
+      why: "regression control: a raw Dialog import in a chat debt path MUST be caught",
+    },
+  ],
   mustPass: [
     {
       mode: "source",
