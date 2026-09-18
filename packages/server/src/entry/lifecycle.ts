@@ -60,13 +60,13 @@ import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
   backfillPluginProvenanceOnBoot,
   DB_LAUNCHED,
-  repairStaleJoinSeqOnBoot,
   healLegacyBackgroundPinsOnBoot,
   migrateHandoffOfferVocabOnBoot,
   migratePluginToolWireNamesOnBoot,
   migrateProseSlotVocabOnBoot,
   reactivatePluginsOnBoot,
   reclaimLocksOnBoot,
+  repairStaleJoinSeqOnBoot,
   runBootMigrations,
   seedCasSchedules,
   seedCredentialFromEnv,
@@ -354,40 +354,56 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
     // transient sessions service is built only to run the owner seed; compose owns the real one.
-    const handles = ownerHandles();
     const bootSessions = createSessionsService({
       db,
       now,
       sessionSecret: env.SESSION_SECRET ?? null,
     });
-    // AUTH_MODE=local: seed the owner's first-boot form-login password so a non-local-origin deploy isn't
-    // locked out. Passed only in local mode; first-boot-only + non-clobbering (see seed-owner).
-    const localPasswordSeed =
-      env.AUTH_MODE === "local" && env.LOCAL_INITIAL_PASSWORD !== undefined
-        ? {
-            initialPassword: env.LOCAL_INITIAL_PASSWORD,
-            hashPassword: createPasswordHasher(env.SESSION_SECRET).hash,
-          }
-        : {};
-    const ownerIds = await seedOwner({
-      db,
-      sessions: bootSessions,
-      ownerHandles: handles,
-      now,
-      ...localPasswordSeed,
-    });
-    const ownerId = ownerIds[0];
-    if (ownerId === undefined) {
-      throw new Error("boot: seedOwner returned no owner id (OWNER_HANDLES resolved empty)");
-    }
-    // BELT: `ownerId` must name a REAL row, not merely be defined. Everything below binds to it — the owner
-    // role-clients bundle, the boot Principal, and every owner-scoped seed — and the boot Principal is
-    // ROW-DERIVED through `principalFromRow`, which deliberately DEGRADES an unknown id to `role:"user"`
-    // (the frozen-host bridge needs that; a boot does not). So a defined-but-dangling id would seed the whole
-    // box under a non-owner principal against a row that does not exist, silently. `ensureUser` now refuses
-    // to fabricate an id upstream; this is the boot-side floor beneath it — one read, fail-closed.
-    if ((await bootSessions.loadUserById(ownerId)) === null) {
-      throw new Error(`boot: seedOwner returned owner id ${ownerId} but no users row carries it — refusing to boot on a phantom owner`);
+
+    // OIDC LAZY-MINT (#1853): in OIDC mode the owner identity comes from the IdP, not from env config.
+    // Don't seed a placeholder owner row at boot — the first OIDC login whose identity matches owner
+    // policy (OWNER_HANDLES or OWNER_GROUP) lazy-mints the owner row via `provisionIdentity`. For every
+    // other mode (single-user, local, forward-header), seed the owner at boot as before.
+    let ownerId: UserId | undefined;
+    if (env.AUTH_MODE === "oidc") {
+      ownerId = await bootSessions.getOwnerUserId();
+      if (ownerId !== undefined) {
+        log.info({ ownerId }, "boot(oidc): existing owner row found (from a prior OIDC login)");
+      } else {
+        log.info("boot(oidc): no owner row yet — the first owner-policy OIDC login will create it; owner-dependent boot seeds are deferred");
+      }
+    } else {
+      const handles = ownerHandles();
+      // AUTH_MODE=local: seed the owner's first-boot form-login password so a non-local-origin deploy isn't
+      // locked out. Passed only in local mode; first-boot-only + non-clobbering (see seed-owner).
+      const localPasswordSeed =
+        env.AUTH_MODE === "local" && env.LOCAL_INITIAL_PASSWORD !== undefined
+          ? {
+              initialPassword: env.LOCAL_INITIAL_PASSWORD,
+              hashPassword: createPasswordHasher(env.SESSION_SECRET).hash,
+            }
+          : {};
+      const ownerIds = await seedOwner({
+        db,
+        sessions: bootSessions,
+        ownerHandles: handles,
+        now,
+        ...localPasswordSeed,
+      });
+      const seededId = ownerIds[0];
+      if (seededId === undefined) {
+        throw new Error("boot: seedOwner returned no owner id (OWNER_HANDLES resolved empty)");
+      }
+      // BELT: `ownerId` must name a REAL row, not merely be defined. Everything below binds to it — the owner
+      // role-clients bundle, the boot Principal, and every owner-scoped seed — and the boot Principal is
+      // ROW-DERIVED through `principalFromRow`, which deliberately DEGRADES an unknown id to `role:"user"`
+      // (the frozen-host bridge needs that; a boot does not). So a defined-but-dangling id would seed the whole
+      // box under a non-owner principal against a row that does not exist, silently. `ensureUser` now refuses
+      // to fabricate an id upstream; this is the boot-side floor beneath it — one read, fail-closed.
+      if ((await bootSessions.loadUserById(seededId)) === null) {
+        throw new Error(`boot: seedOwner returned owner id ${seededId} but no users row carries it — refusing to boot on a phantom owner`);
+      }
+      ownerId = seededId;
     }
 
     // The one GPU/vLLM-availability fact: probe the host once, then resolve the ENGINES_POSTURE (A.4). The
@@ -434,19 +450,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       log.error("boot: SecretBox decrypt-probe FAILED — healthz will report credentials_key_mismatch");
     }
 
-    // The boot-seed Principal (default preset/characters/persona + the env credential seed). D135: READ, not
-    // stamped — `seedOwner` has already written `role=owner` onto this exact row a few lines up, so reading
-    // it back is byte-identical on a healthy box AND removes the last synthetic role literal that could
-    // GRANT authority. On a box whose owner row is somehow below `owner`, the seed now runs at the row's
-    // honest role and fails closed rather than overriding the users table from memory.
-    const owner: Principal = await createHostPrincipalResolver(bootSessions)(ownerId);
-
-    await seedCredentialFromEnv({
-      credentials: built.services.credentials,
-      owner,
-      openrouterApiKey: env.OPENROUTER_API_KEY,
-    });
-
     // Boot-seed the in-memory OR catalog mirror from the persisted snapshot so a restart preserves catalog
     // warmth (getCatalog's read warms or-model-cache as a side-effect). Without this the mirror is cold
     // until the next refresh — which the daily-cadence scheduler won't run for up to a day — and every OR
@@ -460,28 +463,49 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // to the conservative no-reasoning profile (resolveAgentSdkAlias returns undefined on a null cache).
     await built.services.connection.getAgentSdkCatalog({});
 
+    // Owner-INDEPENDENT boot seeds: these need only the db and never touch a user row.
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
-    await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
-    await seedDefaultPersona({ seeder: built.personaSeeder, owner });
-    // AFTER the cards — each bundled example attaches to seeded characters by handle.
-    await seedDemoChats({ seeder: built.demoChatSeeder, owner });
-    // BEFORE the seeder, and before anything serves (#1865): the resident-plugin registry is an in-process
-    // Map the respawn wiped, so every row the db calls `enabled` has no instance and contributes no surface,
-    // command, transform, tool or subscription until something re-activates it. Restoring first also means
-    // the seeder's auto-upgrade — which re-activates the rows it swaps — lands the NEW bundle resident
-    // instead of racing a second activation onto the old one.
-    await reactivatePluginsOnBoot({
-      db,
-      setEnabled: built.services.plugin.setEnabled,
-      resolvePrincipal: createHostPrincipalResolver(bootSessions),
-    });
-    // Independent of the three above (the examples attach to nothing) — the rows land installed, disabled and
-    // ungranted, so the owner's first act on the Plugins pane is a real consent.
-    await seedExamplePlugins({ seeder: built.examplePluginSeeder, owner });
-    // The CAS maintenance cadence (#11) — GC weekly, fsck monthly. Existence-gated per kind, so an owner's
-    // cadence/enabled edits survive a restart. Runs after the owner exists (the row's owner is NOT NULL).
-    await seedCasSchedules({ workloads: built.services.workloads, ownerId: owner.userId });
+
+    // Owner-DEPENDENT boot seeds: guarded behind ownerId so a fresh OIDC box (no owner yet) can still boot.
+    // In OIDC mode without an owner, these are deferred: per-user seeds (characters, persona, demo chats,
+    // example plugins) fire via `seedUserCharacters` on the owner's first login; the env credential and
+    // CAS schedules seed on the owner's first request after provisioning.
+    if (ownerId !== undefined) {
+      // The boot-seed Principal (default preset/characters/persona + the env credential seed). D135: READ, not
+      // stamped — `seedOwner` has already written `role=owner` onto this exact row, so reading
+      // it back is byte-identical on a healthy box AND removes the last synthetic role literal that could
+      // GRANT authority. On a box whose owner row is somehow below `owner`, the seed now runs at the row's
+      // honest role and fails closed rather than overriding the users table from memory.
+      const owner: Principal = await createHostPrincipalResolver(bootSessions)(ownerId);
+
+      await seedCredentialFromEnv({
+        credentials: built.services.credentials,
+        owner,
+        openrouterApiKey: env.OPENROUTER_API_KEY,
+      });
+      await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
+      await seedDefaultPersona({ seeder: built.personaSeeder, owner });
+      // AFTER the cards — each bundled example attaches to seeded characters by handle.
+      await seedDemoChats({ seeder: built.demoChatSeeder, owner });
+      // BEFORE the seeder, and before anything serves (#1865): the resident-plugin registry is an in-process
+      // Map the respawn wiped, so every row the db calls `enabled` has no instance and contributes no surface,
+      // command, transform, tool or subscription until something re-activates it. Restoring first also means
+      // the seeder's auto-upgrade — which re-activates the rows it swaps — lands the NEW bundle resident
+      // instead of racing a second activation onto the old one.
+      await reactivatePluginsOnBoot({
+        db,
+        setEnabled: built.services.plugin.setEnabled,
+        resolvePrincipal: createHostPrincipalResolver(bootSessions),
+      });
+      // Independent of the three above (the examples attach to nothing) — the rows land installed, disabled and
+      // ungranted, so the owner's first act on the Plugins pane is a real consent.
+      await seedExamplePlugins({ seeder: built.examplePluginSeeder, owner });
+      // The CAS maintenance cadence (#11) — GC weekly, fsck monthly. Existence-gated per kind, so an owner's
+      // cadence/enabled edits survive a restart. Runs after the owner exists (the row's owner is NOT NULL).
+      await seedCasSchedules({ workloads: built.services.workloads, ownerId: owner.userId });
+    }
+
     await reclaimLocksOnBoot({ db, contributions: built.workloadContributions, now, holder });
 
     // Boot-reclaim the host-offline deferred-turn queue (chat Part III §5): each row runs (consent/budget
@@ -497,7 +521,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     }
     stopScheduler = startCatalogRefreshScheduler({
       service: built.services.workloads,
-      ownerId,
+      ownerId: ownerId ?? null,
       now,
       scheduleInterval,
       checkIntervalMs: CATALOG_CHECK_INTERVAL_MS,

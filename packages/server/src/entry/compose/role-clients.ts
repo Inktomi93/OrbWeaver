@@ -348,3 +348,36 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
     },
   };
 }
+
+/** FAIL-CLOSED stub for OIDC deployments that boot without an owner row. Every callable throws
+ *  immediately — no provider call can proceed until the first owner-policy OIDC login provisions the
+ *  owner row and a per-call `live()` re-resolution succeeds. The model getters return empty strings
+ *  (never persisted: no request can execute before the owner exists, and the per-call resolution
+ *  overwrites these the moment a real bind runs). `summarizerContextTokens` returns the conservative
+ *  fallback so any compose-time arithmetic stays finite. */
+export function createUnboundRoleClients(): RoleClientsWithSignal {
+  const fail = (): never => {
+    throw new Error("role-clients: no owner provisioned yet — the first owner-policy OIDC login must complete before provider calls are available");
+  };
+  return {
+    embed: () => fail(),
+    rerank: () => fail(),
+    imageEmbed: () => fail(),
+    summarize: () => fail(),
+    get embedModel(): string {
+      return "";
+    },
+    get rerankModel(): string {
+      return "";
+    },
+    get imageEmbedModel(): string {
+      return "";
+    },
+    get summarizerModel(): string {
+      return "";
+    },
+    get summarizerContextTokens(): number {
+      return SUMMARIZER_CONTEXT_FALLBACK;
+    },
+  };
+}

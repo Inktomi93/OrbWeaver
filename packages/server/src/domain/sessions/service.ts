@@ -5,8 +5,10 @@
 // clock is injected for determinism (no ambient `Date.now()` in a verb).
 
 import type { Db } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
 import { createSessionsContext } from "./context.ts";
 import type { SessionsService } from "./contract/service.ts";
+import { selectOwnerUserId } from "./persistence/users.ts";
 import { createAuthenticate } from "./verbs/authenticate.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createEnsureUser } from "./verbs/ensure-user.ts";
@@ -41,5 +43,6 @@ export function createSessionsService(deps: SessionsServiceDeps): SessionsServic
     ...createAuthenticate(ctx),
     ...createLinkExternalId(ctx),
     ...createOwnerPassword(ctx),
+    getOwnerUserId: (): Promise<UserId | undefined> => selectOwnerUserId(ctx.db),
   };
 }
