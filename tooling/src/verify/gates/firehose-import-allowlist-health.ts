@@ -1,4 +1,4 @@
-// A renamed or moved firehose declaration cannot silently retire the D79 name-keyed boundary.
+// A renamed or moved firehose declaration cannot silently retire the D162 name-keyed boundary.
 import { defineGate } from "../contract/policy.ts";
 import { FIREHOSE_SYMBOL, firehoseImportFact } from "../lib/firehose-import-fact.ts";
 
@@ -12,7 +12,7 @@ export const gate = defineGate({
   execution: "entire-population",
   facts: [firehoseImportFact],
   resources: [],
-  message: `\`${FIREHOSE_SYMBOL}\` is no longer declared at the canonical chat-events-bus home; the D79 policy is now blind.`,
+  message: `\`${FIREHOSE_SYMBOL}\` is no longer declared at the canonical chat-events-bus home; the D162 policy is now blind.`,
   fix: "retarget the shared firehose vocabulary and canonical home at the renamed declaration, preserving every import, re-export, and namespace arm.",
   create: (ctx) => ({
     evaluate: () => {

@@ -65,4 +65,4 @@ THE decision registry — every ledger ruling D1–D78, D86, and D106–D141, on
 ## Enforcement registry
 
 - **Active gates** — the catalog of what fails a build today → [`Core-Enforcement-Active-Gates.md`](Core-Enforcement-Active-Gates.md)
-- **Deferred + dropped gates** — backlog (with activation triggers) + rejected neo gates → [`Core-Enforcement-Deferred-Dropped.md`](Core-Enforcement-Deferred-Dropped.md)
+- **Deferred + dropped gates** — backlog (with activation triggers) + rejected neo gates → [`Core-Enforcement-Deferred-Dropped.md`](../history/Core-Enforcement-Deferred-Dropped.md)

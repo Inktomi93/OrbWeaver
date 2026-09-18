@@ -1,4 +1,4 @@
-// D79: the unclamped all-chat stream may be named only by the server composition root and its transport
+// D162: the unclamped all-chat stream may be named only by the server composition root and its transport
 // barrel. Canonical origin prevents a same-name foreign symbol from becoming a false firehose finding;
 // exact central grants replace the legacy directory/path allowlist.
 import { defineGate } from "../contract/policy.ts";
@@ -10,7 +10,7 @@ const MESSAGE =
   `the all-chats firehose \`${FIREHOSE_SYMBOL}\` is importable ONLY by the composition root (entry/compose). It is ` +
   "UNCLAMPED BY TYPE: no chatId, no caller, no per-member history-floor verdict — it fans every room's canon " +
   "`view` payloads and raw `delta` transcript text process-wide. Any per-USER surface fed from it ships a " +
-  "join-history leak (D79 — the plugin fan-out precedent).";
+  "join-history leak (D162 — the plugin fan-out precedent).";
 const FIX =
   "tail the per-chat stream (`subscribeChatEvents`) behind the member-gated `chatEventBounds` probe, or " +
   "consume the firehose in `entry/compose` and hand your subscriber a HOST-authority injected op. If a new " +

@@ -1,4 +1,4 @@
-// One typed fact for the D79 firehose's named-symbol boundary. Candidate spelling stays deliberately
+// One typed fact for the D162 firehose's named-symbol boundary. Candidate spelling stays deliberately
 // narrow (named import/re-export and namespace dot/bracket), while the shared origin reader proves that
 // the candidate reaches the canonical chat-events-bus declaration rather than an unrelated same-name export.
 

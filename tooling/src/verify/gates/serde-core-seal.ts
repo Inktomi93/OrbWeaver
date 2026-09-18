@@ -1,4 +1,4 @@
-// Gate: serde-core-seal (Core-Enforcement-Deferred-Dropped.md "serde-core" row residual — "an importer
+// Gate: serde-core-seal (docs/architecture/history/Core-Enforcement-Deferred-Dropped.md "serde-core" row residual — "an importer
 // seal on kit/png-card-chunk / the serde core, the vector-scope-derived shape"; Spine-Config-and-
 // Serialization.md §"Serialization / serde core") — the PNG card-chunk engine (`@orb/kit/png-card-chunk`
 // — `readCardChunk`/`writeCardChunk`/`isPng`) is a pure byte-surgery engine shared by import (read) and
@@ -51,7 +51,7 @@ import { DOMAIN_ROOT, pngChunkImport, SANCTIONED_DOMAINS } from "../lib/serde-co
 const SERVER_SRC_PREFIX = "packages/server/src/";
 
 const MESSAGE =
-  'the PNG card-chunk engine (@orb/kit/png-card-chunk) imported outside the sanctioned serde homes — it is shared byte surgery for domain/import (read) and domain/export (write) only (Core-Enforcement-Deferred-Dropped.md "serde-core"; Spine-Config-and-Serialization.md §Serialization/serde core).';
+  'the PNG card-chunk engine (@orb/kit/png-card-chunk) imported outside the sanctioned serde homes — it is shared byte surgery for domain/import (read) and domain/export (write) only (docs/architecture/history/Core-Enforcement-Deferred-Dropped.md "serde-core"; Spine-Config-and-Serialization.md §Serialization/serde core).';
 
 export const gate = defineGate({
   id: "serde-core-seal",

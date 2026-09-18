@@ -57,7 +57,7 @@ const REGEN_READ_FIRST_COSTS = "pnpm exec node tooling/src/verify/cli.ts baselin
 
 const GATE_REVIEWS_DIR = "docs/reviews/gate-runtime";
 const GATES_DIR = "tooling/src/verify/gates";
-const DEFERRED_ROSTER_REL = "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md";
+const DEFERRED_ROSTER_REL = "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md";
 /** A trigger cell that has ALREADY been adjudicated. Caps are the document's own convention for a resolved
  *  row, and the words are its own vocabulary — not a grammar invented here. */
 const RESOLVED_TRIGGER = /\b(PROMOTED|DROPPED|SUPERSEDED|UPGRADED|RETIRED)\b/;

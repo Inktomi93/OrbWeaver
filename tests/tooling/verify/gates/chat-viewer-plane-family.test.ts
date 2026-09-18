@@ -1,4 +1,4 @@
-// THE CHAT TWO-PLANE FAMILY (ledger D79) — the properties a declared proof row cannot express:
+// THE CHAT TWO-PLANE FAMILY (ledger D161) — the properties a declared proof row cannot express:
 // the §6.2 ordinary identity triple and its dead-position alarm, the §6.4 conversion differential against
 // the frozen legacy descriptor, and the bidirectional population port with its inside/outside controls.
 //

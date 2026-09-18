@@ -18,7 +18,7 @@ function firehoseGrants(): readonly ReviewedGateGrant[] {
   return reviewedGrantsFor(POLICIES);
 }
 
-test("the D79 reference and rename-health owners pass every declared proof", () => {
+test("the D162 reference and rename-health owners pass every declared proof", () => {
   expect(verifyPolicyProofs(POLICIES)).toEqual([]);
 });
 

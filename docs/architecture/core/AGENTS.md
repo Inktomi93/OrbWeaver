@@ -312,7 +312,7 @@ domain-map judgment call is open here.
 | - | - |
 | package cake · server tiers · 8-slot feature template · partitioning table · the 13 legibility gates | `Core-0-Architecture-and-Structure.md` |
 | the tooling tree (`@orb/tooling` sits ABOVE the cake) | `Core-0-Architecture-and-Structure.md` §9 (summary) → `Core-Tooling-Law.md` (the detail home) · `../../../scripts/README.md` |
-| the D-ledger (canonical decisions) + enforcement catalog | `Core-Laws-and-Precedents.md` (§0–§6 + redirect index) → `Core-Path-Registry.md` · `Core-Enforcement-Active-Gates.md` · `Core-Enforcement-Deferred-Dropped.md` |
+| the D-ledger (canonical decisions) + enforcement catalog | `Core-Laws-and-Precedents.md` (§0–§6 + redirect index) → `Core-Path-Registry.md` · `Core-Enforcement-Active-Gates.md` · `../history/Core-Enforcement-Deferred-Dropped.md` |
 | build phases · checkpoints · stack + version pins | Project 1 (current work) · `../history/Core-BUILD-PLAN.md` (frozen phase archaeology) · the pnpm catalog (version pins) |
 | planning + checklists | `Core-Planning-and-Checklists.md` |
 | identity / auth / permission / agent principals | `Spine-Identity-and-Auth.md` (+ the agent-principal design set, parked in `../proposed/`, D60) |

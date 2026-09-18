@@ -407,7 +407,7 @@ function deferredRosterRoot(landedMarked: boolean): string {
   writeFileSync(join(root, "tooling/src/verify/gates/landed-gate.ts"), "export const gate = 1;\n");
   writeFileSync(join(root, "tooling/src/verify/gates/marked-gate.ts"), "export const gate = 1;\n");
   writeFileSync(
-    join(root, "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md"),
+    join(root, "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md"),
     [
       "## Deferred backlog — neo gates not yet ported, with activation trigger",
       "",
