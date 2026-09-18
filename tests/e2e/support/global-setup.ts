@@ -125,6 +125,12 @@ function seedMultiUser(mode: ModeProject): void {
     stdio: "inherit",
     env: {
       ...process.env,
+      // The seed CLI's barrel drags the server's env module in (ops/demo.ts), so this subprocess PARSES
+      // `envSchema` even though `multi-user` only speaks HTTP. Since a876bb55f (#1864) AUTH_FALLBACK
+      // defaults to `deny`, and `deny` + the default AUTH_MODE=single-user is a boot-fatal superRefine —
+      // which a WORKTREE hits (no `.env` to supply AUTH_MODE=oidc) while the main checkout does not. The
+      // stack this seeds is booted by stack.sh under the same pin, so `owner` is the value it is a client of.
+      AUTH_FALLBACK: "owner",
       SEED_BASE_URL: mode.backendUrl,
       FIXTURE_OWNER_HANDLE: LOCAL_OWNER.handle,
       FIXTURE_OWNER_PASSWORD: LOCAL_OWNER.password,
