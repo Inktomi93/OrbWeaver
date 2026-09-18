@@ -53,7 +53,14 @@ async function reimportEnvIn(
   if (opts.vitest !== false) {
     process.env["VITEST"] = "1";
   }
-  for (const [k, v] of Object.entries(overrides)) {
+  // The schema default for AUTH_FALLBACK is "deny" (the secure SSO posture). single-user mode's only
+  // credential IS the owner fallback, so a test env without an explicit AUTH_FALLBACK boots fatal under
+  // single-user. Inject the bootable default here so every caller that doesn't explicitly test the deny
+  // path gets a working env. The dev stack pins this via stack.sh; tests pin it here.
+  const mode = overrides["AUTH_MODE"] ?? "single-user";
+  const needsFallback = mode === "single-user" && !("AUTH_FALLBACK" in overrides);
+  const effective = needsFallback ? { AUTH_FALLBACK: "owner", ...overrides } : overrides;
+  for (const [k, v] of Object.entries(effective)) {
     if (v !== undefined) {
       process.env[k] = v;
     }
