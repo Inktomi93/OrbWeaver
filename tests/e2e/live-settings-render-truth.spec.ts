@@ -143,7 +143,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
 
     // The DB now holds the change (server truth) — read it straight from the API.
     const stored = await getAppearanceTheme();
-    expect(stored.config.appearance.backgroundImageKind).toBe("seeded");
+    expect(stored.config.appearance.backgroundImageKind).toBe("asset"); // a library plate, since kind:"seeded" retired (D160)
     const themes = await listThemes();
     const mocha = themes.find((t) => t.isSeed && t.name === SEED_THEME_NAME);
     expect(mocha).toBeDefined();

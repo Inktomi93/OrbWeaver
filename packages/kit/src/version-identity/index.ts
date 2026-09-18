@@ -26,7 +26,6 @@ import { z } from "zod";
 /** Where the identity came from. `checkout` = derived from `.git` plain files at boot; `container` = read
  *  from the `version.json` the image build stamped (an image ships no `.git`, so nothing else could answer). */
 export const VERSION_SOURCES = ["checkout", "container"] as const;
-export type VersionSource = (typeof VERSION_SOURCES)[number];
 
 /** The honest stand-in for a commit that could not be derived — an image without a stamp, a zip download, a
  *  throwaway `git init` whose HEAD names a ref that does not exist. Never a fabricated sha, never a throw. */
@@ -156,7 +155,6 @@ export function formatVersionIdentity(identity: VersionIdentity): string {
  *  GET of the upstream head, which knows the remote sha but not how many commits separate it from ours
  *  (that needs the object graph, i.e. a fetch). Counting would mean guessing. */
 export const UPDATE_CHECK_STATUSES = ["up-to-date", "behind", "unknown"] as const;
-export type UpdateCheckStatus = (typeof UPDATE_CHECK_STATUSES)[number];
 
 /** What the upstream probe found: the branch head's sha and when it was committed. */
 export const upstreamHeadSchema = z.object({

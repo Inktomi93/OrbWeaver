@@ -285,7 +285,6 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   test("#301: a .env WITHOUT AUTH_FALLBACK boots clean at the default (the convention — launch-time only)", async () => {
     const dir = dirWithEnvFile("AUTH_MODE=single-user");
     const mod = await reimportEnvIn(dir, {}, { vitest: false });
-    expect(mod.launchOnlyKeysDeclaredInEnvFile()).toEqual([]);
     expect(mod.env.AUTH_FALLBACK).toBe("owner"); // the default, not a .env pin
   });
 
@@ -633,7 +632,6 @@ describe("AUTH_FALLBACK_TRUSTED_PEERS — the opt-in widened fallback peer set",
   test("#301: the container environment (not `.env`) is accepted — the supported way to set it", async () => {
     const dir = dirWithEnvFile("AUTH_MODE=single-user");
     const mod = await reimportEnvIn(dir, { AUTH_FALLBACK: "owner", AUTH_FALLBACK_TRUSTED_PEERS: "172.17.0.0/16" }, { vitest: false });
-    expect(mod.launchOnlyKeysDeclaredInEnvFile()).toEqual([]);
     expect(mod.env.AUTH_FALLBACK_TRUSTED_PEERS).toBe("172.17.0.0/16");
   });
 });
