@@ -15,7 +15,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { BackgroundSourceField } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { listSeededBackgrounds } from "#lib";
 import { RoomOverridesForm } from "../components/room-overrides-form.tsx";
 import { useSetChatBackground, useSetRoomOverrides } from "../hooks/use-context-panel-mutations.ts";
 import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model.ts";
@@ -42,16 +41,13 @@ export interface ChatBackgroundSectionProps {
   readonly background: ThemeBackground | null;
 }
 
-/** How a carried source NAMES itself in the provenance gloss. A `seeded` source resolves its catalog label
- *  (the same table the picker lists); an `asset` source is the card author's own upload, whose library NAME
- *  is not on this wire (it lives in THEIR appearance library) — so it is described, never invented. `none`/
- *  `external` never reach here (the cascade drops `none`; `external` cannot persist, BG-C invariant). */
-function carriedSourceLabel(source: ThemeBackground): string {
-  if (source.kind === "seeded") {
-    return listSeededBackgrounds().find((bg) => bg.id === source.seededId)?.label ?? "a bundled background";
-  }
-  return "an uploaded image";
-}
+/** How a carried source NAMES itself in the provenance gloss. Every source that can PERSIST and reach here
+ *  is `kind:"asset"` — the card author's own background, whose library NAME is not on this wire (it lives in
+ *  THEIR appearance library), so it is described rather than invented. That covers the bundled scene plates
+ *  too since `kind:"seeded"` retired (2026-09-18): a plate is one of the author's own library entries now,
+ *  not a catalog slug this surface could look a label up for. `none`/`external` never reach here (the
+ *  cascade drops `none`; `external` cannot persist — the BG-C invariant). */
+const CARRIED_SOURCE_LABEL = "an uploaded image";
 
 /** The Background section body (host-only — the caller gates the whole Section on `isHost`). The picker
  *  writes the whole rebuilt source on every pick via `setChatBackground`.
@@ -80,7 +76,7 @@ export function ChatBackgroundSection({ chatId, background }: ChatBackgroundSect
       />
       {carried?.arm === "card-carried" ? (
         <Text voice="gloss">
-          Painting {carriedSourceLabel(carried.source)} — from {carried.characterName}'s card. Pick one here to override it.
+          Painting {CARRIED_SOURCE_LABEL} — from {carried.characterName}'s card. Pick one here to override it.
         </Text>
       ) : null}
     </Stack>

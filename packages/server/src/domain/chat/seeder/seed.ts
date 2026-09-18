@@ -31,6 +31,7 @@
 
 import type { BulkImportChatInput, BulkImportMessageInput } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { ThemeBackground } from "@orb/contracts/theme";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -138,9 +139,12 @@ function toChatInput(args: {
   readonly parsed: ParsedChat;
   readonly seats: readonly Seat[];
   readonly anchorPersonaId: PersonaId | null;
+  /** The manifest's curated plate, already resolved to THIS user's owned asset (`undefined` ⇒ none). It
+   *  arrives resolved rather than as a slug because this builder is pure and per-user asset minting is not. */
+  readonly background: ThemeBackground | undefined;
   readonly now: number;
 }): BulkImportChatInput {
-  const { demo, parsed, seats, anchorPersonaId, now } = args;
+  const { demo, parsed, seats, anchorPersonaId, background, now } = args;
   const seatsByName = new Map(seats.map((s) => [s.name, s.characterId]));
   const spoken = parsed.messages;
   const sendDates = spoken.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
@@ -157,7 +161,9 @@ function toChatInput(args: {
     // into their memory index on first boot (PD-78's backfill enqueue gates on this).
     isRealConversation: false,
     characterIds: seats.slice(1).map((s) => s.characterId),
-    ...(demo.metadata === undefined ? {} : { metadata: demo.metadata }),
+    // The curated plate joins the room-behavior blob HERE rather than in the manifest: an example with no
+    // behavior blob but a curated background still needs a `metadata` object to carry it.
+    ...(demo.metadata === undefined && background === undefined ? {} : { metadata: { ...demo.metadata, ...(background === undefined ? {} : { background }) } }),
     messages: spoken.map((m) => toMessageInput(m, seatsByName, m.sendDate ?? createdAt)),
   };
 }
@@ -209,7 +215,7 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
     const result = await deps.writeChats({
       ownerId: principal.userId,
       characterId: primary.characterId,
-      chats: [toChatInput({ demo, parsed, seats, anchorPersonaId, now })],
+      chats: [toChatInput({ demo, parsed, seats, anchorPersonaId, background: await curatedBackground(principal, demo), now })],
     });
     const chatId = result.written[0]?.chatId;
     if (chatId === undefined) {
@@ -283,10 +289,24 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
     return true;
   }
 
+  /** The curated room background for THIS user — the manifest's shipped-plate slug resolved into their own
+   *  owned asset. `undefined` ⇒ this example curates none, or the plate could not be lifted (in which case
+   *  the room seeds background-less rather than carrying a dangling reference). */
+  async function curatedBackground(principal: Principal, demo: DemoChat): Promise<ThemeBackground | undefined> {
+    const slug = demo.backgroundSlug;
+    const resolve = deps.resolveSeededBackground;
+    // ONE tail expression rather than an early `return undefined;` — biome's `noUselessUndefined` deletes
+    // that return and tsc's `noImplicitReturns` then reds the fall-through (the house "pass.ts idiom").
+    return slug === undefined || resolve === undefined ? undefined : ((await resolve(principal, slug)) ?? undefined);
+  }
+
   /** The curated room background, only when the room carries none. */
   async function healBackground(principal: Principal, existing: SeededChatDressing, demo: DemoChat): Promise<boolean> {
-    const background = demo.metadata?.background;
-    if (existing.hasBackground || background === undefined || deps.setChatBackground === undefined) {
+    if (existing.hasBackground || deps.setChatBackground === undefined) {
+      return false;
+    }
+    const background = await curatedBackground(principal, demo);
+    if (background === undefined) {
       return false;
     }
     await deps.setChatBackground({ principal, chatId: existing.chatId, background });

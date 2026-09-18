@@ -13,14 +13,48 @@
 
 import type { Greeting } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import type { ThemeBackground } from "@orb/contracts/theme";
+import { canonicalBackgroundSource } from "@orb/contracts/theme";
+import type { Db } from "@orb/db";
+import { assets } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterService, UpdateCharacterParams } from "@orb/server/domain/character";
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
+
+/** The per-user plate resolver the composition root wires off `domain/settings`' scene-plate seeder. Faked
+ *  here as a pure slug→asset mapping: this suite is about the CARD DRESSING, not about the CAS, and the real
+ *  op's own behaviour (lift the shipped bytes once, hand back a `kind:"asset"` ref) is pinned in
+ *  `tests/server/domain/settings/seeder/backgrounds.int.test.ts`. The ref it returns is the persisted shape,
+ *  built through the same canonicalizer the real one uses. */
+function fakePlateResolver(db: Db, ownerId: UserId): (principal: Principal, slug: string) => Promise<ThemeBackground> {
+  return async (_principal, slug): Promise<ThemeBackground> => {
+    // It really SEEDS an owned asset row: the card update path's own belt (`ensureBackgroundOverrideOwned`)
+    // refuses a carried `assetId` the caller does not own, so a resolver handing back a bare ref would be
+    // testing a shape the product cannot persist. IDEMPOTENT, like the CAS it stands in for — a plate asked
+    // for twice (a resumed seed, a pack migration) resolves the same row rather than colliding on its PK.
+    const id = `asset_plate_${slug.replaceAll("-", "_")}`;
+    const existing = await db
+      .select({ id: assets.id })
+      .from(assets)
+      .where(eq(assets.id, castId<AssetId>(id)))
+      .limit(1);
+    const assetId = existing[0]?.id ?? (await seedAsset(db, { id, ownerId, hash: `hash_plate_${slug}` }));
+    return canonicalBackgroundSource({
+      kind: "asset",
+      assetId,
+      assetHash: `hash_plate_${slug}`,
+      mime: "image/jpeg",
+      externalUrl: "",
+      provenanceUrl: "",
+    });
+  };
+}
 
 /** The v1 Assistant card's authored content, transcribed from `seeder/cards.ts` at commit dfc32628 (the
  *  last v1 pack). This is the migration's edit-detection oracle — see the header note. */
@@ -137,6 +171,7 @@ describe("createDefaultCharacterSeeder — v2 pack reseed migration", () => {
         avatarCalls.push(handle);
         return Promise.resolve(handle === WELCOME_ASSISTANT_HANDLE ? REDRESSED_AVATAR : null);
       },
+      resolveSeededBackground: fakePlateResolver(db, owner),
       ...latch,
     });
 
@@ -151,7 +186,8 @@ describe("createDefaultCharacterSeeder — v2 pack reseed migration", () => {
     expect(detail.creatorNotes).toBe(CHARLOTTE?.input.creatorNotes);
     // Presentation + the avatar, both through the ordinary seeded paths.
     expect(detail.themeOverride).toEqual(CHARLOTTE?.presentation.themeOverride);
-    expect(detail.backgroundOverride?.seededId).toBe(`${WELCOME_ASSISTANT_HANDLE}-bg`);
+    expect(detail.backgroundOverride?.kind).toBe("asset");
+    expect(detail.backgroundOverride?.assetHash).toBe(`hash_plate_${WELCOME_ASSISTANT_HANDLE}-bg`);
     expect(detail.avatarAssetId).toBe(REDRESSED_AVATAR);
     expect(avatarCalls).toContain(WELCOME_ASSISTANT_HANDLE);
 
@@ -303,13 +339,23 @@ describe("createDefaultCharacterSeeder — the migration writes only what it pro
     const actor = principal(owner);
     await seedAsset(db, { id: REDRESSED_AVATAR, ownerId: owner, hash: "hash_charlotte" });
     const before = await svc.create({ principal: actor, input: v1AssistantInput() });
-    const mine = { kind: "seeded", seededId: "niko-bg", assetId: "", assetHash: "", mime: "", externalUrl: "", provenanceUrl: "" } as const;
+    // The user's OWN pick: an owned background asset, which is the only paintable shape since
+    // `kind:"seeded"` retired. The claim is unchanged — a look the user chose survives the pack bump.
+    const mineAssetId = await seedAsset(db, { id: "asset_mine", ownerId: owner, hash: "hash_mine" });
+    const mine = {
+      kind: "asset",
+      assetId: mineAssetId,
+      assetHash: "hash_mine",
+      mime: "image/png",
+      externalUrl: "",
+      provenanceUrl: "",
+    } as const;
     await svc.update({ principal: actor, characterId: before.id, input: { backgroundOverride: mine } });
 
     await migratingSeeder(svc, packLatch([owner])).ensureSeeded(actor);
 
     const detail = await svc.get({ principal: actor, characterId: before.id });
-    expect(detail.backgroundOverride?.seededId).toBe("niko-bg");
+    expect(detail.backgroundOverride?.assetHash).toBe("hash_mine");
     expect(detail.name).toBe(CHARLOTTE?.input.name);
   });
 

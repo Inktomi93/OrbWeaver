@@ -18,14 +18,17 @@ import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.ts";
 import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.ts";
 
 describe("Appearance carrier manifest", () => {
-  test("declares 41 unique keys across seven non-empty editor owners", () => {
+  // 41 → 40 and background 9 → 8 on 2026-09-18: `backgroundSeededId` left `AppearanceSettings` with the
+  // retired `kind:"seeded"` source. The counts are the PARTITION's receipt, not a target — what they assert
+  // is that the owner lists and the manifest keys stay the same set.
+  test("declares 40 unique keys across seven non-empty editor owners", () => {
     const keys = Object.keys(APPEARANCE_CARRIER_MANIFEST);
     const owned = APPEARANCE_EDITOR_OWNERS.flatMap((owner) => [...APPEARANCE_OWNER_KEYS[owner]]);
 
-    expect(keys).toHaveLength(41);
-    expect(new Set(keys).size).toBe(41);
+    expect(keys).toHaveLength(40);
+    expect(new Set(keys).size).toBe(40);
     expect(new Set(owned)).toEqual(new Set(keys));
-    expect(APPEARANCE_EDITOR_OWNERS.map((owner) => APPEARANCE_OWNER_KEYS[owner].length)).toEqual([5, 5, 9, 6, 5, 3, 8]);
+    expect(APPEARANCE_EDITOR_OWNERS.map((owner) => APPEARANCE_OWNER_KEYS[owner].length)).toEqual([5, 5, 8, 6, 5, 3, 8]);
   });
 
   test("every real carrier plane has a nonzero generated family", () => {
@@ -35,7 +38,7 @@ describe("Appearance carrier manifest", () => {
       "root-html": 13,
       "theme-scope": 1,
       "shell-grid": 2,
-      "background-layer": 8,
+      "background-layer": 7,
       "message-props": 16,
       "source-catalog": 1,
     });
@@ -53,8 +56,10 @@ describe("Appearance carrier manifest", () => {
   test("the generated executor applies schema-valid values on both arms", () => {
     const armA = appearanceSettingsForCarrierArm(0);
     const armB = appearanceSettingsForCarrierArm(1);
-    expect(armA.backgroundImageKind).toBe("seeded");
-    expect(armB.backgroundImageKind).toBe("seeded");
+    // `asset` is the painted arm since `kind:"seeded"` retired — the executor completes its three dependent
+    // carriers from the library, which is what the arm needs and a slug no longer supplies.
+    expect(armA.backgroundImageKind).toBe("asset");
+    expect(armB.backgroundImageKind).toBe("asset");
     expect(appearanceSettingsSchema.safeParse(armA).success).toBe(true);
     expect(appearanceSettingsSchema.safeParse(armB).success).toBe(true);
     expect(armA).not.toEqual(armB);
@@ -104,9 +109,10 @@ describe("Appearance carrier manifest", () => {
   test("serializes the one live matrix contract without a second hand-maintained appearance roster", () => {
     const contract = appearanceMatrixContract();
 
-    expect(contract.declared).toBe(41);
+    expect(contract.declared).toBe(40);
+    // Unchanged: the key that left was a DEPENDENCY row (no arms), so only declared + dependencies move.
     expect(contract.executable).toBe(36);
-    expect(contract.dependencies).toBe(5);
+    expect(contract.dependencies).toBe(4);
     expect(contract.rows.map((row) => row.key)).toEqual(Object.keys(APPEARANCE_CARRIER_MANIFEST));
     expect(contract.rows.filter((row) => row.arms !== null)).toHaveLength(36);
     expect(contract.rows.find((row) => row.key === "density")).toMatchObject({

@@ -4,7 +4,7 @@
 // nothing) plus P1 (SET-SEAMS §9): the `appearance` section-patch carries EXACTLY the nine background keys.
 //
 // THE PICKER IS A THUMBNAIL GRID, NOT A COMBOBOX (#1207, re-pinned 2026-09-02). `8a038b047` (#866 S4a,
-// 2026-08-30) retired the `Image` kind combobox for R-BG's one MediaGrid — None · the seeded plates · every
+// 2026-08-30) retired the `Image` kind combobox for R-BG's one MediaGrid — None · every
 // library entry — where `backgroundImageKind` DERIVES from the tapped tile and is never a user-facing
 // control, and moved both ways in (upload · URL) behind one "Add background" door at the grid's end. That
 // commit swept `app-shell.ct.tsx` and `rail.ct.tsx` and missed THIS file, so four tests here queried a
@@ -12,12 +12,11 @@
 // missed-sibling-CT class as #1197).
 //
 // Each of the four is re-pinned on the real flow and made STRICTLY STRONGER, never adapted: the clamp test
-// now also proves the gated rows are ABSENT before a pick and that the seeded id DERIVES from the tapped
+// now also proves the gated rows are ABSENT before a pick and that the asset ref DERIVES from the tapped
 // tile; both add-arms now also prove the new entry becomes a SELECTED TILE in the grid; and the refusal now
 // also proves the grid gains no tile. Every one of those is a claim the combobox shape could not make.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { listSeededBackgrounds } from "@orb/contracts/theme";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import {
@@ -31,7 +30,24 @@ import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AppearanceBackgroundSectionCommitTallyStory, AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";
 
-const SETTINGS_VIEW = { userId: "user_ct_background", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+/** A BUNDLED SCENE PLATE as the picker actually sees one since `kind:"seeded"` retired (2026-09-18): an
+ *  ordinary `appearance.backgroundLibrary` entry, seeded per user from `@orb/default-content` by
+ *  `domain/settings/seeder/backgrounds.ts`. This CT's picker premise used to be the static
+ *  `listSeededBackgrounds()` catalog, which no longer exists — a plate is a library row like any upload, so
+ *  the stub seeds one instead of the grid conjuring tiles out of a constant. */
+const SEEDED_PLATE_ENTRY = {
+  entryId: "bg_ct_plate",
+  assetId: "asset_01h455vb4pex5vsknk084sn03r",
+  assetHash: "hash_ct_plate",
+  mime: "image/jpeg",
+  name: "Charlotte's study",
+};
+const SETTINGS_VIEW = {
+  userId: "user_ct_background",
+  schemaVersion: 1,
+  config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, backgroundLibrary: [SEEDED_PLATE_ENTRY] } },
+  updatedAt: 0,
+};
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 // F-P0-2 — the URL arm of the `asset` background kind. The verb MATERIALIZES the pasted address server-side
 // and hands back a ready library entry; nothing external is ever persisted (BG-C).
@@ -60,7 +76,6 @@ const OWNED_KEYS = [
   "backgroundFit",
   "backgroundImageKind",
   "backgroundLibrary",
-  "backgroundSeededId",
 ];
 
 function stub(page: Page, external: TrpcResponder = (): unknown => MATERIALIZED_ENTRY): Promise<TrpcRecorder> {
@@ -74,13 +89,6 @@ function stub(page: Page, external: TrpcResponder = (): unknown => MATERIALIZED_
 function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
   const input = trpc.lastInput(UPDATE_PROC) as { section?: string; patch?: Record<string, unknown> } | undefined;
   return input?.section === "appearance" ? input.patch : undefined;
-}
-
-/** The FIRST seeded plate, read from the catalog rather than spelled — the grid's tile labels ARE the
- *  catalog's labels, so a catalog edit must not silently retarget this pin at a different plate. */
-const FIRST_SEEDED = listSeededBackgrounds()[0];
-if (FIRST_SEEDED === undefined) {
-  throw new Error("the seeded-background catalog is empty — this CT's picker premise is gone");
 }
 
 /** The picker itself. Tiles are `role="gridcell"` named by their `alt` (MediaGrid puts the accessible name
@@ -114,8 +122,8 @@ test("fit/dim/blur are GATED until a tile is picked, then clamp at their own MIN
   await expect(tile(page, "No background")).toHaveAttribute("aria-selected", "true");
 
   // R-BG: the KIND is storage detail derived from the tap — there is no kind control to operate.
-  await tile(page, FIRST_SEEDED.label).click();
-  await expect(tile(page, FIRST_SEEDED.label)).toHaveAttribute("aria-selected", "true");
+  await tile(page, SEEDED_PLATE_ENTRY.name).click();
+  await expect(tile(page, SEEDED_PLATE_ENTRY.name)).toHaveAttribute("aria-selected", "true");
   await expect(tile(page, "No background")).toHaveAttribute("aria-selected", "false");
 
   await page.getByRole("combobox", { name: "Fit" }).click();
@@ -136,15 +144,18 @@ test("fit/dim/blur are GATED until a tile is picked, then clamp at their own MIN
   await expect
     .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
     .toMatchObject({
-      backgroundImageKind: "seeded",
-      // The tapped TILE's own id, not a value chosen in a control — this is the derivation R-BG replaced the
-      // combobox with, and the combobox shape structurally could not assert it.
-      backgroundSeededId: FIRST_SEEDED.id,
+      backgroundImageKind: "asset",
+      // The tapped TILE's own asset, not a value chosen in a control — this is the derivation R-BG replaced
+      // the combobox with, and the combobox shape structurally could not assert it. A bundled plate writes
+      // the SAME three fields an upload does, which is the whole point of retiring `kind:"seeded"`.
+      backgroundAssetId: SEEDED_PLATE_ENTRY.assetId,
+      backgroundAssetHash: SEEDED_PLATE_ENTRY.assetHash,
+      backgroundAssetMime: SEEDED_PLATE_ENTRY.mime,
       backgroundFit: "contain",
       backgroundDim: BACKGROUND_DIM_MIN,
       backgroundBlur: BACKGROUND_BLUR_MAX,
     });
-  // P1 — nine background keys, never the whole appearance blob (which would clobber a sibling section).
+  // P1 — the eight background keys, never the whole appearance blob (which would clobber a sibling section).
   expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 
@@ -175,13 +186,13 @@ test("the add door's URL arm fires addExternalBackground and the returned entry 
     .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
     .toMatchObject({
       backgroundImageKind: "asset",
-      backgroundLibrary: [MATERIALIZED_ENTRY],
+      backgroundLibrary: [SEEDED_PLATE_ENTRY, MATERIALIZED_ENTRY],
       backgroundAssetId: MATERIALIZED_ENTRY.assetId,
       backgroundAssetHash: MATERIALIZED_ENTRY.assetHash,
       backgroundAssetMime: MATERIALIZED_ENTRY.mime,
     });
   // THE VISIBLE HALF, which the combobox shape had no way to state: a background you added is a TILE in the
-  // same grid as the seeded plates, and it is the one wearing the ring. "Persisted" and "painted" are two
+  // same grid as the seeded plates (which are library entries too), and it is the one wearing the ring. "Persisted" and "painted" are two
   // claims, and the picker is where the second one is answerable.
   await expect(tile(page, MATERIALIZED_ENTRY.name)).toHaveAttribute("aria-selected", "true");
   await expect(tile(page, "No background")).toHaveAttribute("aria-selected", "false");
@@ -193,7 +204,7 @@ test("a refused URL surfaces the verb's own leak-free reason inline, writes noth
   );
   await mount(<AppearanceBackgroundSectionStory />);
   await expect(grid(page)).toBeVisible();
-  // The tile census BEFORE the refusal — None plus the seeded plates, nothing else.
+  // The tile census BEFORE the refusal — None plus the library's own rows (the seeded plate), nothing else.
   const tilesBefore = await grid(page).getByRole("gridcell").count();
 
   await openAddDoor(page);
@@ -331,7 +342,9 @@ test("an upload appends a library entry with its mime and lands as the SELECTED 
   await expect
     .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
     .toMatchObject({
-      backgroundLibrary: [{ assetId: MATERIALIZED_ENTRY.assetId, assetHash: UPLOADED_HASH, mime: "image/png", name: "dusk-harbour" }],
+      // APPENDED after the seeded plate the library already carries — an upload joins the one list, it does
+      // not replace it (the plates are ordinary library rows since `kind:"seeded"` retired).
+      backgroundLibrary: [SEEDED_PLATE_ENTRY, { assetId: MATERIALIZED_ENTRY.assetId, assetHash: UPLOADED_HASH, mime: "image/png", name: "dusk-harbour" }],
       backgroundAssetId: MATERIALIZED_ENTRY.assetId,
       backgroundAssetHash: UPLOADED_HASH,
       backgroundAssetMime: "image/png",

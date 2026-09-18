@@ -159,7 +159,7 @@ export function getUserSettings(): Promise<UserSettings> {
  *  dedicated reader so the existing `getUserSettings` shape stays untouched (add-only support rule). */
 export interface AppearanceThemeSettings {
   readonly config: {
-    readonly appearance: { readonly elevation: string; readonly backgroundImageKind: string; readonly backgroundSeededId: string };
+    readonly appearance: { readonly elevation: string; readonly backgroundImageKind: string; readonly backgroundAssetHash: string };
     readonly theme: { readonly selectedThemeId: string | null };
   };
 }

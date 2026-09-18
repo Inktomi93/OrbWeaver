@@ -26,7 +26,6 @@ import { ConfigTeachScope, QueryBoundary, RowActionsMenu, SettingRow, SettingRow
 import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { listSeededBackgrounds } from "#lib";
 import { configAnchorId } from "#state";
 import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
@@ -80,7 +79,6 @@ function BackgroundFormBody({ sectionId }: { readonly sectionId: string }): Reac
 }
 
 const NONE_TILE_ID = "none";
-const SEEDED_PREFIX = "seeded:";
 const ASSET_PREFIX = "entry:";
 const THUMB_WIDTH = 96;
 
@@ -89,12 +87,9 @@ interface BackgroundTile extends MediaGridItem {
 }
 
 /** The picked-tile write — kind DERIVES from the tile (R-BG: `backgroundImageKind` is storage detail, not
- *  a control), and every selection field lands in ONE autosave patch (BG-D). */
-function writeSeeded(form: AutosaveSession<BackgroundForm>["form"], seededId: string): void {
-  form.setFieldValue("backgroundImageKind", "seeded");
-  form.setFieldValue("backgroundSeededId", seededId);
-}
-
+ *  a control), and every selection field lands in ONE autosave patch (BG-D). There used to be a second
+ *  writer here for the bundled plates (`kind:"seeded"` + a catalog slug); the plates are ordinary library
+ *  entries since 2026-09-18, so `asset` is the only image writer. */
 function writeAsset(form: AutosaveSession<BackgroundForm>["form"], entry: BackgroundLibraryEntry): void {
   form.setFieldValue("backgroundImageKind", "asset");
   form.setFieldValue("backgroundAssetId", entry.assetId);
@@ -137,9 +132,10 @@ function BackgroundBody({ sectionId, session }: { readonly sectionId: string; re
       heading={APPEARANCE_BACKGROUND_SUBCATEGORY.label}
       id={configAnchorId("appearance", APPEARANCE_BACKGROUND_SUBCATEGORY.id)}
     >
-      {/* R-BG (#866 S4): an inherently VISUAL choice picks by THUMBNAIL — one grid: None · the seeded
-          plates · every library entry; the selected tile wears the ring; `backgroundImageKind` derives
-          from the tap and is never a user-facing control. */}
+      {/* R-BG (#866 S4): an inherently VISUAL choice picks by THUMBNAIL — one grid: None · every library
+          entry (which is where the bundled scene plates live since `kind:"seeded"` retired); the selected
+          tile wears the ring; `backgroundImageKind` derives from the tap and is never a user-facing
+          control. */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_BACKGROUND_SUBCATEGORY }}>
         <Stack gap="block">
           {/* `span` (#932): a thumbnail grid is a CANVAS, so the row draws the registry lead (name · `i` ·
@@ -247,9 +243,6 @@ function selectedTileKey(values: BackgroundForm): string | null {
   if (values.backgroundImageKind === "none") {
     return NONE_TILE_ID;
   }
-  if (values.backgroundImageKind === "seeded") {
-    return `${SEEDED_PREFIX}${values.backgroundSeededId}`;
-  }
   const entryId = values.backgroundLibrary.find((entry) => entry.assetId === values.backgroundAssetId)?.entryId;
   return entryId === undefined ? null : `${ASSET_PREFIX}${entryId}`;
 }
@@ -258,9 +251,6 @@ function selectedTileKey(values: BackgroundForm): string | null {
 function BackgroundPickGrid({ form, values }: { readonly form: AutosaveSession<BackgroundForm>["form"]; readonly values: BackgroundForm }): ReactElement {
   const tiles: readonly BackgroundTile[] = [
     { id: NONE_TILE_ID, alt: "No background", apply: writeNone },
-    ...listSeededBackgrounds().map(
-      (bg): BackgroundTile => ({ id: `${SEEDED_PREFIX}${bg.id}`, alt: bg.label, url: bg.url, apply: (f): void => writeSeeded(f, bg.id) }),
-    ),
     ...values.backgroundLibrary.map(
       (entry): BackgroundTile => ({
         id: `${ASSET_PREFIX}${entry.entryId}`,

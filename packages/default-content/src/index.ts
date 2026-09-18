@@ -1,7 +1,15 @@
-// @orb/default-content — the DEFAULT CONTENT a fresh user is born with, plus the one reader over it: the
-// character/persona avatar PNGs (`avatars/<handle>.png`) and the EXAMPLE chat transcripts
+// @orb/default-content — the DEFAULT CONTENT a fresh user is born with, plus the readers over it: the
+// character/persona avatar PNGs (`avatars/<handle>.png`), the EXAMPLE chat transcripts
 // (`demo-chats/<slug>.jsonl`, the verbatim bytes `GET /api/export/chat/:id?format=jsonl` produced for a
-// live-generated conversation).
+// live-generated conversation), and the character SCENE PLATES (`backgrounds/<handle>-bg.jpg`).
+//
+// THE PLATES ARE CONTENT, NOT A PARALLEL BACKGROUND CHANNEL (owner ask 2026-09-18, "the weird seeded
+// backgrounds"). They used to be `packages/client/public/backgrounds/*.jpg` behind a static
+// `@orb/contracts/theme` slug catalog and a `BACKGROUND_IMAGE_KINDS` member of their own (`kind:"seeded"`),
+// so a shipped plate was reachable only through a code path no user-owned background could take: not in the
+// library, not renameable, not deletable, not exportable, invisible to the CAS and to asset GC. They are now
+// seeded per user exactly the way the avatars are — CAS-stored `background`-kind assets plus
+// `appearance.backgroundLibrary` entries — and the `seeded` kind is retired.
 //
 // WHY THIS IS A PACKAGE AND NOT A SERVER DIRECTORY (D160, owner ruling 2026-09-02, verbatim: "if dockerfile
 // which we don't even use yet is moving default assets around that's a nah from me dog — that's crunchy and
@@ -72,6 +80,50 @@ export async function readSeedDemoChat(slug: string): Promise<string | null> {
   // becomes required rather than best-effort.
   try {
     return await readFile(join(CONTENT_DIR, "demo-chats", `${slug}.jsonl`), "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/** The MIME of a shipped scene plate (JPEG — matches the byte signature the assets store sniffs with
+ *  `enforceMagic`, the `SEED_AVATAR_MIME` precedent). */
+export const SEED_BACKGROUND_MIME = "image/jpeg";
+
+/** One shipped scene plate: the file `slug` (`backgrounds/<slug>.jpg`) and the display NAME the seeded
+ *  background-library entry wears. The label lives beside the bytes rather than in a contract catalog — it
+ *  IS content, and its only reader is the seeder that writes the library entry. */
+export interface SeedBackgroundPlate {
+  readonly slug: string;
+  readonly label: string;
+}
+
+/** THE SHIPPED SCENE PLATES — one per default character, slugged `<handle>-bg` so a card and its plate
+ *  cannot drift apart silently. The seeder lifts each into an owned `background`-kind asset plus an
+ *  `appearance.backgroundLibrary` entry, so a user's plates are ordinary owned backgrounds they can pick,
+ *  rename, delete or ignore. The inventory is pinned in BOTH directions (a file with no row, a row with no
+ *  file) by `tests/default-content/index.test.ts`. */
+export const SEED_BACKGROUND_PLATES: readonly SeedBackgroundPlate[] = [
+  { slug: "assistant-bg", label: "Charlotte's study" },
+  { slug: "jfc-coder-bg", label: "The dark office" },
+  { slug: "niko-bg", label: "Konbini at 1 a.m." },
+  { slug: "hana-bg", label: "City park, midnight" },
+  { slug: "morgatha-bg", label: "The Ashen Spire" },
+  { slug: "sabine-bg", label: "Road-town tavern" },
+  { slug: "birdie-bg", label: "Hobby & Repair" },
+  { slug: "kohaku-bg", label: "Lamplit apartment" },
+  { slug: "calamity-bg", label: "The good windowsill" },
+  { slug: "elias-bg", label: "Gullwrack lamp room" },
+];
+
+/** The shipped scene plate's bytes for a `slug`, or `null` when this package ships none — so a missing file
+ *  seeds ONE plate short instead of failing the whole background seed. */
+export async function readSeedBackground(slug: string): Promise<SeedAssetBytes | null> {
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a missing/unreadable shipped
+  // plate means "this pack ships none for this slug" (`null`), so the caller skips ONE seed item instead of
+  // failing the whole seed. Ends if the pack becomes required rather than best-effort.
+  try {
+    const buf = await readFile(join(CONTENT_DIR, "backgrounds", `${slug}.jpg`));
+    return { bytes: new Uint8Array(buf), mime: SEED_BACKGROUND_MIME };
   } catch {
     return null;
   }

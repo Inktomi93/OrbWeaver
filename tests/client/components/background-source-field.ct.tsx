@@ -1,9 +1,13 @@
 // CT: BackgroundSourceField (BG-C) on the Looks grammar (#866 S4, owner R-BG addendum) — the shared
 // carried-background picker both call sites mount (a room override's immediate mutate, a card editor's
 // patch). Red-first: the pre-S4 field was a kind Select + name Selects; the grid grammar is the change
-// under test. Pins: a seeded tile tap yields the FULL ThemeBackground value (kind derived from the tile);
-// the None tile clears; the library tiles derive from the viewer's own `backgroundLibrary`; NO
-// upload/manage here — the Add affordance is the Settings LINK; read-only renders the grid inert.
+// under test. Pins: a tile tap yields the FULL ThemeBackground value (kind derived from the tile); the None
+// tile clears; every image tile derives from the viewer's own `backgroundLibrary`; NO upload/manage here —
+// the Add affordance is the Settings LINK; read-only renders the grid inert.
+//
+// THE PLATES ARE LIBRARY ROWS NOW (2026-09-18). This CT used to tap a tile from a static `kind:"seeded"`
+// catalog the grid rendered unconditionally; that kind retired, and the bundled scene plates are seeded per
+// user into `appearance.backgroundLibrary`, so a plate tile IS a library tile and the stub seeds one.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -12,8 +16,10 @@ import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { BackgroundSourceFieldStory } from "./background-source-field.fixtures.tsx";
 
 const ENTRY = { entryId: "e1", assetId: "asset_00000000000000000000000001", assetHash: "hashaaa", mime: "image/png", name: "My dock" };
+/** A bundled scene plate, as the viewer's library actually carries it after the per-user seed. */
+const PLATE = { entryId: "e0", assetId: "asset_00000000000000000000000002", assetHash: "hashplate", mime: "image/jpeg", name: "Charlotte's study" };
 
-function stub(page: Page, library: readonly unknown[] = [ENTRY]): ReturnType<typeof routeTrpc> {
+function stub(page: Page, library: readonly unknown[] = [PLATE, ENTRY]): ReturnType<typeof routeTrpc> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => ({
       userId: "user_ct_bg",
@@ -24,13 +30,14 @@ function stub(page: Page, library: readonly unknown[] = [ENTRY]): ReturnType<typ
   });
 }
 
-test("a seeded tile tap yields the FULL ThemeBackground value — the kind derives from the tile", async ({ mount, page }) => {
+test("a bundled-plate tile tap yields the FULL ThemeBackground value — the kind derives from the tile", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<BackgroundSourceFieldStory />);
   const grid = component.getByRole("grid", { name: "Background" });
-  await grid.getByRole("gridcell", { name: "Misty highlands" }).click();
-  await expect(component.locator("output")).toContainText('"kind":"seeded"');
-  await expect(component.locator("output")).toContainText('"seededId":"misty-highlands"');
+  await grid.getByRole("gridcell", { name: PLATE.name }).click();
+  // A shipped plate writes exactly what an upload writes — that sameness IS the retirement of `kind:"seeded"`.
+  await expect(component.locator("output")).toContainText('"kind":"asset"');
+  await expect(component.locator("output")).toContainText(`"assetHash":"${PLATE.assetHash}"`);
 });
 
 test("a library tile tap yields the asset triple; the None tile clears", async ({ mount, page }) => {
@@ -65,7 +72,7 @@ test("read-only renders the grid inert — a tap changes nothing (the room membe
   await stub(page);
   const component = await mount(<BackgroundSourceFieldStory readOnly={true} />);
   const grid = component.getByRole("grid", { name: "Background" });
-  await grid.getByRole("gridcell", { name: "Misty highlands" }).click();
+  await grid.getByRole("gridcell", { name: PLATE.name }).click();
   await expect(component.locator("output")).toHaveText("none");
   await expect(component.getByRole("button", { name: "From a URL…" })).toHaveCount(0);
 });

@@ -11,6 +11,7 @@
 //   • the pack-bump HEAL fills a hole and never stomps a value, and never resurrects a deleted example.
 
 import type { BulkImportChatInput } from "@orb/contracts/chat";
+import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DemoChatSeederDeps, SeededChatDressing } from "@orb/server/domain/chat";
@@ -48,7 +49,7 @@ interface Recorded {
   readonly skipWrites: readonly string[][];
   readonly games: { readonly chatId: ChatId; readonly slugSeats: readonly string[]; readonly mint: boolean; readonly hasSetup: boolean }[];
   readonly boundPersonas: { readonly chatId: ChatId; readonly personaId: PersonaId }[];
-  readonly backgrounds: { readonly chatId: ChatId; readonly seededId: string }[];
+  readonly backgrounds: { readonly chatId: ChatId; readonly plateHash: string }[];
   readonly stampedVersions: number[];
 }
 
@@ -113,9 +114,14 @@ function makeHarness(options: HarnessOptions = {}): { readonly deps: DemoChatSee
       return Promise.resolve();
     },
     setChatBackground: ({ chatId, background }): Promise<void> => {
-      rec.backgrounds.push({ chatId, seededId: background.seededId });
+      rec.backgrounds.push({ chatId, plateHash: background.assetHash });
       return Promise.resolve();
     },
+    // The per-user plate resolver the composition root wires off `domain/settings`' scene-plate seeder.
+    // Faked as a pure slug→hash mapping: a plate is an OWNED asset per user since `kind:"seeded"` retired,
+    // and what this suite asserts is WHICH plate the manifest curated, which the hash carries.
+    resolveSeededBackground: (_principal, slug): Promise<ThemeBackground> =>
+      Promise.resolve({ kind: "asset", assetId: `asset_plate_${slug}`, assetHash: slug, mime: "image/jpeg", externalUrl: "", provenanceUrl: "" }),
     now: (): number => 1_754_000_000_000,
   };
   return { deps, rec };
@@ -214,8 +220,9 @@ test("BG-C: every GROUP example ships a curated room background; a SOLO example 
   const dressed = DEMO_CHATS.map((demo) => ({
     slug: demo.slug,
     group: demo.handles.length > soloSeatCount,
-    // A curated background is a `seeded` plate with a real slug; anything else counts as undressed.
-    background: demo.metadata?.background?.kind === "seeded" ? demo.metadata.background.seededId || null : null,
+    // The curated plate is named by SLUG on the manifest (the seeder resolves it to this user's own owned
+    // asset — `kind:"seeded"` retired 2026-09-18); anything else counts as undressed.
+    background: demo.backgroundSlug ?? null,
   }));
   // A group example WITHOUT a plate would paint nothing at all (the card arm is true-solo-only); a solo
   // example WITH one would override the character's own carried background for no reason.
@@ -257,7 +264,7 @@ test("pack bump: an already-seeded library gets its holes filled — persona AND
   expect(rec.boundPersonas).toHaveLength(DEMO_CHATS.length);
   expect(rec.boundPersonas.every((b) => b.personaId === PERSONA_ID)).toBe(true);
   // Exactly the group examples carry a curated background, so exactly those get one healed in.
-  expect(rec.backgrounds.map((b) => b.seededId).toSorted((a, b) => a.localeCompare(b))).toEqual(["assistant-bg", "morgatha-bg", "niko-bg"]);
+  expect(rec.backgrounds.map((b) => b.plateHash).toSorted((a, b) => a.localeCompare(b))).toEqual(["assistant-bg", "morgatha-bg", "niko-bg"]);
   // The flagship's game is re-dressed WITHOUT a second mint.
   expect(rec.games.map((g) => g.mint)).toEqual([false]);
   expect(rec.stampedVersions).toEqual([DEMO_CHAT_PACK_VERSION]);

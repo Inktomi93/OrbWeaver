@@ -23,7 +23,7 @@ import {
   messages as messagesTable,
   personas as personasTable,
 } from "@orb/db";
-import { readSeedAvatar } from "@orb/default-content";
+import { readSeedAvatar, readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import type { AssetId, CharacterHandle, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
@@ -34,11 +34,13 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
 import type { CharacterService, DefaultCharacterSeeder } from "#domain/character";
-import { createCharacterService, createDefaultCharacterSeeder, createLinkCharacterAvatars } from "#domain/character";
+import { createCharacterService, createDefaultCharacterSeeder, createLinkCharacterAvatars, migrateSeededCardBackgrounds } from "#domain/character";
+import { migrateSeededRoomBackgrounds } from "#domain/chat";
 import type { PersonaService } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { PresetNotFoundError } from "#domain/preset";
-import type { SettingsService } from "#domain/settings";
+import type { DefaultBackgroundSeeder, SeededPlateAsset, SettingsService } from "#domain/settings";
+import { createDefaultBackgroundSeeder, migrateSeededBackgroundPicks } from "#domain/settings";
 import { bumpStatsCanonVersion } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import { createCopyCharacterBooks } from "#domain/world-info";
@@ -73,6 +75,9 @@ export interface AssetsCharacterComposeDeps {
   /** LIVE effective image-variant quality (item 6) — folded into the variant cache key so a retune regenerates. */
   readonly imageVariantQuality: () => number;
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
+  /** Mints one `appearance.backgroundLibrary` row id — the SAME minter the settings service uses for an
+   *  upload/`addExternalBackground` entry, so a seeded plate's row is indistinguishable from a user's own. */
+  readonly newBackgroundEntryId: () => string;
   /** Request-time forward-ref: the preset service (composes after this seam) — the greeting-template resolver. */
   readonly getPreset: () => Pick<PresetService, "get">;
   /** The caller's default-preset generation params (the side-gen sampling ladder's TOP rung). */
@@ -91,6 +96,9 @@ export interface AssetsCharacterComposeResult {
   readonly galleryCtx: AssetsContext;
   readonly characterSeeder: DefaultCharacterSeeder;
   readonly personaSeeder: DefaultPersonaSeeder;
+  /** The per-user SCENE-PLATE seeder — boot + the first-authed-request hook run `ensureSeeded`; the card and
+   *  demo-chat packs dress through its `resolvePlate`. */
+  readonly backgroundSeeder: DefaultBackgroundSeeder;
   readonly materializeBackgroundOp: MaterializeBackgroundOp;
 }
 
@@ -358,8 +366,56 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     },
   };
 
+  // The SCENE-PLATE seeder, built BEFORE the card seeder because the card pack's dressing resolves its
+  // plate through this one (`resolveSeededBackground` below). It is the composition point where the three
+  // halves meet that no single domain may see at once: the shipped BYTES (`@orb/default-content`), the CAS
+  // write (`assets.store`), the settings library (`domain/settings`), and the three raw-JSON rewrites that
+  // retire `kind:"seeded"` across settings, cards and rooms.
+  const backgroundSeeder = createDefaultBackgroundSeeder({
+    plates: SEED_BACKGROUND_PLATES,
+    // A missing bundled file / store hiccup returns null → that ONE plate is skipped (never blocks the seed).
+    storePlate: async (principal, slug): Promise<SeededPlateAsset | null> => {
+      const art = await readSeedBackground(slug);
+      if (art === null) {
+        return null;
+      }
+      // `kind: "background"` is the ONE kind a background may be (`domain/settings`'s
+      // `BACKGROUND_ASSET_KIND`) — the same kind the upload field and the pasted-URL materializer store, so
+      // the settings write predicate accepts a seeded plate exactly as it accepts an upload. The CAS is
+      // content-addressed, so a re-seed resolves the same asset instead of duplicating the bytes.
+      const stored = await assets.store({ principal, bytes: art.bytes, kind: "background", mime: art.mime, enforceMagic: true });
+      return { assetId: stored.assetId, assetHash: stored.hash, mime: art.mime };
+    },
+    newEntryId: deps.newBackgroundEntryId,
+    readOnboarding: async (principal) => ({ seeded: (await settings.getUserSettings({ principal })).config.onboarding.defaultBackgroundsSeeded }),
+    readLibrary: async (principal) => (await settings.getUserSettings({ principal })).config.appearance.backgroundLibrary,
+    writeLibrary: async (principal, library): Promise<void> => {
+      await settings.updateUserSettingsSection({
+        principal,
+        input: { section: "appearance", patch: { backgroundLibrary: library.map((entry) => ({ ...entry })) } },
+      });
+    },
+    markSeeded: async (principal): Promise<void> => {
+      await settings.updateUserSettingsSection({
+        principal,
+        input: { section: "onboarding", patch: { defaultBackgroundsSeeded: true } },
+      });
+    },
+    // The three storage locations of a retired `kind:"seeded"` reference, each rewritten by the domain that
+    // OWNS its table. They are summed rather than chained-with-early-exit: a user can carry a legacy
+    // reference in any subset of the three, and a zero from one says nothing about the others.
+    rewriteSeededReferences: async (userId, resolve): Promise<number> => {
+      const at = now();
+      const picks = await migrateSeededBackgroundPicks(db, userId, resolve, at);
+      const cards = await migrateSeededCardBackgrounds(db, userId, resolve, at);
+      const rooms = await migrateSeededRoomBackgrounds(db, userId, resolve, at);
+      return picks + cards + rooms;
+    },
+  });
+
   // The one idempotent instance boot + the app first-request hook share.
   const characterSeeder = createDefaultCharacterSeeder({
+    resolveSeededBackground: backgroundSeeder.resolvePlate,
     characters: character,
     attachCardTag: ({ ownerId, characterId, tagName }): Promise<boolean> =>
       tag.attachCardTagByName({ ownerId, characterId, tagName, source: "card", status: "pending" }),
@@ -450,5 +506,5 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     ...createPersonaSeedLatch({ settings, getPersona: deps.getPersona }),
   });
 
-  return { assetsCtx, assets, character, galleryCtx, characterSeeder, personaSeeder, materializeBackgroundOp };
+  return { assetsCtx, assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder, materializeBackgroundOp };
 }

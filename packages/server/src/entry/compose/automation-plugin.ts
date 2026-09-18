@@ -25,7 +25,6 @@ import type { InvocationChat, PluginHandlerRef, PluginQuietSchema } from "@orb/c
 import { PLUGIN_ASSET_READ_MAX_BYTES, pluginToolWireName } from "@orb/contracts/plugin";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
-import { listSeededBackgrounds } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, PluginId, UserId } from "@orb/kit/ids";
@@ -283,18 +282,16 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       }
       return { imageCount: picture.images.length };
     },
-    // BG-F — the /autobg candidate set: the SEEDED catalog PLUS the author's OWNED library uploads.
+    // BG-F — the /autobg candidate set: the author's OWNED background library, which is the WHOLE set since
+    // the `kind:"seeded"` catalog retired (2026-09-18). The ten bundled scene plates are seeded INTO that
+    // library per user, so the candidate set did not shrink — it stopped being two lists with different
+    // rules, one of which the author could neither rename nor remove from their own /autobg rotation.
     listBackgroundChoices: async (authorUserId) => {
       const config = (await settings.getUserSettings({ principal: await resolveOwnerPrincipal(authorUserId) })).config;
-      const seeded = listSeededBackgrounds().map((s) => ({
-        name: s.label,
-        background: { kind: "seeded" as const, seededId: s.id, externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" },
-      }));
-      const owned = config.appearance.backgroundLibrary.map((entry) => ({
+      return config.appearance.backgroundLibrary.map((entry) => ({
         name: entry.name,
         background: {
           kind: "asset" as const,
-          seededId: "",
           externalUrl: "",
           assetId: entry.assetId,
           assetHash: entry.assetHash,
@@ -302,7 +299,6 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           provenanceUrl: entry.provenanceUrl ?? "",
         },
       }));
-      return [...seeded, ...owned];
     },
     // BG-F — the author-scoped chat-background write (chat's host-gated verb under the author's Principal).
     setChatBackground: async ({ authorUserId, chatId, background }) => {

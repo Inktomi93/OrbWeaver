@@ -22,8 +22,11 @@ import { getAppearanceTheme, listThemes, updateSettingsSection } from "./support
 
 const SETTINGS_SAVE = "/api/trpc/settings.updateUserSettingsSection";
 const SEED_THEME_NAME = "Mocha"; // a seed theme → `html[data-theme="mocha"]` once APPLIED (see APPLIED_THEME)
-const SEEDED_BG_OPTION = "Misty highlands"; // a REAL seeded background (list-seeded-backgrounds.ts catalog)
-const SEEDED_BG_ID = "misty-highlands"; // that option's stored id (backgroundSeededId), for the server-truth poll
+// A REAL bundled scene plate, which since 2026-09-18 is an ordinary entry of the account's OWN
+// `appearance.backgroundLibrary` — seeded per user from `@orb/default-content` (`SEED_BACKGROUND_PLATES`),
+// not a static catalog slug. The label IS the library entry's name, which is what the grid cell is named by.
+// The old pin used "Misty highlands", one of the four landscape placeholders deleted with the retirement.
+const SEEDED_BG_OPTION = "Charlotte's study";
 
 /** The render-truth attributes: `data-has-bg-image` lands on `.shell-grid` when a background resolves, and
  *  the APPLIED seed theme lands on the DOCUMENT ELEMENT — `use-appearance-root-effects.ts` sets
@@ -55,7 +58,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // Restore via the API only — NEVER touch browser storage (that would defeat the no-clear-needed pin
     // and pollute the next spec). Reset theme → Hearth default and appearance → no background/flat.
     await updateSettingsSection("theme", { selectedThemeId: null });
-    await updateSettingsSection("appearance", { backgroundImageKind: "none", backgroundSeededId: "", elevation: "flat" });
+    await updateSettingsSection("appearance", { backgroundImageKind: "none", backgroundAssetId: "", backgroundAssetHash: "", elevation: "flat" });
   });
 
   test("theme + background change through the UI are visible immediately AND survive a plain reload with storage intact", async ({ page }) => {
@@ -64,7 +67,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // A stable pre-state: no theme, no background (the afterEach values). Set via API so the spec starts
     // from a known baseline regardless of prior runs — this is SETUP, not the thing under test.
     await updateSettingsSection("theme", { selectedThemeId: null });
-    await updateSettingsSection("appearance", { backgroundImageKind: "none", backgroundSeededId: "" });
+    await updateSettingsSection("appearance", { backgroundImageKind: "none", backgroundAssetId: "", backgroundAssetHash: "" });
 
     await page.goto("/");
     await waitForAppReady(page);
@@ -101,10 +104,12 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     await backgroundGrid.getByRole("gridcell", { name: SEEDED_BG_OPTION }).click();
 
     // The appearance autosave debounces (500ms) then commits; the shell repaints when the settingsChanged
-    // bus event refetches getUserSettings. First confirm the save actually reached the SERVER (the seeded id
-    // landed) — this ties the DOM assertion below to real server truth having committed, and absorbs the
-    // debounce+save+bus-refetch latency deterministically (no fixed sleep, no race on a bare 10s DOM wait).
-    await expect.poll(async () => (await getAppearanceTheme()).config.appearance.backgroundSeededId, { timeout: 15_000 }).toBe(SEEDED_BG_ID);
+    // bus event refetches getUserSettings. First confirm the save actually reached the SERVER (the picked
+    // plate's CAS hash landed) — this ties the DOM assertion below to real server truth having committed,
+    // and absorbs the debounce+save+bus-refetch latency deterministically (no fixed sleep, no race on a bare
+    // 10s DOM wait). The hash is asserted NON-EMPTY rather than byte-pinned: it is the plate's content hash,
+    // which `tests/default-content/index.test.ts` owns — pinning it twice would be a second home for it.
+    await expect.poll(async () => (await getAppearanceTheme()).config.appearance.backgroundAssetHash.length > 0, { timeout: 15_000 }).toBe(true);
 
     // The shell root gains `data-has-bg-image` once that server truth flows back through the query — the
     // render-truth claim (server state → DOM), asserted against the DOM, not just the request firing.

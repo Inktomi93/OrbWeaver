@@ -515,7 +515,6 @@ async function materializeExternal(ctx: ChatContext, principal: Principal, sourc
   }
   return {
     kind: "asset",
-    seededId: "",
     externalUrl: "",
     provenanceUrl: url,
     assetId: result.asset.assetId,

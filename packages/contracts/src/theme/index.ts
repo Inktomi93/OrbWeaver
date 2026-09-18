@@ -41,8 +41,6 @@ export {
   themeOverrideSchema,
   VIEWER_SACRED_THEME_KEYS,
 } from "./override.ts";
-export type { SeededBackground } from "./seeded-backgrounds.ts";
-export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./seeded-backgrounds.ts";
 
 /** Name/CSS length caps (themes-design §3.2 — named constants, shared with the future db CHECKs). */
 export const THEME_NAME_MAX = 80;

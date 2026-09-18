@@ -55,7 +55,7 @@ async function seedCard(
 
 /** A carried background pointing at an OWNED asset row — the only background kind that names ownership. */
 function assetBackground(assetId: AssetId): ThemeBackground {
-  return { kind: "asset", assetId, assetHash: "bg-hash", mime: "image/png", externalUrl: "", seededId: "", provenanceUrl: "" };
+  return { kind: "asset", assetId, assetHash: "bg-hash", mime: "image/png", externalUrl: "", provenanceUrl: "" };
 }
 
 /** A CAS asset row the `avatar_asset_id` FK can point at. */
@@ -280,11 +280,14 @@ test("a background that cannot be re-owned degrades to NO background, never a fo
   expect(copy?.backgroundOverride?.assetId).toBe("");
 });
 
-test("a SEEDED-catalog background travels verbatim — it names no owner to transfer (#1426)", async () => {
+test("a kind:none background travels verbatim — it names no owner to transfer (#1426)", async () => {
   const db = await freshDb();
   const oldHost = await seedUser(db, { handle: castId("seedhost") });
   const nominee = await seedUser(db, { handle: castId("seednominee") });
-  const seeded: ThemeBackground = { kind: "seeded", seededId: "assistant-bg", assetId: "", assetHash: "", mime: "", externalUrl: "", provenanceUrl: "" };
+  // The non-asset arm of #1426. It used to be spelled `kind:"seeded"` (a bundled catalog plate); that kind
+  // retired 2026-09-18 and a bundled plate is now an ordinary owned `asset`, so the surviving
+  // owner-less kind — and the one this claim is actually about — is `none`.
+  const seeded: ThemeBackground = { kind: "none", assetId: "", assetHash: "", mime: "", externalUrl: "", provenanceUrl: "" };
   const source = await seedCard(db, oldHost.id, "seedaria", { backgroundOverride: seeded });
   let asked = 0;
 

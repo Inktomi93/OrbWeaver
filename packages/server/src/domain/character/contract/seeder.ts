@@ -4,6 +4,7 @@
 
 import type { CharacterCard, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import type { ThemeBackground } from "@orb/contracts/theme";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import type { CharacterService } from "./service.ts";
 
@@ -14,7 +15,15 @@ import type { CharacterService } from "./service.ts";
 export interface SeedCard {
   readonly input: CreateCharacterInput;
   readonly tags: readonly string[];
-  readonly presentation: Pick<UpdateCharacterInput, "themeOverride" | "backgroundOverride">;
+  /** The authored look MINUS the scene plate — `backgroundOverride` is resolved at SEED TIME, per user, from
+   *  `backgroundSlug` (see below), because it now names an asset only that user owns. */
+  readonly presentation: Pick<UpdateCharacterInput, "themeOverride">;
+  /** This card's shipped scene plate, by content slug (`<handle>-bg`). Until 2026-09-18 the pack spelled a
+   *  whole `kind:"seeded"` background here, because a plate was a static catalog slug every install resolved
+   *  to the same `public/` URL. A plate is now an OWNED asset per user, so the pack can only name WHICH
+   *  plate; `resolveSeededBackground` turns that into the receiving user's own `kind:"asset"` ref at seed
+   *  time. `null` ⇒ this card ships no plate (it seeds background-less rather than blank-referencing one). */
+  readonly backgroundSlug: string | null;
 }
 
 /** The content fields a shipped card pack AUTHORS — the edit-detection surface of the reseed migration
@@ -69,6 +78,11 @@ export interface DefaultCharacterSeederDeps {
   readonly storeAvatar?: (principal: Principal, handle: CharacterHandle) => Promise<AssetId | null>;
   /** Seed this character's starter gallery so a fresh library isn't an empty grid. Failures swallowed by the caller. */
   readonly seedGallery?: (principal: Principal, characterId: CharacterId, handle: CharacterHandle) => Promise<void>;
+  /** Resolve a card's `backgroundSlug` to THIS user's own plate asset (`kind:"asset"`), lifting the shipped
+   *  bytes into their CAS on first ask. `null` ⇒ no plate lands, and the card is dressed theme-only. Wired
+   *  at the composition root off `domain/settings`' scene-plate seeder — character never imports settings,
+   *  and the seeder never touches the filesystem. */
+  readonly resolveSeededBackground?: (principal: Principal, slug: string) => Promise<ThemeBackground | null>;
   readonly isSeeded: (principal: Principal) => Promise<boolean>;
   /** Persists the latch + (when unset) points `seeds.welcomeAssistantCharacterId` at the seeded Assistant. */
   readonly markSeeded: (principal: Principal, welcomeAssistantId: CharacterId | null) => Promise<void>;

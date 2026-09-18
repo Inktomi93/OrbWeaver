@@ -1772,11 +1772,11 @@ const ROOM_HUMAN_SEAT = {
   avatarAssetId: null,
   avatarHash: null,
 };
-/** The room's own chat-SET background (the cascade's first arm). `asset` + a stored hash is the only kind
- *  that resolves to a paintable URL without a seeded-id lookup; `image/*` keeps it off the video layer. */
+/** The room's own chat-SET background (the cascade's first arm). `asset` + a stored hash is the ONLY kind
+ *  that resolves to a paintable URL at all since `kind:"seeded"` retired (2026-09-18); `image/*` keeps it
+ *  off the video layer. */
 const ROOM_BACKGROUND = {
   kind: "asset",
-  seededId: "",
   externalUrl: "",
   provenanceUrl: "",
   assetId: "asset_ct_bg",

@@ -24,6 +24,8 @@ export type { SeedCasSchedulesDeps } from "./seed-cas-schedules.ts";
 export { seedCasSchedules } from "./seed-cas-schedules.ts";
 export type { SeedCredentialDeps } from "./seed-credential.ts";
 export { seedCredentialFromEnv } from "./seed-credential.ts";
+export type { SeedDefaultBackgroundsDeps } from "./seed-default-backgrounds.ts";
+export { seedDefaultBackgrounds } from "./seed-default-backgrounds.ts";
 export type { SeedDefaultCharactersDeps } from "./seed-default-characters.ts";
 export { seedDefaultCharacters } from "./seed-default-characters.ts";
 export type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "./seed-default-persona.ts";

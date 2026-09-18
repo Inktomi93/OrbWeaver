@@ -805,6 +805,13 @@ const onboardingSchema = z
     // only ever touches rows that still exist.
     defaultCharactersPackVersion: z.number().int().min(0).catch(0).default(0),
     defaultPersonaSeeded: z.boolean().catch(false).default(false),
+    // The ten bundled SCENE PLATES (`domain/settings/seeder/backgrounds.ts`) — its OWN latch, deliberately
+    // not folded into `defaultCharactersSeeded` even though the plates are the default cards' scenes: the
+    // library is the user's to curate, so deleting every plate must be respected independently of deleting
+    // a card, and clearing this alone re-lays the plates onto a library that already has the pack. There is
+    // no pack-version twin: a plate is CONTENT-ADDRESSED, so a re-seed is a hash lookup that appends only
+    // what is genuinely missing — the stamp a card pack needs to know what to re-dress has no analogue.
+    defaultBackgroundsSeeded: z.boolean().catch(false).default(false),
     // The bundled EXAMPLE conversations (`domain/chat/seeder`) — its OWN latch, deliberately not folded into
     // `defaultCharactersSeeded`: the demo chats attach to the seeded cards, so they must be re-runnable
     // independently (clear this alone to re-seed the examples onto a library that already has the pack).

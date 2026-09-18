@@ -19,7 +19,10 @@
 // NARRATOR grammar sits on Second Opinion (a chaired two-expert round-table is exactly a merged-voice scene).
 // All three grammars ship, each on the example it actually fits.
 //
-// THE CURATED ROOM BACKGROUNDS. A SOLO example needs none: its one card's `backgroundOverride` paints
+// THE CURATED ROOM BACKGROUNDS ride as a shipped-plate SLUG (`backgroundSlug`), not as a background source:
+// a plate is an OWNED asset per user since 2026-09-18 (it was a static `kind:"seeded"` catalog entry), so
+// this manifest can only name WHICH plate and the seeder resolves it into the receiving user's own ref.
+// A SOLO example needs none: its one card's `backgroundOverride` paints
 // through the BG-C card arm. A GROUP example has two or three cards and therefore no non-arbitrary card to
 // pick from, so the card arm stays true-solo-only by ruling and the room paints only what its HOST chose —
 // which for a shipped example is this manifest. The pick is the PRIMARY seat's own plate (the room is that
@@ -27,8 +30,6 @@
 // literally depicts the location the whole transcript is set in, rather than primary-seat Sabine's tavern.
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import type { ThemeBackground } from "@orb/contracts/theme";
-import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DemoChat, DemoChatGameSetup } from "../contract/seeder.ts";
@@ -44,12 +45,6 @@ export const DEMO_CHAT_TITLE_PREFIX = "Example — ";
  *  stale display identity (e.g. the persona rename) can ONLY be fixed by re-generating it — the
  *  re-generate-never-edit law applies to transcript bytes, never a hand patch. */
 export const DEMO_CHAT_PACK_VERSION = 3;
-
-/** A bundled seeded-plate background source. Built through the CONTRACT schema (which defaults the six
- *  non-seeded fields), never a hand-spelled seven-key literal. */
-function seededBackground(seededId: string): ThemeBackground {
-  return themeBackgroundSchema.parse({ kind: "seeded", seededId });
-}
 
 /** THE FLAGSHIP'S BOARD — the Ashen Spire's game state as the session ACTUALLY ENDED, captured off the live
  *  game the shipped transcript is the prose of (`rpg.getTrackerView` + `rpg.listJournal`, translated back into
@@ -661,8 +656,8 @@ export const DEMO_CHATS: readonly DemoChat[] = [
         memberCardVisibility: DEFAULT_GROUP_CONFIG.memberCardVisibility,
       },
       opening: "greet-all",
-      background: seededBackground("assistant-bg"),
     },
+    backgroundSlug: "assistant-bg",
   },
 
   // ── GROUP: per-speaker × SCOPED, `natural` arbitration (two opposite engines, separate card context) ──
@@ -673,8 +668,8 @@ export const DEMO_CHATS: readonly DemoChat[] = [
     metadata: {
       group: { ...DEFAULT_GROUP_CONFIG, output: "per-speaker", policy: "natural", cardScope: "scoped" },
       opening: "greet-all",
-      background: seededBackground("niko-bg"),
     },
+    backgroundSlug: "niko-bg",
   },
 
   // ── GROUP: per-speaker × merged, `natural` arbitration + rpg-lite ON — THE FLAGSHIP, and the pack's one
@@ -687,8 +682,8 @@ export const DEMO_CHATS: readonly DemoChat[] = [
     metadata: {
       group: { ...DEFAULT_GROUP_CONFIG, output: "per-speaker", policy: "natural", cardScope: "merged" },
       opening: "greet-all",
-      background: seededBackground("morgatha-bg"),
     },
+    backgroundSlug: "morgatha-bg",
     game: { ruleset: "d20", setup: ASHEN_SPIRE_SETUP },
   },
 ];

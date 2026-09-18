@@ -118,7 +118,6 @@ describe("parseChatMetadata", () => {
     const parsed = parseChatMetadata({ background: { kind: "external", externalUrl: "https://cdn.example/bg.jpg" } });
     expect(parsed.background).toEqual({
       kind: "external",
-      seededId: "",
       externalUrl: "https://cdn.example/bg.jpg",
       assetId: "",
       assetHash: "",
@@ -135,7 +134,6 @@ describe("parseChatMetadata", () => {
     // lenient posture) — a bad kind heals to "none", the rest still parse.
     expect(parseChatMetadata({ background: { kind: "bogus", externalUrl: "https://cdn.example/x.jpg" } }).background).toEqual({
       kind: "none",
-      seededId: "",
       externalUrl: "https://cdn.example/x.jpg",
       assetId: "",
       assetHash: "",

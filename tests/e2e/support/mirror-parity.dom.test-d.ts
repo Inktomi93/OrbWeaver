@@ -402,7 +402,7 @@ test("the settings mirrors project the ONE UserSettings config blob", () => {
   expectTypeOf<ContractUserSettings["seeds"]["defaultPresetId"]>().toExtend<UserSettings["config"]["seeds"]["defaultPresetId"]>();
   expectTypeOf<ContractUserSettings["appearance"]["elevation"]>().toExtend<AppearanceThemeSettings["config"]["appearance"]["elevation"]>();
   expectTypeOf<ContractUserSettings["appearance"]["backgroundImageKind"]>().toExtend<AppearanceThemeSettings["config"]["appearance"]["backgroundImageKind"]>();
-  expectTypeOf<ContractUserSettings["appearance"]["backgroundSeededId"]>().toExtend<AppearanceThemeSettings["config"]["appearance"]["backgroundSeededId"]>();
+  expectTypeOf<ContractUserSettings["appearance"]["backgroundAssetHash"]>().toExtend<AppearanceThemeSettings["config"]["appearance"]["backgroundAssetHash"]>();
   expectTypeOf<ContractUserSettings["theme"]["selectedThemeId"]>().toExtend<AppearanceThemeSettings["config"]["theme"]["selectedThemeId"]>();
 });
 

@@ -1,6 +1,7 @@
 // Snap's policy projection over the shared representative-matrix planner. The carrier rows arrive from
 // the live browser bridge; this file deliberately owns no Appearance-key roster and imports no client code.
 
+import type { BackgroundCapability } from "../../_shared/appearance-matrix.ts";
 import { appearanceArmValueId, appearancePatchForAssignment, deriveAppearanceContract, representativeMatrixThemes } from "../../_shared/appearance-matrix.ts";
 import { MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -91,7 +92,7 @@ function riskRows(axes: readonly VariantAxis[]): readonly VariantRequiredRow[] {
         [ENVIRONMENT_AXIS.device]: "desktop-fine-hover",
         [ENVIRONMENT_AXIS.transparency]: "full",
         [ENVIRONMENT_AXIS.theme]: "custom-light",
-        "appearance.backgroundImageKind": appearanceArmValueId(axes, "backgroundImageKind", "seeded"),
+        "appearance.backgroundImageKind": appearanceArmValueId(axes, "backgroundImageKind", "asset"),
         "appearance.blurSurfaces": appearanceArmValueId(axes, "blurSurfaces", ["panels"]),
         "appearance.elevation": appearanceArmValueId(axes, "elevation", "ramp"),
       },
@@ -164,16 +165,17 @@ export function planSnapAppearanceMatrix(
   contract: SnapAppearanceContract,
   entries: readonly ThemeEntry[],
   preferredCustom: readonly [ThemeEntry, ThemeEntry] | null = null,
+  background: BackgroundCapability | null = null,
 ): SnapAppearanceMatrix {
   const appearance = deriveAppearanceContract(contract);
   const themes = representativeMatrixThemes(entries, preferredCustom);
   const axes = [...appearance.axes, ...environmentAxes(themes)];
   const plan = planVariantMatrix({ axes, isLegal: legalAssignment, requiredRows: riskRows(axes), requiredTwins: riskTwins(axes) });
-  return { plan, appearanceAxes: appearance.axes, dependencies: appearance.dependencies, historicalRows: appearance.historicalRows, themes };
+  return { plan, appearanceAxes: appearance.axes, dependencies: appearance.dependencies, historicalRows: appearance.historicalRows, themes, background };
 }
 
 function appearancePatchForCell(matrix: SnapAppearanceMatrix, assignment: VariantAssignment): Readonly<Record<string, unknown>> {
-  return appearancePatchForAssignment(matrix.appearanceAxes, assignment);
+  return appearancePatchForAssignment(matrix.appearanceAxes, assignment, matrix.background);
 }
 
 export function appearancePolicyIdForRequirement(requirementId: string): string {

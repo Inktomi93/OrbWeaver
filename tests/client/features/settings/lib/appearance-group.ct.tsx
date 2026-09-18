@@ -17,7 +17,22 @@ import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../../config/_ct-stories.tsx";
 import { AppearanceGroupStory } from "../_ct-stories.tsx";
 
-const SETTINGS_VIEW = { userId: "user_ct_appearance_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
+/** A bundled SCENE PLATE as this surface sees one since `kind:"seeded"` retired (2026-09-18): an ordinary
+ *  `appearance.backgroundLibrary` entry, seeded per user from `@orb/default-content`. The grid used to draw
+ *  its plate tiles from a static contract catalog; it draws them from the library now, so the stub seeds one. */
+const SEEDED_PLATE_ENTRY = {
+  entryId: "bg_ct_plate",
+  assetId: "asset_01h455vb4pex5vsknk084sn03r",
+  assetHash: "hash_ct_plate",
+  mime: "image/jpeg",
+  name: "Charlotte's study",
+};
+const SETTINGS_VIEW = {
+  userId: "user_ct_appearance_pane",
+  schemaVersion: 1,
+  config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, backgroundLibrary: [SEEDED_PLATE_ENTRY] } },
+  updatedAt: 0,
+};
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 
 /** The anchors rendered AT REST, in door order (#866 S4): Looks leads (the theme fold), and the three
@@ -113,17 +128,17 @@ test("the Customize-this-look fold opens to the three advanced sections, in door
 
 // R-BG (#866 S4): the background is picked by THUMBNAIL — the kind DERIVES from the tapped tile and every
 // selection field rides ONE autosave patch (BG-D). Red-first: the pre-S4 surface had no grid at all.
-test("tapping a seeded background tile writes kind+id in ONE patch; the None tile clears", async ({ mount, page }) => {
+test("tapping a seeded background tile writes kind+asset in ONE patch; the None tile clears", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<AppearanceGroupStory />);
   await page.getByRole("heading", { name: "Message style" }).waitFor();
 
   const grid = page.getByRole("grid", { name: "Background image" });
   await grid.scrollIntoViewIfNeeded();
-  await grid.getByRole("gridcell", { name: "Misty highlands" }).click();
+  await grid.getByRole("gridcell", { name: SEEDED_PLATE_ENTRY.name }).click();
   await expect
-    .poll(() => patches(trpc).find((patch) => patch["backgroundImageKind"] === "seeded")?.["backgroundSeededId"], { intervals: [50, 100, 200] })
-    .toBe("misty-highlands");
+    .poll(() => patches(trpc).find((patch) => patch["backgroundImageKind"] === "asset")?.["backgroundAssetHash"], { intervals: [50, 100, 200] })
+    .toBe(SEEDED_PLATE_ENTRY.assetHash);
 
   await grid.getByRole("gridcell", { name: "No background" }).click();
   await expect.poll(() => patches(trpc).some((patch) => patch["backgroundImageKind"] === "none"), { intervals: [50, 100, 200] }).toBe(true);

@@ -288,7 +288,7 @@ async function attachRecordedContext(
     context,
     pages,
     capture,
-    settingsEvidence: { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null },
+    settingsEvidence: { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null, backgroundLibraryFirst: null },
     environmentContract,
     owned: true,
   });
@@ -329,7 +329,7 @@ export async function attachProbeSession(endpoint: string, environment: ProbeAtt
       pages,
       capture,
       // No shim was asked of THIS connection — the owner's is the one that applies (null = unrequested).
-      settingsEvidence: { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null },
+      settingsEvidence: { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null, backgroundLibraryFirst: null },
       environmentContract,
       owned: false,
     });
