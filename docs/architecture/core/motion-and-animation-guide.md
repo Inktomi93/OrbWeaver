@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-02
+updated: 2026-09-18
 ---
 
 # Motion & Animation Guide
@@ -525,7 +525,83 @@ per-block `dir` wrapper and drops to a new line).
   genuinely doesn't fit `fast`/`base`/`layout` + `ease-out-expo`. The existing 3-tier system
   already covers the full taxonomy in §2.
 
-## 5. Base UI reference
+## 5. The Base UI animation/styling contract (house law — #1088)
+
+Three binding rules that complete §1's description as enforceable law. Each names its enforcer per
+constitution §2.3 (a prose-only boundary is a wish). The instrument-side match tables (#1064/#1065) are
+already locked; this section is the law + gate half.
+
+### 5.1 Transitions over keyframes for lifecycle motion
+
+**Rule:** every open/close/mount/unmount animation on a Base UI part MUST use CSS transitions keyed off
+`data-starting-style`/`data-ending-style`, NOT `@keyframes` keyed off `data-open`/`data-closed`.
+
+**Why:** a CSS transition can be smoothly cancelled and retargeted mid-flight (§1.2, §3.2
+interruptibility); a `@keyframes` animation cannot — if state flips mid-animation it restarts or snaps.
+Base UI's own handbook states this preference. Every built overlay in this app already uses transitions
+(§4.1 `OVERLAY_MOTION`); the only `@keyframes` are continuous loops (shimmer, typing dots, weather
+effects, the indeterminate hairline, the stream caret), multi-step sequences (shell FLIP push), and the
+word-reveal fade (§4.2 item 10 — anchored animation-delay, a technique transitions cannot express).
+Those are the §1.2-documented exceptions: effects a transition literally cannot express.
+
+**Enforcer:** `rest-transform-grid` ARM C already classifies `@keyframes` blocks as ANIMATING (not
+rest), so a `@keyframes`-only animation passes that gate more easily than a transition — the issue's
+stated perverse incentive. The enforcement gap is that no gate currently REDs a lifecycle `@keyframes`
+on a Base UI popup part when a transition could express the same effect. The structural fix is a
+ui-audit rule or gate that flags `animation`/`animation-name` declarations on elements carrying
+`data-open`/`data-closed` when the animated properties (`opacity`, `transform`, `scale`) are
+transition-expressible. Until that gate ships, this rule is REVIEW-ENFORCED — a `@keyframes`
+lifecycle animation on a Base UI part in a PR review is a finding.
+
+**Allowlist (the `@keyframes` that stay):** any continuous/looping animation (`animation-iteration-count:
+infinite`); any multi-step sequence (>2 stops); the `orb-word-reveal` anchored fade (§4.2 item 10); the
+shell FLIP push keyframes (`shell.css`). Each has a reason a transition cannot express it.
+
+### 5.2 Completion-detectability: exit animation on the part, not a child
+
+**Rule:** an exit animation MUST target the Base UI part element itself (the element carrying
+`data-ending-style`), never solely a descendant.
+
+**Why:** Base UI unmounts via `element.getAnimations()` on the popup element. An exit animated only on a
+CHILD means `getAnimations()` returns an empty array on the part, Base UI concludes the transition is
+already done, and it unmounts instantly — eating the exit animation. The user sees a hard cut instead of
+a fade-out.
+
+**Enforcer:** statically detectable — `data-ending-style` styles targeting a descendant selector with no
+`data-ending-style` on the part itself is the defect pattern. Until a dedicated gate ships, this is
+REVIEW-ENFORCED. The structural detection shape: a Tailwind `data-ending-style:` variant on a child
+element inside a Base UI popup, with no `data-ending-style:` variant on the popup's own root. The
+`baseui-state-data-attributes` gate owns the adjacent concern (styling through Base UI's own data attrs
+rather than parallel React state) and is the natural home for this check.
+
+**Practical consequence:** always put at least `opacity: 0` on `[data-ending-style]` of the popup root
+itself, even if most of the exit visual is on a child. `OVERLAY_MOTION.anchoredPopup` and
+`OVERLAY_MOTION.modalPopup` already do this — both apply `data-ending-style:opacity-0` plus
+`data-ending-style:scale-95`/`scale-98` on the popup root.
+
+### 5.3 Lifecycle data-attributes are the ONLY sanctioned styling hooks
+
+**Rule:** the four lifecycle attributes — `data-starting-style`, `data-ending-style`, `data-open`,
+`data-closed` — plus the per-primitive state attributes enumerated in §1.1 are the ONLY hooks for
+styling a Base UI part's open/close/transition state. Ad-hoc class toggles via React state, imperative
+className manipulation, or parallel boolean flags for the same state are prohibited.
+
+**Why:** Base UI publishes each part's state as `data-*` attributes and keeps them synchronized with
+the component's internal lifecycle (§1.1). A parallel React `useState` boolean disagrees with the
+data-attribute for the full duration of a closing animation (Base UI keeps `data-open` through the exit;
+a React boolean flips on the first event). Styling off the boolean creates a second source of truth —
+the component visually snaps while the animation is still running.
+
+**Enforcer:** `baseui-state-data-attributes` gate (LIVE — `Core-Enforcement-Active-Gates.md`). It reads
+the committed Base UI surface manifest per part and REDs a seal that holds local React state mirroring
+a state key Base UI already stamps on the DOM. Minted at zero live violations.
+
+**The closed set:** `data-starting-style` (one frame, enter "from") · `data-ending-style` (exit "to") ·
+`data-open` (while open) · `data-closed` (while closed, if `keepMounted`) · `data-disabled` ·
+`data-instant` (no-transition). Per-primitive additions: §1.1's table. `data-slot` is a LOCATOR, not a
+state hook — it names the part for CT selectors, never for conditional styling.
+
+## 6. Base UI reference
 
 The external contract behind §1 (`@base-ui/react`, current 1.x). Code homes for the
 app's own motion are cited inline in §1/§3/§4; the inspiration synthesis behind §3 is in the
