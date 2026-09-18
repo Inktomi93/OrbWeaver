@@ -65,7 +65,7 @@ function judgeModule(ctx: GatePolicyContext, descriptor: ObjectLiteralExpression
   const fixProperty = descriptorProperty(descriptor, "fix");
   if (fix === undefined) {
     ctx.report.node(descriptorProperty(descriptor, "authority") ?? descriptor, {
-      token: "authority (gate-runtime-standardization.md)",
+      token: "authority",
       offset: 0,
       message: `${NO_FIX_MESSAGE} — gate-runtime-standardization.md §7.`,
     });
