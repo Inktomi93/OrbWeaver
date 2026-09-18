@@ -1,0 +1,25 @@
+# ── overlay: single-user, no login, via host networking ─────────────────────────────────────────────
+#
+#   docker compose -f docker-compose.yaml -f docker/compose.host-network.yaml up -d --build
+#   → http://localhost:8788 — you are the owner, no password.
+#
+# WHY host networking: `single-user` grants the owner ONLY to a request whose TCP peer is loopback (the
+# unspoofable socket — infra/auth/dispatch.ts). A published bridge port never delivers one (the peer is the
+# docker gateway), so the ONLY container shape in which single-user works is the container sharing your
+# machine's network namespace: the app binds 127.0.0.1:<ORB_PORT> on the host and your browser is a loopback
+# peer. Other devices on your network are not loopback and get 401 — exactly the bare-metal posture.
+#
+# WHERE IT WORKS: Docker Engine on Linux and Podman. Docker Desktop (macOS/Windows) needs its opt-in host
+# networking (Settings → Resources → Network → "Enable host networking", 4.34+, signed in) and proxies at
+# layer 4 — whether the app then sees a loopback peer is UNVERIFIED here; if you get 401s on Desktop, use the
+# default compose (AUTH_MODE=local) instead.
+services:
+  orbweaver:
+    network_mode: host
+    ports: !reset []
+    extra_hosts: !reset []                    # with host networking, localhost IS your machine
+    environment:
+      AUTH_MODE: single-user
+      AUTH_FALLBACK: owner                    # single-user's only credential (the deny pairing is boot-fatal)
+      BIND_HOST: ${ORB_BIND:-127.0.0.1}       # the listen interface ON THE HOST; 0.0.0.0 gains nothing (LAN peers still 401)
+      PORT: ${ORB_PORT:-8788}

@@ -1,217 +1,83 @@
-# ── Orbweaver production compose — three deployment variants over one file (compose profiles) ────────
+# ── Orbweaver — docker compose ───────────────────────────────────────────────────────────────────────
 #
-#   docker compose --profile all-in-one up -d    # Profile 1: orb + the 3-engine vLLM fleet IN one
-#                                                #   container (GPU mandatory; the owner's turnkey box)
-#   docker compose --profile slim up -d          # Profile 2/D3: app only — cloud models (or point
-#                                                #   ENGINES_POSTURE=adopt-only + VLLM_ENGINE_HOST at a
-#                                                #   remote engine yourself via the env file)
-#   docker compose --profile sibling up -d       # Profile 2/D2: slim app + an upstream vLLM sibling
-#                                                #   container serving the GEN engine on this network
+#   git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
+#   docker compose up -d --build          # first run builds the image (a few minutes); later runs reuse it
+#   docker compose logs orbweaver         # your generated login is printed on the FIRST boot
+#   → http://localhost:8788
 #
-# Exactly ONE profile at a time. All three app variants share the network alias `orbweaver`, ONE data
-# volume, and ONE secrets/env surface — switching variants keeps your data and your front-proxy target.
+# ONE service, the app only. Models are yours: paste a cloud API key in Settings, or point a connection at a
+# model server you already run (Ollama / KoboldCpp / LM Studio / TabbyAPI / vLLM) at
+# http://host.docker.internal:<port>. Settings live in docker/orbweaver.env (the shipped defaults, tracked)
+# and docker/orbweaver.local.env (yours, gitignored). The overlays under docker/ change the SHAPE, not the
+# settings — stack them with -f:
+#   -f docker-compose.yaml -f docker/compose.host-network.yaml   single-user, no login (Linux/Podman host networking)
+#   -f docker-compose.yaml -f docker/compose.secrets.yaml        secrets as mounted files, never env values
+#   -f docker-compose.yaml -f docker/compose.dev.yaml            the DEVELOPMENT stack from this checkout (hot reload)
 #
-# THE SECURITY SHAPE (containerize-prod-image-spec.md §4 — AUTHFIX-2):
-#   · The app port is `expose`d, NEVER `ports:`-published. Publishing it lets any reachable client send
-#     `Host: 127.0.0.1` and mint an un-credentialed OWNER via the origin-gated fallback. Your reverse
-#     proxy joins this network and targets `orbweaver:8788` (service DNS).
-#   · `expose`-only is HALF the reachability control: every other container on this network can also
-#     reach `orbweaver:8788`. The shipped `single-user` mode grants OWNER to anything that reaches the
-#     port, so keep it on a network carrying nothing but your proxy — a shared/external network (the
-#     Caddy stanza at the bottom) means every co-tenant container is the owner. Public FQDN or shared
-#     network ⇒ switch to an SSO mode + AUTH_FALLBACK=deny (docker/orbweaver.env).
-#   · Secrets are FILES mounted at /run/secrets/* (never env values — they'd read back out of
-#     `docker inspect`); the image entrypoint exports each `<VAR>_FILE` into `<VAR>` at boot.
-#   · The shipped env file (docker/orbweaver.env) carries the §3 defaults: single-user (fallback `owner`
-#     — it is that mode's ONLY credential) + every debug/capture surface off. Each SSO mode's block in
-#     that file carries its own AUTH_FALLBACK=deny.
-#
-# Deploy checklist: docker/README.md. Design: docs/design/containerize-prod-image-spec.md +
-# docs/design/containerize-build-plan.md.
+# Interpolated knobs (shell env, or a `.env` file beside this compose file):
+#   ORB_PORT   host port                     default 8788
+#   ORB_BIND   host interface                default 127.0.0.1 — read "LAN and HTTPS" in docker/README.md before 0.0.0.0
+#   ORB_IMAGE  image to run                  default the GHCR image; `--build` builds this checkout under that name
+# Full guide: docker/README.md.
 
 name: orbweaver
 
-# ── shared shapes ────────────────────────────────────────────────────────────────────────────────────
-# NOTE: `<<:` merge is SHALLOW — a service redeclaring `environment:` would REPLACE the anchor's map,
-# so the *_FILE pointers live in their own map anchor and are merged INSIDE each environment block.
-x-secret-env: &secret-env
-  SESSION_SECRET_FILE: /run/secrets/session_secret
-  OIDC_CLIENT_SECRET_FILE: /run/secrets/oidc_client_secret
-  CREDENTIALS_KEY_FILE: /run/secrets/credentials_key
-  LOCAL_INITIAL_PASSWORD_FILE: /run/secrets/local_initial_password
-  OPENROUTER_API_KEY_FILE: /run/secrets/openrouter_api_key
-
-x-app-base: &app-base
-  init: true                        # tini as PID 1 — the server spawns a detached fleet; zombies get reaped
-  restart: unless-stopped
-  expose:
-    - "8788"                        # compose-network-only. NEVER convert to `ports:` — see the header.
-  env_file:
-    - path: ${ORB_ENV_FILE:-./docker/orbweaver.env}
-      required: true                # a missing env file fails FAST (silent-unset secrets would boot-fatal deeper)
-  secrets:
-    - session_secret
-    - oidc_client_secret
-    - credentials_key
-    - local_initial_password
-    - openrouter_api_key
-  volumes:
-    - orbweaver-data:/app/data      # sqlite (+ -wal/-shm) · CAS blobs · variants — the ONE writable state root
-  security_opt:
-    - no-new-privileges:true
-  cap_drop: [ALL]                   # the app binds a high port; no capability is needed back
-  networks:
-    default:
-      aliases: [orbweaver]          # every variant answers at orbweaver:8788 — proxies never care which profile runs
-  healthcheck:
-    # `$$` = a literal `$` for compose (interpolation escape); node sees `${process.env.PORT??8788}`.
-    test: ["CMD", "node", "-e", "fetch(`http://127.0.0.1:$${process.env.PORT??8788}/healthz`).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-    interval: 30s
-    timeout: 5s
-    retries: 3
-    start_period: 30s
-
 services:
-  # ── Profile 1: all-in-one (orb + the 3-engine fleet, one namespace, one GPU passthrough) ───────────
-  orbweaver-aio:
-    <<: *app-base
-    profiles: [all-in-one]
-    image: orbweaver:gpu
-    build: { context: ., target: runtime-gpu }
-    environment:
-      <<: *secret-env
-      # ENGINES_POSTURE=adopt-or-start + VLLM_BIN/VLLM_PY/HF_HOME/VLLM_CACHE_ROOT are baked in the image
-      # (they name in-image paths). VLLM_ENGINE_HOST stays default 127.0.0.1 — the fleet shares the netns.
-    volumes:
-      - orbweaver-data:/app/data
-      - vllm-models:/models         # HF model cache + vLLM compile cache (multi-GB; survives image bumps)
-    shm_size: "8gb"                 # vLLM tensor-parallel workers use /dev/shm; the 64MB default deadlocks
-    # NOT read_only: vLLM writes model/compile caches and the fleet writes pidfile/logs under /app/.cache.
-    healthcheck:
-      # `$$` = a literal `$` for compose (interpolation escape); node sees `${process.env.PORT??8788}`.
-      test: ["CMD", "node", "-e", "fetch(`http://127.0.0.1:$${process.env.PORT??8788}/healthz`).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 300s            # the COLD fleet spawn (model load + CUDA-graph compile) takes minutes
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia        # requires the NVIDIA Container Toolkit on the host
-              count: all
-              capabilities: [gpu]
-
-  # ── Profile 2 (D3): slim app only — engines off (cloud models), maximum hardening ──────────────────
   orbweaver:
-    <<: *app-base
-    profiles: [slim]
-    image: orbweaver:slim
-    build: { context: ., target: runtime-slim }
-    environment:
-      <<: *secret-env
-      # ENGINES_POSTURE=off is baked in the slim image. For a REMOTE engine outside this compose file
-      # (D2 without the sibling), set ENGINES_POSTURE=adopt-only + VLLM_ENGINE_HOST=<host> in the env file.
-    read_only: true                 # rootfs immutable; the ONLY writable paths are the data volume + /tmp
-    tmpfs:
-      - /tmp
-
-  # ── Profile 2 (D2): slim app + an upstream vLLM sibling serving the GEN engine ─────────────────────
-  # The app adopts the sibling at vllm:8703 (gen). embed/rerank stay down and the app absence-degrades
-  # (search/memory features fall back) — the full local trio is what Profile 1 is for. Our own fleet
-  # launcher cannot be the sibling: it binds the engines to loopback by construction (build-argv
-  # LOOPBACK_HOST), which is correct in-namespace and unreachable across containers.
-  orbweaver-ext:
-    <<: *app-base
-    profiles: [sibling]
-    image: orbweaver:slim
-    build: { context: ., target: runtime-slim }
-    environment:
-      <<: *secret-env
-      ENGINES_POSTURE: adopt-only   # passive consumer: adopt when healthy, honest fail-fast when down
-      VLLM_ENGINE_HOST: vllm        # service DNS of the sibling below; egress opens exactly vllm:{8701,8702,8703}
-    read_only: true
-    tmpfs:
-      - /tmp
-    depends_on:
-      vllm:
-        # service_started, NOT service_healthy: the adopt-only supervisor's whole design is poll-and-
-        # adopt, and a cold engine takes minutes the app should spend already serving auth/UI.
-        condition: service_started
-
-  vllm:
-    profiles: [sibling]
-    # The upstream OpenAI-compatible server, pinned to the SAME vLLM line the repo's venv proves
-    # (0.22.1). Serve command tuned at first live run (Qwen3-VL flags) — marked in docker/README.md.
-    image: vllm/vllm-openai:v0.22.1@sha256:953d3a06d5e64ab582985cd7401289d3abf2a2c14ef2158e9a84313daeec77d7
-    init: true
+    image: ${ORB_IMAGE:-ghcr.io/inktomi93/orbweaver:latest}
+    build:
+      context: .
+      target: runtime
+    container_name: orbweaver
+    hostname: orbweaver
+    init: true                                # tini as PID 1: signals + zombie reaping
     restart: unless-stopped
-    command:
-      - --model
-      - Qwen/Qwen3-VL-8B-Instruct   # = the app's VLLM_GEN_MODEL default; change both together
-      - --port
-      - "8703"                      # = the app's VLLM_GEN_PORT default
-      - --max-model-len
-      - "32768"                     # = the app's VLLM_GEN_MAX_MODEL_LEN default
     environment:
-      HF_HOME: /models/hf           # same layout as the all-in-one image → the volume is shared/portable
-      # Gated repos: add HUGGING_FACE_HUB_TOKEN via a secret if you swap in a gated model (Qwen3-VL is open).
-    expose:
-      - "8703"                      # compose-network-only; NEVER publish an engine port
+      # The app runs as this uid/gid (default 1000). The entrypoint starts as root, makes the data dir owned
+      # by it — so a bind-mounted `./data:/app/data` works without a manual chown — and drops privileges.
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    ports:
+      # Loopback by default: only THIS machine reaches the app. ORB_BIND=0.0.0.0 opens it to your network —
+      # only with a login (AUTH_MODE=local is the shipped default) and HTTPS in front: the session cookie is
+      # Secure, so a plain-http LAN address cannot sign in (docker/README.md, "LAN and HTTPS").
+      - "${ORB_BIND:-127.0.0.1}:${ORB_PORT:-8788}:8788"
+    extra_hosts:
+      # `host.docker.internal` names THIS machine from inside the container. Docker Desktop provides it; this
+      # line gives Linux the same name, so a model server on your machine is http://host.docker.internal:<port>.
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - path: ./docker/orbweaver.env            # the shipped defaults (tracked — never put a secret here)
+        required: true
+      - path: ./docker/orbweaver.local.env      # yours (gitignored): API keys, your password, mode changes
+        required: false
     volumes:
-      - vllm-models:/models
-    shm_size: "8gb"
+      - orbweaver-data:/app/data                # sqlite (+ -wal/-shm) · uploaded assets · generated secrets
+    read_only: true                             # immutable rootfs; the writable paths are the volume + two tmpfs
+    tmpfs:
+      - /tmp
+      - /app/.cache                             # cwd-relative scratch (a recorder spill when WIRE_CAPTURE=on)
     security_opt:
       - no-new-privileges:true
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8703/health', timeout=5).status==200 else 1)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 300s            # cold model load; during start_period failures don't count toward retries
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    cap_drop: [ALL]                             # the app binds a high port; nothing is needed back …
+    cap_add: [CHOWN, FOWNER, DAC_OVERRIDE, SETUID, SETGID]   # … except what the entrypoint's chown + privilege drop use, once, as root
 
 volumes:
   orbweaver-data: {}
-  vllm-models: {}
 
-secrets:
-  # Point ORB_SECRETS_DIR at a directory OUTSIDE the tree for real deployments; the in-repo defaults are
-  # committed EMPTY placeholders (empty = unset, per the entrypoint shim) so the zero-config single-user
-  # profile boots. NEVER commit real values.
-  session_secret:
-    file: ${ORB_SECRETS_DIR:-./docker/secrets}/session_secret
-  oidc_client_secret:
-    file: ${ORB_SECRETS_DIR:-./docker/secrets}/oidc_client_secret
-  credentials_key:
-    file: ${ORB_SECRETS_DIR:-./docker/secrets}/credentials_key
-  local_initial_password:
-    file: ${ORB_SECRETS_DIR:-./docker/secrets}/local_initial_password
-  openrouter_api_key:
-    file: ${ORB_SECRETS_DIR:-./docker/secrets}/openrouter_api_key
-
-# ── Reaching the app ─────────────────────────────────────────────────────────────────────────────────
-# The supported path is a reverse proxy ON THIS NETWORK targeting orbweaver:8788 (it must pass
-# X-Forwarded-Proto/Host/For — the oidc callback derivation depends on them; spec §3.3).
+# ── behind a reverse proxy ───────────────────────────────────────────────────────────────────────────
+# A proxy ON THIS MACHINE (Caddy / nginx / Traefik on the host) targets http://127.0.0.1:8788 as published
+# above. A proxy in ITS OWN container joins this project's network instead — uncomment and point it at
+# orbweaver:8788 (the compose service name is the DNS name):
 #
-#   · Owner's stack (Caddy in the homelab compose project): attach ONE side to the other's
-#     network. E.g. declare here:
-#         networks:
-#           default:
-#             name: inktomi-net
-#             external: true
-#     …and repoint the Caddyfile: `reverse_proxy host.docker.internal:8788` → `reverse_proxy
-#     orbweaver:8788` (keep flush_interval -1 + the 1800s timeouts — the D118 SSE socket).
+#   networks:
+#     default:
+#       name: <your proxy's network>
+#       external: true
 #
-#   · Private single-user box WITHOUT a proxy: publishing the port re-opens the Host-spoof owner hole to
-#     everything that can reach it — in single-user EVERY request is the owner by design. If you accept
-#     that on a loopback-only bind, uncomment on the app service you run:
-#         ports:
-#           - "127.0.0.1:8788:8788"
-#     and NEVER a bare "8788:8788" on a public interface.
+# The proxy must pass X-Forwarded-Proto/Host/For (the OIDC callback and the IP allowlist derive from them)
+# and must not buffer SSE (Caddy: `flush_interval -1` plus long timeouts). Anything public runs an SSO mode
+# with AUTH_FALLBACK=deny (docker/orbweaver.env).

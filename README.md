@@ -9,6 +9,23 @@ per-feature template) and rebuilds the rest so the **file structure is self-docu
 **boundaries are physics, not lint**. Mutable work lives in
 [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1).
 
+## Run it
+
+**Docker (any OS, nothing else to install):**
+
+```bash
+git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
+docker compose up -d --build       # first run builds the image; `docker compose logs orbweaver` prints your login
+```
+
+Open <http://localhost:8788>, sign in, add an API key or point a connection at a model server you already run
+(Ollama, KoboldCpp, LM Studio, vLLM, …). The full guide — login modes, LAN/HTTPS, your own vLLM, secrets,
+the dev overlay — is [`docker/README.md`](docker/README.md).
+
+**From source** (Node 26 + pnpm, see Develop below): `pnpm install && pnpm stack up` boots the dev stack at
+<http://localhost:5173>. A production server from a checkout: `pnpm build` once, then
+`AUTH_FALLBACK=owner pnpm stack start-fg prod` (single-user; settings go in `.env` — copy `.env.example`).
+
 ## Read first
 
 - **`docs/architecture/core/AGENTS.md`** — the cold-start reading router and current architecture map.

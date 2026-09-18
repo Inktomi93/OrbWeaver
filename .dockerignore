@@ -8,6 +8,7 @@
 .env.*
 data/
 docker/secrets/
+docker/*.local.env
 
 # dependency + build output (rebuilt in-image)
 node_modules
