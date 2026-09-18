@@ -4,6 +4,7 @@
 // tiers/scoping/exit classification), and the standalone reconciliation stages (type/execution membership,
 // the db baseline, the orphan-export ratchet).
 
+export { VERB_HELP } from "./cli-help.ts";
 export type {
   BaseUiBinding,
   Disposition,

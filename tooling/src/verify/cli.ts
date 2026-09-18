@@ -32,7 +32,6 @@
 import process from "node:process";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
-import { VERB_HELP } from "./cli-help.ts";
 import type { VerifyVerb } from "./index.ts";
 import {
   parse,
@@ -63,6 +62,7 @@ import {
   runTypecheck,
   runTypecheckPlan,
   runVerify,
+  VERB_HELP,
   VERIFY_VERBS,
 } from "./index.ts";
 
