@@ -10,16 +10,12 @@ Needs Docker Engine 24+ with Compose v2.24+ (or Podman 4+ with `podman compose`)
 ```sh
 git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
 docker compose up -d --build        # builds the image from the checkout (a few minutes the first time)
-docker compose logs orbweaver       # the FIRST boot prints your login
 ```
 
-Open <http://localhost:8788> and sign in as `owner` with the password from the log. Then Settings →
-Connections: add an API key (OpenRouter, Anthropic, …) or a model server (below), pick a character, chat.
-
-- Prefer to choose the password? Put `LOCAL_INITIAL_PASSWORD=…` in `docker/orbweaver.local.env` (copy
-  `docker/orbweaver.local.env.example`) BEFORE the first boot. Change it later in Settings.
-- Nothing was edited to get here. Every other knob is optional and lives in `docker/orbweaver.env` (the
-  tracked defaults, commented) — override any of them in `docker/orbweaver.local.env` (gitignored).
+Open <http://localhost:8788>. You are the owner; there is no login. Settings → Connections: add an API
+key (OpenRouter, Anthropic, …) or a model server (below), pick a character, chat. Nothing was edited to
+get here; every knob is optional and lives in `docker/orbweaver.env` (the tracked defaults, commented),
+overridable in `docker/orbweaver.local.env` (gitignored).
 
 There is no published image: the checkout is the source of truth and the build is part of `up`. To update:
 `git pull && docker compose up -d --build` (migrations run at boot, with a backup of the database first).
@@ -68,45 +64,36 @@ nowhere, so only the app reaches them.
 
 | `AUTH_MODE` | who gets in | needs |
 | - | - | - |
-| `local` (default) | username + password stored by the app | nothing — the session secret and first password are generated on the first boot into the data volume (`/app/data/secrets/`) |
-| `single-user` | no login; whoever reaches the process over a **loopback** socket is the owner | host networking — see below |
+| `single-user` (default) | no login; whoever reaches the app from THIS machine is the owner | the port on `127.0.0.1` (the default) |
+| `local` | username + password stored by the app | nothing — the first boot generates the password and prints it once (`docker compose logs orbweaver`); or set `LOCAL_INITIAL_PASSWORD` |
 | `oidc` | your identity provider (Authentik, Authelia, Keycloak, …) | the `OIDC_*` block in `docker/orbweaver.env`, HTTPS |
 | `forward-header` | a forward-auth proxy | `FORWARD_AUTH_*` — prefer the signed JWT path |
 
-**Why `single-user` is not the default in a container.** The owner fallback is granted only to a request
-whose TCP peer is loopback (the socket address, which cannot be forged). A port published from a bridge
-network delivers the docker gateway as the peer, never loopback, so `single-user` behind a bare
-`-p 8788:8788` answers 401 to every browser. Two overlays make it work; both set `AUTH_MODE` and
-`AUTH_FALLBACK` for you:
+**How the no-login default stays safe.** The owner fallback is granted only to a request whose TCP peer is
+trusted, and the shipped env names docker's bridge ranges in `AUTH_FALLBACK_TRUSTED_PEERS` because a port
+published from a bridge network always arrives from the docker gateway. Under docker's NAT that range means
+"whoever can reach the published port", so the safety is the publication itself: the base compose publishes
+on `127.0.0.1` only, which makes the set "processes on this machine" — the same boundary as running the app
+on bare metal. The entrypoint refuses to boot this mode if `ORB_BIND` is not loopback, the app logs a
+security warning every boot while the knob is live, any request that announces a proxy hop is denied the
+grant, and the diagnostics door's credential-free arm is closed while widened. Want other devices? Use a
+login (next section).
 
-```sh
-# any platform (Docker Desktop, NAS, Podman): bridge networking + an explicit trusted-peer opt-in
-docker compose -f docker-compose.yaml -f docker/compose.single-user.yaml up -d --build
+The other no-login shape is host networking (`docker/compose.host-network.yaml`, Linux Engine / Podman):
+the app binds `127.0.0.1` on your machine directly and needs no widened peer set at all.
 
-# Linux Engine / Podman: host networking (the app binds 127.0.0.1 on your machine directly)
-docker compose -f docker-compose.yaml -f docker/compose.host-network.yaml up -d --build
-```
-
-The first names the docker bridge ranges in `AUTH_FALLBACK_TRUSTED_PEERS`. Under docker's NAT every client
-that reaches the published port arrives as the gateway, so that range means "whoever reaches the port is the
-owner" — which is why the base compose publishes on `127.0.0.1` only (processes on this machine, the same
-boundary as bare-metal loopback) and why you must not pair this overlay with `ORB_BIND=0.0.0.0`. The app
-logs a security warning every boot while the knob is live, refuses the widened grant to any request that
-announces a proxy hop, and closes the diagnostics door's credential-free arm while widened. The second
-overlay needs no widening at all; Docker Desktop's host networking is opt-in (4.34+, signed in) and proxies
-at layer 4, unverified here.
-
-`AUTH_FALLBACK` is what an un-credentialed request gets. It is `deny` for every login mode and must be
-`owner` for `single-user` (its only credential — the overlay sets it; the app refuses the `deny` pairing at
-boot rather than serving nobody). Never `owner` with an SSO mode in production: the app refuses to boot,
+`AUTH_FALLBACK` is what an un-credentialed request gets: `owner` for `single-user` (its only credential),
+`deny` for every login mode. Never `owner` with an SSO mode in production: the app refuses to boot,
 because a same-host proxy would turn every visitor into the owner.
 
 ## LAN and HTTPS
 
 The port is published on `127.0.0.1` only. To reach the app from your phone or another computer:
 
-1. `ORB_BIND=0.0.0.0` — in a `.env` file beside `docker-compose.yaml` or on the command line
-   (`ORB_BIND=0.0.0.0 docker compose up -d`). Keep `AUTH_MODE=local`.
+1. Switch to a login in `docker/orbweaver.local.env`: `AUTH_MODE=local`, `AUTH_FALLBACK=deny`,
+   `AUTH_FALLBACK_TRUSTED_PEERS=` (empty). Then `ORB_BIND=0.0.0.0` in a `.env` file beside
+   `docker-compose.yaml` or on the command line (`ORB_BIND=0.0.0.0 docker compose up -d`). The entrypoint
+   refuses the no-login default on a non-loopback bind, so you cannot open the LAN by accident.
 2. **HTTPS in front.** The session cookie is `Secure` + `__Host-`, so a plain-http address other than
    `localhost` cannot keep a login (the sign-in silently fails). Any TLS terminator works: Caddy (automatic
    certs, or its internal CA on a LAN), nginx, Traefik, a Tailscale `serve`. Point it at `127.0.0.1:8788` on
@@ -175,15 +162,18 @@ the composed posture at boot and warns per open exposure.
 
 - **`docker compose up` tries to pull `orbweaver:local` and fails** — you left off `--build`; the image is
   built from the checkout, never pulled.
-- **Everything answers 401** in `single-user` — you are on a bridge network. Use the host-network overlay or
-  `AUTH_MODE=local` (the reason is under "Login modes").
+- **Everything answers 401** in `single-user` — `AUTH_FALLBACK_TRUSTED_PEERS` was emptied or your docker
+  network uses a range outside the shipped list (`docker network inspect` → add it), or you are on a custom
+  network outside the shipped ranges (`10.0.0.0/8` covers Podman's default `10.88.0.0/16`). The reason is under "Login modes".
+- **"REFUSING to boot … published on ORB_BIND="** — you opened the port to your network in the no-login
+  mode; switch to `AUTH_MODE=local` as described under "LAN and HTTPS".
 - **Sign-in "does nothing" on a LAN address** — plain http; the cookie is Secure. HTTPS in front, or use
   `http://localhost` on the machine itself.
 - **"blocked … private address"** when adding a local model server — `EGRESS_ALLOWLIST` (above).
 - **`/app/data is not a writable directory`** — you started the container as a non-root user (`user:`,
   rootless podman) on a data dir that user cannot write. Either let the entrypoint start as root with
   `PUID`/`PGID` (the default), or make the directory writable by that user.
-- **Forgot the generated password** — it is kept at `/app/data/secrets/initial_password` until you delete it:
+- **Forgot the generated password** (`local` mode) — it is kept at `/app/data/secrets/initial_password` until you delete it:
   `docker compose exec orbweaver cat /app/data/secrets/initial_password`. If you already changed it in
   Settings, that file is stale; `docker compose exec orbweaver rm /app/data/secrets/initial_password` then
   set `LOCAL_INITIAL_PASSWORD` for the next boot only if the owner row still has no password.
