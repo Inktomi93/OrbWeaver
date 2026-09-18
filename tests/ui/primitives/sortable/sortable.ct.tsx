@@ -136,6 +136,10 @@ test("announcements name the ROW and its position, never the raw item key", asyn
   await mount(<ReorderableList itemCount={3} />);
   const rows = page.locator('[data-slot="sortable-item"]');
   const liveRegion = page.getByRole("status");
+  // Settle-first, matching the adjacent "keyboard drag start/drop announce" test: focusing before the
+  // KeyboardSensor/Accessibility plugin has wired the row up races the mount, and Space then fires into a
+  // dnd-kit context that never emits an announcement (the live region stays permanently empty).
+  await expect(rows.nth(0)).toHaveAttribute("tabindex", "0");
   await rows.nth(0).focus();
 
   await page.keyboard.press("Space");
