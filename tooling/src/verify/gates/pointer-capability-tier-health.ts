@@ -21,10 +21,10 @@ export const gate = defineGate({
         return;
       }
       if (facts.featureFiles > 0 && liveHomeFiles(facts, HOME).length === 0) {
-        ctx.report.node(anchor, { message: `missing reviewed pointer-capability home: ${HOME}` });
+        ctx.report.node(anchor, { message: `missing reviewed pointer-capability home: ${HOME} — UI-Architecture-and-Layout.md` });
       }
       if (facts.featureFiles === 0) {
-        ctx.report.node(anchor, { message: "feature-root census is blind: packages/client/src/features/ resolved zero files" });
+        ctx.report.node(anchor, { message: "feature-root census is blind: packages/client/src/features/ resolved zero files — UI-Architecture-and-Layout.md" });
       }
     },
   }),

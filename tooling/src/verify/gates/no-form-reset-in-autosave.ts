@@ -73,7 +73,7 @@ const RESET_CALL_MESSAGE =
 const RESET_PROP_MESSAGE =
   "the autosave factory hands a `reset` PROPERTY back through its returned object — the type-level strip " +
   "is then one cast away from being undone, and reset re-baselines a live draft mirror into the isDirty " +
-  "loop (#1144). Do not put reset on the returned surface at all.";
+  "loop (#1144). Do not put reset on the returned surface at all (UI-Gates-and-Lessons.md §7 row 2).";
 const FIX =
   "do not cast past the `Omit<…, 'reset'>` strip and do not return a `reset` property; reset re-baselines a live draft mirror into the TanStack Form isDirty loop (#1144). A deliberate occurrence waives with `@orb-waive no-form-reset-in-autosave(reset): <reason + end condition>` — the reported position is the literal text `reset` in BOTH arms, because each report anchors on the member NAME node (the `.reset` of the call, or the `reset` key of the returned property), never the receiver and never the enclosing statement.";
 

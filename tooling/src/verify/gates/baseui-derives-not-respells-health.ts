@@ -87,7 +87,7 @@ const FIX =
   "makes it correct.";
 
 const HANDLER_MESSAGE = (prop: string, owner: string, baseArity: number, ourArity: number): string =>
-  `\`${prop}\` re-declares \`${owner}\`'s handler by hand${ourArity < baseArity ? ` and DROPS ${baseArity - ourArity} of its ${baseArity} arguments — Base UI passes \`eventDetails\` there (cancel/allowPropagation), and this signature deletes it` : " (same arity today, but a hand copy rots the moment the signature moves)"}. Derive it: \`${prop}?: <BasePropsType>["${prop}"]\`. This arm takes no exemption.`;
+  `\`${prop}\` re-declares \`${owner}\`'s handler by hand${ourArity < baseArity ? ` and DROPS ${baseArity - ourArity} of its ${baseArity} arguments — Base UI passes \`eventDetails\` there (cancel/allowPropagation), and this signature deletes it` : " (same arity today, but a hand copy rots the moment the signature moves)"}. Derive it: \`${prop}?: <BasePropsType>["${prop}"]\`. This arm takes no exemption — UI-Primitives-and-Reuse.md §13.8.`;
 
 export const gate = defineGate({
   id: "baseui-derives-not-respells-health",

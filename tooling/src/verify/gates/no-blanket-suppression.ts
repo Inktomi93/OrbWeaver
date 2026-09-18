@@ -304,7 +304,13 @@ function indexOnly(index: readonly Blanket[], working: readonly Blanket[]): read
 // ── reporting ─────────────────────────────────────────────────────────────────────────────────────────
 function reportBlanket(ctx: GatePolicyContext, file: string, blanket: Blanket, staged: boolean): void {
   const detail = KIND_MESSAGE[blanket.kind](blanket.token);
-  ctx.report.file(file, { line: blanket.line, column: 1, token: blanket.token, message: staged ? INDEX_PREFIX + detail : detail, fix: FIX });
+  ctx.report.file(file, {
+    line: blanket.line,
+    column: 1,
+    token: blanket.token,
+    message: `${staged ? INDEX_PREFIX + detail : detail} — docs/design/962-blanket-suppression-control-plane.md`,
+    fix: FIX,
+  });
 }
 
 /** Arm A over the harness fileset; returns every walked file's verdict so arm C can diff against it. */

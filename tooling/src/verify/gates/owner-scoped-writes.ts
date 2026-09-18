@@ -121,7 +121,7 @@ function judgeWrite(node: CallExpression, ownerTableIdents: ReadonlySet<string>,
     // The fence, not a shrug: `cache.delete(key)` and `db.delete(T)` are one AST shape, so only a chained
     // drizzle builder proves this statement is a write at all. A chain-free unresolvable call is the
     // declared limit (a mustPass row carries it), NOT a silent exemption of a readable one.
-    return isDrizzleWriteStatement(node) ? { argNode: arg, message: UNRESOLVABLE_MESSAGE } : undefined;
+    return isDrizzleWriteStatement(node) ? { argNode: arg, message: `${UNRESOLVABLE_MESSAGE} — Spine-Identity-and-Auth.md` } : undefined;
   }
   const ident = target.ident;
   const where = whereArgOf(node);

@@ -18,7 +18,7 @@ export const gate = defineGate({
       const facts = readUiTierFacts(ctx);
       const anchor = ctx.files[0];
       if (anchor !== undefined && liveHomeFiles(facts, HOME).length === 0) {
-        ctx.report.node(anchor, { message: `missing reviewed skin-fragment home: ${HOME}` });
+        ctx.report.node(anchor, { message: `missing reviewed skin-fragment home: ${HOME} — ui-package-design.md` });
       }
     },
   }),

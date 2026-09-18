@@ -79,7 +79,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message:
-    "either the injected-op-caller-param entity-id derivation resolved zero types (blind), or a CALLER_FREE_OPS row names an op no domain contract declares any more (stale) — both ratchet down.",
+    "either the injected-op-caller-param entity-id derivation resolved zero types (blind), or a CALLER_FREE_OPS row names an op no domain contract declares any more (stale) — both ratchet down (Spine-Identity-and-Auth.md, Core-0-Architecture-and-Structure.md §4).",
   create: (ctx) => {
     // THE CENSUS PREDICATE IS THE SIBLING'S TRIGGER, NOT "any op function type" (owner ruling, 2026-09-12,
     // #2000): an op is only SEEN — and so only keeps its exemption alive — when its params mention a branded

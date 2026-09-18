@@ -336,7 +336,7 @@ function judgeModule(ctx: GatePolicyContext, { sourceFile, path, registration, i
     ctx.report.node(ext, Node.isPropertyAssignment(ext) ? { token: "ext", offset: 0, message: EXT_MESSAGE } : { message: EXT_MESSAGE });
   }
   for (const finding of inspectGateContract([sourceFile], rootOf(sourceFile, path)).findings) {
-    ctx.report.file(path, { line: finding.line, column: finding.column, message: `${finding.detail} [${finding.code}]` });
+    ctx.report.file(path, { line: finding.line, column: finding.column, message: `${finding.detail} [${finding.code}] — gate-runtime-standardization.md §2.` });
   }
   for (const door of ioDoors) {
     ctx.report.node(door, { message: FS_MESSAGE });
