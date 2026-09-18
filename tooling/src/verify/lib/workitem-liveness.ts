@@ -17,6 +17,7 @@
 import type { GatePolicy } from "../contract/policy.ts";
 
 /** The two states the board reports for an issue. */
+// @orb-waive no-inline-types(BoardIssueState): consumed within the board/citation lib/ cluster only; not a cross-domain shape; ends when a gate imports it
 export type BoardIssueState = "OPEN" | "CLOSED";
 
 /** One warning policy and the board row it claims owns its debt. */

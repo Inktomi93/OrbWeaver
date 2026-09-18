@@ -347,6 +347,14 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
         why: "W1i records this wired DiscoveryService verb as the current behavioral-test gap; the grant keeps the missing test visible and exact.",
         endsWhen: "a domain test invokes themes through the service or its factory, or the verb is removed.",
       },
+      {
+        id: "contract-verb-presence:sessions-getOwnerUserId",
+        policyId: "contract-verb-presence",
+        subject: "sessions.getOwnerUserId",
+        operation: "missing-contract-test",
+        why: "an @internal boot-sequence verb (owner-row existence check); exercised through the boot path but has no direct service-level test.",
+        endsWhen: "a domain test invokes getOwnerUserId through the service or its factory, or the verb is removed.",
+      },
       // THE THREE BOUNDED DIRECT-SKIN RECIPES (#2181, #1584). They replace `EXPECTED_DIRECT_CLIENT_UI_MECHANISMS`
       // — three hand-spelled COUNTS in `lib/css-family-census.ts` that §12.5 bans and that the §5b audit measured
       // reached by ZERO proof rows (cut f07) and unmoved by a changed number (cut f08). The exemption is real and
@@ -1236,7 +1244,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
       {
         id: "depcruise-grant-liveness:quickjs-wasm-url",
         policyId: "depcruise-grant-liveness",
-        subject: "config.forbidden[64].to.pathNot[0]",
+        subject: "config.forbidden[65].to.pathNot[0]",
         operation: 'depcruise-zero-member-pattern:"^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\\\?url$"',
         why: "a vite ASSET QUERY specifier (`?url`), not a module path and not a repo file: its member set is what the bundler emits at build time, which no static tree read can enumerate — dep-cruiser matches it only as an unresolvable-import exemption. Migrated from the retired gate-local RATIFIED row (#1922 / #2176), whose cite `packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts` (the one importer that makes it live) is no longer liveness-checked by anything (successor citation check: #2349).",
         endsWhen:
@@ -2748,6 +2756,14 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
         why: "RULING — a type-level NEGATIVE pin (`.test-d` and inline): the directive IS the assertion that the type refuses the shape, and tsc reds the day it stops; plus an untyped `.cjs` config import whose shape is asserted immediately after (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 02382639e; 52 live site(s) under governed tests at conversion.)",
         endsWhen:
           "the ruling itself is reversed, or the last governed tests site under `@ts-expect-error` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
+      },
+      {
+        id: "suppressions:tests-useConsistentMethodSignatures",
+        policyId: "suppressions",
+        subject: "lint/style/useConsistentMethodSignatures",
+        operation: "tests",
+        why: "RULING — method-style signature keeps the parameter BIVARIANT, which is the only way `Element` satisfies a DOM-free structural interface without importing DOM types. The biome rule exists for consistency and is technically correct that the shape differs, but the bivariance is load-bearing (file header documents the reasoning).",
+        endsWhen: "biome gains a bivariance-aware exemption for method signatures, or the hit-extent-walk interface stops needing bivariance.",
       },
       {
         id: "tooling-argv-front-door:shared-entrypoint",

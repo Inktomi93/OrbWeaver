@@ -13,6 +13,7 @@ export const QUERY_MACHINE_POPULATION = {
   in: ["@authored", "@showcase"],
   notNamed: ["*.test.ts", "*.test.tsx"],
 } as const;
+// @orb-waive no-inline-types(QueryMachineName): derived from the module-private QUERY_MACHINE_NAMES tuple; splitting the axis from the fact creates a cross-module coupling worse than the lib/ home; ends when the fact moves to contract/
 export type QueryMachineName = (typeof QUERY_MACHINE_NAMES)[number];
 
 interface QueryMachineImport {

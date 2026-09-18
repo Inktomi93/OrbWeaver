@@ -396,7 +396,8 @@ function containedTypeEdges(candidate: Type, context: TransportContext): readonl
   return [...aggregate, ...indices, ...substituted, ...properties.map((property) => property.getTypeAtLocation(context.location))];
 }
 
-type Containment = "no" | "possible" | "yes";
+const CONTAINMENTS = ["no", "possible", "yes"] as const;
+type Containment = (typeof CONTAINMENTS)[number];
 
 function summaryContainment(candidate: Type, expected: Type, summary: ConstructorSummary, context: TransportContext): Containment {
   const arguments_ = genericArguments(candidate);

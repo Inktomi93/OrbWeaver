@@ -8,8 +8,9 @@
 // the blanket gate go green on a real file-wide suppression.
 import type { SourceFile } from "ts-morph";
 import { Project, ScriptKind } from "ts-morph";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { readDirectiveComment, suppressionSites } from "../../../../tooling/src/verify/lib/suppression-directive.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function parse(text: string): SourceFile {
   return new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true }).createSourceFile("s.tsx", text, { scriptKind: ScriptKind.TSX });

@@ -43,6 +43,9 @@ export const AUTHORED_PATH_STATUSES = ["file", "directory", "absent", "outside",
  *  the alias. */
 export type AuthoredPathStatus = (typeof AUTHORED_PATH_STATUSES)[number];
 
+/** A repo-path → identity lookup for the dangling-refs reader and any policy that needs path status. */
+export type PathStatusIndex = ReadonlyMap<string, AuthoredPathStatus>;
+
 export type AuthoredPathIdentity = {
   /** Exactly the string the policy supplied, so a finding can anchor on the authored selector. */
   readonly selector: string;

@@ -1,6 +1,7 @@
 import type { ServerResponse } from "node:http";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, vi } from "vitest";
 import viteConfig from "../../packages/client/vite.config.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 type Middleware = (request: unknown, response: Pick<ServerResponse, "setHeader">, next: (cause?: unknown) => void) => void;
 

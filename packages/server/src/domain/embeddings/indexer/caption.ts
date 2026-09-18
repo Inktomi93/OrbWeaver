@@ -24,6 +24,7 @@
 // catch-up pass unable to see its own backlog.
 
 import { imageBreakdownSchema } from "@orb/contracts/embeddings";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ResponseFormat, RoleClients } from "@orb/contracts/role-clients";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
@@ -48,9 +49,8 @@ const ANALYSIS_RESPONSE_FORMAT: ResponseFormat = { name: "image_breakdown", sche
 
 /** The side-gen posture FLOOR for avatar analysis (#1816): near-deterministic because this is a
  *  classification, and a warm sampler on a closed vocabulary only adds jitter between two equally-allowed
- *  labels. `maxOutputTokens` fits the sentence plus sixteen short fields. The floor defers to the owner's
- *  preset params through `resolveSideGenSampling` when available. */
-const ANALYSIS_FLOOR: SideGenSampling = { temperature: 0.2, maxOutputTokens: 512 };
+ *  labels. The floor defers to the owner's preset params through `resolveSideGenSampling` when available. */
+const ANALYSIS_FLOOR: SideGenSampling = SIDE_GEN_POSTURES.caption;
 
 const skipped = (model: string): AvatarAnalysis => ({ caption: "", captionMeta: { model } });
 

@@ -6,6 +6,7 @@ import { readTailwindClassTokens } from "./tailwind-class-token.ts";
 import { waivableCoordinate } from "./waivable-coordinate.ts";
 
 const UI_TIER_IDS = ["z-index", "skin-fragment", "pointer-capability"] as const;
+// @orb-waive no-inline-types(UiTierId): consumed within this fact module only; the gate reads through the fact, not the type; ends when a gate imports it directly
 export type UiTierId = (typeof UI_TIER_IDS)[number];
 
 export interface UiTierHome {

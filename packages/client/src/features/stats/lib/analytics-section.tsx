@@ -27,6 +27,7 @@ import { useAnalyticsSelectionTitle } from "./analytics-selection-title.ts";
  *  dashboard). Always-present so the owner-scoped tabs stay unconditionally available; the `header` slot
  *  is its only reader. A module-level named hook — the `defineContextTabs` rules-of-hooks contract. */
 function useAnalyticsContextState(): AnalyticsContextState {
+  // @orb-waive no-raw-id(characterId): the hook returns a branded CharacterId from zustand state; the gate's reader cannot trace through the selector chain; ends when the gate resolves zustand selectors
   return { characterId: useSelectedAnalyticsCharacterId() };
 }
 

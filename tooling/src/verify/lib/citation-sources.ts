@@ -39,6 +39,7 @@ export interface CitedDocument {
 }
 
 export const CITATION_CLASSES = ["policy-workitem", "ledger-closure", "roster-reference"] as const;
+// @orb-waive no-inline-types(CitationClass): consumed within the citation lib/ cluster only; not a cross-domain shape; ends when a gate imports it
 export type CitationClass = (typeof CITATION_CLASSES)[number];
 
 /** What a site's own grammar claims about the row it names — see the class table in `board-citations.ts`.

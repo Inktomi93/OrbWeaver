@@ -197,6 +197,7 @@ export function captureBugReportBundle(input: BugReportCaptureInput): BugReportC
 
 /** What the server answered. A refusal is DATA, never a throw: this runs from a submit handler and the surface
  *  shows the reason. */
+// @orb-waive no-inline-types(BugReportSubmission): local to this module's submit fn + the hook that calls it; no cross-boundary consumer; ends when a second consumer appears
 export type BugReportSubmission = { readonly ok: true; readonly id: string; readonly json: string } | { readonly ok: false; readonly reason: string };
 
 /** The gate's own words for WHICH arm refused (`foundation/observability/debug/routes.ts` — it names the
@@ -220,6 +221,7 @@ async function refusalReason(response: Response): Promise<string | null> {
  *  session (on the dev box this button lives on, that IS the loopback owner fallback) or `x-debug-token`,
  *  exactly as `readAutomationFires` documents for the read side. */
 export async function submitBugReport(bundle: BugReportClientBundle): Promise<BugReportSubmission> {
+  // @orb-waive fetch-fn-in-features(fetch): POST to /api/_debug — a non-tRPC observability endpoint outside the data/ seam; ends when _debug routes migrate to tRPC
   const response = await fetch(BUG_REPORT_ROUTE, {
     method: "POST",
     credentials: "same-origin",

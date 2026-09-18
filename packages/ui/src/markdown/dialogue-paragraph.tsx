@@ -91,6 +91,7 @@ function renderPieces(child: ReactNode, pieces: readonly DialoguePiece[], index:
 /** Wraps every closed quote run in the paragraph's children; returns `children` untouched when there is
  *  nothing to act on (the overwhelmingly common non-dialogue paragraph renders byte-identically). */
 function tintDialogue(children: ReactNode): ReactNode {
+  // @orb-waive no-legacy-react-api(Children): markdown seal transforms ALREADY-RENDERED children — no data array alternative; ends if Streamdown hands source nodes
   const list = Children.toArray(children);
   const parts = list.map(partOf);
   if (!parts.some((part) => hasQuoteChar(part.text))) {

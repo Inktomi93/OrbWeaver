@@ -231,9 +231,10 @@ export const SIDE_GEN_POSTURES = {
   // Automation `run_analysis` quiet pass (S5/C1): a bounded schema-constrained analysis payload (arc/twists/
   // guidance/lore ops), not creative prose — the quiet_generate floor's class (temp 0.3, 1024 out).
   rule_analysis: { temperature: 0.3, maxOutputTokens: 1024 },
-  // Vision caption: an EMPTY floor — the caption call historically passed NO sampling options (the backend
-  // defaults stood). An empty posture is the honest encoding; the caller's preset params CAN now reach it.
-  caption: {},
+  // Vision caption / avatar analysis: near-deterministic classification with a budget sized for the
+  // sentence plus sixteen short structured fields. Originally empty (backend defaults stood); the avatar
+  // analysis call hardcoded its own floor — this IS that floor, promoted to its canonical home (#2243).
+  caption: { temperature: 0.2, maxOutputTokens: 512 },
   // ── Refinery stage floors (R1 — docs/history/design/refinery-r0.md §9.7; study §5.3's values). The caller is
   //    always the card owner, so the preset-params rung ALWAYS applies (no mixed-owner batch arm here). ──
   // Score: near-deterministic critique, budgeted for the per-field payload (bigger than distill's facets).
