@@ -78,7 +78,43 @@ export function classifyDist(opts: { readonly distIndexMtimeMs: number | null; r
   return { state: "fresh", message: "client bundle is newer than client/ui source" };
 }
 
-// ── Served-transform freshness (dev; #524) ───────────────────────────────────────────────────────────
+// ── Served-transform freshness (dev; #524, byte-exact since #2461) ───────────────────────────────────
+
+/** vite's inline map: a base64 `application/json` data URL on the LAST line of a served dev transform. */
+const INLINE_SOURCEMAP_RE = /\/\/# sourceMappingURL=data:application\/json;(?:charset=[\w-]+;)?base64,([A-Za-z0-9+/]+={0,2})$/u;
+
+/**
+ * The bytes vite's dev transform was computed FROM, recovered from the transform itself — or `null` when
+ * this module was served without an inline map, which is not a staleness claim (see the fallback below).
+ *
+ * THIS REFUTES THE PREMISE THE EXPORT-NAME ARM BELOW WAS BUILT ON, and the premise is kept here rather
+ * than quietly deleted. That arm's header said "nothing byte-level survives to compare" because the dev
+ * transform strips types and rewrites imports. It does not survive in the CODE — it survives in the MAP:
+ * vite appends the module's sourcemap as an inline base64 data URL on the last line, and its
+ * `sourcesContent[0]` is the original file, byte for byte. MEASURED 2026-09-19 against the live client
+ * config over `packages/ui/src/tokens/index.ts` (the generated token map), `packages/client/src/main.tsx`
+ * (through the React-Compiler babel pass), `packages/kit/src/index.ts` and `packages/client/vite.config.ts`
+ * — all four `sourcesContent[0] === readFileSync(file)`, non-ASCII included.
+ *
+ * WHY THIS MATTERS (#2461): export names are a COUNT of declarations, and the staleness that actually
+ * shipped was INSIDE one — `stack status` printed `fresh · carries all 6 of its value export(s)` over a
+ * served token map that was missing `text.code-field` and `leading.code-field` entirely. Bytes catch that;
+ * names structurally cannot.
+ *
+ * WHY IT MATCHES THE RAW MAP TEXT INSTEAD OF PARSING IT: `JSON.parse` on a body vite produced would be a
+ * new caught-failure site in an operator instrument for a failure mode that would be vite emitting a
+ * malformed map. The decoded map is JSON, so the disk source appears in it as exactly
+ * `JSON.stringify(diskSource)` — proven by the same measurement, together with its control (one appended
+ * character makes the match fail). `Buffer.from(…, "base64")` ignores non-base64 input rather than
+ * throwing, so this whole path is total.
+ */
+export function servedCarriesDiskBytes(servedBody: string, diskSource: string): boolean | null {
+  const encoded = INLINE_SOURCEMAP_RE.exec(servedBody.trimEnd())?.[1];
+  if (encoded === undefined) {
+    return null;
+  }
+  return Buffer.from(encoded, "base64").toString("utf8").includes(JSON.stringify(diskSource));
+}
 
 /** Every way a module can DECLARE a value export, as one matcher over the disk source. Types are excluded
  *  on purpose (`export type X` / `export interface X` / `export type { X }` are ERASED by the transform, so
@@ -113,8 +149,10 @@ export function valueExportNames(source: string): string[] {
   return [...names];
 }
 
-/** Compare one module's disk source against what vite actually served for it. `servedBody: null` = no
- *  answer (vite down / the module 404'd), which is NOT a staleness claim — see `ServedState`. */
+/** Compare one module's disk source against what vite actually served for it — BYTES first (the served
+ *  transform's own sourcemap), export names only as the fallback for a module served without one.
+ *  `servedBody: null` = no answer (vite down / the module 404'd), which is NOT a staleness claim — see
+ *  `ServedState`. */
 export function classifyServedTransform(opts: {
   readonly file: string | null;
   readonly diskSource: string | null;
@@ -126,6 +164,21 @@ export function classifyServedTransform(opts: {
   const servedBody = opts.servedBody;
   if (servedBody === null) {
     return { state: "unreachable", file: opts.file, message: `vite did not serve ${opts.file} — served-vs-disk freshness NOT measured` };
+  }
+  // THE BYTE ARM FIRST (#2461). It answers for any module vite mapped — including a types-only one, which
+  // the name arm can only call `unverifiable` — and it is the only arm that can see a change INSIDE a
+  // declaration. `null` = this module came back without a map, so it falls through to the name arm rather
+  // than inventing a verdict.
+  const carriesDiskBytes = servedCarriesDiskBytes(servedBody, opts.diskSource);
+  if (carriesDiskBytes === true) {
+    return { state: "fresh", file: opts.file, message: `vite's transform of ${opts.file} was built from the exact bytes on disk` };
+  }
+  if (carriesDiskBytes === false) {
+    return {
+      state: "stale",
+      file: opts.file,
+      message: `vite is serving a STALE transform of ${opts.file} — its own sourcemap carries source bytes that are NOT the file on disk, so every load serves pre-change code while healthz and the vite pid both look fine. Restart the stack (pnpm stack restart).`,
+    };
   }
   const expected = valueExportNames(opts.diskSource);
   if (expected.length === 0) {
