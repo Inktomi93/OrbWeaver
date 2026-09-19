@@ -73,6 +73,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--base": { group: "Where", summary: "an already-running origin (a private stack, a stage you booted)" },
   "--debug-token": { group: "Where", summary: "seed orb:debug-token before navigation for token-gated development routes" },
   "--click": { group: "Reach", summary: "real Playwright click (actionability-checked); flakes on virtualized list rows" },
+  "--tap": { group: "Reach", summary: "a REAL touch tap (no mouseover, so a hover-only tooltip stays shut); requires --mobile or another touch device" },
   "--dom-click": { group: "Reach", summary: "in-page el.click(), bypasses actionability — the click for virtualized/composite rows" },
   "--force-click": { group: "Reach", summary: "hover-then-forced pointer click for hover-revealed/overlaid controls" },
   "--hover": { group: "Reach", summary: "synthetic hover (loses :hover on any list re-render)" },

@@ -87,6 +87,12 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--click": (a, rest, page) => {
     pushStep(a, { kind: "click", selector: rest.shift() ?? "", page });
   },
+  // A REAL TOUCH TAP (#2445), refused at parse time without a touch-capable context. `--click` under
+  // `--mobile` is still a MOUSE dispatch, so it opens hover-only affordances a finger never can; this is
+  // the only verb that answers "what does this control do to a thumb".
+  "--tap": (a, rest, page) => {
+    pushStep(a, { kind: "tap", selector: rest.shift() ?? "", page });
+  },
   // In-page el.click() — bypasses Playwright's actionability checks for
   // stubborn targets (icon divs under overlay stacks).
   "--dom-click": (a, rest, page) => {

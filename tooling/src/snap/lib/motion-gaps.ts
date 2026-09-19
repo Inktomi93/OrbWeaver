@@ -66,6 +66,7 @@ const DISPATCHES_INPUT: Record<Step["kind"], boolean> = {
   "motion-click": false,
   pause: false,
   press: true,
+  tap: true,
   upload: true,
   waitfor: false,
   wheel: true,

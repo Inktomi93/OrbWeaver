@@ -215,6 +215,13 @@ async function runLocatedStep(
   await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
   if (step.kind === "click") {
     await loc.click({ timeout: STEP_TIMEOUT_MS });
+  } else if (step.kind === "tap") {
+    // THE FINGER, NOT THE MOUSE (#2445). `locator.tap()` is `Input.dispatchTouchEvent` — touchstart/
+    // touchend + the pointerType:"touch" pointer sequence — and dispatches NO mouseover/mouseenter, which
+    // is exactly what makes a Base UI tooltip (`mouseOnly: true`, TooltipTrigger.js:147) stay shut under
+    // it while `--click` opens one. It THROWS "The page does not support tap" without `hasTouch`, so the
+    // parse-time refusal in ops/parse.ts is the operator-facing door and this is its backstop.
+    await loc.tap({ timeout: STEP_TIMEOUT_MS });
   } else if (step.kind === "hover") {
     await loc.hover();
   } else if (step.kind === "key") {

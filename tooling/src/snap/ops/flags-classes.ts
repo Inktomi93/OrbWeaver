@@ -26,6 +26,7 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--debug-token",
   "--diagnostics",
   "--click",
+  "--tap",
   "--dom-click",
   "--force-click",
   "--hover",
@@ -89,6 +90,7 @@ export const OPTIONAL_NAME_FLAGS = new Set(["--session-status"]);
 
 export const PAGE_TARGET_FLAGS = new Set([
   "--click",
+  "--tap",
   "--dom-click",
   "--force-click",
   "--hover",

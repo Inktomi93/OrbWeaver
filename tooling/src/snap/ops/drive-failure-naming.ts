@@ -18,6 +18,7 @@ export function waitDriveFailure(selector: string, message: string): DriveFailur
  *  ship without its spelling. */
 const STEP_FLAG: Record<Step["kind"], string> = {
   click: "--click",
+  tap: "--tap",
   "motion-click": "--motion",
   jsclick: "--dom-click",
   press: "--force-click",
