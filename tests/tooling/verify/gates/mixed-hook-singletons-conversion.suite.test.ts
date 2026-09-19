@@ -1,25 +1,17 @@
-// CONVERSION-TIME EVIDENCE for the three §12.6 single-policy mixed-hook modules (#1584) — the §4.6
-// DIFFERENTIAL, written to the `freeze-provenance-conversion.suite.test.ts` recipe. NOT a standing regression
-// gate: it freezes each legacy descriptor at the pre-conversion commit and RETIRES with the legacy loader.
+// FAMILY EVIDENCE for `tooling-instrument-proof` (#1584 §12.6), all that survives of what was the
+// mixed-hook singletons' §4.6 conversion differential: `b1e5e3e30` deleted the legacy-replay arms with the
+// legacy descriptors, so this file holds exactly ONE `test(` block and the header enumerates it rather
+// than promising a differential nothing here can run any more (#2454 — a header claim owes a control,
+// GATE-AUTHORING §7).
 //
-// What it proves, and the reason each piece is here rather than in a proof row:
-//   1. §4.6 — every LEGACY example replayed through the frozen legacy descriptor and through the final
-//      policy over the SAME BYTES, with the finding CARDINALITY compared and every difference CLASSIFIED.
-//      The conformance stage is structurally blind to this: a proof row rewritten after conversion only
-//      proves the new code agrees with itself.
-//   2. §4.5 — the receipt pair a complete resource run files, which no `mustFlag`/`mustPass` row asserts.
+// What it proves, and the reason it is here rather than in a proof row:
+//   1. §4.5 — the receipt pair a complete resource run files, which no `mustFlag`/`mustPass` row asserts:
+//      `authored-path` is an UNPOPULATED DEMAND kind, so the receipt is the only thing that proves the
+//      door was called at all.
 //
-// THE REPLAY RUNS ON A REAL TMPDIR, not on a virtual in-memory root, because the legacy
-// `tooling-instrument-proof` answers arm A with `existsSync(join(ctx.root, "tooling/src", member))`. Under
-// a synthetic root every registry row would read DEAD and the differential would report a catch explosion
-// that is an artifact of the harness — the shape guide §6.4 calls a faked nonzero side.
-//
-// MEASURED RESULT, 2026-09-12 (the table below is asserted, not narrated): **every one of the 34 legacy
-// examples produces the SAME NUMBER of findings on both sides.** The only differences are ANCHOR MOVES,
-// forced by the final report sink refusing a finding outside the effective population
-// (`lib/policy-pass-context.ts`): the legacy engine anchored registry-level verdicts at `<file>:0` and
-// anchored two ABSENCE verdicts at the very file it was reporting missing. No arm was retired, no
-// population narrowed, and no example changed sides.
+// IT RUNS ON A REAL TMPDIR, not on a virtual in-memory root, because `tooling-instrument-proof` resolves
+// its members against the filesystem. Under a synthetic root every registry row would read DEAD and the
+// run would report a catch explosion that is an artifact of the harness.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { Project } from "ts-morph";

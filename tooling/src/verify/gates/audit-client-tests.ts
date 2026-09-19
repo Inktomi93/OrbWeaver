@@ -141,12 +141,30 @@ function calleeName(call: CallExpression): string | undefined {
   return Node.isIdentifier(expr) ? expr.getText() : readMemberAccess(expr)?.name;
 }
 
-/** The authored name the report anchors on. A tagged-table callee (a Vitest `each` table template) anchors on its
- *  TAG, never the whole template: a multi-line table would otherwise put a newline in the token, the waiver sink
- *  would refuse it, and the whole policy would be withheld (verifier RV-1). */
+/** The authored name the report anchors on: the MEMBER the chain is actually called through (`each` for
+ *  every `test.each…` form), or the callee itself when there is no member.
+ *
+ *  IT WALKS THE CHAIN because every non-trivial callee here is a compound node whose TEXT the waiver sink
+ *  refuses, and a refused token withholds the WHOLE policy rather than losing one finding:
+ *   · a TAGGED TABLE (a Vitest `each` table template) anchored on the whole template puts the table's
+ *     newlines in the token (verifier RV-1, already fixed);
+ *   · a CALL-RETURNING FACTORY (`test.each([1])(name, fn)`) anchored on the whole callee reports the token
+ *     `test.each([1])`, which the sink refuses the same way — measured 2026-09-13 and recorded in
+ *     `test-no-stubs.ts` (the FAMILY sibling that shares this shape reader): *"for a call-returning stub it
+ *     reports the token `test.each([1])`, which the waiver sink refuses, so that policy WITHHOLDS"*. A
+ *     withheld owner is not a verdict, so the factory form was UNJUDGED here even though `isTestCallShape`
+ *     recognised it (#2454). Walking through the inner call lands on the same `each` the tagged form uses. */
 function calleeNameNode(call: CallExpression): MorphNode {
-  const callee = call.getExpression();
-  const expr = Node.isTaggedTemplateExpression(callee) ? callee.getTag() : callee;
+  return anchorOfCallee(call.getExpression());
+}
+
+function anchorOfCallee(expr: MorphNode): MorphNode {
+  if (Node.isTaggedTemplateExpression(expr)) {
+    return anchorOfCallee(expr.getTag());
+  }
+  if (Node.isCallExpression(expr)) {
+    return anchorOfCallee(expr.getExpression());
+  }
   return Node.isPropertyAccessExpression(expr) ? expr.getNameNode() : expr;
 }
 
@@ -519,12 +537,25 @@ export const gate = defineGate({
       expect: { count: 1, line: 1, token: 'test["each"]', messageIncludes: "no `expect(...).<matcher>()`" },
       why: "THE BRACKET SPELLING OF THE SAME TABLE (#2353). The shared `lib/test-call-shape.ts` walk keyed its member hop on `PropertyAccessExpression`, so respelling this fixture's tag as `test[\"each\"]` made the policy stop flagging its own stub — the exact silent green the spelling-twin census exists to catch. The anchor is still single-line by construction: `calleeNameNode` unwraps the tagged template to its TAG, which is the element access and not the multi-line template, so RV-1's newline-in-token refusal stays out of reach in this spelling too",
     },
+    {
+      mode: "types",
+      files: {
+        "tests/tooling/factory-table.test.ts": 'test.each([1])("stub", () => {\n  const x = 1;\n  void x;\n});\n',
+      },
+      expect: { count: 1, line: 1, token: "each", messageIncludes: "no `expect(...).<matcher>()`" },
+      why: "THE CALL-RETURNING FACTORY FORM, and the row that turns a WITHHELD owner into a verdict (#2454). `isTestCallShape` has recognised `test.each(table)(name, fn)` since #2027, but this policy anchored the report on the whole callee — the token `test.each([1])`, which the waiver sink refuses, withholding the WHOLE policy rather than losing one finding (measured 2026-09-13, recorded in `test-no-stubs.ts`'s header). `calleeNameNode` now walks through the inner call to the same `each` the tagged-table rows anchor on. The inner `test.each([1])` call carries no callback, so it is not a second finding — the count is 1, and a naive walk that dropped the callback requirement would read 2 here",
+    },
   ],
   mustPass: [
     {
       mode: "types",
       files: { "tests/tooling/ok.test.ts": 'test("asserts", () => {\n  expect(1).toBe(1);\n});\n' },
       why: "RULE 1's happy path — a test with a matcher-chained expect",
+    },
+    {
+      mode: "types",
+      files: { "tests/tooling/factory-ok.test.ts": 'test.each([1])("asserts per row", (n) => {\n  expect(n).toBe(1);\n});\n' },
+      why: "THE ACQUITTING DIRECTION of the call-returning factory row in mustFlag (#2454): the same `test.each(table)(name, fn)` shape, asserting. Without it the anchor walk would be proven only where it accuses, and a version that reported the factory's INNER assertion-less call as a second finding would still read green on the flag side",
     },
     {
       mode: "types",

@@ -28,9 +28,10 @@
 // modifier chain spelled off the bare `test`/`it` NAME; the reader's by-name limits (element-access,
 // parenthesized, qualified or aliased roots) are declared and run in its mirror test. It used to be the literal
 // text set `{test, it, test.skip, it.skip}`, which left every other modifier form unjudged here. (Through the
-// same reader `audit-client-tests` now REPORTS a tagged-table stub, anchored on the tag's member (`each`); for a
-// call-returning stub it reports the token `test.each([1])`, which the waiver sink refuses, so that policy
-// WITHHOLDS — a pre-existing tool error recorded outside this module, measured 2026-09-13.)
+// same reader `audit-client-tests` now REPORTS a tagged-table stub, anchored on the tag's member (`each`); the
+// call-returning stub it used to report as the token `test.each([1])` — refused by the waiver sink, WITHHOLDING
+// that whole policy, measured 2026-09-13 — is judged there as of #2454, which walks the same anchor through the
+// inner call and carries the row in both directions.)
 // Every MODIFIER form must carry a callback to count, while the bare root keeps its legacy unconditional
 // verdict (`test("x")` with no body is still a stub — pinned by its own row): that one clause separates a
 // declaration from Playwright's in-body `test.skip(condition, reason)` guard AND from the inner
