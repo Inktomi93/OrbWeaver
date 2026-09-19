@@ -407,7 +407,13 @@ export const gate = defineGate({
   family: "dangling-refs",
   authority: "hard",
   severity: "error",
-  population: ["@authored", "@showcase"],
+  // `@default-content` IS DECLARED EXPLICITLY (#2397, 2026-09-18), exactly as `contract/population.ts` says a
+  // policy that needs the package must do: the root landed 2026-09-18 deliberately OUTSIDE `@authored`, and
+  // until it was named here every declaration in `packages/default-content/src/**` was invisible to the
+  // declaration reader — so a living doc citing one read as a PHANTOM. Measured: `SEED_BACKGROUND_PLATES`
+  // (declared at `packages/default-content/src/index.ts:105`) was reported dangling at
+  // `Core-Path-Registry.md:575`. A new workspace package is a coupled site for this gate.
+  population: ["@authored", "@showcase", "@default-content"],
   analysis: "resource",
   execution: "entire-population",
   facts: [],

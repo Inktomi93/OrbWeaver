@@ -1,7 +1,7 @@
 // `pnpm engines compose` — the front door and the shapes it produces.
 //
 // RUNNING `engines.sh compose` HERE IS SAFE, and it is the only engines verb of which that is true. The
-// standing ban (lane-standing-facts.md) is on invocations that SPAWN vLLM: `ensure`/`start`. This verb's
+// standing ban (`.claude/rules/lane-standing-facts.md`) is on invocations that SPAWN vLLM: `ensure`/`start`. This verb's
 // case arm is selected before any spawn path is reached and `exec`s a program that reads config and
 // writes a file — no port, no GPU, no process. Exercising the real shell is the point: the dispatch and
 // the `ORB_ENV_NO_FILE=1` that keeps a local `.env` out of a tracked artifact are both in the SHELL, so a

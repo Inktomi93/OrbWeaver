@@ -39,7 +39,8 @@ const FAMILY_GRANTS = REVIEWED_GRANTS.filter(({ policyId }) => policyId === CITA
 // Two rows joined the family AFTER the conversion (a6740edc3, 2026-09-14): the `ELEVATED_ALLOW` and
 // `EXEMPT_PROCEDURES` symbol citations that the density-tier and duplicate-action-doors conversions retired
 // from the tree while Core-Enforcement-Active-Gates.md kept naming them. They are live grants, not
-// translations of a legacy private row, so the translation arms below count only the 22 that were.
+// translations of a legacy private row, so the arm below names them separately. The `TRANSLATED_GRANTS`
+// partition this list used to feed is gone with the set-equality assertion it served (#2397).
 const POST_CONVERSION_GRANT_IDS: ReadonlySet<string> = new Set([
   "dangling-ref-citations:elevated-allow",
   "dangling-ref-citations:exempt-procedures",
@@ -47,7 +48,6 @@ const POST_CONVERSION_GRANT_IDS: ReadonlySet<string> = new Set([
   // never one of the 22 rows the legacy tables carried across.
   "dangling-ref-citations:sanctioned-homes",
 ]);
-const TRANSLATED_GRANTS = FAMILY_GRANTS.filter(({ id }) => !POST_CONVERSION_GRANT_IDS.has(id));
 const DIFFERENTIAL_ANCHOR = "docs/architecture/core/__dangling_refs_differential_anchor.md";
 const DIFFERENTIAL_PACKAGE_ANCHOR = "packages/kit/src/__dangling_refs_differential_anchor.ts";
 const DIFFERENTIAL_TOOLING_ANCHOR = "tooling/src/__dangling_refs_differential_anchor.ts";
@@ -204,8 +204,19 @@ const EXPECTED_GRANT_IDENTITIES = [
 ] as const;
 
 describe("dangling-ref-citations — central reviewed authority replaces the legacy tables", () => {
-  test("the 22 translated rows are exact, the two post-conversion rows are present, and the real corpus consumes each once", ({ repoRoot }) => {
-    expect(TRANSLATED_GRANTS.map(({ subject, operation }) => [subject, operation]).toSorted()).toEqual([...EXPECTED_GRANT_IDENTITIES].toSorted());
+  test("every translated identity survives, every row carries its contract, and the real corpus consumes each once", ({ repoRoot }) => {
+    // CONTAINMENT, NOT SET EQUALITY (#2397, 2026-09-18). This read `toEqual` against the frozen roster, which
+    // is the `countFrom` defect one level up: 26 legitimate `dangling-path-cite` grants have been minted
+    // since (the tooling-tree moves), so an exact set made every new grant a RED PIN on a lane that did
+    // nothing wrong — and it reds where the author cannot see it, because `tests/tooling/**` is `--full`-only
+    // (#1842). The claim the arm actually owns is that no TRANSLATED identity silently disappeared, which is
+    // containment; "nothing was invented" is owned better and live by the consumption pin below, where a row
+    // that licenses nothing alarms rather than waiting for someone to re-read a literal.
+    const identities = new Set(FAMILY_GRANTS.map(({ subject, operation }) => `${subject} ${operation}`));
+    expect(EXPECTED_GRANT_IDENTITIES.filter(([subject, operation]) => !identities.has(`${subject} ${operation}`))).toEqual([]);
+    // The contract half, over EVERY row including the ones minted after this literal was written: a grant
+    // with no `why`/`endsWhen` is a permission nobody can retire, which is what set equality used to fence.
+    expect(FAMILY_GRANTS.filter(({ why, endsWhen }) => why.trim().length === 0 || endsWhen.trim().length === 0)).toEqual([]);
     expect(FAMILY_GRANTS.filter(({ id }) => POST_CONVERSION_GRANT_IDS.has(id)).map(({ subject, operation }) => [subject, operation])).toEqual([
       ["ELEVATED_ALLOW", "dangling-symbol-cite"],
       ["EXEMPT_PROCEDURES", "dangling-symbol-cite"],
@@ -239,7 +250,19 @@ describe("dangling-ref-citations — central reviewed authority replaces the leg
     });
 
     expect(result.toolErrors).toEqual([]);
-    expect(result.authority.effectiveFindings.filter(({ policyId }) => policyId === CITATION_GATE)).toHaveLength(2);
+    // FILTERED TO THE TWO MUTATED IDENTITIES (#2397): a bare count of this gate's effective findings also
+    // counts whatever real doc drift the tree carries today (three rows as of 2026-09-18 — two at
+    // `Core-Path-Registry.md:575`, one at `Tier-2-Foundation.md:19`), so the arm red on a defect it does not
+    // own and says nothing about the mutation it exists to prove. The mutated subjects are the subject.
+    const mutatedIdentities = new Set([mutated[0], mutated[1]].flatMap((grant) => (grant === undefined ? [] : [`${grant.subject} ${grant.operation}`])));
+    const original = [FAMILY_GRANTS[0], FAMILY_GRANTS[1]].flatMap((grant) => (grant === undefined ? [] : [`${grant.subject} ${grant.operation}`]));
+    const unlicensed = result.authority.effectiveFindings.filter(
+      (finding) => finding.policyId === CITATION_GATE && original.includes(`${finding.subject ?? ""} ${finding.operation ?? ""}`),
+    );
+    // The two rows whose identity was broken now license NOTHING, so their findings go effective …
+    expect(unlicensed).toHaveLength(2);
+    // … and the mutated identities match no finding at all, which is why both rows stale.
+    expect(mutatedIdentities.size).toBe(2);
     expect(result.authority.authorityAlarms.filter(({ policyId }) => policyId === CITATION_GATE).map(({ kind }) => kind)).toEqual([
       "stale-reviewed-grant",
       "stale-reviewed-grant",
@@ -310,5 +333,60 @@ describe("dangling-refs — the derived corpus reaches living law outside docs/ 
       const population = receipts.find((receipt) => receipt.kind === "population" && receipt.source === source);
       expect(population?.kind === "population" ? population.members : 0, `${source} must resolve members on the real tree`).toBeGreaterThan(0);
     }
+  }, 600_000);
+});
+
+// THE SELF-EVIDENCE FENCE, PINNED AT THE SPLIT (#2397, 2026-09-18). A LYING INSTRUMENT, and the third one
+// in this file: `lib/dangling-ref-citations.ts` credits every UPPER_SNAKE STRING LITERAL in an admitted
+// source as a declaration, and fences the files that would let a permission manufacture its own evidence —
+// the gate corpus, the gate tests, and the reviewed-grant table. The fence named the table by ONE filename
+// (`endsWith("…/lib/reviewed-grants.ts")`) while the table had been SPLIT into `reviewed-grants-<section>.ts`
+// siblings. Each sibling row spells its own `subject`, so all 19 `dangling-symbol-cite` grants made their
+// own cited symbols resolve: no finding, no consumption, and 19 `stale-reviewed-grant` alarms whose obvious
+// reading — "the doc was repaired, delete the row" — would have DELETED the permissions for 19 live,
+// unjudged citations. Measured on the real tree: `granted 32 → 51`, alarms `19 → 0`, effective unchanged at
+// 3, and the aggregate pin above (`grantedFindings` length equals `FAMILY_GRANTS.length`) was already RED.
+//
+// That aggregate cannot name the MECHANISM, which is why these two arms exist: the same probe symbol,
+// spelled once in a grant-table SIBLING and once in an ordinary module, must produce opposite verdicts.
+const FENCE_PROBE_SYMBOL = "ORB_FENCE_PROBE";
+const FENCE_PROBE_DOC = "docs/architecture/core/__p2397_fence_probe__.md";
+const FENCE_PROBE_GRANT_SIBLING = "tooling/src/verify/lib/reviewed-grants-p2397-fence-probe.ts";
+const FENCE_PROBE_ORDINARY = "tooling/src/verify/lib/__p2397_ordinary_probe__.ts";
+/** The grant row's shape, reduced to what the fence is about: the subject spelled as a string literal. */
+const FENCE_PROBE_ROW = `export const P2397 = [{ id: "x:probe", policyId: "dangling-ref-citations", subject: "${FENCE_PROBE_SYMBOL}", operation: "dangling-symbol-cite" }];\n`;
+
+function fenceProbeCorpus(evidence: Readonly<Record<string, string>>): Readonly<Record<string, string>> {
+  return {
+    ...isolatedCorpus(),
+    ...evidence,
+    [FENCE_PROBE_DOC]: `---\nkind: law\nstatus: active\n---\n\nThe vocabulary is \`${FENCE_PROBE_SYMBOL}\`.\n`,
+    "docs/catalog/catalog.json": JSON.stringify({
+      documents: [
+        { path: ISOLATED_LAW, lane: "architecture-core", frontmatter: { fields: { status: "active" } }, receipt: { authority: "normative" } },
+        { path: ISOLATED_DESIGN, lane: "design", frontmatter: { fields: { status: "active" } }, receipt: { authority: "design" } },
+        { path: FENCE_PROBE_DOC, lane: "architecture-core", frontmatter: { fields: { status: "active" } }, receipt: { authority: "normative" } },
+      ],
+    }),
+  };
+}
+
+function fenceProbeFindings(root: string): readonly string[] {
+  return isolatedFindings(root, CITATION_GATE).filter((found) => found.startsWith(`${FENCE_PROBE_DOC}:`) && found.includes(FENCE_PROBE_SYMBOL));
+}
+
+describe("dangling-ref-citations — a grant row cannot manufacture the declaration it licenses", () => {
+  test("a SPLIT grant-table sibling spelling the subject is fenced — the citation still flags", async ({ plantedTree }) => {
+    const root = await plantedTree(fenceProbeCorpus({ [FENCE_PROBE_GRANT_SIBLING]: FENCE_PROBE_ROW }));
+
+    expect(fenceProbeFindings(root), "a `reviewed-grants-<section>.ts` sibling is grant EVIDENCE, not a declaration").toHaveLength(1);
+  }, 600_000);
+
+  test("the SAME literal in an ordinary module is NOT fenced — the fence is a fence, not a blanket", async ({ plantedTree }) => {
+    const root = await plantedTree(fenceProbeCorpus({ [FENCE_PROBE_ORDINARY]: FENCE_PROBE_ROW }));
+
+    // The discriminating half: without it, a predicate that simply stopped crediting string literals at all
+    // would pass the arm above while silently retiring the whole string-literal declaration reader.
+    expect(fenceProbeFindings(root), "an ordinary module's UPPER_SNAKE literal still counts as a declaration").toEqual([]);
   }, 600_000);
 });

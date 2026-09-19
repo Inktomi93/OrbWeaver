@@ -280,6 +280,27 @@ export function readExpressionString(node: Node): StaticRead {
   return readValue(node);
 }
 
+/** Every STRING LITERAL in a scratch-parsed config whose text carries one of the named substrings, with the
+ *  literal's line. The walk lives HERE rather than in a gate module: `policy-soundness`'s `direct-walk` arm
+ *  forbids a gate calling `getDescendantsOfKind`, and the ban is the reason this module exists — "one
+ *  scratch parser, many readers" (§12.4). Comment text is structurally excluded, which is the whole reason
+ *  this is a parse rather than a line regex: `vitest.config.ts`'s own header discusses the browser suffixes
+ *  it must never include, and a text scan would accuse the documentation of the law.
+ *
+ *  The caller owns the parse (`parseStaticSourceText`) so the `unparseable` arm stays its verdict to report.
+ *  Consumer: `gates/playwright-lane-outside-fast-check.ts` ARM B (#2397). */
+export function literalsContaining(sf: SourceFile, needles: readonly string[]): readonly { readonly line: number; readonly needle: string }[] {
+  const hits: { readonly line: number; readonly needle: string }[] = [];
+  for (const literal of sf.getDescendantsOfKind(SyntaxKind.StringLiteral)) {
+    const text = literal.getLiteralText();
+    const needle = needles.find((candidate) => text.includes(candidate));
+    if (needle !== undefined) {
+      hits.push({ line: literal.getStartLineNumber(), needle });
+    }
+  }
+  return hits;
+}
+
 /** Evaluate a finite expression batch while sharing only the source-level escape census. Each expression
  * keeps an independent recursion path, and the cache dies with this call, so mutation/alias refusal is
  * byte-identical to {@link readExpressionString} without rescanning a source for every candidate. */

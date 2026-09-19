@@ -75,8 +75,12 @@
 //   · FINDINGS. FINAL side driven through `runPolicyPass` over the real workspace at `5045a6a68`: 57
 //     findings, every one the §4.7 tooling arm ("mirror miss — no source for …"). LEGACY side: 53, measured
 //     by cb-v-wave-8c on `50e31c534`, where the final side also read 53 — the pair MATCHES on that tree. The
-//     +4 since is not a catch delta: each member is a test file that landed after, named path-by-path in
-//     `tests/tooling/verify/gates/mirror-index-family.suite.test.ts`'s parked roster (#2270/#2142).
+//     +4 since is not a catch delta: each member is a test file that landed after, and every one of them
+//     belonged to the class #2142 parked. THAT CLASS IS NOW EMPTY (#2388, 2026-09-18) — `c6ae36152` renamed
+//     the whole `tests/tooling/verify/gates/**` family/wave corpus onto the registered `.suite.*` kinds, which
+//     `mirror: "suite"` exempts by declaration in both arms, so the real tree reads 0 findings here. The park
+//     and its three pins retired together per the park's own clause; the record is in
+//     `tests/tooling/verify/gates/mirror-index-family.suite.test.ts`'s closing block.
 //   · POPULATION. `population: { of: "none" }` both sides in effect — the legacy descriptor walked `tests`
 //     itself and the final policy declares it. Resource members on the real tree: `package-test` 6525,
 //     `tooling-test` 2228, `unresolved` 0 on both, which is the membership the legacy `readdirSync` built
@@ -101,7 +105,8 @@
 // import text** and **1024 still do not reach it after following re-exports two hops through the barrels**,
 // because the house idiom is `@orb/<pkg>/<subpath>` — the package's public door, not the module. A
 // text-level "the target appears among the imports" arm would therefore accuse ~42% of the test corpus on
-// day one, which is a test-mirror revamp (the same one #2142's park is waiting for), not a gate fix. The
+// day one, which is a test-mirror revamp (the one #2142's park waited for; that park closed by RENAME
+// instead — see the §4.6 record above — so this limit outlived it and is still open), not a gate fix. The
 // row that would DIE under a name-only gate IS constructible and should be the capability's first
 // `mustFlag`: `tooling/src/_shared/{artifacts,artifact-naming}.ts` both present, plus a
 // `tests/tooling/_shared/artifacts.test.ts` importing ONLY `artifact-naming.ts` — name-only says PASS,

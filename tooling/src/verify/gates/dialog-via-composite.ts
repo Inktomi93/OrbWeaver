@@ -1,6 +1,13 @@
 // Gate: dialog-via-composite (derive-modernization-audit.md §W1 G24). A client feature importing the raw
 // Dialog root hand-assembles modal anatomy that a composite should own. Permanent non-form species use one
-// exact ordinary marker per named import. Two temporary chat migrations are warning debt in the sibling.
+// exact ordinary marker per named import.
+//
+// SOLE OWNER SINCE #2393 (2026-09-18). The `dialog-via-composite-debt` warning sibling is deleted: #2350
+// migrated both chat paths, its `DIALOG_DEBT_PATHS` set emptied, and a policy whose flag class is empty
+// cannot carry the nonempty `mustFlag` the contract requires — its one row had become an unsatisfiable
+// claim that reported as a conformance TOOL ERROR. Its catalog row already carried the retirement clause
+// ("retire the debt classifier when complete"). So there is no partition left to filter: EVERY occurrence
+// the shared fact reports is this owner's, and the sibling's two regression guards moved here as mustFlag.
 //
 // The legacy predicate remains features/**/*.tsx; the subject remains the first named exported-name Dialog
 // import from the literal @orb/ui/dialog module. The private allowlist stale loop moves to central marker
@@ -14,7 +21,11 @@ const FIX =
 
 export const gate = defineGate({
   id: "dialog-via-composite",
-  family: "dialog-root-import",
+  // SINGLETON SINCE #2393, and the loader enforces it: with `dialog-via-composite-debt` deleted this policy
+  // is the sole consumer of `lib/dialog-root-import.ts`, and `lib/policy-module.ts` requires a singleton
+  // family to equal its one policy id. The shared reader keeps its own module name; only the FAMILY label,
+  // which names a set of policies, follows the set down to one.
+  family: "dialog-via-composite",
   authority: "ordinary",
   severity: "error",
   population: "@client",
@@ -27,9 +38,8 @@ export const gate = defineGate({
   create: (ctx) => ({
     evaluate: () => {
       const fact = ctx.fact(dialogRootImportFact);
-      const hits = fact.occurrences.filter((hit) => !hit.debt);
       ctx.receipt({ kind: "population", source: "dialog-root-import sources", members: fact.sources });
-      for (const hit of hits) {
+      for (const hit of fact.occurrences) {
         ctx.report.node(hit.node, { token: "Dialog", offset: 0 });
       }
     },
@@ -53,6 +63,27 @@ export const gate = defineGate({
       expect: { count: 1, token: "Dialog" },
       why: "the exported name remains Dialog through a local alias, matching the legacy getName predicate",
     },
+    // THE TWO #2350 REGRESSION GUARDS, INHERITED FROM THE RETIRED DEBT SIBLING (#2393). They were that
+    // gate's `mustPass` rows while the debt partition existed — a raw Dialog at either path was ITS
+    // finding, not this one's. With the partition gone they flip arms rather than disappear: the property
+    // the guards assert is unchanged ("these two paths were migrated to FormDialog, and a raw import at
+    // either is a regression that gets caught"), only its OWNER moved. Delete them only when the paths do.
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/chat/components/rename-chat-dialog.tsx": 'import { Dialog } from "@orb/ui/dialog";\nexport const X = () => <Dialog />;\n',
+      },
+      expect: { count: 1, token: "Dialog" },
+      why: "#2350 regression guard: rename-chat-dialog was migrated to FormDialog PROMPT mode; a raw root import here is this owner's error",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/chat/components/invite-dialog.tsx": 'import { Dialog } from "@orb/ui/dialog";\nexport const X = () => <Dialog />;\n',
+      },
+      expect: { count: 1, token: "Dialog" },
+      why: "#2350 regression guard: invite-dialog was migrated to FormDialog DISMISS mode; a raw root import here is this owner's error",
+    },
   ],
   mustPass: [
     {
@@ -70,13 +101,6 @@ export const gate = defineGate({
           'import { DialogClose } from "@orb/ui/dialog";\nimport { FormDialog } from "#components";\nexport const X = () => <FormDialog><DialogClose /></FormDialog>;\n',
       },
       why: "legacy mustPass[1]: DialogClose alone is not the Dialog root",
-    },
-    {
-      mode: "source",
-      files: {
-        "packages/client/src/features/chat/components/rename-chat-dialog.tsx": 'import { Dialog } from "@orb/ui/dialog";\nexport const X = () => <Dialog />;\n',
-      },
-      why: "legacy mustPass[2] is classified into the warning-debt sibling rather than this error owner",
     },
     {
       mode: "source",

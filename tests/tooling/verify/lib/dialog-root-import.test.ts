@@ -3,13 +3,12 @@ import { join } from "node:path";
 import process from "node:process";
 import { Project } from "ts-morph";
 import { gate as ordinary } from "../../../../tooling/src/verify/gates/dialog-via-composite.ts";
-import { gate as debt } from "../../../../tooling/src/verify/gates/dialog-via-composite-debt.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/dialog-family";
-const POLICIES = [ordinary, debt];
+const POLICIES = [ordinary];
 const PRODUCT_MARKERS = [
   "packages/client/src/features/app-shell/components/modal-host.tsx",
   "packages/client/src/features/chat/anchors/join-invite-dialog.tsx",
@@ -43,11 +42,17 @@ function run(files: Readonly<Record<string, string>>, requestedPaths?: readonly 
   });
 }
 
-test("both owners dispatch their complete proof corpus", () => {
+test("the sole owner dispatches its complete proof corpus", () => {
   expect(verifyPolicyProofs(POLICIES)).toEqual([]);
 });
 
-test("the shared classifier keeps ordinary errors separate from the two exact warning-debt paths", () => {
+/** THE PARTITION IS GONE AND THE ERROR OWNER TOOK ALL THREE (#2393). This arm used to assert the split —
+ *  one ordinary finding plus two warning-debt ones. #2350 migrated both chat paths, `DIALOG_DEBT_PATHS`
+ *  emptied, and `dialog-via-composite-debt` became a policy that could never flag, which the nonempty
+ *  `mustFlag` contract makes illegal; it is deleted. The arm is KEPT rather than dropped because the same
+ *  three fixtures are what prove the ex-debt paths are no longer exempt from anything: a regression at
+ *  either one is now an ERROR, which is strictly stronger than the warning it replaced. */
+test("the classifier has no debt partition left — the two ex-#2350 chat paths are ordinary errors like any other", () => {
   const result = run({
     "packages/client/src/features/demo/components/x.tsx": 'import { Dialog } from "@orb/ui/dialog";',
     "packages/client/src/features/chat/components/rename-chat-dialog.tsx": 'import { Dialog } from "@orb/ui/dialog";',
@@ -56,8 +61,13 @@ test("the shared classifier keeps ordinary errors separate from the two exact wa
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings.map(({ policyId }) => policyId).toSorted()).toEqual([
     "dialog-via-composite",
-    "dialog-via-composite-debt",
-    "dialog-via-composite-debt",
+    "dialog-via-composite",
+    "dialog-via-composite",
+  ]);
+  expect(result.authority.effectiveFindings.map(({ file }) => file).toSorted()).toEqual([
+    "packages/client/src/features/chat/components/invite-dialog.tsx",
+    "packages/client/src/features/chat/components/rename-chat-dialog.tsx",
+    "packages/client/src/features/demo/components/x.tsx",
   ]);
 });
 
@@ -85,7 +95,7 @@ test("the exact marker grants once, while wrong position and a stale marker alar
   ]);
 });
 
-test("the production translation is exactly ten ordinary markers and no debt marker", () => {
+test("the production translation is exactly ten ordinary markers, and neither ex-debt path carries one", () => {
   for (const path of PRODUCT_MARKERS) {
     const source = readFileSync(join(process.cwd(), path), "utf8");
     expect(source.match(/@orb-waive dialog-via-composite\(Dialog\):/gu)).toHaveLength(1);
@@ -98,7 +108,7 @@ test("the production translation is exactly ten ordinary markers and no debt mar
   }
 });
 
-test("a narrowed request defers both entire-population owners", () => {
+test("a narrowed request defers the entire-population owner", () => {
   const result = run(
     {
       "packages/client/src/features/demo/components/x.tsx": 'import { Dialog } from "@orb/ui/dialog";',

@@ -1017,8 +1017,9 @@ test(
     const identity = result.policies.find(({ id }) => id === policyWaiverIdentity.id);
     expect(identity?.receipts).toEqual([{ kind: "population", source: "final policy modules", members: shapeCount, unresolved: 0 }]);
 
-    // `policy-legacy-imports` and `policy-binding-resolution` are the error policies whose classes are OPEN on the
-    // tree (#1922's migration set + #2155; #2096's split families; #2097's local resolvers). Their live findings are
+    // `policy-legacy-imports` and `policy-binding-resolution` are the error policies whose classes were OPEN on the
+    // tree when this was written (#1922's migration set + #2155; #2096's split families; #2097's local resolvers);
+    // `policy-legacy-imports`' three are all DRAINED as of #2414, which the block below records. Their live findings are
     // compared against SECOND OPINIONS — text tests over the same corpus — so each arm's real-tree bite is measured
     // by something it did not compute, and a hardcoded count never rots into a false pin (#1969). A migration that
     // lands moves both sides together.
@@ -1050,7 +1051,31 @@ test(
       .map(relative)
       .toSorted();
     expect(accusedBy(policyLegacyImports.id)).toEqual(importOpinion);
-    expect(importOpinion.length).toBeGreaterThan(0);
+    // ALL THREE TEXT ARMS ARE NOW DRAINED ON THIS CORPUS (#2414, 2026-09-18), and the floor that used to
+    // hold them — `importOpinion.length > 0` — was the #1969 defect running in the OPPOSITE direction: it
+    // asserted the class stays NON-EMPTY, so the migration that finished emptying it reds a suite nobody
+    // edited rather than a gate anybody broke. Measured on this tree: ARM A 0 (no final module imports one
+    // of the nine forbidden homes — #1922's migration set and #2155 landed), ARM B 0 (no final module
+    // imports a REGISTERING top-level sibling — #2096's split families landed), ARM D 0 (already recorded
+    // below; #2176 Phase F moved the relocated tables to central reviewed grants). The two-sided live half
+    // is unchanged and is the equality above: a relocation that lands and is never accused still reds here.
+    // What replaces the floor is the treatment ARM D already models — a PLANTED CONTROL per drained
+    // recognizer, so a reader that stops seeing its shape dies instead of reporting a clean zero.
+    expect(importOpinion).toEqual([]);
+    expect(FORBIDDEN_HOME_IMPORT_RE.test('import { runPass } from "../lib/pass.ts";\n')).toBe(true);
+    expect(FORBIDDEN_HOME_IMPORT_RE.test('import { runPass } from "../lib/resource-mirror.ts";\n')).toBe(false);
+    const plantedSiblings = [
+      project.createSourceFile(`${repoRoot}/${GATES_DIR}psf-sibling-registers.ts`, "export const gate = defineGate({});\n", { overwrite: true }),
+      project.createSourceFile(`${repoRoot}/${GATES_DIR}psf-sibling-plain.ts`, "export const SHARED = 1;\n", { overwrite: true }),
+    ];
+    try {
+      expect(importsSiblingGate('import { gate } from "./psf-sibling-registers.ts";\n')).toBe(true);
+      expect(importsSiblingGate('import { SHARED } from "./psf-sibling-plain.ts";\n')).toBe(false);
+    } finally {
+      for (const planted of plantedSiblings) {
+        project.removeSourceFile(planted);
+      }
+    }
     // THE RECEIPT HALF IS NOW DRAINED TO ZERO, and a drained class needs a PLANTED CONTROL rather than a
     // population count. Until #2176 Phase F the tree carried live relocated tables (`contract-derives-not-
     // respells` and its `-health` sibling both received `ALLOWLIST: ExemptionTable` through `../lib/`), and
