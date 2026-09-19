@@ -28,6 +28,14 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     endsWhen: "the launcher moves behind a cli.ts — the row is then consumed zero times and reds.",
   },
   {
+    id: "tooling-argv-front-door:stack-engines-compose",
+    policyId: "tooling-argv-front-door",
+    subject: "tooling/src/stack/ops/engines-compose.ts",
+    operation: "process-argv-read",
+    why: "the node half engines.sh execs for `engines compose` — the same bash-fronted exception (Core-Tooling-Law §2.5); this tool has no cli.ts.",
+    endsWhen: "the launcher moves behind a cli.ts — the row is then consumed zero times and reds.",
+  },
+  {
     id: "tooling-argv-front-door:stack-engines-ctl",
     policyId: "tooling-argv-front-door",
     subject: "tooling/src/stack/ops/engines-ctl.ts",

@@ -4,7 +4,6 @@
 // tiers/scoping/exit classification), and the standalone reconciliation stages (type/execution membership,
 // the db baseline, the orphan-export ratchet).
 
-export { VERB_HELP } from "./cli-help.ts";
 export type {
   BaseUiBinding,
   Disposition,
@@ -100,6 +99,7 @@ export {
 } from "./lib/baseui-read.ts";
 export { BASE_UI_MODULE_PREFIX } from "./lib/baseui-surface-derive.ts";
 export { auditBiomeTranscript, biomeStageAudit, controlProbeCount, parseCheckedFileCount } from "./lib/biome-verdict.ts";
+export { VERB_HELP } from "./lib/cli-help.ts";
 export { aggregateExit, asViolations, eslintScheme, noVerdictStages, ownScheme, producedNoVerdict } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
 export { findGateIgnoreMarkersWithSpans, GATE_IGNORE_MENTION_SPAN_KINDS } from "./lib/gate-ignore.ts";
