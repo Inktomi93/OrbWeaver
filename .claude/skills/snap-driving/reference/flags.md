@@ -138,7 +138,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--lighthouse <value>` | Lighthouse (accessibility + best-practices + seo) on this run's settled page; not with --cascade |
 | `--lighthouse-mode <value>` | default snapshot audits the page as your tape left it; navigation reloads first and loses the drive |
 | `--motion [selector]` | one motion window: LoAF, CLS, compositor-dirty animations, dropped frames |
-| `--motion-no-throttle` | disable the --motion CPU throttle (headless drop rates stay advisory) |
+| `--motion-no-throttle` | disable the --motion CPU throttle (drop rates stay advisory only off a hardware rate posture) |
 | `--motion-window <value>` | --motion window length in ms (default 2500) |
 | `--perf` | per-step LoAF/long-task attribution, input delay, rAF gaps and CLS over the action tape |
 | `--perf-cycles <value>` | repeat the whole tape N times with stable step indexes (jank that repeats) |

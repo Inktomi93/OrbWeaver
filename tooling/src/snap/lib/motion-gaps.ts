@@ -26,6 +26,18 @@ export function motionLoadSuspect(ratePosture: SnapRatePosture): string | null {
   return disposition.disposition === "load-suspect" ? disposition.reason : null;
 }
 
+/**
+ * THE CAUSE FIRST, THE ARITHMETIC SECOND (#2464). A selector-less window that opened after reach actions
+ * refuses on a ZERO FRAME POPULATION — correct arithmetic over an empty window — and the reason the window
+ * was empty is the hint. Printed measured-gap-first, the operator reads "no frames composited" and
+ * concludes the browser cannot composite; printed hint-first they read that nothing moved in the window
+ * they asked for. Same set, same gating (hints ride only a run that ALREADY could not measure, so an empty
+ * `measured` yields an empty list and a clean window gets no lecture), different order.
+ */
+export function orderMotionGaps(measured: readonly EvidenceGap[], hints: readonly EvidenceGap[]): EvidenceGap[] {
+  return measured.length === 0 ? [] : [...hints, ...measured];
+}
+
 /** How many later queue entries the hint names before it stops listing them. */
 const MOTION_QUEUE_HINT_ENTRIES = 3;
 

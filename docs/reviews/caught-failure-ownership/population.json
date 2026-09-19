@@ -6115,7 +6115,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/motion.ts::catch::1",
       "path": "tooling/src/snap/ops/arms/motion.ts",
-      "line": 95,
+      "line": 107,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -6123,12 +6123,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "this optional appearance cross-check is null in ordinary non-app fixtures; rated matrix cells consume the same contract through their mandatory matrix receipt. Ends if applicationMotion becomes a verdict input outside that matrix receipt.",
-      "markerLine": 84
+      "markerLine": 96
     },
     {
       "siteId": "tooling/src/snap/ops/arms/motion.ts::error::1",
       "path": "tooling/src/snap/ops/arms/motion.ts",
-      "line": 162,
+      "line": 173,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -6136,7 +6136,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught measurement failure becomes a named evidence gap, printed as REFUSED and forced to exit 2 by the arm. Ends if the returned gaps stop feeding report/pairs/exit.",
-      "markerLine": 138
+      "markerLine": 150
     },
     {
       "siteId": "tooling/src/snap/ops/arms/perf.ts::catch::1",
