@@ -1,4 +1,4 @@
-// Policy: duplicate-action-doors (issue #252) — the §13 more-than-one-home IA class, made structural: one
+// Policy: duplicate-action-doors (issue #252) — the more-than-one-door IA class, made structural: one
 // tRPC MUTATION reachable from N distinct components inside ONE rail section is the same verb wearing N
 // doors on one plane ("new chat lives in three places"). NOTHING hardcodes a procedure or a section name:
 // the procedure key IS the `trpc.<…>` property path, and the plane is derived from the co-located section
@@ -101,7 +101,7 @@ import { reportReviewedGrantFileCandidates } from "../lib/reviewed-grant-finding
 const MESSAGE =
   "one tRPC mutation is invoked from more than one component inside a single rail section, and no reviewed " +
   "grant names that exact door set — the same verb has grown a door on a plane that already has one (the " +
-  "§13 more-than-one-home IA class). See docs/architecture/core/client-architecture-lockdown.md §13.";
+  'rule-10 "same action, same home" IA class). See docs/architecture/core/UI-Architecture-and-Layout.md §4.3.';
 
 /** Required by the shared reporter and UNREACHABLE here, stated plainly rather than implied: this policy
  *  never marks a candidate unreadable. A vocabulary shape the tuple reader cannot establish THROWS out of
