@@ -700,3 +700,20 @@ test("colorScheme derives for every standards-readable base spelling", () => {
   // No base at all ⇒ nothing to derive from.
   expect(clampThemeTokens({ accent: "#abc" }).colorScheme).toBeUndefined();
 });
+
+// #2424 — THE INHERITED-INK AXIS. A scope that CARRIES a surface owns both halves of the pairing, so it
+// must restate the `color` its descendants take by inheritance; a scope that carries none must emit
+// nothing, or an ink-only ST override would repaint its host's prose. The value is the var reference, not
+// a resolved colour: the emitted `--color-foreground` is relative-colour syntax and only the engine
+// resolves it.
+test("#2424 `color` is emitted exactly where the scope carries its own surface", () => {
+  const carried = clampThemeTokens({ background: "oklch(0.158 0.006 60)" });
+  expect(carried.vars["--color-foreground"]).toBeDefined();
+  expect(carried.color).toBe("var(--color-foreground)");
+  // Ink-only (the #236 ST population): no surface, no restatement, cascade intact.
+  const inkOnly = clampThemeTokens({ narrationColor: ST_DARK_INK }, LIGHT_SEED_BASE);
+  expect(inkOnly.vars["--color-foreground"]).toBeUndefined();
+  expect(inkOnly.color).toBeUndefined();
+  // An ambient background is a JUDGING input only — it can carry nothing into the DOM, this axis included.
+  expect(clampThemeTokens({ accent: "#abc" }, LIGHT_SEED_BASE).color).toBeUndefined();
+});

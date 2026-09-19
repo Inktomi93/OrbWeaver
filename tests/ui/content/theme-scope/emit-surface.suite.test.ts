@@ -35,8 +35,11 @@ test("THEME_SCOPE_EMIT_VARS matches what clampThemeTokens ACTUALLY emits when ev
   });
   expect(Object.keys(vars).sort()).toEqual(THEME_SCOPE_EMIT_VARS.toSorted());
   // colorScheme is a struct axis (rides `color-scheme`, not a `--*` var) — it must NEVER appear in the
-  // emit surface, or it would fail the round-trip-to-a-real-token assertion below.
+  // emit surface, or it would fail the round-trip-to-a-real-token assertion below. `color` (#2424) is the
+  // second member of that class and is fenced the same way: a REAL CSS property restating the scope's
+  // inherited ink, never a custom property.
   expect("colorScheme" in vars).toBe(false);
+  expect("color" in vars).toBe(false);
 });
 
 test.each(THEME_SCOPE_EMIT_VARS)("%s corresponds to a real token in the generated TOKENS map", (cssVar) => {
