@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 // tests/server/domain/rpg/flush-barrier — the per-chat in-flight FLUSH BARRIER (domain/rpg/flush-barrier.ts).
 // A stateful feature-root collaborator: `register` records a chat's in-flight flush, `awaitInFlight` blocks the
 // next turn's gather until the chat's flush(es) settle (bounded). Unit-tested directly (no engine/db) — the
@@ -13,7 +12,8 @@
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRpgFlushBarrier } from "@orb/server/domain/rpg";
-import { describe, vi } from "vitest";
+import { describe } from "vitest";
+import { createManualTimer } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT: ChatId = castId<ChatId>("chat_barrier_1");
@@ -136,26 +136,40 @@ describe("rpg flush barrier", () => {
   });
 
   test("a hung flush releases at the bound + fires onTimeout (never a deadlocked turn)", async () => {
-    vi.useFakeTimers();
-    try {
-      const timeouts: { chatId: ChatId }[] = [];
-      const barrier = createRpgFlushBarrier((info) => timeouts.push({ chatId: info.chatId }), 1000);
-      const hung = deferred(); // never resolves — a black-holed state round
-      const registered = registerFlush(barrier, hung.promise);
+    const timer = createManualTimer();
+    const timeouts: { chatId: ChatId }[] = [];
+    const barrier = createRpgFlushBarrier((info) => timeouts.push({ chatId: info.chatId }), 1000, timer.schedule);
+    const hung = deferred(); // never resolves — a black-holed state round
+    const registered = registerFlush(barrier, hung.promise);
 
-      let released = false;
-      const wait = barrier.awaitInFlight(CHAT).then(() => {
-        released = true;
-      });
-      await vi.advanceTimersByTimeAsync(1000); // cross the bound
-      await wait;
-      expect(released).toBe(true); // the turn PROCEEDS on last-known state, not deadlocked
-      expect(timeouts).toEqual([{ chatId: CHAT }]); // the timeout was logged
-      hung.resolve();
-      await registered;
-    } finally {
-      vi.useRealTimers();
-    }
+    let released = false;
+    const wait = barrier.awaitInFlight(CHAT).then(() => {
+      released = true;
+    });
+    expect(timer.armed()).toEqual([1000]); // the bound is armed against the INJECTED seam, never the wall clock
+    timer.fire(); // cross the bound
+    await wait;
+    expect(released).toBe(true); // the turn PROCEEDS on last-known state, not deadlocked
+    expect(timeouts).toEqual([{ chatId: CHAT }]); // the timeout was logged
+    hung.resolve();
+    await registered;
+  });
+
+  // The other half of the bound: a flush that SETTLES must cancel the armed timer, or every gather would leave
+  // a live handle behind (the `clearTimeout` the injected seam replaced).
+  test("a flush that settles cancels the armed bound (no dangling timer per gather)", async () => {
+    const timer = createManualTimer();
+    const timeouts: { chatId: ChatId }[] = [];
+    const barrier = createRpgFlushBarrier((info) => timeouts.push({ chatId: info.chatId }), 1000, timer.schedule);
+    const flush = deferred();
+    const registered = registerFlush(barrier, flush.promise);
+    const wait = barrier.awaitInFlight(CHAT);
+    expect(timer.cancelled()).toEqual([]); // armed, still live while the flush is in flight
+    flush.resolve();
+    await registered;
+    await wait;
+    expect(timer.cancelled()).toEqual([1000]);
+    expect(timeouts).toEqual([]); // settled, not timed out
   });
 
   // ── CANCELLATION (RPG-SIGNAL) ────────────────────────────────────────────────────────────────────────────

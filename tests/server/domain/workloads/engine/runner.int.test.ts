@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 // Engine test: runWorkload — the per-row state machine. Pins the success lifecycle (claim → succeeded +
 // result + bus events), failure (→ failed + the PD-113 WORKLOAD_FAILED audit through the injected op),
 // the claim-loser early-return, the cancelling→cancelled PIN (an aborted run that returned normally), and
@@ -18,6 +17,7 @@ import { getRecentWorkloadEvents } from "../../../../../packages/server/src/doma
 import { reapOrphanedWorkloads } from "../../../../../packages/server/src/domain/workloads/engine/reaper.ts";
 import { runWorkload } from "../../../../../packages/server/src/domain/workloads/engine/runner.ts";
 import { loadWorkload, loadWorkloadStatus, markTerminal } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
+import { createManualTimer } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { contributionsWith, fakeContributions, loadRunnableWorkload, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
@@ -249,10 +249,11 @@ describe("runWorkload progress durability", () => {
 // lane, so it is pinned closed here: a run that stays pending far past the reaper's window keeps its lease,
 // and the disabled-timer arm proves the assertion can actually fail.
 //
-// FAKE TIMERS + an injected clock, not wall time: the property is "the lease tick is SCHEDULED, so a pending
-// body cannot hold it up", and advancing a fake clock while the body's promise is still unresolved states
-// exactly that — deterministically, and without an ambient `Date.now()` the test-determinism gate would
-// (correctly) refuse.
+// THE INJECTED TIMER SEAM + an injected clock, not wall time and not `vi.useFakeTimers` (Spine-Testing.md §3):
+// the property is "the lease tick is SCHEDULED, so a pending body cannot hold it up", and ticking the lease by
+// hand — through the same `scheduleInterval` dep entry wires `setInterval` into — while the body's promise is
+// still unresolved states exactly that, without replacing anything global. The arm's own assertion is the
+// cadence the runner ARMED: `[heartbeatMs]` when enabled, `[]` when the `<= 0` seam disabled it.
 describe("runWorkload lease under a slow item", () => {
   const staleMs = 60;
   const inFlightMs = staleMs * 4;
@@ -270,21 +271,28 @@ describe("runWorkload lease under a slow item", () => {
     let clock = T0;
     const id = await seedWorkloadRow(db, { id: "wl_slow", kind: KIND, status: "queued", updatedAt: T0 });
     const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
-    vi.useFakeTimers();
-    try {
-      const running = runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run), { now: () => clock, heartbeatMs, cancelPollMs: 0 }), row, sig());
-      await started.promise;
-      // The body is STILL awaiting `gate` across this whole span — exactly the shape of a 31s vLLM summarize.
-      clock += inFlightMs;
-      await vi.advanceTimersByTimeAsync(inFlightMs);
-      const reaped = await reapOrphanedWorkloads({ db, now: clock, staleThresholdMs: staleMs, reason: "heartbeat_stale" });
-      const status = await loadWorkloadStatus(db, id);
-      gate.resolve();
-      await running;
-      return { reaped, status };
-    } finally {
-      vi.useRealTimers();
+    const timer = createManualTimer();
+    const running = runWorkload(
+      makeRunnerDeps(db, contributionsWith(KIND, run), { now: () => clock, heartbeatMs, cancelPollMs: 0, scheduleInterval: timer.schedule }),
+      row,
+      sig(),
+    );
+    await started.promise;
+    // The body is STILL awaiting `gate` across this whole span — exactly the shape of a 31s vLLM summarize.
+    clock += inFlightMs;
+    expect(timer.armed()).toEqual(heartbeatMs > 0 ? [heartbeatMs] : []);
+    timer.fire(); // one lease tick at the advanced clock — a no-op when the `<= 0` cadence armed nothing
+    if (heartbeatMs > 0) {
+      // Wait on the lease WRITE landing (it is queued on the lease's own promise chain), never on elapsed time.
+      await vi.waitFor(async () => {
+        expect((await loadWorkload(db, CONTRIBUTIONS, id))?.updatedAt).toBe(clock);
+      });
     }
+    const reaped = await reapOrphanedWorkloads({ db, now: clock, staleThresholdMs: staleMs, reason: "heartbeat_stale" });
+    const status = await loadWorkloadStatus(db, id);
+    gate.resolve();
+    await running;
+    return { reaped, status };
   }
 
   test("a long AWAITED item cannot starve the lease — the reaper leaves it alone", async () => {

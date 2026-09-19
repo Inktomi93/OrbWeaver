@@ -59,8 +59,11 @@ export {
   type ProviderTurnUsage,
 } from "./log.ts";
 export { sanitizeAnthropicOutputSchema } from "./output-schema.ts";
-export { consumeTurnStream, mergeMountedOptions } from "./runner.ts";
+// The two BOUNDS are exported for the same reason `IDLE_TIMEOUT_MS` is: their tests trip them through the
+// injected timer seam and assert the bound that was armed, which a re-spelled literal could not state.
+export { CONTEXT_USAGE_PROBE_TIMEOUT_MS, consumeTurnStream, mergeMountedOptions } from "./runner.ts";
 export type { SessionEntryWriter } from "./session/index.ts";
+export { SUMMARIZE_ITEM_TIMEOUT_MS } from "./summarize.ts";
 export { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
 export { disciplineOptions, dynamicContextOptions, firewallBase, TERMINAL_MCP_NAMESPACE } from "./translate.ts";
 export { assertInitFrameShape, classifyTerminalReason } from "./verify.ts";
@@ -81,7 +84,20 @@ export interface AgentSdkBackendDeps {
   readonly captureWire?: AgentSdkDeps["captureWire"];
   /** Live getter for the summarize worker count (Q6); compose wires it off the effective config. */
   readonly summarizeConcurrency?: AgentSdkDeps["summarizeConcurrency"];
+  /** The bounded-probe/watchdog timer seam — see `AgentSdkDeps.scheduleTimeout`. Absent ⇒ the real timer
+   *  below; a test passes a hand-driven one instead of replacing the global clock. */
+  readonly scheduleTimeout?: AgentSdkDeps["scheduleTimeout"];
 }
+
+/** The real timer, and the default for the seam above — the ONE ambient `setTimeout` this backend owns.
+ *  `unref` so an armed bound never holds the process open (what both former inline timers did). */
+const realScheduleTimeout: AgentSdkDeps["scheduleTimeout"] = (fn, ms) => {
+  const handle = setTimeout(fn, ms);
+  handle.unref();
+  return (): void => {
+    clearTimeout(handle);
+  };
+};
 
 export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBackend {
   const sessions = new SessionCache(deps.sessionStore, deps.sessionWriter);
@@ -92,6 +108,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
     ...(deps.sessionWriter !== undefined ? { sessionWriter: deps.sessionWriter } : {}),
     normalizeImageBytes: deps.normalizeImageBytes ?? passthroughImageNormalizer,
     refreshHostSubToken: deps.refreshHostSubToken ?? ((): Promise<boolean> => ensureFreshHostSubToken({ now: deps.now })),
+    scheduleTimeout: deps.scheduleTimeout ?? realScheduleTimeout,
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     ...(deps.summarizeConcurrency !== undefined ? { summarizeConcurrency: deps.summarizeConcurrency } : {}),
   };

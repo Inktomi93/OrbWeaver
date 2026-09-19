@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 //
 // The agent-sdk SUMMARIZE role (summarize.ts via the backend's `summarize`), driven by a fake `query`.
 // Load-bearing invariants:
@@ -12,11 +11,12 @@
 //     sessionStore (a stateless utility turn), and `maxTokens` rides the output-cap env override.
 //   • temperature/minP are DROPPED (no sampling on the agent-sdk).
 //   • whole-batch-on-first-error: one failed item rejects the whole batch (the vLLM/OR convention).
-//   • the per-item watchdog aborts a hung turn (fake timers).
+//   • the per-item watchdog aborts a hung turn (tripped through the backend's injected timer seam).
 
 import type { StructuredRequest, SummarizeRequest, SummarizeResult } from "@orb/server/infra/providers";
-import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
+import { createAgentSdkBackend, SUMMARIZE_ITEM_TIMEOUT_MS } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
+import { createManualTimer } from "../../../../../support/clock.ts";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { wireSchema } from "../../../../../support/wire-ready.ts";
@@ -33,17 +33,24 @@ const HOSTED_HINT_RE = /openrouter/u;
 type SummarizeFn = (req: SummarizeRequest) => Promise<SummarizeResult>;
 type StructuredFn = (req: StructuredRequest) => Promise<SummarizeResult>;
 
-function newBackend(query: unknown, summarizeConcurrency?: () => number): ReturnType<typeof createAgentSdkBackend> {
+/** `scheduleTimeout` is the backend's injected TIMER seam (the per-item watchdog arms through it). Omitted ⇒
+ *  the real timer, which every test but the watchdog one wants. */
+function newBackend(
+  query: unknown,
+  summarizeConcurrency?: () => number,
+  scheduleTimeout?: (fn: () => void, ms: number) => () => void,
+): ReturnType<typeof createAgentSdkBackend> {
   return createAgentSdkBackend({
     now: () => 0,
     query: query as never,
     refreshHostSubToken: () => Promise.resolve(false),
     ...(summarizeConcurrency !== undefined ? { summarizeConcurrency } : {}),
+    ...(scheduleTimeout !== undefined ? { scheduleTimeout } : {}),
   });
 }
 
-function backendOf(query: unknown, summarizeConcurrency?: () => number): SummarizeFn {
-  return newBackend(query, summarizeConcurrency).summarize as SummarizeFn;
+function backendOf(query: unknown, summarizeConcurrency?: () => number, scheduleTimeout?: (fn: () => void, ms: number) => () => void): SummarizeFn {
+  return newBackend(query, summarizeConcurrency, scheduleTimeout).summarize as SummarizeFn;
 }
 
 // The `structured` role method (owner ruling 2026-07-27 — the sub's schema-output path; agent-sdk stays out
@@ -360,27 +367,25 @@ describe("agent-sdk summarize", () => {
   });
 
   test("the per-item watchdog aborts a hung turn and fails the batch", async () => {
-    vi.useFakeTimers();
-    try {
-      // A stream that never yields a result frame — the reduce would hang without the watchdog.
-      const hung = (): AsyncGenerator<never> => {
-        async function* gen(): AsyncGenerator<never> {
-          await new Promise(() => {
-            // never resolves
-          });
-        }
-        return gen();
-      };
-      const fakeQuery = vi.fn(() => hung());
-      const summarize = backendOf(fakeQuery);
+    // A stream that never yields a result frame — the reduce would hang without the watchdog.
+    const hung = (): AsyncGenerator<never> => {
+      async function* gen(): AsyncGenerator<never> {
+        await new Promise(() => {
+          // never resolves
+        });
+      }
+      return gen();
+    };
+    const fakeQuery = vi.fn(() => hung());
+    // The watchdog arms through the backend's INJECTED `scheduleTimeout` (Spine-Testing.md §3) — tripped by
+    // hand here, asserting the REAL bound was armed rather than any amount of elapsed time.
+    const timer = createManualTimer();
+    const summarize = backendOf(fakeQuery, undefined, timer.schedule);
 
-      const pending = summarize(reqOf());
-      const assertion = expect(pending).rejects.toMatchObject({ kind: "server" });
-      // Advance past the 120s watchdog — it aborts the spawn and rejects.
-      await vi.advanceTimersByTimeAsync(120_001);
-      await assertion;
-    } finally {
-      vi.useRealTimers();
-    }
+    const pending = summarize(reqOf());
+    const assertion = expect(pending).rejects.toMatchObject({ kind: "server" });
+    await vi.waitFor(() => expect(timer.armed()).toEqual([SUMMARIZE_ITEM_TIMEOUT_MS]));
+    timer.fire(); // cross the watchdog — it aborts the spawn and rejects
+    await assertion;
   });
 });

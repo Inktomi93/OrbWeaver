@@ -52,7 +52,7 @@ import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, cl
 function sdkChatTitle(chatId: ChatId | undefined): string {
   return chatId !== undefined ? `orb:${chatId}` : "orbweaver";
 }
-const CONTEXT_USAGE_PROBE_TIMEOUT_MS = 2000;
+export const CONTEXT_USAGE_PROBE_TIMEOUT_MS = 2000;
 const ANTHROPIC_PREFIX_RE = /^anthropic\//;
 /** The stderr tail bound, in UTF-16 CODE UNITS — the unit `buf.length` actually counts, and the unit a
  *  retained JS string actually costs. The former `_BYTES` spelling named a quantity this code never measures
@@ -233,7 +233,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     expectStructured: req.responseFormat !== undefined,
     captureTerminalTools: terminal !== null,
     stderrTail: () => stderrTail.tail(),
-    probeContextUsage: () => probeContextUsage(stream),
+    probeContextUsage: () => probeContextUsage(stream, deps.scheduleTimeout),
     ...(chatId !== undefined ? { chatId } : {}),
     ...(req.onEvent !== undefined ? { onEvent: req.onEvent } : {}),
     ...(req.onDelta !== undefined ? { onDelta: req.onDelta } : {}),
@@ -359,14 +359,15 @@ function toContextUsage(res: SDKControlGetContextUsageResponse): ContextUsage {
 }
 
 /** Bounded, non-fatal context-fill probe; a throw/rejection/timeout all resolve `undefined` rather than fail the turn. */
-async function probeContextUsage(query: Query): Promise<ContextUsage | undefined> {
+async function probeContextUsage(query: Query, scheduleTimeout: AgentSdkDeps["scheduleTimeout"]): Promise<ContextUsage | undefined> {
   if (typeof query.getContextUsage !== "function") {
     return;
   }
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  // The bound is armed through the INJECTED seam (`AgentSdkDeps.scheduleTimeout`), never a raw `setTimeout`:
+  // a test trips it by hand instead of replacing the global clock (Spine-Testing.md §3).
+  let cancelTimer: (() => void) | undefined;
   const timeout = new Promise<undefined>((resolve) => {
-    timer = setTimeout(() => resolve(undefined), CONTEXT_USAGE_PROBE_TIMEOUT_MS);
-    timer.unref();
+    cancelTimer = scheduleTimeout(() => resolve(undefined), CONTEXT_USAGE_PROBE_TIMEOUT_MS);
   });
   let usage: ContextUsage | undefined;
   // @orb-waive caught-failure-ownership(catch): a bounded context-fill probe collapses any throw/timeout to undefined (usage absent); purely diagnostic, gates no turn/auth decision. Ends if context usage ever gates a turn.
@@ -376,9 +377,7 @@ async function probeContextUsage(query: Query): Promise<ContextUsage | undefined
   } catch {
     // diagnostic miss, not a turn failure
   } finally {
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
+    cancelTimer?.();
   }
   return usage;
 }

@@ -33,6 +33,13 @@ export interface AgentSdkDeps {
   /** Pre-spawn mode-1 (Max sub) OAuth refresh so the ephemeral-dir symlink resolves fresh (host-token.ts).
    *  Best-effort — resolves `false`, never throws. */
   readonly refreshHostSubToken: () => Promise<boolean>;
+  /** The TIMER seam every bound in this backend arms through — the context-usage probe's 2 s cap
+   *  (`runner.ts`) and the per-item summarize watchdog (`summarize.ts`). Schedule `fn` after `ms`, returning
+   *  its cancel; the handle type never leaks (the house `ScheduleOp` shape, `transport/jobs/workloads-worker.ts`).
+   *  Injected for the same reason `now` is: a test trips a bound through this seam instead of replacing the
+   *  global clock, which `vi.useFakeTimers` does and Spine-Testing.md §3 bans. `createAgentSdkBackend` defaults
+   *  it to the real unref'd `setTimeout`. */
+  readonly scheduleTimeout: (fn: () => void, ms: number) => () => void;
   /** Live getter for the max in-flight summarize workers (Q6 — agentSdkConcurrency.summarize, env floor 4 ⊕
    *  AppSettings override). Read per BATCH so an admin retune applies without a restart. Omitted ⇒ the floor. */
   readonly summarizeConcurrency?: (() => number) | undefined;
