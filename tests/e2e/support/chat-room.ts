@@ -17,6 +17,7 @@
 //   • stream-open is observed via the DEV `window.__orb.bus().live` count (agent-bridge.ts) — vite serves
 //     the e2e app in dev mode so the handle exists; orb has no `chat-stream-state` testid.
 
+import { rowActionsName } from "@orb/client/lib";
 import type { MessageId } from "@orb/kit/ids";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
@@ -392,7 +393,7 @@ export async function characterChipNames(page: Page): Promise<readonly string[]>
 /** Open one Members-row action menu (member-row.tsx's trailing ⋯, `Actions for <name>`) — the canonical
  *  action home for Mute / Talkativeness… / Make X speak next / Remove X from chat. */
 export async function openMemberRowMenu(page: Page, displayName: string): Promise<void> {
-  const kebab = page.getByRole("button", { name: `Actions for ${displayName}`, exact: true });
+  const kebab = page.getByRole("button", { name: rowActionsName(displayName), exact: true });
   await expect(kebab).toBeVisible({ timeout: 15_000 });
   await kebab.click();
 }

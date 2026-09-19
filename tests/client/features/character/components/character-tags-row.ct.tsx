@@ -1,3 +1,4 @@
+import { removeActionName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterTagsRowStory } from "../_ct-stories.tsx";
@@ -10,7 +11,7 @@ test("tag removal admits one durable intent, holds the cluster inert, and reject
     "character.bulkRemoveCardTag": () => (attempts++ === 0 ? first : retry),
   });
   const component = await mount(<CharacterTagsRowStory />);
-  const remove = component.getByRole("button", { name: "Remove rpg" });
+  const remove = component.getByRole("button", { name: removeActionName("rpg") });
   const add = component.getByRole("button", { name: "Add tag" });
 
   await remove.evaluate((button) => {

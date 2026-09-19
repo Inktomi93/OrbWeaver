@@ -38,7 +38,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP_COARSE_KEEP, RowActionsMenu, RowToggleAction } from "#components";
-import { rowActionSubject, rowActionsName } from "#lib";
+import { chatWithActionName, rowActionSubject, rowActionsName, selectActionName } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel, EXPORT_CHARACTER_PATH } from "../lib/character-actions.ts";
 
@@ -137,7 +137,7 @@ export function CharacterCardTile({
   const qualifier = handleQualifier(character);
   const subject = rowActionSubject(character.name, qualifier);
 
-  const bulkActions = <Checkbox aria-label={`Select ${subject}`} checked={bulkSelected} onCheckedChange={(): void => onToggleBulk(character.id)} />;
+  const bulkActions = <Checkbox aria-label={selectActionName(subject)} checked={bulkSelected} onCheckedChange={(): void => onToggleBulk(character.id)} />;
   const markers = bulkMode ? undefined : rowMarkers(character);
 
   return (
@@ -304,7 +304,14 @@ function NormalRowActions({
           affordances (`#components/row-reveal.ts`), which the star is and this is not — so #1695's symptom
           (three touch boxes charging a phone row) is answered by taking the cluster from three to TWO, not
           by reversing the CTA ruling. */}
-      <Button aria-label={`Chat with ${subject}`} className={ROW_REVEAL} intent="ghost" onClick={(): void => onChat(character.id)} size="icon" type="button">
+      <Button
+        aria-label={chatWithActionName(subject)}
+        className={ROW_REVEAL}
+        intent="ghost"
+        onClick={(): void => onChat(character.id)}
+        size="icon"
+        type="button"
+      >
         <Icon icon={MessagesSquare} size="sm" />
       </Button>
       <RowActionsMenu

@@ -16,7 +16,7 @@ import type { ListRowProps } from "@orb/ui/list-row";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
-import { rowActionSubject, rowActionsName } from "#lib";
+import { duplicateActionName, rowActionSubject, rowActionsName } from "#lib";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
 import { ROW_REVEAL } from "./row-reveal.ts";
 
@@ -237,7 +237,7 @@ function LibraryRowActionsMenu({
   return (
     <>
       {inlineVerb === undefined || duplicate === undefined ? null : (
-        <Button aria-label={`Duplicate ${subject}`} className={ROW_REVEAL} intent="ghost" onClick={duplicate} size="icon" type="button">
+        <Button aria-label={duplicateActionName(subject)} className={ROW_REVEAL} intent="ghost" onClick={duplicate} size="icon" type="button">
           <Icon icon={Copy} size="sm" />
         </Button>
       )}

@@ -15,7 +15,7 @@
 // NOTE (mirrors message-list-surface.ct.tsx's own note): `trpc.character.list` is stubbed at the NETWORK
 // (routeTrpc) — the responder inspects the decoded input (cursor · search · chips) to serve its page.
 
-import { rowActionSubject, rowActionsName } from "@orb/client/lib";
+import { chatWithActionName, rowActionSubject, rowActionsName, selectActionName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -411,7 +411,7 @@ test("§4.6 bulk mode reveals row checkboxes + the selection bar", async ({ moun
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Select multiple" }).click();
-  await component.getByRole("checkbox", { name: "Select Bolt" }).click();
+  await component.getByRole("checkbox", { name: selectActionName("Bolt") }).click();
   // The selection bar's bulk actions appear once a row is selected.
   await expect(component.getByRole("button", { name: "Tag", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Archive", exact: true })).toBeVisible();
@@ -548,7 +548,7 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Select multiple" }).click();
-  await component.getByRole("checkbox", { name: "Select Bolt" }).click();
+  await component.getByRole("checkbox", { name: selectActionName("Bolt") }).click();
   await component.getByRole("button", { name: "Tag", exact: true }).click();
 
   // The picker Dialog is portaled outside the mount root — query it via `page`. Barrier on the SETTLED
@@ -582,7 +582,7 @@ test("the tag picker suggests EXISTING tags as you type, and picking one attache
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Select multiple" }).click();
-  await component.getByRole("checkbox", { name: "Select Bolt" }).click();
+  await component.getByRole("checkbox", { name: selectActionName("Bolt") }).click();
   await component.getByRole("button", { name: "Tag", exact: true }).click();
 
   const field = page.getByRole("combobox", { name: "Tag name" });
@@ -610,7 +610,7 @@ test("a name that matches nothing makes CREATING the deliberate, labelled act", 
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Select multiple" }).click();
-  await component.getByRole("checkbox", { name: "Select Bolt" }).click();
+  await component.getByRole("checkbox", { name: selectActionName("Bolt") }).click();
   await component.getByRole("button", { name: "Tag", exact: true }).click();
 
   const field = page.getByRole("combobox", { name: "Tag name" });
@@ -638,7 +638,7 @@ test("a no-match query opens NO popup — the confirm stays clickable and in the
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await component.getByRole("button", { name: "Select multiple" }).click();
-  await component.getByRole("checkbox", { name: "Select Bolt" }).click();
+  await component.getByRole("checkbox", { name: selectActionName("Bolt") }).click();
   await component.getByRole("button", { name: "Tag", exact: true }).click();
 
   const field = page.getByRole("combobox", { name: "Tag name" });
@@ -1590,7 +1590,7 @@ test("P1-3 revealing the row's controls costs ZERO reflow — the title box is i
 
   const rest = await title.boundingBox();
   await component.locator('[data-slot="list-row-root"]').hover();
-  await expect(component.getByRole("button", { name: `Chat with ${LONG_NAME}`, exact: true })).toHaveCSS("opacity", "1");
+  await expect(component.getByRole("button", { name: chatWithActionName(LONG_NAME), exact: true })).toHaveCSS("opacity", "1");
   const readHoveredAtAssertion = async (): Promise<typeof hovered> => await title.boundingBox();
   const hovered = await title.boundingBox();
 

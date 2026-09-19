@@ -27,6 +27,7 @@ import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cn, turnMutationToast } from "#lib";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
+import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "../lib/message-action-names.ts";
 import { PAGER_CHIP, PAGER_CHIP_COMPACT, PAGER_COUNTER, PAGER_LABEL_QUIET_WHEN_TIGHT, PAGER_TRACK } from "../lib/pager-chrome.ts";
 
 interface SwipeVars {
@@ -129,7 +130,7 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
   // composer control), with distinct honest names. What #568's triage left unsettled was the NAME at
   // variantCount === 1: this lone chevron GENERATES (not steps) here, so it must say so rather than
   // borrow the pager's "Next variant" label.
-  const nextChevronLabel = showPager ? "Next variant" : "Generate a variant";
+  const nextChevronLabel = showPager ? VARIANT_NEXT_NAME : VARIANT_GENERATE_NAME;
 
   return (
     // THE PAGER MAY NOT SIZE THE BUBBLE'S COLUMN (#598). The content column is a flex child of a row body
@@ -172,7 +173,7 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
           no longer does is shrink below the controls it backs. */}
       <Row gap="field" align="center" data-slot="swipe-strip" className={cn(PAGER_CHIP, PAGER_CHIP_COMPACT, backingClass)}>
         {showPager ? (
-          <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
+          <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label={VARIANT_PREV_NAME} onClick={goPrev}>
             <Icon icon={ChevronLeft} size="sm" />
           </Button>
         ) : null}

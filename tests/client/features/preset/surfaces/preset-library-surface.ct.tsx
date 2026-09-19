@@ -19,7 +19,7 @@
 // `preset.list`/`settings.getUserSettings` are stubbed at the NETWORK (routeTrpc); the menu + ConfirmDialog
 // render in a PORTAL, so they are located on `page`, not the mounted component.
 
-import { rowActionsName } from "@orb/client/lib";
+import { duplicateActionName, rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -598,7 +598,7 @@ test("§12 the built-in row still carries NO inline verb, and activation is not 
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
-  await expect(page.getByRole("button", { name: "Duplicate Default", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: duplicateActionName("Default"), exact: true })).toHaveCount(0);
   // …the un-renameable, un-deletable built-in is still a pick (D1).
   await expect(page.getByRole("radio", { name: activateFor("Default"), exact: true })).toHaveCount(1);
 });

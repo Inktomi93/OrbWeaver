@@ -3,6 +3,7 @@
 // patch); a no-op edit (unchanged text) just exits without firing the mutation.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { MESSAGE_EDIT_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { MessageEditTextareaStory } from "../_ct-stories.tsx";
 import { makeMessageView } from "../fixtures.ts";
@@ -11,7 +12,7 @@ test("mounts pre-focused with the message's current content, caret at the end", 
   const message = makeMessageView({ content: "original text" });
   const component = await mount(<MessageEditTextareaStory message={message} />);
 
-  const textarea = component.getByRole("textbox", { name: "Edit message" });
+  const textarea = component.getByRole("textbox", { name: MESSAGE_EDIT_NAME });
   await expect(textarea).toBeVisible();
   await expect(textarea).toHaveValue("original text");
   await expect(textarea).toBeFocused();
@@ -22,7 +23,7 @@ test("Enter (no Shift) saves via chat.editMessage with the edited content", asyn
   const trpc = await routeTrpc(page, { "chat.editMessage": () => message });
   const component = await mount(<MessageEditTextareaStory message={message} />);
 
-  const textarea = component.getByRole("textbox", { name: "Edit message" });
+  const textarea = component.getByRole("textbox", { name: MESSAGE_EDIT_NAME });
   await textarea.fill("edited text");
   await textarea.press("Enter");
 
@@ -41,7 +42,7 @@ test("Shift+Enter inserts a newline instead of saving", async ({ mount, page }) 
   const trpc = await routeTrpc(page, { "chat.editMessage": () => message });
   const component = await mount(<MessageEditTextareaStory message={message} />);
 
-  const textarea = component.getByRole("textbox", { name: "Edit message" });
+  const textarea = component.getByRole("textbox", { name: MESSAGE_EDIT_NAME });
   await textarea.press("End");
   await textarea.press("Shift+Enter");
   await textarea.pressSequentially("line two");
@@ -55,7 +56,7 @@ test("Esc cancels — discards the draft (store clears → the textarea reads em
   const trpc = await routeTrpc(page, { "chat.editMessage": () => message });
   const component = await mount(<MessageEditTextareaStory message={message} />);
 
-  const textarea = component.getByRole("textbox", { name: "Edit message" });
+  const textarea = component.getByRole("textbox", { name: MESSAGE_EDIT_NAME });
   await textarea.fill("a change I want to discard");
   await textarea.press("Escape");
 
@@ -73,7 +74,7 @@ test("the Cancel button also discards the draft without saving", async ({ mount,
   const trpc = await routeTrpc(page, { "chat.editMessage": () => message });
   const component = await mount(<MessageEditTextareaStory message={message} />);
 
-  const textarea = component.getByRole("textbox", { name: "Edit message" });
+  const textarea = component.getByRole("textbox", { name: MESSAGE_EDIT_NAME });
   await textarea.fill("discard me");
   await component.getByRole("button", { name: "Cancel edit" }).click();
 
@@ -86,7 +87,7 @@ test("the Save button fires the same save path as Enter", async ({ mount, page }
   const trpc = await routeTrpc(page, { "chat.editMessage": () => message });
   const component = await mount(<MessageEditTextareaStory message={message} />);
 
-  await component.getByRole("textbox", { name: "Edit message" }).fill("saved via button");
+  await component.getByRole("textbox", { name: MESSAGE_EDIT_NAME }).fill("saved via button");
   await component.getByRole("button", { name: "Save edit" }).click();
 
   await expect.poll(() => trpc.count("chat.editMessage"), { intervals: [20, 50, 100] }).toBe(1);
@@ -98,7 +99,7 @@ test("an unchanged save (identical text) exits WITHOUT calling chat.editMessage"
   const trpc = await routeTrpc(page, { "chat.editMessage": () => message });
   const component = await mount(<MessageEditTextareaStory message={message} />);
 
-  const textarea = component.getByRole("textbox", { name: "Edit message" });
+  const textarea = component.getByRole("textbox", { name: MESSAGE_EDIT_NAME });
   await textarea.press("Enter");
 
   await expect.poll(() => trpc.count("chat.editMessage")).toBe(0);

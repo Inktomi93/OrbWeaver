@@ -9,7 +9,7 @@ import { CrossfadeImage } from "@orb/ui/crossfade-image";
 import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { cn } from "#lib";
+import { cn, removeActionName } from "#lib";
 import type { PendingAttachment } from "../hooks/use-composer-attachments.ts";
 import { CHAT_TRACK } from "../lib/chat-track.ts";
 
@@ -27,7 +27,7 @@ function AttachmentPreview({ attachment, onRemove }: { readonly attachment: Pend
       ) : (
         <CrossfadeImage src={attachment.url} alt={`Attachment preview: ${attachment.file.name}`} aspectRatio={1} fit="cover" className="size-16 rounded-base" />
       )}
-      <Button type="button" intent="ghost" size="icon" aria-label={`Remove ${attachment.file.name}`} onClick={onRemove} shape="pill">
+      <Button type="button" intent="ghost" size="icon" aria-label={removeActionName(attachment.file.name)} onClick={onRemove} shape="pill">
         <Icon icon={X} size="sm" />
       </Button>
     </Row>

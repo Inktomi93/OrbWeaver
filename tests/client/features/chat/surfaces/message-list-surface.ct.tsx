@@ -26,6 +26,7 @@ import { castId } from "@orb/kit/ids";
 import { contrastRatio } from "@orb/tooling/_shared/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { MESSAGE_EDIT_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -1187,8 +1188,8 @@ test("ROVING: the edit-in-place path survives suppression — reached by MOUSE, 
   // The cluster rests hidden + pointer-events-none (`messageActionsRevealClass`), so a real pointer
   // reaches it only over the row — hover first, exactly as a mouse user does.
   await component.locator('[data-slot="message-row"]').last().hover();
-  await component.getByRole("button", { name: "Edit message" }).last().click();
-  const textarea = component.getByRole("textbox", { name: "Edit message" });
+  await component.getByRole("button", { name: MESSAGE_EDIT_NAME }).last().click();
+  const textarea = component.getByRole("textbox", { name: MESSAGE_EDIT_NAME });
   await expect(textarea).toBeVisible();
   await textarea.focus();
 

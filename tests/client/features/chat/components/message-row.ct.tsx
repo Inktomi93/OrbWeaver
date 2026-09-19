@@ -16,6 +16,14 @@ import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
+import {
+  MESSAGE_ACTIONS_MENU_NAME,
+  MESSAGE_EDIT_NAME,
+  MESSAGE_FORK_NAME,
+  MESSAGE_REASONING_NAME,
+  VARIANT_NEXT_NAME,
+  VARIANT_PREV_NAME,
+} from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
@@ -1351,7 +1359,7 @@ test.describe("#988 message action rail containment", () => {
         <MessageRowStory chatStyle="bubble" messageRole="assistant" content="Contain these coarse actions" characterId={ALICE_ID} participants={[alice()]} />,
       );
       const actions = component.locator(ACTIONS_ROW);
-      const namedDoor = actions.getByRole("button", { name: "More message actions" });
+      const namedDoor = actions.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME });
 
       await expect(actions).toHaveCSS("opacity", "1");
       await expect(actions).toHaveCSS("pointer-events", "auto");
@@ -1393,7 +1401,7 @@ test("#204/#288 the header's height derives from the name, not the invisible act
   // An INSIDE header takes no plate of its own: it is exactly the name line, no padding term at all.
   expect(Math.abs(insideHeight - insideName)).toBeLessThan(2);
   // …while the cluster's buttons keep their full interactive box (they overflow the slot, not shrink).
-  const buttonBox = await inside.getByRole("button", { name: "Edit message" }).boundingBox();
+  const buttonBox = await inside.getByRole("button", { name: MESSAGE_EDIT_NAME }).boundingBox();
   expect(buttonBox?.height ?? 0).toBeGreaterThan(insideHeight);
   await inside.unmount();
 
@@ -1559,7 +1567,7 @@ const THINKING_RE = /Thinking/u;
 test("a committed row with a persisted reasoning trace renders it COLLAPSED, inside the bubble, and expands on click", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" reasoning={REASONING_TRACE} />);
 
-  const trigger = component.getByRole("button", { name: "Reasoning" });
+  const trigger = component.getByRole("button", { name: MESSAGE_REASONING_NAME });
   await expect(trigger).toBeVisible();
   // Collapsed by default — the trace is NOT shown until the reader asks for it.
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -1574,7 +1582,7 @@ test("a committed row with a persisted reasoning trace renders it COLLAPSED, ins
 
 test("a row whose reasoning was WITHHELD (null — the §3.6 member-stripped shape) renders no disclosure at all", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" reasoning={null} />);
-  await expect(component.getByRole("button", { name: "Reasoning" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: MESSAGE_REASONING_NAME })).toHaveCount(0);
   await expect(component.getByText(REASONING_TRACE)).toHaveCount(0);
 });
 
@@ -2010,7 +2018,7 @@ test("the swipe strip over a bg image is backed by the chrome chip, not the raw 
   );
   const strip = component.locator(SWIPE_STRIP);
   await expect(strip).toHaveCount(1);
-  await expect(strip.getByRole("button", { name: "Next variant" })).toBeVisible();
+  await expect(strip.getByRole("button", { name: VARIANT_NEXT_NAME })).toBeVisible();
   const { bg, backdrop } = await strip.evaluate((el) => {
     const cs = getComputedStyle(el);
     return { bg: cs.backgroundColor, backdrop: cs.backdropFilter };
@@ -2075,7 +2083,7 @@ for (const width of [360, 720] as const) {
     await expect(strip).toHaveCount(1);
     // The full pager is present (the story seeds variantCount 3), so the chip is genuinely narrower than
     // the column — the precondition that makes "left vs trailing" an observable difference at all.
-    await expect(strip.getByRole("button", { name: "Next variant" })).toBeVisible();
+    await expect(strip.getByRole("button", { name: VARIANT_NEXT_NAME })).toBeVisible();
 
     const stripBox = await strip.boundingBox();
     const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
@@ -2181,12 +2189,12 @@ test.describe("#220 coarse name band", () => {
     );
     // The inline pair stood down — `display:none`, so they leave the a11y tree too, and the menu is the
     // ONE door (never two announcements of one verb).
-    await expect(component.getByRole("button", { name: "Edit message" })).toBeHidden();
-    await expect(component.getByRole("button", { name: "Fork chat here" })).toBeHidden();
+    await expect(component.getByRole("button", { name: MESSAGE_EDIT_NAME })).toBeHidden();
+    await expect(component.getByRole("button", { name: MESSAGE_FORK_NAME })).toBeHidden();
 
-    await component.getByRole("button", { name: "More message actions" }).click();
-    await expect(page.getByRole("menuitem", { name: "Edit message" })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: "Fork chat here" })).toBeVisible();
+    await component.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
+    await expect(page.getByRole("menuitem", { name: MESSAGE_EDIT_NAME })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: MESSAGE_FORK_NAME })).toBeVisible();
   });
 
   test("the model credit does not sit centre-stage on a phone (no hover to reveal it BY — #167)", async ({ mount, page }) => {
@@ -2413,8 +2421,8 @@ test("#220 at a FINE pointer the inline Edit/Fork pair is untouched", async ({ m
   const component = await mount(
     <MessageRowStory chatStyle="flat" messageRole="assistant" characterId={ALICE_ID} participants={[calamity()]} width={PHONE_BAND_WIDTH} />,
   );
-  await expect(component.getByRole("button", { name: "Edit message" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Fork chat here" })).toBeVisible();
+  await expect(component.getByRole("button", { name: MESSAGE_EDIT_NAME })).toBeVisible();
+  await expect(component.getByRole("button", { name: MESSAGE_FORK_NAME })).toBeVisible();
 });
 
 // ── #598: THE PAGER MAY NOT WIDEN OR OVERHANG THE BUBBLE IT PAGES ─────────────────────────────────
@@ -2440,8 +2448,8 @@ const PAGER_LABEL = "Variant";
 const PAGER_COUNTER_TEXT = "2 / 3";
 /** Every cell keeps a USABLE pager: both chevrons and the counter, whatever the label does. */
 async function expectPagerUsable(component: Locator): Promise<void> {
-  await expect(component.getByRole("button", { name: "Previous variant" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Next variant" })).toBeVisible();
+  await expect(component.getByRole("button", { name: VARIANT_PREV_NAME })).toBeVisible();
+  await expect(component.getByRole("button", { name: VARIANT_NEXT_NAME })).toBeVisible();
   await expect(component.getByText(PAGER_COUNTER_TEXT)).toBeVisible();
 }
 
@@ -2479,7 +2487,7 @@ async function readPagerGeometry(component: Locator): Promise<{
   const bubbleBox = await component.locator(BUBBLE).boundingBox();
   const chipBox = await component.locator(SWIPE_STRIP).boundingBox();
   const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
-  const chevronBox = await component.getByRole("button", { name: "Previous variant" }).boundingBox();
+  const chevronBox = await component.getByRole("button", { name: VARIANT_PREV_NAME }).boundingBox();
   const labelBox = await component.getByText(PAGER_LABEL, { exact: true }).boundingBox();
   const counter = await component.getByText(PAGER_COUNTER_TEXT).evaluate((el) => ({
     height: el.getBoundingClientRect().height,

@@ -15,6 +15,7 @@ import { Icon, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { AddRow, HintEditor } from "#components";
+import { removeActionName } from "#lib";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 
@@ -59,14 +60,14 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
               onEdit={(next): void => onCommit({ ...hints, [label]: next })}
             />
             <Button
-              aria-label={`Remove ${label}`}
+              aria-label={removeActionName(label)}
               intent="ghost"
               size="glyph-md"
               onClick={(): void => {
                 const { [label]: _removed, ...rest } = hints;
                 onCommit(rest);
               }}
-              title={`Remove ${label}`}
+              title={removeActionName(label)}
             >
               <Icon icon={Trash2} size="xs" />
             </Button>

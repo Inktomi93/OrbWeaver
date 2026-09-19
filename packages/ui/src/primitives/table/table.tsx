@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { cn } from "#lib";
+import { cn, selectActionName } from "#lib";
 import { Button } from "#primitives/button";
 import { Checkbox } from "#primitives/checkbox";
 import { EmptyState } from "#primitives/empty-state";
@@ -333,7 +333,7 @@ export function Table<TData>({
                     {selectable ? (
                       <td className={slots.td({ align: "center" })} data-slot="table-select-cell">
                         <Checkbox
-                          aria-label={`Select ${getRowLabel === undefined ? `row ${originalIndex + 1}` : getRowLabel(row)}`}
+                          aria-label={selectActionName(getRowLabel === undefined ? `row ${originalIndex + 1}` : getRowLabel(row))}
                           checked={isSelected}
                           onCheckedChange={(): void => toggleRow(id)}
                         />

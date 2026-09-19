@@ -42,6 +42,35 @@ export function rowActionsName(subject: string): string {
   return `Actions for ${subject}`;
 }
 
+/**
+ * The accessible name of a row's INLINE chat door — `Chat with <subject>`.
+ *
+ * The dual-purpose resume-or-new CTA on a character row (`character-card.tsx`), and the one door the e2e
+ * exemplar path drives. Its word is ruled by `docs/design/vocabulary-map.md` row "Re-entering a room that
+ * already exists": **Resume** names re-entering a ROOM, and this affordance names a PERSON, so it keeps
+ * `Chat with <character>` rather than the room verb — a door that says Resume and mints a room is the
+ * `duplicate-action-door` finding that row was written for.
+ */
+export function chatWithActionName(subject: string): string {
+  return `Chat with ${subject}`;
+}
+
+/** The accessible name of a row's inline DUPLICATE door — `Duplicate <subject>` (`library-row.tsx`). */
+export function duplicateActionName(subject: string): string {
+  return `Duplicate ${subject}`;
+}
+
+/**
+ * The accessible name of a row's inline RENAME door — `Rename <subject>`.
+ *
+ * NOT the rename DIALOG's own title, which names the ENTITY CLASS and not the row (`Rename preset`,
+ * `Rename this chat?`) — those are static strings at their own call sites, and folding them through this
+ * builder would let a dialog title and a row door drift into each other's grammar.
+ */
+export function renameActionName(subject: string): string {
+  return `Rename ${subject}`;
+}
+
 /** One row's disambiguation inputs: the name its actions announce + the instant its stamp shows. */
 interface RowQualifierRow {
   readonly name: string;

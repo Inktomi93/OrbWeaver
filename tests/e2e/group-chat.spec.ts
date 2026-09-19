@@ -27,6 +27,7 @@
 // below (Narrator · Label each speaker · Advanced · the policy/visibility selects) is byte-identical; only
 // the navigation to them changed (`openGroupBehaviorSection`).
 
+import { rowActionsName } from "@orb/client/lib";
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
@@ -278,7 +279,7 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     await openChatByTitle(page, title);
     await openDetailPanel(page);
     await openContextTab(page, "Members");
-    await expect(page.getByRole("button", { name: `Actions for ${CHARACTERS[1].name}`, exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: rowActionsName(CHARACTERS[1].name), exact: true })).toBeVisible({ timeout: 15_000 });
     const persisted = (await getChatDetail(chat.id)).participants;
     expect(seatFor(persisted, bravoId)?.disabled).toBe(true);
     expect(seatFor(persisted, alphaId)?.talkativeness).toBe(alphaWeight);

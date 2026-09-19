@@ -15,6 +15,7 @@
 // its `aria-label`, which is `"<label> value"`; the SLIDER carries the bare `"<label>"` (the role is not part
 // of a name — F-27). The split is the 2026-08-19 P1-2 fix: the pair used to share one name exactly.
 
+import { removeActionName } from "@orb/client/lib";
 import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -532,10 +533,10 @@ test("CUSTOM PARAMS — remove drops the row, and clearing the LAST one unsets t
   const deck = await mount(<ParamsDeckCustomParamsStory />);
   await openAdvanced(deck);
 
-  await deck.getByRole("button", { name: "Remove stream" }).click();
+  await deck.getByRole("button", { name: removeActionName("stream") }).click();
   await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('custom={"dry_multiplier":0.8}');
 
-  await deck.getByRole("button", { name: "Remove dry_multiplier" }).click();
+  await deck.getByRole("button", { name: removeActionName("dry_multiplier") }).click();
   // `null` is the harness's spelling of an ABSENT field — an empty `{}` would persist a lie about intent.
   await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("custom=null");
   await expect(deck.getByText("No custom parameters on this preset.", { exact: true })).toBeVisible();
@@ -566,15 +567,17 @@ test.describe("coarse pointer — the custom-parameter row at the NARROWEST real
     await openAdvanced(deck);
     await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toBeVisible();
 
-    const door = page.getByRole("button", { name: "Remove dry_multiplier" });
-    const measured = await page.evaluate(() => {
+    const door = page.getByRole("button", { name: removeActionName("dry_multiplier") });
+    // The door NAME crosses into the page as an ARGUMENT, never a closure: an `evaluate` body is serialized
+    // and run in the BROWSER, where this spec's node-side import does not exist.
+    const measured = await page.evaluate((doorName: string) => {
       const probe = document.createElement("div");
       probe.style.width = "var(--spacing-touch-target)";
       document.body.append(probe);
       const floor = Number.parseFloat(getComputedStyle(probe).width);
       probe.remove();
 
-      const domDoor = document.querySelector('button[aria-label="Remove dry_multiplier"]');
+      const domDoor = document.querySelector(`button[aria-label="${doorName}"]`);
       const box = domDoor?.getBoundingClientRect();
       const row = domDoor?.parentElement?.getBoundingClientRect();
       const cells = [...document.querySelectorAll('input[aria-label^="Parameter 1 "]')].map((el) => el.getBoundingClientRect());
@@ -583,7 +586,7 @@ test.describe("coarse pointer — the custom-parameter row at the NARROWEST real
         overflow: cells.some((cell) => row !== undefined && cell.right > row.right + 1),
         doorOverflow: (box?.right ?? 0) > (row?.right ?? 0) + 1,
       };
-    });
+    }, removeActionName("dry_multiplier"));
 
     expect(measured.floor, "the touch-target token must resolve, or this assertion is vacuous").toBeGreaterThan(0);
     await expect.poll(async () => (await boxWithBeforeFloor(door, measured.floor)).x).toBeGreaterThanOrEqual(measured.floor);

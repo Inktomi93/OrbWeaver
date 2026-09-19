@@ -4,6 +4,7 @@
 // locators for the input/popup and the `combobox-chip` data-slot for committed chips.
 import { Combobox } from "@orb/ui/combobox";
 import { Field } from "@orb/ui/field";
+import { removeActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DerivedItemsStory } from "./combobox.fixtures.tsx";
@@ -32,7 +33,7 @@ test("selecting a suggestion commits it as a chip and clears the draft", async (
 test("the labeled remove button removes a chip", async ({ mount, page }) => {
   await mount(<Combobox aria-label="Tag" defaultValue={["adventure", "mystery"]} items={TAGS} />);
   await expect(page.locator(CHIP_SELECTOR, { hasText: "adventure" })).toBeVisible();
-  await page.getByRole("button", { name: "Remove adventure" }).click();
+  await page.getByRole("button", { name: removeActionName("adventure") }).click();
   await expect(page.locator(CHIP_SELECTOR, { hasText: "adventure" })).toHaveCount(0);
   await expect(page.locator(CHIP_SELECTOR, { hasText: "mystery" })).toBeVisible();
 });

@@ -14,6 +14,7 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cancelEditingMessage, setMessageEditDraft, useMessageEditDraftText } from "#state";
+import { MESSAGE_EDIT_NAME } from "../lib/message-action-names.ts";
 
 interface EditMessageVars {
   readonly chatId: ChatId;
@@ -103,7 +104,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
       <Textarea
         ref={textareaRef}
         className="w-full"
-        aria-label="Edit message"
+        aria-label={MESSAGE_EDIT_NAME}
         value={text}
         onChange={(e): void => setMessageEditDraft(message.id, e.target.value)}
         onKeyDown={onKeyDown}

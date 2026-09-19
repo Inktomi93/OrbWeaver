@@ -20,6 +20,7 @@
 // structurally invisible there (its header states the same split). Shell CHROME — regions, panel clamp,
 // focus modes, rail, modal host, tab bar — stays that file's floor and is not re-pinned here.
 
+import { chatWithActionName } from "@orb/client/lib";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
@@ -273,7 +274,7 @@ test("picking a character in the library CREATES the chat and lands in it (the l
   await component.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
   // Scope to the library row's unique "Chat with X" CTA — the bare name "Aria Nightshade" is now
   // ambiguous (home stays mounted with a quick-picks tile row of the same name).
-  const chatCta = page.getByRole("button", { name: "Chat with Aria Nightshade", exact: true });
+  const chatCta = page.getByRole("button", { name: chatWithActionName("Aria Nightshade"), exact: true });
   await expect(chatCta).toBeVisible();
   // On the Characters section the chat composer is NOT mounted (CONTENT is the library).
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);

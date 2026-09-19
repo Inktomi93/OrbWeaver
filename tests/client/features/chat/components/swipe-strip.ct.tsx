@@ -11,6 +11,7 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { SwipeStripStory } from "../_ct-stories.tsx";
 import { makeMessageView } from "../fixtures.ts";
@@ -56,7 +57,7 @@ test("renders the n/m counter and fires swipe (generate) on the next chevron at 
 
   await expect(component.getByText("2 / 2")).toBeVisible();
 
-  await component.getByRole("button", { name: "Next variant" }).click();
+  await component.getByRole("button", { name: VARIANT_NEXT_NAME }).click();
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => trpc.count("chat.selectVariant")).toBe(0);
 });
@@ -92,13 +93,13 @@ test("a SINGLE variant renders no pager at all — no counter, no dead back-step
   // counts "1 / 1" between two arrows the user cannot move is an affordance lying about itself, so at one
   // variant the strip is only the live verb — the right chevron, which at the tip generates.
   const component = await mount(<SwipeStripStory message={atIdx0Of1} />);
-  await expect(component.getByRole("button", { name: "Previous variant" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: VARIANT_PREV_NAME })).toHaveCount(0);
   await expect(component.getByText("1 / 1")).toHaveCount(0);
   // …and the one affordance that CAN act is still there — labelled for what it DOES at this count
   // (#570 RULED: it generates, not steps, so the name is "Generate a variant", not the pager's
   // "Next variant"). The stale "Next variant" name is asserted absent as the honesty regression pin.
-  await expect(component.getByRole("button", { name: "Generate a variant" })).toBeEnabled();
-  await expect(component.getByRole("button", { name: "Next variant" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: VARIANT_GENERATE_NAME })).toBeEnabled();
+  await expect(component.getByRole("button", { name: VARIANT_NEXT_NAME })).toHaveCount(0);
 });
 
 // #849 — AND THAT ONE AFFORDANCE MUST SAY WHAT IT IS, ON SCREEN. Shipped, the single-variant arm was a
@@ -113,7 +114,7 @@ test("a SINGLE variant renders no pager at all — no counter, no dead back-step
 test("#849: the single-variant generate control carries a VISIBLE label, not a bare chevron", async ({ mount }) => {
   const component = await mount(<SwipeStripStory message={atIdx0Of1} />);
 
-  const generate = component.getByRole("button", { name: "Generate a variant" });
+  const generate = component.getByRole("button", { name: VARIANT_GENERATE_NAME });
   // Polled, not sampled: both halves are live DOM reads, and the pair is the whole property — a non-empty
   // VISIBLE label, and that same rendered string contained in the accessible name (WCAG 2.5.3). Derived
   // from what is on screen rather than restated, so a copy edit that breaks the containment reds here.
@@ -140,7 +141,7 @@ test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this moun
   const component = await mount(<SwipeStripStory message={atTipOf2} />);
   await expect(component.getByText("2 / 2")).toBeVisible();
 
-  const prev = component.getByRole("button", { name: "Previous variant" });
+  const prev = component.getByRole("button", { name: VARIANT_PREV_NAME });
   await expect(prev).toBeEnabled();
   await prev.click();
 
@@ -166,7 +167,7 @@ test("COLD LOAD step-FORWARD: the right chevron selects an already-generated sib
   const component = await mount(<SwipeStripStory message={backAtIdx0Of2} />);
   await expect(component.getByText("1 / 2")).toBeVisible();
 
-  await component.getByRole("button", { name: "Next variant" }).click();
+  await component.getByRole("button", { name: VARIANT_NEXT_NAME }).click();
 
   await expect.poll(() => trpc.count("chat.selectVariant"), { intervals: [20, 50, 100] }).toBe(1);
   await expect
@@ -196,7 +197,7 @@ test("#1874: at 1 / X the back chevron WRAPS to the last variant instead of sitt
   const component = await mount(<SwipeStripStory message={backAtIdx0Of2} />);
   await expect(component.getByText("1 / 2")).toBeVisible();
 
-  const prev = component.getByRole("button", { name: "Previous variant" });
+  const prev = component.getByRole("button", { name: VARIANT_PREV_NAME });
   await expect(prev).toBeEnabled();
   await prev.click();
 
@@ -216,7 +217,7 @@ test("#1874: the FORWARD edge still generates at the tip — the wrap is back-on
   const component = await mount(<SwipeStripStory message={atTipOf2} />);
   await expect(component.getByText("2 / 2")).toBeVisible();
 
-  await component.getByRole("button", { name: "Next variant" }).click();
+  await component.getByRole("button", { name: VARIANT_NEXT_NAME }).click();
 
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => trpc.count("chat.selectVariant")).toBe(0);
@@ -272,6 +273,6 @@ test("ArrowLeft/ArrowRight are ignored while an editable control has focus (don'
 
   // A real click proves the strip is still live — if the keypress above HAD sneaked through despite
   // the focused input, this would be call #2 by the time the poll settles, not #1.
-  await component.getByRole("button", { name: "Next variant" }).click();
+  await component.getByRole("button", { name: VARIANT_NEXT_NAME }).click();
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
 });

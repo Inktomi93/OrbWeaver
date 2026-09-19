@@ -24,6 +24,7 @@
 // renders nothing (an unstubbed read, a missing settle barrier) would pass VACUOUSLY, so every case
 // barriers on a SETTLED rendered control before it measures.
 
+import { chatWithActionName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -213,7 +214,7 @@ test("the character library is navigable by name", async ({ mount, page }) => {
     "chat.listChats": () => EMPTY_CHAT_LIST,
   });
   const library = await mount(<CharacterLibrarySurfaceStory />);
-  await expect(library.getByRole("button", { name: "Chat with Aria Nightshade" })).toBeVisible();
+  await expect(library.getByRole("button", { name: chatWithActionName("Aria Nightshade") })).toBeVisible();
   await expectEveryNameNavigable(page, "character library");
 });
 
