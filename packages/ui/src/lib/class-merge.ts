@@ -19,6 +19,7 @@ import { extendTailwindMerge } from "tailwind-merge";
 import type { CnOptions, CnReturn, TV } from "tailwind-variants";
 import { createTV, cx } from "tailwind-variants";
 import { TOKENS } from "#tokens";
+import type { CssMergeClassification } from "./css-merge-contract.ts";
 
 export const CSS_MERGE_FAMILY_NAMES = [
   "color",
@@ -127,8 +128,81 @@ function conflictAxis(loser: string, winner: string): string {
   return "tailwind-core";
 }
 
+// CROSS-GROUP EVICTION — the #2450 defect made detectable (#2460).
+//
+// `conflictAxis` above answers "which orb family is this conflict ABOUT", and it tags a pair `orb:<family>`
+// when EITHER side carries a family token. That made a scale-vs-COLOR eviction — `text-field` dropped by
+// `text-foreground`, because `text-field` was unregistered and tailwind-merge read it as a second text
+// COLOR — indistinguishable from a legitimate size-over-size override, so the trace filed it as a normal
+// receipt and #2450 shipped. An eviction ACROSS class groups is not an override at all: it is the merger
+// mis-classifying a utility, and the rendered result is a declaration that silently never paints.
+//
+// THE DISCRIMINATOR IS COLOR-NESS UNDER A SHARED UTILITY PREFIX, not "one side carries a scale token".
+// The broader reading is unusable: a custom token overriding a CORE keyword on the same axis (`gap-block`
+// over `gap-0`, `h-control-sm` over `h-auto`, `rounded-control` over `rounded-none`, `leading-body` over
+// `leading-tight`) also has a token on exactly one side, and every one of those is a LEGITIMATE override
+// this repo's suite pins by name. What cannot be legitimate is an eviction between a color utility and a
+// non-color one: Tailwind's color groups (text-color, bg-color, border-color, …) conflict only with
+// themselves, so if the merger made one evict the other it has put them in one group by mistake.
+//
+// Both sides must share a color-capable prefix, because that is the only place the two vocabularies meet —
+// `text-` is font-size AND text-color, `border-` is width AND color. An arbitrary value (`bg-[#fff]`) is
+// unclassifiable from the class name alone and is left to the ordinary conflict arm rather than guessed at.
+const COLOR_CAPABLE_PREFIXES = ["inset-ring", "inset-shadow", "text", "bg", "border", "outline", "ring", "shadow", "decoration", "divide", "stroke"] as const;
+// Tailwind's own color vocabulary. Recognizing it is what keeps a core-color override (`text-red-500`
+// dropped by `text-foreground`) out of the instrument-error arm — both sides are colors, one group.
+const CORE_COLOR_NAMES = new Set(["current", "inherit", "transparent", "black", "white"]);
+const CORE_PALETTE_STEP = /^[a-z]+-\d{2,3}$/u;
+const COLOR_TOKEN_NAMES = new Set(scaleOf("color"));
+
+/** `hover:text-foreground/50!` → `text-foreground`: the merge groups a class by its base utility, so the
+ *  modifier prefix, the important marker and the opacity postfix are all stripped before classification. */
+function baseUtility(className: string): string {
+  const afterModifiers = className.slice(className.lastIndexOf(":") + 1);
+  const withoutImportant = afterModifiers.startsWith("!") ? afterModifiers.slice(1) : afterModifiers.replace(/!$/u, "");
+  const slash = withoutImportant.indexOf("/");
+  return slash === -1 ? withoutImportant : withoutImportant.slice(0, slash);
+}
+
+/** The longest color-capable prefix this class is built on, or `undefined` when it is on none of them or
+ *  carries an arbitrary value (which the class name cannot classify). */
+function colorCapableSplit(className: string): { readonly prefix: string; readonly name: string } | undefined {
+  const base = baseUtility(className);
+  if (base.includes("[")) {
+    return;
+  }
+  let found: { readonly prefix: string; readonly name: string } | undefined;
+  for (const prefix of COLOR_CAPABLE_PREFIXES) {
+    if (base.startsWith(`${prefix}-`) && (found === undefined || prefix.length > found.prefix.length)) {
+      found = { prefix, name: base.slice(prefix.length + 1) };
+    }
+  }
+  return found;
+}
+
+function isColorName(name: string): boolean {
+  return COLOR_TOKEN_NAMES.has(name) || CORE_COLOR_NAMES.has(name) || CORE_PALETTE_STEP.test(name);
+}
+
+function classifyConflict(loser: string, winner: string): CssMergeClassification {
+  const loserSplit = colorCapableSplit(loser);
+  const winnerSplit = colorCapableSplit(winner);
+  if (loserSplit !== undefined && winnerSplit !== undefined && loserSplit.prefix === winnerSplit.prefix) {
+    const loserIsColor = isColorName(loserSplit.name);
+    if (loserIsColor !== isColorName(winnerSplit.name)) {
+      const color = loserIsColor ? loser : winner;
+      const other = loserIsColor ? winner : loser;
+      return {
+        kind: "cross-group",
+        detail: `cross-group eviction under the "${loserSplit.prefix}-" prefix: "${loser}" was evicted by "${winner}" — "${color}" is a COLOR utility and "${other}" is not, so they are different Tailwind class groups and BOTH must survive. The merger is mis-classifying one of them (an unregistered custom token reads as a color — #2450).`,
+      };
+    }
+  }
+  return { kind: "conflict", axis: conflictAxis(loser, winner) };
+}
+
 type MergeClassList = (classList: string) => string;
-type ClassifyConflict = (loser: string, winner: string) => string;
+type ClassifyConflict = (loser: string, winner: string) => CssMergeClassification;
 type CssMergeObserver = (classList: string, output: string, merge: MergeClassList, classify: ClassifyConflict) => void;
 
 let cssMergeObserver: CssMergeObserver | undefined;
@@ -154,7 +228,7 @@ export function cn(...classes: CnOptions): CnReturn {
     return;
   }
   const output = mergeClasses(joined);
-  cssMergeObserver?.(joined, output, mergeClasses, conflictAxis);
+  cssMergeObserver?.(joined, output, mergeClasses, classifyConflict);
   // `|| undefined` not `??`: tailwind-merge returns "" for an all-dropped list, and the contract is
   // undefined-when-empty (a `className=""` attribute would otherwise appear where none did before).
   return output || undefined;

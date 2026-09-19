@@ -12,6 +12,13 @@ export interface CssMergeConflict {
   readonly winner: CssClassOccurrence;
 }
 
+/** What the configured merger DID to one loser→winner pair, as the merge seam classifies it.
+ *  `conflict` is an ordinary same-axis override (the later class wins — the whole point of the merge).
+ *  `cross-group` is the #2450 defect shape: the two classes belong to DIFFERENT Tailwind class groups,
+ *  so one evicting the other is the merger MIS-CLASSIFYING a utility — never a legitimate override, and
+ *  therefore an INSTRUMENT ERROR rather than a receipt. */
+export type CssMergeClassification = { readonly kind: "conflict"; readonly axis: string } | { readonly kind: "cross-group"; readonly detail: string };
+
 export interface CssMergeReceipt {
   readonly input: readonly CssClassOccurrence[];
   readonly conflicts: readonly CssMergeConflict[];
