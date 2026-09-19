@@ -169,7 +169,7 @@ test("#54: engine-off idles the guided fire actions with the engine-off reason (
   // unchanged: the idled control names the engine-off cause, and it does so on FOCUS, which is what
   // `focusableWhenDisabled` keeps it in the tab order for. #206 below pins the same pairing for every control.
   await response.focus();
-  await expect(page.getByRole("tooltip", { name: `Generate reply — ${ENGINE_OFF_REASON}`, exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText(`Generate reply — ${ENGINE_OFF_REASON}`);
   await expect(component.getByRole("button", { name: "Draft your line" })).toHaveAttribute("aria-disabled", "true");
 });
 
@@ -431,14 +431,14 @@ test("#206: every icon control exposes plain-language names and tooltips on hove
     // words on screen were then in no name at all.
     expect(tooltip === name || tooltip.includes(ENGINE_OFF_REASON), `${name}: its tooltip must BE its name, or the transient reason`).toBe(true);
     const control = component.getByRole("button", { name, exact: true });
-    const popup = page.getByRole("tooltip", { name: tooltip, exact: true });
+    const popup = page.locator('[data-slot="tooltip-popup"][data-open]');
     await control.hover();
-    await expect(popup, `${name} must explain itself on hover`).toBeVisible();
+    await expect(popup, `${name} must explain itself on hover`).toHaveText(tooltip);
     await page.mouse.move(0, 0);
     await expect(popup).toBeHidden();
     await control.focus();
     await expect(control, `${name} must accept focus in this reason-bearing state`).toBeFocused();
-    await expect(popup, `${name} must explain itself on focus`).toBeVisible();
+    await expect(popup, `${name} must explain itself on focus`).toHaveText(tooltip);
     await control.evaluate((element) => (element as HTMLElement).blur());
     await expect(popup).toBeHidden();
   }
@@ -496,7 +496,7 @@ test("#206: a disabled reply action remains focusable and exposes its reason", a
   await expect(action).not.toHaveAttribute("disabled", "");
   await action.focus();
   await expect(action).toBeFocused();
-  await expect(page.getByRole("tooltip", { name: REPLY_ACTION_NEEDS_REPLY })).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toContainText(REPLY_ACTION_NEEDS_REPLY);
 });
 
 test.describe("#206 coarse touch layout", () => {
@@ -529,7 +529,7 @@ test.describe("#206 coarse touch layout", () => {
       // opens then owns that control's painted centre, which reads exactly like an overlap defect (measured
       // at 320px, where the live Stop widens `Your message` enough to change which home lands where).
       await page.mouse.move(0, 0);
-      await expect(page.getByRole("tooltip")).toHaveCount(0);
+      await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveCount(0);
       await expectNearestActionGroups(component, LIVE_COMPOSER_ACTIONS);
       await expectCoarseComposerLayout(page, component, LIVE_COMPOSER_ACTIONS);
 

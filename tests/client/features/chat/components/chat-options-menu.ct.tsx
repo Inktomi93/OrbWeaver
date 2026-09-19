@@ -95,9 +95,9 @@ test("#869: the ⋯ trigger's tooltip speaks its accessible name, verbatim", asy
   const component = await mount(<ChatOptionsMenuStory withCharacters={true} />);
 
   await component.getByRole("button", { name: "Chat options", exact: true }).hover();
-  await expect(page.getByRole("tooltip", { name: "Chat options", exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText("Chat options");
   // …and the retired twin is gone, not merely joined: two strings is what let them drift.
-  await expect(page.getByRole("tooltip", { name: /Manage this chat/u })).toHaveCount(0);
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]', { hasText: /Manage this chat/u })).toHaveCount(0);
 });
 
 test("#869: every item in the ⋯ menu carries a glyph", async ({ mount, page }) => {

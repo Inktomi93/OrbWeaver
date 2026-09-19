@@ -898,7 +898,7 @@ test("P2-7 the OWN LOOK badge points at the tab that actually holds the theme ed
   // sentence names a tab that EXISTS, so it reads the sentence where a user now meets it.
   const badge = component.getByRole("button", { name: OWN_LOOK_NAME });
   await badge.focus();
-  await expect(page.getByRole("tooltip")).toHaveText(OWN_LOOK_SENTENCE);
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText(OWN_LOOK_SENTENCE);
   // The name a user could follow to nowhere.
   await expect(component.getByText(APPEARANCE_TAB_RE)).toHaveCount(0);
 });
@@ -952,7 +952,7 @@ test("#840 the Own look chip is named by its visible text and its gloss is keybo
   // position is a different assertion) and read the gloss it opens.
   await chip.focus();
   await expect(chip).toBeFocused();
-  await expect(page.getByRole("tooltip")).toHaveText(OWN_LOOK_SENTENCE);
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText(OWN_LOOK_SENTENCE);
   // …and the tooltip is what DESCRIBES it, so the sentence is announced as a description rather than
   // impersonating the name. (`aria-describedby` resolves only while the popup is mounted — the seal wires
   // the id on the trigger and the id onto the popup, so the pairing is only observable open.)

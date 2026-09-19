@@ -57,7 +57,11 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
   const title = joinTitle(label, detail);
   const detailId = useId();
   return (
-    <Tooltip>
+    // `describesTrigger={false}`: this control owns its description below (`ControlDetail`), and the
+    // tooltip string DELIBERATELY leads with the label. #2455 made the tooltip seal describe every trigger
+    // with its own text at rest; taking that here would announce "<Label> — <detail>" on top of the
+    // detail, which is the exact double `resolveGuidedDetail` exists to prevent.
+    <Tooltip describesTrigger={false}>
       <TooltipTrigger
         {...(detail === undefined ? {} : { "aria-describedby": detailId })}
         render={
@@ -175,7 +179,9 @@ export function ImpersonateGuidedButton({
   const detailId = useId();
   return (
     <Menu>
-      <Tooltip>
+      {/* `describesTrigger={false}` — see GuidedIconButton above: the tooltip string leads with the
+          control's own name, and `ControlDetail` is this control's description. */}
+      <Tooltip describesTrigger={false}>
         <TooltipTrigger
           {...(detail === undefined ? {} : { "aria-describedby": detailId })}
           render={
@@ -236,8 +242,10 @@ export function ResponseGuidedButton({
   const name = resolveGuidedName(label, hasText);
   const detailId = useId();
   if (!multiCharacter) {
+    // `describesTrigger={false}` — see GuidedIconButton above: the tooltip string leads with the control's
+    // own name, and `ControlDetail` is this control's description.
     return (
-      <Tooltip>
+      <Tooltip describesTrigger={false}>
         <TooltipTrigger
           {...(detail === undefined ? {} : { "aria-describedby": detailId })}
           render={
@@ -264,7 +272,9 @@ export function ResponseGuidedButton({
   }
   return (
     <Menu>
-      <Tooltip>
+      {/* `describesTrigger={false}` — see GuidedIconButton above: the tooltip string leads with the
+          control's own name, and `ControlDetail` is this control's description. */}
+      <Tooltip describesTrigger={false}>
         <TooltipTrigger
           {...(detail === undefined ? {} : { "aria-describedby": detailId })}
           render={

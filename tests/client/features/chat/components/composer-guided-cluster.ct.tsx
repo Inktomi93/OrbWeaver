@@ -257,7 +257,7 @@ test("while impersonating, the guided icons name the STREAM as the wait reason (
  *  afterwards so the next control starts clean. */
 async function expectReason(page: Page, component: Locator, name: string, reason: string): Promise<void> {
   await component.getByRole("button", { name, exact: true }).hover();
-  await expect(page.getByRole("tooltip", { name: reason, exact: true }), `${name} must name its real disabled cause`).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]'), `${name} must name its real disabled cause`).toHaveText(reason);
   await page.mouse.move(0, 0);
 }
 
