@@ -87,6 +87,12 @@ set -u
 REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
 SELF="$REPO/tooling/src/stack/stack.sh"
 RUN_DIR="${STACK_RUN_DIR:-$REPO/.cache/stack}"
+# A RELATIVE override is resolved against $REPO, not against whoever's cwd invoked us. The vite child is
+# started as `(cd packages/client && exec vite) >"$CLIENT_LOG"`, where the redirection is opened BEFORE the
+# subshell's cd — so a relative log path silently lands in a different directory depending on the caller.
+# The e2e mode projects pass `./.cache/e2e/<mode>/stack` (tests/e2e/support/modes.ts) exactly like their
+# DATABASE_URL/ASSETS_DIR, so this is the line that makes that spelling mean what it reads as.
+case "$RUN_DIR" in /*) ;; *) RUN_DIR="$REPO/${RUN_DIR#./}" ;; esac
 PIDFILE="$RUN_DIR/stack.pgid"
 LOG="$RUN_DIR/stack.log"
 SERVER_LOG="$RUN_DIR/server.log"
