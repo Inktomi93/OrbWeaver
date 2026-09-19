@@ -10,7 +10,14 @@
 // records 0 long tasks / 0 blocking — an EMPTY window that reads exactly like a clean surface.
 
 import { setCssMergeObserver } from "./class-merge.ts";
-import type { CssClassOccurrence, CssMergeConflict, CssMergeReceipt, CssMergeTraceSnapshot, CssMergeTraceState } from "./css-merge-contract.ts";
+import type {
+  CssClassOccurrence,
+  CssMergeClassification,
+  CssMergeConflict,
+  CssMergeReceipt,
+  CssMergeTraceSnapshot,
+  CssMergeTraceState,
+} from "./css-merge-contract.ts";
 
 export type { CssMergeConflict, CssMergeReceipt, CssMergeTraceSnapshot } from "./css-merge-contract.ts";
 
@@ -19,7 +26,7 @@ const CSS_MERGE_TRACE_RECEIPT_LIMIT = 128;
 const INSTRUMENT_ERROR = "INSTRUMENT ERROR";
 
 type MergeClassList = (classList: string) => string;
-type ClassifyConflict = (loser: string, winner: string) => string;
+type ClassifyConflict = (loser: string, winner: string) => CssMergeClassification;
 
 let enabled = false;
 let calls = 0;
@@ -97,7 +104,16 @@ function replayConflicts(input: readonly CssClassOccurrence[], output: string, m
       instrumentErrors.add(`${INSTRUMENT_ERROR}: configured merger dropped occurrence ${loser.index} without a replayable later winner`);
       continue;
     }
-    conflicts.push({ axis: classify(loser.className, winner.className), loser, winner });
+    // A CROSS-GROUP eviction is NEVER a receipt (#2460). The pair has a replayable winner, so the old
+    // code filed it as an ordinary conflict — which is exactly how #2450's `text-field` dropped by
+    // `text-foreground` read as a legitimate size override for as long as it shipped. The merger putting
+    // two different class groups in one group is an INSTRUMENT fault, and the trace fails loud on it.
+    const classification = classify(loser.className, winner.className);
+    if (classification.kind === "cross-group") {
+      instrumentErrors.add(`${INSTRUMENT_ERROR}: ${classification.detail}`);
+      continue;
+    }
+    conflicts.push({ axis: classification.axis, loser, winner });
   }
   return conflicts;
 }

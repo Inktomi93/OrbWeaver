@@ -106,6 +106,17 @@ function mapDeclaration(raw: DevToolsCascadeRawDeclaration): CssCascadeDeclarati
   };
 }
 
+/** The first #949 merge instrument-error across this run's CSS sheets, for the arm's own filed fact. */
+function firstMergeError(evidence: readonly CssEvidenceReceipt[]): string | null {
+  let found: string | null = null;
+  for (const sheet of evidence) {
+    if (found === null && sheet.merge !== null && sheet.merge.status === "instrument-error") {
+      found = sheet.merge.error;
+    }
+  }
+  return found;
+}
+
 function errorReceipt(query: CssCascadeQuery, error: string): CssCascadeReceipt {
   return { status: "instrument-error", selector: query.selector, property: query.property, error };
 }
@@ -272,16 +283,24 @@ export const CASCADE_ARM = {
         denominators: () => ({}),
         pairs: (): readonly ResultPair[] => [],
         facts: (): readonly ArmFactEmission<"cascade">[] => {
-          const receipts = context?.outcomes.flatMap((outcome) => outcome.cssEvidence?.cascade ?? []) ?? [];
+          const evidence = context?.outcomes.flatMap((outcome) => (outcome.cssEvidence === null ? [] : [outcome.cssEvidence])) ?? [];
+          const receipts = evidence.flatMap((sheet) => sheet.cascade);
           const failures = receipts.filter((receipt) => receipt.status === "instrument-error").length;
+          // THE MERGE HALF OF THE VERDICT, IN THE FACT TOO (#2460). `failures` counts QUERY receipts, and a
+          // #949 merge instrument-error — a cross-group eviction, say — leaves every query receipt `ok`
+          // while making the whole sheet untrustworthy. ops/verdict.ts already folds that outcome into the
+          // `css` summary member, so the RUN reds; before this, the arm's own filed fact still read
+          // `state: passed` beside it, which is an instrument lying in its own artifact. The count stays out
+          // of `failures` deliberately — see this arm's header on why the `css` member is folded once.
+          const detail = firstMergeError(evidence);
           let state: "off" | "refused" | "passed" = "off";
           if (opts.cascade.length > 0) {
-            state = failures > 0 ? "refused" : "passed";
+            state = failures > 0 || detail !== null ? "refused" : "passed";
           }
           return [
             {
               scope: aggregateScope(),
-              data: { state, detail: null, queries: receipts.length, failures },
+              data: { state, detail, queries: receipts.length, failures },
             },
           ];
         },
