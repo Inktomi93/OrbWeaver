@@ -4,10 +4,12 @@
 //   2. rename → reload → re-open → the new title persists.
 //   3. star → reload → the star state persists.
 //
-// ORB STRUCTURAL DELTA vs neo (verified live): orb has NO `/chat/$id` route — the active chat is store-only
-// client state, so `page.reload()` returns to the LANDING state, not the chat. Persistence is therefore
-// asserted by RE-OPENING the chat from the (refetched) list after reload — the store cache is gone, so the
-// re-open reads server truth. Selectors are role/text (orb has no neo chat testids): list rows are @orb/ui
+// ORB STRUCTURAL DELTA vs neo (verified live): orb has NO `/chat/$id` route — a room's only address is its
+// list row. What makes the reload a persistence proof is the QUERY cache, not the selection: TanStack
+// Query's cache is in-memory and dies with the page, so every row/title/star the room renders afterwards
+// was read back from the server. The SELECTION itself does survive (`active-chat-store.ts` persists the
+// committed handle to per-user localStorage) — this file used to claim the opposite, and that stale premise
+// is #1846: see `reopenFirstChat`, which no longer clicks a row that is already current. Selectors are role/text (orb has no neo chat testids): list rows are @orb/ui
 // native <button>s; rename lives behind the ⋯ "Chat options" menu → a Dialog (wire `chat.updateTitle`);
 // star lives in the per-ROW kebab "Chat actions" menu (wire `chat.star`). A unique minted title makes the
 // list-vs-header title duplication unambiguous. Bootstrap: openOrCreateChat (support/chat-room.ts).
@@ -62,7 +64,8 @@ test.describe("chat persistence", () => {
 
     await page.reload();
     await waitForAppReady(page);
-    // The store's active chat is gone on reload — re-open from the refetched list (proves the DB read).
+    // Land back on the room through the refetched list. The Query cache died with the page, so the rows
+    // counted below are a DB read whether or not the selection was restored (see `reopenFirstChat`).
     await reopenFirstChat(page);
     await waitForAppReady(page);
     // The same durable rows re-read from the server (web-first auto-retry to the stable count).

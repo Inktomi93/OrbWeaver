@@ -397,14 +397,28 @@ export async function openMemberRowMenu(page: Page, displayName: string): Promis
   await kebab.click();
 }
 
-/** Re-open the FIRST chat in the LIST after a reload (orb has no `/chat/$id` URL — the active chat is
- *  store-only, so a reload returns to the landing state, which is now the variant-C HOME hero, NOT the
- *  list). Re-navigate to the Chats section (`gotoChatsList`) — the row still exists in the refetched list,
- *  and re-opening reads DB truth. Returns once the room's composer is live again. */
+/** Re-open the FIRST chat in the LIST after a reload: re-navigate to the Chats section (`gotoChatsList`),
+ *  land on the row, and return once the room's composer is live again. orb has no `/chat/$id` URL, so the
+ *  only address of a room is the list row; the in-memory Query cache does NOT survive a reload, so whatever
+ *  the room renders afterwards was read from the server — which is the persistence proof the callers want.
+ *
+ *  THE ACTIVE CHAT IS RESTORED ON RELOAD, AND ASSUMING OTHERWISE IS #1846. This helper used to state that
+ *  "a reload returns to the landing state" and unconditionally click `rows.first()`. That premise is false
+ *  on the tree: `active-chat-store.ts` is a `createPersistedStore` whose `partialize` keeps `handle`, and
+ *  its migrate restores any valid COMMITTED handle — so after `page.reload()` the room is already open and
+ *  its list row is already `aria-current="true"`. The click was therefore a no-op that the layout is free
+ *  to make UNHITTABLE (the room pane overlays the list at the narrow step), and Playwright's actionability
+ *  retry then burned the whole 60 s test budget waiting for a click nobody needed — observed once in the
+ *  2026-09-06 `--push` run and once on an immediate solo re-run, with the error-context snapshot showing
+ *  exactly that state (first row `data-selected` + `aria-current`, Message textbox already in the tree).
+ *  So: click only when the row is NOT already current, and barrier on the composer either way. */
 export async function reopenFirstChat(page: Page): Promise<void> {
   await gotoChatsList(page);
   const rows = page.getByRole("list", { name: "Chats list" }).getByRole("button");
-  await expect(rows.first()).toBeVisible({ timeout: 15_000 });
-  await rows.first().click();
+  const first = rows.first();
+  await expect(first).toBeVisible({ timeout: 15_000 });
+  if ((await first.getAttribute("aria-current")) !== "true") {
+    await first.click();
+  }
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
 }
