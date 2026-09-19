@@ -5855,7 +5855,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/cascade.ts::error::1",
       "path": "tooling/src/snap/ops/arms/cascade.ts",
-      "line": 181,
+      "line": 192,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -5863,7 +5863,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the catch returns a terminal instrument-error receipt consumed by Snap's verdict and artifact, including one error row per requested query. Ends if this result stops driving the verdict.",
-      "markerLine": 157
+      "markerLine": 168
     },
     {
       "siteId": "tooling/src/snap/ops/arms/contrast.ts::evaluate::1",
