@@ -270,6 +270,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--stage-sweep` | `B` | admin; prune stages | exclusive | no selector; `--stage-owner` belongs only to stage-down | owned | KEEP |
 | `--strict-console` | `B` | boot/call evidence policy; console failures fatal | outer/session boot | no alias | owned | KEEP |
 | `--scenario-summary` | `B` | scenario output modifier | scenario only | parent-owned and refused without scenario | owned | KEEP; old `--summary` refuses by name |
+| `--tap` | `V,R,@N` selector | action; a REAL touch tap (no mouseover, so a hover-only tooltip stays shut) | checkpoint | distinct mechanism from `--click`/`--dom-click`/`--force-click`; requires `--mobile` or another touch device | owned | KEEP |
 | `--text` | `O,L,@N` selector | analyzer; text projection | checkpoint/arm | differs from ARIA/map | owned | KEEP |
 | `--theme` | `V,L` theme | boot appearance | outer | composes with appearance; not dark/light alias | owned | KEEP |
 | `--upload` | `V,R,@N` selector=path list | action; direct/descendant input or Playwright filechooser trigger | checkpoint | chooser semantics; real DataTransfer drop is distinct | owned | KEEP |

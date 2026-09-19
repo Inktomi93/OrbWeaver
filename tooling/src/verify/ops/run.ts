@@ -43,6 +43,7 @@ import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { inheritedRunMarker, mintRunMarker, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
+import { colourNeutralParentEnv } from "../lib/child-env.ts";
 import { aggregateExit, noVerdictStages } from "../lib/exit-classifiers.ts";
 import { historyAdvisories } from "../lib/history.ts";
 import { stagesForTier } from "../lib/registry.ts";
@@ -257,12 +258,10 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
 
   const start = Date.now();
   const [cmd, ...args] = argv;
-  // NO_COLOR only — setting FORCE_COLOR alongside it (even "0") makes node WARN per child process that
-  // NO_COLOR is ignored (13 warnings per push run, 2026-07-17); every gate tool honors NO_COLOR alone.
-  // THE RUN MARKER rides the same env (#1848): every descendant of this stage carries it, so the kill
-  // paths can reach a browser or a vite server that left the process group.
-  // biome-ignore lint/style/noProcessEnv: NO_COLOR passthrough to children — greppable plain output, not config.
-  const env = { ...process.env, ...Object.fromEntries([["NO_COLOR", "1"]]), ...runMarkerEnv(ctx.runMarker), ...stage.env };
+  // NO_COLOR only, and an inherited FORCE_COLOR dropped — `lib/child-env.ts` owns that decision and the
+  // incident behind it (#2469). THE RUN MARKER rides the same env (#1848): every descendant of this stage
+  // carries it, so the kill paths can reach a browser or a vite server that left the process group.
+  const env = { ...colourNeutralParentEnv(), ...Object.fromEntries([["NO_COLOR", "1"]]), ...runMarkerEnv(ctx.runMarker), ...stage.env };
   // ARGV[0] IS RESOLVED FROM EVIDENCE, AND AN UNRESOLVABLE ONE IS REFUSED WITHOUT SPAWNING (#2220/#2225):
   // the old name allowlist sent `bash` to `node_modules/.bin/bash` and made `lint:hook-syntax` an exit-2
   // every static run since it landed. A refusal settles as `code: null`, which every classifier maps to a

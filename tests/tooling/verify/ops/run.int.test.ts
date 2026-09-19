@@ -183,6 +183,56 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
   }
 });
 
+// ─── #2469: THE STAGE CHILD'S COLOUR ENV, and why "we never SET FORCE_COLOR" was not enough ─────────
+// `runStage` composes `NO_COLOR=1` so every checker prints greppable plain text. Node emits
+// `Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.` whenever BOTH are
+// present — and the parent routinely exports one (an agent shell and a `pnpm` run both do; `FORCE_COLOR=3`
+// measured on the run that surfaced this). Not setting it left the INHERITED one in place, so the warning
+// rode the stderr of every node child of every stage: noise in each stage log, and a real failure in
+// `tests/tooling/stack/ops/engines-compose.int.test.ts`, which asserts a compose child prints NOTHING on
+// stderr and was instead reading node's complaint about our own contradictory env.
+test("a stage child carries NO_COLOR and never an inherited FORCE_COLOR (#2469)", { timeout: scaledBudget(60_000) }, async ({ fakeBin, repoRoot, scratch }) => {
+  const seen = join(scratch, "stage-colour-env");
+  await fakeBin(
+    "pnpm",
+    `#!/usr/bin/env bash
+set -u
+printf 'NO_COLOR=[%s] FORCE_COLOR=[%s]\n' "\${NO_COLOR-unset}" "\${FORCE_COLOR-unset}" >> ${JSON.stringify(seen)}
+exit 0
+`,
+  );
+  const runner = join(scratch, "run-verify-colour.ts");
+  writeFileSync(
+    runner,
+    `import { parse } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/run-argv.ts")).href)};
+import { runVerify } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/ops/run.ts")).href)};
+const parsed = parse(["--static"]);
+if ("error" in parsed) throw new Error(parsed.error);
+process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
+`,
+  );
+  // THE PARENT IS THE PLANTED POSITIVE CONTROL: without FORCE_COLOR here the assertion below would pass
+  // against a fixed AND against a broken composer, because node only warns when both are set.
+  // biome-ignore lint/style/noProcessEnv: the child needs the parent's real PATH (fakeBin prepended its shim to it) plus an isolated slot root.
+  const parentEnv = Object.entries(process.env);
+  const childEnv = Object.fromEntries([...parentEnv, [HOST_POOL_ROOT_ENV, join(scratch, "verify-slots-colour")], ["FORCE_COLOR", "3"]]);
+  const child = spawn("nice", ["-n", "19", process.execPath, runner], { cwd: repoRoot, detached: true, env: childEnv, stdio: ["ignore", "pipe", "pipe"] });
+  let output = "";
+  child.stdout.on("data", (chunk: Buffer) => {
+    output += chunk.toString("utf8");
+  });
+  child.stderr.on("data", (chunk: Buffer) => {
+    output += chunk.toString("utf8");
+  });
+  await new Promise<number | null>((resolve) => child.once("exit", resolve));
+
+  const recorded = existsSync(seen) ? readFileSync(seen, "utf8") : "";
+  const lines = recorded.split("\n").filter((line) => line !== "");
+  // A zero denominator would pass the uniqueness assertion below on its own.
+  expect(lines.length, `no stage reached the fake pnpm:\n${output}`).toBeGreaterThan(0);
+  expect([...new Set(lines)]).toEqual(["NO_COLOR=[1] FORCE_COLOR=[unset]"]);
+});
+
 test("asViolations: clean 0, any non-zero is a violation (tsc's 2 = type errors, not tool-error)", () => {
   expect(asViolations(0)).toBe(0);
   expect(asViolations(1)).toBe(1);

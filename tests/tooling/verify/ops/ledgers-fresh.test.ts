@@ -402,7 +402,9 @@ test("the committed refutation ledger agrees with every report that declares its
  *  one genuinely-waiting row — plus a DROPPED table below it whose rows have the identical shape. */
 function deferredRosterRoot(landedMarked: boolean): string {
   const root = mkdtempSync(join(tmpdir(), "orb-deferred-roster-"));
-  mkdirSync(join(root, "docs/architecture/core"), { recursive: true });
+  // The roster's home is `docs/architecture/history/`, which is where the write below actually lands —
+  // the fixture used to create `core/` and then ENOENT on the write it was built to make.
+  mkdirSync(join(root, "docs/architecture/history"), { recursive: true });
   mkdirSync(join(root, "tooling/src/verify/gates"), { recursive: true });
   writeFileSync(join(root, "tooling/src/verify/gates/landed-gate.ts"), "export const gate = 1;\n");
   writeFileSync(join(root, "tooling/src/verify/gates/marked-gate.ts"), "export const gate = 1;\n");
@@ -647,9 +649,15 @@ test("the rollup's own tables are NOT ledger rows — `state` without `defect` i
 test("the COMMITTED ledger has no stray section, and the green is a measurement", ({ repoRoot }) => {
   const ledger = readFileSync(join(repoRoot, "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md"), "utf8");
   expect(strayLedgerSections(ledger)).toEqual([]);
-  // A zero-denominator green would print the same empty list: measured 2026-09-12, all 25 in-fence sections
-  // carry a ledger-shaped table across SIX different column schemas, and no out-of-fence table does.
-  expect(ledgerSections(ledger).length).toBeGreaterThan(20);
+  // A zero-denominator green would print the same empty list, so the denominator is measured. NOT as a
+  // corpus SIZE: the ledger is a living artifact that shrinks as rows land — 25 in-fence sections on
+  // 2026-09-12, 7 today (519 landed rows removed at `1a599e75a`, empty sections stripped at `d968b6803`),
+  // and the `> 20` that pinned the 2026-09-12 size went red on that shrink while claiming nothing about
+  // the property under test. What the claim needs is that the reader found sections AND that every one it
+  // counted really carries a ledger-shaped table — a list of empty headings would satisfy a bare count.
+  const sections = ledgerSections(ledger);
+  expect(sections.length).toBeGreaterThan(0);
+  expect(sections.filter((section) => section.rows === 0)).toEqual([]);
 });
 
 // ─── #2207: the CLASS ROLLUP is a DERIVED table, and nothing re-derived it ───────────────────────────

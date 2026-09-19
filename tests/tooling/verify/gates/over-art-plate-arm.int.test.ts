@@ -150,21 +150,31 @@ test("WARNING DEBT — the four mint surfaces are REPORTED every run at warning 
   expect(result.authority.effectiveFindings.map(({ token, severity }) => [token, severity])).toEqual([['[data-slot="composer"]', "warning"]]);
 });
 
-test("§4.6 differential — the converted reader's live set over the REAL tree is the legacy ledger's four keys, verbatim", ({ repoRoot }) => {
+test("§4.6 differential — the four legacy keys are BURNED DOWN on the real tree, and the zero is measured", ({ repoRoot }) => {
   // READ THE LEGACY SIDE FIRST (guide §6.4). The legacy descriptor's live set is what its committed ledger
   // budgeted — that ledger WAS the legacy side's recorded output, and it was NOT zero (four rows, quoted
-  // below from `over-art-plate-arm.baseline.json` at `6977b977b` before this conversion deleted it).
-  // Replaying the same corpus through the converted reader must produce the same keys, which is the
-  // FINDING-level differential rather than a population-only comparison — and it is now the only place
-  // those four keys are recorded, which is why they are spelled out rather than read from a file.
+  // below from `over-art-plate-arm.baseline.json` at `6977b977b` before this conversion deleted it). This
+  // test is still the only place those four keys are recorded, which is why they stay spelled out:
+  //
+  //   packages/client/src/styles/globals.css::[data-slot="composer"]::--color-sidebar
+  //   packages/client/src/styles/globals.css::[data-slot="message-bubble"]::--color-ai-bubble
+  //   packages/client/src/styles/globals.css::[data-slot="message-bubble"]::--color-system-bubble
+  //   packages/client/src/styles/globals.css::[data-slot="message-bubble"]::--color-user-bubble
+  //
+  // RE-DERIVED AGAINST THE TREE 2026-09-19 (#2469): a replay now produces NONE of them, and they are gone
+  // because the PRODUCT was repaired — `d4e226a2e` ("over-art plate arms for composer+bubbles", #2389) gave
+  // every one of those four subjects its `--color-reading-plate` light arm. The differential therefore
+  // asserts the burn-down rather than the historical set; pinning the old four would assert that the debt
+  // is still owed.
+  //
+  // THE ZERO OWES A POSITIVE CONTROL, and `glassRules` is it: a reader that stopped recognising translucent
+  // rules at all would report an empty live set too. This asserts that the same pass still recognises glass
+  // on the same corpus, so the empty set is "every recognised surface pairs a plate arm", never "I could
+  // not look". (The scratch-corpus arm above plants a plateless composer rule and still catches it.)
   const corpus = loadAuthoredCss(createResourceReader({ root: repoRoot }));
   expect(corpus.status).toBe("ready");
-  const live = corpus.status === "ready" ? [...judgeStylesheets(corpus.value).live.keys()].toSorted((a, b) => a.localeCompare(b)) : [];
+  const judged = corpus.status === "ready" ? judgeStylesheets(corpus.value) : null;
 
-  expect(live).toEqual([
-    'packages/client/src/styles/globals.css::[data-slot="composer"]::--color-sidebar',
-    'packages/client/src/styles/globals.css::[data-slot="message-bubble"]::--color-ai-bubble',
-    'packages/client/src/styles/globals.css::[data-slot="message-bubble"]::--color-system-bubble',
-    'packages/client/src/styles/globals.css::[data-slot="message-bubble"]::--color-user-bubble',
-  ]);
+  expect([...(judged?.live.keys() ?? [])].toSorted((a, b) => a.localeCompare(b))).toEqual([]);
+  expect(judged?.glassRules ?? 0).toBeGreaterThan(0);
 });

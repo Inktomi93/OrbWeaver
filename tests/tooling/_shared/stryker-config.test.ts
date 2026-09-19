@@ -23,6 +23,7 @@ const IGNORE_PATTERNS = [
   ".claude/**",
   ".agents/**",
   ".codex/**",
+  ".qwen/**",
   "reference/**",
   "scratch/**",
   "data/**",
