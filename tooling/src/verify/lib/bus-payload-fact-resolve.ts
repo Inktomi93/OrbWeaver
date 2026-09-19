@@ -1,16 +1,9 @@
 // Low-level AST-resolution helpers for the bus-payload-shape reader, extracted from bus-payload-fact.ts
 // (tooling-size, #1584 residue). Pure name/alias/union resolution over CollectorState — no walk*/scan*
 // dispatch, which stays in the front door. The front door imports these; this leaf imports nothing back.
-import type {
-  IndexedAccessTypeNode,
-  InterfaceDeclaration,
-  Node as MorphNode,
-  TypeAliasDeclaration,
-  TypeReferenceNode,
-  UnionTypeNode,
-  VariableDeclaration,
-} from "ts-morph";
+import type { IndexedAccessTypeNode, Node as MorphNode, TypeAliasDeclaration, TypeReferenceNode, UnionTypeNode, VariableDeclaration } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import type { IndexedRead, NamedTypeDecl } from "../contract/bus-payload-fact.ts";
 import { readTupleDeclaration } from "./tuple-read.ts";
 
 /** One wire field. `origin` is where it was declared RELATIVE TO THE NAMED EVENT: `local` = spelled inside
@@ -47,8 +40,6 @@ export interface BusEmptyRoot {
 
 /** How many alias hops the constraint resolver follows before refusing — a cycle/pathology fence. */
 const CONSTRAINT_HOPS = 6;
-
-export type NamedTypeDecl = InterfaceDeclaration | TypeAliasDeclaration;
 
 export interface CollectorState {
   readonly admitted: ReadonlySet<string>;
@@ -230,15 +221,6 @@ function literalUnionMembers(typeNode: MorphNode | undefined, state: CollectorSt
   }
   return N.isTypeReference(node) ? literalUnionMembers(soleAliasFor(node, state)?.getTypeNode(), state, hops + 1) : undefined;
 }
-
-/** What an `X[I]` type node in a member position IS, for this reader. */
-export type IndexedRead =
-  /** `Named[K]` — a shape the position REFERENCES, so the non-transitive boundary decides it. */
-  | { readonly kind: "referenced" }
-  /** A mapped type whose key space this reader cannot enumerate — an open key space, fail closed. */
-  | { readonly kind: "unprovable" }
-  /** `{ [K in <finite union>]: T }[<subset>]` — the arms are provable and T is their shared shape. */
-  | { readonly kind: "distributed"; readonly template: MorphNode };
 
 /** Read the §5.5 MAPPED-TYPE DISTRIBUTION. It distributes only when BOTH the constraint and the index
  *  resolve to finite string-literal sets and the index is a non-empty SUBSET of the constraint. Everything

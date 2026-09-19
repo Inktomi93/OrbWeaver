@@ -74,9 +74,10 @@
 // said less usefully.
 import type { IndexedAccessTypeNode, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import type { NamedTypeDecl } from "../contract/bus-payload-fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import { walkMembers } from "./bus-payload-fact-field.ts";
-import type { BusEmptyRoot, BusPayloadField, BusShapeRefusal, CollectorState, NamedTypeDecl, WalkFrame } from "./bus-payload-fact-resolve.ts";
+import type { BusEmptyRoot, BusPayloadField, BusShapeRefusal, CollectorState, WalkFrame } from "./bus-payload-fact-resolve.ts";
 import {
   contributionMark,
   MEMBERLESS_KINDS,
