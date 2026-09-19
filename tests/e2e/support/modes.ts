@@ -102,6 +102,21 @@ const E2E_TEST_END_PATTERN = `(?:${E2E_TEST_SUFFIX_PATTERN})$`;
 export const E2E_DEBUG_TOKEN = "orbweaver-e2e-debug-token-insecure";
 
 /**
+ * EACH MODE'S OWN pidfile + server/client log dir (`STACK_RUN_DIR`, stack.sh) — the #1851 instrument gap.
+ *
+ * All three mode stacks used to leave `STACK_RUN_DIR` unset, so all three wrote `.cache/stack/server.log`,
+ * `client.log` AND `stack.pgid`. When `smoke.spec.ts` got `ECONNREFUSED 127.0.0.1:8796` in the 2026-09-06
+ * `--full` run, the single-user server's crash reason was UNRECOVERABLE: the forward-header stack booting on
+ * :8798 had already rotated and overwritten the same file. A harness that cannot say why its own server died
+ * is an instrument, not a test suite — and the shared `stack.pgid` was the same collision one step worse,
+ * since `stop`/`status` read it.
+ *
+ * It rides the mode's EXISTING throwaway state root (`.cache/e2e/<mode>/`, next to its DB and assets) rather
+ * than minting a second convention; stack.sh `mkdir -p`s it, so nothing has to pre-create it.
+ */
+const STACK_RUN_SUBDIR = "stack";
+
+/**
  * The BOX OWNER's handle on every harness stack — pinned into each mode's `OWNER_HANDLES` below, and the
  * handle the local fixture resets a password for.
  *
@@ -179,6 +194,7 @@ export const SINGLE_USER: ModeProject = {
           VITE_API_TARGET: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
           DATABASE_URL: "file:./.cache/e2e/single/orb.db",
           ASSETS_DIR: "./.cache/e2e/single/assets",
+          STACK_RUN_DIR: `./.cache/e2e/single/${STACK_RUN_SUBDIR}`,
           OWNER_HANDLES: HARNESS_OWNER_HANDLE,
           ORB_ENV_NO_FILE: "1",
         }),
@@ -218,6 +234,7 @@ const LOCAL: ModeProject = {
     VITE_API_TARGET: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
     DATABASE_URL: "file:./.cache/e2e/local/orb.db",
     ASSETS_DIR: "./.cache/e2e/local/assets",
+    STACK_RUN_DIR: `./.cache/e2e/local/${STACK_RUN_SUBDIR}`,
     // The reasoning-strip spec's scripted BYO provider (support/fixture-provider.ts) is a loopback endpoint the
     // custom-byo runner reaches via a raw fetch → the global egress firewall. Allowlist loopback so the box can
     // reach its OWN configured backend (127.0.0.1); the operator legitimately trusts loopback egress on a test
@@ -262,6 +279,7 @@ const FORWARD_HEADER: ModeProject = {
     VITE_API_TARGET: `http://127.0.0.1:${FWD_BACKEND_PORT}`,
     DATABASE_URL: "file:./.cache/e2e/forward/orb.db",
     ASSETS_DIR: "./.cache/e2e/forward/assets",
+    STACK_RUN_DIR: `./.cache/e2e/forward/${STACK_RUN_SUBDIR}`,
     // The owner case in auth-smoke.forward.spec.ts asserts THIS handle resolves role=owner.
     OWNER_HANDLES: HARNESS_OWNER_HANDLE,
     ORB_ENV_NO_FILE: "1",
