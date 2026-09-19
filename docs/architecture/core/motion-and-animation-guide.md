@@ -216,7 +216,11 @@ and curve stay on the element's own classes. Two sites, and they are the whole e
 
 Anything else that reaches for JS to move pixels is a defect, not a third member: read those
 two files before writing a third, and if the delta can be spelled in CSS, the answer is the
-shell's shape. Reduced motion needs no special arm in either — the globals.css floor
+shell's shape. **STRUCTURAL SINCE #1089** — this list is no longer prose-only: the
+`no-unruled-flip-inversion` policy reds a transform write flushed by a forced layout read
+anywhere in `@ui`/`@client`, and the one member that writes a transform is an exact row in
+`tooling/src/verify/lib/reviewed-grants-no-unruled-flip-inversion.ts`. Amending this list and
+that table is ONE edit, never two halves. Reduced motion needs no special arm in either — the globals.css floor
 (`transition-property: none !important`) makes the inverse land instead of animate.
 
 ## 2. Motion taxonomy + where-to-place-it playbook
