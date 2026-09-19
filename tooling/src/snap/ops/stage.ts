@@ -23,6 +23,10 @@
 // sibling's healthy row at our sha, else the lowest free band, else the lowest stranded one (reaped on
 // acquire), else an exit-2 refusal naming every row with its idle age. The decision is
 // lib/stage-bands.ts's, the census + the claim are ops/stage-census.ts's; this file boots what it is given.
+// Arm 2 is REAL and not decorative: until #2441 the `--base` ownership guard called the row this allocator
+// had just handed out `foreign` and exited 2 ("nothing was measured"), so the arm could never complete a
+// run. `ensureStage`'s single exit publishes the bound row (`lib/stage-run-binding.ts`) and THAT is what
+// entitles the read — the guard's `shared` claim, with a printed line naming whose tree answered.
 //
 // LIFECYCLE: one stage per (checkout, sha) at .cache/snap-stage/<short-sha>/ (`pnpm install` once —
 // shared store), its OWN db (seedStageData's provenance note below — a cached stage KEEPS its old db)

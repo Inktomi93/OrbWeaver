@@ -258,9 +258,20 @@ export interface StageHealthEvidence {
  *  is a registered port pair and the table names each one's owner, so this is exact:
  *   • `not-the-band` — an ordinary base (the dev stack, a CT server): nothing to arbitrate.
  *   • `ours`         — a band whose row names THIS checkout: measure away.
+ *   • `shared`       — a SIBLING's band the ALLOCATOR itself handed this run (#2441): readable, not ours.
  *   • `foreign`      — a band owned by another checkout: its pixels are not ours to report.
- *   • `unowned`      — a band port with no row accounting for it: whose tree is serving is unknowable. */
-const STAGE_BAND_CLAIMS = ["not-the-band", "ours", "foreign", "unowned"] as const;
+ *   • `unowned`      — a band port with no row accounting for it: whose tree is serving is unknowable.
+ *
+ *  WHY `shared` HAD TO EXIST (#2441). The allocator's arm 2 hands a lane "a sibling's healthy row at our
+ *  sha" (`bandAccess` → `shared-reuse`, #108: identical bytes, strictly cheaper than a 55 s boot) and this
+ *  guard then called that exact row `foreign` and exited 2 with "nothing was measured" — so every lane
+ *  whose `--ref` matched a live sibling's stage (at main tip, that is every lane) could never run an
+ *  isolated snap, and the refusal's own advice ("boot your own stage") looped straight back into the reuse
+ *  that produced it. #1186's RULING SURVIVES — its INPUT changed. The incident it was minted from is a
+ *  chained instrument reading a band NOBODY handed it, and that is still `foreign`: `shared` is granted
+ *  ONLY against the row this run's own allocation bound (`lib/stage-run-binding.ts`), never re-derived
+ *  from the table, so a `--base` typed at a sibling's port is refused exactly as before. */
+const STAGE_BAND_CLAIMS = ["not-the-band", "ours", "shared", "foreign", "unowned"] as const;
 export type StageBandClaim = (typeof STAGE_BAND_CLAIMS)[number];
 
 export type StageDecision = "reuse" | "rebuild";

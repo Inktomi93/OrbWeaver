@@ -32,6 +32,7 @@ import {
   shortSha,
   stageBandClaim,
   stageBandRefusal,
+  stageBandSharedNote,
   stageBaseUrl,
   stageDecision,
   stageIdleMs,
@@ -40,7 +41,7 @@ import {
   stagePaths,
   teardownConsent,
 } from "../../../../tooling/src/snap/lib/stage-plan.ts";
-import { readBands, stageBandRefusalFor, writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
+import { readBands, stageBandVerdictFor, writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
@@ -432,6 +433,52 @@ test("a base at ANY stage band is judged against that band's owner; anything els
   expect(stageBandClaim("http://localhost:5273", LANE_CHECKOUT, [])).toBe("unowned");
 });
 
+// ── the SHARED arm (#2441) ──────────────────────────────────────────────────────────────────────────
+// The allocator's arm 2 hands a lane "a sibling's healthy row at our sha" (`bandAccess` → `shared-reuse`)
+// and this guard then called that exact row `foreign` and exited 2 with "nothing was measured", so a lane
+// whose `--ref` matched a live sibling's stage — at main tip, every lane — could never run an isolated
+// snap. Both arms are pinned here: the allocation this run actually made is READABLE, and a band nobody
+// handed us is still the #1186 refusal.
+test("a SIBLING's band this run's own allocation bound is SHARED, not foreign (#2441)", () => {
+  const siblings = [active({ band: 0, checkout: MAIN_CHECKOUT })];
+  const bound = active({ band: 0, checkout: MAIN_CHECKOUT });
+  expect(stageBandClaim("http://localhost:5273", LANE_CHECKOUT, siblings, bound)).toBe("shared");
+  // …and it is READABLE: no refusal text, so the run measures. The operator is told whose tree answered.
+  expect(stageBandRefusal("shared", "http://localhost:5273", LANE_CHECKOUT, siblings)).toBeNull();
+  const note = stageBandSharedNote("shared", "http://localhost:5273", siblings);
+  expect(note).toContain(MAIN_CHECKOUT);
+  expect(note).toContain(shortSha(SHA));
+  expect(note).toContain("SHARED band 0");
+  // The note is ONLY for the shared arm — the ordinary paths stay silent.
+  expect(stageBandSharedNote("ours", "http://localhost:5273", siblings)).toBeNull();
+  expect(stageBandSharedNote("foreign", "http://localhost:5273", siblings)).toBeNull();
+});
+
+test("#1186's refusal SURVIVES: a band no allocation of ours bound is still foreign (#2441)", () => {
+  const siblings = [active({ band: 0, checkout: MAIN_CHECKOUT })];
+  // The p-home-perf incident verbatim: a chained instrument pointed at a sibling's band, having allocated
+  // NOTHING. No binding ⇒ no entitlement ⇒ refusal, exactly as before.
+  expect(stageBandClaim("http://localhost:5273", LANE_CHECKOUT, siblings, null)).toBe("foreign");
+  // A binding to a DIFFERENT band does not licence this one.
+  expect(stageBandClaim("http://localhost:5273", LANE_CHECKOUT, siblings, active({ band: 4, checkout: MAIN_CHECKOUT }))).toBe("foreign");
+  // A STALE binding — the band was reaped and re-let to a different tree at a different sha — must not
+  // licence a read of the NEW occupant. Matching on the band alone is what would have.
+  const reLet = [active({ band: 0, checkout: MAIN_CHECKOUT, sha: `${SHA.slice(0, -1)}f` })];
+  expect(stageBandClaim("http://localhost:5273", LANE_CHECKOUT, reLet, active({ band: 0, checkout: MAIN_CHECKOUT }))).toBe("foreign");
+});
+
+test("the band verdict door reads this run's binding, and never both refuses and notes (#2441)", () => {
+  const readTable = (): readonly StageRow[] => [active()];
+  const shared = stageBandVerdictFor("http://localhost:5273", { checkout: LANE_CHECKOUT, readTable, readBinding: () => active() });
+  expect(shared.claim).toBe("shared");
+  expect(shared.refusal).toBeNull();
+  expect(shared.note).toContain(MAIN_CHECKOUT);
+  const refused = stageBandVerdictFor("http://localhost:5273", { checkout: LANE_CHECKOUT, readTable, readBinding: () => null });
+  expect(refused.claim).toBe("foreign");
+  expect(refused.refusal).toContain("nothing was measured");
+  expect(refused.note).toBeNull();
+});
+
 test("the band refusal names BOTH checkouts — the whole failure was not knowing whose tree answered (#1186)", () => {
   const refusal = stageBandRefusal("foreign", "http://localhost:5273", LANE_CHECKOUT, [active()]);
   expect(refusal).toContain(MAIN_CHECKOUT);
@@ -448,7 +495,11 @@ test("the band refusal names BOTH checkouts — the whole failure was not knowin
 test("the table door refuses a FOREIGN owner and passes our own — a PLANTED table, never the box's (#1186)", () => {
   // Both readers are injected on purpose: writing the real shared table from a suite would evict a live
   // sibling lane's stage, which is the very failure this guard exists to prevent.
-  expect(stageBandRefusalFor("http://localhost:5273", { checkout: LANE_CHECKOUT, readTable: () => [active()] })).toContain(MAIN_CHECKOUT);
-  expect(stageBandRefusalFor("http://localhost:5273", { checkout: MAIN_CHECKOUT, readTable: () => [active()] })).toBeNull();
-  expect(stageBandRefusalFor("http://localhost:5173/chat", { checkout: LANE_CHECKOUT, readTable: () => [active()] })).toBeNull();
+  expect(stageBandVerdictFor("http://localhost:5273", { checkout: LANE_CHECKOUT, readTable: () => [active()], readBinding: () => null }).refusal).toContain(
+    MAIN_CHECKOUT,
+  );
+  expect(stageBandVerdictFor("http://localhost:5273", { checkout: MAIN_CHECKOUT, readTable: () => [active()], readBinding: () => null }).refusal).toBeNull();
+  expect(
+    stageBandVerdictFor("http://localhost:5173/chat", { checkout: LANE_CHECKOUT, readTable: () => [active()], readBinding: () => null }).refusal,
+  ).toBeNull();
 });

@@ -26,8 +26,17 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../_shared/ports.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
-import type { StageBandsFile, StageDbProvenance, StageKeeper, StageRow } from "../contract/stage.ts";
-import { BANDS_REL, LEGACY_ACTIVE_REL, markerRootFromCommonDir, STAGE_ROOT_REL, stageBandClaim, stageBandRefusal } from "../lib/stage-plan.ts";
+import type { StageBandClaim, StageBandsFile, StageDbProvenance, StageKeeper, StageRow } from "../contract/stage.ts";
+import {
+  BANDS_REL,
+  LEGACY_ACTIVE_REL,
+  markerRootFromCommonDir,
+  STAGE_ROOT_REL,
+  stageBandClaim,
+  stageBandRefusal,
+  stageBandSharedNote,
+} from "../lib/stage-plan.ts";
+import { boundStageRow } from "../lib/stage-run-binding.ts";
 import { repoRoot } from "./stage-git.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -384,12 +393,23 @@ export function withBandsLock<T>(home: string, fn: () => T): T {
 }
 
 /** The band-ownership door every `--base`/`--url` instrument enters before it measures anything (#1186).
- *  Returns the refusal text (exit-2 class — nothing was measured) or null when the URL is ours to read.
- *  Both readers are injectable so a suite can plant a FOREIGN owner without touching the box's real,
- *  shared table — writing that file from a test would evict a live sibling stage. */
-export function stageBandRefusalFor(url: string, opts: { readonly checkout?: string; readonly readTable?: () => readonly StageRow[] } = {}): string | null {
+ *  `refusal` is the exit-2 text (nothing was measured) or null when the URL is ours to read; `note` is the
+ *  one line a `shared` read owes its operator (#2441) and is null on every other arm — a verdict is never
+ *  both. All three readers are injectable so a suite can plant a FOREIGN owner, or this run's own stage
+ *  binding, without touching the box's real shared table — writing that file from a test would evict a
+ *  live sibling stage. */
+export function stageBandVerdictFor(
+  url: string,
+  opts: {
+    readonly checkout?: string;
+    readonly readTable?: () => readonly StageRow[];
+    readonly readBinding?: () => StageRow | null;
+  } = {},
+): { readonly claim: StageBandClaim; readonly refusal: string | null; readonly note: string | null } {
   const checkout = opts.checkout ?? repoRoot();
   const readTable = opts.readTable ?? ((): readonly StageRow[] => readBands(markerRoot(checkout)));
+  const readBinding = opts.readBinding ?? boundStageRow;
   const rows = readTable();
-  return stageBandRefusal(stageBandClaim(url, checkout, rows), url, checkout, rows);
+  const claim = stageBandClaim(url, checkout, rows, readBinding());
+  return { claim, refusal: stageBandRefusal(claim, url, checkout, rows), note: stageBandSharedNote(claim, url, rows) };
 }
