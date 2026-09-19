@@ -14,7 +14,17 @@ export const macroTextareaVariants = tv({
     // resize-y: a native bottom-drag handle — the field auto-grows with content (the shared
     // textarea skin's `field-sizing: content`) but a caller can still pull it taller by hand
     // (persona-panel redesign — a long description wants more room on demand).
-    textarea: "min-h-0 flex-1 resize-y font-mono text-code-field leading-code-field",
+    // THE LINE-LENGTH CAP (#2465). Uncapped, the prose editor painted 100.25 characters per line at its
+    // real 828px mount (measured, macro-textarea.ct.tsx) — a third again past the design law's 65-75 band.
+    //
+    // WHY `--reading-measure` AND NOT `--reading-measure-prose`, WHICH THE ROW NAMED. This field is
+    // MONOSPACE, so one CSS `ch` IS one typographic character here. The prose measure's 47ch carries the
+    // PROPORTIONAL conversion its own token description derives (1 CSS ch = 1.43-1.56 law-characters in
+    // Geist, so 47ch reads 67-73); applied to a mono field that conversion does not exist and 47ch reads
+    // 47 — well BELOW the band the row asked for. 75ch reads 75 here, minus the field's own padding, which
+    // lands inside the band at both ends. The row's SYMPTOM (65-75 per line) is satisfied; its TOKEN
+    // prescription was derived for a different font class. Flagged to the orchestrator, not decided here.
+    textarea: "min-h-0 max-w-(--reading-measure) flex-1 resize-y font-mono text-code-field leading-code-field",
     listbox: [
       "absolute top-full right-0 left-0 z-(--z-overlay) mt-field max-h-64 overflow-y-auto overscroll-contain rounded-card border border-border bg-popover py-field shadow-overlay",
     ],

@@ -142,3 +142,15 @@ export function DerivedSuggestionsStory(): ReactElement {
     </div>
   );
 }
+
+/** THE READING-MEASURE STAGE (#2465). 828px is the real prose editor mount (the character editor's field
+ *  column), and the mount is FIXED-width with `overflow: visible` so the measurement is the production
+ *  geometry rather than a content-sized shrink. */
+export function ReadingMeasureStory(): ReactElement {
+  const [value, setValue] = useState("");
+  return (
+    <div style={{ overflow: "visible", width: 828 }}>
+      <MacroTextarea aria-label="Body" onChange={setValue} suggestions={MACROS} value={value} />
+    </div>
+  );
+}
