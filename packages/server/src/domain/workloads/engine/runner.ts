@@ -146,27 +146,32 @@ function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, c
   };
 }
 
+/** The real interval, and the default for `WorkloadRunnerDeps.scheduleInterval` — the ONE ambient timer this
+ *  engine owns. Everything else takes the seam, so a test ticks the lease without a global fake clock. */
+const realScheduleInterval = (fn: () => void, ms: number): (() => void) => {
+  const handle = setInterval(fn, ms);
+  return (): void => {
+    clearInterval(handle);
+  };
+};
+
 /** Start the single-replica lease timers (heartbeat + DB cancel-poll); `<= 0` cadence DISABLES a timer (the
- *  deterministic test seam). Returns the handles for the `finally` cleanup. */
-function startLeaseTimers(
-  deps: WorkloadRunnerDeps,
-  row: WorkloadRunnableRow,
-  controller: AbortController,
-  lease: LeaseWriter,
-): ReturnType<typeof setInterval>[] {
-  const timers: ReturnType<typeof setInterval>[] = [];
+ *  deterministic test seam). Returns each timer's CANCEL for the `finally` cleanup. */
+function startLeaseTimers(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, controller: AbortController, lease: LeaseWriter): (() => void)[] {
+  const cancels: (() => void)[] = [];
+  const scheduleInterval = deps.scheduleInterval ?? realScheduleInterval;
   const heartbeatMs = deps.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
   const cancelPollMs = deps.cancelPollMs ?? DEFAULT_CANCEL_POLL_MS;
   if (heartbeatMs > 0) {
-    timers.push(
-      setInterval(() => {
+    cancels.push(
+      scheduleInterval(() => {
         lease.tick(deps.now());
       }, heartbeatMs),
     );
   }
   if (cancelPollMs > 0) {
-    timers.push(
-      setInterval(() => {
+    cancels.push(
+      scheduleInterval(() => {
         lease.monitor(async () => {
           const status = await loadWorkloadStatus(deps.db, row.id);
           if (status === "cancelling") {
@@ -176,7 +181,7 @@ function startLeaseTimers(
       }, cancelPollMs),
     );
   }
-  return timers;
+  return cancels;
 }
 
 /** Pin a (running|cancelling) row to `cancelled` + emit. Returns whether it actually moved (false ⇒ already
@@ -301,7 +306,7 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
     });
   };
 
-  const timers = startLeaseTimers(deps, row, controller, lease);
+  const cancelTimers = startLeaseTimers(deps, row, controller, lease);
   const contribution = withRequestSpan(`workload:${row.id}`, "workload.run", { kind: row.kind }, () =>
     dispatchAndRun(deps, { ctx, row, report, signal: controller.signal }),
   );
@@ -322,8 +327,8 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
       aborted: !leaseFailure && controller.signal.aborted,
     };
   } finally {
-    for (const timer of timers) {
-      clearInterval(timer);
+    for (const cancel of cancelTimers) {
+      cancel();
     }
     signal.removeEventListener("abort", onIncomingAbort);
   }

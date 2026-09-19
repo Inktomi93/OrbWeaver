@@ -23,7 +23,7 @@ import { assertInitFrameShape } from "./verify.ts";
 type SubBatchRequest = SummarizeRequest | StructuredRequest;
 
 const SDK_TITLE_SUMMARIZE = "orbweaver-summarize";
-const SUMMARIZE_ITEM_TIMEOUT_MS = 120_000;
+export const SUMMARIZE_ITEM_TIMEOUT_MS = 120_000;
 // The env-floor fallback when compose doesn't inject the resolved concurrency getter (tests). Byte-identical
 // to the former hardcoded SUMMARIZE_CONCURRENCY; the live value comes from deps.summarizeConcurrency (Q6).
 const SUMMARIZE_CONCURRENCY_FALLBACK = 4;
@@ -141,9 +141,11 @@ async function runSummarizeItem(req: SubBatchRequest, item: SummarizeRequestItem
       req.signal.addEventListener("abort", () => abortController.abort(), { once: true });
     }
   }
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  // The watchdog is armed through the INJECTED seam (`AgentSdkDeps.scheduleTimeout`), never a raw
+  // `setTimeout`: a test trips it by hand instead of replacing the global clock (Spine-Testing.md §3).
+  let cancelWatchdog: (() => void) | undefined;
   const watchdog = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => {
+    cancelWatchdog = deps.scheduleTimeout(() => {
       abortController.abort();
       reject(
         new ProviderError({
@@ -154,7 +156,6 @@ async function runSummarizeItem(req: SubBatchRequest, item: SummarizeRequestItem
         }),
       );
     }, SUMMARIZE_ITEM_TIMEOUT_MS);
-    timer.unref();
   });
   const responseFormat = "responseFormat" in req ? req.responseFormat : undefined;
   const outputFormat: Pick<Options, "outputFormat"> =
@@ -192,9 +193,7 @@ async function runSummarizeItem(req: SubBatchRequest, item: SummarizeRequestItem
     }
     return turn;
   } finally {
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
+    cancelWatchdog?.();
     abortController.abort();
   }
 }

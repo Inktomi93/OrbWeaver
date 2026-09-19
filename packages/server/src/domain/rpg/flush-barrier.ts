@@ -61,12 +61,21 @@
 // lock. A multi-replica deploy would need a shared barrier (a doorway, not built).
 
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { FlushBarrierOnTimeout, RpgFlushBarrier } from "./contract/service.ts";
+import type { FlushBarrierOnTimeout, FlushBarrierScheduleTimeout, RpgFlushBarrier } from "./contract/service.ts";
 
 /** The bound: a flush that hasn't settled within this window releases the barrier (the turn proceeds on the
  *  last-known state rather than deadlocking on a hung flush). A flush is a single extraction/tool-round call +
  *  a snapshot write — measured 0.8-2.9s; the bound is generous headroom, never a normal-path wait. */
 const BARRIER_TIMEOUT_MS = 15_000;
+
+/** The real timer, and the default for the injected seam below — the ONE ambient `setTimeout` this file
+ *  owns. Everything else takes the seam, so the bound is drivable from a test without a global fake clock. */
+const realScheduleTimeout: FlushBarrierScheduleTimeout = (fn, ms) => {
+  const handle = setTimeout(fn, ms);
+  return (): void => {
+    clearTimeout(handle);
+  };
+};
 
 // The barrier's types (`RpgFlushBarrier`, `FlushBarrierOnTimeout`) are homed in `contract/service.ts` (a type
 // has no home in a stateful root file — substrate-not-a-type-home); this file owns only the factory + the bound.
@@ -82,7 +91,11 @@ interface InFlightFlush {
 }
 
 /** Build the flush barrier (a compose-created singleton — one per server process, like the staging store). */
-export function createRpgFlushBarrier(onTimeout: FlushBarrierOnTimeout, timeoutMs: number = BARRIER_TIMEOUT_MS): RpgFlushBarrier {
+export function createRpgFlushBarrier(
+  onTimeout: FlushBarrierOnTimeout,
+  timeoutMs: number = BARRIER_TIMEOUT_MS,
+  scheduleTimeout: FlushBarrierScheduleTimeout = realScheduleTimeout,
+): RpgFlushBarrier {
   // The SET of in-flight flushes per chat (S2). Each flush self-removes on settle; an emptied set is deleted so
   // the common fast path (no in-flight flush) is a Map miss. Two concurrent flushes on one chat are BOTH tracked.
   const inFlight = new Map<ChatId, Set<InFlightFlush>>();
@@ -151,16 +164,16 @@ export function createRpgFlushBarrier(onTimeout: FlushBarrierOnTimeout, timeoutM
       // whichever resolves first per the race releases, but we wait for EVERY tracked flush (or the bound). A
       // hung flush proceeds the turn on last-known state (visible degrade via `onTimeout`), never a deadlock.
       const flushes = [...set].map((entry) => entry.tracked);
-      let timer: ReturnType<typeof setTimeout> | undefined;
+      // `scheduleTimeout` is invoked SYNCHRONOUSLY inside the executor, so `cancelTimer` is assigned before
+      // any await below can observe it.
+      let cancelTimer: (() => void) | undefined;
       const timedOut = Symbol("barrier-timeout");
       const timeout = new Promise<typeof timedOut>((resolve) => {
-        timer = setTimeout(() => resolve(timedOut), timeoutMs);
+        cancelTimer = scheduleTimeout(() => resolve(timedOut), timeoutMs);
       });
       const allSettled = Promise.all(flushes.map((f) => f.then(() => undefined))).then(() => undefined);
       const outcome = await Promise.race([allSettled, timeout]);
-      if (timer !== undefined) {
-        clearTimeout(timer);
-      }
+      cancelTimer?.();
       if (outcome === timedOut) {
         onTimeout({ chatId });
       }

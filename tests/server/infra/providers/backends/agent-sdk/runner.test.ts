@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
 //
 // The stream→ChatResult reducer (consumeTurnStream) + the backend factory (createAgentSdkBackend),
 // driven by hand-built message streams + an injected fake `query` — no live spawn. Asserts: a success
@@ -11,9 +10,10 @@ import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import type { AgentSdkChatRequest, ChatRequest, ChatResult } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
-import { consumeTurnStream, createAgentSdkBackend, mergeMountedOptions } from "@orb/server/infra/providers/backends/agent-sdk";
+import { CONTEXT_USAGE_PROBE_TIMEOUT_MS, consumeTurnStream, createAgentSdkBackend, mergeMountedOptions } from "@orb/server/infra/providers/backends/agent-sdk";
 import { seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { describe, vi } from "vitest";
+import { createManualTimer } from "../../../../../support/clock.ts";
 import { makeModelCapability, makeOpenRouterCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { wireSchema } from "../../../../../support/wire-ready.ts";
@@ -765,26 +765,26 @@ describe("createAgentSdkBackend", () => {
     expect(result.reply).toBe("Hello");
   });
 
-  test("contextUsage: a HANGING probe hits the 2s bound → absent, turn unblocked (fake timers)", async () => {
-    vi.useFakeTimers();
-    try {
-      // A never-resolving getContextUsage — only the bounded timeout can resolve the race.
-      const getContextUsage = vi.fn(() => new Promise<never>(() => undefined));
-      const fakeQuery = vi.fn(() => queryOf([initMsg, assistantMsg, successResult], getContextUsage));
-      const backend = createAgentSdkBackend({
-        now: () => 0,
-        query: fakeQuery as never,
-        refreshHostSubToken: () => Promise.resolve(false),
-      });
-      const runPromise = (backend.runChatTurn as ChatTurn)(buildReq(castId<ChatId>("chat-ctx-hang")));
-      // Drain microtasks so the stream completes and the probe's timeout timer is armed, then trip it.
-      await vi.advanceTimersByTimeAsync(2000);
-      const result = await runPromise;
-      expect(result.contextUsage).toBeUndefined();
-      expect(result.reply).toBe("Hello");
-    } finally {
-      vi.useRealTimers();
-    }
+  test("contextUsage: a HANGING probe hits the 2s bound → absent, turn unblocked (the injected timer seam)", async () => {
+    // A never-resolving getContextUsage — only the bounded timeout can resolve the race. The bound is armed
+    // through the backend's INJECTED `scheduleTimeout` (Spine-Testing.md §3), so the test trips it by hand
+    // instead of replacing the global clock, and asserts the REAL bound was the one armed.
+    const getContextUsage = vi.fn(() => new Promise<never>(() => undefined));
+    const fakeQuery = vi.fn(() => queryOf([initMsg, assistantMsg, successResult], getContextUsage));
+    const timer = createManualTimer();
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+      scheduleTimeout: timer.schedule,
+    });
+    const runPromise = (backend.runChatTurn as ChatTurn)(buildReq(castId<ChatId>("chat-ctx-hang")));
+    // The probe arms only once the stream has drained — wait on the ARMED BOUND, never on elapsed time.
+    await vi.waitFor(() => expect(timer.armed()).toEqual([CONTEXT_USAGE_PROBE_TIMEOUT_MS]));
+    timer.fire();
+    const result = await runPromise;
+    expect(result.contextUsage).toBeUndefined();
+    expect(result.reply).toBe("Hello");
   });
 
   test("contextUsage: absent when the query exposes no getContextUsage control method", async () => {

@@ -220,6 +220,13 @@ export interface RpgStagingStore {
  *  settle within the bound and the next turn proceeded on last-known state. Homed here (substrate-not-a-type-home). */
 export type FlushBarrierOnTimeout = (info: { readonly chatId: ChatId }) => void;
 
+/** The flush barrier's injected TIMER seam: schedule `fn` after `ms`, returning its cancel. The house
+ *  `ScheduleOp` shape (`transport/jobs/workloads-worker.ts`), so the handle type never leaks. Injected for
+ *  the same reason the clock is: the bound is then drivable from a test WITHOUT replacing the global clock
+ *  (Spine-Testing.md §3 — the `test-determinism` gate bans `vi.useFakeTimers`). Production leaves it
+ *  defaulted to the real `setTimeout`. */
+export type FlushBarrierScheduleTimeout = (fn: () => void, ms: number) => () => void;
+
 /** The per-chat FLUSH BARRIER's public interface (impl: `flush-barrier.ts`). `onTurnCompleted` REGISTERS its
  *  in-flight flush; the gather AWAITS it before assembling the reminder, so a fast re-send reads the
  *  just-committed state, not stale state (the "one-beat-behind but GUARANTEED" contract). Bounded — a hung
