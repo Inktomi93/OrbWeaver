@@ -3473,6 +3473,17 @@ test("#1646 the reduced-motion SETTLE holds the fabricated row at exactly half t
 // and does not need to — the counter's subject is the TRACK, and these two resolve their horizontal
 // placement through exactly the rule the six production carriers do.
 
+/** DRIVE the section, never wait for the story to land it. `LandOn`'s mount effect races the shell store's
+ *  own rehydration, and the race is REAL: measured here, `data-section` sat at `home` for the full poll on
+ *  a story whose `LandOn` names chats — and `home` declares no LIST pane at all, so the next assertion
+ *  reads a panel that is `collapsed` + `data-panel-available="false"` and looks exactly like a dock that
+ *  refused. A rail click is what a user does and what the store cannot lose; polling the stamped section
+ *  afterwards is the settled-render barrier. */
+async function landOnChats(shell: Locator, page: Page): Promise<void> {
+  await shell.getByRole("button", { name: "Chats" }).click();
+  await expect.poll(() => page.locator(".shell-grid").getAttribute("data-section"), { intervals: [50, 100, 200, 400, 800] }).toBe("chats");
+}
+
 /** The x of the three boxes this block judges plus `.shell-main`'s WIDTH, read in ONE round trip so they
  *  can never be a frame apart. The width is what names the FIRST PAINTED FRAME of the flip: every x in
  *  that frame is HELD at the FLIP's `from` corner by construction (that is the whole mechanism), so x
@@ -3589,7 +3600,7 @@ test("#2442 no .orb-chat-track carrier leaves its FLIP corridor — the composer
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
   // The landed section is the premise, asserted before the mode (see the fontScale twin below for the
   // measured failure mode a missing section barrier produces — the HOME pane, which HAS no list).
-  await expect.poll(() => page.locator(".shell-grid").getAttribute("data-section"), { intervals: [50, 100, 200, 400, 800, 1600, 3200] }).toBe("chats");
+  await landOnChats(shell, page);
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
   await waitForSettledDock(page);
 
@@ -3667,7 +3678,7 @@ test("#2442 at fontScale 1.25 the docking counter is the box's CLAMPED delta, no
   // pane (`aria-label="Home list"`, `data-panel-available="false"`, i.e. a section with no LIST at all),
   // which looks exactly like a panel that refused to dock. The section is the premise; the mode is the
   // subject, and they are asserted in that order.
-  await expect.poll(() => page.locator(".shell-grid").getAttribute("data-section"), { intervals: [50, 100, 200, 400, 800, 1600, 3200] }).toBe("chats");
+  await landOnChats(shell, page);
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
   await expect
     .poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)), { intervals: [20, 50, 100] })
