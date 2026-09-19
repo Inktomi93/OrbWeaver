@@ -205,8 +205,11 @@ export interface DistVerdict {
 
 /** What a served vite transform turned out to be, measured against the file on disk.
  *
- *  `fresh`        — every value export the disk file declares is present in what vite served.
- *  `stale`        — at least one is MISSING: vite is serving a transform that predates the file on disk,
+ *  `fresh`        — what vite served was built from the bytes now on disk: the served transform's own
+ *                   sourcemap carries the file verbatim (#2461). For a module served without a map, the
+ *                   weaker fallback applies — every value export the disk file declares is present.
+ *  `stale`        — the served transform was built from DIFFERENT bytes (or, on the fallback, is missing a
+ *                   declared export): vite is serving a transform that predates the file on disk,
  *                   which is what a DEAD FILE WATCHER looks like from outside (the module cache never gets
  *                   invalidated, `touch` does nothing, and every page load white-screens on an import that
  *                   resolves to undefined). The whole point of the probe: `healthz ok` + `vite pid alive`

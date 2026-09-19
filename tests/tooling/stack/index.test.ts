@@ -41,6 +41,7 @@ import {
   SERVER_ENTRY_REL,
   STACK_SPAWNERS,
   serializeProdRecord,
+  servedCarriesDiskBytes,
   signalAdoptedDevStackGroup,
   signalDevStackIdentity,
   spawnerForPort,
@@ -531,6 +532,52 @@ test("a served body MISSING a landed export is STALE — the dead-watcher wedge,
 
 test("a served body carrying every value export is FRESH (the negative control)", () => {
   expect(classifyServedTransform({ file: "packages/ui/src/canary.ts", diskSource: CANARY_SOURCE, servedBody: CANARY_SOURCE }).state).toBe("fresh");
+});
+
+// ── the BYTE arm (#2461) ─────────────────────────────────────────────────────────────────────────────
+//
+// THE SECOND LIE, from the same instrument: on 2026-09-19 `stack status` printed
+// `fresh · carries all 6 of its value export(s)` over a served `@orb/ui` token map that was missing
+// `text.code-field` and `leading.code-field` outright. Export NAMES are a count of declarations and cannot
+// see a change INSIDE one. What can: the served transform's own inline sourcemap, whose `sourcesContent`
+// is the source file byte for byte (measured against the live client config over four modules, the
+// React-Compiler babel pass included). These controls drive that arm in both directions AND pin that the
+// old name arm still answers for a module served without a map.
+
+/** A served dev transform the way vite emits one: the (irrelevant here) body plus the inline map that
+ *  carries the bytes the transform was BUILT FROM. `builtFrom` is what makes it a stale or a fresh body. */
+function servedWithMap(body: string, builtFrom: string): string {
+  const map = JSON.stringify({ version: 3, sources: ["canary.ts"], sourcesContent: [builtFrom], mappings: "" });
+  return `${body}\n//# sourceMappingURL=data:application/json;base64,${Buffer.from(map, "utf8").toString("base64")}`;
+}
+
+test("a served transform built from the bytes on disk is FRESH, and one byte of drift is STALE", () => {
+  expect(servedCarriesDiskBytes(servedWithMap(CANARY_SOURCE, CANARY_SOURCE), CANARY_SOURCE)).toBe(true);
+  expect(servedCarriesDiskBytes(servedWithMap(CANARY_SOURCE, `${CANARY_SOURCE}\n`), CANARY_SOURCE)).toBe(false);
+  // `null`, NOT false: no map is "this arm could not measure", which must fall through rather than accuse.
+  expect(servedCarriesDiskBytes(CANARY_SOURCE, CANARY_SOURCE)).toBe(null);
+});
+
+test("THE #2461 LIE: a body with every value export but the WRONG bytes is STALE, not fresh", () => {
+  // The shape that shipped: a generated map whose KEYS changed while its exports did not. The name arm
+  // calls this fresh — that is the defect — so this control fails the moment the byte arm is removed.
+  const landed = `${CANARY_SOURCE}\nexport const tokens = { "text.code-field": 1 };`;
+  const previous = `${CANARY_SOURCE}\nexport const tokens = {};`;
+  expect(valueExportNames(previous)).toEqual(valueExportNames(landed));
+  const verdict = classifyServedTransform({ file: "packages/ui/src/tokens/index.ts", diskSource: landed, servedBody: servedWithMap(previous, previous) });
+  expect(verdict.state).toBe("stale");
+  expect(verdict.message).toContain("pnpm stack restart");
+  expect(classifyServedTransform({ file: "packages/ui/src/tokens/index.ts", diskSource: landed, servedBody: servedWithMap(landed, landed) }).state).toBe(
+    "fresh",
+  );
+});
+
+test("a TYPES-ONLY module is verifiable through the byte arm — `unverifiable` is now only for a map-less one", () => {
+  const typesOnly = "export type A = 1;\n";
+  expect(classifyServedTransform({ file: "packages/ui/src/t.ts", diskSource: typesOnly, servedBody: servedWithMap("", typesOnly) }).state).toBe("fresh");
+  expect(classifyServedTransform({ file: "packages/ui/src/t.ts", diskSource: typesOnly, servedBody: servedWithMap("", "export type A = 2;\n") }).state).toBe(
+    "stale",
+  );
 });
 
 test("no answer is UNREACHABLE and a type-only module is UNVERIFIABLE — neither may read as fresh", () => {

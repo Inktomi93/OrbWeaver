@@ -10,8 +10,8 @@
 // WHY THE NEWEST FILE, and not a fixed canary: a dead watcher serves the LAST transform it computed, so for
 // an UNCHANGED file that transform is indistinguishable from a fresh one — a fixed canary can never detect
 // this. Divergence exists only for files that changed after the watcher died, so the probe aims at the most
-// recently modified workspace module and walks down from there until it finds one that declares a value
-// export to compare (a types-only module is `unverifiable`, never `fresh`).
+// recently modified workspace module and walks down from there until one is comparable — since #2461 that
+// is any module vite mapped (its transform carries the source bytes), and only a map-less one needs exports.
 //
 // WHY IT CANNOT FALSE-ALARM ON A COLD MODULE: a module vite has never loaded is transformed on demand, so
 // it comes back fresh by construction. The probe only ever accuses a module vite is CACHING.

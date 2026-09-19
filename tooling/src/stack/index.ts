@@ -111,6 +111,7 @@ export {
   DRAIN_WATCH_MS,
   debugPostureText,
   SERVER_DRAIN_MS,
+  servedCarriesDiskBytes,
   valueExportNames,
 } from "./lib/verdicts.ts";
 export { runStackProd } from "./ops/prod.ts";
