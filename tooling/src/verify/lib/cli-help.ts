@@ -4,18 +4,18 @@
 // member fails tsc until it has a help line, so the front door cannot grow a verb that OOMs on `--help`
 // (and the pin in tests/tooling/verify/cli.int.test.ts reads the same tuple, so it exercises it too).
 // The two verbs that own richer text supply it themselves (`show`, `scoped`) — one home each.
-import type { VerifyVerb } from "./contract/verbs.ts";
-import { STRUCTURE_USAGE } from "./lib/structure-tail.ts";
-import { BASELINE_HELP } from "./ops/baseline.ts";
-import { CONFIG_SNAPSHOT_HELP } from "./ops/config-snapshot.ts";
-import { LEDGER_CLAIMS_HELP } from "./ops/ledger-claims.ts";
-import { NEW_GATE_USAGE } from "./ops/new-gate.ts";
-import { SCOPED_USAGE } from "./ops/scoped.ts";
-import { SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
-import { SHOW_HELP } from "./ops/show.ts";
-import { STRUCTURE_DELTA_USAGE } from "./ops/structure-delta.ts";
-import { TYPECHECK_HELP } from "./ops/typecheck.ts";
-import { TYPECHECK_PLAN_HELP } from "./ops/typecheck-plan.ts";
+import type { VerifyVerb } from "../contract/verbs.ts";
+import { BASELINE_HELP } from "../ops/baseline.ts";
+import { CONFIG_SNAPSHOT_HELP } from "../ops/config-snapshot.ts";
+import { LEDGER_CLAIMS_HELP } from "../ops/ledger-claims.ts";
+import { NEW_GATE_USAGE } from "../ops/new-gate.ts";
+import { SCOPED_USAGE } from "../ops/scoped.ts";
+import { SCOPED_TEST_USAGE } from "../ops/scoped-test.ts";
+import { SHOW_HELP } from "../ops/show.ts";
+import { STRUCTURE_DELTA_USAGE } from "../ops/structure-delta.ts";
+import { TYPECHECK_HELP } from "../ops/typecheck.ts";
+import { TYPECHECK_PLAN_HELP } from "../ops/typecheck-plan.ts";
+import { STRUCTURE_USAGE } from "./structure-tail.ts";
 
 export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   run: "usage: node tooling/src/verify/cli.ts run [--static|--push|--full|--changed] [--scope <glob>|--package <name>|--file <paths…>] [--tier <name>] [--strict-scope] [--list] [--json] [--verbose]",

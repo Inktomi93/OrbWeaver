@@ -524,6 +524,7 @@ test("motion-audit pause skips duplicate CSS/WAAPI lifetime work and ordinary [d
   await component.getByRole("button", { name: "pause audit drop tracking" }).click();
   await component.getByRole("button", { name: "plant CSS drop" }).click();
   await component.getByRole("button", { name: "plant WAAPI drop" }).click();
+  // @orb-waive test-determinism(.waitForTimeout): the SUBJECT of this negative control IS elapsed wall time — it proves observer work does NOT happen during a fixed real-time window while tracking is paused, which no DOM condition can stand in for. Ends if the pause proof gains a deterministic (non-time-based) signal.
   // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: this negative control must leave enough wall time for forbidden observer work to occur.
   await page.waitForTimeout(250);
   const paused = await page.evaluate(() => {
@@ -549,6 +550,7 @@ test("the audit CDP rail still sees a real dropped-frame plant while in-page [dr
   });
   await component.getByRole("button", { name: "pause audit drop tracking" }).click();
   await component.getByRole("button", { name: "plant CDP drop" }).click();
+  // @orb-waive test-determinism(.waitForTimeout): Chrome tracing has no DOM condition to poll — the SUBJECT is a fixed 250ms real-time block inside this capture interval, which only elapsed wall time can express. Ends if CDP tracing gains a completion signal this capture can await instead.
   // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: Chrome tracing has no DOM condition; the plant owns a fixed 250ms block inside this capture interval.
   await page.waitForTimeout(500);
   const completed = new Promise<void>((resolve) => cdp.once("Tracing.tracingComplete", () => resolve()));

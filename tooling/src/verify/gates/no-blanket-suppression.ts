@@ -370,7 +370,7 @@ export const gate = defineGate({
   family: "no-blanket-suppression",
   authority: "hard",
   severity: "error",
-  population: { in: ["@authored", "@showcase"], notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**"] },
+  population: { in: ["@authored", "@showcase", "@default-content"], notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**"] },
   analysis: "resource",
   execution: "entire-population",
   facts: [],

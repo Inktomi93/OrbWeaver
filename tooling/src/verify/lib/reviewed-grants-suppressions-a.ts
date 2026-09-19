@@ -291,4 +291,13 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `lint/style/useNumericSeparators` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
+  {
+    id: "suppressions:source-lint-performance-no-barrel-file",
+    policyId: "suppressions",
+    subject: "lint/performance/noBarrelFile",
+    operation: "source",
+    why: "RULING — a re-export at the ORIGINAL module's own path preserves that module's public API after a slice of it was extracted to a sibling leaf (tooling-size splits); it is a compatibility seam for the module's existing importers, not the fan-out barrel the rule polices.",
+    endsWhen:
+      "the last governed source site under `lint/performance/noBarrelFile` disappears, or a split module's re-export is dropped in favor of repointing every importer directly.",
+  },
 ];

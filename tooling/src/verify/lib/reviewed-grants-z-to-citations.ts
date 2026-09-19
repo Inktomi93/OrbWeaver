@@ -44,6 +44,22 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
+    id: "query-freshness-coverage:settings-getversion",
+    policyId: "query-freshness-coverage",
+    subject: "settings.getVersion",
+    operation: "uncovered-query-freshness",
+    why: "the box's own build/checkout identity (features/user-admin/components/about-section.tsx), read once with useSuspenseQuery and never mutated by any write path in this process — nothing on the bus or in the mutation seam ever changes which commit is running, so no invalidation row could ever fire.",
+    endsWhen: "the version identity becomes hot-swappable within a running process (a live redeploy signal), or the query gains reachable seam coverage.",
+  },
+  {
+    id: "query-freshness-coverage:settings-checkforupdate",
+    policyId: "query-freshness-coverage",
+    subject: "settings.checkForUpdate",
+    operation: "uncovered-query-freshness",
+    why: "the MANUAL GitHub update check (features/user-admin/components/about-section.tsx): `enabled: false` plus an explicit button-triggered `refetch()` IS the whole freshness mechanism (see the component header) — no mount fetch, no poll, no persisted verdict to go stale, so there is no mutation event this query could ever be invalidated by.",
+    endsWhen: "the update check becomes automatic (a poll or a persisted verdict), or the query gains reachable seam coverage.",
+  },
+  {
     id: "query-freshness-coverage:chat-getvariantwire",
     policyId: "query-freshness-coverage",
     subject: "chat.getVariantWire",
