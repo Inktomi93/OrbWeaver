@@ -21,8 +21,8 @@ import { castId } from "@orb/kit/ids";
 /** The keyless routing-marker sources — the credential arms carrying no secret, so a blanket default is
  *  safe (vllm/local-light/max-pro-sub all reduce to `{ source, credentialId: null }`). Tuple-declared (not
  *  an inline union) per §7.5 no-inline-union-redecl. */
-const KEYLESS_SOURCES = ["vllm", "local-light", "max-pro-sub"] as const;
-type KeylessSource = (typeof KEYLESS_SOURCES)[number];
+export const KEYLESS_SOURCES = ["vllm", "local-light", "max-pro-sub"] as const;
+export type KeylessSource = (typeof KEYLESS_SOURCES)[number];
 
 /** FABRICATION-OK brand cast — the ONE sanctioned place outside the domain mint (contracts/credentials
  *  §128); `ResolvedCredential` is brand-protected and unforgeable, so every `make*` builder below routes

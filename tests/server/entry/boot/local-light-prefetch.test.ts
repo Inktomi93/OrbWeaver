@@ -13,6 +13,7 @@ import { DEFAULT_EMBED_MODEL, DEFAULT_MATTE_MODEL, DEFAULT_RERANK_MODEL } from "
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { principal } from "../../../support/factories/principal.ts";
+import type { KeylessSource } from "../../../support/factories/resolved-connection.ts";
 import { makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -34,7 +35,7 @@ function resolverFor(sourceByRole: Record<string, CredentialSource>, model = "")
 /** The factory's keyless-credential builder covers exactly the sources this plan can meet as "not a keyed
  *  cloud connection"; a KEYED source (openrouter here) only has to be non-local-light for these pins, so it
  *  stands in as `vllm` — the verdict is identical and the keyed builders carry secrets this never needs. */
-function keylessSourceFor(source: CredentialSource | undefined): "vllm" | "local-light" | "max-pro-sub" {
+function keylessSourceFor(source: CredentialSource | undefined): KeylessSource {
   return source === "local-light" || source === "max-pro-sub" ? source : "vllm";
 }
 

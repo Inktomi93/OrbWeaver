@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LocalLightModelCache } from "@orb/server/infra/providers";
 import { afterAll, vi } from "vitest";
-import { expect, test } from "../../support/fixtures.ts";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-ll-prefetch-off-"));
 const OK = 200;
@@ -44,7 +44,7 @@ vi.stubEnv("LOCAL_LIGHT_CACHE_DIR", join(TEMP_DIR, "models"));
 vi.stubEnv("LOCAL_LIGHT_PREFETCH", "off");
 vi.stubEnv("EGRESS_ALLOWLIST", "localhost");
 
-const { createLifecycle } = await import("../../../packages/server/src/entry/lifecycle.ts").catch((error: unknown) => {
+const { createLifecycle } = await import("../../../../packages/server/src/entry/lifecycle.ts").catch((error: unknown) => {
   rmSync(TEMP_DIR, { force: true, recursive: true });
   throw error;
 });
