@@ -2,7 +2,7 @@
 // subject/pixel/cascade/merge evidence, then hand the complete receipt to the pure strict reconciler.
 
 import { instrumentRefusal, navResultShape } from "@orb/tooling/_shared/page-validate";
-import type { Page, Route } from "@playwright/test";
+import type { Page, Request as PlaywrightRequest, Route } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
 import { appearanceReachReceipt, readRuntimeAppearanceContract } from "../../_shared/appearance-matrix.ts";
 import { readAppearancePrepaintEvidence } from "../../_shared/appearance-prepaint.ts";
@@ -128,6 +128,48 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const SETTINGS_SECTION_PROCEDURE = "settings.updateUserSettingsSection";
+/** How many of an unreadable body's own keys the shape word quotes — enough to recognise the envelope that
+ *  arrived, short enough to stay one whitespace-free token on the check's `actual` line. */
+const UNREADABLE_KEY_QUOTES = 4;
+
+export interface ReadMutationInput {
+  readonly input: Readonly<Record<string, unknown>> | null;
+  readonly shape: string;
+}
+
+/** THE tRPC POST BODY IS A DICT, NOT AN ARRAY (#2448, source-pinned). `httpBatchLink` builds its body with
+ *  `arrayToDict` (the trpc client 11.18.0, dist/httpUtils-BNq9QC3d.mjs:24-38): `{"0": input, "1": input}`,
+ *  keyed by the procedure's POSITION in the comma-joined path segment — and this stack runs no transformer
+ *  (there is no `{json:…}` envelope to unwrap). The old reader asked `Array.isArray(body)`, which is false
+ *  for every real request, so it published `section=null density=null` on a body that carried both, and the
+ *  `persistence-isolation` check read that as "the client sent no section".
+ *
+ *  The index is RESOLVED, never assumed to be 0: a batch window can fold a second procedure into the same
+ *  request, and the path then names both in order. A body the reader cannot shape returns its reason rather
+ *  than nulls, so the failure names the reader instead of blaming the app. */
+export function readMutationInput(request: PlaywrightRequest): ReadMutationInput {
+  const body: unknown = request.postDataJSON();
+  if (Array.isArray(body)) {
+    return { input: null, shape: "unreadable:array" };
+  }
+  if (!isRecord(body)) {
+    return { input: null, shape: `unreadable:${typeof body}` };
+  }
+  const procedures = decodeURIComponent(new URL(request.url()).pathname.split("/api/trpc/")[1] ?? "").split(",");
+  const index = procedures.indexOf(SETTINGS_SECTION_PROCEDURE);
+  const batched = body[String(index)];
+  if (index >= 0 && isRecord(batched)) {
+    return { input: batched, shape: `batch[${String(index)}]` };
+  }
+  // The non-batched spelling (a bare `httpLink`, or a batch of one that some future link posts unwrapped):
+  // the body IS the input, recognised by the field this procedure is defined by.
+  if (typeof body["section"] === "string") {
+    return { input: body, shape: "bare" };
+  }
+  return { input: null, shape: `unreadable:keys=${Object.keys(body).slice(0, UNREADABLE_KEY_QUOTES).join("|")}` };
+}
+
 async function installDensityPersistenceGuard(page: Page, expectedDensity: string): Promise<DensityPersistenceGuard> {
   let attempted = 0;
   let exact = 0;
@@ -135,6 +177,7 @@ async function installDensityPersistenceGuard(page: Page, expectedDensity: strin
   let continued = 0;
   let section: string | null = null;
   let density: string | null = null;
+  let bodyShape: string | null = null;
   const handler = async (route: Route): Promise<void> => {
     const request = route.request();
     if (request.method() !== "POST") {
@@ -143,8 +186,9 @@ async function installDensityPersistenceGuard(page: Page, expectedDensity: strin
       return;
     }
     attempted += 1;
-    const body: unknown = request.postDataJSON();
-    const input = Array.isArray(body) && isRecord(body[0]) ? body[0] : null;
+    const read = readMutationInput(request);
+    const input = read.input;
+    bodyShape = read.shape;
     const patch = input === null || !isRecord(input["patch"]) ? null : input["patch"];
     section = typeof input?.["section"] === "string" ? input["section"] : null;
     density = typeof patch?.["density"] === "string" ? patch["density"] : null;
@@ -158,7 +202,7 @@ async function installDensityPersistenceGuard(page: Page, expectedDensity: strin
   };
   await page.route(SETTINGS_SECTION_MUTATION, handler);
   return {
-    evidence: () => ({ attempted, exact, fulfilled, continued, section, density }),
+    evidence: () => ({ attempted, exact, fulfilled, continued, section, density, bodyShape }),
     close: async () => await page.unroute(SETTINGS_SECTION_MUTATION, handler),
   };
 }
