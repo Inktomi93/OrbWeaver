@@ -162,6 +162,16 @@ export const gate = defineGate({
   mustPass: [
     {
       mode: "source",
+      files: {
+        "packages/client/src/features/a/hover-prefixed-waived.tsx": templateFixture(
+          `hover:${SPAN}`,
+          `// @orb-waive receded-ink-integrity(${RECEDED_INK}): rest is not the state this control recedes in — it recedes only while hovered, by design.\n`,
+        ),
+      },
+      why: "§4.2 IDENTITY, on the founding `mustFlag` row's exact fixture: the correct ordinary waiver at the reported position — the imported binding — suppresses the one finding it produces. Nothing else proves the report's policy id and position are what the central engine binds a waiver to.",
+    },
+    {
+      mode: "source",
       files: { "packages/client/src/features/a/bare.tsx": `${FIXTURE_IMPORT}export const T = <button className={${RECEDED_INK}} type="button" />;\n` },
       why: "THE SANCTIONED SHAPE — the bare identifier, which is what all ten live consumers author",
     },
