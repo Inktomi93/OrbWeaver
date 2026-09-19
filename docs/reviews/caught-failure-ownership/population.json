@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 607,
+    "sites": 609,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 607,
+      "deliberate-absorb": 609,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 164,
+      "default": 165,
       "empty": 299,
-      "promise": 144
+      "promise": 145
     }
   },
   "rows": [
@@ -2501,7 +2501,7 @@
     {
       "siteId": "packages/server/src/domain/import/workload-contributions.ts::lstat::1",
       "path": "packages/server/src/domain/import/workload-contributions.ts",
-      "line": 129,
+      "line": 182,
       "column": 22,
       "grammar": "promise",
       "position": "lstat",
@@ -2509,7 +2509,7 @@
       "snippet": "const link = await lstat(resolved).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "both arms of this stat converge on \"remove nothing\" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed.",
-      "markerLine": 128
+      "markerLine": 181
     },
     {
       "siteId": "packages/server/src/domain/plugin/substrate/plugin-macros.ts::catch::1",
@@ -2889,6 +2889,19 @@
       "markerLine": 123
     },
     {
+      "siteId": "packages/server/src/entry/boot/local-light-prefetch.ts::err::1",
+      "path": "packages/server/src/entry/boot/local-light-prefetch.ts",
+      "line": 67,
+      "column": 12,
+      "grammar": "default",
+      "position": "err",
+      "ordinal": 1,
+      "snippet": "} catch (err) {",
+      "verdict": "deliberate-absorb",
+      "reason": "DELIBERATE fail-closed. The owner of a resolver failure is the REQUEST that hits it — this is a speculative pre-warm asking a question it is allowed not to get an answer to, and the only consequence of `null` here is that the box keeps the lazy path it had before this file existed. Surfaced as a structured log naming the role + reason. Ends if the prefetch ever becomes required for correctness rather than latency.",
+      "markerLine": 66
+    },
+    {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::catch::1",
       "path": "packages/server/src/entry/compose/automation-plugin.ts",
       "line": 539,
@@ -3073,7 +3086,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 481,
+      "line": 490,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -3081,7 +3094,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `requireOwner`/`can()`",
-      "markerLine": 475
+      "markerLine": 484
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::catch::1",
@@ -3268,7 +3281,7 @@
     {
       "siteId": "packages/server/src/foundation/env/index.ts::catch::2",
       "path": "packages/server/src/foundation/env/index.ts",
-      "line": 852,
+      "line": 922,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3276,7 +3289,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a probe whose ONLY verdict is a boolean — an unreadable/missing/permission-denied credentials file all mean the same thing to every caller (\"not detected\"), and the false answer FAILS CLOSED (the backend stays unregistered, nothing spawns). Ends if this probe ever gates something that opens rather than closes.",
-      "markerLine": 848
+      "markerLine": 918
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
@@ -3476,7 +3489,7 @@
     {
       "siteId": "packages/server/src/infra/network/egress.ts::catch::1",
       "path": "packages/server/src/infra/network/egress.ts",
-      "line": 112,
+      "line": 205,
       "column": 7,
       "grammar": "empty",
       "position": "catch",
@@ -3484,12 +3497,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a malformed OIDC_ISSUER URL is simply NOT added to the egress allowlist — the restrictive direction that never widens egress; env refinement already rejects a malformed issuer in oidc mode, so this only fires harmlessly in non-oidc mode. Ends if the allowlist ever becomes a denylist.",
-      "markerLine": 109
+      "markerLine": 202
     },
     {
       "siteId": "packages/server/src/infra/network/egress.ts::catch::2",
       "path": "packages/server/src/infra/network/egress.ts",
-      "line": 410,
+      "line": 538,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3497,7 +3510,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an attacker-influenceable provider image URL where every failure (SSRF egress-block, non-2xx, byte-cap, network) collapses to null and the caller drops the image; the SSRF block is already securityEvent'd at the connector before this catch, so returning null never opens egress or loses the event. Ends if a block reaches here un-logged.",
-      "markerLine": 398
+      "markerLine": 526
     },
     {
       "siteId": "packages/server/src/infra/network/openai-models.ts::err::1",
@@ -3749,7 +3762,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/model-cache.ts::created::1",
       "path": "packages/server/src/infra/providers/backends/local-light/model-cache.ts",
-      "line": 240,
+      "line": 297,
       "column": 10,
       "grammar": "promise",
       "position": "created",
@@ -3757,12 +3770,12 @@
       "snippet": "void created.catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "this .catch is eviction bookkeeping only — a rejected load removes its own cache entry so it never poisons the model; the rejection is still delivered to every caller who awaits memo(id)'s promise, so nothing is swallowed. Ends if callers stop receiving the entry promise.",
-      "markerLine": 239
+      "markerLine": 296
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/model-cache.ts::entry.promise::1",
       "path": "packages/server/src/infra/providers/backends/local-light/model-cache.ts",
-      "line": 227,
+      "line": 284,
       "column": 10,
       "grammar": "promise",
       "position": "entry.promise",
@@ -3770,7 +3783,20 @@
       "snippet": "void entry.promise.then(dispose).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.",
-      "markerLine": 226
+      "markerLine": 283
+    },
+    {
+      "siteId": "packages/server/src/infra/providers/backends/local-light/prefetch.ts::preload::1",
+      "path": "packages/server/src/infra/providers/backends/local-light/prefetch.ts",
+      "line": 143,
+      "column": 8,
+      "grammar": "promise",
+      "position": "preload",
+      "ordinal": 1,
+      "snippet": ".preload(slot, modelId)",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure IS surfaced, twice — a WARN naming the slot, the model and the knob, and a `failed` record on the admin engine-status surface carrying the reason. It is deliberately not propagated: the caller is a detached boot walk with no request to fail, and the lazy first-use path (untouched by a failed prefetch) remains the working arm. Ends if the prefetch becomes required for correctness rather than latency.",
+      "markerLine": 141
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/probe.ts::err::1",
@@ -4061,7 +4087,7 @@
     {
       "siteId": "packages/server/src/infra/storage/cas.ts::err::1",
       "path": "packages/server/src/infra/storage/cas.ts",
-      "line": 201,
+      "line": 205,
       "column": 18,
       "grammar": "empty",
       "position": "err",
@@ -4069,7 +4095,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "only ENOENT is absorbed (a concurrent GC removed the dedup target → fall through and write fresh); every other utimes error is re-thrown, so a permission/I/O fault never silently passes. Ends if the non-ENOENT re-throw is removed.",
-      "markerLine": 196
+      "markerLine": 200
     },
     {
       "siteId": "packages/server/src/infra/storage/variant-cache.ts::Promise.resolve::1",
@@ -7257,9 +7283,9 @@
       "markerLine": 168
     },
     {
-      "siteId": "tooling/src/verify/lib/bus-payload-fact.ts::catch::1",
-      "path": "tooling/src/verify/lib/bus-payload-fact.ts",
-      "line": 381,
+      "siteId": "tooling/src/verify/lib/bus-payload-fact-resolve.ts::catch::1",
+      "path": "tooling/src/verify/lib/bus-payload-fact-resolve.ts",
+      "line": 155,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -7267,7 +7293,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the failure IS owned and surfaced — tuple-read THROWS to say \"I cannot establish this vocabulary\", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REFUSES `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this module's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed refusal.",
-      "markerLine": 378
+      "markerLine": 152
     },
     {
       "siteId": "tooling/src/verify/lib/compiler-source-filename-overlay.ts::catch::1",
@@ -7426,9 +7452,9 @@
       "markerLine": 191
     },
     {
-      "siteId": "tooling/src/verify/lib/policy-pass.ts::catch::1",
-      "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 414,
+      "siteId": "tooling/src/verify/lib/policy-pass-resolve.ts::catch::1",
+      "path": "tooling/src/verify/lib/policy-pass-resolve.ts",
+      "line": 246,
       "column": 7,
       "grammar": "empty",
       "position": "catch",
@@ -7436,12 +7462,38 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "fact population resolution: on failure the fact gets an empty population and the run continues; downstream gates see EMPTY_POPULATION, not silence",
-      "markerLine": 411
+      "markerLine": 243
     },
     {
-      "siteId": "tooling/src/verify/lib/policy-pass.ts::error::1",
-      "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 179,
+      "siteId": "tooling/src/verify/lib/policy-pass-resolve.ts::error::1",
+      "path": "tooling/src/verify/lib/policy-pass-resolve.ts",
+      "line": 291,
+      "column": 14,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "policy population resolution: markIncomplete converts error to a structured PolicyToolError; the run reports tool-error status with EMPTY_POPULATION",
+      "markerLine": 279
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-pass-resolve.ts::error::2",
+      "path": "tooling/src/verify/lib/policy-pass-resolve.ts",
+      "line": 356,
+      "column": 14,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "fact population resolution: markFactIncomplete converts error to a structured FactToolError; the run reports tool-error status with EMPTY_POPULATION",
+      "markerLine": 326
+    },
+    {
+      "siteId": "tooling/src/verify/lib/policy-pass-types.ts::error::1",
+      "path": "tooling/src/verify/lib/policy-pass-types.ts",
+      "line": 140,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7449,12 +7501,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "gate evaluation guard: markIncomplete converts error to a structured PolicyToolError with phase and message; the gate run reports tool-error status",
-      "markerLine": 176
+      "markerLine": 137
     },
     {
-      "siteId": "tooling/src/verify/lib/policy-pass.ts::error::2",
-      "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 199,
+      "siteId": "tooling/src/verify/lib/policy-pass-types.ts::error::2",
+      "path": "tooling/src/verify/lib/policy-pass-types.ts",
+      "line": 160,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7462,33 +7514,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "fact evaluation guard: markFactIncomplete converts error to a structured FactToolError with phase and message; the fact run reports tool-error status",
-      "markerLine": 196
-    },
-    {
-      "siteId": "tooling/src/verify/lib/policy-pass.ts::error::3",
-      "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 459,
-      "column": 14,
-      "grammar": "empty",
-      "position": "error",
-      "ordinal": 3,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "policy population resolution: markIncomplete converts error to a structured PolicyToolError; the run reports tool-error status with EMPTY_POPULATION",
-      "markerLine": 447
-    },
-    {
-      "siteId": "tooling/src/verify/lib/policy-pass.ts::error::4",
-      "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 524,
-      "column": 14,
-      "grammar": "empty",
-      "position": "error",
-      "ordinal": 4,
-      "snippet": "} catch (error) {",
-      "verdict": "deliberate-absorb",
-      "reason": "fact population resolution: markFactIncomplete converts error to a structured FactToolError; the run reports tool-error status with EMPTY_POPULATION",
-      "markerLine": 494
+      "markerLine": 157
     },
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::1",
