@@ -152,7 +152,7 @@ function projectOf(): Project {
 }
 
 /** A hybrid: a `@client` SOURCE population plus an authored tree that spans the same directory, so one of its
- *  resource identities (`notes.md`) is not a compiler source candidate and the other two are. */
+ *  resource identities (the `NOTES` fixture path) is not a compiler source candidate and the other two are. */
 function hybridPolicy(visited: string[]): GatePolicy {
   return defineGate({
     id: "hybrid-selection",
@@ -228,7 +228,7 @@ test("a resource identity is never a source-visitor input, in either direction o
     const result = dispatch([hybridPolicy(visited)], request);
     expect(result.toolErrors, label).toEqual([]);
     expect(result.policies[0]?.owner, label).toEqual({ status: "success", population: "complete" });
-    // `notes.md` is declared, acquired and receipted — and never walked. This is the whole separation claim:
+    // The `NOTES` fixture path is declared, acquired and receipted — and never walked. This is the whole separation claim:
     // the resource axis feeds `ctx.resources`, never `run.files`, whichever axis the request named.
     expect(result.policies[0]?.population.effectiveResourcePaths, label).toContain(NOTES);
     expect(visited, label).not.toContain(NOTES);

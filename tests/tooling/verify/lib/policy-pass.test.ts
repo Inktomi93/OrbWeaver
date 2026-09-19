@@ -1440,7 +1440,7 @@ test("resource injection cannot substitute a different root with the same relati
 // `ops/resource-native-config.ts` header — an executable config can read anything). A transaction that
 // large always carries paths the reader refuses BY DESIGN (a tracked symlink, undecodable bytes), so the
 // two arms below pin WHO may demand an ordinary-waiver text carrier and what happens when one cannot be
-// built. Before the fix both arms died with a thrown pass: `no exact text carrier: bad.md`.
+// built. Before the fix both arms died with a thrown pass: no exact text carrier for the `bad` + `.md` fixture.
 function nativeConfigTransaction(root: string): void {
   writeFileSync(join(root, "vitest.config.ts"), 'export default { test: { include: ["tests/a.test.ts"] } };\n');
   writeFileSync(join(root, "note.md"), "<!-- @orb-waive native-ordinary(forbidden): exact prose token -->\nforbidden\n");
