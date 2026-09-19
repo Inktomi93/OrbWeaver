@@ -103,11 +103,19 @@ ${WALKER_PRIMITIVES}${WALKER_RESOLVE}
     // ::placeholder blind spot: an EMPTY input/textarea paints its PLACEHOLDER, not its text color —
     // reading style.color measures the (invisible) text color and reports a false PASS. When the field
     // is empty, measure the pseudo-element's color instead (the pixels the eye actually sees).
+    //
+    // \`placeholderInk\` REPORTS that swap (#2429 item 2). Without it the read above was silently thrown
+    // away downstream: an empty textarea has no \`textContent\` and no <svg>, so \`isFillSubject\` routed it
+    // to the FILL arm (#1111) and the placeholder colour this branch just resolved never reached a verdict
+    // — the composer over art printed a fill-only line (or a NO VERDICT) while the ink a person actually
+    // reads went unjudged. The placeholder STRING has to be non-empty too: a field with no placeholder
+    // attribute still reports a ::placeholder colour, and that colour paints nothing.
     var tag = el.tagName;
     var colorSource = style.color;
-    if ((tag === "INPUT" || tag === "TEXTAREA") && !el.value) {
+    var placeholderInk = false;
+    if ((tag === "INPUT" || tag === "TEXTAREA") && !el.value && (el.placeholder || "").trim().length > 0) {
       var phColor = getComputedStyle(el, "::placeholder").color;
-      if (phColor && !isTransparent(phColor)) colorSource = phColor;
+      if (phColor && !isTransparent(phColor)) { colorSource = phColor; placeholderInk = true; }
     }
     // Role/content awareness (Node applies the threshold): a target that renders NO text is a UI
     // COMPONENT (WCAG 1.4.11, 3:1), not a 4.5:1 text target; a control-track role is skipped entirely.
@@ -196,6 +204,7 @@ ${WALKER_PRIMITIVES}${WALKER_RESOLVE}
       backdrop: snapBackdrop(el),
       hasText: hasText,
       hasIconInk: hasIconInk,
+      placeholderInk: placeholderInk,
       inactive: inactive,
       role: role,
       tag: tag,

@@ -14,10 +14,12 @@ import { buildContrastScript } from "../../lib/contrast-script.ts";
 import {
   BOLD_WEIGHT,
   contrastExemption,
+  contrastSubjectLabel,
   isContrastMeasured,
   isFillSubject,
   parseRgbString,
   refuseContrastVerdict,
+  rendersText,
   terminalEvidence,
   UI_COMPONENT_MIN_RATIO,
 } from "../../lib/contrast-verdict.ts";
@@ -175,12 +177,14 @@ async function measureInkContrast(
   const fg = dimmed ? compositeForeground(rawFg, backdrop.rgb, facts.foregroundOpacity) : rawFg;
   const dimNote = dimmed ? ` · dimmed α${facts.foregroundOpacity.toFixed(2)}` : "";
   // (2) Role/content-aware threshold: NO rendered text ⇒ a UI-COMPONENT boundary (WCAG 1.4.11, 3:1);
-  // text keeps 4.5:1 (3:1 where the size/weight qualifies it as large).
-  const isComponent = !facts.hasText;
+  // text keeps 4.5:1 (3:1 where the size/weight qualifies it as large). An empty field's PLACEHOLDER is
+  // rendered text (#2429 item 2) — the only ink an empty composer paints — so it takes the text threshold
+  // and says so in the label, rather than being judged as a box at 3:1.
+  const isComponent = !rendersText(facts);
   const large = isLargeText(facts.fontSizePx, facts.fontWeight);
   const textRatio = large ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
   const needRatio = isComponent ? UI_COMPONENT_MIN_RATIO : textRatio;
-  const kindLabel = isComponent ? "ui-component" : "text";
+  const kindLabel = contrastSubjectLabel(facts);
   const fontDisplay = `${Math.round(facts.fontSizePx)}px${facts.fontWeight >= BOLD_WEIGHT ? "b" : ""}`;
   const ratio = contrastRatio(fg, backdrop.rgb);
   const pass = ratio >= needRatio;

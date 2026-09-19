@@ -42,6 +42,12 @@ export interface ContrastMeasured {
    *  an icon-only control. Everything else with no text paints only its own box, and reading `color` there
    *  measures an INHERITED value the eye never sees — that subject goes to the FILL arm. */
   hasIconInk: boolean;
+  /** Is `color` the ::placeholder colour of an EMPTY field that actually carries a placeholder string
+   *  (#2429 item 2)? That ink is real rendered text — the only text an empty composer paints — so the
+   *  subject belongs to the INK arm at the TEXT threshold, not to the fill arm. The in-page script has
+   *  always resolved the pseudo-element's colour here; before this flag existed nothing downstream knew
+   *  it had, and `isFillSubject` (no textContent, no <svg>) sent the reading to the fill arm instead. */
+  placeholderInk: boolean;
   inactive: boolean;
   role: string;
   tag: string;

@@ -179,3 +179,68 @@ test("a page.screenshot() failure retries once, and a persisting failure is an i
     await browser.close();
   }
 });
+
+// ── THE EMPTY FIELD (#2429 item 2) ────────────────────────────────────────────────────────────────────
+// THE DEFECT, reproduced below. An empty `<textarea>` renders no `textContent` and carries no `<svg>`, so
+// `isFillSubject` handed the composer to the FILL arm — which measures the box against the band around it
+// and never judges the one thing a person reads in an empty composer: the PLACEHOLDER. The in-page script
+// had resolved that colour since the ::placeholder blind-spot fix and nothing downstream knew, so the
+// reading was thrown away every run. Measured live 2026-09-19 on the chat composer over a room wallpaper:
+// a fill-only line under Hearth, and under Light a band poisoned by the dev HUD one corner over.
+const FIELD_PAGE = `
+  <style>
+    body { margin: 0; background: #0a0a0a; font: 16px sans-serif; }
+    /* All four fit inside the 400x240 viewport on purpose: an off-viewport match is refused (#211), so a
+       taller stack would turn a precision neighbour into an OFF-SCREEN no-verdict instead of a verdict. */
+    textarea { display: block; width: 240px; height: 28px; margin: 6px; border: 0; padding: 8px;
+      background: #141414; color: #ffffff; font: 16px sans-serif; }
+    /* A near-invisible prompt over the field's own fill: ~1.3:1, the polarity an empty composer
+       over art actually lands in. */
+    #quiet-prompt::placeholder { color: #1b1b1b; }
+    #loud-prompt::placeholder { color: #f5f5f5; }
+  </style>
+  <textarea id="quiet-prompt" placeholder="Message Aria…"></textarea>
+  <textarea id="loud-prompt" placeholder="Message Aria…"></textarea>
+  <textarea id="no-prompt"></textarea>
+  <textarea id="typed">hello</textarea>
+`;
+
+test("an EMPTY field with a placeholder is judged on its PLACEHOLDER INK, at the text threshold", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: VIEWPORT });
+    await page.setContent(FIELD_PAGE);
+
+    // Pre-fix this printed a `FILL …` line about the textarea's box. It must now be an INK verdict on the
+    // placeholder colour, at 4.5:1 (placeholder text is text), and it must FAIL — the prompt is unreadable.
+    const [quiet] = await captureContrastEvidence(page, ["#quiet-prompt"], false, VIEWPORT);
+    expect(quiet?.outcome.line).not.toContain("FILL ");
+    expect(quiet?.outcome.line).toContain("(placeholder-ink ·");
+    expect(quiet?.outcome.line).toContain("FAIL");
+    expect(quiet?.evidence).toMatchObject({ status: "ok", method: "css-resolve", sampled: 1, passed: false, requiredRatio: 4.5 });
+    // The measured foreground is the ::placeholder colour, never the field's (invisible) text colour.
+    expect(quiet?.evidence.foreground).toMatchObject({ r: 27, g: 27, b: 27 });
+
+    // The same subject with a legible prompt PASSES — the arm reports the placeholder's real polarity
+    // rather than always reddening an empty field.
+    const [loud] = await captureContrastEvidence(page, ["#loud-prompt"], false, VIEWPORT);
+    expect(loud?.outcome.line).toContain("(placeholder-ink ·");
+    expect(loud?.outcome.line).toContain("PASS");
+    expect(loud?.evidence.foreground).toMatchObject({ r: 245, g: 245, b: 245 });
+
+    // ── PRECISION NEIGHBOUR: an empty field with NO placeholder paints no ink at all, so it keeps the
+    // FILL arm — but the line says out loud that its verdict is about the BOX, never the text. A bare
+    // `FILL … PASS` there reads as "the composer's contrast is fine", which nothing measured.
+    const [bare] = await captureContrastEvidence(page, ["#no-prompt"], false, VIEWPORT);
+    expect(bare?.outcome.line).toContain("FILL ");
+    expect(bare?.outcome.line).toContain("NO INK TO JUDGE");
+    expect(bare?.evidence.method).toBe("fill-sample");
+
+    // ── PRECISION NEIGHBOUR: a field with a VALUE is ordinary text on the ink arm, unchanged.
+    const [typed] = await captureContrastEvidence(page, ["#typed"], false, VIEWPORT);
+    expect(typed?.outcome.line).toContain("(text · font 16px");
+    expect(typed?.evidence.foreground).toMatchObject({ r: 255, g: 255, b: 255 });
+  } finally {
+    await browser.close();
+  }
+});

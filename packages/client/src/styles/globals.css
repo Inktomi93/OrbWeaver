@@ -473,7 +473,22 @@ body {
      *
      * The wallpaper gate is the same `.shell-grid[data-has-bg-image] [data-slot="message-bubble"]` descendant
      * path shell.css already uses for this exact subject, and these rules set `background-color` alone, so
-     * the reduced-transparency arm's `backdrop-filter: none` ties below are untouched. */
+     * the reduced-transparency arm's `backdrop-filter: none` ties below are untouched.
+     *
+     * WHAT THE LIGHT ARM ACTUALLY REACHES, narrowed on measurement (#2429 item 4 — the original claim above
+     * read as "all three roles, always"). `light-dark()` resolves at the ELEMENT, off the nearest
+     * `color-scheme`, and a carried room palette is a `color-scheme`: `themedColumnContent`
+     * (features/chat/components/message-row-parts.tsx) wraps the whole content column — bubble included —
+     * in a `ThemeScope` for every row whose attribution carries tokens, and that scope emits
+     * `colorScheme` derived from the carried base's own polarity
+     * (packages/ui/src/content/theme-scope/clamp.ts, `colorSchemeFor`). So:
+     *   - the USER arm always resolves off the APP theme — user rows carry no palette
+     *     (features/chat/lib/attribution.ts: "`null` for user rows and unresolved rows");
+     *   - the ASSISTANT and SYSTEM arms resolve off the SPEAKER's carried palette when the row has one, so
+     *     inside a DARK-carried card-themed room under a Light app theme they take the dark, PLATELESS
+     *     spelling. They reach the light plate only for rows with no carried palette, or a light-carried one.
+     * That is the intended behaviour, not a gap — a dark-carried bubble is a dark surface and D144(d) keeps
+     * dark rooms plateless — but the claim above must not be read as covering every rendered bubble. */
     html[data-blur-messages] .shell-grid[data-has-bg-image] [data-role="user"] [data-slot="message-bubble"] {
       background-color: light-dark(
         color-mix(in oklab, var(--color-user-bubble) var(--blur-fill-dense), var(--color-reading-plate)),

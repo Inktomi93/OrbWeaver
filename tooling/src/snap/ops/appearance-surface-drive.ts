@@ -2,7 +2,7 @@
 // subject. Split out of `appearance-invariant-runtime.ts` when #1104's refusal pushed that file over the
 // tooling-size cap — the drive is one question ("is this row's surface up?") and the runtime owner reads as
 // one call.
-import { instrumentRefusal, navResultShape, pageNumber, pageObject } from "@orb/tooling/_shared/page-validate";
+import { instrumentRefusal, navResultShape, pageArray, pageNumber, pageObject } from "@orb/tooling/_shared/page-validate";
 import type { Page } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
 import { settle } from "../../_shared/browser.ts";
@@ -147,6 +147,26 @@ function browserAnchorSubject(input: { readonly selector: string; readonly scrol
   };
 }
 
+/** Runs IN THE BROWSER. The raw match count of every selector it is handed — the anchor's miss report
+ *  (#2437), never a verdict. */
+function browserSubjectPopulations(selectors: readonly string[]): readonly number[] {
+  const browser = globalThis as unknown as AnchorBrowserGlobals;
+  return selectors.map((selector) => browser.document.querySelectorAll(selector).length);
+}
+
+/** WHY A MISS NAMES THE WHOLE ROW'S POPULATIONS (#2437). `population=0` on ONE subject says the selector
+ *  found nothing and stops there — and this row's selectors are RELATIONAL (`:has()` over a message row,
+ *  `:not([data-sticky])` over its header), so the zero can come from any conjunct: no message row at all, no
+ *  action cluster in this arm, or — the case that actually fired — every visible header gone sticky, which
+ *  deletes the population without deleting a single node. Reading the SIBLING subjects' counts beside it is
+ *  what tells those apart, and re-deriving them by hand cost a lane an afternoon. A count here is evidence
+ *  about the surface, never a verdict; the refusal is still the same refusal. */
+async function subjectPopulationReport(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<string> {
+  const selectors = row.subjects.map((subject) => subject.selector);
+  const counts = pageArray(await page.evaluate(browserSubjectPopulations, selectors), `Appearance row ${row.id} subject populations`);
+  return row.subjects.map((subject, index) => `${subject.id}=${String(pageNumber(counts[index], `${subject.id} population`))}`).join(" ");
+}
+
 /** The browser reply, validated: how many nodes the selector matched and the rendered one's geometry. */
 interface AnchorReach {
   readonly matches: number;
@@ -229,9 +249,11 @@ export async function anchorRowSubject(page: Page, row: RuntimeAppearanceHistori
   if (!everReached) {
     // The two halves of a miss are named, because they have different owners: `matches=0` is the ROW's
     // selector against this surface, and `matches>0` is a surface that mounted the subject without ever
-    // giving it a box.
+    // giving it a box. Either way the row's WHOLE subject census rides along (#2437) so the reader can see
+    // which conjunct of a relational selector emptied instead of re-deriving it by hand.
+    const populations = await subjectPopulationReport(page, row);
     instrumentRefusal(
-      `Appearance row ${row.id} anchor ${subjectId}: ${selector} reaches no rendered candidate to anchor on over ${String(ANCHOR_ATTEMPTS)} attempts (last selector population=${String(lastMatches)}) — the ${row.surface} surface is not showing the subject this row judges, so the cell has NO VERDICT rather than a failed one.`,
+      `Appearance row ${row.id} anchor ${subjectId}: ${selector} reaches no rendered candidate to anchor on over ${String(ANCHOR_ATTEMPTS)} attempts (last selector population=${String(lastMatches)}) — the ${row.surface} surface is not showing the subject this row judges, so the cell has NO VERDICT rather than a failed one. Row subject populations: ${populations}`,
     );
   }
   instrumentRefusal(

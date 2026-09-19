@@ -229,3 +229,25 @@ test("a failed real-response fallback rejects the appearance shim instead of rep
   expect(handler).toBeDefined();
   await expect(handler?.(route) ?? Promise.resolve()).rejects.toBe(fallbackFailure);
 });
+
+// #2429 item 1 — THE AXIS THE TWO REFERENCE PROFILES MUST BOTH STATE. A preset is a PATCH: a key it does
+// not name keeps the running account's own value, so an unnamed axis means the arm rendered the OWNER's
+// row rather than a defined point. `enableThemeColorization` is the one that decides whether the accent
+// retint (`html[data-theme-colorization]`, packages/client/src/styles/globals.css) fires at all, and the
+// side-eye that filed this row could not tell which side of it a `--appearance-preset maximal` shot was on.
+// The committed JSON already carries both values; this pin is what keeps them there — deleting either key
+// reds here instead of silently handing the next reviewer the account's row.
+test("the defaults and maximal profiles each PIN enableThemeColorization, at opposite values", () => {
+  const file = JSON.parse(readFileSync(PRESETS_PATH, "utf8")) as { presets: Record<string, { appearance?: Record<string, unknown> }> };
+
+  // Named, not merely present: `Object.hasOwn`, because `undefined` would parse away into the account's value.
+  expect(Object.hasOwn(file.presets["defaults"]?.appearance ?? {}, "enableThemeColorization")).toBe(true);
+  expect(Object.hasOwn(file.presets["maximal"]?.appearance ?? {}, "enableThemeColorization")).toBe(true);
+  // The two reference points are the SCHEMA's born value and everything-on — so this axis is off in one
+  // and on in the other, which is what makes a two-shot comparison a measurement of the axis.
+  expect(file.presets["defaults"]?.appearance?.["enableThemeColorization"]).toBe(false);
+  expect(file.presets["maximal"]?.appearance?.["enableThemeColorization"]).toBe(true);
+
+  // And the patch survives the shared validator, so the pinned value is one the app's own parse keeps.
+  expect(loadAppearancePreset("maximal")).toMatchObject({ patch: { enableThemeColorization: true } });
+});
