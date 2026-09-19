@@ -478,13 +478,13 @@
     },
     {
       "path": "docs/design/951-css-family-semantic-provenance.md",
-      "assignedSha256": "9f3cc20beebf1dbda462dbb76366fb05063971cccd7bda97590cb6c8e8ecec85",
+      "assignedSha256": "66a1ba230c23caeaefc26f74a8803a12c3ceee52d24e2e61d0ee957218238ae2",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "9f3cc20beebf1dbda462dbb76366fb05063971cccd7bda97590cb6c8e8ecec85",
-      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "66a1ba230c23caeaefc26f74a8803a12c3ceee52d24e2e61d0ee957218238ae2",
+      "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/design/951-css-family-semantic-provenance.md:1 (full read; terminal-carrier architecture, module boundaries, red-first plan, and static declared limits)",
         "git:4fde7115f19215a66ba01248149b3c6d291c2880 (integrated #951 design and implementation bytes)",
@@ -506,7 +506,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "66a1ba230c23caeaefc26f74a8803a12c3ceee52d24e2e61d0ee957218238ae2"
     },
     {
       "path": "docs/design/953-appearance-invariant-matrix.md",
@@ -1187,12 +1188,12 @@
     },
     {
       "path": "docs/design/gate-runtime-read-first.md",
-      "assignedSha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a",
+      "assignedSha256": "e50b77c762058c1a821a3c2ffd0c6d243ef412ca6a7cb99eb2879daa1bb7dad0",
       "disposition": "repaired",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a",
-      "verifiedCommit": "abc3a71c7b0d9e36d813e8b860176936bfbc727c",
+      "verifiedSha256": "e50b77c762058c1a821a3c2ffd0c6d243ef412ca6a7cb99eb2879daa1bb7dad0",
+      "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
       "verifiedAt": "2026-09-19",
       "evidence": [
         "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
@@ -1228,7 +1229,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a"
+      "verifiedCanonicalSha256": "e50b77c762058c1a821a3c2ffd0c6d243ef412ca6a7cb99eb2879daa1bb7dad0"
     },
     {
       "path": "docs/design/gate-runtime-standardization.md",

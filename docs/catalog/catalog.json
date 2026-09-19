@@ -190,9 +190,9 @@
       "path": "docs/architecture/core/AGENTS.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 372,
-      "bytes": 35092,
-      "sha256": "06f6b94596dc9b7759e041b43614793239f405007f5c4d9745cae78fee4bfa4f",
+      "lines": 373,
+      "bytes": 35776,
+      "sha256": "93eda6dcb8d999c8c33fcdda5f1bcfa00164e20988830829e356f626b8516d6b",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -205,13 +205,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/AGENTS.md",
-        "assignedSha256": "06f6b94596dc9b7759e041b43614793239f405007f5c4d9745cae78fee4bfa4f",
+        "assignedSha256": "93eda6dcb8d999c8c33fcdda5f1bcfa00164e20988830829e356f626b8516d6b",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "06f6b94596dc9b7759e041b43614793239f405007f5c4d9745cae78fee4bfa4f",
-        "verifiedCommit": "63a2a01b9a188bdeb37ab47a2bea850035fc322c",
-        "verifiedAt": "2026-09-18",
+        "verifiedSha256": "93eda6dcb8d999c8c33fcdda5f1bcfa00164e20988830829e356f626b8516d6b",
+        "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
+        "verifiedAt": "2026-09-19",
         "evidence": [
           "Owner ruling 2026-09-10: lanes may commit normally in their assigned worktree or clone, including configured hook checks. Explicit iteration stays scoped; hook bypass requires a specific user/coordinator exception with its reason and executed or owed checks. Main integration and push remain coordinator/owner operations. Coupled doctrine, role and runbook guidance was reconciled without changing hook commands.",
           "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
@@ -260,7 +260,7 @@
           }
         ],
         "summary": "Constitution with configured-hook commits in assigned lane checkouts, scoped explicit iteration, and specifically authorized recorded bypass exceptions; integrated verification and push ownership remain separate.",
-        "verifiedCanonicalSha256": "06f6b94596dc9b7759e041b43614793239f405007f5c4d9745cae78fee4bfa4f"
+        "verifiedCanonicalSha256": "93eda6dcb8d999c8c33fcdda5f1bcfa00164e20988830829e356f626b8516d6b"
       },
       "receiptCurrent": true
     },
@@ -456,9 +456,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 505,
-      "bytes": 399152,
-      "sha256": "26a3817c344cb82d25f65b944e39e1002146c3e3a8b9688c952ec6562cb40599",
+      "lines": 508,
+      "bytes": 405938,
+      "sha256": "4396bc4239af792e294f7f2433943373ff6146861e022ca6fd7de95c53b651ea",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -471,12 +471,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "26a3817c344cb82d25f65b944e39e1002146c3e3a8b9688c952ec6562cb40599",
+        "assignedSha256": "4396bc4239af792e294f7f2433943373ff6146861e022ca6fd7de95c53b651ea",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "26a3817c344cb82d25f65b944e39e1002146c3e3a8b9688c952ec6562cb40599",
-        "verifiedCommit": "abc3a71c7b0d9e36d813e8b860176936bfbc727c",
+        "verifiedSha256": "4396bc4239af792e294f7f2433943373ff6146861e022ca6fd7de95c53b651ea",
+        "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
@@ -645,7 +645,7 @@
           }
         ],
         "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-        "verifiedCanonicalSha256": "26a3817c344cb82d25f65b944e39e1002146c3e3a8b9688c952ec6562cb40599"
+        "verifiedCanonicalSha256": "4396bc4239af792e294f7f2433943373ff6146861e022ca6fd7de95c53b651ea"
       },
       "receiptCurrent": true
     },
@@ -1793,8 +1793,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 469,
-      "bytes": 65515,
-      "sha256": "8d3955d786d7bd8c6b3b3384e1b127225fc2fedcae8d37e861721ab4329cab18",
+      "bytes": 66036,
+      "sha256": "908d1f128d4fc38fcd39558726cc6901dd4999834d53d476ad8736535819d0f8",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1807,12 +1807,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-        "assignedSha256": "8d3955d786d7bd8c6b3b3384e1b127225fc2fedcae8d37e861721ab4329cab18",
+        "assignedSha256": "908d1f128d4fc38fcd39558726cc6901dd4999834d53d476ad8736535819d0f8",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "8d3955d786d7bd8c6b3b3384e1b127225fc2fedcae8d37e861721ab4329cab18",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+        "verifiedSha256": "908d1f128d4fc38fcd39558726cc6901dd4999834d53d476ad8736535819d0f8",
+        "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
@@ -1861,7 +1861,7 @@
           }
         ],
         "summary": "The active client tree separates pure forms models from editor composition and locates QueryBoundary and WeaveGlyph in components.",
-        "verifiedCanonicalSha256": "8d3955d786d7bd8c6b3b3384e1b127225fc2fedcae8d37e861721ab4329cab18"
+        "verifiedCanonicalSha256": "908d1f128d4fc38fcd39558726cc6901dd4999834d53d476ad8736535819d0f8"
       },
       "receiptCurrent": true
     },
@@ -2289,27 +2289,27 @@
       "path": "docs/architecture/core/motion-and-animation-guide.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 623,
-      "bytes": 42891,
-      "sha256": "fb3a75ff991c6d70fa3b36476bd8c65259f0cc565b82d444a37263199f091d75",
+      "lines": 631,
+      "bytes": 43620,
+      "sha256": "c78478201e2202c3eada20e0290ea35d17e5069e21c002584c0c36f95212d795",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-18"
+          "updated": "2026-09-19"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/motion-and-animation-guide.md",
-        "assignedSha256": "fb3a75ff991c6d70fa3b36476bd8c65259f0cc565b82d444a37263199f091d75",
+        "assignedSha256": "c78478201e2202c3eada20e0290ea35d17e5069e21c002584c0c36f95212d795",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "fb3a75ff991c6d70fa3b36476bd8c65259f0cc565b82d444a37263199f091d75",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+        "verifiedSha256": "c78478201e2202c3eada20e0290ea35d17e5069e21c002584c0c36f95212d795",
+        "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
@@ -2367,7 +2367,7 @@
           }
         ],
         "summary": "Active motion law reverified against the sealed Select evidence ledger, one-shot first-entrance allowance, attribution veto, browser plus tooling controls, and the owner-ruled interactive-state colour carve-out with its two-directional pin.",
-        "verifiedCanonicalSha256": "fb3a75ff991c6d70fa3b36476bd8c65259f0cc565b82d444a37263199f091d75"
+        "verifiedCanonicalSha256": "c78478201e2202c3eada20e0290ea35d17e5069e21c002584c0c36f95212d795"
       },
       "receiptCurrent": true
     },
@@ -11748,28 +11748,28 @@
       "path": "docs/design/951-css-family-semantic-provenance.md",
       "lane": "design",
       "issue": 5,
-      "lines": 239,
-      "bytes": 24859,
-      "sha256": "9f3cc20beebf1dbda462dbb76366fb05063971cccd7bda97590cb6c8e8ecec85",
+      "lines": 241,
+      "bytes": 26404,
+      "sha256": "66a1ba230c23caeaefc26f74a8803a12c3ceee52d24e2e61d0ee957218238ae2",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-13"
+          "updated": "2026-09-19"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/951-css-family-semantic-provenance.md",
-        "assignedSha256": "9f3cc20beebf1dbda462dbb76366fb05063971cccd7bda97590cb6c8e8ecec85",
+        "assignedSha256": "66a1ba230c23caeaefc26f74a8803a12c3ceee52d24e2e61d0ee957218238ae2",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "9f3cc20beebf1dbda462dbb76366fb05063971cccd7bda97590cb6c8e8ecec85",
-        "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
-        "verifiedAt": "2026-09-13",
+        "verifiedSha256": "66a1ba230c23caeaefc26f74a8803a12c3ceee52d24e2e61d0ee957218238ae2",
+        "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
+        "verifiedAt": "2026-09-19",
         "evidence": [
           "docs/design/951-css-family-semantic-provenance.md:1 (full read; terminal-carrier architecture, module boundaries, red-first plan, and static declared limits)",
           "git:4fde7115f19215a66ba01248149b3c6d291c2880 (integrated #951 design and implementation bytes)",
@@ -11791,7 +11791,8 @@
               }
             ]
           }
-        ]
+        ],
+        "verifiedCanonicalSha256": "66a1ba230c23caeaefc26f74a8803a12c3ceee52d24e2e61d0ee957218238ae2"
       },
       "receiptCurrent": true
     },
@@ -12839,7 +12840,7 @@
       "issue": 5,
       "lines": 58,
       "bytes": 4459,
-      "sha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a",
+      "sha256": "e50b77c762058c1a821a3c2ffd0c6d243ef412ca6a7cb99eb2879daa1bb7dad0",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12852,12 +12853,12 @@
       },
       "receipt": {
         "path": "docs/design/gate-runtime-read-first.md",
-        "assignedSha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a",
+        "assignedSha256": "e50b77c762058c1a821a3c2ffd0c6d243ef412ca6a7cb99eb2879daa1bb7dad0",
         "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a",
-        "verifiedCommit": "abc3a71c7b0d9e36d813e8b860176936bfbc727c",
+        "verifiedSha256": "e50b77c762058c1a821a3c2ffd0c6d243ef412ca6a7cb99eb2879daa1bb7dad0",
+        "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
@@ -12893,7 +12894,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a"
+        "verifiedCanonicalSha256": "e50b77c762058c1a821a3c2ffd0c6d243ef412ca6a7cb99eb2879daa1bb7dad0"
       },
       "receiptCurrent": true
     },
@@ -31488,9 +31489,9 @@
       "path": "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 732,
-      "bytes": 53718,
-      "sha256": "ba78830ff4d8165fe48a59d302b0f316793ca507d9f44962769dc42694d288d0",
+      "lines": 810,
+      "bytes": 59634,
+      "sha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31503,12 +31504,12 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md",
-        "assignedSha256": "ba78830ff4d8165fe48a59d302b0f316793ca507d9f44962769dc42694d288d0",
+        "assignedSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "ba78830ff4d8165fe48a59d302b0f316793ca507d9f44962769dc42694d288d0",
-        "verifiedCommit": "dd960748331faa635e6d947ab2c681701b2f27b7",
+        "verifiedSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3",
+        "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane gate-park-U's re-derivation of every Parked row whose wake condition named the #1584 gate-system revamp, the Codex ESLint hold or a dead gate lane, against main 047320b97: 32 rows censused (31 handed + #2283 found by a widened sweep), dispositioned 16 SUPERSEDED / 15 RE-FILE / 1 KEEP PARKED.",
@@ -31542,7 +31543,8 @@
             ]
           }
         ],
-        "summary": "Re-derivation of the 32 Parked board rows whose wake conditions named the (now closed) #1584 gate-runtime program: 16 SUPERSEDED, 15 RE-FILE, 1 KEEP PARKED, with the gate corpus measured all-final (339 modules, 339 defineGate calls) and the legacy `__g_` planter suites confirmed deleted. Flags one hard coupled site the orchestrator must act on before closing anything: `query-freshness-coverage-debt` declares `workItem: 1965`, and the final contract requires a warning policy's workItem to be a LIVE issue, so closing #1965 reds `pnpm check`."
+        "summary": "Re-derivation of the 32 Parked board rows whose wake conditions named the (now closed) #1584 gate-runtime program: 16 SUPERSEDED, 15 RE-FILE, 1 KEEP PARKED, with the gate corpus measured all-final (339 modules, 339 defineGate calls) and the legacy `__g_` planter suites confirmed deleted. Flags one hard coupled site the orchestrator must act on before closing anything: `query-freshness-coverage-debt` declares `workItem: 1965`, and the final contract requires a warning policy's workItem to be a LIVE issue, so closing #1965 reds `pnpm check`.",
+        "verifiedCanonicalSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3"
       },
       "receiptCurrent": true
     },

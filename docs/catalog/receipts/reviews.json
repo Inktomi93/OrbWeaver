@@ -7221,12 +7221,12 @@
     },
     {
       "path": "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md",
-      "assignedSha256": "ba78830ff4d8165fe48a59d302b0f316793ca507d9f44962769dc42694d288d0",
+      "assignedSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "ba78830ff4d8165fe48a59d302b0f316793ca507d9f44962769dc42694d288d0",
-      "verifiedCommit": "dd960748331faa635e6d947ab2c681701b2f27b7",
+      "verifiedSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3",
+      "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
       "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane gate-park-U's re-derivation of every Parked row whose wake condition named the #1584 gate-system revamp, the Codex ESLint hold or a dead gate lane, against main 047320b97: 32 rows censused (31 handed + #2283 found by a widened sweep), dispositioned 16 SUPERSEDED / 15 RE-FILE / 1 KEEP PARKED.",
@@ -7260,7 +7260,8 @@
           ]
         }
       ],
-      "summary": "Re-derivation of the 32 Parked board rows whose wake conditions named the (now closed) #1584 gate-runtime program: 16 SUPERSEDED, 15 RE-FILE, 1 KEEP PARKED, with the gate corpus measured all-final (339 modules, 339 defineGate calls) and the legacy `__g_` planter suites confirmed deleted. Flags one hard coupled site the orchestrator must act on before closing anything: `query-freshness-coverage-debt` declares `workItem: 1965`, and the final contract requires a warning policy's workItem to be a LIVE issue, so closing #1965 reds `pnpm check`."
+      "summary": "Re-derivation of the 32 Parked board rows whose wake conditions named the (now closed) #1584 gate-runtime program: 16 SUPERSEDED, 15 RE-FILE, 1 KEEP PARKED, with the gate corpus measured all-final (339 modules, 339 defineGate calls) and the legacy `__g_` planter suites confirmed deleted. Flags one hard coupled site the orchestrator must act on before closing anything: `query-freshness-coverage-debt` declares `workItem: 1965`, and the final contract requires a warning policy's workItem to be a LIVE issue, so closing #1965 reds `pnpm check`.",
+      "verifiedCanonicalSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3"
     },
     {
       "path": "docs/reviews/side-eye/2026-09-19-attribution-band-and-composer-plate.md",
