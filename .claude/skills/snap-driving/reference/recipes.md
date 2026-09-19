@@ -1,7 +1,7 @@
 # snap driving recipes
 
 Worked chains for the recurring drive shapes. Every recipe is one Bash call unless stated. Flags
-are current as of 2026-09-04 — reconcile against `pnpm snap --help` (source:
+are current as of 2026-09-19 — reconcile against `pnpm snap --help` (source:
 `tooling/src/snap/contract/help.ts`) and `flags.md` beside this file before copying blindly; the help
 outranks this file. Redirect every run to a log and Read it (SKILL.md §0); never pipe snap into head/tail.
 

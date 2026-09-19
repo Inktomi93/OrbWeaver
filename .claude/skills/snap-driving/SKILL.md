@@ -85,9 +85,9 @@ has a fixed shape; use the shape.
 | lighthouse | `--lighthouse desktop\|mobile` | axe/best-practices/seo audits on THIS run's settled page | `--cascade`; mobile fills the device slot |
 | requests | `--requests [url]` / `--request-body <url>` | which reads the surface issued, and one JSON body | — |
 | filmstrip | `--filmstrip` | a transition as a labelled contact sheet | every profiler/measurement arm |
-| design-audit | `--design-audit` | the deterministic UI defect scanner (60 rules, population verdict, `--fail-on`, `--mobile`) | see the flag index; positive control = a trailing `--eval` (it runs before the walk, #1659); cold `--dirty` needs `--idle` |
+| design-audit | `--design-audit` | the deterministic UI defect scanner (63 rules, population verdict, `--fail-on`, `--mobile`) | see the flag index; positive control = a trailing `--eval` (it runs before the walk, #1659); cold `--dirty` needs `--idle` |
 
-`pnpm snap <route> --design-audit` (the deterministic UI defect scanner: 60 rules, population accounting,
+`pnpm snap <route> --design-audit` (the deterministic UI defect scanner: 63 rules, population accounting,
 `--mobile` for tap targets, `--fail-on P0..P3` for the failing severity) is a snap arm since #1315; it shares
 every reach/environment flag above and prints the same kind of end card. The old record, motion-audit and
 perf-meter commands are RETIRED — snap's `--filmstrip`, `--motion` and `--perf` arms are their homes.
@@ -401,6 +401,10 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
 
 ## §7 Hover-reveal vs virtualized rows
 
+- **`--click` is a MOUSE dispatch even under `--mobile`** — it fires `pointerenter`/`mouseover`, so it can
+  open a hover-only tooltip no finger could reach. `--tap <sel>` is a REAL touch tap
+  (`Input.dispatchTouchEvent`, requires `--mobile`) and fires none of those — it is the only verb that
+  answers "what does a finger get here".
 - **Hover-revealed targets** (group-hover kebabs, row toolbars): `--force-click` = hover-then-forced-
   click. Synthetic `--hover` LOSES `:hover` on any list re-render (a query settling, a row
   recycling) — the revealed controls vanish before the shot; prefer the focus path for
