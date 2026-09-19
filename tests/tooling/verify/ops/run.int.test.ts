@@ -1064,7 +1064,17 @@ test("tests:node scopedArgv: git changes stay derived, while explicit source/tes
   expect(stage("tests:node").argv).not.toContain("--passWithNoTests");
 });
 
-test("tests:node: the repo's own config is what reds an empty selection, and ONLY the CLI flag lifts it (#1272 mechanism, both directions)", async () => {
+// THE BUDGET IS DECLARED, because this case SPAWNS TWO REAL VITEST RUNS (#2469). It never declared one and
+// inherited vitest's 5s default, which was never sized for two cold boots of the repo's own config:
+// MEASURED: 1.87s for one bare spawn on a quiet box, and 12.66s for this case end to end inside its own
+// scoped suite run (the niced transcript capture and the two runner boots together) — so 5s was never
+// enough, and it happened to pass only by finishing before vitest's clock in the runs that saw it.
+// `scaledBudget(30_000)` is sized off that 12.66s. `scaledBudget` is the load-aware instrument
+// every other long case in this file already uses — the slow path here is two real runner boots and is the
+// point of the test, so what was wrong was the missing declaration, not the duration.
+test("tests:node: the repo's own config is what reds an empty selection, and ONLY the CLI flag lifts it (#1272 mechanism, both directions)", {
+  timeout: scaledBudget(30_000),
+}, async () => {
   // A planted control in both directions against the REAL binary under the REAL config — vitest 4 defaults
   // `passWithNoTests` to TRUE, so a scratch-repo probe would prove nothing about this repo. The filter names
   // no file on any tree, which is the cheapest way to reach the same "no test files" branch deterministically
