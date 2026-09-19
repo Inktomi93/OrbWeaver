@@ -47,6 +47,7 @@ of the look you applied." Caption component (`LooksFoldCaption`) shows the curre
 ## Current state assessment
 
 **What is present and correctly structured:**
+
 - The one-collection/one-shape architecture is implemented as designed.
 - Keyboard navigation through the theme grid works (RadioGroupPicker).
 - The menu is correctly positioned as a sibling, not nested inside the radio control.

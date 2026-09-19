@@ -52,8 +52,8 @@ survives; its INPUT changed.
    `main` before you start.
 3. **THE ROLLUP IS BARRIER-ONLY.** A rollup recomputed while lanes are appending is stale on arrival. Rows land
    continuously; `## CLASS ROLLUP` is rebuilt once, on a quiet tree, by the account holding main's checkout.
-4. **EVERY APPEND GOES ABOVE `## CLASS ROLLUP`, INSIDE THE `
-   `## THE LEDGER` → the next `##`, and it is what `lib/gate-program-docs.ts#ledgerSections` counts, what the
+4. **EVERY APPEND GOES ABOVE `## CLASS ROLLUP`, INSIDE THE
+   `## THE LEDGER`** → the next `##`, and it is what `lib/gate-program-docs.ts#ledgerSections` counts, what the
    rollup rebuild sums, and what the `ledgers:fresh` section-vs-report reconciler reads. `6c983149e` appended
    `### cb-v-fix-wave-1` BELOW the rollup and its six rows were invisible to all three at once — the
    reconciler printed the SAME "11 of 24 reconcilable" before and after, correct about a section it could not
@@ -88,14 +88,14 @@ receipt I produced in this session; every OPEN row was re-derived against `83157
 
 Original audit method in git history.
 
-   `## THE LEDGER` → the next `##`, and it is what `lib/gate-program-docs.ts#ledgerSections` counts, what the
-   rollup rebuild sums, and what the `ledgers:fresh` section-vs-report reconciler reads. `6c983149e` appended
-   `### cb-v-fix-wave-1` BELOW the rollup and its six rows were invisible to all three at once — the
-   reconciler printed the SAME "11 of 24 reconcilable" before and after, correct about a section it could not
-   see, while a naive `grep -c` found the rows and read them as present. **That is no longer silent:** a
-   ledger-shaped section outside the fence is now a `ledgers:fresh` finding naming the heading, its line and
-   the `##` it landed under. The detector keys on the TABLE's schema (`defect` + `state`), not on the
-   heading's wording, so a section whose heading cites no report is caught too.
+`## THE LEDGER` → the next `##`, and it is what `lib/gate-program-docs.ts#ledgerSections` counts, what the
+rollup rebuild sums, and what the `ledgers:fresh` section-vs-report reconciler reads. `6c983149e` appended
+`### cb-v-fix-wave-1` BELOW the rollup and its six rows were invisible to all three at once — the
+reconciler printed the SAME "11 of 24 reconcilable" before and after, correct about a section it could not
+see, while a naive `grep -c` found the rows and read them as present. **That is no longer silent:** a
+ledger-shaped section outside the fence is now a `ledgers:fresh` finding naming the heading, its line and
+the `##` it landed under. The detector keys on the TABLE's schema (`defect` + `state`), not on the
+heading's wording, so a section whose heading cites no report is caught too.
 
 **WHO, under the role split in force (2026-09-12).** claude-b is the orchestrator: it owns Project 1, the
 verify lens and the rulings, and it never commits on main's checkout. The primary account owns dispatch and
@@ -124,7 +124,7 @@ types.** Under the split both accounts answer for it.
 | - | - | - | - | - | - |
 | ROW-CB-FORGE-POLICING-AUDIT-1 `depcruise-grant-liveness` | #2111 · `tooling/src/verify/gates/depcruise-grant-liveness.ts:30` | imports `ExemptionTable, Finding` from `contract/gate.ts` behind `defineGate` | legacy artifact (#1922 migration set; class row #2147) | STATUS: OPEN  **OPEN** | `policy-legacy-imports` ARM A live finding; family second opinion |
 | ROW-CB-FORGE-POLICING-AUDIT-3 `eslint-grant-liveness` | #2111 · `…/eslint-grant-liveness.ts:10` | imports `ExemptionTable` | legacy artifact (#2147) | STATUS: OPEN  **OPEN** | same |
-| ROW-CB-FORGE-POLICING-AUDIT-21 `spacing-tier-home-health` | #2096 · `…/spacing-tier-home-health.ts:27` | imported `SANCTIONED_HOMES` from `no-raw-spacing-in-features.ts` | gate→gate import | STATUS: … |
+| ROW-CB-FORGE-POLICING-AUDIT-21 `spacing-tier-home-health` | #2096 · `…/spacing-tier-home-health.ts:27` | imported `SANCTIONED_HOMES` from `no-raw-spacing-in-features.ts` | gate→gate import | STATUS: … | |
 | ROW-CB-FORGE-POLICING-AUDIT-50 `gate-modernization` | #2111 · `tooling/src/verify/gates/gate-modernization.ts` | The live legacy meta-gate retains a local registration reader until its retirement. It is not an exact duplicate of the central readers: it returns descriptor nodes for its arms, and its final-callee recognition differs. | transition obligation (legacy meta-gate) | STATUS: OPEN  **OPEN — held until cutover; no pre-cutover repair** | Independent source adjudication at `22d61f8bb`, 2026-09-13: local `registrationOf` remains called; central `gateRegistrationOf` returns a contract kind, while `finalRegistrationOf` recognizes canonical namespace registrations for policing. Standardization §1 and playbook §4.1 retain the legacy owner through transition. Retire its local reader with the meta-gate and successor evidence; do not perform a nominal deduplication now. |
 
 ### cb-v-additions-wave — the post-barrier fold `575e48d5a`…`a7d88287b` + the fix leg `bba5101db` + `5ee1149a9`, verified on `3166664f5` ([`v-additions-wave-2026-09-12.md`](v-additions-wave-2026-09-12.md)); 11 rows asserted (the 11th from its structure leg) — 4 CLOSED at `bba5101db` with pre/post receipts (#2184 and #2185 REFUTED at `575e48d5a`, CONFIRMED at the fix), 6 OPEN (board: #2210 row 6, #2214 row 7, #2215 row 9, #2212 row 10; row 5 is the census regen owed by `5ee1149a9`; row 8 informational) — 11 rows (1 OPEN, 10 CLOSED)
