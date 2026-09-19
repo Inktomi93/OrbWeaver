@@ -104,6 +104,8 @@ interface RunIndex {
     readonly state: string;
     readonly totals: { readonly dropped: number; readonly complete: boolean } | null;
     readonly records: { readonly total: number; readonly limitEvents: number; readonly complete: boolean };
+    readonly recordArtifacts: readonly string[];
+    readonly rawChannels?: readonly { readonly channel: string; readonly artifact: string; readonly records: number | null; readonly complete: boolean }[];
   };
   readonly artifacts: readonly {
     readonly path: string;
@@ -760,7 +762,7 @@ test("multi-arm diagnostics round-trip preserves severity/caps and keeps trace.z
       role: "raw-fallback",
     });
     await writeSnapDiagnosticEvidence(
-      "ignored-page-controlled-name",
+      "page-controlled-capture-name",
       Array.from({ length: 25 }, (_, rowIndex) => diagnostic(rowIndex)),
     );
   } finally {
@@ -962,6 +964,49 @@ test("named session on an isolated stage preserves multi-context diagnostic iden
   await expect(filtered).toExitWith(EXIT.clean);
   expect(filtered.stdout).toContain("context-one-warning");
   expect(filtered.stdout).not.toContain("context-zero-warning");
+});
+
+// #2419: EVERY CAPTURE IN A SLOT FILES ITS OWN DIAGNOSTIC ARTIFACT. The writer used to ignore its `name`
+// and write one slot-global `browser-diagnostics/diagnostics.json` with `flag:"wx"`, so the SECOND capture
+// in a run — which is every `--matrix` cell after v01, and every repeat call into a session daemon — threw
+// EEXIST and aborted the run. The fix names the file after the capture and disambiguates a REPEATED name
+// with an ordinal; `wx` stays, because an overwrite would silently destroy the earlier cell's evidence.
+// The completion path already read the plural (`producer === "browser-diagnostics"` is a FILTER), so the
+// index must carry every capture's path and the union of their records.
+test("a slot holds one diagnostic artifact per capture — distinct names, a repeated name, and never an overwrite", async ({ scratch }) => {
+  const root = join(scratch, "per-capture-diagnostics-repo");
+  await initializeRepository(root);
+  const slot = await openSlot(root, "per-capture-diagnostics");
+  const cell = (id: string, text: string): BrowserDiagnostic => ({ ...diagnostic(0), text, evidenceWindow: 1, raw: null, location: null, issueCode: id });
+  beginInstrumentRun("snap", root, { slotDir: slot.dir });
+  let paths: readonly string[] = [];
+  try {
+    paths = [
+      await writeSnapDiagnosticEvidence("v01-4f2a9c", [cell("v01", "first-cell-warning")]),
+      await writeSnapDiagnosticEvidence("v02-7b1d03", [cell("v02", "second-cell-warning")]),
+      // The daemon keys a call by its ROUTE, so two calls to one route repeat the name. That is a second
+      // capture, not a rewrite of the first.
+      await writeSnapDiagnosticEvidence("v01-4f2a9c", [cell("v01", "first-cell-second-call-warning")]),
+    ];
+  } finally {
+    finishInstrumentRun();
+  }
+  expect(new Set(paths).size, `each capture owns a distinct artifact: ${paths.join(", ")}`).toBe(3);
+  expect(paths.map((each) => basename(each))).toEqual(["v01-4f2a9c.json", "v02-7b1d03.json", "v01-4f2a9c-2.json"]);
+  for (const [index, each] of paths.entries()) {
+    const read = await readSnapDiagnosticArtifact(each);
+    expect(read.records, each).toHaveLength(1);
+    expect(read.records[0]?.text, each).toBe(["first-cell-warning", "second-cell-warning", "first-cell-second-call-warning"][index]);
+  }
+
+  registerSnapResultPairs([["app-snapshot", "measured"]]);
+  const runIndexPath = await completeSnapRun(slot.completion, parseSnapArgs([]), ["snap", "--matrix"]);
+  const index = JSON.parse(await readFile(runIndexPath, "utf8")) as RunIndex;
+  expect(index.diagnostics.recordArtifacts).toEqual(expect.arrayContaining([...paths]));
+  expect(index.diagnostics.records.total).toBe(3);
+  // Attribution is per ARTIFACT: a raw channel row that named only the first file would credit cell v02's
+  // records to cell v01's evidence.
+  expect(index.diagnostics.rawChannels?.map((row) => row.artifact).sort()).toEqual([...paths].sort());
 });
 
 test("composite findings correlate the same unsafe-port failure across diagnostics, core capture, and session HAR without inventing tag ownership", async ({

@@ -3,7 +3,7 @@
 import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import process from "node:process";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
 import { createPageCapture, wireProbePage } from "@orb/tooling/_shared/browser-capture";
@@ -354,7 +354,13 @@ test("Snap JSON and a live session export retain the lossless diagnostics ring",
     for (const runIndex of matchingRunIndexes) {
       expect(runIndex.diagnostics.recordArtifacts).toHaveLength(1);
       const artifactPath = runIndex.diagnostics.recordArtifacts[0] as string;
-      expect(artifactPath).not.toContain(runName);
+      // The artifact is named after the CAPTURE since #2419 (a fixed `diagnostics.json` made the second
+      // matrix cell EEXIST), so this line asserts the name it now HAS. The #1292 pin here read
+      // `not.toContain(runName)`, which described the old fixed name rather than a property: the `--out`
+      // value is the operator's own and already names the manifest and the PNG beside it. What was
+      // load-bearing is the canary sweep below — nothing PAGE-controlled may reach a filename, and
+      // `artifactKey` slugs the operator's name down to [A-Za-z0-9_-] besides.
+      expect(basename(artifactPath)).toBe(`${runName}.json`);
       for (const canary of Object.values(DISK_CANARIES)) {
         expect(artifactPath).not.toContain(canary);
       }
