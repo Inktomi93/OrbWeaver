@@ -4,8 +4,10 @@
 // row (the backfill pre-check reads exactly that shape as "work remaining").
 
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
-import { describe } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { analyzeAvatarImage } from "../../../../../packages/server/src/domain/embeddings/indexer/caption.ts";
+import { __resetAvatarAnalysisAvailability } from "../../../../../packages/server/src/domain/embeddings/substrate/avatar-analysis-availability.ts";
+import { ProviderError } from "../../../../../packages/server/src/infra/providers/contract/errors.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRoleClients, TEST_CAPTION } from "../_support.ts";
 
@@ -30,6 +32,12 @@ const VALID_BREAKDOWN = {
   exposedParts: [],
   tags: ["test", "portrait", "fixture"],
 } as const satisfies ImageBreakdown;
+
+// The per-process latch is module state, so every test starts from a cold one — otherwise the first test to
+// latch a model would decide the outcome of every later test that names the same model.
+beforeEach(() => {
+  __resetAvatarAnalysisAvailability();
+});
 
 describe("analyzeAvatarImage", () => {
   test("a well-formed breakdown returns the caption plus every facet in captionMeta", async () => {
@@ -62,5 +70,51 @@ describe("analyzeAvatarImage", () => {
     await analyzeAvatarImage(roleClients, BYTES);
     const [call] = roleClients.summarize.mock.calls;
     expect(call?.[0][0]?.images).toEqual([BYTES]);
+  });
+});
+
+// #2422 — A VERDICT ABOUT THE MODEL IS ASKED ONCE, NOT ONCE PER ASSET. The indexer used to spend one provider
+// call per avatar, every sweep, to rediscover the same "that model does not exist" — and on a local engine the
+// first of those calls WAKES the fleet. Both arms below assert the CALL COUNT, because the count is the defect:
+// the returned skip shape was always correct.
+describe("analyzeAvatarImage — the model-level verdicts are process-scoped", () => {
+  test("a backend that does not serve the model is asked ONCE, and every later asset skips without a call", async () => {
+    const roleClients = makeRoleClients();
+    roleClients.summarize.mockRejectedValue(
+      new ProviderError({ kind: "model_unavailable", retryable: false, message: "model not found", apiErrorStatus: 404, model: roleClients.summarizerModel }),
+    );
+
+    const first = await analyzeAvatarImage(roleClients, BYTES);
+    const second = await analyzeAvatarImage(roleClients, BYTES);
+    const third = await analyzeAvatarImage(roleClients, BYTES);
+
+    expect(roleClients.summarize).toHaveBeenCalledTimes(1);
+    for (const result of [first, second, third]) {
+      expect(result).toEqual({ caption: "", captionMeta: { model: roleClients.summarizerModel } });
+    }
+  });
+
+  test("a summarize model that declares no image input never reaches the provider at all", async () => {
+    const roleClients = makeRoleClients(false);
+    const result = await analyzeAvatarImage(roleClients, BYTES);
+    expect(roleClients.summarize).not.toHaveBeenCalled();
+    expect(result).toEqual({ caption: "", captionMeta: { model: roleClients.summarizerModel } });
+  });
+
+  test("a vision-capable model still runs the analysis for every asset — the latch is not a blanket off-switch", async () => {
+    const roleClients = makeRoleClients();
+    const first = await analyzeAvatarImage(roleClients, BYTES);
+    const second = await analyzeAvatarImage(roleClients, BYTES);
+    expect(roleClients.summarize).toHaveBeenCalledTimes(2);
+    expect(first.caption).toBe(TEST_CAPTION);
+    expect(second.caption).toBe(TEST_CAPTION);
+  });
+
+  test("an ORDINARY failure keeps the retry-next-sweep contract — it is about the image, not the model", async () => {
+    const roleClients = makeRoleClients();
+    roleClients.summarize.mockRejectedValue(new Error("backend refused responseFormat"));
+    await analyzeAvatarImage(roleClients, BYTES);
+    await analyzeAvatarImage(roleClients, BYTES);
+    expect(roleClients.summarize).toHaveBeenCalledTimes(2);
   });
 });

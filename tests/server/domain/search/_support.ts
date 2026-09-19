@@ -135,6 +135,7 @@ function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients
     imageEmbedModel,
     summarizerModel: "test-summarize-model",
     summarizerContextTokens: 32_000,
+    summarizerVision: true,
   };
 }
 

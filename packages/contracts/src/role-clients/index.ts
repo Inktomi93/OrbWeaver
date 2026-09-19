@@ -169,4 +169,13 @@ export interface RoleClients {
   /** The summarizer model's resolved context window in tokens. The memory build's token-guard reads
    *  this to fit each summarizer call to the user's actual context — trim-to-fit, never silent truncation. */
   summarizerContextTokens: number;
+  /** Does the RESOLVED summarize model accept an IMAGE on its user turn (`capability.input.vision`)? A live
+   *  getter over the same per-call resolution `summarizerModel` reads, so a role re-point is honoured without
+   *  a restart. The one consumer is avatar analysis (`domain/embeddings/indexer/caption.ts`), which is the
+   *  only summarize caller that ATTACHES an image: a text-only summarize model cannot answer it, and asking
+   *  anyway spends a provider call — and, on a local engine, a WAKE — per asset to learn that (#2422).
+   *  TRUTH-ONLY in one direction: a source whose descriptor errs permissive (the vllm arm advertises
+   *  `input.vision` unconditionally by D143(c) — per-checkpoint modality is undetectable on that wire) says
+   *  true for a non-VL checkpoint, which is why the caller ALSO latches on the backend's own rejection. */
+  summarizerVision: boolean;
 }

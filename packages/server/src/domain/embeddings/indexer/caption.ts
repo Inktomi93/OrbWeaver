@@ -22,6 +22,19 @@
 // asset. We never write a caption without its facets: a captioned-but-facetless row is precisely the state
 // the backfill pre-check in `verbs/embed-assets` uses to find work, so inventing more of them would make the
 // catch-up pass unable to see its own backlog.
+//
+// "RETRY NEXT SWEEP" IS FOR A FAILURE ABOUT THIS IMAGE — NEVER FOR ONE ABOUT THE MODEL (#2422). Two verdicts
+// are the same for every asset in the corpus, so they are decided BEFORE the call and remembered for the
+// process (`substrate/avatar-analysis-availability`):
+//   - the resolved summarize model declares no image input (`roleClients.summarizerVision`) — nobody may hand
+//     it a picture, so the analysis is skipped without spending a call;
+//   - the backend answered `model_unavailable` (a vLLM 404 "The model `...` does not exist", the classified
+//     `ProviderError.kind`) — the model this process resolves is not the one the engine serves.
+// Before this, either state cost ONE provider call per asset per sweep, forever - and the first of those calls
+// WAKES a sleeping local engine, so a boot bought a GPU wake plus N 404s for zero rows. The vision fact alone
+// cannot prevent that wake on our own engine: D143(c) makes the vllm capability descriptor err PERMISSIVE
+// (`input.vision` is advertised unconditionally, because per-checkpoint modality is undetectable on that
+// wire), so the local arm is caught by the backend's own refusal instead - once.
 
 import { imageBreakdownSchema } from "@orb/contracts/embeddings";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
@@ -32,7 +45,9 @@ import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import { getLog } from "#foundation/observability";
+import { ProviderError } from "#infra/providers";
 import type { AvatarAnalysis } from "../contract/results.ts";
+import { announceAvatarAnalysisSkip, avatarAnalysisUnservable, markAvatarAnalysisUnservable } from "../substrate/avatar-analysis-availability.ts";
 
 const ANALYSIS_SYSTEM_PROMPT = [
   "You are an image analyst for a roleplay character library. Look at the image and return ONE JSON object.",
@@ -64,6 +79,19 @@ const skipped = (model: string): AvatarAnalysis => ({ caption: "", captionMeta: 
  */
 export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8Array, presetParams?: SideGenSampling | undefined): Promise<AvatarAnalysis> {
   const model = roleClients.summarizerModel;
+  if (avatarAnalysisUnservable(model)) {
+    // Already answered by the backend this process. Silent: the loud line was logged when it latched.
+    return skipped(model);
+  }
+  if (!roleClients.summarizerVision) {
+    if (announceAvatarAnalysisSkip(model)) {
+      getLog().warn(
+        { model },
+        "embeddings indexer: the resolved summarize model declares no image input - avatar analysis skipped for this model (no provider call made)",
+      );
+    }
+    return skipped(model);
+  }
   const posture = toSummarizeOptions(resolveSideGenSampling(ANALYSIS_FLOOR, presetParams));
   const run = async (correction?: string): Promise<string> => {
     const userPrompt = correction === undefined ? ANALYSIS_USER_PROMPT : `${ANALYSIS_USER_PROMPT}\n\n${correction}`;
@@ -83,11 +111,22 @@ export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8A
     }
     return { caption, captionMeta: { model, ...facets } };
   } catch (error) {
+    // THE MODEL ITSELF IS NOT THERE - a verdict about the MODEL, identical for every asset, so it latches for
+    // the process and no later asset spends a call (or a wake) to rediscover it (#2422).
+    if (error instanceof ProviderError && error.kind === "model_unavailable") {
+      if (markAvatarAnalysisUnservable(model)) {
+        getLog().warn(
+          { model, err: error },
+          "embeddings indexer: the summarize backend does not serve this model - avatar analysis disabled for it until restart (captions skipped; point the summarize role at the model the engine serves)",
+        );
+      }
+      return skipped(model);
+    }
     // THE SKIP HAS TO BE AUDIBLE. A backend that cannot serve this schema at all (no guided decoding on the
     // summarize role, a family that drops `responseFormat`) fails EVERY asset identically, and the sweep's
     // own counts cannot say so — the raw lens still lands, so a whole-corpus analysis failure reports as a
     // tidy "0 embedded, N skipped". This line is the difference between a diagnosable outage and a silent one.
-    getLog().warn({ model, err: error }, "embeddings indexer: avatar analysis failed schema validation twice — asset skipped, will retry next sweep");
+    getLog().warn({ model, err: error }, "embeddings indexer: avatar analysis failed — asset skipped, will retry next sweep");
     return skipped(model);
   }
 }

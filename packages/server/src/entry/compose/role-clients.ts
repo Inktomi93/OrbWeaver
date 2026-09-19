@@ -365,6 +365,11 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
     get summarizerContextTokens(): number {
       return snapshot.summarize.capability.context.window || SUMMARIZER_CONTEXT_FALLBACK;
     },
+    // The image-input fact off the SAME resolution (#2422). Absent `input` ⇒ false: a descriptor that never
+    // claimed vision is a model nobody may hand an image to.
+    get summarizerVision(): boolean {
+      return snapshot.summarize.capability.input?.vision === true;
+    },
   };
 }
 
@@ -397,6 +402,9 @@ export function createUnboundRoleClients(): RoleClientsWithSignal {
     },
     get summarizerContextTokens(): number {
       return SUMMARIZER_CONTEXT_FALLBACK;
+    },
+    get summarizerVision(): boolean {
+      return false;
     },
   };
 }
