@@ -5764,7 +5764,7 @@
     {
       "siteId": "tooling/src/snap/ops/appearance-invariant-runtime.ts::mutation::1",
       "path": "tooling/src/snap/ops/appearance-invariant-runtime.ts",
-      "line": 192,
+      "line": 236,
       "column": 12,
       "grammar": "promise",
       "position": "mutation",
@@ -5772,7 +5772,7 @@
       "snippet": "void mutation.catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "the DEFUSED rejection is the response wait, whose failure is meaningless once the click that should have caused it failed — the click's error is re-thrown on the next line and owns the outcome. Ends if the wait stops being started before the click.",
-      "markerLine": 191
+      "markerLine": 235
     },
     {
       "siteId": "tooling/src/snap/ops/appearance-surface-drive.ts::catch::1",
@@ -6284,7 +6284,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::e::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 265,
+      "line": 272,
       "column": 12,
       "grammar": "empty",
       "position": "e",
@@ -6292,12 +6292,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.",
-      "markerLine": 260
+      "markerLine": 267
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::e::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 306,
+      "line": 313,
       "column": 12,
       "grammar": "empty",
       "position": "e",
@@ -6305,7 +6305,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.",
-      "markerLine": 299
+      "markerLine": 306
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::page.evaluate::1",
@@ -6323,7 +6323,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::page.evaluate::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 302,
+      "line": 309,
       "column": 11,
       "grammar": "promise",
       "position": "page.evaluate",
@@ -6331,12 +6331,12 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.",
-      "markerLine": 301
+      "markerLine": 308
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::page.waitForLoadState::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 432,
+      "line": 439,
       "column": 11,
       "grammar": "promise",
       "position": "page.waitForLoadState",
@@ -6344,12 +6344,12 @@
       "snippet": "await page.waitForLoadState(\"networkidle\", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.",
-      "markerLine": 430
+      "markerLine": 437
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::retryErr::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 280,
+      "line": 287,
       "column": 16,
       "grammar": "empty",
       "position": "retryErr",
@@ -6357,7 +6357,7 @@
       "snippet": "} catch (retryErr) {",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.",
-      "markerLine": 271
+      "markerLine": 278
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::waitFor::1",
@@ -6375,7 +6375,7 @@
     {
       "siteId": "tooling/src/snap/ops/drive.ts::waitFor::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 296,
+      "line": 303,
       "column": 6,
       "grammar": "promise",
       "position": "waitFor",
@@ -6383,7 +6383,7 @@
       "snippet": ".waitFor({ state: \"attached\", timeout: WAIT_SELECTOR_TIMEOUT_MS })",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.",
-      "markerLine": 293
+      "markerLine": 300
     },
     {
       "siteId": "tooling/src/snap/ops/filmstrip-capture.ts::stopProtocol::1",
