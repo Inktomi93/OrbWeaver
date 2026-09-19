@@ -1,17 +1,17 @@
 // CONVERSION-TIME EVIDENCE for the `freeze-provenance` family of #1584 — the occurrence policy and its
-// `-health` sibling — written to the `drizzle-registry-conversion.suite.test.ts` recipe. NOT a standing
-// regression gate: it freezes the legacy source at one commit and RETIRES once the differential is
-// trusted (design guide §6.4). Delete it with the legacy loader.
+// `-health` sibling — written to the `drizzle-registry-conversion.suite.test.ts` recipe. It no longer
+// freezes any legacy source: `b1e5e3e30` deleted the replay arms when the legacy descriptors went, and
+// what is left is family evidence for the two final policies.
 //
-// What it proves:
+// What it proves — one line per surviving `test(` block, because a header that promises an arm this file
+// no longer carries is the same defect class as a gate that reports a clean zero (#2454; `b1e5e3e30`
+// deleted the legacy-replay arms per TEST ARM, and this list kept promising a §4.6 DIFFERENTIAL nothing
+// delivers). The legacy side is GONE, so no differential is available to this suite at any price:
 //   1. both converted policies pass the production proof runtime;
 //   2. §4.2 IDENTITY — the correct `@orb-waive` marker at the reported position consumes exactly one
 //      finding with zero authority alarms, and a marker one token off ALARMS instead of silently
 //      suppressing (the assertion a `mustPass` row cannot make);
-//   3. §4.6 DIFFERENTIAL — every legacy example replayed through the frozen legacy descriptor and through
-//      the final family names the same NODES, with each intended difference classified and asserted
-//      rather than waved at;
-//   4. §4.5 REFUSAL — the health policy withholds rather than inventing a verdict when its declared fact
+//   3. §4.5 REFUSAL — the health policy withholds rather than inventing a verdict when its declared fact
 //      cannot be read, and stays silent when its real-tree anchor is absent.
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
