@@ -12,6 +12,14 @@ import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
+import { reimportBudget } from "../../support/reimport-budget.ts";
+
+// Every case re-imports the ladder fresh (see the header), so the first one pays a full transform of the
+// module's graph inside its own timer. Measured cold and alone on a quiet box (2026-09-19,
+// `pnpm test:scoped … --reporter=verbose`): first test 2268 ms, the other 23 between 31 and 142 ms. 30 s
+// is that number with the contention headroom `reimportBudget`'s header derives; the 5 s project default
+// is what reds this file in a cold scoped run.
+vi.setConfig({ testTimeout: reimportBudget(30_000) });
 
 const MODULE = "../../../packages/client/src/data/stale-session.ts";
 const DOCUMENT_HOST_MODULE = "../../../packages/client/src/lib/session-document-host.ts";

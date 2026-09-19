@@ -10,6 +10,14 @@ import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { afterEach, vi } from "vitest";
 import type { AuthConfig } from "../../../packages/client/src/data/auth-config.ts";
 import { expect, test } from "../../support/fixtures.ts";
+import { reimportBudget } from "../../support/reimport-budget.ts";
+
+// The re-import IS the subject here (see the header): every case pays a fresh transform of the client
+// data module's graph, inside the first test's timer. Measured cold and alone on a quiet box
+// (2026-09-19, `pnpm test:scoped … --reporter=verbose`): the first test 1732 ms, the two after it 48/44 ms
+// — the whole cost is the transform. 30 s is that number with the contention headroom `reimportBudget`'s
+// header derives; the 5 s project default is what reds this file in a cold scoped run.
+vi.setConfig({ testTimeout: reimportBudget(30_000) });
 
 const CONFIG: AuthConfig = {
   mode: "local",

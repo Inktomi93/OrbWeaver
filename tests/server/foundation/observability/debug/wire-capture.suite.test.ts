@@ -22,9 +22,9 @@ import { join } from "node:path";
 import process from "node:process";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { budget } from "@orb/tooling/_shared/load-budget";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { reimportBudget } from "../../../../support/reimport-budget.ts";
 
 const CHAT_A = castId<ChatId>("chat_a");
 
@@ -36,7 +36,7 @@ const CHAT_A = castId<ChatId>("chat_a");
 // hoisted `beforeAll` warm: each test needs its OWN fresh module graph (a different `WIRE_CAPTURE` env or a
 // different `node:fs/promises` mock per test), so there is no shared warm import to hoist without changing
 // what the suite proves.
-vi.setConfig({ testTimeout: budget(60_000) });
+vi.setConfig({ testTimeout: reimportBudget(60_000) });
 
 const EMPTY_DIR = mkdtempSync(join(tmpdir(), "orb-wire-outcomes-"));
 afterAll(() => {
