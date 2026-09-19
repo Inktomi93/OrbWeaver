@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 609,
+    "sites": 610,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 609,
+      "deliberate-absorb": 610,
       "unproven": 0
     },
     "byGrammar": {
       "default": 165,
-      "empty": 299,
+      "empty": 300,
       "promise": 145
     }
   },
@@ -3281,7 +3281,7 @@
     {
       "siteId": "packages/server/src/foundation/env/index.ts::catch::2",
       "path": "packages/server/src/foundation/env/index.ts",
-      "line": 943,
+      "line": 964,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3289,7 +3289,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a probe whose ONLY verdict is a boolean — an unreadable/missing/permission-denied credentials file all mean the same thing to every caller (\"not detected\"), and the false answer FAILS CLOSED (the backend stays unregistered, nothing spawns). Ends if this probe ever gates something that opens rather than closes.",
-      "markerLine": 939
+      "markerLine": 960
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
@@ -3762,7 +3762,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/model-cache.ts::created::1",
       "path": "packages/server/src/infra/providers/backends/local-light/model-cache.ts",
-      "line": 298,
+      "line": 347,
       "column": 10,
       "grammar": "promise",
       "position": "created",
@@ -3770,12 +3770,12 @@
       "snippet": "void created.catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "this .catch is eviction bookkeeping only — a rejected load removes its own cache entry so it never poisons the model; the rejection is still delivered to every caller who awaits memo(id)'s promise, so nothing is swallowed. Ends if callers stop receiving the entry promise.",
-      "markerLine": 297
+      "markerLine": 346
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/model-cache.ts::entry.promise::1",
       "path": "packages/server/src/infra/providers/backends/local-light/model-cache.ts",
-      "line": 285,
+      "line": 334,
       "column": 10,
       "grammar": "promise",
       "position": "entry.promise",
@@ -3783,12 +3783,12 @@
       "snippet": "void entry.promise.then(dispose).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.",
-      "markerLine": 284
+      "markerLine": 333
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/prefetch.ts::preload::1",
       "path": "packages/server/src/infra/providers/backends/local-light/prefetch.ts",
-      "line": 145,
+      "line": 148,
       "column": 8,
       "grammar": "promise",
       "position": "preload",
@@ -3796,7 +3796,7 @@
       "snippet": ".preload(slot, modelId)",
       "verdict": "deliberate-absorb",
       "reason": "the failure IS surfaced, twice — a WARN naming the slot, the model and the knob, and a `failed` record on the admin engine-status surface carrying the reason. It is deliberately not propagated: the caller is a detached boot walk with no request to fail, and the lazy first-use path (untouched by a failed prefetch) remains the working arm. Ends if the prefetch becomes required for correctness rather than latency.",
-      "markerLine": 143
+      "markerLine": 146
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/probe.ts::err::1",
@@ -4087,7 +4087,7 @@
     {
       "siteId": "packages/server/src/infra/storage/cas.ts::err::1",
       "path": "packages/server/src/infra/storage/cas.ts",
-      "line": 205,
+      "line": 237,
       "column": 18,
       "grammar": "empty",
       "position": "err",
@@ -4095,7 +4095,20 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "only ENOENT is absorbed (a concurrent GC removed the dedup target → fall through and write fresh); every other utimes error is re-thrown, so a permission/I/O fault never silently passes. Ends if the non-ENOENT re-throw is removed.",
-      "markerLine": 200
+      "markerLine": 232
+    },
+    {
+      "siteId": "packages/server/src/infra/storage/cas.ts::error::1",
+      "path": "packages/server/src/infra/storage/cas.ts",
+      "line": 141,
+      "column": 12,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the ONLY absorbed arm is `isDirSyncUnsupported` — a filesystem CAPABILITY statement, not a fault — and its owner is the operator, told once per process by the structured warn below (the latch is deliberate: on an unsupporting mount every write hits this, and a per-write line would bury the notice it is trying to deliver). Every other errno RE-THROWS on the line above, so a real I/O or permission fault still rejects the put. Owner ruling 2026-09-19, #2410. Ends if the dir-entry fsync becomes required for correctness rather than crash-durability, or if the notice gains a caller-visible result.",
+      "markerLine": 136
     },
     {
       "siteId": "packages/server/src/infra/storage/variant-cache.ts::Promise.resolve::1",

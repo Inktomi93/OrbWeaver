@@ -38,6 +38,9 @@ vi.mock("node:fs/promises", async (importOriginal) => {
         // a derived object would brand-check-fail the moment `await using` disposed it. Only `sync` and the
         // async dispose are reachable on this handle (cas.ts's `fsyncDir`), so both are spelled here.
         const code = faults.directorySync;
+        // @orb-waive no-test-fabrication(unknown): a delegating stand-in for node's FileHandle — a derived object
+        // brand-check-fails on `await using` dispose, so the fake must be cast; only `sync`/`close`/dispose are
+        // reachable through cas.ts's fsyncDir. Ends when FileHandle can be subclassed without the brand check.
         return {
           sync: (): Promise<never> => Promise.reject(Object.assign(new Error("planted directory sync failure"), { code })),
           close: (): Promise<void> => handle.close(),
