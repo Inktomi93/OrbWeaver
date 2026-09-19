@@ -21,7 +21,7 @@ import { buildAppearanceInvariantChecks } from "./appearance-invariant-checks.ts
 import type { AppearanceDomSnapshot } from "./appearance-invariant-dom.ts";
 import { probeAppearanceDom } from "./appearance-invariant-dom.ts";
 import { evaluateAppearancePrepaint } from "./appearance-prepaint.ts";
-import { driveSurface } from "./appearance-surface-drive.ts";
+import { anchorRowSubject, driveSurface } from "./appearance-surface-drive.ts";
 import { capturePageCssEvidence } from "./arms/cascade.ts";
 import { captureContrastEvidence } from "./arms/contrast.ts";
 import { scanDeadCss } from "./arms/dead-css.ts";
@@ -213,8 +213,9 @@ function cascadeExpectations(row: RuntimeAppearanceHistoricalRow, snapshot: Appe
     if (expectedValue === "" || subject?.matchIndex === null || subject?.matchIndex === undefined) {
       const accounting = subject === undefined ? "missing subject policy" : JSON.stringify(subject.accounting);
       const obstruction = subject?.withheldFacts?.centerHit;
+      const withheldRect = subject?.withheldFacts?.rect;
       return instrumentRefusal(
-        `Appearance row ${row.id} cannot resolve expected ${query.selector}=${query.property}; ${accounting}; center-hit=${JSON.stringify(obstruction ?? null)}`,
+        `Appearance row ${row.id} cannot resolve expected ${query.selector}=${query.property}; ${accounting}; center-hit=${JSON.stringify(obstruction ?? null)}; withheld-rect=${JSON.stringify(withheldRect ?? null)}`,
       );
     }
     const source = expectedSource(row, query.selector, query.property);
@@ -306,6 +307,11 @@ async function captureRowSnapshots(
 }> {
   await resetCheckpoint(page);
   await driveSurface(page, row);
+  // The anchor sits between the drive and the evidence reset, exactly where the drive's own unverified
+  // scroll used to (#2402): AFTER it, the surface has demonstrably stopped moving (the anchor only returns
+  // once the subject held its position across a settle), so no scroll-induced motion lands in the measured
+  // ring the CLS budget reads, and no late re-pin lands between here and the census.
+  await anchorRowSubject(page, row);
   if (row.id !== "opposite-os-app-prepaint") {
     // Navigation is setup, not the invariant's judged interaction. Keep the merge ring produced by the
     // live mount, but zero motion/layout evidence before opening/revealing/toggling the named subject.
