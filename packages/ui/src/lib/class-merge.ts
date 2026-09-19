@@ -43,10 +43,19 @@ export const CSS_MERGE_FAMILY_NAMES = [
 // BOTH, leaving the winner to stylesheet source order, i.e. luck). The four-voice grammar
 // (primitives/text/variants.ts) rides exactly this override — a voice re-spells leading/tracking over
 // the size default — so an unregistered group is a silently-wrong line-height, not a lint nit.
+// THE THREE TYPE SCALES ARE DERIVED, NOT HAND-LISTED (#2450) — the rule the spacing block below states in
+// full ("a token added to `tokens.json` is registered by existing"), finally applied to the namespaces that
+// were written before it. The hand-lists here were missing `text-field` / `text-field-dense` and
+// `leading-field` / `leading-field-dense` the whole time they existed, and the cost was not hypothetical: an
+// unregistered size beside a real text COLOR is read as a second color and DROPPED, so `Combobox` and
+// `Autocomplete` — whose control class lists end `… text-field leading-field text-foreground …` — painted
+// no field step at all and re-armed the iOS focus zoom this repo had already fixed once (#1868/#1872).
+// `Input` escaped only because its class lists carry no `text-<color>`. Deriving closes the class AND
+// registers `text.code-field` / `leading.code-field` without a second edit.
 const CUSTOM_CLASS_GROUPS = {
-  "font-size": [{ text: ["display", "headline", "title", "body", "label", "code", "micro"] }],
-  leading: [{ leading: ["display", "headline", "title", "body", "label", "label-relaxed", "micro"] }],
-  tracking: [{ tracking: ["micro"] }],
+  "font-size": [{ text: scaleOf("text") }],
+  leading: [{ leading: scaleOf("leading") }],
+  tracking: [{ tracking: scaleOf("tracking") }],
 };
 
 // THE SPACING SCALE (#146) — the same defect, one namespace wider. `--spacing-*` is a Tailwind THEME

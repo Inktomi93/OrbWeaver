@@ -50,8 +50,8 @@ export const numberFieldVariants = tv({
   // instrument-density knob row still meets the coarse tap floor.
   variants: {
     size: {
-      md: { root: "w-full", input: "h-touch-target text-center text-body leading-body" },
-      inline: { root: "w-number-inline", input: "h-control-sm px-field text-right font-mono text-code leading-label-relaxed" },
+      md: { root: "w-full", input: "h-touch-target text-center text-field leading-field" },
+      inline: { root: "w-number-inline", input: "h-control-sm px-field text-right font-mono text-code-field leading-code-field" },
     },
   },
   defaultVariants: { size: "md" },

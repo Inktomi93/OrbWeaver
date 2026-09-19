@@ -33,7 +33,7 @@ export const comboboxVariants = tv({
       `${ACCENT_HOVER} ${FOCUS_RING_BARE}`,
       DISABLED_STATE_NATIVE,
     ],
-    input: ["min-w-24 flex-1 bg-transparent px-field py-field text-body leading-body text-foreground outline-none", "placeholder:text-muted-foreground"],
+    input: ["min-w-24 flex-1 bg-transparent px-field py-field text-field leading-field text-foreground outline-none", "placeholder:text-muted-foreground"],
     positioner: "z-(--z-popover) outline-none",
     popup: [POPUP_SURFACE, "w-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
     arrow: OVERLAY_ARROW,

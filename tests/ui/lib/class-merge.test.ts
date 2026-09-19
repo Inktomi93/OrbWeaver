@@ -173,6 +173,25 @@ test.for(GOVERNED_FAMILY_AXES)("$family obeys later-wins in both argument orders
 // The two fixed-box members minted by docs/design/integer-line-boxes.md: an unregistered leading name
 // keeps BOTH classes and leaves the winner to stylesheet order (this file's founding defect), so each
 // new member owes its own later-wins pin the moment it joins CUSTOM_CLASS_GROUPS.
+// THE FIELD FAMILY WAS NEVER REGISTERED, AND IT SHIPPED A PLATFORM DEFECT (#2450). `font-size` and
+// `leading` used to be HAND-LISTED here, and the list predated `text.field`/`text.field-dense` and their
+// paired leadings — so `text-field` beside a real text COLOR was read as a second color and DROPPED.
+// `Combobox` and `Autocomplete` spell exactly that (`… text-field leading-field text-foreground …`) and
+// therefore painted NO field step, re-arming the iOS focus zoom #1868/#1872 had already fixed once. The
+// three type scales are DERIVED from the token map now (the rule the spacing block always stated), so this
+// case is BOTH the regression pin and the proof that a newly-minted type token is registered by existing.
+test("every text/leading token is registered — an unlisted size beside a text COLOR used to be dropped (#2450)", () => {
+  for (const size of ["text-field", "text-field-dense", "text-code-field"]) {
+    expect(cn(size, "text-foreground"), `${size} must survive beside a text color`).toContain(size);
+    expect(cn(size, "text-foreground"), "…and the color must survive too — different axes").toContain("text-foreground");
+  }
+  // …and they are ONE axis with the rest of the scale, so later-wins holds in both directions.
+  expect(cn("text-body", "text-field")).toBe("text-field");
+  expect(cn("text-field", "text-body")).toBe("text-body");
+  expect(cn("leading-body", "leading-field")).toBe("leading-field");
+  expect(cn("leading-code-field", "leading-label-relaxed")).toBe("leading-label-relaxed");
+});
+
 test("the fixed-box leading members (micro, label-relaxed) are governed", () => {
   expect(cn("leading-label-relaxed", "leading-micro")).toBe("leading-micro");
   expect(cn("leading-micro", "leading-label")).toBe("leading-label");

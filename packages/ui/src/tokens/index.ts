@@ -149,6 +149,7 @@ export const TOKENS = {
   "text.field-dense": { cssVar: "--text-field-dense", value: "max(1rem, 16px)" },
   "text.label": { cssVar: "--text-label", value: "0.8125rem" },
   "text.code": { cssVar: "--text-code", value: "0.8125rem" },
+  "text.code-field": { cssVar: "--text-code-field", value: "max(1rem, 16px)" },
   "text.micro": { cssVar: "--text-micro", value: "0.65625rem" },
   "leading.none": { cssVar: "--leading-none", value: "1" },
   "leading.display": { cssVar: "--leading-display", value: "round(up, 1.875rem, 1px)" },
@@ -159,6 +160,7 @@ export const TOKENS = {
   "leading.field-dense": { cssVar: "--leading-field-dense", value: "round(up, max(1.25rem, 20px), 1px)" },
   "leading.label": { cssVar: "--leading-label", value: "round(up, 1rem, 1px)" },
   "leading.label-relaxed": { cssVar: "--leading-label-relaxed", value: "round(up, 1.25rem, 1px)" },
+  "leading.code-field": { cssVar: "--leading-code-field", value: "round(up, max(1.5rem, 24px), 1px)" },
   "leading.micro": { cssVar: "--leading-micro", value: "round(up, 0.8125rem, 1px)" },
   "container.cq-sm": { cssVar: "--container-cq-sm", value: "24rem" },
   "container.cq-md": { cssVar: "--container-cq-md", value: "32rem" },
@@ -286,6 +288,7 @@ export const SNAPPED_LENGTH_BASE_PX = {
   "leading.field-dense": 20,
   "leading.label": 16,
   "leading.label-relaxed": 20,
+  "leading.code-field": 24,
   "leading.micro": 13,
 } as const;
 
