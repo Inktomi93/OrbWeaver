@@ -5,7 +5,8 @@
     "defaultMinutes": 45,
     "ctSuiteWorkerMinutes": 165,
     "ctCeilingFactor": 1.5,
-    "ctHostSlotWaitMinutes": 45
+    "ctHostSlotWaitMinutes": 45,
+    "mutationGateMinutes": 120
   },
   "envSwitch": "ORB_DEDICATED_BOX",
   "envSwitchContract": "SHELL ENVIRONMENT ONLY — tooling never reads the repo .env (a config file that silently retunes the whole fleet is the lie this file exists to end). Unset / '' / '0' => shared. '1' => dedicated. Anything else REFUSES loudly.",

@@ -148,6 +148,10 @@ test("the CT ceiling FOLLOWS ctWorkers, covers the host-slot wait, and never dip
     '"ctHostSlotWaitMinutes": 1',
   );
   expect(stageBudgetsFor(shared, cheap).ctSuiteMs).toBe(stageBudgetsFor(shared, cheap).defaultMs);
+  // The mutation ceiling is its own row, floored at the default like every other ceiling.
+  expect(budgets.mutationGateMs, "a mutant run is measured in hours").toBeGreaterThan(budgets.defaultMs);
+  const cheapMutation = BODY.replace(/"mutationGateMinutes": \d+/u, '"mutationGateMinutes": 1');
+  expect(stageBudgetsFor(shared, cheapMutation).mutationGateMs).toBe(stageBudgetsFor(shared, cheapMutation).defaultMs);
 });
 
 test("a broken stageBudgets row REFUSES loudly — never a defaulted ceiling", () => {
@@ -157,6 +161,7 @@ test("a broken stageBudgets row REFUSES loudly — never a defaulted ceiling", (
   expect(() => stageBudgetsFor(shared, BODY.replace(/"ctSuiteWorkerMinutes": \d+/u, '"ctSuiteWorkerMinutes": "165"'))).toThrow(
     /field "ctSuiteWorkerMinutes" is "165"/u,
   );
+  expect(() => stageBudgetsFor(shared, BODY.replace(/"mutationGateMinutes": \d+/u, '"mutationGateMinutes": -1'))).toThrow(/field "mutationGateMinutes" is -1/u);
 });
 
 test("the budget door reads the committed file end to end, per profile", () => {

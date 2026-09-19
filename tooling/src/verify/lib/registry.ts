@@ -9,6 +9,7 @@ import { eslintScopedArgv, tscScopedArgv } from "./registry-argv.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
 import { TEST_LANE_STAGES } from "./registry-test-lanes.ts";
 import { applyPathTriggers } from "./registry-triggers.ts";
+import { mutationGateHangCeilingMs } from "./stage-budget.ts";
 
 // ── the registry ──────────────────────────────────────────────────────────────────────────────────────
 // Build history (all LANDED): V1 wired argv (whole-scope) + tiers + classify; V2 landed the `scopedArgv`
@@ -329,6 +330,7 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: ["full"],
     argv: ["pnpm", "test:mutation:gate"],
     classify: asViolations,
+    hangCeilingBaseMs: mutationGateHangCeilingMs(),
   },
 ];
 
