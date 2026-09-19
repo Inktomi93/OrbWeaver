@@ -112,21 +112,22 @@ export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8A
     return { caption, captionMeta: { model, ...facets } };
   } catch (error) {
     // THE MODEL ITSELF IS NOT THERE - a verdict about the MODEL, identical for every asset, so it latches for
-    // the process and no later asset spends a call (or a wake) to rediscover it (#2422).
-    if (error instanceof ProviderError && error.kind === "model_unavailable") {
-      if (markAvatarAnalysisUnservable(model)) {
-        getLog().warn(
-          { model, err: error },
-          "embeddings indexer: the summarize backend does not serve this model - avatar analysis disabled for it until restart (captions skipped; point the summarize role at the model the engine serves)",
-        );
-      }
-      return skipped(model);
-    }
-    // THE SKIP HAS TO BE AUDIBLE. A backend that cannot serve this schema at all (no guided decoding on the
-    // summarize role, a family that drops `responseFormat`) fails EVERY asset identically, and the sweep's
-    // own counts cannot say so — the raw lens still lands, so a whole-corpus analysis failure reports as a
-    // tidy "0 embedded, N skipped". This line is the difference between a diagnosable outage and a silent one.
-    getLog().warn({ model, err: error }, "embeddings indexer: avatar analysis failed — asset skipped, will retry next sweep");
+    // the process and no later asset spends a call (or a wake) to rediscover it (#2422). The latch is the
+    // short-circuit at the top of this function; reaching this arm a second time means a CONCURRENT asset was
+    // already in flight when the first one latched, which is a bounded handful, never the whole sweep.
+    const unservable = error instanceof ProviderError && error.kind === "model_unavailable";
+    const latched = unservable && markAvatarAnalysisUnservable(model);
+    // THE SKIP HAS TO BE AUDIBLE, AND IT IS ONE UNCONDITIONAL LINE ON PURPOSE. A backend that cannot serve
+    // this schema at all (no guided decoding on the summarize role, a family that drops `responseFormat`)
+    // fails EVERY asset identically, and the sweep's own counts cannot say so — the raw lens still lands, so
+    // a whole-corpus analysis failure reports as a tidy "0 embedded, N skipped". This line is the difference
+    // between a diagnosable outage and a silent one, and it is the catch's OWNER under
+    // `caught-failure-ownership`: a guarded early exit ahead of the governed log would leave the
+    // model-unavailable arm an unproven absorb, because the walk credits the first top-level statement.
+    getLog().warn(
+      { model, err: error, unservable, latched },
+      "embeddings indexer: avatar analysis failed — asset skipped, will retry next sweep (unservable=true means the summarize backend does not serve this model at all and analysis is now disabled for it until restart; point the summarize role at the model the engine serves)",
+    );
     return skipped(model);
   }
 }
