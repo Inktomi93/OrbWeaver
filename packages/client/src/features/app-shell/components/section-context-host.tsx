@@ -1,5 +1,5 @@
-// SectionContextHost + SectionContextHeader — the ONE CONTEXT-panel consumer pair (client-architecture-
-// lockdown.md §6b/M3). Domain-agnostic: both switch on `definition.context.kind` and never import a
+// SectionContextHost + SectionContextHeader — the ONE CONTEXT-panel consumer pair
+// (client-architecture-lockdown.md §6b/M3). Domain-agnostic: both switch on `definition.context.kind` and never import a
 // feature. `key={activeSection}` on BOTH mount sites is REQUIRED — different sections' `tabs` hosts call
 // different hook sets, legal only across a remount (rules-of-hooks).
 //

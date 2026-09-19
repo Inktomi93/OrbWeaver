@@ -5,7 +5,7 @@
 // It used to be spelled per element, and the three spellings disagreed: the bubble-family row outers
 // carried `mx-auto max-w-(--width-shell-content)`, the composer carried the same string independently,
 // and flat/hush/document carried a bare `w-full` — so the transcript hard-left-anchored while the composer
-// centred. Measured on the owner's own room (reports/design/chats-delta-2026-08-18.md §pane-states): the
+// centred. Measured on the owner's own room (design rescoring, 2026-08-18, pane-states): the
 // two boxes' centres sat 107px apart at the default pane state, 68px at list-collapsed, 260px at full
 // width, and agreed only at the one state where the pane happened to be narrower than the cap. The
 // composer visibly slid sideways on every context-panel toggle. Mobile was clean at every state (the
