@@ -3,6 +3,7 @@
 // avatar/name/chevron controls are DISJOINT siblings: clicking a control fires ONLY its own action, never
 // also "set current" (the stopPropagation crutch is gone because the elements no longer nest).
 
+import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { PersonaPanelRowDenseStory, PersonaPanelRowStory } from "../_ct-stories.tsx";
 
@@ -283,7 +284,7 @@ test.describe("coarse pointer", () => {
       // ONE control in the trailing cell — the kebab. The two collapsed verbs are not rendered controls
       // here at all (`display:none`, so they are out of the a11y tree too, not merely invisible).
       await expect(component.getByRole("button", { name: ANY_UNFAVORITE })).toHaveCount(0);
-      await expect(component.getByRole("button", { name: "Actions for Traveler" })).toBeVisible();
+      await expect(component.getByRole("button", { name: rowActionsName("Traveler") })).toBeVisible();
 
       // GEOMETRY, not classes: the cluster is now about one touch box wide instead of three.
       const [nameWidth, rowWidth, markerWidth] = await name.evaluate((el: HTMLElement): readonly [number, number, number] => {
@@ -343,7 +344,7 @@ test.describe("coarse pointer", () => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const component = await mount(<PersonaPanelRowDenseStory width={width} />);
 
-      await component.getByRole("button", { name: "Actions for Traveler" }).click();
+      await component.getByRole("button", { name: rowActionsName("Traveler") }).click();
       // The menu portals to the body — page-scoped locators.
       const menu = page.getByRole("menu");
       await expect(menu).toBeVisible();
@@ -372,7 +373,7 @@ test("a fine pointer keeps the inline verbs and drops their menu twins — exact
   // underneath and Playwright's actionability check refuses. `:hover` on the row is true either way (the
   // stretched button is inside `group/row`), so this is the same interaction, aimed at a live target.
   await component.getByRole("button", { name: "Rename Traveler", exact: true }).hover();
-  await component.getByRole("button", { name: "Actions for Traveler" }).click();
+  await component.getByRole("button", { name: rowActionsName("Traveler") }).click();
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "Export" })).toBeVisible();

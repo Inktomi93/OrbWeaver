@@ -25,6 +25,23 @@ export function rowActionSubject(name: string, qualifier: string | undefined): s
   return qualifier === undefined ? name : `"${name}" · ${qualifier}`;
 }
 
+/**
+ * The accessible name of a row's ACTION-MENU trigger (the trailing kebab) — `Actions for <subject>`.
+ *
+ * The grammar was re-spelled at every kebab in the client and again in ~50 test locators, so a copy change
+ * broke specs that never imported the thing they assert (#2261; #2245 guessed a name the product does not
+ * build). One exported builder makes the coupling COMPILE-time: the component and its tests call the same
+ * function, and a drifted spelling cannot exist. `subject` is `rowActionSubject`'s output wherever the row
+ * is disambiguated, and the bare row name where it is not.
+ *
+ * NOT the universal kebab name: the theme rows deliberately use `Theme actions: <name>` instead
+ * (`features/settings/lib/theme-row-names.ts`, #2252) because the bare `Actions for Mocha` collided with
+ * Playwright's substring matching against the theme cell of the same name.
+ */
+export function rowActionsName(subject: string): string {
+  return `Actions for ${subject}`;
+}
+
 /** One row's disambiguation inputs: the name its actions announce + the instant its stamp shows. */
 interface RowQualifierRow {
   readonly name: string;

@@ -6,6 +6,7 @@
 // the row geometry at the pane floor, where a `shrink-0` trailing cluster sized in a wider context is this
 // repo's most common rendered defect.
 
+import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
@@ -36,8 +37,8 @@ test("320px: every row's kebab lands at the SAME x, and nothing overflows the pa
   await stubRack(page);
   const component = await mount(<ChatBooksSectionStory isHost={true} />);
 
-  const long = component.getByRole("button", { name: "Actions for The Ashfall Canon — Houses, Oaths and the Long Winter" });
-  const short = component.getByRole("button", { name: "Actions for Session Notes" });
+  const long = component.getByRole("button", { name: rowActionsName("The Ashfall Canon — Houses, Oaths and the Long Winter") });
+  const short = component.getByRole("button", { name: rowActionsName("Session Notes") });
   await expect(long).toBeVisible();
   await expect(short).toBeVisible();
 
@@ -46,9 +47,9 @@ test("320px: every row's kebab lands at the SAME x, and nothing overflows the pa
     const box = await component.getByRole("button", { name }).boundingBox();
     return { x: box?.x ?? -1, right: (box?.x ?? -1) + (box?.width ?? 0) };
   };
-  const target = await boxOf("Actions for Session Notes");
+  const target = await boxOf(rowActionsName("Session Notes"));
   await expect
-    .poll(() => boxOf("Actions for The Ashfall Canon — Houses, Oaths and the Long Winter").then((b) => b.x), { intervals: [20, 50, 100, 200] })
+    .poll(() => boxOf(rowActionsName("The Ashfall Canon — Houses, Oaths and the Long Winter")).then((b) => b.x), { intervals: [20, 50, 100, 200] })
     .toBe(target.x);
 
   // …and the cluster is INSIDE the 320px pane, not pushed past its right edge by the long title.

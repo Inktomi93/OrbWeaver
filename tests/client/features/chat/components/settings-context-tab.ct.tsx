@@ -7,6 +7,7 @@
 // `chat.setRoomOverrides` + `chat.listChatInjections` (the folded-in Injections section's read); the draft
 // arm is store-backed (no network).
 
+import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -995,7 +996,7 @@ test("#640 host: the row's overflow menu detaches THIS book from THIS room", asy
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
   await openContextSections(component, "World books");
 
-  await component.getByRole("button", { name: "Actions for Ashfall Canon" }).click();
+  await component.getByRole("button", { name: rowActionsName("Ashfall Canon") }).click();
   await page.getByRole("menuitem", { name: "Detach from this chat" }).click();
 
   await expect
@@ -1020,7 +1021,7 @@ test("#640 member: the rows are visible, and there is NO attach and NO detach (p
   await expect(component.getByRole("heading", { name: "World books 1", level: 3 })).toBeVisible();
   await expect(component.getByText("Ashfall Canon")).toBeVisible();
   await expect(component.getByRole("button", { name: "Attach a world book" })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Actions for Ashfall Canon" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: rowActionsName("Ashfall Canon") })).toHaveCount(0);
   // The member gloss says why books they cannot touch are shaping their turns.
   await expect(component.getByText("Only the host attaches or removes one.", { exact: false })).toBeVisible();
 });

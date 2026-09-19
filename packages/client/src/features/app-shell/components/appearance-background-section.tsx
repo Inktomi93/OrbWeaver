@@ -26,6 +26,7 @@ import { ConfigTeachScope, QueryBoundary, RowActionsMenu, SettingRow, SettingRow
 import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { rowActionsName } from "#lib";
 import { configAnchorId } from "#state";
 import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
@@ -160,7 +161,7 @@ function BackgroundBody({ sectionId, session }: { readonly sectionId: string; re
                     <ListRow
                       key={entry.entryId}
                       actions={
-                        <RowActionsMenu label={`Actions for ${entry.name}`} triggerSize="sm">
+                        <RowActionsMenu label={rowActionsName(entry.name)} triggerSize="sm">
                           <MenuItem onClick={(): void => removeEntry(entry)}>
                             <Icon icon={Trash2} size="sm" />
                             Remove from library

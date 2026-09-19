@@ -16,7 +16,7 @@ import type { ListRowProps } from "@orb/ui/list-row";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
-import { rowActionSubject } from "#lib";
+import { rowActionSubject, rowActionsName } from "#lib";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
 import { ROW_REVEAL } from "./row-reveal.ts";
 
@@ -275,7 +275,7 @@ function LibraryRowMenu({
   const remove = onDelete;
   return (
     <RowActionsMenu
-      label={`Actions for ${rowActionSubject(name, qualifier)}`}
+      label={rowActionsName(rowActionSubject(name, qualifier))}
       reveal={true}
       triggerSize="icon"
       // A row with no delete VERB renders no destructive arm — items are OMITTED, never disabled (the

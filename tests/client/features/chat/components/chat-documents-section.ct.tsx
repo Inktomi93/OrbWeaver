@@ -15,6 +15,7 @@
 //
 // Every arm mounts ONCE (`ct-mount-is-once-per-test`).
 
+import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { DocumentId } from "@orb/kit/ids";
@@ -133,10 +134,10 @@ test("host: Detach renders ONLY for a 'This chat' row — a member's Everywhere 
 
   // The un-detachable rows have no kebab at all (never a disabled one — a control the host cannot operate
   // is exactly the lie legacy's read-only Switch told).
-  await expect(component.getByRole("button", { name: `Actions for ${GLOBAL_DOC.name}` })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: `Actions for ${HIDDEN_CHAR_DOC.name}` })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: rowActionsName(GLOBAL_DOC.name) })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: rowActionsName(HIDDEN_CHAR_DOC.name) })).toHaveCount(0);
 
-  await component.getByRole("button", { name: `Actions for ${CHAT_DOC.name}` }).click();
+  await component.getByRole("button", { name: rowActionsName(CHAT_DOC.name) }).click();
   await page.getByRole("menuitem", { name: "Detach from this chat" }).click();
   await expect.poll(() => (trpc.lastInput(DETACH) as { documentId?: DocumentId } | undefined)?.documentId, { intervals: [20, 50, 100] }).toBe(CHAT_DOC.id);
 });
@@ -150,7 +151,7 @@ test("member: the rows render and NONE of the controls do (permission-OMIT, one 
   await expect(component.getByText("Everywhere", { exact: true })).toBeVisible();
 
   await expect(component.getByRole("button", { name: `Stop ${CHAT_DOC.name} feeding this chat` })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: `Actions for ${CHAT_DOC.name}` })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: rowActionsName(CHAT_DOC.name) })).toHaveCount(0);
   await expect(component.getByRole("button", { name: "Add from your bank" })).toHaveCount(0);
 });
 

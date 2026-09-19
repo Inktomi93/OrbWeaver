@@ -17,7 +17,7 @@ import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { timeLib } from "#lib";
-import { ROLE_BADGE_INTENT, ROLE_ITEMS, ROLE_LABELS } from "../lib/admin-model.ts";
+import { ROLE_BADGE_INTENT, ROLE_ITEMS, ROLE_LABELS, userActionsName, userEnabledFieldName, userRoleFieldName } from "../lib/admin-model.ts";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
@@ -53,7 +53,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
             {user.enabled ? null : <Badge intent="danger">Disabled</Badge>}
             {isOwnerRow ? null : (
               <Select
-                aria-label={`Role — ${user.handle}`}
+                aria-label={userRoleFieldName(user.handle)}
                 disabled={!props.viewerIsOwner || props.rolePending}
                 items={ROLE_ITEMS}
                 onValueChange={(value): void => {
@@ -66,7 +66,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
             )}
             {isOwnerRow ? null : (
               <Switch
-                aria-label={`Enabled — ${user.handle}`}
+                aria-label={userEnabledFieldName(user.handle)}
                 checked={user.enabled}
                 disabled={props.isSelf || props.enabledPending}
                 onCheckedChange={(next): void => {
@@ -78,7 +78,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
                 }}
               />
             )}
-            <RowActionsMenu label={`${user.handle} actions`} triggerSize="sm">
+            <RowActionsMenu label={userActionsName(user.handle)} triggerSize="sm">
               <MenuItem onClick={props.onOpenSessions}>
                 <Icon icon={MonitorSmartphone} size="sm" />
                 Sessions…

@@ -19,6 +19,7 @@
 // `preset.list`/`settings.getUserSettings` are stubbed at the NETWORK (routeTrpc); the menu + ConfirmDialog
 // render in a PORTAL, so they are located on `page`, not the mounted component.
 
+import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -129,7 +130,7 @@ test("#434 the 'Show list panel' footnote renders only while the Presets LIST is
 // disambiguated SHAPE, never the elapsed text. The closing quote is what keeps `…(edited)"` from also
 // matching `…(edited) 2"`.
 function menuFor(name: string): string {
-  return `Actions for "${name}" ·`;
+  return rowActionsName(`"${name}" ·`);
 }
 /** The activate toggle's accessible name — ONE label in both states (the press only ever activates). */
 function activateFor(name: string): string {
@@ -556,7 +557,7 @@ test("P3a two forks with the SAME name expose distinct action names (the stamp d
   expect(names).toHaveLength(2);
   expect(new Set(names).size).toBe(2);
   // …and the disambiguator is the row's own stamp, not an index or an id.
-  expect(names.every((name) => name.startsWith(`Actions for "${EDITED_ONE_NAME}" · `))).toBe(true);
+  expect(names.every((name) => name.startsWith(rowActionsName(`"${EDITED_ONE_NAME}" · `)))).toBe(true);
 });
 
 test("P3 the built-in row IS duplicable — a kebab holding Duplicate and nothing else it can do", async ({ mount, page }) => {

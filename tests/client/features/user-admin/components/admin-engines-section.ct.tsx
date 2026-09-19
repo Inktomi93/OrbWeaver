@@ -4,6 +4,7 @@
 // launch editor's `settings.getAppSettings` read + only-moved-fields `updateAppSettings` delta. Every verb
 // is adminProcedure server-side — this section is UX honesty over that floor.
 
+import { restartEngineName } from "@orb/client/features/user-admin";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
@@ -109,7 +110,7 @@ test("engines: restart fires restartVllmEngine for THAT engine", async ({ mount,
   const trpc = await stub(page, { "admin.restartVllmEngine": () => "restart 1/3" });
   const component = await mount(<AdminEnginesSectionStory />);
 
-  await component.getByRole("button", { name: "Restart engine — rerank" }).click();
+  await component.getByRole("button", { name: restartEngineName("rerank") }).click();
   await expect.poll(() => trpc.lastInput("admin.restartVllmEngine"), { intervals: [20, 50, 100] }).toEqual({ engine: "rerank" });
 });
 

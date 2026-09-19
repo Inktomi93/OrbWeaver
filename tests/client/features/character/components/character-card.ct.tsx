@@ -17,6 +17,7 @@
 // the float arm specifically (an invisible control sitting ON the title text must not be hit-testable); an
 // IN-FLOW cluster keeps its live hit target, which is what bulk mode's checkbox relies on.
 
+import { rowActionsName } from "@orb/client/lib";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -228,7 +229,7 @@ test("§12 the kebab's Export card submenu links BOTH formats to the owner-gated
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
   // The floated cluster is inert at rest (P1-3) — reach the kebab the way a user does.
   await component.locator('[data-slot="list-row-root"]').hover();
-  await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+  await component.getByRole("button", { name: rowActionsName("Aria Nightshade"), exact: true }).click();
   await page.getByRole("menuitem", { name: "Export card" }).click();
 
   const png = page.getByRole("menuitem", { name: "With avatar (.png)" });
@@ -248,7 +249,7 @@ test("§12 the kebab's Export card submenu links BOTH formats to the owner-gated
 test("the row kebab is the vocabulary's `row` slice, in order, destructive last", async ({ mount, page }) => {
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
   await component.locator('[data-slot="list-row-root"]').hover();
-  await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+  await component.getByRole("button", { name: rowActionsName("Aria Nightshade"), exact: true }).click();
 
   await expect(page.getByRole("menu").getByRole("menuitem")).toHaveText(["Archive", "Duplicate", "Export card", "Delete"]);
 });
@@ -256,7 +257,7 @@ test("the row kebab is the vocabulary's `row` slice, in order, destructive last"
 test("the row kebab's archive verb wears its second face on an archived row", async ({ mount, page }) => {
   const component = await mount(<CharacterCardTileStory archived={true} name="Aria Nightshade" />);
   await component.locator('[data-slot="list-row-root"]').hover();
-  await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+  await component.getByRole("button", { name: rowActionsName("Aria Nightshade"), exact: true }).click();
 
   await expect(page.getByRole("menu").getByRole("menuitem")).toHaveText(["Unarchive", "Duplicate", "Export card", "Delete"]);
 });
@@ -294,7 +295,7 @@ test.describe("coarse pointer", () => {
       await expect(component.getByRole("button", { name: ANY_STAR_VERB })).toHaveCount(0);
       // The two that survive: the core-loop CTA and the one overflow door.
       await expect(component.getByRole("button", { name: `Chat with ${LONG_NAME}`, exact: true })).toBeVisible();
-      await expect(component.getByRole("button", { name: `Actions for ${LONG_NAME}`, exact: true })).toBeVisible();
+      await expect(component.getByRole("button", { name: rowActionsName(LONG_NAME), exact: true })).toBeVisible();
 
       // GEOMETRY, not classes. Two touch boxes (48px each) plus the cluster's own gap — never three.
       await expect
@@ -352,7 +353,7 @@ test.describe("coarse pointer", () => {
     test(`@${width}: the collapsed star verb is reachable through the kebab, and fires the same seam`, async ({ mount, page }) => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={false} width={width} />);
-      await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+      await component.getByRole("button", { name: rowActionsName("Aria Nightshade"), exact: true }).click();
       const item = page.getByRole("menuitem", { name: "Star" });
       await expect(item).toHaveCount(1);
       await item.click();
@@ -367,6 +368,6 @@ test.describe("coarse pointer", () => {
 test("the coarse star twin is absent from the kebab at a fine pointer", async ({ mount, page }) => {
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
   await component.locator('[data-slot="list-row-root"]').hover();
-  await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+  await component.getByRole("button", { name: rowActionsName("Aria Nightshade"), exact: true }).click();
   await expect(page.getByRole("menuitem", { name: "Star" })).toHaveCount(0);
 });

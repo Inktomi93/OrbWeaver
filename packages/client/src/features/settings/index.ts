@@ -12,3 +12,4 @@
 export { appearanceGroup } from "./lib/appearance-group.tsx";
 export { appearanceLooksSection } from "./lib/appearance-looks-section.tsx";
 export { chatBehaviorGroup } from "./lib/chat-behavior-group.tsx";
+export { themeActionsName } from "./lib/theme-row-names.ts";

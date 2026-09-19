@@ -13,6 +13,7 @@
 // directly assertable — see the socket-budget test at the bottom, which is the S5 claim: N watched runs,
 // ONE connection. The story mounts the socket above the section, as `routes/app-root.tsx` does.
 
+import { WORKLOAD_KIND_LABELS } from "@orb/client/features/workloads";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -237,7 +238,7 @@ test("owner bulk create-kind: the Bulk switch + required target picker wire targ
   await page.getByTestId("workloads-run-button").click();
 
   await page.getByRole("combobox", { name: "Job" }).click();
-  await page.getByRole("option", { name: "Import from SillyTavern" }).click();
+  await page.getByRole("option", { name: WORKLOAD_KIND_LABELS["import-st"] }).click();
 
   await page.getByRole("switch", { name: "Bulk mode" }).click();
   // A bulk CREATE-kind requires the mint target — submit is validation-blocked until one is picked.
@@ -541,7 +542,7 @@ test("list: rows in BOTH lanes render under their lane headings", async ({ mount
   await expect(allPanel.getByText("Interactive — jobs you're waiting on")).toBeVisible();
   await expect(allPanel.getByText("Sweeps — bulk maintenance")).toBeVisible();
   await expect(allPanel.getByText("Databank ingest")).toBeVisible();
-  await expect(allPanel.getByText("Import from SillyTavern")).toBeVisible();
+  await expect(allPanel.getByText(WORKLOAD_KIND_LABELS["import-st"])).toBeVisible();
 });
 
 test("list: with every row in ONE lane the heading is dropped (a lone group label is noise)", async ({ mount, page }) => {

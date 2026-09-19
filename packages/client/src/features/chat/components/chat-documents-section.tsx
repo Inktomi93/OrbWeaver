@@ -43,6 +43,7 @@ import { Fragment, useRef, useState } from "react";
 import { RowActionsMenu, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { rowActionsName } from "#lib";
 import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hooks/use-chat-document-mutations.ts";
 import { isDetachableFromChat, nextHiddenSet, placesDatabankSlot, sourceChips } from "../lib/chat-documents-model.ts";
 import { AddChatDocumentDialog } from "./add-chat-document-dialog.tsx";
@@ -281,7 +282,7 @@ function ActiveDocumentRow({ document, isHost, onSetHidden, onDetach }: ActiveDo
                   rest="always"
                 />
                 {detachable ? (
-                  <RowActionsMenu label={`Actions for ${document.name}`}>
+                  <RowActionsMenu label={rowActionsName(document.name)}>
                     <MenuItem onClick={onDetach}>
                       <Icon icon={Unlink} size="sm" />
                       Detach from this chat

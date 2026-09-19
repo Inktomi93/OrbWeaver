@@ -197,7 +197,7 @@ export {
   resolveThemeScopeTokens,
   type SeedThemeName,
 } from "./resolve-theme-scope-tokens.ts";
-export { rowActionSubject, rowQualifiers } from "./row-qualifiers.ts";
+export { rowActionSubject, rowActionsName, rowQualifiers } from "./row-qualifiers.ts";
 export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export type { SessionDocumentHost } from "./session-document-host.ts";

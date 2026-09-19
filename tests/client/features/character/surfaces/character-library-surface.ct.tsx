@@ -15,6 +15,7 @@
 // NOTE (mirrors message-list-surface.ct.tsx's own note): `trpc.character.list` is stubbed at the NETWORK
 // (routeTrpc) — the responder inspects the decoded input (cursor · search · chips) to serve its page.
 
+import { rowActionSubject, rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -1809,7 +1810,7 @@ test("#517 the qualifier is spent on AMBIGUITY — both Emilys carry one, the un
 
   // …and the row's CONTROLS speak the same identity (`rowActionSubject`, #443/#458/#463) — fixing only the
   // body would have left two identically-named kebabs and two identical "Chat with Emily" behind it.
-  await expect(component.getByRole("button", { name: 'Actions for "Emily" · emily-3' })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: rowActionsName(rowActionSubject("Emily", "emily-3")) })).toHaveCount(1);
   await expect(component.getByRole("button", { name: 'Chat with "Emily" · emily-3' })).toHaveCount(1);
   await expect(component.getByRole("button", { name: 'Chat with "Emily" · emily', exact: true })).toHaveCount(1);
 });

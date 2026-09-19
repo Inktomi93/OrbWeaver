@@ -6,6 +6,7 @@
 //   · the kebab-only action grammar, with EXPORT as the ruled row arm (D121-D `kebab=Export`);
 //   · the host's `filter`, applied by the owner's own rows.
 
+import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
@@ -68,7 +69,7 @@ test("rows stay kebab-only, and EXPORT is the row's ruled arm", async ({ mount, 
 
   // §12.2: the kebab rests hidden + inert like every row affordance, so reach it by hovering the row.
   await rows.locator('[data-slot="list-row-root"]', { hasText: "The Ninefold Reach" }).hover();
-  await rows.getByRole("button", { name: "Actions for The Ninefold Reach", exact: true }).click();
+  await rows.getByRole("button", { name: rowActionsName("The Ninefold Reach"), exact: true }).click();
   // NAMING HAS ONE HOME (#442). The kebab used to carry Rename as well, so the same verb was reachable
   // under two different accessible names on this one collection — "Rename" here, "Edit book details" →
   // "Name" in the member editor — while tags and regex rename in the editor only. The dialog is the wider
@@ -96,7 +97,7 @@ test("the host's filter is applied by the owner's rows", async ({ mount, page })
 // simply only applies once the id IS deleted.
 async function deleteTheOpenBook(rows: Locator, page: Page): Promise<void> {
   await rows.locator('[data-slot="list-row-root"]', { hasText: REACH.name }).hover();
-  await rows.getByRole("button", { name: `Actions for ${REACH.name}`, exact: true }).click();
+  await rows.getByRole("button", { name: rowActionsName(REACH.name), exact: true }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
   const confirm = page.getByRole("alertdialog");
   if (await confirm.isVisible()) {

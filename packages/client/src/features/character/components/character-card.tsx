@@ -38,7 +38,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP_COARSE_KEEP, RowActionsMenu, RowToggleAction } from "#components";
-import { rowActionSubject } from "#lib";
+import { rowActionSubject, rowActionsName } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel, EXPORT_CHARACTER_PATH } from "../lib/character-actions.ts";
 
@@ -309,7 +309,7 @@ function NormalRowActions({
       </Button>
       <RowActionsMenu
         align="start"
-        label={`Actions for ${subject}`}
+        label={rowActionsName(subject)}
         reveal={true}
         destructive={{
           separator: false,

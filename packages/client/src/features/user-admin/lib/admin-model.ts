@@ -63,3 +63,33 @@ export function engineBadgeIntent(status: string): NonNullable<BadgeProps["inten
   }
   return "danger"; // hung / failed / foreign / anything new
 }
+
+// The Admin pane's ACCESSIBLE-NAME builders. Every per-row control here repeats the row's handle (or the
+// engine key) because the pane renders N otherwise-identical controls, and an unqualified name would hand a
+// reader N identical subjects. They are exported — and the specs IMPORT them rather than re-spelling the
+// literal — so a copy change is a compile error rather than a locator that silently stops matching (#2261).
+
+/** The per-engine Restart button. `Restart engine — vllm-chat`. */
+export function restartEngineName(engine: string): string {
+  return `Restart engine — ${engine}`;
+}
+
+/** One user row's ⋯ trigger. `kes actions` — the pane's own grammar, not the library `Actions for <x>`. */
+export function userActionsName(handle: string): string {
+  return `${handle} actions`;
+}
+
+/** One user row's role Select. `Role — kes`. */
+export function userRoleFieldName(handle: string): string {
+  return `Role — ${handle}`;
+}
+
+/** One user row's enabled Switch. `Enabled — kes`. */
+export function userEnabledFieldName(handle: string): string {
+  return `Enabled — ${handle}`;
+}
+
+/** One row in the sessions dialog. The subject is the session's user agent, falling back to its id. */
+export function revokeSessionName(subject: string): string {
+  return `Revoke session — ${subject}`;
+}
