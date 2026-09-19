@@ -1,5 +1,13 @@
 // Dev/test-only class-merge evidence. Winner recovery replays the injected configured merger; this file
 // never classifies Tailwind syntax or imports tailwind-merge internals.
+//
+// ITS SCROLL COST IS DEV-ONLY AND EXPECTED (#2438, measured 2026-09-19). A 25-tick wheel burst over the
+// longest stage transcript books 22 long tasks / 1706 ms / worst 128 ms / 77 ms BLOCKING on a dev build and
+// 5 / 278 ms / worst 61 ms / 11 ms on the PROD bundle of the same commit, same room, same db, same scroll
+// geometry — so this tracer, `content-growth.ts`'s dev logging, jsxDEV/createElement and the HMR client are
+// most of that 77 ms, and none of it ships. Do not open a transcript-scroll perf row off a dev number.
+// The burst must be dy NEGATIVE: the transcript is tail-pinned, so a positive-dy burst scrolls nothing and
+// records 0 long tasks / 0 blocking — an EMPTY window that reads exactly like a clean surface.
 
 import { setCssMergeObserver } from "./class-merge.ts";
 import type { CssClassOccurrence, CssMergeConflict, CssMergeReceipt, CssMergeTraceSnapshot, CssMergeTraceState } from "./css-merge-contract.ts";

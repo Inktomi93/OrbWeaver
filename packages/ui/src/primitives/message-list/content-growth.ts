@@ -3,6 +3,16 @@
 // (UI-Primitives-and-Reuse.md §13.7), like list-window.ts, follow-yield.ts, pin-spacer.ts and announce.ts.
 // The seal keeps the WHEN (which refs, which render); this file owns the WHAT and the WHY.
 //
+// THE TRANSCRIPT'S SCROLL COST ON A DEV BUILD IS DEV-ONLY AND EXPECTED (#2438, measured 2026-09-19). A
+// 25-tick wheel burst over the longest stage transcript books 22 long tasks / 1706 ms / worst 128 ms /
+// 77 ms BLOCKING in dev and 5 / 278 ms / worst 61 ms / 11 ms on the PROD bundle of the same commit — same
+// room, same db, same scroll geometry, `window.__orb` absent (so it really was the prod bundle). The prod
+// CPU profile is 50% idle with no app frame above 2%. The dev cost is jsxDEV/createElement plus the
+// dev-only instrumentation (this file's logging, `lib/css-merge-trace.ts`) and the HMR client; none of it
+// ships, so a transcript-scroll perf row must be opened off a PROD measurement, never a dev one. The burst
+// must be dy NEGATIVE — the list is tail-pinned, and a positive-dy burst scrolls nothing and records
+// 0 long tasks / 0 blocking, an EMPTY window that reads exactly like a clean surface.
+//
 // THE SIGNAL COMES FROM VIRTUAL-CORE, NOT FROM A ResizeObserver (#1384, c53958876). Both effects need
 // "the measured content got taller"; both used to observe `viewportNodeRef` — virtual-core's own container
 // (`setViewportRef` → `containerRef`), whose height IT writes from inside its own `measureElement`
