@@ -416,7 +416,7 @@ before course-correcting to snap and proved the snap flow covered nearly everyth
 **THE KEYBOARD WALK IS A SNAP CALL AS OF 2026-08-16.** `--key Tab` (BARE, no `=`) presses the page keyboard
 without changing focus, so N of them walk N stops inside a Base UI focus trap, and `--eval` now runs in
 the SAME argv-ordered queue, so one call reads `document.activeElement` at every stop:
-`snap / --goto settings:appearance --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Escape`.
+`snap / --goto config:appearance --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Escape`.
 (`--key 'selector=Key'` is the OTHER form — it re-focuses the selector before each press, which is why
 "Tab never advances focus" was believed. End a dialog walk on Escape, never Enter.) What remains true:
 Chromium does NOT promote a scripted `.focus()` to `:focus-visible`, so `snap --eval el.focus()` still

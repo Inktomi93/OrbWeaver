@@ -34,7 +34,11 @@
 // CUSTOM CSS IS NEVER INJECTED HERE. A theme's `css` stays global owner CSS; the thumbnail shows the
 // GOVERNED, clamped palette — which is also the only thing that can be shown honestly at 100px.
 //
-// IT STAYS IN `features/settings`, AND THAT IS A RULING, NOT AN ACCIDENT (#1152, 2026-09-05). #920's cold
+// IT IS NOT PROMOTED TO A SHARED CLIENT TIER, AND THAT IS A RULING, NOT AN ACCIDENT (#1152, 2026-09-05).
+// The ruling SURVIVES #2447 — its INPUT changed. It was recorded as "it stays in `features/settings`"; that
+// feature no longer exists (owner ruling 2026-09-19 folded it whole into `features/config`), so the file
+// travelled with the Looks section it serves and the ruling's MECHANISM — one feature-local reader, no
+// promotion to `#components`/`#lib` — is unchanged and is what the sentence now says. #920's cold
 // contract asked for it to be reused in the character tab's `StartFromThemeField` menu, which
 // `client-features-no-cross` forbids as a sideways import; the arms were "re-home it to a shared client
 // tier" or "rule the strip sufficient". The STRIP won, so there is no second reader and no re-home: that
@@ -42,8 +46,8 @@
 // so depiction equals payload — whereas THIS surface deliberately does NOT paint a seed's override (see the
 // provenance paragraph above), and mounting it on that door would make the picture disagree with what the
 // pick delivers on exactly Hearth/Mocha/Light. Full receipt: `docs/design/config-revamp-design.md` §7.3,
-// the "ONE theme-swatch atom" addendum. If a SECOND settings-side reader ever appears, this file moves
-// nowhere; only a CHARACTER-side one would re-open the tier question.
+// the "ONE theme-swatch atom" addendum. If a SECOND reader inside THIS feature ever appears, this file
+// moves nowhere; only a CHARACTER-side one would re-open the tier question.
 
 import type { Theme } from "@orb/contracts/theme";
 import { Row, Stack } from "@orb/ui/layout";

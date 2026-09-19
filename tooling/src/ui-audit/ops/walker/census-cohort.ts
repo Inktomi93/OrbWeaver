@@ -112,7 +112,7 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       typeof cel.getAnimations === "function" &&
       cel.getAnimations().some(function (animation) { return animation.playState === "running" || animation.playState === "pending"; });
     // A ROW SIZED BY ITS OWN CONTENT IS NOT A DEFECT (repaired after the first live run). On
-    // settings:appearance this rule flagged a setting-row cohort at 234 / 53 / 34px — but the 234px
+    // config:appearance this rule flagged a setting-row cohort at 234 / 53 / 34px — but the 234px
     // member holds a three-card theme picker and the 34px one holds a button, so the markup is right and
     // the heights SHOULD differ. Half the findings on that surface were this shape.
     //

@@ -8,7 +8,7 @@
 // A settings-SECTION CONTRIBUTION at the `chat-behavior` anchor owned by features/chat (D114 reader-owns:
 // chat is the reader of twelve of the eighteen slots and already owns the sibling Image-prompts section; the
 // registry itself is cross-domain contracts data, so no other feature has a stronger claim, and D120 forbids
-// growing features/settings — it owns the SHELL, never the knobs).
+// growing features/config — it owns the SHELL, never the knobs).
 //
 // The three affordances, identical to imagery + guided actions (PROSE-1 §5): the shipped default GHOSTS as
 // the field placeholder (empty field = using the built-in, byte-identical), a Default/Customized footer

@@ -16,8 +16,11 @@ const SERVER_SRC = /\/packages\/server\/src\//u;
 const CLIENT_SRC = /\/packages\/client\/src\//u;
 const UI_SRC = /\/packages\/ui\/src\//u;
 const ENTRY_SCOPE = /\/packages\/server\/src\/entry\//u;
-/** Arm B2: the admin write surfaces (settings + user-admin feature dirs). */
-const ADMIN_SURFACES = /\/packages\/client\/src\/features\/(?:settings|user-admin)\//u;
+/** Arm B2: the admin write surfaces (the config host + the user-admin feature dir). The settings feature
+ *  folded INTO `features/config` at #2447 (owner ruling 2026-09-19), taking every surface this arm ever
+ *  scanned with it; no `appSettingsSchema` key was written in either dir on the day of the move, so the
+ *  re-point is verdict-identical and only the FUTURE landing site changes. */
+const ADMIN_SURFACES = /\/packages\/client\/src\/features\/(?:config|user-admin)\//u;
 /** Arm F: metadata WRITE scope (verbs + tRPC routers); the parser file is excluded from the READ scope. */
 const CHAT_WRITE_SCOPE = /\/packages\/server\/src\/(?:domain\/chat\/verbs|transport\/trpc)\//u;
 

@@ -15,8 +15,7 @@ import type { Page } from "@playwright/test";
 import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/browser/settings-geometry.ts";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { ConfigHostStory } from "../../config/_ct-stories.tsx";
-import { AppearanceGroupStory } from "../_ct-stories.tsx";
+import { AppearanceGroupStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 /** A bundled SCENE PLATE as this surface sees one since `kind:"seeded"` retired (2026-09-18): an ordinary
  *  `appearance.backgroundLibrary` entry, seeded per user from `@orb/default-content`. The grid used to draw

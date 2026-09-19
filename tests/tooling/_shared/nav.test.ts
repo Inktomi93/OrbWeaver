@@ -26,11 +26,11 @@ test("--focus decodes on|off into a bridge boolean", () => {
 
 test("--goto is DECODED in Node, so the emitted script names one concrete method", () => {
   // The bridge does not understand the namespaced spelling; parseGotoTarget (_kit/flags.ts) picks the arm.
-  expect(buildNavScript("goto", "settings:appearance")).toContain('nav.openConfig("appearance")');
-  expect(buildNavScript("goto", "settings:appearance.sizing")).toContain('nav.openConfig("appearance", "sizing")');
+  expect(buildNavScript("goto", "config:appearance")).toContain('nav.openConfig("appearance")');
+  expect(buildNavScript("goto", "config:appearance.sizing")).toContain('nav.openConfig("appearance", "sizing")');
   // The THIRD leg (#1176 widened the bridge to `openConfig(group, sub?, setting?)`; #1639 made it
   // reachable from the CLI): without it no probe could ever drive to one setting LEAF.
-  expect(buildNavScript("goto", "settings:appearance.sizing.density")).toContain('nav.openConfig("appearance", "sizing", "density")');
+  expect(buildNavScript("goto", "config:appearance.sizing.density")).toContain('nav.openConfig("appearance", "sizing", "density")');
   expect(buildNavScript("goto", "modal:you")).toContain('nav.openModal("you")');
   expect(buildNavScript("goto", "presets")).toContain('nav.section("presets")');
 });
@@ -38,7 +38,7 @@ test("--goto is DECODED in Node, so the emitted script names one concrete method
 test("--goto REFUSES a config address with a fourth part rather than emitting a call that lands elsewhere", () => {
   // A nav that did not land means the probe is measuring some OTHER surface — the module's own contract.
   // The refusal reaches the caller as a NAV FAILED line + a reddened exit (snap/ops/drive.ts's driveNav).
-  expect(() => buildNavScript("goto", "settings:appearance.sizing.density.extra")).toThrow("settings:<group>[.<sub>[.<setting>]]");
+  expect(() => buildNavScript("goto", "config:appearance.sizing.density.extra")).toThrow("config:<group>[.<sub>[.<setting>]]");
 });
 
 test("a target with quotes cannot break out of the emitted call", () => {

@@ -38,7 +38,7 @@ import {
   makeChatsSection,
   newChatModal,
 } from "#features/chat";
-import { bindConfigPaletteGroups, configPaletteSource, makeConfigSection } from "#features/config";
+import { appearanceGroup, bindConfigPaletteGroups, chatBehaviorGroup, configPaletteSource, makeConfigSection } from "#features/config";
 import { connectionsGroup } from "#features/credentials";
 import { addDocumentModal, databankSection } from "#features/databank";
 import { corpusSection } from "#features/discovery";
@@ -65,7 +65,6 @@ import { refinerySection } from "#features/refinery";
 import { regexGroup } from "#features/regex";
 import { rosterGroup, savedRostersModal } from "#features/roster-preset";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceAskSource, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
-import { appearanceGroup, chatBehaviorGroup } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { tagsGroup } from "#features/tag";
 import { adminGroup } from "#features/user-admin";

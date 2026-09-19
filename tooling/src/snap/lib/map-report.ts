@@ -84,7 +84,7 @@ function printAtlas(atlas: MapAtlasEvidence | null, error: string | null): void 
   print(`  CURRENT url=${place.url} section=${place.section ?? "(unpublished)"} chat-open=${String(place.chatOpen)} focus=${String(place.focus)}`);
   printGroup("SECTIONS", capabilities.sections, (value) => command("--goto", value));
   printGroup("MODALS", capabilities.modalSlots, (value) => command("--goto", `modal:${value}`));
-  printGroup("SETTINGS", capabilities.configGroups, (value) => command("--goto", `settings:${value}`));
+  printGroup("CONFIG GROUPS", capabilities.configGroups, (value) => command("--goto", `config:${value}`));
   printGroup(
     "CONTEXT TABS",
     capabilities.contextTabNames.map((entry) => `${entry.id}\u0000${entry.label}`),

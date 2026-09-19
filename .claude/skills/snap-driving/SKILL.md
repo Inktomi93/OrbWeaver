@@ -102,7 +102,7 @@ Preconditions and geography:
 - The dev stack must be up: `pnpm stack status`, `pnpm stack start` (server :8788, vite :5173).
   A hanging snap or instant nav error usually means it is not.
 - **Navigation is client state, not URLs** — the app has 2 URL routes (`/`, `/login`). "Go to X"
-  means `--goto <section|settings:<cat>|modal:<slot>>` / `--open-chat` / `--open-character` /
+  means `--goto <section|config:<group>|modal:<slot>>` / `--open-chat` / `--open-character` /
   `--context-tab`, never a URL path. Snapping `/some-path` renders the home shell under a
   misleading PNG name.
 - Every artifact lands under `reports/` (gitignored) — snaps, traces, JSON manifests. Never write

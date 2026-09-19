@@ -35,7 +35,7 @@ export function rowActionSubject(name: string, qualifier: string | undefined): s
  * is disambiguated, and the bare row name where it is not.
  *
  * NOT the universal kebab name: the theme rows deliberately use `Theme actions: <name>` instead
- * (`features/settings/lib/theme-row-names.ts`, #2252) because the bare `Actions for Mocha` collided with
+ * (`features/config/lib/theme-row-names.ts`, #2252) because the bare `Actions for Mocha` collided with
  * Playwright's substring matching against the theme cell of the same name.
  */
 export function rowActionsName(subject: string): string {

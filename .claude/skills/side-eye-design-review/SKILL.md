@@ -245,7 +245,7 @@ flag. A run you already took replays browser-free: `pnpm snap --report <run.json
   ordered, not URL-keyed. An undeclared `content-length` prints `size=unknown` and an unfinished request
   `ms=unfinished` — never a fake 0.
   **NAVIGATION (the app is state-navigated, 2 URL routes — these replace click-chains):**
-  `--goto <target>` (a section id like `presets`, `settings:<category>`, or `modal:<slot>`; refuses
+  `--goto <target>` (a section id like `presets`, `config:<group>`, or `modal:<slot>`; refuses
   loudly on an unknown target, exit 1) · `--open-chat <id|exactTitle|latest|current>` (refuses loudly
   on an AMBIGUOUS title matching >1 chat — pass the id; `latest` = the chat list's top row; `current` =
   the room the app is showing RIGHT NOW via the dev bridge, no list query — the right sentinel for "the
@@ -342,7 +342,7 @@ Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a 
     five times and never move: that is the whole reason "Tab never advances focus" was believed.
   - `--eval` is in the same argv-ordered queue as the keys, so ONE call reads focus at every stop:
     ```
-    pnpm snap / --no-shot --goto settings:appearance \
+    pnpm snap / --no-shot --goto config:appearance \
       --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Escape
     #  FOCUS='(()=>{const a=document.activeElement;return a.tagName+" | "+(a.getAttribute("aria-label")||a.textContent.trim().slice(0,40))+" | fv="+a.matches(":focus-visible")})()'
     ```

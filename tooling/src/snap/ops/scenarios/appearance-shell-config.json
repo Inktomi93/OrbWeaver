@@ -15,7 +15,7 @@
       "args": [
         "/",
         "--goto",
-        "settings:appearance.sizing",
+        "config:appearance.sizing",
         "--goto",
         "modal:command",
         "--wait-for",
@@ -37,7 +37,7 @@
         "--key",
         "Escape",
         "--goto",
-        "settings:appearance.sizing",
+        "config:appearance.sizing",
         "--expect-visible",
         "[data-slot=\"picker-cell\"][aria-checked=\"false\"] [data-slot=\"density-preview\"]"
       ]

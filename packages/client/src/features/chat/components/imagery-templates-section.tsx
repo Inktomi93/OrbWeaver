@@ -7,7 +7,7 @@
 //
 // A settings-SECTION CONTRIBUTION (client-architecture-lockdown.md §6c) at the chat-behavior anchor: chat OWNS
 // imagery consumption (the quiet-extraction shaper is chat's op; `/imagine` is chat's composer), so it
-// contributes the tuning here rather than growing features/settings (the databank-section precedent). Reads
+// contributes the tuning here rather than growing features/config (the databank-section precedent). Reads
 // getUserSettings (cache-first), autosaves through updateUserSettingsSection("imagery") (the guided-actions
 // card idiom — MacroField per mode, ghosting the default). A blank field sends a leaf-`null` to CLEAR an
 // override back to the shipped default.

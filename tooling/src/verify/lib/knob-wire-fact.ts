@@ -171,7 +171,7 @@ function reconcile(files: readonly SourceFile[], corpora: Corpora): KnobWirePopu
         wired: corpora.adminNames,
         operation: KNOB_WIRE_OPERATIONS.adminKey,
         subjectOf: (member) => `${APP_SETTINGS_SCHEMA}.${member}`,
-        detailOf: (member) => `${APP_SETTINGS_SCHEMA} key "${member}" has no write field in the admin surfaces (features/settings ∪ user-admin)`,
+        detailOf: (member) => `${APP_SETTINGS_SCHEMA} key "${member}" has no write field in the admin surfaces (features/config ∪ user-admin)`,
       },
       candidates,
     );

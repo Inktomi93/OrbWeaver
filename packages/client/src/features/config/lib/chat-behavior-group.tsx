@@ -3,10 +3,11 @@
 // to render inside ONE welded autosave form are self-owned settings-SECTION CONTRIBUTIONS in features/chat
 // now (§6, reader-owns): message handling (send/continue/auto-swipe/stopping strings) and streaming (scroll
 // mode + smooth reveal) — the composer and the streaming ghost are what read them. The pane's other sections
-// (memory ①, world-info ②, databank ④, imagery) were already contributions, so the settings host renders the
+// (memory ①, world-info ②, databank ④, imagery) were already contributions, so the config host renders the
 // `chat-behavior`-anchored contributions and DERIVES the pane's nav from them.
 //
-// The def stays settings-owned because the settings feature owns the SHELL, not the knobs.
+// The def is host-owned (`features/config` since #2447 folded `features/settings` in) because the host owns
+// the SHELL, not the knobs.
 
 import { MessagesSquare } from "@orb/ui/icons";
 import type { ConfigGroupDefinition } from "#state";

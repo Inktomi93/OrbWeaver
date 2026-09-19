@@ -1,7 +1,7 @@
 // The Memory settings-SECTION CONTRIBUTION (Phase B ① / client-architecture-lockdown.md §6c) — the
 // co-located definition the chat feature exports on its front door; the composition root (main.tsx)
 // assembles it into the chat-behavior pane's settings-section registry (G8). The chat/memory subsystem OWNS
-// this section, so it lands here instead of growing features/settings (pain-point §7).
+// this section, so it lands here instead of growing the config host (pain-point §7).
 
 import type { ConfigSectionContribution } from "#state";
 import { MemorySettingsSection } from "../components/memory-settings-section.tsx";

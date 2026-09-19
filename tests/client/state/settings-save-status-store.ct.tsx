@@ -4,7 +4,7 @@
 // (useSyncExternalStore needs a browser render — the composer-draft-store.ct posture).
 //
 // The seam's END-TO-END behavior (one footer, inline error + retry at the failing section, the nav marker,
-// the degrade arm) rides tests/client/features/settings/components/settings-save-footer.ct.tsx.
+// the degrade arm) rides tests/client/features/config/components/config-save-footer.ct.tsx.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { SettingsSaveStatusProbe } from "./_ct-stories.tsx";

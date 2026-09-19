@@ -46,7 +46,7 @@ import {
   newChatModal,
   proseSettingsSection,
 } from "@orb/client/features/chat";
-import { makeConfigSection } from "@orb/client/features/config";
+import { appearanceLooksSection, makeConfigSection } from "@orb/client/features/config";
 import { connectionsHostClaudeSection, connectionsKeysSection, connectionsRolesSection } from "@orb/client/features/credentials";
 import { addDocumentModal, databankDocumentsTile, databankSection } from "@orb/client/features/databank";
 import { corpusSection } from "@orb/client/features/discovery";
@@ -66,7 +66,6 @@ import {
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { savedRostersModal } from "@orb/client/features/roster-preset";
-import { appearanceLooksSection } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import {
   adminCatalogSection,

@@ -143,7 +143,7 @@ export function censusTotal(samples: RawSamples): number {
  *
  *  MEASURED HEADROOM, so the bounds are a judgment and not a guess (2026-09-01, the design-audit scan
  *  against the live dev stack): Home at 1280x800 (381 walked) censused 16 shadow glows and nothing else;
- *  `--goto settings:appearance --viewport 1280x2200` (1319 walked — the heaviest surface in the product)
+ *  `--goto config:appearance --viewport 1280x2200` (1319 walked — the heaviest surface in the product)
  *  censused 44 shadow glows, 15 radial washes, 1 accent border, 0 patterns, 0 motion statics. Every family
  *  sits 4x-200x under its bound, so this refusal is a tripwire rather than a tax every run pays. */
 export function censusCapGap(samples: RawSamples): EvidenceGap | null {

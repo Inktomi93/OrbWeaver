@@ -7,7 +7,7 @@
 //
 // A plain (non-suspense) query with a fallback: the chat surface reads this OUTSIDE its QueryBoundary
 // (before the draft gate), so it must never suspend or throw. The chat feature reads `trpc.settings.*`
-// directly (a sanctioned cross-feature read, §11.0 — never a `#features/settings` import).
+// directly (a sanctioned cross-feature read, §11.0 — never a `#features/config` import).
 
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import type { ThemeChatStyle } from "@orb/contracts/theme";

@@ -25,10 +25,10 @@ import {
   memorySettingsSection,
   proseSettingsSection,
 } from "#features/chat";
+import { appearanceLooksSection } from "#features/config";
 import { connectionsHostClaudeSection, connectionsKeysSection, connectionsRolesSection } from "#features/credentials";
 import { personaListSection, personaNotificationsSection, personaThisChatSection } from "#features/persona";
 import { pluginDistributeSection, pluginsInstalledSection, pluginsInstallSection } from "#features/plugin";
-import { appearanceLooksSection } from "#features/settings";
 import {
   aboutSection,
   adminApprovalsSection,
