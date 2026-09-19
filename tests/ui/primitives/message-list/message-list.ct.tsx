@@ -15,6 +15,7 @@ import {
   PinPromptList,
   PrependableList,
   RangeExtractorMessageList,
+  RovingScrollList,
   StreamingTailList,
   TailGrowthList,
   UnboundedMessageList,
@@ -629,6 +630,59 @@ test("only the TAIL row is a live region: the container is aria-live=off and his
   });
   await expect(component.locator('[data-slot="message-list-row"]').first()).toHaveAttribute("aria-posinset", "1");
   await expect(component.locator('[aria-live="polite"]')).toHaveCount(0);
+});
+
+// ── #2440 (REFUTED, and pinned so it stays refuted): the roving anchor SURVIVES the virtualizer ──────
+// The report: a keyboard reader parks on a row, the virtualizer unmounts it on scroll-away, focus falls
+// to <body>, and the reader silently loses their place. It does not happen, and the reason is a
+// deliberate mechanism nothing was pinning: `composeRangeExtractor` (list-window.ts) UNIONS the roving
+// `activeIndex` into every rendered range — "must survive a scroll-away or the list's single tab stop
+// disappears mid-thread", its own comment says. Focus stays on the row because the row is never removed.
+// Measured while re-deriving the premise (2026-09-19, this fixture): after a wheel to the head the
+// scrollport reads `scrollTop 0` with 8 rows rendered — seven head rows AND the parked tail row.
+//
+// So this is a FENCE, not a defect proof: it passes at unmodified HEAD, deliberately. What it protects is
+// the property that makes the report wrong — remove the `activeIndex` union and this reds, while every
+// other message-list arm stays green (the mechanism has no other test).
+//
+// TWO HAZARDS, both paid for here: a PROGRAMMATIC `scrollTop` write is reconciled away by the bottom
+// anchor within the follow-yield window (`follow-yield.ts`), so the scroll-away must be a REAL wheel; and
+// `page.mouse.wheel` returns when the event is DISPATCHED, so the landing is polled, never read same-tick.
+const ROVING_SCROLL_PX = ITEM_COUNT * ROW_HEIGHT_PX; // clears the whole list in one wheel
+
+test("#2440: the parked roving row is NOT unmounted by a scroll-away, and keeps the reader's focus", async ({ mount, page }) => {
+  const component = await mount(<RovingScrollList itemCount={ITEM_COUNT} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} />);
+  const scroller = component.locator('[data-slot="message-list-scroll"]');
+  const parkedRow = component.locator(`[data-slot="message-list-row"][data-index="${String(ITEM_COUNT - 1)}"]`);
+  // THE POSITIVE CONTROL: the parked row's own neighbour, which carries no forced index. If the wheel
+  // failed to move the window, this stays mounted too and the arm below would pass while proving nothing.
+  const neighbourRow = component.locator(`[data-slot="message-list-row"][data-index="${String(ITEM_COUNT - 2)}"]`);
+  const parkedRowHasFocus = async (): Promise<boolean> => await parkedRow.evaluate((el) => el === el.ownerDocument.activeElement);
+
+  // The reader parks on the tail row — where a bottom-anchored transcript opens, and where the roving
+  // stop starts. `tabindex="0"` is the settled tell that the bottom anchor has landed.
+  await expect(parkedRow).toHaveAttribute("tabindex", "0");
+  await expect(neighbourRow).toHaveCount(1);
+  await scroller.hover();
+  await parkedRow.focus();
+  await expect.poll(parkedRowHasFocus).toBe(true);
+
+  // Scroll the thread away under them, by hand.
+  await page.mouse.wheel(0, -ROVING_SCROLL_PX);
+  await expect.poll(async () => await scroller.evaluate((el) => Math.round(el.scrollTop))).toBe(0);
+  // The control fired: the window really moved and the unforced neighbour is gone…
+  await expect(neighbourRow).toHaveCount(0);
+  // …while the parked row survived, still holding focus and still holding the list's one tab stop.
+  await expect(parkedRow).toHaveCount(1);
+  await expect(parkedRow).toHaveAttribute("tabindex", "0");
+  await expect.poll(parkedRowHasFocus).toBe(true);
+  // The report's stated symptom, asserted as the negative it is: focus never reached <body>.
+  expect(await page.evaluate(() => document.activeElement?.tagName ?? null)).not.toBe("BODY");
+
+  // And back: the reader's place is exactly where they left it.
+  await page.mouse.wheel(0, ROVING_SCROLL_PX);
+  await expect(neighbourRow).toHaveCount(1);
+  await expect.poll(parkedRowHasFocus).toBe(true);
 });
 
 // ── #1362: THE ROW LANDINGS ARE INTEGERS (integer-line-boxes.md Law 3) ──────────────────────────────
