@@ -132,7 +132,17 @@ export { buildConfirmedActRunner } from "./substrate/confirmed-act.ts";
 // The domain's own VERSION ORDERING (#803): the showcase seeder's auto-upgrade asks "does a strictly newer
 // bundle ship than this row holds?", which is the same question `checkForUpdates` asks of a remote manifest.
 // Exported rather than re-spelled at the entry tier — semver ordering for a plugin is this domain's call.
-export { isVersionNewer } from "./substrate/manifest.ts";
+//
+// `parseBundle` IS THE ONE INSTALL-VALIDATION FUNNEL, and it is on the front door so that the PACK command
+// (`scripts/pack-plugin.ts`) runs the identical contract rather than its own weaker check (#1908). It used
+// to re-unzip with a bare `unzipSync` and validate only `manifest.json` against `pluginManifestSchema`,
+// which admits everything the funnel's OTHER walls refuse — a forbidden entry, an over-cap entry, and
+// either direction of the `ui.js` ⟺ `uiEntry` biconditional (the showcase packer packs `ui.js` whenever it
+// exists on disk and validates nothing, by design) — so `plugin:pack` could write a zip the install verb
+// rejects, which is the whole loop that script's own header promises to close.
+// Its `PluginBundle` return type stays substrate-internal on purpose (that ruling is on the type itself):
+// an out-of-domain caller reads `.manifest` off it, exactly as `preview-from-url` and `check-for-updates` do.
+export { isVersionNewer, parseBundle } from "./substrate/manifest.ts";
 export { createNotifyFloor } from "./substrate/notify-floor.ts";
 export { createPluginEventBus, createPluginEventEmitter } from "./substrate/plugin-event-bus.ts";
 export { createPluginMacroRegistry, PLUGIN_MACRO_RESOLVE_DEADLINE_MS, PLUGIN_MACROS_MAX, pluginMacroName } from "./substrate/plugin-macros.ts";

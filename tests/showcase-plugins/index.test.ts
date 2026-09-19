@@ -20,6 +20,8 @@
 // reaches nobody — that is the reader this row is for.)
 
 import { createHash } from "node:crypto";
+import { ManifestInvalidError, parseBundle } from "@orb/server/domain/plugin";
+import { zipSync } from "fflate";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "../../packages/showcase-plugins/src/index.ts";
 import { expect, test } from "../support/fixtures.ts";
 
@@ -81,4 +83,50 @@ test("every indexed slug ships a valid manifest whose id IS its directory name",
 test("a slug this package does not ship is an absence, never a throw", async () => {
   expect(await packShowcaseBundle("no-such-showcase-plugin")).toBeNull();
   expect(await readShowcaseManifest("no-such-showcase-plugin")).toBeNull();
+});
+
+// #1908 — THE PACKER VALIDATES NOTHING, BY DESIGN, SO SOMETHING ELSE HAS TO. `packShowcaseBundle` packs
+// what is on disk (`ui.js` whenever the file exists, every `ui/assets/` image it finds) and states that it
+// leaves every judgement to `parseBundle`. Until this row nothing asserted the pair actually agrees: the
+// package's own pins checked the packed BYTES and the MANIFEST, and `readShowcaseManifest` runs
+// `pluginManifestSchema` alone — which is blind to a forbidden entry, an over-cap entry, and BOTH
+// directions of the `ui.js` ⟺ `uiEntry` biconditional. So a shipped slug that grew a `ui.js` without the
+// matching `uiEntry` (or lost the file while keeping the declaration) would pack green, seed green, and
+// fail at the install funnel for every user.
+//
+// This is also the control for the `plugin:pack` repair: that script now runs THIS function, so a slug
+// that passes here is a zip the CLI will write and the installer will accept.
+test("every indexed slug packs to a bundle the INSTALL FUNNEL accepts", async () => {
+  for (const slug of SHOWCASE_PLUGIN_SLUGS) {
+    const packed = await packShowcaseBundle(slug);
+    expect(packed, `${slug} ships no bundle`).not.toBeNull();
+    const parsed = parseBundle(packed as Uint8Array);
+    expect(parsed.manifest.id, `${slug} packs a bundle the install funnel would key under another slug`).toBe(slug);
+    // The biconditional, asserted on the SHIPPED pair rather than assumed: bytes present iff declared.
+    expect(parsed.uiJs !== undefined, `${slug}'s ui.js presence disagrees with its uiEntry declaration`).toBe(parsed.manifest.uiEntry !== undefined);
+  }
+});
+
+// POSITIVE CONTROL for the row above — it asserts an ACCEPTANCE, so on its own it cannot tell "the funnel
+// agrees with the packer" from "the funnel accepts anything". These are the exact drift shapes the packer
+// can produce from an ordinary source directory, rebuilt over a REAL shipped bundle's entries.
+test("the funnel refuses the drift shapes the packer can produce (undeclared ui.js, declared-but-absent ui.js, a stray entry)", async () => {
+  const [slug] = SHOWCASE_PLUGIN_SLUGS;
+  const packed = await packShowcaseBundle(slug as string);
+  const original = parseBundle(packed as Uint8Array);
+  const encode = (text: string): Uint8Array => new TextEncoder().encode(text);
+  const manifestOf = (overrides: Record<string, unknown>): Uint8Array => encode(JSON.stringify({ ...original.manifest, ...overrides }));
+
+  // A source dir that grew a `ui.js` nobody declared — un-serveable code inside the consent unit.
+  expect(() =>
+    parseBundle(zipSync({ "manifest.json": manifestOf({ uiEntry: undefined }), "main.js": encode("const x = 1;"), "ui.js": encode("const ui = 1;") })),
+  ).toThrow(ManifestInvalidError);
+
+  // …and the other direction: a declaration whose file is missing — a surface that can only fail at mount.
+  expect(() => parseBundle(zipSync({ "manifest.json": manifestOf({ uiEntry: "ui.js" }), "main.js": encode("const x = 1;") }))).toThrow(ManifestInvalidError);
+
+  // An entry outside the allow-list — the class `pluginManifestSchema` alone cannot see at all.
+  expect(() =>
+    parseBundle(zipSync({ "manifest.json": manifestOf({ uiEntry: undefined }), "main.js": encode("const x = 1;"), "steal.js": encode("exfil()") })),
+  ).toThrow(ManifestInvalidError);
 });
