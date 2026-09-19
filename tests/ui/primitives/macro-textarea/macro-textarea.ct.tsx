@@ -7,6 +7,7 @@
 // the real DOM `selectionStart`) fires exactly as it would for a user.
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import {
   BlockSuggestionsStory,
   CappedStory,
@@ -16,6 +17,7 @@ import {
   FieldWrappedStory,
   GhostDefaultStory,
   MacroTextareaStory,
+  ReadingMeasureStory,
 } from "./macro-textarea.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
@@ -244,4 +246,56 @@ test("maxRows reaches the control, so a long value scrolls the box instead of gr
   expect(measured.content).toBeGreaterThan(measured.client);
   // The helper is the thing an uncapped box pushes away — it must still be in the viewport with the field.
   await expect(page.locator('[data-slot="macro-textarea-helper"]')).toBeInViewport();
+});
+
+// ── #2465: the prose editor's LINE LENGTH ────────────────────────────────────────────────────────────
+// The design law's band is 65-75 characters per line, and this field is MONOSPACE (`font-mono
+// text-code-field`) — so one CSS `ch` IS one typographic character here, unlike the proportional prose
+// paragraphs whose 47ch cap carries a 1.43-1.56x conversion (tokens.json, reading.measure-prose-ch). The
+// measurement below is therefore a direct character count, taken from the rendered advance rather than
+// assumed from the font size.
+const READING_BAND_LOW = 65;
+const READING_BAND_HIGH = 75;
+
+/** charsPerLine = the content box divided by the MEASURED advance of the field's own glyph, in the field's
+ *  own font — never `fontSize x 0.5`, which is the estimate this repo's line-length rule already learned
+ *  not to trust. Mono, so the advance is every character's. */
+function charsPerLine(textarea: Locator): Promise<number> {
+  return textarea.evaluate((element: HTMLElement): number => {
+    const style = getComputedStyle(element);
+    const probe = element.ownerDocument.createElement("canvas").getContext("2d");
+    if (probe === null) {
+      throw new Error("no 2d context — the measurement cannot be taken");
+    }
+    probe.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const advance = probe.measureText("0".repeat(100)).width / 100;
+    const content = element.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+    return content / advance;
+  });
+}
+
+test("#2465: the prose editor paints a line inside the 65-75 character band at its real 828px mount", async ({ mount, page }) => {
+  await mount(<ReadingMeasureStory />);
+  const textarea = page.getByRole("textbox");
+  await expect(textarea).toBeVisible();
+
+  const measured = await charsPerLine(textarea);
+  expect(measured, `the editor paints ${String(Math.round(measured))} characters per line`).toBeGreaterThanOrEqual(READING_BAND_LOW);
+  expect(measured, `the editor paints ${String(Math.round(measured))} characters per line`).toBeLessThanOrEqual(READING_BAND_HIGH);
+});
+
+// A point measurement never proves a range property: the cap is a `ch` max-width, which is pointer-blind by
+// construction — but "by construction" is the claim, and a coarse arm is what turns it into a measurement.
+test.describe("#2465 at a coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("the same mount holds the same band under touch emulation", async ({ mount, page }) => {
+    await mount(<ReadingMeasureStory />);
+    const textarea = page.getByRole("textbox");
+    await expect(textarea).toBeVisible();
+
+    const measured = await charsPerLine(textarea);
+    expect(measured, `the editor paints ${String(Math.round(measured))} characters per line at a coarse pointer`).toBeGreaterThanOrEqual(READING_BAND_LOW);
+    expect(measured, `the editor paints ${String(Math.round(measured))} characters per line at a coarse pointer`).toBeLessThanOrEqual(READING_BAND_HIGH);
+  });
 });
