@@ -12,8 +12,9 @@
 // on the tab's one socket, so the socket has to exist for the bus to be live at all.
 
 import { QueryBoundary } from "@orb/client/components";
-import { useChatBus, useChatBusDeps, useInvalidation, useOrbSocket, useRpgBus, useTRPC, useUserBus } from "@orb/client/data";
+import { useChatBus, useChatBusDeps, useGatedQuery, useInvalidation, useOrbSocket, useRpgBus, useTRPC, useUserBus } from "@orb/client/data";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
+import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -31,6 +32,34 @@ function SocketHost({ children }: { readonly children: ReactNode }): ReactElemen
 // ── The probes: render what they RECEIVED so a CT asserts delivery without reaching into module state
 //    (the `OnlineStatusProbeStory` posture). ───────────────────────────────────────────────────────────
 
+/** The RENDERED settle for the attach gate's OWN input (#1849). `useRpgBus` decides whether to join the rpg
+ *  room from `chat.getChat`'s `rpg` pointer; until the BROWSER has applied that answer the hook has not
+ *  decided anything, so "no room attached" is a snapshot of a pending state rather than a verdict. The
+ *  three no-attach cases used to barrier on `trpc.count("chat.getChat") > 0` instead — a NODE-side count
+ *  that ticks when the route handler SERVED the request, strictly before the client applied it — and then
+ *  read the attach set once, which `expect.poll(...).toEqual([])` satisfies on its first evaluation. That is
+ *  a fence, not a proof, and it is the shape a 1-in-541 red hides in.
+ *
+ *  This reads the SAME query the hook reads (`useGatedQuery` → `trpc.chat.getChat.queryOptions({chatId})`),
+ *  so TanStack serves both from one cache entry and one request: the readout going non-`pending` IS the
+ *  hook's own input having landed in this document. */
+function RpgPointerSettle({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
+  const trpc = useTRPC();
+  const chat = useGatedQuery(chatId, (id: ChatId) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  // `landing` is its own settled arm: with no chatId the gated query is `skipToken`, which stays `pending`
+  // forever — reporting that as "pending" would give the landing case a barrier that can never clear.
+  function readout(): string {
+    if (chatId === null) {
+      return "landing";
+    }
+    if (chat.data === undefined) {
+      return "pending";
+    }
+    return `engaged=${String(isRpgEngaged(chat.data.rpg))}`;
+  }
+  return <output data-testid="rpg-pointer">{readout()}</output>;
+}
+
 function RpgBusProbe({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
   const [seen, setSeen] = useState<string[]>([]);
   const [heals, setHeals] = useState(0);
@@ -46,6 +75,7 @@ function RpgBusProbe({ chatId }: { readonly chatId: ChatId | null }): ReactEleme
     <>
       <output data-testid="rpg-events">{seen.join(",")}</output>
       <output data-testid="rpg-heals">{String(heals)}</output>
+      <RpgPointerSettle chatId={chatId} />
     </>
   );
 }
