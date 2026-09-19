@@ -23,7 +23,8 @@ function AddMemberShell({
   readonly onAdd: (id: CharacterId) => void;
 }): ReactElement {
   return (
-    <Popover>
+    <Popover modal={true}>
+      {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       {/* THE DOOR CARRIES ITS OWN WORD (#848). Icon-only, this trigger sat 4px from the labelled
           "Add cast…" in the CAST header — two person-glyph affordances in one row, one of them mute, and a
           first-timer could not predict which added a group and which added a person (side-eye 2026-08-30

@@ -136,7 +136,8 @@ function StartSessionDoor({ trigger }: { readonly trigger: (busy: boolean) => Re
   const { openRefinery, isPending } = useOpenRefinery();
   const [pickerOpen, setPickerOpen] = useState(false);
   return (
-    <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
+    <Popover modal={true} onOpenChange={setPickerOpen} open={pickerOpen}>
+      {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       {/* The trigger is a FUNCTION of the in-flight state, not a fixed element: a start is a real await
           (the flow resolves resume-vs-mint against the list at CLICK time), and the control the user
           pressed is the honest place to say so — which only the caller's own chrome can spell. */}

@@ -95,7 +95,8 @@ export function BugReportButton(): ReactElement {
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover modal={true} onOpenChange={setOpen} open={open}>
+      {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       <Tooltip>
         <TooltipTrigger
           render={

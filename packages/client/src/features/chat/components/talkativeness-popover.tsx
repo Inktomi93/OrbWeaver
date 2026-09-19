@@ -45,7 +45,8 @@ export function TalkativenessPopover({
   const weight = dragValue ?? row.talkativeness;
   const initialFocusRef: RefObject<HTMLDivElement | null> = useRef(null);
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover modal={true} onOpenChange={onOpenChange} open={open}>
+      {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       <PopoverTrigger
         render={
           <Button

@@ -190,7 +190,10 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
   }
   const pinned = edit.itemLocks(item.id).length > 0;
   return (
-    <Popover>
+    <Popover modal={true}>
+      {/* `modal` — this popover carries INPUT (the click-to-edit tile form); the rule + its receipt live on
+      `Popover` in @orb/ui's popover.tsx (#2444). The ICON picker above is a one-tap commit grid and stays
+      unfenced. */}
       <PopoverTrigger
         render={
           <Button
