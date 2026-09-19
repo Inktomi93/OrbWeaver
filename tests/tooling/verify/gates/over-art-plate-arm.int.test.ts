@@ -173,8 +173,10 @@ test("§4.6 differential — the four legacy keys are BURNED DOWN on the real tr
   // not look". (The scratch-corpus arm above plants a plateless composer rule and still catches it.)
   const corpus = loadAuthoredCss(createResourceReader({ root: repoRoot }));
   expect(corpus.status).toBe("ready");
-  const judged = corpus.status === "ready" ? judgeStylesheets(corpus.value) : null;
+  // The not-ready arm feeds an EMPTY corpus rather than short-circuiting: `glassRules` then reads 0 and the
+  // control below fails loudly, where an optional chain would have let a refused read pass as a burn-down.
+  const judged = judgeStylesheets(corpus.status === "ready" ? corpus.value : []);
 
-  expect([...(judged?.live.keys() ?? [])].toSorted((a, b) => a.localeCompare(b))).toEqual([]);
-  expect(judged?.glassRules ?? 0).toBeGreaterThan(0);
+  expect([...judged.live.keys()].toSorted((a, b) => a.localeCompare(b))).toEqual([]);
+  expect(judged.glassRules).toBeGreaterThan(0);
 });
