@@ -58,6 +58,10 @@
 // RUNG 2b · partitionedFindings — the checker itself names each candidate's disposition, because `null`
 // meant two different things and a bare zero conflated them:
 //   control-aspect            excluded(roleWithoutSilhouette) · withheld(animating, degenerateBox)
+//   unreachable-hint          excluded(tooltipRepeatsName, hasReachableDescription, visibleOwnText,
+//                             pressDoor) · withheld(finePointer, noDescriptionWiring) — a fine-pointer
+//                             pass measures a pointer the defect cannot exist on, and a trigger
+//                             outside the tooltip seal publishes no decision to read (#2452)
 //   border-contrast           excluded(noDeclaredBorder, inactiveExempt) · withheld(the backdrop's own
 //                             unresolved reason, borderColorUnreadable) — a control that declared no
 //                             boundary made no claim, and an unresolvable surround is not a clean edge

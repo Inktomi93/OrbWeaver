@@ -94,10 +94,10 @@ type Assert<Condition extends true> = Condition;
 type ContrastSeverityIsOnlyP1 = Assert<Equal<Extract<Finding, { readonly rule: "contrast" }>["severity"], "P1">>;
 const CONTRAST_SEVERITY_IS_ONLY_P1: ContrastSeverityIsOnlyP1 = true;
 
-test("the design-audit rule denominator is closed at the 62 live ids", () => {
+test("the design-audit rule denominator is closed at the 63 live ids", () => {
   expect(CONTRAST_SEVERITY_IS_ONLY_P1).toBe(true);
-  expect(DESIGN_AUDIT_RULES).toHaveLength(62);
-  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(62);
+  expect(DESIGN_AUDIT_RULES).toHaveLength(63);
+  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(63);
   expect(DESIGN_AUDIT_RULES.filter((rule) => rule.id === "side-tab" || rule.id === "border-accent-on-rounded")).toHaveLength(2);
   expect(DESIGN_AUDIT_RULES.map(({ id, severity }) => `${id}:${severity.join("/")}`)).toEqual([
     "tap-target:P1/P2",
@@ -109,6 +109,7 @@ test("the design-audit rule denominator is closed at the 62 live ids", () => {
     "landmark-missing:P2",
     "tabindex-positive:P2",
     "skipped-heading:P2",
+    "unreachable-hint:P2",
     "text-over-art:P0/P1",
     "contrast:P1",
     "hover-contrast:P1",
@@ -2404,8 +2405,9 @@ test("family populations are the exact detector dispatches, including both decor
   expect(collectAudit(EMPTY_SAMPLES).familyScans).toEqual({
     // 9 since border-contrast joined the a11y family with #1315's --contrast-edge carry-over (its
     // per-side border ink vs the composited surround is a WCAG 1.4.11 non-text-contrast judgement),
-    // and reveal-coverage (#1077) is an accounting-only ninth dispatch beside it.
-    a11y: 9,
+    // and reveal-coverage (#1077) is an accounting-only ninth dispatch beside it. 10 since #2452's
+    // unreachable-hint — the coarse-pointer reachability of a tooltip's content — joined the same family.
+    a11y: 10,
     // 4 since the forced-state family joined colour: contrast · gray-on-color · quiet-state · hover-contrast.
     color: 4,
     // 3 since #1027 split the accent-border detector into its two RULE dispatches (side-tab ·

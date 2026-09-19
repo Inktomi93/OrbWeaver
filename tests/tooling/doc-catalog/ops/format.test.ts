@@ -235,7 +235,10 @@ test("CLASS 3: every root entry point is admitted — including the generated-bl
   // `AGENTS.md` is PRESENT is what stops the fence creeping back the next time the two disagree.
   const targets = formatTargets([]);
 
-  expect(targets).toContain("./CLAUDE.md");
+  // The REPO-RELATIVE spelling `git ls-files` emits, which is what `CLASS_3_ROOT` matches against — the
+  // `./CLAUDE.md` used in prose (and in format.ts's own header) is a disambiguator for the reader, never a
+  // path this producer can return.
+  expect(targets).toContain("CLAUDE.md");
   expect(targets).toContain("README.md");
   expect(targets).toContain("AGENTS.md");
 });
