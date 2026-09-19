@@ -42,7 +42,7 @@ import { Heading } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toaster } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
-import { Profiler, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ListPaneHeader } from "../../../../packages/client/src/components/list-pane-header.tsx";
 import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section.tsx";
 import { AppearanceEffectsSection } from "../../../../packages/client/src/features/app-shell/components/appearance-effects-section.tsx";
@@ -1206,41 +1206,9 @@ export function AppearanceBackgroundSectionStory(): ReactElement {
   );
 }
 
-/** #1194's commit-count pin: the Background section wrapped in its own `<Profiler>`, tallying every
- *  commit that touches it onto `globalThis.__ctCommits` (a bare counter — no `render-stats.ts`
- *  dependency, since that store's ids are the app's own wrapped-surface set, not a CT-local probe). The
- *  bounded-commits CT reads this to prove the section settles instead of re-rendering forever.
- *
- *  `declare global` HONESTLY types the seam (no-test-fabrication forbids the `X as unknown as Y`
- *  double-cast this used to reach `globalThis` with) — same shape as
- *  `tests/client/lib/motion-animation-record.ct.tsx`'s `__readAnimationRecords`; an ambient `var` here is
- *  visible to every file in the client test program, so the CT reads `globalThis.__ctCommits` with no
- *  cast either. */
-declare global {
-  var __ctCommits: number | undefined;
-}
-
-const COMMIT_TALLY_PROFILER_ID = "bg-section-commit-tally";
-
-function CommitTally({ children }: { readonly children: ReactElement }): ReactElement {
-  const onRender = (): void => {
-    globalThis.__ctCommits = (globalThis.__ctCommits ?? 0) + 1;
-  };
-  return (
-    <Profiler id={COMMIT_TALLY_PROFILER_ID} onRender={onRender}>
-      {children}
-    </Profiler>
-  );
-}
-
-export function AppearanceBackgroundSectionCommitTallyStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ width: 720, padding: 16 }}>
-        <CommitTally>
-          <AppearanceBackgroundSection sectionId="appearance-background" />
-        </CommitTally>
-      </div>
-    </CtDataProviders>
-  );
-}
+// #1194's COMMIT-TALLY STORY IS DELETED (#2412, 2026-09-18) — a `<Profiler>` around the Background section
+// tallying onto `globalThis.__ctCommits` measured NOTHING here: playwright-ct runs the PRODUCTION React
+// build, whose `<Profiler>` never calls `onRender`, so the tally sat at 0 and the CT's two assertions on it
+// compared 0 to 0. The pin now samples RENDERED GEOMETRY per animation frame off the plain
+// `AppearanceBackgroundSectionStory` above (the #1873 pattern, `tests/client/features/chat/_ct-stories.tsx`).
+// Do not re-add a commit tally to a CT; it cannot fail.

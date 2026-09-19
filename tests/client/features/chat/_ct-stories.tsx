@@ -1153,7 +1153,7 @@ export function MessageListSurfaceStory(): ReactElement {
 // property of "the port after the band takes its height", which the test measures rather than guesses.
 //
 // NO COMMIT TALLY HERE, DELIBERATELY. The obvious instrument — a `<Profiler>` around the surface, the
-// `AppearanceBackgroundSectionCommitTallyStory` shape — MEASURES NOTHING IN A CT: playwright-ct runs the
+// shape the Background section's story carried until #2412 deleted it — MEASURES NOTHING IN A CT: playwright-ct runs the
 // PRODUCTION React build, whose `<Profiler>` never calls `onRender` (that is a profiling-build feature).
 // Wired here first and measured: the tally sat at exactly 0 across a mount, a full scripted turn and three
 // idle windows of a transcript that was visibly oscillating. The honest observable for a judder is the
