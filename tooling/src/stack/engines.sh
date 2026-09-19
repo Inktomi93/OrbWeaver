@@ -23,7 +23,9 @@
 # ENGINES_POSTURE gates the SPAWN half of ensure/start (#1567 — the branch this script was missing):
 #   off             ensure/start are a no-op
 #   adopt-only      adopt a healthy fleet; with nothing to adopt, REFUSE to spawn (and say so, exit 0)
-#   adopt-or-start  the default when unset — adopt if healthy, else spawn (the manager)
+#   adopt-or-start  adopt if healthy, else spawn (the manager) — what an unset posture means HERE, because
+#                   typing `pnpm engines` IS the ask to have a fleet (the server's own unset default is
+#                   adopt-only since #2421; a script calling this one passes its posture explicitly)
 # Anything else REFUSES with exit 3 (misuse). stop/status/sleep/wake/reconcile are posture-blind: they
 # act on whatever fleet exists, and reading is never a spawn.
 #
@@ -78,10 +80,15 @@ PORTS=("$EMBED_PORT" "$RERANK_PORT" "$GEN_PORT")
 # posture the SUPERVISOR honoured.
 #
 # The three members mirror the server's resolver EXACTLY (packages/server/src/foundation/env/posture.ts —
-# ENGINES_POSTURES): off · adopt-only · adopt-or-start. Unset ⇒ adopt-or-start, the same default that
-# resolver logs, so a hand-run `pnpm engines` is unchanged. An UNRECOGNISED value REFUSES loudly (exit 3 =
-# misuse, the repo's exit-code contract) instead of falling through to a spawn — a typo'd posture must
-# never read as "manage the fleet".
+# ENGINES_POSTURES): off · adopt-only · adopt-or-start.
+#
+# THE UNSET DEFAULT HERE DELIBERATELY DIFFERS FROM THE SERVER'S (owner ruling 2026-09-19, #2421: the server
+# schema's unset default is now adopt-only, so merely BOOTING never wakes or spawns a fleet). This script is
+# not a boot — it is the front door an operator TYPES (`pnpm engines` = "ensure the fleet is up"), and the
+# ask is the invocation itself, so unset stays adopt-or-start. Every non-interactive CALLER of this script
+# passes the posture explicitly (stack.sh · dev.sh), which is what keeps that difference from becoming the
+# #1567 split again. An UNRECOGNISED value REFUSES loudly (exit 3 = misuse, the repo's exit-code contract)
+# instead of falling through to a spawn — a typo'd posture must never read as "manage the fleet".
 ENGINES_POSTURE="${ENGINES_POSTURE:-adopt-or-start}"
 case "$ENGINES_POSTURE" in
   off | adopt-only | adopt-or-start) ;;

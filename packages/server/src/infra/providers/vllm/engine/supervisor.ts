@@ -283,7 +283,10 @@ export function startVllmEngines(opts: {
    *  (the compose site injects the same read the CLI verb writes, so both owners see one truth). */
   stoppedHeld?: () => boolean;
   /** The fleet MANAGER posture (adopt-or-start) spawns/takes over; adopt-only never spawns (fail-fast on a
-   *  down engine). Defaults to true (today's manager behavior) so existing callers are unchanged. */
+   *  down engine). Omitted ⇒ FALSE: the composition root always resolves a posture and passes it, so an
+   *  absent value means nobody decided — and the arm that spawns 38 GB of vLLM is never the one a silence
+   *  selects (owner ruling 2026-09-19, #2421, the same reasoning that made the env schema's unset default
+   *  adopt-only). */
   manages?: boolean;
   /** Auto-sleep idle window (ms). `0` disables. Defaults to the env floor. Only the MANAGER posture arms it. */
   autoSleepIdleMs?: number;
@@ -302,7 +305,7 @@ export function startVllmEngines(opts: {
   const sleepMode = opts.sleepMode ?? env.VLLM_SLEEP_MODE;
   const isSleepHeld = opts.sleepHeld ?? ((): boolean => false);
   const isStoppedHeld = opts.stoppedHeld ?? ((): boolean => isStopped(fleetRunDir(repoRoot)));
-  const manages = opts.manages ?? true;
+  const manages = opts.manages ?? false;
   const autoSleepIdleMs = opts.autoSleepIdleMs ?? env.VLLM_AUTO_SLEEP_IDLE_MS;
   const fetchMetrics = opts.fetchMetrics ?? fetchEngineMetrics;
   const postSleepFn = opts.postSleep ?? postSleep;
