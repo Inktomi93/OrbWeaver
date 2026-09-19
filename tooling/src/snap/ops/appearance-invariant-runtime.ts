@@ -175,7 +175,23 @@ async function driveOppositeDensity(page: Page, before: AppearanceDomSnapshot): 
       (response) => response.request().method() === "POST" && response.url().includes("/api/trpc/settings.updateUserSettingsSection"),
       { timeout: STEP_TIMEOUT_MS },
     );
-    await page.getByRole("button", { name: label, exact: true }).click();
+    // THE DENSITY OPTION IS A RADIO, NOT A BUTTON (#2437, measured 2026-09-19). The sizing surface renders
+    // each choice as a Base UI `Radio.Root` wearing `PickerCell` through its `render` prop
+    // (packages/ui/src/primitives/picker-cell/picker-cell.tsx states the contract), so the accessible role
+    // is `radio` on a `<span>`. `getByRole("button")` matched NOTHING: the click sat in Playwright's
+    // actionability wait while the 5s response wait below rejected — UNHANDLED, because nothing was
+    // awaiting it yet — and killed the whole matrix at the density cell with a message about a response
+    // timeout, which names neither the missing control nor the cell. Two matrix passes died there.
+    //
+    // OWNING THE WAIT IS THE OTHER HALF: if the click itself fails, the response promise must be defused or
+    // it becomes that same unhandled rejection. The click's error is what propagates — it is the real one.
+    try {
+      await page.getByRole("radio", { name: label, exact: true }).click();
+    } catch (error) {
+      // @orb-waive caught-failure-ownership(mutation): the DEFUSED rejection is the response wait, whose failure is meaningless once the click that should have caused it failed — the click's error is re-thrown on the next line and owns the outcome. Ends if the wait stops being started before the click.
+      void mutation.catch(() => undefined);
+      throw error;
+    }
     await mutation;
     await settle(page, MOUNT_SETTLE_MS);
     return guard.evidence();

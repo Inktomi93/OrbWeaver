@@ -175,7 +175,6 @@ async function runMatrixCells(opts: Args, baseName: string, matrix: SnapAppearan
     print(`\n========== MATRIX ${variant.id} ==========`);
     const appearanceRows = runArgs.scenario === null ? historicalRowsForCell(matrix, cell.id) : [];
     let result: SnapDetailedResult;
-    // @orb-waive caught-failure-ownership(error): the cell's failure is RE-THROWN with the arm it was asked to render attached — never absorbed; `snapMatrixOnSession` still owns the terminal INSTRUMENT ERROR. Ends if a cell failure stops being fatal to the run.
     try {
       if (host !== null) {
         result = await runMatrixSessionCell(host, runArgs, variant, appearanceRows);
