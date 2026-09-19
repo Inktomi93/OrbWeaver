@@ -44,7 +44,12 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [testLayout, testPresence, testPresenceClient] as const;
 
-test("presence policies are temporary hard warnings while layout remains a hard error", () => {
+// The #2346 TEMPORARY WARNING POSTURE IS CLOSED OUT (owner ruling 2026-09-19, #2377): all three mirror
+// policies are hard/error again and NONE carries a `workItem`. This row is the closeout's pin — a
+// reintroduced `severity: "warning"` on either presence policy fails here, not only in the conformance
+// corpus. The warning-era promotion arms below survive as the proof that an ERROR blocks with and without
+// `--fail-on-warnings`, which is the property the restoration bought.
+test("every mirror policy is a hard error with no temporary work item", () => {
   expect(
     policies.map((policy) => ({
       id: policy.id,
@@ -54,8 +59,8 @@ test("presence policies are temporary hard warnings while layout remains a hard 
     })),
   ).toEqual([
     { id: "test-layout", authority: "hard", severity: "error", workItem: null },
-    { id: "test-presence", authority: "hard", severity: "warning", workItem: 2346 },
-    { id: "test-presence-client", authority: "hard", severity: "warning", workItem: 2346 },
+    { id: "test-presence", authority: "hard", severity: "error", workItem: null },
+    { id: "test-presence-client", authority: "hard", severity: "error", workItem: null },
   ]);
 });
 
@@ -216,24 +221,24 @@ const MISSING_SERVER_TEST_TREE = {
   "tests/server/domain/chat/verbs/other.test.ts": "export const t = 1;\n",
 } as const;
 
-test("test-presence: a missing server test is an unsuppressible warning that blocks only under promotion", ({ scratch }) => {
+test("test-presence: a missing server test is an unsuppressible error that blocks WITHOUT promotion", ({ scratch }) => {
   const unpromoted = pass(testPresence, scratch, MISSING_SERVER_TEST_TREE);
   const promoted = pass(testPresence, scratch, MISSING_SERVER_TEST_TREE, true);
 
   expect(unpromoted.policies[0]?.findings).toHaveLength(1);
-  expect(unpromoted.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence", severity: "warning" }]);
+  expect(unpromoted.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence", severity: "error" }]);
   expect(unpromoted.authority.waivedFindings).toEqual([]);
   expect(unpromoted.authority.authorityAlarms).toEqual([]);
-  expect(unpromoted.authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 0, failOnWarnings: false });
+  expect(unpromoted.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: false });
   expect(promoted.authority.effectiveFindings).toEqual(unpromoted.authority.effectiveFindings);
-  expect(promoted.authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 1, failOnWarnings: true });
+  expect(promoted.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: true });
 });
 
-test("test-presence: a marker cannot suppress the hard warning", ({ scratch }) => {
+test("test-presence: a marker cannot suppress the hard finding", ({ scratch }) => {
   const attempted = pass(testPresence, scratch, {
     ...MISSING_SERVER_TEST_TREE,
     "packages/server/src/domain/chat/verbs/start-chat.ts":
-      "// @orb-waive test-presence(export): hard warning must reject this marker.\nexport const createStartChat = () => 1;\n",
+      "// @orb-waive test-presence(export): hard finding must reject this marker.\nexport const createStartChat = () => 1;\n",
   });
 
   expect(attempted.authority.effectiveFindings).toHaveLength(1);
@@ -243,7 +248,7 @@ test("test-presence: a marker cannot suppress the hard warning", ({ scratch }) =
   );
 });
 
-test("test-presence: each blindness diagnosis discards a prior potential warning from raw and effective results", ({ scratch }) => {
+test("test-presence: each blindness diagnosis discards a prior potential finding from raw and effective results", ({ scratch }) => {
   const cases = [
     {
       message: "the entry/transport scan matched ZERO files",
@@ -281,7 +286,7 @@ test("test-presence: each blindness diagnosis discards a prior potential warning
     expect(sighted.toolErrors).toEqual([]);
     expect(sighted.authority.withheldPolicyIds).toEqual([]);
     expect(sighted.policies.flatMap(({ findings }) => findings)).toMatchObject([{ file: missingFile }]);
-    expect(sighted.authority.effectiveFindings).toMatchObject([{ file: missingFile, severity: "warning" }]);
+    expect(sighted.authority.effectiveFindings).toMatchObject([{ file: missingFile, severity: "error" }]);
   }
 });
 
@@ -351,24 +356,24 @@ const MISSING_CLIENT_TEST_TREE = {
   "tests/client/data/other.test.ts": "export const t = 1;\n",
 } as const;
 
-test("test-presence-client: a missing client test is an unsuppressible warning that blocks only under promotion", ({ scratch }) => {
+test("test-presence-client: a missing client test is an unsuppressible error that blocks WITHOUT promotion", ({ scratch }) => {
   const unpromoted = pass(testPresenceClient, scratch, MISSING_CLIENT_TEST_TREE);
   const promoted = pass(testPresenceClient, scratch, MISSING_CLIENT_TEST_TREE, true);
 
   expect(unpromoted.policies[0]?.findings).toHaveLength(1);
-  expect(unpromoted.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence-client", severity: "warning" }]);
+  expect(unpromoted.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence-client", severity: "error" }]);
   expect(unpromoted.authority.waivedFindings).toEqual([]);
   expect(unpromoted.authority.authorityAlarms).toEqual([]);
-  expect(unpromoted.authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 0, failOnWarnings: false });
+  expect(unpromoted.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: false });
   expect(promoted.authority.effectiveFindings).toEqual(unpromoted.authority.effectiveFindings);
-  expect(promoted.authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 1, failOnWarnings: true });
+  expect(promoted.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: true });
 });
 
-test("test-presence-client: a marker cannot suppress the hard warning", ({ scratch }) => {
+test("test-presence-client: a marker cannot suppress the hard finding", ({ scratch }) => {
   const attempted = pass(testPresenceClient, scratch, {
     ...MISSING_CLIENT_TEST_TREE,
     "packages/client/src/data/use-thing.ts":
-      "// @orb-waive test-presence-client(export): hard warning must reject this marker.\nexport const useThing = () => 1;\n",
+      "// @orb-waive test-presence-client(export): hard finding must reject this marker.\nexport const useThing = () => 1;\n",
   });
 
   expect(attempted.authority.effectiveFindings).toHaveLength(1);
@@ -378,7 +383,7 @@ test("test-presence-client: a marker cannot suppress the hard warning", ({ scrat
   );
 });
 
-test("test-presence-client: an unreadable store mirror discards a prior potential warning from raw and effective results", ({ scratch }) => {
+test("test-presence-client: an unreadable store mirror discards a prior potential finding from raw and effective results", ({ scratch }) => {
   const refusing = {
     ...MISSING_CLIENT_TEST_TREE,
     "packages/client/src/state/example-store.ts":
@@ -393,7 +398,7 @@ test("test-presence-client: an unreadable store mirror discards a prior potentia
   expect(readable.toolErrors).toEqual([]);
   expect(readable.authority.withheldPolicyIds).toEqual([]);
   expect(readable.policies.flatMap(({ findings }) => findings)).toMatchObject([{ file: "packages/client/src/data/use-thing.ts" }]);
-  expect(readable.authority.effectiveFindings).toMatchObject([{ file: "packages/client/src/data/use-thing.ts", severity: "warning" }]);
+  expect(readable.authority.effectiveFindings).toMatchObject([{ file: "packages/client/src/data/use-thing.ts", severity: "error" }]);
 });
 
 test("test-presence-client: a complete population files the mirror receipt AND the per-call demand receipt", ({ scratch }) => {
