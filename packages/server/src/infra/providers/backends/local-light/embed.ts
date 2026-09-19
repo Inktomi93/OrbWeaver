@@ -79,8 +79,16 @@ function assembleVectors(
   return vectors;
 }
 
-/** Bind the embed role to a model cache (the real transformers.js cache, or a test fake). */
-export function createLocalLightEmbed(cache: LocalLightModelCache): (req: EmbedRequest) => Promise<EmbedResult> {
+/** Bind the embed role to a model cache (the real transformers.js cache, or a test fake).
+ *
+ *  `spaceTag` maps the loaded repo id to the VECTOR-SPACE identity reported as `result.model` — the string
+ *  the `embeddings` domain stamps on every row and compares against the active space. It arrives as a
+ *  function rather than being derived here so this file stays free of the `@huggingface/transformers`
+ *  vocabulary (the dtype it folds in is transformers.js's); `model-cache.ts` owns both the coupling and the
+ *  derivation, and `index.ts` binds them. REQUIRED on purpose: a default would let a future call site ship
+ *  vectors tagged with a space they were not produced in, and nothing downstream could tell. */
+// @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+export function createLocalLightEmbed(cache: LocalLightModelCache, spaceTag: (modelId: string) => string): (req: EmbedRequest) => Promise<EmbedResult> {
   return async (req) => {
     throwIfAborted(req.signal);
     const modelId = resolveModelId(req.model, DEFAULT_EMBED_MODEL);
@@ -97,7 +105,9 @@ export function createLocalLightEmbed(cache: LocalLightModelCache): (req: EmbedR
     throwIfAborted(req.signal);
 
     const vectors = assembleVectors(inputs.length, kept, raw, (vec) => finalizeVector(vec, req.dimensions, modelId));
-    // In-process inference is unmetered → null token usage (the EmbedResult contract).
-    return { vectors, model: modelId, usage: { promptTokens: null, totalTokens: null } };
+    // In-process inference is unmetered → null token usage (the EmbedResult contract). `model` is the SPACE
+    // tag, not the loader id: it carries the dtype, because a re-quantised encoder is a different space
+    // (model-cache.ts's `localLightEmbedSpaceTag`).
+    return { vectors, model: spaceTag(modelId), usage: { promptTokens: null, totalTokens: null } };
   };
 }

@@ -107,13 +107,20 @@ async function embedByKind(cache: LocalLightModelCache, modelId: string, input: 
   }
 }
 
-/** Bind the imageEmbed role to a model cache (the real transformers.js cache, or a test fake). */
-export function createLocalLightImageEmbed(cache: LocalLightModelCache): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
+/** Bind the imageEmbed role to a model cache (the real transformers.js cache, or a test fake). `spaceTag`
+ *  is the same required seam the text role takes (`embed.ts`) and MUST be the same function: one model
+ *  serves both modalities into one joint space, so a text vector and an image vector that are declared
+ *  cosine-comparable have to carry the identical space tag — including its dtype half. */
+// @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+export function createLocalLightImageEmbed(
+  cache: LocalLightModelCache,
+  spaceTag: (modelId: string) => string,
+): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
   return async (req) => {
     throwIfAborted(req.signal);
     const modelId = resolveModelId(req.model, DEFAULT_IMAGE_EMBED_MODEL);
     const vectors = await embedByKind(cache, modelId, req.input);
     throwIfAborted(req.signal);
-    return { vectors, model: modelId };
+    return { vectors, model: spaceTag(modelId) };
   };
 }

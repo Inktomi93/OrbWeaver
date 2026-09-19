@@ -2,7 +2,10 @@
 // tier, plus the process-local status registry the admin Engines panel renders it through.
 //
 // WHY IT EXISTS: local-light's weights download LAZILY, on the first call that needs them — jina-clip-v2
-// (~3.5 GB fp32) for embed/imageEmbed, ms-marco-MiniLM (~92 MB) for rerank, RMBG-1.4 (~176 MB) for matte.
+// for embed/imageEmbed, ms-marco-MiniLM (~92 MB) for rerank, RMBG-1.4 (~176 MB) for matte. The encoder's
+// size is whatever `LOCAL_LIGHT_EMBED_DTYPE` resolved, since the prefetch warms through the SAME memo the
+// inference path leases and that memo loads the resolved dtype's artifact (fp32 3.455 GB · fp16 1.73 GB ·
+// q4 1.42 GB · q8 874 MB — the #2417 default · q4f16 861 MB).
 // On a GPU-less box (the audience local-light exists for) that makes the FIRST search, the first import and
 // the first avatar matte stall for minutes with no explanation. This module moves that download to just
 // after the listener binds, so the stall is paid while the operator is still reading the boot log.
@@ -26,7 +29,7 @@ import type { LocalLightLoadProgress, LocalLightModelCache, LocalLightModelSlot 
 import { LOCAL_LIGHT_MODEL_SLOTS } from "./model-cache.ts";
 
 /** Every state a prefetch slot can occupy. `queued` is "scheduled, not started" (the slots after the one in
- *  flight — the walk is sequential so a 3.5 GB fetch never races a 92 MB one for the same pipe); `ready`
+ *  flight — the walk is sequential so the encoder's fetch never races a 92 MB one for the same pipe); `ready`
  *  means the weights are loaded IN THIS PROCESS, not merely on disk. */
 export const LOCAL_LIGHT_PREFETCH_STATUSES = ["queued", "downloading", "ready", "failed"] as const;
 type PrefetchStatus = (typeof LOCAL_LIGHT_PREFETCH_STATUSES)[number];
@@ -128,7 +131,7 @@ export interface LocalLightPrefetchDeps {
 export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLightPrefetchHandle {
   const log = getLog();
   // Per-slot single-flight ACROSS entry points: `start`'s walk and an admin `retry` of the same slot share
-  // one promise, so the panel's Restart button can never double a 3.5 GB download.
+  // one promise, so the panel's Restart button can never double a multi-hundred-MB download.
   const inFlight = new Map<LocalLightModelSlot, Promise<void>>();
   const modelIdBySlot = new Map<LocalLightModelSlot, string>();
   let stopped = false;

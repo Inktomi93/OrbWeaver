@@ -10,6 +10,7 @@ import process from "node:process";
 import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { l2Normalize } from "@orb/kit/vector-math";
+import { env } from "#foundation/env";
 import { getLog, superviseDetached } from "#foundation/observability";
 import { ProviderError } from "../../contract/index.ts";
 
@@ -39,10 +40,58 @@ const DEFAULT_DEVICE: DeviceType = "auto";
 const CPU_DEVICE: DeviceType = "cpu";
 const DEFAULT_DTYPE: DataType = "fp32";
 
+/** The embed/imageEmbed encoder's dtype — SEPARATE from `DEFAULT_DTYPE` above, which still governs rerank
+ *  (ms-marco-MiniLM, ~92 MB) and matte (RMBG-1.4, ~176 MB). Owner ruling 2026-09-19 (#2417) quantized the
+ *  ENCODER, whose fp32 artifact is 3.455 GB, and only the encoder: the other two are small enough that
+ *  their fp32 weights cost nothing worth trading accuracy for.
+ *
+ *  The assignment to `DataType` is the type-level pin that `LOCAL_LIGHT_EMBED_DTYPE`'s env vocabulary is a
+ *  subset of the lib's — foundation cannot import the lib (that seal is this file's whole reason to exist),
+ *  so this one line is where the two vocabularies are checked against each other. */
+const EMBED_DTYPE: DataType = env.LOCAL_LIGHT_EMBED_DTYPE;
+
+/** THE VECTOR-SPACE IDENTITY of a local-light embedding — the string that lands in every vector row's
+ *  `model` column and that `roleClients.embedModel` must answer with.
+ *
+ *  A re-quantised encoder produces a DIFFERENT SPACE: q8 vectors and fp32 vectors of the same text are not
+ *  the same point, so a cosine across them is noise. The `(model, dim)` space tag is the mechanism that
+ *  already exists for exactly this (PD-104 — every vector upsert keys on `model`, and `purgeStaleVectors`
+ *  deletes every row whose `model` is not the active one), so the dtype belongs INSIDE the tag rather than
+ *  in a new column: flipping `LOCAL_LIGHT_EMBED_DTYPE` then re-indexes through the machinery already built
+ *  for a model change, instead of silently mixing two spaces under one name.
+ *
+ *  `@` is the separator because it cannot occur in a HuggingFace repo id (`owner/name`), so the tag is
+ *  unambiguously splittable and can never collide with a real model id. It is a TAG, never a loader input:
+ *  `from_pretrained` is always handed the bare repo id.
+ *
+ *  THE TWO CALLERS MUST AGREE, and that is pinned by a test rather than by construction: the WRITE side is
+ *  the embed/imageEmbed role result (`embed.ts`/`image-embed.ts`, which pass the dtype their cache
+ *  resolved), and the READ/PURGE side is `entry/compose/role-clients.ts`'s `embedModel`/`imageEmbedModel`
+ *  getters (which pass `localLightEmbedDtype()`). They cannot be one expression because the read side never
+ *  touches a cache — but in production neither side is overridden, so both resolve `LOCAL_LIGHT_EMBED_DTYPE`
+ *  and produce the identical string. A test that overrides `ModelCacheConfig.dtype` moves the write side
+ *  only, which is why the override is a test/ops lever and the ENV knob is the supported production door. */
+// @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
+export function localLightEmbedSpaceTag(modelId: string, dtype: DataType): string {
+  return `${modelId}@${dtype}`;
+}
+
+/** THE one resolution of the encoder's dtype, for all three callers that need it: the model cache (which
+ *  loads the weights), `createLocalLightBackend` (which stamps the space tag on every embed result) and the
+ *  composition root (which must answer with the SAME tag when it says which space is active). An explicit
+ *  `configured` value still wins — an opt-in int test pins q4 to keep its download practical — and absent
+ *  one the box's `LOCAL_LIGHT_EMBED_DTYPE` decides. */
+export function resolveEmbedDtype(configured: DataType | undefined): DataType {
+  return configured ?? EMBED_DTYPE;
+}
+
 /** The MODEL SLOTS this cache loads, in PREFETCH ORDER — smallest weights first. One home for both the slot
  *  vocabulary and the order the boot prefetch walks it in: `rerank` (~92 MB ms-marco-MiniLM) lands in
- *  seconds, `embed` (~3.5 GB fp32 jina-clip-v2, the one a user FEELS — search/import stall on it) next, and
- *  `matte` (~176 MB RMBG-1.4) last because only a deliberate avatar/expression action reaches it.
+ *  seconds, `embed` (jina-clip-v2, the one a user FEELS — search/import stall on it) next, and
+ *  `matte` (~176 MB RMBG-1.4) last because only a deliberate avatar/expression action reaches it. The embed
+ *  weight is whatever `LOCAL_LIGHT_EMBED_DTYPE` resolves — 874 MB at the `q8` default, 3.455 GB at fp32 —
+ *  so it is no longer unconditionally the biggest slot, but it stays ordered here: it is still the one a
+ *  waiting user is blocked on.
  *
  *  A slot is a PAIR of memos, not a model file: `embed` is the processor + the joint encoder, `rerank` the
  *  tokenizer + the sequence classifier. `preload` warms exactly what the matching inference method leases,
@@ -348,6 +397,9 @@ async function ensureCacheDir(dir: string): Promise<void> {
 export function createModelCache(config: ModelCacheConfig = {}): LocalLightModelCache {
   const device = config.device ?? DEFAULT_DEVICE;
   const dtype = config.dtype ?? DEFAULT_DTYPE;
+  // The encoder's dtype is its OWN axis (#2417): rerank/matte keep `dtype` above, the encoder takes the
+  // quantized default unless this cache was built with an explicit one.
+  const embedDtype = resolveEmbedDtype(config.dtype);
 
   // The `env` writes used to run HERE, at construction — which is precisely what forced the eager import.
   // They now run once, on this cache's first model load, still before any `from_pretrained`: same ordering
@@ -389,7 +441,7 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
   const jinaEmbedder = createMemo(
     async (id) => {
       const { AutoModel } = await transformers();
-      return await loadWithCpuFallback(device, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype, ...loadOpts }));
+      return await loadWithCpuFallback(device, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype: embedDtype, ...loadOpts }));
     },
     (m) => {
       superviseDetached(`local-light:dispose:jina:${randomUUID()}`, "local-light.model.dispose", { modelKind: "jina" }, () => m.dispose());

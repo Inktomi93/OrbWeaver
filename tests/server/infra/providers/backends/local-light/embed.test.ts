@@ -21,6 +21,10 @@ import { expect, test } from "../../../../../support/fixtures.ts";
 // unconstructable from a literal, so double-cast for the test).
 const CRED = makeResolvedCredential("local-light");
 const MODEL = "Xenova/test-embed" as ModelId;
+// The dtype half of the space tag every embed result now reports (owner ruling 2026-09-19, #2417:
+// `LOCAL_LIGHT_EMBED_DTYPE` defaults to q8). Spelled as a LITERAL, not imported from the source: the
+// default is the ruling, so a flip must red these tests rather than follow them silently.
+const DEFAULT_EMBED_DTYPE = "q8";
 // The unified embed space — every local-light vector must be this length to fit the F32_BLOB(1024) column.
 const VECTOR_DIM = 1024;
 
@@ -69,7 +73,7 @@ describe("createLocalLightEmbed", () => {
     expect(res.vectors[1]).toBeNull();
     expect(res.vectors[2]).toBeNull();
     expect(res.vectors[3]).toBeInstanceOf(Float32Array);
-    expect(res.model).toBe(MODEL);
+    expect(res.model).toBe(`${MODEL}@${DEFAULT_EMBED_DTYPE}`);
     expect(res.usage).toEqual({ promptTokens: null, totalTokens: null });
   });
 
@@ -92,7 +96,7 @@ describe("createLocalLightEmbed", () => {
     const vec = requireVector(res.vectors[0] ?? null);
     expect(vec).toHaveLength(VECTOR_DIM);
     expect(cosineSim(vec, vec)).toBeCloseTo(1, 5);
-    expect(res.model).toBe(DEFAULT_EMBED_MODEL);
+    expect(res.model).toBe(`${DEFAULT_EMBED_MODEL}@${DEFAULT_EMBED_DTYPE}`);
   });
 
   test("a single string yields a one-element, L2-normalized vector array", async () => {
@@ -143,7 +147,7 @@ describe("createLocalLightEmbed", () => {
       input: "x",
     });
 
-    expect(res.model).toBe(DEFAULT_EMBED_MODEL);
+    expect(res.model).toBe(`${DEFAULT_EMBED_MODEL}@${DEFAULT_EMBED_DTYPE}`);
   });
 
   test("throws a typed aborted error when the signal is already aborted", async () => {

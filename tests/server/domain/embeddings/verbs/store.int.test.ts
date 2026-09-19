@@ -12,6 +12,7 @@ import { characterEmbeddings, chatDigestSpeakers, chatDigests, documentChunks, i
 import type { CharacterId, ChatDigestId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
+import { localLightEmbedSpace } from "@orb/server/infra/providers";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -19,6 +20,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import {
   EMBED_DIM,
   EMBED_MODEL,
+  embedAs,
   fakeVector,
   IMAGE_EMBED_MODEL,
   makeStoreHarness,
@@ -588,5 +590,46 @@ describe("store — chunk (document_chunks, the 5th arm — databank-design/05 �
       }),
     ).rejects.toBeInstanceOf(SpaceMismatchError);
     expect(await db.select().from(documentChunks)).toHaveLength(0);
+  });
+});
+
+// THE DTYPE IS PART OF THE SPACE (owner ruling 2026-09-19, #2417). A re-quantised local-light encoder
+// produces different vectors, so flipping `LOCAL_LIGHT_EMBED_DTYPE` must make the corpus STALE rather than
+// quietly mixing two geometries under one name. The mechanism is deliberately NOT a new column: the dtype
+// rides inside the `(model, dim)` space tag that every upsert already keys on and that `purgeStaleVectors`
+// already compares. This case drives it with the REAL infra derivation rather than an invented string, so
+// dropping the dtype from the tag — the one way to silently re-introduce the mix — reds here.
+describe("store — a local-light dtype change is a space change (#2417)", () => {
+  test("the same content under a re-quantised encoder does NOT satisfy the staleness gate", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner-dtype-space") });
+    const characterId = await seedCharacter(db, owner);
+
+    // The box's CURRENT space, derived the way the composition root derives it.
+    const q8Space = localLightEmbedSpace("");
+    expect(q8Space).toContain("@"); // the tag CARRIES its dtype — the premise this whole case rests on
+    embedAs(h, q8Space);
+    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, dim: EMBED_DIM });
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
+
+    // Re-running in the SAME space short-circuits: identical bytes, identical geometry, nothing to redo.
+    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, dim: EMBED_DIM });
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
+
+    // Now the operator selects fp32. Same character, same text — different encoder, so the gate must NOT
+    // answer `noop`: the indexer has to re-embed into the new space.
+    const fp32Space = `${q8Space.split("@")[0] ?? ""}@fp32`;
+    expect(fp32Space).not.toBe(q8Space);
+    embedAs(h, fp32Space);
+    const reindexed = await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: fp32Space, dim: EMBED_DIM });
+
+    expect(reindexed.outcome).toBe("written");
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(2);
+    // Additive, never overwritten in place — the retired space stays reclaimable by `purgeStaleVectors`
+    // (PD-104), exactly as a model change is.
+    const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
+    expect(rows.map((r) => r.model).toSorted()).toEqual([fp32Space, q8Space].toSorted());
   });
 });

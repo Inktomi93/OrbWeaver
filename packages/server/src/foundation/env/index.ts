@@ -388,6 +388,27 @@ const envSchema = z
     // `off` on a metered/air-gapped box, or when the operator wants nothing fetched until something needs it
     // — the lazy path is unchanged either way, so `off` costs nothing but the first-use wait.
     LOCAL_LIGHT_PREFETCH: z.enum(["on", "off"]).default("on"),
+    // The ONNX weight quantization the local-light EMBED/imageEmbed encoder loads (jinaai/jina-clip-v2).
+    // Owner ruling 2026-09-19 (#2417): the default is `q8`, not fp32. The published artifact sizes the
+    // prefetch lane measured:
+    //     fp32 3.455 GB · fp16 1.73 GB · q4 1.42 GB · q8 874 MB · q4f16 861 MB
+    // fp32 is a 3.5 GB download and ~3.5 GB resident on exactly the GPU-less box this tier exists for, for
+    // a retrieval quality difference int8 barely moves; `q8` makes the tier usable. fp32 stays SELECTABLE
+    // here for anyone who wants the reference vectors back.
+    //
+    // CHANGING THIS RE-INDEXES. A re-quantised encoder is a DIFFERENT VECTOR SPACE, so the dtype is part of
+    // the embedding's model identity — the `(model, dim)` space tag every vector row carries becomes
+    // `jinaai/jina-clip-v2@<dtype>` (`infra/providers/backends/local-light/model-cache.ts`'s
+    // `localLightEmbedSpaceTag`, the ONE derivation). Flipping this knob therefore makes every stored
+    // local-light vector a stale space, which the purge/re-embed sweeps already act on (`domain/embeddings/
+    // persistence/clear.ts:purgeStaleVectors`) — never a silent mix of two spaces.
+    //
+    // The vocabulary is the FIVE dtypes jina-clip-v2 actually publishes an ONNX file for, not the whole
+    // transformers.js `DataType` union: a knob that admits a dtype with no artifact is a knob that bricks
+    // embeddings at first use. `auto` is deliberately absent too — it resolves per-device, which would make
+    // the space tag name a dtype that is not necessarily the one on disk. Membership in the lib's union is
+    // pinned at the one consuming site (model-cache.ts assigns this to `DataType`).
+    LOCAL_LIGHT_EMBED_DTYPE: z.enum(["fp32", "fp16", "q8", "q4", "q4f16"]).default("q8"),
     // The controlled root the bundle-import extractor stages its per-upload dir under (a portability zip
     // decompresses to disk, not RAM). Unset ⇒ the app-owned `DEFAULT_IMPORT_STAGING_DIR`
     // (`domain/import/substrate/staging.ts`), deliberately NOT the OS temp dir: a shared world-listable

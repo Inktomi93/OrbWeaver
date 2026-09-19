@@ -23,7 +23,7 @@ import { DEFAULT_EMBED_MODEL, DEFAULT_IMAGE_EMBED_MODEL, DEFAULT_MATTE_MODEL, DE
 /** Which provider roles feed which prefetch slot, each with the builtin it falls back to when the resolver
  *  reports the config-derived empty model id. `embed` and `imageEmbed` share ONE slot on purpose: they are
  *  the same jina-clip-v2 weights (one joint text↔image space), so warming them separately would be the same
- *  3.5 GB twice — the first of them that lands on local-light claims the slot. `matte` has no role at all;
+ *  download twice — the first of them that lands on local-light claims the slot. `matte` has no role at all;
  *  see the header. */
 const ROLE_SLOTS: readonly {
   readonly slot: LocalLightModelSlot;

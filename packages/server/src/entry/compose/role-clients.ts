@@ -70,7 +70,7 @@ import type { ConnectionService } from "#domain/connection";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
 import type { ProviderErrorKind, ProviderExecutor, RoleClientsWithSignal, SummarizeCallOptions, SummarizeRequest } from "#infra/providers";
-import { ProviderError } from "#infra/providers";
+import { localLightEmbedSpace, ProviderError } from "#infra/providers";
 
 // Summarizer context fallback (tokens) for when a resolved connection reports window 0 (no contextLength).
 // The default summarizer runs on the vLLM GEN engine, so its floor DERIVES from the gen window's single home
@@ -182,6 +182,25 @@ function providerFailureOf(err: unknown): ProviderError | null {
     cause = cause.cause;
   }
   return cause instanceof ProviderError ? cause : null;
+}
+
+/**
+ * The VECTOR-SPACE tag for a resolved embed/imageEmbed connection — what `embedModel`/`imageEmbedModel`
+ * answer, and therefore what `domain/embeddings` writes into every row's `model` column, what its staleness
+ * lookups key on, and what `purgeStaleVectors` keeps.
+ *
+ * For every hosted/vLLM source the space IS the wire model id, unchanged. The in-process local-light tier is
+ * the one source whose space is not fully named by that id: it serves a builtin whose id resolves to `""` at
+ * routing time, and its encoder's QUANTIZATION is a genuine axis of the space — q8 and fp32 vectors of the
+ * same text are different points, so comparing them is noise (owner ruling 2026-09-19, #2417). Infra owns
+ * both facts; `localLightEmbedSpace` is the one derivation, and `createLocalLightBackend` stamps the very
+ * same string on the results whose vectors these tags describe.
+ *
+ * `rerankModel`/`summarizerModel` deliberately do NOT go through here: a reranker score and a summary are
+ * not points in a persisted space, so their provenance tag is just the model that produced them.
+ */
+function embedSpaceOf(conn: ResolvedConnection): string {
+  return conn.credential.source === "local-light" ? localLightEmbedSpace(conn.model) : conn.model;
 }
 
 /**
@@ -331,13 +350,13 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
     // they are read at REQUEST time. Reading them off the live snapshot is what keeps a row's `model` column
     // agreeing with the model that actually produced the vector after a role re-point.
     get embedModel(): string {
-      return snapshot.embed.model;
+      return embedSpaceOf(snapshot.embed);
     },
     get rerankModel(): string {
       return snapshot.rerank.model;
     },
     get imageEmbedModel(): string {
-      return snapshot.imageEmbed.model;
+      return embedSpaceOf(snapshot.imageEmbed);
     },
     get summarizerModel(): string {
       return snapshot.summarize.model;

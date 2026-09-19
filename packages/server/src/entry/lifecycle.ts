@@ -804,8 +804,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       handle.once("error", onBindError);
     });
 
-    // AFTER THE BIND, ON PURPOSE — and the only boot step that is. The local-light weights are gigabytes
-    // (jina-clip-v2 alone is ~3.5 GB fp32), so warming them anywhere earlier would hold /healthz and the
+    // AFTER THE BIND, ON PURPOSE — and the only boot step that is. The local-light weights are hundreds of
+    // megabytes to gigabytes (jina-clip-v2 is 874 MB at the `q8` default, 3.455 GB at fp32 —
+    // `LOCAL_LIGHT_EMBED_DTYPE`), so warming them anywhere earlier would hold /healthz and the
     // first request hostage to a download on a box that is otherwise ready to serve. Fire-and-forget past
     // this point: the plan read is a resolver call that can be slow (it may warm a catalog), the walk is a
     // multi-minute download, and NEITHER may extend boot. An owner-less box (a fresh OIDC deploy) has no
