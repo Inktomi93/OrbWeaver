@@ -27,7 +27,7 @@ import { z } from "zod";
 import { diagnosticsPostureInput, diagnosticsPostureWarnings, env, resolveDiagnosticsPosture } from "#foundation/env";
 import { versionIdentity } from "#foundation/version";
 import { getAuditFailureSnapshot } from "../audit.ts";
-import { logRing, recentRequests } from "../logger.ts";
+import { logRing, recentRequests, securityEvent } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
 import { captureNowMs, mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
 import {
@@ -56,7 +56,13 @@ const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
+const UNSUPPORTED_MEDIA_TYPE = 415;
 const INTERNAL_ERROR = 500;
+/** The ONE content-type the bug-report POST may carry (see {@link bugReportJsonOnly}), and the bound on how
+ *  much of a rejected one reaches the log ring — the header is attacker-controlled and only header-size
+ *  bounded. Both mirror `entry/app.ts`'s tRPC belt, which is the same rule one mount over. */
+const BUG_REPORT_MEDIA_TYPE = "application/json";
+const REJECTED_CONTENT_TYPE_LOG_CHARS = 64;
 /** Cap on the owner's typed note. Long enough for a paragraph of prose, short enough that a runaway paste
  *  cannot become the report. */
 const BUG_REPORT_NOTE_MAX = 8000;
@@ -82,6 +88,46 @@ const bugReportInput = z.object({
   windowMinutes: z.number().positive().max(BUG_REPORT_WINDOW_MAX_MINUTES).nullable().default(null),
   client: z.unknown().optional(),
 });
+
+/**
+ * THE CSRF CONTENT-TYPE BELT on the one WRITE this surface carries (#2376 — the #300 class, spine
+ * invariant #9). `hono`'s `c.req.json()` is `text()` + `JSON.parse` and reads NO content-type, so without
+ * this belt a `text/plain` POST carrying a JSON body ran the handler.
+ *
+ * WHY THAT IS A CSRF AND NOT A CURIOSITY. The gate above admits two credentials and one of them is
+ * AMBIENT: an admin/owner SESSION — `via:"cookie"` (the browser auto-attaches it) and, wherever
+ * `AUTH_FALLBACK=owner` is live (every dev stack, which is exactly where this button exists), the loopback
+ * owner `fallback` arm, whose "credential" is the socket the owner's own browser already speaks from. The
+ * other, `x-debug-token`, is a custom header a cross-site page cannot set without a preflight and is
+ * CSRF-immune by construction. `text/plain` / `multipart/form-data` / `application/x-www-form-urlencoded`
+ * are the CORS-SIMPLE content-types: a page the owner visits can POST one at 127.0.0.1 with no preflight
+ * and no CORS grant, and this route then WRITES — a durable artifact holding the process's flight
+ * recorders plus up to 4 MiB of the caller's own `note`/`client` bytes, repeatable.
+ *
+ * WHY A CONTENT-TYPE BELT RATHER THAN AN `x-orb-csrf` REQUIREMENT. It is the rule `entry/app.ts`'s
+ * `trpcJsonOnly` already chose for the identical shape one mount over, it refuses on EVERY arm at once,
+ * and it needs nothing of any caller: the client already sends `application/json`
+ * (`features/app-shell/lib/bug-report-capture.ts`) and so does every headless `x-debug-token` caller. The
+ * physics it rests on, stated so it can be re-checked: `application/json` is NOT a CORS-simple
+ * content-type and this app mounts no CORS middleware, so a cross-site page cannot make the browser send
+ * one. A media-type PREFIX test, lowercased — a legal `; charset=utf-8` must still pass.
+ *
+ * The READ probes are deliberately untouched: they carry no body, and a cross-site page cannot read their
+ * response. ENFORCER: `tests/server/foundation/observability/debug/routes.int.test.ts`, the content-type
+ * belt describe (all four simple types + the no-content-type arm, with JSON positive controls).
+ */
+const bugReportJsonOnly: MiddlewareHandler = (c, next) => {
+  const contentType = c.req.header("content-type");
+  if (contentType?.toLowerCase().startsWith(BUG_REPORT_MEDIA_TYPE) === true) {
+    return next();
+  }
+  securityEvent(
+    "debug_bug_report_content_type_rejected",
+    { contentType: contentType?.slice(0, REJECTED_CONTENT_TYPE_LOG_CHARS) ?? null },
+    "security: /api/_debug/bug-report POST rejected — content-type is not application/json (a CORS-simple body is cross-site forgeable)",
+  );
+  return Promise.resolve(c.body(null, UNSUPPORTED_MEDIA_TYPE));
+};
 
 /** The POSTed body, or `null` when it was not JSON at all — which `safeParse` then reports as invalid. */
 async function readJsonBody(c: Context): Promise<unknown> {
@@ -351,35 +397,42 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   // bounds nothing about its size and `readJsonBody` parses BEFORE validation — an uncapped POST is
   // unbounded buffering, parsing and artifact growth for anyone past the gate. Registered here so every
   // app that mounts this registrar carries it, and AFTER the gate middleware above so an un-credentialed
-  // caller is still refused without reading a byte.
-  app.post("/api/_debug/bug-report", bodyLimit({ maxSize: BUG_REPORT_MAX_BODY_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
-    const parsed = bugReportInput.safeParse(await readJsonBody(c));
-    if (!parsed.success) {
-      return c.json({ error: "invalid bug report", issues: z.prettifyError(parsed.error) }, BAD_REQUEST);
-    }
-    const capturedAt = new Date(captureNowMs());
-    const repoRoot = process.cwd();
-    const record: BugReportRecord = {
-      id: mintBugReportId(),
-      version: versionIdentity(),
-      capturedAt: capturedAt.toISOString(),
-      build: readBuildIdentity(repoRoot),
-      window: resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes),
-      note: parsed.data.note,
-      client: parsed.data.client ?? null,
-      server: snapshotServerEvidence(resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes), {
-        ...(rpgTrace === undefined ? {} : { rpgTrace }),
-        ...(memoryRecall === undefined ? {} : { memoryRecall }),
-      }),
-    };
-    const written = await writeBugReport({ repoRoot, record, secrets: secretLiterals(env) });
-    if (written === null) {
-      // The scrub is fail-closed (`redactKnownSecrets` returns "" when a literal survived). A blank file nobody
-      // notices is the worse outcome; refuse loudly and let the owner re-report.
-      return c.json({ error: "report refused — the credential scrub could not guarantee removal, nothing was written" }, INTERNAL_ERROR);
-    }
-    return c.json({ id: record.id, capturedAt: record.capturedAt, build: record.build, written, sources: record.server.sources });
-  });
+  // caller is still refused without reading a byte. The CSRF content-type belt (#2376) sits AHEAD of that
+  // cap for the same reason the tRPC mount orders its two belts that way: a forgeable POST is refused
+  // before a byte of it is buffered.
+  app.post(
+    "/api/_debug/bug-report",
+    bugReportJsonOnly,
+    bodyLimit({ maxSize: BUG_REPORT_MAX_BODY_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }),
+    async (c) => {
+      const parsed = bugReportInput.safeParse(await readJsonBody(c));
+      if (!parsed.success) {
+        return c.json({ error: "invalid bug report", issues: z.prettifyError(parsed.error) }, BAD_REQUEST);
+      }
+      const capturedAt = new Date(captureNowMs());
+      const repoRoot = process.cwd();
+      const record: BugReportRecord = {
+        id: mintBugReportId(),
+        version: versionIdentity(),
+        capturedAt: capturedAt.toISOString(),
+        build: readBuildIdentity(repoRoot),
+        window: resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes),
+        note: parsed.data.note,
+        client: parsed.data.client ?? null,
+        server: snapshotServerEvidence(resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes), {
+          ...(rpgTrace === undefined ? {} : { rpgTrace }),
+          ...(memoryRecall === undefined ? {} : { memoryRecall }),
+        }),
+      };
+      const written = await writeBugReport({ repoRoot, record, secrets: secretLiterals(env) });
+      if (written === null) {
+        // The scrub is fail-closed (`redactKnownSecrets` returns "" when a literal survived). A blank file nobody
+        // notices is the worse outcome; refuse loudly and let the owner re-report.
+        return c.json({ error: "report refused — the credential scrub could not guarantee removal, nothing was written" }, INTERNAL_ERROR);
+      }
+      return c.json({ id: record.id, capturedAt: record.capturedAt, build: record.build, written, sources: record.server.sources });
+    },
+  );
 
   app.get("/api/_debug/logs", (c) =>
     c.json({
