@@ -13,7 +13,18 @@ export interface DanglingCitation {
 
 export const CORE_ANCHOR = "docs/architecture/core/AGENTS.md";
 const GATES_DIR_REL = "tooling/src/verify/gates";
-const REVIEWED_GRANTS_REL = "tooling/src/verify/lib/reviewed-grants.ts";
+/** THE WHOLE GRANT-TABLE FAMILY, NOT THE BARREL (#2397, 2026-09-18). This was
+ *  `"tooling/src/verify/lib/reviewed-grants.ts"` matched with `endsWith`, which fenced exactly one file —
+ *  and the table has been SPLIT into `reviewed-grants-<section>.ts` siblings that the barrel re-exports.
+ *  Every sibling row spells its own `subject` as an UPPER_SNAKE STRING LITERAL, which the string-literal
+ *  arm below credits as a declaration, so each of the 19 `dangling-symbol-cite` grants MANUFACTURED THE
+ *  DECLARATION that made its own cited symbol resolve. The finding then never fired, the grant was never
+ *  consumed, and central reconciliation alarmed all 19 as stale — a two-sided failure where the alarm was
+ *  the only visible symptom and the real loss was 19 unjudged doc citations. Measured: deleting one grant
+ *  row (`anth-direct-sampling`) made its finding appear at `Core-Path-Registry.md:192`, which is the
+ *  control that the sites are live and the arm is otherwise working. A PREFIX over the family's directory
+ *  is the fence that a future split cannot silently widen past. */
+const REVIEWED_GRANTS_PREFIX = "tooling/src/verify/lib/reviewed-grants";
 const GATE_TESTS_REL = "tests/tooling/verify/gates/";
 const BACKTICK_TOKEN_RE = /`([^`\n]+)`/gu;
 const STRIKETHROUGH_RE = /~~[^~\n]*~~/gu;
@@ -207,7 +218,7 @@ export function collectDeclarationName(names: Set<string>, node: MorphNode, sour
   // Authority rows and family fixtures repeat the exact subject they police. Crediting those string values
   // would let the grant or proof manufacture its own production declaration evidence. Identifier
   // declarations in those files still count.
-  const inPolicyEvidence = inGateCorpus || path.endsWith(`/${REVIEWED_GRANTS_REL}`) || path.includes(`/${GATE_TESTS_REL}`);
+  const inPolicyEvidence = inGateCorpus || path.includes(`/${REVIEWED_GRANTS_PREFIX}`) || path.includes(`/${GATE_TESTS_REL}`);
   if (Node.isStringLiteral(node)) {
     const value = node.getLiteralText();
     if (!inPolicyEvidence && SYMBOL_CANDIDATE_RE.test(value)) {

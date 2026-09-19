@@ -17,17 +17,18 @@ import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { ContextualMemberOrigin, TypeIdentityOrigin, TypeMemberOrigin } from "../contract/type-member-origin.ts";
-import {
-  resolveTypePropertyOrigin as coreResolveTypePropertyOrigin,
-  normalizedPath,
-  resolved,
-  symbolDeclarations,
-  unresolved,
-} from "./type-member-origin-core.ts";
-import { resolveTypeValueOrigins as graphResolveTypeValueOrigins } from "./type-member-origin-graph.ts";
+import { normalizedPath, resolved, symbolDeclarations, unresolved } from "./type-member-origin-core.ts";
 
-export const resolveTypePropertyOrigin = coreResolveTypePropertyOrigin;
-export const resolveTypeValueOrigins = graphResolveTypeValueOrigins;
+// RE-EXPORTED, NEVER RE-BOUND (#2414, 2026-09-18). `export const X = importedX;` is a BINDING ALIAS, and the
+// canonical-export reader (`_shared/reference-fact-module.ts` `validatedProjectTarget`) refuses one fail-closed
+// BY DESIGN (#2320, #944): an identifier initializer cannot prove where the export actually comes from. The
+// tooling-size split `fb6d06c92` landed the rebound form, and `policy-legacy-imports` — which asks this front
+// door about every `../lib/` binding a final gate module imports — then REFUSED the whole real-tree run
+// (`check:structure --check policy-legacy-imports` exit 2, owner withheld) instead of reading the gate corpus.
+// A named re-export is the shape the reader follows, and it leaves both subjects' homes where the split put them.
+// biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting resolveTypePropertyOrigin and the resolveTypeValueOrigins graph engine to sibling leaves
+export { resolveTypePropertyOrigin } from "./type-member-origin-core.ts";
+export { resolveTypeValueOrigins } from "./type-member-origin-graph.ts";
 
 /** Resolve one property read to the declarations of the property symbol the checker found on the receiver's
  *  type. Dotted, optional, and computed-literal spellings normalize through the shared member reader, so a
