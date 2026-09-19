@@ -28,6 +28,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { isDrizzleWriteStatement, tableTargetOf } from "../lib/tenancy-read.ts";
 import { membershipScopedTableIdents, reportBlindWhenEmpty, schemaTableIdents } from "../lib/tenancy-scope.ts";
 
@@ -78,20 +79,25 @@ interface FileFacts {
   roomFan: boolean;
 }
 
-/** The callee's name for `ctx.emitX(...)` and for a bare `emitX(...)`, else undefined. */
+/** The callee's name for `ctx.emitX(...)` — EVERY spelling, through the shared `readMemberAccess`
+ *  (`ctx["emitUserEvent"](…)` and `ctx?.emitUserEvent(…)` included) — and for a bare `emitX(...)`. A
+ *  `PropertyAccessExpression`-only read here is the #1506 spelling hole the twins census reds. */
 function calleeName(call: CallExpression): string | undefined {
   const callee = call.getExpression();
-  if (Node.isPropertyAccessExpression(callee)) {
-    return callee.getName();
+  const read = readMemberAccess(callee);
+  if (read !== undefined) {
+    return read.name;
   }
   return Node.isIdentifier(callee) ? callee.getText() : undefined;
 }
 
-/** The identifier node the finding anchors on: `ctx.emitUserEvent(...)` reports at `emitUserEvent`, which is
- *  the authored slice a reader looks for on the line. */
+/** The node the finding anchors on: `ctx.emitUserEvent(...)` reports at `emitUserEvent` and
+ *  `ctx["emitUserEvent"](...)` at `"emitUserEvent"` — in both cases the AUTHORED slice a waiver-style
+ *  position would have to name, quotes included. */
 function calleeNameNode(call: CallExpression): MorphNode {
   const callee = call.getExpression();
-  return Node.isPropertyAccessExpression(callee) ? callee.getNameNode() : callee;
+  const read = readMemberAccess(callee);
+  return read === undefined ? callee : read.nameNode;
 }
 
 export const gate = defineGate({
@@ -150,7 +156,9 @@ export const gate = defineGate({
             }
             const arg = node.getArguments()[0];
             // The table class is not resolvable until the schema fact is ready, so the walk only records.
-            if (WRITE_VERBS.has(name) && arg !== undefined && Node.isPropertyAccessExpression(node.getExpression())) {
+            // The write verb must be a MEMBER call (`db.insert(T)` / `db["insert"](T)`), never a bare
+            // `insert(T)`: the receiver is what makes it a drizzle builder rather than a local helper.
+            if (WRITE_VERBS.has(name) && arg !== undefined && readMemberAccess(node.getExpression()) !== undefined) {
               candidates.push({ file: sourceFile, arg, call: node });
             }
           },
