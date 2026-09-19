@@ -54,35 +54,78 @@ test("the LANDING state (no chat) attaches NO room but still holds exactly one s
   await mount(<RpgBusStory chatId={null} />);
 
   await expect.poll(() => socket.connects()).toBe(1);
+  // The RENDERED settle for the gate's own input (#1849 — see THE BARRIER note above these three cases).
+  await expect(page.getByTestId("rpg-pointer")).toHaveText("landing");
   // The gate: nothing attached. Under the old shape this was an un-assertable network fact.
-  await expect.poll(() => socket.attachedChannels()).toEqual([]);
+  expect(await attachesHeldEmpty(socket)).toEqual([]);
 });
 
+// ── THE BARRIER FOR THE THREE NO-ATTACH CASES (#1849) ────────────────────────────────────────────────
+//
+// An ABSENCE assertion is only as good as what settles it, and these three had the two wrong halves at once:
+//
+//   • `expect.poll(() => socket.attachedChannels()).toEqual([])` PASSES ON ITS FIRST EVALUATION, because the
+//     set starts empty. `poll` retries until it passes, so a room that attached one tick LATER was never
+//     seen. That is a fence, not a defect proof — and it is where a 1-in-541 red hides: whichever of the
+//     surrounding assertions is genuinely racy gets blamed for a gate nothing was actually watching.
+//   • the settle they used was `trpc.count("chat.getChat") > 0`, a NODE-side count that ticks when the route
+//     handler SERVED the request — strictly before the browser parsed it, re-rendered, and let the hook
+//     decide. A node-side request count is never a browser-side settle.
+//
+// Both are replaced by the story's own RENDERED readout of the gate's INPUT (`rpg-pointer`, `_ct-stories.tsx`):
+// it reads the same `chat.getChat` cache entry the hook reads, so its text going from `pending` to
+// `engaged=<bool>` is the pointer having LANDED IN THIS DOCUMENT — the browser-side settle the old barrier
+// was standing in for. The set is then sampled across a HELD window (`attachesHeldEmpty`) rather than read
+// once, because "nothing happened" is a claim about an INTERVAL and a single read after a settle can still
+// precede an attach the next task queues.
+
+/** How long "no room attached" is held for, and how often it is sampled inside that window. */
+const ABSENCE_HOLD_MS = 600;
+const ABSENCE_SAMPLES = 6;
+
+/** Every channel seen attached across the hold — `[]` iff the set stayed empty for the WHOLE window.
+ *
+ *  Spelled as a node-side sleep rather than `page.waitForTimeout` (biome's `noPlaywrightWaitForTimeout`)
+ *  or a page-clock poll (the `test-determinism` gate bans an ambient clock in a test) — the
+ *  `rules-section.ct.tsx` precedent. The elapsed time IS the mechanism: an absence has no rendered edge to
+ *  wait on, so the only honest bound is a real interval over a recorder that only ever grows. */
+async function attachesHeldEmpty(socket: { readonly attachedChannels: () => readonly string[] }): Promise<readonly string[]> {
+  const seen = new Set<string>();
+  for (let sample = 0; sample < ABSENCE_SAMPLES; sample += 1) {
+    for (const channel of socket.attachedChannels()) {
+      seen.add(channel);
+    }
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, ABSENCE_HOLD_MS / ABSENCE_SAMPLES);
+    });
+  }
+  return [...seen];
+}
 test("a NON-GAME chat attaches NO rpg room — the gate the old hook only claimed to hold", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   const socket = await routeOrbSocket(page);
 
   await mount(<RpgBusStory chatId={PLAIN_CHAT} />);
 
-  // Wait for the pointer read to actually RESOLVE (routeTrpc records it) — only then is "no rpg room
-  // attached" a verdict rather than a race with a query that had not answered yet.
   await expect.poll(() => socket.connects()).toBe(1);
-  await expect.poll(() => trpc.count("chat.getChat")).toBeGreaterThan(0);
-  await expect.poll(() => socket.attachedChannels()).toEqual([]);
+  await expect(page.getByTestId("rpg-pointer")).toHaveText("engaged=false");
+  expect(await attachesHeldEmpty(socket)).toEqual([]);
 });
 
 test("a DISENGAGED game (pointer present, `engaged:false`) attaches NO rpg room", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
   const socket = await routeOrbSocket(page);
 
   await mount(<RpgBusStory chatId={DISENGAGED_CHAT} />);
 
   // THE regression this file exists for: the shipped gate was a re-spelled `rpg !== null`, so a game the user
   // had TOGGLED OFF (panel hidden, turn assembly clean, nothing rendered) still held a full always-on stream.
-  // Every other consumer of this pointer goes through `isRpgEngaged`; this one has to agree with them.
+  // Every other consumer of this pointer goes through `isRpgEngaged`; this one has to agree with them — and
+  // the readout below is `isRpgEngaged`'s OWN verdict on the pointer this stub served, so the barrier and the
+  // gate cannot disagree about what "disengaged" meant.
   await expect.poll(() => socket.connects()).toBe(1);
-  await expect.poll(() => trpc.count("chat.getChat")).toBeGreaterThan(0);
-  await expect.poll(() => socket.attachedChannels()).toEqual([]);
+  await expect(page.getByTestId("rpg-pointer")).toHaveText("engaged=false");
+  expect(await attachesHeldEmpty(socket)).toEqual([]);
 });
 
 test("a GAME chat attaches exactly ONE rpg room, and its frames drive the invalidation seam", async ({ mount, page }) => {
