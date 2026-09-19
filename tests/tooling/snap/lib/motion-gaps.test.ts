@@ -17,7 +17,7 @@
 // under test are the ones snap actually builds.
 import type { Args } from "../../../../tooling/src/snap/contract/types.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
-import { motionPrecedingInputHint, motionQueueHint } from "../../../../tooling/src/snap/lib/motion-gaps.ts";
+import { motionPrecedingInputHint, motionQueueHint, orderMotionGaps } from "../../../../tooling/src/snap/lib/motion-gaps.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const BURST = "[data-testid=list]=100:10";
@@ -57,6 +57,24 @@ test("a selector-bearing --motion dispatches its own click inside the trace, so 
   const args = parseSnapArgs(["/", "--goto", "chats", "--wheel-burst", BURST, "--motion", "[data-testid=send]"]);
 
   expect(motionPrecedingInputHint(args, motionIndex(args), "[data-testid=send]")).toBeNull();
+});
+
+test("the REFUSED gap list leads with the CAUSE, not with the zero-frame arithmetic it produced (#2464)", () => {
+  // The shape the owner read as "headless cannot composite": an empty window refuses on a zero frame
+  // POPULATION, and that line printed first reads as a browser limitation. The hint is the reason the
+  // window was empty, so it goes first.
+  const frameRefusal = { evidence: "a composited frame population", detail: "frames-raw=0/0" };
+  const args = parseSnapArgs(["/", "--goto", "chats", "--wheel-burst", BURST, "--motion"]);
+  const hint = motionPrecedingInputHint(args, motionIndex(args), null);
+  expect(hint).not.toBeNull();
+
+  const ordered = orderMotionGaps([frameRefusal], hint === null ? [] : [hint]);
+  expect(ordered[0]?.evidence).toBe("the measured input");
+  expect(ordered.at(-1)).toEqual(frameRefusal);
+
+  // The gating is unchanged and is the control: a window that MEASURED gets no hint at all, so a clean run
+  // never grows a lecture — and an ordering that leaked one would fail here.
+  expect(orderMotionGaps([], hint === null ? [] : [hint])).toEqual([]);
 });
 
 test("the sibling queue hint still owns the mirror-image case, and neither hint claims the other's shape", () => {

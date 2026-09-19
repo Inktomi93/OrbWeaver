@@ -1,6 +1,18 @@
 // Selective motion analyzer over Snap's one ordered tape. Reach actions have already run when the tagged
 // motion-click arrives; this arm resolves geometry, resets in-page evidence, then owns exactly that click
 // and its observation window inside one CDP PipelineReporter trace.
+//
+// THIS BOX COMPOSITES, AND HEADLESS IS NOT THE REASON A WINDOW COMES BACK EMPTY (#2464). A REFUSED
+// `--motion` with `frames-raw=0/0` was read as a headless limitation; it is not one. THE COMMITTED CONTROL,
+// re-runnable verbatim — a selector-bearing window on a moving surface, from a lane worktree:
+//   pnpm snap / --isolated --ref <sha> --goto chats --motion 'button[aria-label^="Chat actions for"]' --no-shot
+// MEASURED 2026-09-19 (HeadlessChrome/149.0.7827.55): `measured-input=1`, `frames-raw=0/27` — a population
+// of 27 composited frames, none dropped — `frames-population-raw=verdict`, and the run's own rate posture
+// reads `posture:"hardware" gpuCompositing:"enabled" rasterization:"enabled"` over
+// `ANGLE (Intel, Mesa Intel(R) Graphics (RPL-S))`. It exited 1 on REAL budget findings
+// (loaf-blocking 111ms > 50ms), i.e. `motion=FAIL`, never `REFUSED`: the instrument measured.
+// So an empty window means NOTHING MOVED IN IT — a selector-less `--motion` after reach actions is the
+// usual cause (lib/motion-gaps.ts) — and the gap list prints that cause before the zero-frame arithmetic.
 
 import { writeFile } from "node:fs/promises";
 import { readRuntimeAppearanceContract } from "../../../_shared/appearance-matrix.ts";
@@ -42,7 +54,7 @@ import type {
   ArmSharedContext,
 } from "../../contract/arms.ts";
 import type { Args } from "../../contract/types.ts";
-import { motionLoadSuspect, motionPrecedingInputHint, motionQueueHint, rateEvidenceGaps } from "../../lib/motion-gaps.ts";
+import { motionLoadSuspect, motionPrecedingInputHint, motionQueueHint, orderMotionGaps, rateEvidenceGaps } from "../../lib/motion-gaps.ts";
 import { motionProblems } from "../../lib/motion-problems.ts";
 import type { SnapRatePosture } from "../../lib/rate-posture.ts";
 import { consumeOptionalSelector, pushStep } from "../flags-support.ts";
@@ -152,12 +164,11 @@ async function measureMotionAction(
       reachFailures: ctx.navFailuresBefore + ctx.stepFailuresBefore,
     };
     const evaluated = evaluateMotionAudit(data, opts.motionWindowMs);
-    const gaps: EvidenceGap[] = [...evaluated.gaps, ...rateEvidenceGaps(ratePosture)];
     // Only a run that ALREADY could not measure gets the hints — on a clean window, measure-then-navigate
-    // and reach-then-measure are ordinary chains and a lecture about argv order would be noise.
-    if (gaps.length > 0) {
-      gaps.push(...hints);
-    }
+    // and reach-then-measure are ordinary chains and a lecture about argv order would be noise. Order is
+    // `lib/motion-gaps.ts`'s to decide: the CAUSE (nothing moved in this window) prints before the
+    // arithmetic it produced (a zero frame population), #2464.
+    const gaps = orderMotionGaps([...evaluated.gaps, ...rateEvidenceGaps(ratePosture)], hints);
     return { data, gaps, pass: evaluated.budgetsPass, artifact: null, loadSuspect: motionLoadSuspect(ratePosture) };
   } catch (error) {
     return {
@@ -290,7 +301,7 @@ export const MOTION_ARM = {
       kind: "boolean",
       pageTargetable: false,
       group: "Measure",
-      summary: "disable the --motion CPU throttle (headless drop rates stay advisory)",
+      summary: "disable the --motion CPU throttle (drop rates stay advisory only off a hardware rate posture)",
       handler: (args): void => {
         args.motionThrottle = false;
       },
@@ -311,8 +322,12 @@ export const MOTION_ARM = {
                           window opens and their evidence is reset, so this arm never measures their
                           cost — for that use --perf, or --cpu-profile for self time.
   --motion-window <ms>    measured observation window (default 2500)
-  --motion-no-throttle    disable motion's default 4x CPU throttle; headless dropped-frame rates remain
-                          advisory because headless Chromium has no real display-vsync deadline`,
+  --motion-no-throttle    disable motion's default 4x CPU throttle. Dropped-frame rates are advisory only
+                          when this run's RATE POSTURE is not "hardware" — headless is NOT structurally
+                          vsync-less here: snap launches Chromium with the GPU enabled and classifies the
+                          posture from SystemInfo (_shared/browser-acceleration.ts). What withholds the
+                          rates is a software/unknown posture, never the absence of a display, so a REFUSED
+                          window is about what did or did not move in it — the gap list names that first`,
   result: {
     schema: "snap-arm-motion-v1",
     source: "__orb motion rings + CDP PipelineReporter",
