@@ -107,10 +107,14 @@ interface AnchorBrowserGlobals {
 }
 
 /** Runs IN THE BROWSER. Centres the first rendered candidate (the census's own reach order) and hands back
- *  the geometry that decides whether it landed — `null` when the selector reaches nothing rendered. */
-function browserAnchorSubject(input: { readonly selector: string; readonly scroll: boolean }): AnchorRect | null {
+ *  the geometry that decides whether it landed. A miss carries the MATCH COUNT, never a bare null: "the
+ *  selector matches nothing here" and "it matches N nodes that are not rendered" are different defects with
+ *  different owners — the row's selector versus the surface — and a refusal that cannot tell them apart
+ *  sends its reader to the wrong one. */
+function browserAnchorSubject(input: { readonly selector: string; readonly scroll: boolean }): { readonly matches: number; readonly rect: AnchorRect | null } {
   const browser = globalThis as unknown as AnchorBrowserGlobals;
-  const element = [...browser.document.querySelectorAll(input.selector)].find((candidate) => {
+  const candidates = [...browser.document.querySelectorAll(input.selector)];
+  const element = candidates.find((candidate) => {
     const box = candidate.getBoundingClientRect();
     // THE ANCHOR NEEDS A BOX, AND THAT IS ALSO WHAT SEES THROUGH A HIDDEN ANCESTOR (#2430). A union selector
     // names the ink of BOTH responsive arms, so the first match is routinely the arm this viewport hides —
@@ -122,21 +126,39 @@ function browserAnchorSubject(input: { readonly selector: string; readonly scrol
     return browser.getComputedStyle(candidate).visibility !== "hidden" && box.width > 0 && box.height > 0;
   });
   if (element === undefined) {
-    return null;
+    return { matches: candidates.length, rect: null };
   }
   if (input.scroll) {
     element.scrollIntoView({ block: "center", inline: "nearest" });
   }
   const rect = element.getBoundingClientRect();
   return {
-    top: rect.top,
-    bottom: rect.bottom,
-    left: rect.left,
-    right: rect.right,
-    width: rect.width,
-    height: rect.height,
-    viewportWidth: browser.innerWidth,
-    viewportHeight: browser.innerHeight,
+    matches: candidates.length,
+    rect: {
+      top: rect.top,
+      bottom: rect.bottom,
+      left: rect.left,
+      right: rect.right,
+      width: rect.width,
+      height: rect.height,
+      viewportWidth: browser.innerWidth,
+      viewportHeight: browser.innerHeight,
+    },
+  };
+}
+
+/** The browser reply, validated: how many nodes the selector matched and the rendered one's geometry. */
+interface AnchorReach {
+  readonly matches: number;
+  readonly rect: AnchorRect | null;
+}
+
+function anchorReachShape(value: unknown, label: string): AnchorReach {
+  const reply = pageObject(value, label);
+  const rect = reply["rect"];
+  return {
+    matches: pageNumber(reply["matches"], `${label}.matches`),
+    rect: rect === null || rect === undefined ? null : anchorRectShape(rect, `${label}.rect`),
   };
 }
 
@@ -178,10 +200,12 @@ export async function anchorRowSubject(page: Page, row: RuntimeAppearanceHistori
   }
   let settled: AnchorRect | null = null;
   let everReached = false;
+  let lastMatches = 0;
   for (let attempt = 0; attempt < ANCHOR_ATTEMPTS; attempt += 1) {
     const label = `Appearance row ${row.id} anchor ${subjectId} attempt ${String(attempt)}`;
-    const reached: unknown = await page.evaluate(browserAnchorSubject, { selector, scroll: true });
-    if (reached === null) {
+    const reached = anchorReachShape(await page.evaluate(browserAnchorSubject, { selector, scroll: true }), label);
+    lastMatches = reached.matches;
+    if (reached.rect === null) {
       // REACH IS RETRIED, NOT REFUSED ON SIGHT. The loop already exists because ONE measurement is not a
       // verdict (#2402), and since the candidate filter started demanding a real box (#2430) "nothing
       // rendered yet" is one of the states a settling surface passes THROUGH — a virtualized row that has
@@ -191,20 +215,23 @@ export async function anchorRowSubject(page: Page, row: RuntimeAppearanceHistori
       continue;
     }
     everReached = true;
-    const scrolled = anchorRectShape(reached, label);
+    const scrolled = reached.rect;
     await settle(page, STEP_SETTLE_MS);
-    const measured: unknown = await page.evaluate(browserAnchorSubject, { selector, scroll: false });
-    if (measured === null) {
+    const measured = anchorReachShape(await page.evaluate(browserAnchorSubject, { selector, scroll: false }), `${label} settled`);
+    if (measured.rect === null) {
       continue;
     }
-    settled = anchorRectShape(measured, `${label} settled`);
+    settled = measured.rect;
     if (anchorHeld(scrolled, settled)) {
       return;
     }
   }
   if (!everReached) {
+    // The two halves of a miss are named, because they have different owners: `matches=0` is the ROW's
+    // selector against this surface, and `matches>0` is a surface that mounted the subject without ever
+    // giving it a box.
     instrumentRefusal(
-      `Appearance row ${row.id} anchor ${subjectId}: ${selector} reaches no rendered candidate to anchor on over ${String(ANCHOR_ATTEMPTS)} attempts — the ${row.surface} surface is not showing the subject this row judges, so the cell has NO VERDICT rather than a failed one.`,
+      `Appearance row ${row.id} anchor ${subjectId}: ${selector} reaches no rendered candidate to anchor on over ${String(ANCHOR_ATTEMPTS)} attempts (last selector population=${String(lastMatches)}) — the ${row.surface} surface is not showing the subject this row judges, so the cell has NO VERDICT rather than a failed one.`,
     );
   }
   instrumentRefusal(
