@@ -9,7 +9,7 @@ import type {
 } from "@base-ui/react/tooltip";
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
 import type { ReactElement } from "react";
-import { createContext, use, useId } from "react";
+import { createContext, isValidElement, use, useEffect, useId, useMemo, useState } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
 import { tooltipVariants } from "./variants.ts";
@@ -36,7 +36,46 @@ const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 // useFocus's `:focus-visible` early return — see hint-trigger.tsx's header). The rendered popup keeps
 // its animation and its geometry and becomes a purely VISUAL duplicate: `aria-hidden`, no id, no role,
 // so the text appears exactly ONCE in the accessibility tree whether the tooltip is open or closed.
-const TooltipDescriptionContext = createContext<string | undefined>(undefined);
+interface TooltipDescriptionApi {
+  /** The id the trigger points at and the description node wears — `undefined` when this tooltip is not
+   *  describing its trigger (opted out, or its text only repeats the trigger's own name). */
+  readonly descriptionId: string | undefined;
+  readonly reportTriggerName: (name: string | undefined) => void;
+  readonly reportTooltipText: (text: string | undefined) => void;
+}
+
+const TooltipDescriptionContext = createContext<TooltipDescriptionApi | undefined>(undefined);
+
+/** Collapse the whitespace an accessible-name computation collapses, so "Send  message" and "Send message"
+ *  are the same string to this comparison. */
+function sameSpokenString(left: string, right: string): boolean {
+  return left.trim().replace(/\s+/gu, " ") === right.trim().replace(/\s+/gu, " ");
+}
+
+/** The trigger's accessible name WHEN IT IS KNOWABLE FROM PROPS — an explicit `aria-label` (including one
+ *  on a nested `render` element: `<TooltipTrigger render={<PopoverTrigger render={<Button aria-label=…>}/>}>`
+ *  is HintTrigger's real shape), else string children. `undefined` means "not knowable", and the seal then
+ *  describes, because refusing to describe on a guess is the failure that cannot be noticed. */
+const RENDER_CHAIN_DEPTH = 4;
+
+function knowableTriggerName(props: Readonly<Record<string, unknown>>): string | undefined {
+  let element: Readonly<Record<string, unknown>> | undefined = props;
+  let depth = 0;
+  let found: string | undefined;
+  while (element !== undefined && depth < RENDER_CHAIN_DEPTH) {
+    const label = element["aria-label"];
+    if (found === undefined && typeof label === "string") {
+      found = label;
+    }
+    const render: unknown = element["render"];
+    element = isValidElement<Record<string, unknown>>(render) ? render.props : undefined;
+    depth += 1;
+  }
+  if (found !== undefined) {
+    return found;
+  }
+  return typeof props["children"] === "string" ? props["children"] : undefined;
+}
 
 // TRUE inside the sr-only description copy, FALSE inside the portal. The description renders the popup's
 // OWN children so an arbitrary node keeps working in both copies — but Base UI's structural tooltip parts
@@ -61,9 +100,27 @@ export interface TooltipProps<Payload = unknown> extends BaseRootProps<Payload> 
 }
 
 export function Tooltip<Payload = unknown>({ describesTrigger = true, ...props }: TooltipProps<Payload>): ReactElement {
-  const descriptionId = useId();
+  const id = useId();
+  // THE NAME/TEXT COMPARISON, AND WHY IT LIVES IN THE ROOT (#2455, owner ruling 2026-09-19). Announcing a
+  // control's own name as its description is a real a11y defect — `composer-guided-buttons.tsx`'s
+  // `resolveGuidedDetail` states the general rule — and MOST tooltips in this app sit on an icon-only
+  // control whose tooltip text IS its `aria-label`. Only the root sees both halves: the trigger knows its
+  // name, the popup knows its text, and they are different components. They publish into these two slots
+  // and the root decides. Both are knowable only when they are plain strings; anything else is `undefined`
+  // and the seal DESCRIBES, because a missing description is the failure nobody can see.
+  const [triggerName, setTriggerName] = useState<string | undefined>(undefined);
+  const [tooltipText, setTooltipText] = useState<string | undefined>(undefined);
+  const repeatsName = triggerName !== undefined && tooltipText !== undefined && sameSpokenString(triggerName, tooltipText);
+  const api = useMemo(
+    (): TooltipDescriptionApi => ({
+      descriptionId: describesTrigger && !repeatsName ? id : undefined,
+      reportTriggerName: setTriggerName,
+      reportTooltipText: setTooltipText,
+    }),
+    [describesTrigger, id, repeatsName],
+  );
   return (
-    <TooltipDescriptionContext value={describesTrigger ? descriptionId : undefined}>
+    <TooltipDescriptionContext value={api}>
       <BaseTooltip.Root {...props} />
     </TooltipDescriptionContext>
   );
@@ -71,7 +128,13 @@ export function Tooltip<Payload = unknown>({ describesTrigger = true, ...props }
 
 /** Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven tooltip. */
 export function TooltipTrigger<Payload = unknown>({ "aria-describedby": callerDescribedBy, ...props }: BaseTriggerProps<Payload>): ReactElement {
-  const descriptionId = use(TooltipDescriptionContext);
+  const api = use(TooltipDescriptionContext);
+  const descriptionId = api?.descriptionId;
+  const spokenName = knowableTriggerName(props);
+  const reportTriggerName = api?.reportTriggerName;
+  useEffect(() => {
+    reportTriggerName?.(spokenName);
+  }, [reportTriggerName, spokenName]);
   // MERGED, never overwritten — and the merge is why this one is DESTRUCTURED out of the spread rather
   // than ordered around it (`ui-accname-survives-spread`'s second arm). `aria-describedby` is a
   // SPACE-SEPARATED id list, and this seal's id is the only thing pointing at the popup: with the seal's
@@ -96,7 +159,13 @@ export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {
 export function TooltipPopup(props: TooltipPopupProps): ReactElement {
   const { className, children, side, align, sideOffset = DEFAULT_SIDE_OFFSET, container, ...rest } = props;
   const portalContainer = usePortalContainer();
-  const descriptionId = use(TooltipDescriptionContext);
+  const api = use(TooltipDescriptionContext);
+  const descriptionId = api?.descriptionId;
+  const spokenText = typeof children === "string" ? children : undefined;
+  const reportTooltipText = api?.reportTooltipText;
+  useEffect(() => {
+    reportTooltipText?.(spokenText);
+  }, [reportTooltipText, spokenText]);
   return (
     <>
       {/* THE ACCESSIBLE TOOLTIP. It is this node, not the portal below, that the trigger's

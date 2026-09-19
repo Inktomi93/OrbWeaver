@@ -62,9 +62,11 @@ test("the trigger's aria-describedby resolves to the tooltip text AT REST, with 
 // tooltip purely visual: no id on the trigger, no description node, and nothing dangling either.
 test("describesTrigger={false} leaves the trigger undescribed while the popup still opens", async ({ mount, page }) => {
   await mount(
+    // The text DIFFERS from the name, so only the explicit prop can be suppressing this one — the
+    // same-text arm below is a separate control and must not be able to satisfy this row.
     <Tooltip describesTrigger={false}>
       <TooltipTrigger delay={0}>Regenerate</TooltipTrigger>
-      <TooltipPopup>Regenerate</TooltipPopup>
+      <TooltipPopup>Regenerate the last reply</TooltipPopup>
     </Tooltip>,
   );
 
@@ -75,6 +77,45 @@ test("describesTrigger={false} leaves the trigger undescribed while the popup st
 
   await trigger.hover();
   await expect(page.locator('[data-slot="tooltip-popup"]'), "the VISUAL tooltip is untouched by the opt-out").toBeVisible();
+});
+
+// THE PAIR THAT MAKES THE DEFAULT SAFE (#2455, owner ruling 2026-09-19). Announcing a control's own name
+// as its description is itself an a11y defect, and most tooltips in this app sit on an icon-only control
+// whose tooltip text IS its `aria-label`. The seal compares the two when BOTH are plain strings and
+// describes only when they differ — no per-call-site edit, and no id minted in the repeat case, so there
+// is nothing to dangle either. Anything unknowable (a node, an element child) still describes: a missing
+// description is the failure nobody can see.
+test("a tooltip whose text REPEATS the trigger's aria-label mints no description at all", async ({ mount, page }) => {
+  await mount(
+    <Tooltip>
+      <TooltipTrigger aria-label="Notifications" delay={0} render={<button type="button" aria-label="Notifications" />} />
+      <TooltipPopup>Notifications</TooltipPopup>
+    </Tooltip>,
+  );
+
+  const trigger = page.getByRole("button", { name: "Notifications" });
+  await expect(page.locator('[data-slot="tooltip-description"]')).toHaveCount(0);
+  await expect(trigger, "the name must not be announced a second time as a description").toHaveAccessibleDescription("");
+  const dangling = await trigger.evaluate((element: HTMLElement): readonly string[] =>
+    (element.getAttribute("aria-describedby") ?? "")
+      .split(/\s+/)
+      .filter((id) => id.length > 0)
+      .filter((id) => element.ownerDocument.getElementById(id) === null),
+  );
+  expect(dangling, "suppressing the description must not leave an id behind").toStrictEqual([]);
+});
+
+test("a tooltip whose text EXTENDS the trigger's name still describes it at rest", async ({ mount, page }) => {
+  await mount(
+    <Tooltip>
+      <TooltipTrigger aria-label="More info about Reply length" delay={0} render={<button type="button" aria-label="More info about Reply length" />} />
+      <TooltipPopup>Affects every reply that stops at the length cap.</TooltipPopup>
+    </Tooltip>,
+  );
+
+  await expect(page.getByRole("button", { name: "More info about Reply length" })).toHaveAccessibleDescription(
+    "Affects every reply that stops at the length cap.",
+  );
 });
 
 test("shows on hover and hides when the pointer leaves", async ({ mount, page }) => {
