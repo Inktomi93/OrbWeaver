@@ -2848,7 +2848,7 @@ test("Escape closes an open modal without any panel-dismiss side effect (the yie
 // subtree once per frame for 220ms. Measured on the live stack: docking the LIST panel scored 0.2774 of
 // layout instability, collapsing it 0.2166, a nine-section rail sweep 0.3067 — F-14's "shell CLS ~0.26".
 // The track now resizes in ONE frame and the motion is a compositor-only counter-`translate` FLIP on
-// `.shell-main` (shell.css "THE PANEL PUSH IS A FLIP" + use-list-track-flip.ts): prototyped on the live
+// `.shell-main` (shell.css "THE PANEL PUSH IS A FLIP" + use-shell-track-flip.ts): prototyped on the live
 // shell at 0.2166 → 0.0205 (collapse), 0.2987 → 0.0205 (dock), rail nav 0.3067 → 0.0000.
 // So the parity assertions below read `animation-*` on `.shell-main` where they used to read
 // `transition-*` on `.shell-grid` — same two co-motion vars, same absence arm, same divergence arm — and
@@ -3820,6 +3820,13 @@ const DOOR_BOXES = {
   contextPanel: '.shell-panel[data-panel-side="context"]',
   row: '[data-testid="track-row"]',
   composer: '[data-testid="track-composer"]',
+  // #2463: THE LIST BAND'S TRAILING ACTION — the one box in the shell whose delta is neither the LIST
+  // track, nor `.shell-main`'s width change, nor half of it. The list pane is anchored to the rail, so a
+  // CONTEXT toggle leaves its start edge where it was and REFLOWS its width by the #242 squeeze (307 →
+  // 272 at 1280x800); a child pinned to that pane's END edge therefore owes the pane's own width change,
+  // which no existing counter carries. Measured before the fix: 304 → 269 in ONE frame on every context
+  // toggle, i.e. the whole squeeze, on the pane's only primary action.
+  listAction: '[data-testid="list-band-action"]',
 } as const;
 
 /** One frame of the door census: every box's x plus `.shell-main`'s WIDTH — the width is what names the
@@ -3952,7 +3959,16 @@ async function landDoorsStory(shell: Locator, page: Page): Promise<void> {
 }
 
 const LIST_DOOR_BOXES = ["main", "trail", "listPanel", "row", "composer"] as const;
-const CONTEXT_DOOR_BOXES = ["main", "trail", "contextPanel", "row", "composer"] as const;
+// `listAction` rides the CONTEXT door only, and the omission from the other two sets is a MEASURED fact
+// rather than a gap (#2463). The LIST door MOVES the pane the action lives in — its entrance/exit slide is
+// the motion, not a defect to cancel — so a corridor arm over a box that is deliberately travelling
+// off-screen would assert the opposite of the truth. The FOCUS door drives BOTH tracks, so it moves the
+// list pane too and inherits the same exemption; what it does NOT inherit is a clean bill, because a
+// collapsing list pane swaps its docked (squeezed) width for the unsqueezed `--panel-w` in the same frame
+// its exit transition starts. That is a separate, pre-existing discontinuity of the PANE's own entrance
+// corner (`--list-panel-flip-from` reads `--panel-w`, never `--list-track-was`), reported rather than
+// silently folded into this row.
+const CONTEXT_DOOR_BOXES = ["main", "trail", "contextPanel", "row", "composer", "listAction"] as const;
 const FOCUS_DOOR_BOXES = ["main", "trail", "listPanel", "contextPanel", "row", "composer"] as const;
 
 test("#2456 the LIST door holds every box it moves on the first painted frame, in both directions", async ({ mount, page }) => {
@@ -4094,7 +4110,7 @@ test.describe("#2456 the shell doors on a coarse pointer", () => {
 });
 
 // ── #2456: THE ATTRIBUTES ARE TRANSIENT ──────────────────────────────────────────────────────────────
-// THE DEFECT PROOF for the half of #2456 that is not geometry. `use-list-track-flip.ts` used to SET
+// THE DEFECT PROOF for the half of #2456 that is not geometry. `use-shell-track-flip.ts` used to SET
 // `data-list-flip` and never remove it, which was invisible while the list was the only animated track —
 // and made a SECOND track impossible, because `animation` does not compose across two matching rules: a
 // rule keyed on a permanently-present attribute wins the cascade forever and deletes the other track's

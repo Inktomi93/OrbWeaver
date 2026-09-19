@@ -967,7 +967,7 @@
     {
       "siteId": "packages/client/src/features/preset/components/params-limits.tsx::catch::1",
       "path": "packages/client/src/features/preset/components/params-limits.tsx",
-      "line": 384,
+      "line": 375,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -975,7 +975,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the doc comment above explains — an unparseable",
-      "markerLine": 379
+      "markerLine": 370
     },
     {
       "siteId": "packages/client/src/features/preset/components/preset-import-dialog.tsx::text::1",

@@ -131,7 +131,19 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
           )}
         </Heading>
       </Row>
-      {action}
+      {/* THE ACTION IS WRAPPED SO THE SHELL CAN COUNTER IT (#2463), and the wrapper is the marker rather
+          than a box with a job of its own. The band is `justify-content: space-between`, so this child is
+          pinned to the LIST PANE's end edge — and that edge MOVES on a context toggle, because the pane is
+          anchored to the rail and the #242 squeeze changes its WIDTH (307 → 272 at 1280x800). A reflow is
+          not a transform and nothing outside the pane can cancel it, so shell.css counters this box
+          directly ("THE FOURTH ALIGNMENT CLASS"); measured before it, the action CUT 304 → 269 in one frame
+          on every context toggle and stayed there while every box around it eased.
+          A MARKER AND NOT `:last-child`: with no action this cluster's identity `Row` is the last child,
+          and it is START-aligned — countering it would manufacture the excursion the rule erases, which is
+          the failure the topbar trail already recorded (#1316). The wrapper renders only WITH an action, so
+          shell.css's mobile band-shed test (`:not(:has(> *:not([data-slot="list-pane-identity"])))`) reads
+          exactly what it read before: one non-identity child iff the pane has a primary action. */}
+      {action === undefined ? null : <div data-slot="list-pane-action">{action}</div>}
     </>
   );
 }

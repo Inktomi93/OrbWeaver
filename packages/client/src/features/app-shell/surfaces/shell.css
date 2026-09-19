@@ -380,6 +380,31 @@
     ) /
     2
   );
+  /* ── THE FOURTH ALIGNMENT CLASS: A CHILD PINNED TO THE **LIST PANE'S** END EDGE (#2463) ───────────
+   * The three corners above are all about `.shell-main`. The LIST pane has an end edge of its own, and
+   * it moves for a reason none of them describe: the pane is anchored to the rail, so its START edge is
+   * fixed and the #242 squeeze changes its WIDTH. A reflow is not a transform and nothing can cancel it
+   * from outside — so a box pinned to that edge (the band's primary action, `justify-content:
+   * space-between` on `.shell-panel-header`) takes the whole squeeze in ONE frame. MEASURED at 1280x800
+   * on `Show details` with the list docked: `[data-slot="list-pane-action"]` x 304 -> 269 and STAYED at
+   * 269 for the whole glide, against a topbar trail beside it that eased over thirteen frames. It is the
+   * defect #2456 named and left stated, on the pane's only D66 A2 action.
+   *
+   * THE DISTANCE IS THE PANE'S OWN WIDTH CHANGE, which is the LIST track's — the same two layouts every
+   * corner above reads, subtracted the same way. `.shell-panel[data-panel-mode="docked"]` is `width:
+   * auto` in its grid column, so the track IS the pane's width; collapsed and overlay it is the
+   * unsqueezed clamp and the track is 0 on both sides of any commit, so this resolves to 0 there without
+   * a regime test.
+   *
+   * IT IS GATED ON THE LIST TRACK **NOT** TOGGLING, AND THE GATE IS THE POINT. When the list door itself
+   * runs, the pane is MOVING — `shell-list-panel-flip` slides the whole box, action included, and that
+   * travel is the motion rather than something to cancel. Countering it there would hold the action
+   * still while the pane it sits in slid out from under it. `--list-flip-dir` is 0 in exactly the case
+   * this corner is for (a CONTEXT or FOCUS commit that leaves the list docked), so `1 - |dir|` is the
+   * whole gate: `max(d, -d)` is `abs(d)` over the -1/0/1 the flip attributes publish, spelled with
+   * `max()` because it is the form every browser this ships to has had since the tracks were minted.
+   * Same shape as the corners above — the direction lives in the number, never in a second rule. */
+  --shell-list-band-flip-from: calc((1 - max(var(--list-flip-dir), -1 * var(--list-flip-dir))) * (var(--list-track-was) - var(--list-track)));
   /* THE PANES' OWN ENTRANCES, from the same two layouts.
    *
    * The CONTEXT pane is anchored to the frame's END edge in every mode, so its start edge is always
@@ -457,7 +482,7 @@
  * WHY `@keyframes` AND NOT A TRANSITION (guide §1.2 permits exactly this): a FLIP's "from" is a
  * TRANSIENT position that no resting state holds — `docked` and `collapsed` both rest at `translate: 0`,
  * so a transition between them has nothing to interpolate. `data-list-flip` is stamped by the shell in a
- * `useLayoutEffect` on the commit that changes the track (use-list-track-flip.ts), the same
+ * `useLayoutEffect` on the commit that changes the track (use-shell-track-flip.ts), the same
  * attribute-driven grammar Base UI's own `data-starting-style` uses — and it is ABSENT on first paint,
  * which is what keeps a page load from playing an entrance nobody asked for (guide §3.8). */
 /* ── THE DIRECTION OF EACH TRACK'S MOVE, AS A SIGN (#2456) ───────────────────────────────────────────
@@ -489,7 +514,7 @@
  * the rule. Two rules per element was survivable while one track had a FLIP; with two tracks it is not,
  * because `animation` does not compose across rules — the second rule wins outright and the first
  * track's motion disappears (#2449, measured). One name also means a mid-animation second toggle no
- * longer restarts by itself, which is why `use-list-track-flip.ts` restarts it explicitly. */
+ * longer restarts by itself, which is why `use-shell-track-flip.ts` restarts it explicitly. */
 @keyframes shell-main-flip {
   from {
     translate: var(--shell-main-flip-from) 0;
@@ -503,6 +528,11 @@
 @keyframes shell-centre-flip {
   from {
     translate: var(--shell-centre-flip-from) 0;
+  }
+}
+@keyframes shell-list-band-flip {
+  from {
+    translate: var(--shell-list-band-flip-from) 0;
   }
 }
 @keyframes shell-list-panel-flip {
@@ -623,6 +653,27 @@
   animation: shell-centre-flip var(--shell-motion) var(--shell-ease);
 }
 
+/* ── THE FOURTH ALIGNMENT CLASS: THE LIST BAND'S TRAILING ACTION (#2463) ──────────────────────────────
+ * The three rules above answer the three shapes a child of `.shell-main` can take. This one is not a
+ * child of `.shell-main` at all — it is the LIST pane's own END-pinned child, and the pane's end edge
+ * moves for a reason `.shell-main`'s never does: the pane is anchored to the rail, so the #242 squeeze
+ * changes its WIDTH rather than its position. No transform can cancel a reflow, which is why #2456 could
+ * only STATE this one: the counter has to ride the box that reflowed under it, and the band's trailing
+ * child is section-authored content rather than shell chrome.
+ *
+ * SO IT RIDES A MARKER, NOT A STRUCTURAL POSITION. `:last-child` would also select the identity cluster
+ * on a bandthat has no action — and that cluster is START-aligned, so countering it would MANUFACTURE the
+ * excursion this rule exists to erase, which is the exact failure the topbar trail already recorded
+ * (#1316). `ListPaneHeader` publishes `data-slot="list-pane-action"` around the D66 A2 action it wraps;
+ * one marker, nine sections, no per-section rule.
+ *
+ * THE DISTANCE IS DECLARED, GATED AND DERIVED WITH THE OTHERS (`--shell-list-band-flip-from`), so the
+ * LIST door — where the pane itself is the thing moving — resolves it to exactly 0 and this rule arms a
+ * no-op rather than needing a selector that excludes that door. */
+.shell-grid:is([data-list-flip], [data-context-flip]) [data-slot="list-pane-action"] {
+  animation: shell-list-band-flip var(--shell-motion) var(--shell-ease);
+}
+
 /* ── THE PANES' OWN ENTRANCES ─────────────────────────────────────────────────────────────────────────
  * A docking panel arrives in a track that is ALREADY its full width, so it slides in from outside the
  * frame (the rail is `--z-raised` and opaque, `.shell-grid` is `overflow: clip` — nothing escapes). The
@@ -651,21 +702,22 @@
  * reports/perf-meter/scls-*) presets 0.2032 · characters 0.2333 · corpus 0.2295 against 0.0112 · 0.0038 · 0
  * with motion on — 2.3x the 0.1 budget, one entry, one source: `div.shell-main`, x 56 -> 363.
  *
- * These three declarations are the FLIP keyframes' `from` corners, held as STATIC values: the same
- * composed distances, the same three elements, and NO animation, NO transition, NO duration.
- * `use-list-track-flip.ts` drops the attributes after exactly one painted frame, so `.shell-main` shows
+ * These four declarations are the FLIP keyframes' `from` corners, held as STATIC values: the same
+ * composed distances, the same four elements, and NO animation, NO transition, NO duration.
+ * `use-shell-track-flip.ts` drops the attributes after exactly one painted frame, so `.shell-main` shows
  * its old column for that frame and its new one after — one instant cut, nothing interpolating, nothing
  * for the compositor to hold pending (the #151 failure needed an ANIMATION to be pending; there is none
  * here). The browser scores it at zero for the reason the block above documents with its own positive
  * control: the held frame's visual start position is unchanged, and releasing a transform is not layout
  * instability.
  *
- * ALL THREE RIDE IT, FOR THE REASON EACH RIDES THE FLIP: the held frame IS the FLIP's `from` corner, so
+ * ALL FOUR RIDE IT, FOR THE REASON EACH RIDES THE FLIP: the held frame IS the FLIP's `from` corner, so
  * without the END-pinned twin it would hold the trail a full track outside the viewport (a one-painted-
- * frame disappearance of the ⌘K chip and the toggle cluster) and without the CENTRED twin it would hold
- * the whole transcript AND the composer outside their resting positions — on exactly the users who asked
- * for less motion. One expression each, shared with the FLIP arm, because a second spelling of a distance
- * is a second thing to drift.
+ * frame disappearance of the ⌘K chip and the toggle cluster), without the CENTRED twin it would hold
+ * the whole transcript AND the composer outside their resting positions, and without the LIST-BAND twin
+ * (#2463) the pane's own action would be the one box in the held frame showing its NEW position — on
+ * exactly the users who asked for less motion. One expression each, shared with the FLIP arm, because a
+ * second spelling of a distance is a second thing to drift.
  *
  * NOT A REINSTATED FLIP, and it must not become one: a duration or a transition-property on these rules
  * puts motion back in front of the user who switched it off. The reduced-motion floor (@orb/ui globals.css,
@@ -679,6 +731,13 @@
 }
 .shell-grid:is([data-list-settle], [data-context-settle]) .orb-chat-track {
   translate: var(--shell-centre-flip-from) 0;
+}
+/* FOUR, NOT THREE, SINCE #2463 — and it rides for the same reason the other three do. Without it the
+ * held frame would show the band's action at its NEW x while every box around it holds its old one, i.e.
+ * the one thing the settle exists to prevent, on the user who asked for less motion. Same expression as
+ * the FLIP arm, so the two cannot drift. */
+.shell-grid:is([data-list-settle], [data-context-settle]) [data-slot="list-pane-action"] {
+  translate: var(--shell-list-band-flip-from) 0;
 }
 
 /* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the

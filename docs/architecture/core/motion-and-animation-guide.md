@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-18
+updated: 2026-09-19
 ---
 
 # Motion & Animation Guide
@@ -204,10 +204,14 @@ in*. A FLIP (measure the previous box, apply the inverse, let CSS run it home) c
 DELTA and hands the interpolation straight back to CSS — the transition's property, duration
 and curve stay on the element's own classes. Two sites, and they are the whole exception class:
 
-- `packages/client/src/features/app-shell/hooks/use-list-track-flip.ts` — the shell's panel
-  push. JS stamps `data-list-flip="in|out"`; the distance is `--panel-w` and the keyframes
-  live in `shell.css`, so CSS owns even the delta. **Prefer this shape whenever the distance
-  is already a CSS value.**
+- `packages/client/src/features/app-shell/hooks/use-shell-track-flip.ts` — the shell's panel
+  push. JS stamps `data-<track>-flip="in|out"` for each of the two tracks (and the
+  reduced-motion `data-<track>-settle` twin); every distance is composed in `shell.css` from
+  the two grid tracks, and the keyframes live there too, so CSS owns even the delta.
+  **Prefer this shape whenever the distance is already a CSS value.** The file was
+  `use-list-track-flip.ts` until #2463 — renamed once it stopped being list-only (#2456 gave
+  the CONTEXT track its own arm), and renamed WITH this citation because `dangling-doc-cite`
+  is hard-no-waiver.
 - `glideIndicator` in `packages/ui/src/primitives/tabs/tabs.tsx` — the tabs indicator glide
   (§4.2 item 2). The delta is the difference between two runtime boxes, so no CSS value
   expresses it: JS writes the inverse `transform` inline, flushes, and drops it, and the

@@ -13,7 +13,7 @@
 // were not an axis ANY probe could reach — not an arm, not a matrix cell, nothing enumerated the states — so
 // a report of text flush to a panel edge or a clipped rounded button could not be told apart from "lives in
 // a state no instrument visits". For motion-audit specifically a panel toggle is not only a state to reach
-// but an ANIMATION (the docked↔collapsed FLIP, `use-list-track-flip.ts` + `shell.css`'s
+// but an ANIMATION (the docked↔collapsed FLIP, `use-shell-track-flip.ts` + `shell.css`'s
 // `shell-main-flip`), so driving it also makes one of the app's largest motion surfaces measurable.
 //
 // The bridge is dev-only (`installAgentDebugHandle` gates on IS_DEV): against a prod/old build every action
