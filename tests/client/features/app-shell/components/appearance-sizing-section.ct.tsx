@@ -6,6 +6,7 @@
 // asserted against the section's OWN exported MIN/MAX constants, never hardcoded numbers.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN } from "../../../../../packages/client/src/features/app-shell/lib/appearance-bounds.ts";
@@ -197,4 +198,50 @@ test("an elevation CELL patches elevation, key-minimally — and the three diagr
       );
   const signatures = [await signature("Flat"), await signature("Layered"), await signature("Lifted (glow)")];
   expect(new Set(signatures).size).toBe(3);
+});
+
+// #1871 item 4 (owner ruling 2026-09-19) — A DEAD DIAL IS NOT OFFERED. `--width-shell-content` is
+// `clamp(var(--dimension-shell-content-floor), <chatWidthPct>dvw, 100dvw)`, so at or below that floor the
+// clamp's MIN wins at every position of the slider: the control is inert. The section hides it there and
+// says why. Both arms assert the RELATION between the mounted viewport and the LIVE floor before asserting
+// the rendering, so a token change moves the pin rather than silently retiring it — and the two arms
+// together are each other's positive control (one mount, one story, opposite verdicts).
+const FLOOR_REM = Number.parseFloat(TOKENS["dimension.shell-content-floor"].value);
+const DIAL_NAME = "Chat width (%)";
+const DEAD_DIAL_NOTE = "The chat column already fills this screen — this setting takes effect on a wider one.";
+
+/** The floor in LIVE px: `rem` rides `--font-scale` (`:root { font-size: calc(100% * var(--font-scale)) }`),
+ *  so the threshold is only knowable in the page. The rem magnitude crosses as an ARGUMENT — a node-side
+ *  binding closed over inside `evaluate` is not in scope there. */
+function liveFloorPx(page: Page): Promise<number> {
+  return page.evaluate((rem: number) => rem * Number.parseFloat(getComputedStyle(document.documentElement).fontSize), FLOOR_REM);
+}
+
+test.describe("below the shell content floor", () => {
+  test.use({ viewport: { width: 640, height: 900 } });
+
+  test("the chat-width dial is withheld and the row explains why", async ({ mount, page }) => {
+    await stub(page);
+    await mount(<AppearanceSizingSectionStory />);
+    // The premise, measured rather than assumed: this viewport really is at/below the live floor.
+    expect(await page.evaluate(() => globalThis.innerWidth)).toBeLessThanOrEqual(await liveFloorPx(page));
+
+    await expect(page.getByRole("slider", { name: DIAL_NAME })).toHaveCount(0);
+    await expect(page.getByText(DEAD_DIAL_NOTE)).toBeVisible();
+    // The SIBLING dial is untouched — this hides one inert control, not the section.
+    await expect(page.getByRole("slider", { name: "Text size", exact: true })).toBeVisible();
+  });
+});
+
+test.describe("above the shell content floor", () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("the chat-width dial is offered and the note is absent", async ({ mount, page }) => {
+    await stub(page);
+    await mount(<AppearanceSizingSectionStory />);
+    expect(await page.evaluate(() => globalThis.innerWidth)).toBeGreaterThan(await liveFloorPx(page));
+
+    await expect(page.getByRole("slider", { name: DIAL_NAME })).toBeVisible();
+    await expect(page.getByText(DEAD_DIAL_NOTE)).toHaveCount(0);
+  });
 });

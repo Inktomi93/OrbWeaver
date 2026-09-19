@@ -1011,6 +1011,34 @@ test("enterSends OFF: Enter inserts a newline (no send); ⌘/Ctrl+Enter sends", 
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
+// ── #1871 item 6: composer soft-keyboard hygiene (owner ruling 2026-09-19) ─────────────────────────────
+// The three attributes are asserted on the RENDERED textarea rather than on a prop, because nothing
+// upstream sets them: `@orb/ui`'s Textarea renders a plain <textarea> through Base UI `Field.Control`, and
+// in @base-ui/react 1.7.0 only OTPFieldInput / AriaCombobox / NumberFieldInput carry input-hygiene
+// attributes — the field/ tree carries none. `enterKeyHint` is the LIVE `enterSends` value, so both arms
+// are pinned: one arm alone passes just as well against a hardcoded string, which is the defect shape.
+for (const [enterSends, hint] of [
+  [true, "send"],
+  [false, "enter"],
+] as const) {
+  test(`enterSends ${String(enterSends)}: the composer's enterKeyHint is "${hint}", with autocorrect/autocapitalise off`, async ({ mount, page }) => {
+    const trpc = await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "settings.getUserSettings": () => settingsWith({ enterSends }),
+    });
+    const component = await mount(<ComposerStory />);
+    const textarea = component.getByLabel("Message", { exact: true });
+    // Settle on the pref READ before reading the hint — the pre-read render carries the default arm, and
+    // asserting through it would make one of these two tests pass for the wrong reason.
+    await expect.poll(() => trpc.count("settings.getUserSettings"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+
+    await expect(textarea).toHaveAttribute("enterkeyhint", hint);
+    await expect(textarea).toHaveAttribute("autocorrect", "off");
+    await expect(textarea).toHaveAttribute("autocapitalize", "off");
+  });
+}
+
 // ── PD-146: continue-on-empty (continueOnSend) ───────────────────────────────────────────────────────────
 test("continueOnSend: an empty Send on an assistant tail fires chat.continueTurn on that message", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
