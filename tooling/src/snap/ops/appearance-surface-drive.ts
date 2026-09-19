@@ -89,6 +89,12 @@ interface AnchorRect {
 // declare the browser shapes it touches locally, so the program stays DOM-less and the call still executes.
 interface AnchorBrowserElement {
   readonly scrollIntoView: (options: { readonly block: string; readonly inline: string }) => void;
+  /** THE ONLY RENDERED TEST THAT SEES AN ANCESTOR (#2430). An element's OWN computed `display` resolves to
+   *  its declared value inside a `display:none` subtree, so `getComputedStyle(el).display !== "none"` is
+   *  true for a node that is not rendered at all; `checkVisibility()` walks the chain, and takes a hidden
+   *  `content-visibility` with it. It deliberately does NOT answer `visibility`/`opacity` by default, which
+   *  is why the explicit visibility test below stays. */
+  readonly checkVisibility: () => boolean;
   readonly getBoundingClientRect: () => {
     readonly top: number;
     readonly bottom: number;
@@ -111,8 +117,12 @@ interface AnchorBrowserGlobals {
 function browserAnchorSubject(input: { readonly selector: string; readonly scroll: boolean }): AnchorRect | null {
   const browser = globalThis as unknown as AnchorBrowserGlobals;
   const element = [...browser.document.querySelectorAll(input.selector)].find((candidate) => {
-    const style = browser.getComputedStyle(candidate);
-    return style.display !== "none" && style.visibility !== "hidden";
+    const box = candidate.getBoundingClientRect();
+    // A union selector names the ink of BOTH responsive arms, so the first match is routinely the arm this
+    // viewport hides. Rendered means: the chain renders it, it is not `visibility:hidden`, and it has a box
+    // — the same non-zero width/height the census's own `inViewport` demands of a sample, so the anchor can
+    // never succeed on a candidate the census would then classify as off-viewport.
+    return candidate.checkVisibility() && browser.getComputedStyle(candidate).visibility !== "hidden" && box.width > 0 && box.height > 0;
   });
   if (element === undefined) {
     return null;

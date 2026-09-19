@@ -3,6 +3,7 @@
 
 import type { Page } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
+import { splitPseudoSelector } from "../../_shared/css-pseudo-selector.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { AppearancePopulationAccounting, AppearanceSubjectReceipt } from "../contract/appearance-invariants.ts";
 
@@ -76,6 +77,12 @@ interface BrowserElement {
   readonly getAttribute: (name: string) => string | null;
   readonly getBoundingClientRect: () => ProbeRect;
   readonly contains: (other: BrowserElement) => boolean;
+  /** THE ONLY RENDERED TEST THAT SEES AN ANCESTOR (#2430). A candidate's OWN computed `display` resolves to
+   *  its declared value inside a `display:none` subtree, so `style.display === "none"` is FALSE for a node
+   *  that is not rendered at all, and the census filed it under `offViewport` — the one bucket whose reason
+   *  ("it scrolled out of view") is the opposite of the truth. `checkVisibility()` walks the chain. It does
+   *  NOT answer `visibility`/`opacity` by default, so those tests stay exactly where they were. */
+  readonly checkVisibility: () => boolean;
 }
 
 interface BrowserGlobals {
@@ -85,13 +92,18 @@ interface BrowserGlobals {
     readonly querySelectorAll: (selector: string) => readonly BrowserElement[];
     readonly elementFromPoint: (x: number, y: number) => BrowserElement | null;
   };
-  readonly getComputedStyle: (element: BrowserElement) => BrowserStyle;
+  readonly getComputedStyle: (element: BrowserElement, pseudo?: string | null) => BrowserStyle;
   readonly __orb?: { readonly motion: () => { readonly nonVirtualizedCls?: unknown } };
 }
 
 interface BrowserSubjectPolicy {
   readonly id: string;
   readonly selector: string;
+  /** The selector a DOM query can run — the subject's selector minus a trailing pseudo carrier. */
+  readonly host: string;
+  /** `::before`/`::after` when the subject IS the generated box, else null (`_shared/css-pseudo-selector.ts`).
+   *  Split NODE-SIDE because this census is serialized into the page and can import nothing. */
+  readonly pseudo: string | null;
   readonly sample: "carrier" | "geometry" | "interactive" | "pixel";
 }
 
@@ -185,8 +197,8 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
       parentSlots,
     };
   };
-  const invisibleReason = (policy: BrowserSubjectPolicy, style: BrowserStyle): string | null => {
-    if (style.display === "none") {
+  const invisibleReason = (policy: BrowserSubjectPolicy, style: BrowserStyle, rendered: boolean): string | null => {
+    if (!rendered) {
       return "display-none";
     }
     if (style.visibility === "hidden") {
@@ -205,11 +217,18 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
     return facts;
   };
   const classifyElement = (policy: BrowserSubjectPolicy, element: BrowserElement, census: MutableSubjectCensus, matchIndex: number): void => {
-    const style = browser.getComputedStyle(element);
+    // A PSEUDO SUBJECT IS STYLED ON THE CARRIER, MEASURED ON ITS HOST (#2431). `getComputedStyle` takes the
+    // pseudo as its second argument — without it the reader silently answers the HOST's paint, which is how
+    // `light-art-scrim-glass-elevation` read `rgba(0,0,0,0)/none` off a pane whose glass has lived on
+    // `::before` since #1154. A generated box has no `getBoundingClientRect`/`elementFromPoint` of its own,
+    // so geometry and the hit test stay the host's — which is why a pseudo subject is declared `carrier`,
+    // the one sample kind that asks a subject for its paint and nothing else.
+    const style = browser.getComputedStyle(element, policy.pseudo);
     const rect = element.getBoundingClientRect();
-    const carrierReached = policy.sample === "carrier" && style.display !== "none" && style.visibility !== "hidden";
-    const renderedFacts = style.display === "none" || style.visibility === "hidden" ? null : factsFor(element, style, rect);
-    const reason = invisibleReason(policy, style);
+    const rendered = element.checkVisibility();
+    const carrierReached = policy.sample === "carrier" && rendered && style.visibility !== "hidden";
+    const renderedFacts = !rendered || style.visibility === "hidden" ? null : factsFor(element, style, rect);
+    const reason = invisibleReason(policy, style, rendered);
     if (reason !== null) {
       withhold(census, reason, renderedFacts);
       return;
@@ -240,7 +259,9 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
     census.maxHorizontalOverflow = Math.max(census.maxHorizontalOverflow, Math.max(0, measured.scrollWidth - measured.clientWidth));
   };
   const censusSubject = (policy: BrowserSubjectPolicy): AppearanceDomSubject => {
-    const candidates = [...browser.document.querySelectorAll(policy.selector)];
+    // The HOST selector: a pseudo cannot be selected (`querySelectorAll` answers population 0, measured),
+    // so a carrier subject's population IS its hosts' and its receipt keeps the full selector below.
+    const candidates = [...browser.document.querySelectorAll(policy.host)];
     const census: MutableSubjectCensus = {
       sampled: 0,
       occluded: 0,
@@ -297,5 +318,6 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
 }
 
 export async function probeAppearanceDom(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<AppearanceDomSnapshot> {
-  return await page.evaluate(browserAppearanceCensus, { subjects: row.subjects, properties: row.cascade.map((query) => query.property) });
+  const subjects = row.subjects.map((subject) => ({ ...subject, ...splitPseudoSelector(subject.selector) }));
+  return await page.evaluate(browserAppearanceCensus, { subjects, properties: row.cascade.map((query) => query.property) });
 }

@@ -172,9 +172,12 @@ function r3(ctx: AppearanceCheckContext): readonly AppearanceInvariantCheck[] {
     ),
     check(
       "glass-wins-elevation",
-      style(current, "list-panel", "backdropFilter") !== "none" && style(current, "list-panel", "backgroundColor") !== "",
+      // THE CARRIER, NOT THE PANE (#1154 moved the paint, #2431 re-pointed the check). The pane itself now
+      // declares `background: none` and no filter, so asking it these two questions answered
+      // `rgba(0, 0, 0, 0)/none` on every cell — a true statement about the wrong box.
+      style(current, "list-panel-glass", "backdropFilter") !== "none" && style(current, "list-panel-glass", "backgroundColor") !== "",
       "translucent glass panel beats elevation fill",
-      `${style(current, "list-panel", "backgroundColor")}/${style(current, "list-panel", "backdropFilter")}`,
+      `${style(current, "list-panel-glass", "backgroundColor")}/${style(current, "list-panel-glass", "backdropFilter")}`,
     ),
     pixelCheck(ctx),
     check(

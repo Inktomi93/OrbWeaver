@@ -29,7 +29,7 @@ import { runBaselineOrDiff } from "./diff.ts";
 import { watchIntervalMs } from "./flags-support.ts";
 import { snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeCoreCaptureEvidence, writeManifestIfRequested } from "./manifest.ts";
-import { fileOriginNoiseCount, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
+import { fileOriginNoiseCount, isDevToolsFrontendNoise, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
 import {
   deviceResultValue,
   extendEvidenceThroughWatch,
@@ -268,6 +268,8 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       ["sandbox-trace-noise", session.consoleMessages.filter(isSandboxTraceNoise).length] as const,
       // #1315: the file:// unique-origin note a CDP attach provokes — counted, printed, never judged.
       ["file-origin-noise", fileOriginNoiseCount(session.consoleMessages, fileOrigin)] as const,
+      // #2431: the vendored DevTools frontend's own Autofill method-not-found pair — same treatment.
+      ["devtools-frontend-noise", session.consoleMessages.filter(isDevToolsFrontendNoise).length] as const,
       ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length] as const,
       [
         "boot-console-warnings",

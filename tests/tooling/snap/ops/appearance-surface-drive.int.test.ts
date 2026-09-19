@@ -147,3 +147,36 @@ test("a surface that never stops scrolling away refuses by name with the rect it
   // The geometry is the whole point of the refusal: `offViewport:1` with no rect is what made #2402 unreadable.
   expect(message).toContain("Last measured rect=");
 });
+
+// @instrument-proof: #2430 — A CANDIDATE'S OWN COMPUTED `display` IS BLIND TO A HIDDEN ANCESTOR. The anchor
+// picked "the first candidate whose own computed display/visibility is not none/hidden", and CSS resolves a
+// child of a `display:none` subtree to its DECLARED value, so an unrendered node passed that filter, handed
+// back an all-zero rect and could never be anchored. Measured on the live shell 2026-09-19 at
+// desktop 1280x800 on `home`: the row `opposite-os-app-prepaint` judges
+// `:is(.shell-topbar-title, .shell-topbar-jump-label)`, whose FIRST match is the topbar's narrow identity
+// title — `display:block`, `visibility:visible`, `checkVisibility() === false`, parent `display:none`,
+// rect all zeros — while the genuinely rendered `.shell-topbar-jump-label` sits 39x20 at x=1109 later in
+// document order. `--matrix` spent 8 scroll attempts on the phantom and aborted cell v04 with no verdict.
+//
+// @instrument-absence-proof: the second arm is the planted control in the other direction — with NO rendered
+// candidate behind the phantom, the anchor still refuses by its own "reaches no rendered candidate" name, so
+// the arm above is a real answer about which node is rendered rather than a predicate that can only pass.
+function ancestorHiddenFirstCandidate(renderedSibling: boolean): string {
+  return `<div style="display:none"><span id="subject" style="height:20px">phantom</span></div>
+    ${renderedSibling ? '<span id="subject" style="display:block;height:20px;width:80px">real ink</span>' : ""}`;
+}
+
+test("the anchor skips a candidate hidden by an ANCESTOR and takes the rendered one", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const anchored = await anchor(ancestorHiddenFirstCandidate(true));
+
+  expect(anchored.failure, "a rendered candidate behind an ancestor-hidden one must anchor, not refuse").toBeNull();
+});
+
+test("an ancestor-hidden candidate with nothing rendered behind it refuses as UNREACHED, not unanchorable", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const anchored = await anchor(ancestorHiddenFirstCandidate(false));
+
+  expect(anchored.failure, "a phantom-only surface must not read as a successful anchor").not.toBeNull();
+  const message = String(anchored.failure?.message);
+  expect(message).toContain("INSTRUMENT ERROR");
+  expect(message).toContain("reaches no rendered candidate to anchor on");
+});
