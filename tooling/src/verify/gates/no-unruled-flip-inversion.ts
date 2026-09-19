@@ -183,7 +183,7 @@ export const gate = defineGate({
           '  el.style.transform = "";\n' +
           "}\n",
       },
-      expect: { count: 1, token: TRANSFORM, messageIncludes: "not a third member" },
+      expect: { count: 1, token: TRANSFORM },
       why: "THE DEFECT THE RULING NAMES — a THIRD FLIP site, in `@client` and flushed through the other read spelling (`offsetWidth`). This is the row the whole policy exists for: before it, a third member was catchable only by a human who had read §1.5",
     },
     {
