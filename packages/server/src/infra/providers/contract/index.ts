@@ -3,7 +3,7 @@
 // sealed-backend contract. Infra-internal request shapes (ChatRequest variants, AgentTurnRequest, the
 // non-chat role requests, ChatEvent/ChatError/wire vocab) live behind this barrel; cross-boundary shapes
 // (the role RESULTS, ResolvedCredential, CredentialHealth, ModelCapability) are RE-EXPORTS from
-// `@orb/contracts` so a consumer needs ONE import for the whole provider surface (providers.md).
+// `@orb/contracts` so a consumer needs ONE import for the whole provider surface (Tier-3b-Providers.md).
 
 export type {
   ChatApi,

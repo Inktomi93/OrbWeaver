@@ -4,7 +4,7 @@
 //   • FOREIGN  (another domain owns the read) → {@link ForeignInputs}, a resolved-DATA DTO produced by the thin
 //     composition-root dep {@link ResolveForeignInputsOp}. Chat DECLARES this dep + DTO and CONSUMES them; a
 //     later compose chunk supplies the runtime fn. Chat never imports preset/persona/settings — it receives the
-//     RESOLVED DATA shape (entry.md invariant 1: entry owns no business logic; the resolution takes chat-supplied
+//     RESOLVED DATA shape (Tier-5-Entry.md invariant 1: entry owns no business logic; the resolution takes chat-supplied
 //     KEYS and returns DATA, so chat stays decoupled from those read APIs).
 //   • CHAT-INTERNAL (chat owns the data/subsystem) → gathered by `substrate/assemble-gather.gatherAssembleContext`
 //     using the `ChatContext` ops chat already holds (canon/injections/variables/metadata/memory/regex-tier).
@@ -153,7 +153,7 @@ export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
 /**
  * The thin composition-root dep that resolves {@link ForeignInputs} from chat-supplied KEYS. The keys are the
  * minimum the FOREIGN reads need under the FROZEN `runAsUserId` (D19 — the host, never the caller); the resolver
- * returns RESOLVED DATA, so it touches NO chat tables (entry.md invariant 1). `anchorPersonaId` is the chat-open
+ * returns RESOLVED DATA, so it touches NO chat tables (Tier-5-Entry.md invariant 1). `anchorPersonaId` is the chat-open
  * anchor (`chats.anchorPersonaId`).
  *
  * There is no `personaIds` (the room's present-human persona ids) here any more: the ONLY thing that read it

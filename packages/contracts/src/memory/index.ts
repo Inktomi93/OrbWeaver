@@ -1,5 +1,5 @@
 // AI-native seam reservations — the v2 "synthesize, don't just retrieve" apex (core/Knowledge-Cluster.md §9,
-// core/Planning-and-Checklists.md, DECISIONS-LEDGER §5). Typed NOW with ZERO behavior so trackers / clips /
+// core/Core-Planning-and-Checklists.md, DECISIONS-LEDGER §5). Typed NOW with ZERO behavior so trackers / clips /
 // world-state stay ADDITIVE when built (v2) — never a schema fight. The full Clip shape + persistence
 // land with the feature; these are the union axes that must exist up front. Self-registering `as const`
 // tuples = the canonical home for each axis (no-inline-union-redecl); the type AND the Zod schema both

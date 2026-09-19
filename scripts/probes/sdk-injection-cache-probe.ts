@@ -25,7 +25,7 @@
  * canon grows. g-none (control), g-d0 (tail note → fork), g-d2 (mid-seed note moves → fork), g-top
  * (over-deep clamp anchors at the TOP — the one position-stable in_chat placement).
  *
- * Predictions + the option space live in reports/agent-sdk/depth-injection-caching.md. Costs pennies
+ * Predictions + the option space live in the generated agent-sdk depth-injection-caching report. Costs pennies
  * (Haiku, capped output) but spends real sub quota / OR credits — HAND-RUN ONLY, never CI.
  */
 

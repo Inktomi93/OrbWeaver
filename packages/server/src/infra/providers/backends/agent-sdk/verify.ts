@@ -14,7 +14,7 @@ interface Classification {
 }
 
 /**
- * The init-frame SHAPE GUARD (providers.md Esoteric §3). The SDK's `system/init` frame carries the
+ * The init-frame SHAPE GUARD (Tier-3b-Providers.md Esoteric §3). The SDK's `system/init` frame carries the
  * `session_id` every later resume lookup is keyed by, plus `apiKeySource` (the sub-vs-key canary). If a
  * future SDK version drops/renames either, every subsequent `session_id`-keyed lookup would silently
  * corrupt — so we throw LOUDLY at the first turn instead of orphaning a thousand session rows later. A

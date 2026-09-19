@@ -2,7 +2,7 @@
  * pnpm sdk:session-probe [--mode sub|or] [--model <id>] [--turns N] [--verbose]
  *
  * The HELD-OPEN-WORKER justification probe — the measurement half of the held-open-sessions PD
- * (`reports/agent-sdk/held-open-sessions-pd.md`). Quantifies what the PD's opt-in mode would BUY: the
+ * (the generated agent-sdk held-open-sessions report). Quantifies what the PD's opt-in mode would BUY: the
  * per-turn subprocess-spawn overhead a warm worker saves, and whether a streamed same-worker turn keeps
  * the prompt cache as warm as a `resume`-by-session per-turn spawn. Spends real Max-sub quota (mode-1) or
  * OpenRouter credits (mode-2) — HAND-RUN, NEVER CI.

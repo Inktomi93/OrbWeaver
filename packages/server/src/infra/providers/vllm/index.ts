@@ -1,7 +1,7 @@
 // Local multi-role engine (its own subsystem, not a chat-backend peer). `createVllmBackend(deps)` returns
 // a sealed {@link ProviderBackend} whose five INDEPENDENT surfaces (chat/embed/rerank/imageEmbed/
 // summarize) run against ONE engine, plus the engine lifecycle handle `entry/` wires at boot. `now` is
-// injected (no-raw-clock); CONCURRENCY defaults are NOT env keys (settings-tier knob, providers.md §7.2).
+// injected (no-raw-clock); CONCURRENCY defaults are NOT env keys (settings-tier knob, Tier-3b-Providers.md §7.2).
 
 import process from "node:process";
 import type { ResolvedEngineLaunch } from "@orb/contracts/settings";

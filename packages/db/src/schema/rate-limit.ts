@@ -3,7 +3,7 @@
 //
 // One row per (scope, identity, window). The shared table is what makes the cap MULTI-REPLICA-correct:
 // the per-process RateLimiterMemory + the in-proc local-login Map gave N× the configured cap under N
-// replicas; the shared bucket makes the cap real regardless of which replica answered (transport.md
+// replicas; the shared bucket makes the cap real regardless of which replica answered (Tier-4-Transport.md
 // esoteric #2). The limiter does an atomic `INSERT … ON CONFLICT(key) DO UPDATE SET count = count + 1
 // … RETURNING count` (no SELECT-then-UPDATE race), and a lazy expiry sweep scoped `WHERE key LIKE
 // 'scope:%'` (a prefix range scan, never a full-table scan) on both the allowed and the throttled path.

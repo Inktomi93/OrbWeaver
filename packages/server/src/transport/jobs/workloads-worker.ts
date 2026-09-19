@@ -1,14 +1,14 @@
 // transport/jobs/workloads-worker — THE workloads DRIVER (the analogue of tRPC for the chat verbs). It
 // decides WHICH row + WHEN, then calls DOWN into the `domain/workloads` engine entry points to run it; the
 // per-row state machine (`runWorkload`) lives in the domain — jobs DRIVES it on a loop. Crosses ZERO feature
-// boundaries (transport.md §"job drivers → the workloads front door").
+// boundaries (Tier-4-Transport.md §"job drivers → the workloads front door").
 //
 // BOUNDARIES (domain-no-cross-feature / drivers-through-domain): this driver constructs NOTHING. The engine
 // ops (`nextRunnable`/`run`/`reap`/`load`), the wake source (`workloadStreamEmitter`), and the
 // `WorkloadRunnerDeps` (the cross-feature `env` hub + the per-owner binder) are ALL injected — the entry/
 // composition root wires the real front-door functions in. This file imports only TYPES from the workloads
 // front door + `getLog` from foundation (downward, legal). That is also what makes the loop testable: a test
-// passes fake ops + a frozen clock + synchronous timer stubs (transport.md determinism / spine/testing §3).
+// passes fake ops + a frozen clock + synchronous timer stubs (Tier-4-Transport.md determinism / spine/testing §3).
 //
 // DETERMINISM: the clock (`runnerDeps.now`) + the loop timers (`scheduleInterval`/`scheduleTimeout`) are
 // injected — NO ambient `setInterval`/`setTimeout`/`Date.now` in the testable core. The tick functions

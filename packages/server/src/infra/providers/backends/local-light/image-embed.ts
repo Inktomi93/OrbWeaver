@@ -9,7 +9,7 @@
 // FLAGGED not-supported: the `multimodal` kind (a joint image+text PAIR → one vector) is reserved for
 // natively-multimodal families (vLLM Qwen3-VL). jina-clip has two separate encoders (text + image) and
 // does NOT define a single fused image+text vector, so this backend throws a typed not-supported rather
-// than inventing a fusion the model never learned (providers.md: flag, don't fake).
+// than inventing a fusion the model never learned (Tier-3b-Providers.md: flag, don't fake).
 
 import type { ImageEmbedInput, ImageInput } from "@orb/contracts/role-clients";
 import type { ImageEmbedRequest, ImageEmbedResult } from "../../contract/index.ts";
