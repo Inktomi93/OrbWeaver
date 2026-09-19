@@ -1,26 +1,32 @@
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
+import { gate as membershipWriteFan } from "../../../../tooling/src/verify/gates/membership-write-fan.ts";
 import { gate as ownerScopedReads } from "../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
 import { gate as ownerScopedUpserts } from "../../../../tooling/src/verify/gates/owner-scoped-upserts.ts";
 import { gate as ownerScopedWrites } from "../../../../tooling/src/verify/gates/owner-scoped-writes.ts";
 import { gate as tableScopingClass } from "../../../../tooling/src/verify/gates/table-scoping-class.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { TABLE_SCOPING_ROWS, tableScopingClasses } from "../../../../tooling/src/verify/lib/tenancy-scope.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-test("the tenancy-scope family (the schema classification plus its three by-id tenancy checks) self-proves", () => {
-  expect(verifyPolicyProofs([tableScopingClass, ownerScopedReads, ownerScopedWrites, ownerScopedUpserts])).toEqual([]);
+test("the tenancy-scope family (the schema classification, its three by-id tenancy checks, and the membership-write fan) self-proves", () => {
+  expect(verifyPolicyProofs([tableScopingClass, ownerScopedReads, ownerScopedWrites, ownerScopedUpserts, membershipWriteFan])).toEqual([]);
 });
 
 const ROOT = "/tenancy-scope-family";
 
-function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
+function passOf(
+  policy: GatePolicy,
+  files: Readonly<Record<string, string>>,
+  reviewedGrants: Parameters<typeof runPolicyPass>[0]["reviewedGrants"] = [],
+): ReturnType<typeof runPolicyPass> {
   const project = new Project({ useInMemoryFileSystem: true });
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants, failOnWarnings: false });
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -145,4 +151,47 @@ test("RATCHET SIDE 2 — a registry row the schema no longer declares is reporte
   const named = stale.map((finding) => finding.message ?? "").join("\n");
   expect(named).toContain("automation_rules");
   expect(named).not.toContain('"chats"');
+});
+
+// ---------------------------------------------------------------------------------------------------
+// `membership-write-fan` (#1734) — THE REAL CENTRAL GRANT TABLE. The policy's declared `grant:` witness is
+// a SYNTHETIC row conformance builds from authored strings, which proves the emitted `(subject, operation)`
+// is bindable but says nothing about `lib/reviewed-grants.ts` actually carrying it (§6.2). These two arms
+// drive the REAL table through `reviewedGrantsFor`, at the REAL authored path of the owner-deferred site —
+// so deleting or misspelling either committed row reds here rather than silently un-licensing a live
+// finding at the next whole run.
+// ---------------------------------------------------------------------------------------------------
+const CHAT_DOCUMENTS_SCHEMA =
+  'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chatDocuments = sqliteTable("chat_documents", { chatId: text("chat_id"), documentId: text("document_id") });\n';
+const DATABANK_ATTACH = "packages/server/src/domain/databank/verbs/attach/attach-to-chat.ts";
+const DATABANK_ATTACH_SOURCE =
+  'import { chatDocuments } from "@orb/db";\nexport function attach(ctx: C) {\n  return async ({ ownerId, chatId, documentId }: P) => {\n    await ctx.db.insert(chatDocuments).values({ chatId, documentId }).returning({ documentId: chatDocuments.documentId });\n    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });\n  };\n}\n';
+
+test("membership-write-fan: the COMMITTED grant licenses the owner-deferred databank attach exactly once", () => {
+  const { authority } = passOf(
+    membershipWriteFan,
+    { "packages/db/src/schema/databank.ts": CHAT_DOCUMENTS_SCHEMA, [DATABANK_ATTACH]: DATABANK_ATTACH_SOURCE },
+    reviewedGrantsFor([membershipWriteFan]),
+  );
+
+  expect(authority.effectiveFindings).toEqual([]);
+  expect(authority.grantedFindings.map((granted) => granted.grantId)).toEqual(["membership-write-fan:databank-attach-to-chat"]);
+  // EXACTLY ONE consumption: a grant matching two candidates licenses NEITHER and alarms over-broad, which
+  // is why the policy reports once per FILE rather than once per per-person emit.
+  expect(authority.reviewedGrantConsumption.filter((row) => row.count > 0).map((row) => row.count)).toEqual([1]);
+});
+
+test("membership-write-fan: the same site at ANOTHER path is NOT licensed — the grant is path-exact", () => {
+  // The acquittal's falsifier. Without it the first arm passes just as well against a grant that licenses
+  // the whole policy, and the deferral would quietly become a blanket exemption for every domain.
+  const neighbour = "packages/server/src/domain/databank/verbs/attach/attach-to-other-chat.ts";
+  const { authority } = passOf(
+    membershipWriteFan,
+    { "packages/db/src/schema/databank.ts": CHAT_DOCUMENTS_SCHEMA, [neighbour]: DATABANK_ATTACH_SOURCE },
+    reviewedGrantsFor([membershipWriteFan]),
+  );
+
+  expect(authority.effectiveFindings.map((finding) => finding.subject)).toEqual([`${neighbour}#chatDocuments`]);
+  expect(authority.grantedFindings).toEqual([]);
+  expect(authority.authorityAlarms.map((alarm) => alarm.kind)).toEqual(["stale-reviewed-grant", "stale-reviewed-grant"]);
 });

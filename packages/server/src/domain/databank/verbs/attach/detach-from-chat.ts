@@ -18,7 +18,8 @@ export function createDetachFromChat(ctx: DatabankContext): DatabankService["det
       return; // not attached — idempotent
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.detachFromChat", entityType: "document", entityId: documentId, metadata: { chatId } }, ctx.now());
-    // The host's own bank view; the room's half stays on the chat plane (see `attach-to-chat`).
+    // The host's own bank view; the room's half is the SAME owner-deferred gap `attach-to-chat` states in
+    // full, held by `membership-write-fan:databank-detach-from-chat`.
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

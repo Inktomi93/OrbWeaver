@@ -13,6 +13,7 @@ import { REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS } from "./
 import { REVIEWED_GRANTS_DENSITY_TIER_A } from "./reviewed-grants-density-tier-a.ts";
 import { REVIEWED_GRANTS_DENSITY_TIER_B } from "./reviewed-grants-density-tier-b.ts";
 import { REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS } from "./reviewed-grants-depcruise-to-egress.ts";
+import { REVIEWED_GRANTS_MEMBERSHIP_WRITE_FAN } from "./reviewed-grants-membership-write-fan.ts";
 import { REVIEWED_GRANTS_NO_TO_FACTORY } from "./reviewed-grants-no-to-factory.ts";
 import { REVIEWED_GRANTS_SINGLESTREAMTRANSPORT_SOLEENVREADER } from "./reviewed-grants-singlestreamtransport-soleenvreader.ts";
 import { REVIEWED_GRANTS_SUPPRESSIONS_A } from "./reviewed-grants-suppressions-a.ts";
@@ -33,6 +34,7 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
       ...REVIEWED_GRANTS_DENSITY_TIER_A,
       ...REVIEWED_GRANTS_DENSITY_TIER_B,
       ...REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS,
+      ...REVIEWED_GRANTS_MEMBERSHIP_WRITE_FAN,
       ...REVIEWED_GRANTS_NO_TO_FACTORY,
       ...REVIEWED_GRANTS_SINGLESTREAMTRANSPORT_SOLEENVREADER,
       ...REVIEWED_GRANTS_SUPPRESSIONS_A,
