@@ -181,22 +181,28 @@ test.describe("fine pointer — #2450's re-pointing is a NO-OP on a mouse", () =
   test("the re-pointed controls still paint the body / code steps at a fine pointer", async ({ mount, page }) => {
     await mount(<TextEntryCensus />);
     await expect(page.locator(".cm-content")).toBeVisible();
-    const resolved = await page.evaluate(() => {
-      const probe = (value: string): number => {
-        const el = document.createElement("div");
-        el.style.fontSize = value;
-        document.body.append(el);
-        const size = Number.parseFloat(getComputedStyle(el).fontSize);
-        el.remove();
-        return size;
-      };
-      return { body: probe("var(--text-body)"), code: probe("var(--text-code)") };
-    });
+    const steps = (): Promise<{ body: number; code: number }> =>
+      page.evaluate(() => {
+        const probe = (value: string): number => {
+          const el = document.createElement("div");
+          el.style.fontSize = value;
+          document.body.append(el);
+          const size = Number.parseFloat(getComputedStyle(el).fontSize);
+          el.remove();
+          return size;
+        };
+        return { body: probe("var(--text-body)"), code: probe("var(--text-code)") };
+      });
     const read = (label: string): Promise<number> =>
       page.locator(`input[aria-label="${label}"], textarea[aria-label="${label}"]`).evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
     const editor = await page.locator(".cm-content").evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
-    expect(resolved.body, "the fine body step is BELOW the platform floor — otherwise this case proves nothing").toBeLessThan(IOS_FOCUS_ZOOM_FLOOR_PX);
-    expect(resolved.code).toBeLessThan(resolved.body);
+    // Both premises are LIVE reads of the token steps (the probe element resolves the var against whatever
+    // the cascade has settled on), so they POLL rather than sampling the page once.
+    await expect
+      .poll(async () => (await steps()).body, { message: "the fine body step is BELOW the platform floor — otherwise this case proves nothing" })
+      .toBeLessThan(IOS_FOCUS_ZOOM_FLOOR_PX);
+    const resolved = await steps();
+    await expect.poll(async () => (await steps()).code).toBeLessThan(resolved.body);
     expect(await read("census number field"), "NumberField md keeps the body step on a mouse").toBeCloseTo(resolved.body, 1);
     expect(await read("census combobox"), "Combobox keeps the body step on a mouse").toBeCloseTo(resolved.body, 1);
     expect(await read("census autocomplete"), "Autocomplete keeps the body step on a mouse").toBeCloseTo(resolved.body, 1);

@@ -10,15 +10,17 @@
 // `@orb/ui` browser primitives behind them. The browser world is where a pin behind a feature barrel lives.
 
 import { restartEngineName, revokeSessionName, userActionsName, userEnabledFieldName, userRoleFieldName } from "@orb/client/features/user-admin";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("each per-row admin control names its own subject, in the pane's own grammar", () => {
   // The user rows: N otherwise-identical controls, so the handle is what makes each one askable.
-  expect(userRoleFieldName("kes")).toBe("Role — kes");
-  expect(userEnabledFieldName("kes")).toBe("Enabled — kes");
+  expect(userRoleFieldName(castId<Handle>("kes"))).toBe("Role — kes");
+  expect(userEnabledFieldName(castId<Handle>("kes"))).toBe("Enabled — kes");
   // The user kebab keeps the pane's `<handle> actions`, NOT the library `Actions for <x>` — a reader walking
   // the admin table hears the handle first, which is the column it is scanning.
-  expect(userActionsName("kes")).toBe("kes actions");
+  expect(userActionsName(castId<Handle>("kes"))).toBe("kes actions");
   expect(revokeSessionName("Firefox on Linux")).toBe("Revoke session — Firefox on Linux");
   expect(restartEngineName("rerank")).toBe("Restart engine — rerank");
 });

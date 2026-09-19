@@ -9,18 +9,9 @@
 // and joins the population rows. Provenance/attribution: collect.ts header.
 import type { Finding, PopulationAccounting } from "../contract/findings.ts";
 import type { RawSamples } from "../contract/samples.ts";
-import type { CensusCapFamily } from "../contract/samples-populations.ts";
 import type { FamilyCheckResult } from "../contract/types.ts";
-import {
-  checkAccessibleName,
-  checkHeadingOrder,
-  checkMainLandmark,
-  checkObscuredTarget,
-  checkTabIndexSmell,
-  checkTapTargetPopulations,
-  classifyControlAspect,
-  classifyUnreachableHint,
-} from "./checks-a11y.ts";
+import { checkObscuredTarget, checkTapTargetPopulations, classifyControlAspect } from "./checks-a11y.ts";
+import { checkAccessibleName, checkHeadingOrder, checkMainLandmark, checkTabIndexSmell, classifyUnreachableHint } from "./checks-a11y-navigability.ts";
 import { classifyBorderContrast } from "./checks-border.ts";
 import { classifyCaveatHierarchy } from "./checks-caveat.ts";
 import { checkContrast, checkGrayOnColor, checkQuietState, colorTextPopulations } from "./checks-color.ts";
@@ -53,38 +44,8 @@ import {
   checkZIndex,
 } from "./checks-structure.ts";
 import { checkTextStyle, classifyTextStyle, TEXT_STYLE_RULE_IDS } from "./checks-typography.ts";
+import { authoredDecisionKey, capExceeded, emptyFamilyResult, runArray, runNullable, totalJudge } from "./collect-family-runner.ts";
 import { accountedFindings, cappedRelationalFindings, decisionPopulationFindings, nullableFindings, partitionedFindings } from "./population-strategies.ts";
-
-interface MutableFamilyCheckResult {
-  readonly findings: Finding[];
-  scans: number;
-}
-
-function emptyFamilyResult(): MutableFamilyCheckResult {
-  return { findings: [], scans: 0 };
-}
-
-function runNullable(state: MutableFamilyCheckResult, detector: () => Finding | null): void {
-  state.scans += 1;
-  const finding = detector();
-  if (finding !== null) {
-    state.findings.push(finding);
-  }
-}
-
-function runArray(state: MutableFamilyCheckResult, detector: () => readonly Finding[]): void {
-  state.scans += 1;
-  state.findings.push(...detector());
-}
-
-/** Rung 2's total-judge door, spelled once: a full census whose checker owes every sample a verdict. */
-function totalJudge<T>(
-  rule: Parameters<typeof accountedFindings>[0],
-  items: readonly T[],
-  check: (item: T) => Finding | null,
-): ReturnType<typeof accountedFindings> {
-  return accountedFindings(rule, items, check, { census: undefined, samplesAreJudged: true });
-}
 
 export function a11yFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
@@ -178,13 +139,6 @@ export function colorFindings(samples: RawSamples): FamilyCheckResult {
       ...(hoverScan === undefined ? {} : { "hover-contrast": hoverContrastPopulations(hoverStates, hoverScan) }),
     },
   };
-}
-
-/** How many carriers of one capped walker census never made it out of the page (#1038,
- *  contract/samples-populations.ts). Absent family = never capped, which reads as 0 — the ONE place that
- *  default is written, so no family checker re-spells it. */
-function capExceeded(samples: RawSamples, family: CensusCapFamily): number {
-  return samples.censusCaps[family]?.dropped ?? 0;
 }
 
 export function decorFindings(samples: RawSamples): FamilyCheckResult {
@@ -291,14 +245,6 @@ export function ornamentFindings(samples: RawSamples): FamilyCheckResult {
       "stripe-background": stripes.accounting,
     },
   };
-}
-
-/** The rung-4 grouping key every authored-identity family in this file uses: the authored target paired
- *  with its position-free home, NUL-joined so neither part can forge the boundary. Falls back to the
- *  selector for sample bundles that predate authored identity (#989), which groups per instance — the
- *  pre-#989 behavior — rather than collapsing unrelated rows under a shared `undefined`. */
-function authoredDecisionKey(input: { readonly selector: string; readonly authoredTarget?: string; readonly authoredHome?: string }): string {
-  return `${input.authoredTarget ?? input.selector}\u0000${input.authoredHome ?? input.selector}`;
 }
 
 export function qualityFindings(samples: RawSamples): FamilyCheckResult {

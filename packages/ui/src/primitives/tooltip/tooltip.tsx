@@ -9,7 +9,7 @@ import type {
 } from "@base-ui/react/tooltip";
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
 import type { ReactElement } from "react";
-import { createContext, isValidElement, use, useEffect, useId, useMemo, useState } from "react";
+import { createContext, isValidElement, use, useEffect, useId, useState } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
 import { tooltipVariants } from "./variants.ts";
@@ -43,7 +43,10 @@ const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
  *  trigger carrying NO attribute at all is outside this seal entirely. The design-audit `unreachable-hint`
  *  rule reads exactly this attribute; without it the rule can only report a withheld population. */
 const TOOLTIP_DESCRIBES_ATTRIBUTE = "data-tooltip-describes";
-type TooltipDescribesDecision = "self" | "name" | "caller";
+/** The axis, declared ONCE as a tuple so the published attribute's vocabulary and the type the seal
+ *  dispatches on can never be spelled apart (Spine-TypeScript-and-Patterns.md §7.5). */
+const TOOLTIP_DESCRIBES_DECISIONS = ["self", "name", "caller"] as const;
+type TooltipDescribesDecision = (typeof TOOLTIP_DESCRIBES_DECISIONS)[number];
 
 interface TooltipDescriptionApi {
   readonly decision: TooltipDescribesDecision;
@@ -127,15 +130,14 @@ export function Tooltip<Payload = unknown>({ describesTrigger = true, ...props }
   } else if (repeatsName) {
     decision = "name";
   }
-  const api = useMemo(
-    (): TooltipDescriptionApi => ({
-      decision,
-      descriptionId: describesTrigger && !repeatsName ? id : undefined,
-      reportTriggerName: setTriggerName,
-      reportTooltipText: setTooltipText,
-    }),
-    [decision, describesTrigger, id, repeatsName],
-  );
+  // No manual memo: the React Compiler owns the identity of this object, and a hand-written dependency
+  // array here is the maintenance hazard `no-manual-memo` exists to stop.
+  const api: TooltipDescriptionApi = {
+    decision,
+    descriptionId: describesTrigger && !repeatsName ? id : undefined,
+    reportTriggerName: setTriggerName,
+    reportTooltipText: setTooltipText,
+  };
   return (
     <TooltipDescriptionContext value={api}>
       <BaseTooltip.Root {...props} />

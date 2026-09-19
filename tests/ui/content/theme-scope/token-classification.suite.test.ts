@@ -20,7 +20,7 @@
 // just closed. Consumption-in-chrome is the WHY behind a token's class; classifying the full namespace
 // (not just swept consumers) is the stronger invariant — an unconsumed token is still forced to declare.
 import { TOKENS } from "@orb/ui/tokens";
-import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
+import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 type TokenPath = keyof typeof TOKENS;

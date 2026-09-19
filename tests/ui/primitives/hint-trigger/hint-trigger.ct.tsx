@@ -81,15 +81,18 @@ test.describe("the press door at a coarse pointer", () => {
     const button = page.getByRole("button", { name: "More info about Reply length" });
     // AT REST: the description resolves to real text — the defect was an `aria-describedby` pointing
     // only at the unmounted tooltip popup, so a virtual cursor read the name and nothing else.
-    const restText = await button.evaluate((el: HTMLElement): string =>
-      (el.getAttribute("aria-describedby") ?? "")
-        .split(/\s+/)
-        .filter((id) => id.length > 0)
-        .map((id) => el.ownerDocument.getElementById(id)?.textContent ?? "")
-        .join(" ")
-        .trim(),
-    );
-    expect(restText).toContain("Affects every reply that stops at the length cap.");
+    const restText = (): Promise<string> =>
+      button.evaluate((el: HTMLElement): string =>
+        (el.getAttribute("aria-describedby") ?? "")
+          .split(/\s+/)
+          .filter((id) => id.length > 0)
+          .map((id) => el.ownerDocument.getElementById(id)?.textContent ?? "")
+          .join(" ")
+          .trim(),
+      );
+    // POLLED: the description's carrier is mounted by the seal's own effect, so the resolved text arrives a
+    // frame after the trigger does — a single read samples the empty string by timing luck.
+    await expect.poll(restText).toContain("Affects every reply that stops at the length cap.");
     // ON TAP: a rendered dialog carries the same sentence.
     await button.tap();
     const popup = page.locator('[data-slot="hint-popup"]');

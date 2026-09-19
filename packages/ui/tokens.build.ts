@@ -20,7 +20,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import StyleDictionary from "style-dictionary";
 import type { DesignTokens, TransformedToken } from "style-dictionary/types";
-import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "./src/content/theme-scope/clamp.ts";
+import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "./src/content/theme-scope/emit-vars.ts";
 import type { ContractToken, CssValuePlacement, TokenContractResult } from "./token-contract.ts";
 import { assertTokenContract, REQUIRED_SEED_VALUE_SET_PATHS } from "./token-contract.ts";
 import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";

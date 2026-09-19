@@ -223,8 +223,10 @@ test.describe("below the shell content floor", () => {
   test("the chat-width dial is withheld and the row explains why", async ({ mount, page }) => {
     await stub(page);
     await mount(<AppearanceSizingSectionStory />);
-    // The premise, measured rather than assumed: this viewport really is at/below the live floor.
-    expect(await page.evaluate(() => globalThis.innerWidth)).toBeLessThanOrEqual(await liveFloorPx(page));
+    // The premise, measured rather than assumed: this viewport really is at/below the live floor. Polled,
+    // not one-shot: the viewport width is read from the live page, and a mid-resize sample is the flake.
+    const floorBelow = await liveFloorPx(page);
+    await expect.poll(() => page.evaluate(() => globalThis.innerWidth)).toBeLessThanOrEqual(floorBelow);
 
     await expect(page.getByRole("slider", { name: DIAL_NAME })).toHaveCount(0);
     await expect(page.getByText(DEAD_DIAL_NOTE)).toBeVisible();
@@ -239,7 +241,8 @@ test.describe("above the shell content floor", () => {
   test("the chat-width dial is offered and the note is absent", async ({ mount, page }) => {
     await stub(page);
     await mount(<AppearanceSizingSectionStory />);
-    expect(await page.evaluate(() => globalThis.innerWidth)).toBeGreaterThan(await liveFloorPx(page));
+    const floorAbove = await liveFloorPx(page);
+    await expect.poll(() => page.evaluate(() => globalThis.innerWidth)).toBeGreaterThan(floorAbove);
 
     await expect(page.getByRole("slider", { name: DIAL_NAME })).toBeVisible();
     await expect(page.getByText(DEAD_DIAL_NOTE)).toHaveCount(0);

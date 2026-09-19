@@ -11,7 +11,7 @@
 // invariant, not a component behavior test.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { THEME_SCOPE_EMIT_VARS } from "../../../packages/ui/src/content/theme-scope/clamp.ts";
+import { THEME_SCOPE_EMIT_VARS } from "../../../packages/ui/src/content/theme-scope/emit-vars.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const ROOTS = ["packages/ui/src", "packages/client/src"];

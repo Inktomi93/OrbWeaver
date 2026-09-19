@@ -71,17 +71,8 @@ export type { RelationalCensusAccountingInput } from "./contract/samples-populat
 export type { DriveStateCandidate, FocusStateCandidate, PanelModeCandidate, SurfaceStateAccounting } from "./contract/surface-state.ts";
 export { DRIVE_STATE_SPACE, FOCUS_STATE_SPACE, PANEL_MODE_SPACE } from "./contract/surface-state.ts";
 export type { BackdropRefusal, DomPopulation, HoverPass, PixelPass, ShellStateSnapshot } from "./contract/types.ts";
-export {
-  checkAccessibleName,
-  checkControlAspect,
-  checkHeadingOrder,
-  checkMainLandmark,
-  checkObscuredTarget,
-  checkTabIndexSmell,
-  checkTapTarget,
-  checkTapTargetPopulations,
-  classifyControlAspect,
-} from "./lib/checks-a11y.ts";
+export { checkControlAspect, checkObscuredTarget, checkTapTarget, checkTapTargetPopulations, classifyControlAspect } from "./lib/checks-a11y.ts";
+export { checkAccessibleName, checkHeadingOrder, checkMainLandmark, checkTabIndexSmell } from "./lib/checks-a11y-navigability.ts";
 export { checkBorderContrast, classifyBorderContrast } from "./lib/checks-border.ts";
 export { checkCaveatHierarchy, classifyCaveatHierarchy } from "./lib/checks-caveat.ts";
 export { checkContrast, checkGrayOnColor } from "./lib/checks-color.ts";

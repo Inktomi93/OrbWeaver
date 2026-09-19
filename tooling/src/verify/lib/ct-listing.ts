@@ -22,7 +22,7 @@ import { toRepoRelative } from "@orb/tooling/_shared/scoped-run-paths";
 import type { ScopedTestCollection } from "../contract/scoped-test.ts";
 
 /** A property of an unknown record, or undefined — the runners' JSON is vendor data, not our shape. */
-export function readProperty(entry: unknown, key: string): unknown {
+function readProperty(entry: unknown, key: string): unknown {
   if (typeof entry !== "object" || entry === null || !(key in entry)) {
     return;
   }
@@ -37,7 +37,7 @@ export function readField(entry: unknown, key: string): string | undefined {
 
 /** Walk the playwright JSON suite tree collecting every `file`. Nested suites repeat the field, so one
  *  recursive read covers both the top-level grouping and per-describe nesting. */
-export function walkSuiteFiles(node: unknown, rootDir: string, root: string, out: Set<string>): void {
+function walkSuiteFiles(node: unknown, rootDir: string, root: string, out: Set<string>): void {
   if (Array.isArray(node)) {
     for (const child of node) {
       walkSuiteFiles(child, rootDir, root, out);

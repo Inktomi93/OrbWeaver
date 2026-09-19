@@ -677,7 +677,7 @@ test("#2440: the parked roving row is NOT unmounted by a scroll-away, and keeps 
   await expect(parkedRow).toHaveAttribute("tabindex", "0");
   await expect.poll(parkedRowHasFocus).toBe(true);
   // The report's stated symptom, asserted as the negative it is: focus never reached <body>.
-  expect(await page.evaluate(() => document.activeElement?.tagName ?? null)).not.toBe("BODY");
+  await expect.poll(() => page.evaluate(() => document.activeElement?.tagName ?? null)).not.toBe("BODY");
 
   // And back: the reader's place is exactly where they left it.
   await page.mouse.wheel(0, ROVING_SCROLL_PX);

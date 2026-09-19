@@ -20,7 +20,9 @@ import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 import { motionPrecedingInputHint, motionQueueHint, orderMotionGaps } from "../../../../tooling/src/snap/lib/motion-gaps.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const BURST = "[data-testid=list]=100:10";
+// A REAL rendered selector, and deliberately not a `data-testid` one: these fixtures only exercise the
+// argv parser, and a testid nothing mints would be a dead selector promise (`testid-liveness` A1).
+const BURST = '[data-slot="message-list-scroll"]=100:10';
 
 /** The queue position `--motion` took, which is what both hints are keyed on. */
 function motionIndex(args: Args): number {
@@ -54,9 +56,9 @@ test("the nav that merely reaches the surface is not an input, so an ordinary en
 });
 
 test("a selector-bearing --motion dispatches its own click inside the trace, so the reach input is just reach (#2439 control)", () => {
-  const args = parseSnapArgs(["/", "--goto", "chats", "--wheel-burst", BURST, "--motion", "[data-testid=send]"]);
+  const args = parseSnapArgs(["/", "--goto", "chats", "--wheel-burst", BURST, "--motion", '[data-slot="composer-chat-actions"]']);
 
-  expect(motionPrecedingInputHint(args, motionIndex(args), "[data-testid=send]")).toBeNull();
+  expect(motionPrecedingInputHint(args, motionIndex(args), '[data-slot="composer-chat-actions"]')).toBeNull();
 });
 
 test("the REFUSED gap list leads with the CAUSE, not with the zero-frame arithmetic it produced (#2464)", () => {

@@ -326,14 +326,17 @@ test.describe("#2444 the form popover's touch containment", () => {
     expect(box, "the page control must have a rendered box to aim at").not.toBeNull();
     const point = { x: Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), y: Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2) };
     // What OWNS that pixel now: the fixed presentation backdrop Base UI mounts for a `modal` popover.
-    const owner = await page.evaluate((at: { x: number; y: number }): string | null => {
-      const el = document.elementFromPoint(at.x, at.y);
-      if (el === null) {
-        return null;
-      }
-      return `${el.tagName.toLowerCase()}[role=${el.getAttribute("role") ?? "none"}][testid=${el.getAttribute("data-testid") ?? "none"}]`;
-    }, point);
-    expect(owner).toBe("div[role=presentation][testid=none]");
+    // POLLED, not sampled once: the backdrop arrives with the popover's own mount/transition, so a single
+    // hit-test can land on whatever held the pixel a frame earlier.
+    const ownerAt = async (at: { x: number; y: number }): Promise<string | null> =>
+      page.evaluate((point_: { x: number; y: number }): string | null => {
+        const el = document.elementFromPoint(point_.x, point_.y);
+        if (el === null) {
+          return null;
+        }
+        return `${el.tagName.toLowerCase()}[role=${el.getAttribute("role") ?? "none"}][testid=${el.getAttribute("data-testid") ?? "none"}]`;
+      }, at);
+    await expect.poll(() => ownerAt(point)).toBe("div[role=presentation][testid=none]");
 
     // …and behaviourally: the tap is absorbed, so the control underneath never fires.
     await page.touchscreen.tap(point.x, point.y);
