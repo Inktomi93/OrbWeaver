@@ -117,6 +117,13 @@ ${WALKER_PRIMITIVES}${WALKER_RESOLVE}
       var phColor = getComputedStyle(el, "::placeholder").color;
       if (phColor && !isTransparent(phColor)) { colorSource = phColor; placeholderInk = true; }
     }
+    /** The input TYPES that paint their value as text. Spelled as an allow-list rather than a deny-list:
+     *  a type nobody listed is more likely to be a state token (checkbox, radio, range, color, file) than
+     *  painted prose, and crediting one of those with ink would move a real box subject off the FILL arm. */
+    function inputPaintsItsValue(field) {
+      var type = (field.getAttribute("type") || "text").toLowerCase();
+      return type === "text" || type === "search" || type === "email" || type === "url" || type === "tel" || type === "password" || type === "number";
+    }
     // Role/content awareness (Node applies the threshold): a target that renders NO text is a UI
     // COMPONENT (WCAG 1.4.11, 3:1), not a 4.5:1 text target; a control-track role is skipped entirely.
     var role = el.getAttribute("role") || "";
@@ -127,7 +134,18 @@ ${WALKER_PRIMITIVES}${WALKER_RESOLVE}
         else if (inputType === "checkbox") role = "checkbox";
       } else if (tag === "PROGRESS") role = "progressbar";
     }
-    var hasText = (el.textContent || "").replace(/\\s+/g, " ").trim().length > 0;
+    // A FILLED FIELD PAINTS ITS VALUE, AND \`textContent\` CANNOT SEE IT (#2466). An <input>'s value lives
+    // in the value PROPERTY — it is not a text node and not the \`value\` attribute either (typing never
+    // updates the attribute), so a field a person has typed into reported hasText=false, fell through the
+    // placeholder branch above (which requires an EMPTY field), and \`isFillSubject\` routed it to the FILL
+    // arm: a box verdict on the very ink the run was asking about. The value has to be read as the
+    // PROPERTY, on the field tags that render one — and not on the input TYPES whose value is a state
+    // token rather than painted text (a checkbox's "on", a range's "50", a colour's "#rrggbb").
+    var valueInk = "";
+    if ((tag === "INPUT" && inputPaintsItsValue(el)) || tag === "TEXTAREA") {
+      valueInk = String(el.value == null ? "" : el.value).trim();
+    }
+    var hasText = (el.textContent || "").replace(/\\s+/g, " ").trim().length > 0 || valueInk.length > 0;
     // #1111: does this subject paint ink of its OWN? An <svg> draws with currentColor, so style.color is
     // its real paint and the ink arm stays honest for an icon-only control. A no-text subject WITHOUT one
     // paints only its box, and its style.color is an inherited value nothing on screen uses — that is the

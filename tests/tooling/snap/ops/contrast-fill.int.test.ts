@@ -244,3 +244,62 @@ test("an EMPTY field with a placeholder is judged on its PLACEHOLDER INK, at the
     await browser.close();
   }
 });
+
+// ── THE FILLED <input> (#2466) ────────────────────────────────────────────────────────────────────────
+// THE DEFECT, reproduced below. The empty-field fix above reaches a `<textarea>hello</textarea>` because
+// that value IS a text node. An `<input>`'s is not: it lives in the value PROPERTY, it is not the `value`
+// ATTRIBUTE either (typing never writes the attribute back), and `textContent` is empty for both. So a
+// filled input reported `hasText=false`, skipped the placeholder branch (which requires an EMPTY field),
+// and `isFillSubject` sent it to the FILL arm — a verdict on the box of the very control whose typed ink
+// the run was asking about. Measured as `--fill` yielding a box verdict on a filled field.
+const INPUT_PAGE = `
+  <style>
+    body { margin: 0; background: #0a0a0a; font: 16px sans-serif; }
+    input { display: block; width: 240px; height: 28px; margin: 6px; border: 0; padding: 4px 8px;
+      background: #141414; font: 16px sans-serif; }
+    #typed-input { color: #1b1b1b; }
+    #legible-input { color: #f5f5f5; }
+    #empty-input { color: #f5f5f5; }
+    #empty-input::placeholder { color: #f5f5f5; }
+    #slider { width: 120px; height: 20px; }
+  </style>
+  <input id="typed-input" type="text" value="Aria of the Ninth">
+  <input id="legible-input" type="text" value="Aria of the Ninth">
+  <input id="empty-input" type="text" placeholder="Search characters">
+  <input id="slider" type="range" min="0" max="100" value="50">
+`;
+
+test("a FILLED <input> is judged on the ink it paints, not on its box", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: VIEWPORT });
+    await page.setContent(INPUT_PAGE);
+
+    // PLANTED POSITIVE: near-invisible typed text on the field's own fill (~1.3:1). Pre-fix this printed a
+    // FILL line about the box and the unreadable value went unjudged.
+    const [typed] = await captureContrastEvidence(page, ["#typed-input"], false, VIEWPORT);
+    expect(typed?.outcome.line).not.toContain("FILL ");
+    expect(typed?.outcome.line).toContain("(text · font 16px");
+    expect(typed?.outcome.line).toContain("FAIL");
+    expect(typed?.evidence).toMatchObject({ status: "ok", passed: false, requiredRatio: 4.5 });
+    expect(typed?.evidence.foreground).toMatchObject({ r: 27, g: 27, b: 27 });
+
+    // …and the OTHER direction: the same filled shape with legible ink PASSES, so the arm reports the
+    // value's real polarity rather than reddening every filled field.
+    const [legible] = await captureContrastEvidence(page, ["#legible-input"], false, VIEWPORT);
+    expect(legible?.outcome.line).toContain("(text · font 16px");
+    expect(legible?.outcome.line).toContain("PASS");
+
+    // PRECISION NEIGHBOUR 1: an EMPTY input still takes the placeholder arm — the value read must not
+    // swallow the branch that was already right.
+    const [empty] = await captureContrastEvidence(page, ["#empty-input"], false, VIEWPORT);
+    expect(empty?.outcome.line).toContain("(placeholder-ink ·");
+
+    // PRECISION NEIGHBOUR 2: a range input's value is "50" and it paints NO text — crediting a state
+    // token with ink would move a real box subject off the FILL arm, which is the opposite defect.
+    const [slider] = await captureContrastEvidence(page, ["#slider"], false, VIEWPORT);
+    expect(slider?.outcome.line).not.toContain("(text · font");
+  } finally {
+    await browser.close();
+  }
+});
