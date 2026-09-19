@@ -88,8 +88,17 @@ const ANCHOR_ROW: RuntimeAppearanceHistoricalRow = {
 };
 
 /** A scroller parked at its own bottom with the subject far above the fold, whose `scroll` handler re-pins
- *  to the bottom for the first `repins` scrolls — the virtualized message list's behaviour, in 20 lines. */
-function repinningSurface(repins: number): string {
+ *  to the bottom for the first `repins` scrolls — the virtualized message list's behaviour, in 20 lines.
+ *
+ *  `pump` ALSO re-pins every animation frame, and the never-anchorable control needs it: a `scroll` listener
+ *  is the only re-pin driver the fixture had, and on a contended box a frame can pass between the anchor's
+ *  `scrollIntoView` and its settled read WITHOUT the listener having run — the subject then measures held
+ *  and the control PASSES when it is supposed to refuse (observed 2026-09-19 under a 10-file parallel run;
+ *  the same arm takes 8 attempts and refuses when run alone). A real virtualizer re-pins off its own
+ *  measurement, not only off scroll events, so the pump is the more faithful surface as well as the stable
+ *  one. The bounded arm keeps the listener alone on purpose: its whole point is a re-pin that lands AFTER
+ *  the anchor's scroll and then stops. */
+function repinningSurface(repins: number, pump = false): string {
   return `<div id="scroller" style="height:300px;overflow:auto">
       <div style="height:4000px"></div>
       <div id="subject" style="height:20px">subject</div>
@@ -98,10 +107,13 @@ function repinningSurface(repins: number): string {
     <script>
       const scroller = document.getElementById("scroller");
       let remaining = ${String(repins)};
+      const repin = () => { if (remaining > 0) { remaining -= 1; scroller.scrollTop = scroller.scrollHeight; } };
       scroller.scrollTop = scroller.scrollHeight;
-      scroller.addEventListener("scroll", () => {
-        if (remaining > 0) { remaining -= 1; scroller.scrollTop = scroller.scrollHeight; }
-      });
+      scroller.addEventListener("scroll", repin);
+      if (${String(pump)}) {
+        const frame = () => { repin(); requestAnimationFrame(frame); };
+        requestAnimationFrame(frame);
+      }
     </script>`;
 }
 
@@ -136,7 +148,7 @@ test("the anchor holds its subject in view through a surface that re-pins after 
 });
 
 test("a surface that never stops scrolling away refuses by name with the rect it last measured", { timeout: BROWSER_TIMEOUT_MS }, async () => {
-  const anchored = await anchor(repinningSurface(1000));
+  const anchored = await anchor(repinningSurface(1000, true));
 
   expect(anchored.failure, "an unanchorable surface must not read as a successful anchor").not.toBeNull();
   const message = String(anchored.failure?.message);
