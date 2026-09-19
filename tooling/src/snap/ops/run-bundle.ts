@@ -3,8 +3,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
+import { artifactFilePath, artifactKey } from "../../_shared/artifact-naming.ts";
 import type { InstrumentRunCompletion } from "../../_shared/artifact-out.ts";
-import { artifactFile, registerInstrumentArtifact } from "../../_shared/artifact-out.ts";
+import { artifactDir, registerInstrumentArtifact } from "../../_shared/artifact-out.ts";
 import {
   aggregateScope,
   artifactRef,
@@ -66,34 +67,66 @@ interface SnapDiagnosticArtifact {
   readonly _orbMeasuredLimit: DiskSafeLimitReceipt;
 }
 
-/** The daemon and one-shot host both call this inside the active/adopted slot. The client-side indexer
- *  later reads this exact typed artifact; it never scrapes a manifest or terminal prose. */
-export async function writeSnapDiagnosticEvidence(_name: string, records: readonly BrowserDiagnostic[]): Promise<string> {
+/** A run slot holds as many diagnostic captures as the run performed, so the artifact is named after the
+ *  CAPTURE, and an already-taken name takes the next ordinal. Both halves are load-bearing (#2419): the
+ *  writer used to ignore its name argument and file one slot-global `diagnostics.json`, which every
+ *  `--matrix` cell after v01 hit as EEXIST — and the session daemon keys a call by its ROUTE, so two calls
+ *  to one route legitimately repeat the name. `wx` is KEPT rather than widened to `w`: an overwrite would
+ *  silently destroy the earlier capture's evidence, which is the worse half of the same defect. */
+const DIAGNOSTIC_CAPTURE_LIMIT = 500;
+
+function isFileExistsError(error: unknown): boolean {
+  return error instanceof Error && Reflect.get(error, "code") === "EEXIST";
+}
+
+/** The daemon and one-shot host both call this inside the active/adopted slot, once per capture. The
+ *  client-side indexer later reads this exact typed artifact; it never scrapes a manifest or terminal
+ *  prose, and it reads the whole FAMILY (`producer === "browser-diagnostics"`), never a fixed filename. */
+export async function writeSnapDiagnosticEvidence(name: string, records: readonly BrowserDiagnostic[]): Promise<string> {
   const safe = redactBrowserDiagnostics(records);
   const limitEvents = safe._orbMeasuredLimit.events.length + safe.records.reduce((sum, record) => sum + record._orbMeasuredLimit.events.length, 0);
-  const path = await artifactFile("browser-diagnostics", "diagnostics", ".json", {
-    producer: "browser-diagnostics",
-    producerArm: null,
-    channel: "browser-diagnostics",
-    mediaType: "application/json",
-    schema: `snap-browser-diagnostics-v${String(DIAGNOSTIC_ARTIFACT_VERSION)}`,
-    role: "primary",
-    completeness: limitEvents === 0 ? "complete" : "bounded",
-    completenessDetail: limitEvents === 0 ? "complete redacted diagnostic batch" : "bounded redacted diagnostic batch with structured measured-limit receipts",
-    scope: aggregateScope(),
-    records: safe.records.length,
-    limits: [
-      {
-        source: "browser-diagnostics-redaction",
-        complete: limitEvents === 0,
-        policy: { ...safe._orbMeasuredLimit.policy },
-        events: [safe._orbMeasuredLimit, ...safe.records.map((record) => record._orbMeasuredLimit)].flatMap((receipt) => receipt.events),
-      },
-    ],
-  });
   const artifact: SnapDiagnosticArtifact = { v: DIAGNOSTIC_ARTIFACT_VERSION, records: safe.records, _orbMeasuredLimit: safe._orbMeasuredLimit };
-  await writeFile(path, `${JSON.stringify(artifact, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
-  return path;
+  const body = `${JSON.stringify(artifact, null, 2)}\n`;
+  const dir = await artifactDir("browser-diagnostics");
+  const base = artifactKey(name);
+  for (let ordinal = 1; ordinal <= DIAGNOSTIC_CAPTURE_LIMIT; ordinal += 1) {
+    const path = artifactFilePath(dir, ordinal === 1 ? base : `${base}-${String(ordinal)}`, ".json");
+    try {
+      await writeFile(path, body, { encoding: "utf8", flag: "wx" });
+    } catch (error) {
+      if (isFileExistsError(error)) {
+        continue;
+      }
+      throw error;
+    }
+    // Registered only AFTER the bytes land: a path this call lost the race for belongs to another capture,
+    // and declaring it here would attribute that capture's evidence to this one.
+    await registerInstrumentArtifact("browser-diagnostics", path, {
+      producer: "browser-diagnostics",
+      producerArm: null,
+      channel: "browser-diagnostics",
+      mediaType: "application/json",
+      schema: `snap-browser-diagnostics-v${String(DIAGNOSTIC_ARTIFACT_VERSION)}`,
+      role: "primary",
+      completeness: limitEvents === 0 ? "complete" : "bounded",
+      completenessDetail:
+        limitEvents === 0 ? "complete redacted diagnostic batch" : "bounded redacted diagnostic batch with structured measured-limit receipts",
+      scope: aggregateScope(),
+      records: safe.records.length,
+      limits: [
+        {
+          source: "browser-diagnostics-redaction",
+          complete: limitEvents === 0,
+          policy: { ...safe._orbMeasuredLimit.policy },
+          events: [safe._orbMeasuredLimit, ...safe.records.map((record) => record._orbMeasuredLimit)].flatMap((receipt) => receipt.events),
+        },
+      ],
+    });
+    return path;
+  }
+  throw new Error(
+    `INSTRUMENT ERROR: ${String(DIAGNOSTIC_CAPTURE_LIMIT)} diagnostic captures are already filed under "${base}" in this run slot — refusing to keep counting rather than overwrite one.`,
+  );
 }
 
 function nonnegativeInteger(value: unknown): value is number {
@@ -254,23 +287,28 @@ function diagnosticCounts(records: readonly BrowserDiagnostic[]): NonNullable<Sn
   );
 }
 
+/** One capture's diagnostic artifact, paired with what was read back out of it. A run has as many as it
+ *  had captures (#2419), and each one's rows must name ITS OWN path — crediting every record to the first
+ *  file would send a reader chasing cell v02's warning inside cell v01's evidence. */
+interface DiagnosticArtifactSource {
+  readonly path: string;
+  readonly read: DiagnosticArtifactRead;
+}
+
 function rawDiagnosticChannels(
   artifacts: readonly SnapRunArtifact[],
-  records: readonly BrowserDiagnostic[],
-  diagnosticLimitEvents: number,
+  sources: readonly DiagnosticArtifactSource[],
 ): NonNullable<SnapRunDiagnosticCompleteness["rawChannels"]> {
-  const diagnosticArtifact = artifacts.find((artifact) => artifact.channel === "browser-diagnostics");
-  const rows =
-    diagnosticArtifact === undefined
-      ? []
-      : diagnosticCounts(records).map((count) => ({
-          channel: count.channel,
-          artifact: diagnosticArtifact.path,
-          scope: exactScope(count.context, count.page, count.window),
-          records: count.records,
-          limitEvents: diagnosticLimitEvents,
-          complete: diagnosticLimitEvents === 0,
-        }));
+  const rows = sources.flatMap((source) =>
+    diagnosticCounts(source.read.records).map((count) => ({
+      channel: count.channel,
+      artifact: source.path,
+      scope: exactScope(count.context, count.page, count.window),
+      records: count.records,
+      limitEvents: source.read.limitEvents,
+      complete: source.read.limitEvents === 0,
+    })),
+  );
   const externalChannels = artifacts.flatMap((artifact) => {
     const channel = artifact.channel;
     return channel === "requests" || channel === "har"
@@ -333,9 +371,11 @@ export async function completeSnapRun(completion: InstrumentRunCompletion, opts:
   const stageProvenance = sessionStageProvenance(sessionProvenance, takeSnapStageProvenance(opts));
   const inventoried = await collectSnapRunArtifacts(completion.slot.dir);
   const diagnosticRecordArtifacts = inventoried.filter((artifact) => artifact.producer === "browser-diagnostics");
-  const diagnosticReads = await Promise.all(diagnosticRecordArtifacts.map(async (artifact) => await readSnapDiagnosticArtifact(artifact.path)));
-  const diagnosticRecords = diagnosticReads.flatMap((artifact) => artifact.records);
-  const diagnosticLimitEvents = diagnosticReads.reduce((sum, artifact) => sum + artifact.limitEvents, 0);
+  const diagnosticSources: readonly DiagnosticArtifactSource[] = await Promise.all(
+    diagnosticRecordArtifacts.map(async (artifact) => ({ path: artifact.path, read: await readSnapDiagnosticArtifact(artifact.path) })),
+  );
+  const diagnosticRecords = diagnosticSources.flatMap((source) => source.read.records);
+  const diagnosticLimitEvents = diagnosticSources.reduce((sum, source) => sum + source.read.limitEvents, 0);
   const artifacts = inventoried.map(classifySnapArtifactCompleteness);
   const registeredBatches = takeSnapFactBatchesState();
   const fallbackBatch: SnapRunFactBatch = {
@@ -438,7 +478,7 @@ export async function completeSnapRun(completion: InstrumentRunCompletion, opts:
         complete: diagnosticLimitEvents === 0,
       },
       counts: diagnosticCounts(diagnosticRecords),
-      rawChannels: rawDiagnosticChannels(artifacts, diagnosticRecords, diagnosticLimitEvents),
+      rawChannels: rawDiagnosticChannels(artifacts, diagnosticSources),
     },
     artifacts,
     findings,
