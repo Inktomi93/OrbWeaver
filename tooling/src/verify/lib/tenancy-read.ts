@@ -82,16 +82,18 @@ function namespacedTableName(node: Node): string | undefined {
   return read !== undefined && namespaceImportSpecifier(read.receiver) !== undefined ? read.name : undefined;
 }
 
-/** Classify a drizzle table argument: trace it ONCE against the FULL schema table set, then read its class
- *  off the (a)-class set. The full set is the denominator that separates "reads fine, simply not (a)-class"
- *  from "I could not read this at all" — without it every non-(a) write would look identical to a bypass. */
-export function tableTargetOf(node: Node | undefined, ownerTableIdents: ReadonlySet<string>, schemaTableIdents: ReadonlySet<string>): TableTarget | undefined {
+/** Classify a drizzle table argument: trace it ONCE against the FULL schema table set, then read whether it
+ *  is in `classTableIdents` — the CLASS THE CALLER IS ASKING ABOUT (the three `owner-scoped-*` gates pass
+ *  the `ownerId` set; `membership-write-fan` passes the `membership` set, #1734). The full set is the
+ *  denominator that separates "reads fine, simply not that class" from "I could not read this at all" —
+ *  without it every out-of-class write would look identical to a bypass. */
+export function tableTargetOf(node: Node | undefined, classTableIdents: ReadonlySet<string>, schemaTableIdents: ReadonlySet<string>): TableTarget | undefined {
   if (node === undefined) {
     return;
   }
   const namespaced = namespacedTableName(node);
   if (namespaced !== undefined) {
-    return ownerTableIdents.has(namespaced) ? { kind: "owner-scoped", ident: node.getText() } : { kind: "other-table" };
+    return classTableIdents.has(namespaced) ? { kind: "in-class", ident: node.getText() } : { kind: "other-table" };
   }
   if (!node.isKind(SyntaxKind.Identifier)) {
     return;
@@ -100,7 +102,7 @@ export function tableTargetOf(node: Node | undefined, ownerTableIdents: Readonly
   if (traced === undefined) {
     return { kind: "unresolvable", ident: node.getText() };
   }
-  return ownerTableIdents.has(traced) ? { kind: "owner-scoped", ident: node.getText() } : { kind: "other-table" };
+  return classTableIdents.has(traced) ? { kind: "in-class", ident: node.getText() } : { kind: "other-table" };
 }
 
 /** Is the statement this table anchor starts provably a DRIZZLE write? The fence the unresolvable arm needs:

@@ -7,9 +7,11 @@
  *  differently — the fourth state (the argument is not an identifier at all) is `undefined`, because a
  *  property access / call / literal is not a BINDING and the reader makes no claim about it. */
 export type TableTarget =
-  /** Traced to an (a)-class table — `ident` is the LOCAL binding the predicate must name. */
-  | { readonly kind: "owner-scoped"; readonly ident: string }
-  /** Traced to a schema table of some other scoping class — legitimately out of the (a) gates' scope. */
+  /** Traced to a table of the CLASS THE CALLER ASKED ABOUT — `ident` is the LOCAL binding the predicate must
+   *  name. The class is the reader's first set argument, not a fixed one: the (a)-class gates pass the
+   *  `ownerId` set, `membership-write-fan` passes the (b)-class `membership` set (#1734). */
+  | { readonly kind: "in-class"; readonly ident: string }
+  /** Traced to a schema table of some OTHER scoping class — legitimately out of the asking gate's scope. */
   | { readonly kind: "other-table" }
   /** An identifier the resolver could NOT trace to any declared table: a parameter, a reassigned binding, an
    *  alias chain past the reader's depth cap or through a cycle, or an initializer shape it cannot read. NOT

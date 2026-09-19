@@ -26,9 +26,16 @@ export function createAttachToChat(ctx: DatabankContext): DatabankService["attac
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.attachToChat", entityType: "document", entityId: documentId, metadata: { chatId } }, ctx.now());
     // The HOST's own bank view (the attachment chips) announces itself here, on a real attach only. The
-    // ROOM's view of what feeds its prompts (`listActiveForChat`) is member-visible state and does NOT ride a
-    // user-bus event — `membership-fan-guard` reserves that for a roster fan on the chat bus, and the rack
-    // already rides `chatUpdated`. Widening this member to the room would be the exact leak that guard bans.
+    // ROOM's view of what feeds its prompts (`listActiveForChat`) is member-visible state and must NOT ride
+    // this user-bus member — widening a per-person channel to the room is the exact leak `membership-fan-guard`
+    // bans. WHAT IS AND IS NOT ENFORCED, stated plainly (the previous wording claimed "the rack already rides
+    // `chatUpdated`", which is true only of the rack's MEMBERSHIP/VISIBILITY half — roster changes and the D85
+    // visibility write emit that event; THIS write emits no room fan at all, so a co-member's rack stays
+    // pre-attach until some other `chatUpdated` arrives): the gap is the OWNER-DEFERRED databank `bridge` row
+    // (bridge design §8 + fork F-E, 2026-08-14), and it is now held by an exact reviewed grant with its end
+    // condition — `membership-write-fan:databank-attach-to-chat` in
+    // tooling/src/verify/lib/reviewed-grants-membership-write-fan.ts. The day this verb gains a room fan,
+    // central liveness reports that row stale; nothing else enforces the claim.
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

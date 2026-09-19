@@ -420,6 +420,16 @@ export function ownerScopedTableIdents(model: SchemaModel): ReadonlySet<string> 
   return tableIdents(model, (table) => classes.get(table.sqlName)?.scope === "ownerId");
 }
 
+/** The drizzle table IDENTIFIERS of the (b) MEMBERSHIP class — the tables whose scope resolves through
+ *  `chat_participants` rather than through an `ownerId` stamp, so every row of one is state MORE THAN ONE
+ *  human can see. Same derivation and same home as `ownerScopedTableIdents` above, read by
+ *  `membership-write-fan` (#1734): a re-classification of a table moves the owner half and the membership
+ *  half in one edit, and neither can be hand-kept out of step with the other. */
+export function membershipScopedTableIdents(model: SchemaModel): ReadonlySet<string> {
+  const classes = tableScopingClasses();
+  return tableIdents(model, (table) => classes.get(table.sqlName)?.scope === "membership");
+}
+
 /** EVERY drizzle table identifier the schema declares, regardless of class — the DENOMINATOR the tenancy
  *  write halves need. Without it "this identifier is not an (a) table" and "I could not read this identifier
  *  at all" are the same answer, and the second one is a bypass wearing the first one's clothes. Same
