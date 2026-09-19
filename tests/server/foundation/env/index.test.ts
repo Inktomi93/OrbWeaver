@@ -689,3 +689,120 @@ describe("AUTH_FALLBACK_TRUSTED_PEERS — the opt-in widened fallback peer set",
     expect(mod.env.AUTH_FALLBACK_TRUSTED_PEERS).toBe("172.17.0.0/16");
   });
 });
+
+// ── SESSION_COOKIE_INSECURE (#2413) — the plain-http LAN opt-in ───────────────────────────────────────────
+// The RULE is unit-tested pure in session-cookie.test.ts. What is pinned HERE is the WIRING, which no pure
+// test can see: the key parses with the house boolean vocabulary, the default leaves the shipped secure
+// posture byte-identical, the posture input carries the operator's value, and — the end of the chain — the
+// cookie NAME and ATTRIBUTES that `entry/auth/seam.ts` reads and `entry/http/auth-routes.ts` writes actually
+// follow it. Two green halves (a correct resolver, a correct constant) prove nothing about the wire between
+// them, and that wire is where a knob silently does nothing.
+//
+// This describe owns the re-import machinery because `reimportEnvIn` lives here (and the biome
+// `noProcessEnv` grant with it); `tests/server/infra/auth/modes/cookie-session.test.ts` names the coupling.
+describe("SESSION_COOKIE_INSECURE — the plain-http LAN opt-in", () => {
+  /** The five keys `AUTH_MODE=oidc` is boot-fatal without (mirrors the `oidcRequired` literal in the
+   *  superRefine describe above, which is scoped to it). */
+  const oidcEnvRequired = {
+    OIDC_ISSUER: "https://idp.example",
+    OIDC_CLIENT_ID: "client",
+    OIDC_CLIENT_SECRET: "x",
+    OIDC_REDIRECT_URIS: "https://app/api/auth/oidc/callback",
+    SESSION_SECRET: VALID_SESSION_SECRET,
+  } as const;
+
+  /** Re-import `infra/auth` under the same wiped-env conditions `reimportEnvWith` creates, so the constant
+   *  under test is resolved from THIS environment and not from the runner's. */
+  async function reimportAuthWith(overrides: Record<string, string | undefined>): Promise<typeof import("@orb/server/infra/auth")> {
+    await reimportEnvWith(overrides);
+    return await import("@orb/server/infra/auth");
+  }
+
+  test("unset ⇒ false, and the posture input says the shipped SECURE cookie", async () => {
+    const mod = await reimportEnvWith({});
+    expect(mod.env.SESSION_COOKIE_INSECURE).toBe(false);
+    expect(mod.sessionCookiePostureInput()).toEqual({ insecure: false, authMode: "single-user" });
+    expect(mod.resolveSessionCookiePosture(mod.sessionCookiePostureInput()).secure).toBe(true);
+  });
+
+  test("=true parses and reaches the posture input", async () => {
+    const mod = await reimportEnvWith({ AUTH_MODE: "local", SESSION_SECRET: VALID_SESSION_SECRET, SESSION_COOKIE_INSECURE: "true" });
+    expect(mod.env.SESSION_COOKIE_INSECURE).toBe(true);
+    expect(mod.sessionCookiePostureInput()).toEqual({ insecure: true, authMode: "local" });
+    expect(mod.resolveSessionCookiePosture(mod.sessionCookiePostureInput()).secure).toBe(false);
+  });
+
+  // The house envBool vocabulary, restated for THIS knob on purpose: a security downgrade must never be
+  // reachable by a spelling the operator did not mean (`1`, `on`, `TRUE`), and a knob that silently ignored
+  // an unrecognised value would leave them believing they had turned it on — or off.
+  test.each(["TRUE", "True", "1", "yes", "on", ""])("SESSION_COOKIE_INSECURE=%j is boot-fatal, never a silent read", async (spelling) => {
+    await expect(reimportEnvWith({ SESSION_COOKIE_INSECURE: spelling })).rejects.toThrow();
+  });
+
+  test("=false is the secure posture (an explicit no is not a widening)", async () => {
+    const mod = await reimportEnvWith({ SESSION_COOKIE_INSECURE: "false" });
+    expect(mod.env.SESSION_COOKIE_INSECURE).toBe(false);
+  });
+
+  // THE END OF THE CHAIN. `SESSION_COOKIE_NAME`/`SESSION_COOKIE_ATTRS` are what the seam matches on and the
+  // route writes; if the knob does not move THEM it has changed nothing a browser will ever see.
+  test("the knob moves the ACTIVE cookie name + attributes that the seam reads and the route writes", async () => {
+    const on = await reimportAuthWith({ AUTH_MODE: "local", SESSION_SECRET: VALID_SESSION_SECRET, SESSION_COOKIE_INSECURE: "true" });
+    expect(on.SESSION_COOKIE_NAME).toBe(on.SESSION_COOKIE_NAME_INSECURE);
+    expect(on.SESSION_COOKIE_NAME).not.toContain("__Host-");
+    expect(on.SESSION_COOKIE_ATTRS).not.toContain("Secure");
+    // the three belts that are NOT part of the trade still apply
+    expect(on.SESSION_COOKIE_ATTRS).toContain("HttpOnly");
+    expect(on.SESSION_COOKIE_ATTRS).toContain("SameSite=Lax");
+    expect(on.SESSION_COOKIE_ATTRS).toContain("Path=/");
+  });
+
+  // The control for the arm above: the same machinery with the knob absent must land on the shipped secure
+  // cookie, or that test proves only that re-importing changes something.
+  test("without the knob the SAME re-import lands on the __Host- cookie WITH Secure (the control)", async () => {
+    const off = await reimportAuthWith({ AUTH_MODE: "local", SESSION_SECRET: VALID_SESSION_SECRET });
+    expect(off.SESSION_COOKIE_NAME).toBe("__Host-orb_session");
+    expect(off.SESSION_COOKIE_ATTRS).toBe("Path=/; HttpOnly; Secure; SameSite=Lax");
+  });
+
+  // NEVER AUTO-DETECTED, and this is the arm that keeps it that way: every request-supplied signal a future
+  // author might reach for (the scheme, `X-Forwarded-Proto`, `Host`) is forgeable by a proxy or a client, so
+  // the ONLY input to this verdict is the operator's own launch-time value. The posture input's shape is the
+  // enforcement — it carries no request-derived field and cannot grow one without failing here.
+  test("the posture input carries NO request-derived signal (no scheme, no forwarded header, no host)", async () => {
+    const mod = await reimportEnvWith({ SESSION_COOKIE_INSECURE: "true" });
+    expect(Object.keys(mod.sessionCookiePostureInput()).toSorted()).toEqual(["authMode", "insecure"]);
+  });
+
+  // It is deliberately NOT in `LAUNCH_ONLY_ENV_KEYS` (the header on the schema key argues why: it is the
+  // `ALLOW_DEV_PUBLIC_BIND` class — a transport downgrade announced every boot — not the AUTH_FALLBACK class,
+  // which widens WHO IS THE OWNER). `.env` is the only persistent home a bare-metal LAN operator has, so a
+  // pin there must BOOT, not fatal.
+  test("a `.env` pin is accepted (unlike AUTH_FALLBACK: this knob grants nobody anything)", async () => {
+    const dir = dirWithEnvFile(["AUTH_MODE=single-user", "SESSION_COOKIE_INSECURE=true"].join("\n"));
+    const mod = await reimportEnvIn(dir, {}, { vitest: false });
+    expect(mod.env.SESSION_COOKIE_INSECURE).toBe(true);
+  });
+
+  // Owner ruling 2026-09-18: "if people turn on insecure then that's their choice, I'm not going to limit
+  // their network choice, but the console will nag." So NO parse-time refusal in any shape — and the shapes
+  // below are the ones a reviewer would most expect to be fenced, pinned green on purpose so a future
+  // "hardening" that adds a fence has to argue with this test instead of silently bricking a LAN box. (The
+  // shipped container is `NODE_ENV=production` AND binds every interface inside its namespace, so a
+  // prod/bind fence would refuse exactly the audience the knob exists for.)
+  test("production + a public bind + the knob BOOTS — the nag is the control, not a fence", async () => {
+    const { env } = await reimportEnvWith({
+      NODE_ENV: "production",
+      BIND_HOST: "0.0.0.0",
+      AUTH_MODE: "local",
+      SESSION_SECRET: VALID_SESSION_SECRET,
+      SESSION_COOKIE_INSECURE: "true",
+    });
+    expect(env.SESSION_COOKIE_INSECURE).toBe(true);
+  });
+
+  test("oidc + the knob BOOTS — the OIDC redirect obstacle is a WARNING, not a refusal", async () => {
+    const { env } = await reimportEnvWith({ AUTH_MODE: "oidc", SESSION_COOKIE_INSECURE: "true", ...oidcEnvRequired });
+    expect(env.SESSION_COOKIE_INSECURE).toBe(true);
+  });
+});

@@ -15,11 +15,12 @@ import {
   identityFromClaims,
   oidcSessionIdentity,
   registerAuthRoutes,
-  serializeClearedSessionCookie,
+  serializeClearedSessionCookies,
   serializeSessionCookie,
 } from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
 import type { OidcTransaction, OidcVerifiedTokens } from "@orb/server/infra/auth";
+import { SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -46,7 +47,11 @@ interface MockReq {
   readonly url?: string;
 }
 interface MockCtx {
-  readonly header: (name: string, value: string) => void;
+  /** Mirrors Hono's `c.header(name, value, { append })`. The third arg is NOT decoration: the mint and the
+   *  logout both write MORE THAN ONE `Set-Cookie` (#2413 — the active cookie plus a clear of the other
+   *  posture's name), and a mock that silently collapsed them to the last one would report a green mint while
+   *  the real route shipped only a clearing cookie. */
+  readonly header: (name: string, value: string, options?: { readonly append?: boolean }) => void;
   readonly json: (body: unknown, status?: number) => Response;
   readonly body: (data: string | Uint8Array | null, status?: number) => Response;
   readonly redirect: (location: string, status?: number) => Response;
@@ -71,7 +76,11 @@ function makeCtx(req: MockReq): MockCtx {
     return new Response(body instanceof Uint8Array ? new Uint8Array(body) : body, { status, headers });
   };
   return {
-    header: (name: string, value: string): void => {
+    header: (name: string, value: string, options?: { readonly append?: boolean }): void => {
+      if (options?.append === true) {
+        out.append(name, value);
+        return;
+      }
       out.set(name, value);
     },
     json: (body: unknown, status = 200): Response => merge(status, JSON.stringify(body), { "content-type": "application/json" }),
@@ -254,10 +263,30 @@ describe("cookie I/O", () => {
     expect(cookie).not.toContain("Domain=");
   });
 
-  test("serializeClearedSessionCookie expires immediately", () => {
-    const cookie = serializeClearedSessionCookie();
-    expect(cookie).toContain(`${COOKIE}=;`);
-    expect(cookie).toContain("Max-Age=0");
+  // #2413 — LOGOUT CLEARS EVERY NAME THIS APP HAS EVER MINTED UNDER, not just the active one. An operator
+  // who flips `SESSION_COOKIE_INSECURE` leaves the other name's cookie in every signed-in browser; only the
+  // active name is ever READ, so it cannot authenticate — but "sign out" must still mean the browser stops
+  // holding a session token, and a one-name clear silently left one behind.
+  test("serializeClearedSessionCookies expires BOTH cookie names immediately", () => {
+    const cookies = serializeClearedSessionCookies();
+    expect(cookies).toHaveLength(2);
+    expect(cookies.map((c) => c.split("=")[0])).toEqual([SESSION_COOKIE_NAME_SECURE, SESSION_COOKIE_NAME_INSECURE]);
+    for (const cookie of cookies) {
+      expect(cookie).toContain("Max-Age=0");
+      expect(cookie).toContain("Path=/");
+    }
+  });
+
+  // The attributes follow the NAME, not the posture — and they have to. A browser DISCARDS any `Set-Cookie`
+  // under a `__Host-` name that omits `Secure` + `Path=/` (RFC 6265bis §4.1.3.2), so a clear written with the
+  // insecure attribute string would silently fail to clear anything; conversely the bare name must NOT carry
+  // `Secure`, or the whole point (a plain-http origin keeps it) is lost on the clear as well as the mint.
+  test("each cleared name carries the attributes its own name requires", () => {
+    const [secureClear, insecureClear] = serializeClearedSessionCookies();
+    expect(secureClear).toContain("Secure");
+    expect(insecureClear).not.toContain("Secure");
+    expect(insecureClear).toContain("HttpOnly");
+    expect(insecureClear).toContain("SameSite=Lax");
   });
 });
 
@@ -316,6 +345,22 @@ describe("logout — CSRF gate", () => {
     expect(rec.revoked).toBe("tok-123");
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBeNull(); // no oidc deps here
+  });
+
+  // #2413 — the ROUTE, not just the serializer: logout must write a SEPARATE `Set-Cookie` per name. The
+  // failure this catches is a plain `c.header("Set-Cookie", …)` per value, which REPLACES rather than
+  // appends: the response would carry one clearing cookie, the other name's token would survive the sign-out,
+  // and every existing assertion (`toContain("Max-Age=0")`) would still be green.
+  test("logout writes ONE Set-Cookie PER cookie name (append, never replace)", async () => {
+    const rec = recordingSessions();
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [csrf]: "1" } }));
+    const cookies = res.headers.getSetCookie();
+    expect(cookies).toHaveLength(2);
+    expect(cookies.map((c) => c.split("=")[0])).toEqual([SESSION_COOKIE_NAME_SECURE, SESSION_COOKIE_NAME_INSECURE]);
+    for (const cookie of cookies) {
+      expect(cookie).toContain("Max-Age=0");
+    }
   });
 
   // W7a — the revoke ends the COOKIE; this ends the STREAM the cookie already opened. Before it, a socket
@@ -1275,6 +1320,21 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
     expect(h.session.createdFor).toBe(authedUser);
     expect(h.session.createdIdToken).toBe(ID_TOKEN); // #141 — the hop that had no pin before #867
     expect(h.consumed()).toBe(1); // the PKCE txn is still spent exactly once
+  });
+
+  // #2413 — a MINT writes the live cookie under the active name FIRST, then clears the other posture's name,
+  // as two separate `Set-Cookie` headers. Order matters for the reader of a joined header, and the append is
+  // what keeps the mint from being overwritten by its own hygiene clear.
+  test("the mint writes the live cookie AND clears the other posture's name, in that order", async () => {
+    const h = harness(grants(verifiedClaims, ID_TOKEN));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
+
+    const cookies = res.headers.getSetCookie();
+    expect(cookies).toHaveLength(2);
+    expect(cookies[0]).toContain(`${SESSION_COOKIE_NAME_SECURE}=tok-123`);
+    expect(cookies[0]).not.toContain("Max-Age=0");
+    expect(cookies[1]).toContain(`${SESSION_COOKIE_NAME_INSECURE}=;`);
+    expect(cookies[1]).toContain("Max-Age=0");
   });
 
   // The redirect_uri presented at the exchange must be the ALLOWLIST-VALIDATED one stored in the

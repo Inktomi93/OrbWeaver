@@ -22,6 +22,7 @@ import type { HostClaudeInput } from "./host-claude.ts";
 import { CLAUDE_BACKEND_POSTURES, HOST_CLAUDE_OAUTH_TOKEN_ENV, hostClaudeConfigDir, hostClaudeCredentialsPath } from "./host-claude.ts";
 import type { EnginesPosture } from "./posture.ts";
 import { ENGINES_POSTURES } from "./posture.ts";
+import type { SessionCookiePostureInput } from "./session-cookie.ts";
 
 export type { BindPosture, BindPostureInput } from "./bind.ts";
 export { bindPostureWarnings, resolveBindPosture } from "./bind.ts";
@@ -43,6 +44,8 @@ export {
 } from "./host-claude.ts";
 export type { EnginesPosture } from "./posture.ts";
 export { ENGINES_POSTURES, effectiveVllmDisabled, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture.ts";
+export type { SessionCookiePosture, SessionCookiePostureInput } from "./session-cookie.ts";
+export { resolveSessionCookiePosture, sessionCookieWarnings } from "./session-cookie.ts";
 
 const DEFAULT_PORT = 8788;
 // vLLM loopback engine ports (must match what the stack supervisor passes).
@@ -631,6 +634,24 @@ const envSchema = z
     OIDC_BACKCHANNEL_LOGOUT: envBool(false),
     // HMAC-peppers the session tokenHash so a DB leak alone can't forge a session.
     SESSION_SECRET: z.string().min(MIN_SESSION_SECRET_CHARS).optional(),
+    // THE PLAIN-HTTP LAN OPT-IN (`session-cookie.ts` holds the model, the cost and the never-auto-detect
+    // rule). Default false ⇒ the session cookie stays `__Host-orb_session` + `Secure`, byte-identical to
+    // before this knob existed. `true` ⇒ a DISTINCT, non-`__Host-` cookie name with no `Secure` attribute, so
+    // a browser on `http://192.168.1.20:8788` will actually keep the login. The house envBool vocabulary:
+    // only lowercase `true`/`false` parse, `1`/`on`/`TRUE` are a loud boot refusal.
+    //
+    // WHY IT IS *NOT* IN `LAUNCH_ONLY_ENV_KEYS`, argued rather than assumed (the #301 table above is the
+    // thing it most resembles). Both launch-only keys answer "WHO IS THE OWNER with no credential" — an
+    // AUTHORIZATION widening that a forgotten `.env` line silently grants to a mode that never asked for it,
+    // where the per-mode default already supplies the value each mode wants, so a pin can only restate or
+    // invert it. This knob is the other class: it changes the TRANSPORT of a credential the caller must still
+    // present, grants nobody anything, has no per-mode default that could make a pin redundant, and is the
+    // `ALLOW_DEV_PUBLIC_BIND` shape exactly — a deliberate reachability/security downgrade, opt-in, announced
+    // in a standing boot WARN for as long as it is on. `ALLOW_DEV_PUBLIC_BIND` is `.env`-settable for that
+    // reason and this follows it. The practical half: `.env` is the ONLY persistent home a bare-metal
+    // operator has (docker sets it in the CONTAINER env, which is unaffected either way), so banning it here
+    // would push the decision into an un-greppable shell export — the opposite of what #301 protects.
+    SESSION_COOKIE_INSECURE: envBool(false),
 
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(RATE_LIMIT_WINDOW_MS_DEFAULT),
     RATE_LIMIT_AI_TURN: z.coerce.number().int().positive().default(RATE_LIMIT_AI_TURN_DEFAULT),
@@ -922,6 +943,14 @@ function isReadableFile(path: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** The raw inputs the SESSION-COOKIE TRANSPORT resolver reads (`session-cookie.ts` holds the model, the
+ *  cost and the never-auto-detect rule). Same seam shape as `bindPostureInput`: this file stays the pure
+ *  `process.env` reader; `infra/auth/modes/cookie-session.ts` turns the verdict into the cookie name +
+ *  attributes, and `entry/lifecycle` logs the notice and the standing warning. */
+export function sessionCookiePostureInput(): SessionCookiePostureInput {
+  return { insecure: env.SESSION_COOKIE_INSECURE, authMode: env.AUTH_MODE };
 }
 
 /** The raw inputs the OWNER-FALLBACK PEER-SET resolver reads (`fallback-peers.ts` holds the rule, the hazard

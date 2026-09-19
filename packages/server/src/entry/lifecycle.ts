@@ -44,6 +44,9 @@ import {
   resolveHostClaudePosture,
   resolveOwnerFallbackCredential,
   resolveOwnerFallbackPeers,
+  resolveSessionCookiePosture,
+  sessionCookiePostureInput,
+  sessionCookieWarnings,
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
@@ -54,6 +57,7 @@ import {
   createOidcExchange,
   createPasswordHasher,
   ownerFallbackAllowed,
+  SESSION_COOKIE_NAME,
 } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
@@ -756,6 +760,18 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // property #298 f2 removed, and an operator must never rediscover that from an incident.
     for (const warning of ownerFallbackPeerWarnings(resolveOwnerFallbackPeers(ownerFallbackPeerInput()))) {
       log.warn({ security: true }, `boot: ${warning}`);
+    }
+
+    // THE SESSION-COOKIE TRANSPORT posture (`SESSION_COOKIE_INSECURE` — foundation/env/session-cookie.ts
+    // holds the model and the cost). The notice is ALWAYS logged, like the bind one and for the same reason:
+    // "sign-in does nothing at the LAN address" has no other tell, and the operator reading this log while
+    // confused needs the cookie's actual NAME and transport in front of them. The WARN then fires for as long
+    // as the downgrade is on — the session cookie IS the credential, and once it rides plain http anyone on
+    // that path can take it.
+    const sessionCookie = resolveSessionCookiePosture(sessionCookiePostureInput());
+    log.info({ sessionCookie: { name: SESSION_COOKIE_NAME, secure: sessionCookie.secure } }, `boot: ${sessionCookie.notice}`);
+    for (const warning of sessionCookieWarnings(sessionCookiePostureInput(), sessionCookie)) {
+      log.warn({ security: true, sessionCookie: SESSION_COOKIE_NAME }, `boot: ${warning}`);
     }
 
     // single-user has NO credential but the loopback owner fallback (env fatals single-user+deny), so a

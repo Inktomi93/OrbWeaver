@@ -10,7 +10,7 @@ import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
 import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import { Hono } from "hono";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -403,5 +403,106 @@ describe("logout — CSRF gate (real app)", () => {
     expect(res.status).toBe(200); // A6 — 200 `{endSessionUrl}` (null in local mode), no longer 204
     expect(revoked).toBe("tok-123");
     expect(res.headers.get("set-cookie") ?? "").toContain("Max-Age=0");
+  });
+});
+
+// ── #2413: the plain-http LAN login round trip, over the REAL route ───────────────────────────────────────
+//
+// THE BUG, reproduced at the seam it was reported at. Phone → `http://192.168.1.20:8788`, correct password,
+// 200 OK — and the user stays signed out, with nothing in any log to say why. The cause is not in this app's
+// logic at all: the browser DISCARDS the Set-Cookie, because `Secure` is refused from a non-secure origin and
+// the `__Host-` prefix REQUIRES `Secure` (RFC 6265bis §4.1.2.5 / §4.1.3.2). A server-side test cannot run a
+// cookie jar, so what is asserted here is the thing the jar decides on: the exact name + attributes leaving
+// the route, against a real non-localhost `Host` over plain http, with the spec rule named. The
+// env-knob→constant wiring behind it is pinned in tests/server/foundation/env/index.test.ts.
+describe("plain-http LAN login (#2413) — the cookie the browser is asked to keep", () => {
+  /** The shape the bug report arrives in: a real LAN authority, no TLS, no proxy headers. */
+  const lanHost = "192.168.1.20:8788";
+
+  /** Re-register the routes from a FRESH module graph so the module-level cookie posture is resolved from
+   *  the stubbed env rather than the runner's. `unstubEnvs` in the root config tears the stub down per test. */
+  async function lanLogin(insecure: boolean): Promise<Response> {
+    if (insecure) {
+      vi.stubEnv("SESSION_COOKIE_INSECURE", "true");
+    }
+    vi.resetModules();
+    const { registerAuthRoutes: register } = await import("@orb/server/entry/http");
+    const db = await freshDb();
+    const app = new Hono();
+    register(app, {
+      sessions: sessionsStub(),
+      sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
+      now: (): number => NOW,
+      db,
+      resolveLoginLimit: (): number => 10,
+      authenticate: ownerAuth(castId<UserId>("usr_owner")),
+    });
+    return await app.request(
+      LOGIN,
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", [CSRF]: "1", host: lanHost },
+        body: new URLSearchParams({ handle: "owner", password: "hunter2pw" }).toString(),
+      },
+      connEnv("192.168.1.55"),
+    );
+  }
+
+  // THE DEFAULT, i.e. the reported bug: the login succeeds and the cookie is one this origin's browser must
+  // throw away. Green BEFORE the fix as well — it documents the symptom, it does not prove the fix.
+  test("OFF (the default): the mint carries __Host- + Secure, which this origin's browser MUST discard", async () => {
+    const res = await lanLogin(false);
+    expect(res.status).toBe(200);
+    const [minted] = res.headers.getSetCookie();
+    expect(minted).toContain("__Host-orb_session=tok-123");
+    expect(minted).toContain("Secure");
+  });
+
+  // THE FIX, at the same seam: the same request, same non-localhost plain-http origin, now answered with a
+  // cookie that has no prefix and no `Secure` — the one a browser on `http://192.168.1.20:8788` keeps.
+  test("ON: the mint carries the bare name with NO Secure — the cookie this origin's browser keeps", async () => {
+    const res = await lanLogin(true);
+    expect(res.status).toBe(200);
+    const cookies = res.headers.getSetCookie();
+    const [minted] = cookies;
+    expect(minted).toContain("orb_session_insecure=tok-123");
+    expect(minted).not.toContain("Secure");
+    expect(minted).not.toContain("__Host-");
+    // the belts that are NOT part of the trade survive
+    expect(minted).toContain("HttpOnly");
+    expect(minted).toContain("SameSite=Lax");
+    expect(minted).toContain("Path=/");
+    // and the OTHER posture's name is cleared in the same response, so flipping the knob does not leave a
+    // live token in an already-signed-in browser
+    expect(cookies).toHaveLength(2);
+    expect(cookies[1]).toContain("__Host-orb_session=;");
+    expect(cookies[1]).toContain("Max-Age=0");
+  });
+
+  test("ON: logout clears BOTH names over the same plain-http origin", async () => {
+    vi.stubEnv("SESSION_COOKIE_INSECURE", "true");
+    vi.resetModules();
+    const { registerAuthRoutes: register } = await import("@orb/server/entry/http");
+    const db = await freshDb();
+    const app = new Hono();
+    register(app, {
+      sessions: sessionsStub(),
+      sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
+      now: (): number => NOW,
+      db,
+      resolveLoginLimit: (): number => 10,
+    });
+    const res = await app.request(
+      "/api/auth/logout",
+      { method: "POST", headers: { cookie: "orb_session_insecure=tok-123", [CSRF]: "1", host: lanHost } },
+      connEnv("192.168.1.55"),
+    );
+    expect(res.status).toBe(200);
+    const cookies = res.headers.getSetCookie();
+    expect(cookies).toHaveLength(2);
+    expect(cookies.map((c) => c.split("=")[0])).toEqual(["__Host-orb_session", "orb_session_insecure"]);
+    for (const cookie of cookies) {
+      expect(cookie).toContain("Max-Age=0");
+    }
   });
 });

@@ -126,7 +126,17 @@ The port is published on `127.0.0.1` only. To reach the app from your phone or a
 3. Optionally bound who may knock at all: `IP_ALLOWLIST=192.168.1.0/24`. Behind a proxy the peer is the
    proxy, so allowlist the proxy's address, not your laptop's.
 
-Anything reachable from the internet runs an SSO mode (`oidc` / `forward-header`) with `AUTH_FALLBACK=deny`.
+**No TLS on your LAN?** Set `SESSION_COOKIE_INSECURE=true` in `docker/orbweaver.local.env` instead of step 2.
+The session cookie becomes `orb_session_insecure` with no `Secure` attribute, so a browser at
+`http://192.168.1.20:8788` keeps it and the login sticks — and it travels **in clear on your own network**.
+The cookie is the credential: anyone who can watch that network (another device on the wi-fi, a switch or
+router in the path, a hostile access point) can copy it and be you, with no password and no second factor.
+Accept that only on a network you own; the server logs a warning every boot for as long as it is on. It is
+never set for you, and it is never inferred from the request — a proxy can forge `X-Forwarded-Proto`, so the
+only way to turn it on is to type it. Signing out clears both cookie names, so flipping it back is clean.
+
+Anything reachable from the internet runs an SSO mode (`oidc` / `forward-header`) with `AUTH_FALLBACK=deny`,
+and with real TLS — `SESSION_COOKIE_INSECURE` has no business on a public deployment.
 
 ## Where your data lives
 
@@ -197,8 +207,9 @@ the composed posture at boot and warns per open exposure.
   network outside the shipped ranges (`10.0.0.0/8` covers Podman's default `10.88.0.0/16`). The reason is under "Login modes".
 - **"REFUSING to boot … published on ORB_BIND="** — you opened the port to your network in the no-login
   mode; switch to `AUTH_MODE=local` as described under "LAN and HTTPS".
-- **Sign-in "does nothing" on a LAN address** — plain http; the cookie is Secure. HTTPS in front, or use
-  `http://localhost` on the machine itself.
+- **Sign-in "does nothing" on a LAN address** — plain http; the cookie is Secure, so the browser discards it.
+  HTTPS in front, or `http://localhost` on the machine itself, or `SESSION_COOKIE_INSECURE=true` and accept a
+  cleartext session cookie on your own network ("LAN and HTTPS").
 - **"blocked … private address"** when adding a local model server — an owner-saved connection opens its own host:port, so this means the connection is not saved (test it after saving) or the saver is not the owner; `EGRESS_ALLOWLIST` (above) is the manual door.
 - **`/app/data is not a writable directory`** — you started the container as a non-root user (`user:`,
   rootless podman) on a data dir that user cannot write. Either let the entrypoint start as root with

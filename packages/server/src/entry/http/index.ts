@@ -17,7 +17,7 @@ export {
   identityFromClaims,
   oidcSessionIdentity,
   registerAuthRoutes,
-  serializeClearedSessionCookie,
+  serializeClearedSessionCookies,
   serializeSessionCookie,
 } from "./auth-routes.ts";
 export type { BlobAssetsPort, BlobCasPort, BlobDeps, PrincipalEnv } from "./blob.ts";
