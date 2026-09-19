@@ -38,7 +38,7 @@ test("hint renders an info trigger whose name derives from the heading, without 
   await expect(trigger).toBeVisible();
   // Hover surfaces the explainer copy in the tooltip.
   await trigger.hover();
-  await expect(page.getByText("How the sampler shapes the distribution.")).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"]')).toHaveText("How the sampler shapes the distribution.");
 });
 
 test("kicker renders the section NAME as a real heading in the micro-caps voice, plus the hairline rule", async ({ mount }) => {

@@ -10,6 +10,19 @@
 // house pattern (tooltip, no title); a disabled MENUITEM is the genuine exception (it cannot be wrapped in a
 // tooltip, so it keeps `title` — see composer-utility-menu.tsx).
 // The reason string is unchanged and still composed "<Label> — <reason>"; only its carrier is now singular.
+//
+// AND THE TOOLTIP IS NOT THE ONLY CARRIER ANY MORE (#2443, side-eye 2026-09-19). Base UI 1.7.0 builds the
+// tooltip's hover with `mouseOnly: true` (`tooltip/trigger/TooltipTrigger.js:147`) and its focus fallback
+// returns early unless the trigger matches `:focus-visible` (`floating-ui-react/hooks/useFocus.js:104`), so
+// a TAP opens nothing — and the mobile composer is seven icon-only controls with zero visible text, which
+// left every disabled reason and every steer/speaker cue unreachable on a phone AND to a virtual
+// screen-reader cursor. A PRESS DOOR IS NOT AVAILABLE HERE, and that is a mechanism rather than a
+// preference: an aria-disabled Base UI Button swallows its own click (`internals/use-button/useButton.js`
+// getButtonProps onClick), so nothing can be opened from the very control that needs explaining. The
+// reason/cue therefore also rides an `aria-describedby` -> `sr-only` line (the `chat-controls-band.tsx`
+// house pattern), and the SIGHTED touch user gets the cluster-wide refusal as visible copy from
+// `composer-guided-cluster.tsx`. It is NOT folded into `aria-label`: the accessible name is what a
+// voice-control user SAYS to press the control, and "Generate reply — Local engine is off" is not sayable.
 
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
@@ -17,8 +30,10 @@ import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Drama, Icon, Play, Square } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { IMPERSONATE_STOP_LABEL, RESPONSE_SPEAKER_CUE, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
 import type { filterCharacters } from "../lib/roster.ts";
 
@@ -38,10 +53,13 @@ interface GuidedIconButtonProps {
 /** A dual-mode guided icon: charges when the composer has text and keeps disabled reasons discoverable. */
 export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
   const { icon, label, steerCue, hasText, disabled, reason, onFire, buttonTestId } = props;
-  const title = resolveGuidedTitle({ disabled, hasText, label, steerCue, reason });
+  const detail = resolveGuidedDetail({ disabled, hasText, steerCue, reason });
+  const title = joinTitle(label, detail);
+  const detailId = useId();
   return (
     <Tooltip>
       <TooltipTrigger
+        {...(detail === undefined ? {} : { "aria-describedby": detailId })}
         render={
           <Button
             type="button"
@@ -60,15 +78,38 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
         }
       />
       <TooltipPopup side="top">{title}</TooltipPopup>
+      <ControlDetail detail={detail} id={detailId} />
     </Tooltip>
   );
 }
 
-function resolveGuidedTitle(args: { disabled: boolean; hasText: boolean; label: string; steerCue: string; reason: string }): string {
+/** The half of the tooltip string that is NOT the control's own name — the disabled reason, or the typed
+ *  steer's promise. `undefined` when the tooltip would only repeat the accessible name, so nothing is
+ *  announced twice. */
+function resolveGuidedDetail(args: { disabled: boolean; hasText: boolean; steerCue: string; reason: string }): string | undefined {
   if (args.disabled) {
-    return `${args.label} — ${args.reason}`;
+    return args.reason;
   }
-  return args.hasText ? `${args.label} — ${args.steerCue}` : args.label;
+  return args.hasText ? args.steerCue : undefined;
+}
+
+/** The tooltip string, unchanged: "<Label> — <detail>", or the bare label when there is no detail. */
+function joinTitle(label: string, detail: string | undefined): string {
+  return detail === undefined ? label : `${label} — ${detail}`;
+}
+
+/** The touch/AT carrier for a composer control's reason or cue (#2443): announced as the control's
+ *  DESCRIPTION, so it reaches a pointer that cannot open a tooltip without displacing the name a
+ *  voice-control user says. Renders nothing when the tooltip carries only the name. */
+function ControlDetail({ detail, id }: { readonly detail: string | undefined; readonly id: string }): ReactElement | null {
+  if (detail === undefined) {
+    return null;
+  }
+  return (
+    <Text as="span" className="sr-only" id={id}>
+      {detail}
+    </Text>
+  );
 }
 
 /** The Response tooltip. `multiCharacter` is the multi-character room, where the trigger opens the SPEAKER
@@ -76,14 +117,14 @@ function resolveGuidedTitle(args: { disabled: boolean; hasText: boolean; label: 
  *  next", so an idle group-room tooltip says so rather than describing only the plain fire. The disabled reason
  *  and the steer cue keep precedence: an off control explains itself first, and a typed steer is the nearer
  *  promise. */
-function responseTitle(label: string, hasText: boolean, disabledReason: string | undefined, multiCharacter: boolean): string {
+function responseDetail(hasText: boolean, disabledReason: string | undefined, multiCharacter: boolean): string | undefined {
   if (disabledReason !== undefined) {
-    return `${label} — ${disabledReason}`;
+    return disabledReason;
   }
   if (hasText) {
-    return `${label} — ${STEER_CUE_RESPONSE}`;
+    return STEER_CUE_RESPONSE;
   }
-  return multiCharacter ? `${label} — ${RESPONSE_SPEAKER_CUE}` : label;
+  return multiCharacter ? RESPONSE_SPEAKER_CUE : undefined;
 }
 
 /** The impersonation Stop remains a leaf of the cluster's `Your message` ARIA home. */
@@ -128,12 +169,15 @@ export function ImpersonateGuidedButton({
   readonly onPick: (person: GuidedImpersonatePerson) => void;
   readonly reason: string;
 }): ReactElement {
-  const title = resolveGuidedTitle({ disabled, hasText, label: "Draft your line", steerCue: STEER_CUE_IMPERSONATE, reason });
+  const detail = resolveGuidedDetail({ disabled, hasText, steerCue: STEER_CUE_IMPERSONATE, reason });
+  const title = joinTitle("Draft your line", detail);
   const name = resolveGuidedName("Draft your line", hasText);
+  const detailId = useId();
   return (
     <Menu>
       <Tooltip>
         <TooltipTrigger
+          {...(detail === undefined ? {} : { "aria-describedby": detailId })}
           render={
             <MenuTrigger
               disabled={disabled}
@@ -157,6 +201,7 @@ export function ImpersonateGuidedButton({
           }
         />
         <TooltipPopup side="top">{title}</TooltipPopup>
+        <ControlDetail detail={detail} id={detailId} />
       </Tooltip>
       <MenuPopup>
         {(["first", "second", "third"] as const).map((person) => (
@@ -186,12 +231,15 @@ export function ResponseGuidedButton({
   // The submenu arm is the same size-gate the retired speak-as dropdown carried (D16 roster-of-1): a solo room
   // has no "which character" choice, so the trigger fires Auto directly and its tooltip stays the plain label.
   const multiCharacter = characters.length > 1;
-  const title = responseTitle(label, hasText, disabledReason, multiCharacter);
+  const detail = responseDetail(hasText, disabledReason, multiCharacter);
+  const title = joinTitle(label, detail);
   const name = resolveGuidedName(label, hasText);
+  const detailId = useId();
   if (!multiCharacter) {
     return (
       <Tooltip>
         <TooltipTrigger
+          {...(detail === undefined ? {} : { "aria-describedby": detailId })}
           render={
             <Button
               type="button"
@@ -210,6 +258,7 @@ export function ResponseGuidedButton({
           }
         />
         <TooltipPopup side="top">{title}</TooltipPopup>
+        <ControlDetail detail={detail} id={detailId} />
       </Tooltip>
     );
   }
@@ -217,6 +266,7 @@ export function ResponseGuidedButton({
     <Menu>
       <Tooltip>
         <TooltipTrigger
+          {...(detail === undefined ? {} : { "aria-describedby": detailId })}
           render={
             <MenuTrigger
               disabled={!idle}
@@ -239,6 +289,7 @@ export function ResponseGuidedButton({
           }
         />
         <TooltipPopup side="top">{title}</TooltipPopup>
+        <ControlDetail detail={detail} id={detailId} />
       </Tooltip>
       <MenuPopup>
         <MenuItem onClick={(): void => onFire(null)}>Auto (arbitrate)</MenuItem>

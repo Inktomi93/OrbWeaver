@@ -14,10 +14,10 @@ import { Anchor, Check, ChevronDown, History, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
+import { useId } from "react";
 import type { Trpc } from "#data";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
@@ -80,6 +80,7 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
   const setActive = useSetChatActivePersona({ trpc, invalidation });
   const setAnchor = useSetChatAnchorPersona({ trpc, invalidation });
   const reattribute = useReattributePersona({ trpc, invalidation });
+  const scopeId = useId();
 
   if (chatId === null) {
     return idle === undefined ? null : (
@@ -205,21 +206,29 @@ export function PersonaThisChatSection({ anchorId, idle }: PersonaThisChatSectio
         ) : null}
       </Row>
 
+      {/* THE BLAST RADIUS IS ON THE SURFACE, NOT IN A TOOLTIP (#2443, side-eye 2026-09-19). This button
+          rewrites EVERY one of the viewer's own lines in the chat, however far back they go — a bulk
+          history edit — and its scope/safety sentence used to live only in a Base UI tooltip, which is
+          `mouseOnly: true` with a `:focus-visible`-gated focus fallback (`TooltipTrigger.js:147`,
+          `useFocus.js:104`). On a phone the button was pressable and its consequence was unreadable. A
+          hover-gated disclosure is the wrong carrier for a consequence the user is about to accept at all;
+          it is visible copy, and `aria-describedby` binds it to the control so AT reads it as the button's
+          description rather than as loose prose after it. */}
       <Stack gap="field">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button intent="ghost" size="sm" disabled={chat.viewerActivePersonaId === null || reattribute.isPending} onClick={onReattribute}>
-                <Icon icon={History} size="xs" />
-                Restamp my messages to this persona
-              </Button>
-            }
-          />
-          <TooltipPopup side="top">
-            Restamps every one of your own lines in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}" — however far back they go. What
-            you wrote is untouched; replies keep the names they were written with.
-          </TooltipPopup>
-        </Tooltip>
+        <Button
+          aria-describedby={scopeId}
+          disabled={chat.viewerActivePersonaId === null || reattribute.isPending}
+          intent="ghost"
+          onClick={onReattribute}
+          size="sm"
+        >
+          <Icon icon={History} size="xs" />
+          Restamp my messages to this persona
+        </Button>
+        <Text as="span" data-slot="restamp-scope" id={scopeId} voice="gloss">
+          Restamps every one of your own lines in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}" — however far back they go. What you
+          wrote is untouched; replies keep the names they were written with.
+        </Text>
       </Stack>
     </Section>
   );

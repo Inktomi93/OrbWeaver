@@ -959,6 +959,30 @@ test("#840 the Own look chip is named by its visible text and its gloss is keybo
   await expect(chip).toHaveAccessibleDescription(OWN_LOOK_SENTENCE);
 });
 
+// #2443 — AND THE OTHER HALF OF #840b's CLAIM. `character-hero-band.tsx` asserted in a comment that "tab and
+// tap both reach the gloss". Tab does; TAP does not — Base UI 1.7.0 builds the tooltip's hover with
+// `mouseOnly: true` (`tooltip/trigger/TooltipTrigger.js:147`) and its focus path returns early unless the
+// trigger matches `:focus-visible` (`floating-ui-react/hooks/useFocus.js:104`), which a tap does not produce.
+// The chip has no other job on press, so the press now opens the same sentence as a Popover. `hasTouch` is
+// what makes `locator.tap()` dispatch a real touch sequence rather than a mouse one.
+test.describe("#2443 the Own look gloss under a real touch", () => {
+  test.use({ hasTouch: true });
+
+  test("a TAP on the Own look chip opens the gloss — the sentence that says where the look is edited", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+      "character.get": () => ({ ...CARD, themeOverride: OWN_LOOK_OVERRIDE }),
+      "chat.listChats": chatListResponder([]),
+      "character.update": () => CARD,
+    });
+    const component = await mount(<CharacterEditorSurfaceStory />);
+    await component.getByRole("button", { name: OWN_LOOK_NAME }).tap();
+    const gloss = page.locator('[data-slot="own-look-gloss"]');
+    await expect(gloss).toBeVisible();
+    await expect(gloss).toHaveText(OWN_LOOK_SENTENCE);
+  });
+});
+
 // #840c — THE TAG ROW HAD NO NAME. Its accessible tree read `paragraph: Empty` then `button "Add tag"`;
 // the word "Tags" appeared nowhere in it, so the value was unlabelled and the datum had to be inferred
 // from the verb beside it. The four ADVANCED facet rows name their datum; this is the same grammar.

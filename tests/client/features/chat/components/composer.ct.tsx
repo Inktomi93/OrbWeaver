@@ -60,22 +60,32 @@ test("D111: the ⋯ chat-options menu renders in the composer, LEFT of the guide
 
 // ── #54 honest-refusal pre-send gate: SEND + the guided fire actions refuse when the connection can't serve ─
 // The composer reads `chat.checkSendAvailability` (a deterministic verdict, no turn fired). When it returns
-// `available:false`, Send disables WITH the cause-specific reason surfaced via the base-ui-disabled idiom
-// (aria-disabled + `title`, native `disabled` absent so the title is hoverable). The reason string is
-// asserted per cause; an available verdict leaves Send in its normal (draft-empty-disabled) state.
+// `available:false`, Send disables WITH the cause-specific reason. The reason string is asserted per cause;
+// an available verdict leaves Send in its normal (draft-empty-disabled) state.
+//
+// THE REASON'S CARRIER MOVED (#2443, side-eye 2026-09-19). It used to be a native `title` beside a tooltip
+// copy of the same string — two homes for one concept, and neither reaches a phone (a `title` is invisible
+// on touch; Base UI 1.7.0's tooltip is `mouseOnly: true` with a `:focus-visible`-gated focus fallback). The
+// `title` is gone, so these assert the two homes that DO reach a touch user: the control's accessible
+// DESCRIPTION (an `sr-only` line the trigger's `aria-describedby` points at — read at rest, on any pointer),
+// and the band's visible refusal line at a coarse pointer, asserted in its own arm below. An assertion on
+// `title` would pass again the day someone re-adds it, which is the defect.
 const ENGINE_OFF_REASON = "Local engine is off — enable it to send.";
 const ENGINE_DOWN_REASON = "Local engine is down — start it to send.";
 const NO_CONNECTION_REASON = "This chat has no working connection — configure one to send.";
 
-test("#54: engine-off — Send is aria-disabled with the engine-off reason (native disabled absent, title hoverable)", async ({ mount, page }) => {
+test("#54: engine-off — Send is aria-disabled and DESCRIBED by the engine-off reason, with no native title", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
   const component = await mount(<ComposerStory />); // committed; text present so it's not draft-empty-disabled
   await component.getByLabel("Message", { exact: true }).fill("hello");
   const send = component.getByRole("button", { name: "Send message" });
-  // The base-ui-disabled idiom: aria-disabled + title, NOT native disabled (so the reason shows on hover).
+  // The base-ui-disabled idiom: aria-disabled, NOT native disabled (so the control stays focusable/hoverable).
   await expect(send).toHaveAttribute("aria-disabled", "true");
   await expect(send).not.toHaveAttribute("disabled", "");
-  await expect(send).toHaveAttribute("title", ENGINE_OFF_REASON);
+  // The name still NAMES the control (what a voice-control user says); the reason is its DESCRIPTION.
+  await expect(send).toHaveAccessibleName("Send message");
+  await expect(send).toHaveAccessibleDescription(ENGINE_OFF_REASON);
+  expect(await send.getAttribute("title")).toBeNull();
 });
 
 test("#54: engine-down — Send carries the engine-down reason (a DEAD registered engine under adopt-only)", async ({ mount, page }) => {
@@ -84,7 +94,7 @@ test("#54: engine-down — Send carries the engine-down reason (a DEAD registere
   await component.getByLabel("Message", { exact: true }).fill("hello");
   const send = component.getByRole("button", { name: "Send message" });
   await expect(send).toHaveAttribute("aria-disabled", "true");
-  await expect(send).toHaveAttribute("title", ENGINE_DOWN_REASON);
+  await expect(send).toHaveAccessibleDescription(ENGINE_DOWN_REASON);
 });
 
 test("#54: no-connection — Send carries the no-connection reason (the cause drives the copy)", async ({ mount, page }) => {
@@ -93,7 +103,42 @@ test("#54: no-connection — Send carries the no-connection reason (the cause dr
   await component.getByLabel("Message", { exact: true }).fill("hello");
   const send = component.getByRole("button", { name: "Send message" });
   await expect(send).toHaveAttribute("aria-disabled", "true");
-  await expect(send).toHaveAttribute("title", NO_CONNECTION_REASON);
+  await expect(send).toHaveAccessibleDescription(NO_CONNECTION_REASON);
+});
+
+// #2443 — the SIGHTED touch user's half. A disabled Base UI Button swallows its own click, so the refusal
+// cannot hide behind a press door either; it is visible copy under the band, once for the whole cluster
+// (every icon here and the Send share the one cause). `hasTouch` flips `matchMedia("(pointer: coarse)")` in
+// chromium, which is the media the `SHOW_ONLY_AT_COARSE` fragment keys on.
+test.describe("#2443: the band's refusal at a coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("an unserveable connection states its reason as VISIBLE copy under the guided cluster", async ({ mount, page }) => {
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
+    const component = await mount(<ComposerStory />);
+    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(ENGINE_OFF_REASON);
+  });
+
+  test("a serveable connection shows no refusal line (the band is not permanently annotated)", async ({ mount, page }) => {
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+    const component = await mount(<ComposerStory />);
+    await expect(component.getByLabel("Message", { exact: true })).toBeVisible();
+    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveCount(0);
+  });
+});
+
+// The OTHER direction of the same pointer fragment. `SHOW_ONLY_AT_COARSE` is `pointer-fine:hidden`, i.e.
+// `display: none` — so on a fine pointer the line is out of layout AND out of the a11y tree, which is only
+// correct because the tooltip and the per-control descriptions carry the same string there. Without this arm
+// the coarse assertion above would also pass on a line that rendered unconditionally.
+test("#2443: at a FINE pointer the refusal line does not render — the tooltip is the carrier there", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
+  const component = await mount(<ComposerStory />);
+  const line = component.locator('[data-slot="composer-guided-refusal"]');
+  // The node is in the DOM (the cause IS in force) but the fragment stands it down at this pointer.
+  await expect(line).toHaveCount(1);
+  await expect(line).toBeHidden();
+  await expect(line).toHaveCSS("display", "none");
 });
 
 test("#54: an unserveable connection refuses the SEND click — no chat.send fires", async ({ mount, page }) => {

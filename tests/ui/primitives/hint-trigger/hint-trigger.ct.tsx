@@ -16,7 +16,7 @@ test("inline size (Field's anatomy): renders the locator, derives its name from 
   const button = page.getByRole("button", { name: "More info about Display name" });
   await expect(button).toBeVisible();
   await button.hover();
-  await expect(page.getByText("Saved every 30 seconds")).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"]')).toHaveText("Saved every 30 seconds");
 });
 
 test("icon size (Section's anatomy): same locator, same accname/tooltip contract under the other size", async ({ mount, page }) => {
@@ -25,7 +25,7 @@ test("icon size (Section's anatomy): same locator, same accname/tooltip contract
   const button = page.getByRole("button", { name: "More info about Sampling" });
   await expect(button).toBeVisible();
   await button.hover();
-  await expect(page.getByText("How the sampler shapes the distribution.")).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"]')).toHaveText("How the sampler shapes the distribution.");
 });
 
 test("an optional onClick fires on activation AND the tooltip still shows on hover (#866 S3 — the teacher's door)", async ({ mount, page }) => {
@@ -42,7 +42,7 @@ test("an optional onClick fires on activation AND the tooltip still shows on hov
   );
   const button = page.getByRole("button", { name: "More info about Chat width" });
   await button.hover();
-  await expect(page.getByText("Opens the teacher")).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"]')).toHaveText("Opens the teacher");
   await button.click();
   expect(clicks).toBe(1);
 });
@@ -66,4 +66,61 @@ test("accname sibling-not-descendant: mounted as a SIBLING of a labeled control,
   await expect(page.getByRole("textbox", { name: "Notes", exact: true })).toBeVisible();
   // The trigger itself is independently reachable with its OWN derived name.
   await expect(page.getByRole("button", { name: "More info about Notes" })).toBeVisible();
+});
+
+// THE PRESS DOOR (#2443). Base UI 1.7.0's tooltip hover is `mouseOnly: true` and its focus fallback
+// gates on `:focus-visible`, so a tap reached neither and the hint was unreachable at 92 call sites.
+// These run under an emulated TOUCH device (`hasTouch` flips `matchMedia("(pointer: coarse)")` in
+// chromium and makes `locator.tap()` dispatch a real touch sequence — the tokens/index.ct.tsx
+// precedent), which is the pointer the defect was reported on.
+test.describe("the press door at a coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("a TAP discloses the hint, and the hint is already the trigger's resolving description at rest", async ({ mount, page }) => {
+    await mount(<HintTrigger className="test-trigger" hint="Affects every reply that stops at the length cap." subject="Reply length" />);
+    const button = page.getByRole("button", { name: "More info about Reply length" });
+    // AT REST: the description resolves to real text — the defect was an `aria-describedby` pointing
+    // only at the unmounted tooltip popup, so a virtual cursor read the name and nothing else.
+    const restText = await button.evaluate((el: HTMLElement): string =>
+      (el.getAttribute("aria-describedby") ?? "")
+        .split(/\s+/)
+        .filter((id) => id.length > 0)
+        .map((id) => el.ownerDocument.getElementById(id)?.textContent ?? "")
+        .join(" ")
+        .trim(),
+    );
+    expect(restText).toContain("Affects every reply that stops at the length cap.");
+    // ON TAP: a rendered dialog carries the same sentence.
+    await button.tap();
+    const popup = page.locator('[data-slot="hint-popup"]');
+    await expect(popup).toBeVisible();
+    await expect(popup).toContainText("Affects every reply that stops at the length cap.");
+    // And it is dismissable without a keyboard.
+    await page.keyboard.press("Escape");
+    await expect(popup).toBeHidden();
+  });
+
+  test("the onClick escape hatch OWNS the press — no second popup opens behind the caller's own door", async ({ mount, page }) => {
+    let clicks = 0;
+    await mount(
+      <HintTrigger
+        className="test-trigger"
+        hint="Opens the teacher"
+        onClick={(): void => {
+          clicks += 1;
+        }}
+        subject="Chat width"
+      />,
+    );
+    await page.getByRole("button", { name: "More info about Chat width" }).tap();
+    expect(clicks).toBe(1);
+    await expect(page.locator('[data-slot="hint-popup"]')).toHaveCount(0);
+  });
+});
+
+test("a mouse CLICK discloses the hint too (the fine-pointer half of the same defect)", async ({ mount, page }) => {
+  await mount(<HintTrigger className="test-trigger" hint="Saved every 30 seconds" size="inline" subject="Display name" />);
+  const button = page.getByRole("button", { name: "More info about Display name" });
+  await button.click();
+  await expect(page.locator('[data-slot="hint-popup"]')).toContainText("Saved every 30 seconds");
 });

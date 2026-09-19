@@ -18,6 +18,10 @@
 //      stacked its OS tooltip on the rendered popup. The fix is only durable if the ABSENCE is pinned together
 //      with the reason still reaching a DISABLED control by hover (`focusableWhenDisabled` +
 //      `data-disabled:pointer-events-auto` are what keep it reachable).
+//   4. THE REASON/CUE ALSO REACHES A POINTER THAT CANNOT HOVER (#2443, side-eye 2026-09-19). Base UI 1.7.0's
+//      tooltip is `mouseOnly: true` with a `:focus-visible`-gated focus fallback, so §3's single carrier was
+//      mute on touch and to a virtual screen-reader cursor. The same string is now the control's accessible
+//      DESCRIPTION — and NOT its name, which stays the bare verb a voice-control user can say.
 //
 // Menu POPUPs render through a Base UI Portal — menu-item assertions use the PAGE locator, never `component`.
 
@@ -151,7 +155,7 @@ test("typing charges only what it can actually steer: Response + Draft charge, t
   await expect(component.getByRole("button", { name: "Continue the reply with this direction", exact: true })).not.toHaveAttribute(CHARGE);
 });
 
-// ── 3. The tooltip is the ONLY carrier ────────────────────────────────────────────────────────────────────
+// ── 3. No native `title` — the tooltip and the accessible description are the carriers ────────────────────
 
 test("no guided control carries a native `title` — the tooltip popup is the sole explanation carrier", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
@@ -190,4 +194,41 @@ test("an ENABLED guided icon's tooltip teaches the dual mode: the plain label, t
   await component.getByRole("textbox", { name: "Message" }).fill("make her angrier");
   await component.getByRole("button", { name: RESPONSE_GUIDED, exact: true }).hover();
   await expect(page.getByRole("tooltip", { name: `${RESPONSE} — ${STEER_CUE_RESPONSE}`, exact: true })).toBeVisible();
+});
+
+// ── 4. The reason and the cues are the control's DESCRIPTION, not just a hover popup (#2443) ───────────────
+
+test("a DISABLED guided icon's reason is its accessible DESCRIPTION — readable with no hover and no tap", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const component = await mount(<ComposerStory />);
+
+  // No hover, no tap, no focus: the description resolves at rest, which is the whole point — a tap cannot
+  // open a `mouseOnly` tooltip and an aria-disabled Base UI Button swallows its own click, so a press door
+  // is not available here either.
+  const swipe = component.getByRole("button", { name: SWIPE, exact: true });
+  await expect(swipe).toHaveAccessibleName(SWIPE);
+  await expect(swipe).toHaveAccessibleDescription(SWIPE_NEEDS_REPLY);
+});
+
+test("a typed steer's promise is the charged control's description, and the name stays sayable", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const component = await mount(<ComposerStory />);
+
+  const response = component.getByRole("button", { name: RESPONSE, exact: true });
+  // Idle and solo: no detail at all, so nothing announces the label twice.
+  await expect(response).toHaveAccessibleDescription("");
+
+  await component.getByRole("textbox", { name: "Message" }).fill("make her angrier");
+  const charged = component.getByRole("button", { name: RESPONSE_GUIDED, exact: true });
+  await expect(charged).toHaveAccessibleDescription(STEER_CUE_RESPONSE);
+});
+
+test("the group-room speaker cue — the one door to who replies next — is the Response control's description", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": () => ({ title: "Council", participants: [HOST, character("Mira"), character("Doran")], viewerIsHost: true }),
+  });
+  const component = await mount(<ComposerStory />);
+  await expect(component.getByRole("button", { name: RESPONSE, exact: true })).toHaveAccessibleDescription(RESPONSE_SPEAKER_CUE);
 });

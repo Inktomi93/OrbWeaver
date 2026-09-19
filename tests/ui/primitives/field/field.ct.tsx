@@ -59,7 +59,7 @@ test("a hinted field's control accname is the label ALONE (the More-info button 
   const info = page.getByRole("button", { name: "More info about Display name" });
   await expect(info).toBeVisible();
   await info.hover();
-  await expect(page.getByText("Saved every 30 seconds")).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"]')).toHaveText("Saved every 30 seconds");
 });
 
 test("the hint accname fix holds in the horizontal orientation too", async ({ mount, page }) => {
@@ -102,7 +102,7 @@ test("a hinted label row is the SAME height as a plain one, so a hinted/plain pa
   expect(hinted.height).toBe(plain.height);
   // The trigger is still a real, hoverable control — shrinking the box must not cost the affordance.
   await page.getByRole("button", { name: "More info about At depth" }).hover();
-  await expect(page.getByText("0 = the tail")).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"]')).toHaveText("0 = the tail");
 });
 
 test("two hinted fields on one surface get DISTINCT hint-trigger accnames", async ({ mount, page }) => {
