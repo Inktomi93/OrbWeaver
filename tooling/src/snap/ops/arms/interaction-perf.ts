@@ -294,7 +294,12 @@ export const INTERACTION_PERF_ARM = {
   help: `  --perf                  collect per-step LoAF/long-task attribution, EventTiming input delay,
                           processing/duration, rAF gaps and CLS over the one shared action tape. This is
                           a meter, not a threshold gate: breaches stay ranked evidence; action/page
-                          failures still fail and missing/withheld measurement evidence refuses
+                          failures still fail and missing/withheld measurement evidence refuses.
+                          The table's 'task-entry' column is the LoAF task ENTRY POINT, not a cost: a
+                          handler that calls one setState owns the whole re-render it drove, so the name
+                          there is where the task STARTED. 'which function is hot' is a separate
+                          --cpu-profile pass, which --perf refuses to combine with because sampling
+                          overhead contaminates these interaction rates
   --pause <ms>            ordered tape pause (not a measurement window)
   --wheel <selector=dy>   one ordered wheel input
   --wheel-burst <selector=dy:count>

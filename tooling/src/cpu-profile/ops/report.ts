@@ -49,26 +49,42 @@ export function buildReports(data: MeterData): StepReport[] {
   });
 }
 
-export function printTable(reports: readonly StepReport[]): void {
-  print("idx  longTasks(total/worst)  blocking  script  click(dur/delay/work)  rafGap  shift  label");
-  for (const r of reports) {
+/** THE SEMANTICS LINE, PRINTED EVERY RUN (#2439). The column used to be headed `script` and to carry a
+ *  bare `fn`, which reads as "this function spent that time" — it is the opposite claim: LoAF attributes
+ *  the task to the script that ENTERED it, and the cost printed beside it belongs to everything that entry
+ *  synchronously drove. #2427 lost a profiling pass to exactly that read. The cell now carries its own
+ *  `entry=` prefix so the token survives being quoted away from this legend, and the legend names the arm
+ *  that DOES answer "which function is hot" — a separate `--cpu-profile` pass, separate because `--perf`
+ *  refuses to combine with it (sampling overhead contaminates the interaction rates this table reports). */
+export const PERF_ENTRY_LEGEND =
+  "entry= is the LoAF task's ENTRY POINT script, NOT its self time: a handler that calls one setState owns the whole re-render it drove. For self time take a separate --cpu-profile pass.";
+
+/** The table as lines, pure — `printTable` only writes them. Split so the entry-column semantics are
+ *  assertable without capturing stdout (tests/tooling/cpu-profile/ops/report.test.ts). */
+export function perfTableLines(reports: readonly StepReport[]): readonly string[] {
+  const rows = reports.map((r) => {
     const lt = `${String(r.longTaskCount).padStart(2)} (${String(r.longTaskTotalMs).padStart(MS_PAD_4)}/${String(r.longTaskWorstMs).padStart(MS_PAD_4)})`;
     const blocking = r.worstBlockingMs === null ? "  —" : `${String(r.worstBlockingMs).padStart(MS_PAD_3)}ms`;
     const click =
       r.clickDurMs === null
         ? "      —          "
         : `${String(r.clickDurMs).padStart(MS_PAD_5)}/${String(r.clickInputDelayMs).padStart(MS_PAD_4)}/${String(r.clickProcessingMs).padStart(MS_PAD_4)}`;
-    print(
-      [
-        String(r.idx).padStart(IDX_PAD),
-        lt,
-        blocking,
-        r.worstScript ?? "—",
-        click,
-        String(r.worstRafGapMs).padStart(MS_PAD_5),
-        String(r.shiftScore).padStart(MS_PAD_6),
-        r.label.slice(0, LABEL_MAX),
-      ].join("  "),
-    );
+    return [
+      String(r.idx).padStart(IDX_PAD),
+      lt,
+      blocking,
+      r.worstScript === null ? "—" : `entry=${r.worstScript}`,
+      click,
+      String(r.worstRafGapMs).padStart(MS_PAD_5),
+      String(r.shiftScore).padStart(MS_PAD_6),
+      r.label.slice(0, LABEL_MAX),
+    ].join("  ");
+  });
+  return [PERF_ENTRY_LEGEND, "idx  longTasks(total/worst)  blocking  task-entry  click(dur/delay/work)  rafGap  shift  label", ...rows];
+}
+
+export function printTable(reports: readonly StepReport[]): void {
+  for (const line of perfTableLines(reports)) {
+    print(line);
   }
 }

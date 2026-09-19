@@ -7,4 +7,4 @@ export { perfRateDisposition } from "./lib/rate.ts";
 export type { ActiveBootTrace } from "./ops/boot-trace.ts";
 export { beginBootTrace } from "./ops/boot-trace.ts";
 export { METER_INIT_JS } from "./ops/meter.ts";
-export { buildReports, printTable } from "./ops/report.ts";
+export { buildReports, PERF_ENTRY_LEGEND, perfTableLines, printTable } from "./ops/report.ts";
