@@ -100,6 +100,33 @@ export function resolveRowContent(args: {
   );
 }
 
+/** THE ROW'S CARRIED PALETTE, OVER THE WHOLE CONTENT COLUMN (#2425) — the one home both the settled row
+ *  and the streaming ghost mount it through.
+ *
+ *  It used to wrap the BUBBLE only, which was correct for the seven `inside` skins (their header is the
+ *  container's own first child) and silently wrong for the one `outside` skin: tide's header is a SIBLING
+ *  above the box, so it sat outside the scope and resolved its plate, its band and its ink from the
+ *  VIEWER's palette while the prose one line below rode the CARRIED one. Measured live 2026-09-19 as the
+ *  pinned band reading a neutral `oklch(0.12 0.006 60)` against the inside skins' speaker-tinted
+ *  `oklch(0.112 …)` — #204's "one column, two palettes" defect, at the one surface #288's anatomy move
+ *  left outside the container.
+ *
+ *  It stops at the bubble: the chrome BELOW it (metadata row, swipe strip, message footer) is deliberately
+ *  still the viewer's, because that chrome is about the MESSAGE (timestamps, swipes, disclosures) rather
+ *  than about the speaker, and #106 floors it against the viewer's own plate.
+ *
+ *  `display: contents`, so nothing in the column's height chain moves and a null-token row is byte-identical. */
+export function themedColumnContent(tokens: ThemeScopeTokens | null, content: ReactNode): ReactNode {
+  if (tokens === null) {
+    return content;
+  }
+  return (
+    <ThemeScope tokens={tokens} className="contents">
+      {content}
+    </ThemeScope>
+  );
+}
+
 export function renderRowBubble(args: {
   readonly role: MessageRole;
   readonly message: MessageView;
@@ -118,7 +145,6 @@ export function renderRowBubble(args: {
   readonly decoration: BubbleDecoration | null;
   /** Ripple's sticky portrait, welded inside the bubble's own Row; null for every other mode/kind. */
   readonly weldedAvatar: ReactElement | null;
-  readonly attributionTokens: ThemeScopeTokens | null;
   readonly render: RowRenderPolicy;
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
@@ -178,13 +204,15 @@ export function renderRowBubble(args: {
         ))}
       </Stack>
     );
-  return args.attributionTokens === null ? (
-    body
-  ) : (
-    <ThemeScope tokens={args.attributionTokens} className="contents">
-      {body}
-    </ThemeScope>
-  );
+  // #2425 — THE SPEAKER SCOPE IS THE CONTENT COLUMN'S, NOT THE BUBBLE'S. It used to wrap this function's
+  // return, which put an `outside` header (tide's, the one skin whose header is a SIBLING above the box)
+  // OUTSIDE the carried palette: its pinned band resolved `--color-reading-band` from the VIEWER's theme
+  // while the prose one line below rode the CARRIED one — measured live 2026-09-19 as a neutral
+  // `oklch(0.12 0.006 60)` band over speaker-tinted `oklch(0.112 …)` prose, i.e. #204's one-column-two-
+  // palettes defect reaching the one surface #288 left outside the container. The caller now wraps the
+  // column's header + bubble in ONE scope (`message-row.tsx`, and its twin in `ghost-message-row.tsx`), so
+  // the seven `inside` skins are byte-identical and tide joins them.
+  return body;
 }
 
 // "sticky-portrait" (Ripple) swaps the chip for a smart-cropped 2:3 portrait pinned via

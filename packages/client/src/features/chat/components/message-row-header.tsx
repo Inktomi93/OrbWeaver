@@ -116,8 +116,12 @@ function renderRowIdentity(args: {
  *     shell's `data-has-bg-image`: no wallpaper, no chip.
  *   · `STICKY_ATTRIBUTION_CHROME` / `…_INSIDE` (#113) — pin + OPAQUE band, any mode, only for a row the
  *     virtualizer measured as taller than the scrollport. It is the row's one RAISED layer (z-order:
- *     message-row-backing.ts). The two spellings differ in which padding they cancel and in chip rounding
- *     — see the constants; the layout-neutrality invariant is identical.
+ *     message-row-backing.ts). The two spellings differ in which padding they cancel, in chip rounding,
+ *     and in HOW the band's breathing below the name is paid — real `pb-row` outside a container, an
+ *     out-of-flow `::after` inside one (#2425, because a bottom padding there would re-enter
+ *     `exceedsViewport`'s own input). What is identical is what the reader sees — one --spacing-row of
+ *     opaque fill under the name in all eight skins — and the layout-neutrality invariant, which the
+ *     `::after` keeps by construction. Rounding is the one REMAINING appearance difference, ruled at #288.
  *
  *  The sticky band SUPERSEDES the wallpaper chip because an opaque fill is a strict superset of a
  *  translucent plate, and both spell the same property: applied together,

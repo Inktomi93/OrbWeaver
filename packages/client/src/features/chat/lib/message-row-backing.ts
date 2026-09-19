@@ -298,9 +298,10 @@ export const STICKY_ATTRIBUTION_CHROME =
 // THE SAME PIN, FOR A HEADER THAT LIVES INSIDE ITS CONTAINER (#288). Everything #113/#168/#241 ruled is
 // carried over verbatim — the pin, the RAISE, the OPAQUE `bg-reading-band` fill (an occluding band is the
 // hard guarantee; a tall turn's prose must not stay legibly moving under its own pinned name) and the
-// paired `text-foreground` ink. Exactly ONE thing differs, and it is arithmetic, not policy:
+// paired `text-foreground` ink.
 //
-// TWO things differ, both forced by the geometry rather than chosen:
+// THREE things differ, every one forced by the geometry rather than chosen — and since #2425 only the
+// FIRST of them is visible in the rendered band:
 //
 // (1) NO `rounded-card`. A chip's rounded corners leave a sliver of whatever is behind them unpainted,
 // and inside a container the thing behind the band's BOTTOM corners is the container's own first prose
@@ -328,7 +329,38 @@ export const STICKY_ATTRIBUTION_CHROME =
 // this constant may only add the band's own padding — and a bottom padding cannot be cancelled any more,
 // because `mb-section` owns the bottom margin. So the band takes its breathing on the TOP only: the name
 // lands on exactly the pixel it occupied at rest (`-mt-row` cancels `pt-row`), the outer box is the same
-// h + --spacing-section in both arms, and the opaque fill starts one --spacing-row above the name instead
-// of surrounding it. Same invariant as ever — "going sticky changes NO box" — now true against the arm the
-// row actually renders. Pinned by the box-neutrality CTs (message-list-surface.ct.tsx, #1873).
-export const STICKY_ATTRIBUTION_CHROME_INSIDE = "-mt-row sticky top-0 z-(--z-raised) bg-reading-band pt-row text-reading-plate-foreground";
+// h + --spacing-section in both arms. Same invariant as ever — "going sticky changes NO box" — now true
+// against the arm the row actually renders. Pinned by the box-neutrality CTs (message-list-surface.ct.tsx,
+// #1873).
+//
+// (3) THE BAND'S FILL EXTENDS ONE --spacing-row BELOW THE NAME, AND IT IS PAINT, NOT LAYOUT (#2425).
+// The sentence (2) used to end on — "the opaque fill starts one --spacing-row above the name instead of
+// surrounding it" — named a real trade, and the live drive found the reader pays it. Measured 2026-09-19
+// at `scrollTop 20166` in a carried-art room: with `padding-bottom: 0` the opaque fill stops ~5px under
+// the name's glyph box (the line box's own half-leading, nothing more), so the prose scrolling underneath
+// is severed EXACTLY there — the pinned "Sabine Veyra" sitting directly on the sheared top half of "old
+// throne room." with no separating fill. Pre-#1873 that gap was ~13px, and the untouched `tide` skin
+// (still `pb-row`, 36px tall) renders it correctly in the same build: the in-build control that makes this
+// a regression rather than a taste call.
+//
+// THE FORK, AND WHY THIS IS NOT A REVERSAL OF (2). Restoring `pb-row` would put --spacing-row back into
+// the MEASURED row height, and the measured row height is `exceedsViewport`'s own input — which is the
+// exact loop #1873 was minted to kill. So the ruling survives and its INPUT changes: the breathing comes
+// back as PAINT. An absolutely-positioned `::after` hung on the band's own bottom edge (`top-full`) is out
+// of flow, so it adds NO box to any ancestor, cannot re-enter the verdict, and — because the band is the
+// row's one positioned/raised layer (the z-order below) — it occludes the prose under it exactly as the
+// band's own fill does. It takes the fill token and nothing else: same `bg-reading-band`, so the extension
+// and the band can never step apart the way #223's two whites did.
+//
+// WHY NOT `box-shadow: 0 var(--spacing-row) 0 0 …`, the other paint-only spelling: it would ride the
+// `--shadow-*` family's appearance axis (`data-shadow`) in reading, and a band's occlusion is a legibility
+// GUARANTEE, not an elevation effect. A pseudo-element fill says what it is.
+//
+// AFTER THIS, ALL EIGHT SKINS PAINT THE SAME BAND: `tide` spends one --spacing-row of real `pb-row` below
+// the name and the seven inside skins spend one --spacing-row of `::after`. The remaining difference is
+// the CHIP ROUNDING (1) — a deliberate, measured #288 ruling that stays. Pinned across the whole skin axis
+// by the "#2425 the pinned band paints one --spacing-row of fill below the name" CT (message-row.ct.tsx),
+// which samples the FRAMEBUFFER: the extension is a composite, and a class list says nothing about it.
+export const STICKY_ATTRIBUTION_CHROME_INSIDE =
+  "-mt-row sticky top-0 z-(--z-raised) bg-reading-band pt-row text-reading-plate-foreground " +
+  "after:absolute after:inset-x-0 after:top-full after:h-row after:bg-reading-band after:content-['']";

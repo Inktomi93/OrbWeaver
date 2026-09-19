@@ -40,7 +40,6 @@ import { Markdown } from "@orb/ui/markdown";
 import { Skeleton } from "@orb/ui/skeleton";
 import { TypingDots, useSmoothText } from "@orb/ui/stream";
 import { Text } from "@orb/ui/text";
-import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import type { MessageRenderContext } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
@@ -50,7 +49,7 @@ import type { RowAttribution } from "../lib/attribution.ts";
 import { columnClassFor, gutterRailFor, MESSAGE_ROW_SKINS, rowBodyClassFor } from "../lib/message-row-variants.ts";
 import { CardBlock } from "./card-block.tsx";
 import { placeRowHeader, renderGhostNameRow } from "./message-row-header.tsx";
-import { renderRowAvatar } from "./message-row-parts.tsx";
+import { renderRowAvatar, themedColumnContent } from "./message-row-parts.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
 
 // Fallback pace when smooth-streaming is on but the surface passed no explicit cps (matches the contract
@@ -289,14 +288,21 @@ export function GhostMessageRow({
       <GhostBubbleBody held={held} streaming={streaming} colorQuotes={colorQuotedSpeech} cardTier={cardTier} />
     </Stack>
   );
-  const decoratedBubble =
-    attribution === undefined || attribution.tokens === null ? (
-      bubble
-    ) : (
-      <ThemeScope tokens={attribution.tokens} className="contents">
-        {bubble}
-      </ThemeScope>
-    );
+  // #2425 — ONE scope over the column's header AND bubble, the settled row's shape exactly
+  // (`themedColumnContent`): an `outside` header (tide's) is a SIBLING above the box, so a bubble-only
+  // scope left its band and its plate resolving from the VIEWER's palette beside carried-palette prose.
+  const themedColumn = themedColumnContent(
+    attribution?.tokens ?? null,
+    <>
+      {/* #116 — the SPEAKER, for the whole generation. Same slot, same frame and same sticky mechanics as
+          the settled row's name row (`renderGhostNameRow`), so a multi-viewport streaming turn pins its
+          attribution exactly the way the committed one does instead of being the one row in the transcript
+          with no speaker on it. Since #288 this arm carries it only for a skin whose header is `outside`
+          (tide); every other skin's header rides inside the bubble above. */}
+      {header.above}
+      {bubble}
+    </>,
+  );
 
   return (
     <Stack
@@ -324,13 +330,7 @@ export function GhostMessageRow({
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a
             visible jump (the reading-measure suite pins the two columns equal). */}
         <Stack gap="row" data-slot="message-content-column" className={columnClass} style={skin.columnStyle}>
-          {/* #116 — the SPEAKER, for the whole generation. Same slot, same frame and same sticky mechanics
-              as the settled row's name row (`renderGhostNameRow`), so a multi-viewport streaming turn pins
-              its attribution exactly the way the committed one does instead of being the one row in the
-              transcript with no speaker on it. Since #288 this arm carries it only for a skin whose header
-              is `outside` (tide); every other skin's header rides inside the bubble above. */}
-          {header.above}
-          {decoratedBubble}
+          {themedColumn}
         </Stack>
       </Row>
     </Stack>
