@@ -9,8 +9,32 @@ import { CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
  *  so it is restated here and PINNED by a test that reads that file — a drift makes the test red, not the
  *  operator's restart hang). */
 export const SERVER_DRAIN_MS = 10_000;
-/** Margin over the server's own bounded drain before we escalate. The drain force-closes at its deadline
- *  and logs a warn, so anything past `drain + margin` is a process that is not going to exit on its own. */
+/**
+ * Margin over the server's own bounded drain before we escalate to SIGKILL.
+ *
+ * ITS STATED PREMISE WAS FALSE AND IS RECORDED HERE RATHER THAN QUIETLY DROPPED (#1936). It used to read
+ * "the drain force-closes at its deadline and logs a warn, so anything past `drain + margin` is a process
+ * that is not going to exit on its own" — which treats the HTTP drain as the only thing between SIGTERM and
+ * exit. It is not. `entry/lifecycle.ts`'s `shutdown()` runs TWO UNBOUNDED stages AFTER the drain: the
+ * workloads-worker join (`drainWorkloadsWorker` — a cooperative abort that waits for whatever job is
+ * mid-run) and the db pre-close (`preCloseHousekeeping` — `PRAGMA optimize` + `wal_checkpoint(TRUNCATE)`,
+ * a cost that scales with the database). So this 5s is the ENTIRE budget those two stages get, and a
+ * healthy-but-busy shutdown can exceed it — which is the reported symptom, a SIGKILL on a working process.
+ *
+ * MEASURED 2026-09-19 on an isolated prod instance (PORT=8999, engines off, fresh db), so the numbers are
+ * on the record for whoever re-prices this:
+ *   • idle           → `shutdown: draining` → `shutdown: complete` in 12 ms; `down` wall 1.0 s; complete.
+ *   • one in-flight request → drain deadline at exactly 10.001 s, everything after it 15 ms; `down` wall
+ *     11.5 s; outcome `deadline-hit`, NO escalation. An open stream therefore CANNOT produce the reported
+ *     SIGKILL: {@link classifyDrainTail} treats the deadline warn as terminal.
+ * The escalation requires the two unbounded stages to exceed this margin, and until #1936 nothing in the
+ * log said which stage a shutdown was in — `shutdown: http drained` / `joining the workloads worker` /
+ * `db housekeeping` are the breadcrumbs added for exactly that, and they must stay non-terminal here.
+ *
+ * WHETHER TO WIDEN THIS, BOUND THOSE STAGES, OR MAKE THE WATCH PROGRESS-AWARE IS AN OWNER CALL, not a
+ * number to invent: bounding the db pre-close means killing a checkpoint (#1376 deliberately preserves its
+ * rejection), and extending on log growth alone would let a noisy wedged process defer SIGKILL forever.
+ */
 export const DRAIN_MARGIN_MS = 5000;
 export const DRAIN_WATCH_MS = SERVER_DRAIN_MS + DRAIN_MARGIN_MS;
 
