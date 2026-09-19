@@ -11,21 +11,22 @@
 // between "the reader could not shape this body" and "the app sent nothing", and it is the distinction whose
 // absence cost the diagnosis. The multi-procedure arm is the second control: a batch window can fold another
 // call into the same request, so index 0 is an assumption, not a fact.
-import type { Request as PlaywrightRequest } from "@playwright/test";
-import { readMutationInput } from "../../../../tooling/src/snap/ops/appearance-invariant-runtime.ts";
+import type { MutationRequestRead } from "../../../../tooling/src/snap/ops/appearance-density-persistence.ts";
+import { readMutationInput } from "../../../../tooling/src/snap/ops/appearance-density-persistence.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const PROCEDURE = "settings.updateUserSettingsSection";
 const ORIGIN = "http://127.0.0.1:5273";
 const APPEARANCE_INPUT = { section: "appearance", patch: { density: "comfortable" } } as const;
 
-/** The two members `readMutationInput` reads, and nothing else — a hand-built Playwright `Request` would be
- *  a mock of a class this test does not own. */
-function request(path: string, body: unknown): PlaywrightRequest {
+/** The two members `readMutationInput` reads, and nothing else. The reader takes the STRUCTURAL port rather
+ *  than Playwright's `Request`, so this is a real value of the parameter's own type — not a double-cast
+ *  fabrication that would survive the vendor class growing a required member. */
+function request(path: string, body: unknown): MutationRequestRead {
   return {
     url: (): string => `${ORIGIN}/api/trpc/${path}?batch=1`,
     postDataJSON: (): unknown => body,
-  } as unknown as PlaywrightRequest;
+  };
 }
 
 test("the batched tRPC dict is read at the procedure's own position", () => {

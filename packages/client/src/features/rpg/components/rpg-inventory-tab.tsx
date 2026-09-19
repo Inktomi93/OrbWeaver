@@ -51,7 +51,7 @@ import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations.ts";
 import { actorKey } from "../lib/actor-key.ts";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
-import type { PackEdit } from "./rpg-pack-rows.tsx";
+import type { PackEdit } from "./rpg-pack-fields.tsx";
 import { PackBody } from "./rpg-pack-rows.tsx";
 import { RpgSubjectSelect } from "./rpg-subject-select.tsx";
 

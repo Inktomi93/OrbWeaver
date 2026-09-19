@@ -85,7 +85,7 @@ test("#54: engine-off — Send is aria-disabled and DESCRIBED by the engine-off 
   // The name still NAMES the control (what a voice-control user says); the reason is its DESCRIPTION.
   await expect(send).toHaveAccessibleName("Send message");
   await expect(send).toHaveAccessibleDescription(ENGINE_OFF_REASON);
-  expect(await send.getAttribute("title")).toBeNull();
+  await expect(send).not.toHaveAttribute("title");
 });
 
 test("#54: engine-down — Send carries the engine-down reason (a DEAD registered engine under adopt-only)", async ({ mount, page }) => {

@@ -3,7 +3,8 @@
 // source of truth for what's themeable; this test proves `clampThemeTokens` can never emit a
 // stale/typo'd `--*` custom property that doesn't trace back to a real token.
 import { TOKENS } from "@orb/ui/tokens";
-import { clampThemeTokens, THEME_SCOPE_EMIT_VARS } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
+import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
+import { THEME_SCOPE_EMIT_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const LEADING_DASHES_RE = /^--/u;

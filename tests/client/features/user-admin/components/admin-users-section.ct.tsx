@@ -6,6 +6,8 @@
 // reset-password / sessions dialogs submit the real wire inputs.
 
 import { revokeSessionName, userActionsName, userEnabledFieldName, userRoleFieldName } from "@orb/client/features/user-admin";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
@@ -14,6 +16,10 @@ import { AdminUsersSectionStory } from "../_ct-stories.tsx";
 
 const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" };
 const ADMIN_VIEWER = { userId: "user_mira", handle: "mira", globalRole: "admin" };
+/** The row-name builders take the canonical `Handle` brand (the column they name is `users.handle`), so a
+ *  spec subject is MINTED rather than spelled as a bare string. */
+const handle = (raw: string): Handle => castId<Handle>(raw);
+
 const USER_OPTION_RE = /^User$/u;
 
 const USERS = [
@@ -117,7 +123,7 @@ test("as the owner, changing a member's role fires setRole", async ({ mount, pag
   const trpc = await stub(page, OWNER_VIEWER);
   const component = await mount(<AdminUsersSectionStory />);
 
-  const roleSelect = component.getByRole("combobox", { name: userRoleFieldName("kes") });
+  const roleSelect = component.getByRole("combobox", { name: userRoleFieldName(handle("kes")) });
   await expect(roleSelect).toBeEnabled();
   await roleSelect.click();
   await page.getByRole("option", { name: "Admin" }).click();
@@ -131,8 +137,8 @@ test("role writes lock only their target row while a sibling remains actionable"
     "admin.setRole": (input: unknown) => ((input as Record<string, unknown>)["userId"] === "user_kes" ? held : applyToUser(input, ({ role }) => ({ role }))),
   });
   const component = await mount(<AdminUsersSectionStory />);
-  const kes = component.getByRole("combobox", { name: userRoleFieldName("kes") });
-  const mira = component.getByRole("combobox", { name: userRoleFieldName("mira") });
+  const kes = component.getByRole("combobox", { name: userRoleFieldName(handle("kes")) });
+  const mira = component.getByRole("combobox", { name: userRoleFieldName(handle("mira")) });
 
   await kes.click();
   await page.getByRole("option", { name: "Admin" }).click();
@@ -153,18 +159,18 @@ test("as a delegated admin, the role controls are DISABLED (requireOwner honesty
   await stub(page, ADMIN_VIEWER);
   const component = await mount(<AdminUsersSectionStory />);
 
-  await expect(component.getByRole("combobox", { name: userRoleFieldName("kes") })).toBeDisabled();
+  await expect(component.getByRole("combobox", { name: userRoleFieldName(handle("kes")) })).toBeDisabled();
   // The owner row exposes NO role control at all (owner-immutability).
-  await expect(component.getByRole("combobox", { name: userRoleFieldName("root") })).toHaveCount(0);
+  await expect(component.getByRole("combobox", { name: userRoleFieldName(handle("root")) })).toHaveCount(0);
   // Non-role controls stay live for the delegated admin.
-  await expect(component.getByRole("switch", { name: userEnabledFieldName("kes") })).toBeEnabled();
+  await expect(component.getByRole("switch", { name: userEnabledFieldName(handle("kes")) })).toBeEnabled();
 });
 
 test("disabling an account is confirm-gated and fires setEnabled(false)", async ({ mount, page }) => {
   const trpc = await stub(page, OWNER_VIEWER);
   const component = await mount(<AdminUsersSectionStory />);
 
-  await component.getByRole("switch", { name: userEnabledFieldName("kes") }).click();
+  await component.getByRole("switch", { name: userEnabledFieldName(handle("kes")) }).click();
   // Nothing fires until the destructive confirm.
   await expect.poll(() => trpc.count("admin.setEnabled")).toBe(0);
   await page.getByRole("button", { name: "Disable", exact: true }).click();
@@ -177,10 +183,10 @@ test("the self + owner guards: no enabled switch on the owner row, own switch di
   const component = await mount(<AdminUsersSectionStory />);
 
   // The owner row renders no enabled switch (the owner is immutable).
-  await expect(component.getByRole("switch", { name: userEnabledFieldName("root") })).toHaveCount(0);
+  await expect(component.getByRole("switch", { name: userEnabledFieldName(handle("root")) })).toHaveCount(0);
   // The acting admin's own row is disabled (cannot_disable_self) — the viewer identity comes from the
   // section's own sessions.me read now.
-  await expect(component.getByRole("switch", { name: userEnabledFieldName("mira") })).toBeDisabled();
+  await expect(component.getByRole("switch", { name: userEnabledFieldName(handle("mira")) })).toBeDisabled();
 });
 
 test("the create-user dialog submits handle + password (+ admin role when picked)", async ({ mount, page }) => {
@@ -256,7 +262,7 @@ test("reset password: the row menu opens the dialog and submits the new password
   const trpc = await stub(page, OWNER_VIEWER, { "admin.resetPassword": () => ({ ok: true }) });
   const component = await mount(<AdminUsersSectionStory />);
 
-  await component.getByRole("button", { name: userActionsName("kes") }).click();
+  await component.getByRole("button", { name: userActionsName(handle("kes")) }).click();
   await page.getByRole("menuitem", { name: "Reset password…" }).click();
   const dialog = page.getByTestId("admin-reset-password-dialog");
   await expect(dialog).toBeVisible();
@@ -272,7 +278,7 @@ test("reset password: submit is clickable, and a too-short password shows an inl
   const trpc = await stub(page, OWNER_VIEWER, { "admin.resetPassword": () => ({ ok: true }) });
   const component = await mount(<AdminUsersSectionStory />);
 
-  await component.getByRole("button", { name: userActionsName("kes") }).click();
+  await component.getByRole("button", { name: userActionsName(handle("kes")) }).click();
   await page.getByRole("menuitem", { name: "Reset password…" }).click();
   const dialog = page.getByTestId("admin-reset-password-dialog");
   const submit = page.getByTestId("admin-reset-password-submit");
@@ -293,7 +299,7 @@ test("sessions: the dialog lists sessions and revokes one / all", async ({ mount
   });
   const component = await mount(<AdminUsersSectionStory />);
 
-  await component.getByRole("button", { name: userActionsName("kes") }).click();
+  await component.getByRole("button", { name: userActionsName(handle("kes")) }).click();
   await page.getByRole("menuitem", { name: "Sessions…" }).click();
   const dialog = page.getByTestId("admin-sessions-dialog");
   await expect(dialog).toBeVisible();

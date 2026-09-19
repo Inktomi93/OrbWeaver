@@ -2,7 +2,10 @@
 // cap; the tab keeps the composition, these keep the anatomy). The GRID cell is the compact multi-column
 // lens; the LIST row is the same item read in full AND, for a host, the RV-5 editor: name, quantity,
 // location and description are click-to-edit in place, with a confirmed drop. `PackEdit` is the one callback
-// set both lenses take (absent = the read-only member arm - PERMISSION-omit, never a disabled twin).
+// set both lenses take (absent = the read-only member arm - PERMISSION-omit, never a disabled twin) — and
+// `PackEdit` plus the per-datum field components it drives now live one file over in `rpg-pack-fields.tsx`
+// (the component-size cap again): this module owns the two ANATOMIES, that one owns what a single datum
+// looks like under each permission arm.
 //
 // OWNER DOGFOOD (2026-07-31) — the grid was a 3.5rem SQUARE holding a 20px glyph: the quantity was an
 // unlabelled corner digit, the location truncated to "belt p…", the name reachable only on hover, and
@@ -25,10 +28,11 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ConfirmDialog, PICKER_GAP_AT_COARSE, TrackerValue } from "#components";
+import { ConfirmDialog, PICKER_GAP_AT_COARSE } from "#components";
 import { cn } from "#lib";
 import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
-import { RpgFieldLock } from "./rpg-field-lock.tsx";
+import type { PackEdit } from "./rpg-pack-fields.tsx";
+import { ItemLockPin, ItemName, ItemProseLine, ItemQuantity } from "./rpg-pack-fields.tsx";
 
 /** The quest-bound tell - the model-written item `type` naming the quest taxonomy. */
 const QUEST_TYPE_RE = /quest/i;
@@ -218,123 +222,9 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
   );
 }
 
-/** The host's per-item write callbacks (absent ⇒ the read-only member arm — PERMISSION-omit). */
-export interface PackEdit {
-  readonly onPickIcon: (itemId: string, icon: string) => void;
-  readonly onPatchItem: (itemId: string, patch: Partial<RpgInventoryItem>) => void;
-  readonly onRemoveItem: (itemId: string) => void;
-  readonly onAddItem: (name: string) => void;
-  /** The hand pins THIS item carries (#78 — `…inventory.<id>.<field>`), in stored order; empty ⇒ the story
-   *  still owns every field of it. The panel renders the tell from this list and hands the WHOLE list back on
-   *  Release: a per-field residue would leave a pin no lens renders and no gesture can reach. */
-  readonly itemLocks: (itemId: string) => readonly string[];
-  /** Release every pin this item carries — "let the story write it again" (rides `editSnapshot`, the one lock
-   *  author: an empty patch + `releaseLocks`). */
-  readonly onReleaseItem: (itemId: string) => void;
-}
-
 /** The pinned tile's hover/title sentence — the grid tile states the FACT, and the tile's own editor (one tap,
  *  the same popover every other per-item gesture lives in) carries the Release. */
 const PINNED_TITLE = "Pinned by hand — the story won't change this. Open the item to release it.";
-
-/** A row's NAME — the host's rename field, else the plain label. */
-function ItemName({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
-  if (edit === undefined) {
-    return (
-      <Text as="span" voice="label" className="min-w-0 break-words">
-        {item.name}
-      </Text>
-    );
-  }
-  return (
-    <TrackerValue
-      ariaLabel={`${item.name} name`}
-      display={item.name}
-      // A model names the items: no length contract, so the name WRAPS rather than truncating away the
-      // datum (the TrackerValue `wrap` arm — the text IS the value).
-      wrap={true}
-      onEdit={(next): void => {
-        const trimmed = next.trim();
-        // Tier-2 refusal: the item schema requires a name — a blank one never sends.
-        if (trimmed !== "") {
-          edit.onPatchItem(item.id, { name: trimmed });
-        }
-      }}
-      className="min-w-0 flex-1"
-    />
-  );
-}
-
-/** A row's QUANTITY — editable for the host; a read-only 1 renders nothing (no `×1` noise). */
-function ItemQuantity({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement | null {
-  if (edit === undefined) {
-    return item.quantity > 1 ? (
-      <Text as="span" voice="gloss" className="shrink-0 tabular-nums">
-        ×{item.quantity}
-      </Text>
-    ) : null;
-  }
-  return (
-    <Row gap="field" align="baseline" className="shrink-0">
-      <Text as="span" voice="gloss" aria-hidden={true}>
-        ×
-      </Text>
-      <TrackerValue
-        ariaLabel={`${item.name} quantity`}
-        display={String(item.quantity)}
-        kind="numeric"
-        size="micro"
-        onEdit={(next): void => {
-          const n = Number.parseInt(next, 10);
-          if (!Number.isNaN(n)) {
-            // Tier-1 clamp: the schema floor is 1 — dropping the item is the delete affordance.
-            edit.onPatchItem(item.id, { quantity: Math.max(1, n) });
-          }
-        }}
-        className="!w-avatar-md px-field text-right tabular-nums"
-        restClassName="tabular-nums"
-      />
-    </Row>
-  );
-}
-
-/** One of the row's two prose lines (location / description): the host's inline field, else the stored text
- *  (empty ⇒ nothing — a read-only viewer never sees an empty labelled slot). */
-function ItemProseLine({
-  item,
-  value,
-  field,
-  placeholder,
-  edit,
-}: {
-  readonly item: RpgInventoryItem;
-  readonly value: string;
-  readonly field: "location" | "description";
-  readonly placeholder: string;
-  readonly edit?: PackEdit;
-}): ReactElement | null {
-  if (edit === undefined) {
-    return value === "" ? null : (
-      <Text as="span" voice="gloss" className="min-w-0 break-words">
-        {value}
-      </Text>
-    );
-  }
-  return (
-    <TrackerValue
-      ariaLabel={`${item.name} ${field}`}
-      display={value}
-      // Model-authored prose (where it's kept / what it is) — it wraps; a truncated location was the
-      // owner-reported "…" line that hid the datum it existed to show.
-      wrap={true}
-      placeholder={placeholder}
-      tone="muted"
-      size="micro"
-      onEdit={(next): void => edit.onPatchItem(item.id, { [field]: next.trim() })}
-      className="min-w-0 flex-1"
-    />
-  );
-}
 
 /** The GRID tile's editor (owner dogfood): the SAME click-to-edit grammar the list row uses — name · ×qty ·
  *  location · description, plus the icon pick and the confirmed drop — in a popover anchored on the tile. No
@@ -367,17 +257,6 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
       </Row>
     </Stack>
   );
-}
-
-/** THE ITEM'S HAND-PIN + its one-tap Release (#78) — rendered only where the item actually carries pins, and
- *  only for a host (the `PackEdit` arm; a member never mounts a control they cannot use). It names the ITEM,
- *  because a pack of eight otherwise offers eight buttons all called "Release" (the side-eye 08-01 rule), and
- *  it hands back every pin the item carries in one gesture. */
-function ItemLockPin({ item, edit }: { readonly item: RpgInventoryItem; readonly edit: PackEdit }): ReactElement | null {
-  if (edit.itemLocks(item.id).length === 0) {
-    return null;
-  }
-  return <RpgFieldLock field={item.name} onRelease={(): void => edit.onReleaseItem(item.id)} />;
 }
 
 /** One LIST row (#37b) — glyph · name · ×qty · the hand pin · location · description. For a host this row IS

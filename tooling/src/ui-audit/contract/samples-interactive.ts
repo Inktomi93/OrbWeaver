@@ -63,9 +63,10 @@ export interface AccessibleNameInput {
  *  `undefined` on a DISABLED trigger, so a natively-disabled tooltip control is outside this census by
  *  the vendor's choice, not by ours. The tooltip's own text cannot be read at rest (Base UI mounts the
  *  popup only while open), so this sample carries the seal's DECISION instead: `@orb/ui`'s tooltip
- *  publishes `data-tooltip-describes` on every trigger it owns (`packages/ui/src/primitives/tooltip/
- *  tooltip.tsx`), which is the only way to tell "the tooltip repeats the name, there is nothing to
- *  reach" from "someone else owes this control a description and nobody wrote one". */
+ *  publishes `data-tooltip-describes` on every trigger it owns
+ *  (`packages/ui/src/primitives/tooltip/tooltip.tsx`), which is the only way to tell "the tooltip
+ *  repeats the name, there is nothing to reach" from "someone else owes this control a description
+ *  and nobody wrote one". */
 export interface UnreachableHintInput {
   readonly selector: string;
   /** `self` | `name` | `caller` from the seal; `null` when the trigger is outside the seal entirely. */

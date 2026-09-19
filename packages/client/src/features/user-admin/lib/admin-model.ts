@@ -75,17 +75,17 @@ export function restartEngineName(engine: string): string {
 }
 
 /** One user row's ⋯ trigger. `kes actions` — the pane's own grammar, not the library `Actions for <x>`. */
-export function userActionsName(handle: string): string {
+export function userActionsName(handle: Handle): string {
   return `${handle} actions`;
 }
 
 /** One user row's role Select. `Role — kes`. */
-export function userRoleFieldName(handle: string): string {
+export function userRoleFieldName(handle: Handle): string {
   return `Role — ${handle}`;
 }
 
 /** One user row's enabled Switch. `Enabled — kes`. */
-export function userEnabledFieldName(handle: string): string {
+export function userEnabledFieldName(handle: Handle): string {
   return `Enabled — ${handle}`;
 }
 

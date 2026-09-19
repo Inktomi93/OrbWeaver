@@ -48,7 +48,6 @@ const RUN_INDEX = "run.json";
 
 // The front door keeps the public surface its callers already import; the diagnostic-evidence writer and
 // its schema-guarded reader live in the `lib/` leaf so this file stays the run-index writer alone.
-export type { DiagnosticArtifactRead } from "../lib/run-bundle-diagnostics.ts";
 export const readSnapDiagnosticArtifact = readSnapDiagnosticArtifactLeaf;
 export const writeSnapDiagnosticEvidence = writeSnapDiagnosticEvidenceLeaf;
 

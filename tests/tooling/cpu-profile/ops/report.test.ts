@@ -21,7 +21,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const STEP: StepReport = {
   idx: 1,
-  label: "click [data-testid=send]",
+  label: "click [data-slot=composer-chat-actions]",
   longTaskCount: 1,
   longTaskTotalMs: 70,
   longTaskWorstMs: 70,
@@ -64,7 +64,7 @@ test("the attributed cell carries its own entry= token, so a quoted row stays ho
   expect(row).not.toContain("  plantedHot  ");
   // and the rest of the row is untouched by the relabel
   expect(row).toContain("20ms");
-  expect(row).toContain("click [data-testid=send]");
+  expect(row).toContain("click [data-slot=composer-chat-actions]");
 });
 
 test("a step with no LoAF attribution prints a dash, never an empty entry= (#2439 absence control)", () => {

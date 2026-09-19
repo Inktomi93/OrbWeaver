@@ -168,7 +168,7 @@ A FOCUSED review runs the subset its targets implicate, but still prints the tab
 | # | Instrument | What it alone can see |
 | - | - | - |
 | 1 | `pnpm snap` — `--map`, `--aria`, `--contrast` (in-viewport; add a tall-viewport arm for below-fold text; `--contrast-pixel` on any surface with a fixed/absolute painted layer — the CSS resolve is blind to it), `--matrix`, `--json` manifests, and the browser-free reader `pnpm snap --report <run.json> --problems` for every run you cite | selectors, ARIA tree, WCAG ratios, the pairwise APPEARANCE-INVARIANT matrix (§"Fleet truth" below — no longer an 8-variant sweep), lossless console, and the typed per-arm facts + FINDING rows in `run.json` |
-| 2 | `pnpm snap <route> --design-audit` AND `pnpm snap <route> --design-audit --mobile` | the deterministic rules (60 registered at 2026-09-04); the mobile arm is the only honest tap-target read. **Read `population-verdict` on the RESULT line BEFORE the findings — NO-VERDICT (exit 2) means the run could not see, and zero findings there is not clean** (§"Fleet truth" item 2) |
+| 2 | `pnpm snap <route> --design-audit` AND `pnpm snap <route> --design-audit --mobile` | the deterministic rules (63 registered — count `tooling/src/ui-audit/contract/rules.ts`, never a remembered number); the mobile arm is the only honest tap-target read. **Read `population-verdict` on the RESULT line BEFORE the findings — NO-VERDICT (exit 2) means the run could not see, and zero findings there is not clean** (§"Fleet truth" item 2) |
 | 3 | `pnpm snap <route> --motion <primary action>` | LoAF, CLS, compositor-dirty animations, dropped-frame % over one explicitly tagged action window |
 | 4 | `pnpm snap <route> --perf --click <primary action>` | input delay, long tasks, rAF gaps on the surface's ONE primary action |
 | 5 | **`pnpm snap <route> --lighthouse desktop` AND `pnpm snap <route> --lighthouse mobile`** (report.json + report.html land in the run slot; `--lighthouse-mode navigation` reloads first — the default `snapshot` audits the page as your drive queue left it, which is what you want for client state) | axe-core a11y rules ours don't carry (color-contrast on composed widgets, label-content-name-mismatch), best-practices, SEO. Same browser, same tab, same device as the rest of the run — `--lighthouse mobile` fills the SAME device slot `--mobile` does, so it does not combine with a later `--desktop`/`--viewport`/`--wide` (and not with `--cascade`, which wants the same debugging endpoint). Failed audits RED the run (exit 1) like `--contrast`; a page that never signalled `data-app-ready`, a Lighthouse throw or a truncated report REFUSE with exit 2 — **a refusal is never a finding, and never a clean row.** **DEV-SERVER TRAP:** the vite-plugin-checker error-overlay HUD (`VITE-PLUGIN-CHECKER-ERROR-OVERLAY`, `badge-base`/`summary` classes) is part of the page to Lighthouse — before filing any Lighthouse finding, check its node path; an overlay-rooted finding is the DEV TOOL, not the product (a "badge contrast" P-find was entirely that widget) |
@@ -204,7 +204,7 @@ The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack s
   fails reds the run (`nav=ACTIONS-FAILED`) because the findings then describe some other surface.
   **`--mobile` is required for any tap-target claim** — the floor is pointer-conditional, so a bare
   `--viewport 430x932` still renders `pointer: fine` and judges everything against 24px instead of 44px.
-  59 registered deterministic rules as of 2026-09-01 (`tooling/src/ui-audit/contract/rules.ts` is the
+  63 registered deterministic rules (`tooling/src/ui-audit/contract/rules.ts` is the
   denominator — count it, never quote the old "~40") in two ORIGIN-TAGGED families (each finding carries `origin`):
   `orbweaver` (contrast/text-over-art, distorted images, tap targets, ARIA names/landmarks,
   tabindex, z-index, nested cards, gradient text, img-hover) and `impeccable` (adapted from
@@ -307,9 +307,10 @@ The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack s
     `data-app-ready=degraded` readiness is reported as a NAV ERROR (the capture is mid-hydration —
     rerun, don't assert on it), and mid-run HMR/dev-server churn is named + retried once, so an
     environmental blip is distinguished from an app failure in the report.
-  - **`--goto <section|settings:<cat>|modal:<slot>>` / `--open-chat <id|title|latest|current>` /
-    `--context-tab <name>`** = SPA NAVIGATION (the app has 2 URL routes; everything is client state).
-    One flag replaces a brittle click-chain; unknown targets refuse LOUDLY (exit 1, and the RESULT line
+  - **`--goto <section|config:<group>[.<sub>[.<setting>]]|modal:<slot>>` / `--open-chat <id|title|latest|current>` / `--context-tab <name>`** = SPA NAVIGATION (the app has 2 URL routes;
+    everything is client state). `settings:` is retired — `config:` is the only settings namespace, and an
+    unknown namespace (including the old `settings:` spelling) refuses loudly rather than falling through
+    to a section. One flag replaces a brittle click-chain; unknown targets refuse LOUDLY (exit 1, and the RESULT line
     reads `nav=ACTIONS-FAILED` — it printed `nav=OK` beside `nav-actions-failed=1` until 2026-08-16).
     Nav flags, steps AND `--eval` execute in ONE queue in true argv order — a mid-chain `--context-tab`
     or `--eval` runs exactly where it is written (`--eval` joined the queue 2026-08-16; before that every
@@ -325,7 +326,11 @@ The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack s
   - **`--pages <N>`** + `@<idx>` step suffixes (`--fill@0`, `--eval@1`) = N tabs in one shared context —
     drive one, read the passive one.
   - **`--mobile`** (true iPhone 14 Pro Max emulation: touch, `pointer: coarse`, DPR 3 — hover-reveals go
-    always-visible, rail becomes the bottom tab bar) / **`--desktop`** (1280×800 explicit).
+    always-visible, rail becomes the bottom tab bar) / **`--desktop`** (1280×800 explicit). Composes with
+    `--viewport` (#1668) to window the device to a given size while touch/DPR/UA survive.
+  - **`--tap <sel>`** (requires `--mobile`) = a REAL touch tap (`Input.dispatchTouchEvent`) — the only
+    verb that answers "what does a finger get here". **`--click` is a MOUSE dispatch even under
+    `--mobile`**: it fires `pointerenter`/`mouseover` and can open a hover-only tooltip no thumb reaches.
   - **`--dom-click <css>`** = raw in-page `el.click()` — THE tool for VIRTUALIZED/composite rows
     (list panes, message lists): `--click` with role= locators FLAKES on them (actionability
     timeouts). Reach for `--dom-click` first on any list-row target.
@@ -384,11 +389,13 @@ The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack s
   PNG contact sheet with stable frame order, relative timestamps, and action labels. The typed run index
   points straight at it. `pnpm record` no longer exists; this arm is the
   only recording recipe (no WebM/GIF dialect).
-- **`pnpm snap <route> --perf --click <sel> [--perf-cycles N] [--cpu-profile]`** — interaction responsiveness:
-  per-step input delay, long tasks (>50ms), worst rAF gap (dropped frames), layout-shift score; JSON →
-  the printed immutable Snap run index. Use when "does it FEEL right" is the question — a janky mode
-  switch, a slow open, jank that repeats (`--perf-cycles`), or the flame graph for who burns the frame
-  (`--cpu-profile`).
+- **`pnpm snap <route> --perf --click <sel> [--perf-cycles N]`** — interaction responsiveness: per-step
+  input delay, long tasks (>50ms), worst rAF gap (dropped frames), layout-shift score; JSON → the printed
+  immutable Snap run index. Its `task-entry`/`entry=` column is the LoAF task's ENTRY POINT, not a cost —
+  a handler that calls one `setState` owns the whole re-render it drove. Use when "does it FEEL right" is
+  the question — a janky mode switch, a slow open, jank that repeats (`--perf-cycles`). `--perf` REFUSES
+  to combine with `--cpu-profile` (sampling overhead contaminates the interaction rates) — for "who burns
+  the frame", run `pnpm snap <route> --cpu-profile` as a SEPARATE pass.
 - **`pnpm snap <route> --motion [sel]`** + **`__orb.motion()` / `__orb.animations()`** (via
   `snap --eval`) — the SMOOTHNESS receipts for "buttery": LoAF (`styleAndLayoutStart > 0`,
   `blockingDuration > 50ms`), CLS, `compositorClean:false` animations, and Percent-Dropped-Frames (CDP trace, 4× throttle).
@@ -414,7 +421,7 @@ before course-correcting to snap and proved the snap flow covered nearly everyth
 **THE KEYBOARD WALK IS A SNAP CALL AS OF 2026-08-16.** `--key Tab` (BARE, no `=`) presses the page keyboard
 without changing focus, so N of them walk N stops inside a Base UI focus trap, and `--eval` now runs in
 the SAME argv-ordered queue, so one call reads `document.activeElement` at every stop:
-`snap / --goto settings:appearance --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Escape`.
+`snap / --goto config:appearance --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Tab --eval "$FOCUS" --key Escape`.
 (`--key 'selector=Key'` is the OTHER form — it re-focuses the selector before each press, which is why
 "Tab never advances focus" was believed. End a dialog walk on Escape, never Enter.) What remains true:
 Chromium does NOT promote a scripted `.focus()` to `:focus-visible`, so `snap --eval el.focus()` still
