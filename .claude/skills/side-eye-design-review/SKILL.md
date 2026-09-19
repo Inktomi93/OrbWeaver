@@ -276,7 +276,9 @@ flag. A run you already took replays browser-free: `pnpm snap --report <run.json
   credential logic: `tooling/src/snap/ops/fixture.ts`.
   **VIEWPORT TOGGLES:** `--mobile` (real iPhone 14 Pro Max emulation — 430×932, DPR 3, touch +
   `pointer: coarse`, so hover-reveals go always-visible and the rail becomes the bottom tab bar) ·
-  `--desktop` (the 1280×800 default, explicit) · last of `--mobile`/`--desktop`/`--wide`/`--viewport` wins.
+  `--desktop` (the 1280×800 default, explicit) · `--wide` (1920×1080). **`--mobile` and `--viewport`
+  COMPOSE (#1668), in either argv order** — `--mobile --viewport 320x740` WINDOWS the device to
+  320x740 while touch/DPR3/UA survive; `--wide`/`--desktop` are presets that DO clear the device.
 - `pnpm snap --perf` (responsiveness) / `pnpm snap --cpu-profile` (CPU profile) · `pnpm snap <route> --design-audit` (the deterministic defect
   scanner — every registered rule in `DESIGN_AUDIT_RULES` (`tooling/src/ui-audit/contract/rules.ts`),
   grouped by the tuple's `family` axis (a11y · color · decor · media · ornament · quality · structure ·
@@ -508,8 +510,11 @@ drawer/panel slides, scroll, immersive chat modes), read the numbers instead of 
   the budget below plus the LoAF/CLS/compositor-clean detail in one Bash call. Its CLS line prints all
   three numbers labeled — `raw … · virtualized … · non-virtualized …` — and the RESULT line carries
   `cls-raw` / `cls-virtualized` / `cls-non-virtualized`; **only the last one is in the verdict**. Note:
-  the dropped-frame % is only fully trustworthy headful (`--vnc`) — headless has no real vsync;
-  LoAF/CLS/blocking are the headless-reliable signals.
+  headlessness is NOT why a dropped-frame rate goes advisory (#2464) — Snap launches Chromium with the
+  GPU enabled and classifies a RATE POSTURE from SystemInfo; the rate is advisory only when that posture
+  is `software`/`unknown`, never merely because the run was headless. A `--motion` window that comes back
+  empty means nothing moved in it (a selector-less window after reach actions is the usual cause), not
+  that headless can't measure — read the gap list's named cause before the zero-frame arithmetic.
 
 ### The PROD-BUILD CLS arm — and the declared limit on Lighthouse's mobile CLS (#836)
 
