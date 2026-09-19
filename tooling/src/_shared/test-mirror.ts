@@ -4,8 +4,8 @@
 // probed against a stale spec and report every mutant as a survivor.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { TestFamily, TestKindDefinition } from "../../_shared/test-kinds.ts";
-import { runtimeForTestFamily, TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
+import type { TestFamily, TestKindDefinition } from "./test-kinds.ts";
+import { runtimeForTestFamily, TEST_KIND_DEFINITIONS } from "./test-kinds.ts";
 
 const MUTATION_FAMILY_ORDER = {
   unit: 0,

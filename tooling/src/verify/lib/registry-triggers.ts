@@ -96,6 +96,10 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
     paths: /^(?:tests\/|vitest\.config\.ts$|playwright[^/]*\.config\.ts$|playwright\/)/u,
     why: "every tests/** runner-suffixed file against the union of vitest's and both playwright configs' own --list views. A file enters or leaves that set only by a tests/ path change or a runner-config change.",
   },
+  "tests:instrument-affected": {
+    paths: /^(?:tooling\/src\/|tests\/tooling\/)/u,
+    why: "its subject is the instruments a branch CHANGED and the specs those reach — `tooling/src/**` on the one side, `tests/tooling/**` on the other. Nothing outside those two trees can move the selection or the verdict, and the stage's own derivation narrows further from there (a `tooling/src` change that reaches no spec is a finding, not a skip).",
+  },
   "types:ownership": {
     paths: /(?:\.(?:ts|tsx|mts|cts)$|tsconfig[^/]*\.json$)/u,
     why: "every authored TS root, ambient and imported closure against its declared compiler owner. Broad ON PURPOSE and still not the identity: a docs-only, JSON-only or asset-only commit cannot move a compiler program's membership.",

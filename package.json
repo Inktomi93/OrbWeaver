@@ -80,6 +80,7 @@
     "gate:contract": "node tooling/src/verify/cli.ts gate-contract",
     "check:structure": "node tooling/src/verify/cli.ts structure",
     "check:structure-delta": "node tooling/src/verify/cli.ts structure-delta",
+    "check:instrument-affected": "node tooling/src/verify/cli.ts instrument-affected",
     "check:policy-conformance": "node tooling/src/verify/cli.ts policy-conformance",
     "check:show": "node tooling/src/verify/cli.ts show",
     "debt": "node tooling/src/verify/cli.ts debt",

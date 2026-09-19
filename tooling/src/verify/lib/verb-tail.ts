@@ -65,6 +65,9 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   "typecheck-plan": "own",
   typecheck: "own",
   eslint: { tail: "none", scopedDoor: "pnpm exec eslint <files>" },
+  // The branch diff IS the selection, so a path tail would be a second, contradicting selector. An
+  // operator who wants named instrument specs is reaching for the scoped test door.
+  "instrument-affected": { tail: "none", scopedDoor: "pnpm test:scoped <tests/tooling paths…>" },
 };
 
 /** Refuse a tail on a verb that takes none — called by the front door AFTER the `--help` answer (a help

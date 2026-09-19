@@ -49,6 +49,8 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
     "usage: node tooling/src/verify/cli.ts biome-rule-liveness\n  Reds when a biome.json rule-off grant suppresses NOTHING — it strips the rule-off grants from a copy of the config, runs biome over the granted files, and names the grants that fired nowhere. Refuses (exit 2) on any report it cannot trust; a bare zero is never a verdict.",
   "typecheck-plan": TYPECHECK_PLAN_HELP,
   typecheck: TYPECHECK_HELP,
+  "instrument-affected":
+    "usage: node tooling/src/verify/cli.ts instrument-affected\n  Runs the family tests of the instruments THIS BRANCH changed (#1967) — reached through the shared test mirror AND through the gate-ID string, because a family test routinely lives under its WAVE's name rather than its gate's. It takes NO paths: the branch diff IS the selection. A changed instrument reaching no spec is VIOLATIONS (1), never a clean zero; an uncomputable branch answer runs the whole instrument battery rather than selecting nothing.",
   eslint:
     "usage: node tooling/src/verify/cli.ts eslint\n  Runs whole-repository ESLint in sequential native compiler-owner processes. It takes NO paths: a SCOPED run is `pnpm exec eslint <files>`, which carries the same workspace heap floor.",
 };

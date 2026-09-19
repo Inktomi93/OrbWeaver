@@ -46,6 +46,7 @@ import {
   runDebtWalk,
   runEslint,
   runGateContract,
+  runInstrumentAffected,
   runLedgerClaims,
   runLedgersFresh,
   runNewGate,
@@ -143,6 +144,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runTypecheck(root, rest);
     case "eslint":
       return await runEslint(root);
+    case "instrument-affected":
+      return runInstrumentAffected(root);
     default:
       throw new UsageError(`unknown verb "${verb}"\n${USAGE}`);
   }
