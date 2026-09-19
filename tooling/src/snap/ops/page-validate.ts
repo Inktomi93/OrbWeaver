@@ -84,6 +84,7 @@ export function contrastFacts(value: unknown): ContrastFacts {
     backdrop,
     hasText: pageBoolean(record["hasText"], `${label} field "hasText"`),
     hasIconInk: pageBoolean(record["hasIconInk"], `${label} field "hasIconInk"`),
+    placeholderInk: pageBoolean(record["placeholderInk"], `${label} field "placeholderInk"`),
     inactive: pageBoolean(record["inactive"], `${label} field "inactive"`),
     role: pageString(record["role"], `${label} field "role"`),
     tag: pageString(record["tag"], `${label} field "tag"`),

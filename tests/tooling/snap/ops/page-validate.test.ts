@@ -28,6 +28,10 @@ const MEASURED = {
   backdrop: { kind: "flat", color: "rgb(255, 255, 255)" },
   hasText: true,
   hasIconInk: false,
+  // #2429 item 2's channel: whether `color` is the ::placeholder ink of an EMPTY field. A field is the
+  // one subject whose ink depends on its VALUE, so a fixture without this field is not a measured subject
+  // either — and the swept-fixture failure this header describes is exactly what it produced here.
+  placeholderInk: false,
   radii: { tl: 0, tr: 0, br: 0, bl: 0 },
   inactive: false,
   role: "",

@@ -15,6 +15,9 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
 
 const RISK_LARGE_FONT_SCALE = 1.25;
 const SHORT_MESSAGE_BODY_SCALE = 0.8;
+/** The root scale at which a phone still renders one ordinary (non-sticky) transcript row — the schema's
+ *  born `fontScale` (#2437, measured; the twin's `where` states the receipt). */
+const ORDINARY_ROW_FONT_SCALE = 1;
 const SHORT_MESSAGE_LINE_HEIGHT = 1.2;
 const REQUIREMENT_DIRECTION_SEPARATOR = "::";
 const ENVIRONMENT_AXIS = {
@@ -142,6 +145,22 @@ function riskTwins(axes: readonly VariantAxis[]): readonly VariantRequiredTwin[]
         // action bubble in the mobile viewport; either changes the subject instead of testing the twin.
         "appearance.readingBodyScale": appearanceArmValueId(axes, "readingBodyScale", SHORT_MESSAGE_BODY_SCALE),
         "appearance.readingLineHeight": appearanceArmValueId(axes, "readingLineHeight", SHORT_MESSAGE_LINE_HEIGHT),
+        // AND THE ROOT SCALE, which is the axis that actually emptied this twin (#2437). The two reading
+        // pins above defend exactly this property and are not sufficient: the pairwise filler is free to
+        // set every OTHER axis, and at `fontScale` 1.25 on the phone endpoint every visible header goes
+        // sticky — so `:not([data-sticky])` (the row's own "one ordinary row" fence) matches nothing and
+        // the cell's whole subject census reads population=0. It is not a broken probe: the rows are all
+        // there, and the header this row judges is not.
+        //
+        // MEASURED on the v05 cell's own patch, replayed as three ordinary snap calls against an isolated
+        // stage (2026-09-19, --mobile --dark, iPhone 14 Pro Max):
+        //   fontScale 1.25 · readingNameScale 1.6 → sticky 3/3, action-row population 0, rows [235,1083,1076]
+        //   fontScale 1.25 · readingNameScale 1   → sticky 3/3, action-row population 0  (so the name scale
+        //                                           is NOT the axis — only this one is)
+        //   fontScale 1    · readingNameScale 1.6 → sticky 2/3, action-row population 1, rows [159,662,701]
+        // The born value is therefore pinned, the same way and for the same reason as the two above; the
+        // 1.25 arm keeps its pairwise coverage in every other cell.
+        "appearance.fontScale": appearanceArmValueId(axes, "fontScale", ORDINARY_ROW_FONT_SCALE),
       },
     },
     {

@@ -192,3 +192,48 @@ test("an ancestor-hidden candidate with nothing rendered behind it refuses as UN
   expect(message).toContain("INSTRUMENT ERROR");
   expect(message).toContain("reaches no rendered candidate to anchor on");
 });
+
+// @instrument-proof: #2437 — a population=0 miss must name the WHOLE row's subject census. The
+// hover-pointer twin reported `bubble` population 0 and stopped there; the cause was that EVERY subject of
+// the row was 0 (each one is scoped through the same relational `:has(... :not([data-sticky]) ...)` row,
+// and the arm had turned every visible header sticky), which the one-subject message could not say. A lane
+// spent an afternoon re-deriving by hand what the instrument already had in the page.
+const CENSUS_ROW: RuntimeAppearanceHistoricalRow = {
+  id: "hover-pointer",
+  surface: "chat",
+  subjects: [
+    { id: "bubble", selector: "#missing-bubble", population: "many", sample: "geometry" },
+    { id: "actions-row", selector: ".present-actions", population: "many", sample: "geometry" },
+  ],
+  cascade: [],
+  merge: { mechanism: "merge-not-applicable", reason: "direct-carrier", selector: ".present-actions", owner: "fixture" },
+  requiredChecks: [],
+  optionalSubjectIds: [],
+};
+
+test("a zero-population anchor miss names every subject population, not just its own", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: VIEWPORT });
+    // The anchored subject matches NOTHING; a sibling subject matches two rendered nodes. A report that
+    // cannot tell those apart sends its reader to the wrong owner (the row's selector vs the surface).
+    await page.setContent('<div class="present-actions">a</div><div class="present-actions">b</div>');
+    let failure: Error | null = null;
+    try {
+      await anchorRowSubject(page, CENSUS_ROW);
+    } catch (error) {
+      failure = error instanceof Error ? error : new Error(String(error));
+    }
+
+    expect(failure, "an empty anchor subject must refuse").not.toBeNull();
+    const message = String(failure?.message);
+    expect(message).toContain("last selector population=0");
+    expect(message).toContain("Row subject populations:");
+    expect(message).toContain("bubble=0");
+    // The PLANTED CONTROL in the other direction: a non-zero sibling is reported as non-zero, so the
+    // census is a measurement rather than a row of zeroes the message always prints.
+    expect(message).toContain("actions-row=2");
+  } finally {
+    await browser.close();
+  }
+});

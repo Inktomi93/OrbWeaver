@@ -160,6 +160,13 @@ async function runMatrixSessionCell(
   }
 }
 
+/** The cell's assignment in one line: the environment axes it emulates plus the appearance patch it
+ *  pretends. Everything a reader needs to re-run the cell by hand as an ordinary `snap` call. */
+function describeVariantArm(variant: SnapMatrixVariant): string {
+  const environment = `theme=${variant.theme} device=${variant.device ?? "desktop"} os-color=${variant.colorScheme} os-motion=${variant.reducedMotion ? "reduced" : "full"} contrast=${variant.browserContrast} transparency=${variant.reducedTransparency ? "reduced" : "full"}`;
+  return `${environment}\n  appearance  : ${JSON.stringify(variant.appearance)}`;
+}
+
 async function runMatrixCells(opts: Args, baseName: string, matrix: SnapAppearanceMatrix, host: ProbeSession | null): Promise<readonly MatrixCellResult[]> {
   const results: MatrixCellResult[] = [];
   for (const [index, cell] of matrix.plan.cells.entries()) {
@@ -168,12 +175,21 @@ async function runMatrixCells(opts: Args, baseName: string, matrix: SnapAppearan
     print(`\n========== MATRIX ${variant.id} ==========`);
     const appearanceRows = runArgs.scenario === null ? historicalRowsForCell(matrix, cell.id) : [];
     let result: SnapDetailedResult;
-    if (host !== null) {
-      result = await runMatrixSessionCell(host, runArgs, variant, appearanceRows);
-    } else if (runArgs.scenario !== null) {
-      result = await runScenarioDetailed(runArgs);
-    } else {
-      result = await runSnapDetailed(runArgs, { appearanceRows });
+    // @orb-waive caught-failure-ownership(error): the cell's failure is RE-THROWN with the arm it was asked to render attached — never absorbed; `snapMatrixOnSession` still owns the terminal INSTRUMENT ERROR. Ends if a cell failure stops being fatal to the run.
+    try {
+      if (host !== null) {
+        result = await runMatrixSessionCell(host, runArgs, variant, appearanceRows);
+      } else if (runArgs.scenario !== null) {
+        result = await runScenarioDetailed(runArgs);
+      } else {
+        result = await runSnapDetailed(runArgs, { appearanceRows });
+      }
+    } catch (error) {
+      // A CELL THAT DIES NAMES THE ARM IT WAS ASKED TO RENDER (#2437). The id `v05-7a703524b79e` is a
+      // pairwise coordinate nobody can read: when the hover-pointer anchor reported `population=0`, working
+      // out WHICH appearance/device/theme arm had emptied the subject meant re-running the whole matrix.
+      // The assignment is right here and costs nothing to print.
+      throw new Error(`${errorMessage(error)}\n  cell arm    : ${describeVariantArm(variant)}`, { cause: error });
     }
     if (result.receipt === null) {
       return instrumentRefusal(`matrix cell ${variant.id} returned no browser receipt`);

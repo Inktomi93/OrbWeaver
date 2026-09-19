@@ -106,8 +106,40 @@ async function openRecordedContext(args: BuildContextArgs): Promise<BrowserConte
   return context;
 }
 
+/** The dev server's own HUD, hidden in EVERY probe context (#2429 item 2). `vite-plugin-checker` mounts a
+ *  `<vite-plugin-checker-error-overlay>` custom element at the viewport's bottom-right corner
+ *  (`overlay.position: "br"`, packages/client/vite.config.ts) whose collapsed badge paints rgb(255,85,85) —
+ *  measured live 2026-09-19 sitting ON TOP of the composer under the Light theme, where it entered the
+ *  `--contrast` fill arm's surround band and decided the verdict. It is DEV-SERVER chrome, not app pixels:
+ *  every instrument that samples the framebuffer (contrast, fill, edge, design-audit, a screenshot) would
+ *  otherwise be measuring vite's badge and calling it the product.
+ *
+ *  ONLY THE CHECKER BADGE. Vite's own `<vite-error-overlay>` is deliberately left visible: it appears only
+ *  when the app has actually failed to load, and hiding that would hide a real broken render from a shot.
+ *
+ *  A STYLE RULE, not a node removal: the element is created long after this script runs (and re-created on
+ *  every HMR round), so the rule has to be standing when it arrives. `display:none` on the shadow HOST
+ *  takes its whole tree with it. */
+const DEV_SERVER_HUD_SELECTOR = "vite-plugin-checker-error-overlay";
+const HIDE_DEV_SERVER_HUD_SCRIPT = `(() => {
+  const install = () => {
+    if (!document.head || document.getElementById("orb-probe-hide-dev-hud")) return;
+    const style = document.createElement("style");
+    style.id = "orb-probe-hide-dev-hud";
+    style.textContent = ${JSON.stringify(`${DEV_SERVER_HUD_SELECTOR}{display:none!important}`)};
+    document.head.appendChild(style);
+  };
+  if (document.head) install();
+  else document.addEventListener("DOMContentLoaded", install);
+})();`;
+
+/** Exported for its pin (`tests/tooling/_shared/browser-context.int.test.ts`): the planted control shows the
+ *  checker badge's pixels reaching a contrast sample without this script, and gone with it. */
+export const DEV_SERVER_HUD = { selector: DEV_SERVER_HUD_SELECTOR, initScript: HIDE_DEV_SERVER_HUD_SCRIPT } as const;
+
 async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, sessionCookie: string | null): Promise<SettingsShimEvidence> {
   const settingsEvidence = await installSettingsShim(context, { appearance: opts.appearance ?? null, theme: opts.theme ?? null });
+  await context.addInitScript({ content: HIDE_DEV_SERVER_HUD_SCRIPT });
   if (opts.localStorage.length > 0) {
     const seedScript = `(() => {
       try {

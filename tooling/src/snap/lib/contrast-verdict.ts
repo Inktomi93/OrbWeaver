@@ -8,6 +8,12 @@ import type { ContrastEvidence, ContrastFacts, ContrastMeasured, ContrastOcclude
 
 export const BOLD_WEIGHT = 700;
 
+/** The tags whose EMPTINESS is a contrast fact (#2429 item 2): a field with a value paints that value, a
+ *  field without one paints its placeholder, and a field with neither paints no ink at all. The in-page
+ *  script spells the same pair inline — it is a raw string evaluated in the browser and cannot import —
+ *  so this constant is the Node-side half, not a second home for the rule. */
+export const FIELD_TAGS: ReadonlySet<string> = new Set(["INPUT", "TEXTAREA"]);
+
 /** WCAG 1.4.11's non-text boundary — RE-EXPORTED from the fleet kernel (`_shared/wcag.ts`), which owns it
  *  since #624 gave design-audit the same inactive-control vocabulary. Kept as a named export here so snap's
  *  own consumers keep their import path; the VALUE has exactly one home. */
@@ -82,9 +88,32 @@ export function terminalEvidence(
  *  its fill changed, and both side-eye reports quoted it as the OFF-state loudness. Such a subject goes to
  *  the FILL arm (ops/contrast-fill.ts), which measures the pixels instead. Note the ORDER at the call site:
  *  the exemptions (inactive / control-track / below the opacity floor) are decided FIRST and unchanged —
- *  the fill arm re-answers WHICH foreground to measure, never WHETHER a subject is exempt. */
+ *  the fill arm re-answers WHICH foreground to measure, never WHETHER a subject is exempt.
+ *
+ *  AN EMPTY FIELD WITH A PLACEHOLDER IS NOT ONE OF THEM (#2429 item 2). It renders no `textContent` and
+ *  carries no `<svg>`, so this predicate used to hand the composer to the fill arm — which measured the
+ *  textarea's fill against the band around it and never judged the one thing a person reads in an empty
+ *  composer. The in-page script already resolves `color` to the ::placeholder colour there; `placeholderInk`
+ *  says so, and such a subject goes to the INK arm at the TEXT threshold. */
 export function isFillSubject(facts: ContrastMeasured): boolean {
-  return !(facts.hasText || facts.hasIconInk);
+  return !(facts.hasText || facts.hasIconInk || facts.placeholderInk);
+}
+
+/** Does this subject render TEXT — its own, or the placeholder an empty field paints (#2429 item 2)? The
+ *  threshold split: text is WCAG 1.4.3 (4.5:1, or 3:1 when large), a textless subject is the 1.4.11
+ *  ui-component boundary (3:1). Placeholder ink is text and takes the text threshold. */
+export function rendersText(facts: ContrastMeasured): boolean {
+  return facts.hasText || facts.placeholderInk;
+}
+
+/** What the printed line calls this subject. `placeholder-ink` is its own word rather than plain `text`
+ *  because the reader has to know WHICH pixels carried the verdict: the field is empty, so the ratio is
+ *  about the prompt a person reads before typing, not about anything they typed. */
+export function contrastSubjectLabel(facts: ContrastMeasured): string {
+  if (!rendersText(facts)) {
+    return "ui-component";
+  }
+  return facts.placeholderInk ? "placeholder-ink" : "text";
 }
 
 export function isContrastMeasured(facts: NonNullable<ContrastFacts>): facts is ContrastMeasured {

@@ -15,6 +15,7 @@ import type { Rgb } from "../../_shared/wcag.ts";
 import { UI_COMPONENT_MIN_RATIO } from "../../_shared/wcag.ts";
 import type { ContrastCapture, ContrastFillReading, ContrastMeasured } from "../contract/contrast.ts";
 import { readFillChannels } from "../lib/contrast-fill.ts";
+import { FIELD_TAGS } from "../lib/contrast-verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -73,6 +74,17 @@ async function shootWithRetry(
     }
   }
   throw new Error("unreachable: shootWithRetry's loop always returns by its last attempt");
+}
+
+/** #2429 item 2: a FIELD only reaches this arm when it is empty AND paints no placeholder (an empty field
+ *  WITH one is ink, and routes to the ink arm instead). A bare `FILL … PASS` on a composer then reads as
+ *  "the composer's contrast is fine", which is a claim about ink this arm never measured — so both the
+ *  measured line and the undecodable refusal say out loud that there was no ink to judge. */
+function emptyFieldNote(facts: ContrastMeasured): string {
+  if (!FIELD_TAGS.has(facts.tag)) {
+    return "";
+  }
+  return " · NO INK TO JUDGE: this field is empty and paints no placeholder, so this is a verdict on its BOX, never on its text";
 }
 
 async function readFill(page: Page, facts: ContrastMeasured, viewport: Viewport): Promise<ContrastFillReading> {
@@ -157,7 +169,7 @@ export async function measureFillContrast(page: Page, selector: string, facts: C
     };
   }
   if (reading.kind === "refused") {
-    const line = `CONTRAST ${selector}: NO VERDICT (fill-only, undecodable) — ${reading.refusal}`;
+    const line = `CONTRAST ${selector}: NO VERDICT (fill-only, undecodable) — ${reading.refusal}${emptyFieldNote(facts)}`;
     return {
       outcome: { line, failed: true },
       evidence: {
@@ -187,8 +199,9 @@ export async function measureFillContrast(page: Page, selector: string, facts: C
   // fill arm cannot answer it (it samples the box, not each painted side), so it names the arm that can
   // rather than letting a reader assume the box verdict covered the border.
   const next = ` · next: pnpm snap --contrast-edge ${JSON.stringify(selector)} for the BORDER question (WCAG 1.4.11, per side)`;
+  const noInk = emptyFieldNote(facts);
   return {
-    outcome: { line: `CONTRAST ${selector}: FILL ${reading.ratio.toFixed(2)}:1  ${passed ? "PASS" : "FAIL"}  ${tail}${next}`, failed: !passed },
+    outcome: { line: `CONTRAST ${selector}: FILL ${reading.ratio.toFixed(2)}:1  ${passed ? "PASS" : "FAIL"}  ${tail}${noInk}${next}`, failed: !passed },
     evidence: {
       ...base,
       status: "ok",
