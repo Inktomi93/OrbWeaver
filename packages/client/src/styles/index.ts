@@ -9,8 +9,8 @@
 // shaken away with BOTH stylesheets behind it — the built bundle carried zero `display:flex`, a planted
 // `<div class="flex">` computed `display: block` on the served page, and every chat room hit the
 // MessageList unbounded-window guard (packages/ui/src/lib/virtual-gap.ts). Five days, invisible to tsc,
-// biome, every gate and every test. Owner ruling 2026-09-05: the allowlist is GONE (client-architecture-
-// lockdown.md §7) — every module here is side-effectful by default and this door survives by
+// biome, every gate and every test. Owner ruling 2026-09-05: the allowlist is GONE
+// (client-architecture-lockdown.md §7) — every module here is side-effectful by default and this door survives by
 // construction. Do NOT reintroduce a `sideEffects` field in `packages/client/package.json`.
 import "../features/app-shell/surfaces/shell.css";
 import "./globals.css";

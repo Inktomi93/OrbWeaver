@@ -54,8 +54,8 @@ import { clearCharacterForm, publishCharacterForm } from "../lib/character-edito
 // confirmed save lands within the debounce window"): the factory's own teardown-flush comment
 // (`create-autosave-entity-form.tsx` §"NOT covered here, deliberately") states the premise does NOT
 // hold for a page reload/tab close — the debounce window dies with the document, unflushed, and long
-// authored prose is exactly the content this dossier (`reports/tooling-drive/dossier-client.md` family
-// 2) flags as the highest crash-loss editor in the app. The obligation-5 OMISSION stands as written
+// authored prose is exactly the content the tooling-drive dossier (family 2, 2026-08-18) flags as the
+// highest crash-loss editor in the app. The obligation-5 OMISSION stands as written
 // law for the general autosave case (`persona`/`appearance`, still short-field/low-loss); this is the
 // owner's named exception, not a reversal of the doctrine.
 /** The hero wants her CENSUS, not her rows — the smallest page the server serves still carries it. */

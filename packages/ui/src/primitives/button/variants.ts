@@ -52,7 +52,7 @@ export const buttonVariants = tv({
       // draws NO edge at all, and an edge is exactly what was missing: the characters pane's chips already
       // sat at a ratified radius and nobody could tell,
       // because at rest they were transparent with a ZERO-width border (measured 2026-08-17,
-      // reports/design/characters-mockups/RATIONALE.md §1). A radius differentiates nothing unless
+      // characters-mockups rationale §1). A radius differentiates nothing unless
       // something paints it, so the shape axis only starts working once the pill is drawn.
       outline: `border border-border bg-transparent text-current ${ACCENT_HOVER} active:bg-accent/80`,
     },
