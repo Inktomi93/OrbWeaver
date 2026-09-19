@@ -68,10 +68,13 @@
 // below is stated as a COUNT and never as a date. #626 closed under the debt (`17a495fb8` repointed to #2024);
 // #2024 then closed the same day on the REPOINT RECEIPT while all four surfaces were still firing, so the debt
 // again had no live owner. #2070's barrier (`lib/workitem-liveness.ts`) is what MEASURES this now: it asks the
-// board whether this number is open and reds when it is not. FLIP CONDITION UNCHANGED: raise this policy to
-// `authority: "hard"` / `severity: "error"` and DELETE `workItem` in the commit that takes its own effective
-// count to zero — four findings on the real corpus today, and the count is readable off
-// `reports/check-structure.json`, so nobody has to remember it.
+// board whether this number is open and reds when it is not. THE FLIP CONDITION WAS MET AND TAKEN (owner,
+// 2026-09-19): #2389 gave all four subjects their `--color-reading-plate` light arm, the effective count on
+// the real corpus read ZERO (`reports/check-structure.json`), and this commit raised `severity` to `"error"` and
+// deleted `workItem`. AUTHORITY STAYS `"ordinary"`, not the `"hard"` the condition first spelled: #1171's
+// NO-FILL exemption (`mustPass[9]`) and the §4.2 identity proofs are an exact ordinary waiver at the selector
+// subject, and hard authority has no waiver door — taking "hard" would delete a ratified exemption to satisfy a
+// sentence. The error BAR is what the condition was for, and it is back. History above kept as the record.
 //
 // THE COST IS REAL AND IS THE LANE'S ONE ESCALATION: this gate was `error` and is now `warning`, so a NEW
 // unpaired glass surface warns where it used to RED. That is a downgrade of an enforcement bar, not a
@@ -174,8 +177,7 @@ export const gate = defineGate({
   id: "over-art-plate-arm",
   family: "over-art-plate-arm",
   authority: "ordinary",
-  severity: "warning",
-  workItem: 2326,
+  severity: "error",
   population: { of: "none", why: "CSS is a ResourceHost fact population, never a compiler population" },
   analysis: "resource",
   execution: "entire-population",

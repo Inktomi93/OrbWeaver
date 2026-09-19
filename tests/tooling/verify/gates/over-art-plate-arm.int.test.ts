@@ -129,25 +129,18 @@ test("ARM D — a real-tree corpus with ZERO recognised glass rules is BLIND, no
   ]);
 });
 
-test("WARNING DEBT — the four mint surfaces are REPORTED every run at warning severity, never budgeted into silence", ({ scratch }) => {
-  // The ratchet this replaces made them SILENT. `gate:contract` refuses a gate-owned `*.baseline.json`
-  // ("use exact grants or warning debt"), and guide §6.2 refuses turning measured debt into a grant, so the
-  // honest successor reports them and a live issue owns them. If a future lane restores silence, this reds.
-  //
-  // THE ISSUE NUMBER IS NOT THE PROPERTY, and pinning it as a literal is what rotted here (#2053):
-  // `17a495fb8` re-homed the debt from the CLOSED #626 to #2024 and never grepped this literal, so the
-  // assertion sat red for days (`tests/tooling/**` is `--full`-only, #1842).
-  //
-  // AND THE OWNER IS NOT THIS TEST'S TO PIN AT ALL — its enforcer is one rung HIGHER (constitution §2.2).
-  // `WarningGatePolicy` REQUIRES `workItem: number` while `ErrorGatePolicy` forbids it, so "a warning policy
-  // declares a debt owner" is a compile-time guarantee; re-asserting it here is not a weaker check, it is a
-  // check of the type system, and eslint says so (`no-unnecessary-condition` folds it away as a literal).
-  // What only a RUN can prove is the half below: the severity the finding is stamped with, and that the
-  // surface still REPORTS rather than going quiet.
+test("THE BAR IS BACK — a new unpaired glass surface REDS at error, never warning, never silence", ({ scratch }) => {
+  // The debt this policy carried as `severity: "warning"` + a live `workItem` (#2326) burned to zero at #2389
+  // (all four subjects took their `--color-reading-plate` light arm), and the header's own flip condition was
+  // taken on 2026-09-19: `severity: "error"`, no `workItem`; authority stays `ordinary` because #1171's NO-FILL
+  // exemption and the §4.2 identity rows ARE an exact waiver at the selector subject (see the gate header).
+  // `ErrorGatePolicy` FORBIDS a `workItem`, so the posture is compile-time; what only a RUN proves is that a
+  // planted glass surface is stamped `error` (not warning, not silence).
   const result = pass(scratch, { ...KEEP, [ANCHOR]: COMPOSER_RULE });
 
-  expect(overArtPlateArm.severity).toBe("warning");
-  expect(result.authority.effectiveFindings.map(({ token, severity }) => [token, severity])).toEqual([['[data-slot="composer"]', "warning"]]);
+  expect(overArtPlateArm.severity).toBe("error");
+  expect(overArtPlateArm.authority).toBe("ordinary");
+  expect(result.authority.effectiveFindings.map(({ token, severity }) => [token, severity])).toEqual([['[data-slot="composer"]', "error"]]);
 });
 
 test("§4.6 differential — the four legacy keys are BURNED DOWN on the real tree, and the zero is measured", ({ repoRoot }) => {
