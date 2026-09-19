@@ -1,4 +1,4 @@
-// @orb-waive-file test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
+// @orb-waive-file test-determinism(vi.useFakeTimers): THE ONE SANCTIONED SITE — Spine-Testing.md §3 names this test by name ("The one sanctioned vi.useFakeTimers is the idle-timeout unit test"); its SUBJECT is a real setTimeout window the production code owns, which the injected frozen clock cannot drive; ends never
 // backends/kit/idle-timeout — the rolling idle window: a stall (no chunk for the whole window) trips the
 // abort; a chunk before the window resets it; the caller's cancel folds in. Driven with fake timers.
 
