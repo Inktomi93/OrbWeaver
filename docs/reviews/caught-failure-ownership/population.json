@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 610,
+    "sites": 611,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 610,
+      "deliberate-absorb": 611,
       "unproven": 0
     },
     "byGrammar": {
       "default": 165,
       "empty": 300,
-      "promise": 145
+      "promise": 146
     }
   },
   "rows": [
@@ -356,7 +356,7 @@
     {
       "siteId": "packages/client/src/features/app-shell/hooks/use-is-mobile-viewport.ts::document.fonts.ready::1",
       "path": "packages/client/src/features/app-shell/hooks/use-is-mobile-viewport.ts",
-      "line": 122,
+      "line": 176,
       "column": 5,
       "grammar": "promise",
       "position": "document.fonts.ready",
@@ -364,7 +364,7 @@
       "snippet": "document.fonts.ready.then(onFontsLoaded, () => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "fonts.ready never rejecting in practice, and the",
-      "markerLine": 119
+      "markerLine": 173
     },
     {
       "siteId": "packages/client/src/features/app-shell/lib/bug-report-capture.ts::catch::1",
@@ -382,7 +382,7 @@
     {
       "siteId": "packages/client/src/features/auth/lib/route-guards.ts::catch::1",
       "path": "packages/client/src/features/auth/lib/route-guards.ts",
-      "line": 34,
+      "line": 43,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -390,7 +390,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a thrown read returns null after the retry window",
-      "markerLine": 29
+      "markerLine": 38
     },
     {
       "siteId": "packages/client/src/features/character/components/character-actions-menu.tsx::openRefinery::1",
@@ -434,7 +434,7 @@
     {
       "siteId": "packages/client/src/features/chat/components/chat-documents-section.tsx::visibilityChainRef.current::1",
       "path": "packages/client/src/features/chat/components/chat-documents-section.tsx",
-      "line": 165,
+      "line": 166,
       "column": 34,
       "grammar": "promise",
       "position": "visibilityChainRef.current",
@@ -442,7 +442,7 @@
       "snippet": "visibilityChainRef.current = visibilityChainRef.current",
       "verdict": "deliberate-absorb",
       "reason": "the chain's own catch, never the mutation's — `useSetChatDocumentVisibility` still runs its errorToast and its optimistic `onError` rollback untouched. It exists so ONE rejected write cannot wedge the queue for every later toggle. Ends if that mutation stops wiring an errorToast.",
-      "markerLine": 164
+      "markerLine": 165
     },
     {
       "siteId": "packages/client/src/features/chat/components/chat-list-row-menu.tsx::actions.remove::1",
@@ -473,7 +473,7 @@
     {
       "siteId": "packages/client/src/features/chat/components/message-actions-row.tsx::catch::1",
       "path": "packages/client/src/features/chat/components/message-actions-row.tsx",
-      "line": 284,
+      "line": 285,
       "column": 7,
       "grammar": "empty",
       "position": "catch",
@@ -481,12 +481,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the fork mutation's sticky error + global errorToast already surfaced the failure. Ends if the mutation drops its errorToast.",
-      "markerLine": 279
+      "markerLine": 280
     },
     {
       "siteId": "packages/client/src/features/chat/components/message-edit-textarea.tsx::catch::1",
       "path": "packages/client/src/features/chat/components/message-edit-textarea.tsx",
-      "line": 77,
+      "line": 78,
       "column": 7,
       "grammar": "empty",
       "position": "catch",
@@ -494,12 +494,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "useEditMessageMutation carries errorToast \"Couldn't save that edit.\" — the toast is the surface; staying in edit mode preserves the draft. Ends if the mutation drops its errorToast.",
-      "markerLine": 69
+      "markerLine": 70
     },
     {
       "siteId": "packages/client/src/features/chat/components/message-edit-textarea.tsx::save::1",
       "path": "packages/client/src/features/chat/components/message-edit-textarea.tsx",
-      "line": 93,
+      "line": 94,
       "column": 7,
       "grammar": "promise",
       "position": "save",
@@ -507,7 +507,7 @@
       "snippet": "save().catch(() => undefined); // save owns the mutation failure and preserves the draft.",
       "verdict": "deliberate-absorb",
       "reason": "save() already catches the mutation's own",
-      "markerLine": 90
+      "markerLine": 91
     },
     {
       "siteId": "packages/client/src/features/chat/hooks/use-guided-actions.ts::streamImpersonation::1",
@@ -2592,7 +2592,7 @@
     {
       "siteId": "packages/server/src/domain/rpg/flush-barrier.ts::flush::1",
       "path": "packages/server/src/domain/rpg/flush-barrier.ts",
-      "line": 115,
+      "line": 128,
       "column": 23,
       "grammar": "promise",
       "position": "flush",
@@ -2600,7 +2600,7 @@
       "snippet": "entry.tracked = flush",
       "verdict": "deliberate-absorb",
       "reason": "`run`'s OWN error handling owns and logs",
-      "markerLine": 112
+      "markerLine": 125
     },
     {
       "siteId": "packages/server/src/domain/rpg/persistence/portability-write.ts::err::1",
@@ -2774,7 +2774,7 @@
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::contribution::1",
       "path": "packages/server/src/domain/workloads/engine/runner.ts",
-      "line": 337,
+      "line": 342,
       "column": 11,
       "grammar": "promise",
       "position": "contribution",
@@ -2782,7 +2782,7 @@
       "snippet": "await contribution.catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "`outcome` already carries the",
-      "markerLine": 333
+      "markerLine": 338
     },
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::err::1",
@@ -2800,7 +2800,7 @@
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::err::2",
       "path": "packages/server/src/domain/workloads/engine/runner.ts",
-      "line": 316,
+      "line": 321,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -2808,12 +2808,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below into `outcome` (LeaseFailure",
-      "markerLine": 310
+      "markerLine": 315
     },
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::err::3",
       "path": "packages/server/src/domain/workloads/engine/runner.ts",
-      "line": 343,
+      "line": 348,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -2821,12 +2821,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "reclassifies `outcome` to failure, consumed by the",
-      "markerLine": 339
+      "markerLine": 344
     },
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::err::4",
       "path": "packages/server/src/domain/workloads/engine/runner.ts",
-      "line": 354,
+      "line": 359,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -2834,7 +2834,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "a finalize-success failure is reclassified and",
-      "markerLine": 350
+      "markerLine": 355
     },
     {
       "siteId": "packages/server/src/domain/workloads/engine/runner.ts::next::1",
@@ -3658,7 +3658,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/runner.ts::catch::1",
       "path": "packages/server/src/infra/providers/backends/agent-sdk/runner.ts",
-      "line": 376,
+      "line": 377,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -3666,7 +3666,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a bounded context-fill probe collapses any throw/timeout to undefined (usage absent); purely diagnostic, gates no turn/auth decision. Ends if context usage ever gates a turn.",
-      "markerLine": 372
+      "markerLine": 373
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/agent-sdk/session/frames.ts::catch::1",
@@ -5762,6 +5762,19 @@
       "markerLine": 25
     },
     {
+      "siteId": "tooling/src/snap/ops/appearance-invariant-runtime.ts::mutation::1",
+      "path": "tooling/src/snap/ops/appearance-invariant-runtime.ts",
+      "line": 192,
+      "column": 12,
+      "grammar": "promise",
+      "position": "mutation",
+      "ordinal": 1,
+      "snippet": "void mutation.catch(() => undefined);",
+      "verdict": "deliberate-absorb",
+      "reason": "the DEFUSED rejection is the response wait, whose failure is meaningless once the click that should have caused it failed — the click's error is re-thrown on the next line and owns the outcome. Ends if the wait stops being started before the click.",
+      "markerLine": 191
+    },
+    {
       "siteId": "tooling/src/snap/ops/appearance-surface-drive.ts::catch::1",
       "path": "tooling/src/snap/ops/appearance-surface-drive.ts",
       "line": 45,
@@ -5855,7 +5868,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/contrast.ts::evaluate::1",
       "path": "tooling/src/snap/ops/arms/contrast.ts",
-      "line": 77,
+      "line": 79,
       "column": 6,
       "grammar": "promise",
       "position": "evaluate",
@@ -5863,7 +5876,7 @@
       "snippet": ".evaluate(`(() => {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup — a torn-down page must never fail the contrast verdict already computed. Ends if the trailing comment's rationale stops holding.",
-      "markerLine": 75
+      "markerLine": 77
     },
     {
       "siteId": "tooling/src/snap/ops/arms/cpu-profile.ts::error::1",
@@ -6115,7 +6128,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/motion.ts::error::1",
       "path": "tooling/src/snap/ops/arms/motion.ts",
-      "line": 158,
+      "line": 162,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -6123,7 +6136,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught measurement failure becomes a named evidence gap, printed as REFUSED and forced to exit 2 by the arm. Ends if the returned gaps stop feeding report/pairs/exit.",
-      "markerLine": 134
+      "markerLine": 138
     },
     {
       "siteId": "tooling/src/snap/ops/arms/perf.ts::catch::1",
@@ -6232,7 +6245,7 @@
     {
       "siteId": "tooling/src/snap/ops/contrast-fill.ts::error::1",
       "path": "tooling/src/snap/ops/contrast-fill.ts",
-      "line": 67,
+      "line": 68,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -6240,7 +6253,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into).",
-      "markerLine": 64
+      "markerLine": 65
     },
     {
       "siteId": "tooling/src/snap/ops/design-audit-walk.ts::catch::1",
@@ -6531,7 +6544,7 @@
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::error::1",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 390,
+      "line": 405,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -6539,12 +6552,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
-      "markerLine": 386
+      "markerLine": 401
     },
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::error::2",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 397,
+      "line": 412,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -6552,7 +6565,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
-      "markerLine": 394
+      "markerLine": 409
     },
     {
       "siteId": "tooling/src/snap/ops/request-ring.ts::error::1",
