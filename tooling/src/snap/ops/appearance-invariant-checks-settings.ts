@@ -61,6 +61,7 @@ export function buildDensityPreviewChecks(ctx: AppearanceCheckContext): readonly
   const outer = attr(current, "outer-scope", "data-density");
   const outerBefore = before === undefined ? null : attr(before, "outer-scope", "data-density");
   const draft = attr(current, "density-preview", "data-density");
+  const draftBefore = before === undefined ? null : attr(before, "density-preview", "data-density");
   const beforeVector = spacingVector(before, "density-preview");
   const afterVector = spacingVector(current, "density-preview");
   const outerBeforeVector = spacingVector(before, "outer-scope");
@@ -69,7 +70,21 @@ export function buildDensityPreviewChecks(ctx: AppearanceCheckContext): readonly
   const popupAfterVector = spacingVector(current, "dialog-popup");
   const isolation = ctx.mutationIsolation;
   return [
-    check("opposite-density", outer !== null && draft !== null && outer !== draft, "preview owns opposite density", `${String(outer)}/${String(draft)}`),
+    // THE SUBJECT SELECTOR SWAPS NODES ACROSS THE PICK (#2448). `density-preview` resolves to the UNCHECKED
+    // cell's art (appearance-invariant-manifest.ts DENSITY_PREVIEW), and each cell's art carries ITS OWN
+    // option as `data-density` — the art IS the definition, never a live preview of the draft
+    // (appearance-density-cards.tsx). So the unchecked cell is the shell's OPPOSITE only until the drive
+    // picks it: afterwards the unchecked cell is the one the shell already wears. Reading this on `current`
+    // alone therefore asserted a relationship the drive had just inverted, and failed at BOTH endpoints the
+    // moment #2437 made the click land at all — the cell had died upstream before that, so the inversion
+    // had never been reachable. Both snapshots are judged instead, which says strictly more than the
+    // original one ever did: two distinct densities coexist at rest, AND the pick moved the selection.
+    check(
+      "opposite-density",
+      outer !== null && draftBefore !== null && outer !== draftBefore && draft !== null && draft === outer,
+      "unchecked preview owns the opposite density at rest and the shell's own after the pick swaps cells",
+      `outer=${String(outer)} before=${String(draftBefore)} after=${String(draft)}`,
+    ),
     check(
       "token-isolation",
       before !== undefined &&
@@ -102,11 +117,16 @@ export function buildDensityPreviewChecks(ctx: AppearanceCheckContext): readonly
         isolation.fulfilled === 1 &&
         isolation.continued === 0 &&
         isolation.section === "appearance" &&
-        isolation.density === draft,
+        // The PICKED density is the one the unchecked cell offered AT REST — `driveOppositeDensity` clicks
+        // the label opposite the shell carrier, which is that cell. It is not `draft`: after the pick the
+        // selector resolves to the other cell, whose art is the shell's own density (#2448).
+        isolation.density === draftBefore,
       "one exact appearance density draft is fulfilled by the stage-local guard and zero requests reach the server origin",
       isolation === undefined
         ? "unavailable"
-        : `attempted=${String(isolation.attempted)} exact=${String(isolation.exact)} fulfilled=${String(isolation.fulfilled)} origin=${String(isolation.continued)} section=${String(isolation.section)} density=${String(isolation.density)}`,
+        : // `body=` is the reader's own door (#2448): a null section used to be indistinguishable from a
+          // body the guard had mis-shaped, and it was diagnosed as the former for exactly that reason.
+          `attempted=${String(isolation.attempted)} exact=${String(isolation.exact)} fulfilled=${String(isolation.fulfilled)} origin=${String(isolation.continued)} section=${String(isolation.section)} density=${String(isolation.density)} body=${String(isolation.bodyShape)}`,
     ),
     clsCheck(current),
   ];

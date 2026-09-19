@@ -300,14 +300,19 @@ describe("#953 literal appearance semantic checks", () => {
       "--spacing-block": "16px",
       "--spacing-section": "20px",
     };
+    // THE SUBJECT IS THE UNCHECKED CELL'S ART (#2448). The shell wears `comfortable`, so at rest the
+    // unchecked cell is the `compact` one; picking it swaps which cell the selector resolves to, and the
+    // unchecked cell afterwards is the `comfortable` one the shell already wears. The fixture used to hold
+    // the inverse pair, which is a state the surface cannot produce — each cell's art carries its OWN
+    // option, never the draft (appearance-density-cards.tsx).
     const previewBefore = facts({
-      attributes: { "data-density": "comfortable" },
-      style: comfortable,
+      attributes: { "data-density": "compact" },
+      style: compact,
       rect: { left: 0, top: 0, right: 767, bottom: 100, width: 767, height: 100 },
     });
     const previewAfter = facts({
-      attributes: { "data-density": "compact" },
-      style: compact,
+      attributes: { "data-density": "comfortable" },
+      style: comfortable,
       rect: { left: 0, top: 0, right: 767, bottom: 100, width: 767, height: 100 },
     });
     const outer = facts({ attributes: { "data-density": "comfortable" }, style: comfortable });
@@ -345,6 +350,7 @@ describe("#953 literal appearance semantic checks", () => {
       continued: 0,
       section: "appearance",
       density: "compact",
+      bodyShape: "batch[0]",
     } as const;
     const cleanContext = { ...context(clean, before), mutationIsolation: isolated };
     expect(result(buildAppearanceInvariantChecks(row("density-preview"), cleanContext), "token-isolation")).toBe(true);
@@ -361,5 +367,21 @@ describe("#953 literal appearance semantic checks", () => {
     expect(result(buildAppearanceInvariantChecks(row("density-preview"), context(mutated, before)), "token-isolation")).toBe(false);
     expect(popupShifted.subjects).toHaveLength(clean.subjects.length);
     expect(result(buildAppearanceInvariantChecks(row("density-preview"), context(popupShifted, before)), "rect-stable")).toBe(false);
+
+    // opposite-density, BOTH directions (#2448). The passing arm is the real sequence above; the two
+    // failing arms are the halves it is made of, each broken on its own.
+    expect(result(buildAppearanceInvariantChecks(row("density-preview"), cleanContext), "opposite-density")).toBe(true);
+    // (a) the rest state does not oppose the shell — the unchecked cell already wears the shell's density,
+    //     which is the two-cells-one-density shape the art contract forbids.
+    const restSameAsShell = snapshot([
+      subject("density-preview", facts({ attributes: { "data-density": "comfortable" }, style: comfortable })),
+      subject("outer-scope", outer),
+      subject("dialog-popup", popup),
+      subject("dialog-viewport", viewport),
+    ]);
+    expect(result(buildAppearanceInvariantChecks(row("density-preview"), context(clean, restSameAsShell)), "opposite-density")).toBe(false);
+    // (b) the pick never swapped cells: the unchecked art after the drive is still the opposite one, so the
+    //     selection did not move. Before #2437 this was every run, and the check could not say so.
+    expect(result(buildAppearanceInvariantChecks(row("density-preview"), context(before, before)), "opposite-density")).toBe(false);
   });
 });
