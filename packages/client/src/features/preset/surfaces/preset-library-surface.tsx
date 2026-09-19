@@ -78,7 +78,7 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   // TWO READS, ONE WAVE — the PLURAL hook, never two `useSuspenseQuery` calls (#859 / side-eye 2026-08-30
   // P3-A). Two singular calls in one body structurally cannot fire together: the first SUSPENDS before React
   // reaches the second hook, so the reads serialize into a waterfall and the second one's resume commits
-  // INSIDE this pane's entry animation (shell.css `shell-list-panel-in`) — the window the `[drop]` flagger
+  // INSIDE this pane's entry animation (shell.css `shell-list-panel-flip`) — the window the `[drop]` flagger
   // named `aside[aria-label=Presets list]` at 61ms. That flagger attributes by animation-LIFETIME overlap,
   // never by cause (boot-veil.tsx's #429 ruling), so the pane's compositor-owned translate was the victim,
   // not the offender: there is no layout-property transition on this aside to find, and `animations()`

@@ -34,7 +34,7 @@ import { useChatBackground } from "../hooks/use-chat-background.ts";
 import { useCommandShortcut } from "../hooks/use-command-shortcut.ts";
 import { useShellContentPrimacyObserver } from "../hooks/use-is-mobile-viewport.ts";
 import { useKeyboardInsetVar } from "../hooks/use-keyboard-inset-var.ts";
-import { useListTrackFlip } from "../hooks/use-list-track-flip.ts";
+import { useShellTrackFlip } from "../hooks/use-list-track-flip.ts";
 import { useSelectedTheme } from "../hooks/use-selected-theme.ts";
 import type { ShellLayout } from "../hooks/use-shell-layout.ts";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
@@ -189,9 +189,11 @@ export function AppShell(): ReactElement {
   // link has to reach — `.shell-content` is display:none behind it and focusing it moved nothing.
   const listPaneRef = useRef<HTMLElement>(null);
   // The FLIP that keeps the docked-panel push compositor-only (shell.css "THE PANEL PUSH IS A FLIP"):
-  // stamps the direction on the grid in the same commit that resizes the LIST track.
+  // stamps each moving track's direction on the grid in the same commit that resizes it. BOTH tracks, one
+  // hook (#2456): the focus door moves them together, and their contributions compose into ONE keyframe
+  // per moving element — two hooks would be two attributes racing one `animation` property.
   const gridRef = useRef<HTMLDivElement>(null);
-  useListTrackFlip(gridRef, layout.listMode);
+  useShellTrackFlip(gridRef, layout.listMode, layout.contextMode);
 
   // Escape dismisses an open narrow/mobile auto-overlay slide-over (the scrim's keyboard equivalent) —
   // but ONLY when no modal is open. An open Dialog/Drawer owns Escape itself (Base UI); stealing it here

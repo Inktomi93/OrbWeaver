@@ -30,11 +30,17 @@ const STRUCTURAL_LENGTH_GRANT_SUBJECTS = [
   "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))]",
   "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]",
   "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
-  // APPENDED, never inserted (#2442): these ids are positional, so a row placed beside its `.shell-grid`
-  // siblings would renumber every row after it. Same species as `--pane-deficit` and
-  // `--content-primacy-deficit` above — a pure-arithmetic shell distance whose `0px` floor is the
-  // mechanism (a negative delta means the box did not move), not a value any portable token could carry.
-  ".shell-grid { --list-track-centre-delta: calc(clamp(0px, 100% + var(--list-track-docked) - var(--width-shell-content), var(--list-track-docked)) / 2) }",
+  // APPENDED, never inserted (#2442, #2456): these ids are positional, so a row placed beside its
+  // `.shell-grid` siblings would renumber every row after it. Same species as `--pane-deficit` and
+  // `--content-primacy-deficit` above — pure-arithmetic shell distances whose raw lengths ARE the
+  // mechanism, not values any portable token could carry.
+  //
+  // #2442's `--list-track-centre-delta` row was REPLACED rather than kept beside these (it was the last
+  // element, so dropping it renumbers nothing): the centred counter is no longer derived from the box's
+  // own percentage width but from the content track's arithmetic, and central liveness reports an
+  // unused reviewed grant as a stale-authority alarm.
+  ".shell-grid { --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track)) }",
+  ".shell-grid { --shell-centre-flip-from: calc( ( max(0px, var(--shell-content-track) + var(--shell-track-shrink) - var(--width-shell-content)) - max(0px, var(--shell-content-track) - var(--width-shell-content)) ) / 2 ) }",
 ] as const;
 
 export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [

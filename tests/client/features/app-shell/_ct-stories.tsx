@@ -431,6 +431,51 @@ export function AppShellChatTrackStory(): ReactElement {
   );
 }
 
+/** THE THREE DOORS OVER ONE ROOM (#2456): `AppShellChatTrackStory`'s centred carriers PLUS a real LIST
+ *  pane, a two-child LIST band and a CONTEXT pane — so the list toggle, the context toggle and the focus
+ *  toggle (which drives both at once) all have something to move in the same mount.
+ *
+ *  The chats CONTEXT default is `collapsed` and its LIST default is `docked` (the real `panelDefaults`,
+ *  carried through by `CtFakeSectionRegistry`), so "Show details" is a real dock from a real rest state.
+ *  The band's two children are what make the LIST pane's own #242 SQUEEZE observable: the band is a
+ *  `space-between` row, so its trailing child is pinned to the pane's END edge and moves whenever the
+ *  context toggle squeezes the list track. The context pane deliberately carries NO heading — the #846
+ *  identity yield is a content shed, not a geometry question, and mixing it in would move the topbar LEAD
+ *  for a reason no FLIP can cancel. */
+export function AppShellTrackDoorsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          chats: {
+            list: <p>chats list pane</p>,
+            listHeader: (
+              <>
+                <span data-testid="list-band-lead">Chats</span>
+                <span data-testid="list-band-action">action</span>
+              </>
+            ),
+            content: (
+              <div className="flex w-full flex-col">
+                <div className={CHAT_TRACK} data-slot="message-row" data-testid="track-row">
+                  transcript row
+                </div>
+                <div className={CHAT_TRACK} data-slot="composer" data-testid="track-composer">
+                  composer
+                </div>
+              </div>
+            ),
+            context: <p>chats context pane</p>,
+          },
+        }}
+      >
+        <LandOn section="chats" />
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** Opens ONE modal id (via the store action) over the shell with a DELIBERATELY TALL body injected, so
  *  the no-window-scroll invariant CT can assert the DOCUMENT never scrolls (the shell-tier html/body
  *  `overflow: clip` lock + globals.css imported here) while the modal's own region absorbs the overflow.

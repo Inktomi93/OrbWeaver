@@ -201,9 +201,11 @@
  * actually moves. */
 .shell-grid[data-list-mode="docked"] {
   --list-track: var(--list-track-docked);
+  --list-docked: 1;
 }
 .shell-grid[data-context-mode="docked"] {
   --context-track: var(--context-track-docked);
+  --context-docked: 1;
 }
 
 /* ── THE CONDITIONAL BOTH-DOCKED SQUEEZE (#242, owner-ruled off the #240 fork) ────────────────────────
@@ -252,13 +254,19 @@
  * residual here; where it IS answered is the reader's own dial, whose clamp floor is now
  * `--dimension-shell-content-floor`, derived from that same 650 (app-shell.tsx).
  *
- * THE CONTEXT TOGGLE NOW MOVES THE CONTENT PANE'S LEFT EDGE TOO (~49px at 1360), and it is unanimated —
- * stated because it is a real consequence of the ruled behaviour, not an oversight. Docking the context
- * pane already re-laid the whole content column instantly (there is no context FLIP; only the LIST track
- * has one, use-list-track-flip.ts), so this enlarges an existing single-frame relayout rather than adding
- * a new class of motion. Erasing it means giving the context toggle its own FLIP — a hook, an attribute
- * and a keyframe pair, i.e. its own change, and it is the recorded follow-up if this ever measures as
- * jank rather than reading as the panes making room.
+ * THE CONTEXT TOGGLE MOVES THE CONTENT PANE'S LEFT EDGE TOO, AND IT IS NOW ANIMATED (#2456). This block
+ * used to record that move as unanimated and name the follow-up — "a hook, an attribute and a keyframe
+ * pair". That follow-up landed: the squeeze release falls out of `--shell-main-flip-from` below and the
+ * context track has its own FLIP arm, so the edge glides on the same curve as a list toggle. MEASURED at
+ * 1280x800 before the fix: `.shell-main` x 363 -> 328 in ONE frame (35px, the exact squeeze).
+ *
+ * WHAT IS STILL A ONE-FRAME RELAYOUT, STATED RATHER THAN HIDDEN: the LIST PANE'S OWN WIDTH. The squeeze
+ * narrows that pane (307 -> 272 at 1280), and a width change is not a translate — no counter can cancel
+ * it, which is the same irreducible residue the reading column's own reflow is. Its visible consequence
+ * is a box pinned to the pane's END edge: the LIST band's trailing action measured 304 -> 269 in one
+ * frame across a context toggle (#2456 census). Countering it would need a marker on the band's trailing
+ * child, and that child is section-authored content, not shell chrome — out of this file's reach, so it
+ * is named here instead of half-fixed.
  *
  * NEITHER PANE REACHES A WIDTH IT COULD NOT ALREADY BE: the list floor IS its clamp's own floor (any
  * viewport ≤1133px resolves it there) and the context floor is well inside its clamp's range, so every
@@ -284,16 +292,117 @@
   --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%));
   --list-track-docked: var(--panel-w);
   --context-track-docked: var(--panel-context-w);
-  /* THE CENTRED CHILD'S HONEST DELTA (#1646, re-derived #2442 — the keyframes that read it are "THE THIRD
-   * ALIGNMENT CLASS" below, and its whole derivation is stated there). Pure arithmetic, no side effect,
-   * declared here beside the other two so the FLIP, the SETTLE and the phone cancel all name ONE value.
+  /* ── THE PREVIOUS LAYOUT, RE-DERIVED (#2456) ───────────────────────────────────────────────────────
+   * Every FLIP below is ONE rule per moving element reading ONE composed distance, because the FOCUS
+   * door moves BOTH tracks in the same commit and `animation` does NOT compose across two matching rules
+   * — a second rule keyed on a second attribute simply wins the cascade and deletes the first track's
+   * motion (dock-R built exactly that and it killed the list FLIP outright, #2449).
    *
-   * THE `100%` IS DELIBERATELY UNRESOLVED HERE. A custom property is a token stream, so the percentage
-   * lands at the USE site — the `.orb-chat-track` box itself, where it is that box's own border-box width
-   * — exactly the way `--content-primacy-deficit`'s `100%` above resolves against the sentinel that
-   * consumes it rather than against this grid. That is the whole mechanism: the delta needs the box's own
-   * width, and this is the one place CSS will hand it over. */
-  --list-track-centre-delta: calc(clamp(0px, 100% + var(--list-track-docked) - var(--width-shell-content), var(--list-track-docked)) / 2);
+   * A PER-TRACK SUM IS THE WRONG SHAPE, AND THE COMPOUND DOOR IS WHERE IT SHOWS. The two tracks are NOT
+   * independent: the #242 squeeze makes each one's width depend on whether the OTHER is docked, so
+   * "the list's contribution plus the context's contribution" double-counts (or, when both move at once,
+   * loses) the squeeze. MEASURED at 1280x800 with a per-track sum in place: `Enter focus mode` from
+   * BOTH-docked held `.shell-main` at 363 when its old start edge was 328 — 35px out, exactly the
+   * squeeze, because the term that was supposed to carry it reads a track that had already gone to zero.
+   *
+   * SO THE DISTANCES ARE A DIFFERENCE OF TWO LAYOUTS, NOT A SUM OF TWO TRACKS. The shell knows the
+   * CURRENT layout (`--list-track`/`--context-track`, set by the mode rules above) and it can re-derive
+   * the PREVIOUS one, because the only thing that changed is which panes were docked and the flip
+   * direction is exactly that delta: `was = now - dir` over the 0/1 dock flags. Rebuild both tracks from
+   * that pair and every distance below is an exact subtraction — one expression, every door, both
+   * directions, no regime to get wrong.
+   *
+   * WHY THE TRACK REBUILD IS A PRODUCT AND NOT AN `if`: a docked track is its clamp unless the other pane
+   * is docked too, in which case it is the squeezed width. With a 0/1 flag `b`, `b ? A : B` is
+   * `B + b * (A - B)`, which is arithmetic CSS can do. The `--*-docked` flags are published by the same
+   * mode rules that set the tracks, so the two can never disagree about what "docked" means. */
+  --list-docked: 0;
+  --context-docked: 0;
+  /* NO TRACK IS MOVING unless an attribute below says so — `dir` is 0, `was` is `now`, and every distance
+   * resolves to exactly 0 at rest. That is what makes an attribute which outlives its own animation
+   * harmless rather than load-bearing (it WAS load-bearing before #2456, and that is the defect this
+   * grammar answers). */
+  --list-flip-dir: 0;
+  --context-flip-dir: 0;
+  --list-docked-was: calc(var(--list-docked) - var(--list-flip-dir));
+  --context-docked-was: calc(var(--context-docked) - var(--context-flip-dir));
+  --list-track-was: calc(var(--list-docked-was) * (var(--panel-w) + var(--context-docked-was) * (var(--both-docked-list-track) - var(--panel-w))));
+  --context-track-was: calc(
+    var(--context-docked-was) *
+    (var(--panel-context-w) + var(--list-docked-was) * (var(--both-docked-context-track) - var(--panel-context-w)))
+  );
+
+  /* ── THE COMPOSED `from` CORNERS, ONE PER ALIGNMENT CLASS ──────────────────────────────────────────
+   * `.shell-main` holds its old START edge — which is the rail plus the LIST track, so its whole travel
+   * is that track's change. A child pinned to the END edge owes the whole WIDTH change (#1316); a CENTRED
+   * child owes the half of it the cap did not eat (#1646/#2442/#2453). Three expressions, read by one
+   * keyframe each, and each is a difference between the two layouts above. */
+  --shell-main-flip-from: calc(var(--list-track-was) - var(--list-track));
+  /* THE SIGNED WIDTH CHANGE of `.shell-main` across this commit (positive = it narrowed): the content
+   * column is the frame minus the three fixed columns, so what it lost is what the two tracks gained.
+   * The END-pinned counter IS this number and the centred counter is derived from it — one value, two
+   * readers, so they cannot drift. */
+  --shell-track-shrink: calc(var(--list-track) + var(--context-track) - var(--list-track-was) - var(--context-track-was));
+  /* THE CONTENT TRACK'S OWN WIDTH, AS ARITHMETIC (#2456). The grid's third column is the only fluid one
+   * (`minmax(0, 1fr)`), so what it measures is fully determined by values THIS ELEMENT declares: the
+   * frame minus its device insets minus the three fixed columns. Nothing is guessed and nothing is
+   * measured in JS — the shell already owns every term.
+   *
+   * IT EXISTS BECAUSE THE CENTRED COUNTER BELOW NEEDS `P`, AND A PERCENTAGE CANNOT GIVE IT. A percentage
+   * inside `translate` resolves against the ELEMENT'S OWN border box, so `100%` on a capped
+   * `.orb-chat-track` is `min(P, W)` — which is `P` only while the cap binds. That is the whole of
+   * #2442's stated fork and #2453's open one: in the MIXED regime (cap binding on one side of the toggle
+   * and not the other) `100%` cannot tell `P = W` from `P >> W`, so the counter was exact in the dock
+   * direction and an approximation in the other. Measured cost at 1280x800 on the CONTEXT door: the
+   * approximation over-applied by 100px, i.e. `Hide details` threw the transcript and the composer 210px
+   * PAST their old position and eased them back — worse than the 109px cut it was replacing.
+   * Re-derived here rather than paid: `P` is not unknowable, it is simply not a percentage.
+   *
+   * THE PREMISE IT RESTS ON is that the grid's border box is the viewport's width — true because
+   * html/body are `overflow: clip` (no scrollbar gutter) and the grid is the only in-flow child of a
+   * `display: contents` chain from `<body>`. It is RENDERED-PINNED rather than asserted: app-shell.ct.tsx
+   * reads the first painted frame of every door in both directions, and a wrong `P` moves those numbers. */
+  --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track));
+  /* THE CENTRED CHILD'S HONEST HALF (#1646, re-derived #2442, made exact #2456 — the full derivation is
+   * "THE THIRD ALIGNMENT CLASS" below). A box whose lead margin is `(P - min(P, W)) / 2` sits `max(0, P -
+   * W) / 2` from its parent's start edge, so across a commit that takes the parent `P' -> P` its own
+   * delta is the difference of those two, halved. `x - min(x, W)` IS `max(0, x - W)`, which is why this
+   * is two `max()`es and not a clamp: it is the same arithmetic #2442 wrote, with the one term that was
+   * being approximated now spelled out.
+   *
+   * ONE EXPRESSION, BOTH DIRECTIONS, ALL THREE DOORS: the sign lives in `--shell-track-shrink`, and a
+   * parent that grew simply makes the first term the smaller one. The old grammar needed a rule per
+   * direction because the direction was in the RULE rather than in the number. */
+  --shell-centre-flip-from: calc(
+    (
+      max(0px, var(--shell-content-track) + var(--shell-track-shrink) - var(--width-shell-content)) -
+      max(0px, var(--shell-content-track) - var(--width-shell-content))
+    ) /
+    2
+  );
+  /* THE PANES' OWN ENTRANCES, from the same two layouts.
+   *
+   * The CONTEXT pane is anchored to the frame's END edge in every mode, so its start edge is always
+   * "the frame minus its OWN WIDTH" — which is the track while it is docked and its clamp while it is
+   * not. `100%` is that width at the use site, so `100% - <the track it had>` is its corner in all three
+   * of the jobs this one expression does: a full width when it docks (it comes from the frame edge,
+   * measured x 1280 at a 1280 viewport), the #242 give-back when the LIST door resizes it while it stays
+   * put, and — the case that forced the percentage — the WIDTH REGIME CHANGE when it leaves a track it
+   * was squeezed into. MEASURED at 1680x900, `--font-scale: 1.25`, both panes docked: the collapsed
+   * clamp is 504px against a 480px squeezed track, so the mode flip re-laid the pane 24px left of where
+   * it rested and its exit transition slid out from there. `max(docked, docked-was)` is what keeps this
+   * to a pane that IS or WAS in a track — a pane that has never been docked has no corner to hold, and
+   * its `--context-track-was` of 0 would otherwise throw it a full width further off-screen.
+   *
+   * The LIST pane's is NOT a track difference: collapsed it is translated `-100% - --rail-w` from the
+   * rail, so it rests at `-(--panel-w)` (its CLAMP width, not the squeezed track) and docks at
+   * `--rail-w`. The distance is therefore the clamp plus the rail — which the old `-100%` spelling
+   * under-stated by exactly the rail on every dock, and by the squeeze as well whenever the context pane
+   * was docked (measured: it entered from -251 and from -216 against a true -307). `max(0, dir)` makes
+   * it a DOCKING-only corner: the undock direction rests at 0 here and is carried by the collapsed
+   * mode's own transform transition. */
+  --list-panel-flip-from: calc(-1 * max(0, var(--list-flip-dir)) * (var(--panel-w) + var(--rail-w)));
+  --context-panel-flip-from: calc((100% - var(--context-track-was)) * max(var(--context-docked), var(--context-docked-was)));
 }
 .shell-grid[data-context-mode="docked"] {
   --list-track-docked: var(--both-docked-list-track);
@@ -351,92 +460,108 @@
  * `useLayoutEffect` on the commit that changes the track (use-list-track-flip.ts), the same
  * attribute-driven grammar Base UI's own `data-starting-style` uses — and it is ABSENT on first paint,
  * which is what keeps a page load from playing an entrance nobody asked for (guide §3.8). */
-/* The distance is `--list-track-docked`, NOT the raw `--panel-w` clamp (#242): with the context pane
- * docked the list track is squeezed, so the clamp would over-translate by the squeeze (up to ~49px at
- * 1360) and leave exactly the recorded shift this mechanism exists to erase. That var is gated on the
- * CONTEXT pane's mode, so it reads the same on both sides of a list toggle — which is what makes the
- * `out` arm (sampled while the list is already collapsed) name the width that just disappeared. */
-@keyframes shell-list-push-in {
+/* ── THE DIRECTION OF EACH TRACK'S MOVE, AS A SIGN (#2456) ───────────────────────────────────────────
+ * The ONE place the animated FLIP and the reduced-motion SETTLE (#262) agree on a direction: both
+ * attributes feed the SAME `--*-flip-dir`, so every distance below is written once and the two arms can
+ * never drift apart. `in` = the track opened (content pushed away from the rail), `out` = it closed. */
+.shell-grid:is([data-list-flip="in"], [data-list-settle="in"]) {
+  --list-flip-dir: 1;
+}
+.shell-grid:is([data-list-flip="out"], [data-list-settle="out"]) {
+  --list-flip-dir: -1;
+}
+.shell-grid:is([data-context-flip="in"], [data-context-settle="in"]) {
+  --context-flip-dir: 1;
+}
+.shell-grid:is([data-context-flip="out"], [data-context-settle="out"]) {
+  --context-flip-dir: -1;
+}
+
+/* ── ONE KEYFRAME PER MOVING ELEMENT, BOTH TRACKS SUMMED INTO IT (#2456) ─────────────────────────────
+ * The distances are `--list-track-docked` and `--context-track-docked`, NOT the raw `--panel-w` /
+ * `--panel-context-w` clamps (#242): with the other pane docked a track is squeezed, so the clamp would
+ * over-translate by the squeeze (up to ~49px at 1360) and leave exactly the recorded shift this
+ * mechanism exists to erase. Each `*-track-docked` var is gated on the OTHER pane's mode, so it reads
+ * the same on both sides of its own toggle — which is what makes the `out` arm (sampled while the pane
+ * is already collapsed) name the width that just disappeared.
+ *
+ * WHY ONE NAME AND NOT ONE PER DIRECTION: the direction now lives in the NUMBER (the sign above), not in
+ * the rule. Two rules per element was survivable while one track had a FLIP; with two tracks it is not,
+ * because `animation` does not compose across rules — the second rule wins outright and the first
+ * track's motion disappears (#2449, measured). One name also means a mid-animation second toggle no
+ * longer restarts by itself, which is why `use-list-track-flip.ts` restarts it explicitly. */
+@keyframes shell-main-flip {
   from {
-    translate: calc(-1 * var(--list-track-docked)) 0;
+    translate: var(--shell-main-flip-from) 0;
   }
 }
-@keyframes shell-list-push-out {
+@keyframes shell-trail-flip {
   from {
-    translate: var(--list-track-docked) 0;
+    translate: var(--shell-track-shrink) 0;
   }
 }
-/* The docking panel arrives in a track that is ALREADY its full width, so it slides in from under the
- * rail (the rail is `--z-raised` and opaque, and .shell-grid is `overflow: clip` — nothing escapes). */
-@keyframes shell-list-panel-in {
+@keyframes shell-centre-flip {
   from {
-    translate: -100% 0;
+    translate: var(--shell-centre-flip-from) 0;
   }
 }
-.shell-grid[data-list-flip="in"] .shell-main {
-  animation: shell-list-push-in var(--shell-motion) var(--shell-ease);
+@keyframes shell-list-panel-flip {
+  from {
+    translate: var(--list-panel-flip-from) 0;
+  }
 }
-.shell-grid[data-list-flip="out"] .shell-main {
-  animation: shell-list-push-out var(--shell-motion) var(--shell-ease);
+@keyframes shell-context-panel-flip {
+  from {
+    translate: var(--context-panel-flip-from) 0;
+  }
 }
-.shell-grid[data-list-flip="in"] .shell-panel[data-panel-side="list"][data-panel-mode="docked"] {
-  animation: shell-list-panel-in var(--shell-motion) var(--shell-ease);
+.shell-grid:is([data-list-flip], [data-context-flip]) .shell-main {
+  animation: shell-main-flip var(--shell-motion) var(--shell-ease);
 }
 
 /* ── THE FLIP'S COUNTER: A BOX PINNED TO `.shell-main`'s END EDGE DID NOT MOVE (#1316) ────────────────
- * The block above cancels the move of `.shell-main`'s START edge, which is the only edge that travels the
- * whole track. `.shell-main` RESIZES — its start edge moves by `--list-track-docked` and its end edge does
- * not move at all — so one translate over the whole box cannot be right for every child: a child's honest
- * FLIP distance is ITS OWN delta, and that delta is the track only for start-aligned content. The topbar
- * TRAIL (`flex: none`, pushed to the end by the lead's `flex: 1 1 auto`) is pinned to the end edge, so its
- * delta is ZERO — and riding the full-track counter-translate therefore did not cancel motion, it
- * MANUFACTURED it.
+ * The rule above cancels the move of `.shell-main`'s START edge, which is the only edge that travels the
+ * whole LIST track. `.shell-main` RESIZES — so one translate over the whole box cannot be right for
+ * every child: a child's honest FLIP distance is ITS OWN delta, and that delta is the track only for
+ * start-aligned content. The topbar TRAIL (`flex: none`, pushed to the end by the lead's `flex: 1 1
+ * auto`) is pinned to the end edge, so across a LIST toggle its delta is ZERO — and riding the
+ * full-track counter-translate therefore did not cancel motion, it MANUFACTURED it.
  *
  * MEASURED on the isolated stage at 1280x800 (2026-09-05, per-rAF `getBoundingClientRect` across
  * `Hide list panel` on a seeded chat, `--list-track-docked` = 307px): `.shell-main` x held at 363 — the
  * FLIP working — while `.shell-topbar-trail` x went 1043 → 1350 → 1227 → 1151 → 1106 → … → 1043. The
  * ⌘K chip and the whole toggle cluster left the 1280px viewport entirely for the first painted frame of
  * every list dock/undock and swept back in from the right edge over the next ~150ms, ending exactly where
- * they started. (The same run is the receipt for the third alignment class, CLOSED below rather than
- * accepted: the transcript row's own `[data-slot=message-row]` box is centred by its own auto margins, not
- * shell CSS — but its DELTA, exactly HALF the track, is a shell-owned fact this file already computes for
- * every other alignment class, so a THIRD counter block reads it off the same `--list-track-docked` var and
- * cancels it the same way the end-pinned trail's does, at half the magnitude.)
+ * they started.
+ *
+ * ITS DISTANCE IS THE WIDTH CHANGE, WHICH IS WHY THE CONTEXT DOOR NEEDS NO SECOND RULE (#2456). "Zero
+ * across a list toggle" was never the general fact — the general fact is that an END-pinned child owes
+ * `.shell-main`'s own WIDTH change, which happens to equal the list track (the end edge does not move)
+ * and happens to differ for the context track (both edges move). `--shell-track-shrink` IS that number
+ * for whatever moved, so this keyframe is unchanged for the list door and correct for the other two.
+ * MEASURED before the fix, same stage, `Show details`: the trail CUT 1043 → 659 in ONE frame (384px, the
+ * whole context track), and the focus door inherited it.
  *
  * WHY A SECOND ANIMATION AND NOT AN EXEMPTION FROM THE FIRST: the counter must be the EXACT inverse, in
  * lockstep, or the trail shears against the chrome around it. Same `--shell-motion`/`--shell-ease`
- * co-motion vars, same `--list-track-docked` distance (so the #242 squeeze cancels on both sides), same
- * `from`-only keyframe stamped in the same style resolution — so the two compose to a constant zero by
- * construction rather than by two timings agreeing. Net at rest: no transform at all, as before. */
-@keyframes shell-list-push-in-counter {
-  from {
-    translate: var(--list-track-docked) 0;
-  }
-}
-@keyframes shell-list-push-out-counter {
-  from {
-    translate: calc(-1 * var(--list-track-docked)) 0;
-  }
-}
-.shell-grid[data-list-flip="in"] .shell-topbar-trail {
-  animation: shell-list-push-in-counter var(--shell-motion) var(--shell-ease);
-}
-.shell-grid[data-list-flip="out"] .shell-topbar-trail {
-  animation: shell-list-push-out-counter var(--shell-motion) var(--shell-ease);
+ * co-motion vars, same composed distances (so the #242 squeeze cancels on both sides), same `from`-only
+ * keyframe stamped in the same style resolution — so the two compose to a constant zero by construction
+ * rather than by two timings agreeing. Net at rest: no transform at all, as before. */
+.shell-grid:is([data-list-flip], [data-context-flip]) .shell-topbar-trail {
+  animation: shell-trail-flip var(--shell-motion) var(--shell-ease);
 }
 
 /* ── THE THIRD ALIGNMENT CLASS — A CENTRED CHILD'S HONEST DELTA IS HALF THE TRACK (#1646, 2026-09-05,
  * cb-list-collapse-motion) ─────────────────────────────────────────────────────────────────────────────
- * `.shell-main` has two edges and the block above cancels two of the three shapes a child can take against
- * them: START-aligned (the counter above IS the fix — zero extra work) and END-pinned (the topbar trail's
- * own full-magnitude inverse, immediately above). The third shape is CENTRED: `[data-slot=message-row]`
- * carries `.orb-chat-track`, a FIXED-width box (`--width-shell-content`, resolved against the viewport's
- * `dvw`, never against the resizing track) held centred inside `.shell-main` by its own `margin-inline`
- * auto pair. A fixed-width box centred by auto margins in a parent that resizes by `Δ` moves by `Δ/2` —
- * this is arithmetic, not a chat-feature fact, which is why the counter lives here and not in
- * `chat-track.ts` (CSS six-homes: shell.css already reaches `[data-slot=…]` selectors for cross-feature
- * shell interactions, e.g. the `data-has-bg-image` rule above). MEASURED (#1316's own receipt, restated):
- * 154px against a 307px track, 154 = 307/2 exactly.
+ * `.shell-main` has two edges and the two rules above cancel two of the three shapes a child can take
+ * against them: START-aligned (the `.shell-main` rule IS the fix — zero extra work) and END-pinned (the
+ * topbar trail's own full-magnitude inverse, immediately above). The third shape is CENTRED:
+ * `[data-slot=message-row]` carries `.orb-chat-track`, a `max-w-(--width-shell-content)` box held centred
+ * inside `.shell-main` by its own `margin-inline` auto pair. A fixed-width box centred by auto margins in
+ * a parent that resizes by `Δ` moves by `Δ/2` — this is arithmetic, not a chat-feature fact, which is why
+ * the counter lives here and not in `chat-track.ts` (CSS six-homes: shell.css already reaches
+ * `[data-slot=…]` selectors for cross-feature shell interactions, e.g. the `data-has-bg-image` rule
+ * above). MEASURED (#1316's own receipt, restated): 154px against a 307px track, 154 = 307/2 exactly.
  *
  * HALF-MAGNITUDE, SAME DIRECTION AS THE END-PINNED COUNTER: the centred box's delta is *between* the two
  * edges the other counters answer, so its correction is the topbar trail's own inverse, halved. Applies to
@@ -467,38 +592,56 @@
  *    so the box is WIDTH-CONSTRAINED while docked (850 → 923 across the toggle) and its honest left-edge
  *    delta is 207px, not the 170px the halved track applied — a measured 37px residual jump of the
  *    transcript, on by default for that account. THE #1646 RULING SURVIVES; ITS INPUT CHANGED: the delta
- *    is still arithmetic and still shell-owned, but the arithmetic is the CLAMPED one. A box whose lead
- *    margin is `(P - min(P, W)) / 2` moves `(max(P', W) - max(P, W)) / 2` when its parent goes `P → P'`,
- *    and with `P' - P = Δ` that is `min(Δ, max(0, P' - W)) / 2` — the halved track exactly where the cap
- *    never binds, LESS where it binds, and ZERO where the box is constrained on both sides.
- *    `--list-track-centre-delta` (declared with the other two distances above) is that expression, read
- *    off the box's OWN width: `100%` is `min(P, W)`, which is `P` itself precisely when the cap binds.
+ *    is still arithmetic and still shell-owned, but the arithmetic is the CAPPED one
+ *    (`--shell-centre-flip-from`, declared with the other composed corners above).
  *
- * WHAT THIS STILL DOES NOT CANCEL, STATED RATHER THAN HIDDEN (#2442 fork, reported to the orchestrator):
- * the COLLAPSE direction in the MIXED regime — cap binding while docked, not binding once collapsed. The
- * animation runs in the post-commit (collapsed) layout, where the box is at its cap and `100%` is `W` for
- * every parent width ≥ W, so the collapsed parent's width is invisible to the box and `P' - W` is not
- * derivable. CSS hands a descendant its containing block's width in exactly one place — a percentage on a
- * property that resolves against the containing block — and `translate` is not one of those properties.
- * The DOCK direction is exact in every regime (the box is constrained while docked, so `100%` IS `P`), and
- * the collapse direction is exact wherever the cap binds on both sides or on neither. Closing the last
- * arm needs a per-carrier frame element in `features/chat` whose own width IS `P` (then the counter is
- * `calc(50% - max(50% - Δ/2, W/2))`, exact both ways) — a chat-feature change, out of this lane's fence. */
-@keyframes shell-list-push-in-track-counter {
-  from {
-    translate: var(--list-track-centre-delta) 0;
-  }
+ * ── #2456: THE SAME CLAMP, OVER THE SUMMED WIDTH CHANGE ──────────────────────────────────────────────
+ * The centred class needs no per-track rule either: its input is `--shell-track-shrink`, so the context
+ * door and the focus door are the same expression with a different number in it. MEASURED at 1280x800,
+ * `Show details` (the DOCK direction, where the clamp is exact in every regime): both carriers cut
+ * 437 → 328 in one frame before the fix; the composed corner holds them at 437.5, of which 35px is
+ * `.shell-main`'s own translate and 74.5px this counter — and `clamp(0px, 568 + 349 - 768, 349) / 2` IS
+ * 74.5 exactly.
+ *
+ * ── THE MIXED-REGIME FORK IS CLOSED, AND ITS PREMISE WAS THE THING THAT WAS WRONG (#2442's fork, #2453)
+ * Both rows recorded the undock arm in the MIXED regime — the cap binding on one side of the toggle and
+ * not the other — as unreachable, on the reading that "CSS hands a descendant its containing block's
+ * width in exactly one place, a percentage, and `translate` is not one of those properties". That
+ * sentence is true and it is not the whole board: the containing block here is a GRID TRACK this very
+ * element sizes, so its width is arithmetic (`--shell-content-track`, declared with the other composed
+ * distances above) rather than something a descendant has to be handed. The counter reads it and the
+ * expression is exact in both directions in every regime, which is what let this row's acceptance be
+ * "all three doors move the same boxes on the same curve" rather than "two and a half of them".
+ *
+ * WHAT FORCED THE RE-DERIVATION: the percentage form is not merely inexact on the CONTEXT door, it is
+ * inexact by more than the defect. MEASURED at 1280x800, `Hide details`, `100%`-based counter: the
+ * transcript and the composer were thrown to x=227.5 — 210px PAST the 437.5 they came from — and eased
+ * back, against a 109px one-frame cut with no counter at all. #2453's prescribed close (a per-carrier
+ * frame element in `features/chat`) is therefore superseded rather than deferred; its `cqw` objection
+ * still stands and is the reason this reads the SHELL's own track arithmetic instead. */
+.shell-grid:is([data-list-flip], [data-context-flip]) .orb-chat-track {
+  animation: shell-centre-flip var(--shell-motion) var(--shell-ease);
 }
-@keyframes shell-list-push-out-track-counter {
-  from {
-    translate: calc(-1 * var(--list-track-centre-delta)) 0;
-  }
+
+/* ── THE PANES' OWN ENTRANCES ─────────────────────────────────────────────────────────────────────────
+ * A docking panel arrives in a track that is ALREADY its full width, so it slides in from outside the
+ * frame (the rail is `--z-raised` and opaque, `.shell-grid` is `overflow: clip` — nothing escapes). The
+ * CONTEXT pane had NO entrance at all until #2456 while its EXIT glided on the collapsed mode's own
+ * transform transition: measured at 1280x800, `Show details` painted the pane at its docked x in ONE
+ * frame (1280 → 896) and `Hide details` slid it out over twelve — an entrance/exit asymmetry guide §3.1
+ * names as the first tell of unfinished motion. Both panes now enter on the same curve as everything
+ * else the door moves, and both still LEAVE on their collapsed transform transition. */
+.shell-grid:is([data-list-flip], [data-context-flip]) .shell-panel[data-panel-side="list"][data-panel-mode="docked"] {
+  animation: shell-list-panel-flip var(--shell-motion) var(--shell-ease);
 }
-.shell-grid[data-list-flip="in"] .orb-chat-track {
-  animation: shell-list-push-in-track-counter var(--shell-motion) var(--shell-ease);
-}
-.shell-grid[data-list-flip="out"] .orb-chat-track {
-  animation: shell-list-push-out-track-counter var(--shell-motion) var(--shell-ease);
+/* MODE-BLIND for the CONTEXT pane, unlike the LIST one above: the list pane is anchored to the RAIL, so
+ * its collapsed width moves its trailing edge and nothing else, while this pane's width IS its start
+ * edge's offset from the frame. Its exit therefore needs the corner too, composed with the collapsed
+ * mode's own `transform` transition — `translate` and `transform` are separate properties that ADD, which
+ * is the #2442 hazard used on purpose here: the transition carries the slide, the animation cancels the
+ * width-regime step it would otherwise start from. */
+.shell-grid:is([data-list-flip], [data-context-flip]) .shell-panel[data-panel-side="context"][data-panel-mode] {
+  animation: shell-context-panel-flip var(--shell-motion) var(--shell-ease);
 }
 
 /* ── THE REDUCED-MOTION SETTLE (#262) — the FLIP's physics without the FLIP ───────────────────────────
@@ -508,46 +651,34 @@
  * reports/perf-meter/scls-*) presets 0.2032 · characters 0.2333 · corpus 0.2295 against 0.0112 · 0.0038 · 0
  * with motion on — 2.3x the 0.1 budget, one entry, one source: `div.shell-main`, x 56 -> 363.
  *
- * These two declarations are the FLIP keyframes' `from` corner, held as a STATIC value: same distance
- * (`--list-track-docked`, so the #242 squeeze is cancelled here too), same element, and NO animation, NO
- * transition, NO duration. `use-list-track-flip.ts` drops the attribute after exactly one painted frame, so
- * `.shell-main` shows its old column for that frame and its new one after — one instant cut, nothing
- * interpolating, nothing for the compositor to hold pending (the #151 failure needed an ANIMATION to be
- * pending; there is none here). The browser scores it at zero for the reason the block above documents with
- * its own positive control: the held frame's visual start position is unchanged, and releasing a transform
- * is not layout instability.
+ * These three declarations are the FLIP keyframes' `from` corners, held as STATIC values: the same
+ * composed distances, the same three elements, and NO animation, NO transition, NO duration.
+ * `use-list-track-flip.ts` drops the attributes after exactly one painted frame, so `.shell-main` shows
+ * its old column for that frame and its new one after — one instant cut, nothing interpolating, nothing
+ * for the compositor to hold pending (the #151 failure needed an ANIMATION to be pending; there is none
+ * here). The browser scores it at zero for the reason the block above documents with its own positive
+ * control: the held frame's visual start position is unchanged, and releasing a transform is not layout
+ * instability.
+ *
+ * ALL THREE RIDE IT, FOR THE REASON EACH RIDES THE FLIP: the held frame IS the FLIP's `from` corner, so
+ * without the END-pinned twin it would hold the trail a full track outside the viewport (a one-painted-
+ * frame disappearance of the ⌘K chip and the toggle cluster) and without the CENTRED twin it would hold
+ * the whole transcript AND the composer outside their resting positions — on exactly the users who asked
+ * for less motion. One expression each, shared with the FLIP arm, because a second spelling of a distance
+ * is a second thing to drift.
  *
  * NOT A REINSTATED FLIP, and it must not become one: a duration or a transition-property on these rules
  * puts motion back in front of the user who switched it off. The reduced-motion floor (@orb/ui globals.css,
  * `transition-property: none`) would kill a transition anyway — which is precisely why the mechanism is a
  * one-frame attribute and not a CSS timing declaration. */
-.shell-grid[data-list-settle="in"] .shell-main {
-  translate: calc(-1 * var(--list-track-docked)) 0;
+.shell-grid:is([data-list-settle], [data-context-settle]) .shell-main {
+  translate: var(--shell-main-flip-from) 0;
 }
-.shell-grid[data-list-settle="out"] .shell-main {
-  translate: var(--list-track-docked) 0;
+.shell-grid:is([data-list-settle], [data-context-settle]) .shell-topbar-trail {
+  translate: var(--shell-track-shrink) 0;
 }
-/* …and the END-PINNED counter (#1316) rides the settle for the same reason it rides the FLIP: the held
- * frame is the FLIP's `from` corner, so it holds the trail a full `--list-track-docked` outside the
- * viewport too — a one-painted-frame disappearance of the ⌘K chip and the toggle cluster, on exactly the
- * users who asked for less motion. Static, no duration, released by the same attribute drop. */
-.shell-grid[data-list-settle="in"] .shell-topbar-trail {
-  translate: var(--list-track-docked) 0;
-}
-.shell-grid[data-list-settle="out"] .shell-topbar-trail {
-  translate: calc(-1 * var(--list-track-docked)) 0;
-}
-/* …and the CENTRED counter (#1646) rides the settle for the same reason: the held frame is the FLIP's
- * `from` corner, so it holds every centred track outside its resting position too — a one-painted-frame
- * sideways jump of the whole transcript AND of the composer under the reader's hands, for exactly the
- * users who asked for less motion. Static, no duration, released by the same attribute drop. Same marker
- * family and same clamped distance as the FLIP arm above (#2442): the settle IS the FLIP's `from` corner
- * held still, so a second spelling of the distance here is a second thing to drift. */
-.shell-grid[data-list-settle="in"] .orb-chat-track {
-  translate: var(--list-track-centre-delta) 0;
-}
-.shell-grid[data-list-settle="out"] .orb-chat-track {
-  translate: calc(-1 * var(--list-track-centre-delta)) 0;
+.shell-grid:is([data-list-settle], [data-context-settle]) .orb-chat-track {
+  translate: var(--shell-centre-flip-from) 0;
 }
 
 /* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
@@ -1276,38 +1407,45 @@
     grid-column: 1;
     grid-row: 1;
   }
-  /* NO FLIP ON A PHONE. The grid is ONE column here and every panel is `position: fixed` over it, so a
-   * docking LIST never moves CONTENT — the counter-translate would be a 272px slide of a column that did
-   * not go anywhere. The stamping hook is regime-blind on purpose (it reports the MODE change; what that
-   * change costs in layout is a CSS question), so the arm that owns the geometry cancels it here.
+  /* NO FLIP ON A PHONE, FOR EITHER TRACK. The grid is ONE column here and every panel is `position:
+   * fixed` over it, so a docking LIST or CONTEXT pane never moves CONTENT — the counter-translate would
+   * be a slide of a column that did not go anywhere. The stamping hook is regime-blind on purpose (it
+   * reports the MODE change; what that change costs in layout is a CSS question), so the arm that owns
+   * the geometry cancels it here.
    *
-   * IT CANCELS AT THE SPECIFICITY IT IS CANCELLING, AND CANCELS BOTH PROPERTIES (#2442). Three of these
-   * four clauses won their contest on source order at EQUAL specificity; the panel's did not. The panel's
-   * own FLIP rule is `.shell-grid[data-list-flip="in"] .shell-panel[data-panel-side="list"][data-panel-mode="docked"]`
-   * — FIVE simple selectors against the four this clause used to spell — so `shell-list-panel-in` kept
-   * running here, and because that keyframe animates `translate` while this arm's own panel rule
-   * transitions `transform`, the two COMPOSED instead of overriding: MEASURED at 430x740, per-rAF x of the
-   * docking list panel ran `-430 → -860 → -516 → -301 → … → 0`, i.e. the sheet entered from TWO panel
-   * widths out and played the first half of an expo ease-out entirely off-screen. `[data-panel-mode]`
-   * (mode-blind, so it covers `docked` and anything else that ever animates) brings this clause to five
-   * and source order finishes the job; `translate: none` is stated beside `animation: none` so a future
-   * keyframe on either property cannot re-open the composition. The `.orb-chat-track` clause is the #2442
-   * marker family, the same swap the FLIP counter above made — a phone's transcript and composer do not
-   * move when the list toggles, so neither may be countered. */
-  .shell-grid[data-list-flip] .shell-main,
-  .shell-grid[data-list-flip] .shell-topbar-trail,
-  .shell-grid[data-list-flip] .orb-chat-track,
-  .shell-grid[data-list-flip] .shell-panel[data-panel-side="list"][data-panel-mode] {
+   * IT CANCELS AT THE SPECIFICITY IT IS CANCELLING, AND CANCELS BOTH PROPERTIES (#2442). Three of the
+   * four clauses this block used to carry won their contest on source order at EQUAL specificity; the
+   * panel's did not. The panel's own FLIP rule carries `[data-panel-mode="docked"]` as a FIFTH simple
+   * selector against the four this clause used to spell — so its keyframe kept running here, and because
+   * that keyframe animates `translate` while this arm's own panel rule transitions `transform`, the two
+   * COMPOSED instead of overriding: MEASURED at 430x740, per-rAF x of the docking list panel ran
+   * `-430 → -860 → -516 → -301 → … → 0`, i.e. the sheet entered from TWO panel widths out and played the
+   * first half of an expo ease-out entirely off-screen. `[data-panel-mode]` (mode-blind, so it covers
+   * `docked` and anything else that ever animates) brings each panel clause to five and source order
+   * finishes the job; `translate: none` is stated beside `animation: none` so a future keyframe on
+   * either property cannot re-open the composition. The `.orb-chat-track` clause is the #2442 marker
+   * family — a phone's transcript and composer do not move when a pane toggles, so neither may be
+   * countered.
+   *
+   * THE CONTEXT CLAUSES ARE #2456's, AND THE PANEL ONE IS LOAD-BEARING IN EXACTLY THE #2442 WAY: the
+   * context sheet's phone entrance is its own `transform` transition (measured gliding 390 → 0 over
+   * twelve frames), so the new docked entrance keyframe would compose with it and the sheet would enter
+   * from two widths out — the defect above, one pane over, prevented rather than paid for. */
+  .shell-grid:is([data-list-flip], [data-context-flip]) .shell-main,
+  .shell-grid:is([data-list-flip], [data-context-flip]) .shell-topbar-trail,
+  .shell-grid:is([data-list-flip], [data-context-flip]) .orb-chat-track,
+  .shell-grid:is([data-list-flip], [data-context-flip]) .shell-panel[data-panel-side="list"][data-panel-mode],
+  .shell-grid:is([data-list-flip], [data-context-flip]) .shell-panel[data-panel-side="context"][data-panel-mode] {
     animation: none;
     translate: none;
   }
   /* …and the reduced-motion SETTLE (#262) is cancelled here for the same reason and by the same argument:
    * the hook is regime-blind, so on a phone its one-frame hold would translate a column that never moved.
    * The CENTRED counter (#1646) joins the other two here for the identical reason — a phone's transcript
-   * rows do not move when the list panel toggles (it is `position: fixed` over CONTENT, not a track). */
-  .shell-grid[data-list-settle] .shell-main,
-  .shell-grid[data-list-settle] .shell-topbar-trail,
-  .shell-grid[data-list-settle] .orb-chat-track {
+   * rows do not move when a pane toggles (it is `position: fixed` over CONTENT, not a track). */
+  .shell-grid:is([data-list-settle], [data-context-settle]) .shell-main,
+  .shell-grid:is([data-list-settle], [data-context-settle]) .shell-topbar-trail,
+  .shell-grid:is([data-list-settle], [data-context-settle]) .orb-chat-track {
     translate: none;
   }
   /* The SAME rail DOM reflows into the bottom tab bar: the column becomes a row, the nav-group / footer

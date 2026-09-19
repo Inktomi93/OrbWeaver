@@ -80,7 +80,7 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
   SPA state: --goto/--open-chat/--context-tab drive client state through __orb; they are not URL paths.
     --expect-url checks only the browser URL (normally / or /login), never a section, room, tab or modal.
   --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout — also the docked↔collapsed
-                            FLIP transition (use-list-track-flip.ts + shell.css's shell-list-push-in)
+                            FLIP transition (use-list-track-flip.ts + shell.css's shell-main-flip)
   --focus <on|off>          the shell's zen/focus-mode toggle
   --panels <preset>         reach a NAMED panel configuration in one flag (see Panel state below)
   --watch <totalMs> [--every <ms>]  poll evals and optional screenshots over time
