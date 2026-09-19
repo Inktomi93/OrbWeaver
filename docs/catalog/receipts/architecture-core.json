@@ -176,12 +176,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "2296e88337464294ffeb659aabd88a9cc12168034449589d78114c8b5bfdc269",
+      "assignedSha256": "80072da01f551a6ffe9a168d2019b80a90fb3d70134b408f5adba7ee079e897a",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "2296e88337464294ffeb659aabd88a9cc12168034449589d78114c8b5bfdc269",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedSha256": "80072da01f551a6ffe9a168d2019b80a90fb3d70134b408f5adba7ee079e897a",
+      "verifiedCommit": "c0680772710b76733831d138a685d15a6a127a57",
       "verifiedAt": "2026-09-19",
       "evidence": [
         "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
@@ -350,7 +350,7 @@
         }
       ],
       "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-      "verifiedCanonicalSha256": "2296e88337464294ffeb659aabd88a9cc12168034449589d78114c8b5bfdc269"
+      "verifiedCanonicalSha256": "80072da01f551a6ffe9a168d2019b80a90fb3d70134b408f5adba7ee079e897a"
     },
     {
       "path": "docs/architecture/core/Core-Laws-and-Precedents.md",

@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 610,
-    "reported": 0,
+    "sites": 611,
+    "reported": 1,
     "byVerdict": {
       "deliberate-absorb": 610,
-      "unproven": 0
+      "unproven": 1
     },
     "byGrammar": {
       "default": 165,
-      "empty": 300,
+      "empty": 301,
       "promise": 145
     }
   },
@@ -2330,6 +2330,19 @@
       "markerLine": 293
     },
     {
+      "siteId": "packages/server/src/domain/embeddings/indexer/caption.ts::error::1",
+      "path": "packages/server/src/domain/embeddings/indexer/caption.ts",
+      "line": 113,
+      "column": 12,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::error::1",
       "path": "packages/server/src/domain/import/loader/collect.ts",
       "line": 412,
@@ -3086,7 +3099,7 @@
     {
       "siteId": "packages/server/src/entry/compose/services.ts::catch::1",
       "path": "packages/server/src/entry/compose/services.ts",
-      "line": 490,
+      "line": 492,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -3094,7 +3107,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the ONE `requireOwner`/`can()`",
-      "markerLine": 484
+      "markerLine": 486
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::catch::1",
@@ -3281,7 +3294,7 @@
     {
       "siteId": "packages/server/src/foundation/env/index.ts::catch::2",
       "path": "packages/server/src/foundation/env/index.ts",
-      "line": 964,
+      "line": 965,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3289,7 +3302,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a probe whose ONLY verdict is a boolean — an unreadable/missing/permission-denied credentials file all mean the same thing to every caller (\"not detected\"), and the false answer FAILS CLOSED (the backend stays unregistered, nothing spawns). Ends if this probe ever gates something that opens rather than closes.",
-      "markerLine": 960
+      "markerLine": 961
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
@@ -3320,7 +3333,7 @@
     {
       "siteId": "packages/server/src/foundation/observability/debug/routes.ts::catch::1",
       "path": "packages/server/src/foundation/observability/debug/routes.ts",
-      "line": 92,
+      "line": 138,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3328,12 +3341,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a malformed body is a 400 the caller sees, and",
-      "markerLine": 88
+      "markerLine": 134
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/routes.ts::catch::2",
       "path": "packages/server/src/foundation/observability/debug/routes.ts",
-      "line": 287,
+      "line": 333,
       "column": 9,
       "grammar": "empty",
       "position": "catch",
@@ -3341,7 +3354,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented below — a checker error falls",
-      "markerLine": 281
+      "markerLine": 327
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::catch::1",
