@@ -6,36 +6,46 @@ import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 describe("resolveEnginesPosture — explicit knob wins", () => {
-  test("ENGINES_POSTURE set → used verbatim, no deprecation log", () => {
-    const log = vi.fn();
+  test("ENGINES_POSTURE set → used verbatim, no log of either kind", () => {
+    const log = { deprecation: vi.fn(), defaulted: vi.fn() };
     expect(resolveEnginesPosture({ posture: "adopt-only", vllmDisabled: true, stackEngines: "yes" }, log)).toBe("adopt-only");
-    expect(log).not.toHaveBeenCalled();
+    expect(log.deprecation).not.toHaveBeenCalled();
+    expect(log.defaulted).not.toHaveBeenCalled();
   });
 });
 
 describe("resolveEnginesPosture — deprecated pair mapping (each logs a deprecation line)", () => {
   test("VLLM_DISABLED=true → off", () => {
-    const log = vi.fn();
+    const log = { deprecation: vi.fn(), defaulted: vi.fn() };
     expect(resolveEnginesPosture({ posture: undefined, vllmDisabled: true, stackEngines: "no" }, log)).toBe("off");
-    expect(log).toHaveBeenCalledOnce();
-    expect(log.mock.calls[0]?.[0]).toContain("VLLM_DISABLED=true");
+    expect(log.deprecation).toHaveBeenCalledOnce();
+    expect(log.deprecation.mock.calls[0]?.[0]).toContain("VLLM_DISABLED=true");
   });
 
   test("STACK_ENGINES=yes → adopt-only", () => {
-    const log = vi.fn();
+    const log = { deprecation: vi.fn(), defaulted: vi.fn() };
     expect(resolveEnginesPosture({ posture: undefined, vllmDisabled: false, stackEngines: "yes" }, log)).toBe("adopt-only");
-    expect(log.mock.calls[0]?.[0]).toContain("STACK_ENGINES=yes");
-  });
-
-  test("neither set → adopt-or-start (the fleet manager default)", () => {
-    const log = vi.fn();
-    expect(resolveEnginesPosture({ posture: undefined, vllmDisabled: false, stackEngines: "no" }, log)).toBe("adopt-or-start");
-    expect(log.mock.calls[0]?.[0]).toContain("adopt-or-start");
+    expect(log.deprecation.mock.calls[0]?.[0]).toContain("STACK_ENGINES=yes");
   });
 
   test("VLLM_DISABLED=true wins over STACK_ENGINES=yes (off beats adopt-only — a disabled box has no engines)", () => {
-    const log = vi.fn();
+    const log = { deprecation: vi.fn(), defaulted: vi.fn() };
     expect(resolveEnginesPosture({ posture: undefined, vllmDisabled: true, stackEngines: "yes" }, log)).toBe("off");
+  });
+});
+
+// The owner ruling that makes a BOOT harmless (2026-09-19, #2421): with nothing set the resolver picks the
+// PASSIVE posture, so no process wakes a sleeping engine or cold-spawns a fleet just by starting. The line
+// it logs is an ordinary default notice, NOT a deprecation warning — the severity is the operator-facing
+// half of the ruling, so it is pinned here beside the value.
+describe("resolveEnginesPosture — the unset default is the passive posture", () => {
+  test("neither set → adopt-only, announced through `defaulted` and never as a deprecation", () => {
+    const log = { deprecation: vi.fn(), defaulted: vi.fn() };
+    expect(resolveEnginesPosture({ posture: undefined, vllmDisabled: false, stackEngines: "no" }, log)).toBe("adopt-only");
+    expect(log.deprecation).not.toHaveBeenCalled();
+    expect(log.defaulted).toHaveBeenCalledOnce();
+    expect(log.defaulted.mock.calls[0]?.[0]).toContain("ENGINES_POSTURE unset — adopt-only");
+    expect(log.defaulted.mock.calls[0]?.[0]).toContain("never waking or spawning");
   });
 });
 

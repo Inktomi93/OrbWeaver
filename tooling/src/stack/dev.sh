@@ -59,7 +59,15 @@ trap cleanup EXIT
 # them. Runs to completion (does NOT block — the fleet is detached), then the watched
 # server boots and adopts. ENGINES_POSTURE decides whether a spawn is even permitted
 # (#1567 — engines.sh is the one home of that branch): `adopt-only` adopts a healthy
-# fleet and otherwise refuses to spawn; unset defaults to adopt-or-start (the manager).
+# fleet and otherwise refuses to spawn; `adopt-or-start` is the manager.
+#
+# THE POSTURE IS PASSED EXPLICITLY, never left to engines.sh's own default. engines.sh treats unset as
+# adopt-or-start because typing `pnpm engines` IS the ask for a fleet — but this path is a BOOT, and a boot
+# must not wake or spawn one (owner ruling 2026-09-19, #2421, which made the server schema's unset default
+# adopt-only). `pnpm stack` already exports its resolved posture and it wins here; a bare hand-run
+# `bash tooling/src/stack/dev.sh` now gets the same adopt-only the server it is about to boot will resolve.
+ENGINES_POSTURE="${ENGINES_POSTURE:-adopt-only}"
+export ENGINES_POSTURE
 #
 # BACKGROUNDED + `wait`, never a foreground call: `wait` is interruptible, so a TERM arriving during a
 # cold boot reaches on_signal IMMEDIATELY instead of being queued behind engines.sh's own bounded wait

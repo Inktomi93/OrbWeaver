@@ -503,7 +503,8 @@ const envSchema = z
     //                    Passive consumer (no auto-sleep management; on-demand wake allowed). snap/e2e/alt.
     //   adopt-or-start — fleet MANAGER: adopts when healthy, triggers the detached spawner when down, owns
     //                    restart/breaker + the auto-sleep timer. The dev/prod server.
-    // Unset ⇒ resolved from the DEPRECATED VLLM_DISABLED/STACK_ENGINES pair with a visible log (resolveEnginesPosture).
+    // Unset ⇒ `adopt-only` (owner ruling 2026-09-19, #2421 — a boot never wakes or spawns a fleet), unless the
+    // DEPRECATED VLLM_DISABLED/STACK_ENGINES pair says otherwise; either way a visible log line (resolveEnginesPosture).
     ENGINES_POSTURE: z.enum(ENGINES_POSTURES).optional(),
     // The ONE host-Claude (agent-sdk / max-pro-sub) topology knob — the same explicit-posture shape as
     // ENGINES_POSTURE above, for the same reason (`host-claude.ts` holds the model + the 2026-09-18 incident):

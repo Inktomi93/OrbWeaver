@@ -216,7 +216,8 @@ export interface ServicesDeps {
   readonly sessionSecret: string | null;
   readonly vllmDisabled: boolean;
   /** The fleet MANAGER posture (adopt-or-start) — the supervisor triggers spawns + owns auto-sleep; adopt-only
-   *  adopts but never spawns. Absent ⇒ manager default. Derived from ENGINES_POSTURE at boot (lifecycle.ts). */
+   *  adopts but never spawns. Absent ⇒ PASSIVE (#2421 — a silence never selects the spawning arm). Derived
+   *  from ENGINES_POSTURE at boot (lifecycle.ts), which always passes it. */
   readonly vllmManages?: boolean;
   /** The resolved host-Claude posture (CLAUDE_BACKEND × credential detection — `foundation/env/host-claude.ts`).
    *  Decides whether the agent-sdk backend is CONSTRUCTED at all, and is carried into the connection domain so
@@ -464,9 +465,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     vllmAvailable,
     // The send-availability gate (#54) reads the effective posture + the gen engine's live reachability to
     // refuse a DOWN local engine ONLY under adopt-only (passive; never self-recovers). `vllmManages` absent ⇒
-    // the manager default (adopt-or-start). The reachability is a cheap local supervisor read (no network);
-    // null handle (vLLM disabled) ⇒ unknown, and the posture-`off` arm short-circuits before it is consulted.
-    enginesPosture: derivePosture(deps.vllmDisabled, deps.vllmManages ?? true),
+    // adopt-only (#2421): an undecided posture must not promise that a down engine will be spawned back up.
+    // The reachability is a cheap local supervisor read (no network); null handle (vLLM disabled) ⇒ unknown,
+    // and the posture-`off` arm short-circuits before it is consulted.
+    enginesPosture: derivePosture(deps.vllmDisabled, deps.vllmManages ?? false),
     // The host-Claude twin of `vllmAvailable` + `enginesPosture`: the verbs need BOTH the boolean (can a
     // max-pro-sub turn be served at all?) and the posture (did the operator turn it off, or is it merely
     // not set up?) — the two states get different copy and different fixes.

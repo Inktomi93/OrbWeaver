@@ -80,7 +80,8 @@ export interface VllmBackendDeps {
   /** Cwd marker the supervisor's orphan-reap + the detached-spawn trigger use; defaults to cwd. */
   readonly repoRoot?: string | undefined;
   /** The fleet MANAGER posture (adopt-or-start) triggers the detached spawner + owns auto-sleep; adopt-only
-   *  adopts healthy engines but NEVER spawns (fail-fast on a down engine). Omitted ⇒ true (manager default). */
+   *  adopts healthy engines but NEVER spawns (fail-fast on a down engine). Omitted ⇒ the supervisor's
+   *  passive default (#2421 — a silence never selects the spawning arm). */
   readonly manages?: boolean | undefined;
   /** Live getter for the RESOLVED engine launch config (admin override ⊕ env floor). RESERVED: under the
    *  ownership inversion the detached front-door verb rebuilds argv from the env floor, so this is not
@@ -146,8 +147,8 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
       startVllmEngines({
         repoRoot,
         now: deps.now,
-        // Only the MANAGER posture (adopt-or-start) spawns; adopt-only adopts + fails fast. Defaults true
-        // (today's manager behavior) when compose doesn't inject a posture.
+        // Only the MANAGER posture (adopt-or-start) spawns; adopt-only adopts + fails fast. With no posture
+        // injected the supervisor's own default is PASSIVE (#2421).
         ...(deps.manages !== undefined ? { manages: deps.manages } : {}),
         // The supervisor tick reads the hold marker each tick → sleeping-held classification.
         sleepHeld: () => isHeld(fleetRunDir(repoRoot)),

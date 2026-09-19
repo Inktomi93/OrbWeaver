@@ -443,8 +443,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // deprecated VLLM_DISABLED/STACK_ENGINES pair maps to a posture with a VISIBLE log. `off` ⇒ disabled;
     // the local-GPU requirement is MANAGER-scoped (effectiveVllmDisabled): adopt-or-start spawns on THIS
     // host and needs its GPU, while adopt-only may consume a REMOTE fleet (VLLM_ENGINE_HOST) GPU-less.
+    // Two log seams, two severities: a retired knob is a WARN to migrate, an unset knob is an INFO line
+    // naming the sanctioned default (adopt-only, #2421) — a safe default must not read as a warning.
     const gpuPresent = detectGpu();
-    const posture = resolveEnginesPosture(enginesPostureInput(), (msg) => log.warn({ deprecation: true }, `boot: ${msg}`));
+    const posture = resolveEnginesPosture(enginesPostureInput(), {
+      deprecation: (msg) => log.warn({ deprecation: true }, `boot: ${msg}`),
+      defaulted: (msg) => log.info({ posture: "default" }, `boot: ${msg}`),
+    });
     const vllmDisabled = effectiveVllmDisabled(posture, gpuPresent);
     log.info({ gpuPresent, posture, vllmDisabled }, "boot: gpu-detect → engines posture → effective vLLM availability");
 

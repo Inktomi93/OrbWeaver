@@ -391,6 +391,7 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
   test("a manager-owned healthy engine that becomes hung is identity-verified, killed, and restarted once", async () => {
     const signals: NodeJS.Signals[] = [];
     const stop = startVllmEngines({
+      manages: true, // EXPLICIT since #2421: an omitted posture is PASSIVE, and this arm is about the manager.
       repoRoot: "/repo",
       now: (): number => fixedNow,
       sleep: () => Promise.resolve(),
@@ -425,6 +426,7 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
   test("a hung port whose durable launch identity is foreign is never killed or spawned over", async () => {
     const signals: NodeJS.Signals[] = [];
     const stop = startVllmEngines({
+      manages: true, // EXPLICIT since #2421: an omitted posture is PASSIVE, and this arm is about the manager.
       repoRoot: "/repo",
       now: (): number => fixedNow,
       sleep: () => Promise.resolve(),
@@ -461,7 +463,8 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
     const parked: Array<() => void> = [];
     const sleep = (ms: number): Promise<void> => (parkBackoffs && ms >= 5000 ? new Promise<void>((resolve) => parked.push(resolve)) : Promise.resolve());
 
-    const stop = startVllmEngines({ repoRoot: "/repo", now: (): number => fixedNow, sleep, triggerSpawn });
+    // `manages` EXPLICIT since #2421: an omitted posture is PASSIVE, and this arm is about the manager.
+    const stop = startVllmEngines({ repoRoot: "/repo", now: (): number => fixedNow, sleep, triggerSpawn, manages: true });
     try {
       // Boot: all three ports free → the first triggerSpawn boots the fleet healthy; each engine adopts owned.
       await settle();
@@ -517,6 +520,7 @@ describe("startVllmEngines — the queued-spawn flag holds across the backoff wi
     };
 
     const stop = startVllmEngines({
+      manages: true, // EXPLICIT since #2421: an omitted posture is PASSIVE, and this arm is about the manager.
       repoRoot: "/repo",
       now: (): number => fixedNow,
       sleep,
@@ -936,6 +940,7 @@ describe("startVllmEngines — the local-GPU requirement is MANAGER-scoped", () 
   test("the MANAGER posture still idles without a local GPU (it would have to spawn locally)", async () => {
     io.healthy.add("embed"); // even a healthy port doesn't matter — the manager idles before probing
     const stop = startVllmEngines({
+      manages: true, // EXPLICIT since #2421: an omitted posture is PASSIVE, and this arm is about the manager.
       repoRoot: "/repo",
       now: (): number => 1_000_000,
       sleep: () => Promise.resolve(),
@@ -1009,6 +1014,7 @@ describe("startVllmEngines — the passive postures never reach a /proc read or 
     // The fleet starts DOWN so the manager's own spawn makes each engine `owned` — only an OWNED engine's
     // hang reaches the kill (`decideOccupied`), which is precisely why the adopt-only arms below are safe.
     const stop = startVllmEngines({
+      manages: true, // EXPLICIT since #2421: an omitted posture is PASSIVE, and this arm is about the manager.
       repoRoot: "/repo",
       now: (): number => 1_000_000,
       sleep: () => Promise.resolve(),
