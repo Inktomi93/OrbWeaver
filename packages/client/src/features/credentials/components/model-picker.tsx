@@ -90,6 +90,7 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
 
   return (
     <Popover
+      modal={true}
       open={open}
       onOpenChange={(next): void => {
         setOpen(next);
@@ -100,6 +101,7 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
         }
       }}
     >
+      {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       <PopoverTrigger
         render={
           <Button intent="secondary" size="sm" aria-label={ariaLabel} className="min-w-0 flex-1 justify-start">

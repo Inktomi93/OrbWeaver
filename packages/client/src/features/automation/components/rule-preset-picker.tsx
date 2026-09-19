@@ -232,7 +232,8 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
     setSelected(null);
   };
   return (
-    <Popover open={open} onOpenChange={setPickerOpen}>
+    <Popover modal={true} onOpenChange={setPickerOpen} open={open}>
+      {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       <PopoverTrigger
         render={
           <Button intent="secondary" size="sm">

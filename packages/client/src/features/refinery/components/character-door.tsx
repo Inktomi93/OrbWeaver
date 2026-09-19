@@ -36,7 +36,8 @@ export interface CharacterDoorProps {
 export function CharacterDoor({ placeholder, label, chosenName, disabled = false, onSelect }: CharacterDoorProps): ReactElement {
   const [open, setOpen] = useState(false);
   return (
-    <Popover onOpenChange={setOpen} open={open}>
+    <Popover modal={true} onOpenChange={setOpen} open={open}>
+      {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       <PopoverTrigger
         render={
           <Button data-testid={testId("refineryCharacterDoor")} disabled={disabled} intent="secondary" size="sm">

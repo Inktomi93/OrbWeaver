@@ -11,6 +11,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { BugReportButton } from "../../../../../packages/client/src/features/app-shell/components/bug-report-button.tsx";
+import { BugReportOverPageFixture } from "./bug-report-button.fixtures.tsx";
 
 const ROUTE = "**/api/_debug/bug-report";
 
@@ -294,4 +295,48 @@ test("a refusal with NO gate body says only the status — no invented cause", a
   await page.getByRole("button", { name: "Capture report" }).click();
 
   await expect(page.locator('[data-slot="bug-report-status"]')).toHaveText("Capture failed: HTTP 502 from /api/_debug/bug-report");
+});
+
+// ── #2444: the FORM popover fences the page under it ──────────────────────────────────────────────────────
+// Measured at 430x740 with this form open at y=68..502, `elementFromPoint` at y=540..620 returned the live
+// composer cluster and its textarea, and a transcript scroll succeeded — so on a phone a thumb reaching past
+// the sheet operates whatever is underneath and dismisses the form on the way. `modal` is the fence: Base UI
+// renders its own fixed `role="presentation"` backdrop (`utils/InternalBackdrop.js`) which absorbs the press.
+//
+// BOTH DIRECTIONS IN ONE SPEC. The closed arm is the planted positive control: without it, "the tap did not
+// reach the page control" would also pass on a fixture whose page control was never hittable at all.
+test.describe("#2444 the form popover's touch containment", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 740 } });
+
+  test("CONTROL (closed): a tap at the page control's box reaches it", async ({ mount, page }) => {
+    await mount(<BugReportOverPageFixture />);
+    const pageControl = page.getByTestId("page-control");
+    await expect(pageControl).toBeVisible();
+    await pageControl.tap();
+    await expect(page.getByTestId("page-taps")).toHaveText("1");
+  });
+
+  test("OPEN: the same tap lands on the backdrop, not on the page control, and the control never fires", async ({ mount, page }) => {
+    await mount(<BugReportOverPageFixture />);
+    await page.getByRole("button", { name: "Report a bug" }).tap();
+    // SETTLED: the form's own note field is rendered, so the popup (and its backdrop) exist.
+    await expect(page.getByRole("textbox", { name: "What happened?" })).toBeVisible();
+
+    const box = await page.getByTestId("page-control").boundingBox();
+    expect(box, "the page control must have a rendered box to aim at").not.toBeNull();
+    const point = { x: Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), y: Math.round((box?.y ?? 0) + (box?.height ?? 0) / 2) };
+    // What OWNS that pixel now: the fixed presentation backdrop Base UI mounts for a `modal` popover.
+    const owner = await page.evaluate((at: { x: number; y: number }): string | null => {
+      const el = document.elementFromPoint(at.x, at.y);
+      if (el === null) {
+        return null;
+      }
+      return `${el.tagName.toLowerCase()}[role=${el.getAttribute("role") ?? "none"}][testid=${el.getAttribute("data-testid") ?? "none"}]`;
+    }, point);
+    expect(owner).toBe("div[role=presentation][testid=none]");
+
+    // …and behaviourally: the tap is absorbed, so the control underneath never fires.
+    await page.touchscreen.tap(point.x, point.y);
+    await expect(page.getByTestId("page-taps")).toHaveText("0");
+  });
 });

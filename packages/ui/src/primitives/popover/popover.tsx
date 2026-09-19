@@ -32,6 +32,25 @@ const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 // inline style is the one honest, gate-clean spelling, same as `select.tsx`.
 const STABLE_WIDTH_STYLE: CSSProperties = { width: "min(var(--available-width), var(--container-cq-sm))" };
 
+/**
+ * WHICH POPOVERS TAKE `modal`, AND WHY — the one home for that call (#2444, side-eye 2026-09-19).
+ *
+ * A non-modal popover leaves the page HIT-LIVE underneath it. Measured at 430x740 with the bug-report form
+ * open at `y=68..502`: `elementFromPoint` at `y=540..620` returned the live composer cluster and its
+ * textarea, and a programmatic scroll of the transcript behind it succeeded — so on a phone a thumb
+ * reaching past the sheet operates whatever happens to be behind it, and dismisses the form on the way.
+ *
+ * `modal` is the fence: Base UI renders its own fixed `role="presentation"` backdrop over the page
+ * (`utils/InternalBackdrop.js`, gated on `modal === true` and a non-hover open reason), which absorbs the
+ * outside press instead of letting it through. It needs no `backdrop` prop — that one renders the visible
+ * SCRIM, which is a separate look decision, not the containment.
+ *
+ * THE RULE: a popover whose body carries an INPUT the user can lose or mis-target — a text entry, a
+ * radio/slider/knob form, a click-to-edit field — takes `modal`. A read-only PEEK (`chat-recall-indicator`,
+ * `compact-summary-peek`) and a one-tap COMMIT list (the notifications inbox, the face-strip overflow, the
+ * rpg icon picker) are correct unfenced and stay that way: nothing is in flight to protect, and a fence
+ * would cost a second tap to leave.
+ */
 export function Popover<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
   return <BasePopover.Root {...props} />;
 }
