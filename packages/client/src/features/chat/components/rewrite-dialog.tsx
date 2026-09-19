@@ -71,15 +71,7 @@ export function RewriteDialog({ open, onOpenChange, instruction, onInstructionCh
         <Stack gap="field">
           {REWRITE_TOGGLES.map((toggle) => (
             <Field key={toggle.id} label={toggle.label} orientation="horizontal">
-              {/* The `aria-label` STAYS, and #1621 measured why it is not the dead twin of the Textarea's
-                  above. In the accname tree it IS unreachable (the Field's `aria-labelledby` outranks it —
-                  `tests/client/a11y/field-control-name.suite.ct.tsx`), but `jsx-a11y` resolves `Switch` to
-                  `button`, which its `ignoreElements` list does NOT carry (`Input`/`Textarea` do), so
-                  removing it makes `control-has-associated-label` RED at every Switch call site. The rule is
-                  blind to the render-time FieldRootContext injection by construction; the house answer is a
-                  cited suppression, and the house pays for it ONCE at the wrapper (`switch-field.tsx`), not
-                  N times at call sites. So: kept, and kept honestly — it names nothing a reader hears. */}
-              <Switch aria-label={toggle.label} checked={selected.has(toggle.id)} onCheckedChange={(on): void => onToggle(toggle.id, on)} />
+              <Switch checked={selected.has(toggle.id)} onCheckedChange={(on): void => onToggle(toggle.id, on)} />
             </Field>
           ))}
         </Stack>

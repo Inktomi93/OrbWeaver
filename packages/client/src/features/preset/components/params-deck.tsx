@@ -334,14 +334,7 @@ function ReasoningCluster({
               <>
                 <SettingTrackRow>
                   <Field label="Reasoning" name={field.name}>
-                    {/* THE `aria-label` HERE IS A LIE THE TREE NEVER REPEATS, and it cannot simply be deleted
-                      (#1621). "Enable reasoning" is a DIFFERENT string from the Field's label, and it loses to
-                      the Field's `aria-labelledby` — the switch announces "Reasoning"
-                      (`tests/client/a11y/field-control-name.suite.ct.tsx`). Deleting it would red
-                      `jsx-a11y/control-has-associated-label`, which resolves `Switch` to `button` and cannot
-                      see the render-time context injection. So it is aligned to the name the tree actually
-                      reports instead: the attribute stays for the rule, and stops promising a second name. */}
-                    <Switch aria-label="Reasoning" checked={on} onCheckedChange={(next): void => field.handleChange(next ? undefined : "none")} />
+                    <Switch checked={on} onCheckedChange={(next): void => field.handleChange(next ? undefined : "none")} />
                   </Field>
                 </SettingTrackRow>
                 {on && control.kind === "effort" ? <EffortField levels={control.effortLevels ?? []} onChange={field.handleChange} value={effort} /> : null}

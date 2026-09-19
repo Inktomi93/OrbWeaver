@@ -277,16 +277,7 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
               <form.Subscribe selector={(state): boolean => state.values.params.advanced?.parallelToolCalls === true}>
                 {(parallel): ReactElement => (
                   <Field hint="Let the model emit several tool calls in one turn." label="Parallel tool calls">
-                    {/* The `aria-label` is UNREACHABLE and still REQUIRED (#1621) — the Field's label reaches
-                      this control through Base UI's `aria-labelledby` and outranks it
-                      (`tests/client/a11y/field-control-name.suite.ct.tsx`), but `jsx-a11y` resolves `Switch`
-                      to `button`, outside its `ignoreElements`, so dropping it reds
-                      `control-has-associated-label`. A lint obligation, not an accessible name. */}
-                    <Switch
-                      aria-label="Parallel tool calls"
-                      checked={parallel}
-                      onCheckedChange={(on): void => form.setFieldValue("params.advanced.parallelToolCalls", on ? true : undefined)}
-                    />
+                    <Switch checked={parallel} onCheckedChange={(on): void => form.setFieldValue("params.advanced.parallelToolCalls", on ? true : undefined)} />
                   </Field>
                 )}
               </form.Subscribe>

@@ -121,13 +121,7 @@ export function MessageHandlingSection({ form, capability }: { readonly form: As
             // The SAME label-left / control-right row as every other switch on the surface (F-22): this one
             // used to be a heading over a sentence over a switch, three lines for one boolean.
             <Field hint="Merge consecutive system-note runs into one message. Never touches the transcript or examples." label="Squash system notes">
-              {/* The `aria-label` is UNREACHABLE and still REQUIRED (#1621): as the Field's sole control this
-                  Switch is named by the label through Base UI's `aria-labelledby`, which outranks it
-                  (`tests/client/a11y/field-control-name.suite.ct.tsx`) — but `jsx-a11y` resolves `Switch` to
-                  `button`, which its `ignoreElements` list does not carry, so dropping it reds
-                  `control-has-associated-label`. A lint obligation, not an accessible name. */}
               <Switch
-                aria-label="Squash system notes"
                 checked={squash}
                 onCheckedChange={(on): void => {
                   form.setFieldValue("params.advanced.squashSystemMessages", on ? true : undefined);

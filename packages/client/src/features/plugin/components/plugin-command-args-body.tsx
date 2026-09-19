@@ -54,13 +54,7 @@ function ArgInput({
   if (spec.type === "boolean") {
     return (
       <Field description={spec.describe} label={argLabel(spec)} orientation="horizontal">
-        {/* The `aria-label` STAYS despite measuring the same as the Input arm below (#1621): unreachable in
-            the accname tree (the Field's `aria-labelledby` outranks it —
-            `tests/client/a11y/field-control-name.suite.ct.tsx`), but `jsx-a11y` resolves `Switch` to
-            `button`, which its `ignoreElements` list does not carry while `Input` does, so dropping it turns
-            `control-has-associated-label` RED here. The rule cannot see the render-time FieldRootContext
-            injection; the house pays the cited suppression ONCE at `switch-field.tsx`, not per call site. */}
-        <Switch aria-label={spec.name} checked={value === "true"} onCheckedChange={(next): void => onChange(String(next))} />
+        <Switch checked={value === "true"} onCheckedChange={(next): void => onChange(String(next))} />
       </Field>
     );
   }

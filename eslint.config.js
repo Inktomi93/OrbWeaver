@@ -765,7 +765,21 @@ export default tseslint.config(
           Button: "button",
           IconButton: "button",
           Toggle: "button",
-          Switch: "button",
+          // #1633: `input`, not `button`, and the difference is load-bearing. Base UI's `Switch.Root`
+          // renders a `<button role="switch">` plus a hidden checkbox input, so BOTH spellings are a
+          // semantic proxy — the same proxy `Checkbox` has taken since #579 (Base UI's Checkbox is also a
+          // button). `button` made `control-has-associated-label` RED at every `<Switch>` inside a
+          // `<Field>`, because the rule resolves the tag through THIS map before testing `ignoreElements`
+          // (source: eslint-plugin-jsx-a11y 6.10.2 `lib/rules/control-has-associated-label.js` —
+          // `var tag = elementType(node.openingElement)` then `newIgnoreElements.has(tag)`), and the rule
+          // is structurally blind to the render-time `FieldRootContext` `aria-labelledby` injection that
+          // actually names the control. `input` is in that rule's ignore list, so the six call sites no
+          // longer owe a dead `aria-label`. Measured alternatives, all rejected with planted controls:
+          // DROPPING this entry also silences `role-supports-aria-props` and
+          // `no-interactive-element-to-noninteractive-role` on `<Switch>`; adding `"button"` to
+          // `ignoreElements` blinds the rule to an unlabelled `<Toggle>`, `<Button>`, `<IconButton>` and
+          // native `<button>` — which is the coverage this rule is turned on for.
+          Switch: "input",
           Checkbox: "input",
           Input: "input",
           CommandInput: "input",
@@ -801,7 +815,14 @@ export default tseslint.config(
             "textarea",
             "tr",
             "video",
-            // Custom form controls that are handled by label-has-associated-control instead
+            // THESE COMPONENT NAMES ARE UNREACHABLE WHILE THE `components` MAP ABOVE CARRIES THEM (#1633),
+            // and reading them as "so a `<Switch>` is exempt" is the trap this comment exists to close: the
+            // rule resolves `elementType()` — i.e. applies the map — BEFORE testing this list, so what a
+            // mapped component is judged by is its LOWERCASE target ("input"/"textarea"), never its own
+            // name. They are a fallback that only wakes if the map stops naming that component; the row
+            // that decides whether a family passes is the `components` entry, not this one. Measured:
+            // `<Select>` maps to "select", which is NOT in this list, which is why `SelectField` still
+            // carries a cited suppression while `SwitchField` (mapped to "input") no longer needs one.
             "Checkbox",
             "Switch",
             "Input",

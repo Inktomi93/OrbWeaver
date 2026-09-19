@@ -321,16 +321,7 @@ function FormLeaf({
   if (node.kind === "toggle") {
     return (
       <Field label={node.label} orientation="horizontal">
-        {/* CORRECTED CLAIM, SAME ATTRIBUTE (#1621). This comment used to say the `aria-label` "carries the
-            field label onto the control itself" so the Switch has its OWN accessible name — it does not: the
-            Switch is the Field's sole `Field.Control`, so Base UI's `aria-labelledby` reaches it and OUTRANKS
-            an `aria-label`, and the control already announced `node.label` without this line (measured at
-            `tests/client/a11y/field-control-name.suite.ct.tsx`). It stays anyway, for the reason the old
-            comment did not know: `jsx-a11y` resolves `Switch` to `button`, which its `ignoreElements` list
-            does not carry, so removing it reds `control-has-associated-label` — a rule blind to a render-time
-            context injection. Kept as a LINT obligation, not as an accessible name. */}
         <Switch
-          aria-label={node.label}
           checked={values[node.name] === "true"}
           onCheckedChange={(next): void => {
             setValue(node.name, String(next));
