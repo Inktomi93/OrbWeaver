@@ -671,7 +671,8 @@ test("a provider-less ink-only scope FAILS OPEN, rendering the author's ink byte
 // card's DARK base. RED on the pre-fix source in both probes — the inheriting span and the typed control.
 const LIGHT_ROOT_INK = "oklch(0.24 0.01 60)";
 const CARD_DARK_BASE = "oklch(0.158 0.006 60)";
-const LIGHT_ROOT_STYLE = { "--color-foreground": LIGHT_ROOT_INK, color: "var(--color-foreground)", padding: "24px" } as CSSProperties;
+const LIGHT_ROOT_STYLE = { "--color-foreground": LIGHT_ROOT_INK, color: "var(--color-foreground)", padding: "24px" } satisfies CSSProperties &
+  Record<"--color-foreground", string>;
 
 test("#2424 a scope that paints a DARK surface under a LIGHT root repaints inherited ink — typed text clears AA", async ({ mount, page }) => {
   const cmp = await mount(
