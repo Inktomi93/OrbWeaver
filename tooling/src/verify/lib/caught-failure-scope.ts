@@ -119,7 +119,8 @@ export function escapingDescendants<T extends Node>(block: Block, kind: SyntaxKi
   return nodes.filter((node) => !insideNestedFunction(node, block) && node.getKind() === kind);
 }
 
-type OwnerVerdict = "escape" | "none" | "owner";
+const OWNER_VERDICTS = ["escape", "none", "owner"] as const;
+type OwnerVerdict = (typeof OWNER_VERDICTS)[number];
 
 function hasNestedEscape(statement: Node): boolean {
   return [SyntaxKind.ReturnStatement, SyntaxKind.BreakStatement, SyntaxKind.ContinueStatement].some((kind) =>

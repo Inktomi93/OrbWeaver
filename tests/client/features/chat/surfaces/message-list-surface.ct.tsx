@@ -1437,10 +1437,8 @@ test("#1873 a capability warning raised mid-turn settles: the notice band reflow
   );
   const distinctHeights = await heightsOverFrames();
 
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — `distinctHeights` is a frozen 30-frame sample captured after its own 400ms in-page settle window.
   expect(distinctHeights).toHaveLength(1);
   // The sticky verdict changed NO box: the row measures what it measured before it went sticky.
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — same frozen sample as above.
   expect(distinctHeights[0]).toBe(Math.round(rowPx));
 
   // The notice is STILL up (its 12s life has not expired) — otherwise the band would have released its
