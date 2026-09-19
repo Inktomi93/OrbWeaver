@@ -77,12 +77,6 @@ interface BrowserElement {
   readonly getAttribute: (name: string) => string | null;
   readonly getBoundingClientRect: () => ProbeRect;
   readonly contains: (other: BrowserElement) => boolean;
-  /** THE ONLY RENDERED TEST THAT SEES AN ANCESTOR (#2430). A candidate's OWN computed `display` resolves to
-   *  its declared value inside a `display:none` subtree, so `style.display === "none"` is FALSE for a node
-   *  that is not rendered at all, and the census filed it under `offViewport` — the one bucket whose reason
-   *  ("it scrolled out of view") is the opposite of the truth. `checkVisibility()` walks the chain. It does
-   *  NOT answer `visibility`/`opacity` by default, so those tests stay exactly where they were. */
-  readonly checkVisibility: () => boolean;
 }
 
 interface BrowserGlobals {
@@ -197,6 +191,21 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
       parentSlots,
     };
   };
+  /** IS THIS NODE INSIDE A `display:none` SUBTREE (#2430)? A candidate's OWN computed `display` resolves to
+   *  its DECLARED value in there, so `style.display === "none"` is false for a node that is not rendered at
+   *  all, and the census filed it under `offViewport` — the one bucket whose stated reason ("it scrolled out
+   *  of view") is the opposite of the truth. The chain walk is the test, NOT `checkVisibility()`: that one
+   *  also answers false for any element with no box of its own, which would throw away
+   *  `[data-slot="portal-root"]` — `display: contents`, rendered, and a legitimate carrier subject whose
+   *  paint the `compact-portal-carried` row reads (measured: it refused v01 on exactly that). */
+  const hiddenByAncestor = (element: BrowserElement): boolean => {
+    for (let node: BrowserElement | null = element; node !== null; node = node.parentElement) {
+      if (browser.getComputedStyle(node).display === "none") {
+        return true;
+      }
+    }
+    return false;
+  };
   const invisibleReason = (policy: BrowserSubjectPolicy, style: BrowserStyle, rendered: boolean): string | null => {
     if (!rendered) {
       return "display-none";
@@ -225,7 +234,7 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
     // the one sample kind that asks a subject for its paint and nothing else.
     const style = browser.getComputedStyle(element, policy.pseudo);
     const rect = element.getBoundingClientRect();
-    const rendered = element.checkVisibility();
+    const rendered = !hiddenByAncestor(element);
     const carrierReached = policy.sample === "carrier" && rendered && style.visibility !== "hidden";
     const renderedFacts = !rendered || style.visibility === "hidden" ? null : factsFor(element, style, rect);
     const reason = invisibleReason(policy, style, rendered);

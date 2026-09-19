@@ -119,3 +119,19 @@ test("a candidate hidden by an ancestor is counted as display-none, never as off
     await browser.close();
   }
 });
+
+// …AND THE OTHER SIDE OF THAT FENCE, which the matrix taught the first attempt at it: `checkVisibility()`
+// answers false for ANY element with no box of its own, so it also threw away `[data-slot="portal-root"]`
+// (`display: contents`, 0x0, rendered) and refused matrix cell v01's `compact-portal-carried` row with
+// `skipped: {display-none: 1}`. A box-less element is not a hidden element; the test is the ancestor chain.
+test("a boxless display:contents carrier is still rendered — the fence is the chain, not a box", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: VIEWPORT });
+    await page.setContent('<div class="sample" style="display:contents"></div>');
+    const snapshot = await probeAppearanceDom(page, { ...ROW, subjects: [{ id: "sample", selector: ".sample", population: "one", sample: "carrier" }] });
+    expect(snapshot.subjects[0]).toMatchObject({ accounting: { candidates: 1, reached: 1, sampled: 1, skipped: [] } });
+  } finally {
+    await browser.close();
+  }
+});
