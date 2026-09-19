@@ -6,7 +6,7 @@ updated: 2026-09-13
 
 # #2319 replay checkpoint independent integration review
 
-> [!NOTE]
+> \[!NOTE]
 > **HISTORICAL rider (2026-09-18).** `b1e5e3e30` retired `tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts`
 > — the frozen-legacy-replay differential class this review examined no longer exists; the declared
 > `mustFlag`/`mustPass` proof rows, checked through `structure:policy-conformance`

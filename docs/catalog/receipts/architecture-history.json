@@ -230,14 +230,17 @@
     {
       "path": "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md",
       "assignedSha256": "2c2a9af2ae8a177cf83e1e5dc01a5097a2d7dadc98902ed420bc768cf385c03e",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "2c2a9af2ae8a177cf83e1e5dc01a5097a2d7dadc98902ed420bc768cf385c03e",
+      "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
+      "verifiedAt": "2026-09-18",
+      "evidence": [
+        "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md:1 (full read); the deferred backlog (neo gates not yet ported, each with an activation trigger, held against the tree one-directionally by ledgers:fresh per its own §18 note), the PREBUILT orphan seal table, the dropped-do-not-port table, and the 2026-09-18-added \"Retired\" table for gates that were live and deleted when their law ended (baseline-single-migration, RETIRED 2026-09-18 per #316 Arm A).",
+        "Row disposition/authority match this lane's other dated-record entries in docs/catalog/receipts/architecture-history.json (archive/historical) — the doc's own frontmatter (kind: reference, status: active) records that it stays load-bearing prose even while its catalog disposition is archive, consistent with other still-cited history/ docs in this lane."
+      ],
+      "summary": "Enforcement registry deferred/dropped/retired ledger: neo-gate deferral rows tripwired against the live tree by ledgers:fresh, the PREBUILT orphan-seal table (2026-08-17 re-derivation), the dropped-do-not-port table, and the new Retired section recording baseline-single-migration's 2026-09-18 deletion at the launch flip. Hand-authored row (D139 pending-clearance); no typed claims — lifecycle receipt (archive/historical)."
     },
     {
       "path": "docs/architecture/history/Core-Event-Bus-Parity-Audit.md",

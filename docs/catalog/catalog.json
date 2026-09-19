@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 52,
+    "pending": 49,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -2618,16 +2618,19 @@
       "receipt": {
         "path": "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md",
         "assignedSha256": "2c2a9af2ae8a177cf83e1e5dc01a5097a2d7dadc98902ed420bc768cf385c03e",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "2c2a9af2ae8a177cf83e1e5dc01a5097a2d7dadc98902ed420bc768cf385c03e",
+        "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
+        "verifiedAt": "2026-09-18",
+        "evidence": [
+          "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md:1 (full read); the deferred backlog (neo gates not yet ported, each with an activation trigger, held against the tree one-directionally by ledgers:fresh per its own §18 note), the PREBUILT orphan seal table, the dropped-do-not-port table, and the 2026-09-18-added \"Retired\" table for gates that were live and deleted when their law ended (baseline-single-migration, RETIRED 2026-09-18 per #316 Arm A).",
+          "Row disposition/authority match this lane's other dated-record entries in docs/catalog/receipts/architecture-history.json (archive/historical) — the doc's own frontmatter (kind: reference, status: active) records that it stays load-bearing prose even while its catalog disposition is archive, consistent with other still-cited history/ docs in this lane."
+        ],
+        "summary": "Enforcement registry deferred/dropped/retired ledger: neo-gate deferral rows tripwired against the live tree by ledgers:fresh, the PREBUILT orphan-seal table (2026-08-17 re-derivation), the dropped-do-not-port table, and the new Retired section recording baseline-single-migration's 2026-09-18 deletion at the launch flip. Hand-authored row (D139 pending-clearance); no typed claims — lifecycle receipt (archive/historical)."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/history/Core-Event-Bus-Parity-Audit.md",
@@ -12836,7 +12839,7 @@
       "issue": 5,
       "lines": 58,
       "bytes": 4459,
-      "sha256": "ce6a5ea683f177ac096706d5f1fad28f3bb0529dbdd0378bfea6952e09dd986a",
+      "sha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12849,12 +12852,12 @@
       },
       "receipt": {
         "path": "docs/design/gate-runtime-read-first.md",
-        "assignedSha256": "ce6a5ea683f177ac096706d5f1fad28f3bb0529dbdd0378bfea6952e09dd986a",
+        "assignedSha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0",
         "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "ce6a5ea683f177ac096706d5f1fad28f3bb0529dbdd0378bfea6952e09dd986a",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+        "verifiedSha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0",
+        "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
@@ -12890,7 +12893,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "ce6a5ea683f177ac096706d5f1fad28f3bb0529dbdd0378bfea6952e09dd986a"
+        "verifiedCanonicalSha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0"
       },
       "receiptCurrent": true
     },
@@ -31194,8 +31197,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 475,
-      "bytes": 42676,
-      "sha256": "f5ca4fbe71540fad8251ab7e1f0bc2d50402f3c50a1e1bcb40dcf40206dfa720",
+      "bytes": 42677,
+      "sha256": "13d03ae4dc0f6f7b5da6db745877c649f5596f0b0c5f13efb2351dcfd87ca601",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31208,12 +31211,12 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/mixed-runtime-front-door.md",
-        "assignedSha256": "f5ca4fbe71540fad8251ab7e1f0bc2d50402f3c50a1e1bcb40dcf40206dfa720",
+        "assignedSha256": "13d03ae4dc0f6f7b5da6db745877c649f5596f0b0c5f13efb2351dcfd87ca601",
         "disposition": "current",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "f5ca4fbe71540fad8251ab7e1f0bc2d50402f3c50a1e1bcb40dcf40206dfa720",
-        "verifiedCommit": "bb095fc17fc3e446589796301fbfcc9e13667e59",
+        "verifiedSha256": "13d03ae4dc0f6f7b5da6db745877c649f5596f0b0c5f13efb2351dcfd87ca601",
+        "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "HISTORICAL rider (2026-09-18): b1e5e3e30 retired the frozen-legacy-replay differential suites (registry-definitions-legacy-replay.test.ts and siblings) this receipt's typed claims cite; df2a54b09 subsequently deleted the legacy gate runtime entirely. The declared mustFlag/mustPass proof rows on each final policy, checked through structure:policy-conformance (tests/tooling/verify/ops/policy-conformance.test.ts), are the live oracle now. Authority is set to historical because the typed evidence below cites tree coordinates that predate that retirement; the document body and this receipt's other prose fields remain a claim about the commit named in verifiedCommit, unchanged.",
@@ -32307,8 +32310,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 285,
-      "bytes": 22873,
-      "sha256": "cc9640b1180363266c8ecf474870d8584b9f4445803f7efa269a4cdc2a3664f3",
+      "bytes": 22874,
+      "sha256": "cd39c6d53e9f7b357cf7046094da3561876f2ccb56f89756d217ed81584ef1c0",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32321,12 +32324,12 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-2319-continuation-review-2026-09-13.md",
-        "assignedSha256": "cc9640b1180363266c8ecf474870d8584b9f4445803f7efa269a4cdc2a3664f3",
+        "assignedSha256": "cd39c6d53e9f7b357cf7046094da3561876f2ccb56f89756d217ed81584ef1c0",
         "disposition": "current",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "cc9640b1180363266c8ecf474870d8584b9f4445803f7efa269a4cdc2a3664f3",
-        "verifiedCommit": "bb095fc17fc3e446589796301fbfcc9e13667e59",
+        "verifiedSha256": "cd39c6d53e9f7b357cf7046094da3561876f2ccb56f89756d217ed81584ef1c0",
+        "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "HISTORICAL rider (2026-09-18): b1e5e3e30 retired the frozen-legacy-replay differential suites (registry-definitions-legacy-replay.test.ts and siblings) this receipt's typed claims cite; df2a54b09 subsequently deleted the legacy gate runtime entirely. The declared mustFlag/mustPass proof rows on each final policy, checked through structure:policy-conformance (tests/tooling/verify/ops/policy-conformance.test.ts), are the live oracle now. Authority is set to historical because the typed evidence below cites tree coordinates that predate that retirement; the document body and this receipt's other prose fields remain a claim about the commit named in verifiedCommit, unchanged.",
@@ -32364,8 +32367,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 118,
-      "bytes": 10926,
-      "sha256": "277b41f5448d899193be9efcc11b27e56b9ec3922965c6ca3e05f9d781db3011",
+      "bytes": 10927,
+      "sha256": "0aab2e906fa4a2eb8d53ab4200a5b1388a3407d0cfbca6b9663fe68c16b59084",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32378,12 +32381,12 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-2319-integration-review-2026-09-13.md",
-        "assignedSha256": "277b41f5448d899193be9efcc11b27e56b9ec3922965c6ca3e05f9d781db3011",
+        "assignedSha256": "0aab2e906fa4a2eb8d53ab4200a5b1388a3407d0cfbca6b9663fe68c16b59084",
         "disposition": "current",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "277b41f5448d899193be9efcc11b27e56b9ec3922965c6ca3e05f9d781db3011",
-        "verifiedCommit": "bb095fc17fc3e446589796301fbfcc9e13667e59",
+        "verifiedSha256": "0aab2e906fa4a2eb8d53ab4200a5b1388a3407d0cfbca6b9663fe68c16b59084",
+        "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "HISTORICAL rider (2026-09-18): b1e5e3e30 retired the frozen-legacy-replay differential suites (registry-definitions-legacy-replay.test.ts and siblings) this receipt's typed claims cite; df2a54b09 subsequently deleted the legacy gate runtime entirely. The declared mustFlag/mustPass proof rows on each final policy, checked through structure:policy-conformance (tests/tooling/verify/ops/policy-conformance.test.ts), are the live oracle now. Authority is set to historical because the typed evidence below cites tree coordinates that predate that retirement; the document body and this receipt's other prose fields remain a claim about the commit named in verifiedCommit, unchanged.",
@@ -35623,8 +35626,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 1141,
-      "bytes": 108478,
-      "sha256": "5f144fe6811e27eb4ed7aada3a71c6962fec7d9a6732b4d2396b8ff67d2657e1",
+      "bytes": 108479,
+      "sha256": "e5525828cc37201706a82bee4b0d43c0e5463bf940b17c86dbe87324ebe45595",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -35637,12 +35640,12 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/x-legacy-replay-2026-09-13.md",
-        "assignedSha256": "5f144fe6811e27eb4ed7aada3a71c6962fec7d9a6732b4d2396b8ff67d2657e1",
+        "assignedSha256": "e5525828cc37201706a82bee4b0d43c0e5463bf940b17c86dbe87324ebe45595",
         "disposition": "current",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "5f144fe6811e27eb4ed7aada3a71c6962fec7d9a6732b4d2396b8ff67d2657e1",
-        "verifiedCommit": "bb095fc17fc3e446589796301fbfcc9e13667e59",
+        "verifiedSha256": "e5525828cc37201706a82bee4b0d43c0e5463bf940b17c86dbe87324ebe45595",
+        "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "HISTORICAL rider (2026-09-18): b1e5e3e30 retired the frozen-legacy-replay differential suites (registry-definitions-legacy-replay.test.ts and siblings) this receipt's typed claims cite; df2a54b09 subsequently deleted the legacy gate runtime entirely. The declared mustFlag/mustPass proof rows on each final policy, checked through structure:policy-conformance (tests/tooling/verify/ops/policy-conformance.test.ts), are the live oracle now. Authority is set to historical because the typed evidence below cites tree coordinates that predate that retirement; the document body and this receipt's other prose fields remain a claim about the commit named in verifiedCommit, unchanged.",
@@ -36625,16 +36628,30 @@
       "receipt": {
         "path": "docs/reviews/misc/2026-09-18-external-review-six-themes.md",
         "assignedSha256": "ecd8a56c5690263e0da11e289a4ccb91d0f3de300ac6f270642e013528d61ca2",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "ecd8a56c5690263e0da11e289a4ccb91d0f3de300ac6f270642e013528d61ca2",
+        "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
+        "verifiedAt": "2026-09-18",
+        "evidence": [
+          "docs/reviews/misc/2026-09-18-external-review-six-themes.md:1 (full read). Synthesizes 510 findings (502 in-scope) from an external blind cold-read review (#1513) into six systemic themes (unknown-as-false, producer-inference-replaces-local-invariants, read-derive-write-with-no-durable-claim, cancellation-mistaken-for-completion, partial-side-effects-behind-idempotence-labels, composition-coverage-thin), cross-checked against ~120 independently verified instance rows; the source artifacts (REPO_SYNTHESIS.md / MISC_SYNTHESIS.md) are the reviewer's own external files and not on this tree, so they are cited but not re-derivable evidence.",
+          "Cross-references docs/reviews/misc/2026-09-05-external-review-claim-adjudication.md and docs/reviews/misc/2026-09-06-external-review-claim-adjudication.md (both present on the tree) for the refuted/narrowed-finding adjudication this synthesis does not repeat."
+        ],
+        "summary": "Six systemic themes distilled from the #1513 external review's 510 findings, each with a structural fix and boarded/instance pointers, plus the reviewer's recommended six-stage fix order. A synthesis document over external artifacts; verifiable claims here are limited to the issue reference and the two adjudication docs it cross-checks against, both confirmed present.",
+        "claims": [
+          {
+            "claim": "This document synthesizes the #1513 external blind cold-read review's 510 findings into six systemic themes, cross-checked against independently verified instance rows and the two dated claim-adjudication reviews.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1513"
+              }
+            ]
+          }
+        ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/mutation-config-calibration.md",
@@ -38707,16 +38724,43 @@
       "receipt": {
         "path": "docs/reviews/side-eye/2026-09-18-settings-appearance-look.md",
         "assignedSha256": "084bc852ab9297ffed5cab05223b6a0775a5b76c870445c6741116b64ab9465c",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "084bc852ab9297ffed5cab05223b6a0775a5b76c870445c6741116b64ab9465c",
+        "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
+        "verifiedAt": "2026-09-18",
+        "evidence": [
+          "docs/reviews/side-eye/2026-09-18-settings-appearance-look.md:1 (full read). Item 5 of #999's instrument-defect batch (#1827), a code-level (not rendered) review of the settings:appearance surface re-derived from the code on 2026-09-18: the sections-skimmer group shape, the Looks section's one-collection/apply-not-mode/keyboard-accessible/sibling-menu/builder-door/import-export/loading-reservation architecture, the advanced fold, and a current-state assessment finding no visual defects in code review.",
+          "Spot-verified against the tree: packages/client/src/features/settings/lib/appearance-group.tsx:26 (`body: { kind: \"sections\" }`) and packages/client/src/features/settings/components/appearance-looks-section.tsx (RadioGroupPicker/RadioGroupPickerItem import at :49, `selectedThemeId` read at :129, apply mutation at :146)."
+        ],
+        "summary": "Code-level (no rendered pass) review of the settings:appearance surface: confirms the sections-skimmer group shape, the Looks picker's one-collection/apply-not-mode/keyboard/sibling-menu architecture, and the advanced fold, finding no visual defects at the code level while explicitly scoping out a rendered audit (owner-deprioritized to verify-batch side-eye posture).",
+        "claims": [
+          {
+            "claim": "The appearance pane is a sections-skimmer (`body: { kind: \"sections\" }` in appearance-group.tsx) that owns no surface of its own.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/settings/lib/appearance-group.tsx:26"
+              }
+            ]
+          },
+          {
+            "claim": "The Looks section renders every theme (seed and user-created) in one RadioGroupPicker grid with identical cells, and selecting a cell applies the look by writing `theme.selectedThemeId`.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/settings/components/appearance-looks-section.tsx:49"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/settings/components/appearance-looks-section.tsx:146"
+              }
+            ]
+          }
+        ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",

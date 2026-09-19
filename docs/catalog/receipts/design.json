@@ -1187,12 +1187,12 @@
     },
     {
       "path": "docs/design/gate-runtime-read-first.md",
-      "assignedSha256": "ce6a5ea683f177ac096706d5f1fad28f3bb0529dbdd0378bfea6952e09dd986a",
+      "assignedSha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0",
       "disposition": "repaired",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "ce6a5ea683f177ac096706d5f1fad28f3bb0529dbdd0378bfea6952e09dd986a",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedSha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0",
+      "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
       "verifiedAt": "2026-09-19",
       "evidence": [
         "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
@@ -1228,7 +1228,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "ce6a5ea683f177ac096706d5f1fad28f3bb0529dbdd0378bfea6952e09dd986a"
+      "verifiedCanonicalSha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0"
     },
     {
       "path": "docs/design/gate-runtime-standardization.md",

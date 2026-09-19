@@ -6,7 +6,7 @@ updated: 2026-09-11
 
 # The mixed production front door (#1584 §5 items 1–6, #1941, #1948)
 
-> [!NOTE]
+> \[!NOTE]
 > **HISTORICAL rider (2026-09-18).** This record describes the MIXED legacy+final gate runtime. `b1e5e3e30`
 > retired the frozen-legacy-replay differential suites (`registry-definitions-legacy-replay.test.ts`,
 > `schema-fact-parity.test.ts` and siblings) and `df2a54b09` then deleted the legacy runtime entirely

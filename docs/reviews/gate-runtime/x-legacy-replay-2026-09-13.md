@@ -6,7 +6,7 @@ updated: 2026-09-13
 
 # cb-x-legacy-replay — the real-tmpdir §4.6 differential, and the derived replay backlog (#2319)
 
-> [!NOTE]
+> \[!NOTE]
 > **HISTORICAL rider (2026-09-18).** `b1e5e3e30` retired `tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts`
 > and every other frozen-legacy-replay differential suite: law §6.1's requirement that every legacy example
 > be carried into declared rows was met, so those rows — checked through `structure:policy-conformance`
