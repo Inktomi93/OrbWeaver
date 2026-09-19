@@ -30,6 +30,11 @@ const STRUCTURAL_LENGTH_GRANT_SUBJECTS = [
   "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))]",
   "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]",
   "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
+  // APPENDED, never inserted (#2442): these ids are positional, so a row placed beside its `.shell-grid`
+  // siblings would renumber every row after it. Same species as `--pane-deficit` and
+  // `--content-primacy-deficit` above — a pure-arithmetic shell distance whose `0px` floor is the
+  // mechanism (a negative delta means the box did not move), not a value any portable token could carry.
+  ".shell-grid { --list-track-centre-delta: calc(clamp(0px, 100% + var(--list-track-docked) - var(--width-shell-content), var(--list-track-docked)) / 2) }",
 ] as const;
 
 export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
