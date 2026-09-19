@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll
 // AppShell CT — the composed four-region frame end-to-end: the default chats CONTENT renders, a rail
 // click switches the section (store → CONTENT/LIST slots), the topbar panel toggle collapses a panel
 // via the §11.1 clamp-overlay (data-panel-mode + zero rendered width, not just a class string), the
@@ -224,13 +223,16 @@ interface Box {
 
 async function settledBox(locator: Locator): Promise<Box> {
   await expect(locator).toBeVisible();
-  // The toast enters on a translate transition; a same-tick read would measure it mid-flight.
+  // The toast enters on a translate transition; a same-tick read would measure it mid-flight. SETTLED = two
+  // CONSECUTIVE polls agreeing on `y`, and `expect.poll`'s own retry interval is what spaces them — so the
+  // wait is on the rendered state, never on the page clock (Spine-Testing.md §3: no `waitForTimeout` in a CT).
+  let previous: Box | null = null;
   await expect
     .poll(async () => {
-      const first = await locator.boundingBox();
-      await locator.page().waitForTimeout(60);
-      const second = await locator.boundingBox();
-      return first !== null && second !== null && Math.abs(first.y - second.y) < 0.5;
+      const current = await locator.boundingBox();
+      const settled = previous !== null && current !== null && Math.abs(previous.y - current.y) < 0.5;
+      previous = current;
+      return settled;
     })
     .toBe(true);
   const box = await locator.boundingBox();

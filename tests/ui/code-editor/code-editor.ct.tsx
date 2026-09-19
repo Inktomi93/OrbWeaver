@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll
 import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -254,6 +253,7 @@ test("accepting a completion inserts the FULL themeable var name into the docume
   // Waiting the full delay from HERE (rather than netting off however long the assertion above took)
   // keeps the arithmetic clock-free — `test-determinism` bans an ambient wall-clock read in a test,
   // and overshooting by a few ms costs nothing: the dialog does not close on its own.
+  // @orb-waive test-determinism(.waitForTimeout): the SUBJECT is elapsed real time — CM6's `interactionDelay` gates the accept on `timestamp + delay` with NO DOM state to wait for, and the wait is what REMOVES the flake (4/20 red without it, 0/40 with it); see the block comment above. Ends if CM6 exposes a settled-state signal for the delay window.
   // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: inverted premise — this wait is what REMOVES the flake (4/20 red without it, 0/40 with it), and CM6 exposes no state to wait FOR at `timestamp + interactionDelay`; see the block comment above.
   await page.waitForTimeout(2 * CM6_INTERACTION_DELAY_MS);
   await content.press("Enter");
