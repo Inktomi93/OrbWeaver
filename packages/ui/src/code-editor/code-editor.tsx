@@ -20,7 +20,7 @@ const TOKEN_THEME = EditorView.theme(
       backgroundColor: cssVar("color.background"),
       color: cssVar("color.foreground"),
       fontFamily: cssVar("font.mono"),
-      fontSize: cssVar("text.code"),
+      fontSize: cssVar("text.code-field"),
     },
     // The editable surface wears an INPUT's inset, not CodeMirror's default 4px/0. Without it the text
     // starts hard against the frame's left hairline while every sibling `<Input>` on the same form insets
@@ -271,7 +271,7 @@ export function CodeEditor({
           `focus-visible:` ring does. `overflow-hidden` clips descendants, never this box's own ring. */}
       <div
         ref={hostRef}
-        className={cn("overflow-hidden rounded-control border border-border font-mono text-code leading-label-relaxed", FOCUS_RING_HAS, className)}
+        className={cn("overflow-hidden rounded-control border border-border font-mono text-code-field leading-code-field", FOCUS_RING_HAS, className)}
       />
       {hasDiagnostics ? (
         <div id={describedById} aria-live="polite" className="sr-only">

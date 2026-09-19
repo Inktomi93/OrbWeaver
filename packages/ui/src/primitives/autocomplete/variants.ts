@@ -12,7 +12,11 @@ export const autocompleteVariants = tv({
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-50",
     ],
-    input: ["h-full w-full min-w-0 flex-1 bg-transparent px-block text-body leading-body text-foreground", "placeholder:text-muted-foreground", "outline-none"],
+    input: [
+      "h-full w-full min-w-0 flex-1 bg-transparent px-block text-field leading-field text-foreground",
+      "placeholder:text-muted-foreground",
+      "outline-none",
+    ],
     clear: [
       "mr-field flex size-control-sm shrink-0 items-center justify-center rounded-control text-muted-foreground outline-none",
       // Offset-less ring — the Clear sits INSIDE the input group, whose FOCUS_RING_WITHIN already
