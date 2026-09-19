@@ -6,6 +6,12 @@ import type { NavMethod } from "../../_shared/nav.ts";
 // step/capture carries it so one flat argv-ordered list can drive N tabs in one shared context.
 type StepAction =
   | { kind: "click"; selector: string }
+  // A real TOUCH tap (`Input.dispatchTouchEvent` through Playwright's touchscreen), not a mouse click
+  // at a touch-sized viewport. `--click` is a CDP MOUSE dispatch even under `--mobile`, so it produces
+  // `pointerenter`/`mouseover` and opens a Base UI tooltip that no finger can open (#2445): every
+  // touch-interaction question was answerable only from vendored source until this kind existed.
+  // Refused without a touch-capable context — ops/parse.ts names why rather than silently degrading.
+  | { kind: "tap"; selector: string }
   | { kind: "motion-click"; selector: string | null }
   | { kind: "jsclick"; selector: string }
   | { kind: "press"; selector: string }

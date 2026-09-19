@@ -68,6 +68,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--scenario <value>` | sequential checkpoints in ONE browser lifetime (json file or a named preset) |
 | `--scenario-summary` | one CHECKPOINT name PASS/FAIL line per checkpoint (pair with --json) |
 | `--stream-settle <value>` | fixed post-drive settle for a streaming surface |
+| `--tap [@N] <value>` | a REAL touch tap (no mouseover, so a hover-only tooltip stays shut); requires --mobile or another touch device |
 | `--upload [@N] <value>` | `selector=path[,path]` — choose file(s) through an input or a trigger's filechooser |
 | `--wait-for [@N] <value>` | selector or text=phrase — wait for a selector to become visible, or for rendered text |
 | `--watch <value>` | per-tick screenshot and re-run of every --eval over a total window (page 0 only) |

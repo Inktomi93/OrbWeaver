@@ -199,6 +199,21 @@ function armValidationPairs(args: Args): ValidationPair[] {
   ];
 }
 
+/** `--tap`'s own door (#2445). A touch tap on a context with no touch support is not a degraded tap — it
+ *  is `locator.tap()` throwing "The page does not support tap" per step, i.e. a whole run of failed steps
+ *  whose SHOTS still look like a drive that happened. The refusal names the device flag because the whole
+ *  point of the verb is that `--click --mobile` is still a MOUSE: it fires pointerenter/mouseover and
+ *  opens hover-only affordances (Base UI's tooltip trigger is `mouseOnly: true`) that a finger cannot. */
+function tapValidationPairs(args: Args): ValidationPair[] {
+  const taps = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "tap").length;
+  return [
+    [
+      taps > 0 && args.device === null,
+      "--tap needs a touch-capable context: pass --mobile (the iPhone 14 Pro Max descriptor carries hasTouch + pointer:coarse). A desktop context has no touchscreen, so every tap would throw. --click is NOT the fallback — it is a mouse dispatch even under --mobile, which is the difference this verb exists to measure",
+    ],
+  ];
+}
+
 function modifierValidationPairs(args: Args, seen: ReadonlySet<string>, scenarioCheckpoint: boolean): ValidationPair[] {
   return [
     [seen.has("--scenario-summary") && args.scenario === null && !scenarioCheckpoint, "--scenario-summary requires --scenario"],
@@ -221,6 +236,7 @@ function validateParsedArgs(args: Args, inheritedSessionBinding: boolean, seen: 
     ...stageKeeperValidationPairs(args),
     ...sessionModeValidationPairs(args, contextsMode),
     ...evidenceValidationPairs(args, producesShot),
+    ...tapValidationPairs(args),
     ...armValidationPairs(args),
     ...filmstripValidationPairs(args),
     ...modifierValidationPairs(args, seen, scenarioCheckpoint),
