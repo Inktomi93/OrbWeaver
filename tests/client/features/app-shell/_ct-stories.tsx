@@ -58,6 +58,10 @@ import { SectionContextHeader, SectionContextHost } from "../../../../packages/c
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
 import { useChatStyle } from "../../../../packages/client/src/features/chat/hooks/use-chat-style.ts";
 import { useMessageAppearance } from "../../../../packages/client/src/features/chat/hooks/use-message-appearance.ts";
+// THE ROOM'S ONE TRACK, the production string (#213 — features/chat/lib/chat-track.ts). Reached the same
+// way `ChatHeaderSurface` is: the shell's centred-child FLIP counter is keyed on the `.orb-chat-track`
+// marker this const carries, so a story that re-spelled the class would prove the spelling, not the rule.
+import { CHAT_TRACK } from "../../../../packages/client/src/features/chat/lib/chat-track.ts";
 import type { ModalSlotId } from "../../../../packages/client/src/state/modal-slot-ids.ts";
 import { openModal, setActiveSection, useActiveSection, useContextTab } from "../../../../packages/client/src/state/shell-store.ts";
 import {
@@ -380,6 +384,41 @@ export function AppShellWidthProbeStory(): ReactElement {
             content: (
               <div style={{ width: "100%" }}>
                 <div className="w-full max-w-(--width-shell-content)" data-testid="width-probe" />
+              </div>
+            ),
+          },
+        }}
+      >
+        <LandOn section="chats" />
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** `AppShellStory` + the ROOM'S OWN TRACK carriers in the chats CONTENT slot: a transcript row and the
+ *  composer, both wearing the production `CHAT_TRACK` string (`.orb-chat-track w-full
+ *  max-w-(--width-shell-content)`, #213). The shell's centred-child FLIP counter (#1646, re-keyed to the
+ *  marker family by #2442) is a CSS rule on that marker, so two boxes that resolve their horizontal
+ *  placement exactly the way production's six carriers do is the whole fixture it needs — this file cannot
+ *  route a real transcript (see app-shell.ct.tsx's #1677 header) and does not have to: the counter's
+ *  subject is the TRACK, not the message.
+ *
+ *  The `data-slot` pair is real too, so the census reads the same two names the live-drive receipt did. */
+export function AppShellChatTrackStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          chats: {
+            content: (
+              <div className="flex w-full flex-col">
+                <div className={CHAT_TRACK} data-slot="message-row" data-testid="track-row">
+                  transcript row
+                </div>
+                <div className={CHAT_TRACK} data-slot="composer" data-testid="track-composer">
+                  composer
+                </div>
               </div>
             ),
           },

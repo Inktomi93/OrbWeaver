@@ -284,6 +284,16 @@
   --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%));
   --list-track-docked: var(--panel-w);
   --context-track-docked: var(--panel-context-w);
+  /* THE CENTRED CHILD'S HONEST DELTA (#1646, re-derived #2442 — the keyframes that read it are "THE THIRD
+   * ALIGNMENT CLASS" below, and its whole derivation is stated there). Pure arithmetic, no side effect,
+   * declared here beside the other two so the FLIP, the SETTLE and the phone cancel all name ONE value.
+   *
+   * THE `100%` IS DELIBERATELY UNRESOLVED HERE. A custom property is a token stream, so the percentage
+   * lands at the USE site — the `.orb-chat-track` box itself, where it is that box's own border-box width
+   * — exactly the way `--content-primacy-deficit`'s `100%` above resolves against the sentinel that
+   * consumes it rather than against this grid. That is the whole mechanism: the delta needs the box's own
+   * width, and this is the one place CSS will hand it over. */
+  --list-track-centre-delta: calc(clamp(0px, 100% + var(--list-track-docked) - var(--width-shell-content), var(--list-track-docked)) / 2);
 }
 .shell-grid[data-context-mode="docked"] {
   --list-track-docked: var(--both-docked-list-track);
@@ -428,29 +438,67 @@
  * shell interactions, e.g. the `data-has-bg-image` rule above). MEASURED (#1316's own receipt, restated):
  * 154px against a 307px track, 154 = 307/2 exactly.
  *
- * HALF-MAGNITUDE, SAME DIRECTION AS THE END-PINNED COUNTER: `[data-slot=message-row]`'s delta is *between*
- * the two edges the other counters answer, so its correction is the topbar trail's own inverse, halved —
- * `calc(var(--list-track-docked) / 2)`, token-backed (`css-length-tokens` sees no new literal). Applies to
+ * HALF-MAGNITUDE, SAME DIRECTION AS THE END-PINNED COUNTER: the centred box's delta is *between* the two
+ * edges the other counters answer, so its correction is the topbar trail's own inverse, halved. Applies to
  * EVERY chatStyle's row, not only the centred skins (`flat`/`hush`/`document`): every row carries
  * `.orb-chat-track` at the article level regardless of its `columnPlacement` (`message-row-variants.ts`'s
  * `bubbleOuter`/`flatOuter`/…), so every row is centred by this exact mechanism and needs this exact
  * counter — the gutterCentred/anchored axis (#1728) is a DIFFERENT, INNER question (where the reading
- * column sits inside its own row) that this outer counter does not touch. */
-@keyframes shell-list-push-in-row-counter {
+ * column sits inside its own row) that this outer counter does not touch.
+ *
+ * ── #2442 (side-eye audit 2026-09-19, docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md) ────
+ * TWO THINGS WERE WRONG WITH THE RULE THAT SHIPPED, AND BOTH WERE MEASURED ON THE LIVE STACK.
+ *
+ * 1. THE SELECTOR NAMED ONE CARRIER OF SIX. `[data-slot=message-row]` is not the centred box — it is one
+ *    box that WEARS the centred box's marker. `CHAT_TRACK` (features/chat/lib/chat-track.ts) is worn by
+ *    the composer, its slash/attachment/drop strips, the above-composer band and the command-argument
+ *    strip as well, all with the identical `max-w-(--width-shell-content)` + auto-margin geometry and
+ *    therefore the identical delta. Un-countered, the composer rode `.shell-main`'s FULL-track translate:
+ *    per-rAF census, `--appearance-preset defaults`, 1280x800 — `composer 437 → 591 → … → 284` against a
+ *    transcript that held still, i.e. the reading column and the composer SHEARED APART by 154px for
+ *    ~190ms on every toggle, in both directions and both appearance arms. CLS cannot see it (a real click
+ *    sets `hadRecentInput`), which is why the shell's own zero-shift test stayed green through it.
+ *    The honest selector is the MARKER, which is what makes this ONE rule instead of six —
+ *    `[data-slot=message-row]` carries it, so the old row rule folds in rather than being replaced.
+ * 2. `--list-track-docked / 2` IS EXACT ONLY WHILE THE CAP IS NOT BINDING. The #1646 derivation says
+ *    "a FIXED-width box centred by auto margins" — and the box is `max-w-(--width-shell-content)`, i.e.
+ *    fixed-width only while the content column is WIDER than that cap. It is not at the owner's own
+ *    appearance: at `--font-scale: 1.25` the dial's floor resolves 922.5px against an 850px docked track,
+ *    so the box is WIDTH-CONSTRAINED while docked (850 → 923 across the toggle) and its honest left-edge
+ *    delta is 207px, not the 170px the halved track applied — a measured 37px residual jump of the
+ *    transcript, on by default for that account. THE #1646 RULING SURVIVES; ITS INPUT CHANGED: the delta
+ *    is still arithmetic and still shell-owned, but the arithmetic is the CLAMPED one. A box whose lead
+ *    margin is `(P - min(P, W)) / 2` moves `(max(P', W) - max(P, W)) / 2` when its parent goes `P → P'`,
+ *    and with `P' - P = Δ` that is `min(Δ, max(0, P' - W)) / 2` — the halved track exactly where the cap
+ *    never binds, LESS where it binds, and ZERO where the box is constrained on both sides.
+ *    `--list-track-centre-delta` (declared with the other two distances above) is that expression, read
+ *    off the box's OWN width: `100%` is `min(P, W)`, which is `P` itself precisely when the cap binds.
+ *
+ * WHAT THIS STILL DOES NOT CANCEL, STATED RATHER THAN HIDDEN (#2442 fork, reported to the orchestrator):
+ * the COLLAPSE direction in the MIXED regime — cap binding while docked, not binding once collapsed. The
+ * animation runs in the post-commit (collapsed) layout, where the box is at its cap and `100%` is `W` for
+ * every parent width ≥ W, so the collapsed parent's width is invisible to the box and `P' - W` is not
+ * derivable. CSS hands a descendant its containing block's width in exactly one place — a percentage on a
+ * property that resolves against the containing block — and `translate` is not one of those properties.
+ * The DOCK direction is exact in every regime (the box is constrained while docked, so `100%` IS `P`), and
+ * the collapse direction is exact wherever the cap binds on both sides or on neither. Closing the last
+ * arm needs a per-carrier frame element in `features/chat` whose own width IS `P` (then the counter is
+ * `calc(50% - max(50% - Δ/2, W/2))`, exact both ways) — a chat-feature change, out of this lane's fence. */
+@keyframes shell-list-push-in-track-counter {
   from {
-    translate: calc(var(--list-track-docked) / 2) 0;
+    translate: var(--list-track-centre-delta) 0;
   }
 }
-@keyframes shell-list-push-out-row-counter {
+@keyframes shell-list-push-out-track-counter {
   from {
-    translate: calc(-1 * var(--list-track-docked) / 2) 0;
+    translate: calc(-1 * var(--list-track-centre-delta)) 0;
   }
 }
-.shell-grid[data-list-flip="in"] [data-slot="message-row"] {
-  animation: shell-list-push-in-row-counter var(--shell-motion) var(--shell-ease);
+.shell-grid[data-list-flip="in"] .orb-chat-track {
+  animation: shell-list-push-in-track-counter var(--shell-motion) var(--shell-ease);
 }
-.shell-grid[data-list-flip="out"] [data-slot="message-row"] {
-  animation: shell-list-push-out-row-counter var(--shell-motion) var(--shell-ease);
+.shell-grid[data-list-flip="out"] .orb-chat-track {
+  animation: shell-list-push-out-track-counter var(--shell-motion) var(--shell-ease);
 }
 
 /* ── THE REDUCED-MOTION SETTLE (#262) — the FLIP's physics without the FLIP ───────────────────────────
@@ -490,14 +538,16 @@
   translate: calc(-1 * var(--list-track-docked)) 0;
 }
 /* …and the CENTRED counter (#1646) rides the settle for the same reason: the held frame is the FLIP's
- * `from` corner, so it holds every row's centred track at half the docked distance outside its resting
- * position too — a one-painted-frame sideways jump of the whole transcript for exactly the users who asked
- * for less motion. Static, no duration, released by the same attribute drop. */
-.shell-grid[data-list-settle="in"] [data-slot="message-row"] {
-  translate: calc(var(--list-track-docked) / 2) 0;
+ * `from` corner, so it holds every centred track outside its resting position too — a one-painted-frame
+ * sideways jump of the whole transcript AND of the composer under the reader's hands, for exactly the
+ * users who asked for less motion. Static, no duration, released by the same attribute drop. Same marker
+ * family and same clamped distance as the FLIP arm above (#2442): the settle IS the FLIP's `from` corner
+ * held still, so a second spelling of the distance here is a second thing to drift. */
+.shell-grid[data-list-settle="in"] .orb-chat-track {
+  translate: var(--list-track-centre-delta) 0;
 }
-.shell-grid[data-list-settle="out"] [data-slot="message-row"] {
-  translate: calc(-1 * var(--list-track-docked) / 2) 0;
+.shell-grid[data-list-settle="out"] .orb-chat-track {
+  translate: calc(-1 * var(--list-track-centre-delta)) 0;
 }
 
 /* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
@@ -1229,12 +1279,27 @@
   /* NO FLIP ON A PHONE. The grid is ONE column here and every panel is `position: fixed` over it, so a
    * docking LIST never moves CONTENT — the counter-translate would be a 272px slide of a column that did
    * not go anywhere. The stamping hook is regime-blind on purpose (it reports the MODE change; what that
-   * change costs in layout is a CSS question), so the arm that owns the geometry cancels it here. */
+   * change costs in layout is a CSS question), so the arm that owns the geometry cancels it here.
+   *
+   * IT CANCELS AT THE SPECIFICITY IT IS CANCELLING, AND CANCELS BOTH PROPERTIES (#2442). Three of these
+   * four clauses won their contest on source order at EQUAL specificity; the panel's did not. The panel's
+   * own FLIP rule is `.shell-grid[data-list-flip="in"] .shell-panel[data-panel-side="list"][data-panel-mode="docked"]`
+   * — FIVE simple selectors against the four this clause used to spell — so `shell-list-panel-in` kept
+   * running here, and because that keyframe animates `translate` while this arm's own panel rule
+   * transitions `transform`, the two COMPOSED instead of overriding: MEASURED at 430x740, per-rAF x of the
+   * docking list panel ran `-430 → -860 → -516 → -301 → … → 0`, i.e. the sheet entered from TWO panel
+   * widths out and played the first half of an expo ease-out entirely off-screen. `[data-panel-mode]`
+   * (mode-blind, so it covers `docked` and anything else that ever animates) brings this clause to five
+   * and source order finishes the job; `translate: none` is stated beside `animation: none` so a future
+   * keyframe on either property cannot re-open the composition. The `.orb-chat-track` clause is the #2442
+   * marker family, the same swap the FLIP counter above made — a phone's transcript and composer do not
+   * move when the list toggles, so neither may be countered. */
   .shell-grid[data-list-flip] .shell-main,
   .shell-grid[data-list-flip] .shell-topbar-trail,
-  .shell-grid[data-list-flip] [data-slot="message-row"],
-  .shell-grid[data-list-flip] .shell-panel[data-panel-side="list"] {
+  .shell-grid[data-list-flip] .orb-chat-track,
+  .shell-grid[data-list-flip] .shell-panel[data-panel-side="list"][data-panel-mode] {
     animation: none;
+    translate: none;
   }
   /* …and the reduced-motion SETTLE (#262) is cancelled here for the same reason and by the same argument:
    * the hook is regime-blind, so on a phone its one-frame hold would translate a column that never moved.
@@ -1242,7 +1307,7 @@
    * rows do not move when the list panel toggles (it is `position: fixed` over CONTENT, not a track). */
   .shell-grid[data-list-settle] .shell-main,
   .shell-grid[data-list-settle] .shell-topbar-trail,
-  .shell-grid[data-list-settle] [data-slot="message-row"] {
+  .shell-grid[data-list-settle] .orb-chat-track {
     translate: none;
   }
   /* The SAME rail DOM reflows into the bottom tab bar: the column becomes a row, the nav-group / footer

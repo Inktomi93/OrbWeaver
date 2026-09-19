@@ -40,6 +40,7 @@ import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture
 import {
   AppShellChatsProjectionIntentStory,
   AppShellChatTopbarIdentityStory,
+  AppShellChatTrackStory,
   AppShellDropGuardStory,
   AppShellListPrimaryStory,
   AppShellMobileRuleStory,
@@ -3286,6 +3287,15 @@ test("#1646 the centred-row counter's keyframe is exactly half of .shell-main's 
   await page.locator(".shell-main").evaluate((main) => {
     const row = document.createElement("div");
     row.setAttribute("data-slot", "message-row");
+    // THE MARKER IS THE SUBJECT (#2442): the counter is keyed on `.orb-chat-track` — the class every
+    // `CHAT_TRACK` carrier wears, `[data-slot=message-row]` included — so a fabricated row without it is
+    // no longer a row the rule can see. The real transcript row carries both.
+    row.className = "orb-chat-track";
+    // …AND THE MARKER'S OWN WIDTH HALF, which `CHAT_TRACK` spells as `w-full`. It is load-bearing now that
+    // the counter reads the box's own width: `.orb-chat-track`'s `margin-inline-end: auto` cancels a flex
+    // item's cross-axis stretch, so a fabricated EMPTY div measures 0 wide, the clamped delta correctly
+    // resolves to 0, and the row reads back exactly like a rule that never matched (measured here).
+    row.style.width = "100%";
     row.setAttribute("data-fixture", "pcp-1646-fab-row");
     main.appendChild(row);
   });
@@ -3306,6 +3316,7 @@ test("#1646 the centred-row counter's keyframe is exactly half of .shell-main's 
     return !running && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
   });
 
+  const counters: { in: string | null; out: string | null } = { in: null, out: null };
   for (const direction of ["in", "out"] as const) {
     const { mainRaw, rowRaw } = await page.locator(".shell-grid").evaluate((grid, dir) => {
       // FORCE THE MATCH-STATE TRANSITION (post-#1741): the regime seed's own mount-time FLIP can leave
@@ -3336,19 +3347,26 @@ test("#1646 the centred-row counter's keyframe is exactly half of .shell-main's 
       return match?.[1] === undefined ? null : Number(match[1]);
     };
     const mainPx = leadingPx(mainRaw);
-    const rowPx = leadingPx(rowRaw);
     expect(mainPx, `.shell-main must carry a FLIP keyframe on the "${direction}" arm, got ${String(mainRaw)}`).not.toBeNull();
-    expect(rowPx, `the fabricated row must carry a counter keyframe on the "${direction}" arm, got ${String(rowRaw)}`).not.toBeNull();
+    expect(rowRaw, `the marker-bearing box must carry a counter keyframe on the "${direction}" arm`).not.toBeNull();
     expect(Math.abs(mainPx ?? 0), "the FLIP distance must be a real track width, not zero").toBeGreaterThan(100);
-    // OPPOSITE SIGN, HALF MAGNITUDE: composed with .shell-main's own translate, a row centred at rest before
-    // the toggle would sit at `main + row = main/2` for that first frame — the honest half-track delta the
-    // #1316 receipt measured, never zero (the OLD, un-recentring behaviour) and never a full track (the bug
-    // the #1316 comment on the trail already named: riding the full counter "did not cancel motion, it
-    // MANUFACTURED it").
-    expect(Math.round((rowPx ?? 0) * 2), `row keyframe must be exactly half of main's, opposite sign: main ${mainRaw}, row ${rowRaw}`).toBe(
-      -Math.round(mainPx ?? 0),
-    );
+    // THE COUNTER IS NO LONGER A PLAIN PIXEL DISTANCE, AND THAT IS #2442's WHOLE POINT. Its magnitude is
+    // `--list-track-centre-delta` — a clamp whose `100%` is the box's OWN width, so the browser keeps it
+    // symbolic in the authored keyframe (`calc(0.5 * clamp(0px, 100% - 461px, 307px))`) and resolves it at
+    // used-value time. So the arithmetic claim moved to where it can be MEASURED: the resolved held corner
+    // is the settle test immediately below, and the rendered first-painted-frame is the #2442 census. What
+    // is left here — and what only this test can see, because a running animation's computed style is
+    // whatever frame Playwright caught — is the PAIR contract: both arms carry an authored counter, and the
+    // two are exact inverses by construction rather than by two expressions happening to agree.
+    counters[direction] = rowRaw;
   }
+  const inCounter = counters.in;
+  const outCounter = counters.out;
+  expect(inCounter, "the in arm must have been read").not.toBeNull();
+  expect(outCounter, "the out arm must have been read").not.toBeNull();
+  expect((inCounter ?? "").replace("0.5 *", "-0.5 *"), `the two arms must be exact inverses: in ${String(inCounter)}, out ${String(outCounter)}`).toBe(
+    outCounter,
+  );
 });
 
 // THE REDUCED-MOTION SETTLE (#262) TWIN — the CSS-contract style the #1316 settle test above uses: the
@@ -3362,6 +3380,9 @@ test("#1646 the reduced-motion SETTLE holds the fabricated row at exactly half t
   await page.locator(".shell-main").evaluate((main) => {
     const row = document.createElement("div");
     row.setAttribute("data-slot", "message-row");
+    // The marker and its width half, for the reasons the FLIP twin above states (#2442).
+    row.className = "orb-chat-track";
+    row.style.width = "100%";
     row.setAttribute("data-fixture", "pcp-1646-fab-row-settle");
     main.appendChild(row);
   });
@@ -3386,34 +3407,372 @@ test("#1646 the reduced-motion SETTLE holds the fabricated row at exactly half t
     return !running && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
   });
 
-  const heldTranslates = (direction: "in" | "out"): Promise<{ main: string; row: string }> =>
-    grid.evaluate((el, value) => {
+  // MEASURED, NOT PARSED (#2442). The held corner used to be a literal `calc(var(--list-track-docked)/2)`
+  // that `getComputedStyle().translate` served as plain pixels; its magnitude is now the clamped
+  // `--list-track-centre-delta`, whose `100%` the browser resolves against the box at USED-value time and
+  // keeps SYMBOLIC in the computed value (`calc(0.5 * clamp(0px, 100% - 461px, 307px))`). The rendered
+  // offset is the honest subject anyway — both rects either side of the planted attribute, in ONE evaluate,
+  // so the two can never be sampled against different `--list-track-docked` values (the #242-squeeze race
+  // this test was minted for).
+  //
+  // ACROSS A PAINTED FRAME, and that is not a wall-clock guess: a PERCENTAGE transform is resolved in the
+  // compositing update, not in the layout `getBoundingClientRect` forces, so reading the rect in the same
+  // task reported the parent's `-307` with the box's own `+153.5` missing entirely (measured here — and it
+  // reads exactly like a rule that did not match, which is the trap). Two rAFs is the settle's OWN lifetime
+  // (`settleWithoutMotion`'s docblock states why two), so this samples the frame the user actually sees.
+  const heldTranslates = (direction: "in" | "out"): Promise<{ main: number; row: number }> =>
+    grid.evaluate(async (el, value) => {
+      const box = (selector: string): number => document.querySelector(selector)?.getBoundingClientRect().x ?? Number.NaN;
+      const before = { main: box(".shell-main"), row: box('[data-fixture="pcp-1646-fab-row-settle"]') };
       el.setAttribute("data-list-settle", value);
-      const read = (selector: string): string => {
-        const target = document.querySelector(selector);
-        return target === null ? "absent" : getComputedStyle(target).translate;
-      };
-      const pair = { main: read(".shell-main"), row: read('[data-fixture="pcp-1646-fab-row-settle"]') };
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
+        });
+      });
+      const after = { main: box(".shell-main"), row: box('[data-fixture="pcp-1646-fab-row-settle"]') };
       el.removeAttribute("data-list-settle");
-      return pair;
+      return { main: after.main - before.main, row: after.row - before.row };
     }, direction);
-
-  const offset = (value: string): number | null => {
-    const px = /^(-?[\d.]+)px/.exec(value);
-    return px?.[1] === undefined ? null : Number(px[1]);
-  };
 
   for (const direction of ["in", "out"] as const) {
     const held = await heldTranslates(direction);
-    const mainOffset = offset(held.main);
-    const rowOffset = offset(held.row);
-    expect(mainOffset, `the settle must hold .shell-main on the "${direction}" arm, got ${held.main}`).not.toBeNull();
-    expect(rowOffset, `the settle must hold the fabricated row on the "${direction}" arm, got ${held.row}`).not.toBeNull();
-    expect(Math.abs(mainOffset ?? 0), "the held corner must be a real track width, not zero").toBeGreaterThan(100);
-    expect(Math.round((rowOffset ?? 0) * 2), `row must be held at exactly half the inverse of main: main ${held.main}, row ${held.row}`).toBe(
-      -Math.round(mainOffset ?? 0),
-    );
+    expect(Math.abs(held.main), `the held corner must be a real track width, not zero — main ${held.main}, row ${held.row}`).toBeGreaterThan(100);
+    // THE ROW'S OWN OFFSET IS THE DIFFERENCE, because the row is a CHILD of `.shell-main` and its rect
+    // carries the parent's held corner too — a rendered read, unlike the computed-style pair this used to
+    // compare, has to subtract the parent out before it can speak about the counter.
+    const rowOwn = held.row - held.main;
+    // HALF THE INVERSE, still — the fabricated box is UNCONSTRAINED here (no `max-w`, and the content
+    // column is wider than the dial at this viewport), which is exactly the regime where #2442's clamped
+    // delta IS half the track. The constrained regime is measured in the #2442 fontScale test.
+    expect(Math.round(rowOwn * 2), `row must be held at exactly half the inverse of main: main ${held.main}, row own ${rowOwn}`).toBe(-Math.round(held.main));
+    // …and composed, that is the honest HALF-track corner the transcript is actually held at.
+    expect(Math.round(held.row * 2), `composed, the row must sit at half the track: main ${held.main}, row ${held.row}`).toBe(Math.round(held.main));
   }
+});
+
+// ── #2442: THE COUNTER NAMES A MARKER FAMILY, AND ITS MAGNITUDE IS THE CLAMPED DELTA ────────────────
+// Side-eye live drive 2026-09-19 (docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md, AUDIT 1).
+// #1646 countered `[data-slot=message-row]`, which is ONE of the six boxes that wear `CHAT_TRACK` — the
+// room's one centred track (features/chat/lib/chat-track.ts). The composer wears it too, was not
+// countered, and therefore rode `.shell-main`'s FULL-track translate: per-rAF census at 1280x800,
+// `composer 437 → 591 → … → 284` while the transcript directly above it held still — a 154px shear
+// between the reading column and the control the user is about to touch, on every toggle, both
+// directions. CLS is structurally blind to it (a real click sets `hadRecentInput`), which is why the
+// zero-shift test two blocks up stayed green through the whole thing.
+//
+// THE RECEIPT IS THE SAME PER-rAF `getBoundingClientRect` CENSUS THE LIVE DRIVE USED, and the shape of
+// the assertion is #1316's corridor: a centred box legitimately TRAVELS across the FLIP (437 → 284), so
+// what is a defect is leaving the corridor between its old and new resting positions. Pre-fix the
+// composer's first painted frame is 154px OUTSIDE it.
+//
+// FABRICATED CONTENT, REAL GEOMETRY: `AppShellChatTrackStory` puts two boxes wearing the production
+// `CHAT_TRACK` string in the chats CONTENT slot. This file cannot route a real transcript (#1677 header),
+// and does not need to — the counter's subject is the TRACK, and these two resolve their horizontal
+// placement through exactly the rule the six production carriers do.
+
+/** The x of the three boxes this block judges plus `.shell-main`'s WIDTH, read in ONE round trip so they
+ *  can never be a frame apart. The width is what names the FIRST PAINTED FRAME of the flip: every x in
+ *  that frame is HELD at the FLIP's `from` corner by construction (that is the whole mechanism), so x
+ *  cannot say when the track changed — the resize can. */
+function readTrackXs(page: Page): Promise<{ main: number; mainWidth: number; row: number; composer: number }> {
+  return page.evaluate(() => {
+    const x = (selector: string): number => {
+      const el = document.querySelector(selector);
+      return el === null ? Number.NaN : Math.round(el.getBoundingClientRect().x);
+    };
+    const mainEl = document.querySelector(".shell-main");
+    return {
+      main: x(".shell-main"),
+      mainWidth: mainEl === null ? Number.NaN : Math.round(mainEl.getBoundingClientRect().width),
+      row: x('[data-testid="track-row"]'),
+      composer: x('[data-testid="track-composer"]'),
+    };
+  });
+}
+
+/** THE FLIP'S OWN CONTRACT, asserted on the frame it is about: in the first frame painted after the track
+ *  resized, every centred carrier must still be where the user last saw it (±2px for the lead margin's
+ *  `round(down, …, 1px)`). Returns the ring rendered for the failure message. */
+function assertHeldFromCorner(
+  samples: readonly { main: number; mainWidth: number; row: number; composer: number }[],
+  rest: { main: number; mainWidth: number; row: number; composer: number },
+  leg: string,
+): void {
+  const ring = samples.map((s) => `${s.main}:${s.mainWidth}/${s.row}/${s.composer}`).join(" ");
+  expect(samples.length, `the rAF sampler must have run on "${leg}" — an empty ring proves nothing`).toBeGreaterThan(2);
+  // NON-VACUITY, and the reason the width is sampled at all: the ring must actually STRADDLE the resize,
+  // or "the first flipped frame" names nothing and every assertion below is about a resting layout.
+  const flipIndex = samples.findIndex((sample) => Math.abs(sample.mainWidth - rest.mainWidth) > 2);
+  expect(flipIndex, `the ring must contain the frame the track resized in on "${leg}" — ring ${ring}`).toBeGreaterThan(-1);
+  const flipped = samples[flipIndex];
+  expect(flipped, `sample ${flipIndex} must exist — ring ${ring}`).toBeDefined();
+  for (const box of ["row", "composer"] as const) {
+    expect(
+      Math.abs((flipped?.[box] ?? Number.NaN) - rest[box]),
+      `${box} moved on the first painted frame of "${leg}" (rest ${rest[box]}) — ring ${ring}`,
+    ).toBeLessThanOrEqual(2);
+  }
+}
+
+/** A bounded per-frame sampler over the same three boxes — rAF, not a poll: the excursion is ONE painted
+ *  frame wide at its start, so anything slower than the frame clock samples past the very thing it judges.
+ *  Installed BEFORE the click so the first flipped frame is in the ring. */
+function installTrackSampler(page: Page): Promise<void> {
+  return page.evaluate(() => {
+    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this block alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const bag = globalThis as unknown as { __trackXs: { main: number; mainWidth: number; row: number; composer: number }[] };
+    bag.__trackXs = [];
+    const main = document.querySelector(".shell-main");
+    const row = document.querySelector('[data-testid="track-row"]');
+    const composer = document.querySelector('[data-testid="track-composer"]');
+    const tick = (): void => {
+      if (main === null || row === null || composer === null || bag.__trackXs.length > 60) {
+        return;
+      }
+      const mainBox = main.getBoundingClientRect();
+      bag.__trackXs.push({
+        main: Math.round(mainBox.x),
+        mainWidth: Math.round(mainBox.width),
+        row: Math.round(row.getBoundingClientRect().x),
+        composer: Math.round(composer.getBoundingClientRect().x),
+      });
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+/** Read the ring ONCE — a poll over a shared array drains the samples it is judging. */
+function readTrackSamples(page: Page): Promise<{ main: number; mainWidth: number; row: number; composer: number }[]> {
+  // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  return page.evaluate(() => (globalThis as unknown as { __trackXs: { main: number; mainWidth: number; row: number; composer: number }[] }).__trackXs);
+}
+
+/** BARRIER ON THE SETTLED DOCK, two conditions in ONE read (#1316's corridor test, verbatim): nothing is
+ *  animating AND `.shell-main`'s start edge sits exactly on the docked panel's end edge. Geometry alone
+ *  races the regime seed's own mount-time FLIP; the attribute alone lands a frame before the relayout. */
+function waitForSettledDock(page: Page): Promise<unknown> {
+  return page.waitForFunction(() => {
+    const mainEl = document.querySelector(".shell-main");
+    const panelEl = document.querySelector('.shell-panel[data-panel-side="list"]');
+    if (mainEl === null || panelEl === null) {
+      return false;
+    }
+    const running = [...mainEl.getAnimations(), ...panelEl.getAnimations()].some((a) => a.playState === "running");
+    return !running && Math.round(mainEl.getBoundingClientRect().x) === Math.round(panelEl.getBoundingClientRect().right);
+  });
+}
+
+/** Past the motion itself, so an "end" read is a RESTING position and not a mid-animation sample. */
+function waitForFlipToStop(page: Page): Promise<unknown> {
+  return page.waitForFunction(() => {
+    const nodes = [
+      document.querySelector(".shell-main"),
+      document.querySelector('[data-testid="track-composer"]'),
+      document.querySelector('[data-testid="track-row"]'),
+    ];
+    return !nodes.some((node) => (node?.getAnimations() ?? []).some((a) => a.playState === "running"));
+  });
+}
+
+test("#2442 no .orb-chat-track carrier leaves its FLIP corridor — the composer counts, in BOTH directions", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "no-preference"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+  const shell = await mount(<AppShellChatTrackStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  // The landed section is the premise, asserted before the mode (see the fontScale twin below for the
+  // measured failure mode a missing section barrier produces — the HOME pane, which HAS no list).
+  await expect.poll(() => page.locator(".shell-grid").getAttribute("data-section"), { intervals: [50, 100, 200, 400, 800, 1600, 3200] }).toBe("chats");
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await waitForSettledDock(page);
+
+  // THE PREMISE: both carriers ARE the same centred box — same track, same delta. If they ever stop
+  // sharing it, the single counter rule below is the wrong shape and this test must be re-derived.
+  const docked = await readTrackXs(page);
+  expect(docked.row, `both carriers must share the room's ONE track — row ${docked.row}, composer ${docked.composer}`).toBe(docked.composer);
+
+  for (const leg of [
+    { button: "Hide list panel", mode: "collapsed" },
+    { button: "Show list panel", mode: "docked" },
+  ] as const) {
+    const rest = await readTrackXs(page);
+    await installTrackSampler(page);
+    await shell.getByRole("button", { name: leg.button }).click();
+    await expect(listPanel).toHaveAttribute("data-panel-mode", leg.mode);
+    // BARRIER ON THE SETTLED RENDER, never on the attribute: the mode lands a frame or more before the
+    // grid is re-laid out at the new track, and the animation runs for `--shell-motion` after that.
+    await expect.poll(async () => (await readTrackXs(page)).main, { intervals: [50, 100, 200, 300] }).not.toBe(rest.main);
+    await waitForFlipToStop(page);
+    const end = await readTrackXs(page);
+    const samples = await readTrackSamples(page);
+
+    const ring = samples.map((s) => `${s.main}:${s.mainWidth}/${s.row}/${s.composer}`).join(" ");
+    // NON-VACUITY: a no-op toggle would make every corridor a point and pass this whole loop trivially.
+    expect(Math.abs(end.main - rest.main), `the track must really change on "${leg.button}" — ring ${ring}`).toBeGreaterThan(100);
+    // ARM 1 — the FLIP's own promise, on the frame it is about.
+    assertHeldFromCorner(samples, rest, leg.button);
+
+    // ARM 2 — and nothing leaves the corridor between the two resting positions afterwards either. This is
+    // the arm the un-countered composer failed by 154px; it is kept beside ARM 1 because a counter of the
+    // WRONG SIGN would hold the first frame and then travel outside the corridor to get back.
+    for (const box of ["row", "composer"] as const) {
+      const low = Math.min(rest[box], end[box]) - 2;
+      const high = Math.max(rest[box], end[box]) + 2;
+      const strays = samples.map((sample) => sample[box]).filter((x) => x < low || x > high);
+      expect(strays, `${box} left its ${low}…${high} corridor on "${leg.button}": ${strays.join(", ")} — ring ${ring}`).toEqual([]);
+    }
+  }
+});
+
+// ── #2442 / A1-3: the CLAMPED delta, at the appearance the owner actually runs ───────────────────────
+// `--list-track-docked / 2` is the honest delta only while the docked content column is WIDER than
+// `--width-shell-content` — i.e. while the box really is the fixed-width box #1646's derivation names. At
+// `--font-scale: 1.25` the dial's own floor (46.125rem) resolves 922.5px against an ~850px docked track,
+// so the box is WIDTH-CONSTRAINED while docked: its width changes with the track and its left-edge delta
+// is the track MINUS that width change, which the halved track over-applies (measured live: a 37px
+// residual jump of the transcript on every collapse).
+//
+// THIS IS THE DOCK DIRECTION, AND THAT IS NOT A CONVENIENCE. The counter is derived from the box's own
+// width, and `100%` is the containing block's width precisely when the cap binds — which is the DOCKED
+// state. Collapsing from the same regime lands the box at its cap, where the collapsed parent's width is
+// invisible to it; that arm is shell.css's stated #2442 fork and is deliberately not asserted here rather
+// than pinned at a wrong value.
+test("#2442 at fontScale 1.25 the docking counter is the box's CLAMPED delta, not half the track", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "no-preference"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_shell_track_scale",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale: 1.25 } },
+      updatedAt: 0,
+    }),
+  });
+  const shell = await mount(<AppShellChatTrackStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  // BARRIER ON THE LANDED SECTION FIRST. With the settings read stubbed, the shell's boot can hold the
+  // story's `LandOn` commit past the default expect timeout — measured once here, reading back the HOME
+  // pane (`aria-label="Home list"`, `data-panel-available="false"`, i.e. a section with no LIST at all),
+  // which looks exactly like a panel that refused to dock. The section is the premise; the mode is the
+  // subject, and they are asserted in that order.
+  await expect.poll(() => page.locator(".shell-grid").getAttribute("data-section"), { intervals: [50, 100, 200, 400, 800, 1600, 3200] }).toBe("chats");
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect
+    .poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)), { intervals: [20, 50, 100] })
+    .toBeCloseTo(UA_ROOT_PX * 1.25, 0);
+  await waitForSettledDock(page);
+
+  /** The rendered width of the centred box — the thing that decides which regime it is in. */
+  const trackWidth = (): Promise<number> =>
+    page.evaluate(() => Math.round(document.querySelector('[data-testid="track-composer"]')?.getBoundingClientRect().width ?? Number.NaN));
+  const dockedWidth = await trackWidth();
+
+  await shell.getByRole("button", { name: "Hide list panel" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await waitForFlipToStop(page);
+  // THE REGIME PREMISE, and the reason this test is not a duplicate of the one above: at this font scale
+  // the box is CONSTRAINED while docked, so it GROWS when the track goes away. Equal widths here would
+  // mean the cap never binds and the clamped delta collapses back to half the track — a vacuous pass.
+  const collapsedWidth = await trackWidth();
+  expect(collapsedWidth, `the cap must bind while docked — docked ${dockedWidth}, collapsed ${collapsedWidth}`).toBeGreaterThan(dockedWidth + 2);
+
+  const rest = await readTrackXs(page);
+  await installTrackSampler(page);
+  await shell.getByRole("button", { name: "Show list panel" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect.poll(async () => (await readTrackXs(page)).main, { intervals: [50, 100, 200, 300] }).not.toBe(rest.main);
+  await waitForFlipToStop(page);
+  const end = await readTrackXs(page);
+  const samples = await readTrackSamples(page);
+
+  const ring = samples.map((s) => `${s.main}:${s.mainWidth}/${s.row}/${s.composer}`).join(" ");
+  expect(Math.abs(end.main - rest.main), `the track must really change — ring ${ring}`).toBeGreaterThan(100);
+  assertHeldFromCorner(samples, rest, "Show list panel");
+  for (const box of ["row", "composer"] as const) {
+    const low = Math.min(rest[box], end[box]) - 2;
+    const high = Math.max(rest[box], end[box]) + 2;
+    const strays = samples.map((sample) => sample[box]).filter((x) => x < low || x > high);
+    expect(strays, `${box} left its ${low}…${high} corridor while docking at rem 20: ${strays.join(", ")} — ring ${ring}`).toEqual([]);
+  }
+});
+
+// ── #2442 / A1-2: NO FLIP ON A PHONE means the PANEL too ─────────────────────────────────────────────
+// The mobile block says "NO FLIP ON A PHONE" in as many words and cancels four selectors. Three of them
+// won their specificity contest at equal weight on source order. The panel's did not: its own FLIP rule
+// carries `[data-panel-mode="docked"]` as a fifth simple selector, so `shell-list-panel-in` kept running
+// at coarse — and because that keyframe animates `translate` while the phone arm's panel rule transitions
+// `transform`, the two COMPOSED. Measured live at 430x740: the docking sheet's first painted frame sat at
+// -860, TWO panel widths off-canvas, and the first half of an expo ease-out played off-screen.
+//
+// TWO ARMS, both against the REAL mobile dock the ONE-SHELL rule produces (a selection pushes CONTENT, the
+// back door docks the roster again) — no planted attribute, because the hook stamps a real `data-list-flip`
+// on this very transition and that is the thing under test.
+test("#2442 the phone's docking list sheet never enters from beyond its own width, and runs no FLIP animation", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  await emulateMediaFeatures(page, [
+    ["prefers-reduced-motion", "no-preference"],
+    ["prefers-reduced-transparency", "no-preference"],
+    ["prefers-contrast", "no-preference"],
+  ]);
+  const shell = await mount(<AppShellMobileRuleStory section="chats" />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  // Push the detail so the roster leaves the screen — the state the back door docks OUT of.
+  await shell.getByRole("button", { name: "open a member" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await page.waitForFunction(
+    () => !(document.querySelector('.shell-panel[data-panel-side="list"]')?.getAnimations() ?? []).some((a) => a.playState === "running"),
+  );
+
+  const panelWidth = Math.round((await listPanel.boundingBox())?.width ?? 0);
+  expect(panelWidth, "the phone sheet must be a real full-viewport width").toBeGreaterThan(100);
+
+  await page.evaluate(() => {
+    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this test alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const bag = globalThis as unknown as { __panelXs: number[] };
+    bag.__panelXs = [];
+    const panel = document.querySelector('.shell-panel[data-panel-side="list"]');
+    const tick = (): void => {
+      if (panel === null || bag.__panelXs.length > 60) {
+        return;
+      }
+      bag.__panelXs.push(Math.round(panel.getBoundingClientRect().x));
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+  await shell.getByRole("button", { name: "Back to Chats" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  // ARM 1, sampled while the transition is still live: with the cancel out-specified the rule matches and
+  // the computed name is the keyframe's. Read through `expect.poll` over the whole settle so the sample is
+  // never a race — the value is a CSS FACT for as long as the rule matches, not a frame-width event.
+  const animationNames = await page.locator('.shell-panel[data-panel-side="list"]').evaluate((el) => getComputedStyle(el).animationName);
+  expect(animationNames, "the phone arm must cancel the list panel's own FLIP entrance").toBe("none");
+
+  await page.waitForFunction(
+    () => !(document.querySelector('.shell-panel[data-panel-side="list"]')?.getAnimations() ?? []).some((a) => a.playState === "running"),
+  );
+  // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const samples = await page.evaluate(() => (globalThis as unknown as { __panelXs: number[] }).__panelXs);
+  expect(samples.length, "the rAF sampler must have run — an empty ring proves nothing").toBeGreaterThan(2);
+  // ARM 2, the user-visible half: the sheet travels from ONE width off-canvas to 0. Anything beyond that
+  // is the composed `translate` — off-screen travel the reader waits through.
+  const strays = samples.filter((x) => x < -panelWidth - 2 || x > 2);
+  expect(strays, `the phone sheet entered from beyond its own width (${panelWidth}): ${strays.join(", ")} — ring ${samples.join(" ")}`).toEqual([]);
 });
 
 // ── #262: skipping the FLIP was right; letting the RAW SHIFT through was the unexamined half ────────
