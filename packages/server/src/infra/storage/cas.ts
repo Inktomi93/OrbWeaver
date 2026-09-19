@@ -1,9 +1,24 @@
 // Per-user content-addressed blob store (CAS): a sealed filesystem adapter keyed by sha-256, sharded as
 // <root>/<owner>/<ab>/<cd>/<hash> (no cross-user dedup, ownership gated above this adapter). Writes are
 // crash-atomic on platforms that support directory fsync: temp file under rootDir → fsync fd → rename →
-// fsync dir. Windows does not consistently permit opening or syncing directories, so EISDIR/EPERM/ENOTSUP
-// THERE is the one explicit durability downgrade; every other file, stat, directory-read, sync, and close
-// failure propagates, on every platform.
+// fsync dir.
+//
+// THE DIRECTORY-FSYNC DOWNGRADE (owner ruling 2026-09-19, #2410 — this paragraph REPLACES the win32-only
+// fence this header used to record). The fence said: EISDIR/EPERM/ENOTSUP is tolerated on win32 and every
+// other platform propagates, because a supported platform's failure invalidates the crash-durable verdict.
+// That reasoning survives for a REAL I/O fault and is why EIO/EACCES/ENOSPC still reject the put. What it
+// got wrong is ENOTSUP: a FUSE mount, a network filesystem and some macOS volumes answer "this filesystem
+// has no directory fsync" with ENOTSUP on a perfectly healthy box, and refusing the write there buys no
+// durability — it only makes the asset store unusable. So ENOTSUP now downgrades the DIR-ENTRY durability
+// guarantee on EVERY platform, with ONE structured warn per process (a module latch — the alternative is a
+// per-write log flood on a box where every write hits it). EISDIR/EPERM stay win32-scoped, exactly as
+// before: those are how a Windows directory handle refuses, and treating them as a filesystem capability
+// statement elsewhere would silence a genuine permission fault.
+//
+// The downgrade is narrow: only the PARENT-DIRECTORY entry loses its durability guarantee. The blob bytes
+// are still fsynced to disk before the rename, and the rename itself is still atomic — a crash can lose the
+// fact that the name exists, never a half-written blob under a name that does. Every other file, stat,
+// directory-read, sync, and close failure propagates, on every platform.
 
 import { randomBytes } from "node:crypto";
 import type { Dirent } from "node:fs";
@@ -12,6 +27,7 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
+import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#kit/content-hash";
 
 export interface PutResult {
@@ -103,20 +119,36 @@ async function* walkOwners(rootDir: string): AsyncGenerator<string> {
   }
 }
 
-// Windows does not consistently support opening directories for fsync, nor syncing the handle once open.
-// That platform-only limitation is explicit; supported-platform open/sync/close failures invalidate the
-// crash-durable write verdict.
+// "This filesystem cannot fsync a directory" — a CAPABILITY statement, not a fault. ENOTSUP says it on
+// every platform (FUSE / network mounts / some macOS volumes); Windows says it as EISDIR or EPERM from the
+// open or the sync, and ONLY Windows, so those two stay platform-fenced (elsewhere they are a real
+// permission fault, which must still reject the put).
+function isDirSyncUnsupported(error: unknown): boolean {
+  return errnoIs(error, "ENOTSUP") || (process.platform === "win32" && (errnoIs(error, "EISDIR") || errnoIs(error, "EPERM")));
+}
+
+// ASSUMES(single-replica): a per-PROCESS latch over a per-PROCESS log stream. It exists only to keep one
+// box's log from repeating the same filesystem-capability sentence on every asset write; a second replica
+// SHOULD say it once too (its operator reads its own log), and a restart re-announcing it is correct, not a
+// bug. Nothing reads it back, so there is nothing for durable state to hold.
+let dirSyncUnsupportedAnnounced = false;
+
+// @orb-waive caught-failure-ownership(error): the ONLY absorbed arm is `isDirSyncUnsupported` — a filesystem CAPABILITY statement, not a fault — and its owner is the operator, told once per process by the structured warn below (the latch is deliberate: on an unsupporting mount every write hits this, and a per-write line would bury the notice it is trying to deliver). Every other errno RE-THROWS on the line above, so a real I/O or permission fault still rejects the put. Owner ruling 2026-09-19, #2410. Ends if the dir-entry fsync becomes required for correctness rather than crash-durability, or if the notice gains a caller-visible result.
 async function fsyncDir(dir: string): Promise<void> {
   try {
     await using handle = await open(dir, "r");
     await handle.sync();
   } catch (error) {
-    // ENOTSUP joins EISDIR/EPERM because a Windows directory handle can refuse the sync itself, not only
-    // the open; the PLATFORM fence stays, so a supported-platform failure still invalidates the verdict.
-    if (process.platform === "win32" && (errnoIs(error, "EISDIR") || errnoIs(error, "EPERM") || errnoIs(error, "ENOTSUP"))) {
-      return;
+    if (!isDirSyncUnsupported(error)) {
+      throw error;
     }
-    throw error;
+    if (!dirSyncUnsupportedAnnounced) {
+      dirSyncUnsupportedAnnounced = true;
+      getLog().warn(
+        { platform: process.platform, code: (error as NodeJS.ErrnoException).code },
+        "cas: this filesystem does not support directory fsync — blob bytes are still fsynced and the publish rename is still atomic, but a crash can lose the directory ENTRY of a just-written blob (logged once per process)",
+      );
+    }
   }
 }
 
