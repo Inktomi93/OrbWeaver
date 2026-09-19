@@ -89,12 +89,6 @@ interface AnchorRect {
 // declare the browser shapes it touches locally, so the program stays DOM-less and the call still executes.
 interface AnchorBrowserElement {
   readonly scrollIntoView: (options: { readonly block: string; readonly inline: string }) => void;
-  /** THE ONLY RENDERED TEST THAT SEES AN ANCESTOR (#2430). An element's OWN computed `display` resolves to
-   *  its declared value inside a `display:none` subtree, so `getComputedStyle(el).display !== "none"` is
-   *  true for a node that is not rendered at all; `checkVisibility()` walks the chain, and takes a hidden
-   *  `content-visibility` with it. It deliberately does NOT answer `visibility`/`opacity` by default, which
-   *  is why the explicit visibility test below stays. */
-  readonly checkVisibility: () => boolean;
   readonly getBoundingClientRect: () => {
     readonly top: number;
     readonly bottom: number;
@@ -118,11 +112,14 @@ function browserAnchorSubject(input: { readonly selector: string; readonly scrol
   const browser = globalThis as unknown as AnchorBrowserGlobals;
   const element = [...browser.document.querySelectorAll(input.selector)].find((candidate) => {
     const box = candidate.getBoundingClientRect();
-    // A union selector names the ink of BOTH responsive arms, so the first match is routinely the arm this
-    // viewport hides. Rendered means: the chain renders it, it is not `visibility:hidden`, and it has a box
-    // — the same non-zero width/height the census's own `inViewport` demands of a sample, so the anchor can
-    // never succeed on a candidate the census would then classify as off-viewport.
-    return candidate.checkVisibility() && browser.getComputedStyle(candidate).visibility !== "hidden" && box.width > 0 && box.height > 0;
+    // THE ANCHOR NEEDS A BOX, AND THAT IS ALSO WHAT SEES THROUGH A HIDDEN ANCESTOR (#2430). A union selector
+    // names the ink of BOTH responsive arms, so the first match is routinely the arm this viewport hides —
+    // and a candidate's OWN computed `display` resolves to its declared value inside a `display:none`
+    // subtree, so the old `display !== "none"` filter accepted it and then spent every attempt trying to
+    // scroll an all-zero rect into view. Requiring non-zero width/height is the census's own `inViewport`
+    // floor, so the anchor can never succeed on a subject the census would then call off-viewport, and it
+    // rejects the unrendered arm by construction rather than by a second opinion about the chain.
+    return browser.getComputedStyle(candidate).visibility !== "hidden" && box.width > 0 && box.height > 0;
   });
   if (element === undefined) {
     return null;
