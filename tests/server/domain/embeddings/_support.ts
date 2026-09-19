@@ -115,7 +115,7 @@ export interface FakeRoleClients extends RoleClients {
 }
 
 /** A recording fake `RoleClients` — deterministic vectors at `EMBED_DIM`, a fixed caption from `summarize`. */
-export function makeRoleClients(): FakeRoleClients {
+export function makeRoleClients(vision = true): FakeRoleClients {
   // ONE vector per input, index-aligned — the real contract's shape, and load-bearing since the segment write
   // path batches (#172): a fake that always returned a single vector would fail every item past the first.
   const embed: Mock<RoleClients["embed"]> = vi.fn<RoleClients["embed"]>((input) =>
@@ -150,6 +150,9 @@ export function makeRoleClients(): FakeRoleClients {
     imageEmbedModel: IMAGE_EMBED_MODEL,
     summarizerModel: SUMMARIZER_MODEL,
     summarizerContextTokens: 32_000,
+    // The resolved summarize model's image-input fact (#2422). Default true — the avatar-analysis caller is
+    // the one consumer, and the analysis it exists to exercise needs a model that takes a picture.
+    summarizerVision: vision,
   };
 }
 

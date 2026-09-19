@@ -41,11 +41,23 @@ const noopRoleClients: RoleClients = {
   imageEmbedModel: "qwen3-vl-embedding",
   summarizerModel: "qwen3-summarizer",
   summarizerContextTokens: 32_000,
+  summarizerVision: true,
 };
 
 test("a no-op object satisfies RoleClients: four derive callables + four model-provenance strings", () => {
   expect(Object.keys(noopRoleClients).sort()).toEqual(
-    ["embed", "embedModel", "imageEmbed", "imageEmbedModel", "rerank", "rerankModel", "summarize", "summarizerContextTokens", "summarizerModel"].sort(),
+    [
+      "embed",
+      "embedModel",
+      "imageEmbed",
+      "imageEmbedModel",
+      "rerank",
+      "rerankModel",
+      "summarize",
+      "summarizerContextTokens",
+      "summarizerModel",
+      "summarizerVision",
+    ].sort(),
   );
   // FLAG pin: the bundle has NO chat/agent/generateImage member (not groundable at L1 — no such
   // result contract in @orb/contracts/providers). If one is added later this assertion changes.
