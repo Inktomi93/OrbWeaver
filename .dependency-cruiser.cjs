@@ -32,6 +32,22 @@
  * client-lib-floor rule). `no-orphans` is ACTIVE at `severity: "warn"` (re-enabled 2026-07-13 when its own
  * stated trigger arrived); knip remains the full dead-code/dead-export authority.
  *
+ * CYCLES — THIS FILE IS THE AUTHORITY OF RECORD, AND IT IS NOT THE ONLY GATE (#1332). `no-circular` comes
+ * from the `recommended-strict` preset (which is why the word "circular" appears in no rule below), and an
+ * exemption is granted HERE because this is the only one of the three with a rule-level `pathNot` seam.
+ * knip has already deferred in writing (`knip.ts`, `cycles: "warn"` — the report twin). biome's
+ * `suspicious/noImportCycles` is "error" repo-wide with NO per-rule seam, and its SCOPE IS WIDER than this
+ * file's: `pnpm depcruise` runs `depcruise packages tooling`, so biome is the only cycle gate over `tests/`,
+ * `scripts/` and `playwright/`. Layered enforcement is doctrine (AGENTS §2.2), so three gates on one true
+ * invariant is intended — do not turn one off to de-duplicate. biome carries no comment of its own beside
+ * either rule because it CANNOT: measured 2026-09-19 with `biome rage --linter` in both directions, a `//`
+ * line in `biome.json` makes biome 2.5.1 silently skip the file and load an ancestor config with no parse
+ * error and exit 0 (`json.parser.allowComments` governs the .json files biome LINTS, not its own loader).
+ * The declared-dependency question has the same shape and is already answered below at `no-duplicate-dep-types`:
+ * biome's `noUndeclaredDependencies` and knip's `unlisted` answer it with INDEPENDENT allowlists — knip
+ * carries `ignoreDependencies`, biome carries none — which is recorded so it is not rediscovered, and needs
+ * no change while nothing can fire.
+ *
  * FEATURES USED beyond the forbidden-list: `reachable` (the transitive credential firewall),
  * `dependencyTypesNot:["type-only"]` (the contract-vs-coupling discriminator), `tsPreCompilationDeps`
  * (so type-only edges exist to discriminate), `skipAnalysisNotInRules` (speed),
