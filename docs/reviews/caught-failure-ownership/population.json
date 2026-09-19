@@ -4672,7 +4672,7 @@
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::error::1",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 394,
+      "line": 415,
       "column": 18,
       "grammar": "empty",
       "position": "error",
@@ -4680,12 +4680,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.",
-      "markerLine": 391
+      "markerLine": 412
     },
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::error::2",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 400,
+      "line": 421,
       "column": 18,
       "grammar": "empty",
       "position": "error",
@@ -4693,12 +4693,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.",
-      "markerLine": 397
+      "markerLine": 418
     },
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::rm::1",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 415,
+      "line": 436,
       "column": 11,
       "grammar": "promise",
       "position": "rm",
@@ -4706,12 +4706,12 @@
       "snippet": "await rm(tempRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError));",
       "verdict": "deliberate-absorb",
       "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.",
-      "markerLine": 414
+      "markerLine": 435
     },
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::server.close::1",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 412,
+      "line": 433,
       "column": 13,
       "grammar": "promise",
       "position": "server.close",
@@ -4719,7 +4719,7 @@
       "snippet": "await server.close().catch((cleanupError: unknown) => failures.push(cleanupError));",
       "verdict": "deliberate-absorb",
       "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.",
-      "markerLine": 411
+      "markerLine": 432
     },
     {
       "siteId": "tooling/src/_shared/entrypoint.ts::catch::1",
