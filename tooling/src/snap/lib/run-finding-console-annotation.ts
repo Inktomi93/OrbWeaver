@@ -4,6 +4,7 @@ import { exactScope } from "../../_shared/artifact-scope.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DiskSafeBrowserDiagnostic } from "../contract/browser-evidence-redaction.ts";
 import type { SnapFindingDisposition, SnapRunArtifact, SnapRunIndex } from "../contract/run-index.ts";
+import { isDevToolsFrontendProtocolNoise } from "./devtools-frontend-noise.ts";
 import type { FindingDraft } from "./run-finding-common.ts";
 import { findingLocation, findingRef, findingSymptom } from "./run-finding-common.ts";
 
@@ -128,7 +129,16 @@ function diagnosticDisposition(row: DiskSafeBrowserDiagnostic, attribution: Diag
     return { counted: false, reason: `${attribution.arm}-annotation` };
   }
   if (row.origin === "page-console") {
-    return row.level === "error" ? { counted: true, reason: "console-errors" } : { counted: false, reason: "console-warning" };
+    if (row.level !== "error") {
+      return { counted: false, reason: "console-warning" };
+    }
+    // …EXCEPT where the verdict itself fenced the line out. `console-errors` is `verdictConsoleErrors`,
+    // which subtracts the named harness-induced classes, so a row this reader calls `counted` while that
+    // counter ignores it IS the contradiction this header warns about — printed on every `--matrix` cell by
+    // the vendored frontend's Autofill pair until #2431. The class's one recognizer decides both.
+    return isDevToolsFrontendProtocolNoise(row.text, row.location?.url)
+      ? { counted: false, reason: "devtools-frontend-noise" }
+      : { counted: true, reason: "console-errors" };
   }
   if (row.origin === "page-error") {
     return { counted: true, reason: "page-errors" };

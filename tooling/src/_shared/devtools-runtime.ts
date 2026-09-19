@@ -8,6 +8,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { Page } from "@playwright/test";
 import type { ProbeMedia } from "./browser-media.ts";
 import { applyProbeMedia, readProbeMedia } from "./browser-media.ts";
+import { CSS_PSEUDO_TYPE, splitPseudoSelector } from "./css-pseudo-selector.ts";
 import { REMOTE_DEBUGGING_PORT_ARG, readDebuggingPort } from "./debugging-endpoint.ts";
 import type { DevToolsAssetPin, DevToolsAssetServer } from "./devtools-assets.ts";
 import { startDevToolsAssetServer, verifyDevToolsAssets } from "./devtools-assets.ts";
@@ -141,10 +142,20 @@ async function restoreMediaAfterObserver(page: Page, expected: ProbeMedia): Prom
   throw new Error(`DevTools observer did not restore stable media: expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}`);
 }
 
+/** THE SUBJECT MAY BE A PSEUDO CARRIER (#2431). The selector arrives as CSS spells it
+ *  (`.shell-panel::before`); the bridge needs the HOST for `dom.querySelectorAll` — which cannot select a
+ *  pseudo — plus Chromium's own pseudo-type key to walk from that host node to its generated-box node,
+ *  whose matched AND computed styles are the ones a carrier's declarations live on. The full selector
+ *  travels too: it is the identity every receipt and every appearance-row join is keyed by. */
+function bridgeInput(input: DevToolsCascadeInput): Record<string, unknown> {
+  const { host, pseudo } = splitPseudoSelector(input.selector);
+  return { ...input, host, pseudoType: pseudo === null ? null : CSS_PSEUDO_TYPE[pseudo] };
+}
+
 function bridgeSource(inputs: readonly DevToolsCascadeInput[], inspectedMedia: ProbeMedia): string {
   return `(async () => {
     try {
-    const inputs = ${JSON.stringify(inputs)};
+    const inputs = ${JSON.stringify(inputs.map(bridgeInput))};
     const mediaFeatures = ${JSON.stringify(mediaFeatures(inspectedMedia))};
     const SDK = await import("./core/sdk/sdk.js");
     const Root = await import("./core/root/root.js");
@@ -165,10 +176,20 @@ function bridgeSource(inputs: readonly DevToolsCascadeInput[], inspectedMedia: P
     const documentNode = await dom.requestDocument(); if (!documentNode) throw new Error("DevTools SDK document is unavailable");
     const output = [];
     for (const input of inputs) {
-      const nodeIds = await dom.querySelectorAll(documentNode.id, input.selector);
+      const nodeIds = await dom.querySelectorAll(documentNode.id, input.host);
       const matchIndex = input.matchIndex ?? 0;
-      const nodeId = nodeIds[matchIndex];
-      if (!nodeId) throw new Error("selector match index " + matchIndex + " is outside population " + nodeIds.length + ": " + input.selector);
+      const hostId = nodeIds[matchIndex];
+      if (!hostId) throw new Error("selector match index " + matchIndex + " is outside population " + nodeIds.length + ": " + input.selector);
+      // A pseudo subject is READ ON ITS OWN NODE: Chromium pushes a generated box as a child node of its
+      // host, and both the matched-style walk and the computed read below take a node id. Asking the HOST
+      // for a carrier's declarations is exactly the blindness this arm exists to end (#2431).
+      let nodeId = hostId;
+      if (input.pseudoType) {
+        const hostNode = dom.nodeForId(hostId);
+        const pseudoNode = hostNode ? (hostNode.pseudoElements().get(input.pseudoType) || [])[0] : null;
+        if (!pseudoNode) throw new Error("pseudo element is not generated on this host: " + input.selector);
+        nodeId = pseudoNode.id;
+      }
       const matched = await css.getMatchedStyles(nodeId); const computed = await css.getComputedStyle(nodeId);
       if (!matched || !computed) throw new Error("matched/computed styles unavailable: " + input.selector);
       const relevantStyles = matched.nodeStyles();

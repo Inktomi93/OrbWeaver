@@ -82,6 +82,12 @@ const ACTION_BUTTONS = `${ACTIONS_ROW} button:not([disabled])`;
 const BACKGROUND_LAYER = '[data-slot="theme-background-layer"]';
 const SCRIM = '[data-slot="theme-background-scrim"]';
 const LIST_PANEL = '.shell-panel[data-panel-side="list"]';
+// THE PANE'S GLASS IS NOT ON THE PANE (#1154, re-pointed at #2431). Both glass declarations — the
+// backdrop-filter and the translucent tint — moved onto a `::before` fill carrier at `z-index: -1` so the
+// pane itself stops being one composited layer (a backdrop-filter on the pane turns off per-paint baseline
+// snapping for every text node inside it). The invariant is unchanged and so is its subject; only the box
+// carrying the paint moved, so the row names the carrier the way CSS does.
+const LIST_PANEL_GLASS = `${LIST_PANEL}::before`;
 const LIST_PANEL_INK = `${LIST_PANEL} .shell-panel-header`;
 const TOPBAR = ".shell-topbar";
 const SHELL_CONTENT = ".shell-content";
@@ -181,6 +187,7 @@ export const APPEARANCE_HISTORICAL_ROWS = [
       { id: "background-layer", selector: BACKGROUND_LAYER, population: "one", sample: "geometry" },
       { id: "scrim", selector: SCRIM, population: "one", sample: "geometry" },
       { id: "list-panel", selector: LIST_PANEL, population: "one", sample: "geometry" },
+      { id: "list-panel-glass", selector: LIST_PANEL_GLASS, population: "one", sample: "carrier" },
       { id: "panel-ink", selector: LIST_PANEL_INK, population: "one", sample: "pixel" },
       { id: "active-scope", selector: COMMON_SCOPE, population: "one", sample: "carrier" },
     ],
@@ -189,7 +196,7 @@ export const APPEARANCE_HISTORICAL_ROWS = [
       { selector: BACKGROUND_LAYER, property: "filter", sources: ["inline", "client-global"] },
       { selector: SCRIM, property: "opacity", sources: ["inline", "client-global"] },
       { selector: LIST_PANEL, property: "background-color", sources: ["client-global"], overloadedSources: ["shell"] },
-      { selector: LIST_PANEL, property: "backdrop-filter", sources: ["client-global"] },
+      { selector: LIST_PANEL_GLASS, property: "backdrop-filter", sources: ["client-global"] },
       { selector: COMMON_SCOPE, property: MATRIX_FIXTURE_INK, sources: ["owner-custom-css"] },
     ],
     merge: {

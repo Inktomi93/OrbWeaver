@@ -3,6 +3,7 @@
 // attach provokes. One partition, every snap path judges alike.
 import type { CapturedConsole, CapturedRequest } from "../../_shared/browser-capture.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { isDevToolsFrontendProtocolNoise } from "../lib/devtools-frontend-noise.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -128,10 +129,21 @@ export function fileOriginNoiseCount(messages: readonly CapturedConsole[], reque
   return messages.filter(isFileOriginNoise).length + requests.length;
 }
 
+/** HARNESS-INDUCED, AND THE ONE THE MATRIX PAYS ON EVERY CELL (#2431): the vendored DevTools frontend's own
+ *  `Autofill` method-not-found pair. The recognizer and the whole reason it exists live in
+ *  `lib/devtools-frontend-noise.ts`, on the bare (text, url) pair, because the FINDING row's disposition
+ *  reader judges a different record shape and the two may not disagree. This is the `CapturedConsole` face
+ *  of it — never dropped, exactly like its two neighbours above: printed, kept in the manifest, and counted
+ *  on the RESULT line under `devtools-frontend-noise`. */
+export function isDevToolsFrontendNoise(entry: CapturedConsole): boolean {
+  return entry.type === "error" && isDevToolsFrontendProtocolNoise(entry.text, entry.location?.url);
+}
+
 /** THE console errors that DECIDE a verdict — every harness-induced class above fenced out. One home,
  *  so the scenario's per-checkpoint count and the run's summary cannot disagree about what an error is. */
 export function verdictConsoleErrors(messages: readonly CapturedConsole[]): number {
-  return messages.filter((entry) => entry.type === "error" && !isSandboxTraceNoise(entry) && !isFileOriginNoise(entry)).length;
+  return messages.filter((entry) => entry.type === "error" && !isSandboxTraceNoise(entry) && !isFileOriginNoise(entry) && !isDevToolsFrontendNoise(entry))
+    .length;
 }
 
 export function consoleFailureCounts(messages: readonly CapturedConsole[], strict: boolean): ConsoleFailureCounts {

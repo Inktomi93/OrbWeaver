@@ -8,7 +8,13 @@
 // drift apart again silently. The last arm is the one that matters for blinding: a genuinely missing
 // sibling fails with a DIFFERENT text and stays a failure.
 import type { CapturedConsole, CapturedRequest } from "@orb/tooling/_shared/browser";
-import { isFileOriginNoise, isFileOriginRequest, partitionFailedRequests } from "../../../../tooling/src/snap/ops/noise.ts";
+import {
+  isDevToolsFrontendNoise,
+  isFileOriginNoise,
+  isFileOriginRequest,
+  partitionFailedRequests,
+  verdictConsoleErrors,
+} from "../../../../tooling/src/snap/ops/noise.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const DOCUMENT = "file:///tmp/mock.html";
@@ -20,6 +26,41 @@ function request(over: Partial<CapturedRequest>): CapturedRequest {
 function consoleError(text: string): CapturedConsole {
   return { type: "error", text, location: null, line: `[error] ${text}` } satisfies CapturedConsole;
 }
+
+// #2431 instrument plant: the VENDORED DevTools frontend the appearance/cascade pass loads enables the
+// `Autofill` domain the pinned browser does not expose, so its protocol client logs two method-not-found
+// errors per attach — measured on `pnpm snap home --cascade …` 2026-09-19 as `counted(console-errors)` on a
+// page whose product surface had none, i.e. two false console errors on EVERY `--matrix` cell. The call site
+// is inside a byte-hash-pinned vendored closure, so the fence is the answer; these arms are its boundary.
+const FRONTEND_SCRIPT = "http://127.0.0.1:44271/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/protocol_client/protocol_client.js";
+
+function frontendError(text: string, url = FRONTEND_SCRIPT): CapturedConsole {
+  return { type: "error", text, location: { url, line: 0, column: 617_907 }, line: `[error] ${text}` } satisfies CapturedConsole;
+}
+
+test("the DevTools-frontend fence takes the Autofill method-not-found pair and nothing else", () => {
+  expect(isDevToolsFrontendNoise(frontendError(`Request Autofill.enable failed. {"code":-32601,"message":"'Autofill.enable' wasn't found"}`))).toBe(true);
+  expect(isDevToolsFrontendNoise(frontendError(`Request Autofill.setAddresses failed. {"code":-32601,"message":"'Autofill.setAddresses' wasn't found"}`))).toBe(
+    true,
+  );
+  // A protocol call that failed for a REAL reason is the bridge's own CSS/DOM read going wrong — the one
+  // failure that makes a cascade receipt untrustworthy. It stays a console error.
+  expect(isDevToolsFrontendNoise(frontendError(`Request CSS.getMatchedStylesForNode failed. {"code":-32000,"message":"Node is not an Element"}`))).toBe(false);
+  // …and the ORIGIN fence: the same text from a PRODUCT script is never this class.
+  expect(isDevToolsFrontendNoise(frontendError(`Request Autofill.enable failed. {"code":-32601}`, "http://localhost:5173/src/main.tsx"))).toBe(false);
+  // A console error with no location cannot be attributed to the frontend at all.
+  expect(isDevToolsFrontendNoise(consoleError(`Request Autofill.enable failed. {"code":-32601}`))).toBe(false);
+});
+
+test("the verdict count excludes the frontend pair and still counts a real product error beside it", () => {
+  expect(
+    verdictConsoleErrors([
+      frontendError(`Request Autofill.enable failed. {"code":-32601,"message":"'Autofill.enable' wasn't found"}`),
+      frontendError(`Request Autofill.setAddresses failed. {"code":-32601,"message":"'Autofill.setAddresses' wasn't found"}`),
+      consoleError("TypeError: undefined is not a function"),
+    ]),
+  ).toBe(1);
+});
 
 test("the CONSOLE half fences only the attach's own event — two DIFFERENT urls stay a real error", () => {
   const sameUrl = `Unsafe attempt to load URL ${DOCUMENT} from frame with URL ${DOCUMENT}. 'file:' URLs are treated as unique security origins.`;
