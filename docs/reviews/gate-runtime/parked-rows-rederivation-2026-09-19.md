@@ -730,3 +730,81 @@ agrees.
   check/verify. The one row whose disposition would be strengthened by a run is #1831 (SUPERSEDED on a
   repair receipt, not a green receipt) — its re-run is one scoped file at a quiet barrier.
 - This lane wrote no code, mutated no board row, and edited nothing but this file.
+
+## #1196 — the manual query-loading-branch census, and why it does not become a gate (lane client-AE, 2026-09-19)
+
+The re-cut above set the order — *"Census first, then gate… If the census finds the class is thin, the
+correct outcome is a refusal with the numbers, not a gate"* — and pre-authorised exactly one escape. The
+census was run. **The class is not thin; the SEPARATION is what fails**, and it fails against the re-cut's
+own `mustPass` rows, so this is a refusal on a different and stronger ground than the one anticipated.
+
+### The numbers, with their scope receipts
+
+Population `packages/client/src/features/**`, tree `58dc84478`. `ast-grep` reported
+`scannedFileCount=622, skippedFileCount=0` on every scan below, which is the non-zero receipt a negative
+claim owes; `-l tsx` only, stated deliberately — a branch that *returns JSX* cannot live in a `.ts`.
+
+| measure | count | method |
+| - | -: | - |
+| `.tsx` files under `features/**` | 622 | `find` + the ast-grep scanned-file count |
+| …referencing `isPending` / `isLoading` | 122 | `grep -rl` (the re-cut's own denominator, re-derived: **122, matches**) |
+| …referencing `QueryBoundary` | 107 | `grep -rl` (the re-cut said 115; **re-derived 107** — record the delta, the row's arithmetic does not depend on it) |
+| reads in a file with NO in-file `QueryBoundary` | 86 | `comm -23` of the two lists |
+| **sites where such a read GUARDS rendered output** | **25** in 19 files | two `ast-grep` rules: an `if_statement` whose condition names the read and whose consequence returns a `jsx_element`, and a `ternary_expression`/`binary_expression` carrying JSX |
+
+25 of 622 is the candidate set a `population: @client under features/**`, `analysis: "syntax"`,
+`execution: "selected-files"` policy would report. **Nine of them are provably not the defect.**
+
+### The nine, by the discriminator the prescribed policy cannot reach
+
+- **Four are MUTATIONS, not queries** — and the syntax is byte-identical to the query form
+  (`{x.isPending ? <spinner/> : <idle/>}`). The discriminator is two module hops away behind a house
+  factory: `credentials/components/endpoint-inspector-dialog.tsx:92` (`useInspectEndpoint`),
+  `imagery/components/imagine-body.tsx:176` and `:187` (`useExtractPrompt`, `useGeneratePicture`),
+  `notifications/components/notification-inbox-row.tsx:227` (`useAcceptInvite`/`useDeclineInvite`/
+  `useDismissNotification`) — every one a `createEntityMutation` (`use-imagery-mutations.ts:18,27`,
+  `use-connections-mutations.ts:64`, `use-invite-actions.ts:13`). A `useMutation().isPending` branch is a
+  button spinner; `QueryBoundary` is not its shape and never was.
+- **Five read `isPending` as a PROP** — the state is owned by a caller the analysed file cannot see:
+  `character/components/character-library-body.tsx:83`, `chat/anchors/character-gallery-dialog.tsx:69`,
+  `chat/components/add-chat-document-dialog.tsx:157`,
+  `discovery/components/corpus-archetypes-tab.tsx:176`,
+  `world-info/components/book-attachments.tsx:248` (each declares `readonly isPending: boolean`).
+
+Three more (`auth/surfaces/login-surface.tsx:48` `useAuthConfig`,
+`chat/components/chats-with-character-pane.tsx:66` `useChatListCollection`,
+`discovery/components/corpus-browse-view.tsx:135` `useCorpusBrowseCollection`) are query-backed only
+through a house composite hook — in class, but reachable by the same cross-module walk the mutation four
+need, not by reading the file.
+
+**Measured precision of the prescribed shape: 16/25 = 64 %**, and that is the OPTIMISTIC reading — it
+counts every remaining query-backed guard as a defect, when several hand-render the very `SkeletonRows`
+a boundary's fallback would supply (`world-info/components/book-attachments.tsx:145` is literally
+`{personasQuery.isPending ? <SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" /> : null}`). The
+re-cut asked for the measured precision before the gate was proposed, citing #1630's 2.4 %; 64 % with a
+36 % permanent-waiver tail is a gate that does not know its own subject, and "gates land on a fixed tree"
+means those nine become nine permanent exemption rows on the day it ships.
+
+### The second refutation, which does not depend on the precision number
+
+The re-cut names three proof rows, and the third is *"a `QueryBoundary`-wrapped surface whose child reads
+`isPending` for a nested concern (pass)"*. **A per-file policy structurally cannot express it.** Whether an
+ancestor mounts a boundary is a render-tree fact; `execution: "selected-files"` sees one file, and
+in-file absence of `QueryBoundary` — the only test available — is exactly what 86 of the 122 files show.
+`analysis: "types"` (the vocabulary is `["syntax", "types", "resource"]`,
+`contract/policy-primitives.ts:6`) would decide the mutation-vs-query half and nothing at all about this
+one.
+
+### The refusal, and what carries the property instead
+
+No policy is authored for #1196. The property the row actually wants is not *"a loading branch must go
+through `QueryBoundary`"* — it is *"the settled box must not shift under the reader"*, which is the #1188
+flash and the #885 `reserveKey` concern. That property is RENDERED, and it already has two owners at the
+tier that can see it: `query-boundary-reservation` / `-health` for a boundary that exists, and the
+per-rAF box census in `tests/client/features/app-shell/surfaces/app-shell.ct.tsx` for the shape a static
+reader cannot reach at all. A boundary-free surface that flashes is caught there or not at all.
+
+**Carried forward as review law rather than as a gate:** a feature surface that hand-rolls a query
+loading branch owes a reserved box — the same obligation `reserveKey` states — and the place to assert it
+is a rendered pin, not a syntax policy. The 16 query-backed sites above are the population a future
+rendered audit would sample; they are recorded here so that list does not have to be re-derived.
