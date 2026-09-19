@@ -65,13 +65,16 @@
 //     `authored-text#1` 46 demanded paths — the store corpus plus the stories module.
 //   · TOOL ERRORS. 0 on the final side; the legacy `existsSync` arms could emit none by construction.
 //
-// AUTHORITY `hard`; TEMPORARY SEVERITY `warning`, owner #2346. The legacy gate declared no `ExemptionTable`,
+// AUTHORITY `hard`; SEVERITY `error`. The #2346 TEMPORARY WARNING POSTURE IS CLOSED OUT (owner ruling
+// 2026-09-19, #2377) on the rollout's own closeout condition — restore hard/error, drop the temporary
+// `workItem`, mint no marker or grant path — and it cost nothing: this policy measured ZERO findings on the
+// tree it was restored on. The legacy gate declared no `ExemptionTable`,
 // no baseline and no marker grammar — its
 // `CLIENT_EXCLUDE_FILES` list (DELETED at #2103, below) and its surviving `UI_LOGIC_GROUPS` list were
 // POPULATION VOCABULARY, not grants — and every finding is FILE-anchored with no position token, so under
-// this contract no ordinary door exists BY CONSTRUCTION. Findings stay effective and unwaived while their
-// default blocking contribution is zero; `--fail-on-warnings` promotes them. Gate-program closeout restores
-// `severity: "error"` and removes `workItem` without minting a marker or grant path.
+// this contract no ordinary door exists BY CONSTRUCTION. Findings are effective, unwaived, and blocking by
+// default rather than only under `--fail-on-warnings`. The unreadable-corpus REFUSAL control the rollout
+// added is not part of the temporary posture and stays (clause C, below).
 //
 // WHERE A BROKEN RESOURCE REFUSES. A non-ready declared resource makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and the owner is withheld before `create`
@@ -368,8 +371,7 @@ export const gate = defineGate({
   id: "test-presence-client",
   family: "mirror-index",
   authority: "hard",
-  severity: "warning",
-  workItem: 2346,
+  severity: "error",
   population: { in: ["@client", "@ui"], notNamed: ["index.ts"] },
   analysis: "resource",
   execution: "entire-population",
@@ -559,7 +561,7 @@ export const gate = defineGate({
         "tests/client/state/gpresempty-store.test.ts": "\n",
       },
       expect: { messageIncludes: "could not read ANY corpus" },
-      why: "§4.6: a mirror that yields no readable corpus leaves every action unjudged, so clause C refuses evaluation instead of reporting warning debt or a clean result",
+      why: "§4.6: a mirror that yields no readable corpus leaves every action unjudged, so clause C refuses evaluation instead of reporting debt or a clean result",
     },
   ],
   mustPass: [

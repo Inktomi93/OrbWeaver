@@ -96,11 +96,15 @@
 // it is now `mirrorIndex.sourceFiles.has(...)` — the same file, asked of a declared resource instead of the
 // run's fileset. The two `mustRefuse` rows plant that anchor and independently reach each census failure.
 //
-// AUTHORITY `hard`; TEMPORARY SEVERITY `warning`, owner #2346. With the baseline gone the policy owns no
-// exemption table, no marker grammar and no private parser, and every finding is FILE-anchored with no
-// position token. Findings therefore remain effective and unwaived even while they contribute zero to the
-// default blocking count. `--fail-on-warnings` promotes them to blocking. Gate-program closeout restores
-// `severity: "error"` and removes `workItem`; it does not add an ordinary door or an escape grant.
+// AUTHORITY `hard`; SEVERITY `error`. The #2346 TEMPORARY WARNING POSTURE IS CLOSED OUT (owner ruling
+// 2026-09-19, #2377): the rollout's own closeout condition was "restore hard/error and remove the temporary
+// `workItem` metadata at gate-program closeout", and the restoration cost nothing on the tree it landed on —
+// both mirror-presence policies measured ZERO findings, so nothing was papered over to go back to blocking.
+// Nothing else about the policy moved: with the baseline gone it owns no exemption table, no marker grammar
+// and no private parser, and every finding is FILE-anchored with no position token, so there is no ordinary
+// door and no escape grant here BY CONSTRUCTION. Findings are effective, unwaived, and now blocking by
+// default rather than only under `--fail-on-warnings`. The acquisition/analysis REFUSAL controls the
+// rollout added are NOT part of the temporary posture and stay: see the blindness refusals above.
 //
 // WHERE A BROKEN RESOURCE REFUSES. A non-ready declared resource refuses at the POPULATION phase before
 // `create` runs. The two armed blindness diagnoses refuse during EVALUATION before findings are reported.
@@ -535,8 +539,7 @@ export const gate = defineGate({
   id: "test-presence",
   family: "mirror-index",
   authority: "hard",
-  severity: "warning",
-  workItem: 2346,
+  severity: "error",
   population: ["@server", "@contracts"],
   analysis: "resource",
   execution: "entire-population",
@@ -800,7 +803,7 @@ export const gate = defineGate({
         "tests/server/entry/http/frame-handle-store.test.ts": "export const t = 1;\n",
       },
       expect: { messageIncludes: "the domain scan matched ZERO files" },
-      why: "THE #767 ARM'S BLINDNESS REFUSAL: the real-tree anchor plus a tested tier corpus and no domain logic is the shape a domain-tree move produces, so the owner becomes incomplete instead of emitting a warning",
+      why: "THE #767 ARM'S BLINDNESS REFUSAL: the real-tree anchor plus a tested tier corpus and no domain logic is the shape a domain-tree move produces, so the owner becomes incomplete instead of emitting a finding",
     },
   ],
   mustPass: [
