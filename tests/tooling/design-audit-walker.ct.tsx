@@ -41,10 +41,17 @@ import {
   WalkerRowWrappedGlyphStory,
   WalkerScreenReaderOnlyStory,
   WalkerSliderCompositeStory,
+  WalkerTooltipHintStory,
   WalkerTranslucentTintStory,
   WalkerTruncationAffordanceStory,
   WalkerViewportEdgeTargetStory,
 } from "./_ct-stories.tsx";
+
+/** The `unreachable-hint` census row (#2452) — the fields this file reads, not the whole sample. */
+interface UnreachableHint {
+  readonly describesDecision: string | null;
+  readonly describedByResolved: number;
+}
 
 interface TapTarget {
   readonly selector: string;
@@ -1079,4 +1086,28 @@ test("#816: the same row without the badges keeps its name and its hit test — 
   ).toEqual([]);
   const nameWidth = await page.evaluate(() => Math.round(document.querySelector('[data-testid="cast-name"]')?.getBoundingClientRect().width ?? 0));
   expect(nameWidth, "the clean arm must actually render the name, or its silence proves nothing").toBeGreaterThan(20);
+});
+
+// ── #2452: the two attributes `unreachable-hint` reads are EMITTED BY THE SHIPPED SEAL ──────────────
+// The Node-side proofs (tests/tooling/ui-audit/index.int.test.ts) drive hand-written HTML that SPELLS
+// `data-base-ui-tooltip-trigger` and `data-tooltip-describes`. That proves the checker's thresholds and
+// nothing about whether `@orb/ui`'s Tooltip still publishes either one — a rename in the seal or a Base
+// UI upgrade would leave every one of those proofs green while the rule went blind on the real app
+// (RULE-AUTHORING.md step 1/2). This mounts the real component and reads the real census.
+test("the real @orb/ui Tooltip publishes the census's two attributes, one row per seal decision", async ({ mount, page }) => {
+  await mount(<WalkerTooltipHintStory />);
+  const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as { readonly unreachableHints?: readonly UnreachableHint[] };
+  const hints = samples.unreachableHints ?? [];
+
+  // A zero here is "the walker never saw a tooltip trigger" — the blind case, which must never read as clean.
+  expect(hints.length, `the census saw no tooltip trigger at all — samples: ${JSON.stringify(hints)}`).toBe(3);
+  const decisions = hints.map((hint) => hint.describesDecision).sort((left, right) => String(left).localeCompare(String(right)));
+  expect(decisions, "the seal's three decisions must be distinguishable in the DOM").toStrictEqual(["caller", "name", "self"]);
+
+  // …and the DESCRIBED one is the only one whose description actually resolves at rest, which is the
+  // fact the rule's exclusion turns on.
+  const described = hints.find((hint) => hint.describesDecision === "self");
+  expect(described?.describedByResolved).toBeGreaterThan(0);
+  expect(hints.find((hint) => hint.describesDecision === "name")?.describedByResolved).toBe(0);
+  expect(hints.find((hint) => hint.describesDecision === "caller")?.describedByResolved).toBe(0);
 });

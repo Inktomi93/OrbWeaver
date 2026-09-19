@@ -2161,3 +2161,103 @@ test("a forced-state pass that BREAKS is a NO VERDICT run, not a green one with 
   expect(report.populationAccounting?.["hover-contrast"]).toBeUndefined();
   await expect(res).toExitWith(2);
 });
+
+// ── unreachable-hint (#2452): a tooltip no coarse pointer can open, with nothing else carrying its words ──
+// THE MECHANISM, PLANTED IN THE SHIPPED SHAPE (RULE-AUTHORING.md step 2). The census selects Base UI's own
+// `[data-base-ui-tooltip-trigger]` (TooltipTrigger.js:244) and reads `@orb/ui`'s published decision
+// `data-tooltip-describes` (packages/ui/src/primitives/tooltip/tooltip.tsx). Both attributes are spelled
+// here verbatim rather than rendered, because this suite drives FILE pages through the real cli — the
+// RENDERED half, proving the real `<Tooltip>` actually emits this pair, is
+// `tests/tooling/design-audit-walker.ct.tsx`. `--mobile` is load-bearing: at a fine pointer the popup opens
+// on hover and the rule withholds the whole population by name.
+function tooltipTriggerPage(trigger: string): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>hint</title><style>
+  body { margin: 0; background: #101010; color: #ffffff; font-size: 16px }
+  button { width: 48px; height: 48px; background: #101010; color: #ffffff; border: 0 }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%) }
+</style></head>
+<body><main>${trigger}</main></body></html>`;
+}
+
+auditRuleTest(
+  [
+    {
+      rule: "unreachable-hint",
+      kind: "fires",
+      reason: "a coarse-pointer tooltip trigger whose seal left the description to a caller that never wrote one, with no press door",
+    },
+  ],
+  "a coarse tooltip trigger with no reachable description and no press door REDs the audit",
+  async ({ runCli, scratch }) => {
+    await writeFile(
+      join(scratch, "hint-fires.html"),
+      tooltipTriggerPage('<button type="button" aria-label="Send message" data-base-ui-tooltip-trigger data-tooltip-describes="caller"></button>'),
+    );
+    const res = await runCli("snap", ["--file", join(scratch, "hint-fires.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+
+    // The ROW, not the exit code: this rule is P2 and the audit's failure threshold is P1, so a run
+    // carrying exactly this finding still exits 0 — asserting the exit would be asserting the threshold.
+    expect(findingRows(res.stdout, "unreachable-hint")).toHaveLength(1);
+    expect(res.stdout).toContain("no tap can open");
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "unreachable-hint",
+      kind: "silent",
+      reason: "the nearest legitimate neighbour — the SAME trigger with the seal's own always-mounted description resolving at rest",
+    },
+  ],
+  "the same trigger whose description resolves at rest is an EXCLUSION, not a finding",
+  async ({ runCli, scratch }) => {
+    await writeFile(
+      join(scratch, "hint-silent.html"),
+      tooltipTriggerPage(
+        '<button type="button" aria-label="Send message" aria-describedby="hint-copy" data-base-ui-tooltip-trigger data-tooltip-describes="self"></button>' +
+          '<span class="sr" id="hint-copy" role="tooltip">Local engine is off — enable it to send.</span>',
+      ),
+    );
+    const res = await runCli("snap", ["--file", join(scratch, "hint-silent.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+
+    expect(findingRows(res.stdout, "unreachable-hint")).toEqual([]);
+    // Not a silent zero: the population is PRINTED with the reason it was judged inapplicable.
+    expect(res.stdout).toContain("hasReachableDescription");
+  },
+);
+
+test("a tooltip that only repeats the control's own name is excluded, and a FINE pointer withholds the whole population", async ({ runCli, scratch }) => {
+  // The two remaining dispositions, both of which would otherwise read as a clean zero. `name` is the
+  // seal's own verdict that the tooltip adds nothing (most icon-only controls in this app); a fine-pointer
+  // pass is a pointer the defect cannot exist on, and saying so by name is what keeps a desktop run from
+  // claiming it checked a touch affordance.
+  const trigger = '<button type="button" aria-label="Notifications" data-base-ui-tooltip-trigger data-tooltip-describes="name"></button>';
+  await writeFile(join(scratch, "hint-name.html"), tooltipTriggerPage(trigger));
+  const named = await runCli("snap", ["--file", join(scratch, "hint-name.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(findingRows(named.stdout, "unreachable-hint")).toEqual([]);
+  expect(named.stdout).toContain("tooltipRepeatsName");
+
+  await writeFile(
+    join(scratch, "hint-fine.html"),
+    tooltipTriggerPage('<button type="button" aria-label="Send message" data-base-ui-tooltip-trigger data-tooltip-describes="caller"></button>'),
+  );
+  const fine = await runCli("snap", ["--file", join(scratch, "hint-fine.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(findingRows(fine.stdout, "unreachable-hint"), "the SAME page that fires at coarse must not fire at fine").toEqual([]);
+  expect(fine.stdout).toContain("finePointer");
+});
+
+test("a tooltip trigger OUTSIDE the @orb/ui seal is WITHHELD by name, never counted as clean", async ({ runCli, scratch }) => {
+  // A raw Base UI trigger publishes no decision, so this instrument cannot tell "the tooltip repeats the
+  // name" from "its words are unreachable" — that is missing evidence (#987 polarity), and a run carrying
+  // it is NO VERDICT for this rule rather than a pass.
+  await writeFile(
+    join(scratch, "hint-bare.html"),
+    tooltipTriggerPage('<button type="button" aria-label="Send message" data-base-ui-tooltip-trigger></button>'),
+  );
+  const res = await runCli("snap", ["--file", join(scratch, "hint-bare.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+
+  expect(findingRows(res.stdout, "unreachable-hint")).toEqual([]);
+  expect(res.stdout).toContain("noDescriptionWiring");
+});

@@ -27,6 +27,11 @@ export const DESIGN_AUDIT_RULES = [
   { id: "landmark-missing", family: "a11y", severity: ["P2"] },
   { id: "tabindex-positive", family: "a11y", severity: ["P2"] },
   { id: "skipped-heading", family: "a11y", severity: ["P2"] },
+  // #2452. A tooltip is the only explanation on many icon-only controls, and at a COARSE pointer Base UI
+  // can open none of them (`mouseOnly` hover + a `:focus-visible`-gated focus fallback), so the content is
+  // reachable only through a rest-readable description, the control's own text, or a press door. P2: the
+  // control still works and is named — what is lost is the explanation.
+  { id: "unreachable-hint", family: "a11y", severity: ["P2"] },
   { id: "text-over-art", family: "color", severity: ["P0", "P1"] },
   { id: "contrast", family: "color", severity: ["P1"] },
   { id: "hover-contrast", family: "color", severity: ["P1"] },

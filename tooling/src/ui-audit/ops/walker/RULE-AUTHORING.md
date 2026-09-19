@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-06
+updated: 2026-09-19
 ---
 
 # Authoring a mechanism-matched ui-audit rule
@@ -87,7 +87,7 @@ input object handed to the pure `checks-*.ts` function, which proves the THRESHO
 whether the census can see the shape on a real page. That is precisely the blindness this document
 exists to name (checklist step 2: the control must be planted in the codebase's own idiom), so an
 "owed" cell is a real gap in the mechanism axis, filed as such and not backfilled with an invented
-receipt. Of the 62 registered rules, 46 carry a planted rendered control, 15 are owed one, and
+receipt. Of the 63 registered rules, 47 carry a planted rendered control, 15 are owed one, and
 `off-grid-transform` is half-owed (its withheld arm is planted, its firing arm is not). One of the 22 —
 `buried-raster` — is owed BY OWNER RULING rather than by omission; its cell says so.
 
@@ -108,6 +108,7 @@ Finding at all and their control is the printed population row.
 | landmark-missing | presence of a `<main>`/`role=main` landmark on the document | `w/census-interactive` (`mainLandmarkPresent`) | `lib/checks-a11y` | `T/tooling/ui-audit/index.int.test.ts` (both directions) |
 | tabindex-positive | `[tabindex]` attribute values > 0 on visible elements | `w/census-interactive` | `lib/checks-a11y` | `T/tooling/ui-audit/index.int.test.ts` (#1826, both directions) |
 | skipped-heading | the document's `h1…h6` order | `w/census-quality` | `lib/checks-a11y` | `T/…/census-quality.int.test.ts` |
+| unreachable-hint | visible `[data-base-ui-tooltip-trigger]` (the VENDOR's own identifier, absent on a disabled trigger) + `@orb/ui`'s published `data-tooltip-describes` decision, the trigger's resolving description, its own text and its `aria-haspopup="dialog"` press door | `w/census-interactive` (`unreachableHints`) | `lib/checks-a11y` | `T/tooling/design-audit-walker.ct.tsx` (the REAL `<Tooltip>` in all three seal decisions) · `T/tooling/ui-audit/index.int.test.ts` (fires / excluded / withheld, `--mobile`) |
 | text-over-art | text whose backdrop resolves to a gradient/image, judged at the WORST stop | `w/census-text` + `w/resolve` | `lib/checks-color` | walker CT (`oklch-gradient-bled`, P0 worst-stop) |
 | contrast | every text node's composited foreground vs `resolveBackdrop` (canvas-normalised, any colour space) | `w/census-text` + `w/resolve` | `lib/checks-color` | `T/tooling/ui-audit/index.int.test.ts` (planted 1:1) · `census-text.int.test.ts` · walker CT |
 | hover-contrast | the same pair measured under a FORCED state (CDP `:hover` + Base UI `data-*`) | `ops/hover` + `w/state-paint` + `w/group-variant` | `lib/checks-hover` | `T/tooling/ui-audit/index.int.test.ts` (real forced hover) · `ops/hover-walker.int.test.ts` |

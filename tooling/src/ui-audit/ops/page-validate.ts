@@ -81,6 +81,7 @@ const RAW_SAMPLE_SHAPE: Record<keyof RawSamples, SeamKind> = {
   subjectAccounting: "object",
   tabIndexes: "array",
   tapTargets: "array",
+  unreachableHints: "array?",
   textStyles: "array",
   texts: "array",
   themeRender: "object",

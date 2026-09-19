@@ -16,6 +16,7 @@ import type {
   ControlAspectInput,
   TabIndexInput,
   TapTargetInput,
+  UnreachableHintInput,
 } from "./samples-interactive.ts";
 import type { ImageDistortionInput } from "./samples-media.ts";
 import type { BgPatternInput, IconTileInput, MotionStaticInput } from "./samples-ornament.ts";
@@ -91,6 +92,7 @@ export type {
   LandmarkInput,
   TabIndexInput,
   TapTargetInput,
+  UnreachableHintInput,
 } from "./samples-interactive.ts";
 // ── The relational census (sibling cohorts) ──────────────────────────────────────────────────────────
 // Same split reason as the interactive family above, and the same import-beside-re-export rule:
@@ -386,6 +388,10 @@ export interface RawSamples extends RelationalSamples {
   /** Named, offered, non-per-datum controls — the runtime dual-home lens (#252). Optional: absent from the
    *  fixture sample sets that predate it, where it reads as "no doors censused". */
   readonly actionDoors?: readonly ActionDoorInput[];
+  /** Visible Base UI tooltip triggers (#2452). Optional: absent from the fixture sample sets that
+   *  predate the census, where it reads as "no tooltip trigger censused" and the rule publishes no row
+   *  rather than a fabricated clean one. */
+  readonly unreachableHints?: readonly UnreachableHintInput[];
   readonly mainLandmarkPresent: boolean;
   readonly tabIndexes: readonly TabIndexInput[];
   readonly zIndexes: readonly ZIndexInput[];

@@ -56,6 +56,35 @@ export interface AccessibleNameInput {
   readonly altText: string | null;
 }
 
+/** ONE visible Base UI tooltip trigger, for `unreachable-hint` (#2452).
+ *
+ *  THE MECHANISM (RULE-AUTHORING.md step 1, re-derived on the tree 2026-09-19). The population is
+ *  `[data-base-ui-tooltip-trigger]` — Base UI stamps it from `TooltipTrigger.js:244`, and stamps it
+ *  `undefined` on a DISABLED trigger, so a natively-disabled tooltip control is outside this census by
+ *  the vendor's choice, not by ours. The tooltip's own text cannot be read at rest (Base UI mounts the
+ *  popup only while open), so this sample carries the seal's DECISION instead: `@orb/ui`'s tooltip
+ *  publishes `data-tooltip-describes` on every trigger it owns (`packages/ui/src/primitives/tooltip/
+ *  tooltip.tsx`), which is the only way to tell "the tooltip repeats the name, there is nothing to
+ *  reach" from "someone else owes this control a description and nobody wrote one". */
+export interface UnreachableHintInput {
+  readonly selector: string;
+  /** `self` | `name` | `caller` from the seal; `null` when the trigger is outside the seal entirely. */
+  readonly describesDecision: string | null;
+  /** How many ids the trigger's `aria-describedby` names (0 when the attribute is absent). */
+  readonly describedByIds: number;
+  /** Ids whose node exists AND carries non-empty text — the only kind that reaches a screen reader. */
+  readonly describedByResolved: number;
+  readonly title: string | null;
+  readonly ariaDescription: string | null;
+  /** The trigger's own rendered text: a control that says it on screen needs no second carrier. */
+  readonly ownText: string;
+  /** A press-openable disclosure ON this control — Base UI's Popover trigger declares
+   *  `aria-haspopup="dialog"` (`popover/trigger/PopoverTrigger.js:122`), which is what #2443's
+   *  HintTrigger remedy renders. */
+  readonly pressDoor: boolean;
+  readonly coarsePointer: boolean;
+}
+
 export interface LandmarkInput {
   readonly main: boolean;
 }
