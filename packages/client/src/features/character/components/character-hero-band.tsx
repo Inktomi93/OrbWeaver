@@ -23,6 +23,7 @@ import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { ChevronRight, Eye, EyeOff, Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
@@ -268,46 +269,66 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
   //   3. `tabIndex: -1` with `title: null` — the sentence reached a screen reader (as the img's name) and a
   //      mouse (as the hover tooltip) and NOBODY ELSE. It is the only thing on the surface that says where
   //      the character's look is edited, and a keyboard-only or touch user could never see it.
-  // A real focusable trigger fixes 3 outright: Base UI opens the tooltip on FOCUS as well as hover, so tab
-  // and tap both reach the gloss, and `@orb/ui`'s Tooltip seal already threads `aria-describedby` from the
-  // trigger to the popup — so the sentence is the DESCRIPTION and `Own look` is the NAME, which is the
+  // A real focusable trigger fixes 3 outright: `@orb/ui`'s Tooltip seal threads `aria-describedby` from the
+  // trigger to the popup, so the sentence is the DESCRIPTION and `Own look` is the NAME, which is the
   // pairing the three defects above were each a symptom of missing.
+  //
+  // "TAB AND TAP BOTH REACH THE GLOSS" WAS HALF FALSE, AND THAT HALF IS FIXED HERE (#2443, side-eye
+  // 2026-09-19). The claim this comment used to make was refuted at the mechanism: Base UI 1.7.0 builds the
+  // tooltip's hover with `mouseOnly: true` (`tooltip/trigger/TooltipTrigger.js:147`) and its focus path
+  // returns early unless the trigger matches `:focus-visible` (`floating-ui-react/hooks/useFocus.js:104`).
+  // A tap focuses the button but does NOT make it `:focus-visible`, so TAB reached the gloss and TAP did
+  // not — and this sentence is the only thing on the surface that says where the look is edited. The chip
+  // has no other job on press, so the press opens the same sentence as a Popover (the `HintTrigger`
+  // anatomy); hover/`:focus-visible` keep the tooltip, whose `closeOnClick` default dismisses it as the
+  // popover opens, so the two never stack.
   const label = "This card carries its own look — edit it in the Look tab.";
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          // THE ACTIONABLE CHIP LIFTS ITS INK (#878 F12): `secondary` + `pill` at the `sm` control step,
-          // the same treatment the chat band's members and memory chips take, so ONE grammar reads across
-          // both bands — the live chip is at the foreground, a datum holds the muted step. (The axis is
-          // COLOUR, not the border: a `soft` Badge draws the same hairline — measured; the note in
-          // chat-recall-indicator.tsx carries it.) It replaces `ghost`+`size="inline"`, which drew nothing
-          // at rest and left the row marking `1 chat` and `1,257 tokens` — which you cannot press — as the
-          // shaped items and this one as bare text.
-          <Button intent="secondary" shape="pill" size="sm" type="button">
-            <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={cardTheme}>
-              {null}
-            </ThemeScope>
-            {/* The kicker register at its own weight (#573): this mark was micro-caps-muted at REGULAR
-                weight — the same micro-caps tag `kicker` paints, one axis short of it. `interactiveKicker`,
-                not `kicker` (#875 F6, 2026-08-30): this text is the VISIBLE LABEL OF A BUTTON, and `kicker`
-                is the 10.5px micro step — under the 11px readable floor the context rail beside it refused
-                to break ("the readable-floor ruling stands", context-rail.tsx). design-audit measured it as
-                `undersized-ui-text` on both bands in every arm. Same instrument register, readable step. */}
-            {/* `as="span"`, NOT the `<Text>` default `<p>` (side-eye 2026-09-02 nit 26, in BOTH homes —
-                this component renders in the CONTENT header and again in the CONTEXT band, so one edit
-                fixes two). `<button>` takes PHRASING content only: React-DOM constructs the tree so nothing
-                reparents at runtime, but an HTML parser (SSR/hydration, an ariaSnapshot round trip) closes
-                the button at the `<p>` and re-parents everything after it. Same voice, same accessible
-                name — this is the `character-facet-row.tsx` #235 fix, applied to the site that missed it. */}
-            <Text as="span" voice="interactiveKicker" className="text-inherit">
-              Own look
-            </Text>
-          </Button>
-        }
-      />
-      <TooltipPopup side="bottom">{label}</TooltipPopup>
-    </Tooltip>
+    <Popover>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              render={
+                // THE ACTIONABLE CHIP LIFTS ITS INK (#878 F12): `secondary` + `pill` at the `sm` control step,
+                // the same treatment the chat band's members and memory chips take, so ONE grammar reads across
+                // both bands — the live chip is at the foreground, a datum holds the muted step. (The axis is
+                // COLOUR, not the border: a `soft` Badge draws the same hairline — measured; the note in
+                // chat-recall-indicator.tsx carries it.) It replaces `ghost`+`size="inline"`, which drew nothing
+                // at rest and left the row marking `1 chat` and `1,257 tokens` — which you cannot press — as the
+                // shaped items and this one as bare text.
+                <Button intent="secondary" shape="pill" size="sm" type="button">
+                  <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={cardTheme}>
+                    {null}
+                  </ThemeScope>
+                  {/* The kicker register at its own weight (#573): this mark was micro-caps-muted at REGULAR
+                      weight — the same micro-caps tag `kicker` paints, one axis short of it. `interactiveKicker`,
+                      not `kicker` (#875 F6, 2026-08-30): this text is the VISIBLE LABEL OF A BUTTON, and `kicker`
+                      is the 10.5px micro step — under the 11px readable floor the context rail beside it refused
+                      to break ("the readable-floor ruling stands", context-rail.tsx). design-audit measured it as
+                      `undersized-ui-text` on both bands in every arm. Same instrument register, readable step. */}
+                  {/* `as="span"`, NOT the `<Text>` default `<p>` (side-eye 2026-09-02 nit 26, in BOTH homes —
+                      this component renders in the CONTENT header and again in the CONTEXT band, so one edit
+                      fixes two). `<button>` takes PHRASING content only: React-DOM constructs the tree so nothing
+                      reparents at runtime, but an HTML parser (SSR/hydration, an ariaSnapshot round trip) closes
+                      the button at the `<p>` and re-parents everything after it. Same voice, same accessible
+                      name — this is the `character-facet-row.tsx` #235 fix, applied to the site that missed it. */}
+                  <Text as="span" voice="interactiveKicker" className="text-inherit">
+                    Own look
+                  </Text>
+                </Button>
+              }
+            />
+          }
+        />
+        <TooltipPopup side="bottom">{label}</TooltipPopup>
+      </Tooltip>
+      {/* The popup is a `role="dialog"` whose whole body IS the gloss, so it takes the chip's own visible
+          word as its name rather than announcing as a nameless dialog. */}
+      <PopoverPopup aria-label="Own look" data-slot="own-look-gloss" side="bottom">
+        {label}
+      </PopoverPopup>
+    </Popover>
   );
 }
 

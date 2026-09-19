@@ -126,6 +126,22 @@ test("Restamp sends the server-resolved all-my-rows scope — and reads no messa
   expect(trpc.count("chat.listMessages")).toBe(0);
 });
 
+// #2443 — the restamp's BLAST RADIUS is visible copy, not a tooltip. It rewrites every one of the viewer's
+// own lines however far back they go; the sentence naming that scope used to live only in a Base UI tooltip,
+// which is `mouseOnly: true` with a `:focus-visible`-gated focus fallback, so on a phone the button was
+// pressable and its consequence was unreadable. Asserted as RENDERED text (a tooltip-shaped fix would make
+// the node exist but not be visible) AND as the button's accessible description, since a gloss sitting next
+// to a control is not announced with it unless something binds the two.
+test("the restamp's scope sentence is VISIBLE beside the control and is the control's description", async ({ mount, page }) => {
+  await stub(page, true);
+  await mount(<PersonaThisChatStory />);
+  const scope = page.locator('[data-slot="restamp-scope"]');
+  await expect(scope).toBeVisible();
+  await expect(scope).toContainText("Restamps every one of your own lines in this chat");
+  await expect(scope).toContainText("What you wrote is untouched");
+  await expect(page.getByRole("button", { name: "Restamp my messages to this persona" })).toHaveAccessibleDescription(/Restamps every one of your own lines/u);
+});
+
 test("the restamp's confirming notify honors persona.showNotifications (ON ⇒ a toast; OFF ⇒ none)", async ({ mount, page }) => {
   await stub(page, true);
   await mount(<PersonaThisChatStory />);

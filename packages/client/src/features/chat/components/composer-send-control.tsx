@@ -1,15 +1,26 @@
 // The composer's terminal Send/turn-Stop slot, owned by the row-1 `Attach and send` group because it commits
 // the composed message or aborts that live turn. Extracted from `Composer` (component-size cap) so the
 // honest-refusal gate's props (#54) don't inflate that file. Stop wins while a turn is live; otherwise Send,
-// which disables-with-reason when the chat's connection can't serve (title + `focusableWhenDisabled` →
-// aria-disabled but hoverable, [[base-ui-disabled-menuitem-title]]). Only the PERSISTENT unavailable gate
-// carries a reason; the transient pending/empty disablements do not.
+// which disables-with-reason when the chat's connection can't serve (`focusableWhenDisabled` -> aria-disabled
+// but hoverable). Only the PERSISTENT unavailable gate carries a reason; the transient pending/empty
+// disablements do not.
+//
+// THE UNAVAILABLE REASON HAS ONE HOME (#2443, side-eye 2026-09-19). It used to sit in a native `title` AND
+// in the tooltip while `aria-label` stayed the constant "Send message" — two homes for one concept, and
+// NEITHER reaches a phone: a `title` is invisible on touch and only a description to AT, and Base UI 1.7.0's
+// tooltip is `mouseOnly: true` with a `:focus-visible`-gated focus fallback, so a tap opens nothing
+// (#863's title-attribute lesson, and the same mechanism `composer-guided-buttons.tsx` documents). The
+// `title` is gone; the reason is the control's DESCRIPTION via an `sr-only` line (so AT reads it at rest,
+// on any pointer, without displacing the name a voice-control user says), and the SIGHTED touch user reads
+// the same string as visible copy under the guided cluster, which renders it once for the whole band.
 
 import { Button } from "@orb/ui/button";
 import { Icon, Send, Square } from "@orb/ui/icons";
 import { WebSpinner } from "@orb/ui/spinner";
+import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { testId } from "#lib";
 
 export interface ComposerSendControlProps {
@@ -24,6 +35,7 @@ export interface ComposerSendControlProps {
 }
 
 export function ComposerSendControl(props: ComposerSendControlProps): ReactElement {
+  const reasonId = useId();
   if (props.showStop) {
     return (
       <Tooltip>
@@ -50,6 +62,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
   return (
     <Tooltip>
       <TooltipTrigger
+        {...(props.unavailableReason === undefined ? {} : { "aria-describedby": reasonId })}
         render={
           <Button
             type="button"
@@ -58,7 +71,6 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
             data-testid={testId("composerSend")}
             disabled={props.sendDisabled}
             focusableWhenDisabled={props.unavailable}
-            {...(props.unavailableReason !== undefined ? { title: props.unavailableReason } : {})}
             loading={props.sendPending}
             aria-label="Send message"
             onClick={props.onSend}
@@ -70,6 +82,11 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
         }
       />
       <TooltipPopup side="top">{props.unavailableReason ?? "Send message"}</TooltipPopup>
+      {props.unavailableReason === undefined ? null : (
+        <Text as="span" className="sr-only" id={reasonId}>
+          {props.unavailableReason}
+        </Text>
+      )}
     </Tooltip>
   );
 }
