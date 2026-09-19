@@ -4557,18 +4557,19 @@
     },
     {
       "path": "docs/history/gate-runtime-worked-cases-2026-09.md",
-      "assignedSha256": "cd33cadb2416ce4e11c06b4cbc4cabb3623e34a56a0f7159e715135c7dba2575",
+      "assignedSha256": "b0c70c748bf61bf180e99a07a2f1f66ea87c130ce68613f597da0446793df615",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "cd33cadb2416ce4e11c06b4cbc4cabb3623e34a56a0f7159e715135c7dba2575",
-      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "b0c70c748bf61bf180e99a07a2f1f66ea87c130ce68613f597da0446793df615",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full document read by docs-preservation lane; committed bytes at d71bd65545a2ff09534eeb6ae8050b41435379d9; #2071. Exact parent spans and preservation comparisons are in docs/reviews/gate-runtime/docs-preservation-map-2071.md. No whole-corpus acceptance or lifecycle closure attested.",
         "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed."
       ],
-      "summary": "Dated gate-runtime worked cases: exact thirteen-module ruling and world-program guarantee archive, with explicit resource and chronology summaries. Not present implementation or mutable work authority."
+      "summary": "Dated gate-runtime worked cases: exact thirteen-module ruling and world-program guarantee archive, with explicit resource and chronology summaries. Not present implementation or mutable work authority.",
+      "verifiedCanonicalSha256": "b0c70c748bf61bf180e99a07a2f1f66ea87c130ce68613f597da0446793df615"
     },
     {
       "path": "docs/history/gate-authoring-legacy-2026-09-13.md",

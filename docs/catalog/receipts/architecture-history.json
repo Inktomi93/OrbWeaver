@@ -4,329 +4,18 @@
   "issue": 3,
   "entries": [
     {
-      "path": "docs/architecture/history/BUILD-QUEUE.md",
-      "assignedSha256": "ce57734327936f4d4e1cc9ebf8223fbf422bdb2848b610c8b86f4e51670d5c74",
+      "path": "docs/architecture/history/agent-doctrine-accretion-2026-08.md",
+      "assignedSha256": "9540ba7ee11447a70c41bd6dbbae38073f8aa4f9030400e26437367450909b4d",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "ce57734327936f4d4e1cc9ebf8223fbf422bdb2848b610c8b86f4e51670d5c74",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "9540ba7ee11447a70c41bd6dbbae38073f8aa4f9030400e26437367450909b4d",
+      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedAt": "2026-09-02",
+      "summary": "The dated narrative removed from the always-loaded law by #1056 (doctrine §s 61-487, the pre-trim orchestration/lane-standing-facts/browser/db-schema bodies, §L) — VERBATIM in bare fences, each section headed with its former file:line range.",
       "evidence": [
-        "docs/architecture/history/BUILD-QUEUE.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/Core-BUILD-PLAN.md",
-      "assignedSha256": "a8eef5f217ea8fba4d71119c4a3812b84ff285d98eac68bc046ac9d7606ef8c1",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "a8eef5f217ea8fba4d71119c4a3812b84ff285d98eac68bc046ac9d7606ef8c1",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/Core-BUILD-PLAN.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/Core-Debt-Cleared-Ledger.md",
-      "assignedSha256": "8df4d265842be79b07f0bd9f66442b92a699c0481a10050eb08dd3bbdc919f41",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "8df4d265842be79b07f0bd9f66442b92a699c0481a10050eb08dd3bbdc919f41",
-      "verifiedCommit": "75d9f0b49e45e390278083b00f6d30f01b74edb8",
-      "verifiedAt": "2026-09-05",
-      "evidence": [
-        "re-attested at 75d9f0b49 (#1658 follow-up) by the orchestrator: line 27 now states the rename in place — requireFoundingCharacters (then requireFoundingCast); archaeology otherwise unchanged, read in full.",
-        "re-attested at 7d7c1e352 by the orchestrator after reading the #1627 diff in full: the PD-106 row carries a DATED amendment (the ruling survives — its INPUT changed: three single-human sources now ride the inbox — plugin-disabled, automation-notice, the #1041 consent aggregate; the belt kept for presence only), with the owner’s two 2026-09-05 sentences quoted and attributed; no new PD/D row minted; frontmatter dated 2026-09-05.",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/Core-Doc-Inconsistency-Audit-2026-06-26.md",
-      "assignedSha256": "d941a1e3ab9213d4931c348d78ee97a1893884021988bff7586a53aa6912470b",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "d941a1e3ab9213d4931c348d78ee97a1893884021988bff7586a53aa6912470b",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/Core-Doc-Inconsistency-Audit-2026-06-26.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/Core-Doc-Review-Punchlist-2026-06-28.md",
-      "assignedSha256": "173adb9b99d0e42983d2e1a5e0e8cea5384a05882f2e8ca2ca337ab9b2523c86",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "173adb9b99d0e42983d2e1a5e0e8cea5384a05882f2e8ca2ca337ab9b2523c86",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/Core-Doc-Review-Punchlist-2026-06-28.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/Core-Event-Bus-Parity-Audit.md",
-      "assignedSha256": "a58a73cc260e2ca7dbc2961c77364396e7177eaf357a807cab7758891e1c57e0",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "a58a73cc260e2ca7dbc2961c77364396e7177eaf357a807cab7758891e1c57e0",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/Core-Event-Bus-Parity-Audit.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/D62-Prefold-Design-Enforcement-2026-07-05.md",
-      "assignedSha256": "5c4b77bed788d3ffea5281ae6f87cf5349cb4d00e87173fe7029857308978dd9",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "5c4b77bed788d3ffea5281ae6f87cf5349cb4d00e87173fe7029857308978dd9",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/D62-Prefold-Design-Enforcement-2026-07-05.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/D62-Prefold-UI-Polish-Punchlist-2026-07-05.md",
-      "assignedSha256": "dcc503adb7b1cf00198049c2189bf18447181c6ba4e7fa03803689ffbe019647",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "dcc503adb7b1cf00198049c2189bf18447181c6ba4e7fa03803689ffbe019647",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/D62-Prefold-UI-Polish-Punchlist-2026-07-05.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/D62-Prefold-UX-Flow-Revamp-2026-07-05.md",
-      "assignedSha256": "db13d18828cca107a4acc011a3fc9cca92e03df06d0ca9d92cb5964ed65f2b6a",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "db13d18828cca107a4acc011a3fc9cca92e03df06d0ca9d92cb5964ed65f2b6a",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/D62-Prefold-UX-Flow-Revamp-2026-07-05.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/DESIGN-REVIEW-2026-07-01.md",
-      "assignedSha256": "ce4df3b76ff3796d6d24bf7273955749a313fa0db6e5d2cffc8b073c2f1994f7",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "ce4df3b76ff3796d6d24bf7273955749a313fa0db6e5d2cffc8b073c2f1994f7",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/DESIGN-REVIEW-2026-07-01.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md",
-      "assignedSha256": "bc0fe9533c0aa148e58ab45f2a1a15434e547f941d5d7eedbb842668ee8070d0",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "bc0fe9533c0aa148e58ab45f2a1a15434e547f941d5d7eedbb842668ee8070d0",
-      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
-      "verifiedAt": "2026-08-30",
-      "evidence": [
-        "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/Grounded-Intelligence-AST-Scan.md",
-      "assignedSha256": "0e9bee2d70bf0efefec64f33d3e63b0e98cee85534dfa45d0762bcfedc02e283",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "0e9bee2d70bf0efefec64f33d3e63b0e98cee85534dfa45d0762bcfedc02e283",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/Grounded-Intelligence-AST-Scan.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/Marinara-Residue-Non-RPG.md",
-      "assignedSha256": "81d760ee3d3417c4a217d04a04ce75acf833f34d32c0bf5ef98ffe70af91a260",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "81d760ee3d3417c4a217d04a04ce75acf833f34d32c0bf5ef98ffe70af91a260",
-      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
-      "verifiedAt": "2026-08-30",
-      "evidence": [
-        "docs/architecture/history/Marinara-Residue-Non-RPG.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "re-attested after the #26 B10 reconciliation repointed its saved-rosters-design.md links to interaction-direction-spec B10 at d760c3bad",
-        "docs/architecture/history/Marinara-Residue-Non-RPG.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/Pain-Ledger.md",
-      "assignedSha256": "14aa6a90101f06b4ec04121bce8dc93245dec89fa5dd8dbdf11fff417873a148",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "14aa6a90101f06b4ec04121bce8dc93245dec89fa5dd8dbdf11fff417873a148",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/Pain-Ledger.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/Shared-Drawer-Dissolution-Map.md",
-      "assignedSha256": "9655af8bd9bb0fce39528b3943eeb1393cf72c8a3ce30dbd0f6dfa1196954035",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "9655af8bd9bb0fce39528b3943eeb1393cf72c8a3ce30dbd0f6dfa1196954035",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/Shared-Drawer-Dissolution-Map.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/UI-Lib-TanStack-Form.md",
-      "assignedSha256": "b30ce43954b1ab99815f9ca49cf1ceee6809db7f1c4151621abb35dd21342e28",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "b30ce43954b1ab99815f9ca49cf1ceee6809db7f1c4151621abb35dd21342e28",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/UI-Lib-TanStack-Form.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/UI-Lib-TanStack-Query.md",
-      "assignedSha256": "60dc85f7fce450b59920525deaaf19473d445d2ffbb622b2e0630fdf6f532d1d",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "60dc85f7fce450b59920525deaaf19473d445d2ffbb622b2e0630fdf6f532d1d",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/UI-Lib-TanStack-Query.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/UI-Lib-TanStack-Router.md",
-      "assignedSha256": "dd3dcd4f0bf64d18b046a92a2a08c5782021eea91ba9aaf8937b191623d21e16",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "dd3dcd4f0bf64d18b046a92a2a08c5782021eea91ba9aaf8937b191623d21e16",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/UI-Lib-TanStack-Router.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/UI-Lib-TanStack-Virtual.md",
-      "assignedSha256": "2e298f8968d727cdb7f2ec407e5b8e3dcb3dd71b523653eea34185d8ed4f60e1",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "2e298f8968d727cdb7f2ec407e5b8e3dcb3dd71b523653eea34185d8ed4f60e1",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/UI-Lib-TanStack-Virtual.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/UI-Lib-Zustand.md",
-      "assignedSha256": "ad788969b4e1c22a0081a5d3aed82c6cdfd1245ebf87cefd888d85d020c11978",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "ad788969b4e1c22a0081a5d3aed82c6cdfd1245ebf87cefd888d85d020c11978",
-      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/history/UI-Lib-Zustand.md:1 (full read; historical header/provenance evaluated)",
-        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
-      ],
-      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+        "archived at c2bca04ee (#1056, lane p-truth-p1): 963 lines / 78 KB of removed text, fenced so the doc formatter is idempotent over it (it mangles quoted backticks in loose markdown — memory doc-formatter-mangles-quoted-backticks); every demoted section left one rule line + a pointer in its law file; mapping table in the lane report on #1056"
+      ]
     },
     {
       "path": "docs/architecture/history/assets-maintenance.md",
@@ -371,6 +60,22 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/history/build-plan-record.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/BUILD-QUEUE.md",
+      "assignedSha256": "ce57734327936f4d4e1cc9ebf8223fbf422bdb2848b610c8b86f4e51670d5c74",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "ce57734327936f4d4e1cc9ebf8223fbf422bdb2848b610c8b86f4e51670d5c74",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/BUILD-QUEUE.md:1 (full read; historical header/provenance evaluated)",
         "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
@@ -457,6 +162,100 @@
       "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
+      "path": "docs/architecture/history/Core-BUILD-PLAN.md",
+      "assignedSha256": "a8eef5f217ea8fba4d71119c4a3812b84ff285d98eac68bc046ac9d7606ef8c1",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "a8eef5f217ea8fba4d71119c4a3812b84ff285d98eac68bc046ac9d7606ef8c1",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/Core-BUILD-PLAN.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/Core-Debt-Cleared-Ledger.md",
+      "assignedSha256": "8df4d265842be79b07f0bd9f66442b92a699c0481a10050eb08dd3bbdc919f41",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "8df4d265842be79b07f0bd9f66442b92a699c0481a10050eb08dd3bbdc919f41",
+      "verifiedCommit": "75d9f0b49e45e390278083b00f6d30f01b74edb8",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "re-attested at 75d9f0b49 (#1658 follow-up) by the orchestrator: line 27 now states the rename in place — requireFoundingCharacters (then requireFoundingCast); archaeology otherwise unchanged, read in full.",
+        "re-attested at 7d7c1e352 by the orchestrator after reading the #1627 diff in full: the PD-106 row carries a DATED amendment (the ruling survives — its INPUT changed: three single-human sources now ride the inbox — plugin-disabled, automation-notice, the #1041 consent aggregate; the belt kept for presence only), with the owner’s two 2026-09-05 sentences quoted and attributed; no new PD/D row minted; frontmatter dated 2026-09-05.",
+        "docs/architecture/history/Core-Debt-Cleared-Ledger.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/Core-Doc-Inconsistency-Audit-2026-06-26.md",
+      "assignedSha256": "d941a1e3ab9213d4931c348d78ee97a1893884021988bff7586a53aa6912470b",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "d941a1e3ab9213d4931c348d78ee97a1893884021988bff7586a53aa6912470b",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/Core-Doc-Inconsistency-Audit-2026-06-26.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/Core-Doc-Review-Punchlist-2026-06-28.md",
+      "assignedSha256": "173adb9b99d0e42983d2e1a5e0e8cea5384a05882f2e8ca2ca337ab9b2523c86",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "173adb9b99d0e42983d2e1a5e0e8cea5384a05882f2e8ca2ca337ab9b2523c86",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/Core-Doc-Review-Punchlist-2026-06-28.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md",
+      "assignedSha256": "2c2a9af2ae8a177cf83e1e5dc01a5097a2d7dadc98902ed420bc768cf385c03e",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/architecture/history/Core-Event-Bus-Parity-Audit.md",
+      "assignedSha256": "a58a73cc260e2ca7dbc2961c77364396e7177eaf357a807cab7758891e1c57e0",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "a58a73cc260e2ca7dbc2961c77364396e7177eaf357a807cab7758891e1c57e0",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/Core-Event-Bus-Parity-Audit.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
       "path": "docs/architecture/history/core-laws-archaeology-record.md",
       "assignedSha256": "f26a3b3fe5aee15a82dd00e3a5aa821cb044fe6fcdccd86af8dc24f4c012264f",
       "disposition": "archive",
@@ -467,6 +266,68 @@
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/core-laws-archaeology-record.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/Core-STATUS-2026-07-13.md",
+      "assignedSha256": "fb4adacb9092f461dbe46efe4503f240ba6f95b4e1948be5f58c3b62d9717828",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "fb4adacb9092f461dbe46efe4503f240ba6f95b4e1948be5f58c3b62d9717828",
+      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedAt": "2026-09-02",
+      "summary": "The frozen build-status cursor (ledger cursor D106, six-backend era) — archived by #1056; its rider had admitted the drift since 2026-07-13.",
+      "evidence": [
+        "archived at c2bca04ee (#1056): moved verbatim from docs/architecture/core/Core-STATUS.md with status: archived; the AGENTS.md §7 row dropped; frozen provenance, not live law"
+      ]
+    },
+    {
+      "path": "docs/architecture/history/D62-Prefold-Design-Enforcement-2026-07-05.md",
+      "assignedSha256": "5c4b77bed788d3ffea5281ae6f87cf5349cb4d00e87173fe7029857308978dd9",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "5c4b77bed788d3ffea5281ae6f87cf5349cb4d00e87173fe7029857308978dd9",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/D62-Prefold-Design-Enforcement-2026-07-05.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/D62-Prefold-UI-Polish-Punchlist-2026-07-05.md",
+      "assignedSha256": "dcc503adb7b1cf00198049c2189bf18447181c6ba4e7fa03803689ffbe019647",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "dcc503adb7b1cf00198049c2189bf18447181c6ba4e7fa03803689ffbe019647",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/D62-Prefold-UI-Polish-Punchlist-2026-07-05.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/D62-Prefold-UX-Flow-Revamp-2026-07-05.md",
+      "assignedSha256": "db13d18828cca107a4acc011a3fc9cca92e03df06d0ca9d92cb5964ed65f2b6a",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "db13d18828cca107a4acc011a3fc9cca92e03df06d0ca9d92cb5964ed65f2b6a",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/D62-Prefold-UX-Flow-Revamp-2026-07-05.md:1 (full read; historical header/provenance evaluated)",
         "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
@@ -499,6 +360,22 @@
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/design-enforcement.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/DESIGN-REVIEW-2026-07-01.md",
+      "assignedSha256": "ce4df3b76ff3796d6d24bf7273955749a313fa0db6e5d2cffc8b073c2f1994f7",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "ce4df3b76ff3796d6d24bf7273955749a313fa0db6e5d2cffc8b073c2f1994f7",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/DESIGN-REVIEW-2026-07-01.md:1 (full read; historical header/provenance evaluated)",
         "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
@@ -569,6 +446,23 @@
       "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
+      "path": "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md",
+      "assignedSha256": "bc0fe9533c0aa148e58ab45f2a1a15434e547f941d5d7eedbb842668ee8070d0",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "bc0fe9533c0aa148e58ab45f2a1a15434e547f941d5d7eedbb842668ee8070d0",
+      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
       "path": "docs/architecture/history/gallery-design.md",
       "assignedSha256": "98f38cb464b10f5c2de3777c57911b790dbd2842e542af49a0ada21a57a1ddab",
       "disposition": "archive",
@@ -597,6 +491,40 @@
         "docs/architecture/history/gallery.md:1 (full read; historical header/provenance evaluated)",
         "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/Grounded-Intelligence-AST-Scan.md",
+      "assignedSha256": "0e9bee2d70bf0efefec64f33d3e63b0e98cee85534dfa45d0762bcfedc02e283",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "0e9bee2d70bf0efefec64f33d3e63b0e98cee85534dfa45d0762bcfedc02e283",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/Grounded-Intelligence-AST-Scan.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/Marinara-Residue-Non-RPG.md",
+      "assignedSha256": "81d760ee3d3417c4a217d04a04ce75acf833f34d32c0bf5ef98ffe70af91a260",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "81d760ee3d3417c4a217d04a04ce75acf833f34d32c0bf5ef98ffe70af91a260",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/architecture/history/Marinara-Residue-Non-RPG.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "re-attested after the #26 B10 reconciliation repointed its saved-rosters-design.md links to interaction-direction-spec B10 at d760c3bad",
+        "docs/architecture/history/Marinara-Residue-Non-RPG.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
@@ -659,6 +587,22 @@
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/architecture/history/neo-test-steal-list.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/Pain-Ledger.md",
+      "assignedSha256": "14aa6a90101f06b4ec04121bce8dc93245dec89fa5dd8dbdf11fff417873a148",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "14aa6a90101f06b4ec04121bce8dc93245dec89fa5dd8dbdf11fff417873a148",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/Pain-Ledger.md:1 (full read; historical header/provenance evaluated)",
         "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
@@ -739,6 +683,22 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/history/search-deferred-verbs.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/Shared-Drawer-Dissolution-Map.md",
+      "assignedSha256": "9655af8bd9bb0fce39528b3943eeb1393cf72c8a3ce30dbd0f6dfa1196954035",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "9655af8bd9bb0fce39528b3943eeb1393cf72c8a3ce30dbd0f6dfa1196954035",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/Shared-Drawer-Dissolution-Map.md:1 (full read; historical header/provenance evaluated)",
         "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
@@ -969,6 +929,23 @@
       "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
+      "path": "docs/architecture/history/ui-cohesion-north-star.md",
+      "assignedSha256": "625f8d9409b5549c1a0bfa7178ed07d52dcbde1cfe0daa781437a8c3173300f5",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "625f8d9409b5549c1a0bfa7178ed07d52dcbde1cfe0daa781437a8c3173300f5",
+      "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/architecture/history/ui-cohesion-north-star.md:1-676 full read under #930; frontmatter and banner make the D66 program a historical snapshot, current CSS law points to client-architecture-lockdown.md §4, and Project 1 owns mutable work",
+        "docs/architecture/core/Core-Path-Registry.md D66 and docs/architecture/core/Core-STATUS.md explicitly deny this archived program current lifecycle authority",
+        "git:bbecbfc78be417b6aab44609d3d4f0d484d8c87b contains the exact archived blob",
+        "docs/architecture/history/ui-cohesion-north-star.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
+      ],
+      "summary": "Full-read D66 UI-cohesion program archive retained for provenance; current law and lifecycle route to core docs and Project 1."
+    },
+    {
       "path": "docs/architecture/history/ui-gates-lessons-archaeology-record.md",
       "assignedSha256": "647c2bf16e2fd5770c2d625879ff06f5ba3b878d62fba9197b150edc0e35d30c",
       "disposition": "archive",
@@ -979,6 +956,86 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/history/ui-gates-lessons-archaeology-record.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/UI-Lib-TanStack-Form.md",
+      "assignedSha256": "b30ce43954b1ab99815f9ca49cf1ceee6809db7f1c4151621abb35dd21342e28",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "b30ce43954b1ab99815f9ca49cf1ceee6809db7f1c4151621abb35dd21342e28",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/UI-Lib-TanStack-Form.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/UI-Lib-TanStack-Query.md",
+      "assignedSha256": "60dc85f7fce450b59920525deaaf19473d445d2ffbb622b2e0630fdf6f532d1d",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "60dc85f7fce450b59920525deaaf19473d445d2ffbb622b2e0630fdf6f532d1d",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/UI-Lib-TanStack-Query.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/UI-Lib-TanStack-Router.md",
+      "assignedSha256": "dd3dcd4f0bf64d18b046a92a2a08c5782021eea91ba9aaf8937b191623d21e16",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "dd3dcd4f0bf64d18b046a92a2a08c5782021eea91ba9aaf8937b191623d21e16",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/UI-Lib-TanStack-Router.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/UI-Lib-TanStack-Virtual.md",
+      "assignedSha256": "2e298f8968d727cdb7f2ec407e5b8e3dcb3dd71b523653eea34185d8ed4f60e1",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "2e298f8968d727cdb7f2ec407e5b8e3dcb3dd71b523653eea34185d8ed4f60e1",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/UI-Lib-TanStack-Virtual.md:1 (full read; historical header/provenance evaluated)",
+        "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+      ],
+      "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/UI-Lib-Zustand.md",
+      "assignedSha256": "ad788969b4e1c22a0081a5d3aed82c6cdfd1245ebf87cefd888d85d020c11978",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "ad788969b4e1c22a0081a5d3aed82c6cdfd1245ebf87cefd888d85d020c11978",
+      "verifiedCommit": "20f6f49670c2657f538a78c5efadf58114292575",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/history/UI-Lib-Zustand.md:1 (full read; historical header/provenance evaluated)",
         "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
@@ -1049,23 +1106,6 @@
       "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
-      "path": "docs/architecture/history/ui-cohesion-north-star.md",
-      "assignedSha256": "625f8d9409b5549c1a0bfa7178ed07d52dcbde1cfe0daa781437a8c3173300f5",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "625f8d9409b5549c1a0bfa7178ed07d52dcbde1cfe0daa781437a8c3173300f5",
-      "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/architecture/history/ui-cohesion-north-star.md:1-676 full read under #930; frontmatter and banner make the D66 program a historical snapshot, current CSS law points to client-architecture-lockdown.md §4, and Project 1 owns mutable work",
-        "docs/architecture/core/Core-Path-Registry.md D66 and docs/architecture/core/Core-STATUS.md explicitly deny this archived program current lifecycle authority",
-        "git:bbecbfc78be417b6aab44609d3d4f0d484d8c87b contains the exact archived blob",
-        "docs/architecture/history/ui-cohesion-north-star.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
-      ],
-      "summary": "Full-read D66 UI-cohesion program archive retained for provenance; current law and lifecycle route to core docs and Project 1."
-    },
-    {
       "path": "docs/architecture/history/ux-flow-revamp.md",
       "assignedSha256": "ef7045051715bab4b9dca8bd00ebf5bc4a7788754e612957b7614d15c9ef926e",
       "disposition": "archive",
@@ -1096,34 +1136,6 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
       "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
-    },
-    {
-      "path": "docs/architecture/history/Core-STATUS-2026-07-13.md",
-      "assignedSha256": "fb4adacb9092f461dbe46efe4503f240ba6f95b4e1948be5f58c3b62d9717828",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "fb4adacb9092f461dbe46efe4503f240ba6f95b4e1948be5f58c3b62d9717828",
-      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
-      "verifiedAt": "2026-09-02",
-      "summary": "The frozen build-status cursor (ledger cursor D106, six-backend era) — archived by #1056; its rider had admitted the drift since 2026-07-13.",
-      "evidence": [
-        "archived at c2bca04ee (#1056): moved verbatim from docs/architecture/core/Core-STATUS.md with status: archived; the AGENTS.md §7 row dropped; frozen provenance, not live law"
-      ]
-    },
-    {
-      "path": "docs/architecture/history/agent-doctrine-accretion-2026-08.md",
-      "assignedSha256": "9540ba7ee11447a70c41bd6dbbae38073f8aa4f9030400e26437367450909b4d",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "9540ba7ee11447a70c41bd6dbbae38073f8aa4f9030400e26437367450909b4d",
-      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
-      "verifiedAt": "2026-09-02",
-      "summary": "The dated narrative removed from the always-loaded law by #1056 (doctrine §s 61-487, the pre-trim orchestration/lane-standing-facts/browser/db-schema bodies, §L) — VERBATIM in bare fences, each section headed with its former file:line range.",
-      "evidence": [
-        "archived at c2bca04ee (#1056, lane p-truth-p1): 963 lines / 78 KB of removed text, fenced so the doc formatter is idempotent over it (it mangles quoted backticks in loose markdown — memory doc-formatter-mangles-quoted-backticks); every demoted section left one rule line + a pointer in its law file; mapping table in the lane report on #1056"
-      ]
     }
   ]
 }

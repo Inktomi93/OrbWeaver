@@ -5,13 +5,13 @@
   "entries": [
     {
       "path": "docs/Mission.md",
-      "assignedSha256": "1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f",
+      "assignedSha256": "7d38f28a537e1c5f72f260e36a0e2c44818349ec7c7a3607ab7f03e540e248f7",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "1ccac63e31bb369567cd1aa09adf949c4e75023beb8b8846769cf12d8492724f",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "7d38f28a537e1c5f72f260e36a0e2c44818349ec7c7a3607ab7f03e540e248f7",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": ["docs/Mission.md:1", "git log --oneline -5 -- docs", "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"],
       "claims": [
         {
@@ -24,7 +24,8 @@
           ]
         }
       ],
-      "summary": "Full-read current authority; fact-check receipt refreshed against current main."
+      "summary": "Full-read current authority; fact-check receipt refreshed against current main.",
+      "verifiedCanonicalSha256": "7d38f28a537e1c5f72f260e36a0e2c44818349ec7c7a3607ab7f03e540e248f7"
     },
     {
       "path": "docs/Qwen_Offline_Investigation.md",

@@ -283,13 +283,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/adj-audit-gap-accounting-2026-09-13.md",
-      "assignedSha256": "de795d6620a1c62f02d30bcb2958a2c61bae7dd0d11ed448f19d73f334dd294b",
+      "assignedSha256": "1c81374640ae12caab613b09729159c1d34b6f7e609e7bd354d677461126df39",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "de795d6620a1c62f02d30bcb2958a2c61bae7dd0d11ed448f19d73f334dd294b",
-      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "1c81374640ae12caab613b09729159c1d34b6f7e609e7bd354d677461126df39",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
       ],
@@ -304,17 +304,18 @@
           ]
         }
       ],
-      "summary": "Dated accounting of the ten original audit waves’ declared omissions, separating historical limits, already-owned work, and omissions that do not establish defects."
+      "summary": "Dated accounting of the ten original audit waves’ declared omissions, separating historical limits, already-owned work, and omissions that do not establish defects.",
+      "verifiedCanonicalSha256": "1c81374640ae12caab613b09729159c1d34b6f7e609e7bd354d677461126df39"
     },
     {
       "path": "docs/reviews/gate-runtime/adj-audit-gap-probes-2026-09-13.md",
-      "assignedSha256": "39691081998533af4b7ccf276f2c20e33285a20dd7e2f6535c79a79c2819bf42",
+      "assignedSha256": "b30a9a9eea8672714c2a5d66625c1fe4e59774063011937e9662287f174edde3",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "39691081998533af4b7ccf276f2c20e33285a20dd7e2f6535c79a79c2819bf42",
-      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "b30a9a9eea8672714c2a5d66625c1fe4e59774063011937e9662287f174edde3",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
       ],
@@ -329,17 +330,18 @@
           ]
         }
       ],
-      "summary": "Dated audit-gap probe report with corrected cast and role-authority dispositions and explicit source/run limits."
+      "summary": "Dated audit-gap probe report with corrected cast and role-authority dispositions and explicit source/run limits.",
+      "verifiedCanonicalSha256": "b30a9a9eea8672714c2a5d66625c1fe4e59774063011937e9662287f174edde3"
     },
     {
       "path": "docs/reviews/gate-runtime/adj-authority-cohort-2026-09-13.md",
-      "assignedSha256": "b667cfc722e27d70b81b19b59c29db0ee43af0886997db96ceee58b245b00bab",
+      "assignedSha256": "6fec1aa1226e009f6e1af5737d597d2bc3fc1464d83a765c516f7c583eb7ce90",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "b667cfc722e27d70b81b19b59c29db0ee43af0886997db96ceee58b245b00bab",
-      "verifiedCommit": "c383bcda57af71476f46d731a6b90f5e1cca2f57",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "6fec1aa1226e009f6e1af5737d597d2bc3fc1464d83a765c516f7c583eb7ce90",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "summary": "Complete authority/parity adjudication preserves scoped receipts, distinguishes relocated exemptions from migrated authority, and records the separate remaining replay corpus. No full-corpus parity claim.",
       "evidence": [
         "Root read the full report, including initially truncated sections recovered separately. Verified current mirror headers and Tier 3 landing receipts; eight shared authority/policy ledger state repairs and four attributed rows folded at27da7c8d1. #2320, #1922, #2147, #2273 and #2319 remaining work is not attested complete."
@@ -358,31 +360,33 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "6fec1aa1226e009f6e1af5737d597d2bc3fc1464d83a765c516f7c583eb7ce90"
     },
     {
       "path": "docs/reviews/gate-runtime/adj-authority-design-2026-09-13.md",
-      "assignedSha256": "f06c87c180ee8f5ac00a8564884633a41d1e43b5538c675138ec0b917cf3317a",
+      "assignedSha256": "a8baa850ab67800510c3c643e2bf9343ab38349c6856cb7c89185f4441c73a2e",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "f06c87c180ee8f5ac00a8564884633a41d1e43b5538c675138ec0b917cf3317a",
-      "verifiedCommit": "9dca9fca4f0d825a538905e4ceb5a141da2ca1b3",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "a8baa850ab67800510c3c643e2bf9343ab38349c6856cb7c89185f4441c73a2e",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/adj-authority-design-2026-09-13.md:1-1245 read in full 2026-09-14; a read-only design-planner lane's dated analysis of the #2320 enforcement gap and the #1922/#2147 exemption-authority migration train, revised twice (a root-requested correction and a security review) that withdraw and replace several of its own earlier claims, and it closes still marking commits 2 and 3 UNAUTHORIZED pending root's review. VERBATIM line 969: \"the seven aliases never reach `ctx.report.node`, so a `reviewed-grant` flip yields **raw 0** for them → seven grants consumed zero → **seven `stale-reviewed-grant` alarms on day one**\""
       ],
-      "summary": "A dated, multi-revision design record from claude-b's read-only planner lane proposing an ARM D fix for the #2320 policy-legacy-imports enforcement gap and a three-commit migration train for the #1922/#2147 exemption-authority program; no tracked file was ever modified. The document is append-only across three legs (initial design, a root-requested correction that withdrew several claims and replaced the train plan, and a security review that rejected and replaced its successor design for the CALLER_FREE_OP_ROWS grants), and a reader must not treat any earlier section as current without checking whether a later section supersedes it — as of the final append, commits 2 and 3 remain UNAUTHORIZED and only commit 1 is unaffected by the security review."
+      "summary": "A dated, multi-revision design record from claude-b's read-only planner lane proposing an ARM D fix for the #2320 policy-legacy-imports enforcement gap and a three-commit migration train for the #1922/#2147 exemption-authority program; no tracked file was ever modified. The document is append-only across three legs (initial design, a root-requested correction that withdrew several claims and replaced the train plan, and a security review that rejected and replaced its successor design for the CALLER_FREE_OP_ROWS grants), and a reader must not treat any earlier section as current without checking whether a later section supersedes it — as of the final append, commits 2 and 3 remain UNAUTHORIZED and only commit 1 is unaffected by the security review.",
+      "verifiedCanonicalSha256": "a8baa850ab67800510c3c643e2bf9343ab38349c6856cb7c89185f4441c73a2e"
     },
     {
       "path": "docs/reviews/gate-runtime/adj-closure-review-2026-09-13.md",
-      "assignedSha256": "61eed553b538006560e9e9651da40738965bf9ae25df9478ba0251dc9f1ddb46",
+      "assignedSha256": "1aaebf46302806e81327d7ded360e6f27bae6717e4a9289387c6b4dd01bbefdd",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "61eed553b538006560e9e9651da40738965bf9ae25df9478ba0251dc9f1ddb46",
-      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "1aaebf46302806e81327d7ded360e6f27bae6717e4a9289387c6b4dd01bbefdd",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
       ],
@@ -397,31 +401,33 @@
           ]
         }
       ],
-      "summary": "Dated adversarial review of thirteen tooling closure proposals, preserving accepted corrections, refutations, planted-control receipts, and explicit untested boundaries."
+      "summary": "Dated adversarial review of thirteen tooling closure proposals, preserving accepted corrections, refutations, planted-control receipts, and explicit untested boundaries.",
+      "verifiedCanonicalSha256": "1aaebf46302806e81327d7ded360e6f27bae6717e4a9289387c6b4dd01bbefdd"
     },
     {
       "path": "docs/reviews/gate-runtime/adj-grant-reach-2026-09-13.md",
-      "assignedSha256": "e87e5c3c9b898b55b25aa91c4be3f7e37f4c2dbc819fbbff3b52cc21d18a09dd",
+      "assignedSha256": "b7da53f1eba8f0a27e0550480d3c795a7ee33efc2c99d2306d80fc5392fb5b49",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "e87e5c3c9b898b55b25aa91c4be3f7e37f4c2dbc819fbbff3b52cc21d18a09dd",
-      "verifiedCommit": "9dca9fca4f0d825a538905e4ceb5a141da2ca1b3",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "b7da53f1eba8f0a27e0550480d3c795a7ee33efc2c99d2306d80fc5392fb5b49",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/adj-grant-reach-2026-09-13.md:1-253 read in full 2026-09-14; an owner-authorized prevention-question lane proved final gate modules can reach the reviewed-grants table through an ordinary-import wrapper, and that the program's own prior repair commit already created this exact wrapper shape unnoticed. VERBATIM line 66: \"same-named sibling defeats a spelling\""
       ],
-      "summary": "An investigative lane answering whether a final gate policy can reach the reviewed-grants authority table indirectly through a lib/ wrapper, given that policy-legacy-imports only follows re-export declarations one hop. It proves the wrapper reach is live today (not hypothetical) because commit 3420a81e9 already created this exact shape while closing two unrelated findings, and proposes a producer-side allowlist seal as the smallest complete fix. Readers must not treat this as an implemented fix — it is a proposed enforcement contract for the orchestrator to authorize and dispatch, and three ledger rows remain unrouted."
+      "summary": "An investigative lane answering whether a final gate policy can reach the reviewed-grants authority table indirectly through a lib/ wrapper, given that policy-legacy-imports only follows re-export declarations one hop. It proves the wrapper reach is live today (not hypothetical) because commit 3420a81e9 already created this exact shape while closing two unrelated findings, and proposes a producer-side allowlist seal as the smallest complete fix. Readers must not treat this as an implemented fix — it is a proposed enforcement contract for the orchestrator to authorize and dispatch, and three ledger rows remain unrouted.",
+      "verifiedCanonicalSha256": "b7da53f1eba8f0a27e0550480d3c795a7ee33efc2c99d2306d80fc5392fb5b49"
     },
     {
       "path": "docs/reviews/gate-runtime/adj-ledger-receipt-reconciliation-2026-09-13.md",
-      "assignedSha256": "fe77b15174a00caf452ab9f7c26cc902bb06cf12c3acc1080b92fa29b0641b2b",
+      "assignedSha256": "c540d4e5bbdb28eaa152449526a8400bef1da91f9551d337d9b6b5807195669e",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "fe77b15174a00caf452ab9f7c26cc902bb06cf12c3acc1080b92fa29b0641b2b",
-      "verifiedCommit": "083276748443e1c99320081afac875d2f3efa487",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "c540d4e5bbdb28eaa152449526a8400bef1da91f9551d337d9b6b5807195669e",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full read of these byte-identical current bytes. The report proposes 22 bounded state changes, preserves thirteen #2097 binding-reader migrations as OPEN, and explicitly relies on prior receipts rather than a new behavioral run."
       ],
@@ -436,7 +442,8 @@
           ]
         }
       ],
-      "summary": "Full-read reconciliation of named ledger rows, with thirteen #2097 migrations explicitly retained as open and prior-run limits preserved."
+      "summary": "Full-read reconciliation of named ledger rows, with thirteen #2097 migrations explicitly retained as open and prior-run limits preserved.",
+      "verifiedCanonicalSha256": "c540d4e5bbdb28eaa152449526a8400bef1da91f9551d337d9b6b5807195669e"
     },
     {
       "path": "docs/reviews/gate-runtime/adj-ledger-reconcile-2026-09-13.md",
@@ -469,13 +476,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/adj-policy-cohort-2026-09-13.md",
-      "assignedSha256": "c46a63e6cd3d34ce9876ca382681a2982b40cbfa6bd737916abf5ca34efd9e7c",
+      "assignedSha256": "053ed38d9f94b87f6fc58a97b6a4af88a615d3a88ed960936487f0c71c908230",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "c46a63e6cd3d34ce9876ca382681a2982b40cbfa6bd737916abf5ca34efd9e7c",
-      "verifiedCommit": "c383bcda57af71476f46d731a6b90f5e1cca2f57",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "053ed38d9f94b87f6fc58a97b6a4af88a615d3a88ed960936487f0c71c908230",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "summary": "Complete policy-cohort adjudication preserves closed repairs and bounded remaining warning-debt, driver-proof and owner-decision work.",
       "evidence": [
         "Root read the complete report; current parent-SHA headers and named-door accounting corroborate the bounded stale-row repairs. #2070 and #2225 repairs remain separate; #2063 split and #2230 owner fork remain explicit. Full report copied byte-identically and scoped formatter passed."
@@ -494,17 +501,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "053ed38d9f94b87f6fc58a97b6a4af88a615d3a88ed960936487f0c71c908230"
     },
     {
       "path": "docs/reviews/gate-runtime/adj-role-authority-census-2026-09-13.md",
-      "assignedSha256": "c5248a114e54a70699cf691d22510fcbca00df084a05189434ae7c307c5604a3",
+      "assignedSha256": "7a270a26520ad0c9d4a0163d6f30ba4493d68250c2a27ba22c5eef9956196dc5",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "c5248a114e54a70699cf691d22510fcbca00df084a05189434ae7c307c5604a3",
-      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "7a270a26520ad0c9d4a0163d6f30ba4493d68250c2a27ba22c5eef9956196dc5",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
       ],
@@ -519,7 +527,8 @@
           ]
         }
       ],
-      "summary": "Dated census of the three declared omitted two-class-role-authority shapes over the gate population, with in-memory controls and explicit scope exclusions."
+      "summary": "Dated census of the three declared omitted two-class-role-authority shapes over the gate population, with in-memory controls and explicit scope exclusions.",
+      "verifiedCanonicalSha256": "7a270a26520ad0c9d4a0163d6f30ba4493d68250c2a27ba22c5eef9956196dc5"
     },
     {
       "path": "docs/reviews/gate-runtime/authoring-guide-preservation-map-2126.md",
@@ -580,13 +589,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/bus-pair-1584.md",
-      "assignedSha256": "85077c568cd82252aeebda3bfabc0ea405b8cce6c8acdb48ba1059f955f9d574",
+      "assignedSha256": "1f74dbe19f78b382e8142a51fca9c64e86ddeafb527ab6afe276e484d8febc67",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "85077c568cd82252aeebda3bfabc0ea405b8cce6c8acdb48ba1059f955f9d574",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "1f74dbe19f78b382e8142a51fca9c64e86ddeafb527ab6afe276e484d8febc67",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/bus-pair-1584.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -603,17 +612,30 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "1f74dbe19f78b382e8142a51fca9c64e86ddeafb527ab6afe276e484d8febc67"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/bypass-enumeration-2026-09-12.md",
+      "assignedSha256": "95e5f6c43f3f779a21f624cb3d6798e109010984a8c4b071021e20bf1e4663ad",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/checkpoint-2026-09-05.md",
-      "assignedSha256": "b2abd0a2984650fdfaa6477ffc722845b008be8581c61f65368ab6555f2c72d9",
+      "assignedSha256": "1e12871042b269b3a1464d67b36ee4f92483ae978239bd5787836f6d70ff0c12",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "6df1047dbf7c2013311a32aa752b93ebaac4dc48f1284ef17c5487002c23498c",
-      "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "1e12871042b269b3a1464d67b36ee4f92483ae978239bd5787836f6d70ff0c12",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/checkpoint-2026-09-05.md:1-254 read in full for #2067 first-review receipt; the file explicitly preserves an incomplete emergency-fold snapshot and warns that committed WIP is not conversion credit or verification evidence."
       ],
@@ -628,7 +650,8 @@
           ]
         }
       ],
-      "summary": "Historical emergency-fold checkpoint for the gate-runtime program. It preserves recovery state, incomplete work, and limitations and must not be read as current acceptance."
+      "summary": "Historical emergency-fold checkpoint for the gate-runtime program. It preserves recovery state, incomplete work, and limitations and must not be read as current acceptance.",
+      "verifiedCanonicalSha256": "1e12871042b269b3a1464d67b36ee4f92483ae978239bd5787836f6d70ff0c12"
     },
     {
       "path": "docs/reviews/gate-runtime/css-family-audit-2026-09-12.md",
@@ -690,13 +713,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/exception-authority-census.md",
-      "assignedSha256": "5efb4171203c74f57f02a558a69a9797500b627048c3e59e1567bb47e59e4b22",
+      "assignedSha256": "c97fabfa12552bef37c64b3f05a0de208c9f331fdfee82dbd5bf4a8899e34194",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "5efb4171203c74f57f02a558a69a9797500b627048c3e59e1567bb47e59e4b22",
-      "verifiedCommit": "23a8f61d6db4a371a25d1e3c1dc7a6887c129090",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "c97fabfa12552bef37c64b3f05a0de208c9f331fdfee82dbd5bf4a8899e34194",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/exception-authority-census.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -716,17 +739,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "c97fabfa12552bef37c64b3f05a0de208c9f331fdfee82dbd5bf4a8899e34194"
     },
     {
       "path": "docs/reviews/gate-runtime/exemplar-pristine-matrix-2026-09-11.md",
-      "assignedSha256": "3931097eee9ecf8f510a46a6137be3eeeaccb56c78262c9216462029fea2d746",
+      "assignedSha256": "17bc34bceb976b0a756821abe537e9b3920bd8416599813bbb1e336881504a92",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "3931097eee9ecf8f510a46a6137be3eeeaccb56c78262c9216462029fea2d746",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "17bc34bceb976b0a756821abe537e9b3920bd8416599813bbb1e336881504a92",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/exemplar-pristine-matrix-2026-09-11.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -743,17 +767,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "17bc34bceb976b0a756821abe537e9b3920bd8416599813bbb1e336881504a92"
     },
     {
       "path": "docs/reviews/gate-runtime/exemplars-2026-09-11.md",
-      "assignedSha256": "94896a5b8a5bee9b7e269a41c550a12775568660712234ebebe6d833df8d69c3",
+      "assignedSha256": "d5ee3bf4d102ef14dc281b70f2316052d0c3c4643854fdbc53010d813b0689ee",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "94896a5b8a5bee9b7e269a41c550a12775568660712234ebebe6d833df8d69c3",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "d5ee3bf4d102ef14dc281b70f2316052d0c3c4643854fdbc53010d813b0689ee",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/exemplars-2026-09-11.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -770,17 +795,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "d5ee3bf4d102ef14dc281b70f2316052d0c3c4643854fdbc53010d813b0689ee"
     },
     {
       "path": "docs/reviews/gate-runtime/home-client-family-1584.md",
-      "assignedSha256": "a186fed7c8e4889963c6df479ccf0f6f5960e7f7dd48acbe32e9686c2189bc90",
+      "assignedSha256": "587b8c6d20561e949836817edcbb7d1b5d05810d9f23287e68f30088314dd205",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "a186fed7c8e4889963c6df479ccf0f6f5960e7f7dd48acbe32e9686c2189bc90",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "587b8c6d20561e949836817edcbb7d1b5d05810d9f23287e68f30088314dd205",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/home-client-family-1584.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -797,17 +823,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "587b8c6d20561e949836817edcbb7d1b5d05810d9f23287e68f30088314dd205"
     },
     {
       "path": "docs/reviews/gate-runtime/home-server-family-1584.md",
-      "assignedSha256": "ff75f62b58e6da676e49f6ce24027bbbbbc4e643f42105ac4183dbd3ae25b917",
+      "assignedSha256": "54caf22566a81b4a4379d31d0fdbe92ea238e1a4c0931c4877ce9004e818e56a",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "ff75f62b58e6da676e49f6ce24027bbbbbc4e643f42105ac4183dbd3ae25b917",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "54caf22566a81b4a4379d31d0fdbe92ea238e1a4c0931c4877ce9004e818e56a",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/home-server-family-1584.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -824,17 +851,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "54caf22566a81b4a4379d31d0fdbe92ea238e1a4c0931c4877ce9004e818e56a"
     },
     {
       "path": "docs/reviews/gate-runtime/id-brand-family-1584.md",
-      "assignedSha256": "8fa602ea1819f0fe5ff29c73c32ea9e4663d5a3a88a102e80eca331fdf92f927",
+      "assignedSha256": "b0f6372096f5bd428b871f49bcf387edbf8e94eada4aecc7185fc84411044c73",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "8fa602ea1819f0fe5ff29c73c32ea9e4663d5a3a88a102e80eca331fdf92f927",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "b0f6372096f5bd428b871f49bcf387edbf8e94eada4aecc7185fc84411044c73",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/id-brand-family-1584.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -851,7 +879,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "b0f6372096f5bd428b871f49bcf387edbf8e94eada4aecc7185fc84411044c73"
     },
     {
       "path": "docs/reviews/gate-runtime/law-doc-split-proposal-2026-09-13.md",
@@ -860,7 +889,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "5df552cf0e499e3645edf031bece5f7cae096452534a2a623fe5410dfe088d43",
-      "verifiedCommit": "c59b72f59d51625f1ba4917bab54fed8031a7366",
+      "verifiedCommit": "7f7eb66e88783ff37bdc2702df9ee41e004559ea",
       "verifiedAt": "2026-09-13",
       "evidence": [
         "docs/reviews/gate-runtime/law-doc-split-proposal-2026-09-13.md:1",
@@ -1016,13 +1045,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/ordinary-visitors-family-1584.md",
-      "assignedSha256": "65efc796f9a3f966580c085abac84104734ea4390d4759699573f71878236aa8",
+      "assignedSha256": "4b7f3c1fa2b6f7228f43778b9b344560e581bcb17827b64ce43ee04847cc179a",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "65efc796f9a3f966580c085abac84104734ea4390d4759699573f71878236aa8",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "4b7f3c1fa2b6f7228f43778b9b344560e581bcb17827b64ce43ee04847cc179a",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/ordinary-visitors-family-1584.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1039,7 +1068,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "4b7f3c1fa2b6f7228f43778b9b344560e581bcb17827b64ce43ee04847cc179a"
     },
     {
       "path": "docs/reviews/gate-runtime/ordinary-waiver-source-migration.md",
@@ -1057,13 +1087,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/origin-client-family-1584.md",
-      "assignedSha256": "c9e787ad0411b68f83aeac372fe3bb36591e20863bf47dbf9ded22d4e37ce830",
+      "assignedSha256": "068694bcbcc3da74efaf3dc6cab74cd344c80fa1c395f4ea5aa33fc3a7418a4a",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "c9e787ad0411b68f83aeac372fe3bb36591e20863bf47dbf9ded22d4e37ce830",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "068694bcbcc3da74efaf3dc6cab74cd344c80fa1c395f4ea5aa33fc3a7418a4a",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/origin-client-family-1584.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1080,17 +1110,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "068694bcbcc3da74efaf3dc6cab74cd344c80fa1c395f4ea5aa33fc3a7418a4a"
     },
     {
       "path": "docs/reviews/gate-runtime/origin-server-family-1584.md",
-      "assignedSha256": "c074b34e26873312acd6cd24b64dd659e73df72bebfa9eb52bd03ab789cc1c9d",
+      "assignedSha256": "b559d6ec3edea93f03b5c1ba8514f4ce72453d2d2f3b3670e893605f83f4c183",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "c074b34e26873312acd6cd24b64dd659e73df72bebfa9eb52bd03ab789cc1c9d",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "b559d6ec3edea93f03b5c1ba8514f4ce72453d2d2f3b3670e893605f83f4c183",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/origin-server-family-1584.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1107,7 +1138,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "b559d6ec3edea93f03b5c1ba8514f4ce72453d2d2f3b3670e893605f83f4c183"
     },
     {
       "path": "docs/reviews/gate-runtime/planner-cli-integration.md",
@@ -1137,14 +1169,26 @@
       ]
     },
     {
+      "path": "docs/reviews/gate-runtime/policing-surface-audit-2026-09-12.md",
+      "assignedSha256": "7fa67548346134e0933ae3c7abf1b425f6f364a26b90265932b6c0d09c5c5edd",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/gate-runtime/policy-soundness-family-1584.md",
-      "assignedSha256": "5a0adaf62a77d629f781472a38ac9ef29e979bb46be29214267274b161761648",
+      "assignedSha256": "418942252ef221936d52f45fc651bd36805d81a6dd285a451ef5a51896c279be",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "5a0adaf62a77d629f781472a38ac9ef29e979bb46be29214267274b161761648",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "418942252ef221936d52f45fc651bd36805d81a6dd285a451ef5a51896c279be",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/policy-soundness-family-1584.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1161,17 +1205,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "418942252ef221936d52f45fc651bd36805d81a6dd285a451ef5a51896c279be"
     },
     {
       "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
-      "assignedSha256": "ce42c3e31e3c67e0bf331f32c0f71773519d057593c759e2dcd589f2e3e054d6",
+      "assignedSha256": "a4ed052c9d19f2c8bf8c97691058c17c9e265ec57bb26be36066836428d9760e",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "ce42c3e31e3c67e0bf331f32c0f71773519d057593c759e2dcd589f2e3e054d6",
-      "verifiedCommit": "3ef7cfad0077454198adbffa96d1c1e567f62e00",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "a4ed052c9d19f2c8bf8c97691058c17c9e265ec57bb26be36066836428d9760e",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full prior reads plus complete 083276748..3ef7cfad0 delta review. The ledger closes the three stale #2223 rows, closes #2302's scoped proof, folds its one config-snapshot row, and derives 516 total / 404 CLOSED / 76 OPEN / 26 FIXED."
       ],
@@ -1186,17 +1231,18 @@
           ]
         }
       ],
-      "summary": "Current dated refutation ledger at 3ef7cfad0 with 516 bounded row dispositions, including reconciled #2223 and #2302 evidence; mutable lifecycle remains external."
+      "summary": "Current dated refutation ledger at 3ef7cfad0 with 516 bounded row dispositions, including reconciled #2223 and #2302 evidence; mutable lifecycle remains external.",
+      "verifiedCanonicalSha256": "a4ed052c9d19f2c8bf8c97691058c17c9e265ec57bb26be36066836428d9760e"
     },
     {
       "path": "docs/reviews/gate-runtime/registry-family-1584-checkpoint.md",
-      "assignedSha256": "820027b56a9989cfd76ad7ec4bf526f134c255c167da083585d6d4241295614a",
+      "assignedSha256": "47b5e7d0cacf4365b48653f42ddf8b7ff35f0bdbec9a16cea08bcb0e46eed5f6",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "820027b56a9989cfd76ad7ec4bf526f134c255c167da083585d6d4241295614a",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "47b5e7d0cacf4365b48653f42ddf8b7ff35f0bdbec9a16cea08bcb0e46eed5f6",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/registry-family-1584-checkpoint.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1213,7 +1259,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "47b5e7d0cacf4365b48653f42ddf8b7ff35f0bdbec9a16cea08bcb0e46eed5f6"
     },
     {
       "path": "docs/reviews/gate-runtime/resource-gate-access-patterns.md",
@@ -1258,13 +1305,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/resource-layout-size-inventory.md",
-      "assignedSha256": "ccc45ed735f2d47dc79fa57c3225796cf6ef784e64ee42ad0948dcb535fe0b6a",
+      "assignedSha256": "d71cd3d8ea73966a42006822818aad279f4c8c9f0dd8220bb0d298416e7a428b",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "ccc45ed735f2d47dc79fa57c3225796cf6ef784e64ee42ad0948dcb535fe0b6a",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "d71cd3d8ea73966a42006822818aad279f4c8c9f0dd8220bb0d298416e7a428b",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/resource-layout-size-inventory.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1281,17 +1328,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "d71cd3d8ea73966a42006822818aad279f4c8c9f0dd8220bb0d298416e7a428b"
     },
     {
       "path": "docs/reviews/gate-runtime/schema-fact-family-1584.md",
-      "assignedSha256": "cc3353d29b963f30c2a5129e5bc4cacee6ed11071ce0a658e7ec7312563484bb",
+      "assignedSha256": "5df5f3d4ae1e379ccb87e0d24f302ad4c693e740573609fd505bc183431941d1",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "cc3353d29b963f30c2a5129e5bc4cacee6ed11071ce0a658e7ec7312563484bb",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "5df5f3d4ae1e379ccb87e0d24f302ad4c693e740573609fd505bc183431941d1",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/schema-fact-family-1584.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1308,17 +1356,54 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "5df5f3d4ae1e379ccb87e0d24f302ad4c693e740573609fd505bc183431941d1"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/sec-barrier-review-2026-09-13.md",
+      "assignedSha256": "e47c751a98a10c159af6305f1f49e953eee307d0a556471a7810900969be004b",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/sec-p7-review-2026-09-13.md",
+      "assignedSha256": "55024cb3ffd6f41e7f101c01d319b872e3f1cda373e7f57dcf73f195fc045788",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/sec-replay-review-2026-09-13.md",
+      "assignedSha256": "acbf6b5fc9f82c9018c3e5faaf4c4884daf1fd72b9238c29191d4862d1f6d096",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/shared-semantic-readers.md",
-      "assignedSha256": "24f24c5dee3f12c5d19f436cd1d1afc0622ae97bf91b5882e1033d35cf306abe",
+      "assignedSha256": "638550bc3fc8e5d7db1bb1518df210cd7c9a17cffdb0a94fb88552ca04d64dd0",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "24f24c5dee3f12c5d19f436cd1d1afc0622ae97bf91b5882e1033d35cf306abe",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "638550bc3fc8e5d7db1bb1518df210cd7c9a17cffdb0a94fb88552ca04d64dd0",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/shared-semantic-readers.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1335,17 +1420,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "638550bc3fc8e5d7db1bb1518df210cd7c9a17cffdb0a94fb88552ca04d64dd0"
     },
     {
       "path": "docs/reviews/gate-runtime/simple-visitors-a-m.md",
-      "assignedSha256": "46340e81488b1cf7c9d16987ceadd803d64fb425e69ae62849b41fdb57aeb769",
+      "assignedSha256": "ced27fdafd34231a8f726788b83a735e6f0f41ff828955654ac09a6d23d11119",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "46340e81488b1cf7c9d16987ceadd803d64fb425e69ae62849b41fdb57aeb769",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "ced27fdafd34231a8f726788b83a735e6f0f41ff828955654ac09a6d23d11119",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/simple-visitors-a-m.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1362,7 +1448,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "ced27fdafd34231a8f726788b83a735e6f0f41ff828955654ac09a6d23d11119"
     },
     {
       "path": "docs/reviews/gate-runtime/simple-visitors-n-z.md",
@@ -1398,7 +1485,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "d745799f6d248e0831fa0ba80d832345c9810b6504c70f23ea73328c10280c31",
-      "verifiedCommit": "defb3d078a335ba30cfd567e02130a36805bb317",
+      "verifiedCommit": "3cfea2e0f8d909a348d2e6a949683fa4a89f7f13",
       "verifiedAt": "2026-09-18",
       "evidence": [
         "docs/reviews/gate-runtime/structure-irreducibles-disposition-2026-09-18.md:1",
@@ -1475,14 +1562,26 @@
       ]
     },
     {
+      "path": "docs/reviews/gate-runtime/tier3-one-to-one-port-ruling.md",
+      "assignedSha256": "70b3d87b802fd3ed6564bd6164cfac510e85caef8a84a9b2568475deb93e5651",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/gate-runtime/uncovered-gate-conversion-census.md",
-      "assignedSha256": "a636edf109b67c9ac101c1d984aeb1e34425e0fc11cb2e586da7ba41609b8ed0",
+      "assignedSha256": "48b58518d4685b0e03d1856ceed8fc6f93d3f7bd424fd7bdecfa3ad7b77f760c",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "a636edf109b67c9ac101c1d984aeb1e34425e0fc11cb2e586da7ba41609b8ed0",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "48b58518d4685b0e03d1856ceed8fc6f93d3f7bd424fd7bdecfa3ad7b77f760c",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1499,7 +1598,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "48b58518d4685b0e03d1856ceed8fc6f93d3f7bd424fd7bdecfa3ad7b77f760c"
     },
     {
       "path": "docs/reviews/gate-runtime/v-2319-continuation-review-2026-09-13.md",
@@ -1568,84 +1668,113 @@
       "summary": "Independent checkpoint refutation and source-level closing review for R-2319-1, preserving exact test-evidence attribution and the remaining #2319 scope limits."
     },
     {
+      "path": "docs/reviews/gate-runtime/v-2358-reference-fact-shared-2026-09-14.md",
+      "assignedSha256": "6f6a61f3985d148e473cc8740efae3d2608ffe17b15c14f81d7aed1737c4b97a",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-additions-wave-2026-09-12.md",
+      "assignedSha256": "dc556b5186895b1af989292aa48df7c50184c77aec793cbaa1882eb95ccc5a97",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/gate-runtime/v-audit-wave10-2026-09-12.md",
-      "assignedSha256": "061fed7d9b4dc3b04cc2f242ad606852d493f6b43984ce9c73b75621c8d0fb84",
+      "assignedSha256": "d1dd9d9744d7678050a2e828ca4ec34e236f108c2653b507fb0b5e5d741ab79d",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "061fed7d9b4dc3b04cc2f242ad606852d493f6b43984ce9c73b75621c8d0fb84",
-      "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "d1dd9d9744d7678050a2e828ca4ec34e236f108c2653b507fb0b5e5d741ab79d",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-audit-wave10-2026-09-12.md:1-609 read in full 2026-09-14; a dated audit of the BUS plane (7) plus id-brand-flow family (5) plus a user-bus-deferred-member re-audit, naming bus-definition-belts the module to copy and no-raw-id (blind to a re-export door) the anti-pattern. VERBATIM line 524: \"It is the only subject where every cut in the right direction reds, its\""
       ],
-      "summary": "A dated (2026-09-12) read-only adversarial audit of twelve gate policies (the BUS plane and the id-brand-flow family, plus a re-audit of wave 1's user-bus-deferred-member) against #1584's §5b criteria. It finds 2 CONFIRMED, 1 CONFIRMED-minor, 1 re-audit CONFIRMED and 8 REFUTED, with a same-family A/B comparison proving no-raw-id's hand-rolled identity reader is blind to a re-export door its sibling catches. It is a point-in-time verification record, not living guidance for future gate work."
+      "summary": "A dated (2026-09-12) read-only adversarial audit of twelve gate policies (the BUS plane and the id-brand-flow family, plus a re-audit of wave 1's user-bus-deferred-member) against #1584's §5b criteria. It finds 2 CONFIRMED, 1 CONFIRMED-minor, 1 re-audit CONFIRMED and 8 REFUTED, with a same-family A/B comparison proving no-raw-id's hand-rolled identity reader is blind to a re-export door its sibling catches. It is a point-in-time verification record, not living guidance for future gate work.",
+      "verifiedCanonicalSha256": "d1dd9d9744d7678050a2e828ca4ec34e236f108c2653b507fb0b5e5d741ab79d"
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md",
-      "assignedSha256": "24c020ff9d2e2e37a4c87c8049e6937380a73ed3b2e86f3f6898424d03b917d1",
+      "assignedSha256": "bacc6c816a04d8bdef2bd7932b57783bde78619d6d6b53c74ac23f8fbd21890d",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "24c020ff9d2e2e37a4c87c8049e6937380a73ed3b2e86f3f6898424d03b917d1",
-      "verifiedCommit": "eb3ac74ec2d29af4843b61098b34ca47562c7186",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "bacc6c816a04d8bdef2bd7932b57783bde78619d6d6b53c74ac23f8fbd21890d",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md:1-720 read in full 2026-09-14; a dated audit of the 8-module registry/completeness family that reproduces the #1972 ctx.relativePath escape in five modules with ordinary in-repo fixtures and corrects wave 1's unsplit cut-classification method. VERBATIM line 667: \"audited the eight-module registry/completeness family against §5b's seven\""
       ],
-      "summary": "A dated (2026-09-12) read-only adversarial audit of eight registry/completeness gate policies against #1584's §5b criteria, introducing a three-bucket clean-cut classification (unenforced / mutually redundant / wrong-direction) that later waves adopted. It refutes seven of the eight final modules and excludes an eighth as legacy/unconverted, with the headline finding that the #1972 ctx.relativePath population escape is reproducible with an ordinary cross-package import, not merely latent. It is a dated verification snapshot, not standing design guidance."
+      "summary": "A dated (2026-09-12) read-only adversarial audit of eight registry/completeness gate policies against #1584's §5b criteria, introducing a three-bucket clean-cut classification (unenforced / mutually redundant / wrong-direction) that later waves adopted. It refutes seven of the eight final modules and excludes an eighth as legacy/unconverted, with the headline finding that the #1972 ctx.relativePath population escape is reproducible with an ordinary cross-package import, not merely latent. It is a dated verification snapshot, not standing design guidance.",
+      "verifiedCanonicalSha256": "bacc6c816a04d8bdef2bd7932b57783bde78619d6d6b53c74ac23f8fbd21890d"
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave3-2026-09-12.md",
-      "assignedSha256": "93fa63ac7c0725e696bf0a3f2cc6d7a833e5a4227bf144bb784281e11bfe710d",
+      "assignedSha256": "0eea4a67af16665014b1daa4bdcb074f22914788dbabc6d9bd635a975239ba12",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "93fa63ac7c0725e696bf0a3f2cc6d7a833e5a4227bf144bb784281e11bfe710d",
-      "verifiedCommit": "19e445e32e130c184f2e2c72460273f2e98f6130",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "0eea4a67af16665014b1daa4bdcb074f22914788dbabc6d9bd635a975239ba12",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-audit-wave3-2026-09-12.md:1-901 read in full 2026-09-14; a dated audit of the nine-module Drizzle-schema fact family finding the strongest proof sets but the weakest headers in the corpus so far, with a dedicated #1966 receipt-discipline reproduction. VERBATIM line 606: \"the guard and module-origin fences ENFORCED, and\""
       ],
-      "summary": "A dated (2026-09-12) read-only adversarial audit of nine Drizzle-schema-fact gate policies against #1584's §5b criteria, all nine REFUTED but on largely documentation (header/roster) grounds rather than proof-set weakness. It includes a dedicated reproduction of the #1966 receipt-discipline fail-open gap (confirmed latent, not present, across all 18 real consumers) and names db-enum-from-tuple the module to hand a conversion lane. It is a dated verification snapshot, not standing policy or design guidance."
+      "summary": "A dated (2026-09-12) read-only adversarial audit of nine Drizzle-schema-fact gate policies against #1584's §5b criteria, all nine REFUTED but on largely documentation (header/roster) grounds rather than proof-set weakness. It includes a dedicated reproduction of the #1966 receipt-discipline fail-open gap (confirmed latent, not present, across all 18 real consumers) and names db-enum-from-tuple the module to hand a conversion lane. It is a dated verification snapshot, not standing policy or design guidance.",
+      "verifiedCanonicalSha256": "0eea4a67af16665014b1daa4bdcb074f22914788dbabc6d9bd635a975239ba12"
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave4-2026-09-12.md",
-      "assignedSha256": "c1a0da60af07cf0af8bf8d93decb6f1431d89b6eb672dbbea3fca4bfc20da4a7",
+      "assignedSha256": "a402e55302b690b755e728dfa2e1197475448911e1352d042ed6deb029ffa925",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "c1a0da60af07cf0af8bf8d93decb6f1431d89b6eb672dbbea3fca4bfc20da4a7",
-      "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "a402e55302b690b755e728dfa2e1197475448911e1352d042ed6deb029ffa925",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-audit-wave4-2026-09-12.md:1-773 read in full 2026-09-14; a dated audit of the raw-CSS/token-surface family showing the #1954 carrier-fence repair pinned only the outer fence, leaving both inner halves unenforced in three mirrored modules. VERBATIM line 612: \"the message was correctly made context-free by #1954 and\""
       ],
-      "summary": "A dated (2026-09-12) read-only adversarial audit of ten raw-CSS/token-surface gate policies against #1584's §5b criteria, finding this family markedly worse than wave 2's on the axes that matter most for copying (narrowing pins, identity arms). All nine final modules are REFUTED, with the central finding that a prior #1954 repair fixed only the outer carrier fence in three mirrored/sibling modules, leaving both discriminating inner clauses unenforced. It is a dated verification report, not a living design or policy document."
+      "summary": "A dated (2026-09-12) read-only adversarial audit of ten raw-CSS/token-surface gate policies against #1584's §5b criteria, finding this family markedly worse than wave 2's on the axes that matter most for copying (narrowing pins, identity arms). All nine final modules are REFUTED, with the central finding that a prior #1954 repair fixed only the outer carrier fence in three mirrored/sibling modules, leaving both discriminating inner clauses unenforced. It is a dated verification report, not a living design or policy document.",
+      "verifiedCanonicalSha256": "a402e55302b690b755e728dfa2e1197475448911e1352d042ed6deb029ffa925"
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave5-2026-09-12.md",
-      "assignedSha256": "293b0beb6241acaddf6d58864e90a150775afc591fa953806eeff846a680544c",
+      "assignedSha256": "10f18c2709d8d0963d2c13faf80b1b1f9667a75968f8669ac8307717fed43e60",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "293b0beb6241acaddf6d58864e90a150775afc591fa953806eeff846a680544c",
-      "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "10f18c2709d8d0963d2c13faf80b1b1f9667a75968f8669ac8307717fed43e60",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-audit-wave5-2026-09-12.md:1-466 read in full 2026-09-14; a dated adversarial audit of 15 ordinary-visitors-family gate policies against #1584's PRISTINE criteria, verdict 13 REFUTED / 2 CONFIRMED, with a flagged program-level no-inline-types count nobody is tracking. VERBATIM line 408: \"The count is ratcheting with the program, and nobody is tracking it.\""
       ],
-      "summary": "A dated (2026-09-12) read-only adversarial audit of the fifteen gate policies imported by ordinary-visitors-family.test.ts, measured against the #1584 gate-runtime standardization program's §5b criteria and §4 proof rules. It finds 13 of 15 REFUTED and 2 CONFIRMED, with detailed narrowing-cut, identity-arm and header-honesty tables plus proposed follow-up items. It is a point-in-time verification report, not standing guidance — later conversions and rulings may have superseded individual findings."
+      "summary": "A dated (2026-09-12) read-only adversarial audit of the fifteen gate policies imported by ordinary-visitors-family.test.ts, measured against the #1584 gate-runtime standardization program's §5b criteria and §4 proof rules. It finds 13 of 15 REFUTED and 2 CONFIRMED, with detailed narrowing-cut, identity-arm and header-honesty tables plus proposed follow-up items. It is a point-in-time verification report, not standing guidance — later conversions and rulings may have superseded individual findings.",
+      "verifiedCanonicalSha256": "10f18c2709d8d0963d2c13faf80b1b1f9667a75968f8669ac8307717fed43e60"
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave6-2026-09-12.md",
-      "assignedSha256": "fd1c4779025df504d69a6d9b518e009f0099e812ad68a38fa3c07f1d8eacd901",
+      "assignedSha256": "8b47bf59e1ea73a349f4398b0bbb21cef25779fc5aac77a8e6406df8efadb39c",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "fd1c4779025df504d69a6d9b518e009f0099e812ad68a38fa3c07f1d8eacd901",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "8b47bf59e1ea73a349f4398b0bbb21cef25779fc5aac77a8e6406df8efadb39c",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-audit-wave6-2026-09-12.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1662,31 +1791,33 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "8b47bf59e1ea73a349f4398b0bbb21cef25779fc5aac77a8e6406df8efadb39c"
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave7-2026-09-12.md",
-      "assignedSha256": "d5c03a7de1c32d550d05362da45febabee143d4c2ed5fdf8732f4cd3e5f55201",
+      "assignedSha256": "b0c78b51a0abb5fb967a9b53aaa8cc0ca9ce50bc88b303d56a006a4b9410731b",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "d5c03a7de1c32d550d05362da45febabee143d4c2ed5fdf8732f4cd3e5f55201",
-      "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "b0c78b51a0abb5fb967a9b53aaa8cc0ca9ce50bc88b303d56a006a4b9410731b",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-audit-wave7-2026-09-12.md:1-548 read in full 2026-09-14; a dated audit of the 14-policy home-client family, naming no-raw-matchmedia as the program's first genuine copy candidate and no-effect-on-shared-selection as the anti-pattern. VERBATIM line 507: \"It is the only module in 26 audited across waves 6 and 7 whose\""
       ],
-      "summary": "A dated (2026-09-12) read-only adversarial audit of the fourteen sanctioned-home CLIENT gate policies against the #1584 program's §5b criteria, following the wave 5/6 method. It finds 13 of 14 REFUTED and one CONFIRMED (no-raw-matchmedia, after two named repairs), and identifies no-effect-on-shared-selection as an anti-pattern that fails open on a three-way shared reader. It is a point-in-time verification snapshot, not durable guidance for future conversions."
+      "summary": "A dated (2026-09-12) read-only adversarial audit of the fourteen sanctioned-home CLIENT gate policies against the #1584 program's §5b criteria, following the wave 5/6 method. It finds 13 of 14 REFUTED and one CONFIRMED (no-raw-matchmedia, after two named repairs), and identifies no-effect-on-shared-selection as an anti-pattern that fails open on a three-way shared reader. It is a point-in-time verification snapshot, not durable guidance for future conversions.",
+      "verifiedCanonicalSha256": "b0c78b51a0abb5fb967a9b53aaa8cc0ca9ce50bc88b303d56a006a4b9410731b"
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave8-2026-09-12.md",
-      "assignedSha256": "79f622e4d1cb30ace48f19d592e5e06f981bb99e29770a4388573622774e9e4e",
+      "assignedSha256": "2efadc1588e9cf4fb35c08c8fc5b9f694e403ae8da4891ae285677390d06a4db",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "79f622e4d1cb30ace48f19d592e5e06f981bb99e29770a4388573622774e9e4e",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "2efadc1588e9cf4fb35c08c8fc5b9f694e403ae8da4891ae285677390d06a4db",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-audit-wave8-2026-09-12.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -1703,31 +1834,45 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "2efadc1588e9cf4fb35c08c8fc5b9f694e403ae8da4891ae285677390d06a4db"
     },
     {
       "path": "docs/reviews/gate-runtime/v-audit-wave9-2026-09-12.md",
-      "assignedSha256": "dc5f1f27b6c04fbec0f1350983b8f152a24dc5ce3866bdbe69c6d1ca4ddafd2e",
+      "assignedSha256": "e07b0028f60e3319a9a2b597effb9db8579a99271ad9c502983a59c6abbcb12f",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "dc5f1f27b6c04fbec0f1350983b8f152a24dc5ce3866bdbe69c6d1ca4ddafd2e",
-      "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "e07b0028f60e3319a9a2b597effb9db8579a99271ad9c502983a59c6abbcb12f",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-audit-wave9-2026-09-12.md:1-553 read in full 2026-09-14; a dated audit closing wave 8's debt on the 14-policy origin-server family, finding five false positives on pristine source from a sealed-origin conflation (D1) and naming turn-identity the sole copy candidate once fixed. VERBATIM line 478: \"and it clears the bar once D1 is fixed\""
       ],
-      "summary": "A dated (2026-09-12) read-only adversarial audit of the fourteen server-plane gate policies against #1584's §5b criteria, closing the §4.1 narrowing-cut and third-answer axes wave 8 had left uncovered for this family. All 14 are REFUTED, with a HIGH-severity finding that five policies produce false positives on pristine source by comparing a sealed-origin verdict's `.kind` directly instead of through the shared refusal classifier. It is a dated verification snapshot recording defects found at the time, not a durable design document."
+      "summary": "A dated (2026-09-12) read-only adversarial audit of the fourteen server-plane gate policies against #1584's §5b criteria, closing the §4.1 narrowing-cut and third-answer axes wave 8 had left uncovered for this family. All 14 are REFUTED, with a HIGH-severity finding that five policies produce false positives on pristine source by comparing a sealed-origin verdict's `.kind` directly instead of through the shared refusal classifier. It is a dated verification snapshot recording defects found at the time, not a durable design document.",
+      "verifiedCanonicalSha256": "e07b0028f60e3319a9a2b597effb9db8579a99271ad9c502983a59c6abbcb12f"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-authority-census-2026-09-12.md",
+      "assignedSha256": "ef64c1ed053cc91dd0dc3675cb8bdb82d3a3e86e0253bf16211bc3001a5ac4ee",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/v-baseui-final-2026-09-13.md",
-      "assignedSha256": "14021a345b974fea43539406df22d93d97aaea7c39534999b31f0d90e3311b3e",
+      "assignedSha256": "fd763d422ffaf4bc1da7340f512a1e7da18c4caa038ba62eab101796d29e0ce7",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "14021a345b974fea43539406df22d93d97aaea7c39534999b31f0d90e3311b3e",
-      "verifiedCommit": "12cff683cef15dd11e6ffb170574e8156b1c89a4",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "fd763d422ffaf4bc1da7340f512a1e7da18c4caa038ba62eab101796d29e0ce7",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "summary": "Complete independent Base UI final review preserves production-dispatch, mutation and replay evidence; #2309 confirmed, #2297 replay statement corrected, #2318 refusal coverage and remaining module explanations tracked separately.",
       "evidence": [
         "Root read the complete builder and501-line independent final reports, checked current contract clause against c8fccfa7c, and inspected all correction hunks. Original final report preserved with an additive current-main appendix. Scoped document formatting passed. Full program barrier and stated remaining work are not attested complete."
@@ -1746,7 +1891,44 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "fd763d422ffaf4bc1da7340f512a1e7da18c4caa038ba62eab101796d29e0ce7"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-callable-reader-2026-09-13.md",
+      "assignedSha256": "68a43fc40489fe2606f70640146fc40bd090088baef8086849c5b47b129cc962",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-config-liveness-2026-09-12.md",
+      "assignedSha256": "40a1fe0c87445c423827c7d7b07625a2abae8edf5a3b881dad72cf98e4d1ac4f",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-conversions-11-2026-09-13.md",
+      "assignedSha256": "1d481cbd6c6dda5ca07599b32543f4ce1f35967dac20c6cc12ab0b0e1ee2f528",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/v-conversions-2026-09-13.md",
@@ -1755,7 +1937,7 @@
       "authority": "normative",
       "fullRead": true,
       "verifiedSha256": "a0410c254ed906b298bca69ff01798ecdea386fa2fd038cd8b626781865dfa44",
-      "verifiedCommit": "defb3d078a335ba30cfd567e02130a36805bb317",
+      "verifiedCommit": "3cfea2e0f8d909a348d2e6a949683fa4a89f7f13",
       "verifiedAt": "2026-09-18",
       "evidence": [
         "docs/reviews/gate-runtime/v-conversions-2026-09-13.md:1",
@@ -1778,7 +1960,7 @@
     },
     {
       "path": "docs/reviews/gate-runtime/v-css-family-2026-09-13.md",
-      "assignedSha256": "a25cbccce19fa291cd4d24d747497167a3fc242f1111b6dd3c2cd2fff9750259",
+      "assignedSha256": "31d65e6c483bbade9d186ad92301da1b838753ac5dabcaf16e8969deb3f7789f",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
@@ -1800,20 +1982,33 @@
           ]
         }
       ],
-      "verifiedSha256": "a25cbccce19fa291cd4d24d747497167a3fc242f1111b6dd3c2cd2fff9750259",
-      "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
-      "verifiedAt": "2026-09-13",
-      "summary": "Preserves the full independent CSS verifier report measured at3c685ce6a, with six original rows and a dated integration appendix that leaves unresolved dependencies open."
+      "verifiedSha256": "31d65e6c483bbade9d186ad92301da1b838753ac5dabcaf16e8969deb3f7789f",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
+      "summary": "Preserves the full independent CSS verifier report measured at3c685ce6a, with six original rows and a dated integration appendix that leaves unresolved dependencies open.",
+      "verifiedCanonicalSha256": "31d65e6c483bbade9d186ad92301da1b838753ac5dabcaf16e8969deb3f7789f"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-css-train-3-2026-09-13.md",
+      "assignedSha256": "b69edf3445ce8c04394d2b2122bab0750b1e86d002a65dbdb4de99fc6fbad258",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/v-css-train-4-2026-09-13.md",
-      "assignedSha256": "3d2f5f76c0d00926d5e45eace6dfe882151e4eca6c35949771a5a108df364290",
+      "assignedSha256": "b0d27c4214755c3746f0e6e9d56b3d045125d4e8ccdb33f7d15718a44a1606ac",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "3d2f5f76c0d00926d5e45eace6dfe882151e4eca6c35949771a5a108df364290",
-      "verifiedCommit": "c901edee5ca4296a25e6933d1b5ff84383170714",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "b0d27c4214755c3746f0e6e9d56b3d045125d4e8ccdb33f7d15718a44a1606ac",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Independent reconciliation lane read the complete original report and supplied a full preserved fold; root reviewed all17 combined ledger rows, forward state mappings and dated appendices. Repository formatting normalized; historical findings retained. Scoped document format checks passed. Whole program barrier and ledger rollup remain outstanding."
       ],
@@ -1832,7 +2027,8 @@
           ]
         }
       ],
-      "summary": "Full final CSS-train verifier report at61fb1b8ef. Original #2292/#2293 defects confirmed; new refusal/status/prose residues remain #2294/#2314/#2315. Five rows preserved."
+      "summary": "Full final CSS-train verifier report at61fb1b8ef. Original #2292/#2293 defects confirmed; new refusal/status/prose residues remain #2294/#2314/#2315. Five rows preserved.",
+      "verifiedCanonicalSha256": "b0d27c4214755c3746f0e6e9d56b3d045125d4e8ccdb33f7d15718a44a1606ac"
     },
     {
       "path": "docs/reviews/gate-runtime/v-css-unit-2-2026-09-13.md",
@@ -1865,27 +2061,28 @@
     },
     {
       "path": "docs/reviews/gate-runtime/v-exemplar-audit-2026-09-12.md",
-      "assignedSha256": "a29e4aa0a041a847ec159db8a4c94813f481e380722238372521967d17fc9143",
+      "assignedSha256": "a3ec1476e0ef8fab50f9f4b97ab27d65f619b8164373b43107a0b68929a6dbc2",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "a29e4aa0a041a847ec159db8a4c94813f481e380722238372521967d17fc9143",
-      "verifiedCommit": "e6994a62f19e2e467aeb421222eb8966eb3e5966",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "a3ec1476e0ef8fab50f9f4b97ab27d65f619b8164373b43107a0b68929a6dbc2",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-exemplar-audit-2026-09-12.md:1-568 read in full 2026-09-14; the wave-1 audit that refutes nine of the ten cited exemplars in exemplars-2026-09-11.md, including two modules that document certified \"Wart: none found\", and names user-bus-deferred-member the sole module worth copying. VERBATIM line 432: \"This is the module to point a conversion lane at\""
       ],
-      "summary": "A dated (2026-09-11/12) read-only adversarial audit of the ten gate policies cited as exemplars by exemplars-2026-09-11.md, against the #1584 program's §5b criteria. It REFUTES nine of the ten — including proving server-layout's and no-raw-matchmedia's cited not-ready/fail-closed guards are unreachable or unproven, despite the exemplars document certifying them clean — and CONFIRMS only user-bus-deferred-member. This document is itself the record that refutes exemplars-2026-09-11.md (elsewhere recorded as retired history); it is a dated verification report, not current guidance."
+      "summary": "A dated (2026-09-11/12) read-only adversarial audit of the ten gate policies cited as exemplars by exemplars-2026-09-11.md, against the #1584 program's §5b criteria. It REFUTES nine of the ten — including proving server-layout's and no-raw-matchmedia's cited not-ready/fail-closed guards are unreachable or unproven, despite the exemplars document certifying them clean — and CONFIRMS only user-bus-deferred-member. This document is itself the record that refutes exemplars-2026-09-11.md (elsewhere recorded as retired history); it is a dated verification report, not current guidance.",
+      "verifiedCanonicalSha256": "a3ec1476e0ef8fab50f9f4b97ab27d65f619b8164373b43107a0b68929a6dbc2"
     },
     {
       "path": "docs/reviews/gate-runtime/v-fix-wave-1-2026-09-12.md",
-      "assignedSha256": "a31810bb52b41b161c09a52ad65b5c80febd546c9206533b1887138899325c06",
+      "assignedSha256": "7f7d6ed796dccc9059e3eeeb65f0d596e532746d472f744ae65719041b292166",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "a31810bb52b41b161c09a52ad65b5c80febd546c9206533b1887138899325c06",
-      "verifiedCommit": "4eae5329427b2fa4f593f777a859509d1a4c6b65",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "7f7d6ed796dccc9059e3eeeb65f0d596e532746d472f744ae65719041b292166",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full-read by codex-15af-2049-wave12, lines 1-99 (18,402 bytes), for #2049. Raw SHA-256 and exact committed-byte equality were verified at 4eae5329427b2fa4f593f777a859509d1a4c6b65; latest path commit 6c983149eb2e48af4a8dfe05abf741c955cfe23d and every cited subject commit resolve and are ancestors of the verification commit.",
         "The report's six OPEN cells are dated 2026-09-12 evidence. Current refutation-ledger rows 520-525 mark them CLOSED/FIXED and explicitly correct parts of L3 and L6; preserve the report bytes and use the current ledger and board for current state.",
@@ -1910,17 +2107,18 @@
           ]
         }
       ],
-      "summary": "Historical wave-1 verification record. Preserve its dated confirmations, partial refutation, OPEN findings, and limits; current lifecycle and acceptance must be read from the live ledger, board, and current runs."
+      "summary": "Historical wave-1 verification record. Preserve its dated confirmations, partial refutation, OPEN findings, and limits; current lifecycle and acceptance must be read from the live ledger, board, and current runs.",
+      "verifiedCanonicalSha256": "7f7d6ed796dccc9059e3eeeb65f0d596e532746d472f744ae65719041b292166"
     },
     {
       "path": "docs/reviews/gate-runtime/v-fix-wave-2-2026-09-12.md",
-      "assignedSha256": "11e8ef11ac784ba527ccbf02b6f36a48fd5398b08da68411dc37a60362bc5710",
+      "assignedSha256": "41a6352e98455954d70f4b68129624a669f53dbcf41ba4362d1d69b14547d04d",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "11e8ef11ac784ba527ccbf02b6f36a48fd5398b08da68411dc37a60362bc5710",
-      "verifiedCommit": "4eae5329427b2fa4f593f777a859509d1a4c6b65",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "41a6352e98455954d70f4b68129624a669f53dbcf41ba4362d1d69b14547d04d",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full-read by codex-15af-2049-wave12, lines 1-191 (19,750 bytes), for #2049. Raw SHA-256 and exact committed-byte equality were verified at 4eae5329427b2fa4f593f777a859509d1a4c6b65; latest path commit 8cc956626d6aff059b25fe74ca2db223d253f934 and every cited subject commit resolve and are ancestors of the verification commit.",
         "The report's five additional findings remain OPEN in current refutation-ledger rows 531-535, but its runs and structure verdict are anchored to d9d1e352401536e775eeaab98f27a1fe41951c70. The current ledger and board own present disposition; this dated report cannot establish current acceptance.",
@@ -1945,7 +2143,8 @@
           ]
         }
       ],
-      "summary": "Historical wave-2 verification record. Preserve its dated partial refutation, scoped confirmations, OPEN findings, and limits; current lifecycle and acceptance must be read from the live ledger, board, and current runs."
+      "summary": "Historical wave-2 verification record. Preserve its dated partial refutation, scoped confirmations, OPEN findings, and limits; current lifecycle and acceptance must be read from the live ledger, board, and current runs.",
+      "verifiedCanonicalSha256": "41a6352e98455954d70f4b68129624a669f53dbcf41ba4362d1d69b14547d04d"
     },
     {
       "path": "docs/reviews/gate-runtime/v-fix-wave-3-2026-09-12.md",
@@ -1984,13 +2183,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/v-fix-wave-4-2026-09-12.md",
-      "assignedSha256": "b9a4eaff25f08791ac4e692cb218950a8a206a5cb5d7795ffc1b50c0e046c6bc",
+      "assignedSha256": "78d140a59bc3060d93e11bd95be3f574236dd9e89f52faf42ed2833d2cc49284",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "b9a4eaff25f08791ac4e692cb218950a8a206a5cb5d7795ffc1b50c0e046c6bc",
-      "verifiedCommit": "cf7e46d1200242aa56312a77ef4a985ebcd5698a",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "78d140a59bc3060d93e11bd95be3f574236dd9e89f52faf42ed2833d2cc49284",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-fix-wave-4-2026-09-12.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -2007,21 +2206,23 @@
           ]
         }
       ],
-      "summary": "Full-read current review; lane p-doc-catalog-truth attestation. Nine Verify rows re-verified with fresh eyes (#1331, #1335, #1949, #1996, #2086, #2152, #2145, #2161, #2164), all CONFIRMED, plus eleven ledger rows — L9 is the format --write escape-delta loss this lane fixed. The report is deliberately left UNFORMATTED."
+      "summary": "Full-read current review; lane p-doc-catalog-truth attestation. Nine Verify rows re-verified with fresh eyes (#1331, #1335, #1949, #1996, #2086, #2152, #2145, #2161, #2164), all CONFIRMED, plus eleven ledger rows — L9 is the format --write escape-delta loss this lane fixed. The report is deliberately left UNFORMATTED.",
+      "verifiedCanonicalSha256": "78d140a59bc3060d93e11bd95be3f574236dd9e89f52faf42ed2833d2cc49284"
     },
     {
       "path": "docs/reviews/gate-runtime/v-gate-batch-2026-09-12.md",
-      "assignedSha256": "de043079ecbd3807a98faf3b25a60c5419bdd8c2e6967d20571fd74a35e87957",
+      "assignedSha256": "44f507ebcb4ac9aa1588e19abe1c42a24966b5b25cc7e485ba20a6f9eaf095e9",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "de043079ecbd3807a98faf3b25a60c5419bdd8c2e6967d20571fd74a35e87957",
-      "verifiedCommit": "ff5ec76a928dd6e8930f0d857cabb1ad0eab9831",
-      "verifiedAt": "2026-09-14",
+      "verifiedSha256": "44f507ebcb4ac9aa1588e19abe1c42a24966b5b25cc7e485ba20a6f9eaf095e9",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-gate-batch-2026-09-12.md:1-549 read in full 2026-09-14; a dated verifier pass over four exemplar gate-runtime lanes, confirming two lanes clean and refuting two others for a deleted legacy suppression marker and a missed enforcement-roster coupled-site edit. VERBATIM line 531: \"still describes the retired legacy\""
       ],
-      "summary": "A dated (2026-09-11/12) read-only verifier pass over four landed gate-runtime lanes (key-set reader, caught-failure conversion, ResourceHost wave 2, provider-receipt lane) for the #1584 program. It CONFIRMS the capability and provider-receipt lanes clean, but REFUTES the key-set and caught-failure lanes for leaving the enforcement roster coupled site unedited and for silently deleting a live legacy suppression marker rather than translating it. It is a dated code-review/verification record, not a design or policy document."
+      "summary": "A dated (2026-09-11/12) read-only verifier pass over four landed gate-runtime lanes (key-set reader, caught-failure conversion, ResourceHost wave 2, provider-receipt lane) for the #1584 program. It CONFIRMS the capability and provider-receipt lanes clean, but REFUTES the key-set and caught-failure lanes for leaving the enforcement roster coupled site unedited and for silently deleting a live legacy suppression marker rather than translating it. It is a dated code-review/verification record, not a design or policy document.",
+      "verifiedCanonicalSha256": "44f507ebcb4ac9aa1588e19abe1c42a24966b5b25cc7e485ba20a6f9eaf095e9"
     },
     {
       "path": "docs/reviews/gate-runtime/v-hit-geometry-2026-09-13.md",
@@ -2053,14 +2254,62 @@
       "summary": "Full hit-geometry verifier report at765dcdd71. Seven rows preserved; #2312 closed with selected199-doc gate and exact-blob catalog receipts. Geometry and browser repairs remain subject to their independent/integrated verification."
     },
     {
+      "path": "docs/reviews/gate-runtime/v-hooks-wave-2026-09-12.md",
+      "assignedSha256": "9c2c787bd92acb927e92975e2fc50214b444f51bb4a03813057ae0bfabf5dd34",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-instruments-2-2026-09-12.md",
+      "assignedSha256": "e8c0f4c27b6093bb1329747e8c26b4953bfab2caa470d9c5d9926fec7a670566",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-instruments-2026-09-12.md",
+      "assignedSha256": "095fdd6b4c4f37ce61648807e1cd0033dda9a28ec78614da8416c9c571e9f0cf",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-instruments-3-2026-09-13.md",
+      "assignedSha256": "174aeb9351c62d646a8604c27e49b0b61463d9e4bd0d55ffc0ae8e9cb60ba54f",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/gate-runtime/v-ledger-adjudication-2026-09-13.md",
-      "assignedSha256": "7b1a0f077561ca533a3e4c8c75861e1bdf2695e312a0792a3d646158e39871c3",
+      "assignedSha256": "2fb510711f7c1b5e8a29331cd9eeb8ffa457856432a6aba8b677ec9b1d971a7a",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "7b1a0f077561ca533a3e4c8c75861e1bdf2695e312a0792a3d646158e39871c3",
-      "verifiedCommit": "0460b158997bc14fc40f5ab75e71e0d91b223437",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "2fb510711f7c1b5e8a29331cd9eeb8ffa457856432a6aba8b677ec9b1d971a7a",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-ledger-adjudication-2026-09-13.md:1 (full report and subsequent correction reads by codex-primary; scoped check:docs passed; explicit set partition independently recomputed)"
       ],
@@ -2075,7 +2324,44 @@
           ]
         }
       ],
-      "summary": "Independent gate-ledger adjudication with exhaustive 101-row selection partition, qualified evidence, and a conserved proposed rollup; remaining unverified claims explicitly retained."
+      "summary": "Independent gate-ledger adjudication with exhaustive 101-row selection partition, qualified evidence, and a conserved proposed rollup; remaining unverified claims explicitly retained.",
+      "verifiedCanonicalSha256": "2fb510711f7c1b5e8a29331cd9eeb8ffa457856432a6aba8b677ec9b1d971a7a"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-ledger-fixes-2026-09-12.md",
+      "assignedSha256": "0f036822c57fd768a3193788b68461aba2564aecbb98598013c663f3215a3225",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-ledger-reconcile-2026-09-12.md",
+      "assignedSha256": "4c8587c2d215984487fb5723f0a08f75f6a06206740cd85eaac417e6bf4354b0",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-ledger-wave-2026-09-12.md",
+      "assignedSha256": "a6b339c0a9096df882c0e064a23e34ce70d2e9a3655525ebe3bb9da00ca89f00",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/v-legs-wave-2026-09-12.md",
@@ -2093,13 +2379,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/v-migrations-wave-2026-09-12.md",
-      "assignedSha256": "ec9cd5620acdcc87280b9827d754cccf3a4ac5921eed78bf7db0a204f7d1b39a",
+      "assignedSha256": "7463a9057b0830aaf085f0f44f414ee987ad76016fd9619aa9db93d5025ac21d",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "ec9cd5620acdcc87280b9827d754cccf3a4ac5921eed78bf7db0a204f7d1b39a",
-      "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "7463a9057b0830aaf085f0f44f414ee987ad76016fd9619aa9db93d5025ac21d",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-migrations-wave-2026-09-12.md:1-253 read in full for #2067 first-review receipt; current as a dated independent review of five migration commits, including its red controls, unverified areas, retractions, and ledger rows."
       ],
@@ -2114,7 +2400,32 @@
           ]
         }
       ],
-      "summary": "Dated independent review of five 2026-09-12 gate migrations. Current as review evidence with its stated limits and retractions; not a current implementation specification."
+      "summary": "Dated independent review of five 2026-09-12 gate migrations. Current as review evidence with its stated limits and retractions; not a current implementation specification.",
+      "verifiedCanonicalSha256": "7463a9057b0830aaf085f0f44f414ee987ad76016fd9619aa9db93d5025ac21d"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-mirror-suppressions-2026-09-12.md",
+      "assignedSha256": "e468efa0b89f815e28db2ebe0d33cb8373ded2a31d6280d7402f6cf172232a41",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-mixed-hooks-1-3-2026-09-12.md",
+      "assignedSha256": "28c37d731056db8f4242bdb956a9ca7b7dc76fcfcd4c516284628cf1926d789a",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/v-night-conversions-2026-09-12.md",
@@ -2140,6 +2451,54 @@
         }
       ],
       "summary": "Dated independent verifier report for seven gate-conversion commits, retaining confirmed findings, retractions, mutation evidence, and explicit noncoverage. It is review authority, not current runtime law."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-parity-instruments-2026-09-12.md",
+      "assignedSha256": "826a0fa738171d03e2f74be6379abb20c2f9ad3ff038741223e62b80bcc77ac8",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-policing-audit-2026-09-12.md",
+      "assignedSha256": "e931e3a60c8b7f9c2d0c736f1c8f25c664f34e57768a9e23b620e58a5c8cee2e",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-q08-grammar-2026-09-13.md",
+      "assignedSha256": "e511db55fd5c2705f4155ef949868b75318d08cb0b769799d67ae5f153b941f8",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-q08-production-consumption-2026-09-13.md",
+      "assignedSha256": "86c98ea3081362e25376e9911d485695178e72346c6353ac68ecbbf32bd45a4a",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/v-rail-followup-disposition-2026-09-13.md",
@@ -2235,14 +2594,74 @@
       "summary": "Historical suite-honesty review with a subsequently invalidated structure evidence source. Preserve the original confirmations/refutations as dated author claims; this receipt does not certify the slot or current gates."
     },
     {
+      "path": "docs/reviews/gate-runtime/v-theme-freshness-2026-09-13.md",
+      "assignedSha256": "6d97d12ad784e398d2256870d9e58cf4d96a264969917275f192ba550f99ff12",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-typed-refusal-2026-09-13.md",
+      "assignedSha256": "16e03e2ac73ab301a8f5d446664b6e546c17aa9b28b23967d5a8650f4a4f48f3",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-unaudited-finals-2026-09-12.md",
+      "assignedSha256": "6f085100552f00c9cd37329813eac6bb0478eb72e18f6899d5ed0ca6c64d0662",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-verify-lib-4-2026-09-13.md",
+      "assignedSha256": "acbd80043b6814c5d8c81dbca9658365811ba5ec317b180d295845da3fde52a3",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-10-2026-09-13.md",
+      "assignedSha256": "88d80c719c73f37b15990ae61c6c07c543acf538c44cd912a56ef8b663dba996",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/gate-runtime/v-wave-12a-2026-09-13.md",
-      "assignedSha256": "617d04309ce2cf02bf081972fca313c9753e27b6402aa97a95df14761ddb4307",
+      "assignedSha256": "5506836afd916b16ab6f8405f8510ac9ac024908b0ddca0e4a1abc79431bd867",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "617d04309ce2cf02bf081972fca313c9753e27b6402aa97a95df14761ddb4307",
-      "verifiedCommit": "3c685ce6a6ec03b8a8348362c1ab9a94487c642b",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "5506836afd916b16ab6f8405f8510ac9ac024908b0ddca0e4a1abc79431bd867",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full report read by codex-primary. Runtime receipts are the report author’s recorded evidence at9ad17fb5a; this catalog entry does not claim an independent rerun or current-tree closure."
       ],
@@ -2257,17 +2676,18 @@
           ]
         }
       ],
-      "summary": "Preserved wave-12a report and its eight follow-up rows. Historical verdicts and counts retain their stated base; #2302, #2303 and #2304 track the follow-ups and current resolution requires separate integration evidence."
+      "summary": "Preserved wave-12a report and its eight follow-up rows. Historical verdicts and counts retain their stated base; #2302, #2303 and #2304 track the follow-ups and current resolution requires separate integration evidence.",
+      "verifiedCanonicalSha256": "5506836afd916b16ab6f8405f8510ac9ac024908b0ddca0e4a1abc79431bd867"
     },
     {
       "path": "docs/reviews/gate-runtime/v-wave-12b-2026-09-13.md",
-      "assignedSha256": "35918a32678996c020182814a54233ed76da60008f016c3f80875db5c361403f",
+      "assignedSha256": "20f53c1e8736700f5d54f0af9dfb1c3264ffec555ad007d99e2c2880c71851cb",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "35918a32678996c020182814a54233ed76da60008f016c3f80875db5c361403f",
-      "verifiedCommit": "711e207d670f587ca24ead8f73c7aacfc733aff4",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "20f53c1e8736700f5d54f0af9dfb1c3264ffec555ad007d99e2c2880c71851cb",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full report read by gate_doc_consistency; command and test results are retained as the report author’s evidence and were not independently rerun by this catalog lane."
       ],
@@ -2282,17 +2702,18 @@
           ]
         }
       ],
-      "summary": "Full-read verification report preserved as reported evidence: six rows confirmed, #2270 and #1871 partial by stated scope, three follow-up ledger rows, and explicit exclusions for appearance and broader verification."
+      "summary": "Full-read verification report preserved as reported evidence: six rows confirmed, #2270 and #1871 partial by stated scope, three follow-up ledger rows, and explicit exclusions for appearance and broader verification.",
+      "verifiedCanonicalSha256": "20f53c1e8736700f5d54f0af9dfb1c3264ffec555ad007d99e2c2880c71851cb"
     },
     {
       "path": "docs/reviews/gate-runtime/v-wave-2026-09-13.md",
-      "assignedSha256": "55d95256c9cedda7afcc712a0737797a962717e13eb7f48ec40c7c0792da877c",
+      "assignedSha256": "e867589e1ba8c28f45aa024f52b6984c805c8574de03dd60d204cd516d5d93b0",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "55d95256c9cedda7afcc712a0737797a962717e13eb7f48ec40c7c0792da877c",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "e867589e1ba8c28f45aa024f52b6984c805c8574de03dd60d204cd516d5d93b0",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/gate-runtime/v-wave-2026-09-13.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
@@ -2309,7 +2730,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "e867589e1ba8c28f45aa024f52b6984c805c8574de03dd60d204cd516d5d93b0"
     },
     {
       "path": "docs/reviews/gate-runtime/v-wave-5-2026-09-12.md",
@@ -2337,6 +2759,90 @@
         }
       ],
       "summary": "Full-read current review; lane p-doc-catalog-truth attestation. Fresh-context verification of reconcile chunk C, the ENOBUFS/budget pair, the acquittal and cleanup arms, the CSS train and the §5b.5 header waves: eight CONFIRMED, #2212's completion control REFUTED as a self-comparison, and four ledger rows including the #2229 parse-error find."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-6-2026-09-12.md",
+      "assignedSha256": "cace5a124dbeef9027e548fc8466c46275c891d40800e3441ba83b02ac266005",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-7-2026-09-13.md",
+      "assignedSha256": "704476692449d4c4a511cf8a19d79129021a07f547dceab9642f3af35d446a68",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-8a-2026-09-13.md",
+      "assignedSha256": "cfbe2fdf41e77e4257955253d15cfc10219f2137926f10d33caced34f4c3bc15",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-8b-2026-09-13.md",
+      "assignedSha256": "ef4e282bb96c1298fbe69050bbe1b3ea09456272d71ae886400e7630f3547a02",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-8c-2026-09-13.md",
+      "assignedSha256": "0d752401b048f9966e1204c5aa26b2ed8fec794cf6f1d73e7e950a4cb0136e75",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-9a-2026-09-13.md",
+      "assignedSha256": "4b0d31fe63f393555d7a873db2016c81239f6caf69a271aee97c77d40d8a4de0",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-9b-2026-09-13.md",
+      "assignedSha256": "45c946e3cc21087facc4a84a88217da984d23b220fc99b96d59b6942f4d2267a",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/v-workboard-evidence-2026-09-13.md",
@@ -2395,14 +2901,38 @@
       "summary": "Full-read scoped workboard review evidence for #1906/#1920, preserved under #2049 catalog coverage. Initial REFUTED and dated warm CONFIRMED are both retained. Verifier source review corroborated lane-produced 73-test and live scratch receipts; it did not independently execute those runs. Original lane commit identifiers remain historical report provenance; this receipt verifies exact main bytes at an ancestral main commit. No new whole-tree gate, security, fixture-isolation, or production acceptance certification is asserted."
     },
     {
+      "path": "docs/reviews/gate-runtime/v-world-gates-2026-09-12.md",
+      "assignedSha256": "a795c56f3c68bdb700c2e78414a96ff99bfdf3b622d7a67e9aaeed26f7b17511",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-world-type-config-preservation-2026-09-13.md",
+      "assignedSha256": "bd0e82450a662473c6640abccd134c2a1bc405c7372966109d9d9fd4659ee1ce",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/gate-runtime/x-46-records-2026-09-13.md",
-      "assignedSha256": "db8a883c3f70939299caf4d93d985a66aa4e69455050c89df9576486634436d4",
+      "assignedSha256": "1c9aca82df811708fcc4d93c1d3e8df3d30a813e295931b5cfeddce6dc8329b5",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "db8a883c3f70939299caf4d93d985a66aa4e69455050c89df9576486634436d4",
-      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "1c9aca82df811708fcc4d93c1d3e8df3d30a813e295931b5cfeddce6dc8329b5",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
       ],
@@ -2417,17 +2947,18 @@
           ]
         }
       ],
-      "summary": "Dated #2273 report for the three repaired §4.6 proof gaps, including refusal-pin correction and the separately owned filesystem replay remainder."
+      "summary": "Dated #2273 report for the three repaired §4.6 proof gaps, including refusal-pin correction and the separately owned filesystem replay remainder.",
+      "verifiedCanonicalSha256": "1c9aca82df811708fcc4d93c1d3e8df3d30a813e295931b5cfeddce6dc8329b5"
     },
     {
       "path": "docs/reviews/gate-runtime/x-attest-fixture-isolation-2026-09-13.md",
-      "assignedSha256": "1dfcb8be85df6fa324822ac256d748786a16961c4bdfc2e0c92dfe48a7f037a7",
+      "assignedSha256": "aa1756767414dcc4d780f43278ed9fda8b71c12cf82ee1b596e37574c1a00a27",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "1dfcb8be85df6fa324822ac256d748786a16961c4bdfc2e0c92dfe48a7f037a7",
-      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "aa1756767414dcc4d780f43278ed9fda8b71c12cf82ee1b596e37574c1a00a27",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
       ],
@@ -2442,17 +2973,18 @@
           ]
         }
       ],
-      "summary": "Dated #2238 fixture-isolation receipt covering Git routing variables, disabled hooks, the inherited-index sentinel, and its scoped verification floor."
+      "summary": "Dated #2238 fixture-isolation receipt covering Git routing variables, disabled hooks, the inherited-index sentinel, and its scoped verification floor.",
+      "verifiedCanonicalSha256": "aa1756767414dcc4d780f43278ed9fda8b71c12cf82ee1b596e37574c1a00a27"
     },
     {
       "path": "docs/reviews/gate-runtime/x-baseui-rework-2026-09-13.md",
-      "assignedSha256": "cc032b92f84b33c3a5bc177a35eb07c917d047a4cc9ccef7d5e899c23a356abf",
+      "assignedSha256": "8a5efb08b927400d4660202fd37e19e48ee75d7842c5113bd6b2ab015663b1a4",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "faa7c92140cf926fc84b9f1895f856e519cc253a5317735fc2a66f48d49464ec",
-      "verifiedCommit": "12cff683cef15dd11e6ffb170574e8156b1c89a4",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "8a5efb08b927400d4660202fd37e19e48ee75d7842c5113bd6b2ab015663b1a4",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Root read the complete builder and501-line independent final reports, checked current contract clause against c8fccfa7c, and inspected all correction hunks. Original final report preserved with an additive current-main appendix. Scoped document formatting passed. Full program barrier and stated remaining work are not attested complete."
       ],
@@ -2471,17 +3003,30 @@
           ]
         }
       ],
-      "summary": "Preserved Base UI repair history with explicit final-verifier correction: derives replay is11/12 raw and12/12 only after the retired marker opener is translated. Current contract reconciliation is dated separately."
+      "summary": "Preserved Base UI repair history with explicit final-verifier correction: derives replay is11/12 raw and12/12 only after the retired marker opener is translated. Current contract reconciliation is dated separately.",
+      "verifiedCanonicalSha256": "8a5efb08b927400d4660202fd37e19e48ee75d7842c5113bd6b2ab015663b1a4"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-binding-reader-a-2026-09-13.md",
+      "assignedSha256": "4f4abf4f03c148a16f1d34a441d8298edf8a6d0ac9d4d1269338c8f88365976b",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/x-cast-anchor-2026-09-13.md",
-      "assignedSha256": "4b55f38d85dd4c56523ec7f400a95f883a6be65eb388b807b18947f6be1edc02",
+      "assignedSha256": "bf483c76b812581fba85f983ee3d38a1769109b030bd4315341c8d07e8ffc718",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "4b55f38d85dd4c56523ec7f400a95f883a6be65eb388b807b18947f6be1edc02",
-      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "bf483c76b812581fba85f983ee3d38a1769109b030bd4315341c8d07e8ffc718",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
       ],
@@ -2496,17 +3041,18 @@
           ]
         }
       ],
-      "summary": "Dated #2325 evidence report for parenthesized branded-cast anchoring, its controls, integration correction, and declared limits."
+      "summary": "Dated #2325 evidence report for parenthesized branded-cast anchoring, its controls, integration correction, and declared limits.",
+      "verifiedCanonicalSha256": "bf483c76b812581fba85f983ee3d38a1769109b030bd4315341c8d07e8ffc718"
     },
     {
       "path": "docs/reviews/gate-runtime/x-config-scoped-proof-2026-09-13.md",
-      "assignedSha256": "c8a7f9b593023c73c93371f21bbfc987d4f6daea8aeebfaff095a30c2f3862de",
+      "assignedSha256": "90337cd7d59d18a88ecbd4f0661ebb0d57ae03ce098dd29f12339fb2c04d555b",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "c8a7f9b593023c73c93371f21bbfc987d4f6daea8aeebfaff095a30c2f3862de",
-      "verifiedCommit": "3ef7cfad0077454198adbffa96d1c1e567f62e00",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "90337cd7d59d18a88ecbd4f0661ebb0d57ae03ce098dd29f12339fb2c04d555b",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full builder report and complete appended independent review read. Its one ledger row is folded; lane 33/33 and current-main 49/49 receipts remain separately attributed, with whole-program conformance and combined native barrier explicitly owed."
       ],
@@ -2521,11 +3067,12 @@
           ]
         }
       ],
-      "summary": "Full #2302 repair, independent review, ledger fold, and current-main 49/49 focused receipt with broader barriers explicitly retained as owed."
+      "summary": "Full #2302 repair, independent review, ledger fold, and current-main 49/49 focused receipt with broader barriers explicitly retained as owed.",
+      "verifiedCanonicalSha256": "90337cd7d59d18a88ecbd4f0661ebb0d57ae03ce098dd29f12339fb2c04d555b"
     },
     {
       "path": "docs/reviews/gate-runtime/x-css-family-unit-2026-09-13.md",
-      "assignedSha256": "5a7d689a80399580c1763c42030959d2b0b950e5cbf921fc7523318fa108064e",
+      "assignedSha256": "66a7ab544c09b57626bcbdaace786735203d924023da88003bbc351e437cb3a1",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
@@ -2547,20 +3094,33 @@
           ]
         }
       ],
-      "verifiedSha256": "5a7d689a80399580c1763c42030959d2b0b950e5cbf921fc7523318fa108064e",
-      "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
-      "verifiedAt": "2026-09-13",
-      "summary": "Preserves the complete CSS-family builder report and integrated11/11 receipt; final re-review, #2297 and #2309/#2310 remain explicitly outstanding."
+      "verifiedSha256": "66a7ab544c09b57626bcbdaace786735203d924023da88003bbc351e437cb3a1",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
+      "summary": "Preserves the complete CSS-family builder report and integrated11/11 receipt; final re-review, #2297 and #2309/#2310 remain explicitly outstanding.",
+      "verifiedCanonicalSha256": "66a7ab544c09b57626bcbdaace786735203d924023da88003bbc351e437cb3a1"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-css-train-2026-09-13.md",
+      "assignedSha256": "ae35ae29b8f294c53a9345df62e6d73218277c16b79346cc47780fe1cfc38b5f",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/x-css-train-fixes-2026-09-13.md",
-      "assignedSha256": "561549d398c4ed39e9963c233e4727388330f5740ef4f67e33c4ffd898c46bfe",
+      "assignedSha256": "812b079153ba28147121ab9b264e009feb8b0cd4ddb529e9b0137467604fbadd",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "561549d398c4ed39e9963c233e4727388330f5740ef4f67e33c4ffd898c46bfe",
-      "verifiedCommit": "9162d7e87331f2c3f68cbbacf36549f10be61af9",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "812b079153ba28147121ab9b264e009feb8b0cd4ddb529e9b0137467604fbadd",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Complete lane report read; root reviewed the integration append. Historical lane measurements remain attributed to their recorded checkout. Current-main receipts and remaining verification limits are explicit."
       ],
@@ -2575,17 +3135,18 @@
           ]
         }
       ],
-      "summary": "Preserves all five CSS repair legs and retractions; records independent source review, integrated 75-test floor, and selected production result with the existing legacy finding distinguished."
+      "summary": "Preserves all five CSS repair legs and retractions; records independent source review, integrated 75-test floor, and selected production result with the existing legacy finding distinguished.",
+      "verifiedCanonicalSha256": "812b079153ba28147121ab9b264e009feb8b0cd4ddb529e9b0137467604fbadd"
     },
     {
       "path": "docs/reviews/gate-runtime/x-doc-formatter-lossy-2026-09-13.md",
-      "assignedSha256": "f65b2e9b4e8168da905bb88ca375b297ae8c98f16025a561f2ed820738958ec3",
+      "assignedSha256": "6c27bb34f9f4e1753b59db44bb07f32362ab35c2cd215d5b36eb9502713815c5",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "f65b2e9b4e8168da905bb88ca375b297ae8c98f16025a561f2ed820738958ec3",
-      "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "6c27bb34f9f4e1753b59db44bb07f32362ab35c2cd215d5b36eb9502713815c5",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Root read the full repair report and independent corrective reviews; the integrated census covers 367 tracked targets with explicit historical/literal dispositions and the separate 149-file canonical-format backlog."
       ],
@@ -2608,7 +3169,8 @@
           ]
         }
       ],
-      "summary": "Reviewed formatter repair and current-population census, preserving rejected intermediate approaches and the remaining canonical-format backlog."
+      "summary": "Reviewed formatter repair and current-population census, preserving rejected intermediate approaches and the remaining canonical-format backlog.",
+      "verifiedCanonicalSha256": "6c27bb34f9f4e1753b59db44bb07f32362ab35c2cd215d5b36eb9502713815c5"
     },
     {
       "path": "docs/reviews/gate-runtime/x-eslint-envelope-2026-09-13.md",
@@ -2637,13 +3199,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/x-eslint-grant-pin-2026-09-13.md",
-      "assignedSha256": "ed91922de3d82c57b458f2858d4df904c8b1c7aa0e6729057bd6304fe3432a3a",
+      "assignedSha256": "72cc01afba46d1042bfe13d98ce2d5cd950bf67743369ac70521e79b4439de83",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "ed91922de3d82c57b458f2858d4df904c8b1c7aa0e6729057bd6304fe3432a3a",
-      "verifiedCommit": "9162d7e87331f2c3f68cbbacf36549f10be61af9",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "72cc01afba46d1042bfe13d98ce2d5cd950bf67743369ac70521e79b4439de83",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Complete lane report read; root reviewed the integration append. Historical lane measurements remain attributed to their recorded checkout. Current-main receipts and remaining verification limits are explicit."
       ],
@@ -2658,7 +3220,20 @@
           ]
         }
       ],
-      "summary": "Records two positional regression proofs, corrected seven-key accounting, independent source review and integrated 7-test floor."
+      "summary": "Records two positional regression proofs, corrected seven-key accounting, independent source review and integrated 7-test floor.",
+      "verifiedCanonicalSha256": "72cc01afba46d1042bfe13d98ce2d5cd950bf67743369ac70521e79b4439de83"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-grant-proof-2026-09-13.md",
+      "assignedSha256": "1edcf3e17500174bea02f207ae59e1a88670dced292e56ed478a61bb7779a443",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/x-hit-geometry-2026-09-13.md",
@@ -2687,13 +3262,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/x-instrument-controls-2026-09-13.md",
-      "assignedSha256": "4c5f0a992aad09c01b7cd203099577dbe3952687441207d3c4d150e550fcfb23",
+      "assignedSha256": "16a1bbb5829b45ae36c21a94340348c0e7e8f36af305ec5f943f53a41499bb14",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "4c5f0a992aad09c01b7cd203099577dbe3952687441207d3c4d150e550fcfb23",
-      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "16a1bbb5829b45ae36c21a94340348c0e7e8f36af305ec5f943f53a41499bb14",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
       ],
@@ -2708,7 +3283,20 @@
           ]
         }
       ],
-      "summary": "Dated #2248/#2284 instrument-control report with corrected concurrency prose, production-arity capture proof, independent review, and scoped integration receipts."
+      "summary": "Dated #2248/#2284 instrument-control report with corrected concurrency prose, production-arity capture proof, independent review, and scoped integration receipts.",
+      "verifiedCanonicalSha256": "16a1bbb5829b45ae36c21a94340348c0e7e8f36af305ec5f943f53a41499bb14"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-instruments-batch-2026-09-13.md",
+      "assignedSha256": "792b440b13bc7348b3ab2699cb1b975492e7fe43fe3a85f582680f7601cafc18",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/x-legacy-replay-2026-09-13.md",
@@ -2748,13 +3336,13 @@
     },
     {
       "path": "docs/reviews/gate-runtime/x-policing-additions-2026-09-13.md",
-      "assignedSha256": "b1b7972a4aaf5c8e797f71eb5ab7fe7379fc7e3af3eb9c3b29a9505ea563ee4a",
+      "assignedSha256": "3ef1cb15b610cb844150ca804187a4cafd97a16dea392b19e09997e5817165ba",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "b1b7972a4aaf5c8e797f71eb5ab7fe7379fc7e3af3eb9c3b29a9505ea563ee4a",
-      "verifiedCommit": "5253c7299ff46586671f923b995f45e0626fe7ac",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "3ef1cb15b610cb844150ca804187a4cafd97a16dea392b19e09997e5817165ba",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full report read by codex-primary; historical builder runs remain attributed to their author and checkout. Integration append records source review and pending runtime scope."
       ],
@@ -2769,7 +3357,8 @@
           ]
         }
       ],
-      "summary": "Records three policing repairs, two later census repair legs, and the independent integration review with final binary-expression boundaries. Current-main runtime verification is explicitly owed."
+      "summary": "Records three policing repairs, two later census repair legs, and the independent integration review with final binary-expression boundaries. Current-main runtime verification is explicitly owed.",
+      "verifiedCanonicalSha256": "3ef1cb15b610cb844150ca804187a4cafd97a16dea392b19e09997e5817165ba"
     },
     {
       "path": "docs/reviews/gate-runtime/x-production-drivers-2026-09-13.md",
@@ -2797,14 +3386,26 @@
       "summary": "Dated aggregate producer/driver report with the final #2238 and #2225 corrective reviews and integrated main receipts."
     },
     {
+      "path": "docs/reviews/gate-runtime/x-refusal-debt-2026-09-13.md",
+      "assignedSha256": "5a5b7b6d15fb7629562a2fb0eadd3697ced2f1d3229b01bb75174693ab5293b7",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/gate-runtime/x-refute-repairs-2026-09-13.md",
-      "assignedSha256": "7fcd5c4d5a06c44c0362547e32607f90b1fdbe68c97595f8285e8e69f6e4b0fb",
+      "assignedSha256": "b7228d67bb8a7daef8038555cb1f0ffd27af3ec92a766fec5cadb893089577f1",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "7fcd5c4d5a06c44c0362547e32607f90b1fdbe68c97595f8285e8e69f6e4b0fb",
-      "verifiedCommit": "083276748443e1c99320081afac875d2f3efa487",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "b7228d67bb8a7daef8038555cb1f0ffd27af3ec92a766fec5cadb893089577f1",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full prior read plus exact cde165d7d..083276748 delta review. The embedded independent correction remains authoritative, #2197 and #2142 remain OPEN, and the two report rows are now folded into the ledger so the footer records ledger rows OWED: 0."
       ],
@@ -2819,17 +3420,18 @@
           ]
         }
       ],
-      "summary": "Corrected refutation-repair record with its two ledger rows folded and remaining #2197/#2142 limits preserved."
+      "summary": "Corrected refutation-repair record with its two ledger rows folded and remaining #2197/#2142 limits preserved.",
+      "verifiedCanonicalSha256": "b7228d67bb8a7daef8038555cb1f0ffd27af3ec92a766fec5cadb893089577f1"
     },
     {
       "path": "docs/reviews/gate-runtime/x-resource-selection-2026-09-13.md",
-      "assignedSha256": "5f40f2e3895ee92b60df9da1763c70ef7e9b88035b7ca2f0d83295f4af988bbc",
+      "assignedSha256": "755ca3e3d3631128d01e4fd3f6a2af1d461ea8a8d9511dfaee6e01c16e9ef3d4",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "5f40f2e3895ee92b60df9da1763c70ef7e9b88035b7ca2f0d83295f4af988bbc",
-      "verifiedCommit": "c8fccfa7c9d80dbb369179f32f47e4827c8f7922",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "755ca3e3d3631128d01e4fd3f6a2af1d461ea8a8d9511dfaee6e01c16e9ef3d4",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "summary": "Full resource-selection builder report preserves its three defect rows, with accepted main integration and220/220 receipts; final BaseUI review remains distinct.",
       "evidence": [
         "Complete original report read by reconciliation lane; root checked actual LEDGER ROWS(3), rejecting an erroneous five-proof checklist as defect rows. Main57f7affdc includes accepted contract-home relocation; native tooling/root types and scopedlint passed. Selected no-inline-types leaves only the known product alias; no errors/withheld. Documentation reconciled in this commit."
@@ -2848,17 +3450,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "755ca3e3d3631128d01e4fd3f6a2af1d461ea8a8d9511dfaee6e01c16e9ef3d4"
     },
     {
       "path": "docs/reviews/gate-runtime/x-test-population-2026-09-13.md",
-      "assignedSha256": "905f073184f5155e2f3ef1a7ba48ee79cc0ff4bb7db441401fc3a4282c4712f0",
+      "assignedSha256": "6d878824a2eafb69451b3c6fba6375f23c95e22313a3acbe0c72801f5891fcd2",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "905f073184f5155e2f3ef1a7ba48ee79cc0ff4bb7db441401fc3a4282c4712f0",
-      "verifiedCommit": "5253c7299ff46586671f923b995f45e0626fe7ac",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "6d878824a2eafb69451b3c6fba6375f23c95e22313a3acbe0c72801f5891fcd2",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full report read by codex-primary; historical builder runs remain attributed to their author and checkout. Integration append records source review and pending runtime scope."
       ],
@@ -2873,17 +3476,30 @@
           ]
         }
       ],
-      "summary": "Records the mirror class, workspace population and explicit Biome probe fences, including reported planted controls and two unresolved follow-up defects. Current-main runtime verification is explicitly owed."
+      "summary": "Records the mirror class, workspace population and explicit Biome probe fences, including reported planted controls and two unresolved follow-up defects. Current-main runtime verification is explicitly owed.",
+      "verifiedCanonicalSha256": "6d878824a2eafb69451b3c6fba6375f23c95e22313a3acbe0c72801f5891fcd2"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-typed-import-arm-2026-09-13.md",
+      "assignedSha256": "e28a0bc4adfaf29d5b972fdf82eb6473241ca3cd5fbaa74fb101cfc858d90aec",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/gate-runtime/x-vendor-hooks-pins-2026-09-13.md",
-      "assignedSha256": "5c666d87d30a1b19422673cb683140a038aa44e8a6d9a010d35da23c4832845f",
+      "assignedSha256": "28cb59e16f96f39de557a2cb76e2388ef9e20d16264b159fbb1698d0608f466b",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "625b4c04095c1d2583adaea5343f5e68324303a547b1b018289b7e065bc49d66",
-      "verifiedCommit": "c383bcda57af71476f46d731a6b90f5e1cca2f57",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "28cb59e16f96f39de557a2cb76e2388ef9e20d16264b159fbb1698d0608f466b",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "summary": "Complete three-leg vendor hook report preserves prior proof and adds the sixth JSON consumer refusal pins with independent production-wiring verification.",
       "evidence": [
         "Root read original report and full additive leg3. Independent reviewer removed actual production JSON declaration:8 failed/9 passed, including all new refusal rows and healthy twin; exact restore17/17. Integrated c28441eb4 family17/17 at reports/runs/test/main-542565-2026-09-13T07-18-50-117Z/test-report.json. #2318 closure recorded by Claude B1000. Broader gate-program barrier remains owed."
@@ -2902,7 +3518,32 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "28cb59e16f96f39de557a2cb76e2388ef9e20d16264b159fbb1698d0608f466b"
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-verify-lib-fixes-2026-09-13.md",
+      "assignedSha256": "2d58425158ed22ccdd7ea6a36050c979b3b23062a1b6a06eab73b71e39e405e1",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-warning-barrier-2026-09-13.md",
+      "assignedSha256": "584fb4bd14cbb5501c9b91ad10d60ffc971edb3b8f2038f1e2cd1864ef8533f9",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/interaction-build-audit/scout-P-substrate-A-B1-6.md",
@@ -3244,6 +3885,18 @@
       "summary": "Adjudication of seven external-review claims — six REFUTED, one ALREADY FIXED (#1375) — against the 2026-09-06 tree, with re-derived path:line receipts (#1481)."
     },
     {
+      "path": "docs/reviews/misc/2026-09-18-external-review-six-themes.md",
+      "assignedSha256": "ecd8a56c5690263e0da11e289a4ccb91d0f3de300ac6f270642e013528d61ca2",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/mutation-config-calibration.md",
       "assignedSha256": "cea69c76e9ac76260c41d42ba9be3ef702e56258c033c382cd117266ba9724e7",
       "disposition": "current",
@@ -3437,7 +4090,7 @@
             },
             {
               "kind": "code",
-              "target": "tooling/src/verify/lib/pass.ts:1"
+              "target": "tooling/src/verify/lib/policy-pass-walk.ts:1"
             }
           ]
         }
@@ -4573,6 +5226,18 @@
       "summary": "side-eye re-derivation of #980's six control-grammar items against the post-#1725 Config surface: F10/E3 FIXED, F12 DEAD, F13 + F22 LIVE (build), F23/F24/E2 re-file narrower; two new P1s (#1823 unmarked LIST location, #1824 library-row void) and one open instrument question (SELECTION_CONTROL hit area)."
     },
     {
+      "path": "docs/reviews/side-eye/2026-09-18-settings-appearance-look.md",
+      "assignedSha256": "084bc852ab9297ffed5cab05223b6a0775a5b76c870445c6741116b64ab9465c",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",
       "assignedSha256": "12d634274d027af4584e2aa78d956fccb740bfe258142d972681579becd1356f",
       "disposition": "needs-owner",
@@ -4854,13 +5519,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-29-issue-711-reaudit.md",
-      "assignedSha256": "a54498989f22f544f3d857177536b76cd28fefb91dfac137a7e78dfa9376372d",
+      "assignedSha256": "094b0946a599c833b741e13e42c3ca70f96f26fcd72a52f8aa779d6eb1c73443",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "a54498989f22f544f3d857177536b76cd28fefb91dfac137a7e78dfa9376372d",
-      "verifiedCommit": "fc48ca68b7a407dc9624884cfd774d24a6a324b8",
-      "verifiedAt": "2026-08-29",
+      "verifiedSha256": "094b0946a599c833b741e13e42c3ca70f96f26fcd72a52f8aa779d6eb1c73443",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/reviews/stickler/2026-08-29-issue-711-reaudit.md:1 (full read; re-audit of the #711 recon-remediation backlog + #765 marker debt vs main)"
       ],
@@ -4879,7 +5544,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "094b0946a599c833b741e13e42c3ca70f96f26fcd72a52f8aa779d6eb1c73443"
     },
     {
       "path": "docs/reviews/stickler/2026-08-29-plugin-visual-capability.md",
@@ -5265,6 +5931,45 @@
       ]
     },
     {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-final.md",
+      "assignedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
+      "verifiedCommit": "b23839843a46cf0755fc4794d5dd330c246309ce",
+      "verifiedAt": "2026-09-02",
+      "summary": "CT corpus audit FINAL closeout (#1229, lane cb-ct-audit-final): derived the true covered/remainder arithmetic from the ten folded shard reports' own per-file verdicts rather than their stated totals — corpus 469 files/113,931 lines, covered by the ten reports 414 files/105,540 lines (8 confirmed cross-shard duplicate reads, all tracing to leg4b), true remainder 55 files/8,391 lines (vs. the brief's naive 428/~41 hypothesis). Full-read all 55 remainder files (user-admin x14, discovery x8, world-info x5, stats x5, regex x5, auth x5, credentials x3, tag x2, chat x2, routes x2, plus 5 singles) against leg1's unchanged rubric — zero new findings. Re-checked leg4b's PROVISIONAL corpus-search-results.ct.tsx SCENES-door verdict against today's post-#1249 source and confirmed CLEAN. Campaign declared COMPLETE at 469/469 files, 113,931/113,931 lines, five total findings (#1240 #1241 #1242 #1258 #1261), severity ceiling P3.",
+      "evidence": [
+        "born-reviewed at b23839843a46cf0755fc4794d5dd330c246309ce: authored and full-read by lane cb-ct-audit-final (stickler) in the same session — the derived-arithmetic section, the 55-file per-area verdict tables, the taxonomy sweep receipts, the corpus-search-results.ct.tsx re-check, and the #1229 issue summary"
+      ],
+      "claims": [
+        {
+          "claim": "The ten folded shard reports' stated-population sum (428) is neither the covered count nor the remainder complement: cross-referencing each report's own per-file verdicts (not its stated totals or 'excl' cross-references) surfaces 8 confirmed cross-shard duplicate full-reads (all traced to leg4b) and a true remainder of 55 files never verdicted by any report — corpus 469 = covered 414 + remainder 55.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/state/character-selection-store.ct.tsx:1",
+              "note": "one of the 8 confirmed cross-shard duplicates (L4-client-core state/ chunk and leg4b batch 1 item 3 each independently read and verdicted this file)"
+            }
+          ]
+        },
+        {
+          "claim": "leg4b's PROVISIONAL verdict on corpus-search-results.ct.tsx's SCENES door-look block (flagged against a pre-#1249 base) resolves CLEAN on today's tree: the RoomDoor component's post-#1249 className applies RECEDED_INK per the assertion's relational checks (justify-start, arrow present, colour !== bodyColour), and the source's own header comment names this exact CT assertion as the fix's target.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/discovery/components/corpus-hit-rows.tsx:158"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/discovery/components/corpus-search-results.ct.tsx:483"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L1-ui.md",
       "assignedSha256": "c00698488c8efe87b9d06936d1cfe9417f5be7517b81d76dc7e3184b3c416db6",
       "disposition": "current",
@@ -5363,45 +6068,6 @@
             {
               "kind": "code",
               "target": "packages/client/src/data/use-carried-appearance.ts:1"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-final.md",
-      "assignedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
-      "verifiedCommit": "b23839843a46cf0755fc4794d5dd330c246309ce",
-      "verifiedAt": "2026-09-02",
-      "summary": "CT corpus audit FINAL closeout (#1229, lane cb-ct-audit-final): derived the true covered/remainder arithmetic from the ten folded shard reports' own per-file verdicts rather than their stated totals — corpus 469 files/113,931 lines, covered by the ten reports 414 files/105,540 lines (8 confirmed cross-shard duplicate reads, all tracing to leg4b), true remainder 55 files/8,391 lines (vs. the brief's naive 428/~41 hypothesis). Full-read all 55 remainder files (user-admin x14, discovery x8, world-info x5, stats x5, regex x5, auth x5, credentials x3, tag x2, chat x2, routes x2, plus 5 singles) against leg1's unchanged rubric — zero new findings. Re-checked leg4b's PROVISIONAL corpus-search-results.ct.tsx SCENES-door verdict against today's post-#1249 source and confirmed CLEAN. Campaign declared COMPLETE at 469/469 files, 113,931/113,931 lines, five total findings (#1240 #1241 #1242 #1258 #1261), severity ceiling P3.",
-      "evidence": [
-        "born-reviewed at b23839843a46cf0755fc4794d5dd330c246309ce: authored and full-read by lane cb-ct-audit-final (stickler) in the same session — the derived-arithmetic section, the 55-file per-area verdict tables, the taxonomy sweep receipts, the corpus-search-results.ct.tsx re-check, and the #1229 issue summary"
-      ],
-      "claims": [
-        {
-          "claim": "The ten folded shard reports' stated-population sum (428) is neither the covered count nor the remainder complement: cross-referencing each report's own per-file verdicts (not its stated totals or 'excl' cross-references) surfaces 8 confirmed cross-shard duplicate full-reads (all traced to leg4b) and a true remainder of 55 files never verdicted by any report — corpus 469 = covered 414 + remainder 55.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/client/state/character-selection-store.ct.tsx:1",
-              "note": "one of the 8 confirmed cross-shard duplicates (L4-client-core state/ chunk and leg4b batch 1 item 3 each independently read and verdicted this file)"
-            }
-          ]
-        },
-        {
-          "claim": "leg4b's PROVISIONAL verdict on corpus-search-results.ct.tsx's SCENES door-look block (flagged against a pre-#1249 base) resolves CLEAN on today's tree: the RoomDoor component's post-#1249 className applies RECEDED_INK per the assertion's relational checks (justify-start, arrow present, colour !== bodyColour), and the source's own header comment names this exact CT assertion as the fix's target.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/discovery/components/corpus-hit-rows.tsx:158"
-            },
-            {
-              "kind": "test",
-              "target": "tests/client/features/discovery/components/corpus-search-results.ct.tsx:483"
             }
           ]
         }
@@ -6301,13 +6967,13 @@
     },
     {
       "path": "docs/reviews/stickler/2026-09-08-trpc-brand-seam.md",
-      "assignedSha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
+      "assignedSha256": "dde47518aa5a7fa6aed67a4f1d3515b8ed7c10c23d5f837f96822f2c33655d99",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
-      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
-      "verifiedAt": "2026-09-08",
+      "verifiedSha256": "dde47518aa5a7fa6aed67a4f1d3515b8ed7c10c23d5f837f96822f2c33655d99",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
       "claims": [
         {
@@ -6324,7 +6990,8 @@
           ]
         }
       ],
-      "summary": "Independent review verifies accurate branded wire-input typing and the narrowed direct AppRouter type connection."
+      "summary": "Independent review verifies accurate branded wire-input typing and the narrowed direct AppRouter type connection.",
+      "verifiedCanonicalSha256": "dde47518aa5a7fa6aed67a4f1d3515b8ed7c10c23d5f837f96822f2c33655d99"
     },
     {
       "path": "docs/reviews/stickler/2026-09-08-typecheck-directive-freshness.md",

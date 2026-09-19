@@ -93,13 +93,13 @@
     },
     {
       "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
-      "assignedSha256": "2bc566e40bd7caed1965fc8ef07d2f823f968392949a7a1741f065f35049d12d",
+      "assignedSha256": "4717ca80f330c7a12bb73fc3343dda8a48e792ddf7a74d0402d1a0b73d12cece",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "f643b0d98db785e3dcac313a5d409eb1b9ca94f2dd46caf2703e9a0fcee22239",
-      "verifiedCommit": "eb01a72ab3606bd78594074e1c1b89690078598e",
-      "verifiedAt": "2026-09-01",
+      "verifiedSha256": "4717ca80f330c7a12bb73fc3343dda8a48e792ddf7a74d0402d1a0b73d12cece",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "re-attested at eb01a72ab (#1055): §7 row 11 names the real enforcer for exhaustive dispatch (compile-time by construction; no `exhaustive-dispatch` gate exists)",
         "re-attested at 7b7eb54b2 under #950 — full-file/delta read; the one sanctioned revisioned non-TS runtime-data exception is Snap's manifest-closed official DevTools frontend asset root",
@@ -122,17 +122,18 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
+      "verifiedCanonicalSha256": "4717ca80f330c7a12bb73fc3343dda8a48e792ddf7a74d0402d1a0b73d12cece"
     },
     {
       "path": "docs/architecture/core/Core-Audits-and-Debt.md",
-      "assignedSha256": "ece118a60821cad501ff787d36e6ff93f2f118ecffbd1ae2779cb52029ce9895",
+      "assignedSha256": "4fcb100cf4d2e2453816384d9616bdd1b9b137e029a04c69e80e386f1c0b19eb",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "d0a3aa6c5ee93f0ce2aa6683a06ca717fb714eb30b00538a0310b20cfea24715",
-      "verifiedCommit": "a67ef0ea8f08de88f501db2718821b9194064b43",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "4fcb100cf4d2e2453816384d9616bdd1b9b137e029a04c69e80e386f1c0b19eb",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "delta re-verify 2026-09-02 (#1193, the debug-gate amendment): the AUTHFIX-2 entry's two changed blocks were re-derived against the commit they describe (a67ef0ea8) — the credential allow-list is built per request in entry/auth/seam.ts::debugGateCredentialed, its fallback arm reads foundation/env::resolveOwnerFallbackCredential, its header arm reads infra/auth::selectSignedForwardJwt, and the enforcer row's counts are the planted-control results (4 admission rows red on fallback:false, 2 header rows red on header:true)",
         "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
@@ -142,7 +143,8 @@
         "delta re-verify 2026-08-22 (#321, owner ruling): re-read at the removal commit; the ONE changed line is the PD-35 row's new sub-flag-closed note recording recencyBias as CLOSED-REMOVED (probe measured 2026-08-20, removed end-to-end 2026-08-22), re-derived against the tree",
         "docs/architecture/core/Core-Audits-and-Debt.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
-      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law.",
+      "verifiedCanonicalSha256": "4fcb100cf4d2e2453816384d9616bdd1b9b137e029a04c69e80e386f1c0b19eb"
     },
     {
       "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
@@ -174,13 +176,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "1840437e97f4254ca61c4cfa8172c9c49101f02c5803a7cdc2e09a3c0edb989e",
+      "assignedSha256": "2296e88337464294ffeb659aabd88a9cc12168034449589d78114c8b5bfdc269",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "1840437e97f4254ca61c4cfa8172c9c49101f02c5803a7cdc2e09a3c0edb989e",
-      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "2296e88337464294ffeb659aabd88a9cc12168034449589d78114c8b5bfdc269",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
         "Full document read by the registration lane; changed rows reviewed against source by the orchestrator. Browser-contract real-tree fixture red/clean, 15 behavioral tests and independent semantic review; hook/router/config snapshot 137 behavioral tests and security approval. Full legacy structure still refuses the separate mixed-descriptor cutover.",
@@ -347,34 +349,18 @@
           ]
         }
       ],
-      "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification."
-    },
-    {
-      "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
-      "assignedSha256": "4344c0afbb051b0628c64c157c199d2077d99786ce6e3be5f9b3aba1f8d23829",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "4344c0afbb051b0628c64c157c199d2077d99786ce6e3be5f9b3aba1f8d23829",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-      "verifiedAt": "2026-08-30",
-      "evidence": [
-        "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md:1 (full read; the §PREBUILT table re-derived row by row)",
-        "pnpm ast importers on each sealed barrel (scanned=4924): charts/meter + @orb/ui/diff have live consumers and lost their markers; stream/stream-text + primitives/status-chip have none outside their own CT and keep theirs",
-        "pnpm check:docs + pnpm doc-catalog:check (2026-08-17)",
-        "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
-      ],
-      "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+      "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
+      "verifiedCanonicalSha256": "2296e88337464294ffeb659aabd88a9cc12168034449589d78114c8b5bfdc269"
     },
     {
       "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
-      "assignedSha256": "556a5ea2b4fc1758535c794a954499f3c6a7d92f543a1d247ee683d3ccc4d4e8",
+      "assignedSha256": "19beb5583f0fcc0695a773078f77239ef194e6b062174c80ff6926861ebb6e53",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "31107997ed0a6df436bf882e29477dbc33def9ea3f94ceaee2a92436750922de",
-      "verifiedCommit": "eb01a72ab3606bd78594074e1c1b89690078598e",
-      "verifiedAt": "2026-09-01",
+      "verifiedSha256": "19beb5583f0fcc0695a773078f77239ef194e6b062174c80ff6926861ebb6e53",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "re-attested at eb01a72ab (#1055): §4 recovery-index sentence repaired; D140's retired retro-workboard arm named — and amended in the registry at the same sha",
         "docs/architecture/core/Core-Laws-and-Precedents.md:1-66 full read; registry range and Project/recovery redirects reconcile through D141",
@@ -394,7 +380,8 @@
           ]
         }
       ],
-      "summary": "Normative ledger redirect re-read after D140-D141; the registry remains conflict authority."
+      "summary": "Normative ledger redirect re-read after D140-D141; the registry remains conflict authority.",
+      "verifiedCanonicalSha256": "19beb5583f0fcc0695a773078f77239ef194e6b062174c80ff6926861ebb6e53"
     },
     {
       "path": "docs/architecture/core/Core-Legacy-Migration-and-Gaps.md",
@@ -414,13 +401,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "bfc4cff68aba2778cb21b93b76ddbf205fa33f476e256efd8c5382192593cdcc",
+      "assignedSha256": "eb0d95523bfaa9efe3f6ea2ce1b0ffb63026d5a453a3869df520bad71191ef9c",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "bfc4cff68aba2778cb21b93b76ddbf205fa33f476e256efd8c5382192593cdcc",
-      "verifiedCommit": "31247426185b7216659c79c71c93619db32fb1e7",
-      "verifiedAt": "2026-09-18",
+      "verifiedSha256": "eb0d95523bfaa9efe3f6ea2ce1b0ffb63026d5a453a3869df520bad71191ef9c",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Bounded D61 repair independently investigated under #2312; root read the complete relevant entry and exact diff. Prior whole-document read and claims below are retained, not repeated. Final selected dangling-refs drive over199 docs was clean: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. Historical note is a separate line so it does not suppress current citations.",
         "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; current source retains tests/support/browser/ct-data-providers.tsx and the old tests/support/ct path is absent; #1351 remains the live program",
@@ -506,7 +493,7 @@
         }
       ],
       "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims.",
-      "verifiedCanonicalSha256": "bfc4cff68aba2778cb21b93b76ddbf205fa33f476e256efd8c5382192593cdcc"
+      "verifiedCanonicalSha256": "eb0d95523bfaa9efe3f6ea2ce1b0ffb63026d5a453a3869df520bad71191ef9c"
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -578,13 +565,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Tooling-Law.md",
-      "assignedSha256": "e871706a3562644598a1c80a1be5b2006e7d3bd61d64f75b8c70dfa6540cc387",
+      "assignedSha256": "585ded4efca0e959e5379e980c964991ac998e436306202b5c13ec7b0c725b58",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "e871706a3562644598a1c80a1be5b2006e7d3bd61d64f75b8c70dfa6540cc387",
-      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "585ded4efca0e959e5379e980c964991ac998e436306202b5c13ec7b0c725b58",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Program #1351 is complete; acceptance is recorded at https://github.com/Inktomi93/orbweaver/issues/1351#issuecomment-5626592009 . The law bytes are unchanged from 06c560d8e. Shared compiler, capacity and native-tool execution changes have current native/behavioral verification; inherited gate-cutover work remains separately tracked in #1584.",
         "Full law read and closeout delta verified: standing generated compiler-root and separately scoped ambient intent promoted from the world program; all five tsconfig-entry-liveness grants retain their reasons and end conditions and cite this law. Scoped liveness/routing/roadmap controls passed. Compiler ownership and relocation-ledger instructions reconciled with current generated configs and deriveTestBaselineManifest; generated testFiles is never hand-maintained.",
@@ -635,17 +622,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "585ded4efca0e959e5379e980c964991ac998e436306202b5c13ec7b0c725b58"
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
-      "assignedSha256": "db42236c2824b733041025f5c86e106641ec484ac7dfeed7ee0c8def03649e12",
+      "assignedSha256": "5f78f733eb5b702e02bbb32caa667f61d51a1fd4b14db41823f7347267505da4",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "db42236c2824b733041025f5c86e106641ec484ac7dfeed7ee0c8def03649e12",
-      "verifiedCommit": "ee4a545f633d9f20f35f225e144aa16e2d22821e",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "5f78f733eb5b702e02bbb32caa667f61d51a1fd4b14db41823f7347267505da4",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full document read and bounded enforcement correction at ee4a545f6: ESLint derives non-browser package coverage from PACKAGE_WORLDS; native resolution for packages/showcase-plugins/src/index.ts enables tsdoc/syntax and @typescript-eslint/no-deprecated as errors with the TypeScript parser and project service. pnpm check executes lint:eslint. Removed the stale four-package/showcase omission and retired types:graph claim; TypeScript compilation remains distinct from TSDoc syntax checking.",
         "2ff1248088a97d83053f7c9d38b4d6da0055805f re-words the second TSDOC_SURFACE cite on the #1571 bullet (train 79 dangling-refs)",
@@ -684,7 +672,8 @@
           ]
         }
       ],
-      "summary": "Active documentation and comment law with TSDoc enforcement delegated to the current ESLint coverage authority, including the typed showcase packer."
+      "summary": "Active documentation and comment law with TSDoc enforcement delegated to the current ESLint coverage authority, including the typed showcase packer.",
+      "verifiedCanonicalSha256": "5f78f733eb5b702e02bbb32caa667f61d51a1fd4b14db41823f7347267505da4"
     },
     {
       "path": "docs/architecture/core/Knowledge-Cluster.md",
@@ -705,13 +694,13 @@
     },
     {
       "path": "docs/architecture/core/Spine-Config-and-Serialization.md",
-      "assignedSha256": "2aa04450fdc54251f40847e4353a1a3b908651079eb379056abee9b4e53501fb",
+      "assignedSha256": "680e2bf232b15507d375016663edffcb70232f09506216381de4a1d46ceb9cd7",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "2aa04450fdc54251f40847e4353a1a3b908651079eb379056abee9b4e53501fb",
-      "verifiedCommit": "a718abf09ad67f82a8a31646563434e349a746b7",
-      "verifiedAt": "2026-09-05",
+      "verifiedSha256": "680e2bf232b15507d375016663edffcb70232f09506216381de4a1d46ceb9cd7",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "re-attested at a718abf09 by the orchestrator after reading the #1026 diff in full (cb-preset-writers): the #471 'degrading is a read-only privilege' clause's guard pointer moves with the one-home relocation of requireIntactStoredConfig from domain/settings/substrate/stored-config.ts to packages/server/src/kit/stored-config/index.ts; the preset update verb now takes the same refusal, the reseed/import/reset writers are recorded as the guard-exempt class; no other prose changed.",
         "docs/architecture/core/Spine-Config-and-Serialization.md:1 (full read; header/status evaluated)",
@@ -753,17 +742,18 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed. Re-attested 2026-08-22 after the #471 degrade-vs-write law was added to the Settings/config section."
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed. Re-attested 2026-08-22 after the #471 degrade-vs-write law was added to the Settings/config section.",
+      "verifiedCanonicalSha256": "680e2bf232b15507d375016663edffcb70232f09506216381de4a1d46ceb9cd7"
     },
     {
       "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
-      "assignedSha256": "18d821a110226c701a732fd0f2a89021eadb41507e54531c920bfb856852889d",
+      "assignedSha256": "59941cc8dab46fa5e32dbb130d475ef233f09eafc4235a97e504834550dbe941",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "18d821a110226c701a732fd0f2a89021eadb41507e54531c920bfb856852889d",
-      "verifiedCommit": "53275826197a3197644c751e17d3e44e81590638",
-      "verifiedAt": "2026-09-05",
+      "verifiedSha256": "59941cc8dab46fa5e32dbb130d475ef233f09eafc4235a97e504834550dbe941",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "re-attested after #1010 (three cites of the moved roster files repaired) at 532758261",
         "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check — not the authoring lane — after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
@@ -836,17 +826,18 @@
           ]
         }
       ],
-      "summary": "Active core reference re-attested at the #969 implementation: D71 now requires a total accepted-base foreground contract without narrowing custom themes; the derivation, ThemeScope, token, rendered, and import homes carry the proof."
+      "summary": "Active core reference re-attested at the #969 implementation: D71 now requires a total accepted-base foreground contract without narrowing custom themes; the derivation, ThemeScope, token, rendered, and import homes carry the proof.",
+      "verifiedCanonicalSha256": "59941cc8dab46fa5e32dbb130d475ef233f09eafc4235a97e504834550dbe941"
     },
     {
       "path": "docs/architecture/core/Spine-Testing.md",
-      "assignedSha256": "b9dd49596724ea77eb7cdab4172489a9b0947074dddabe8a3673934c34bc6edf",
+      "assignedSha256": "2e3eb760a1499502862378e02fae98a9c16f2bc1538bc9aa1780359d6d65bcd8",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "9cc9834d83189023e47b8724ffa6ddba931fdb2da2ee10815bae4a858a4696e5",
-      "verifiedCommit": "05f9763f29bc72298d9e60e8844e12ad84e5e3f8",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "2e3eb760a1499502862378e02fae98a9c16f2bc1538bc9aa1780359d6d65bcd8",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "Full current 277-line document read by the orchestrator; registered test kinds and phase-4 native reclassification receipts checked against f6c2ae500. Remaining serial lists, tags and predictive ownership are explicitly transitional; this receipt does not claim those migrations complete.",
@@ -883,7 +874,8 @@
           ]
         }
       ],
-      "summary": "Test layout and current scheduling policy; structural browser suites run in parallel and rate validity remains separate from deadlines."
+      "summary": "Test layout and current scheduling policy; structural browser suites run in parallel and rate validity remains separate from deadlines.",
+      "verifiedCanonicalSha256": "2e3eb760a1499502862378e02fae98a9c16f2bc1538bc9aa1780359d6d65bcd8"
     },
     {
       "path": "docs/architecture/core/Spine-TypeScript-and-Patterns.md",
@@ -916,13 +908,13 @@
     },
     {
       "path": "docs/architecture/core/Tier-1-DB.md",
-      "assignedSha256": "ca786e243c8361e17e11463b6450c08684db603d03d7970d26113c45c24e4473",
+      "assignedSha256": "e56a71cca4197594113ea18dc8c98f61c0e711793e95acfa1e0b656a1fae26c7",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "f9ecfa360252924f776170a07c37242b6170d9fa7bfef1e76a7d098ed53f4c31",
-      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "e56a71cca4197594113ea18dc8c98f61c0e711793e95acfa1e0b656a1fae26c7",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "re-attested at c2bca04ee (#1056): the baseline-squash mechanics + two-lane sequencing promoted here from .claude/rules/db-schema.md (the rule file keeps the DROP warning, the pin step and the merge-window rule)",
         "docs/architecture/core/Tier-1-DB.md:1 (full read; header/status evaluated)",
@@ -955,17 +947,18 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
+      "verifiedCanonicalSha256": "e56a71cca4197594113ea18dc8c98f61c0e711793e95acfa1e0b656a1fae26c7"
     },
     {
       "path": "docs/architecture/core/Tier-2-Foundation.md",
-      "assignedSha256": "3f0c417b884bdb3acd0b8e9a20e02efc30204094e7ce5c11bcbedc98517f9b23",
+      "assignedSha256": "70a16120a7d2cfd01eb663d119f4401efde56547dbb725d592e291dad04cc1f0",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "d5f366a0b5ca57d6eeb7f95614775769227d31559efafbc43b9d1111086f3f19",
-      "verifiedCommit": "080bd09493a38432c96f69e055fdd6767f531f60",
-      "verifiedAt": "2026-09-02",
+      "verifiedSha256": "70a16120a7d2cfd01eb663d119f4401efde56547dbb725d592e291dad04cc1f0",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "docs/architecture/core/Tier-2-Foundation.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -983,7 +976,8 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
+      "verifiedCanonicalSha256": "70a16120a7d2cfd01eb663d119f4401efde56547dbb725d592e291dad04cc1f0"
     },
     {
       "path": "docs/architecture/core/Tier-3-Infra.md",
@@ -1119,13 +1113,13 @@
     },
     {
       "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-      "assignedSha256": "f685e4aafab2d4aa50db6497d658d0c1259dc5a546dac99a29bdb1eb89639dc2",
+      "assignedSha256": "8d3955d786d7bd8c6b3b3384e1b127225fc2fedcae8d37e861721ab4329cab18",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "1068558e243e63c1734eaf2f62a9a72e9fcaf6be9f56407d4196946a1323b657",
-      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
-      "verifiedAt": "2026-09-08",
+      "verifiedSha256": "8d3955d786d7bd8c6b3b3384e1b127225fc2fedcae8d37e861721ab4329cab18",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
         "aab83d0a2 (#1794 cb-shell-stacking §3 + §4.1a; #1795 cb-vt-floats §4a/§6.1 — the stacking scope and the content-float lifetime contract) — re-attested at the fold",
@@ -1172,17 +1166,18 @@
           ]
         }
       ],
-      "summary": "The active client tree separates pure forms models from editor composition and locates QueryBoundary and WeaveGlyph in components."
+      "summary": "The active client tree separates pure forms models from editor composition and locates QueryBoundary and WeaveGlyph in components.",
+      "verifiedCanonicalSha256": "8d3955d786d7bd8c6b3b3384e1b127225fc2fedcae8d37e861721ab4329cab18"
     },
     {
       "path": "docs/architecture/core/UI-Density-Law.md",
-      "assignedSha256": "39d8e7c0d2b38574f010e4550c618a16eef305f8b4c2db21783371b511415ab8",
+      "assignedSha256": "be3d203db98c4371d85929a5bb432a1e9d29144862873bf7c35c1b8b9b68c855",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "39d8e7c0d2b38574f010e4550c618a16eef305f8b4c2db21783371b511415ab8",
-      "verifiedCommit": "b481e7debfd823e19f9a9e547e7212b7f9af3969",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "be3d203db98c4371d85929a5bb432a1e9d29144862873bf7c35c1b8b9b68c855",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "b481e7debfd823e19f9a9e547e7212b7f9af3969 (#1769, owner accept-and-record): D11 the dense-form compressed type ramp",
         "docs/design/density-pass-spec.md:1 (spec; approved (owner-ruled 2026-08-01))",
@@ -1210,17 +1205,18 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "be3d203db98c4371d85929a5bb432a1e9d29144862873bf7c35c1b8b9b68c855"
     },
     {
       "path": "docs/architecture/core/UI-Gates-and-Lessons.md",
-      "assignedSha256": "b8c4697926d09800af68a197caa2bfc191e4d1433e68a74d2f355666182be125",
+      "assignedSha256": "55ef66c97a9b327d60fc1f508a23587b9fda4aef68acb9b899538ae7a2fbb97d",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "b8c4697926d09800af68a197caa2bfc191e4d1433e68a74d2f355666182be125",
-      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "55ef66c97a9b327d60fc1f508a23587b9fda4aef68acb9b899538ae7a2fbb97d",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
@@ -1237,22 +1233,23 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:410"
+              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:6"
             }
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
+      "verifiedCanonicalSha256": "55ef66c97a9b327d60fc1f508a23587b9fda4aef68acb9b899538ae7a2fbb97d"
     },
     {
       "path": "docs/architecture/core/UI-Primitives-and-Reuse.md",
-      "assignedSha256": "3b689904dd23c82c80e04053df6a0f4868264df7e5e375eb5830c9bd1ee625ee",
+      "assignedSha256": "18e30b353619770fc665d6d8f2601cd08832f58a487689c6ed2a7e2d25cd533f",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "3b689904dd23c82c80e04053df6a0f4868264df7e5e375eb5830c9bd1ee625ee",
-      "verifiedCommit": "0f28e6b15f375cdec237acf22bb0149991f2f636",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "18e30b353619770fc665d6d8f2601cd08832f58a487689c6ed2a7e2d25cd533f",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; current Playwright CT setup still imports tests/support/browser/ct-providers.tsx and the old tests/support/ct path is absent; #1351 remains the live program",
         "bounded post-174cc2961 delta: f9c1bd99a repointed bus-onData-no-store-write to the live bus-on-data-no-store-write policy; docs/reviews/stickler/2026-09-05-1584-integration-checkpoint.md confirms the complete live rename; #1584 remains the live gate-runtime program",
@@ -1268,22 +1265,23 @@
           "evidence": [
             {
               "kind": "gate",
-              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:410"
+              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:6"
             }
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
+      "verifiedCanonicalSha256": "18e30b353619770fc665d6d8f2601cd08832f58a487689c6ed2a7e2d25cd533f"
     },
     {
       "path": "docs/architecture/core/UI-Theming-and-Content.md",
-      "assignedSha256": "7a1e416ee33f8c66a3fc39eab7700ee3e010421fffe66da873bb1a6b1f0a7e73",
+      "assignedSha256": "00b5d746edf5718b2962e876fbe6956b446b8f714dda6e6bc807310eacd0c4c2",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "7a1e416ee33f8c66a3fc39eab7700ee3e010421fffe66da873bb1a6b1f0a7e73",
-      "verifiedCommit": "242bfaecb0924c7cba3e5d2028ceadf6546dd661",
-      "verifiedAt": "2026-08-31",
+      "verifiedSha256": "00b5d746edf5718b2962e876fbe6956b446b8f714dda6e6bc807310eacd0c4c2",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "re-attested at 242bfaecb under #969 — full 126-line read; §12.1 now points to D71 and names the surface-specific foreground derivation, reading-plate foreground, and custom-CSS later-winner contract",
         "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); §12.2 truth-repaired against the tree",
@@ -1318,7 +1316,8 @@
           ]
         }
       ],
-      "summary": "Full-read current current-reference document reverified during the tier-B card-frame pass (#91): §12.2 restated to name @orb/kit/card-frame as the sandbox/CSP home, source-checked (not origin-checked) auto-height, and the routed-only hash-pinned allow-scripts grant; existing typed implementation evidence remains current."
+      "summary": "Full-read current current-reference document reverified during the tier-B card-frame pass (#91): §12.2 restated to name @orb/kit/card-frame as the sandbox/CSP home, source-checked (not origin-checked) auto-height, and the routed-only hash-pinned allow-scripts grant; existing typed implementation evidence remains current.",
+      "verifiedCanonicalSha256": "00b5d746edf5718b2962e876fbe6956b446b8f714dda6e6bc807310eacd0c4c2"
     },
     {
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
@@ -1478,13 +1477,13 @@
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",
-      "assignedSha256": "b610815bbbfa2ce0c4f635fd3b43a2839030a81a9e2521b03c566ae5be43c4d0",
+      "assignedSha256": "fb3a75ff991c6d70fa3b36476bd8c65259f0cc565b82d444a37263199f091d75",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "70ade8fe9c45797f43e898517145f040858c2977a8614a07c69a422e60f3223c",
-      "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
-      "verifiedAt": "2026-09-08",
+      "verifiedSha256": "fb3a75ff991c6d70fa3b36476bd8c65259f0cc565b82d444a37263199f091d75",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
         "aab83d0a2 (#1795 cb-vt-floats: CONTENT-only View Transition contract — only captured content loses painting/hit-testing) — re-attested at the fold",
@@ -1540,17 +1539,18 @@
           ]
         }
       ],
-      "summary": "Active motion law reverified against the sealed Select evidence ledger, one-shot first-entrance allowance, attribution veto, browser plus tooling controls, and the owner-ruled interactive-state colour carve-out with its two-directional pin."
+      "summary": "Active motion law reverified against the sealed Select evidence ledger, one-shot first-entrance allowance, attribution veto, browser plus tooling controls, and the owner-ruled interactive-state colour carve-out with its two-directional pin.",
+      "verifiedCanonicalSha256": "fb3a75ff991c6d70fa3b36476bd8c65259f0cc565b82d444a37263199f091d75"
     },
     {
       "path": "docs/architecture/core/ui-package-design.md",
-      "assignedSha256": "3c0323470f94d34a7131d8c49748b26076dce31fe84847cf135cbc0f2cadeb8e",
+      "assignedSha256": "a41e1ed0eb37955c7670717aa23df6a796ec919823818a1c773444e6b8accf5b",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "5be11732d86165dcaf53ea2e6b5679757f154b115e57df8c84952bc513b93d48",
-      "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
-      "verifiedAt": "2026-09-08",
+      "verifiedSha256": "a41e1ed0eb37955c7670717aa23df6a796ec919823818a1c773444e6b8accf5b",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
       "evidence": [
         "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
         "docs/architecture/core/ui-package-design.md:1 (full read; header/status evaluated)",
@@ -1570,7 +1570,8 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
+      "verifiedCanonicalSha256": "a41e1ed0eb37955c7670717aa23df6a796ec919823818a1c773444e6b8accf5b"
     }
   ]
 }
