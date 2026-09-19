@@ -6,7 +6,7 @@
 import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Node as MorphNode, Symbol as MorphSymbol, Type, TypeNode } from "ts-morph";
 import { Node, TypeFlags } from "ts-morph";
-import type { TypeIdentityOrigin } from "../contract/type-member-origin.ts";
+import type { Containment, GenericDeclaration, TypeIdentityOrigin } from "../contract/type-member-origin.ts";
 import { annotationReferenceOrigin, resolveTypePropertyOrigin, unprovenTypeIdentity } from "./type-member-origin-core.ts";
 
 export function opaqueType(type: Type): boolean {
@@ -123,15 +123,13 @@ export function valueTypeEdges(
   };
 }
 
-export type GenericDeclaration = import("ts-morph").InterfaceDeclaration | import("ts-morph").TypeAliasDeclaration;
-
 interface GenericDescriptor {
   readonly target: object;
   readonly declaration?: GenericDeclaration;
   readonly arguments: readonly Type[];
 }
 
-export function declaredGeneric(symbol: MorphSymbol | undefined): GenericDeclaration | undefined {
+function declaredGeneric(symbol: MorphSymbol | undefined): GenericDeclaration | undefined {
   return symbol
     ?.getDeclarations()
     .find(
@@ -201,9 +199,6 @@ function containedTypeEdges(candidate: Type, context: TransportContext): readonl
   const indices = [candidate.getNumberIndexType(), candidate.getStringIndexType()].flatMap((index) => (index === undefined ? [] : [index]));
   return [...aggregate, ...indices, ...substituted, ...properties.map((property) => property.getTypeAtLocation(context.location))];
 }
-
-const CONTAINMENTS = ["no", "possible", "yes"] as const;
-export type Containment = (typeof CONTAINMENTS)[number];
 
 function summaryContainment(candidate: Type, expected: Type, summary: ConstructorSummary, context: TransportContext): Containment {
   const arguments_ = genericArguments(candidate);

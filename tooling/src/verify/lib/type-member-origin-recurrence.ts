@@ -4,7 +4,8 @@
 // `constructorSummaries` is the one export the graph walk (type-member-origin-graph.ts) drives.
 import type { Type, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ConstructorSummary, Containment, GenericDeclaration, TransportContext } from "./type-member-origin-containment.ts";
+import type { Containment, GenericDeclaration } from "../contract/type-member-origin.ts";
+import type { ConstructorSummary, TransportContext } from "./type-member-origin-containment.ts";
 import {
   annotationChildren,
   dataMemberAnnotation,
