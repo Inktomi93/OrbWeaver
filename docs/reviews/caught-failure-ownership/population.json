@@ -3099,7 +3099,7 @@
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::catch::1",
       "path": "packages/server/src/entry/http/auth-routes.ts",
-      "line": 273,
+      "line": 308,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3107,7 +3107,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout.",
-      "markerLine": 256
+      "markerLine": 291
     },
     {
       "siteId": "packages/server/src/entry/http/blob.ts::catch::1",
@@ -3268,7 +3268,7 @@
     {
       "siteId": "packages/server/src/foundation/env/index.ts::catch::1",
       "path": "packages/server/src/foundation/env/index.ts",
-      "line": 201,
+      "line": 204,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3276,12 +3276,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a missing .env is a normal deploy state —",
-      "markerLine": 196
+      "markerLine": 199
     },
     {
       "siteId": "packages/server/src/foundation/env/index.ts::catch::2",
       "path": "packages/server/src/foundation/env/index.ts",
-      "line": 922,
+      "line": 943,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3289,7 +3289,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a probe whose ONLY verdict is a boolean — an unreadable/missing/permission-denied credentials file all mean the same thing to every caller (\"not detected\"), and the false answer FAILS CLOSED (the backend stays unregistered, nothing spawns). Ends if this probe ever gates something that opens rather than closes.",
-      "markerLine": 918
+      "markerLine": 939
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::catch::1",
@@ -3762,7 +3762,7 @@
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/model-cache.ts::created::1",
       "path": "packages/server/src/infra/providers/backends/local-light/model-cache.ts",
-      "line": 297,
+      "line": 298,
       "column": 10,
       "grammar": "promise",
       "position": "created",
@@ -3770,12 +3770,12 @@
       "snippet": "void created.catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "this .catch is eviction bookkeeping only — a rejected load removes its own cache entry so it never poisons the model; the rejection is still delivered to every caller who awaits memo(id)'s promise, so nothing is swallowed. Ends if callers stop receiving the entry promise.",
-      "markerLine": 296
+      "markerLine": 297
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/model-cache.ts::entry.promise::1",
       "path": "packages/server/src/infra/providers/backends/local-light/model-cache.ts",
-      "line": 284,
+      "line": 285,
       "column": 10,
       "grammar": "promise",
       "position": "entry.promise",
@@ -3783,12 +3783,12 @@
       "snippet": "void entry.promise.then(dispose).catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.",
-      "markerLine": 283
+      "markerLine": 284
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/local-light/prefetch.ts::preload::1",
       "path": "packages/server/src/infra/providers/backends/local-light/prefetch.ts",
-      "line": 143,
+      "line": 145,
       "column": 8,
       "grammar": "promise",
       "position": "preload",
@@ -3796,7 +3796,7 @@
       "snippet": ".preload(slot, modelId)",
       "verdict": "deliberate-absorb",
       "reason": "the failure IS surfaced, twice — a WARN naming the slot, the model and the knob, and a `failed` record on the admin engine-status surface carrying the reason. It is deliberately not propagated: the caller is a detached boot walk with no request to fail, and the lazy first-use path (untouched by a failed prefetch) remains the working arm. Ends if the prefetch becomes required for correctness rather than latency.",
-      "markerLine": 141
+      "markerLine": 143
     },
     {
       "siteId": "packages/server/src/infra/providers/backends/openrouter/probe.ts::err::1",
@@ -7285,7 +7285,7 @@
     {
       "siteId": "tooling/src/verify/lib/bus-payload-fact-resolve.ts::catch::1",
       "path": "tooling/src/verify/lib/bus-payload-fact-resolve.ts",
-      "line": 155,
+      "line": 146,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -7293,7 +7293,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the failure IS owned and surfaced — tuple-read THROWS to say \"I cannot establish this vocabulary\", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REFUSES `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this module's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed refusal.",
-      "markerLine": 152
+      "markerLine": 143
     },
     {
       "siteId": "tooling/src/verify/lib/compiler-source-filename-overlay.ts::catch::1",
