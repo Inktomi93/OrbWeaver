@@ -177,20 +177,35 @@ export async function anchorRowSubject(page: Page, row: RuntimeAppearanceHistori
     instrumentRefusal(`Appearance row ${row.id} has no ${subjectId} drive subject`);
   }
   let settled: AnchorRect | null = null;
+  let everReached = false;
   for (let attempt = 0; attempt < ANCHOR_ATTEMPTS; attempt += 1) {
     const label = `Appearance row ${row.id} anchor ${subjectId} attempt ${String(attempt)}`;
     const reached: unknown = await page.evaluate(browserAnchorSubject, { selector, scroll: true });
     if (reached === null) {
-      instrumentRefusal(
-        `${label}: ${selector} reaches no rendered candidate to anchor on — the ${row.surface} surface is not showing the subject this row judges.`,
-      );
+      // REACH IS RETRIED, NOT REFUSED ON SIGHT. The loop already exists because ONE measurement is not a
+      // verdict (#2402), and since the candidate filter started demanding a real box (#2430) "nothing
+      // rendered yet" is one of the states a settling surface passes THROUGH — a virtualized row that has
+      // mounted but not been laid out matches the selector with a zero box. Refusing at attempt 0 turned
+      // that into a dead cell; the honest refusal is "never reached it, over the whole budget", below.
+      await settle(page, STEP_SETTLE_MS);
+      continue;
     }
+    everReached = true;
     const scrolled = anchorRectShape(reached, label);
     await settle(page, STEP_SETTLE_MS);
-    settled = anchorRectShape(await page.evaluate(browserAnchorSubject, { selector, scroll: false }), `${label} settled`);
+    const measured: unknown = await page.evaluate(browserAnchorSubject, { selector, scroll: false });
+    if (measured === null) {
+      continue;
+    }
+    settled = anchorRectShape(measured, `${label} settled`);
     if (anchorHeld(scrolled, settled)) {
       return;
     }
+  }
+  if (!everReached) {
+    instrumentRefusal(
+      `Appearance row ${row.id} anchor ${subjectId}: ${selector} reaches no rendered candidate to anchor on over ${String(ANCHOR_ATTEMPTS)} attempts — the ${row.surface} surface is not showing the subject this row judges, so the cell has NO VERDICT rather than a failed one.`,
+    );
   }
   instrumentRefusal(
     `Appearance row ${row.id} could not hold its ${subjectId} anchor in view over ${String(ANCHOR_ATTEMPTS)} scroll attempts — the ${row.surface} surface keeps scrolling away from the subject this row judges, so the cell has NO VERDICT rather than a failed one. Last measured rect=${JSON.stringify(settled)} for ${selector}`,
