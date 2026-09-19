@@ -224,6 +224,25 @@ describe("Orb semantic controls", () => {
     expect(codes(wrongType)).toContain("alias.type");
   });
 
+  // #1872 — `orb.rootFloor` is the extension that emits `max(<rem>, <rem at the 16px root>px)`, so a token
+  // that does not scale with the root has no floor to hold. BOTH directions: the extension is admitted at all
+  // (a positive control — otherwise the refusal below could be the closed-extension check firing), and a `px`
+  // token carrying it is refused by its own code.
+  test("orb.rootFloor is an admitted extension, and only on a rem dimension", () => {
+    const admitted = mutate(validFixture(), "base", (base) => {
+      ((base["dimension"] as Record<string, unknown>)["gap"] as Record<string, unknown>)["$extensions"] = { "orb.rootFloor": true };
+    });
+    expect(codes(admitted)).not.toContain("orb.extension.unknown");
+    expect(codes(admitted)).not.toContain("orb.rootFloor.type");
+
+    const onPx = mutate(validFixture(), "base", (base) => {
+      const gap = (base["dimension"] as Record<string, unknown>)["gap"] as Record<string, unknown>;
+      gap["$value"] = { value: 16, unit: "px" };
+      gap["$extensions"] = { "orb.rootFloor": true };
+    });
+    expect(codes(onPx)).toContain("orb.rootFloor.type");
+  });
+
   test("closed extensions, duplicate outputs, missing var operands, and stale removed rows are refused", () => {
     const extension = mutate(validFixture(), "base", (base) => {
       (base["$extensions"] as Record<string, unknown>)["orb.unknown"] = {};

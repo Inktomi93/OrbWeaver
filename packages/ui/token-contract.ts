@@ -125,6 +125,9 @@ export interface ContractToken {
   readonly type: TokenType | null;
   readonly value: unknown;
   readonly outputRole: OutputRole | null;
+  /** `$extensions["orb.rootFloor"]` — the emitted value never resolves BELOW its authored 16px-root size
+   *  (`--font-scale` may enlarge it, never shrink it). See `rootFloorFlag` for the whole ruling. */
+  readonly rootFloor: boolean;
 }
 
 interface CssValueEntry {
@@ -164,6 +167,8 @@ export interface TokenContractTexts {
 const dimensionSchema = z.object({ value: z.number(), unit: z.enum(["px", "rem"]) }).strict();
 const pointerFineSchema = dimensionSchema;
 const outputSchema = z.object({ kind: z.enum(["input", "light-dark", "percentage", "snapped"]) }).strict();
+/** `orb.rootFloor` carries no operand — the floor IS the token's own authored value at the 16px root. */
+const rootFloorSchema = z.literal(true);
 const llmSchema = z
   .object({ usage: z.array(z.string().min(1)).min(1).optional(), rules: z.string().min(1).optional() })
   .strict()
@@ -246,6 +251,39 @@ function outputRole(node: JsonObject, path: string, diagnostics: TokenContractDi
   return parsed.success ? parsed.data.kind : null;
 }
 
+/**
+ * `$extensions["orb.rootFloor"]` — THE ROOT FLOOR (#1872). The emitted value is `max(<authored>, <authored
+ * at the 16px root>px)`, so `--font-scale` can only ever ENLARGE it.
+ *
+ * WHY IT IS A FLAG AND NOT AN OPERAND: the floor is the token's OWN authored value, never a second number.
+ * A hand-written floor could differ from the authored size, and a face/leading PAIR floored to two
+ * unrelated numbers changes the resolved ratio — which is exactly what #1872 forbids. Deriving it makes
+ * the floored region ratio-identical to the authored design by construction: below `--font-scale` 1 every
+ * floored token in a pair pins at its own 16px-root px, so face:leading is the authored ratio exactly.
+ *
+ * WHY IT DOES NOT REACH THE `@media (pointer: fine)` ARM (unlike the snapping belt, #1640): the floor
+ * answers a COARSE-pointer platform fact (iOS Safari zooms a focused control typed under 16px and never
+ * zooms back), and the fine arms are deliberately BELOW that floor — flooring them would enlarge every
+ * desktop form and delete the dense step. The belt is a rendering invariant and applies to both arms; this
+ * is a platform floor and applies to the arm that has the platform.
+ *
+ * Valid only on a `dimension` token authored in `rem`: a `px` token does not scale, so it has no floor to
+ * hold.
+ */
+function isRemDimension(value: unknown, effectiveType: TokenType | null): boolean {
+  return effectiveType === "dimension" && isObject(value) && value["unit"] === "rem";
+}
+
+function rootFloorFlag(node: JsonObject, path: string, diagnostics: TokenContractDiagnostic[]): boolean {
+  const extensions = node["$extensions"];
+  if (!isObject(extensions) || extensions["orb.rootFloor"] === undefined) {
+    return false;
+  }
+  const parsed = rootFloorSchema.safeParse(extensions["orb.rootFloor"]);
+  diagnostics.push(...zodDiagnostics(`${path}/$extensions/orb.rootFloor`, "orb.rootFloor", parsed));
+  return parsed.success;
+}
+
 function validateOrbExtensionNames(extensions: JsonObject, allowed: ReadonlySet<string>, path: string, diagnostics: TokenContractDiagnostic[]): void {
   for (const key of Object.keys(extensions)) {
     if (key.startsWith("orb.") && !allowed.has(key)) {
@@ -278,9 +316,10 @@ function collectTokenNode(node: JsonObject, path: readonly string[], effectiveTy
   const jsonPath = `/${path.join("/")}`;
   const extensions = node["$extensions"];
   if (isObject(extensions)) {
-    validateOrbExtensionNames(extensions, new Set(["orb.pointerFine", "orb.output"]), `${jsonPath}/$extensions`, collector.diagnostics);
+    validateOrbExtensionNames(extensions, new Set(["orb.pointerFine", "orb.output", "orb.rootFloor"]), `${jsonPath}/$extensions`, collector.diagnostics);
   }
   const role = outputRole(node, jsonPath, collector.diagnostics);
+  const rootFloor = rootFloorFlag(node, jsonPath, collector.diagnostics);
   if (effectiveType === null) {
     collector.diagnostics.push(diagnostic(jsonPath, "token.type.missing", "token has no declared or inherited standard $type"));
   }
@@ -301,7 +340,10 @@ function collectTokenNode(node: JsonObject, path: readonly string[], effectiveTy
   if (role === "light-dark" && effectiveType !== "color") {
     collector.diagnostics.push(diagnostic(jsonPath, "orb.output.type", "light-dark output requires a color token"));
   }
-  collector.tokens.push({ path, pathString, node, type: effectiveType, value: node["$value"] ?? node["$ref"], outputRole: role });
+  if (rootFloor && !isRemDimension(node["$value"], effectiveType)) {
+    collector.diagnostics.push(diagnostic(jsonPath, "orb.rootFloor.type", "orb.rootFloor is valid only on a dimension token authored in rem"));
+  }
+  collector.tokens.push({ path, pathString, node, type: effectiveType, value: node["$value"] ?? node["$ref"], outputRole: role, rootFloor });
 }
 
 function collectTokens(node: JsonObject, path: readonly string[], inheritedType: TokenType | null, collector: TokenCollector): void {

@@ -425,3 +425,94 @@ test.describe("fine pointer — the field type step keeps the design's own steps
     expect(dense, "the dense step is a step BELOW the field step at a fine pointer").toBeLessThan(field);
   });
 });
+
+// ── #1872 — THE FLOOR HOLDS UNDER THE READER'S OWN TYPE SCALE ────────────────────────────────────────
+//
+// `appearance.fontScale` writes `--font-scale` on `<html>` and ui globals.css spells
+// `:root { font-size: calc(100% * var(--font-scale, 1)) }`, so EVERY rem — including the coarse field step
+// pinned above — rescales with it. `fontScale` bottoms out at 0.8 (`packages/contracts/src/settings/
+// appearance.ts`), which put roughly the lower 40% of the slider's travel back under 16px (0.95 → 15.2,
+// 0.90 → 14.4, 0.80 → 12.8) and silently re-armed the iOS focus zoom #1868 exists to prevent. #1868's pin
+// above could not see it: a CT runs at scale 1, which is the ONE stop where the defect does not exist.
+//
+// THE FIX IS `orb.rootFloor` ON THE PAIR, NOT `max(16px, 1rem)` ON THE FACE — #1872 bars the latter, and
+// this case is what makes the bar enforceable. Flooring a face alone leaves it inside a line box that KEPT
+// shrinking, so at 0.8 the resolved face:leading ratio collapses from the authored 1.5 to 1.0: cramped
+// type at exactly the setting a type-sensitive reader is using. Both members of each pair are floored from
+// their OWN authored value, so below scale 1 the resolved ratio is the authored one exactly.
+//
+// THE MATRIX IS BOTH ENDS PLUS THE CROSSOVER, never a point: the floor engages below 1.0, the authored
+// value wins above it, and a one-sample pin cannot tell a floor from a constant.
+const FONT_SCALE_SWEEP = [0.8, 0.9, 1, 1.25, 1.5] as const;
+/** Ratio comparisons are on device-pixel-quantised lengths; a hair of slack keeps the pin off the belt's
+ *  own rounding rather than off the defect. */
+const RATIO_EPSILON = 0.001;
+
+/** Stamp `--font-scale` on `<html>` exactly as `use-appearance-root-effects` does in the app. */
+async function setFontScale(page: Page, scale: number): Promise<void> {
+  await page.evaluate((value) => {
+    document.documentElement.style.setProperty("--font-scale", String(value));
+  }, scale);
+}
+
+test.describe("coarse pointer — the iOS floor survives every appearance.fontScale (#1872)", () => {
+  test.use({ hasTouch: true });
+
+  test("both field arms hold ≥16px across the whole 0.8-1.5 slider, and each pair keeps its authored face:leading ratio", async ({ mount, page }) => {
+    await mount(fieldArms());
+    const metrics = (name: string): Promise<{ fontSize: number; lineHeight: number }> =>
+      page.getByLabel(name).evaluate((el) => {
+        const style = getComputedStyle(el);
+        return { fontSize: Number.parseFloat(style.fontSize), lineHeight: Number.parseFloat(style.lineHeight) };
+      });
+
+    // The AUTHORED ratio, read off the product at scale 1 rather than copied out of the vault — a
+    // deliberate retune of either token moves this pin with it instead of reddening it.
+    await setFontScale(page, 1);
+    const [baseField, baseDense] = await Promise.all([metrics("field type step"), metrics("dense type step")]);
+    const authored = { field: baseField.lineHeight / baseField.fontSize, dense: baseDense.lineHeight / baseDense.fontSize };
+
+    const rows: string[] = [];
+    const failures: string[] = [];
+    for (const scale of FONT_SCALE_SWEEP) {
+      await setFontScale(page, scale);
+      const [field, dense] = await Promise.all([metrics("field type step"), metrics("dense type step")]);
+      const ratio = { field: field.lineHeight / field.fontSize, dense: dense.lineHeight / dense.fontSize };
+      rows.push(
+        `fontScale ${scale}: field ${field.fontSize}/${field.lineHeight} (${ratio.field.toFixed(3)}) · dense ${dense.fontSize}/${dense.lineHeight} (${ratio.dense.toFixed(3)})`,
+      );
+      if (field.fontSize < IOS_FOCUS_ZOOM_FLOOR_PX) {
+        failures.push(`fontScale ${scale}: field ${field.fontSize}px re-arms the iOS focus zoom`);
+      }
+      if (dense.fontSize < IOS_FOCUS_ZOOM_FLOOR_PX) {
+        failures.push(`fontScale ${scale}: dense ${dense.fontSize}px re-arms the iOS focus zoom`);
+      }
+      // `round(up, …)` may only ever ENLARGE a line box, so the resolved ratio is ≥ the authored one at
+      // every stop. A face floored WITHOUT its leading drives this below 1 and is caught here.
+      if (ratio.field + RATIO_EPSILON < authored.field) {
+        failures.push(`fontScale ${scale}: field ratio ${ratio.field.toFixed(3)} fell below the authored ${authored.field.toFixed(3)}`);
+      }
+      if (ratio.dense + RATIO_EPSILON < authored.dense) {
+        failures.push(`fontScale ${scale}: dense ratio ${ratio.dense.toFixed(3)} fell below the authored ${authored.dense.toFixed(3)}`);
+      }
+    }
+    await setFontScale(page, 1);
+    expect(failures, `#1872 fontScale matrix (coarse pointer):\n  ${rows.join("\n  ")}`).toEqual([]);
+  });
+});
+
+test.describe("fine pointer — the root floor does NOT reach the desktop steps (#1872)", () => {
+  test.use({ hasTouch: false });
+
+  test("at fontScale 0.8 the fine arms still scale down — the floor is a coarse-pointer platform fact, not a global minimum", async ({ mount, page }) => {
+    await mount(fieldArms());
+    await setFontScale(page, 0.8);
+    const read = (name: string): Promise<number> => page.getByLabel(name).evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize));
+    const [field, dense] = await Promise.all([read("field type step"), read("dense type step")]);
+    await setFontScale(page, 1);
+    // A fine arm that floored would read 16 here and every desktop form would have grown. This is the
+    // discriminating half — without it a blanket `max(16px, …)` passes the coarse matrix above.
+    expect(field, "the fine field step still tracks --font-scale downward").toBeLessThan(IOS_FOCUS_ZOOM_FLOOR_PX);
+    expect(dense, "…and the dense fine step stays a step below it").toBeLessThan(field);
+  });
+});
