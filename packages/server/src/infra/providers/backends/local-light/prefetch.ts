@@ -47,6 +47,7 @@ export const LOCAL_LIGHT_STATUS_PREFIX = "local-light:";
 /** What to warm: one slot and the model id the resolver said would serve it. */
 export interface LocalLightPrefetchTarget {
   readonly slot: LocalLightModelSlot;
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   readonly modelId: string;
 }
 
@@ -132,6 +133,7 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
   const modelIdBySlot = new Map<LocalLightModelSlot, string>();
   let stopped = false;
 
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   async function warm(slot: LocalLightModelSlot, modelId: string): Promise<void> {
     const existing = inFlight.get(slot);
     if (existing !== undefined) {
