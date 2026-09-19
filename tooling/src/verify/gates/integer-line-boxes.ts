@@ -1,10 +1,22 @@
 // Gate: integer-line-boxes (docs/design/integer-line-boxes.md) — every line box resolves to INTEGER px at
 // the 16px root; a fractional box walks baselines off the device-pixel grid under promoted layers.
-// ARM T: leading.* tokens are snapped integer rem dimensions · ARM P: every class-borne text step pairs an
+// ARM T: `leading.*` AND `spacing.*` tokens are snapped integer dimensions at the 16px root, including a
+// spacing token's `orb.pointerFine` override · ARM P: every class-borne text step pairs an
 // in-vocabulary leading (Tailwind's unitless core leading scale is banned) · ARM C: stylesheet line-heights
 // resolve only through the leading vocabulary · ARM B: the blindness floors. Comment posture: ARM P is
 // AST-side via the static-class walker (comment-safe); ARM C reads parsed CSS declarations, and the parser
 // blanks comment spans before parsing, so a commented-out rule is never judged.
+//
+// ARM T's SPACING HALF (#1711, #1640). Since #1640 the whole `spacing.*` family rides the same snapped
+// belt the leadings do, and nothing made a FUTURE fractional-at-root-16 spacing token unshippable:
+// `round(up)` on a fractional author silently GROWS the box at the default scale, which is the one thing
+// the belt promises not to do. The `orb.pointerFine` override is judged too — it is a second authored value
+// on the same belt, and an unjudged one is an un-gridded step at exactly the pointer class the override
+// exists for. BORN GREEN, and the counts are a DATED SNAPSHOT of a machine's answer, not a law: on
+// 2026-09-19 the vault held 26 `spacing.*` tokens, all snapped and all integer at the 16px root, of which
+// 7 carry an `orb.pointerFine` arm, also all integer. (#1711's body said 27+8; re-derive with
+// `python3 -c` over `packages/ui/src/tokens/tokens.json` rather than trusting either number — the SET is
+// policed here, the count is not.) `tests/ui/tokens/index.test.ts` keeps its claim as the weaker twin.
 //
 // DECLARED LIMITS: the generated theme.css is the ONE emitter of the leading scale and is freshness-enforced
 // by tests/ui/tokens, so it is carved out of ARM C rather than re-judged here (the `no-raw-color-in-css`
@@ -68,7 +80,8 @@ const MESSAGE =
   "Leadings are fixed integer line boxes emitted as round(<rem>, 1px); see docs/design/integer-line-boxes.md.";
 const FIX =
   "Pair every text-<step> with a leading-<step> from packages/ui/src/tokens/tokens.json (never Tailwind's " +
-  "unitless core scale), author leading tokens as snapped integer-px rem dimensions, and let stylesheets " +
+  "unitless core scale), author leading AND spacing tokens as snapped integer-px rem dimensions — including " +
+  "a spacing token's orb.pointerFine override, which rides the same belt — and let stylesheets " +
   "set line-height only through var(--leading-*). A deliberate stylesheet line-height is waived with " +
   "`/* @orb-waive integer-line-boxes(<position>): <reason> */` on the line above, where <position> is the " +
   "reported token: the custom-property NAME for a `var(--x)` value (`--reading-line-height`, never the " +
@@ -93,16 +106,22 @@ interface TypeScale {
   readonly textPx: ReadonlyMap<string, number>;
   /** leading name → box px at the 16px root; leading `none` maps to NaN (box = the paired font-size). */
   readonly leadingPx: ReadonlyMap<string, number>;
-  readonly problems: readonly LeadingProblem[];
+  readonly problems: readonly TokenProblem[];
 }
 
-/** One ARM T defect, carrying the leading token NAME as well as its sentence. The name is the finding's
+/** One ARM T defect, carrying the token's GROUP and NAME as well as its sentence. The name is the finding's
  *  waiver POSITION: an ordinary finding must point at a nonempty token that slices the authored text at its
- *  reported column, and a token vault's offending subject is the key, never the file. */
-interface LeadingProblem {
+ *  reported column, and a token vault's offending subject is the key, never the file. The group is what
+ *  makes the position lookup unambiguous — `tight` is a key in `spacing` and could be one in `leading`. */
+interface TokenProblem {
+  readonly group: TokenGroup;
   readonly name: string;
   readonly message: string;
 }
+
+/** The two belted families ARM T judges. Both ride the same `round(<rem>, 1px)` output belt, so both owe
+ *  the same integer-at-root-16 guarantee — see the ARM T paragraph in the header. */
+type TokenGroup = "leading" | "spacing";
 
 function isRecord(value: JsonValue | undefined): value is { readonly [key: string]: JsonValue } {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -125,10 +144,14 @@ function outputKind(node: { readonly [key: string]: JsonValue }): string | undef
   return typeof kind === "string" ? kind : undefined;
 }
 
-function readLeadingToken(name: string, node: { readonly [key: string]: JsonValue }, out: { leading: Map<string, number>; problems: LeadingProblem[] }): void {
+function readLeadingToken(name: string, node: { readonly [key: string]: JsonValue }, out: { leading: Map<string, number>; problems: TokenProblem[] }): void {
   if (name === "none") {
     if (node["$type"] !== "number" || node["$value"] !== 1) {
-      out.problems.push({ name, message: "leading.none must stay the number 1 (box = the paired font-size) — docs/design/integer-line-boxes.md" });
+      out.problems.push({
+        group: "leading",
+        name,
+        message: "leading.none must stay the number 1 (box = the paired font-size) — docs/design/integer-line-boxes.md",
+      });
       return;
     }
     out.leading.set(name, Number.NaN);
@@ -136,6 +159,7 @@ function readLeadingToken(name: string, node: { readonly [key: string]: JsonValu
   }
   if (node["$type"] !== "dimension") {
     out.problems.push({
+      group: "leading",
       name,
       message: `leading.${name} is not a dimension — unitless leading ratios are banned (a ratio times a fractional voice size is a fractional box) (tooling/src/verify/gates/GATE-AUTHORING.md)`,
     });
@@ -143,6 +167,7 @@ function readLeadingToken(name: string, node: { readonly [key: string]: JsonValu
   }
   if (outputKind(node) !== "snapped") {
     out.problems.push({
+      group: "leading",
       name,
       message: `leading.${name} lacks $extensions orb.output kind "snapped" — without the round(<rem>, 1px) belt the continuous --font-scale slider un-grids the box (tooling/src/verify/gates/GATE-AUTHORING.md)`,
     });
@@ -150,11 +175,12 @@ function readLeadingToken(name: string, node: { readonly [key: string]: JsonValu
   }
   const px = dimensionPx(node["$value"]);
   if (px === undefined) {
-    out.problems.push({ name, message: `leading.${name} has an unreadable dimension value — docs/design/integer-line-boxes.md` });
+    out.problems.push({ group: "leading", name, message: `leading.${name} has an unreadable dimension value — docs/design/integer-line-boxes.md` });
     return;
   }
   if (Math.abs(px - Math.round(px)) > INTEGER_EPSILON) {
     out.problems.push({
+      group: "leading",
       name,
       message: `leading.${name} resolves ${String(px)}px at the 16px root — fractional line box; author an integer (docs/design/integer-line-boxes.md)`,
     });
@@ -163,29 +189,104 @@ function readLeadingToken(name: string, node: { readonly [key: string]: JsonValu
   out.leading.set(name, px);
 }
 
-/** Parse the text/leading groups of the declared token vault. TOTAL: an absent, empty or unparseable vault
- *  never reaches here — that is the runtime's population-phase refusal, not this function's `undefined`. */
+/** The `orb.pointerFine` override arm of a snapped token, when one is authored — a bare dimension VALUE
+ *  (`{ value, unit }`), not a nested token node, which is why it is read with `dimensionPx` directly. */
+function pointerFineValue(node: { readonly [key: string]: JsonValue }): JsonValue | undefined {
+  const extensions = node["$extensions"];
+  return isRecord(extensions) ? extensions["orb.pointerFine"] : undefined;
+}
+
+/** ARM T's SPACING half (#1711). Since #1640 the whole `spacing.*` family rides the same snapped belt the
+ *  leadings do, and for the same reason: `round(up)` on a fractional author silently GROWS the box at the
+ *  default scale, which is the one thing the belt promises not to do. Three verdicts, all the leading
+ *  half's shape one family over — not a dimension, not snapped, or not an integer at the 16px root — plus
+ *  the same integer demand on the `orb.pointerFine` override, which is a second authored value on the same
+ *  belt and would otherwise be unjudged. */
+function readSpacingToken(name: string, node: { readonly [key: string]: JsonValue }, problems: TokenProblem[]): void {
+  if (node["$type"] !== "dimension") {
+    problems.push({
+      group: "spacing",
+      name,
+      message: `spacing.${name} is not a dimension — a spacing step must be a belted dimension, never a ratio or a raw number (docs/design/integer-line-boxes.md)`,
+    });
+    return;
+  }
+  if (outputKind(node) !== "snapped") {
+    problems.push({
+      group: "spacing",
+      name,
+      message: `spacing.${name} lacks $extensions orb.output kind "snapped" — without the round(<rem>, 1px) belt the continuous --font-scale slider un-grids the step (docs/design/integer-line-boxes.md)`,
+    });
+    return;
+  }
+  const px = dimensionPx(node["$value"]);
+  if (px === undefined) {
+    problems.push({ group: "spacing", name, message: `spacing.${name} has an unreadable dimension value (docs/design/integer-line-boxes.md)` });
+    return;
+  }
+  if (Math.abs(px - Math.round(px)) > INTEGER_EPSILON) {
+    problems.push({
+      group: "spacing",
+      name,
+      message: `spacing.${name} resolves ${String(px)}px at the 16px root — a fractional authored step, which round(up) silently GROWS at the default scale; author an integer (docs/design/integer-line-boxes.md)`,
+    });
+    return;
+  }
+  readPointerFineArm(name, node, problems);
+}
+
+/** The fine-pointer override of a snapped spacing token — a SECOND authored value on the same belt, so it
+ *  owes the same integer. Split out of `readSpacingToken` for its own sake and for the complexity ceiling. */
+function readPointerFineArm(name: string, node: { readonly [key: string]: JsonValue }, problems: TokenProblem[]): void {
+  const fine = pointerFineValue(node);
+  if (fine === undefined) {
+    return;
+  }
+  const finePx = dimensionPx(fine);
+  if (finePx === undefined) {
+    problems.push({ group: "spacing", name, message: `spacing.${name} has an unreadable orb.pointerFine dimension value (docs/design/integer-line-boxes.md)` });
+    return;
+  }
+  if (Math.abs(finePx - Math.round(finePx)) > INTEGER_EPSILON) {
+    problems.push({
+      group: "spacing",
+      name,
+      message: `spacing.${name} resolves ${String(finePx)}px on a fine pointer at the 16px root — the override rides the same snapped belt and owes the same integer (docs/design/integer-line-boxes.md)`,
+    });
+  }
+}
+
+/** One token GROUP's authored members, skipping DTCG's own `$`-prefixed metadata keys. */
+function groupMembers(source: { readonly [key: string]: JsonValue }, group: string): readonly (readonly [string, { readonly [key: string]: JsonValue }])[] {
+  const node = isRecord(source[group]) ? source[group] : {};
+  const out: (readonly [string, { readonly [key: string]: JsonValue }])[] = [];
+  for (const [name, member] of Object.entries(node)) {
+    if (!name.startsWith("$") && isRecord(member)) {
+      out.push([name, member]);
+    }
+  }
+  return out;
+}
+
+/** Parse the text/leading/spacing groups of the declared token vault. TOTAL: an absent, empty or
+ *  unparseable vault never reaches here — that is the runtime's population-phase refusal, not this
+ *  function's `undefined`. */
 function readTypeScale(tokenVault: JsonValue): TypeScale {
-  const problems: LeadingProblem[] = [];
+  const problems: TokenProblem[] = [];
   const textPx = new Map<string, number>();
   const leading = new Map<string, number>();
   const source = isRecord(tokenVault) ? tokenVault : {};
-  const textGroup = isRecord(source["text"]) ? source["text"] : {};
-  for (const [name, node] of Object.entries(textGroup)) {
-    if (name.startsWith("$") || !isRecord(node)) {
-      continue;
-    }
+  for (const [name, node] of groupMembers(source, "text")) {
     const px = dimensionPx(node["$value"]);
     if (px !== undefined) {
       textPx.set(name, px);
     }
   }
-  const leadingGroup = isRecord(source["leading"]) ? source["leading"] : {};
-  for (const [name, node] of Object.entries(leadingGroup)) {
-    if (name.startsWith("$") || !isRecord(node)) {
-      continue;
-    }
+  for (const [name, node] of groupMembers(source, "leading")) {
     readLeadingToken(name, node, { leading, problems });
+  }
+  for (const [name, node] of groupMembers(source, "spacing")) {
+    readSpacingToken(name, node, problems);
   }
   return { textPx, leadingPx: leading, problems };
 }
@@ -319,11 +420,11 @@ function valueFinding(text: string, declaration: CssDeclarationFact): { readonly
  *  slice the authored text at its reported column, so a parsed value alone cannot produce a waivable
  *  finding, and a finding pinned at line 1 column 1 with no token ALARMS
  *  (`has no nonempty position token for waiver binding`) rather than reporting. */
-function leadingKeyPosition(text: string, name: string): { readonly line: number; readonly column: number; readonly token: string } {
-  const group = text.indexOf('"leading"');
-  const key = text.indexOf(`"${name}"`, group === -1 ? 0 : group);
+function tokenKeyPosition(text: string, group: TokenGroup, name: string): { readonly line: number; readonly column: number; readonly token: string } {
+  const groupAt = text.indexOf(`"${group}"`);
+  const key = text.indexOf(`"${name}"`, groupAt === -1 ? 0 : groupAt);
   if (key === -1) {
-    throw new Error(`token vault has no authored position for leading.${name}`);
+    throw new Error(`token vault has no authored position for ${group}.${name}`);
   }
   return { ...positionOf(text, key + 1), token: name };
 }
@@ -505,7 +606,7 @@ export const gate = defineGate({
       }
       for (const problem of scale.problems) {
         ctx.report.file(TOKENS_JSON_REL, {
-          ...leadingKeyPosition(vaultText.text, problem.name),
+          ...tokenKeyPosition(vaultText.text, problem.group, problem.name),
           message: `${problem.message} (docs/design/integer-line-boxes.md)`,
         });
       }
@@ -540,6 +641,42 @@ export const gate = defineGate({
       files: vault(JSON.stringify({ text: {}, leading: { label: { $type: "number", $value: 1.25 } } })),
       expect: { count: 1, messageIncludes: "unitless" },
       why: "ARM T: a unitless leading ratio times a fractional voice size is fractional by construction — the old scale's exact shape",
+    },
+    {
+      mode: "resource",
+      files: vault(
+        JSON.stringify({
+          text: {},
+          leading: {},
+          spacing: { row: { $type: "dimension", $value: { value: 0.531_25, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
+        }),
+      ),
+      expect: { count: 1, token: "row", messageIncludes: "8.5px" },
+      why: "ARM T's SPACING HALF, the founding shape (#1711): a fractional authored step at the 16px root. `round(up)` GROWS it at the default scale, which is the one thing the snapped belt promises not to do, and the message names the resolved px so the author does not redo the arithmetic. The token is the vault KEY — a token vault's offending subject is never the file",
+    },
+    {
+      mode: "resource",
+      files: vault(JSON.stringify({ text: {}, leading: {}, spacing: { row: { $type: "dimension", $value: { value: 0.5, unit: "rem" } } } })),
+      expect: { count: 1, token: "row", messageIncludes: "snapped" },
+      why: "ARM T SPACING: an INTEGER step with no `orb.output: snapped` belt is still a defect — the value is only integer at the DEFAULT scale, and without the belt the continuous --font-scale slider un-grids it everywhere else. Cut the `outputKind` test and this row goes green while the fractional row above stays red",
+    },
+    {
+      mode: "resource",
+      files: vault(
+        JSON.stringify({
+          text: {},
+          leading: {},
+          spacing: {
+            "touch-target": {
+              $type: "dimension",
+              $value: { value: 2.75, unit: "rem" },
+              $extensions: { "orb.output": { kind: "snapped" }, "orb.pointerFine": { value: 1.781_25, unit: "rem" } },
+            },
+          },
+        }),
+      ),
+      expect: { count: 1, token: "touch-target", messageIncludes: "fine pointer" },
+      why: "ARM T SPACING, the `orb.pointerFine` ARM: the coarse value is a clean 44px and ONLY the fine override is fractional (28.5px). A reader that judged `$value` alone reads this vault completely clean, which is an un-gridded control at exactly the pointer class the override exists for — this is the row that dies if `readPointerFineArm` is cut",
     },
     {
       mode: "resource",
@@ -653,6 +790,24 @@ export const gate = defineGate({
         "packages/ui/src/x.tsx": 'export const G = <div className="text-label leading-label" />;\n',
       },
       why: "the sanctioned pairing: a fractional voice size under an integer fixed box is exactly the design",
+    },
+    {
+      mode: "resource",
+      files: vault(
+        JSON.stringify({
+          text: {},
+          leading: {},
+          spacing: {
+            row: { $type: "dimension", $value: { value: 0.5, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } },
+            "touch-target": {
+              $type: "dimension",
+              $value: { value: 2.75, unit: "rem" },
+              $extensions: { "orb.output": { kind: "snapped" }, "orb.pointerFine": { value: 1.75, unit: "rem" } },
+            },
+          },
+        }),
+      ),
+      why: "ARM T SPACING's ACQUITTING SIDE, in the shape the live vault actually has: a plain snapped integer step (8px) and a snapped step whose fine-pointer override is ALSO an integer (44px coarse / 28px fine — `touch-target`'s real values). Without this row the spacing half would be proven only where it accuses, and a reader that flagged every `orb.pointerFine` arm outright would read identically to the correct one",
     },
     {
       mode: "resource",
