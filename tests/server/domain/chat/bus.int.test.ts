@@ -1,4 +1,4 @@
-// The chat bus emitter + replay ring (chat.md §"the chat bus"; Part III §12 inv #10/#11). Proves the
+// The chat bus emitter + replay ring (the chat design doc §"the chat bus"; Part III §12 inv #10/#11). Proves the
 // DURABLE-FIRST contract against a real libSQL db: `emit` commits the `chat_events` row (the replay source of
 // truth) AND pushes to the in-process ring, the per-chat `seq` is monotonic, and the ring read honors the
 // `afterSeq` cursor.

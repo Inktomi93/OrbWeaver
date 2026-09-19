@@ -1,4 +1,4 @@
-// presence-registry (PD-70) — the SSE ref-count that derives server-side liveness (chat.md Part III §4).
+// presence-registry (PD-70) — the SSE ref-count that derives server-side liveness (the chat design doc Part III §4).
 // Pins the two behaviors that make presence trustworthy for cast-gating: (1) the per-user ref-count over
 // device connections (online until the LAST device disconnects), and (2) the grace-window debounce (a brief
 // disconnect/reconnect never flickers a participant offline mid-round). Time is the INJECTED clock — the
@@ -11,7 +11,7 @@ import { createPresenceRegistry } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
-// The grace window baked into the registry (chat.md §4). Mirrored here to pin the exact boundary; a
+// The grace window baked into the registry (the chat design doc §4). Mirrored here to pin the exact boundary; a
 // fully-disconnected user reads `online` for strictly less than this.
 const GRACE_MS = 15_000;
 const ALICE = castId<UserId>("user_alice");

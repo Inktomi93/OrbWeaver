@@ -1,4 +1,4 @@
-// SHAPE substrate: spliceInChatInjections + frameInjection (chat.md Part II §3 rule 7 — in_chat depth
+// SHAPE substrate: spliceInChatInjections + frameInjection (the chat design doc Part II §3 rule 7 — in_chat depth
 // semantics: depth-from-end, clamp-once, depth-DESC, assistant@0→1 floor; system→user framing).
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";

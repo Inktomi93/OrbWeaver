@@ -1,4 +1,4 @@
-// The participants / group-config / room-override / membership-lifecycle verbs (chat.md Part III §1/§9/§11). Proves
+// The participants / group-config / room-override / membership-lifecycle verbs (the chat design doc Part III §1/§9/§11). Proves
 // against a real libSQL db: the host-authority gate (member denied with `not_host`), the persistence effect,
 // the emitted `chatUpdated` bus event, and the kick `kicked` notification — with the REAL admin `can()`. The
 // verbs are reached through the grouped-file BUNDLE (`createParticipants(ctx, { emit, claimChat: noClaim })`).

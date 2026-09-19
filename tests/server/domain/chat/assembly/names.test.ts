@@ -1,4 +1,4 @@
-// SHAPE shaper: applyNamesBehavior (chat.md Part II §3 rule 5 — the trusted out-of-band Name: label).
+// SHAPE shaper: applyNamesBehavior (the chat design doc Part II §3 rule 5 — the trusted out-of-band Name: label).
 import { describe } from "vitest";
 import { applyNamesBehavior } from "../../../../../packages/server/src/domain/chat/assembly/names.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

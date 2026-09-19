@@ -1,4 +1,4 @@
-// assembly/world-info/pool — the 4-scope WI union (chat.md Part I 8-slot; Part II §2 GATHER). Pins: the
+// assembly/world-info/pool — the 4-scope WI union (the chat design doc Part I 8-slot; Part II §2 GATHER). Pins: the
 // chat/character/global/persona union, dedup by entry id (a book attached at two scopes renders once), the
 // host-owner scoping of global books (a foreign tenant's global book never leaks), the source tagging
 // (character → "character"; chat/persona/global → "chat"), the scope resolution (keys → keyword, keyless →

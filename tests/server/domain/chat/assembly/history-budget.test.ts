@@ -1,4 +1,4 @@
-// SHAPE shaper: fitHistoryToWindow (chat.md Part II §2 SHAPE fit-pass — the stateless-runner hard cap).
+// SHAPE shaper: fitHistoryToWindow (the chat design doc Part II §2 SHAPE fit-pass — the stateless-runner hard cap).
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";

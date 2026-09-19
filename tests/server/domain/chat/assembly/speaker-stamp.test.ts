@@ -1,4 +1,4 @@
-// SHAPE shaper: hasMultipleCharacters (chat.md Part II §3 rule 5; Part III §12 inv 1 — the no-op guard
+// SHAPE shaper: hasMultipleCharacters (the chat design doc Part II §3 rule 5; Part III §12 inv 1 — the no-op guard
 // that keeps SOLO byte-identical).
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

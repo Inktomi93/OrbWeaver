@@ -50,7 +50,7 @@ test("a MESSAGE delta carries the scalar + daily + model slices together and rou
   expect(statsDeltaSchema.parse(value)).toEqual(value);
 });
 
-// stats.md esoteric #1 — the 3-slice decoupling: a VARIANT (swipe) bumps scalar tokens but must NOT
+// the stats design doc esoteric #1 — the 3-slice decoupling: a VARIANT (swipe) bumps scalar tokens but must NOT
 // credit the daily token slice (daily credits the MESSAGE stream only), else a re-rolled turn
 // double-counts daily tokens. The schema must ACCEPT a delta that sets scalar tokens while omitting
 // `dailyTokensIn`/`dailyTokensOut`.

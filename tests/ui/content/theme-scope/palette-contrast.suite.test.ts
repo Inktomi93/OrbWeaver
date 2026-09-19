@@ -747,7 +747,7 @@ test("#204 the plate alpha FLOORS AA for the paired reading ink over worst-case 
 // The test above proves the DERIVED foreground (the near-black/near-white pivot flip) over the plate over
 // worst-case art. The four AUTHOR-STYLE prose inks are NOT that foreground — they sit between the base and
 // the derived tone — and they are what a transcript is actually made of. Measured live 2026-08-18 (the
-// chats re-score, `reports/design/rescore-chats-2026-08-18.md`): the light-palette room read narration
+// chats re-score, 2026-08-18): the light-palette room read narration
 // 3.48:1 / dialogue 4.09:1 over the bright regions of its wallpaper while the SAME ink measured 4.94/5.39
 // parked over the dark regions — the plate's alpha, not the ink, was the variable.
 //

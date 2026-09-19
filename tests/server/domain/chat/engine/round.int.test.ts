@@ -1,4 +1,4 @@
-// engine/round — the GROUP ROUND DRIVER (chat.md Part III §6/§7). .int: the REAL chunk-9 engine + libSQL, so
+// engine/round — the GROUP ROUND DRIVER (the chat design doc Part III §6/§7). .int: the REAL chunk-9 engine + libSQL, so
 // the per-speaker lock + the D26 canon persist are exercised. Pins: ONE immutable ctx → N speakers shaped +
 // run (each committing its own row, characterId = the resolved speaker); the PER-SPEAKER lock (3 sequential
 // turns all commit — a whole-round lock would have blocked speaker 2 → proves the doc's per-speaker model);
@@ -36,7 +36,7 @@ const ASSEMBLE_CTX: AssembleContext = {
 };
 
 /** A 2-character group ctx (characters + index-aligned speakerRefs) — feeds the per-speaker card-section shape so
- *  each speaker renders THEIR OWN card as primary + the other as a co-speaker (chat.md §7). */
+ *  each speaker renders THEIR OWN card as primary + the other as a co-speaker (the chat design doc §7). */
 const GROUP_CTX: AssembleContext = {
   character: { name: "Aria", description: "a bold knight" },
   promptConfig: DEFAULT_PROMPT_CONFIG,

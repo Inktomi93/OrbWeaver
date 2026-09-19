@@ -1,6 +1,6 @@
 // E2E globalSetup — establishes KNOWN DB state over each mode-project's tRPC API BEFORE any spec runs, so the
 // suite stops depending on ambient DB drift (the reason a wiped/latched library silently reddened the whole
-// suite — see reports/tooling/PLAYWRIGHT-E2E-SPEEDUP.md, Finding 2). Runs ONCE (Playwright globalSetup),
+// suite — see the Playwright e2e speedup report, Finding 2). Runs ONCE (Playwright globalSetup),
 // AFTER every project's webServer is up; it iterates the mode projects (support/modes.ts) and seeds EACH
 // stack by its own origin. Per mode:
 //   1. ≥1 CHARACTER exists — the library→chat flow needs a card. The boot seeder is a one-shot per-user latch;

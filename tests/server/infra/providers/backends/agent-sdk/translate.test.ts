@@ -1,5 +1,5 @@
 //
-// disciplineOptions — THE FIREWALL BASE + the credential-source → env-builder DISPATCH (providers.md
+// disciplineOptions — THE FIREWALL BASE + the credential-source → env-builder DISPATCH (Tier-3b-Providers.md
 // §7.1 / Esoteric §1). The load-bearing guarantee: `credential.source` selects the RIGHT env builder
 // (sub vs OR-skin) and an ineligible source FAILS CLOSED — a wrong dispatch is how a Max-sub OAuth token
 // could land on a paid endpoint. vLLM was RETIRED from agent-sdk (owner ruling 2026-07-27): it now fails

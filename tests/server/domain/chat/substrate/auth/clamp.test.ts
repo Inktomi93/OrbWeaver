@@ -1,4 +1,4 @@
-// The per-member visibility clamps: the D22 member-card field clamp (chat.md Part III §7/§11) and the D16
+// The per-member visibility clamps: the D22 member-card field clamp (the chat design doc Part III §7/§11) and the D16
 // `joinHistoryVisibility` canon floor (bottom of this file).
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, MemberCardView, MemberCardVisibility, MessageView } from "@orb/contracts/chat";

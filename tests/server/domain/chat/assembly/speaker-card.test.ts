@@ -1,4 +1,4 @@
-// assembly/speaker-card — the per-turn CARD-SECTION shape (chat.md §5/§7, three-axis). Pins: the active
+// assembly/speaker-card — the per-turn CARD-SECTION shape (the chat design doc §5/§7, three-axis). Pins: the active
 // speaker's card becomes `ctx.character`/`speaker`; merged ⇒ the OTHER characters are co-speakers, scoped ⇒ none;
 // NARRATOR ⇒ every seated character is the speaker and every non-primary member is a co-speaker; a member-less ctx is
 // unchanged (byte-identical, D16); an off-roster PER-SPEAKER ref is REFUSED (#1462 — keeping the primary

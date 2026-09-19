@@ -1,6 +1,6 @@
 // .int test for schema/rate-limit: the natural-key round-trip and the atomic
 // `INSERT … ON CONFLICT(key) DO UPDATE SET count = count + 1 … RETURNING count` upsert the DB-backed
-// limiter relies on (transport.md esoteric #2 — the SELECT-then-UPDATE-race-free consume path). Real
+// limiter relies on (Tier-4-Transport.md esoteric #2 — the SELECT-then-UPDATE-race-free consume path). Real
 // libSQL :memory: via freshDb.
 
 import { rateLimitBuckets } from "@orb/db";

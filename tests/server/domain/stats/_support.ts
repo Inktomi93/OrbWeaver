@@ -28,7 +28,7 @@ import { eq } from "drizzle-orm";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
-// The deterministic base instant — sourced from the LOCKED global fixture (testing.md §4), not a
+// The deterministic base instant — sourced from the LOCKED global fixture (Spine-Testing.md §4), not a
 // self-rolled literal. Seed-row timestamps build off it as test DATA (the `msgCounter` + explicit
 // `createdAt`/`updatedAt` values are data generation, not the injected-clock determinism seam).
 export const T0 = createFrozenClock().frozenAt;

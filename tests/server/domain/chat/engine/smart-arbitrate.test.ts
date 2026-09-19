@@ -1,4 +1,4 @@
-// engine/smart-arbitrate — the 7b SIDE-LLM arbitration (chat.md Part III §6 `smart`). Pure unit tests over a
+// engine/smart-arbitrate — the 7b SIDE-LLM arbitration (the chat design doc Part III §6 `smart`). Pure unit tests over a
 // FAKE summarize op: a validated pick from the eligible roster; the round-robin (natural) fallback on an
 // off-roster / garbled / EMPTY reply AND on an op throw (including the small-hardware "provider not wired"
 // fail-closed throw); single-eligible short-circuit (no LLM call); no eligible → []. Every arm also pins the

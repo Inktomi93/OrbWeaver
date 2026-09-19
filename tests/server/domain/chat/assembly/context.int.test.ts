@@ -1,4 +1,4 @@
-// assembly/context — RESOLVE→GATHER→BUILD (chat.md Part II §2/§3/§4/§5). Pins the doc's load-bearing wins:
+// assembly/context — RESOLVE→GATHER→BUILD (the chat design doc Part II §2/§3/§4/§5). Pins the doc's load-bearing wins:
 // keyword-match-sees-PENDING-user-text (§3 rule 4, the two-phase lag-kill), per-entry render-ONCE
 // (macro→wiFormat-wrap, §3 rules 1-3), the ONE injection list + ONE budget pass (§4 — lore dropped by
 // priority, operator intent spared), WI position routing, and the immutable/pure ctx (§5 — two calls equal).
@@ -536,7 +536,7 @@ describe("buildAssembleContext — wiTrace.included counts WORLD-INFO, not injec
   });
 });
 
-describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)", () => {
+describe("buildAssembleContext — SEND USER_INPUT regex (D53; the chat design doc §2/§3)", () => {
   test("the WI haystack + the out-param BOTH see the POST-regex text (no divergence)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
@@ -966,7 +966,7 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
   });
 });
 
-describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => {
+describe("buildAssembleContext — guided steering (the chat design doc §6, PD-63)", () => {
   test("system placement (the default): the action template resolves to ctx.guidedInstruction — template macros live, untrusted {{input}} neutralized", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
