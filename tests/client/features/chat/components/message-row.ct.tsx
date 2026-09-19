@@ -283,6 +283,19 @@ test("assistant row resolves name from the roster + colors the bubble via ThemeS
   await expect(component.locator(ATTRIBUTION).getByText("Alice")).toHaveClass(SPEAKER_ACCENT_RE);
 });
 
+// #2420 — THE SETTLED ROW'S ATTRIBUTION SITS ON A BASELINE, like the streaming ghost's copy of the same
+// cluster and like the appearance contract that judges this row (`appearance-invariant-manifest.ts`
+// #dark-name-time-short-bubble declares the tailwind-core merge `items-center` -> `items-baseline` on
+// `[data-slot="message-attribution"]`, owner `message-row-header.tsx`). The settled arm rendered
+// `align="center"`, so `pnpm snap --matrix` v01 reported `appearance-fails=1` with "configured merge winner
+// missing". Computed, not class-checked: the class is how it is spelled, the resolved value is the law.
+test("the settled attribution cluster resolves align-items: baseline (the ghost and the appearance row both require it)", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
+  const attribution = component.locator(ATTRIBUTION);
+  await expect(attribution).toContainText("Alice");
+  await expect(attribution).toHaveCSS("align-items", "baseline");
+});
+
 test("a null characterId in a multi-character room shows a neutral Narrator, uncolored", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={null} participants={[alice(), bob()]} />);
   await expect(component.locator(ATTRIBUTION)).toContainText("Narrator");

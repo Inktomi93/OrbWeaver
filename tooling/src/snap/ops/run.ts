@@ -4,6 +4,7 @@
 import { artifactKey } from "../../_shared/artifact-naming.ts";
 import { artifactFile } from "../../_shared/artifact-out.ts";
 import { aggregateScope, factBatchId } from "../../_shared/artifact-scope.ts";
+import { print } from "../../_shared/artifacts.ts";
 import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
@@ -61,13 +62,24 @@ async function captureAppearanceResults(
     return [];
   }
   const receipts = await captureAppearanceInvariantRows(session, opts, detailedPlan.appearanceRows);
-  return receipts.map((receipt) => {
+  const results = receipts.map((receipt) => {
     const policy = detailedPlan.appearanceRows.find((row) => row.id === receipt.rowId);
     if (policy === undefined) {
       throw new Error(`INSTRUMENT ERROR: Appearance receipt ${receipt.rowId} has no matrix policy`);
     }
     return { receipt, evaluation: evaluateAppearanceInvariantCell(policy, receipt) };
   });
+  // WHICH ROW FAILED, IN THE CELL THAT FAILED IT. `appearance-fails=N` on the RESULT line is a count, and
+  // the only place the row ids appeared was the matrix's terminal aggregate — which a LATER cell's refusal
+  // deletes (#2420: v01 reported `appearance-fails=1` and the run died at v04, so the failing row was
+  // unknowable from a completed capture). The verdict still lives in the receipt; this only makes the cell
+  // say it out loud.
+  for (const { receipt, evaluation } of results) {
+    for (const line of [...evaluation.errors, ...evaluation.violations]) {
+      print(`appearance   ${receipt.rowId} ${evaluation.status}: ${line}`);
+    }
+  }
+  return results;
 }
 
 function hasAppearanceInvariantPlan(detailedPlan: SnapDetailedPlan | undefined): boolean {

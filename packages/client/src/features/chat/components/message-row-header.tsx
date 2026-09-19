@@ -81,7 +81,13 @@ function renderRowIdentity(args: {
   return (
     <Row gap="field" align="center" className={mirrored ? "flex-row-reverse" : undefined}>
       {attribution.name === null ? null : (
-        <Row gap="field" align="center" data-slot="message-attribution">
+        // BASELINE, like the ghost's copy of this cluster (`renderGhostNameRow`) and like the appearance
+        // contract's own declaration for this row (`appearance-invariant-manifest.ts`
+        // #dark-name-time-short-bubble: tailwind-core `items-center` -> `items-baseline` on
+        // `[data-slot="message-attribution"]`). The settled row was the arm that never took it, and the
+        // name is the one datum whose size moves independently (`--reading-name-scale`, globals.css:795),
+        // so centring it puts a scaled name off the line its own row sits on.
+        <Row gap="field" align="baseline" data-slot="message-attribution">
           {renderAttributionName(attribution)}
         </Row>
       )}
