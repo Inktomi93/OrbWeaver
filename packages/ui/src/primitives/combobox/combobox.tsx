@@ -3,7 +3,7 @@ import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { PortalContainer } from "#lib";
-import { ANCHOR_GAP_INPUT, cn, formatResultCount, usePortalContainer } from "#lib";
+import { ANCHOR_GAP_INPUT, cn, formatResultCount, removeActionName, usePortalContainer } from "#lib";
 import { Icon, X } from "#primitives/icons";
 import { comboboxVariants } from "./variants.ts";
 
@@ -239,7 +239,7 @@ export function Combobox({
                 {selected.map((chip) => (
                   <BaseCombobox.Chip className={slots.chip()} data-slot="combobox-chip" key={chip}>
                     {chip}
-                    <BaseCombobox.ChipRemove aria-label={`Remove ${chip}`} className={slots.chipRemove()} data-slot="combobox-chip-remove">
+                    <BaseCombobox.ChipRemove aria-label={removeActionName(chip)} className={slots.chipRemove()} data-slot="combobox-chip-remove">
                       <Icon icon={X} size="xs" />
                     </BaseCombobox.ChipRemove>
                   </BaseCombobox.Chip>

@@ -11,7 +11,7 @@
 //    default in user prose), the ⋯ = Edit · Duplicate · Export · Delete inventory, and the band's third
 //    door (From character → `persona.createFromCharacter`, the picker IS the create).
 
-import { rowActionsName } from "@orb/client/lib";
+import { renameActionName, rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -209,7 +209,7 @@ test("the row ⋯ carries Edit · Duplicate · Export · Delete; Edit expands th
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   // The fine-pointer kebab is hover-revealed; hovering the row's rename control is the real user path.
-  await page.getByRole("button", { name: "Rename Nova", exact: true }).hover();
+  await page.getByRole("button", { name: renameActionName("Nova"), exact: true }).hover();
   await page.getByRole("button", { name: rowActionsName("Nova"), exact: true }).click();
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();
@@ -222,7 +222,7 @@ test("the row ⋯ carries Edit · Duplicate · Export · Delete; Edit expands th
   await menu.getByRole("menuitem", { name: "Duplicate", exact: true }).click();
   await expect.poll(() => trpc.count("persona.duplicate"), { intervals: [20, 50, 100] }).toBe(1);
 
-  await page.getByRole("button", { name: "Rename Nova", exact: true }).hover();
+  await page.getByRole("button", { name: renameActionName("Nova"), exact: true }).hover();
   await page.getByRole("button", { name: rowActionsName("Nova"), exact: true }).click();
   await page.getByRole("menu").getByRole("menuitem", { name: "Edit", exact: true }).click();
   // Edit IS the expansion (the editing model's home is unchanged) — the row's disclosure flips open.

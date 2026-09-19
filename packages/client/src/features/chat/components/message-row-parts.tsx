@@ -16,6 +16,7 @@ import { cn, renderMessageForDisplay } from "#lib";
 
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
+import { MESSAGE_REASONING_NAME } from "../lib/message-action-names.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
@@ -33,11 +34,6 @@ const GUTTER_RAIL_CLASS: Readonly<Record<"none" | "leading" | "trailing", string
   leading: "@4xl:justify-self-end",
   trailing: "@4xl:justify-self-start",
 };
-
-/** The settled disclosure's label. A canon-rehydrated row carries no measured think window (`ttftMs` is
- *  time-to-FIRST-token of any channel, `genFinishedAt − genStartedAt` is the whole generation), so naming a
- *  duration here would be a fabricated number — the channel names itself instead. */
-const SETTLED_REASONING_LABEL = "Reasoning";
 
 /** The SETTLED reasoning disclosure for a committed row — the durable half of the live ghost's block, reading
  *  `MessageView.reasoning` (the `message_variants.reasoning` column every backend's turn persists) so a
@@ -61,7 +57,7 @@ export function renderRowReasoning(args: {
   // Same macro/regex display pass the ghost's live trace gets, so `{{char}}`/`{{user}}` in a thinking trace
   // read identically before and after commit.
   const text = renderMessageForDisplay(raw, args.renderContext, args.message.characterId, args.message.personaId);
-  return <ReasoningBlock reasoning={text} thinking={false} label={SETTLED_REASONING_LABEL} showIcon={args.showLLMReasoningIcon} />;
+  return <ReasoningBlock reasoning={text} thinking={false} label={MESSAGE_REASONING_NAME} showIcon={args.showLLMReasoningIcon} />;
 }
 
 /** Null when Tide's trains take over — each paragraph gets its own MessageContent call. */

@@ -15,6 +15,7 @@
 //     a narrow viewport alone renders a fine-pointer layout no phone produces.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_REACTION_ADD_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { MessageActionsDoorsStory, MessageReactionsStory } from "../_reaction-stories.tsx";
@@ -155,11 +156,11 @@ test.describe("the plane resolved OFF", () => {
     const component = await mount(<MessageActionsDoorsStory />);
 
     // Barrier on the row's other affordances so the absence reads are about the posture, not a blank mount.
-    await expect(component.getByRole("button", { name: "More message actions" })).toBeVisible();
-    await expect(component.getByRole("button", { name: "Add a reaction" })).toHaveCount(0);
-    await component.getByRole("button", { name: "More message actions" }).click();
+    await expect(component.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME })).toBeVisible();
+    await expect(component.getByRole("button", { name: MESSAGE_REACTION_ADD_NAME })).toHaveCount(0);
+    await component.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
     await expect(page.getByRole("menuitem", { name: "Copy" })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: "Add a reaction" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: MESSAGE_REACTION_ADD_NAME })).toHaveCount(0);
   });
 });
 
@@ -190,16 +191,16 @@ test.describe("the picker's two doors", () => {
     await routeTrpc(page, { "chat.listReactions": view([]), "chat.getChat": CHAT_DETAIL });
     const component = await mount(<MessageActionsDoorsStory />);
 
-    await expect(component.getByRole("button", { name: "Add a reaction" })).toBeVisible();
-    await component.getByRole("button", { name: "More message actions" }).click();
-    await expect(page.getByRole("menuitem", { name: "Add a reaction" })).toBeVisible();
+    await expect(component.getByRole("button", { name: MESSAGE_REACTION_ADD_NAME })).toBeVisible();
+    await component.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
+    await expect(page.getByRole("menuitem", { name: MESSAGE_REACTION_ADD_NAME })).toBeVisible();
   });
 
   test("the ⋯ item opens the picker, and the grid is the CONTRACT vocabulary", async ({ mount, page }) => {
     await routeTrpc(page, { "chat.listReactions": view(TWO_CHIPS), "chat.getChat": CHAT_DETAIL });
     const component = await mount(<MessageActionsDoorsStory />);
 
-    await component.getByRole("button", { name: "Add a reaction" }).click();
+    await component.getByRole("button", { name: MESSAGE_REACTION_ADD_NAME }).click();
     const picker = page.locator('[data-slot="reaction-picker"]');
     await expect(picker).toBeVisible();
     // Ten cells — the closed `REACTION_EMOJIS` tuple, iterated. A hand-kept picker list would drift from the
@@ -221,8 +222,8 @@ test.describe("the picker doors at a coarse pointer", () => {
 
     // `ROW_ACTION_INLINE` is `pointer-coarse:hidden` — `display:none`, so the glyph leaves the a11y tree
     // too. That is legal for THIS control precisely because its verb rides the menu at every pointer.
-    await expect(component.getByRole("button", { name: "Add a reaction" })).toHaveCount(0);
-    await component.getByRole("button", { name: "More message actions" }).click();
-    await expect(page.getByRole("menuitem", { name: "Add a reaction" })).toBeVisible();
+    await expect(component.getByRole("button", { name: MESSAGE_REACTION_ADD_NAME })).toHaveCount(0);
+    await component.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
+    await expect(page.getByRole("menuitem", { name: MESSAGE_REACTION_ADD_NAME })).toBeVisible();
   });
 });

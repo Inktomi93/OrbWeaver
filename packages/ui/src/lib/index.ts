@@ -4,6 +4,7 @@
 
 export { isRenderableColor, isSafeColor } from "@orb/kit/safe-color";
 export { ACCENT_HOVER } from "./accent-hover.ts";
+export { removeActionName, selectActionName } from "./action-names.ts";
 export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap.ts";
 // `cn` + `tv` are ONE module because they must share ONE tailwind-merge config — see class-merge.ts
 // for the import-order race that shape kills.

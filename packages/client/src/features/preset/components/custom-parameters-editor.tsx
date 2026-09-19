@@ -20,6 +20,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms/editor";
+import { removeActionName } from "#lib";
 import type { CustomParameterRow } from "../lib/custom-parameters-model.ts";
 import { customParameterRecord, customParameterRowError, customParameterRows, newCustomParameterRow } from "../lib/custom-parameters-model.ts";
 
@@ -169,7 +170,7 @@ function ParameterRow({
           placeholder="0.1"
           value={row.text}
         />
-        <Button aria-label={`Remove ${named}`} className="shrink-0" intent="ghost" onClick={onRemove} size="icon" type="button">
+        <Button aria-label={removeActionName(named)} className="shrink-0" intent="ghost" onClick={onRemove} size="icon" type="button">
           <Icon icon={X} size="xs" />
         </Button>
       </Row>

@@ -8,6 +8,7 @@
 // id — else entry A's frozen form leaks into B. The Combobox input portals within the mounted root, so
 // `page` locators address it by accessible name.
 
+import { removeActionName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
@@ -38,15 +39,15 @@ test("renders every field, commits a keyword chip, and autosaves the full input"
   await expect(page.getByRole("textbox", { name: "Title" })).toHaveValue("Eldoria");
   await expect(page.getByRole("textbox", { name: "Content" })).toHaveValue("Eldoria is the capital city, ringed by white walls.");
   // The two seeded keyword chips render (each Combobox chip carries a "Remove <chip>" button).
-  await expect(page.getByRole("button", { name: "Remove eldoria" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Remove capital" })).toBeVisible();
+  await expect(page.getByRole("button", { name: removeActionName("eldoria") })).toBeVisible();
+  await expect(page.getByRole("button", { name: removeActionName("capital") })).toBeVisible();
 
   // Commit a new keyword chip through the picker (type → Enter). This is a valid values change, so the
   // boundary's store-subscription driver debounces then autosaves — NO Save button.
   const keywords = page.getByLabel("Keyword triggers");
   await keywords.fill("walls");
   await keywords.press("Enter");
-  await expect(page.getByRole("button", { name: "Remove walls" })).toBeVisible();
+  await expect(page.getByRole("button", { name: removeActionName("walls") })).toBeVisible();
 
   // Autosave → updateEntry fires with the FULL input (every field + the added chip + the preserved key).
   await expect.poll(() => trpc.count("worldInfo.updateEntry"), { intervals: [100, 200, 300, 500] }).toBeGreaterThanOrEqual(1);

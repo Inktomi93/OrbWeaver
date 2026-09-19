@@ -7,6 +7,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { MessageActionsRowStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
@@ -19,7 +20,7 @@ const REST_INERT_RE = /\bpointer-events-none\b/u;
 const HOVER_REVEAL_RE = /group-hover:opacity-100/u;
 const FOCUS_REVEAL_RE = /group-focus-within:opacity-100/u;
 const COARSE_REVEAL_RE = /pointer-coarse:opacity-100/u;
-const MENU_TRIGGER = "More message actions";
+const MENU_TRIGGER = MESSAGE_ACTIONS_MENU_NAME;
 const UNDO_CONTINUE = "Undo last continuation";
 const REVERT_CONTINUE = "Re-apply continuation";
 const NEEDS_CONTINUATION_REASON = "Continue this reply first — there's no added text to undo yet";
@@ -52,8 +53,8 @@ test("edit/fork inline + hide gated on a system row; copy/delete stay in the ⋯
   const component = await mount(<MessageActionsRowStory message={SYSTEM_MESSAGE} />);
 
   // A system row exposes no inline Edit/Fork and no Hide menu item…
-  await expect(component.getByRole("button", { name: "Edit message" })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Fork chat here" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: MESSAGE_EDIT_NAME })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: MESSAGE_FORK_NAME })).toHaveCount(0);
   await openActionsMenu(component);
   await expect(menuItem(page, HIDE_LABEL_RE)).toHaveCount(0);
   // …but Copy + Delete stay available for every role.
@@ -64,8 +65,8 @@ test("edit/fork inline + hide gated on a system row; copy/delete stay in the ⋯
 test("edit/fork are inline, hide/copy/delete live in the ⋯ menu on an assistant row", async ({ mount, page }) => {
   const component = await mount(<MessageActionsRowStory />); // default: an assistant message
 
-  await expect(component.getByRole("button", { name: "Edit message" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Fork chat here" })).toBeVisible();
+  await expect(component.getByRole("button", { name: MESSAGE_EDIT_NAME })).toBeVisible();
+  await expect(component.getByRole("button", { name: MESSAGE_FORK_NAME })).toBeVisible();
   await openActionsMenu(component);
   await expect(menuItem(page, "Hide from AI")).toBeVisible();
   await expect(menuItem(page, COPY_RE)).toBeVisible();
@@ -163,7 +164,7 @@ test("fork fires forkChat with this message's seq as throughSeq", async ({ mount
   const component = await mount(<MessageActionsRowStory message={message} />);
 
   await revealActions(component);
-  await component.getByRole("button", { name: "Fork chat here" }).click();
+  await component.getByRole("button", { name: MESSAGE_FORK_NAME }).click();
 
   await expect.poll(() => trpc.count("chat.forkChat"), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => trpc.lastInput("chat.forkChat")).toMatchObject({ chatId: message.chatId, throughSeq: 7 });

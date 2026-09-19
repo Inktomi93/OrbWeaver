@@ -3,7 +3,7 @@
 // avatar/name/chevron controls are DISJOINT siblings: clicking a control fires ONLY its own action, never
 // also "set current" (the stopPropagation crutch is gone because the elements no longer nest).
 
-import { rowActionsName } from "@orb/client/lib";
+import { renameActionName, rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { PersonaPanelRowDenseStory, PersonaPanelRowStory } from "../_ct-stories.tsx";
 
@@ -188,7 +188,7 @@ test("the expanded editor's Delete opens the confirm; confirming fires onDelete"
 
 test("the name control enters inline rename — it does NOT fire 'set current'", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);
-  await component.getByRole("button", { name: "Rename Nova", exact: true }).click();
+  await component.getByRole("button", { name: renameActionName("Nova"), exact: true }).click();
   // The name became an inline input (rename edit), and 'set current' did NOT fire (disjoint sibling).
   await expect(component.getByRole("textbox", { name: "Persona name" })).toBeVisible();
   await expect(component.getByTestId("fired")).toHaveText("none");
@@ -372,7 +372,7 @@ test("a fine pointer keeps the inline verbs and drops their menu twins — exact
   // markers now share the first line, so the lane's centre point resolves to the stretched select-Button
   // underneath and Playwright's actionability check refuses. `:hover` on the row is true either way (the
   // stretched button is inside `group/row`), so this is the same interaction, aimed at a live target.
-  await component.getByRole("button", { name: "Rename Traveler", exact: true }).hover();
+  await component.getByRole("button", { name: renameActionName("Traveler"), exact: true }).hover();
   await component.getByRole("button", { name: rowActionsName("Traveler") }).click();
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();

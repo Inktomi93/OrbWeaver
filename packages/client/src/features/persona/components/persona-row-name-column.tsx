@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL_SWAP_COARSE_KEEP } from "#components";
 import type { Trpc } from "#data";
-import { cn } from "#lib";
+import { cn, renameActionName } from "#lib";
 
 /** One row of the persona list, as the panel renders it. Declared here rather than imported from the row:
  *  `no-inline-types` bans EXPORTING a hand-declared type from a component, and importing it the other way
@@ -107,7 +107,7 @@ export function PersonaRowNameColumn({
             // NAMES ITS ROW (#463): a bare "Rename persona" was byte-identical on every row in the list — and
             // this control's own visible text (the persona's name) is overridden by the label, so the row's
             // identity was announced NOWHERE on the one control that renders it.
-            aria-label={`Rename ${subject}`}
+            aria-label={renameActionName(subject)}
             className="pointer-events-auto min-w-0 justify-start truncate"
             intent="ghost"
             onClick={(): void => {

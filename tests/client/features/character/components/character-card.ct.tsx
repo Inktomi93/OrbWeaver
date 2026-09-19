@@ -17,7 +17,7 @@
 // the float arm specifically (an invisible control sitting ON the title text must not be hit-testable); an
 // IN-FLOW cluster keeps its live hit target, which is what bulk mode's checkbox relies on.
 
-import { rowActionsName } from "@orb/client/lib";
+import { chatWithActionName, rowActionsName, selectActionName } from "@orb/client/lib";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -91,7 +91,7 @@ test("the Chat action fires onChat with the character id — a sibling, not nest
   // hidden controls sit ON the title text, so a hit test there must reach the row, not a control nobody can
   // see. Hovering the ROW restores `pointer-events` on the whole cluster; that is the seam this step pins.
   await component.locator('[data-slot="list-row-root"]').hover();
-  await component.getByRole("button", { name: "Chat with Aria Nightshade", exact: true }).click();
+  await component.getByRole("button", { name: chatWithActionName("Aria Nightshade"), exact: true }).click();
   await expect(component.getByTestId("chatted-id")).toHaveText("char_ct_story");
   // The action is OUTSIDE the body button — it does NOT also open the editor (disjoint elements).
   await expect(component.getByTestId("selected-id")).toHaveText("");
@@ -147,7 +147,7 @@ test("§4.4 progressive disclosure: the Chat CTA rests hidden, wired to reveal o
   // The reveal keys off the row root's `group`.
   const root = component.locator('[data-slot="list-row-root"]');
   await expect(root).toHaveClass(GROUP_CLASS);
-  const chat = component.getByRole("button", { name: "Chat with Aria Nightshade", exact: true });
+  const chat = component.getByRole("button", { name: chatWithActionName("Aria Nightshade"), exact: true });
   // Rest state: opacity 0 (progressive disclosure — the row is the reading surface, not chrome), with the
   // CSS reveal wired to group-hover + group-focus-within (keyboard parity; rule 4). Deterministic assertion
   // of the mechanism — the live hover paint is confirmed by side-eye at integration.
@@ -212,7 +212,7 @@ test("P1 regression: the revealed metadata is a legible line, and the floated cl
 
 test("bulk mode: the row body toggles selection (not open-editor) and shows a checkbox", async ({ mount }) => {
   const component = await mount(<CharacterCardTileStory bulkMode={true} name="Aria Nightshade" />);
-  await expect(component.getByRole("checkbox", { name: "Select Aria Nightshade" })).toBeVisible();
+  await expect(component.getByRole("checkbox", { name: selectActionName("Aria Nightshade") })).toBeVisible();
   // Clicking the body toggles bulk selection, and does NOT open the editor.
   await component.locator('[data-slot="list-row-body"]').click();
   await expect(component.getByTestId("bulk-id")).toHaveText("char_ct_story");
@@ -294,7 +294,7 @@ test.describe("coarse pointer", () => {
       // The collapsed control is GONE, not merely invisible (`display:none`, so it leaves the a11y tree too).
       await expect(component.getByRole("button", { name: ANY_STAR_VERB })).toHaveCount(0);
       // The two that survive: the core-loop CTA and the one overflow door.
-      await expect(component.getByRole("button", { name: `Chat with ${LONG_NAME}`, exact: true })).toBeVisible();
+      await expect(component.getByRole("button", { name: chatWithActionName(LONG_NAME), exact: true })).toBeVisible();
       await expect(component.getByRole("button", { name: rowActionsName(LONG_NAME), exact: true })).toBeVisible();
 
       // GEOMETRY, not classes. Two touch boxes (48px each) plus the cluster's own gap — never three.

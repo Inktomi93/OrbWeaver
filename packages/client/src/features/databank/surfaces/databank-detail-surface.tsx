@@ -31,7 +31,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { timeLib, useFocusOnMount } from "#lib";
+import { renameActionName, timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
@@ -235,7 +235,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
               {badge.glyph === null ? null : <Icon icon={badge.glyph} size="xs" />}
               {badge.label}
             </Badge>
-            <Button aria-label={`Rename ${doc.name}`} intent="ghost" onClick={(): void => setRenameOpen(true)} size="icon" title="Rename">
+            <Button aria-label={renameActionName(doc.name)} intent="ghost" onClick={(): void => setRenameOpen(true)} size="icon" title="Rename">
               <Icon icon={Pencil} size="sm" />
             </Button>
           </Row>

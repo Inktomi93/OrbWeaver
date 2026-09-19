@@ -2,7 +2,10 @@
 // modules never ride a shared barrel): ./dev-tools (main.tsx lazy-mounts it), ./long-task-tracer
 // (main.tsx dynamic-imports it).
 
-export { cn } from "@orb/ui/lib";
+// `cn` and the two item-action name grammars are @orb/ui's: a `@orb/ui` primitive spells `Remove <x>`
+// (combobox chips) and `Select <x>` (table rows), and `ui` cannot import `client` (the cake, §2), so the
+// grammar homes at the lowest package that spells it and rides this barrel for client callers + tests.
+export { cn, removeActionName, selectActionName } from "@orb/ui/lib";
 export type { AppFailureKind, AppFailureSurfaceProps } from "./app-failure-surface.tsx";
 export { AppFailureSurface } from "./app-failure-surface.tsx";
 export type {
@@ -198,7 +201,7 @@ export {
   resolveThemeScopeTokens,
   type SeedThemeName,
 } from "./resolve-theme-scope-tokens.ts";
-export { rowActionSubject, rowActionsName, rowQualifiers } from "./row-qualifiers.ts";
+export { chatWithActionName, duplicateActionName, renameActionName, rowActionSubject, rowActionsName, rowQualifiers } from "./row-qualifiers.ts";
 export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export type { SessionDocumentHost } from "./session-document-host.ts";

@@ -3,6 +3,7 @@
 // click-to-sort cycle (asc → desc → none) with `aria-sort` + a non-color glyph swap, keyboard
 // activation, pagination, row selection (incl. indeterminate select-all), density, and the R7
 // freshly-derived-array footgun (ui-primitive-contract §13).
+import { selectActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import {
   BasicTableStory,
@@ -143,8 +144,8 @@ for (const paginationCase of [
 test("row selection: select-all checks every row and goes indeterminate on a partial selection", async ({ mount, page }) => {
   await mount(<BasicTableStory selectable={true} />);
   const selectAll = page.getByRole("checkbox", { name: "Select all rows" });
-  const bram = page.getByRole("checkbox", { name: "Select Bram" });
-  const elara = page.getByRole("checkbox", { name: "Select Elara" });
+  const bram = page.getByRole("checkbox", { name: selectActionName("Bram") });
+  const elara = page.getByRole("checkbox", { name: selectActionName("Elara") });
 
   await expect(selectAll).toHaveAttribute("aria-checked", "false");
   await bram.click();
@@ -179,7 +180,7 @@ test("a selected row wears the ruled row idiom — the rail lights and the row t
       return { fill: style.backgroundColor, rail: style.borderLeftColor };
     });
   const rest = await paint();
-  await page.getByRole("checkbox", { name: "Select Bram" }).click();
+  await page.getByRole("checkbox", { name: selectActionName("Bram") }).click();
   await expect(row).toHaveAttribute("data-selected", /.*/);
   const selected = await paint();
   expect(selected.rail, "the reserved rail lights on selection").not.toBe(rest.rail);

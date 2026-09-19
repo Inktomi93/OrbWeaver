@@ -70,6 +70,7 @@ import {
   regexScriptTitle,
   rowActionSubject,
   rowQualifiers,
+  selectActionName,
   timeLib,
 } from "#lib";
 import {
@@ -264,7 +265,7 @@ function RegexCollectionRow({ script, selected, bulkActive, qualifier, onSelect,
         // membership in the batch, and painting the open-editor row as current on top of that would give one
         // list two "you are here" marks.
         selected={checked}
-        stateToggle={<Checkbox aria-label={`Select ${subject}`} checked={checked} onCheckedChange={(): void => toggleRegexScriptSelected(script.id)} />}
+        stateToggle={<Checkbox aria-label={selectActionName(subject)} checked={checked} onCheckedChange={(): void => toggleRegexScriptSelected(script.id)} />}
         title={title}
         {...scent}
       />

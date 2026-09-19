@@ -7,6 +7,7 @@
 // The editor Dialog + its Done button portal to document.body (outside the mounted component root), so the
 // dialog interactions use `page`, not the component-scoped `mount` handle.
 
+import { removeActionName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { VariablesTabStory } from "./_add-flow-stories.tsx";
 
@@ -26,7 +27,7 @@ test("Variables: Add persists one row (no phantom), Remove persists the empty li
 
   // REMOVE CONFIRMS NOW (side-eye X-3): every `EntryListEditor` consumer holds authored content, so the
   // trailing Remove opens an alertdialog naming the row instead of deleting on the first click.
-  await probe.getByRole("button", { name: "Remove MyVar" }).click();
+  await probe.getByRole("button", { name: removeActionName("MyVar") }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
   // The remove persists the now-empty list too — proving both structural paths reach `save` via the driver.
   await expect(spy).toContainText("savedLen=0");

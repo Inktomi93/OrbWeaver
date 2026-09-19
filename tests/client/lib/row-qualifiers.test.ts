@@ -4,7 +4,7 @@
 // produced N identical accessible names. The escalation must fire ONLY on the collided rows (a longer stamp
 // everywhere is noise), and it must terminate even when two rows are identical to the millisecond.
 
-import { rowActionSubject, rowActionsName, rowQualifiers } from "@orb/client/lib";
+import { chatWithActionName, duplicateActionName, renameActionName, rowActionSubject, rowActionsName, rowQualifiers } from "@orb/client/lib";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -89,5 +89,26 @@ describe("rowActionsName", () => {
 
   test("it composes with the disambiguated subject — the kebab announces what the row shows", () => {
     expect(rowActionsName(rowActionSubject("Emily", "emily-3"))).toBe('Actions for "Emily" · emily-3');
+  });
+});
+
+// The LITERAL controls for the three CLIENT-ONLY row-cluster grammars (#2436). `Remove <x>` and
+// `Select <x>` are NOT here: a `@orb/ui` primitive spells both, so they home one package down and their
+// control is `tests/ui/lib/action-names.test.ts`.
+describe("the row-cluster grammars", () => {
+  test("the inline chat door is `Chat with <subject>` — the PERSON word, never the room's Resume", () => {
+    expect(chatWithActionName("Aria Nightshade")).toBe("Chat with Aria Nightshade");
+  });
+
+  test("the inline duplicate door is `Duplicate <subject>`", () => {
+    expect(duplicateActionName("The Ninefold Reach")).toBe("Duplicate The Ninefold Reach");
+  });
+
+  test("the inline rename door is `Rename <subject>`", () => {
+    expect(renameActionName("Nova")).toBe("Rename Nova");
+  });
+
+  test("each composes with the disambiguated subject, so a collided list stays walkable", () => {
+    expect(duplicateActionName(rowActionSubject("Default (edited)", "9h ago"))).toBe('Duplicate "Default (edited)" \u00b7 9h ago');
   });
 });

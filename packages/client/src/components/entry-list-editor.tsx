@@ -22,6 +22,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { removeActionName } from "#lib";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
 export interface EntryListEditorProps<TItem> {
@@ -108,7 +109,7 @@ export function EntryListEditor<TItem>({
                     onConfirm={(): void => onRemove(index)}
                     title={`Remove “${getTitle(item, index)}”?`}
                     trigger={
-                      <Button aria-label={`Remove ${getTitle(item, index)}`} intent="ghost" size="sm">
+                      <Button aria-label={removeActionName(getTitle(item, index))} intent="ghost" size="sm">
                         Remove
                       </Button>
                     }

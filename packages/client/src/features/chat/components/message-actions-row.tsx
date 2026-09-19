@@ -45,6 +45,7 @@ import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cn, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
+import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
@@ -320,10 +321,10 @@ export function MessageActionsRow({
         // mirror-parity ruling: one item, never a coarse-only twin), so the collapse costs one tap and
         // nothing leaves the a11y tree.
         <Row align="center" className={ROW_ACTION_INLINE}>
-          <Button intent="ghost" size="icon" aria-label="Edit message" onClick={onEdit}>
+          <Button intent="ghost" size="icon" aria-label={MESSAGE_EDIT_NAME} onClick={onEdit}>
             <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
           </Button>
-          <Button intent="ghost" size="icon" loading={fork.isPending} aria-label="Fork chat here" onClick={(): void => void onFork()}>
+          <Button intent="ghost" size="icon" loading={fork.isPending} aria-label={MESSAGE_FORK_NAME} onClick={(): void => void onFork()}>
             <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
           </Button>
         </Row>
@@ -335,12 +336,12 @@ export function MessageActionsRow({
           being rendered at all. Ordered AFTER the Edit/Fork primary actions (#786, owner ruling): a row's
           roving Tab stop must reach "Edit message" before "Add a reaction". */}
       {reactionsEnabled ? (
-        <Button aria-label="Add a reaction" className={ROW_ACTION_INLINE} intent="ghost" onClick={(): void => setPickerOpen(true)} size="icon">
+        <Button aria-label={MESSAGE_REACTION_ADD_NAME} className={ROW_ACTION_INLINE} intent="ghost" onClick={(): void => setPickerOpen(true)} size="icon">
           <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={SmilePlus} size="sm" />
         </Button>
       ) : null}
       <RowActionsMenu
-        label="More message actions"
+        label={MESSAGE_ACTIONS_MENU_NAME}
         destructive={{
           title: "Delete this message?",
           description: "This can't be undone.",

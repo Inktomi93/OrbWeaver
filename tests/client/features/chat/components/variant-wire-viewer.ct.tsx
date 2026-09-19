@@ -19,13 +19,14 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { MESSAGE_ACTIONS_MENU_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { MessageRowStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 const WIRE_PROC = "chat.getVariantWire";
 const WIRE_ITEM = "View wire trace…";
-const MENU_TRIGGER = "More message actions";
+const MENU_TRIGGER = MESSAGE_ACTIONS_MENU_NAME;
 
 /** Only the token datum on — the wire item is gated by AUTHORITY, not by an appearance toggle, so the row
  *  keeps one ordinary metadata datum beside it (the datum that proves the metadata row still renders, and

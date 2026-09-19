@@ -17,6 +17,7 @@ import { useId, useRef, useState } from "react";
 import { TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
+import { removeActionName } from "#lib";
 import { useBulkAddCardTag, useBulkRemoveCardTag } from "../hooks/use-character-mutations.ts";
 import { EMPTY_VALUE } from "../lib/empty-vocabulary.ts";
 
@@ -83,7 +84,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
               type="button"
               size="icon"
               intent="ghost"
-              aria-label={`Remove ${tag.name}`}
+              aria-label={removeActionName(tag.name)}
               disabled={tagWritePending}
               onClick={(): void => {
                 if (!beginTagWrite()) {

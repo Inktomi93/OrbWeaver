@@ -3,6 +3,7 @@
 // This remains model-free: a fresh character supplies one durable greeting, Rename is the claiming write,
 // and the library row proves the hidden→visible transition without driving a turn.
 
+import { chatWithActionName } from "@orb/client/lib";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
@@ -30,9 +31,9 @@ async function openFreshHusk(page: Page): Promise<void> {
   await waitForAppReady(page);
   await charactersRailButton(page).click();
   // The CTA rests hidden AND inert (an invisible control is not hit-testable) — hover its row first.
-  const chatRow = page.locator('[data-slot="list-row-root"]').filter({ has: page.getByRole("button", { name: `Chat with ${DRAFT_CHARACTER}` }) });
+  const chatRow = page.locator('[data-slot="list-row-root"]').filter({ has: page.getByRole("button", { name: chatWithActionName(DRAFT_CHARACTER) }) });
   await chatRow.hover();
-  await chatRow.getByRole("button", { name: `Chat with ${DRAFT_CHARACTER}` }).click();
+  await chatRow.getByRole("button", { name: chatWithActionName(DRAFT_CHARACTER) }).click();
   await expect(page.locator('[role="status"]', { hasText: "Loaded chat" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
 }

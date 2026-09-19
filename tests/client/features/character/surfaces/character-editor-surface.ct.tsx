@@ -11,6 +11,7 @@
 //
 // `character.get`/`chat.listChats`/`character.update` are stubbed at the NETWORK (routeTrpc).
 
+import { removeActionName } from "@orb/client/lib";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -381,7 +382,7 @@ test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — an immediate
   });
   const component = await mount(<CharacterEditorSurfaceStory />);
 
-  await component.getByRole("button", { name: "Remove rpg" }).click();
+  await component.getByRole("button", { name: removeActionName("rpg") }).click();
   // The by-name detach fires with THIS character's id (an immediate junction write).
   await expect.poll(() => removedInput, { intervals: [20, 50, 100] }).toEqual({ tagName: "rpg", characterIds: ["char_ct_1"] });
   // Tags are an immediate-commit identity write OUTSIDE the card form — they must never trip the card

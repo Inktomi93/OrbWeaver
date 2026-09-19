@@ -6,7 +6,7 @@
 //   · the kebab-only action grammar, with EXPORT as the ruled row arm (D121-D `kebab=Export`);
 //   · the host's `filter`, applied by the owner's own rows.
 
-import { rowActionsName } from "@orb/client/lib";
+import { duplicateActionName, rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
@@ -64,7 +64,7 @@ test("rows stay kebab-only, and EXPORT is the row's ruled arm", async ({ mount, 
   await expect(rows.getByText("The Ninefold Reach")).toBeVisible();
 
   // No inline verb, no state toggle — everything the row can do lives behind the one ⋯ menu.
-  await expect(rows.getByRole("button", { name: "Duplicate The Ninefold Reach", exact: true })).toHaveCount(0);
+  await expect(rows.getByRole("button", { name: duplicateActionName("The Ninefold Reach"), exact: true })).toHaveCount(0);
   await expect(rows.getByRole("button", { name: ANY_STAR_TOGGLE })).toHaveCount(0);
 
   // §12.2: the kebab rests hidden + inert like every row affordance, so reach it by hovering the row.
