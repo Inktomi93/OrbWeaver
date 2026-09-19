@@ -159,6 +159,8 @@ export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { deriveReadFirstCosts, generateReadFirstCosts, READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./ops/gen/read-first-costs.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_REL } from "./ops/gen/snap-flags-index.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
+export type { InstrumentAffectedSelection } from "./ops/instrument-affected.ts";
+export { runInstrumentAffected, selectAffectedInstrumentTests } from "./ops/instrument-affected.ts";
 export { judgeLedgerClaims, LEDGER_CLAIMS_HELP, ledgerRowStates, parseClaimCommits, runLedgerClaims } from "./ops/ledger-claims.ts";
 export {
   censusDrift,

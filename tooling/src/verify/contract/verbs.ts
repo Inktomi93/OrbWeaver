@@ -32,6 +32,7 @@ export const VERIFY_VERBS = [
   "typecheck-plan",
   "typecheck",
   "eslint",
+  "instrument-affected",
 ] as const;
 
 export type VerifyVerb = (typeof VERIFY_VERBS)[number];

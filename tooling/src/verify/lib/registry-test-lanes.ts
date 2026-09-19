@@ -91,6 +91,36 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // `changed`. A second row at `changed` would spawn a second Vitest over the same selection.
   },
   {
+    // THE AFFECTED SUBSET OF THE BATTERY, BELOW `--full` (#1967). #1842 took the 71-CPU-minute instrument
+    // battery off the push bar and that placement is NOT reverted — but it left every proof a policy
+    // carries that a declared row cannot express (the §4.2 identity arm, the central grant table's
+    // identity/duplicate/stale boundaries, the §4.5 refusal and receipt pins) running at `--full` and
+    // NOWHERE ELSE. Measured twice at five days each: `registry-family.test.ts` red from `ab675b23b` (95
+    // refused proof rows across eight policies, #1953) and `static-class-consumers.int.test.ts` red from
+    // `1416f2c98` (#1956). Both commits ran and passed their named scoped floor; neither touched a family
+    // test, which is why the prose per-conversion floor rule did not fire — and per constitution §2.3 a
+    // prose-only boundary is not a placement, it is a wish.
+    //
+    // THIS ROW IS THE NARROW THING: the family tests of the instruments the BRANCH changed, reached
+    // through the shared test mirror AND through the gate-ID string (a family test routinely lives under
+    // its WAVE's name, so the mirror alone misses it). A branch that touched no `tooling/src` source runs
+    // NOTHING and exits clean in well under a second; a branch that touched one pays for that one.
+    name: "tests:instrument-affected",
+    group: "tests",
+    tiers: ["static", "push", "full"],
+    argv: ["pnpm", "check:instrument-affected"],
+    // Our OWN 0/1/2/3-speaking op: a changed instrument reaching no spec is VIOLATIONS (1), never a clean
+    // zero, and an uncomputable branch answer runs the whole battery rather than selecting nothing.
+    classify: ownScheme,
+    // NO `scopedArgv` HERE, ON PURPOSE: the stage COMPUTES its own selection from the branch diff, so a
+    // second scoped derivation would either duplicate or narrow it. That makes it a whole-only static row,
+    // which means `WHOLE_COMMAND_PATH_TRIGGERS` (lib/registry-triggers.ts) owns its cheap-skip — it is
+    // authored with `static` and the trigger table DECORATES it into `changed` with a
+    // `tooling/src/**`-or-`tests/tooling/**` gate, so a product-only commit pays nothing and a lane's own
+    // `verify --changed` recertifies the instruments it touched. `applyPathTriggers` THROWS on a whole-only
+    // static row missing from that table, which is how this row's accounting was forced at authoring time.
+  },
+  {
     name: "tests:tool-guard",
     group: "tests",
     // THE ONE INSTRUMENT WHOSE PIN CANNOT WAIT FOR `--full` (#1943 F3). The #1842 cut is right about the

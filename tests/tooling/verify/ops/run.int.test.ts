@@ -430,6 +430,12 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "deps:knip",
     "docs:format",
     "docs:catalog",
+    // #1967: the AFFECTED subset of the instrument battery. `tests:tooling` stays `--full`-only (#1842 was
+    // right about 71 CPU-minutes of recertification), but everything a declared proof row CANNOT express —
+    // the §4.2 identity arm, the central grant table's boundaries, the §4.5 refusal and receipt pins — ran
+    // there and NOWHERE ELSE, and sat red for five days twice. This row runs only the family tests of the
+    // instruments the branch changed; a product-only commit skips it through the trigger table.
+    "tests:instrument-affected",
   ]);
 });
 
