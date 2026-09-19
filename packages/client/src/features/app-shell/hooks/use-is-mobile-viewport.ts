@@ -10,7 +10,10 @@
 // JS const, and a viewport breakpoint is a distinct axis from the @container tokens). Content primacy is
 // different: shell.css owns its track arithmetic and exposes the live deficit as a sentinel's rendered
 // width. JS observes that result; it never respells tokens, root pixels, clamps, or a crossover.
+// useIsBelowShellContentFloor is the third kind — a viewport read against a rem TOKEN rather than a
+// breakpoint literal, so it resolves the token instead of querying it (its own doc block states why).
 
+import { snappedLengthPx, TOKENS } from "@orb/ui/tokens";
 import type { RefObject } from "react";
 import { useLayoutEffect, useSyncExternalStore } from "react";
 
@@ -47,6 +50,57 @@ const subscribeMobile = subscribeTo(MOBILE_QUERY);
 const getMobileSnapshot = snapshotOf(MOBILE_QUERY);
 const subscribeNarrow = subscribeTo(SHELL_NARROW_QUERY);
 const getNarrowSnapshot = snapshotOf(SHELL_NARROW_QUERY);
+
+/** The reader's chat-width floor, READ from the vault rather than re-spelled: the shell stamps the same
+ *  token into `--width-shell-content`'s clamp, so there is exactly one number. */
+const SHELL_CONTENT_FLOOR = TOKENS["dimension.shell-content-floor"].value;
+
+/** Memoized because `getSnapshot` runs on every render of every consumer and the read is a forced style
+ *  recalc; the subscription owns invalidation (the `contextContentConstrained` store's shape). */
+let belowShellContentFloor: boolean | null = null;
+
+function readBelowShellContentFloor(): boolean {
+  if (typeof globalThis.getComputedStyle !== "function") {
+    return false;
+  }
+  const rootFontSizePx = Number.parseFloat(globalThis.getComputedStyle(document.documentElement).fontSize);
+  if (!Number.isFinite(rootFontSizePx)) {
+    return false;
+  }
+  // `snappedLengthPx` is the token pipeline's own inverse of the emitted length (#1640) — the decoder, not
+  // a re-spelling of `46.125 * root`.
+  const floorPx = snappedLengthPx(SHELL_CONTENT_FLOOR, rootFontSizePx);
+  return floorPx !== null && globalThis.innerWidth <= floorPx;
+}
+
+function subscribeShellContentFloor(onChange: () => void): () => void {
+  if (typeof globalThis.addEventListener !== "function") {
+    return noop;
+  }
+  const publish = (): void => {
+    const next = readBelowShellContentFloor();
+    if (next !== belowShellContentFloor) {
+      belowShellContentFloor = next;
+      onChange();
+    }
+  };
+  // A late subscriber inherits whatever the last publish cached, so re-read once on attach.
+  publish();
+  globalThis.addEventListener("resize", publish);
+  // `--font-scale` lands on the root's `style` attribute (use-appearance-root-effects.ts) and moves the
+  // floor without moving the viewport, so `resize` alone would miss it.
+  const rootStyle = new MutationObserver(publish);
+  rootStyle.observe(document.documentElement, { attributeFilter: ["style"] });
+  return (): void => {
+    globalThis.removeEventListener("resize", publish);
+    rootStyle.disconnect();
+  };
+}
+
+function getShellContentFloorSnapshot(): boolean {
+  belowShellContentFloor ??= readBelowShellContentFloor();
+  return belowShellContentFloor;
+}
 
 let contextContentConstrained = false;
 const contextContentListeners = new Set<() => void>();
@@ -131,4 +185,23 @@ export function useShellContentPrimacyObserver(sentinelRef: RefObject<HTMLElemen
 
 export function useIsContextContentConstrained(): boolean {
   return useSyncExternalStore(subscribeContextContentConstrained, getContextContentConstrainedSnapshot, () => false);
+}
+
+/** `true` when the viewport is at/below `dimension.shell-content-floor` — the width at which the reader's
+ *  chat-width dial is DEAD (#1871 item 4, owner ruling 2026-09-19). `--width-shell-content` is
+ *  `clamp(<floor>, <chatWidthPct>dvw, 100dvw)`, so once the viewport reaches the floor even the 100% end of
+ *  the dial resolves to the floor and every position paints the same track. The dial's own section hides it
+ *  here rather than offering a control that cannot move.
+ *
+ *  WHY THIS IS NOT A `rem` matchMedia like the two above: `rem` inside a media query resolves against the
+ *  INITIAL root font-size, never the live one, and this floor's whole point is that it rides
+ *  `--font-scale` (`:root { font-size: calc(100% * var(--font-scale)) }`) exactly like the `ch` measure it
+ *  was derived from. The two queries above CAN be rem because each is the JS twin of a CSS `@media` that
+ *  resolves rem the same way; this one has no CSS twin and must agree with a `clamp()` instead. So the
+ *  threshold is resolved through the token's own generated decoder against the LIVE root font-size, and the
+ *  root `style` attribute — the one carrier of `--font-scale` (`use-appearance-root-effects.ts`) — is
+ *  observed beside `resize`. An unreadable root font-size answers `false`: an unmeasurable floor must not
+ *  take a working control away. */
+export function useIsBelowShellContentFloor(): boolean {
+  return useSyncExternalStore(subscribeShellContentFloor, getShellContentFloorSnapshot, () => false);
 }

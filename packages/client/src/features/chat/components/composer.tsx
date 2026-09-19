@@ -349,6 +349,21 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
               // screen reader announces the highlighted offer without focus ever leaving the textarea.
               {...slashCompletionAria(stripOpen)}
               aria-activedescendant={activeSlashOptionId}
+              // SOFT-KEYBOARD HYGIENE (#1871 item 6, owner ruling 2026-09-19). NOTHING upstream sets these:
+              // `@orb/ui`'s Textarea renders a plain <textarea> through Base UI `Field.Control`, and
+              // Field.Control sets no input-hygiene attribute at all (in @base-ui/react 1.7.0 the three
+              // components that DO are OTPFieldInput, AriaCombobox — `autoCorrect: 'off'` +
+              // `autoCapitalize: 'none'` — and NumberFieldInput; the field/ tree carries none of them). So
+              // the composer states them itself.
+              // The Enter label FOLLOWS THE SETTING rather than being pinned: `enterSends` decides whether a
+              // bare Enter submits (composer-send-keys.ts), so a fixed "send" key lies for every reader who
+              // turned it off, and a fixed "enter" lies for the default. One live value, one truth.
+              enterKeyHint={behaviorPrefs.enterSends ? "send" : "enter"}
+              // A chat draft is prose the reader is composing in their own voice — autocorrect rewriting a
+              // character name and autocapitalise re-casing a deliberate lowercase line are both corruption
+              // of the message, not help. (Spellcheck is deliberately left ON: it MARKS, it never rewrites.)
+              autoCorrect="off"
+              autoCapitalize="off"
               placeholder={placeholder}
               value={value}
               onChange={(e): void => {

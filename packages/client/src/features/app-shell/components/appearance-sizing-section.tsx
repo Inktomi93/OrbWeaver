@@ -22,6 +22,7 @@ import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from 
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { configAnchorId } from "#state";
+import { useIsBelowShellContentFloor } from "../hooks/use-is-mobile-viewport.ts";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
 import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "../lib/appearance-sizing-model.ts";
 import { DensityCards } from "./appearance-density-cards.tsx";
@@ -74,6 +75,7 @@ function SizingFormBody({ sectionId }: { readonly sectionId: string }): ReactEle
 
 function SizingBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<SizingForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
+  const dialIsDead = useIsBelowShellContentFloor();
   return (
     <Section
       className="@container"
@@ -87,11 +89,23 @@ function SizingBody({ sectionId, session }: { readonly sectionId: string; readon
           section does not own. */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_SIZING_SUBCATEGORY }}>
         <SettingRowGroup>
-          <SettingRow settingId="chat-width">
-            <form.AppField name="chatWidthPct">
-              {(field): ReactElement => <field.SliderField label="Chat width (%)" min={CHAT_WIDTH_MIN} max={CHAT_WIDTH_MAX} />}
-            </form.AppField>
-          </SettingRow>
+          {/* A DEAD DIAL IS NOT OFFERED (#1871 item 4, owner ruling 2026-09-19). The shell stamps
+              `clamp(var(--dimension-shell-content-floor), <chatWidthPct>dvw, 100dvw)`, so at or below that
+              floor the clamp's MIN wins at EVERY position of this slider and dragging it changes nothing.
+              The row keeps its lead (`span`) so the setting still teaches where it went — what is withheld
+              is the control, not the explanation. The threshold comes from the hook, which resolves the
+              SAME token the shell clamps against; `738` is not spelled here or there. */}
+          {dialIsDead ? (
+            <SettingRow settingId="chat-width" span={true}>
+              <Text voice="gloss">The chat column already fills this screen — this setting takes effect on a wider one.</Text>
+            </SettingRow>
+          ) : (
+            <SettingRow settingId="chat-width">
+              <form.AppField name="chatWidthPct">
+                {(field): ReactElement => <field.SliderField label="Chat width (%)" min={CHAT_WIDTH_MIN} max={CHAT_WIDTH_MAX} />}
+              </form.AppField>
+            </SettingRow>
+          )}
           <SettingRow settingId="font-scale">
             <form.AppField name="fontScale">
               {(field): ReactElement => <field.SliderField label="Text size" min={FONT_SCALE_MIN} max={FONT_SCALE_MAX} step={FONT_SCALE_STEP} />}
