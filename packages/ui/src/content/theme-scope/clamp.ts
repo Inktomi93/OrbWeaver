@@ -91,6 +91,26 @@ export interface ClampedTheme {
   readonly density?: (typeof DENSITIES)[number];
   readonly colorScheme?: "light" | "dark";
   /**
+   * THE SCOPE'S INHERITED INK (#2424). A carried palette that paints its own surface must also RESTATE
+   * `color`, or every element inside it that takes its ink by INHERITANCE keeps whatever the document
+   * resolved above the scope. `.shell-grid` resolves `color: var(--color-foreground)` ABOVE every scope
+   * (message-row-backing.ts's #204 note states the same fact from the prose side), so under a LIGHT app
+   * theme a card-themed room's composer painted the ROOT's light ink on the SCOPE's dark surface:
+   * measured `(34.9,30.2,26.6)` on `(22,17,19)` = **1.13:1**, invisible the moment a reader typed.
+   *
+   * The textarea was the only casualty on that drive because a textarea's VALUE is not a child text node,
+   * so nothing in the row's own ink rules reached it — but the leak is the CLASS, not that one element:
+   * every future inheriting descendant had the same hole. Emitting `color` closes it at the boundary that
+   * already owns the palette, which is why this is not a new token and not a per-consumer class.
+   *
+   * It rides this struct rather than `vars` for `colorScheme`'s exact reason: it is a REAL CSS property,
+   * not a custom property, so it must stay OFF the `--*` emit surface (`THEME_SCOPE_EMIT_VARS`). It is
+   * present exactly when the scope emitted `--color-foreground` — i.e. when it CARRIES a background and
+   * therefore owns the pairing. A scope with no carried surface emits nothing here and the cascade stands
+   * byte-identically, which is what keeps the ink-only (#236) population untouched.
+   */
+  readonly color?: string;
+  /**
    * The VALIDATED accent this scope paints with — its own picked one if it survived the schema, else the
    * ambient it was handed (#692). It rides the struct rather than `vars` for `colorScheme`'s reason: it is
    * not a custom property, and it must stay OFF the emit surface.
@@ -321,6 +341,20 @@ function absentProseInkOn(raw: unknown, field: keyof ThemeScopeTokens, backgroun
   return foregroundOn(derivedOriginFor(background, toOklch(background), base), base);
 }
 
+/**
+ * The INHERITED-INK restatement (#2424), gated on the emit that makes it meaningful. `--color-foreground`
+ * is emitted only by `surfaceVarsOn` — i.e. only for a CARRIED background — so this is present exactly
+ * where the scope owns BOTH halves of the pairing. It reads the EMITTED MAP rather than re-deriving the
+ * condition from `t.background`, so the gate and the emit can never disagree.
+ *
+ * It returns the PARTIAL rather than the value for the same reason every other optional axis on
+ * `ClampedTheme` is spread: `exactOptionalPropertyTypes` makes an explicit `color: undefined` a different
+ * shape from an absent key, and the absent key is what keeps an ink-only scope byte-identical.
+ */
+function inheritedInkOn(vars: Readonly<Record<string, string>>): { readonly color?: string } {
+  return Object.hasOwn(vars, "--color-foreground") ? { color: "var(--color-foreground)" } : {};
+}
+
 function colorSchemeFor(base: ParsedOklch | null): "light" | "dark" | null {
   if (base === null) {
     return null;
@@ -427,6 +461,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
     vars,
     ...(t.density === undefined ? {} : { density: t.density }),
     ...(colorScheme === null ? {} : { colorScheme }),
+    ...inheritedInkOn(vars),
     ...(accentSource === undefined ? {} : { accentSource }),
     ...(resolvedBackground === undefined ? {} : { resolvedBackground }),
   };

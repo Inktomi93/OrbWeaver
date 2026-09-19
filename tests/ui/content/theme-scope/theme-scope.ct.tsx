@@ -4,8 +4,10 @@ import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Meter } from "@orb/ui/meter";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Select } from "@orb/ui/select";
+import { Textarea } from "@orb/ui/textarea";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { CSSProperties } from "react";
 import { pixelContrast } from "../../../support/browser/pixel-contrast.ts";
 import { ThemedFloatScope } from "./float-theming.fixtures.tsx";
 
@@ -650,4 +652,58 @@ test("a provider-less ink-only scope FAILS OPEN, rendering the author's ink byte
   await expect
     .poll(async () => await cmp.getByTestId("loose").evaluate((el) => getComputedStyle(el).getPropertyValue("--color-narration").trim()))
     .toBe(ST_DARK_INK);
+});
+
+// ── #2424: A CARRIED SURFACE MUST CARRY ITS INHERITED INK ──────────────────────────────────────────
+// Driven live 2026-09-19 (side-eye `side-eye-F`): in a card-themed room under the **Light** app theme the
+// composer kept the room scope's DARK surface while the textarea's `color` came from `body` — the ROOT's
+// LIGHT `--color-foreground` — and typed text measured **1.13:1** (ink `(34.9,30.2,26.6)` on `(22,17,19)`).
+// The placeholder was fine (10.70:1) because it names its ink explicitly, so the box looked correct until
+// a reader typed into it.
+//
+// THE LEAK IS THE CLASS, NOT THE TEXTAREA. `ThemeScope` emitted `--*` and `color-scheme` and never `color`,
+// so every descendant that takes its ink by INHERITANCE resolved the ink of whatever painted ABOVE the
+// scope against the surface the scope itself painted. The sweep found the textarea as the only casualty on
+// that tree only because a textarea's VALUE is not a child text node; the fix is at the boundary.
+//
+// THE MOUNT IS THE PRODUCTION SANDWICH: an outer element spelling `.shell-grid`'s own rule
+// (`color: var(--color-foreground)` over a LIGHT `--color-foreground`) and, inside it, a scope carrying the
+// card's DARK base. RED on the pre-fix source in both probes — the inheriting span and the typed control.
+const LIGHT_ROOT_INK = "oklch(0.24 0.01 60)";
+const CARD_DARK_BASE = "oklch(0.158 0.006 60)";
+const LIGHT_ROOT_STYLE = { "--color-foreground": LIGHT_ROOT_INK, color: "var(--color-foreground)", padding: "24px" } as CSSProperties;
+
+test("#2424 a scope that paints a DARK surface under a LIGHT root repaints inherited ink — typed text clears AA", async ({ mount, page }) => {
+  const cmp = await mount(
+    <div style={LIGHT_ROOT_STYLE}>
+      <ThemeScope tokens={{ background: CARD_DARK_BASE }}>
+        <div style={{ backgroundColor: "var(--color-background)", padding: "16px" }}>
+          <span data-testid="inheriting-prose">she leans in and keeps talking</span>
+          <Textarea aria-label="Message" data-testid="typed" defaultValue="the sentence a reader just typed" rows={2} />
+        </div>
+      </ThemeScope>
+    </div>,
+  );
+  // The INHERITING text node — the general form of the defect.
+  const prose = await pixelContrast(page, cmp.getByTestId("inheriting-prose"));
+  expect(prose.ratio, `inherited prose ink: ${prose.describe}`).toBeGreaterThanOrEqual(4.5);
+  // The TYPED control — the element the live drive measured at 1.13:1. A textarea's value is not a child
+  // text node, so nothing but the inherited `color` ever reached it.
+  const typed = await pixelContrast(page, cmp.getByTestId("typed"));
+  expect(typed.ratio, `typed composer ink: ${typed.describe}`).toBeGreaterThanOrEqual(4.5);
+});
+
+test("#2424 CONTROL: an INK-ONLY scope emits no `color` — the ambient cascade is byte-identical", async ({ mount }) => {
+  // The gate on the emit is "this scope CARRIES a surface". The #236 population (three ink vars, no
+  // background) must keep inheriting the ambient ink, or every ST-imported card would suddenly repaint its
+  // host's prose. Read off the INLINE style: a computed read would resolve the inherited value and pass in
+  // both arms.
+  const cmp = await mount(
+    <div style={LIGHT_ROOT_STYLE}>
+      <ThemeScope tokens={{ narrationColor: ST_DARK_INK }}>
+        <span data-testid="ink-only">she leans in</span>
+      </ThemeScope>
+    </div>,
+  );
+  await expect.poll(async () => await cmp.locator('[data-slot="theme-scope"]').evaluate((el) => (el as HTMLElement).style.color)).toBe("");
 });

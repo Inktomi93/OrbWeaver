@@ -59,8 +59,18 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
   // Only validated `--*` keys reach `style` — never raw caller style. `colorScheme` (derived from the
   // base surface's polarity, when known) rides `style` too so a custom LIGHT theme flips native
   // controls AND the light-dark() intent arms to their light values instead of the seed's dark scheme.
-  const style: CSSProperties =
-    clamped.colorScheme === undefined ? (clamped.vars as CSSProperties) : { ...(clamped.vars as CSSProperties), colorScheme: clamped.colorScheme };
+  //
+  // `color` (#2424) rides it for the same reason one step further: a scope that paints its OWN surface
+  // must also restate the ink descendants take by INHERITANCE, or they keep the ink resolved ABOVE the
+  // scope (`.shell-grid`'s `color: var(--color-foreground)`) against a surface this scope painted — the
+  // measured 1.13:1 typed composer under a Light app theme in a card-themed room. Neither is a custom
+  // property, so neither may enter `vars`; both are emitted ONLY where the clamp decided they are owned
+  // (`ClampedTheme.color` states the gate), so an ink-only scope stays byte-identical.
+  const style: CSSProperties = {
+    ...(clamped.vars as CSSProperties),
+    ...(clamped.colorScheme === undefined ? {} : { colorScheme: clamped.colorScheme }),
+    ...(clamped.color === undefined ? {} : { color: clamped.color }),
+  };
   return (
     <AmbientBaseContext value={clamped.resolvedBackground ?? ambient}>
       <AmbientAccentContext value={clamped.accentSource ?? accentAmbient}>
