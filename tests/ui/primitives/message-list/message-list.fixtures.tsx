@@ -521,6 +521,43 @@ export function CachedMeasurementsList(): ReactElement {
 }
 
 /**
+ * #2440 — the ROVING ANCHOR across a virtualizer unmount. A keyboard reader parks on a row; the reader (or
+ * an arriving turn) scrolls it out of the virtual window, the virtualizer unmounts the focused <li>, and
+ * focus falls to <body>. The row is tall enough and the list short enough that scrolling to the head
+ * genuinely unmounts the tail — there is no `keepMounted` here, which is the real transcript's shape.
+ * Every row carries a button so the row is a realistic roving unit rather than inert text.
+ */
+export function RovingScrollList({
+  itemCount,
+  rowHeightPx,
+  listHeightPx,
+}: {
+  readonly itemCount: number;
+  readonly rowHeightPx: number;
+  readonly listHeightPx: number;
+}): ReactElement {
+  const items = makeItems(itemCount);
+  return (
+    <div>
+      <div style={{ height: listHeightPx }}>
+        <MessageList
+          rowNavigation="roving"
+          items={items}
+          getItemKey={(item): string => item.id}
+          estimateSize={(): number => rowHeightPx}
+          renderItem={(item): ReactElement => (
+            <div style={{ height: rowHeightPx }}>
+              <button type="button">act on {item.label}</button>
+            </div>
+          )}
+          className="h-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
  * #1362 — the crispness invariant (integer-line-boxes.md Law 3): every row's WRITTEN `top` must be an
  * integer number of CSS pixels. `directDomUpdatesMode: "position"` makes react-virtual assign
  * `el.style.top = ${item.start}px`, and `item.start` is the running sum of paddingStart + Σ(size + gap);
