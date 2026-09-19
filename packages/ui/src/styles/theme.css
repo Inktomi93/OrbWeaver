@@ -144,8 +144,8 @@
   --text-headline: 1.25rem;
   --text-title: 1rem;
   --text-body: 0.9375rem;
-  --text-field: 1rem;
-  --text-field-dense: 1rem;
+  --text-field: max(1rem, 16px);
+  --text-field-dense: max(1rem, 16px);
   --text-label: 0.8125rem;
   --text-code: 0.8125rem;
   --text-micro: 0.65625rem;
@@ -154,8 +154,8 @@
   --leading-headline: round(up, 1.625rem, 1px);
   --leading-title: round(up, 1.375rem, 1px);
   --leading-body: round(up, 1.4375rem, 1px);
-  --leading-field: round(up, 1.5rem, 1px);
-  --leading-field-dense: round(up, 1.25rem, 1px);
+  --leading-field: round(up, max(1.5rem, 24px), 1px);
+  --leading-field-dense: round(up, max(1.25rem, 20px), 1px);
   --leading-label: round(up, 1rem, 1px);
   --leading-label-relaxed: round(up, 1.25rem, 1px);
   --leading-micro: round(up, 0.8125rem, 1px);

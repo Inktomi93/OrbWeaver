@@ -181,6 +181,34 @@ function snappedSerialization(length: string): string {
   return `round(up, ${length}, 1px)`;
 }
 
+/**
+ * The ROOT FLOOR's ONE serialization (#1872, `orb.rootFloor` — the ruling is on `rootFloorFlag` in
+ * token-contract.ts). `1.5rem` → `max(1.5rem, 24px)`: the token keeps scaling UP with `--font-scale` and
+ * can no longer scale DOWN past the size it was authored at.
+ *
+ * THE FLOOR IS DERIVED FROM THE AUTHORED VALUE, never a second literal, and that is what keeps a floored
+ * face/leading PAIR on its authored ratio: below `--font-scale` 1 both members pin at their own 16px-root
+ * px, so `--leading-field / --text-field` is 24/16 = the authored 1.5 at EVERY stop of the slider, the same
+ * number it resolves to at 1.0. Flooring a face alone would have driven that ratio to 1.0 at scale 0.8,
+ * which is the shape #1872 explicitly refuses.
+ *
+ * Composes with the device-pixel belt — a snapped token wraps this: `round(up, max(1.5rem, 24px), 1px)`.
+ */
+function rootFlooredSerialization(length: string, path: string): string {
+  const amount = length.endsWith("rem") ? Number.parseFloat(length) : Number.NaN;
+  if (!Number.isFinite(amount)) {
+    throw new Error(`${path}: orb.rootFloor escaped contract validation (expected a rem length, got ${JSON.stringify(length)})`);
+  }
+  return `max(${length}, ${amount * ROOT_REM_PX}px)`;
+}
+
+/** A dimension's `@theme` length, with the root floor applied when the token declares one. */
+function renderPortableDimension(token: TransformedToken, contractToken: ContractToken): string {
+  const path = contractToken.pathString;
+  const length = renderDimension(resolvedValue(token), path);
+  return contractToken.rootFloor ? rootFlooredSerialization(length, path) : length;
+}
+
 function renderPortableToken(token: TransformedToken, contractToken: ContractToken, lightToken: ContractToken | undefined): string | null {
   const path = contractToken.pathString;
   switch (contractToken.outputRole) {
@@ -204,7 +232,7 @@ function renderPortableToken(token: TransformedToken, contractToken: ContractTok
       // and because every snapped token is authored integer at the 16px root (the gate's ARM T), `up` is
       // still the identity at the default scale. `nearest` also broke leading.label on text.label, whose
       // authored ratio IS the floor exactly — half a pixel of slack in either direction is below it.
-      return snappedSerialization(renderDimension(resolvedValue(token), path));
+      return snappedSerialization(renderPortableDimension(token, contractToken));
     case "light-dark":
       if (lightToken === undefined) {
         throw new Error(`${path}: light-dark output has no Light arm`);
@@ -217,7 +245,7 @@ function renderPortableToken(token: TransformedToken, contractToken: ContractTok
     case "color":
       return renderColor(resolvedValue(token), path);
     case "dimension":
-      return renderDimension(resolvedValue(token), path);
+      return renderPortableDimension(token, contractToken);
     case "duration":
       return renderDuration(resolvedValue(token), path);
     case "fontFamily":
@@ -308,6 +336,13 @@ export function renderGeneratedCss(tokens: readonly GeneratedCssValue[]): string
  * where #1143's off-grid switch thumb lived (`--spacing-switch-thumb` 1.125rem × 0.875 font-scale =
  * 15.75px, halved by `items-center` to a 7.875px offset). Every override of a snapped token therefore
  * carries the same `round(up, …, 1px)` serialization as its base arm; anything else is half a belt.
+ *
+ * THE ROOT FLOOR DELIBERATELY DOES NOT (#1872) — and the asymmetry with the belt above is the point. The
+ * belt is a RENDERING invariant (a box must land on device pixels at every pointer), so it follows the
+ * token. The floor answers a COARSE-POINTER PLATFORM fact (iOS's focus zoom), and every fine arm in this
+ * block is authored BELOW that floor on purpose — the fine field steps are 15px and 13px. Flooring them
+ * here would enlarge every desktop form and delete the dense step outright, which is the failure
+ * `tests/ui/primitives/input/input.ct.tsx`'s fine-pointer case exists to catch.
  */
 function renderPointerFineBlock(overrides: readonly FineOverride[]): string {
   if (overrides.length === 0) {
