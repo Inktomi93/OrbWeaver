@@ -20,9 +20,18 @@
 // a store-hook type is reported by BOTH policies, exactly as the legacy descriptor and the converted
 // sibling already did on every real-tree run. Narrowing either side to de-duplicate would delete a catch:
 // the sibling sees a store hook this one cannot name, and this one sees a body shape the sibling cannot
-// read. THE MERGE CANDIDACY IS REAL AND IS NOT THIS MODULE'S TO TAKE (§8.3): one policy carrying the
-// sibling's type subject AND this policy's output-set reader would subsume both, which means RETIRING a
-// converted module with a successor proof — an orchestrator call, raised on #1584 at conversion time.
+// read.
+//
+// AND THE MERGE IS REFUSED, DURABLY (#1625). The conversion raised the candidacy on #1584 as an
+// orchestrator call; #1584 closed without taking it, and the re-derivation on 2026-09-19 answered it: the
+// two cannot be one policy, because a policy declares exactly ONE `population`, `analysis` and `execution`
+// and all three differ here for a reason — `@client`/`syntax`/`selected-files` on this side against
+// `@authored` minus `*.test.ts(x)` / `types` / `entire-population` on the sibling's. Merging widens this
+// policy's TEXT subject (`/^use[A-Z].*Store$/`, whose shadows are its own mustPass rows) across the whole
+// authored tree or deletes the sibling's catches outside `@client`; it makes this syntactic arm pay for
+// type resolution; and it makes it `entire-population`, so it stops composing under a `--changed`
+// selection. The sibling's header carries the same refusal from its side with the measured cost. Nothing
+// enforces this paragraph — it is a recorded decision, not a guarantee (GATE-AUTHORING §7).
 //
 // POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: (p) => p.includes("packages/client/src/")` is exactly
 // the `@client` root (`packages/client/src/`); no path on the tree contains that segment without being

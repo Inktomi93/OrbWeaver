@@ -25,8 +25,29 @@
 //
 // FAMILY: a declared SINGLETON under its own id. The identity readers it stands on (`resolveTypeIdentityChain`,
 // `declaredByFile`/`declaredByPackage` in lib/type-member-origin.ts) are shared with the whole canonical-origin
-// wave, but a shared PRIMITIVE is not a family; no sibling policy reads this policy's store-hook subject, and
-// `zustand-selector-derived` — the one policy that would share it — is still legacy.
+// wave, but a shared PRIMITIVE is not a family; no sibling policy reads this policy's store-hook subject.
+//
+// THE DOUBLE REPORT WITH `zustand-selector-derived` IS PERMANENT, AND THIS IS THE REFUSAL (#1625, #1584 left
+// the merge call open and closed without taking it; re-derived 2026-09-19). A
+// `use<X>Store((s) => ({ … }))` whose callee ALSO resolves to a store-hook type is reported by both
+// policies. #1625 asked for one selector-recogniser home; the answer is that the two policies cannot be one
+// policy, because a policy declares exactly ONE of each field and all four of these differ for a REASON:
+//   · population — `@authored` minus `*.test.ts(x)` here, `@client` there. A merge either widens the
+//     sibling's TEXT subject (`/^use[A-Z].*Store$/`, whose shadows are its own mustPass rows) across the
+//     whole authored tree, or narrows this policy's TYPE subject to `@client` and deletes every catch
+//     outside it.
+//   · analysis — `types` here, `syntax` there. A merged policy is `types`, so the sibling's purely
+//     syntactic arm starts paying for type resolution on every run that carries it.
+//   · execution — `entire-population` here (the store-hook home must be IN the selection or the policy
+//     defers loudly), `selected-files` there. A merged policy is `entire-population`, so the sibling's
+//     narrow catch stops composing under a `--changed` selection.
+//   · subject — a resolved TYPE identity here, the callee's TEXT there; neither reader subsumes the other,
+//     which is the sibling's own §8.3 finding restated from this side.
+// Nothing enforces this paragraph — it is a recorded decision, not a guarantee (GATE-AUTHORING §7). What it
+// costs today is measured, not assumed: `pnpm check:structure --check zustand-selector-derived --check
+// zustand-selector-stability` on 2026-09-19 reported 0 findings from either policy over 1,326 + 5,604
+// admitted sources, so the duplicate is LATENT — a second line in one report about one real defect, never a
+// second defect. Reopen only with a shape that keeps all four fields, which would be two policies again.
 //
 // POPULATION: `@authored` minus `*.test.ts`/`*.test.tsx`. The notNamed fence is a
 // NARROWING with its own mustPass row; the arity fence and the unnamed-type verdict each have one too.
