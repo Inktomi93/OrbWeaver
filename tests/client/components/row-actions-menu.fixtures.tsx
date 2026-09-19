@@ -7,6 +7,7 @@
 // client stories follow.
 
 import { RowActionsMenu } from "@orb/client/components";
+import { rowActionsName } from "@orb/client/lib";
 import { Check, Icon } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
@@ -16,7 +17,7 @@ export function RowActionsTriggerSizesStory(): ReactElement {
   return (
     <div>
       <div className="group/row">
-        <RowActionsMenu label="Actions for icon" triggerSize="icon">
+        <RowActionsMenu label={rowActionsName("icon")} triggerSize="icon">
           <MenuItem>
             <Icon icon={Check} size="sm" />
             Apply
@@ -24,7 +25,7 @@ export function RowActionsTriggerSizesStory(): ReactElement {
         </RowActionsMenu>
       </div>
       <div className="group/row">
-        <RowActionsMenu label="Actions for sm" triggerSize="sm">
+        <RowActionsMenu label={rowActionsName("sm")} triggerSize="sm">
           <MenuItem>
             <Icon icon={Check} size="sm" />
             Apply
@@ -32,7 +33,7 @@ export function RowActionsTriggerSizesStory(): ReactElement {
         </RowActionsMenu>
       </div>
       <div className="group/row">
-        <RowActionsMenu label="Actions for inline" triggerSize="inline">
+        <RowActionsMenu label={rowActionsName("inline")} triggerSize="inline">
           <MenuItem>
             <Icon icon={Check} size="sm" />
             Apply

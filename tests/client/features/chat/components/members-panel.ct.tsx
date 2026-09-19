@@ -13,6 +13,7 @@
 //     snap-back via the weight chip);
 //   • authority mirroring: a member view exposes only View character; the draft case drops force-turn.
 
+import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MembersKickFocusStory, MembersPanelStory, MembersReseedStory } from "../_ct-stories.tsx";
 
@@ -104,7 +105,7 @@ test("#208: ArrowRight/ArrowLeft reach a character row's trailing controls and c
   // are deliberately NOT used here: they belong to the vertical arm (first/last ROW).
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
-  const kebab = component.getByRole("button", { name: "Actions for Aria" });
+  const kebab = component.getByRole("button", { name: rowActionsName("Aria") });
   await expect(kebab).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(kebab).toBeFocused();

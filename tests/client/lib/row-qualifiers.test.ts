@@ -4,7 +4,7 @@
 // produced N identical accessible names. The escalation must fire ONLY on the collided rows (a longer stamp
 // everywhere is noise), and it must terminate even when two rows are identical to the millisecond.
 
-import { rowQualifiers } from "@orb/client/lib";
+import { rowActionSubject, rowActionsName, rowQualifiers } from "@orb/client/lib";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -76,5 +76,18 @@ describe("rowQualifiers", () => {
 
   test("an empty list is an empty result (no surface has to guard the zero-row case)", () => {
     expect(rowQualifiers([], stamp, absolute)).toEqual([]);
+  });
+});
+
+// The LITERAL control for the house row-action grammar (#2261). Seven components and ~50 CT locators now
+// call `rowActionsName`, so a drifted spelling is a compile error — and so every one of those pins is blind
+// to a COPY change. The wording is pinned once, here, at the builder's own home.
+describe("rowActionsName", () => {
+  test("the house grammar is `Actions for <subject>`", () => {
+    expect(rowActionsName("Azarael")).toBe("Actions for Azarael");
+  });
+
+  test("it composes with the disambiguated subject — the kebab announces what the row shows", () => {
+    expect(rowActionsName(rowActionSubject("Emily", "emily-3"))).toBe('Actions for "Emily" · emily-3');
   });
 });

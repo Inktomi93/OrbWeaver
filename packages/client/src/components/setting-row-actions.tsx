@@ -44,7 +44,7 @@ import { Icon, Link2, RotateCcw, Tag } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement } from "react";
-import { cn, IS_DEV, notify } from "#lib";
+import { cn, IS_DEV, notify, rowActionsName } from "#lib";
 import { formatConfigLink } from "#state";
 import { HIDE_AT_COARSE } from "./pointer-variants.ts";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
@@ -90,7 +90,7 @@ export function SettingRowDevActions({ address, label, binding }: SettingRowActi
   const settingId = `${address.group}.${address.sub}.${address.setting}`;
   return (
     <ActionCell>
-      <RowActionsMenu label={`Actions for ${label}`} triggerSize="inline">
+      <RowActionsMenu label={rowActionsName(label)} triggerSize="inline">
         {binding === null ? null : (
           <>
             <MenuItem

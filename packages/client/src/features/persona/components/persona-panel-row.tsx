@@ -21,7 +21,7 @@ import { useState } from "react";
 import { ConfirmDialog, FINE_INERT_UNTIL_HOVER, ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset, useUploadCaps } from "#data";
-import { cn, downloadTextFile, notify, oversizeUploadMessage, rowActionSubject } from "#lib";
+import { cn, downloadTextFile, notify, oversizeUploadMessage, rowActionSubject, rowActionsName } from "#lib";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
 import { PersonaEditor } from "./persona-editor.tsx";
 import { PersonaPin } from "./persona-pin.tsx";
@@ -349,7 +349,7 @@ function PersonaRowMenu({
         description: deleteCopy(name),
         onConfirm: onDelete,
       }}
-      label={`Actions for ${subject}`}
+      label={rowActionsName(subject)}
     >
       <MenuItem className={ROW_ACTION_OVERFLOW} onClick={onToggleFavorite}>
         <Icon icon={Heart} size="sm" />

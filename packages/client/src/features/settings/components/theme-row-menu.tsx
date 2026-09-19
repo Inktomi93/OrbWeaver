@@ -22,6 +22,7 @@ import { Check, Copy, Download, Icon, Pencil } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { RowActionsMenu } from "#components";
+import { themeActionsName } from "../lib/theme-row-names.ts";
 
 export interface ThemeRowMenuProps {
   readonly theme: Theme;
@@ -63,7 +64,7 @@ export function ThemeRowMenu({ theme, onApply, onEdit, onDuplicate, onExport, on
   // user's row, and a greyed item would teach a capability that does not exist.
   if (theme.isSeed) {
     return (
-      <RowActionsMenu label={`Theme actions: ${theme.name}`} triggerSize="sm">
+      <RowActionsMenu label={themeActionsName(theme.name)} triggerSize="sm">
         {items}
       </RowActionsMenu>
     );
@@ -75,7 +76,7 @@ export function ThemeRowMenu({ theme, onApply, onEdit, onDuplicate, onExport, on
         description: `This permanently deletes "${theme.name}", including its custom CSS. This can't be undone.`,
         onConfirm: onDelete,
       }}
-      label={`Theme actions: ${theme.name}`}
+      label={themeActionsName(theme.name)}
       triggerSize="sm"
     >
       {items}

@@ -20,7 +20,7 @@ import { testId, timeLib } from "#lib";
 import { configAnchorId } from "#state";
 import { useRestartEngine } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_ENGINES_SUBCATEGORY } from "../lib/admin-engines-nav.ts";
-import { engineBadgeIntent } from "../lib/admin-model.ts";
+import { engineBadgeIntent, restartEngineName } from "../lib/admin-model.ts";
 import { EngineLaunchConfig } from "./engine-launch-config.tsx";
 
 const POLL_ACTIVE_MS = 5000;
@@ -79,7 +79,7 @@ export function AdminEnginesSection(): ReactElement {
                     intent="ghost"
                     size="sm"
                     disabled={restart.isPending && restart.pendingVariables?.engine === engine}
-                    aria-label={`Restart engine — ${engine}`}
+                    aria-label={restartEngineName(engine)}
                     onClick={(): void => restart.mutate({ engine })}
                   >
                     Restart

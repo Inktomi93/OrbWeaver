@@ -13,6 +13,7 @@
 // so a single-width receipt would have "passed" on main at the narrow end (re-drive #1099 G6). The three
 // host widths below straddle that: a docked-list desktop, the crossover, and the both-docked column.
 
+import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -251,7 +252,7 @@ test("the modified row's cell carries ONE direct Reset — no menu, no copy verb
   await awaitRows(page);
 
   const row = page.locator(MODIFIED_ROW);
-  await expect(row.getByRole("button", { name: "Actions for Color quoted speech" })).toHaveCount(0);
+  await expect(row.getByRole("button", { name: rowActionsName("Color quoted speech") })).toHaveCount(0);
   const reset = row.getByRole("button", { name: "Reset Color quoted speech to its default" });
   await expect(reset).toHaveCount(1);
   await reset.click();
@@ -294,7 +295,7 @@ test.describe("the dev menu", () => {
 
   test("Reset · separator · Copy id · Copy link, and both copies land their exact spelling", async ({ mount, page }) => {
     await mount(<SettingRowDevMenuStory arm="modified" />);
-    await page.getByRole("button", { name: "Actions for Color quoted speech" }).click();
+    await page.getByRole("button", { name: rowActionsName("Color quoted speech") }).click();
     const menu = page.getByRole("menu");
     await expect(menu.getByRole("menuitem", { name: "Reset to default" })).toBeVisible();
     // Nit 7: the two copy verbs are fenced off from the state-changing one rather than being flat siblings.
@@ -302,7 +303,7 @@ test.describe("the dev menu", () => {
     await menu.getByRole("menuitem", { name: "Copy setting id" }).click();
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("appearance.message-style.color-quoted-speech");
 
-    await page.getByRole("button", { name: "Actions for Color quoted speech" }).click();
+    await page.getByRole("button", { name: rowActionsName("Color quoted speech") }).click();
     await page.getByRole("menu").getByRole("menuitem", { name: "Copy link" }).click();
     await expect
       .poll(async () => {
@@ -314,7 +315,7 @@ test.describe("the dev menu", () => {
 
   test("an UNMODIFIED row's Reset is disabled with its reason; an UNBOUND leaf drops Reset and its separator", async ({ mount, page }) => {
     await mount(<SettingRowDevMenuStory arm="unmodified" />);
-    await page.getByRole("button", { name: "Actions for Color quoted speech" }).click();
+    await page.getByRole("button", { name: rowActionsName("Color quoted speech") }).click();
     const item = page.getByRole("menu").getByRole("menuitem", { name: "Reset to default" });
     await expect(item).toBeVisible();
     await expect(item).toHaveAttribute("data-disabled", "");
@@ -322,7 +323,7 @@ test.describe("the dev menu", () => {
 
   test("an UNBOUND leaf keeps the two Copies and drops Reset — an address is always true", async ({ mount, page }) => {
     await mount(<SettingRowDevMenuStory arm="unbound" />);
-    await page.getByRole("button", { name: "Actions for Color quoted speech" }).click();
+    await page.getByRole("button", { name: rowActionsName("Color quoted speech") }).click();
     const menu = page.getByRole("menu");
     await expect(menu.getByRole("menuitem", { name: "Reset to default" })).toHaveCount(0);
     await expect(menu.getByRole("separator")).toHaveCount(0);

@@ -12,6 +12,7 @@
 // The row's global state is asserted through `aria-pressed` (the affordance's own datum) and the write
 // through the recorded MUTATION INPUT — never through a UI reaction to a stubbed response.
 
+import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DatabankHomeTileAndLibraryStory, DatabankLibraryStory } from "../_ct-stories.tsx";
 import { INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
@@ -81,7 +82,7 @@ test("a wedged row says STALLED on the LIST, not Queued — and carries its reme
     .toContain("Still queued — Reindex can restart a stuck job.");
   // …and the repair it names is one click away on this row's own kebab.
   await row.hover();
-  await list.getByRole("button", { name: "Actions for Treaty of Ashfen", exact: true }).click();
+  await list.getByRole("button", { name: rowActionsName("Treaty of Ashfen"), exact: true }).click();
   await expect(page.getByRole("menuitem", { name: "Reindex" })).toBeVisible();
 });
 
@@ -345,7 +346,7 @@ test("the kebab mirrors Everywhere (N3), offers Reindex, and has NO Duplicate �
   await expect(list.getByText("The Crimson Court")).toBeVisible();
 
   await list.locator('[data-slot="list-row-root"]', { hasText: "The Crimson Court" }).hover();
-  await list.getByRole("button", { name: "Actions for The Crimson Court", exact: true }).click();
+  await list.getByRole("button", { name: rowActionsName("The Crimson Court"), exact: true }).click();
 
   await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Reindex" })).toBeVisible();
@@ -361,7 +362,7 @@ test("Delete goes through the confirm, and reaches the server only after it", as
   await expect(list.getByText("The Crimson Court")).toBeVisible();
 
   await list.locator('[data-slot="list-row-root"]', { hasText: "The Crimson Court" }).hover();
-  await list.getByRole("button", { name: "Actions for The Crimson Court", exact: true }).click();
+  await list.getByRole("button", { name: rowActionsName("The Crimson Court"), exact: true }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
 
   // The destructive verb is dialog-gated: at the SETTLED state with the confirm open, nothing has been sent.

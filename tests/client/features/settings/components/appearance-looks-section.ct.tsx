@@ -15,6 +15,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { themeActionsName } from "@orb/client/features/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -166,7 +167,7 @@ test("a seed's ⋯ offers Apply · Duplicate · Export and NO Delete; an owned t
   await stub(page);
   const component = await mount(<LooksSectionStory />);
 
-  await component.getByRole("button", { name: "Theme actions: Mocha" }).click();
+  await component.getByRole("button", { name: themeActionsName("Mocha") }).click();
   for (const item of ["Apply", "Duplicate", "Export"]) {
     await expect(page.getByRole("menuitem", { name: item })).toBeVisible();
   }
@@ -174,7 +175,7 @@ test("a seed's ⋯ offers Apply · Duplicate · Export and NO Delete; an owned t
   await expect(page.getByRole("menuitem", { name: "Edit in builder" })).toHaveCount(0);
   await page.keyboard.press("Escape");
 
-  await component.getByRole("button", { name: "Theme actions: My Theme" }).click();
+  await component.getByRole("button", { name: themeActionsName("My Theme") }).click();
   for (const item of ["Apply", "Edit in builder", "Duplicate", "Export", "Delete"]) {
     await expect(page.getByRole("menuitem", { name: item })).toBeVisible();
   }
@@ -228,7 +229,7 @@ test("a RENAMED default look is still the current card, and still applies as NUL
   // …and the builder door names the row the collection actually says is current.
   await expect(component.getByRole("button", { name: "New theme from Home fire…" })).toBeVisible();
   // The write half: apply it from the ⋯ (a radio does not re-fire on the already-checked option).
-  await component.getByRole("button", { name: "Theme actions: Home fire" }).click();
+  await component.getByRole("button", { name: themeActionsName("Home fire") }).click();
   await page.getByRole("menuitem", { name: "Apply" }).click();
   await expect.poll(() => trpc.lastInput(APPLY_PROC), { intervals: [20, 50, 100] }).toEqual({ section: "theme", patch: { selectedThemeId: null } });
 });
@@ -236,7 +237,7 @@ test("a RENAMED default look is still the current card, and still applies as NUL
 test("an owned theme's Apply patches through the real write seam", async ({ mount, page }) => {
   const trpc = await stub(page);
   const component = await mount(<LooksSectionStory />);
-  await component.getByRole("button", { name: "Theme actions: My Theme" }).click();
+  await component.getByRole("button", { name: themeActionsName("My Theme") }).click();
   await page.getByRole("menuitem", { name: "Apply" }).click();
   await expect.poll(() => trpc.lastInput(APPLY_PROC), { intervals: [20, 50, 100] }).toEqual({ section: "theme", patch: { selectedThemeId: OWNED.id } });
 });
@@ -279,7 +280,7 @@ test("Edit in builder autosaves an OWNED row — no Save button, no mint", async
   const trpc = await stub(page, { "settings.updateTheme": () => OWNED });
   const component = await mount(<LooksSectionStory />);
 
-  await component.getByRole("button", { name: "Theme actions: My Theme" }).click();
+  await component.getByRole("button", { name: themeActionsName("My Theme") }).click();
   await page.getByRole("menuitem", { name: "Edit in builder" }).click();
   const nameField = component.getByRole("textbox", { name: "Theme name" });
   await expect(nameField).toBeVisible();
@@ -296,7 +297,7 @@ test("Edit in builder autosaves an OWNED row — no Save button, no mint", async
 test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({ mount, page }) => {
   const trpc = await stub(page, { "settings.removeTheme": () => ({}) });
   const component = await mount(<LooksSectionStory />);
-  await component.getByRole("button", { name: "Theme actions: My Theme" }).click();
+  await component.getByRole("button", { name: themeActionsName("My Theme") }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await expect(page.getByText("Delete this theme?")).toBeVisible();
@@ -309,7 +310,7 @@ test("Export downloads the row's own bytes; Import feeds createTheme the parsed 
   const trpc = await stub(page, { "settings.createTheme": () => OWNED });
   const component = await mount(<LooksSectionStory />);
 
-  await component.getByRole("button", { name: "Theme actions: My Theme" }).click();
+  await component.getByRole("button", { name: themeActionsName("My Theme") }).click();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("menuitem", { name: "Export" }).click();
   const download = await downloadPromise;

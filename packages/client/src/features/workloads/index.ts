@@ -9,5 +9,6 @@ export { backupGroup } from "./lib/backup-group.tsx";
 export { backupImportSection } from "./lib/backup-import-section.tsx";
 export { workloadsGroup } from "./lib/workloads-group.tsx";
 export { workloadsJobsSection } from "./lib/workloads-jobs-section.tsx";
+export { WORKLOAD_KIND_LABELS } from "./lib/workloads-model.ts";
 export { workloadsSchedulesSection } from "./lib/workloads-schedules-section.tsx";
 export { workloadsTuningSection } from "./lib/workloads-tuning-section.tsx";

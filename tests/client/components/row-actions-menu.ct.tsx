@@ -17,6 +17,8 @@
 // absolutely-positioned `::after` (button/variants.ts), so a bounding-box-only read would fail a control
 // that is in fact conformant — the same union the @orb/ui touch-target-floor suite performs, extended to
 // `::after` because that is the pseudo this axis uses.
+
+import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { RowActionsTriggerSizesStory } from "./row-actions-menu.fixtures.tsx";
@@ -80,7 +82,7 @@ test.describe("under a coarse pointer", () => {
       .toBeGreaterThanOrEqual(44);
     const floor = await resolvedTouchFloorPx(page);
     for (const arm of ARMS) {
-      const trigger = component.getByRole("button", { name: `Actions for ${arm}`, exact: true });
+      const trigger = component.getByRole("button", { name: rowActionsName(arm), exact: true });
       await expect.poll(() => shortSide(trigger), { intervals: [20, 50, 100], message: `triggerSize="${arm}"` }).toBeGreaterThanOrEqual(floor);
     }
   });
@@ -92,7 +94,7 @@ test.describe("under a fine pointer", () => {
     expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches), "the CT default context is a mouse").toBe(true);
     const floor = await resolvedTouchFloorPx(page);
     for (const arm of ARMS) {
-      const trigger = component.getByRole("button", { name: `Actions for ${arm}`, exact: true });
+      const trigger = component.getByRole("button", { name: rowActionsName(arm), exact: true });
       await expect.poll(() => shortSide(trigger), { intervals: [20, 50, 100], message: `triggerSize="${arm}"` }).toBeGreaterThanOrEqual(floor);
     }
   });

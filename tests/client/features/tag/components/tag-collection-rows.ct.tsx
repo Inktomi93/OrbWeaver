@@ -11,6 +11,7 @@
 // exactly these values — is pinned in `tests/client/features/config/components/config-collection-landing.ct.tsx`.
 // Nothing was dropped; the two halves are asserted where each is drawn.
 
+import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "../../../../support/browser/ink-void.ts";
@@ -116,7 +117,7 @@ test("the row's kebab carries Delete, confirms with the usage cascade, and fires
 
   // §12.2: the kebab rests hidden + inert like every row affordance, so reach it by hovering the row first.
   await rows.locator('[data-slot="list-row-root"]', { hasText: "adventure" }).hover();
-  await rows.getByRole("button", { name: "Actions for adventure", exact: true }).click();
+  await rows.getByRole("button", { name: rowActionsName("adventure"), exact: true }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
 
   await expect(page.getByRole("alertdialog")).toBeVisible();
@@ -132,7 +133,7 @@ test("the kebab Delete ASKS FIRST — cancelling the confirm fires nothing", asy
   const trpc = await stub(page);
   const rows = await mount(<TagCollectionRowsStory />);
   await rows.locator('[data-slot="list-row-root"]', { hasText: "adventure" }).hover();
-  await rows.getByRole("button", { name: "Actions for adventure", exact: true }).click();
+  await rows.getByRole("button", { name: rowActionsName("adventure"), exact: true }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();

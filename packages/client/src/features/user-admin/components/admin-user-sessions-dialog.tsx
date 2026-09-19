@@ -16,6 +16,7 @@ import { ConfirmDialog, FormDialog } from "#components";
 import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
+import { revokeSessionName } from "../lib/admin-model.ts";
 
 export interface AdminUserSessionsDialogProps {
   readonly userId: UserId;
@@ -81,7 +82,7 @@ export function AdminUserSessionsDialog(props: AdminUserSessionsDialogProps): Re
                     intent="destructive"
                     size="sm"
                     disabled={mutating}
-                    aria-label={`Revoke session — ${session.userAgent ?? session.id}`}
+                    aria-label={revokeSessionName(session.userAgent ?? session.id)}
                     onClick={(): void => revokeOne.mutate({ sessionId: session.id })}
                   >
                     Revoke

@@ -8,6 +8,7 @@
 // aggregation (ONE footer, error > saved, inline retry AT the failing section, nav marker) · P5 nav/search
 // parity for the subs that moved or were absorbed · the §7.4 sub-level deep link.
 
+import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -183,7 +184,7 @@ test("library entries render as tiles; Remove-from-library of the selected entry
   await expect(grid.getByRole("gridcell", { name: "My forest" })).toBeVisible();
   await expect(grid.getByRole("gridcell", { name: "My dock" })).toHaveAttribute("aria-selected", "true");
 
-  await page.getByRole("button", { name: "Actions for My dock" }).click();
+  await page.getByRole("button", { name: rowActionsName("My dock") }).click();
   await page.getByRole("menuitem", { name: "Remove from library" }).click();
   await expect
     .poll(

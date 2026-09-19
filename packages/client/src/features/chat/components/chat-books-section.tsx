@@ -38,6 +38,7 @@ import { useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { rowActionsName } from "#lib";
 import { useDetachBookFromChat } from "../hooks/use-chat-book-mutations.ts";
 import { AddChatBookDialog } from "./add-chat-book-dialog.tsx";
 
@@ -116,7 +117,7 @@ function ChatBookRow({ book, isHost, onDetach }: ChatBookRowProps): ReactElement
       {...(isHost
         ? {
             actions: (
-              <RowActionsMenu label={`Actions for ${book.name}`}>
+              <RowActionsMenu label={rowActionsName(book.name)}>
                 <MenuItem onClick={onDetach}>
                   <Icon icon={Unlink} size="sm" />
                   Detach from this chat

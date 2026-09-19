@@ -37,7 +37,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog, HIDE_AT_COARSE, ROW_REVEAL, SettingCheckboxRow } from "#components";
-import { cn } from "#lib";
+import { cn, rowActionsName } from "#lib";
 import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows.ts";
 import { rowAccessibleName } from "../lib/member-rows.ts";
 import { buildMenuItems } from "./member-row-menu.tsx";
@@ -148,7 +148,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
           intent="ghost"
           size="icon"
           tabIndex={-1}
-          aria-label={`Actions for ${row.displayName}`}
+          aria-label={rowActionsName(row.displayName)}
           onClick={(): void => bodyRef.current?.click()}
         >
           <Icon icon={MoreHorizontal} size="sm" />
