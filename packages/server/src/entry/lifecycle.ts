@@ -838,6 +838,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       await drainHttpServer(server, log);
       server = null;
       listenerAddress = null;
+      // STAGE BREADCRUMB (#1936). Everything between `draining` and `complete` used to be silent, so when
+      // `stack down prod` escalated to SIGKILL the log said only that the process had not finished — never
+      // WHICH stage it was in, which is the whole reason the original report could not be diagnosed. The
+      // bounded drain announces only its FORCED path (a warn); this is the quiet one. Measured 2026-09-19 on
+      // an isolated prod instance: 12 ms idle, and exactly 10.001 s with one in-flight request.
+      log.info("shutdown: http drained");
     }
     if (stopScheduler !== null) {
       stopScheduler();
@@ -854,6 +860,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     if (stopWorker !== null) {
       const worker = stopWorker;
       stopWorker = null;
+      // STAGE BREADCRUMB (#1936) — announced BEFORE the await, because this join is UNBOUNDED: the abort is
+      // cooperative and `settled` waits for whatever job is mid-run. It is one of the two stages that can
+      // hold the process past the launcher's 15s watch, and the only way an operator can know it did.
+      log.info("shutdown: joining the workloads worker");
       await drainWorkloadsWorker(worker);
     }
     if (stopBuddyObserver !== null) {
@@ -876,6 +886,11 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       stopLocalLightPrefetch = null;
     }
     if (db !== null) {
+      // STAGE BREADCRUMB (#1936) — the SECOND unbounded stage, and the last thing between here and exit:
+      // `PRAGMA optimize` + `wal_checkpoint(TRUNCATE)` (`@orb/db`'s `preCloseHousekeeping`), whose cost is a
+      // function of the db, not of a timeout we control. Announced before the await for the same reason as
+      // the worker join: a shutdown that stalls here must say so rather than look identical to a wedge.
+      log.info("shutdown: db housekeeping");
       await preCloseHousekeeping(db);
       db = null;
     }

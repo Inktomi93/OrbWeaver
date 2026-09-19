@@ -449,6 +449,30 @@ test("the drain watch reads the server's own shutdown lines", () => {
   expect(classifyDrainTail("shutdown: draining")).toBe("pending");
 });
 
+// #1936 — THE STAGE BREADCRUMBS MUST STAY NON-TERMINAL. `shutdown()` now announces each stage it enters
+// (`http drained` / `joining the workloads worker` / `db housekeeping`) so an escalation says WHICH stage
+// was in flight; until then everything between `draining` and `complete` was silent, which is why the
+// original report could not be diagnosed. They share this classifier's `shutdown: ` prefix, so a future
+// breadcrumb worded "shutdown: complete db housekeeping" would make `down` declare a clean shutdown while
+// the process was still checkpointing. This row is what makes that wording red.
+test("the stage breadcrumbs are progress, never a terminal verdict", () => {
+  for (const line of ['{"msg":"shutdown: http drained"}', '{"msg":"shutdown: joining the workloads worker"}', '{"msg":"shutdown: db housekeeping"}']) {
+    expect(classifyDrainTail(`{"msg":"shutdown: draining"}\n${line}\n`), `${line} must not be read as a terminal outcome`).toBe("pending");
+  }
+  // …and a real sequence still terminates on the line that means it: the breadcrumbs do not mask `complete`.
+  expect(classifyDrainTail('{"msg":"shutdown: http drained"}\n{"msg":"shutdown: db housekeeping"}\n{"msg":"shutdown: complete"}\n')).toBe("complete");
+});
+
+// The breadcrumbs are emitted by the server, read by this tool, and coupled by their exact TEXT — the same
+// two-sided pin `SERVER_DRAIN_MS` gets below, for the same reason: a silent rename on the server side would
+// leave the classifier's sibling row above green while the operator's log lost the stage it names.
+test("the server still emits the stage breadcrumbs this classifier is written against", () => {
+  const source = readFileSync(new URL("../../../packages/server/src/entry/lifecycle.ts", import.meta.url), "utf8");
+  for (const breadcrumb of ["shutdown: http drained", "shutdown: joining the workloads worker", "shutdown: db housekeeping"]) {
+    expect(source, `entry/lifecycle.ts no longer logs "${breadcrumb}"`).toContain(`log.info("${breadcrumb}")`);
+  }
+});
+
 test("SERVER_DRAIN_MS still matches the server's own SHUTDOWN_DRAIN_MS", () => {
   // The constant is not exported from @orb/server, so it is restated in the kit. This two-sided pin is
   // what stops the restatement from silently rotting into a restart that gives up too early.
