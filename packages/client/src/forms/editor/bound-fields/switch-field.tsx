@@ -19,10 +19,10 @@ export function SwitchField(props: SwitchFieldProps): ReactElement {
   const { field, fieldProps } = useBoundField<boolean>(props);
   return (
     <Field {...fieldProps}>
-      {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- #579 source-verified: association
-          flows through Base UI's FieldRootContext at render time (Base UI's `Switch.Root` reads it
-          internally to inject `aria-labelledby`), never as a literal JSX prop on this element, so no
-          `control-has-associated-label` option (labelAttributes/controlComponents/depth) can see it. */}
+      {/* No `control-has-associated-label` suppression since #1633: `jsx-a11y`'s components map now resolves
+          `Switch` to `input`, which that rule's `ignoreElements` carries, so the render-time FieldRootContext
+          `aria-labelledby` injection the rule is structurally blind to no longer costs a directive here.
+          `SelectField` still pays one — `Select` maps to `select`, which the list does not carry. */}
       <Switch
         checked={field.state.value}
         onCheckedChange={(checked): void => {

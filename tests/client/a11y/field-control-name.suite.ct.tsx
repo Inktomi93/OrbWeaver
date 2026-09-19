@@ -23,21 +23,21 @@
 //   Input   (ctl) | the Field's label      | DEAD           — #1587 removed 5
 //   Textarea      | the Field's label      | DEAD           — #1621 removed 2
 //   Combobox      | the Field's label      | DEAD           — #1621 removed 1
-//   Switch        | the Field's label      | DEAD IN THE TREE, KEPT — the lint floor consumes it (below)
+//   Switch        | the Field's label      | DEAD           — #1633 removed 6 once the lint floor let go
 //   Select        | the Field's label      | DEAD on the trigger, KEPT — the hidden input consumes it (below)
 //   NumberField   | the Field's label      | LOAD-BEARING — it names the two STEPPER buttons (side-eye F-20)
 //   ToggleGroup   | its OWN aria-label     | LOAD-BEARING — and it is the group's ONLY name
 //
-// THE SWITCH NOTE — why six measured-dead attributes still stand, and the reason is NOT accessibility.
-// `eslint.config.js` maps `Switch` to `button` for `jsx-a11y`, and `button` is not in
-// `control-has-associated-label`'s `ignoreElements` list (`Input`, `Textarea`, `Select`, `Checkbox` are). The
-// rule is blind to the render-time `FieldRootContext` injection by construction — its own config comment says
-// so — so a bare `<Switch>` inside a `<Field>` is RED at every call site. The house answer is a cited
-// suppression, and the house pays it ONCE at the wrapper (`forms/editor/bound-fields/switch-field.tsx:22`, minted
-// #579), not six times at call sites; six new suppressions also exceed the `suppressions` ratchet's per-file
-// budgets, whose baseline is not this lane's to regenerate. So the attributes stay with the honest comment —
-// they are a LINT obligation, not a name anyone hears — and the class-level fix (teach `jsx-a11y` the house
-// association, or widen `ignoreElements`) is an `eslint.config.js` change, which is owner-held (#1584).
+// THE SWITCH NOTE — RESOLVED BY #1633, and the resolution is the reason this row now reads like the others.
+// Until 2026-09-19 six measured-dead `aria-label`s stood on `<Switch>`es inside a `<Field>` for a reason that
+// was NOT accessibility: `eslint.config.js` mapped `Switch` to `button` for `jsx-a11y`, and `button` is not in
+// `control-has-associated-label`'s `ignoreElements`, so a bare `<Switch>` was RED at every call site — the
+// rule resolves the tag through the components map BEFORE testing that list, which is also why the `"Switch"`
+// entry sitting IN the list was inert. The class fix remapped `Switch` to `input` (the semantic proxy
+// `Checkbox` has taken since #579; Base UI renders both as a button plus a hidden input), so the six
+// attributes and the wrapper's cited suppression are gone. What this file still owns is the MEASUREMENT: the
+// lint floor no longer consumes the attribute, so the `Switch own` row below is the only thing standing
+// between a re-added `aria-label` and a caller believing it names something.
 //
 // THE SELECT NOTE, because "dead on the trigger" is not the whole answer. `select.tsx` also stamps a name on
 // the hidden form input Base UI renders for submission, and it sources that from the caller's `aria-label`
