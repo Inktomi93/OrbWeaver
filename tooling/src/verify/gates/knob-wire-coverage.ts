@@ -156,7 +156,7 @@ export const gate = defineGate({
       grant: { subject: "appSettingsSchema.ghostB2", operation: KNOB_WIRE_OPERATIONS.adminKey },
       files: {
         [SETTINGS]: appSettings("z.object({ ghostB2: z.boolean() })"),
-        "packages/client/src/features/settings/lib/x.ts": "export const somethingElse = 1;\n",
+        "packages/client/src/features/config/lib/x.ts": "export const somethingElse = 1;\n",
         "packages/client/src/features/other/x.ts": "declare const view: { ghostB2?: boolean };\nexport const a = view.ghostB2;\n",
       },
       expect: { count: 1, token: "ghostB2", messageIncludes: "no write field in the admin surfaces" },
@@ -168,7 +168,7 @@ export const gate = defineGate({
       grant: { subject: "appSettingsSchema.ghostBracket", operation: KNOB_WIRE_OPERATIONS.adminKey },
       files: {
         [SETTINGS]: appSettings('z["object"]({ ghostBracket: z["boolean"]() })'),
-        "packages/client/src/features/settings/lib/x.ts": "export const somethingElse = 1;\n",
+        "packages/client/src/features/config/lib/x.ts": "export const somethingElse = 1;\n",
         "packages/client/src/features/other/x.ts": "declare const view: { ghostBracket?: boolean };\nexport const a = view.ghostBracket;\n",
       },
       expect: { count: 1, token: "ghostBracket", messageIncludes: "no write field in the admin surfaces" },
@@ -183,7 +183,7 @@ export const gate = defineGate({
           "z.object({ ...GHOST_APP_SHAPE_PROBE, wiredInlineAppKey: z.boolean() })",
           "const GHOST_APP_SHAPE_PROBE = { ghostSpreadAppKey: z.boolean() };\n",
         ),
-        "packages/client/src/features/settings/lib/x.ts": "export const wiredInlineAppKey = 1;\n",
+        "packages/client/src/features/config/lib/x.ts": "export const wiredInlineAppKey = 1;\n",
       },
       expect: { count: 3, token: "ghostSpreadAppKey", messageIncludes: "no write field in the admin surfaces" },
       why: "arm B2 spread red: an AppSettings key composed through an object spread still owes an admin write field — the PropertyAssignment-only reader dropped it from arms B2 AND C while the inline twin RED'd (#1094 G4). THREE findings is the point: arms B2 and C report the SAME authored node for ghostSpreadAppKey and arm C also reports wiredInlineAppKey, which is why this policy's authority must be reviewed-grant (two distinct operations at one carrier) and why this row carries no grant witness.",
@@ -342,7 +342,7 @@ export const gate = defineGate({
         "packages/contracts/src/settings/base-app.ts": 'import { z } from "zod";\nexport const baseAppSchema = z.object({ wiredBaseKey: z.boolean() });\n',
         [SETTINGS]:
           'import { z } from "zod";\nimport { baseAppSchema } from "./base-app.ts";\nexport const USER_SETTINGS_SECTIONS = [] as const;\nexport const appSettingsSchema = baseAppSchema.extend({ ...baseAppSchema.shape, wiredExtendKey: z.boolean() });\n',
-        "packages/client/src/features/settings/lib/x.ts":
+        "packages/client/src/features/config/lib/x.ts":
           "declare const view: { wiredBaseKey?: boolean; wiredExtendKey?: boolean };\nexport const a = view.wiredBaseKey;\nexport const b = view.wiredExtendKey;\n",
       },
       why: "arms B2/C composed green: an imported base through `.extend` plus a `{ ...base.shape }` re-spread resolves to exactly its two keys, and a spread that only RE-declares the base's key is a contribution (the tally counts declared members, not new ones) — never a zero-contribution refusal",

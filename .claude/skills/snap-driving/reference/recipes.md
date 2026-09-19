@@ -9,7 +9,7 @@ outranks this file. Redirect every run to a log and Read it (SKILL.md §0); neve
 
 ```bash
 pnpm snap / --goto presets --map
-pnpm snap / --goto settings:appearance --aria
+pnpm snap / --goto config:appearance --aria
 pnpm snap / --goto modal:theme --shot-of '[role=dialog]'
 ```
 
@@ -43,7 +43,7 @@ The contact sheet starts before the ordered action tape and stops after settle. 
 labelled with its relative timestamp and most recent action; the RESULT/index points at the exact PNG.
 
 ```bash
-pnpm snap / --goto settings:appearance --filmstrip \
+pnpm snap / --goto config:appearance --filmstrip \
             --click 'role=button[name="Theme"]' --pause 700 --out theme-transition
 ```
 

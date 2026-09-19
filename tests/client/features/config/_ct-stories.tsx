@@ -9,6 +9,13 @@
 //
 // The `reset groups` button is determinism, not product: the disclosure store is device-local
 // (localStorage), and a CT that inherited another run's expanded set would assert the wrong first frame.
+//
+// THE LOOKS + GROUP-SKIMMER STORIES AT THE FOOT arrived with #2447, when `features/settings` folded into
+// this feature (owner ruling 2026-09-19). They kept their posture exactly: the LOOKS section (the theme
+// picker + builder) mounts DIRECTLY because it is a section body, while the two `sections`-skimmer group
+// definitions (Appearance · Chat behavior) mount ONLY through `ConfigHostStory` — a skimmer has no surface
+// of its own. Their old home, `tests/client/features/settings/_ct-stories.tsx`, reached `ConfigHostStory`
+// across a directory; here it is a local function.
 
 import { AppShell } from "@orb/client/features/app-shell";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
@@ -30,6 +37,7 @@ import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+import { AppearanceLooksSection } from "../../../../packages/client/src/features/config/components/appearance-looks-section.tsx";
 import { makeConfigSection } from "../../../../packages/client/src/features/config/lib/config-section.tsx";
 import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "../../../../packages/client/src/features/config/surfaces/config-list-surface.tsx";
@@ -326,4 +334,68 @@ export function ConfigPaletteStory(): ReactElement {
       </CtRealConfigSectionRegistry>
     </CtDataProviders>
   );
+}
+
+/** The LOOKS section alone (its `listThemes` + `getUserSettings` reads stubbed per-test via routeTrpc) —
+ *  the picker cards, Your-themes rows, and the inline builder, at the CONTENT pane's comfortable width. */
+export function LooksSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ width: 760 }}>
+          <AppearanceLooksSection />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** The narrowest REAL host — the pushed phone pane (~430px). FIXED width + `overflow: visible` so an
+ *  over-wide row genuinely overflows and containment assertions can fire (the content-sized-mount lesson
+ *  from the retired theme-picker narrow story, carried forward). */
+export function LooksSectionNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div data-testid="looks-narrow-host" style={{ overflow: "visible", width: 430 }}>
+          <AppearanceLooksSection />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** The LOOKS section OPENED TWICE (#1100). `reopen` re-keys the provider stack, so the second open gets a
+ *  FRESH QueryClient and genuinely re-reads `listThemes` — the shape of a user leaving the Appearance group
+ *  and coming back. The tail sentinel sits directly under the section: whatever the section does while its
+ *  read is in flight, it does to that sentinel's y. */
+export function LooksSectionReopenStory(): ReactElement {
+  const [open, setOpen] = useState(0);
+  return (
+    <>
+      <button type="button" onClick={(): void => setOpen((n) => n + 1)}>
+        reopen
+      </button>
+      <CtDataProviders key={open}>
+        <TooltipProvider>
+          <div style={{ width: 760 }}>
+            <AppearanceLooksSection />
+            <div data-testid="looks-tail" style={{ height: 8 }} />
+          </div>
+        </TooltipProvider>
+      </CtDataProviders>
+    </>
+  );
+}
+
+/** The REAL appearance group, driven through the config host — the ONLY way to mount the skimmer since
+ *  SET-SEAMS stage 1. Deep-linked so it lands cold on appearance with the REAL door-ordered section
+ *  registry, the aggregate save-status footer and the derived LIST rows — the production path. */
+export function AppearanceGroupStory(): ReactElement {
+  return <ConfigHostStory target="appearance" height={900} width={1160} />;
+}
+
+/** The REAL chat-behavior group, same posture. */
+export function ChatBehaviorGroupStory(): ReactElement {
+  return <ConfigHostStory target="chat-behavior" height={900} width={1160} />;
 }

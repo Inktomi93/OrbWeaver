@@ -1,7 +1,7 @@
 // The Library settings-SECTION CONTRIBUTION (client-architecture-lockdown.md §6c) — the co-located
 // definition the character feature exports on its front door; the composition root (main.tsx) assembles it
 // into the appearance pane's settings-section registry (G8). Character OWNS this knob (`library.pageSize` is
-// read by character-library-surface), so it lands here instead of staying inside features/settings.
+// read by character-library-surface), so it lands here instead of staying inside the config host.
 
 import type { ConfigSectionContribution } from "#state";
 import { LibrarySettingsSection } from "../components/library-settings-section.tsx";

@@ -6,7 +6,7 @@
 //
 // A settings-SECTION CONTRIBUTION (client-architecture-lockdown.md §6c / pain-point §7): world-info OWNS
 // this section, contributed into the chat-behavior pane via the settings-section seam — never grown into
-// features/settings. Homed in components/ (NOT surfaces/): a FRAGMENT mounted INSIDE the chat-behavior pane
+// features/config. Homed in components/ (NOT surfaces/): a FRAGMENT mounted INSIDE the chat-behavior pane
 // surface, which owns containment + focus (extracted-fragment precedent; client-structure +
 // surface-a11y-focus do not apply).
 

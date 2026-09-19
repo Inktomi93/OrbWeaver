@@ -75,23 +75,38 @@ test("parseGotoTarget maps a bare id to the section method", () => {
   expect(parseGotoTarget("chats")).toEqual({ method: "section", arg: "chats" });
 });
 
-test("parseGotoTarget decodes settings:<group> to openConfig (the CLI keeps its word; the modal retired into the section)", () => {
-  expect(parseGotoTarget("settings:appearance")).toEqual({ method: "openConfig", arg: "appearance" });
-  expect(parseGotoTarget("settings:appearance.sizing")).toEqual({ method: "openConfig", arg: "appearance", sub: "sizing" });
+test("parseGotoTarget decodes config:<group> to openConfig, and refuses an unknown namespace head", () => {
+  expect(parseGotoTarget("config:appearance")).toEqual({ method: "openConfig", arg: "appearance" });
+  expect(parseGotoTarget("config:appearance.sizing")).toEqual({ method: "openConfig", arg: "appearance", sub: "sizing" });
   // A category that itself contains a colon keeps everything after the FIRST prefix.
-  expect(parseGotoTarget("settings:chat-behavior")).toEqual({ method: "openConfig", arg: "chat-behavior" });
+  expect(parseGotoTarget("config:chat-behavior")).toEqual({ method: "openConfig", arg: "chat-behavior" });
+});
+
+test("parseGotoTarget REFUSES an unknown `<word>:` namespace instead of decoding it as a rail section (#2447)", () => {
+  // THE ARM THAT MAKES THE `settings:` → `config:` RENAME HONEST. Without it the retired spelling falls
+  // through to `{ method: "section", arg: "settings:appearance" }`, the bridge is handed a section id no
+  // rail carries, and the failure surfaces — if it surfaces at all — as something other than "you typed the
+  // old word". No rail section id contains a colon (`packages/client/src/state/section-ids.ts`), so this is
+  // the grammar failing closed on ANY unknown namespace, not an alias table for one retired spelling.
+  expect(() => parseGotoTarget("settings:appearance")).toThrow('opens the unknown namespace "settings:"');
+  expect(() => parseGotoTarget("settings:appearance")).toThrow("config:<group>[.<sub>[.<setting>]]");
+  expect(() => parseGotoTarget("pane:you")).toThrow('opens the unknown namespace "pane:"');
+  // The control in the same test: the two LIVE namespaces and a bare section id are untouched by the arm.
+  expect(parseGotoTarget("config:appearance")).toEqual({ method: "openConfig", arg: "appearance" });
+  expect(parseGotoTarget("modal:you")).toEqual({ method: "openModal", arg: "you" });
+  expect(parseGotoTarget("chats")).toEqual({ method: "section", arg: "chats" });
 });
 
 test("parseGotoTarget decodes the THIRD part — a setting LEAF — the bridge has taken since #1176", () => {
-  expect(parseGotoTarget("settings:appearance.sizing.density")).toEqual({ method: "openConfig", arg: "appearance", sub: "sizing", setting: "density" });
+  expect(parseGotoTarget("config:appearance.sizing.density")).toEqual({ method: "openConfig", arg: "appearance", sub: "sizing", setting: "density" });
 });
 
 test("parseGotoTarget REFUSES an address the config grammar cannot spell instead of silently truncating it", () => {
-  // The grammar is `settings:<group>[.<sub>[.<setting>]]` — the same three-part address `openConfigTo` and
+  // The grammar is `config:<group>[.<sub>[.<setting>]]` — the same three-part address `openConfigTo` and
   // the `/config?to=g.s.l` copy-link take. A fourth part named nothing and used to be dropped by
   // `split(".", 2)`, so the probe navigated somewhere ELSE and reported success (the lying-nav class).
-  expect(() => parseGotoTarget("settings:appearance.sizing.density.extra")).toThrow("settings:<group>[.<sub>[.<setting>]]");
-  expect(() => parseGotoTarget("settings:appearance..density")).toThrow("empty");
+  expect(() => parseGotoTarget("config:appearance.sizing.density.extra")).toThrow("config:<group>[.<sub>[.<setting>]]");
+  expect(() => parseGotoTarget("config:appearance..density")).toThrow("empty");
 });
 
 test("parseGotoTarget decodes modal:<slot> to openModal", () => {

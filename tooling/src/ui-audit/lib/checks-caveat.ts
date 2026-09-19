@@ -32,7 +32,7 @@ import type { TextStyleInput } from "../contract/samples.ts";
 // THE FRAMING WAS CHOSEN BY MEASUREMENT, NOT BY TASTE. The issue offered two candidate anchors — the
 // app's own `voice` axis, or the platform's ARIA roles. The voice arm was BUILT FIRST and REFUSED on its
 // band: anchored on `data-voice="gloss"` it fired 21 times across 18 live surfaces (8 on
-// settings:connections alone, 6 on the chat context tab), and reading them showed why — a gloss sentence
+// config:connections alone, 6 on the chat context tab), and reading them showed why — a gloss sentence
 // under a heading, an accordion trigger, or a `stat-figure-value` is the RATIFIED caption pattern, not an
 // inversion. A caption under a big number is what a caption is for. That rule was a wall, and a wall
 // trains readers to skip the output (#644), so the anchor was narrowed to the one authored claim that

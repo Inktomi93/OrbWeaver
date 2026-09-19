@@ -15,8 +15,7 @@ import type { Page } from "@playwright/test";
 import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/browser/settings-geometry.ts";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { ConfigHostStory } from "../../config/_ct-stories.tsx";
-import { ChatBehaviorGroupStory } from "../_ct-stories.tsx";
+import { ChatBehaviorGroupStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_chat_behavior_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";

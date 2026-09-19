@@ -1488,7 +1488,7 @@ auditRuleTest(
 
 // ── row-void (#978): the label and its control, with an ocean between ────────────────────────────────
 // "Every setting row is two lonely islands with an ocean between them." Both islands measure fine on
-// their own; the defect is the distance. Live on settings:appearance this reports 712px of 829px (86%)
+// their own; the defect is the distance. Live on config:appearance this reports 712px of 829px (86%)
 // between "Your themes" and its control.
 function voidRowPage(rowWidthPx: number, spread: "between" | "gap"): string {
   const justify = spread === "between" ? "justify-content:space-between" : "gap:16px";
@@ -1789,7 +1789,7 @@ auditRuleTest(
 // ── THE CONTENT-DRIVEN COHORT PLANT (#978 repair) ────────────────────────────────────────────────────
 // cohort-anatomy first shipped assuming a shared data-slot implies a shared intended height. True for
 // the F1 case (16px config-band buttons beside 32px twins, identical content); false for a settings row
-// whose height is set by what it holds. Live on settings:appearance it reported a 234px theme-picker row
+// whose height is set by what it holds. Live on config:appearance it reported a 234px theme-picker row
 // against its 34px button sibling — half the findings on that surface were this shape.
 function contentDrivenRowPage(tallChildPx: number): string {
   const rows = [tallChildPx, 24, 24].map((childPx) => `<div data-slot="setting-row"><div style="height:${String(childPx)}px">row</div></div>`).join("\n  ");

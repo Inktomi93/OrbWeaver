@@ -142,7 +142,7 @@ test("quiet-state records a cohort that paints no fill of its own as a closed ex
 });
 
 // ── #1155: the paint UNDER a state carrier, and the checked-only PART cohort ────────────────────────
-// Measured on the live Settings -> Appearance (2026-09-02, `pnpm snap / --goto settings:appearance --design-audit
+// Measured on the live Settings -> Appearance (2026-09-02, `pnpm snap / --goto config:appearance --design-audit
 // --viewport 1280x2200`): all three surviving quiet-state cohorts came back `withheld(unresolved)` with
 // ONE cause — `resolveBackdrop` refused `paint-layer-over-base`, and the layer it named was the checked
 // cell's own `Radio.Indicator`: a contentless, absolutely-positioned, painted span, which is precisely

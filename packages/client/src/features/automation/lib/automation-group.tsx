@@ -6,7 +6,7 @@
 // surface — list + picker + the owner rate ceiling (interaction-direction-spec §7 C5), as the two
 // contributions beside this file (`automation-library-rules-section.tsx` · `automation-budget-section.tsx`).
 // A group belongs to the feature whose surface it is, which is why this definition lives in
-// `features/automation` and not in `features/settings`.
+// `features/automation` and not in `features/config` (the config HOST, which owns no group of its own).
 
 import { Zap } from "@orb/ui/icons";
 import type { ConfigGroupDefinition } from "#state";

@@ -3,7 +3,7 @@
 // path — memory was permanently OFF for every user unless raw-API-patched. This section is the write path.
 //
 // It is a settings-SECTION CONTRIBUTION (client-architecture-lockdown.md §6c / pain-point §7), NOT a pane
-// in features/settings: the chat/memory subsystem OWNS it, contributing it into the chat-behavior pane via
+// in features/config: the chat/memory subsystem OWNS it, contributing it into the chat-behavior pane via
 // the settings-section seam (`ConfigSectionContribution`) assembled at the door. Reads getUserSettings
 // (cache-first — a hit, the host pane already loaded it) and autosaves through
 // updateUserSettingsSection("memory"), which emits settingsChanged → the USER_BUS refetches so the turn

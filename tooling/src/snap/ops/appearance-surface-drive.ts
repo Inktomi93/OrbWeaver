@@ -26,7 +26,7 @@ function appearanceSurfaceNav(row: RuntimeAppearanceHistoricalRow): readonly ["g
     return ["open-chat", "latest", '[data-slot="message-row"]'];
   }
   if (row.surface === "config-sizing") {
-    return ["goto", "settings:appearance.sizing", '[data-slot="density-preview"]'];
+    return ["goto", "config:appearance.sizing", '[data-slot="density-preview"]'];
   }
   return ["goto", "home", ".shell-grid"];
 }

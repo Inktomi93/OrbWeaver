@@ -6,12 +6,12 @@
 // story that mounts the LIST/CONTENT panes directly takes them from here too.
 
 import { automationGroup } from "@orb/client/features/automation";
+import { appearanceGroup, chatBehaviorGroup } from "@orb/client/features/config";
 import { connectionsGroup } from "@orb/client/features/credentials";
 import { personasGroup } from "@orb/client/features/persona";
 import { pluginsGroup } from "@orb/client/features/plugin";
 import { regexGroup } from "@orb/client/features/regex";
 import { rosterGroup } from "@orb/client/features/roster-preset";
-import { appearanceGroup, chatBehaviorGroup } from "@orb/client/features/settings";
 import { tagsGroup } from "@orb/client/features/tag";
 import { adminGroup } from "@orb/client/features/user-admin";
 import { backupGroup, workloadsGroup } from "@orb/client/features/workloads";

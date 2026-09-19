@@ -1,7 +1,7 @@
 // The World-info settings-SECTION CONTRIBUTION (Phase B ② / client-architecture-lockdown.md §6c) — the
 // co-located definition the world-info feature exports on its front door; the composition root (main.tsx)
 // assembles it into the chat-behavior pane's settings-section registry (G8). World-info OWNS this section,
-// so it lands here instead of growing features/settings (pain-point §7).
+// so it lands here instead of growing the config host (pain-point §7).
 
 import type { ConfigSectionContribution } from "#state";
 import { WorldInfoSettingsSection } from "../components/world-info-settings-section.tsx";

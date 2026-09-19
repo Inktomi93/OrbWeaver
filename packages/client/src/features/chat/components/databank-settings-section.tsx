@@ -5,7 +5,7 @@
 //
 // A settings-SECTION CONTRIBUTION (client-architecture-lockdown.md §6c / pain-point §7) at the chat-behavior
 // anchor: chat OWNS the {{databank}} slot's consumption (the gather is chat's op), so it contributes the
-// tuning here rather than growing features/settings (the memory-section precedent). Reads getUserSettings
+// tuning here rather than growing features/config (the memory-section precedent). Reads getUserSettings
 // (cache-first) and autosaves through updateUserSettingsSection("databank") — a ≥3-field form, so it rides
 // the autosave form factory (D54 §13.4). The `chunk` (ingest-only) params round-trip untouched through the
 // section-patch deep-merge. Homed in components/ (a fragment inside the chat-behavior pane surface, which

@@ -220,7 +220,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     policyId: "knob-wire-coverage",
     subject: "appSettingsSchema.importSkipCharacters",
     operation: "unwritten-admin-key",
-    why: "D107 — the admin-editor wave of the settings-wiring program; verified UI-less 2026-07-25 with zero write field anywhere in features/settings ∪ features/user-admin. Tracked debt, not a sanctioned doorway.",
+    why: "D107 — the admin-editor wave of the settings-wiring program; verified UI-less 2026-07-25 with zero write field anywhere in the admin surfaces (features/settings, which folded into features/config at #2447) ∪ features/user-admin. Tracked debt, not a sanctioned doorway.",
     endsWhen: "an admin surface gains an importSkipCharacters write field — central liveness then reports this row stale. Tracker: #2283.",
   },
   {

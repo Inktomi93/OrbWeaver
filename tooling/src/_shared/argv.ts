@@ -160,21 +160,33 @@ export function splitPageSuffix(tok: string): { flag: string; page: number } {
 }
 
 /** The decoded `--goto` target: which `__orb.nav` method reaches it + the argument to pass. A bare id is a
- *  rail SECTION; `settings:<group>[.<sub>[.<setting>]]` opens the Settings section on a config group, its
- *  subcategory, and one setting LEAF (the CLI spelling kept its word when the settings modal retired into
- *  the section, #866 S1 — the bridge method is `openConfig`); `modal:<slot>` opens a rail modal. */
+ *  rail SECTION; `config:<group>[.<sub>[.<setting>]]` opens the Configuration section on a config group, its
+ *  subcategory, and one setting LEAF (the bridge method is `openConfig`); `modal:<slot>` opens a rail modal.
+ *
+ *  THE PREFIX WAS `settings:` UNTIL #2447. It had kept its word when the settings modal retired into the
+ *  section (#866 S1), and the owner's 2026-09-19 ruling — "settings migrated to config; settings should be
+ *  gone" — took the last of that word with it: there is no settings feature, no settings modal and no
+ *  Settings section, only `features/config` hosting the Configuration section. No alias and no migration
+ *  door (the no-retirement-doors ruling, 2026-09-04): an unlaunched product greps its own spellings. */
 export type GotoTarget =
   | { readonly method: "section"; readonly arg: string }
   | { readonly method: "openConfig"; readonly arg: string; readonly sub?: string; readonly setting?: string }
   | { readonly method: "openModal"; readonly arg: string };
 
-const SETTINGS_PREFIX = "settings:";
+const CONFIG_PREFIX = "config:";
 const MODAL_PREFIX = "modal:";
 /** The config address is THREE parts, verbatim the vocabulary `openConfigTo(group, sub?, setting?)` and the
  *  `/config?to=g.s.l` copy-link grammar carry (packages/client/src/state/config-link.ts). #1176 widened the
  *  bridge to the leaf; until #1639 this parser stopped at two, so a drive asking for one knob was decoded
  *  as its section and the run reported success. */
-const GOTO_CONFIG_GRAMMAR = "settings:<group>[.<sub>[.<setting>]]";
+const GOTO_CONFIG_GRAMMAR = "config:<group>[.<sub>[.<setting>]]";
+/** A `<word>:` head is a NAMESPACE, and only these two exist. No rail SECTION id carries a colon
+ *  (`state/section-ids.ts`), so a colon that opens an unknown namespace is never a section — and letting it
+ *  fall through to `section` is precisely the truncated-decode failure this parser exists to refuse: the
+ *  drive would navigate somewhere else and report `ok:true`. This is the arm that catches the retired
+ *  `settings:` spelling, and it catches a typo the same way — it is the GRAMMAR failing closed, not an alias
+ *  table. */
+const GOTO_NAMESPACE_RE = /^[a-z][a-z-]*:/u;
 
 /** Parse a `--goto` target string into the nav method + argument. Pure (the same decode snap injects
  *  in-page), so it's unit-testable in Node without a browser. REFUSES an address the grammar cannot spell
@@ -183,8 +195,8 @@ const GOTO_CONFIG_GRAMMAR = "settings:<group>[.<sub>[.<setting>]]";
  *  call site (`_shared/nav.ts`, `snap/ops/drive.ts`). `parseConfigLink`'s `rest.length > 0` refusal is the
  *  same decision on the client half. */
 export function parseGotoTarget(target: string): GotoTarget {
-  if (target.startsWith(SETTINGS_PREFIX)) {
-    const [group = "", sub, setting, ...rest] = target.slice(SETTINGS_PREFIX.length).split(".");
+  if (target.startsWith(CONFIG_PREFIX)) {
+    const [group = "", sub, setting, ...rest] = target.slice(CONFIG_PREFIX.length).split(".");
     if (rest.length > 0) {
       throw new Error(`--goto "${target}" spells more parts than the config address ${GOTO_CONFIG_GRAMMAR}`);
     }
@@ -195,6 +207,12 @@ export function parseGotoTarget(target: string): GotoTarget {
   }
   if (target.startsWith(MODAL_PREFIX)) {
     return { method: "openModal", arg: target.slice(MODAL_PREFIX.length) };
+  }
+  const namespace = GOTO_NAMESPACE_RE.exec(target)?.[0];
+  if (namespace !== undefined) {
+    throw new Error(
+      `--goto "${target}" opens the unknown namespace "${namespace}"; the targets are ${GOTO_CONFIG_GRAMMAR}, ${MODAL_PREFIX}<slot>, or a bare rail section id`,
+    );
   }
   return { method: "section", arg: target };
 }

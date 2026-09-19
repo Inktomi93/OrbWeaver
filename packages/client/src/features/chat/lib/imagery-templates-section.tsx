@@ -2,7 +2,7 @@
 // co-located definition the chat feature exports on its front door; the composition root (main.tsx) assembles
 // it into the chat-behavior pane's settings-section registry (G8) at the `chat-behavior` anchor. Chat owns
 // imagery consumption (the quiet-extraction shaper + the /imagine composer), so it lands here — never
-// features/settings (the databank-settings-section precedent).
+// features/config (the databank-settings-section precedent).
 
 import type { ConfigSectionContribution } from "#state";
 import { ImageryTemplatesSection } from "../components/imagery-templates-section.tsx";

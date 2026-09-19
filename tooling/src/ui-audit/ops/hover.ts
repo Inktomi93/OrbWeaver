@@ -11,7 +11,7 @@
 // `hover-pass=no-hover-media` on the RESULT line) rather than running half-blind.
 //
 // THE BOUNDED-POPULATION ARGUMENT (the design question this file answers). A naive "force hover on every
-// interactive element" is one round trip per element — 117 controls on `settings:appearance` — and most
+// interactive element" is one round trip per element — 117 controls on `config:appearance` — and most
 // of them declare no hover paint at all. Two narrowings collapse that:
 //   1. IN-PAGE PREFILTER, ZERO ROUND TRIPS. ops/hover-walker.ts enumerates the stylesheets and keeps only
 //      the rules whose selector carries a `:hover` compound AND whose block sets `color`/`background-color`,

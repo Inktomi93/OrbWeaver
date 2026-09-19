@@ -12,13 +12,22 @@
 //     generated `[data-theme]` and still NO override scope; a custom theme carries a ThemeScope;
 //   · no thumbnail ever injects a theme's custom CSS.
 
+// `themeActionsName` IS REACHED BY RELATIVE PATH, NOT THROUGH `@orb/client/features/config` (#2447, and
+// measured the hard way). It used to come off the `features/settings` front door; that feature folded into
+// `features/config`, and the config front door is big enough that pulling it into PLAYWRIGHT'S NODE-SIDE
+// collection makes this file collect ZERO tests — silently. `pnpm test:ct <this file>` then reports
+// `UNFED PATH … the runner collected NO tests from it` and names three causes that are all wrong (a filter,
+// a support module, an all-skipped spec), because `collectCt` reads `playwright test --list`'s JSON and
+// never looks at its status or `errors`. The same invocation with THIS import collects 16. A relative path
+// is safe for this symbol specifically: it is a pure accessible-name builder with no module state, so a
+// second module instance is not a hazard the way a store or a component would be.
 import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { themeActionsName } from "@orb/client/features/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { themeActionsName } from "../../../../../packages/client/src/features/config/lib/theme-row-names.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { LooksSectionNarrowStory, LooksSectionReopenStory, LooksSectionStory } from "../_ct-stories.tsx";

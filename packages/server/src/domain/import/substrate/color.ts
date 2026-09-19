@@ -15,7 +15,7 @@
 //     opaque `oklch(L C H)`. That is what ST actually renders, not a guess.
 //
 // The sRGB→OKLab transform is Björn Ottosson's published matrix pair. Every coefficient is a named constant
-// (`noMagicNumbers`), the same shape `client/features/settings/lib/theme-contrast.ts` uses for its WCAG luma
+// (`noMagicNumbers`), the same shape `client/features/config/lib/theme-contrast.ts` uses for its WCAG luma
 // weights. NOT kit-homed: one owner, one consumer (the ST theme parser beside it) — the placement rule puts a
 // single-owner pure helper in its domain, and `@orb/kit/safe-color` is the SAFETY predicate's home, not a
 // colorimetry library.

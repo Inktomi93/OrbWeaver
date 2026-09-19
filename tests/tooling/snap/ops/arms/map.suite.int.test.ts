@@ -170,7 +170,7 @@ test("--atlas prints the executable block, caps each group exactly, and stays gl
   expect(run.stdout).toContain('pnpm snap --goto "section-10" --map');
   expect(run.stdout).not.toContain('pnpm snap --goto "section-11" --map');
   expect(run.stdout).toContain('pnpm snap --goto "modal:command" --map');
-  expect(run.stdout).toContain('pnpm snap --goto "settings:appearance" --map');
+  expect(run.stdout).toContain('pnpm snap --goto "config:appearance" --map');
   expect(run.stdout).toContain('pnpm snap --context-tab "game" --map');
   expect(run.stdout).toContain('pnpm snap --open-chat "latest" --map');
   expect(run.stdout).toContain("choose a NAV TARGET, then map that settled destination");

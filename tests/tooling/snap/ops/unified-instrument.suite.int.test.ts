@@ -559,7 +559,7 @@ test("no tracked file still tells a reader to run a retired instrument command, 
   const planted = [
     "Run `pnpm design-audit /chats --fail-on P2` and then `pnpm perf-meter /`.",
     "The retired `pnpm motion-audit` is now `--motion`.",
-    "$ pnpm design-audit config --goto settings:appearance",
+    "$ pnpm design-audit config --goto config:appearance",
   ].join("\n");
   expect(retiredCommandHits("planted.md", planted)).toEqual(["planted.md:1: pnpm design-audit", "planted.md:1: pnpm perf-meter"]);
 });

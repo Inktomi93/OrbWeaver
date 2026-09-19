@@ -259,7 +259,7 @@ export function ConnectionsSettingsStory(): ReactElement {
  *  §3 seam instead, which means it renders NOTHING inline unless the save failed.
  *
  *  The aggregate is echoed into a marker rather than mounting the real footer: the footer is a
- *  `features/settings` component with no front-door export, and reaching it by relative path would risk a
+ *  `features/config` component with no front-door export, and reaching it by relative path would risk a
  *  second module instance of the store it reads — the marker reads the same store through the alias the
  *  pane itself uses, so there is exactly one. */
 function AggregateMarker(): ReactElement {
