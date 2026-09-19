@@ -11,8 +11,8 @@
 // `none` — the disagreement is unreachable. `ChatRoomTrackStory` mounts the real room pane inside a
 // fixed-width box carrying that exact expression, so a pane state is one number: the box's width.
 //
-// THE FOUR PANE STATES ARE MEASURED ONES, not invented (reports/design/chats-delta-2026-08-18.md
-// §pane-states, viewport 1360, chatWidthPct 50): `list:docked+context:collapsed` → a 894px pane;
+// THE FOUR PANE STATES ARE MEASURED ONES, not invented (the design rescoring pass, 2026-08-18,
+// pane-states, viewport 1360, chatWidthPct 50): `list:docked+context:collapsed` → a 894px pane;
 // `list:docked+context:docked` → 509px BEFORE #242 and 579px after it (the shell grid's conditional
 // squeeze hands that state +70.4px of content track — the delta is read off the real
 // `grid-template-columns` in app-shell.ct.tsx, and it is the ONLY state that moved: the other three carry

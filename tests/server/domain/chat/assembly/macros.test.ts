@@ -1,4 +1,4 @@
-// assembly/macros — the chat-domain macro wiring (chat.md Part II §0/§3; D46 env-by-reference + the
+// assembly/macros — the chat-domain macro wiring (the chat design doc Part II §0/§3; D46 env-by-reference + the
 // determinism seam). Pins: the AssembleContext → macro mapping ({{char}}/{{user}}/{{persona}}/{{scenario}}
 // room-override/{{group}}), {{original}} threading, the SHARED env (a setvar in one render is visible to the
 // next), and the injected clock (nowMs) → deterministic output.

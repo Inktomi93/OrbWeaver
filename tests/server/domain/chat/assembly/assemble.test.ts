@@ -1,4 +1,4 @@
-// assembly/assemble — the BUILD section walk (chat.md Part II §2 phase 3 + §3 rules 1/2/3). Pins: the
+// assembly/assemble — the BUILD section walk (the chat design doc Part II §2 phase 3 + §3 rules 1/2/3). Pins: the
 // macro→frame order, render-ONCE {{original}} recovery (card + room override), the static/dynamic split, the
 // chat_history pivot → after-history injection, sendHistory, and the system-block chat-injection routing.
 import type { AssembleCharacter, AssembleContext, ChatInjection } from "@orb/contracts/chat";

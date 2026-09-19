@@ -1,4 +1,4 @@
-// apply-delta — the LIVE write path. The load-bearing assertions (stats.md esoteric #1/#6, invariant #5):
+// apply-delta — the LIVE write path. The load-bearing assertions (the stats design doc esoteric #1/#6, invariant #5):
 //   • ADDITIVE columns accumulate across deltas (`col += excluded.col`), negative increments legal;
 //   • the EXTREMA merge by MIN/MAX (firstChatAt MIN, lastActivityAt/maxContextTokens/computedAt MAX);
 //   • daily tokens are DECOUPLED (a delta omitting dailyTokensIn/Out leaves day.tokens untouched);

@@ -1,4 +1,4 @@
-// The membership chokepoint integration (chat.md Part III §11/§12) — the guard wires `loadMemberChat` to the
+// The membership chokepoint integration (the chat design doc Part III §11/§12) — the guard wires `loadMemberChat` to the
 // pure deciders against a real libSQL db. Proves: member allowed, non-member denied (leak-free), host-only
 // refusal to a member, author-or-host, and lineage gated independently per-ancestor.
 import type { Principal } from "@orb/contracts/identity";

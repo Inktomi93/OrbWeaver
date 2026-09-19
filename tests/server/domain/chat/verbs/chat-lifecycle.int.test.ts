@@ -1,4 +1,4 @@
-// The chat-ROW lifecycle + variables + persisted injections (chat.md Part III §11). Proves against a real
+// The chat-ROW lifecycle + variables + persisted injections (the chat design doc Part III §11). Proves against a real
 // libSQL db: the host-authority gate, the row writes, the variables round-trip (config plane), the injections
 // CRUD, and the emitted bus events. Reached through the BUNDLE `createChatLifecycle(ctx, { emit })`.
 

@@ -1,4 +1,4 @@
-// The canon-EDIT verbs (chat.md Part III per-verb specs + §11 the auth matrix; D26). Proves against a real
+// The canon-EDIT verbs (the chat design doc Part III per-verb specs + §11 the auth matrix; D26). Proves against a real
 // libSQL db: an edit mutates the VARIANT (content/reasoning) or the SLOT (selection/hidden/seq/attribution)
 // and NEVER doubles content (the slot stays one row, variantCount unchanged); the author-or-host gate; the FK
 // cascade on delete; the emitted bus event; and the PD-110 runOnEdit regex re-apply on `editMessage`. The

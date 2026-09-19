@@ -1,4 +1,4 @@
-// SHAPE shaper: squashSameRole (chat.md Part II §3 rule 6 — Anthropic adjacent-same-role defense) +
+// SHAPE shaper: squashSameRole (the chat design doc Part II §3 rule 6 — Anthropic adjacent-same-role defense) +
 // clampRoleHandling (D66-C, W6 — the SHAPE floor-clamp: effective = stricter of the model floor + user knob).
 import type { RoleHandling } from "@orb/contracts/connection";
 import { describe } from "vitest";

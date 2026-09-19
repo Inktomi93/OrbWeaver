@@ -1,4 +1,4 @@
-// `startChat` (chat.md Part I `verbs/start-chat.ts`) — proves against a real libSQL db: the room is minted with
+// `startChat` (the chat design doc Part I `verbs/start-chat.ts`) — proves against a real libSQL db: the room is minted with
 // the caller as `host` + the founding characters as members (D28 live-identity roster — `chat_participants`
 // references the live `characters` row), the opening seeds per the resolved `OpeningPolicy` (first-message =
 // the primary's greeting VERBATIM; greet-all = every founding character; none = nothing), and `chatCreated`

@@ -1023,7 +1023,7 @@ test("the list band prints the server census, not the loaded row count", async (
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 // THE FACET RAIL — the owner-picked variant B of program #102's density propagation wave
-// (reports/design/characters-mockups/RATIONALE.md §5). The measured defect it answers: TWELVE controls in
+// (the characters-mockups rationale §5). The measured defect it answers: TWELVE controls in
 // FOUR semantic classes (view command · scope filter · tag filter · disclosure) rendered with ONE
 // pixel-identical treatment — `13px/500 · transparent · border 0 · radius 6px · 32px` for every one of
 // them — so the only thing separating a command that re-modes the pane from a word out of the tag
@@ -1505,7 +1505,7 @@ function resolvedColor(component: Locator, token: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
-// THE 2026-08-18 SIDE-EYE PASS (rail sweep 3/9, reports/design/rail-characters-2026-08-18.md). Both pins
+// THE 2026-08-18 SIDE-EYE PASS (rail sweep 3/9, the characters rail design review). Both pins
 // below are RENDERED geometry / a rendered a11y tree, never a code reading.
 
 /** The long name the review measured being clipped ("Morgatha, the …"), and its select-mode width. */

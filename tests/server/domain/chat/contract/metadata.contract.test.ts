@@ -1,4 +1,4 @@
-// parseChatMetadata + getGroupConfig/getRoomOverrides — the `chats.metadata` parse seam (chat.md Part I
+// parseChatMetadata + getGroupConfig/getRoomOverrides — the `chats.metadata` parse seam (the chat design doc Part I
 // §metadata + the "metadata strict/lazy-parse fault isolation" load-bearing rule). The ONE file in the chat
 // contract slice with runtime behavior. Pins: full round-trip (group + roomOverrides + opening +
 // providerRouting), the per-sub-blob fault isolation (a malformed sub-blob does NOT nuke its siblings), the

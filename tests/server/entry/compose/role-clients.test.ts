@@ -1,7 +1,7 @@
 // entry/compose/role-clients — THE single RoleClients binder. Pins the wiring the gold-standard composition
 // seam depends on: the ASYNC per-user binder dispatches each derive-role through the executor with the
 // RESOLVED credential+model (provenance correct on the `*Model` fields). There is no sync vLLM floor — a sync
-// floor silently routed workload roles to vLLM, breaking providers.md invariant #6. Stub executor + stub
+// floor silently routed workload roles to vLLM, breaking Tier-3b-Providers.md invariant #6. Stub executor + stub
 // resolveRole isolate the wiring.
 //
 // …and the SELECTOR HOT-RELOAD block in the middle pins the resolution TIMING: `connection.resolveRole` runs

@@ -1,4 +1,4 @@
-// engine/select-speakers — the 7a DETERMINISTIC arbitration (chat.md Part III §6). Pure unit tests: same
+// engine/select-speakers — the 7a DETERMINISTIC arbitration (the chat design doc Part III §6). Pure unit tests: same
 // inputs + same injected PRNG → same order; ban-last-speaker (soft yield); talkativeness weighting; the
 // forced/@mention hard override; solo = roster-of-1; the eligible-set predicates (muted/left excluded).
 

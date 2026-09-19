@@ -1191,7 +1191,7 @@ describe("runTurnPipeline — user-macro registry threading (WAVE MU)", () => {
 });
 
 describe("runTurnPipeline — immutability", () => {
-  test("does not mutate the immutable assemble ctx (chat.md §5)", async () => {
+  test("does not mutate the immutable assemble ctx (the chat design doc §5)", async () => {
     const ctx = ctxOf();
     const snapshot = structuredClone(ctx);
     const { args } = baseArgs({ assembleContext: ctx });

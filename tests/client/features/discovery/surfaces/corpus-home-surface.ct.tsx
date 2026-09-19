@@ -1,5 +1,5 @@
 // CT: the corpus overview's COMPOSITION at the owner's default pane width — the three rendered defects the
-// 2026-08-18 corpus rail pass measured on the live surface (reports/design/rail-corpus-2026-08-18.md P1-2,
+// 2026-08-18 corpus rail pass measured on the live surface (the corpus rail design review, P1-2,
 // P1-3, P2-1). Every assertion here is a GEOMETRY or a COMPUTED PAINT, because all three defects were
 // invisible to a class-list or a role query: the code already had the split, the button already existed, and
 // the focal island was already marked.

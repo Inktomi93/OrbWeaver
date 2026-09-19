@@ -1,4 +1,4 @@
-// The CARRIED-FORWARD credential-firewall test (providers.md §7.1 / Esoteric §1). The load-bearing
+// The CARRIED-FORWARD credential-firewall test (Tier-3b-Providers.md §7.1 / Esoteric §1). The load-bearing
 // security guarantees: a mode-2 OR-skin spawn can NEVER see the Max-sub OAuth token, AND a preset's
 // escape hatch can NEVER set/strip a reserved (auth/routing/isolation) key. If any of these flip, the sub
 // token can leak to a paid endpoint — a ban-risk hole.

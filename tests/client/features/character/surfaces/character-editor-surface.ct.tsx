@@ -721,7 +721,7 @@ test("no absolutely-positioned box escapes the character editor's scroller (the 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
-// THE 2026-08-18 SIDE-EYE PASS (rail sweep 3/9, reports/design/rail-characters-2026-08-18.md).
+// THE 2026-08-18 SIDE-EYE PASS (rail sweep 3/9, the characters rail design review).
 
 /** The phone the review measured both editor findings at. */
 const PHONE_PX = 430;

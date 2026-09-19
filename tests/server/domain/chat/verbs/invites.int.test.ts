@@ -1,4 +1,4 @@
-// The invite lifecycle + THE participant-insert chokepoint (chat.md Part III §2). Proves against a real
+// The invite lifecycle + THE participant-insert chokepoint (the chat design doc Part III §2). Proves against a real
 // libSQL db: the token is stored HASHED (never raw), the atomic redeem inserts a server-forced `member` at the
 // canon head, the re-add upsert re-joins a previously-left member, revoke/decline flip status, and an invalid
 // token is a leak-free NOT_FOUND. The `hashToken`/`newInviteId`/`loadParticipantViews` deps are faked (the

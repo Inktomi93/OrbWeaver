@@ -1,5 +1,5 @@
 //
-// Seed-frame shape + determinism + the init-frame shape guard (providers.md Esoteric §3). The shape is
+// Seed-frame shape + determinism + the init-frame shape guard (Tier-3b-Providers.md Esoteric §3). The shape is
 // load-bearing: full frames resume, an assistant-first seed gets a synthetic user stub, and identical
 // canon under the same sessionId rebuilds byte-identically (so the prompt cache survives a reseed).
 

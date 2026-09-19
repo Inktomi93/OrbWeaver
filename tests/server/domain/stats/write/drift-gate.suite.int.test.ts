@@ -1,4 +1,4 @@
-// stats drift gate — the CROSS-WRITER equality harness (stats.md inv #3; D60 doc 02 §4 the agent row).
+// stats drift gate — the CROSS-WRITER equality harness (the stats design doc inv #3; D60 doc 02 §4 the agent row).
 //
 // The build plan (agent-principal-design/07 §3) is explicit: the drift suite must gain the agent row "on
 // BOTH writers in the same commit, or the gate lies." Two INDEPENDENT per-writer tests asserting matching
@@ -14,7 +14,7 @@
 //     (`chatCreatedDelta`/`canonMessageDelta`/`swipeVariantDelta` — whose contract IS "mirror the rebuild
 //     folds", stats-delta.ts header) + `applyStatsDelta` upserting into the four rollup tables.
 // If either writer drifts on ANY column — for the agent row or any other — `toEqual` fails. This is the
-// backstop stats.md inv #3 names, and the AP2 checkpoint (07 §2) requires.
+// backstop the stats design doc inv #3 names, and the AP2 checkpoint (07 §2) requires.
 //
 // THE SEED IS MULTI-CHARACTER FOR A REASON (#1147): a one-character canon cannot tell "per room" from "per
 // SEAT", so this gate ran green for months over a live plane that credited a room only to its FIRST

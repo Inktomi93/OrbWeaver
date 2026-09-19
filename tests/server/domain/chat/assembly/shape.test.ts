@@ -1,4 +1,4 @@
-// SHAPE substrate: shape() + computeHistoryBreakpoint (chat.md Part II §2 SHAPE, §3, §8; Part III §12
+// SHAPE substrate: shape() + computeHistoryBreakpoint (the chat design doc Part II §2 SHAPE, §3, §8; Part III §12
 // inv 1 + 7). The cross-repo byte-parity vs neo used to live in a sibling .parity.test — ripped out
 // 2026-08-22 (#428, the neo floor is obsolete), so THIS is now the ONLY home; it pins the orbweaver-side
 // invariants directly: the 3 breakpoint-undefined cases, the offset/clamp/floor math, the neo-quirk →
@@ -206,7 +206,7 @@ describe("shape — egocentric scoped fold (the neo-quirk → undefined)", () =>
       { role: "user", content: "u2 to Kai" },
     ]);
     // The prefix-collapse violates the single-volatile-tail invariant → orbweaver returns undefined
-    // (neo's degenerate -1, corrected). chat.md Part III §12 inv 7.
+    // (neo's degenerate -1, corrected). the chat design doc Part III §12 inv 7.
     expect(out.cacheBreakpointFromEnd).toBeUndefined();
   });
 });

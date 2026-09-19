@@ -1,5 +1,5 @@
 //
-// assertInitFrameShape — the init-frame SHAPE GUARD (providers.md Esoteric §3). The SDK's system/init
+// assertInitFrameShape — the init-frame SHAPE GUARD (Tier-3b-Providers.md Esoteric §3). The SDK's system/init
 // frame carries the `session_id` every later resume lookup is keyed by + `apiKeySource` (the sub-vs-key
 // canary). A dropped/renamed field would silently corrupt a thousand session-id-keyed lookups, so the
 // guard throws LOUDLY at the first turn instead. We lock that EVERY malformed shape (missing/empty/

@@ -1,4 +1,4 @@
-// engine/auto-mode — the AI→AI chaining loop (chat.md Part III §6). Pure unit tests over fake arbitrate/run
+// engine/auto-mode — the AI→AI chaining loop (the chat design doc Part III §6). Pure unit tests over fake arbitrate/run
 // callbacks + an INJECTED no-op delay (D46 determinism): EACH stop condition (max-turns, interrupt,
 // no-eligible, locked), the re-arbitration seeding (the prior speaker feeds ban-last), the injected delay
 // pacing, and the non-lock error propagation.

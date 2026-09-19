@@ -1447,7 +1447,7 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
     const outcome = await h.turn.send({ principal: principal(member), chatId, content: "hi" });
 
     expect(outcome.messages[0]?.authorUserId).toBe(member); // the user row is the caller's
-    // TWO deltas ride the send (stats.md canon-mutator push): the USER row's (owner-grain only —
+    // TWO deltas ride the send (the stats design doc canon-mutator push): the USER row's (owner-grain only —
     // characterId null) then the assistant turn's — BOTH attributed to the host (runAsUserId, D19).
     expect(h.deltas).toHaveLength(2);
     expect(h.deltas[0]?.userTurns).toBe(1);
@@ -1964,7 +1964,7 @@ function stateRoundCancellingRpg(record: { chatId: ChatId; userId: UserId }[], c
   } as unknown as NonNullable<ChatContext["rpg"]>;
 }
 
-describe("guided steer routing (chat.md §6, PD-63)", () => {
+describe("guided steer routing (the chat design doc §6, PD-63)", () => {
   test("send threads the guided steer into the assembled prompt (system-marker default; {{input}} spliced)", async () => {
     const { host, chatId, names } = await seedRoom("list", ["aria"]);
     const requests: unknown[] = [];
@@ -2337,7 +2337,7 @@ describe("generate — LOCK-FREE (runs concurrent with a held send lock)", () =>
   });
 });
 
-describe("send — SEND USER_INPUT regex (D53; chat.md §2/§7)", () => {
+describe("send — SEND USER_INPUT regex (D53; the chat design doc §2/§7)", () => {
   test("the persisted user row is the POST-USER_INPUT-regex text (canon-mutating at write)", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const script = regexScriptSchema.parse({

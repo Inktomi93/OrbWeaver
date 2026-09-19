@@ -111,7 +111,7 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
       backends: new Map([["agent-sdk", spyBackend("agent-sdk", calls)]]),
     });
     await exec.runChatTurn(chatReq({ api: "agent-sdk", credential: makeOpenRouterCredential() }));
-    // Per authoritative providers.md the OR skin runs through the agent-sdk backend — NOT rejected.
+    // Per authoritative Tier-3b-Providers.md the OR skin runs through the agent-sdk backend — NOT rejected.
     expect(calls).toEqual(["agent-sdk:chat"]);
   });
 
