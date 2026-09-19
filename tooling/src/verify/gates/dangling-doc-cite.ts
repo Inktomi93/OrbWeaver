@@ -86,35 +86,38 @@ import { blankTsComments } from "../lib/comment-spans.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import { scanTextCitations } from "../lib/text-cite-scan.ts";
 
-// A repo-relative doc token. Two GRAMMARS, the second added by #1334 to close the bare-filename gap:
+// A repo-relative doc token. Two GRAMMARS, the second added by #1334 and WIDENED again by #1334's own
+// follow-up (gate-scope-D, 2026-09-19) to close the bare-filename gap for real:
 //
 //   1. A `docs/`-prefixed repo path — the original grammar. The LOOKBEHIND IS LOAD-BEARING: a vendor URL
 //      carries the same segment, and without the fence three live comments citing a vendor's own published
 //      docs read as phantom REPO paths. The CHARACTER CLASS IS THE TRAILING-COORDINATE FENCE: neither `#`
 //      nor `:` is in the class, so a `#section` anchor and a `:<line>` coordinate already END the match.
 //
-//   2. A BARE `.md` basename (#1334) — the house idiom. Comments cite `Documentation-Law.md` or
-//      `Core-0-Architecture-and-Structure.md` without a `docs/` prefix, and 63 of 64 `.md` cites in
-//      `.dependency-cruiser.cjs` alone used this form. The grammar requires a Capital letter or a digit
-//      after a hyphen (the doc-naming convention), so `readme.md` or `changelog.md` — which are NOT doc
-//      cites — stay out. Resolution is against the BASENAME set of all tracked `docs/**/*.md` paths: a bare
-//      cite is a finding only when some `docs/` path with that basename USED TO exist (i.e. it is in the
-//      basename vocabulary) but is now absent from the tracked tree, OR when no such basename exists (which
-//      means the comment names a doc that never existed). A bare cite whose basename matches a LIVE doc is
-//      clean. The `§`/`:` trailing fence is inherited from the character class. WIDENED by the adversarial
-//      review at #1334: the original grammar required a Capital letter or digit after a hyphen, which missed
-//      438 all-lowercase hyphenated docs (`gate-runtime-standardization.md`, `ui-package-design.md`, etc.).
-//      The grammar now matches any hyphenated `.md` basename, using the hyphen itself as the fence against
-//      unhyphenated prose words (`readme.md`, `changelog.md`).
+//   2. A BARE `.md` path (#1334, widened gate-scope-D) — the house idiom. Comments cite a doc's basename,
+//      or a short relative path like `tooling/x` + `.md`, without a `docs/` prefix. FIRST WIDENING (#1334)
+//      required a Capital letter or a digit-after-hyphen; that missed 438 all-lowercase hyphenated doc
+//      names. SECOND WIDENING (gate-scope-D) dropped the capital/hyphen fence entirely: the DoD census
+//      (#1334's own follow-up finding) proved the excluded shape — short all-lowercase UNHYPHENATED
+//      basenames like `chat` + `.md`, one per gutted per-domain doc — carried 100 of the then-current
+//      dangling comment pointers, i.e. the fence was hiding the majority of the real defect population,
+//      not protecting against noise. This header may not spell one of those dead examples as a contiguous
+//      token either — the gate would flag itself, the same discipline grammar 1's header already states.
+//      The grammar now matches ANY `.md` basename or short relative path (multiple `/`-joined segments),
+//      fenced only against a `docs/`-prefixed start (owned by grammar 1, `(?!docs\/)`) and an `http(s)`
+//      start (the vendor-URL fence — a URL's OWN internal segments stay excluded because every one is
+//      preceded by a `/`, `.` or `-`, all in the lookbehind's excluded class, so only the scheme word
+//      itself needed a direct fence). Losing the "unhyphenated lowercase is never a cite" assumption means
+//      an unhyphenated all-lowercase basename is now IN GRAMMAR too — correct, because resolution (below)
+//      is tree-wide by basename/suffix, so a real doc at that basename resolves clean and a truly dead
+//      cite of that shape would dangle exactly like any other. Resolution: bare (no `/`) — the BASENAME set
+//      of every tracked `.md` file, not `docs/**` alone (widened together with the grammar: the gate- and
+//      rule-authoring guides are LAW living outside `docs/`, and a docs-only basename map read their bare
+//      cites as dangling even though `dangling-refs.ts`'s own `LAW_OUTSIDE_DOCS` treats them as first-class
+//      law). Path-shaped (has `/`) — first an exact/suffix match against every tracked `.md` path, then the
+//      same basename fallback (matches the DoD census resolver exactly, this gate's own gate-scope-D fix).
 const DOC_TOKEN_RE = /(?<![\w./-])docs\/[A-Za-z0-9_./+-]*\.md/gu;
-// A bare `.md` basename: at least one Capital letter OR at least one hyphen to stay in the doc-naming
-// convention. Must start at a word boundary (the lookbehind) and end at `.md`. Group 1 captures the
-// basename so `scanTextCitations` reports it as the token. The FIRST alternative catches names starting
-// with an uppercase letter (`Documentation-Law.md`). The SECOND catches any hyphenated name
-// (`gate-runtime-standardization.md`, `ui-package-design.md`) — requiring a hyphen is the fence that
-// keeps unhyphenated lowercase prose words (`readme.md`, `changelog.md`) out. Together the two
-// alternatives cover all 500+ docs under `docs/` (measured 2026-09-18).
-const BARE_DOC_RE = /(?<![/\w.-])([A-Z][A-Za-z0-9_-]*\.md|[A-Za-z]+-[A-Za-z0-9][A-Za-z0-9_-]*\.md)/gu;
+const BARE_DOC_RE = /(?<![\w./+-])(?!https?\b)(?!docs\/)([A-Za-z0-9_][A-Za-z0-9_/.+-]*\.md)/gu;
 // A token carrying a glob / brace / placeholder / elision is a PROSE PATTERN, never a literal cite.
 // ONLY THE ELISION HALF IS LIVE, and the split is measured rather than assumed (§4.1 cut, this lane):
 // `*`, `{`, `}`, `<`, `>` and `…` are all OUTSIDE `DOC_TOKEN_RE`'s character class, so a token carrying
@@ -247,14 +250,21 @@ function reportCite(
   ctx: { readonly report: { readonly file: (path: string, details: { line: number; column: number; token: string; message: string }) => void } },
 ): void {
   if (cite.bare) {
-    // A bare cite resolves against the doc basename set. If the basename matches a live doc it is clean;
-    // otherwise it is dangling (the doc was renamed, moved, or the comment names a doc that never existed).
-    if (!docBasenames.has(cite.ref)) {
+    // A bare/path cite resolves against every tracked `.md` file (gate-scope-D): first an exact/suffix
+    // path match (so a short relative path like `reports/tooling/x` + `.md` resolves against any tracked
+    // path ending with that same segment run, and a literal tracked relative path resolves too), then the
+    // basename fallback (so `GATE-AUTHORING.md` resolves even though it lives outside `docs/`) — the same
+    // two-step resolver the DoD census scorer uses, so the gate and the DoD agree.
+    const hasSlash = cite.ref.includes("/");
+    const basename = hasSlash ? (cite.ref.split("/").pop() ?? cite.ref) : cite.ref;
+    const suffixMatch = hasSlash && [...docBasenames.values()].some((path) => path === cite.ref || path.endsWith(`/${cite.ref}`));
+    const resolved = suffixMatch || docBasenames.has(basename);
+    if (!resolved) {
       ctx.report.file(cite.path, {
         line: cite.line,
         column: cite.column,
         token: cite.ref,
-        message: `comment cites bare doc name \`${cite.ref}\` — no doc under \`docs/\` has that basename. Use the full repo-relative path, or fix the doc name. (Documentation-Law.md §Relocation)`,
+        message: `comment cites doc \`${cite.ref}\` — no tracked \`.md\` file resolves it (by exact/suffix path or by basename). Use the doc's real repo-relative path, or fix the doc name. (Documentation-Law.md §Relocation)`,
       });
     }
     return;
@@ -269,11 +279,13 @@ function reportCite(
   }
 }
 
-/** Build a basename to full repo-relative path map from the tracked doc paths under `docs/`. */
+/** Build a basename to full repo-relative path map from EVERY tracked `.md` path (gate-scope-D: widened
+ *  from `docs/**` alone so law living outside `docs/` — `GATE-AUTHORING.md`, `RULE-AUTHORING.md` — and a
+ *  root `README.md` resolve too, matching the DoD census's tree-wide `git ls-files "*.md"` corpus). */
 function docBasenameMap(tracked: readonly string[]): ReadonlyMap<string, string> {
   const out = new Map<string, string>();
   for (const path of tracked) {
-    if (path.startsWith("docs/") && path.endsWith(".md")) {
+    if (path.endsWith(".md")) {
       const slash = path.lastIndexOf("/");
       const basename = slash === -1 ? path : path.slice(slash + 1);
       out.set(basename, path);
@@ -369,7 +381,8 @@ export const gate = defineGate({
       files: {
         "knip.ts": "export const config = 1;\n",
         // A JSDoc BLOCK comment, and a `:line` coordinate that must be stripped before the identity
-        // question — otherwise every `path.md:42` cite in the corpus reads as a phantom.
+        // question — otherwise every coordinate-suffixed `.md` cite (a `path` at line 42, say) in the
+        // corpus reads as a phantom.
         "packages/kit/src/block.ts": "/** Home: docs/design/vanished.md:88 — the shape. */\nexport const y = 2;\n",
       },
       expect: { count: 1, token: "docs/design/vanished.md" },
@@ -418,6 +431,29 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "gate-runtime-gone-forever.md" },
       why: "#1334 WIDENED: an all-lowercase hyphenated bare-basename cite — the dominant pattern (438 docs) the original grammar missed by requiring uppercase after a hyphen",
+    },
+    {
+      mode: "resource",
+      files: {
+        "knip.ts": "export const config = 1;\n",
+        // gate-scope-D: an UNHYPHENATED all-lowercase bare `.md` — the shape the #1334 grammar still missed
+        // (one per gutted per-domain doc — chat, providers, stats, 12 more — 100 of the real
+        // 2026-09-19 dangling population).
+        "packages/kit/src/unhyph.ts": "// See providers.md for the connection design.\nexport const x = 1;\n",
+      },
+      expect: { count: 1, token: "providers.md" },
+      why: "gate-scope-D: an unhyphenated all-lowercase bare `.md` to a doc that does not exist — the fence #1334 kept (capital-or-hyphen) hid the majority of the real defect population",
+    },
+    {
+      mode: "resource",
+      files: {
+        "knip.ts": "export const config = 1;\n",
+        // gate-scope-D: a SHORT RELATIVE PATH (multiple `/`-joined segments, no `docs/` prefix) to a doc
+        // that does not exist anywhere in the tree — the `reports/tooling/x` + `.md`-shaped class.
+        "packages/kit/src/relpath.ts": "// See reports/tooling/GONE-REPORT.md for the numbers.\nexport const x = 1;\n",
+      },
+      expect: { count: 1, token: "reports/tooling/GONE-REPORT.md" },
+      why: "gate-scope-D: a short relative path (not `docs/`-prefixed, not a bare basename) resolves neither by suffix nor by basename — the `reports/**` class of dead pointers the census found",
     },
   ],
   mustPass: [
@@ -526,11 +562,35 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "knip.ts": "export const config = 1;\n",
-        // #1334: an unhyphenated all-lowercase `.md` reference (like `readme.md`) is NOT a doc cite — the
-        // `BARE_DOC_RE` grammar requires either a Capital start or at least one hyphen.
+        // gate-scope-D: an all-lowercase unhyphenated basename is NOW IN GRAMMAR (the capital/hyphen fence
+        // is gone), but a matching doc is tracked at the repo root under the SAME case (basename resolution
+        // is case-sensitive, so the planted file's case must match the cite's), and the bare cite resolves
+        // via the basename fallback.
+        "readme.md": "planted root readme.\n",
         "packages/kit/src/lower.ts": "// See readme.md for setup instructions.\nexport const x = 1;\n",
       },
-      why: "#1334 NARROWING ROW: an unhyphenated all-lowercase bare `.md` (like `readme.md`) is NOT a doc cite — the grammar requires either a Capital start or a hyphen, and removing both fences reds this row",
+      why: "gate-scope-D: an unhyphenated all-lowercase bare cite now resolves against a REAL tracked doc of the same basename via the basename fallback — no false flag once the doc actually exists",
+    },
+    {
+      mode: "resource",
+      files: {
+        "knip.ts": "export const config = 1;\n",
+        // gate-scope-D: a bare cite of a LAW doc living OUTSIDE `docs/` (the GATE-AUTHORING.md class) now
+        // resolves — the basename map is tree-wide, not `docs/**`-only.
+        "tooling/src/verify/gates/OUTSIDE-DOCS-LAW.md": "planted law outside docs.\n",
+        "packages/kit/src/outside.ts": "// See OUTSIDE-DOCS-LAW.md for the rule.\nexport const x = 1;\n",
+      },
+      why: 'gate-scope-D: a bare cite to a tracked `.md` living OUTSIDE `docs/` resolves — the widened basename map matches the DoD census\'s tree-wide `git ls-files "*.md"` corpus, closing the divergence #2255/#1334 found (a `GATE-AUTHORING.md` cite was a gate finding but a DoD pass)',
+    },
+    {
+      mode: "resource",
+      files: {
+        "knip.ts": "export const config = 1;\n",
+        // gate-scope-D: a short relative path that resolves via SUFFIX match against a real tracked doc.
+        "docs/architecture/core/Real-Relpath.md": "---\nkind: law\n---\n\nplanted.\n",
+        "packages/kit/src/relpath-ok.ts": "// See core/Real-Relpath.md for the rule.\nexport const x = 1;\n",
+      },
+      why: "gate-scope-D: a short relative path (`core/Real-Relpath.md`) resolves via suffix match against `docs/architecture/core/Real-Relpath.md` — no false flag",
     },
     {
       mode: "resource",

@@ -46,9 +46,11 @@ interface Violation {
 const BARE_ROOTS: readonly string[] = ["docs/architecture/core", "docs/architecture/history", "docs/architecture/proposed", "."];
 
 // A `*.md` token inside a prose string: a path segment run ending in `.md`. Anchored on a non-token char so
-// we don't slice a longer path; the char class allows dir separators so `core/Foo.md` is ONE token.
+// we don't slice a longer path; the char class allows dir separators so a `core/Foo` + `.md` style path is
+// ONE token (this comment may not spell that contiguously — `dangling-doc-cite`'s widened bare/path grammar
+// would flag it right back).
 const MD_TOKEN_RE = /([\w][\w./-]*\.md)/gu;
-// A markdown link target ending in `.md`, with an optional `#anchor` (arm 2). `[text](path.md#x)`.
+// A markdown link target ending in `.md`, with an optional `#anchor` (arm 2): `[text](path` + `.md#x)`.
 const MD_LINK_RE = /\]\(([^)\s]+?\.md)(?:#[^)\s]*)?\)/gu;
 // A token carrying a glob / brace-expansion / placeholder is a PROSE PATTERN, not a literal cite — skip it
 // (`UI-*.md`, `docs/architecture/**/*.md`, `../history/UI-Lib-{Query,Form}.md`).
@@ -56,7 +58,7 @@ const NON_LITERAL_RE = /[*{}]/u;
 
 // ── the string-value evaluator (the load-bearing correctness core) ────────────────────────────────────
 // A gate's message/fix is frequently a `+`-concatenation OR a module-const identifier — and a `.md` token
-// can straddle a `+` boundary (`"client-architecture-" + "lockdown.md §6b"`). So we must evaluate the
+// can straddle a `+` boundary (`"client-architecture-" + "lockdown` + `.md §6b"`). So we must evaluate the
 // initializer into its ORDERED runtime string (following identifiers to their const) and tokenize the WHOLE
 // value, never per-fragment — a per-fragment scan both false-flags a split-but-valid cite AND false-passes
 // a ghost split across a boundary. An interpolation `${…}` we can't statically resolve becomes a gap
