@@ -1188,7 +1188,8 @@ test("#1748 the search input survives the pending read, and the rows still reach
 // during the pane's mount". IT IS NOT, and the tree says so twice: the `[drop]` flagger names whatever
 // animation LIFETIME overlaps the frame window and not the frame's cause (`boot-veil.tsx`'s #429 ruling,
 // `motion-animation-state.ts` `targetsOverlapping`), and the pane's only entry motion is shell.css's
-// `@keyframes shell-list-panel-in { from { translate: -100% 0 } }` — a compositor-owned translate that is
+// `@keyframes shell-list-panel-flip { from { translate: var(--list-panel-flip-from) 0 } }` — a
+// compositor-owned translate that is
 // already what the guide asks for. A settled read of 0 animations is the entry animation having ENDED, not
 // one never having run.
 //
