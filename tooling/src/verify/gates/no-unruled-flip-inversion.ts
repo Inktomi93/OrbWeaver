@@ -29,6 +29,7 @@
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { MEMBER_ACCESS_KINDS, readMemberAccess, readsMemberNamed } from "../lib/symbol-reference.ts";
 
 const TRANSFORM = "transform";
 const STYLE = "style";
@@ -54,24 +55,18 @@ const FIX =
   "tooling/src/verify/lib/reviewed-grants-no-unruled-flip-inversion.ts with its `why` and `endsWhen` — never " +
   "one without the other.";
 
-/** The property name of `x.style.transform` / `x.style["transform"]`, for a member access whose own receiver
- *  is a `.style` access. Both spellings, because a computed member is the bypass a dot-only reader invites. */
+/** The authored name slice of a `transform` write whose receiver is a `style` read — EVERY spelling of both
+ *  halves, through the shared `readMemberAccess`: `x.style.transform`, `x.style["transform"]`,
+ *  `x["style"].transform`, `x?.style?.transform`, and a same-file `const KEY = "transform"` hop. A
+ *  dot-only reader here is the #1506 spelling hole, and the gate-spelling-twins census reds it. */
 function styleWriteTarget(left: MorphNode): MorphNode | undefined {
-  if (Node.isPropertyAccessExpression(left)) {
-    return left.getName() === TRANSFORM && isStyleReceiver(left.getExpression()) ? left.getNameNode() : undefined;
-  }
-  if (!Node.isElementAccessExpression(left)) {
+  const read = readMemberAccess(left);
+  if (read === undefined || read.name !== TRANSFORM) {
     return;
   }
-  const argument = left.getArgumentExpression();
-  const literal = argument !== undefined && Node.isStringLiteral(argument) ? argument : undefined;
-  return literal?.getLiteralValue() === TRANSFORM && isStyleReceiver(left.getExpression()) ? literal : undefined;
-}
-
-/** Is this expression a `.style` member read? The receiver is deliberately unconstrained — `node.style`,
- *  `ref.current.style` and `this.el.style` are one shape and one defect. */
-function isStyleReceiver(expression: MorphNode): boolean {
-  return Node.isPropertyAccessExpression(expression) && expression.getName() === STYLE;
+  // The receiver is deliberately unconstrained beyond its NAME — `node.style`, `ref.current.style` and
+  // `this.el.style` are one shape and one defect.
+  return readMemberAccess(read.receiver)?.name === STYLE ? read.nameNode : undefined;
 }
 
 /** The nearest enclosing function-like body, which is the window the write and its flush share. */
@@ -86,10 +81,11 @@ function enclosingFunction(node: MorphNode): MorphNode | undefined {
   );
 }
 
-/** Is this node a forced-reflow read? `getBoundingClientRect` is counted at the property access rather than
- *  at the call, so all three members are one comparison and an unparenthesised reference reads the same. */
+/** Is this node a forced-reflow read? `getBoundingClientRect` is counted at the member access rather than at
+ *  the call, so all three members are one comparison and an unparenthesised reference reads the same — and
+ *  the shared reader answers for `el["offsetWidth"]` and `el?.offsetWidth` as readily as for the dot form. */
 function isForcedReflowRead(node: MorphNode): boolean {
-  return Node.isPropertyAccessExpression(node) && FORCED_REFLOW_READS.has(node.getName());
+  return readsMemberNamed(node, FORCED_REFLOW_READS) !== undefined;
 }
 
 interface TransformWrite {
@@ -119,7 +115,9 @@ export const gate = defineGate({
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.BinaryExpression, SyntaxKind.PropertyAccessExpression],
+          // BOTH member-access kinds, never `PropertyAccessExpression` alone — that is the #1506 hole, and
+          // the gate-spelling-twins census reds a gate that ships it.
+          kinds: [SyntaxKind.BinaryExpression, ...MEMBER_ACCESS_KINDS],
           visit: (node, sourceFile) => {
             if (isForcedReflowRead(node)) {
               const scope = enclosingFunction(node);
