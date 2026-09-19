@@ -19,6 +19,7 @@ import {
   checkTabIndexSmell,
   checkTapTargetPopulations,
   classifyControlAspect,
+  classifyUnreachableHint,
 } from "./checks-a11y.ts";
 import { classifyBorderContrast } from "./checks-border.ts";
 import { classifyCaveatHierarchy } from "./checks-caveat.ts";
@@ -118,6 +119,11 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
   // rather than a zero a reader cannot tell from a census that never ran.
   const borderContrasts = partitionedFindings("border-contrast", samples.borderContrasts ?? [], classifyBorderContrast);
   const names = totalJudge("aria-name", samples.accessibleNames, checkAccessibleName);
+  // #2452: the census is EVERY visible Base UI tooltip trigger and most of them are proven out of scope
+  // (the tooltip repeats the control's own name, or a description already resolves), so this publishes a
+  // PARTITION — a clean surface prints its exclusions rather than a zero a reader cannot tell from a
+  // census that never ran. A fine-pointer pass withholds the whole population by name.
+  const unreachableHints = partitionedFindings("unreachable-hint", samples.unreachableHints ?? [], classifyUnreachableHint);
   const tabIndexes = totalJudge("tabindex-positive", samples.tabIndexes, checkTabIndexSmell);
   // Accounting-only (#1077): no items, no checker — `census-interactive.ts`'s `restHiddenRevealFine`
   // count is the whole rule, carried entirely on `relationalAccounting`'s WITHHELD reason.
@@ -129,6 +135,7 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => controlAspects.findings);
   runArray(state, () => borderContrasts.findings);
   runArray(state, () => names.findings);
+  runArray(state, () => unreachableHints.findings);
   runNullable(state, () => checkMainLandmark({ main: samples.mainLandmarkPresent }));
   runArray(state, () => tabIndexes.findings);
   runArray(state, () => checkHeadingOrder(samples.headings));
@@ -143,6 +150,7 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
       "obscured-target": obscured.accounting,
       "reveal-coverage": revealCoverage.accounting,
       "tabindex-positive": tabIndexes.accounting,
+      "unreachable-hint": unreachableHints.accounting,
       "tap-target": tapTargets.accounting,
     },
   };

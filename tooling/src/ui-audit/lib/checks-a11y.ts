@@ -11,6 +11,7 @@ import type {
   ObscuredTargetInput,
   TabIndexInput,
   TapTargetInput,
+  UnreachableHintInput,
 } from "../contract/samples.ts";
 import { settledPopulationAccounting } from "./population.ts";
 
@@ -362,6 +363,54 @@ export function checkAccessibleName(input: AccessibleNameInput): Finding | null 
     value: "no accessible name",
     message: `<${input.tag}> is interactive but exposes no accessible name — add visible text, a <label for> (or wrap it in one), aria-label, aria-labelledby, title, or alt`,
     origin: "orbweaver",
+  };
+}
+
+/** THE TELL, RE-DERIVED AFTER #2455 (#2452). The rule was designed against a DANGLING
+ *  `aria-describedby` — the shape `@orb/ui`'s tooltip seal shipped until 2026-09-19, where every trigger
+ *  pointed at a popup Base UI mounts only while open. That tell is gone: the seal now renders an
+ *  always-mounted description node, so the surviving question is the one the defect was always about —
+ *  AT A COARSE POINTER, WHERE THE POPUP CANNOT BE OPENED AT ALL (Base UI's hover is `mouseOnly` and its
+ *  focus fallback gates on `:focus-visible`), IS THE TOOLTIP'S CONTENT REACHABLE BY ANY OTHER ROUTE?
+ *
+ *  The four routes, in the order this reads them: a rest-resolving description, a `title`/`aria-description`,
+ *  the control's own visible text, and a press-openable door (#2443's Popover remedy). The seal's published
+ *  decision supplies the fifth answer, which is not a route but the absence of a question: `name` means the
+ *  tooltip only repeats the control's accessible name, so there is nothing a user is missing.
+ *
+ *  POLARITY (#987): `withheld` where this instrument cannot judge — a fine-pointer pass measures a pointer
+ *  the defect does not exist on, and a trigger outside the seal publishes no decision, so neither is ever a
+ *  silent zero. `excluded` where measured facts prove the rule inapplicable. */
+export function classifyUnreachableHint(input: UnreachableHintInput): CandidateDisposition {
+  if (!input.coarsePointer) {
+    return { kind: "withheld", reason: "finePointer" };
+  }
+  if (input.describesDecision === null) {
+    return { kind: "withheld", reason: "noDescriptionWiring" };
+  }
+  if (input.describesDecision === "name") {
+    return { kind: "excluded", reason: "tooltipRepeatsName" };
+  }
+  if (input.describedByResolved > 0 || Boolean(input.title?.trim()) || Boolean(input.ariaDescription?.trim())) {
+    return { kind: "excluded", reason: "hasReachableDescription" };
+  }
+  if (input.ownText.length > 0) {
+    return { kind: "excluded", reason: "visibleOwnText" };
+  }
+  if (input.pressDoor) {
+    return { kind: "excluded", reason: "pressDoor" };
+  }
+  return {
+    kind: "judged",
+    finding: {
+      rule: "unreachable-hint",
+      severity: "P2",
+      selector: input.selector,
+      value: `describedBy ${String(input.describedByIds)} id(s), ${String(input.describedByResolved)} resolving`,
+      message:
+        "at a coarse pointer this control's only explanation is a tooltip no tap can open, and it has no rest-readable description and no press door — give it an always-mounted description or a press-openable disclosure (the HintTrigger Popover shape)",
+      origin: "orbweaver",
+    },
   };
 }
 

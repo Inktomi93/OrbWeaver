@@ -8,6 +8,7 @@
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Slider } from "@orb/ui/slider";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId } from "react";
 
@@ -1121,6 +1122,31 @@ export function WalkerFinePointerFloorStory(): ReactElement {
       <div style={row}>
         <span>another neighbouring row of prose</span>
       </div>
+    </div>
+  );
+}
+
+/** THE MECHANISM STAGE for `unreachable-hint` (#2452). The census reads two attributes it does not own:
+ *  Base UI's `data-base-ui-tooltip-trigger` and `@orb/ui`'s `data-tooltip-describes`. A hand-written HTML
+ *  fixture can spell both and prove nothing about whether the SHIPPED component still emits them — which
+ *  is the blindness RULE-AUTHORING.md step 2 exists to prevent — so this stage mounts the real seal in all
+ *  three of its decisions: a tooltip that says MORE than the name (described), one that only repeats the
+ *  name (nothing to reach), and one whose caller was handed the description and wrote none. */
+export function WalkerTooltipHintStory(): ReactElement {
+  return (
+    <div style={{ display: "flex", gap: 32, padding: 48, width: 520 }}>
+      <Tooltip>
+        <TooltipTrigger render={<Button aria-label="Send message" data-testid="hint-described" intent="ghost" size="icon" type="button" />} />
+        <TooltipPopup>Local engine is off — enable it to send.</TooltipPopup>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger render={<Button aria-label="Notifications" data-testid="hint-name-repeat" intent="ghost" size="icon" type="button" />} />
+        <TooltipPopup>Notifications</TooltipPopup>
+      </Tooltip>
+      <Tooltip describesTrigger={false}>
+        <TooltipTrigger render={<Button aria-label="Try another reply" data-testid="hint-opted-out" intent="ghost" size="icon" type="button" />} />
+        <TooltipPopup>Try another reply — needs an existing reply</TooltipPopup>
+      </Tooltip>
     </div>
   );
 }

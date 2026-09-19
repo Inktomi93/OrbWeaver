@@ -96,6 +96,9 @@ const COUNTED_FLAT_FAMILIES: Readonly<Record<FlatSampleFamily, boolean>> = {
   textStyles: true,
   texts: true,
   truncatedTexts: false,
+  // A tooltip TRIGGER is already a censused subject through accessibleNames/tapTargets — this census reads
+  // the same element a second way (its description wiring), so counting it would inflate the denominator.
+  unreachableHints: false,
   zIndexes: true,
 };
 

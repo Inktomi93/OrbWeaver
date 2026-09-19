@@ -36,7 +36,17 @@ const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 // useFocus's `:focus-visible` early return — see hint-trigger.tsx's header). The rendered popup keeps
 // its animation and its geometry and becomes a purely VISUAL duplicate: `aria-hidden`, no id, no role,
 // so the text appears exactly ONCE in the accessibility tree whether the tooltip is open or closed.
+/** WHY this tooltip is or is not its trigger's description, PUBLISHED ON THE TRIGGER as
+ *  `data-tooltip-describes` (#2452). The three cases are indistinguishable in the DOM otherwise — all
+ *  three render a trigger with no resolving `aria-describedby` — and they mean opposite things to an
+ *  audit: `name` is "there is nothing to reach", `caller` is "someone else owes the description", and a
+ *  trigger carrying NO attribute at all is outside this seal entirely. The design-audit `unreachable-hint`
+ *  rule reads exactly this attribute; without it the rule can only report a withheld population. */
+const TOOLTIP_DESCRIBES_ATTRIBUTE = "data-tooltip-describes";
+type TooltipDescribesDecision = "self" | "name" | "caller";
+
 interface TooltipDescriptionApi {
+  readonly decision: TooltipDescribesDecision;
   /** The id the trigger points at and the description node wears — `undefined` when this tooltip is not
    *  describing its trigger (opted out, or its text only repeats the trigger's own name). */
   readonly descriptionId: string | undefined;
@@ -52,12 +62,12 @@ function sameSpokenString(left: string, right: string): boolean {
   return left.trim().replace(/\s+/gu, " ") === right.trim().replace(/\s+/gu, " ");
 }
 
+const RENDER_CHAIN_DEPTH = 4;
+
 /** The trigger's accessible name WHEN IT IS KNOWABLE FROM PROPS — an explicit `aria-label` (including one
  *  on a nested `render` element: `<TooltipTrigger render={<PopoverTrigger render={<Button aria-label=…>}/>}>`
  *  is HintTrigger's real shape), else string children. `undefined` means "not knowable", and the seal then
  *  describes, because refusing to describe on a guess is the failure that cannot be noticed. */
-const RENDER_CHAIN_DEPTH = 4;
-
 function knowableTriggerName(props: Readonly<Record<string, unknown>>): string | undefined {
   let element: Readonly<Record<string, unknown>> | undefined = props;
   let depth = 0;
@@ -111,13 +121,20 @@ export function Tooltip<Payload = unknown>({ describesTrigger = true, ...props }
   const [triggerName, setTriggerName] = useState<string | undefined>(undefined);
   const [tooltipText, setTooltipText] = useState<string | undefined>(undefined);
   const repeatsName = triggerName !== undefined && tooltipText !== undefined && sameSpokenString(triggerName, tooltipText);
+  let decision: TooltipDescribesDecision = "self";
+  if (!describesTrigger) {
+    decision = "caller";
+  } else if (repeatsName) {
+    decision = "name";
+  }
   const api = useMemo(
     (): TooltipDescriptionApi => ({
+      decision,
       descriptionId: describesTrigger && !repeatsName ? id : undefined,
       reportTriggerName: setTriggerName,
       reportTooltipText: setTooltipText,
     }),
-    [describesTrigger, id, repeatsName],
+    [decision, describesTrigger, id, repeatsName],
   );
   return (
     <TooltipDescriptionContext value={api}>
@@ -143,7 +160,7 @@ export function TooltipTrigger<Payload = unknown>({ "aria-describedby": callerDe
   // Neither is right for a list. The seal's id leads (the tooltip is this component's own contract), the
   // caller's follows.
   const describedBy = callerDescribedBy === undefined ? descriptionId : `${descriptionId ?? ""} ${callerDescribedBy}`.trim();
-  return <BaseTooltip.Trigger aria-describedby={describedBy} {...props} />;
+  return <BaseTooltip.Trigger aria-describedby={describedBy} {...(api === undefined ? {} : { [TOOLTIP_DESCRIBES_ATTRIBUTE]: api.decision })} {...props} />;
 }
 
 export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {
