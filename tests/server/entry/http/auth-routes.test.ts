@@ -20,13 +20,30 @@ import {
 } from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
 import type { OidcTransaction, OidcVerifiedTokens } from "@orb/server/infra/auth";
-import { SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
+import { SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE, SESSION_COOKIES } from "@orb/server/infra/auth";
 import { describe, vi } from "vitest";
+// #2263 — the REAL mint, by deep path (it is deliberately not on the `domain/sessions` front door; the
+// `tokens.test.ts` precedent). The alphabet pins below are worthless against a hand-`castId`'d string:
+// `castId` is type-only and carries no runtime guarantee, so what they must exercise is what production
+// actually writes into a cookie.
+import { mintSessionToken } from "../../../../packages/server/src/domain/sessions/tokens/tokens.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;
+const MS_PER_SECOND = 1000;
 const COOKIE = "__Host-orb_session";
+/** #2263 — the mint's alphabet: `randomBytes(32).toString("base64url")`. Unbounded length here on purpose;
+ *  `tokens.test.ts` owns the 43-char ENTROPY pin, this file owns what the CHARACTER SET buys the raw write. */
+const BASE64URL = /^[A-Za-z0-9_-]+$/u;
+/** The characters that would end a cookie value, append an attribute, start a second cookie, or split the
+ *  header — i.e. what "safe to interpolate into `Set-Cookie` verbatim" actually means. */
+const SET_COOKIE_BREAKOUT = /[;,\s"\\=]/u;
+/** RFC 6265 §4.1.1 / RFC 7230 §3.2.6 `token` — the grammar a cookie NAME must satisfy. */
+const COOKIE_NAME_TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/u;
+/** Enough draws that a mint which emitted an unsafe character on some inputs would be caught, while the
+ *  real argument stays the alphabet itself. */
+const MINT_SAMPLES = 256;
 /** The session row a logout ends — what `revokeByToken` reports and the route evicts sockets by (W7a). */
 const REVOKED_SESSION_ID = castId<SessionId>("sess_logout");
 /** #141 — what `revokeByToken` now reports: the ended row + the OIDC end-session hint it was carrying. */
@@ -287,6 +304,56 @@ describe("cookie I/O", () => {
     expect(insecureClear).not.toContain("Secure");
     expect(insecureClear).toContain("HttpOnly");
     expect(insecureClear).toContain("SameSite=Lax");
+  });
+
+  // #2263 — THE RAW `Set-Cookie` WRITE IS SAFE BECAUSE OF THE MINT'S ALPHABET, AND NOTHING ENFORCED THAT.
+  // `serializeSessionCookie` interpolates the token verbatim while the reader (`entry/auth/seam.ts`)
+  // percent-DECODES it; that pairing is the identity only because `mintSessionToken` emits base64url —
+  // 43 chars from `[A-Za-z0-9_-]`, which contains no `;`, no `,`, no whitespace and nothing
+  // `encodeURIComponent` escapes. The serializer's own doc says so in prose; these are the executed form.
+  // They red if the mint's alphabet ever widens (the header's stated trigger for percent-encoding the
+  // write) or if a value from a different producer reaches the serializer.
+  //
+  // THE MINT IS CALLED FOR REAL. A `castId<SessionToken>("…")` literal would pin nothing: the brand is
+  // type-only and carries no runtime guarantee (that is the trap the #2042 lane named).
+  describe("#2263 — the mint's alphabet is what makes the raw write safe", () => {
+    test("every minted token is base64url, so none can carry a Set-Cookie separator", () => {
+      for (let i = 0; i < MINT_SAMPLES; i += 1) {
+        const token = mintSessionToken();
+        expect(token).toMatch(BASE64URL);
+        // Named explicitly rather than left implicit in the class above — these are the characters that
+        // would end the cookie's value, append an attribute, or start a second cookie.
+        expect(token).not.toMatch(SET_COOKIE_BREAKOUT);
+      }
+    });
+
+    test("a MINTED token survives the raw write byte-identically and adds no attribute", () => {
+      const token = mintSessionToken();
+      const header = serializeSessionCookie(token, THIRTY_DAYS_MS / MS_PER_SECOND);
+      const [pair] = header.split(";");
+      expect(pair).toBe(`${COOKIE}=${token}`);
+      // The reader's decode is the identity on this alphabet — the write/read asymmetry the serializer's
+      // doc calls "unreachable by construction", asserted rather than argued.
+      expect(decodeURIComponent(`${pair}`.slice(COOKIE.length + 1))).toBe(token);
+      // Separator count DERIVED from an inert one-char token, never re-spelled from the attribute string:
+      // a minted token must contribute exactly zero `;` of its own.
+      const inert = serializeSessionCookie(castId<SessionToken>("x"), THIRTY_DAYS_MS / MS_PER_SECOND);
+      expect(header.split(";")).toHaveLength(inert.split(";").length);
+    });
+
+    // The VALUE arm above can only exercise the ACTIVE posture — `serializeSessionCookie` closes over the
+    // module-resolved `SESSION_COOKIE_NAME`, decided once at import from the frozen env (deliberately: a
+    // per-request decision is what a forged `X-Forwarded-Proto` would exploit), and this suite runs on the
+    // default secure posture. What IS checkable for BOTH names is the other half of the same raw write:
+    // the NAME is interpolated verbatim too, so a posture whose name carried a separator would break out
+    // exactly as a bad value would. Both must be RFC 6265 `token`s.
+    test("BOTH cookie names are RFC 6265 tokens — the name side of the raw write cannot break out either", () => {
+      expect(SESSION_COOKIES.length).toBeGreaterThan(1);
+      for (const { name } of SESSION_COOKIES) {
+        expect(name).toMatch(COOKIE_NAME_TOKEN);
+        expect(name).not.toMatch(SET_COOKIE_BREAKOUT);
+      }
+    });
   });
 });
 

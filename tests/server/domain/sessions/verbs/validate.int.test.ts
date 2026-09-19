@@ -93,3 +93,48 @@ describe("sessions.validate — throttled expiry slide", () => {
     expect(row?.expiresAt).toBe(originalExpiry);
   });
 });
+
+// #2263 — `onSlide` FIRES ONLY AFTER THE PEPPERED-HASH ROW MATCH, and that ordering is what keeps an
+// attacker-controlled value out of a `Set-Cookie` header. The consumer (`entry/app.ts`) re-serializes the
+// RAW `Cookie` header it read — `serializeSessionCookie(token, …)` on the value the browser sent — so the
+// only thing that stops a forged cookie from being written back into a response header is that this
+// callback never runs for a token the row lookup refused. Nothing pinned that until now: the two throttle
+// pins above both run on a VALID session, so a guard that fired `onSlide` before the refusal would leave
+// them green.
+//
+// EVERY ARM ADVANCES PAST THE SLIDE THROTTLE. Without that the throttle alone would keep `onSlide` silent
+// and each pin would pass for a reason that has nothing to do with the refusal it claims to test.
+describe("sessions.validate — onSlide never fires on a REFUSED token (#2263)", () => {
+  test("a forged / unknown token: null, and onSlide is never called", async () => {
+    clock.advance(SLIDE_THROTTLE_MS + 1);
+    const onSlide = vi.fn<(expiresAt: number) => void>();
+    expect(await svc.validate(castId<SessionToken>("forged-cookie-value; Path=/"), onSlide)).toBeNull();
+    expect(onSlide).not.toHaveBeenCalled();
+  });
+
+  test("a revoked session: null, and onSlide is never called", async () => {
+    const { token } = await svc.create({ userId: USER_ID });
+    await svc.revokeByToken(token);
+    clock.advance(SLIDE_THROTTLE_MS + 1);
+    const onSlide = vi.fn<(expiresAt: number) => void>();
+    expect(await svc.validate(token, onSlide)).toBeNull();
+    expect(onSlide).not.toHaveBeenCalled();
+  });
+
+  test("a disabled user: null, and onSlide is never called", async () => {
+    const { token } = await svc.create({ userId: USER_ID });
+    await db.update(users).set({ enabled: false }).where(eq(users.id, USER_ID));
+    clock.advance(SLIDE_THROTTLE_MS + 1);
+    const onSlide = vi.fn<(expiresAt: number) => void>();
+    expect(await svc.validate(token, onSlide)).toBeNull();
+    expect(onSlide).not.toHaveBeenCalled();
+  });
+
+  test("an expired session: null, and onSlide is never called", async () => {
+    const { token } = await svc.create({ userId: USER_ID });
+    clock.advance(SESSION_TTL_MS + 1);
+    const onSlide = vi.fn<(expiresAt: number) => void>();
+    expect(await svc.validate(token, onSlide)).toBeNull();
+    expect(onSlide).not.toHaveBeenCalled();
+  });
+});
