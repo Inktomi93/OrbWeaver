@@ -481,7 +481,7 @@ const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) /
  * guarantee stacked under this one, never a reason to weaken it. Which art is the WORST case is a function of the
  * plate's POLARITY, and the intuition runs backwards: a LIGHT plate carries DARK inks, so the composite
  * is worst when the art DARKENS it ⇒ BLACK art; a DARK plate carries LIGHT inks ⇒ WHITE art. Measured
- * live 2026-08-18 (`reports/design/rescore-chats-2026-08-18.md`): at the flat 0.65 the light-palette
+ * live 2026-08-18 (the chats rescoring pass): at the flat 0.65 the light-palette
  * done-bar room read narration 3.48:1 / dialogue 4.09:1 over the bright wallpaper regions and 4.94/5.39
  * over the dark ones — the same ink, the same alpha, the scroll position deciding the verdict.
  *

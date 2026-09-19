@@ -1,6 +1,6 @@
 // infra/providers/backends/openrouter/runners/image/runner — the two image roles OpenRouter serves:
 //   • imageEmbed — joint image/text embedding via `embeddings.generate` with multimodal `input` (OR's embed
-//     input accepts `image_url` parts, so hosted Qwen-VL embeds are real — providers.md §11). Carries
+//     input accepts `image_url` parts, so hosted Qwen-VL embeds are real — Tier-3b-Providers.md §11). Carries
 //     `model` back as the shared image/text space provenance.
 //   • generateImage — text→image via `chat.send` with `modalities:["text","image"]`; the generated images
 //     ride `choices[0].message.images[].imageUrl.url` (a data: URL or an http URL).

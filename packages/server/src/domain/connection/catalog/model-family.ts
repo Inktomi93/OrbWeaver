@@ -2,7 +2,7 @@
 // the previous codebase's `providers/_shared/model-family.ts`; `FAMILY_CAPS` is DISSOLVED into
 // `resolve-model-capability.ts` (the ONE descriptor factory) — only the detector lives here.
 //
-// LOAD-BEARING — the anchors (providers.md Esoteric §7): the anthropic regex
+// LOAD-BEARING — the anchors (Tier-3b-Providers.md Esoteric §7): the anthropic regex
 // `/^(anthropic\/)?claude[-/]/i` matches BOTH bare (`claude-opus-4-8`) and prefixed
 // (`anthropic/claude-opus-4-8`) ids BUT rejects third-party forks (`some-org/claude-fork` → `other`), so an
 // alien backend whose id merely CONTAINS "claude" never receives Anthropic-only directives (cache_control).

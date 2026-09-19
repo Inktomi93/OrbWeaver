@@ -16,7 +16,7 @@ import { z } from "zod";
 
 export const messageMediaKindSchema = z.enum(["image", "audio", "video"]);
 
-/** Tier-A = inert sanitized allowlist in the main DOM; Tier-B = sandboxed-iframe card (client.md §12.2). */
+/** Tier-A = inert sanitized allowlist in the main DOM; Tier-B = sandboxed-iframe card (the card-trust tier split). */
 export const cardTrustSchema = z.enum(["tierA", "tierB"]);
 export type CardTrust = z.infer<typeof cardTrustSchema>;
 
