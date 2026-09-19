@@ -28,7 +28,7 @@ import {
 import { DEFAULT_DEBOUNCE_MS } from "../../../../../packages/client/src/forms/entity-form-base.ts";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { AppearanceBackgroundSectionCommitTallyStory, AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";
+import { AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";
 
 /** A BUNDLED SCENE PLATE as the picker actually sees one since `kind:"seeded"` retired (2026-09-18): an
  *  ordinary `appearance.backgroundLibrary` entry, seeded per user from `@orb/default-content` by
@@ -234,92 +234,79 @@ test("a refused URL surfaces the verb's own leak-free reason inline, writes noth
 });
 
 // #1194 — the wallpaper-jiggle bug: the picker grid re-rendered continuously (every wallpaper thumbnail
-// visibly jiggling) instead of settling once after mount. Pinned via `<Profiler>` commit tally rather
-// than an exact count (the section legitimately commits more than once while its suspense boundary
-// resolves) — the defect signature is commits that keep arriving with nothing driving them, not a
-// specific N.
-test("the section's commits settle after mount and stay settled with no user interaction", async ({ mount, page }) => {
+// visibly jiggling) instead of settling once after mount.
+//
+// THE COMMIT TALLY THIS TEST USED TO READ MEASURED NOTHING (#2412, 2026-09-18). playwright-ct runs the
+// PRODUCTION React build, whose `<Profiler>` never calls `onRender` — that is a profiling-build feature —
+// so `globalThis.__ctCommits` sat at exactly 0 and the two assertions built on it (`second === first`,
+// `second < 10`) compared 0 to 0 and would have passed against a surface re-rendering forever. Measured
+// here before the replacement: asserting `firstReading > 0` against the unchanged source FAILED. The same
+// measurement is recorded in `tests/client/features/chat/_ct-stories.tsx`'s #1873 block, which chose the
+// honest observable first: RENDERED GEOMETRY sampled PER ANIMATION FRAME.
+//
+// So the pin is now one frame-resolution sampler covering BOTH halves of the defect: the grid's own box
+// and column count (React's output) AND every tile's rect (what "visibly jiggling" means to the user).
+// Frame resolution also covers what the commit tally structurally could not — MediaGrid's virtualizer
+// writes row position DIRECTLY to the DOM (`directDomUpdates`), so a ResizeObserver feedback loop that
+// toggles the measured column count never reaches a React commit at all — and a 50ms tick loop can land
+// on the same phase of a per-frame alternation. A settled grid reports ONE distinct sample; an
+// oscillating one reports more.
+test("the section's rendered geometry settles after mount and stays settled with no user interaction", async ({ mount, page }) => {
   await stub(page);
-  await page.evaluate(() => {
-    globalThis.__ctCommits = 0;
-  });
-  await mount(<AppearanceBackgroundSectionCommitTallyStory />);
+  await mount(<AppearanceBackgroundSectionStory />);
   await expect(page.getByRole("grid", { name: "Background image" })).toBeVisible();
 
-  // Let any in-flight settle (suspense resolution, autosave's first server-echo reseed) finish, then
-  // sample the tally twice across an idle window with nothing driving the app. A continuously
-  // re-rendering surface keeps incrementing across that window; a settled one does not. The wait runs
-  // IN-PAGE (not `page.waitForTimeout`) so it is a real elapsed-time read of the tally, not a test-runner
-  // pause the app could commit through unobserved.
-  const firstReading = await page.evaluate(
-    () =>
-      new Promise<number>((resolve) => {
-        setTimeout(() => resolve(globalThis.__ctCommits ?? 0), 500);
+  // One settle window for the work a healthy mount legitimately does (suspense resolution, the autosave's
+  // first server-echo reseed, thumbnail decode). It runs IN-PAGE rather than as `page.waitForTimeout` so
+  // it is real elapsed page time the app cannot render through unobserved.
+  await page.evaluate(
+    async () =>
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 500);
       }),
   );
-  const secondReading = await page.evaluate(
-    () =>
-      new Promise<number>((resolve) => {
-        setTimeout(() => resolve(globalThis.__ctCommits ?? 0), 500);
-      }),
-  );
-
-  // firstReading/secondReading are already-captured numbers, not a live read — each came out of its OWN
-  // sequential in-page `page.evaluate` that barriers on a 500ms idle window before resolving, so by the time
-  // either is compared below the settle already happened inside the read itself; polling would just
-  // re-compare the same two frozen numbers forever.
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — secondReading is a frozen number captured after its own 500ms in-page idle wait.
-  expect(secondReading).toBe(firstReading);
-  // A settled mount is a small, bounded number of commits — never an unbounded "still climbing" count.
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — same frozen secondReading as the comparison above.
-  expect(secondReading).toBeLessThan(10);
-
-  // The SECOND arm of the pin: MediaGrid's virtualizer writes row position DIRECTLY to the DOM
-  // (`directDomUpdates`), bypassing React commits entirely — a ResizeObserver feedback loop (the
-  // scrollbar toggling the measured column count back and forth) would jiggle the grid WITHOUT showing
-  // up in the commit tally above. Sample the grid's column count + scroll geometry across the same idle
-  // window; every sample must agree, or the grid is oscillating.
-  interface GridGeometry {
-    readonly colcount: string | null;
-    readonly scrollHeight: number;
-    readonly clientHeight: number;
-    readonly scrollWidth: number;
-    readonly clientWidth: number;
-  }
-  const geometrySamples = await page.evaluate(
-    () =>
-      new Promise<GridGeometry[]>((resolve) => {
-        const el = document.querySelector('[data-slot="media-grid-root"]');
-        const out: GridGeometry[] = [];
-        let n = 0;
-        const tick = (): void => {
-          if (el === null) {
-            resolve(out);
-            return;
+  const distinctFrames = await page.evaluate(
+    async () =>
+      await new Promise<string[]>((resolve) => {
+        const seen: string[] = [];
+        const sample = (): string => {
+          const root = document.querySelector('[data-slot="media-grid-root"]');
+          if (root === null) {
+            return "no-grid-root";
           }
-          out.push({
-            colcount: el.getAttribute("aria-colcount"),
-            scrollHeight: el.scrollHeight,
-            clientHeight: el.clientHeight,
-            scrollWidth: el.scrollWidth,
-            clientWidth: el.clientWidth,
+          const tiles = [...root.querySelectorAll('[role="gridcell"]')].map((cell) => {
+            const rect = cell.getBoundingClientRect();
+            return [Math.round(rect.x), Math.round(rect.y), Math.round(rect.width), Math.round(rect.height)].join(",");
           });
-          n += 1;
-          if (n >= 10) {
-            resolve(out);
+          return JSON.stringify({
+            colcount: root.getAttribute("aria-colcount"),
+            scrollHeight: root.scrollHeight,
+            clientHeight: root.clientHeight,
+            scrollWidth: root.scrollWidth,
+            clientWidth: root.clientWidth,
+            tiles,
+          });
+        };
+        const tick = (): void => {
+          seen.push(sample());
+          if (seen.length < 30) {
+            requestAnimationFrame(tick);
             return;
           }
-          setTimeout(tick, 50);
+          resolve([...new Set(seen)]);
         };
-        tick();
+        requestAnimationFrame(tick);
       }),
   );
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — geometrySamples is the array an in-page tick() loop already fully collected (10 ticks over its own idle window) before resolving; nothing left in flight to poll.
-  expect(geometrySamples.length).toBeGreaterThan(0);
-  const firstGeometry = geometrySamples[0];
-  for (const sample of geometrySamples) {
-    expect(sample).toStrictEqual(firstGeometry);
-  }
+
+  // distinctFrames is a frozen array the in-page rAF loop already finished collecting (30 frames, over its
+  // own elapsed window) before it resolved — there is nothing left in flight for a poll to re-read.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — distinctFrames was fully collected in-page across 30 animation frames before resolving.
+  expect(distinctFrames).toHaveLength(1);
+  // …and the sampler really looked at the grid, so the single distinct sample above is a measurement
+  // rather than 30 identical "no-grid-root" strings — the planted-control half of this pin.
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — same frozen array as the assertion above.
+  expect(distinctFrames[0]).toContain('"tiles":["');
 });
 
 // AU-9 (owner ruling 2026-07-31) — an own UPLOAD saves to the library exactly like the URL twin, so both
