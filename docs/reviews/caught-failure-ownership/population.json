@@ -5762,9 +5762,9 @@
       "markerLine": 25
     },
     {
-      "siteId": "tooling/src/snap/ops/appearance-invariant-runtime.ts::mutation::1",
-      "path": "tooling/src/snap/ops/appearance-invariant-runtime.ts",
-      "line": 236,
+      "siteId": "tooling/src/snap/ops/appearance-density-persistence.ts::mutation::1",
+      "path": "tooling/src/snap/ops/appearance-density-persistence.ts",
+      "line": 147,
       "column": 12,
       "grammar": "promise",
       "position": "mutation",
@@ -5772,7 +5772,7 @@
       "snippet": "void mutation.catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "the DEFUSED rejection is the response wait, whose failure is meaningless once the click that should have caused it failed — the click's error is re-thrown on the next line and owns the outcome. Ends if the wait stops being started before the click.",
-      "markerLine": 235
+      "markerLine": 146
     },
     {
       "siteId": "tooling/src/snap/ops/appearance-surface-drive.ts::catch::1",

@@ -90,6 +90,22 @@ function realConfig(repoRoot: string, from: string, to: string): string {
   return text.replace(from, to);
 }
 
+// THE `.cache` SELECTOR'S OWN INDEX in the first config's `ignores` array — DERIVED, never typed.
+//
+// It was `5` as a literal until 2026-09-19, and the literal rotted exactly the way an index literal does:
+// the `__g_` planter-suite ignore sat at index 3 until #2176 retired those suites, and deleting it slid
+// every row below it up one. The pin then filtered for a subject no finding carried and asserted `[]`
+// against a one-row expectation — a red that says nothing about the property under test. The index is a
+// fact of the array's MEMBERSHIP, so it is read off the array.
+function cacheIgnoreIndex(repoRoot: string): number {
+  const text = readFileSync(join(repoRoot, CONFIG_REL), "utf8");
+  const start = text.indexOf("    ignores: [");
+  const entries = [...text.slice(start, text.indexOf("],", start)).matchAll(/^ {6}"([^"]+)",$/gmu)].map((match) => match[1]);
+  const index = entries.indexOf(CACHE_SELECTOR.trim().slice(1, -2));
+  expect(index, "the `.cache` ignore must still be a member of the first config's ignores array").toBeGreaterThanOrEqual(0);
+  return index;
+}
+
 interface Drive {
   readonly result: PolicyPassResult;
   /** `subject operation` of every effective finding this policy produced. */
@@ -190,16 +206,16 @@ test("an ignore inserted at index 0 of the REAL config re-points EVERY granted s
 test("changing ONE granted selector's text IN PLACE stales exactly that grant and leaves its selector effective", { timeout: scaledBudget(180_000) }, ({
   repoRoot,
 }) => {
-  // Index 5 keeps its position and its zero population; only its VALUE moves — the #2213 coupled site.
+  // The `.cache` row keeps its POSITION and its zero population; only its VALUE moves — the #2213 coupled
+  // site. The position itself is read off the array rather than typed (see `cacheIgnoreIndex`).
+  const subject = `config[0].ignores[${String(cacheIgnoreIndex(repoRoot))}]`;
   const moved = realConfig(repoRoot, CACHE_SELECTOR, '      "**/.cache-cbx-control/**",\n');
 
   const { effective, granted, stale } = drive(repoRoot, GRANTS, moved);
 
   expect(stale).toEqual(["eslint-grant-liveness:cache"]);
   expect(granted).toEqual(GRANT_IDS.filter((id) => id !== "eslint-grant-liveness:cache"));
-  expect(effective.filter((row) => row.startsWith("config[0].ignores[5] "))).toEqual([
-    identity("config[0].ignores[5]", selectorOperation("**/.cache-cbx-control/**")),
-  ]);
+  expect(effective.filter((row) => row.startsWith(`${subject} `))).toEqual([identity(subject, selectorOperation("**/.cache-cbx-control/**"))]);
 });
 
 test("an ignore APPENDED at the array's end re-points nothing: every grant is still consumed and only the new selector is effective", {
