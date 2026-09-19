@@ -33,7 +33,7 @@ const TYPE_PAD = 8;
 
 /** --probe injects `*{animation:none!important;transition:none!important}` from DOMContentLoaded
  *  (PROBE_CSS_SCRIPT). That is correct for a DETERMINISTIC SHOT and fatal for a MOTION reading: it kills
- *  the very FLIP animations (shell.css `@keyframes shell-main-flip`, stamped by use-list-track-flip)
+ *  the very FLIP animations (shell.css `@keyframes shell-main-flip`, stamped by use-shell-track-flip)
  *  whose job is to make a track change CLS-free — so the harness MANUFACTURES layout-shift findings
  *  (a 0.2295 theme-scope shift was filed off exactly this on 2026-08-16). `__orb.motion()` reached
  *  through --eval is uncatchable from here, so the marker is unconditional under --probe: every

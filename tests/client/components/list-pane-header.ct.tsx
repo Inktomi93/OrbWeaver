@@ -141,6 +141,28 @@ test("back fires its handler; exactly one action node renders (A2 — one primar
   await expect(component.getByRole("button")).toHaveCount(2);
 });
 
+// ── #2463: THE ACTION IS THE BOX SHELL.CSS COUNTERS, AND THIS IS THE COUPLING ────────────────────────
+// `shell.css`'s fourth alignment class selects `[data-slot="list-pane-action"]` to cancel the LIST pane's
+// own width reflow on a context toggle (measured 304 → 269 in one frame before it). The geometry is pinned
+// in `app-shell.ct.tsx`'s door census, but that story hand-authors its band — so without THIS assertion
+// the shell's rule could keep passing there while every real section's action had stopped wearing the
+// marker. Two tiers, one fact: the composite emits it, the shell counters it.
+//
+// AND THE WRAPPER IS CONDITIONAL, which is the half that keeps `shell.css`'s mobile band-shed test honest:
+// that rule detects "the band has a child that is not the identity cluster", so an unconditional wrapper
+// would make a browse-shaped pane (corpus · analytics · config — no create verb) look like it had an
+// action and stop shedding an otherwise-empty 48px chrome row.
+test("#2463 the primary action is wrapped in the marker shell.css counters — and only when there IS one", async ({ mount }) => {
+  const component = await mount(<ListPaneHeader action={<Button intent="primary">New chat</Button>} count={12} title="Chats" />);
+
+  const marked = component.locator('[data-slot="list-pane-action"]');
+  await expect(marked).toHaveCount(1);
+  await expect(marked.getByRole("button", { name: "New chat", exact: true })).toBeVisible();
+
+  await component.update(<ListPaneHeader count={12} title="Chats" />);
+  await expect(component.locator('[data-slot="list-pane-action"]'), "no action ⇒ no marker, or the band never sheds on a phone").toHaveCount(0);
+});
+
 // ── THE MOBILE BAND (side-eye 2026-08-06 P2) ─────────────────────────────────────────────────────────
 // The ONE-SHELL rule sheds this band's UNSCOPED title on a phone (the topbar already prints the section's
 // name ~50px above). What it used to leave behind was a 48px bordered chrome row containing an empty flex

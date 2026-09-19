@@ -5,13 +5,15 @@
 // are in shell.css. This is the data-attribute grammar the motion guide mandates (§1.5: no React
 // animation hook; Base UI drives its own enter/exit the same way with `data-starting-style`).
 //
-// THE FILE NAME IS `use-list-track-flip.ts` AND THE HOOK IS NOT LIST-ONLY (#2456). The motion law cites
-// this PATH as one of the two members of its §1.5 FLIP-inversion exception class
-// (`docs/architecture/core/motion-and-animation-guide.md`), and a rename is a law-doc edit — so the
-// second track arrived as a second argument here rather than as a THIRD exception-class member, which is
-// what a sibling `use-panel-track-flip.ts` would have been (§1.5 says in as many words: "Anything else
-// that reaches for JS to move pixels is a defect, not a third member"). One hook is also the only shape
-// that can work: the two tracks share ONE restart, ONE release and ONE composed distance per element.
+// THE FILE NAME MATCHES THE HOOK AGAIN (#2463). It shipped as `use-list-track-flip.ts` and stopped being
+// list-only at #2456, which took the second track as a second ARGUMENT rather than as a sibling file —
+// correct then and correct now (§1.5 says in as many words: "Anything else that reaches for JS to move
+// pixels is a defect, not a third member", and one hook is the only shape that can work: the two tracks
+// share ONE restart, ONE release and ONE composed distance per element). What #2456 deferred was the
+// NAME, because the motion law cites this PATH as one of the two members of its §1.5 FLIP-inversion
+// exception class and a rename is a law-doc edit. It is done here, with that citation
+// (`docs/architecture/core/motion-and-animation-guide.md` §1.5) moved in the same commit — `dangling-doc-cite`
+// is hard-no-waiver, so the two can never be renamed apart.
 //
 // TWO TRACKS, TWO ARMS, ONE STAMP. Each track's fact is stamped either as `data-<track>-flip` (motion
 // allowed — the animated FLIP) or as `data-<track>-settle` (motion reduced — the same counter-translate
@@ -80,7 +82,14 @@ function eachTrack(visit: (track: PanelName) => void): void {
  *  never drop a live FLIP. This is the JS half of a JS↔CSS name coupling and this Set is its one home;
  *  `app-shell.ct.tsx` pins that the attribute is actually released after a real toggle, so a renamed
  *  keyframe reds a test instead of silently pinning the attribute forever. */
-const SHELL_FLIP_ANIMATIONS = new Set(["shell-main-flip", "shell-trail-flip", "shell-centre-flip", "shell-list-panel-flip", "shell-context-panel-flip"]);
+const SHELL_FLIP_ANIMATIONS = new Set([
+  "shell-main-flip",
+  "shell-trail-flip",
+  "shell-centre-flip",
+  "shell-list-band-flip",
+  "shell-list-panel-flip",
+  "shell-context-panel-flip",
+]);
 
 /** Only a DOCKED panel occupies a grid track — `overlay` and `collapsed` both leave it at 0, so flipping
  *  between those two moves no content and must not animate. */

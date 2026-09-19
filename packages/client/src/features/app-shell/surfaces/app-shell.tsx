@@ -34,10 +34,10 @@ import { useChatBackground } from "../hooks/use-chat-background.ts";
 import { useCommandShortcut } from "../hooks/use-command-shortcut.ts";
 import { useShellContentPrimacyObserver } from "../hooks/use-is-mobile-viewport.ts";
 import { useKeyboardInsetVar } from "../hooks/use-keyboard-inset-var.ts";
-import { useShellTrackFlip } from "../hooks/use-list-track-flip.ts";
 import { useSelectedTheme } from "../hooks/use-selected-theme.ts";
 import type { ShellLayout } from "../hooks/use-shell-layout.ts";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
+import { useShellTrackFlip } from "../hooks/use-shell-track-flip.ts";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard.ts";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background.ts";
 

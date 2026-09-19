@@ -452,7 +452,14 @@ export function AppShellTrackDoorsStory(): ReactElement {
             listHeader: (
               <>
                 <span data-testid="list-band-lead">Chats</span>
-                <span data-testid="list-band-action">action</span>
+                {/* `data-slot="list-pane-action"` is the SHELL'S marker, not this story's convenience: it
+                    is what `ListPaneHeader` wraps a real section's D66 A2 action in, and what shell.css's
+                    fourth alignment class selects (#2463). The story stands in for that band, so it wears
+                    the same marker — the coupling back to the composite that emits it is pinned in
+                    `tests/client/components/list-pane-header.ct.tsx`. */}
+                <span data-slot="list-pane-action" data-testid="list-band-action">
+                  action
+                </span>
               </>
             ),
             content: (
