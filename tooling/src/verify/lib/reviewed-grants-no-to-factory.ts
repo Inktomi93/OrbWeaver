@@ -433,4 +433,20 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     why: "the ONE `*-selection-store.ts` that is not a single-id drill: message selection is a bulk multi-select (presence in a Set keyed by message id, PD-119), a shape the drill factory does not model.",
     endsWhen: "the drill factory models bulk selection and this store migrates onto it.",
   },
+  {
+    id: "no-banned-tw-utility:message-bubble-class",
+    policyId: "no-banned-tw-utility",
+    subject: "packages/client/src/lib/message-bubble-class.ts",
+    operation: "banned-tw-utility:max-w-prose",
+    why: "TRANSCRIPT GEOMETRY, refused in place at `message-bubble-class.ts:25` (#1145/#1175): a chat bubble is not teaching prose, and no house reading measure was ever ruled for it — the bubble shrinks to fit and this caps the long-form line length. Re-pointing it at `--reading-measure-prose` would apply a paragraph measure to a shrink-to-fit box.",
+    endsWhen: "a transcript bubble cap is ruled and gets its own token, at which point this row is consumed zero times and reds.",
+  },
+  {
+    id: "no-banned-tw-utility:message-row-variants",
+    policyId: "no-banned-tw-utility",
+    subject: "packages/client/src/features/chat/lib/message-row-variants.ts",
+    operation: "banned-tw-utility:max-w-prose",
+    why: 'the SAME transcript-geometry ruling one file over, refused in place at `message-row-variants.ts:363` ("DELIBERATE RESIDUE here (#1175, refused with a receipt): this is transcript geometry") — the photo-reading-plate inner box, which is the bubble\'s own measure under a different skin.',
+    endsWhen: "a transcript bubble cap is ruled, the same condition as the sibling row — both die together or neither does.",
+  },
 ];
