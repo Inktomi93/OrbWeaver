@@ -1,4 +1,3 @@
-// @orb-waive-file test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll
 // CT: the MessageList seal — a bottom-anchored TanStack Virtual chat-thread list (ui-package-design
 // §6.1/§9, un-parked). Asserts virtualization + bottom-anchor + stick-to-bottom (+ the no-yank flip
 // side, + reduced-motion), matching virtual-list.ct.tsx's tripwire test for the shared discipline.
@@ -535,6 +534,7 @@ async function hoverScroller(host: Locator, page: Page): Promise<void> {
 async function highestScrollTopSeen(host: Locator, page: Page): Promise<number> {
   let highest = Number.NEGATIVE_INFINITY;
   for (let i = 0; i < SETTLE_SAMPLES; i += 1) {
+    // @orb-waive test-determinism(.waitForTimeout): the SUBJECT is elapsed real time — this is the sampling interval of a fixed-window STABILITY TRACE, where the absence of movement over the window IS the assertion and there is no settled state to wait for (a settled-state assertion would pass instantly on the old, yanking source). Ends if the assertion stops being "nothing moved across a capture window".
     // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: the sampling interval of a stability trace — there is no state to wait FOR, the absence of movement is the assertion.
     await page.waitForTimeout(SETTLE_SAMPLE_MS);
     highest = Math.max(highest, await readScrollTop(host));
