@@ -1,4 +1,4 @@
-// The room's Regex section (DESIGN-regex-panel.md) — one clickable canvas from one renderer. Owner steer
+// The room's Regex section (DESIGN.md) — one clickable canvas from one renderer. Owner steer
 // 2026-09-05: a collapsible in the This-chat tab like Injections/Overrides, control what applies here, editing
 // stays in Config. Tokens: theme.css (Hearth + Light); the shell grid; the This-chat tab's DisclosureSection
 // grammar (interactiveKicker trigger + count chip). Tier switch = HERE; row switch = EVERYWHERE.
