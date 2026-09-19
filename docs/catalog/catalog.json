@@ -31193,9 +31193,9 @@
       "path": "docs/reviews/gate-runtime/mixed-runtime-front-door.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 465,
-      "bytes": 41905,
-      "sha256": "397608a5c7220332d12f821ed0c4efd9ffedb2f7783bb25e7ca73a6693334819",
+      "lines": 475,
+      "bytes": 42676,
+      "sha256": "f5ca4fbe71540fad8251ab7e1f0bc2d50402f3c50a1e1bcb40dcf40206dfa720",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31208,14 +31208,15 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/mixed-runtime-front-door.md",
-        "assignedSha256": "662891117955154939a7d9178b1c6646563c0f748607c37417acc6f127195bbe",
+        "assignedSha256": "f5ca4fbe71540fad8251ab7e1f0bc2d50402f3c50a1e1bcb40dcf40206dfa720",
         "disposition": "current",
-        "authority": "review",
+        "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "51379892132561f40adaf7ec2f007a5d3c16fea3ed755617e54c9db51ace5cdd",
-        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
-        "verifiedAt": "2026-09-13",
+        "verifiedSha256": "f5ca4fbe71540fad8251ab7e1f0bc2d50402f3c50a1e1bcb40dcf40206dfa720",
+        "verifiedCommit": "bb095fc17fc3e446589796301fbfcc9e13667e59",
+        "verifiedAt": "2026-09-19",
         "evidence": [
+          "HISTORICAL rider (2026-09-18): b1e5e3e30 retired the frozen-legacy-replay differential suites (registry-definitions-legacy-replay.test.ts and siblings) this receipt's typed claims cite; df2a54b09 subsequently deleted the legacy gate runtime entirely. The declared mustFlag/mustPass proof rows on each final policy, checked through structure:policy-conformance (tests/tooling/verify/ops/policy-conformance.test.ts), are the live oracle now. Authority is set to historical because the typed evidence below cites tree coordinates that predate that retirement; the document body and this receipt's other prose fields remain a claim about the commit named in verifiedCommit, unchanged.",
           "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
           "docs/reviews/gate-runtime/mixed-runtime-front-door.md:1 (authored and read in full by lane p-mixed-runtime — the design-first record and receipts for #1584 §5 items 1–6, #1941, #1948; every count in §11 read off the named runs)"
         ],
@@ -31301,9 +31302,10 @@
             ]
           }
         ],
-        "summary": "Design-first record and receipts of the mixed gate runtime (#1584 §5 items 1–6): the identity-classifying loader, the one-invocation front door and report, the whole-corpus conformance stage (#1941), the mixed-corpus suite, the both-contract parity/meta gates and the re-derived check-gates pin, the proven grant-liveness verdict transfer, the first mixed baseline (§11.3) and final read (§11.9), and the schema-fact-health retirement (#1948). The 97 red-by-construction conformance rows are recorded as #1953's diagnosed defect, not a ruling in flight."
+        "summary": "Design-first record and receipts of the mixed gate runtime (#1584 §5 items 1–6): the identity-classifying loader, the one-invocation front door and report, the whole-corpus conformance stage (#1941), the mixed-corpus suite, the both-contract parity/meta gates and the re-derived check-gates pin, the proven grant-liveness verdict transfer, the first mixed baseline (§11.3) and final read (§11.9), and the schema-fact-health retirement (#1948). The 97 red-by-construction conformance rows are recorded as #1953's diagnosed defect, not a ruling in flight.",
+        "verifiedCanonicalSha256": "13d03ae4dc0f6f7b5da6db745877c649f5596f0b0c5f13efb2351dcfd87ca601"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/ordinary-visitors-family-1584.md",
@@ -32304,9 +32306,9 @@
       "path": "docs/reviews/gate-runtime/v-2319-continuation-review-2026-09-13.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 278,
-      "bytes": 22350,
-      "sha256": "f7657f1682ee3733b3b50245c6ddc83c5946b8011fedba53eb9d003a0dcb6a9b",
+      "lines": 285,
+      "bytes": 22873,
+      "sha256": "cc9640b1180363266c8ecf474870d8584b9f4445803f7efa269a4cdc2a3664f3",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32319,14 +32321,15 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-2319-continuation-review-2026-09-13.md",
-        "assignedSha256": "f7657f1682ee3733b3b50245c6ddc83c5946b8011fedba53eb9d003a0dcb6a9b",
+        "assignedSha256": "cc9640b1180363266c8ecf474870d8584b9f4445803f7efa269a4cdc2a3664f3",
         "disposition": "current",
-        "authority": "review",
+        "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "f7657f1682ee3733b3b50245c6ddc83c5946b8011fedba53eb9d003a0dcb6a9b",
-        "verifiedCommit": "dc68f3f753337d9c156180e39057e0c0f396b1f5",
-        "verifiedAt": "2026-09-13",
+        "verifiedSha256": "cc9640b1180363266c8ecf474870d8584b9f4445803f7efa269a4cdc2a3664f3",
+        "verifiedCommit": "bb095fc17fc3e446589796301fbfcc9e13667e59",
+        "verifiedAt": "2026-09-19",
         "evidence": [
+          "HISTORICAL rider (2026-09-18): b1e5e3e30 retired the frozen-legacy-replay differential suites (registry-definitions-legacy-replay.test.ts and siblings) this receipt's typed claims cite; df2a54b09 subsequently deleted the legacy gate runtime entirely. The declared mustFlag/mustPass proof rows on each final policy, checked through structure:policy-conformance (tests/tooling/verify/ops/policy-conformance.test.ts), are the live oracle now. Authority is set to historical because the typed evidence below cites tree coordinates that predate that retirement; the document body and this receipt's other prose fields remain a claim about the commit named in verifiedCommit, unchanged.",
           "2026-09-13 independent receipt review: full current 278-line continuation report read by Codex proof_count_review. The current bytes are SHA-256 f7657f1682ee3733b3b50245c6ddc83c5946b8011fedba53eb9d003a0dcb6a9b, git blob 87cf209e3a10743836d54510fa0543f539d32cb9, introduced by integrated commit dc68f3f753337d9c156180e39057e0c0f396b1f5 and unchanged at the review tip. The integrated blob differs from author checkpoint 8ed186e4d only in frontmatter status, confirmed to active; the review body is preserved.",
           "The report retains the original C1-C3 refutations, their repaired-source findings, the R-2319-1 supersession, the independently source-reviewed 21-row no-parallel and 15-row factory checkpoint, and the later 30-row config plus 16-row section review. Independent source review of 8b4682e87..8ed186e4d confirmed the final two tables and controls. The predecessor 8b4682e87 was already integrated as 97f8db3d3; root integrated only 8ed186e4d as dc68f3f75, whose stable patch ID exactly matches the author delta at 99ff328367bef96d16574abc0169f6fe22cae208. The reviewer did not execute runtime commands.",
           "Separate current-main execution supplied by Codex-primary after integration: seven importing suites passed 7 files / 59 tests in reports/runs/test/main-2726726-2026-09-13T13-56-03-384Z/test-report.json (SHA-256 c5ed84969c46fe884f4e212a91e8d6b40ab2a428bed226fea2258c354c07f8be; success true, 7/7 suites and 59/59 tests). Terminal job 71515 exited 0. Scoped Biome on the replay test, scoped ESLint on the replay test, documentation format for both reports and all eleven native TypeScript configurations passed. These root-run receipts are not recast as the report reviewer's execution.",
@@ -32351,7 +32354,8 @@
             ]
           }
         ],
-        "summary": "Independent continuation source review preserving C1-C3 repairs and the R-2319-1 correction, then confirming the 133-row nine-parent replay through the config and section split checkpoint. Current root-run 59/59 importer evidence is attributed separately; independent runtime execution, broader harness history, whole-corpus health and #2319 completion are not claimed."
+        "summary": "Independent continuation source review preserving C1-C3 repairs and the R-2319-1 correction, then confirming the 133-row nine-parent replay through the config and section split checkpoint. Current root-run 59/59 importer evidence is attributed separately; independent runtime execution, broader harness history, whole-corpus health and #2319 completion are not claimed.",
+        "verifiedCanonicalSha256": "cd39c6d53e9f7b357cf7046094da3561876f2ccb56f89756d217ed81584ef1c0"
       },
       "receiptCurrent": true
     },
@@ -32359,9 +32363,9 @@
       "path": "docs/reviews/gate-runtime/v-2319-integration-review-2026-09-13.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 111,
-      "bytes": 10403,
-      "sha256": "1439788439ffa0152c2a45371315c858611e316f5857eb26cd08d98120ea9f04",
+      "lines": 118,
+      "bytes": 10926,
+      "sha256": "277b41f5448d899193be9efcc11b27e56b9ec3922965c6ca3e05f9d781db3011",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32374,14 +32378,15 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/v-2319-integration-review-2026-09-13.md",
-        "assignedSha256": "1439788439ffa0152c2a45371315c858611e316f5857eb26cd08d98120ea9f04",
+        "assignedSha256": "277b41f5448d899193be9efcc11b27e56b9ec3922965c6ca3e05f9d781db3011",
         "disposition": "current",
-        "authority": "review",
+        "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "1439788439ffa0152c2a45371315c858611e316f5857eb26cd08d98120ea9f04",
-        "verifiedCommit": "628765a4136a723a50e1a0b67b40e2ebc1cb0b5e",
-        "verifiedAt": "2026-09-13",
+        "verifiedSha256": "277b41f5448d899193be9efcc11b27e56b9ec3922965c6ca3e05f9d781db3011",
+        "verifiedCommit": "bb095fc17fc3e446589796301fbfcc9e13667e59",
+        "verifiedAt": "2026-09-19",
         "evidence": [
+          "HISTORICAL rider (2026-09-18): b1e5e3e30 retired the frozen-legacy-replay differential suites (registry-definitions-legacy-replay.test.ts and siblings) this receipt's typed claims cite; df2a54b09 subsequently deleted the legacy gate runtime entirely. The declared mustFlag/mustPass proof rows on each final policy, checked through structure:policy-conformance (tests/tooling/verify/ops/policy-conformance.test.ts), are the live oracle now. Authority is set to historical because the typed evidence below cites tree coordinates that predate that retirement; the document body and this receipt's other prose fields remain a claim about the commit named in verifiedCommit, unchanged.",
           "Full immutable report read through 282249728 plus exact 282249728..628765a41 frontmatter-only comparison by Codex docs_consolidation_receipt for #2049. Only status changed from invalid `confirmed` to allowed `active`; the body retains its REFUTED verdict for 7cad620a9, the source-level warm acceptance of R-2319-1, and the explicit attribution of focused, planted-control, importer-floor, lint, typecheck, and docs evidence to their producers.",
           "Current-main verification supplied by Codex-primary at ancestor cf1b426a4 before the heading-only report edit: the seven importing suites passed 7 files / 50 tests in report main-2520958-2026-09-13T13-17-05-683Z; lint and docs passed; all eleven native policies passed after Q08. These are primary-run receipts and do not enlarge the report into whole-#2319 acceptance."
         ],
@@ -32400,7 +32405,8 @@
             ]
           }
         ],
-        "summary": "Independent checkpoint refutation and source-level closing review for R-2319-1, preserving exact test-evidence attribution and the remaining #2319 scope limits."
+        "summary": "Independent checkpoint refutation and source-level closing review for R-2319-1, preserving exact test-evidence attribution and the remaining #2319 scope limits.",
+        "verifiedCanonicalSha256": "0aab2e906fa4a2eb8d53ab4200a5b1388a3407d0cfbca6b9663fe68c16b59084"
       },
       "receiptCurrent": true
     },
@@ -35616,9 +35622,9 @@
       "path": "docs/reviews/gate-runtime/x-legacy-replay-2026-09-13.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1134,
-      "bytes": 107906,
-      "sha256": "b9830f2e765f028d5755d505cedcf91b80bb9d959723eaa481cfb134f24347e7",
+      "lines": 1141,
+      "bytes": 108478,
+      "sha256": "5f144fe6811e27eb4ed7aada3a71c6962fec7d9a6732b4d2396b8ff67d2657e1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -35631,14 +35637,15 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/x-legacy-replay-2026-09-13.md",
-        "assignedSha256": "3a1605f1c9a23fc56da76fc9dcfa3c332b621c942308ead2699115b327e95bf1",
+        "assignedSha256": "5f144fe6811e27eb4ed7aada3a71c6962fec7d9a6732b4d2396b8ff67d2657e1",
         "disposition": "current",
-        "authority": "review",
+        "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "3a1605f1c9a23fc56da76fc9dcfa3c332b621c942308ead2699115b327e95bf1",
-        "verifiedCommit": "dc68f3f753337d9c156180e39057e0c0f396b1f5",
-        "verifiedAt": "2026-09-13",
+        "verifiedSha256": "5f144fe6811e27eb4ed7aada3a71c6962fec7d9a6732b4d2396b8ff67d2657e1",
+        "verifiedCommit": "bb095fc17fc3e446589796301fbfcc9e13667e59",
+        "verifiedAt": "2026-09-19",
         "evidence": [
+          "HISTORICAL rider (2026-09-18): b1e5e3e30 retired the frozen-legacy-replay differential suites (registry-definitions-legacy-replay.test.ts and siblings) this receipt's typed claims cite; df2a54b09 subsequently deleted the legacy gate runtime entirely. The declared mustFlag/mustPass proof rows on each final policy, checked through structure:policy-conformance (tests/tooling/verify/ops/policy-conformance.test.ts), are the live oracle now. Authority is set to historical because the typed evidence below cites tree coordinates that predate that retirement; the document body and this receipt's other prose fields remain a claim about the commit named in verifiedCommit, unchanged.",
           "2026-09-13 independent receipt review: full current 1,134-line report read by Codex proof_count_review. The current bytes are SHA-256 3a1605f1c9a23fc56da76fc9dcfa3c332b621c942308ead2699115b327e95bf1, git blob dd277cfa67f47586ba2c008c16a39c35c0f3df81, introduced by integrated commit dc68f3f753337d9c156180e39057e0c0f396b1f5 and unchanged at the review tip. Historical measurements, author-run receipts, corrected findings, OPEN/MITIGATED rows and pending-integrator wording remain dated report content; this catalog receipt does not promote them to current ledger state or independently reproduced execution.",
           "Independent source review covered the immutable author delta 8b4682e87daf53971b54e3a47543fc7e9134c55a..8ed186e4df2be0ab307a80e8dfe2f410575e289f and its complete config/section replay additions. The author delta and integrated dc68f3f75 have the same stable patch ID, 99ff328367bef96d16574abc0169f6fe22cae208. The predecessor 8b4682e87 was already integrated as 97f8db3d3 before root integrated only 8ed186e4d as dc68f3f75. Source review confirmed the 30 config plus 16 section rows bring the nine parent tables to 133, with exact classification, prerequisite, wrong-arm and fixture-grant controls; no runtime command was executed by that reviewer.",
           "Separate current-main execution supplied by Codex-primary after integration: seven importing suites passed 7 files / 59 tests in reports/runs/test/main-2726726-2026-09-13T13-56-03-384Z/test-report.json (SHA-256 c5ed84969c46fe884f4e212a91e8d6b40ab2a428bed226fea2258c354c07f8be; success true, 7/7 suites and 59/59 tests). Terminal job 71515 exited 0. Scoped Biome on the replay test, scoped ESLint on the replay test, documentation format for both reports and all eleven native TypeScript configurations passed. These are root-run integration receipts, separate from the report author's historical runs and the independent source review.",
@@ -35663,9 +35670,10 @@
             ]
           }
         ],
-        "summary": "Cumulative #2319 legacy-replay report, accepted as a dated record through the integrated 133-row registry-definitions checkpoint. Historical census, findings and run claims retain their own dates and limits; current root execution proves only the seven-importer 59/59 integration floor, and whole-issue or gate-program completion is not claimed."
+        "summary": "Cumulative #2319 legacy-replay report, accepted as a dated record through the integrated 133-row registry-definitions checkpoint. Historical census, findings and run claims retain their own dates and limits; current root execution proves only the seven-importer 59/59 integration floor, and whole-issue or gate-program completion is not claimed.",
+        "verifiedCanonicalSha256": "e5525828cc37201706a82bee4b0d43c0e5463bf940b17c86dbe87324ebe45595"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/x-policing-additions-2026-09-13.md",

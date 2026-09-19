@@ -6,6 +6,16 @@ updated: 2026-09-11
 
 # The mixed production front door (#1584 §5 items 1–6, #1941, #1948)
 
+> [!NOTE]
+> **HISTORICAL rider (2026-09-18).** This record describes the MIXED legacy+final gate runtime. `b1e5e3e30`
+> retired the frozen-legacy-replay differential suites (`registry-definitions-legacy-replay.test.ts`,
+> `schema-fact-parity.test.ts` and siblings) and `df2a54b09` then deleted the legacy runtime entirely
+> (`check-gates.repo.int.test.ts` removed, `structure-mixed.suite.int.test.ts` renamed to
+> `structure-corpus.suite.int.test.ts`) — the declared `mustFlag`/`mustPass` proof rows on each final policy,
+> checked through `structure:policy-conformance`, are the live oracle now
+> (`tests/tooling/verify/ops/policy-conformance.test.ts`). The dated counts and cited suites below are
+> preserved as the record of that transition, not current-tree fact.
+
 Design first, then receipts. Lane `p-mixed-runtime`, isolated worktree off `main`; merge-base `205540e98` (the base every receipt below was taken against). The program
 guide is [gate-runtime-standardization.md](../../design/gate-runtime-standardization.md); this file is the lane's
 durable design plus the receipts the guide's §5 asks for. It records the alternatives rejected and why, the coupled

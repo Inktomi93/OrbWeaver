@@ -6,6 +6,13 @@ updated: 2026-09-13
 
 # #2319 replay checkpoint independent integration review
 
+> [!NOTE]
+> **HISTORICAL rider (2026-09-18).** `b1e5e3e30` retired `tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts`
+> — the frozen-legacy-replay differential class this review examined no longer exists; the declared
+> `mustFlag`/`mustPass` proof rows, checked through `structure:policy-conformance`
+> (`tests/tooling/verify/ops/policy-conformance.test.ts`), superseded it as the live oracle. This review's
+> verdict and row counts are preserved as dated record of the pre-retirement replay state.
+
 ## Verdict
 
 **REFUTED** at `7cad620a95ee04908ec99067b3257fd2836ac0b0` by one confirmed proof defect. The checkpoint covers all **51** frozen examples assigned to its five tabled modules and the later continuation repairs C1–C3 are present, but `modal-body-not-placeholder` row 1 classifies and observes the wrong semantic relationship. This is a source-only verdict; I did not run tests while the primary's heavy check occupied the box.

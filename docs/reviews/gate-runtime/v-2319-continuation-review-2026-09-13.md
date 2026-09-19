@@ -6,6 +6,13 @@ updated: 2026-09-13
 
 # #2319 continuation review — registry-definitions legacy replay
 
+> [!NOTE]
+> **HISTORICAL rider (2026-09-18).** `b1e5e3e30` retired `tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts`
+> — the frozen-legacy-replay differential class this review examined no longer exists; the declared
+> `mustFlag`/`mustPass` proof rows, checked through `structure:policy-conformance`
+> (`tests/tooling/verify/ops/policy-conformance.test.ts`), superseded it as the live oracle. This review's
+> verdict and row counts are preserved as dated record of the pre-retirement replay state.
+
 ## Verdict on the reviewed commits
 
 **REFUTED.** Commits `ade6f50ed`, `b9b51f43d`, and `808caf154` do preserve the complete frozen row counts for
