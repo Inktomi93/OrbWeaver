@@ -30,7 +30,7 @@ import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageMetadataRow } from "./message-metadata-row.tsx";
 import { renderContextBoundaryDivider } from "./message-row-divider.tsx";
 import { placeRowHeader, renderRowActions, renderRowNameRow } from "./message-row-header.tsx";
-import { renderRowAvatar, renderRowBubble, renderRowReasoning, renderRowSwipe, resolveRowContent } from "./message-row-parts.tsx";
+import { renderRowAvatar, renderRowBubble, renderRowReasoning, renderRowSwipe, resolveRowContent, themedColumnContent } from "./message-row-parts.tsx";
 import { MessageToolCalls } from "./message-tool-calls.tsx";
 
 export interface MessageRowProps {
@@ -398,24 +398,28 @@ export function MessageRow({
               suppression is kept; what it vacates is reserved. `minInlineSize` (not a fixed size) so a
               longer draft can still grow the box out to the column's own cap. */}
           <Stack gap="row" data-slot="message-content-column" className={columnClass} style={resolveColumnStyle(skin.columnStyle, reservedInlineSize)}>
-            {header.above}
-            {renderRowBubble({
-              role,
-              message,
-              header: header.inside,
-              content,
-              reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon }),
-              trainParagraphs,
-              skin,
-              decoration,
-              weldedAvatar,
-              attributionTokens: attribution.tokens,
-              render,
-              renderContext,
-              speakerThemes,
-              narratorVoiced,
-              editing,
-            })}
+            {themedColumnContent(
+              attribution.tokens,
+              <>
+                {header.above}
+                {renderRowBubble({
+                  role,
+                  message,
+                  header: header.inside,
+                  content,
+                  reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon }),
+                  trainParagraphs,
+                  skin,
+                  decoration,
+                  weldedAvatar,
+                  render,
+                  renderContext,
+                  speakerThemes,
+                  narratorVoiced,
+                  editing,
+                })}
+              </>,
+            )}
             {editing ? null : <MessageToolCalls records={message.toolCalls} renderers={toolRenderers} />}
             {/* #106 — the two chrome bands BELOW the bubble. Unlike the name row they are outside any
                 bubble fill in EVERY mode, so their scrim is mode-independent (the skin's `chromeBacking`

@@ -16,6 +16,7 @@ import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
+import { pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GroupTranscriptAttributionStory, MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
@@ -2226,7 +2227,10 @@ for (const style of HEADER_INSIDE_STYLES) {
     // The header is a descendant of the container the body renders in …
     await expect(component.locator(BUBBLE).first().locator(NAME_ROW)).toHaveCount(1);
     // … and there is no second name row left floating in the column beside it (half a migration is rot).
-    await expect(component.locator(`${CONTENT_COLUMN} > ${NAME_ROW}`)).toHaveCount(0);
+    // Asserted as "not inside the bubble" rather than as a DIRECT child of the column: since #2425 the
+    // speaker scope is the COLUMN's, so a themed row carries a `display: contents` wrapper between the two
+    // and a `>` combinator would report the header as absent in every arm.
+    await expect(component.locator(CONTENT_COLUMN).locator(NAME_ROW)).toHaveCount(1);
     await expect(component.locator(NAME_ROW)).toHaveCount(1);
     await expect(component.locator(NAME_ROW)).toContainText("Alice");
   });
@@ -2270,7 +2274,11 @@ test("#288 tide keeps the sibling header + its chip — a train has no single co
       <MessageRowStory chatStyle="tide" messageRole="assistant" content={TIDE_TWO_PARAGRAPHS} characterId={ALICE_ID} participants={[alice()]} />
     </div>,
   );
-  await expect(component.locator(`${CONTENT_COLUMN} > ${NAME_ROW}`)).toHaveCount(1);
+  // In the column and NOT in any pill — `tide`'s header is the one that stayed a sibling above the box.
+  // Not a `>` combinator: since #2425 the speaker scope wraps the column's header + bubble together
+  // (`display: contents`), so the header is one wrapper below the column in every themed row.
+  await expect(component.locator(CONTENT_COLUMN).locator(NAME_ROW)).toHaveCount(1);
+  await expect(component.locator(BUBBLE).locator(NAME_ROW)).toHaveCount(0);
   const nameRow = component.locator(NAME_ROW);
   await expect
     .poll(async () => parseOklch(await nameRow.evaluate((el) => getComputedStyle(el).backgroundColor)))
@@ -2801,4 +2809,101 @@ test("#1728: below the crossover the centred skins keep the IN-FLOW gutter", asy
   await expect(component.locator(READING_COLUMN)).toBeVisible();
   await expect.poll(async () => (await readingColumnInsets(component))[0]).toBe(40);
   await expect.poll(async () => (await readingColumnInsets(component))[1]).toBe(0);
+});
+
+// ── #2425: THE PINNED BAND PAINTS THE SAME BREATHING UNDER THE NAME IN ALL EIGHT SKINS ─────────────
+// Driven live 2026-09-19 (side-eye `side-eye-F`, `scrollTop 20166`, a carried-art room): #1873 made the
+// inside band's cancellation TOP-ONLY, which left `padding-bottom: 0` — so the opaque fill stopped ~5px
+// under the name's glyph box (the line box's own half-leading) and the prose scrolling underneath was
+// severed flush against the pinned name. Pre-#1873 that fill was ~13px; the untouched `tide` skin still
+// renders ~13px in the same build, which is what makes this a regression rather than a taste call.
+//
+// WHAT IS ASSERTED, AND WHY IT IS THE FRAMEBUFFER. The fix is PAINT (an out-of-flow `::after`), because
+// the layout arm is the one #1873 forbids — a bottom padding re-enters `exceedsViewport`'s own input.
+// Paint is exactly what a class list and `getComputedStyle` cannot see, and a box read would measure the
+// border box and report the extension as absent. So this samples the band's own fill from the shot, then
+// samples the strip that begins BELOW the name's box, and requires the two to be the same colour across
+// the whole skin axis — one quantity, eight skins, which is the P2's equality claim stated as pixels.
+//
+// THE NEGATIVE CONTROL RIDES THE SAME MOUNT: the strip one full --spacing-row PAST the band must NOT be
+// the band's fill, or the sampler would be reporting "the same colour" about the whole column.
+// RED on the pre-fix source for the seven `inside` skins (the below-name strip is the row's own prose /
+// container fill, not the band's), GREEN for `tide` — which is the control the review named.
+
+/** A carried per-character base dark enough that its derived reading band is nowhere near the app's. */
+const CARRIED_ROOM_BASE = "oklch(0.2 0.03 260)";
+
+/** Per-channel equality with 2/255 of slack — screenshot quantisation, never a colour difference. */
+function sameRgb(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }): boolean {
+  return Math.abs(a.r - b.r) <= 2 && Math.abs(a.g - b.g) <= 2 && Math.abs(a.b - b.b) <= 2;
+}
+
+for (const chatStyle of THEME_CHAT_STYLES) {
+  test(`#2425 ${chatStyle}: the pinned band paints one --spacing-row of fill below the speaker name`, async ({ mount, page }) => {
+    const component = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} stickyAttribution={true} />,
+    );
+    const nameRow = component.locator(NAME_ROW);
+    await expect(nameRow).toHaveCSS("position", "sticky");
+
+    // ONE --spacing-row, read as the band's OWN resolved top padding rather than as a literal 8 or a raw
+    // token lookup. Both spellings spend `pt-row` above the name, so this is the same quantity in both
+    // arms, in px, at whatever the scale is tuned to — and the claim becomes "the fill below the name
+    // equals the fill above it", which is what "the same band" means to a reader.
+    const spacingRow = Number.parseFloat(await nameRow.evaluate((el) => getComputedStyle(el).paddingTop));
+    expect(spacingRow, "the band must spend one --spacing-row of top padding to compare against").toBeGreaterThan(0);
+
+    // Where the name's own box ends, as a FRACTION of the band's box — `pixelSurface` takes its region in
+    // the target's own coordinates, and regions past 1 sample below it, which is where the extension lives.
+    const geometry = await nameRow.evaluate((el: HTMLElement) => {
+      const name = el.querySelector('[data-slot="message-attribution"]');
+      if (name === null) {
+        throw new Error("#2425: the row rendered no attribution cluster to measure against");
+      }
+      const band = el.getBoundingClientRect();
+      return { bandTop: band.top, bandHeight: band.height, nameBottom: name.getBoundingClientRect().bottom };
+    });
+    const fraction = (y: number): number => (y - geometry.bandTop) / geometry.bandHeight;
+
+    // The band's OWN fill, read away from the name's glyphs (the cluster is leading; the action slot is
+    // zero-height and paints nothing at rest).
+    const band = await pixelSurface(page, nameRow, { region: { x0: 0.6, x1: 0.95, y0: 0.05, y1: 0.45 } });
+    // The strip immediately below the name's box — inset by 1px at each end so neither edge samples an
+    // antialiased boundary.
+    const below = await pixelSurface(page, nameRow, {
+      region: { x0: 0.6, x1: 0.95, y0: fraction(geometry.nameBottom + 1), y1: fraction(geometry.nameBottom + spacingRow - 1) },
+    });
+    expect(sameRgb(below.rgb, band.rgb), `below-name strip ${below.describe} must be the band's fill ${band.describe}`).toBe(true);
+
+    // THE PLANTED CONTROL, same mount: past the band's breathing the column is NOT the band.
+    const past = await pixelSurface(page, nameRow, {
+      region: { x0: 0.6, x1: 0.95, y0: fraction(geometry.nameBottom + spacingRow + 2), y1: fraction(geometry.nameBottom + spacingRow + 6) },
+    });
+    expect(sameRgb(past.rgb, band.rgb), `control strip ${past.describe} must NOT be the band's fill ${band.describe}`).toBe(false);
+  });
+}
+
+test("#2425 the OUTSIDE skin's band takes the speaker's palette, exactly like the seven INSIDE skins", async ({ mount }) => {
+  // The other half of the P2 ("tide renders a neutral `oklch(0.12 0.006 60)` fill instead of the
+  // speaker-tinted `oklch(0.112 …)`"). The speaker scope used to wrap the BUBBLE, so `tide` — the one skin
+  // whose header is a sibling ABOVE the box — sat outside it and resolved `--color-reading-band` from the
+  // VIEWER's palette while the prose one line below rode the CARRIED one: #204's "one column, two
+  // palettes" defect at the surface #288's anatomy move left outside the container. The scope is the
+  // content COLUMN's now, so the two agree.
+  const bandFill = async (chatStyle: (typeof THEME_CHAT_STYLES)[number], participant: ParticipantView): Promise<string> => {
+    const component = await mount(
+      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[participant]} stickyAttribution={true} />,
+    );
+    const fill = await component.locator(NAME_ROW).evaluate((el) => getComputedStyle(el).backgroundColor);
+    await component.unmount();
+    return fill;
+  };
+  const carried: ParticipantView = { ...alice(), themeOverride: { background: CARRIED_ROOM_BASE } };
+  const tide = await bandFill("tide", carried);
+  const hush = await bandFill("hush", carried);
+  expect(parseOklch(tide), `tide ${tide} vs hush ${hush}`).toEqual(parseOklch(hush));
+  // THE PLANTED CONTROL — without the carried base the band is a DIFFERENT colour, so the equality above
+  // is a claim about the carried palette reaching tide rather than about every band being the same tone.
+  const uncarried = await bandFill("tide", alice());
+  expect(parseOklch(tide), `carried ${tide} must differ from uncarried ${uncarried}`).not.toEqual(parseOklch(uncarried));
 });
