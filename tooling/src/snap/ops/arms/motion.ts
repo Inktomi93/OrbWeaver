@@ -42,7 +42,7 @@ import type {
   ArmSharedContext,
 } from "../../contract/arms.ts";
 import type { Args } from "../../contract/types.ts";
-import { motionLoadSuspect, motionQueueHint, rateEvidenceGaps } from "../../lib/motion-gaps.ts";
+import { motionLoadSuspect, motionPrecedingInputHint, motionQueueHint, rateEvidenceGaps } from "../../lib/motion-gaps.ts";
 import { motionProblems } from "../../lib/motion-problems.ts";
 import type { SnapRatePosture } from "../../lib/rate-posture.ts";
 import { consumeOptionalSelector, pushStep } from "../flags-support.ts";
@@ -125,10 +125,14 @@ async function measureMotionAction(
 ): Promise<MotionMeasurement> {
   const { session, opts, ctx, selector, ratePosture } = input;
   const page = ctx.page;
-  const queueHint = motionQueueHint(opts, ctx.actionIndex);
+  // Both hints ride the same rule (lib/motion-gaps.ts): they explain a run that ALREADY could not measure,
+  // and neither is a parse-time refusal. `hints` is empty on a clean window.
+  const hints = [motionQueueHint(opts, ctx.actionIndex), motionPrecedingInputHint(opts, ctx.actionIndex, selector)].filter(
+    (hint): hint is EvidenceGap => hint !== null,
+  );
   const gap = apparatusGap({ url: page.url(), ready: true, bridge: await hasOrbBridge(page), readyTimeoutMs: 0 });
   if (gap !== null) {
-    return { data: null, gaps: queueHint === null ? [gap] : [gap, queueHint], pass: false, artifact: null, loadSuspect: null };
+    return { data: null, gaps: [gap, ...hints], pass: false, artifact: null, loadSuspect: null };
   }
   const cdp = await page.context().newCDPSession(page);
   // @orb-waive caught-failure-ownership(error): the caught measurement failure becomes a named evidence gap, printed as REFUSED and forced to exit 2 by the arm. Ends if the returned gaps stop feeding report/pairs/exit.
@@ -149,19 +153,16 @@ async function measureMotionAction(
     };
     const evaluated = evaluateMotionAudit(data, opts.motionWindowMs);
     const gaps: EvidenceGap[] = [...evaluated.gaps, ...rateEvidenceGaps(ratePosture)];
-    // Only a run that ALREADY could not measure gets the hint — on a clean window, measure-then-navigate
-    // is an ordinary chain and a lecture about argv order would be noise.
-    if (gaps.length > 0 && queueHint !== null) {
-      gaps.push(queueHint);
+    // Only a run that ALREADY could not measure gets the hints — on a clean window, measure-then-navigate
+    // and reach-then-measure are ordinary chains and a lecture about argv order would be noise.
+    if (gaps.length > 0) {
+      gaps.push(...hints);
     }
     return { data, gaps, pass: evaluated.budgetsPass, artifact: null, loadSuspect: motionLoadSuspect(ratePosture) };
   } catch (error) {
     return {
       data: null,
-      gaps: [
-        { evidence: "the motion measurement window", detail: error instanceof Error ? error.message : String(error) },
-        ...(queueHint === null ? [] : [queueHint]),
-      ],
+      gaps: [{ evidence: "the motion measurement window", detail: error instanceof Error ? error.message : String(error) }, ...hints],
       pass: false,
       artifact: null,
       loadSuspect: null,
@@ -306,6 +307,9 @@ export const MOTION_ARM = {
   help: `  --motion [selector]     measure one motion window after preceding reach actions. With a selector,
                           Snap resolves geometry before the reset and dispatches one trusted native click
                           inside the trace. Without one, measure the post-navigation entry window.
+                          Reach inputs written BEFORE it (--wheel-burst, --click, ...) run before the
+                          window opens and their evidence is reset, so this arm never measures their
+                          cost — for that use --perf, or --cpu-profile for self time.
   --motion-window <ms>    measured observation window (default 2500)
   --motion-no-throttle    disable motion's default 4x CPU throttle; headless dropped-frame rates remain
                           advisory because headless Chromium has no real display-vsync deadline`,

@@ -30,7 +30,16 @@ export interface BootTraceRetentionContext {
 }
 
 /** \`dur\` is the LoAF frame duration (or the raw \`longtask\` duration on the fallback path);
- *  \`blockingDuration\`/\`worstScript\` are LoAF-only attribution, null on the \`longtask\` fallback. */
+ *  \`blockingDuration\`/\`worstScript\` are LoAF-only attribution, null on the \`longtask\` fallback.
+ *
+ *  \`worstScript\` IS AN ENTRY POINT, NOT A COST (#2439, and it misdirected #2427 the day it was filed).
+ *  LoAF's \`scripts\` entries name the script that ENTERED the task — \`sourceFunctionName\`, else the
+ *  \`invoker\` — and the duration they carry is the whole synchronous subtree that entry drove. A DOM
+ *  handler that calls one setState therefore owns the entire re-render that follows, and reads here as
+ *  "this file spent N ms" while its own self time is a rounding error (the lane that profiled
+ *  \`row-roving.ts\` measured 6 of 43,269 samples). Printed as \`entry=\` for exactly that reason. SELF time
+ *  is a different instrument: take a separate \`--cpu-profile\` pass, which \`--perf\` refuses to combine
+ *  with because sampling overhead contaminates interaction rates (snap/ops/parse.ts). */
 export interface LongTask {
   readonly t: number;
   readonly dur: number;
@@ -85,6 +94,8 @@ export interface StepReport {
   readonly longTaskTotalMs: number;
   readonly longTaskWorstMs: number;
   readonly worstBlockingMs: number | null;
+  /** The worst long task's ENTRY POINT script, never its cost — see \`LongTask.worstScript\`. Rendered in
+   *  the table as \`entry=<fn>\` so the token stays honest when a reader quotes it out of the table. */
   readonly worstScript: string | null;
   readonly clickDurMs: number | null;
   readonly clickInputDelayMs: number | null;
