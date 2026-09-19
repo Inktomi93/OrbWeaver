@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 611,
-    "reported": 1,
+    "sites": 610,
+    "reported": 0,
     "byVerdict": {
       "deliberate-absorb": 610,
-      "unproven": 1
+      "unproven": 0
     },
     "byGrammar": {
       "default": 165,
-      "empty": 301,
+      "empty": 300,
       "promise": 145
     }
   },
@@ -2328,19 +2328,6 @@
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the header states the contract:",
       "markerLine": 293
-    },
-    {
-      "siteId": "packages/server/src/domain/embeddings/indexer/caption.ts::error::1",
-      "path": "packages/server/src/domain/embeddings/indexer/caption.ts",
-      "line": 113,
-      "column": 12,
-      "grammar": "empty",
-      "position": "error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::error::1",
