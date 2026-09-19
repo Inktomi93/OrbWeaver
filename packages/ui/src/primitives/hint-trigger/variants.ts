@@ -7,11 +7,8 @@ import { tv } from "#lib";
 // room a finger needs while the fine row remains byte-identical.
 export const hintTriggerVariants = tv({
   slots: {
+    // The at-rest DESCRIPTION slot #2443 minted here moved to the TOOLTIP SEAL in #2455 — one node per
+    // `<Tooltip>` in the whole app rather than one per hint trigger.
     trigger: "shrink-0 pointer-coarse:size-touch-target",
-    // The hint's at-rest DESCRIPTION (#2443): `aria-describedby` on the trigger pointed only at the
-    // tooltip popup, which is unmounted while closed, so the description resolved to nothing until a
-    // hover opened it. `sr-only` is `position:absolute`, so this copy is out of flow — it is not a flex
-    // item in the label/heading row and costs it no gap.
-    description: "sr-only",
   },
 });

@@ -59,8 +59,12 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
       </Tooltip>
     );
   }
+  // `describesTrigger={false}`: this control already owns the reason's ONE description home (the `sr-only`
+  // line below) and the tooltip is its visible twin. #2455 made the seal describe every trigger with its
+  // own text; taking it here would restore the "two homes for one concept" this control's header records
+  // as the #2443 defect — and with no reason the tooltip is the bare name "Send message".
   return (
-    <Tooltip>
+    <Tooltip describesTrigger={false}>
       <TooltipTrigger
         {...(props.unavailableReason === undefined ? {} : { "aria-describedby": reasonId })}
         render={

@@ -1,5 +1,4 @@
 import type { ReactElement, ReactNode } from "react";
-import { useId } from "react";
 import { cn } from "#lib";
 import { Button } from "#primitives/button";
 import { Icon, Info } from "#primitives/icons";
@@ -42,19 +41,19 @@ export interface HintTriggerProps {
  *  surfaces never stack. The `onClick` escape hatch takes the press instead, because its caller's own pane
  *  is the richer disclosure.
  *
- *  AND THE HINT IS A DESCRIPTION AT REST. The tooltip seal's `aria-describedby` points at a popup that is
- *  unmounted while closed, so a virtual screen-reader cursor read "More info about X, button" and nothing
- *  else. The `sr-only` copy below carries the same text unconditionally, so the description resolves
- *  without the user having to open anything.
+ *  AND THE HINT IS A DESCRIPTION AT REST — owned by the TOOLTIP SEAL since #2455, not by this atom. #2443
+ *  fixed the dangling `aria-describedby` here with a second, always-resolving `sr-only` id of its own,
+ *  because the seal's id named a popup that is unmounted while closed. The seal now renders that node
+ *  itself for every `<Tooltip>` in the app, so this component's private copy is gone: keeping it would put
+ *  the same sentence in the trigger's description list TWICE.
  *
  *  MUST be rendered as a SIBLING of the label/heading it annotates, never a descendant — nesting it
  *  inside would leak "More info" into the labeled element's accessible name via the W3C accname
  *  subtree-concatenation algorithm (both call sites' own layout enforces this; this component only owns
- *  the trigger+popup atom, not its position). The `sr-only` description is `position:absolute`, so it is
- *  not a flex item and costs the label row no gap. */
+ *  the trigger+popup atom, not its position). The seal's `sr-only` description is `position:absolute`, so
+ *  it is not a flex item and costs the label row no gap. */
 export function HintTrigger({ hint, subject, className, size = "inline", onClick }: HintTriggerProps): ReactElement {
   const slots = hintTriggerVariants();
-  const descriptionId = useId();
   let ariaLabel = "More info";
   if (typeof subject === "string" && subject.trim().length > 0) {
     const subjectString: string = subject;
@@ -73,24 +72,18 @@ export function HintTrigger({ hint, subject, className, size = "inline", onClick
       <Icon icon={Info} size="xs" />
     </Button>
   );
-  const description = (
-    <span className={slots.description()} data-slot="hint-description" id={descriptionId}>
-      {hint}
-    </span>
-  );
   if (onClick !== undefined) {
     return (
       <Tooltip>
-        <TooltipTrigger aria-describedby={descriptionId} render={button} />
+        <TooltipTrigger render={button} />
         <TooltipPopup side="top">{hint}</TooltipPopup>
-        {description}
       </Tooltip>
     );
   }
   return (
     <Popover>
       <Tooltip>
-        <TooltipTrigger aria-describedby={descriptionId} render={<PopoverTrigger render={button} />} />
+        <TooltipTrigger render={<PopoverTrigger render={button} />} />
         <TooltipPopup side="top">{hint}</TooltipPopup>
       </Tooltip>
       {/* The popup is a `role="dialog"` with no visible title (its whole body IS the hint), so it takes the
@@ -98,7 +91,6 @@ export function HintTrigger({ hint, subject, className, size = "inline", onClick
       <PopoverPopup aria-label={ariaLabel} data-slot="hint-popup" side="top">
         {hint}
       </PopoverPopup>
-      {description}
     </Popover>
   );
 }

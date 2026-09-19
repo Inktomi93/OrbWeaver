@@ -368,7 +368,7 @@ for (const trigger of ["hover", "focus"] as const) {
       await button.focus();
     }
 
-    await expect(page.getByRole("tooltip")).toHaveText("Import a chat transcript");
+    await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText("Import a chat transcript");
     await expect(button).toHaveAccessibleName("Import a chat transcript");
   });
 }

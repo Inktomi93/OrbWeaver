@@ -109,7 +109,7 @@ test("a MULTI-character room's idle Response tooltip announces the speaker choic
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE, exact: true }).hover();
-  await expect(page.getByRole("tooltip", { name: `${RESPONSE} — ${RESPONSE_SPEAKER_CUE}`, exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText(`${RESPONSE} — ${RESPONSE_SPEAKER_CUE}`);
 });
 
 test("a SOLO-character room keeps the DIRECT Response button — one click fires, no speaker menu exists", async ({ mount, page }) => {
@@ -178,7 +178,7 @@ test("a DISABLED guided icon still explains itself on hover (the reason the nati
   await expect(swipe).toBeDisabled();
   await swipe.hover();
   // `data-disabled:pointer-events-auto` is what lets the hover land at all; without it the popup never opens.
-  await expect(page.getByRole("tooltip", { name: `${SWIPE} — ${SWIPE_NEEDS_REPLY}`, exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText(`${SWIPE} — ${SWIPE_NEEDS_REPLY}`);
   await page.mouse.move(0, 0);
 });
 
@@ -187,13 +187,13 @@ test("an ENABLED guided icon's tooltip teaches the dual mode: the plain label, t
   const component = await mount(<ComposerStory />);
 
   await component.getByRole("button", { name: RESPONSE, exact: true }).hover();
-  await expect(page.getByRole("tooltip", { name: RESPONSE, exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText(RESPONSE);
   await page.mouse.move(0, 0);
 
   // With text the SAME control promises what the text will do — the typed-text-becomes-steer contract.
   await component.getByRole("textbox", { name: "Message" }).fill("make her angrier");
   await component.getByRole("button", { name: RESPONSE_GUIDED, exact: true }).hover();
-  await expect(page.getByRole("tooltip", { name: `${RESPONSE} — ${STEER_CUE_RESPONSE}`, exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText(`${RESPONSE} — ${STEER_CUE_RESPONSE}`);
 });
 
 // ── 4. The reason and the cues are the control's DESCRIPTION, not just a hover popup (#2443) ───────────────
