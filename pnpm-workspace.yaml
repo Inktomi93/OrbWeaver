@@ -107,8 +107,8 @@ catalog:
   # a DIRECT dep because scripts/mutation/arid-ignorer.ts imports its plugin surface). To bump: re-derive the
   # patch (`pnpm patch @stryker-mutator/core@<new>`,
   # re-apply the symlink rewire, `pnpm patch-commit`), then move all three pins together, then RE-RUN THE
-  # PLANTED CONTROL. Deep reference (root cause at file:line, the exact diff, the A/B/C/D validation matrix):
-  # reports/tooling/STRYKER-SANDBOX-ALTERNATIVES.md.
+  # PLANTED CONTROL. Deep reference (root cause at file:line, the exact diff, the A/B/C/D validation matrix)
+  # lives in the generated mutation-run report, not a tracked doc — re-run stryker to regenerate it.
   "@stryker-mutator/core": 10.0.0
   "@stryker-mutator/vitest-runner": 10.0.0
   "@stryker-mutator/typescript-checker": 10.0.0
@@ -167,7 +167,7 @@ catalog:
   # ^8.9.0 (not 8.10.0 — published <24h ago, minimumReleaseAge-blocked); 8.9.0 is the latest mature 8.x
   # and the caret floats to 8.10.0 on the next install once it ages past the gate.
   undici: ^8.9.0
-  # --- foundation observability (Phase 4a — tiers/foundation.md › Runtime dependencies) ---
+  # --- foundation observability (Phase 4a — Tier-2-Foundation.md › Runtime dependencies) ---
   # pino: the structured logger (pino.multistream([stdout, ringStream])).
   pino: ^10.3.1
   # pino-pretty: DEV-ONLY pipe for the dev script (never a configured prod transport — it would
@@ -180,12 +180,12 @@ catalog:
   "@opentelemetry/context-async-hooks": ^2.7.1
   "@opentelemetry/resources": ^2.7.1
   "@opentelemetry/semantic-conventions": ^1.41.1
-  # infra/image (Phase 4b — tiers/infra.md D6): the sharp adapter (decode/resize/format-normalize/
+  # infra/image (Phase 4b — Tier-3-Infra.md D6): the sharp adapter (decode/resize/format-normalize/
   # strip-metadata) behind the injected `imageTransform` op. Native libvips binding — pnpm builds it.
   sharp: ^0.35.0
-  # --- infra/providers backends (Phase 4b-ii-b — tiers/providers.md) ---
+  # --- infra/providers backends (Phase 4b-ii-b — Tier-3b-Providers.md) ---
   # @anthropic-ai/claude-agent-sdk: the agent-sdk backend (the Max sub + the OR-Anthropic skin + agent
-  # mode). Its env firewall is the load-bearing credential seam (providers.md Esoteric §1).
+  # mode). Its env firewall is the load-bearing credential seam (Tier-3b-Providers.md Esoteric §1).
   # `^0.3.206` floor — owner-approved force past the age gate 2026-07-10 (see minimumReleaseAgeExclude).
   "@anthropic-ai/claude-agent-sdk": ^0.3.216
   # @anthropic-ai/sdk: the anth-direct backend (D67) — the direct Anthropic-Messages wire over the
