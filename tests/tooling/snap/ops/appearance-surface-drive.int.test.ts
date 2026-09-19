@@ -8,7 +8,7 @@
 // real answer about the surface rather than a wait that can only fail.
 import { chromium } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/_shared/appearance-matrix.ts";
-import { driveSurface } from "../../../../tooling/src/snap/ops/appearance-surface-drive.ts";
+import { anchorRowSubject, driveSurface } from "../../../../tooling/src/snap/ops/appearance-surface-drive.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -66,4 +66,84 @@ test("a surface that never shows its settle subject refuses by name instead of t
 
 test("the same drive returns normally once the surface's settle subject is there", { timeout: BROWSER_TIMEOUT_MS }, async () => {
   expect(await drive('<div class="shell-grid">shell</div>')).toBeNull();
+});
+
+// @instrument-proof: #2402 — ONE `scrollIntoView` IS NOT A VERDICT. The chat list re-pins to its latest
+// turn once the virtualizer has measured, which landed AFTER the drive's single scroll and put the one row
+// `dark-name-time-short-bubble` judges ~4100px above the fold; the census then classified a legitimately
+// mounted sample as `offViewport:1` and `pnpm snap --matrix` refused the whole run at that cell (measured
+// on `1bec07baa`, `withheld-rect top=-4097`). The anchor scrolls, re-measures after a settle, and retries.
+//
+// @instrument-absence-proof: the second arm is the planted control in the other direction — a surface that
+// re-pins FOREVER gets a named refusal carrying the last measured rect, so "anchored" is a real answer
+// about the surface rather than a loop that can only succeed.
+const ANCHOR_ROW: RuntimeAppearanceHistoricalRow = {
+  id: "dark-name-time-short-bubble",
+  surface: "chat",
+  subjects: [{ id: "attribution", selector: "#subject", population: "many", sample: "pixel" }],
+  cascade: [],
+  merge: { mechanism: "merge-not-applicable", reason: "direct-carrier", selector: "#subject", owner: "fixture" },
+  requiredChecks: [],
+  optionalSubjectIds: [],
+};
+
+/** A scroller parked at its own bottom with the subject far above the fold, whose `scroll` handler re-pins
+ *  to the bottom for the first `repins` scrolls — the virtualized message list's behaviour, in 20 lines. */
+function repinningSurface(repins: number): string {
+  return `<div id="scroller" style="height:300px;overflow:auto">
+      <div style="height:4000px"></div>
+      <div id="subject" style="height:20px">subject</div>
+      <div style="height:4000px"></div>
+    </div>
+    <script>
+      const scroller = document.getElementById("scroller");
+      let remaining = ${String(repins)};
+      scroller.scrollTop = scroller.scrollHeight;
+      scroller.addEventListener("scroll", () => {
+        if (remaining > 0) { remaining -= 1; scroller.scrollTop = scroller.scrollHeight; }
+      });
+    </script>`;
+}
+
+async function anchor(body: string): Promise<{ readonly failure: Error | null; readonly top: number | null }> {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: VIEWPORT });
+    await page.setContent(body);
+    let failure: Error | null = null;
+    try {
+      await anchorRowSubject(page, ANCHOR_ROW);
+    } catch (error) {
+      failure = error instanceof Error ? error : new Error(String(error));
+    }
+    // A page-level EXPRESSION string, never `locator.evaluate("(element) => …")`: that spelling returns the
+    // function itself and measures nothing (#2402's root cause, pinned in the drive's header).
+    const top = await page.evaluate("document.querySelector('#subject').getBoundingClientRect().top");
+    return { failure, top: typeof top === "number" ? top : null };
+  } finally {
+    await browser.close();
+  }
+}
+
+test("the anchor holds its subject in view through a surface that re-pins after the scroll", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const anchored = await anchor(repinningSurface(2));
+
+  expect(anchored.failure, "a surface that stops re-pinning must anchor, not refuse").toBeNull();
+  // The defect this pins is geometric, so the assertion is geometric: the subject ENDS inside the viewport.
+  expect(anchored.top).not.toBeNull();
+  expect(anchored.top ?? Number.NaN).toBeGreaterThan(0);
+  expect(anchored.top ?? Number.NaN).toBeLessThan(VIEWPORT.height);
+});
+
+test("a surface that never stops scrolling away refuses by name with the rect it last measured", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const anchored = await anchor(repinningSurface(1000));
+
+  expect(anchored.failure, "an unanchorable surface must not read as a successful anchor").not.toBeNull();
+  const message = String(anchored.failure?.message);
+  expect(message).toContain("INSTRUMENT ERROR");
+  expect(message).toContain(ANCHOR_ROW.id);
+  expect(message).toContain("attribution");
+  expect(message).toContain("NO VERDICT");
+  // The geometry is the whole point of the refusal: `offViewport:1` with no rect is what made #2402 unreadable.
+  expect(message).toContain("Last measured rect=");
 });

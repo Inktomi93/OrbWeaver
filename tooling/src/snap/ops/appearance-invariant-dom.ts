@@ -216,6 +216,9 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
     }
     if (!(carrierReached || inViewport(rect))) {
       census.offViewport += 1;
+      // The geometry that MADE it off-viewport is the only thing a reader needs to tell a scrolled-away
+      // subject from a zero-box one, and a refusal that prints neither reads as "the subject is missing".
+      census.withheldFacts ??= renderedFacts;
       return;
     }
     const measured = requireRenderedFacts(renderedFacts);
