@@ -14,6 +14,21 @@
  *  with no coarse twin. Live: rpg HUD selection echo, rpg takeover satellites, the chat member-row cluster. */
 export const HIDE_AT_COARSE = "pointer-coarse:hidden";
 
+/** The COARSE-ONLY twin of {@link HIDE_AT_COARSE}: an element that exists only where the pointer is coarse.
+ *
+ *  Live: the chat control band's resting SUMMARY STRIP (#2426). On a phone that band is the transcript's
+ *  biggest compounding tax — measured 127px at 430x740 in a game room, of which 115px is the chip row
+ *  wrapping to three lines, against a 185px reading port — so at a coarse pointer the band's resting state
+ *  is ONE row: the disclosure alone, with the chips behind it. The disclosure therefore has to exist in
+ *  arms where a fine pointer needs none (a row under the display cap discloses nothing there), which is
+ *  what this fragment buys; the chips take {@link HIDE_AT_COARSE} in the same arm.
+ *
+ *  `display: none`, so the element it hides is out of the a11y tree as well as out of layout — correct for
+ *  an alternative spelling of a control that exists in both arms, never for a label whose spoken job
+ *  survives its sighted one ({@link LABEL_TO_SR_ONLY_AT_COARSE} is that case). CT:
+ *  tests/client/features/chat/components/chat-controls-band.ct.tsx. */
+export const SHOW_ONLY_AT_COARSE = "pointer-fine:hidden";
+
 /** Collapse a LABEL to the accessibility tree at a coarse pointer — it stops spending layout, and stays
  *  announced. The distinction from {@link HIDE_AT_COARSE} is the whole point and is not stylistic:
  *  `hidden` is `display:none`, which removes the text from the a11y tree as well as the row, so it is

@@ -26,6 +26,7 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { CHAT_READING_PORT_MIN_PX } from "../../../../../packages/client/src/features/chat/lib/chat-reading-port.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatControlsStory } from "../_ct-stories.tsx";
@@ -177,7 +178,10 @@ for (const theme of PIVOT_THEMES) {
     });
 
     await expect(component.getByText("The corridor forks.")).toBeVisible();
-    const chips = component.locator(`${CHIPS} button`);
+    // `[data-mode]` is the CHIP discriminator (the count idiom this file uses elsewhere): since #2426 the
+    // disclosure is always in the DOM, standing itself down at a fine pointer, so a bare `button` count
+    // would be cap+1 here.
+    const chips = component.locator(`${CHIPS} button[data-mode]`);
     await expect(chips).toHaveCount(2);
     for (const mode of ["send", "compose"] as const) {
       const label = component.locator(`${CHIPS} button[data-mode="${mode}"] [data-slot="text"]`);
@@ -586,4 +590,112 @@ test("the band sits between the transcript and the composer (the room's own trac
   const bandBox = await band.boundingBox();
   const composerBox = await composer.boundingBox();
   expect((bandBox?.y ?? 0) + (bandBox?.height ?? 0)).toBeLessThanOrEqual(composerBox?.y ?? 0);
+});
+
+// ── #2426: THE COARSE RESTING STRIP, AND THE READING-PORT FLOOR IT PROTECTS ────────────────────────
+// Driven live 2026-09-19 (side-eye `side-eye-F`) at `device=coarse:dpr3:430x740` in a game room: the chip
+// row wrapped to 115px inside a 127px band, the composer took 212px, and the transcript was left **185px**
+// of a 740px viewport — four lines of prose, hard-clipped mid-glyph, with the wrap tax GROWING as more
+// rules fired. Owner ruling: on a coarse pointer the band collapses to a ONE-ROW SUMMARY STRIP that
+// expands on tap, the composer stays, and the transcript gets a floor.
+//
+// THE MOUNT IS THE PRODUCTION CHAIN, NOT A STORY BOX. `columnHeight={610}` is the room column at a
+// 430x740 phone — the viewport less the shell's 60px topbar and 70px tab bar, both of which live outside
+// `main` (measured; the census is in the constant's own derivation). Everything the floor is spent on —
+// the character bar, this band, the composer, the column's gaps — is inside that box, so the rendered
+// `[data-slot=message-list-scroll]` here is the same quantity the live drive measured.
+//
+// THE 2026-08-24 P3 RULING IS NOT REVERSED and the pins above still stand: nothing is CLIPPED here. At
+// coarse-collapsed the chips are stood down (`display:none`), so the disclosure is alone in the row and
+// cannot be pushed anywhere; expanding restores today's wrapping band verbatim, which the second row
+// below asserts against the very chips the first row hides.
+const LIST_SCROLL = '[data-slot="message-list-scroll"]';
+/** The room COLUMN at 430x740 — 740 less the shell's topbar (60) and tab bar (70), both outside `main`. */
+const PHONE_COLUMN_PX = 610;
+
+test.describe("#2426 the coarse resting strip", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 740 } });
+
+  test("the resting band is ONE row and the transcript clears its floor", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await routeRoom(page);
+
+    const component = await mount(<ChatControlsStory fixture="chips-over-cap" columnHeight={PHONE_COLUMN_PX} />);
+
+    // The strip IS the band: every chip is out of layout, and the one thing left is the disclosure, whose
+    // label names the whole row it reveals rather than the remainder past the display cap.
+    await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
+    const strip = component.getByRole("button", { name: "Show 6 controls" });
+    await expect(strip).toBeVisible();
+    await expect(strip).toHaveAttribute("aria-expanded", "false");
+    // …and the fine-pointer label is NOT in the accessible name — `display:none` takes it out of the tree,
+    // so the strip announces one sentence rather than both.
+    await expect(component.getByRole("button", { name: "+2 more" })).toHaveCount(0);
+
+    // THE FLOOR, measured on the rendered scroller against the budget the band states.
+    const port = await component.locator(LIST_SCROLL).boundingBox();
+    expect(port, "the transcript must have a box to measure").not.toBeNull();
+    expect(
+      Math.round(port?.height ?? 0),
+      `reading port ${String(Math.round(port?.height ?? 0))}px must clear the ${String(CHAT_READING_PORT_MIN_PX)}px floor`,
+    ).toBeGreaterThanOrEqual(CHAT_READING_PORT_MIN_PX);
+  });
+
+  test("a TAP expands the strip into today's band — same chips, same names, still wrapping — and back", async ({ mount, page }) => {
+    await routeRoom(page);
+
+    const component = await mount(<ChatControlsStory fixture="chips-over-cap" columnHeight={PHONE_COLUMN_PX} />);
+
+    const strip = component.getByRole("button", { name: "Show 6 controls" });
+    await strip.tap();
+
+    // ALL SIX, visible, with the accessible names the fine arm has always had (`<mode> <label>`) — the
+    // 2026-08-24 guarantee, reached through the disclosure instead of through a second line.
+    await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(6);
+    await expect(component.getByRole("button", { name: "Send Chip five" })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Chip six" })).toBeVisible();
+    // The expanded band is TODAY'S band: the row still wraps rather than clipping (the P3 mechanism).
+    await expect(component.locator(CHIPS)).toHaveCSS("flex-wrap", "wrap");
+
+    // …and it is reversible, by tap, back to the one-row strip.
+    const collapse = component.getByRole("button", { name: "Show fewer" });
+    await expect(collapse).toHaveAttribute("aria-expanded", "true");
+    await collapse.tap();
+    await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
+  });
+
+  test("the strip exists even when the display cap hides nothing — a two-chip band is still one row", async ({ mount, page }) => {
+    // The arm a fine pointer renders with NO disclosure at all: under the cap there is no remainder to
+    // disclose there, but at coarse the strip is what stands the row down, so it has to exist anyway.
+    await routeRoom(page);
+
+    const component = await mount(<ChatControlsStory fixture="chips" columnHeight={PHONE_COLUMN_PX} />);
+
+    await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
+    await expect(component.getByRole("button", { name: "Show 2 controls" })).toBeVisible();
+  });
+});
+
+test("#2426 FINE POINTER CONTROL: desktop is untouched — the chips rest visible and the strip label is absent", async ({ mount, page }) => {
+  // The density half of the ruling, and the pin that catches a "fix" that reaches the desktop band. This
+  // block has no `hasTouch`, so it runs at the default FINE pointer.
+  await expect.poll(() => page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
+  await routeRoom(page);
+
+  const component = await mount(<ChatControlsStory fixture="chips-over-cap" />);
+
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(4);
+  await expect(component.getByRole("button", { name: "+2 more" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show 6 controls" })).toHaveCount(0);
+});
+
+test("#2426 FINE POINTER CONTROL: a band under the display cap still discloses NOTHING on desktop", async ({ mount, page }) => {
+  // The coarse-only disclosure must not become a desktop affordance that says "Show 2 controls" beside two
+  // already-visible chips.
+  await routeRoom(page);
+
+  const component = await mount(<ChatControlsStory fixture="chips" />);
+
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(2);
+  await expect(component.locator(`${CHIPS} button[aria-expanded]:visible`)).toHaveCount(0);
 });

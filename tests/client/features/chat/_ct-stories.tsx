@@ -3527,6 +3527,12 @@ export interface ChatControlsStoryProps {
   readonly fixture?: ChatControlsFixture;
   /** #883 test-only worst art; stamps the shell flag on the REAL room only, excluding story drivers. */
   readonly worstArt?: string;
+  /** #2426 — the room COLUMN's height in px. The default 480 is the interaction fixture every other row
+   *  drives; **610** is the PRODUCTION column at a 430x740 phone (740 less the shell's 60px topbar and
+   *  70px tab bar, both outside `main` — measured), which is what makes a reading-port floor assertion a
+   *  claim about the real chain rather than about a story box. Ignored on the `worstArt` arm, which has
+   *  its own taller palette-only geometry. */
+  readonly columnHeight?: number;
 }
 
 const CT_CONTROL_SOURCE_ID = "ct-fake-control-source";
@@ -3679,9 +3685,11 @@ function CtControlSource({
 function ChatControlsRoom({
   surfaceContributors,
   worstArt,
+  columnHeight,
 }: {
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
   readonly worstArt?: string;
+  readonly columnHeight?: number;
 }): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -3693,7 +3701,7 @@ function ChatControlsRoom({
     <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={surfaceContributors} toolRenderers={NO_TOOL_RENDERERS} />
   );
   if (worstArt === undefined) {
-    return <div style={{ height: 480 }}>{room}</div>;
+    return <div style={{ height: columnHeight ?? 480 }}>{room}</div>;
   }
   // The contrast census must reach every declared text node in one bounded frame. The ordinary 480px
   // interaction fixture deliberately scrolls its first message offscreen; this palette-only arm is taller
@@ -3709,7 +3717,7 @@ function ChatControlsRoom({
 }
 
 /** The room with the S1 band wired the door's way, plus the drivers and receipts the matrix reads. */
-export function ChatControlsStory({ source = "fake", fixture = "chips", worstArt }: ChatControlsStoryProps): ReactElement {
+export function ChatControlsStory({ source = "fake", fixture = "chips", worstArt, columnHeight }: ChatControlsStoryProps): ReactElement {
   const [ran, setRan] = useState(0);
   const [epoch, setEpoch] = useState(0);
   const [dismissed, setDismissed] = useState<readonly string[]>([]);
@@ -3738,7 +3746,11 @@ export function ChatControlsStory({ source = "fake", fixture = "chips", worstArt
   return (
     <CtDataProviders>
       <SocketHost>
-        <ChatControlsRoom surfaceContributors={surfaceContributors} {...(worstArt === undefined ? {} : { worstArt })} />
+        <ChatControlsRoom
+          surfaceContributors={surfaceContributors}
+          {...(worstArt === undefined ? {} : { worstArt })}
+          {...(columnHeight === undefined ? {} : { columnHeight })}
+        />
         {/* Receipts + drivers, OUTSIDE the room (a source mount renders null by contract). */}
         <div data-testid="ct-control-source-ran">{ran}</div>
         <button
