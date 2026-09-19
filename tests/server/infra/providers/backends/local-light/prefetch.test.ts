@@ -36,6 +36,7 @@ async function settle(): Promise<void> {
   }
 }
 
+// @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
 function build(preload: (slot: string, modelId: string) => Promise<void>): ReturnType<typeof createLocalLightPrefetch> {
   return createLocalLightPrefetch({ cache: { preload }, now: () => NOW });
 }

@@ -57,6 +57,7 @@ export type LocalLightModelSlot = (typeof LOCAL_LIGHT_MODEL_SLOTS)[number];
  *  phase-level text rather than rendering a percentage of nothing. */
 export interface LocalLightLoadProgress {
   /** The HuggingFace repo id being fetched (transformers.js's `name`). */
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   readonly modelId: string;
   readonly loaded: number;
   readonly total: number;
@@ -444,6 +445,7 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
 
   // Slot → the memos that slot's inference path leases. Exhaustive over LOCAL_LIGHT_MODEL_SLOTS by the
   // mapped type, so a new slot cannot be added without deciding what warming it means.
+  // @orb-waive brand-in-name-position(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
   const SLOT_LOADERS: { readonly [K in LocalLightModelSlot]: (modelId: string) => Promise<unknown> } = {
     rerank: (modelId) => Promise.all([tokenizer(modelId), reranker(modelId)]),
     embed: (modelId) => Promise.all([processor(modelId), jinaEmbedder(modelId)]),
