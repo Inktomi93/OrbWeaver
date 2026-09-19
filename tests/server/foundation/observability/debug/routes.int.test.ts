@@ -25,6 +25,10 @@ const OK = 200;
 const NOT_FOUND = 404;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
+const UNSUPPORTED_MEDIA_TYPE = 415;
+/** An EMPTY note, so a request that reaches the handler dies at the SCHEMA (400) and writes no artifact —
+ *  which is what lets the content-type belt's pins read a 415 as "refused before the parse". */
+const EMPTY_NOTE_BODY = JSON.stringify({ note: "", windowMinutes: null, client: { ring: "x" } });
 
 /** The port's own filter shape — `chatId` BRANDED, because the entry seam applies the brand before the ring
  *  ever sees it (`lifecycle.ts`), and a bare `string` here would let a wrong-id call type-check. */
@@ -235,5 +239,71 @@ describe("POST /api/_debug/bug-report — the body cap in front of the JSON pars
     const oversized = JSON.stringify({ note: "", windowMinutes: null, client: "x".repeat(BUG_REPORT_MAX_BODY_BYTES) });
     const res = await capApp().request("/api/_debug/bug-report", { method: "POST", headers: { "content-type": "application/json" }, body: oversized });
     expect(res.status).toBe(UNAUTHORIZED);
+  });
+});
+
+// THE CSRF CONTENT-TYPE BELT on the one WRITE this surface carries (#2376, the #300 class). The gate's
+// admin-session arm admits AMBIENT credentials — a `via:"cookie"` session and, wherever `AUTH_FALLBACK=owner`
+// is live (every dev stack, every single-user box), the loopback owner `fallback` arm — so a page in the
+// owner's own browser can drive this POST cross-site IF the browser can be made to send it with no preflight.
+// `c.req.json()` is `text()` + `JSON.parse` and reads NO content-type, so before this belt a CORS-SIMPLE
+// `text/plain` POST carrying a JSON body reached the handler and wrote an artifact — the same door
+// `entry/app.ts`'s `trpcJsonOnly` closed on the tRPC mount (spine invariant #9). The physics the belt rests
+// on, stated so it can be re-checked: `application/json` is NOT a CORS-simple content-type and this app
+// mounts no CORS middleware, so a cross-site page cannot make the browser send one.
+//
+// Every arm posts an EMPTY note, so the pre-belt outcome is a schema 400 (handler entered, body parsed, no
+// artifact written) and the post-belt outcome is 415 (refused before the parse). The status is therefore a
+// claim about WHERE the request died, not about the schema.
+describe("POST /api/_debug/bug-report — the CSRF content-type belt (#2376)", () => {
+  function beltApp(): Hono {
+    const app = new Hono();
+    registerDebugRoutes(app, { auth: { expectedToken: TOKEN } });
+    return app;
+  }
+
+  async function postAs(contentType: string | undefined): Promise<Response> {
+    return await beltApp().request("/api/_debug/bug-report", {
+      method: "POST",
+      headers: { ...(contentType === undefined ? {} : { "content-type": contentType }), "x-debug-token": TOKEN },
+      body: EMPTY_NOTE_BODY,
+    });
+  }
+
+  // The CORS-simple content-types — the complete set a cross-site page can send with no preflight.
+  test.each([
+    "text/plain",
+    "text/plain;charset=UTF-8",
+    "multipart/form-data; boundary=x",
+    "application/x-www-form-urlencoded",
+  ])("a CORS-simple %s POST is refused 415 before the JSON parse", async (contentType) => {
+    expect((await postAs(contentType)).status).toBe(UNSUPPORTED_MEDIA_TYPE);
+  });
+
+  test("a POST with NO content-type is refused too (a body whose type nothing declared is not JSON)", async () => {
+    expect((await postAs(undefined)).status).toBe(UNSUPPORTED_MEDIA_TYPE);
+  });
+
+  // POSITIVE CONTROLS — a belt that refused everything would pass every pin above. The real client sends a
+  // bare `application/json`; a `; charset=utf-8` suffix is legal and must still pass (the prefix test), and
+  // the match is case-insensitive because media types are.
+  test.each([
+    "application/json",
+    "application/json; charset=utf-8",
+    "APPLICATION/JSON",
+  ])("%s still reaches the schema (400 from the empty note, not 415 from the belt)", async (contentType) => {
+    expect((await postAs(contentType)).status).toBe(BAD_REQUEST);
+  });
+
+  test("the belt does not open the gate — an un-credentialed text/plain POST is still refused as unauthorized", async () => {
+    const res = await beltApp().request("/api/_debug/bug-report", { method: "POST", headers: { "content-type": "text/plain" }, body: EMPTY_NOTE_BODY });
+    expect(res.status).toBe(UNAUTHORIZED);
+  });
+
+  // The READ probes are untouched: a GET carries no content-type, and a cross-site page cannot read the
+  // response anyway (no CORS grant). A belt that had leaked onto the gate middleware would red this.
+  test("the belt is scoped to the POST — a GET probe with no content-type still serves", async () => {
+    const res = await beltApp().request("/api/_debug/info", { headers: { "x-debug-token": TOKEN } });
+    expect(res.status).toBe(OK);
   });
 });
