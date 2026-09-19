@@ -19,6 +19,10 @@ import { expect, test } from "../../../../../support/fixtures.ts";
 
 const CRED = makeResolvedCredential("local-light");
 const MODEL = "Xenova/test-clip" as ModelId;
+// The dtype half of the space tag (owner ruling 2026-09-19, #2417 — `LOCAL_LIGHT_EMBED_DTYPE` defaults to
+// q8). A LITERAL, not an import: the default is the ruling, so a flip must red this rather than follow it.
+// It must match `embed.test.ts`'s — one model, one joint space, therefore one tag for both modalities.
+const DEFAULT_EMBED_DTYPE = "q8";
 // The unified joint space — image + text vectors must both be this length to fit the F32_BLOB(1024) column.
 const VECTOR_DIM = 1024;
 
@@ -69,7 +73,7 @@ describe("createLocalLightImageEmbed", () => {
     expect(res.vectors).toHaveLength(2);
     const vec = requireVector(res.vectors[0] ?? null);
     expect(cosineSim(vec, vec)).toBeCloseTo(1, 5);
-    expect(res.model).toBe(MODEL);
+    expect(res.model).toBe(`${MODEL}@${DEFAULT_EMBED_DTYPE}`);
   });
 
   test("a fake jina-clip cache yields 1024-dim image AND text vectors from the SAME joint space", async () => {
@@ -104,8 +108,8 @@ describe("createLocalLightImageEmbed", () => {
     expect(textVec).toHaveLength(VECTOR_DIM);
     expect(cosineSim(imageVec, imageVec)).toBeCloseTo(1, 5);
     expect(cosineSim(textVec, textVec)).toBeCloseTo(1, 5);
-    expect(imageRes.model).toBe(DEFAULT_IMAGE_EMBED_MODEL);
-    expect(textRes.model).toBe(DEFAULT_IMAGE_EMBED_MODEL);
+    expect(imageRes.model).toBe(`${DEFAULT_IMAGE_EMBED_MODEL}@${DEFAULT_EMBED_DTYPE}`);
+    expect(textRes.model).toBe(`${DEFAULT_IMAGE_EMBED_MODEL}@${DEFAULT_EMBED_DTYPE}`);
   });
 
   test("wraps a single image (Uint8Array) rather than iterating its bytes", async () => {
@@ -152,7 +156,7 @@ describe("createLocalLightImageEmbed", () => {
       input: { kind: "text", input: "hello" },
     });
 
-    expect(res.model).toBe(DEFAULT_IMAGE_EMBED_MODEL);
+    expect(res.model).toBe(`${DEFAULT_IMAGE_EMBED_MODEL}@${DEFAULT_EMBED_DTYPE}`);
   });
 
   // #1474: the image side returned `raw.map(...)` with no count assertion, so a library anomaly that

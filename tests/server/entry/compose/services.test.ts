@@ -173,6 +173,14 @@ test("with vLLM unavailable (no GPU) the boot-global derive bundle falls back to
   const clock = createFrozenClock();
   // vllmDisabled:true ⇒ vllmAvailable=false ⇒ the derive roles (embed) reroute to local-light (empty model,
   // self-defaulting to jina); summarize (generation) stays on the vLLM floor model — never local-light.
+  //
+  // THIS CASE USED TO ASSERT `embedModel === ""` (the raw rerouted model id), with the comment "local-light
+  // self-default". That was a defect wearing a pin: `embedModel` is the VECTOR-SPACE tag the `embeddings`
+  // domain stamps on every row and `purgeStaleVectors` compares, and the backend was writing
+  // "jinaai/jina-clip-v2" into those rows while this getter answered "" — so on a GPU-less box every stored
+  // vector sat in a space the box did not believe it was in. Fixed with #2417 (which also folds the
+  // encoder's dtype into the tag, because a re-quantised encoder is a different space); the getter now
+  // resolves the same builtin fallback the backend does.
   const result = await createServices({
     db,
     now: clock.now,
@@ -184,7 +192,10 @@ test("with vLLM unavailable (no GPU) the boot-global derive bundle falls back to
     vllmDisabled: true,
   });
 
-  expect(result.roleClients.embedModel).toBe(""); // local-light self-default (jina-clip-v2, 1024-dim)
+  // The ACTIVE SPACE, not the rerouted wire id: the builtin the backend self-defaults to, plus the dtype it
+  // is loaded at. It must equal what the backend stamps on the rows (pinned side by side in
+  // tests/server/infra/providers/backends/local-light/index.test.ts).
+  expect(result.roleClients.embedModel).toBe("jinaai/jina-clip-v2@q8");
   expect(result.roleClients.summarizerModel).toBe(env.VLLM_GEN_MODEL);
 });
 

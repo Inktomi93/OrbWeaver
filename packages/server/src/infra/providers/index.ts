@@ -221,6 +221,7 @@ export {
   DEFAULT_RERANK_MODEL,
   LOCAL_LIGHT_MODEL_SLOTS,
   LOCAL_LIGHT_STATUS_PREFIX,
+  localLightEmbedSpace,
 } from "./backends/local-light/index.ts";
 export { fetchOrCatalog } from "./backends/openrouter/index.ts";
 export type {

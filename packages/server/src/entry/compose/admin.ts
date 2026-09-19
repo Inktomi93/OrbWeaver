@@ -130,7 +130,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
       // The IN-PROCESS local-light tier's warm-up rows ride the SAME map (its record is field-identical, and
       // this panel is the one surface that already answers "is a model ready to serve?"). They are merged
       // FIRST and OUTSIDE the vLLM null-guard on purpose: the GPU-less box local-light exists for has NO vLLM
-      // supervisor at all, and that is precisely the box whose 3.5 GB fetch the operator needs to see. Their
+      // supervisor at all, and that is precisely the box whose multi-hundred-MB fetch the operator needs to see. Their
       // keys are namespaced (`local-light:embed`), so they cannot collide with the vLLM `embed`/`rerank`
       // engines on a box running both. `port` is 0 (nothing listens — the tier is in THIS process) and the
       // store path is the weights cache, the one deployment fact a local-light row actually has.
