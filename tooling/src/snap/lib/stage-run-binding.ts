@@ -38,6 +38,14 @@ export function registerStageRunBinding(bound: StageRunBinding): void {
   bootDeadReason = null;
 }
 
+/** The stage row this run bound, or null. The BAND-CLAIM guard's entitlement input (#2441): the allocator
+ *  already decided this run may read this band — including arm 2's `shared-reuse` of a sibling's row at our
+ *  sha — so the guard asks "did my own allocation hand me this band?" instead of re-deriving entitlement
+ *  from the shared table, which is what made it call the allocator's own answer `foreign`. */
+export function boundStageRow(): StageRow | null {
+  return binding?.row ?? null;
+}
+
 /** Latch "this run's stage never served a ready app". No-op unless this run BOOTED a stage. */
 export function markStageBootDead(reason: string): void {
   if (binding === null || !binding.booted) {

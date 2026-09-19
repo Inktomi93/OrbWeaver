@@ -29,7 +29,7 @@ import {
   snapContexts,
   snapMatrix,
   snapScenario,
-  stageBandRefusalFor,
+  stageBandVerdictFor,
   tearDownBootDeadStage,
 } from "./index.ts";
 
@@ -162,10 +162,13 @@ export async function main(opts: Args, argv: readonly string[]): Promise<number>
       if (stageExit !== null) {
         return stageExit;
       }
-      const bandRefusal = stageBandRefusalFor(opts.base);
-      if (bandRefusal !== null) {
-        print(bandRefusal);
+      const band = stageBandVerdictFor(opts.base);
+      if (band.refusal !== null) {
+        print(band.refusal);
         return EXIT.toolError;
+      }
+      if (band.note !== null) {
+        print(band.note);
       }
       try {
         return await runResolvedMode(opts);

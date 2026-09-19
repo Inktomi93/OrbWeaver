@@ -317,6 +317,16 @@ export function stageInheritedEnv(envFileContent: string): Record<string, string
 // band is "I cannot say whose tree this is", which is the same defect
 // (.claude/rules/gates-and-tooling.md: a bare zero is "I couldn't measure", never "it isn't there").
 // #1276 widened this from one hardcoded pair to the whole range: a `--base` on ANY band is arbitrated.
+//
+// AND THE ANSWER HAS A THIRD READABLE ARM NOW (#2441). "Another checkout's row" was doing double duty: it
+// meant both "a band nobody handed me" (the incident) and "the band MY OWN allocator just handed me under
+// its same-sha `shared-reuse` arm" (#108's whole feature) — so the guard refused the allocator's own
+// answer and every lane at main tip was locked out of `--isolated` with "nothing was measured". The fix
+// does not widen the heuristic, because there is none: entitlement is the row THIS RUN'S allocation bound
+// (`lib/stage-run-binding.ts`), matched on band + sha + checkout, and a run that allocated nothing still
+// gets the #1186 refusal verbatim. What a `shared` read owes instead of a refusal is a printed LINE naming
+// whose tree answered — `stageBandSharedNote` — because "the operator could not tell" was the actual
+// complaint, and passing silently would have reproduced it.
 
 /** Which band does this URL address, or null? Port-keyed, because a band IS its ports — a
  *  `--base http://localhost:5283` and a `--url http://localhost:5283/chat` are the same claim. */
@@ -333,7 +343,12 @@ export function urlTargetsStageBand(url: string): boolean {
   return urlStageBand(url) !== null;
 }
 
-export function stageBandClaim(url: string, checkout: string, rows: readonly StageRow[]): StageBandClaim {
+/** `bound` is the row THIS run's own stage allocation handed it (`lib/stage-run-binding.ts`), or null for a
+ *  run that allocated nothing — a hand-typed `--base`, a chained instrument, the dev stack. It is the ONLY
+ *  thing that can turn a sibling's row into `shared`, and it is matched on the whole identity (band + sha +
+ *  checkout) rather than on the band alone: a stale binding whose row has since been reaped and re-let to a
+ *  different tree must not licence a read of the new occupant. */
+export function stageBandClaim(url: string, checkout: string, rows: readonly StageRow[], bound: StageRow | null = null): StageBandClaim {
   const band = urlStageBand(url);
   if (band === null) {
     return "not-the-band";
@@ -342,13 +357,33 @@ export function stageBandClaim(url: string, checkout: string, rows: readonly Sta
   if (row === undefined) {
     return "unowned";
   }
-  return row.checkout === checkout ? "ours" : "foreign";
+  if (row.checkout === checkout) {
+    return "ours";
+  }
+  const allocatedToUs = bound !== null && bound.band === row.band && bound.sha === row.sha && bound.checkout === row.checkout;
+  return allocatedToUs ? "shared" : "foreign";
+}
+
+/** The one-line note a `shared` read owes its operator: the pixels are a SIBLING checkout's, at our sha.
+ *  Nothing is refused — the bytes are identical by construction — but #1186's actual complaint was that the
+ *  operator could not tell whose tree answered, and a silent pass would reproduce exactly that. Returns
+ *  null for every other claim. */
+export function stageBandSharedNote(claim: StageBandClaim, url: string, rows: readonly StageRow[]): string | null {
+  if (claim !== "shared") {
+    return null;
+  }
+  const band = urlStageBand(url);
+  const row = rows.find((candidate) => candidate.band === band);
+  if (row === undefined) {
+    return null;
+  }
+  return `[snap-stage] SHARED band ${String(row.band)} — reading ${row.checkout}'s stage at ${shortSha(row.sha)} (the allocator's same-sha reuse, #108). Read-only: this run will not rebuild, refresh or tear it down.`;
 }
 
 /** The exit-2 copy for a claim that is not ours — it names BOTH checkouts, because the whole failure is
- *  that the operator could not tell whose tree answered. Returns null for the two readable claims. */
+ *  that the operator could not tell whose tree answered. Returns null for the three readable claims. */
 export function stageBandRefusal(claim: StageBandClaim, url: string, checkout: string, rows: readonly StageRow[]): string | null {
-  if (claim === "not-the-band" || claim === "ours") {
+  if (claim === "not-the-band" || claim === "ours" || claim === "shared") {
     return null;
   }
   const band = urlStageBand(url);
