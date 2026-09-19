@@ -145,6 +145,11 @@ function devCspMirror(): Plugin {
   };
 }
 
+/** The workspace packages `@orb/client` reaches through the cake, and therefore the only ones whose
+ *  source and exports map the dev server must keep watching (kit ← contracts ← ui; db/server are node's
+ *  `--watch` problem, never vite's). Shared by the two dev-watch plugins below so the set has one home. */
+const WORKSPACE_SOURCE_PACKAGES = ["kit", "contracts", "ui"] as const;
+
 // ── Workspace-export-move staleness (#32) ─────────────────────────────────────────────────────────
 // A merge that MOVES an export across a workspace-package boundary (@orb/kit, @orb/contracts,
 // @orb/ui — the three packages @orb/client actually reaches through the cake) rewrites that
@@ -172,14 +177,16 @@ function devCspMirror(): Plugin {
 function orbWorkspaceExportsRestart(): Plugin {
   // db/server are excluded ON PURPOSE — client never imports through them (package cake:
   // kit ← contracts ← db ← server ← client, + the sealed ui: kit ← ui ← client).
-  const watchedPkgJson = new Set(["kit", "contracts", "ui"].map((pkg) => `${WORKSPACE_ROOT}/packages/${pkg}/package.json`));
+  const watchedPkgJson = new Set(WORKSPACE_SOURCE_PACKAGES.map((pkg) => `${WORKSPACE_ROOT}/packages/${pkg}/package.json`));
   return {
     name: "orb:workspace-exports-restart",
     apply: "serve",
     configureServer(server): void {
-      for (const file of watchedPkgJson) {
-        server.watcher.add(file);
-      }
+      // NO per-file `watcher.add(pkgJson)` here any more (#2462): a path added to chokidar ONE FILE AT A
+      // TIME goes permanently deaf after the second unlink+create, and git writes that way — so the add
+      // that used to live here stopped delivering on exactly the second merge that moved an export, the
+      // case this plugin exists for. `orb:workspace-source-watch` below watches the whole package
+      // directory instead, which covers these three package.json files by NAME and survives the cycle.
       server.watcher.on("change", (file: string): void => {
         if (!watchedPkgJson.has(file)) {
           return;
@@ -192,6 +199,48 @@ function orbWorkspaceExportsRestart(): Plugin {
           server.config.logger.error(`orb: workspace-export restart failed: ${error.message}`, { error, timestamp: true });
         });
       });
+    },
+  };
+}
+
+// ── Workspace SOURCE watch — the per-file watcher goes deaf, so watch the directory (#2462) ──────
+// Vite watches everything OUTSIDE `root` ONE PATH AT A TIME: `ensureWatchedFile()`
+// (vite/dist/node/chunks/node.js) fires `watcher.add(file)` for each transformed module that does not
+// start with `<root>/`, which is every `@orb/{kit,contracts,ui}` source file the client imports.
+//
+// MEASURED 2026-09-19 on this box (chokidar 5.0.0, the version vite 8.1.2 resolves), six
+// unlink-then-create cycles on one watched path:
+//   • added AS A FILE  — cycles 1-2 emit `change`; cycle 3 onward emit NOTHING, for the rest of the
+//     process's life, and a plain in-place write afterwards emits nothing either. `getWatched()` keeps
+//     LISTING the path the whole time, so every liveness read says the watcher is healthy.
+//   • added AS ITS DIRECTORY — all six cycles emit `change`, and so does the in-place write after them.
+// Git writes by unlink+create (checkout and merge both), so the SECOND merge train to touch a given
+// workspace module freezes it: vite keeps serving the transform it computed for the first one, and no
+// later regeneration, `touch` or merge can dislodge it. Reproduced end-to-end against this exact config
+// (a dev server + `curl /@fs/<packages/ui/src/tokens/index.ts>`, 30 cycles): cycle 1 fresh, cycles 2-30
+// stale. It surfaced on the GENERATED token map because every merge train regenerates that file, but
+// nothing about it is token-specific — it is the whole out-of-root source graph (#2462).
+//
+// So: watch the three package DIRECTORIES. Vite's own resolved chokidar `ignored` already excludes
+// `**/node_modules/**`, `**/.git/**` and the cache dir, so this is ~190 directories of first-party
+// source, not the dependency tree, and it costs one inotify watch per directory. It does not replace
+// `ensureWatchedFile` — it survives it.
+const WORKSPACE_SOURCE_WATCH_DIRS: readonly string[] = WORKSPACE_SOURCE_PACKAGES.map((pkg) => `${WORKSPACE_ROOT}/packages/${pkg}`);
+
+/**
+ * Keep the dev watcher's coverage of the sibling workspace packages alive across git's unlink+create
+ * writes (see above). `dirs` is a parameter ONLY so the committed control can drive a planted two-file
+ * tree instead of the real packages — production always takes the default.
+ * @public Test-anchored: tests/tooling/vite-workspace-source-watch.int.test.ts drives both arms.
+ */
+export function orbWorkspaceSourceWatch(dirs: readonly string[] = WORKSPACE_SOURCE_WATCH_DIRS): Plugin {
+  return {
+    name: "orb:workspace-source-watch",
+    apply: "serve",
+    configureServer(server): void {
+      for (const dir of dirs) {
+        server.watcher.add(dir);
+      }
     },
   };
 }
@@ -481,6 +530,9 @@ export default defineConfig({
     }),
     // Dev-serve only: mirrors the backend's live, setting-dependent document CSP (see CSP_DEV_FALLBACK).
     devCspMirror(),
+    // Dev-serve only: keeps the watcher's coverage of @orb/{kit,contracts,ui} alive across git's
+    // unlink+create writes (#2462) — installed BEFORE the restart plugin, which now leans on it.
+    orbWorkspaceSourceWatch(),
     // Dev-serve only: self-heals a live session across a workspace export move (#32, see above).
     orbWorkspaceExportsRestart(),
   ],
