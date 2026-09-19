@@ -44,6 +44,12 @@ test("compose publishes on loopback by default, ships a credentialed login mode,
   expect(env).toMatch(/^AUTH_FALLBACK_TRUSTED_PEERS=172\.16\.0\.0\/12,/mu);
   expect(env).toMatch(/^CREDENTIALS_KEY_AUTO=true$/mu);
   expect(compose).toContain("ORB_BIND: ${ORB_BIND:-127.0.0.1}");
+  // #2413 — the plain-http LAN opt-in is DOCUMENTED in the tracked defaults and never ASSIGNED there. It
+  // serves the session credential in cleartext, so it must be a deliberate edit in the deployer's own
+  // (gitignored) file; an uncommented line here would ship every fresh `docker compose up` with a
+  // cleartext-transportable session cookie, and nothing about the running box would look different.
+  expect(env).toMatch(/^#SESSION_COOKIE_INSECURE=true$/mu);
+  expect(env, "SESSION_COOKIE_INSECURE must never be ENABLED in the tracked env file").not.toMatch(/^SESSION_COOKIE_INSECURE=/mu);
   // no secret VALUE is assigned in the tracked file (commented examples are fine)
   for (const key of ["SESSION_SECRET", "LOCAL_INITIAL_PASSWORD", "OIDC_CLIENT_SECRET", "OPENROUTER_API_KEY", "CREDENTIALS_KEY", "DEBUG_TOKEN"]) {
     expect(env, `${key} must not be assigned in the tracked env file`).not.toMatch(new RegExp(`^${key}=`, "mu"));

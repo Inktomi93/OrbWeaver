@@ -276,6 +276,22 @@ describe("session-cookie readers agree across the validate / revoke / re-issue p
     expect(await readAllThree([`${COOKIE_NAME}_extra=impostor`])).toEqual(allAgreeOn(null));
   });
 
+  // #2413 — THE OTHER POSTURE'S NAME IS NOT A SECOND DOOR. `SESSION_COOKIE_INSECURE=true` switches the mint
+  // (and every reader) to `orb_session_insecure`; on a box that did NOT set it, that name must be inert on
+  // all three paths. It matters because the insecure name carries no `__Host-` prefix, and the prefix is
+  // precisely the control that stops a plain-http sibling origin from PLANTING a cookie on the secure one: a
+  // reader that accepted both names would hand every `__Host-` deployment the session-fixation hole the
+  // prefix exists to close, in exchange for a convenience nobody on that box asked for.
+  test("the INSECURE posture's cookie name is inert on a default (secure) box — no second door", async () => {
+    expect(await readAllThree(["orb_session_insecure=planted"])).toEqual(allAgreeOn(null));
+  });
+
+  // …and it cannot shadow the real one when both are present, in either order.
+  test("a planted insecure-name cookie never shadows the real __Host- cookie", async () => {
+    expect(await readAllThree([`orb_session_insecure=planted; ${COOKIE_NAME}=real`])).toEqual(allAgreeOn("real"));
+    expect(await readAllThree([`${COOKIE_NAME}=real; orb_session_insecure=planted`])).toEqual(allAgreeOn("real"));
+  });
+
   test("duplicate Cookie HEADERS: our cookie behind another one is found by all three", async () => {
     // `Headers` special-cases `cookie` and joins repeated lines with `; ` (undici, per the fetch spec's
     // cookie carve-out) — so the second header's pair stays a real pair and every reader finds it.

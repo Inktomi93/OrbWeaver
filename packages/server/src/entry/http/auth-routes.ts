@@ -1,5 +1,8 @@
-// The auth mint routes + cookie I/O. This is the write side of the __Host-orb_session cookie (the read
-// side is the seam + infra/auth). Never re-implements identity resolution: mints sessions via
+// The auth mint routes + cookie I/O. This is the write side of the session cookie (the read side is the
+// seam + infra/auth); the cookie's NAME and attributes are `infra/auth/modes/cookie-session.ts`'s, and there
+// are two of them — `__Host-orb_session` by default, `orb_session_insecure` under `SESSION_COOKIE_INSECURE`
+// (#2413). Exactly one is active per process; every write here goes through `writeSetCookies` so the other
+// name is CLEARED in the same response. Never re-implements identity resolution: mints sessions via
 // domain/sessions and writes the cookie; resolution belongs to the seam.
 //
 // Local login: password-form → verify (injected `authenticate` port) → sessions.create → set cookie.
@@ -29,7 +32,7 @@ import type { RevokedSessionsSummary } from "#domain/sessions";
 import { groupRoleGovernanceActive } from "#domain/sessions";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction } from "#infra/auth";
-import { hasCsrfHeader, MIN_PASSWORD_LENGTH, SESSION_COOKIE_NAME } from "#infra/auth";
+import { hasCsrfHeader, MIN_PASSWORD_LENGTH, SESSION_COOKIE_ATTRS, SESSION_COOKIE_NAME, SESSION_COOKIES } from "#infra/auth";
 import { clientIp, peerIp } from "#infra/network";
 import type { RateLimiter } from "../../transport/rate-limit.ts";
 import { createRateLimiter } from "../../transport/rate-limit.ts";
@@ -44,8 +47,6 @@ const OK = 200;
 const FOUND = 302;
 const MS_PER_SECOND = 1000;
 const PKCE_METHOD = "S256";
-// `__Host-` requires these three (Secure + Path=/ + no Domain); SameSite=Lax + HttpOnly complete the policy.
-const COOKIE_ATTRS = "Path=/; HttpOnly; Secure; SameSite=Lax";
 
 const LOGIN_ROUTE = "/api/auth/login";
 const FIRST_RUN_ROUTE = "/api/auth/first-run";
@@ -162,7 +163,8 @@ async function exchangeCodeForClaims(exchange: OidcExchange, config: Configurati
   }
 }
 
-/** Serialize the `__Host-orb_session` Set-Cookie value with a Max-Age (seconds; clamped ≥ 0). Takes the
+/** Serialize the session-cookie Set-Cookie value under this process's ACTIVE name + attributes
+ *  (`SESSION_COOKIE_NAME`/`SESSION_COOKIE_ATTRS`), with a Max-Age (seconds; clamped ≥ 0). Takes the
  *  branded `SessionToken` so no other secret (a handle, a `SessionId`, an OIDC code) can be written into
  *  the session cookie by accident.
  *
@@ -177,12 +179,45 @@ async function exchangeCodeForClaims(exchange: OidcExchange, config: Configurati
  *  stays because it must tolerate whatever an attacker-controlled `Cookie` header carries and fail closed. */
 export function serializeSessionCookie(token: SessionToken, maxAgeSeconds: number): string {
   const maxAge = Math.max(0, Math.floor(maxAgeSeconds));
-  return `${SESSION_COOKIE_NAME}=${token}; Max-Age=${maxAge}; ${COOKIE_ATTRS}`;
+  return `${SESSION_COOKIE_NAME}=${token}; Max-Age=${maxAge}; ${SESSION_COOKIE_ATTRS}`;
 }
 
-/** Serialize the cleared (logout) Set-Cookie value — same name + attrs, empty value, Max-Age=0. */
-export function serializeClearedSessionCookie(): string {
-  return `${SESSION_COOKIE_NAME}=; Max-Age=0; ${COOKIE_ATTRS}`;
+/**
+ * Serialize the cleared (logout) Set-Cookie value for EVERY name this app has ever minted under
+ * (`SESSION_COOKIES`, `infra/auth/modes/cookie-session.ts`) — empty value, `Max-Age=0`, each under the
+ * attributes its own name requires.
+ *
+ * BOTH NAMES, NOT JUST THE ACTIVE ONE (#2413): an operator who flips `SESSION_COOKIE_INSECURE` leaves the
+ * other name's cookie sitting in every already-signed-in browser. Only the ACTIVE name is ever read, so such
+ * a leftover cannot authenticate — but it is still a live session token in a jar, and "log out" must mean the
+ * browser stops holding one. Cheap and total: one extra header on a route that runs once per sign-out.
+ *
+ * BEST-EFFORT IN ONE DIRECTION, STATED SO IT IS NOT MISREAD AS A GUARANTEE: the `__Host-` clear necessarily
+ * carries `Secure`, so a browser on a plain-http origin DISCARDS it (RFC 6265bis §4.1.3.2) — i.e. on an
+ * insecure-posture box the stale secure cookie survives logout. It is unreachable there anyway (the reader
+ * matches the active name only) and the revoke has already killed the session row behind it, so what survives
+ * is a string that authenticates nothing. Over https both clears land.
+ */
+export function serializeClearedSessionCookies(): readonly string[] {
+  return SESSION_COOKIES.map(({ name, attrs }) => `${name}=; Max-Age=0; ${attrs}`);
+}
+
+/** The Set-Cookie values a MINT writes: the new session under the active name, plus a clear of every OTHER
+ *  name (same reason as the logout clear above — a sign-in on the new posture must not leave the old
+ *  posture's token in the jar). Ordered active-first so a reader of the response sees the mint. */
+function serializeMintedSessionCookies(token: SessionToken, maxAgeSeconds: number): readonly string[] {
+  return [
+    serializeSessionCookie(token, maxAgeSeconds),
+    ...SESSION_COOKIES.filter(({ name }) => name !== SESSION_COOKIE_NAME).map(({ name, attrs }) => `${name}=; Max-Age=0; ${attrs}`),
+  ];
+}
+
+/** Write a list of `Set-Cookie` values onto the response. APPEND, never set: a second bare `c.header` call
+ *  REPLACES the first, which would silently ship only the last cookie of a clear-both / mint-plus-clear pair. */
+function writeSetCookies(c: Context, values: readonly string[]): void {
+  for (const value of values) {
+    c.header("Set-Cookie", value, { append: true });
+  }
 }
 
 /** The OIDC RP-Initiated Logout query parameters. Wire-fixed snake_case (OIDC Core / RP-Initiated Logout
@@ -551,7 +586,7 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
       userId,
       userAgent: c.req.header("user-agent") ?? null,
     });
-    c.header("Set-Cookie", sessionCookieFor(session, deps.now()));
+    writeMintedSession(c, session, deps.now());
     return c.json({ ok: true });
   });
 }
@@ -597,7 +632,7 @@ function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstR
       return c.json({ error: "the owner password is already set" }, CONFLICT);
     }
     const session = await deps.sessions.create({ userId, userAgent: c.req.header("user-agent") ?? null });
-    c.header("Set-Cookie", sessionCookieFor(session, deps.now()));
+    writeMintedSession(c, session, deps.now());
     return c.json({ ok: true });
   });
 }
@@ -636,7 +671,7 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
         endSessionHint = ended.oidcIdToken;
       }
     }
-    c.header("Set-Cookie", serializeClearedSessionCookie());
+    writeSetCookies(c, serializeClearedSessionCookies());
     // #141 — this body can now carry the session's `id_token_hint` inside the end-session URL, so it is a
     // token-bearing response. POSTs are not cached by default, but say so explicitly rather than relying on
     // that: no shared cache, no disk copy, no back-button replay of a hint the row no longer holds.
@@ -653,9 +688,10 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
   }
 }
 
-/** Build the Set-Cookie for a freshly minted session (Max-Age from the expiry minus the injected clock). */
-function sessionCookieFor(session: { readonly token: SessionToken; readonly expiresAt: number }, now: number): string {
-  return serializeSessionCookie(session.token, (session.expiresAt - now) / MS_PER_SECOND);
+/** Write the Set-Cookie headers for a freshly minted session (Max-Age from the expiry minus the injected
+ *  clock) — the new cookie plus a clear of the other posture's name. */
+function writeMintedSession(c: Context, session: { readonly token: SessionToken; readonly expiresAt: number }, now: number): void {
+  writeSetCookies(c, serializeMintedSessionCookies(session.token, (session.expiresAt - now) / MS_PER_SECOND));
 }
 
 /**
@@ -784,7 +820,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       // logout can present it as `id_token_hint`. An IdP that omitted it degrades to a bare end-session URL.
       oidcIdToken: exchange.idToken,
     });
-    c.header("Set-Cookie", sessionCookieFor(session, deps.now()));
+    writeMintedSession(c, session, deps.now());
     return c.redirect("/", FOUND);
   });
 
