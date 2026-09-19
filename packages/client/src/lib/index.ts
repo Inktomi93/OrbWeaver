@@ -95,6 +95,7 @@ export {
   CONTROL_MODE_CONSEQUENCE,
   CONTROL_MODE_WORD,
   controlOverflowNotice,
+  controlStripNotice,
   GENERATION_FAILED_DETAIL,
   IMAGE_GEN_NEEDS_TEXT,
   IMAGE_GEN_SPENDS_NOW,

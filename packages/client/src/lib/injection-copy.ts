@@ -91,6 +91,15 @@ export function controlOverflowNotice(hidden: number, noun: "pending" | "more"):
  *  `<p>`, so it needs a way back. */
 export const CONTROL_CHIPS_COLLAPSE = "Show fewer";
 
+/** The chip row's COARSE resting label (#2426). At a coarse pointer the band's resting state is ONE ROW —
+ *  the disclosure alone — so what it reveals is the WHOLE row rather than the remainder past the display
+ *  cap, and the `+N more` grammar would be naming the wrong number. Reads as the pair of
+ *  {@link CONTROL_CHIPS_COLLAPSE} ("Show N controls" / "Show fewer"), the same verb-led disclosure register
+ *  the Characters pane's `More filters` / `Fewer filters` uses (docs/design/vocabulary-map.md). */
+export function controlStripNotice(count: number): string {
+  return `Show ${String(count)} ${count === 1 ? "control" : "controls"}`;
+}
+
 // The composer GUIDED-CLUSTER phase reasons (W-D — the four always-visible dual-mode icons). Each icon is
 // never hidden or swapped ([[no-separate-reduced-modes]]); a phase-unavailable icon renders aria-disabled
 // with its reason LEGIBLE + touch-surfaced (not hover-only). Named unlocks, plain language, no jargon.

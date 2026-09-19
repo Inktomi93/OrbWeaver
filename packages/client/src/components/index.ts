@@ -38,6 +38,7 @@ export {
   PICKER_GAP_AT_COARSE,
   PIN_REVEAL,
   REVEAL_AT_COARSE,
+  SHOW_ONLY_AT_COARSE,
   VALUE_ROW_TOUCH_FLOOR_AT_COARSE,
 } from "./pointer-variants.ts";
 export type { QueryBoundaryProps } from "./query-boundary.tsx";

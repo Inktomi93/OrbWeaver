@@ -37,8 +37,9 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useId, useState } from "react";
+import { HIDE_AT_COARSE, SHOW_ONLY_AT_COARSE } from "#components";
 import type { ChatControl, ChatControlAction, ChatControlKind, ChatControlMode, ChatControlSource, ContributorRegistry } from "#lib";
-import { CHAT_CONTROL_KINDS, CONTROL_CHIPS_COLLAPSE, CONTROL_MODE_CONSEQUENCE, CONTROL_MODE_WORD, controlOverflowNotice } from "#lib";
+import { CHAT_CONTROL_KINDS, CONTROL_CHIPS_COLLAPSE, CONTROL_MODE_CONSEQUENCE, CONTROL_MODE_WORD, controlOverflowNotice, controlStripNotice } from "#lib";
 import { requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
 import { useChatControls } from "../hooks/use-chat-controls.tsx";
 import { useSendMessage } from "../hooks/use-send-message.ts";
@@ -49,6 +50,11 @@ import { resolveControlAvailability } from "../lib/chat-control-availability.ts"
 const CHIP_DISPLAY_CAP = 4;
 /** How many cards are visible at once. ONE, by law: the newest; the rest are a "+N pending" count. */
 const CARD_DISPLAY_CAP = 1;
+
+// THE TRANSCRIPT'S READING-PORT FLOOR this band's coarse strip protects is homed one module over —
+// `../lib/chat-reading-port.ts` (`CHAT_READING_PORT_MIN_PX`), which states the whole derivation and why it
+// is a constant rather than a vault token. It lives in a zero-import `.ts` leaf because its one enforcer is
+// a playwright-ct spec and a CT spec's node side cannot import a `.tsx`.
 
 /** THE BAND'S READING SURFACE (#674 — the over-art contrast family's TENTH instance, and the reason it is
  *  answered HERE rather than on the chips). Measured live 2026-08-24 in a carried-art room
@@ -140,6 +146,13 @@ interface ControlActionButtonProps {
   readonly consumer: ControlConsumer;
   /** `chip` is the pill in the capped row; `card` is a neutral button inside the card's action row. */
   readonly as: ChatControlKind;
+  /** #2426 — the chip row's per-pointer stand-down fragment (`HIDE_AT_COARSE`), or nothing. It rides the
+   *  chip rather than a wrapper element on purpose: a wrapper would give the disclosure a sibling box to
+   *  be pushed past at a FINE pointer, which is the 2026-08-24 P3 defect the wrapping row exists to
+   *  prevent. REQUIRED, and `""` where there is nothing to say: `exactOptionalPropertyTypes` makes an
+   *  explicit `undefined` a different shape from an absent key, and one required string keeps every call
+   *  site honest about which arm it is in. */
+  readonly className: string;
 }
 
 /** The leading GLYPH per consumption mode — one half of a chip's visible tell that `send` POSTS as your turn,
@@ -185,7 +198,7 @@ const MODE_GLYPH: Record<ChatControlMode, LucideIcon> = {
  *  THE CHIP GLYPH IS SIZED AT THE CALL SITE (#674 P2). A bare lucide component renders at its intrinsic 24px;
  *  the house body-adjacent step is 16px (`ICON_SM`, `Icon size="sm"`). The fix belongs here and NOT on
  *  `@orb/ui` Button's base — a `[&_svg]:size-*` rule there would resize every bare glyph in the app. */
-function ControlActionButton({ action, consumer, as }: ControlActionButtonProps): ReactElement {
+function ControlActionButton({ action, consumer, as, className }: ControlActionButtonProps): ReactElement {
   const availability = resolveControlAvailability(action, consumer.turn);
   const chip = as === "chip";
   const reasonId = useId();
@@ -195,6 +208,7 @@ function ControlActionButton({ action, consumer, as }: ControlActionButtonProps)
       <Button
         aria-describedby={availability.reason === null ? undefined : reasonId}
         aria-label={chip ? `${CONTROL_MODE_WORD[action.mode]} ${action.label}` : undefined}
+        className={className}
         data-mode={action.mode}
         disabled={availability.disabled}
         focusableWhenDisabled={true}
@@ -266,7 +280,7 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
                 same-labelled actions (two "Apply" rows over different targets), and a label key collides
                 them into one — which is why the id is a required field on the descriptor. */}
             {newest.actions.map((action) => (
-              <ControlActionButton action={action} as="card" consumer={consumer} key={action.id} />
+              <ControlActionButton action={action} as="card" className="" consumer={consumer} key={action.id} />
             ))}
           </Row>
         </Stack>
@@ -281,6 +295,31 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
  *  chips) were pushed off the right edge, unreachable with no scrollbar (side-eye 2026-08-24 P3). A second
  *  line is cheap above the composer, so the row wraps rather than clips — every capped chip and its
  *  disclosure stay on screen.
+ *
+ *  ── #2426: THE RESTING BAND IS ONE ROW AT A COARSE POINTER — THE WRAP RULING SURVIVES, ITS INPUT
+ *  CHANGED ───────────────────────────────────────────────────────────────────────────────────────────
+ *  The paragraph above is the 2026-08-24 P3 ruling and it is NOT reversed. What changed is the arm it was
+ *  ruled for. Measured live 2026-09-19 at `device=coarse:dpr3:430x740` in a game room: this row wrapped to
+ *  **115px** inside a **127px** band, against a **185px** transcript — the reading port was a quarter of
+ *  the screen, four lines hard-clipped mid-glyph, and the wrap tax GREW with the chip count. The owner's
+ *  ruling: on a coarse pointer the band collapses to a ONE-ROW SUMMARY STRIP that expands on tap, the
+ *  composer stays, and the transcript gets a floor (`CHAT_READING_PORT_MIN_PX` below).
+ *
+ *  WHAT THE 2026-08-24 RULING ACTUALLY GUARANTEED is "every capped chip and its disclosure stay on screen,
+ *  reachable, with no scrollbar" — and CLIPPING is what it forbade. That guarantee is intact here, by a
+ *  stronger mechanism: at coarse-collapsed the chips are not clipped, they are STOOD DOWN
+ *  (`HIDE_AT_COARSE`, `display:none` — out of layout and out of the a11y tree, not half-visible past an
+ *  edge), and the one thing left in the row is the disclosure itself, which therefore can never be pushed
+ *  anywhere. Expanding restores TODAY'S BAND VERBATIM: the same wrapping row, the same chips, the same
+ *  accessible names. The row still carries `flex-wrap` for the expanded arm and for every fine pointer.
+ *
+ *  WHY `display:none` AND NOT `sr-only` for the stood-down chips: `sr-only` would keep them announced at
+ *  no layout cost, but they are BUTTONS — a focusable control with no visible box is a worse affordance
+ *  than a disclosed one. The strip's `aria-expanded` names the path to them instead.
+ *
+ *  WHY NOT A RENDER-TIME POINTER READ: `coarsePointerNow()` (`@orb/ui/lib`) is a point-in-time imperative
+ *  read with no subscription — correct for a bug-report capture, wrong as a render input. The pointer arm
+ *  is CSS, homed in `#components`' fragments because `pointer-coarse:` is gate-banned in features/**.
  *
  *  THE DISCLOSURE IS AN EXPANDER, NOT A COUNT (#684 P2). The cap is a per-ROW budget, but the chips crossing
  *  it belong to RULES: one rule that surfaces three openers and another that surfaces three vote options put
@@ -300,19 +339,51 @@ function ControlChips({ controls, consumer }: { readonly controls: readonly Chat
   }
   const hidden = chips.length - CHIP_DISPLAY_CAP;
   const shown = expanded ? chips : chips.slice(0, CHIP_DISPLAY_CAP);
+  // #2426 — AT A COARSE POINTER THE RESTING BAND IS ONE ROW: the chips stand down and the disclosure IS
+  // the strip. A fine pointer is byte-identical to before (both fragments are inert there).
+  const chipStandDown = expanded ? "" : HIDE_AT_COARSE;
+  // The disclosure exists in BOTH pointer arms at coarse — a row UNDER the display cap discloses nothing
+  // at a fine pointer but is the whole strip at a coarse one — so it renders unconditionally and stands
+  // itself down at fine when the cap hides nothing, which is exactly what it has always meant there.
+  const disclosureStandDown = hidden > 0 ? "" : SHOW_ONLY_AT_COARSE;
   return (
     <Row align="center" className="flex-wrap" data-slot="chat-control-chips" gap="field">
       {shown.map((chip) => (
-        <ControlActionButton action={chip.action} as="chip" consumer={consumer} key={chip.id} />
+        <ControlActionButton action={chip.action} as="chip" className={chipStandDown} consumer={consumer} key={chip.id} />
       ))}
       {/* No `data-slot` override on the disclosure: `@orb/ui` Button owns that attribute (tiers.css keys
           padding/height off `data-slot=button`, and the density-tier gate proves those rules are live). It is
-          addressable as the row's one `aria-expanded` button, which is also how a member's AT finds it. */}
-      {hidden <= 0 ? null : (
-        <Button aria-expanded={expanded} intent="ghost" onClick={(): void => setExpanded((open) => !open)} shape="pill" size="chip">
-          {expanded ? CONTROL_CHIPS_COLLAPSE : controlOverflowNotice(hidden, "more")}
-        </Button>
-      )}
+          addressable as the row's one `aria-expanded` button, which is also how a member's AT finds it.
+
+          TWO COLLAPSED LABELS, ONE PER POINTER, because the button reveals a DIFFERENT set in each arm: at
+          fine it reveals the remainder past the display cap (`+N more`), at coarse it reveals the whole row
+          (`Show N controls`). Spelled as two device-swapped spans rather than a render-time pointer read —
+          `coarsePointerNow()` is a point-in-time imperative read with no subscription, not a render input —
+          and `display: none` takes the inert one out of the a11y tree, so the accessible name is the one
+          true sentence in each arm rather than both concatenated. */}
+      <Button
+        aria-expanded={expanded}
+        className={disclosureStandDown}
+        intent="ghost"
+        onClick={(): void => setExpanded((open) => !open)}
+        shape="pill"
+        size="chip"
+      >
+        {expanded ? (
+          CONTROL_CHIPS_COLLAPSE
+        ) : (
+          <>
+            {hidden <= 0 ? null : (
+              <Text as="span" className={HIDE_AT_COARSE} ink="inherit" voice="interactiveKicker">
+                {controlOverflowNotice(hidden, "more")}
+              </Text>
+            )}
+            <Text as="span" className={SHOW_ONLY_AT_COARSE} ink="inherit" voice="interactiveKicker">
+              {controlStripNotice(chips.length)}
+            </Text>
+          </>
+        )}
+      </Button>
     </Row>
   );
 }

@@ -149,6 +149,12 @@ test.describe("coarse pointer, phone width", () => {
     const trpc = await routeRoom(page, [chipsFrame([{ label: "Draw your blade", sendText: "I draw my blade.", mode: "send" }])]);
 
     const component = await mount(<AutomationChipsStory />);
+    // #2426 — AT A COARSE POINTER THE BAND'S RESTING STATE IS A ONE-ROW STRIP, so the chip arrives through
+    // the disclosure rather than at rest. The property this row pins is unchanged (in-column, above the
+    // composer, inside the viewport, and a live send at a real touch pointer); what changed is the path to
+    // the chip, which is now one tap. The resting strip's own budget is pinned in
+    // tests/client/features/chat/components/chat-controls-band.ct.tsx.
+    await component.getByRole("button", { name: "Show 1 control" }).tap();
     const chip = component.getByRole("button", { name: "Draw your blade" });
     await expect(chip).toBeVisible();
 
@@ -161,7 +167,7 @@ test.describe("coarse pointer, phone width", () => {
     expect((chipBox?.x ?? 0) + (chipBox?.width ?? 0)).toBeLessThanOrEqual(390);
 
     // …and it is a live affordance at a real touch pointer, not just painted.
-    await chip.click();
+    await chip.tap();
     await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
   });
 });
