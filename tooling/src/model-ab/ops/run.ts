@@ -125,7 +125,7 @@ export async function runModelAb(argv: readonly string[]): Promise<ExitCode> {
   if (cli.baseUrl !== undefined) {
     // Probe-only mode against an already-running server (e.g. the live fleet's gen engine).
     const results = await runProbes(cli.baseUrl, cli.model ?? SERVED_NAME, (r) => {
-      // Keep probe-only evidence equivalent to the booted-variant arm: summary.md is readable, while each
+      // Keep probe-only evidence equivalent to the booted-variant arm: the summary output is readable, while each
       // result is the lossless machine record used by follow-up comparison tooling.
       writeFileSync(path.join(outDir, `live.${r.probe}.json`), JSON.stringify(r, null, 2));
       print(`  ${r.ok ? "ok " : "ERR"} ${r.probe} (${r.ms}ms)${r.error === undefined ? "" : ` — ${r.error}`}`);

@@ -7,7 +7,7 @@ import { KEY_SEP } from "./root.ts";
 // The rot lenses answer "is this (declaring-file, export) reached by anyone?" — keyed on RESOLVED
 // identity, never bare name. A bare-name lens both over-reports (same-file use invisible; the ~170
 // exported *Props class) and MISSES real dead code on name collisions (three `requireParticipant`s,
-// two `MemoryLogEntry`s) — see reports/stickler/2026-07-17-knip-testonly-liveness.md §6.
+// two `MemoryLogEntry`s) — see the 2026-07-17 knip-testonly-liveness stickler report §6.
 //
 // THE KEYING RULE (one rule, both sides): a candidate export and every consumer of it key on the
 // ORIGIN DECLARATION NODE — `<declaration's file>` + `<declaration's start offset>` — never on a NAME.
