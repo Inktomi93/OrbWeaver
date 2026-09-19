@@ -1359,26 +1359,26 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 293,
-      "bytes": 30823,
-      "sha256": "2e3eb760a1499502862378e02fae98a9c16f2bc1538bc9aa1780359d6d65bcd8",
+      "bytes": 31414,
+      "sha256": "fde9bf9984af7516ec1869cc53ea61c48b6647f6666914e234806130f68cd463",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-12"
+          "updated": "2026-09-19"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-Testing.md",
-        "assignedSha256": "2e3eb760a1499502862378e02fae98a9c16f2bc1538bc9aa1780359d6d65bcd8",
+        "assignedSha256": "fde9bf9984af7516ec1869cc53ea61c48b6647f6666914e234806130f68cd463",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "2e3eb760a1499502862378e02fae98a9c16f2bc1538bc9aa1780359d6d65bcd8",
-        "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+        "verifiedSha256": "fde9bf9984af7516ec1869cc53ea61c48b6647f6666914e234806130f68cd463",
+        "verifiedCommit": "335cf5004086687fdc9de52d273074ee4d4479a3",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
@@ -1417,7 +1417,7 @@
           }
         ],
         "summary": "Test layout and current scheduling policy; structural browser suites run in parallel and rate validity remains separate from deadlines.",
-        "verifiedCanonicalSha256": "2e3eb760a1499502862378e02fae98a9c16f2bc1538bc9aa1780359d6d65bcd8"
+        "verifiedCanonicalSha256": "fde9bf9984af7516ec1869cc53ea61c48b6647f6666914e234806130f68cd463"
       },
       "receiptCurrent": true
     },

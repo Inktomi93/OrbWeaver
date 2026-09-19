@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-12
+updated: 2026-09-19
 ---
 
 # Orbweaver — Spine: Testing
@@ -62,7 +62,7 @@ tests/
 
 ## 3. Determinism + mock doctrine
 
-**Determinism — no wall-clock, no randomness in a test or factory.** The frozen clock is a plain injected DI object (`support/clock.ts`: `createFrozenClock(startMs?)` returns `{ now, advance, frozenAt }` — `now()` reads a mutable counter, `advance(ms)` moves it, `frozenAt` is the fixed start; `FROZEN_AT_MS` is the shared epoch every factory stamps rows from). It is NOT global-timer interception — there is no Luxon `Settings.now`, no `vi.useFakeTimers`; the composition root takes `now` as a dep exactly like production (`core/Tier-5-Entry.md`), so tests exercise the real injection seam rather than a monkey-patched global. Seeded ids come the same way (`support/ids.ts`, counter-backed). Ambient `Date.now()`/`Math.random()`/unseeded `typeid()` under `tests/` is RED (gate: `test-determinism`); a test needing time to move calls `advance()`, never a real timer. (The one sanctioned `vi.useFakeTimers` is the idle-timeout unit test, §6.)
+**Determinism — no wall-clock, no randomness in a test or factory.** The frozen clock is a plain injected DI object (`support/clock.ts`: `createFrozenClock(startMs?)` returns `{ now, advance, frozenAt }` — `now()` reads a mutable counter, `advance(ms)` moves it, `frozenAt` is the fixed start; `FROZEN_AT_MS` is the shared epoch every factory stamps rows from). It is NOT global-timer interception — there is no Luxon `Settings.now`, no `vi.useFakeTimers`; the composition root takes `now` as a dep exactly like production (`core/Tier-5-Entry.md`), so tests exercise the real injection seam rather than a monkey-patched global. Seeded ids come the same way (`support/ids.ts`, counter-backed). Ambient `Date.now()`/`Math.random()`/unseeded `typeid()` under `tests/` is RED (gate: `test-determinism`); a test needing time to move calls `advance()`, never a real timer. (The one sanctioned `vi.useFakeTimers` is the idle-timeout unit test — `tests/server/infra/providers/backends/kit/idle-timeout.test.ts`, whose SUBJECT is a real `setTimeout` window the production code owns and no injected clock can drive; its file waiver says the same. §6 does not carry this sanction and never did. Every OTHER bound is armed through an injected TIMER seam — the house `ScheduleOp` shape `(fn, ms) => cancel`, e.g. `WorkloadRunnerDeps.scheduleInterval`, `AgentSdkDeps.scheduleTimeout`, `createRpgFlushBarrier`'s third argument — and a test trips it by hand with `support/clock.ts`'s `createManualTimer`, never by replacing the global clock.)
 
 **Non-vacuity control — prove the guard path FIRES before trusting a negative assert.** A test whose whole point is "X is refused / dropped / blocked" is worthless if the setup silently never reached the guard — the negative assertion passes vacuously. The pattern: a POSITIVE control in the same test (or its sibling) that drives the guarded path to its allowed outcome under the same wiring, so a mis-wired fixture fails the control instead of green-washing the refusal. Exemplars: `db-batch-atomicity.suite` (proves the batch COMMITS before proving a mid-batch failure rolls the whole thing back) and `touch-target-floor.suite` (proves a compliant target PASSES before asserting an undersized one is flagged). Reach for a control whenever the assertion is an absence.
 
