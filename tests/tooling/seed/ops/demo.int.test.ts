@@ -27,7 +27,7 @@ import {
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNotNull } from "drizzle-orm";
-import { resolveSeedVllmDisabled, runFullSeed } from "../../../../tooling/src/seed/index.ts";
+import { resolveSeedVllmDisabled, runFullSeed } from "../../../../tooling/src/seed/ops/demo.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

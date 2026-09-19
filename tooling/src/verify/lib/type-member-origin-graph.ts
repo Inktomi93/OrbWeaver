@@ -6,8 +6,8 @@
 import type { ReferenceFact } from "@orb/tooling/_shared/reference-fact-contract";
 import type { Type, TypeNode } from "ts-morph";
 import { Node, TypeFlags } from "ts-morph";
-import type { TypeIdentityOrigin } from "../contract/type-member-origin.ts";
-import type { ConstructorSummary, Containment, TransportContext } from "./type-member-origin-containment.ts";
+import type { Containment, TypeIdentityOrigin } from "../contract/type-member-origin.ts";
+import type { ConstructorSummary, TransportContext } from "./type-member-origin-containment.ts";
 import {
   annotationChildren,
   dataMemberAnnotation,

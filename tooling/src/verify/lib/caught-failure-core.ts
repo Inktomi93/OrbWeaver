@@ -6,7 +6,7 @@ import type { BindingElement, CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";
 
-export const NOOP_TEXT: ReadonlySet<string> = new Set(["undefined", "null", "false", "true", "0", "-1", '""', "''", "void 0"]);
+const NOOP_TEXT: ReadonlySet<string> = new Set(["undefined", "null", "false", "true", "0", "-1", '""', "''", "void 0"]);
 export const FUNCTION_KINDS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.ArrowFunction,
   SyntaxKind.FunctionDeclaration,
@@ -200,7 +200,7 @@ export function resolvedFunction(declaration: Node): Node | undefined {
   return declaration.isKind(SyntaxKind.VariableDeclaration) ? declaration.getInitializer() : undefined;
 }
 
-export function declaresName(name: Node, text: string): boolean {
+function declaresName(name: Node, text: string): boolean {
   if (name.isKind(SyntaxKind.Identifier)) {
     return name.getText() === text;
   }
@@ -210,7 +210,7 @@ export function declaresName(name: Node, text: string): boolean {
 /** The LAST declaration of this name textually before `value`, walking outward through enclosing function
  *  scopes. The fallback for a name the symbol table could not resolve — deliberately positional, so a later
  *  redeclaration cannot lend its provenance backwards. */
-export function nearestPrecedingInitializer(value: Node): Node | undefined {
+function nearestPrecedingInitializer(value: Node): Node | undefined {
   let boundary: Node | undefined = value.getFirstAncestor((ancestor) => FUNCTION_KINDS.has(ancestor.getKind())) ?? value.getSourceFile();
   const text = value.getText();
   let found: Node | undefined;

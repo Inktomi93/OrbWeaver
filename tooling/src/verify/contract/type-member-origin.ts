@@ -10,7 +10,7 @@
 //
 // The same refusal contract as `reference-fact.ts`: a positive value with its proof, or one precise
 // refusal. Absence is never a verdict.
-import type { Symbol as MorphSymbol, Node } from "ts-morph";
+import type { InterfaceDeclaration, Symbol as MorphSymbol, Node, TypeAliasDeclaration } from "ts-morph";
 
 /** One property read whose property SYMBOL the checker resolved off the receiver's type. */
 export interface TypeMemberOrigin {
@@ -50,3 +50,11 @@ export interface TypeIdentityOrigin {
   readonly aliased: boolean;
   readonly declarations: readonly Node[];
 }
+
+/** The two declaration kinds a generic constructor identity can resolve to (an interface or a type alias). */
+export type GenericDeclaration = InterfaceDeclaration | TypeAliasDeclaration;
+
+/** The containment lattice `typeExpressionContains` returns: "no" (proven absent), "possible" (an opaque
+ *  arm — `any`/`unknown`/a type parameter — kept the walk from proving either way), or "yes" (proven present). */
+const CONTAINMENTS = ["no", "possible", "yes"] as const;
+export type Containment = (typeof CONTAINMENTS)[number];
