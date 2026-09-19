@@ -456,9 +456,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 503,
-      "bytes": 396518,
-      "sha256": "80072da01f551a6ffe9a168d2019b80a90fb3d70134b408f5adba7ee079e897a",
+      "lines": 505,
+      "bytes": 399152,
+      "sha256": "26a3817c344cb82d25f65b944e39e1002146c3e3a8b9688c952ec6562cb40599",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -471,12 +471,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "80072da01f551a6ffe9a168d2019b80a90fb3d70134b408f5adba7ee079e897a",
+        "assignedSha256": "26a3817c344cb82d25f65b944e39e1002146c3e3a8b9688c952ec6562cb40599",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "80072da01f551a6ffe9a168d2019b80a90fb3d70134b408f5adba7ee079e897a",
-        "verifiedCommit": "c0680772710b76733831d138a685d15a6a127a57",
+        "verifiedSha256": "26a3817c344cb82d25f65b944e39e1002146c3e3a8b9688c952ec6562cb40599",
+        "verifiedCommit": "abc3a71c7b0d9e36d813e8b860176936bfbc727c",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
@@ -645,7 +645,7 @@
           }
         ],
         "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-        "verifiedCanonicalSha256": "80072da01f551a6ffe9a168d2019b80a90fb3d70134b408f5adba7ee079e897a"
+        "verifiedCanonicalSha256": "26a3817c344cb82d25f65b944e39e1002146c3e3a8b9688c952ec6562cb40599"
       },
       "receiptCurrent": true
     },
@@ -12839,7 +12839,7 @@
       "issue": 5,
       "lines": 58,
       "bytes": 4459,
-      "sha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0",
+      "sha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12852,12 +12852,12 @@
       },
       "receipt": {
         "path": "docs/design/gate-runtime-read-first.md",
-        "assignedSha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0",
+        "assignedSha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a",
         "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0",
-        "verifiedCommit": "9e1d6c79eefa03f87f706acf5ee730729ae96c36",
+        "verifiedSha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a",
+        "verifiedCommit": "abc3a71c7b0d9e36d813e8b860176936bfbc727c",
         "verifiedAt": "2026-09-19",
         "evidence": [
           "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
@@ -12893,7 +12893,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "f92609767c4a572c74a3330897c0a93ec0e9c467bb8d00b6510bf029e58da3c0"
+        "verifiedCanonicalSha256": "05305924ec52aa557d431a0d5c69a5a74821e46aa132a74fecc3196026af415a"
       },
       "receiptCurrent": true
     },
@@ -38732,7 +38732,7 @@
         "verifiedAt": "2026-09-18",
         "evidence": [
           "docs/reviews/side-eye/2026-09-18-settings-appearance-look.md:1 (full read). Item 5 of #999's instrument-defect batch (#1827), a code-level (not rendered) review of the settings:appearance surface re-derived from the code on 2026-09-18: the sections-skimmer group shape, the Looks section's one-collection/apply-not-mode/keyboard-accessible/sibling-menu/builder-door/import-export/loading-reservation architecture, the advanced fold, and a current-state assessment finding no visual defects in code review.",
-          "Spot-verified against the tree: packages/client/src/features/settings/lib/appearance-group.tsx:26 (`body: { kind: \"sections\" }`) and packages/client/src/features/settings/components/appearance-looks-section.tsx (RadioGroupPicker/RadioGroupPickerItem import at :49, `selectedThemeId` read at :129, apply mutation at :146)."
+          "Spot-verified against the tree: packages/client/src/features/config/lib/appearance-group.tsx:27 (`body: { kind: \"sections\" }`) and packages/client/src/features/config/components/appearance-looks-section.tsx (RadioGroupPicker/RadioGroupPickerItem import at :49, `selectedThemeId` read at :129, apply mutation at :146)."
         ],
         "summary": "Code-level (no rendered pass) review of the settings:appearance surface: confirms the sections-skimmer group shape, the Looks picker's one-collection/apply-not-mode/keyboard/sibling-menu architecture, and the advanced fold, finding no visual defects at the code level while explicitly scoping out a rendered audit (owner-deprioritized to verify-batch side-eye posture).",
         "claims": [
@@ -38741,7 +38741,7 @@
             "evidence": [
               {
                 "kind": "code",
-                "target": "packages/client/src/features/settings/lib/appearance-group.tsx:26"
+                "target": "packages/client/src/features/config/lib/appearance-group.tsx:27"
               }
             ]
           },
@@ -38750,11 +38750,11 @@
             "evidence": [
               {
                 "kind": "code",
-                "target": "packages/client/src/features/settings/components/appearance-looks-section.tsx:49"
+                "target": "packages/client/src/features/config/components/appearance-looks-section.tsx:49"
               },
               {
                 "kind": "code",
-                "target": "packages/client/src/features/settings/components/appearance-looks-section.tsx:146"
+                "target": "packages/client/src/features/config/components/appearance-looks-section.tsx:146"
               }
             ]
           }
@@ -40685,9 +40685,9 @@
       "path": "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 399,
-      "bytes": 42168,
-      "sha256": "c1df15c47dda10ff833e69f63e70ea34700b895c63b05298b7cdc96b76747043",
+      "lines": 400,
+      "bytes": 42417,
+      "sha256": "9da07c0ddfbd88e3ebafe13e80cdbc2b51e5224305718232a4a288fbe76a85f0",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -40700,13 +40700,13 @@
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md",
-        "assignedSha256": "c1df15c47dda10ff833e69f63e70ea34700b895c63b05298b7cdc96b76747043",
+        "assignedSha256": "9da07c0ddfbd88e3ebafe13e80cdbc2b51e5224305718232a4a288fbe76a85f0",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "c1df15c47dda10ff833e69f63e70ea34700b895c63b05298b7cdc96b76747043",
-        "verifiedCommit": "3f0589e5631a4c849af23bcaddcd487bf630e541",
-        "verifiedAt": "2026-09-05",
+        "verifiedSha256": "9da07c0ddfbd88e3ebafe13e80cdbc2b51e5224305718232a4a288fbe76a85f0",
+        "verifiedCommit": "abc3a71c7b0d9e36d813e8b860176936bfbc727c",
+        "verifiedAt": "2026-09-19",
         "summary": "Snap argv audit: 129 accepted spellings inventoried (116 normal + 13 report-reader), 8 pre-repair findings at ceiling P1 (scenario boot/call partition, --no-failure-evidence inheritance, --session-export --out, admin-mode modal exclusivity, reader missing-value theft, --upload sibling chooser, ownerless modifiers, help-completeness test); all repaired under #1298/#1299 and the ledger now reflects the executable grammar; -h is the only alias, retired names refuse by name.",
         "evidence": [
           "re-attested at 3f0589e56 by the orchestrator after reading the #1163 edit in full (cb-stage-ttl): the internal --stage-keeper row added; the surface count 129→130 / parser 116→117 (115 public + two internal child entries); updated 2026-09-05; the cli-truth suite asserts table equality against snapFlagDescriptors({includeInternal:true}).",
@@ -40736,7 +40736,8 @@
               }
             ]
           }
-        ]
+        ],
+        "verifiedCanonicalSha256": "9da07c0ddfbd88e3ebafe13e80cdbc2b51e5224305718232a4a288fbe76a85f0"
       },
       "receiptCurrent": true
     },
@@ -45002,6 +45003,254 @@
           "docs/vendor/vite/INDEX.md:1-77 pins the upstream Vite 8 snapshot; pnpm-workspace.yaml:250-252 pins vite ^8.1.2 (same major)"
         ],
         "summary": "Immutable upstream vendor snapshot retained verbatim; upstream site links remain external references, not repo-local links."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 732,
+      "bytes": 53718,
+      "sha256": "ba78830ff4d8165fe48a59d302b0f316793ca507d9f44962769dc42694d288d0",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-19"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md",
+        "assignedSha256": "ba78830ff4d8165fe48a59d302b0f316793ca507d9f44962769dc42694d288d0",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "ba78830ff4d8165fe48a59d302b0f316793ca507d9f44962769dc42694d288d0",
+        "verifiedCommit": "dd960748331faa635e6d947ab2c681701b2f27b7",
+        "verifiedAt": "2026-09-19",
+        "evidence": [
+          "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane gate-park-U's re-derivation of every Parked row whose wake condition named the #1584 gate-system revamp, the Codex ESLint hold or a dead gate lane, against main 047320b97: 32 rows censused (31 handed + #2283 found by a widened sweep), dispositioned 16 SUPERSEDED / 15 RE-FILE / 1 KEEP PARKED.",
+          "Spot-verified against the tree at the receipting commit: tooling/src/verify/gates/query-freshness-coverage-debt.ts:17 still declares `workItem: 1965` (severity `warning`, authority `hard` at :14-15), so the report's one hard coupled site is live as written."
+        ],
+        "claims": [
+          {
+            "claim": "`query-freshness-coverage-debt` is a warning policy carrying `workItem: 1965`, and the final contract requires that citation to resolve to a live issue — so closing #1965 turns `pnpm check` red; it is the only such citation across the 32 re-derived rows.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/query-freshness-coverage-debt.ts:17"
+              },
+              {
+                "kind": "issue",
+                "target": "#1965"
+              }
+            ]
+          },
+          {
+            "claim": "The re-derivation's dispositions rest on an all-final gate corpus: every module under tooling/src/verify/gates is a `defineGate` policy and no legacy `GateDescriptor` survives, which is what retires the wake conditions that named the legacy runtime.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/content-part-seam.ts:7"
+              },
+              {
+                "kind": "issue",
+                "target": "#2451"
+              }
+            ]
+          }
+        ],
+        "summary": "Re-derivation of the 32 Parked board rows whose wake conditions named the (now closed) #1584 gate-runtime program: 16 SUPERSEDED, 15 RE-FILE, 1 KEEP PARKED, with the gate corpus measured all-final (339 modules, 339 defineGate calls) and the legacy `__g_` planter suites confirmed deleted. Flags one hard coupled site the orchestrator must act on before closing anything: `query-freshness-coverage-debt` declares `workItem: 1965`, and the final contract requires a warning policy's workItem to be a LIVE issue, so closing #1965 reds `pnpm check`."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-19-attribution-band-and-composer-plate.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 344,
+      "bytes": 24918,
+      "sha256": "917cec499e07de37b400efc1d6bb80ac05cac3707a214d6cd99d7bf62fe70eb1",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-19"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-09-19-attribution-band-and-composer-plate.md",
+        "assignedSha256": "917cec499e07de37b400efc1d6bb80ac05cac3707a214d6cd99d7bf62fe70eb1",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "917cec499e07de37b400efc1d6bb80ac05cac3707a214d6cd99d7bf62fe70eb1",
+        "verifiedCommit": "d18511c04a2f879654a977d08c4cbb0b349b535a",
+        "verifiedAt": "2026-09-19",
+        "evidence": [
+          "docs/reviews/side-eye/2026-09-19-attribution-band-and-composer-plate.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane side-eye-F's live-stack drive of two surfaces — the sticky attribution band (#1873) and the over-art composer/bubble plate (#2389) — with one `--ref d4e226a2e` isolated-stage control for the pre-#1873 A/B, and the appearance state every number was taken under stated up front.",
+          "Spot-verified against the tree at the receipting commit: the sticky band is `data-sticky` on the message row header (packages/client/src/features/chat/components/message-row-header.tsx:159), whose header states the backing invariant the P1 measures against."
+        ],
+        "claims": [
+          {
+            "claim": "#1873's top-only sticky cancellation removed the opaque fill below the pinned name — the band's padding-bottom went 8px → 0px and its margin-bottom 8px → 20px — which is a rendered regression, not a mechanism failure: the same build's untouched `tide` skin still measures 36px/8px/8px.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/chat/components/message-row-header.tsx:159"
+              },
+              {
+                "kind": "issue",
+                "target": "#1873"
+              }
+            ]
+          },
+          {
+            "claim": "The #2389 over-art composer and bubble plate rules are gated on `html[data-blur-messages]`, which is OFF in both the shipped defaults and the owner's row, so the bubble arms are latent there and had to be driven under `--appearance-preset maximal`.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/styles/globals.css:306"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:d4e226a2e4c2d49593321ac8e93eb520d59b837c"
+              }
+            ]
+          }
+        ],
+        "summary": "SHIP WITH FIXES. The #1873 sticky attribution band's mechanism holds — zero oscillation at seven scrollport heights including the exact threshold, nonVirtualizedCls 0 over a driven scroll — but the top-only cancellation dropped the band's 8px of opaque fill below the pinned name (padding-bottom 8px → 0px), so a sheared half-line of prose abuts the name; the untouched `tide` skin still renders it correctly in the same build and is the control that proves the regression. The #2389 over-art plate is correct and holds at the worst legal art in both polarities (6.48:1 / 6.72:1 light, 4.68:1 dark, byte-identical dark arm). Two defects were stumbled on outside both commits: a P0 (typed composer text at 1.13:1 in a card-themed room under the Light app theme) and a P1 (the mobile chat reading port is 185px of a 740px viewport)."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 624,
+      "bytes": 45136,
+      "sha256": "0d590412a766741d620e382d031a204f086b1a510dffad94767530cacee388a1",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-19"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md",
+        "assignedSha256": "0d590412a766741d620e382d031a204f086b1a510dffad94767530cacee388a1",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "0d590412a766741d620e382d031a204f086b1a510dffad94767530cacee388a1",
+        "verifiedCommit": "13d897fa5da14d51b9aea1af4a685fe8a51bbcad",
+        "verifiedAt": "2026-09-19",
+        "evidence": [
+          "docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane side-eye-M's three live-stack audits — the #1316 list-collapse felt transition, tooltip-on-touch, and modal scroll-lock on touch — each measured on the owner's appearance row AND under `--appearance-preset defaults`, with the per-rAF getBoundingClientRect census standing in where `snap --motion` REFUSED for want of vsync.",
+          "Spot-verified against the tree at the receipting commit: `HintTrigger` — the anatomy behind `<Field hint>` / `<Section hint>` that audit 2 indicts — is packages/ui/src/primitives/hint-trigger/hint-trigger.tsx:1."
+        ],
+        "claims": [
+          {
+            "claim": "`HintTrigger` is the anatomy behind `<Field hint>` and `<Section hint>` across 92 call sites, of which exactly one passes a touch fallback — so on a coarse pointer the tooltip's content is unreachable and the trigger is a control that does nothing.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/primitives/hint-trigger/hint-trigger.tsx:1"
+              },
+              {
+                "kind": "issue",
+                "target": "#2452"
+              }
+            ]
+          },
+          {
+            "claim": "The #1316 collapse's dropped-frame lane has NO VERDICT rather than a clean one — `snap --motion` refused on this surface (exit 2, frames-raw=0/0) because headless has no vsync — so the audit's per-rAF rect census is the only receipt for the 154px composer lurch.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1316"
+              },
+              {
+                "kind": "code",
+                "target": "tooling/src/snap/lib/motion-gaps.ts:1"
+              }
+            ]
+          }
+        ],
+        "summary": "Three audits. #1316's felt transition SHIPS WITH FIXES — the topbar trail does not move, transcript rows do not jump, focus survives and the collapse costs no CLS, but two counter classes were missed and both are measurable: the composer lurches 154px sideways on the first painted frame of every dock/undock, and on a phone the list panel enters from double its own width because the mobile `animation: none` cancel is out-specified. Tooltip-on-touch is DO NOT SHIP as-is: `HintTrigger` has 92 call sites and exactly one passes a touch fallback, so a phone gets a 55x55 button that does nothing and an `aria-describedby` that resolves to nothing at rest (15 of them on one settings pane). Modal scroll-lock on touch SHIPS — attacked and held, with one P3 nuisance on the non-modal popovers."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-19-field-ink-after-tw-merge.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 284,
+      "bytes": 17156,
+      "sha256": "c7f2df56b29587ea7d8dd289deb350a2f13681add08aa37cfc2a1a1682a8b207",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-19"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-09-19-field-ink-after-tw-merge.md",
+        "assignedSha256": "c7f2df56b29587ea7d8dd289deb350a2f13681add08aa37cfc2a1a1682a8b207",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "c7f2df56b29587ea7d8dd289deb350a2f13681add08aa37cfc2a1a1682a8b207",
+        "verifiedCommit": "35b67542263dc0676417afc707fca6d3adc68723",
+        "verifiedAt": "2026-09-19",
+        "evidence": [
+          "docs/reviews/side-eye/2026-09-19-field-ink-after-tw-merge.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane side-eye-Y's paired `snap --isolated --ref` before/after drive of #2450's text-entry floor (BEFORE 53f5a63de, AFTER fe1294944), including the environment row recording that the live `:5173` graph was partially stale and that every number was re-taken on pinned isolated stages afterwards, plus an explicit retraction of the finding that artefact produced.",
+          "Spot-verified against the tree at the receipting commit: packages/ui/src/lib/field-control.ts:15 is the `FIELD_CONTROL_BOX` whose `text-foreground` the tw-merge defect used to drop, and packages/ui/src/primitives/macro-textarea/variants.ts is the P1's subject."
+        ],
+        "claims": [
+          {
+            "claim": "The rendered delta of #2450 is `FIELD_CONTROL_BOX`'s `text-foreground` surviving tailwind-merge again, which moved field ink onto primary ink wherever the inherited ink differed — the list panes, which carry `--color-sidebar-foreground` — and raised contrast on every measured arm rather than lowering it.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/lib/field-control.ts:15"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:fe1294944bdb18078facc32b0a20e46d65d11769"
+              }
+            ]
+          },
+          {
+            "claim": "The P1 is a token intent that was never visible before: the MacroTextarea always asked for `text-code`, and only painted 15px because the very tw-merge defect #2450 fixed let `text-field` win — so the 13px/81-characters-per-line result needs an owner decision rather than a silent landing.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/primitives/macro-textarea/variants.ts:17"
+              },
+              {
+                "kind": "issue",
+                "target": "#2450"
+              }
+            ]
+          }
+        ],
+        "summary": "SHIP. #2450's text-entry floor does what it says on every control this review could reach and makes the most common control in the app more internally consistent: restoring `text-foreground` on `FIELD_CONTROL_BOX` moved field ink onto primary ink in the list panes (+1.2 to +1.9 contrast across all three shipped themes and coarse, every arm PASS), and the iOS focus-zoom floor closed at coarse with nothing moving on a mouse. Two things the commit message gets wrong are recorded: [P1] the MacroTextarea prose editors shrink 15px → 13px on a mouse and their measure leaves the 65-75 band at 81 characters per line, which needs a design decision because nobody has ever seen that surface at its authored size; [P2] `snap --design-audit` reaches NO-VERDICT on every field surface on both pointers, so its `findings=0` must not be quoted as clean. One earlier finding is explicitly RETRACTED as an artefact of the stale dev graph."
       },
       "receiptCurrent": true
     }
