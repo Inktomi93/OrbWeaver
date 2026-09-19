@@ -29,10 +29,11 @@
 // starts as a non-blocking debt tracker. Hard authority because the fix is to ADD the pin, not to waive
 // the requirement — an individual waiver would paper over a dead-code risk that only a real-corpus
 // control can close.
-import type { ImportDeclaration, SourceFile } from "ts-morph";
+import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import { importsModuleExport, moduleMemberReference, referencesModuleExport } from "../lib/symbol-reference.ts";
 
 const GATES_DIR = "tooling/src/verify/gates/";
 const PROOF_DIR = "tooling/src/verify/gates/_proof/";
@@ -40,6 +41,7 @@ const TESTS_DIR = "tests/";
 const LIVENESS_SPECIFIER = "real-corpus-liveness";
 const TS_SUFFIX_LEN = 3; // ".ts".length
 const DEFINE_GATE = "defineGate";
+const POLICY_CONTRACT = "contract/policy";
 const POLICY_PROP = "policy";
 const GATE_EXPORT = "gate";
 
@@ -64,13 +66,18 @@ function policyIdFromSpecifier(specifier: string): string | null {
 
 // ── Gate-module recognition ───────────────────────────────────────────────────────────────────────────────
 
-/** Whether an import declaration brings in `defineGate` from the policy contract. */
-function importsDefineGate(stmt: ImportDeclaration): boolean {
-  const specifier = stmt.getModuleSpecifierValue();
-  if (!specifier.includes("contract/policy")) {
-    return false;
-  }
-  return stmt.getNamedImports().some((ni) => ni.getName() === DEFINE_GATE);
+/** Does this specifier name the policy contract module? */
+function isPolicyContract(specifier: string): boolean {
+  return specifier.includes(POLICY_CONTRACT);
+}
+
+/** Whether a file brings in `defineGate` from the policy contract, IN EITHER IMPORT SPELLING (#2459).
+ *  This used to be `stmt.getNamedImports().some(…)` per declaration, which the namespace spelling walks
+ *  straight past: `import * as p from "../contract/policy.ts"` produces no `ImportSpecifier`, the file
+ *  stopped reading as a gate module, and the whole roster entry — with every missing-pin verdict under it —
+ *  vanished silently. The shared reader answers the question at the file level. */
+function importsDefineGate(sf: SourceFile): boolean {
+  return importsModuleExport(sf, DEFINE_GATE, isPolicyContract);
 }
 
 // ── Test-file import analysis ─────────────────────────────────────────────────────────────────────────────
@@ -79,12 +86,16 @@ interface TestFileAnalysis {
   readonly isLivenessFile: boolean;
   /** local binding name → policy ID from the gate module specifier */
   readonly gateImports: ReadonlyMap<string, string>;
+  /** Does the file import a gate module AT ALL? True for a namespace import, which binds no local name a
+   *  `policy:` initializer could be looked up by — that initializer is resolved at its own site instead. */
+  readonly importsAnyGateModule: boolean;
 }
 
 /** Analyze a test file's imports for liveness-mechanism and gate-module references. */
 function analyzeTestImports(sourceFile: SourceFile): TestFileAnalysis {
   const gateImports = new Map<string, string>();
   let isLivenessFile = false;
+  let importsAnyGateModule = false;
 
   for (const stmt of sourceFile.getStatements()) {
     if (!Node.isImportDeclaration(stmt)) {
@@ -96,6 +107,7 @@ function analyzeTestImports(sourceFile: SourceFile): TestFileAnalysis {
     }
     const gatePolicyId = policyIdFromSpecifier(specifier);
     if (gatePolicyId !== null) {
+      importsAnyGateModule = true;
       for (const namedImport of stmt.getNamedImports()) {
         if (namedImport.getName() === GATE_EXPORT) {
           const alias = namedImport.getAliasNode()?.getText() ?? namedImport.getName();
@@ -104,7 +116,18 @@ function analyzeTestImports(sourceFile: SourceFile): TestFileAnalysis {
       }
     }
   }
-  return { isLivenessFile, gateImports };
+  return { isLivenessFile, gateImports, importsAnyGateModule };
+}
+
+/** The policy a `policy:` initializer names, in EITHER import spelling (#2459). A named import binds a
+ *  local name the import scan already mapped; a namespace import binds none, so the reference itself is
+ *  read — `g.gate` off `import * as g from "…/gates/x.ts"` names the same pin as `gate` does. */
+function policyIdOfPin(initializer: MorphNode, analysis: TestFileAnalysis): string | undefined {
+  if (Node.isIdentifier(initializer)) {
+    return analysis.gateImports.get(initializer.getText());
+  }
+  const read = moduleMemberReference(initializer, (specifier) => policyIdFromSpecifier(specifier) !== null);
+  return read?.name === GATE_EXPORT ? (policyIdFromSpecifier(read.specifier) ?? undefined) : undefined;
 }
 
 /** Report Side A: roster policies that have no pin. */
@@ -209,8 +232,10 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node, sourceFile): void => {
-            // Track defineGate(...) calls in gate modules for roster recognition
-            if (Node.isCallExpression(node) && Node.isIdentifier(node.getExpression()) && node.getExpression().getText() === DEFINE_GATE) {
+            // Track defineGate(...) calls in gate modules for roster recognition. The callee is read through
+            // the shared reference reader, so `p.defineGate(…)` off a namespace import counts exactly as the
+            // bare identifier does — an identifier-keyed test was the second half of the #2459 blind spot.
+            if (Node.isCallExpression(node) && referencesModuleExport(node.getExpression(), DEFINE_GATE, isPolicyContract)) {
               filesWithDefineGateCall.add(sourceFile);
             }
           },
@@ -222,7 +247,7 @@ export const gate = defineGate({
             if (!Node.isPropertyAssignment(node) || node.getName() !== POLICY_PROP) {
               return;
             }
-            const init = node.getInitializerIfKind(SyntaxKind.Identifier);
+            const init = node.getInitializer();
             if (init === undefined) {
               return;
             }
@@ -230,7 +255,7 @@ export const gate = defineGate({
             if (analysis === undefined || !analysis.isLivenessFile) {
               return;
             }
-            const policyId = analysis.gateImports.get(init.getText());
+            const policyId = policyIdOfPin(init, analysis);
             if (policyId !== undefined) {
               pinned.add(policyId);
               const path = ctx.relativePath(sourceFile);
@@ -254,8 +279,7 @@ export const gate = defineGate({
           if (id === null) {
             return;
           }
-          const hasImport = sourceFile.getStatements().some((stmt) => Node.isImportDeclaration(stmt) && importsDefineGate(stmt));
-          if (hasImport) {
+          if (importsDefineGate(sourceFile)) {
             filesWithDefineGateImport.add(sourceFile);
             // The roster entry is TENTATIVE: it will be confirmed in evaluate after the
             // visitor walk has seen whether a defineGate call exists.
@@ -266,7 +290,7 @@ export const gate = defineGate({
         // Test file: scan imports (visitors handle property assignments)
         if (path.startsWith(TESTS_DIR)) {
           const analysis = analyzeTestImports(sourceFile);
-          if (analysis.isLivenessFile && analysis.gateImports.size > 0) {
+          if (analysis.isLivenessFile && analysis.importsAnyGateModule) {
             testAnalyses.set(sourceFile, analysis);
           }
         }

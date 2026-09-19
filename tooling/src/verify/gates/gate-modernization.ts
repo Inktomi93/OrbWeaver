@@ -20,13 +20,14 @@
 // population. Successor evidence: the loader's refusal plus `lib/policy-validation.ts` at load (arm A's
 // half) and `dangling-refs` / `dangling-ref-citations` (arm C's citation half). The retirement changed
 // the evidence plane from `resource` (documents) to `syntax` and re-moded every proof row.
-import type { Node, SourceFile } from "ts-morph";
+import type { ImportDeclaration, Node, SourceFile } from "ts-morph";
 import { Node as TsNode } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { GateModernizationModuleSyntax } from "../lib/gate-modernization-fact.ts";
 import { GATE_MODERNIZATION_POPULATION, gateModernizationFact, readGateModernizationFacts } from "../lib/gate-modernization-fact.ts";
 import { finalDescriptorOf, gateRegistrationOf } from "../lib/policy-descriptor-read.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
 
 const LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
 /** A sibling gate module imports its family-mate as `./<name>.ts` — both modules are top-level in `gates/`. */
@@ -263,32 +264,68 @@ function hoppedDeclarationReadsTypes(sf: SourceFile, name: string, seen: Set<str
   return [...used].some((local) => local !== name && hoppedDeclarationReadsTypes(sf, local, seen));
 }
 
-/** ONE IMPORT HOP (#2249): every NAMED import from a RELATIVE specifier whose local name this module
- *  actually references, resolved to the imported module's own declaration of that name.
+/** Every member NAME read off the namespace binding `alias`, outside this module's own import declarations
+ *  — the namespace spelling's answer to `referencedNames`. Member reads go through the shared
+ *  `readMemberAccess`, so `ns.typeOf`, `ns["typeOf"]` and `ns[KEY]` with a same-file `const KEY` all name
+ *  the same member. */
+function namespaceMemberNames(node: Node, alias: string, out: Set<string>): void {
+  if (TsNode.isImportDeclaration(node)) {
+    return;
+  }
+  const read = readMemberAccess(node);
+  if (read !== undefined && TsNode.isIdentifier(read.receiver) && read.receiver.getText() === alias) {
+    out.add(read.name);
+  }
+  for (const child of node.getChildren()) {
+    namespaceMemberNames(child, alias, out);
+  }
+}
+
+/** ONE IMPORT HOP (#2249): every import from a RELATIVE specifier whose member this module actually
+ *  references, resolved to the imported module's own declaration of that member — a NAMED import by its
+ *  local name, a NAMESPACE import by the members read off its binding.
  *
- *  DECLARED LIMITS, each with its own `mustPass` row: a namespace (`import * as x`) or default import names
- *  no member at this boundary and is not followed; a specifier this run's project did not load is skipped
- *  (the read is unobservable, not absolved); and the walk stops at the hopped module — a helper that itself
- *  imports the reader from a THIRD module is two hops and out of reach. */
+ *  THE NAMESPACE HALF IS #2459, AND IT REVERSES A RECORDED LIMIT — deliberately, because the limit's own
+ *  REASON stopped being true. The hop shipped reading `getNamedImports()` alone, and its `mustPass` row
+ *  said *"a NAMESPACE import names no member at the import boundary, so the hop has nothing to resolve and
+ *  does not guess"*. That is a statement about the IMPORT DECLARATION, and it is still correct there — but
+ *  the member is named at the REFERENCE, and `ns.typeOf(ctx.node)` resolves with no guessing at all. The
+ *  mechanism survives (follow only what the module actually references, one hop, never invent a member);
+ *  its INPUT changed, from "what the import declaration names" to "what the module reads". The cost of
+ *  leaving it was measured: `tests/tooling/gate-spelling-twins.int.test.ts` reported this policy NEWLY
+ *  BLIND to the namespace twin of its own two import-hop mustFlag rows, which means a policy could evade
+ *  the arm that polices honest `analysis` declarations by respelling one import. That ledger's own law is
+ *  that growth is fixed at the reader and never recorded as a row. The old row is now a mustFlag row
+ *  carrying the same bytes, so the reversal is committed rather than merely described.
+ *
+ *  THE OTHER DECLARED LIMITS ARE UNTOUCHED, each still with its own `mustPass` row: a DEFAULT import names
+ *  the module's default export rather than a member and is not followed; a specifier this run's project did
+ *  not load is skipped (the read is unobservable, not absolved); and the walk stops at the hopped module —
+ *  a helper that itself imports the reader from a THIRD module is two hops and out of reach. */
+function declarationHopReadsTypes(sf: SourceFile, declaration: ImportDeclaration, used: ReadonlySet<string>): boolean {
+  if (!declaration.getModuleSpecifierValue().startsWith(".")) {
+    return false;
+  }
+  const target = declaration.getModuleSpecifierSourceFile();
+  if (target === undefined || target === sf) {
+    return false;
+  }
+  const namespaceBinding = declaration.getNamespaceImport();
+  if (namespaceBinding !== undefined) {
+    const members = new Set<string>();
+    namespaceMemberNames(sf, namespaceBinding.getText(), members);
+    return [...members].some((member) => hoppedDeclarationReadsTypes(target, member, new Set()));
+  }
+  return declaration.getNamedImports().some((specifier) => {
+    const local = (specifier.getAliasNode() ?? specifier.getNameNode()).getText();
+    return used.has(local) && hoppedDeclarationReadsTypes(target, specifier.getName(), new Set());
+  });
+}
+
 function importHopReadsTypes(sf: SourceFile): boolean {
   const used = new Set<string>();
   referencedNames(sf, used);
-  for (const declaration of sf.getImportDeclarations()) {
-    if (!declaration.getModuleSpecifierValue().startsWith(".")) {
-      continue;
-    }
-    const target = declaration.getModuleSpecifierSourceFile();
-    if (target === undefined || target === sf) {
-      continue;
-    }
-    for (const specifier of declaration.getNamedImports()) {
-      const local = (specifier.getAliasNode() ?? specifier.getNameNode()).getText();
-      if (used.has(local) && hoppedDeclarationReadsTypes(target, specifier.getName(), new Set())) {
-        return true;
-      }
-    }
-  }
-  return false;
+  return sf.getImportDeclarations().some((declaration) => declarationHopReadsTypes(sf, declaration, used));
 }
 
 /** ARM E for one FINAL module. One finding per module, anchored on the descriptor with the `analysis` token:
@@ -641,6 +678,17 @@ export const gate = defineGate({
       mode: "source",
       files: {
         "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/lib/__probe-shared.ts": "export function typeOf(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\n",
+        "tooling/src/verify/gates/__probe.ts":
+          'import { defineGate } from "../contract/policy.ts";\nimport * as shared from "../lib/__probe-shared.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", analysis: "syntax", create: (ctx) => shared.typeOf(ctx.node), mustFlag: [1], mustPass: [1] });\n',
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: 'ARM E IMPORT HOP, NAMESPACE SPELLING (#2459) — THE SAME BYTES THAT WERE A `mustPass` ROW UNTIL THIS COMMIT, whose stated reason was *"a NAMESPACE import names no member at the import boundary, so the hop has nothing to resolve and does not guess"*. True of the DECLARATION, false of the REFERENCE: `shared.typeOf(ctx.node)` names its member with no guessing. `tests/tooling/gate-spelling-twins.int.test.ts` measured the cost as GROWTH — this policy newly blind to the namespace twin of the two import-hop rows above — and that ledger\'s law is that growth is fixed at the reader, never recorded as a row. Keeping the old reversal visible is the point: the same fixture now proves the opposite verdict',
+    },
+    {
+      mode: "source",
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
         "tooling/src/verify/lib/__probe-shared.ts":
           "function inner(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\nexport function outer(node: { getType: () => unknown }): unknown {\n  return inner(node);\n}\n",
         "tooling/src/verify/gates/__probe.ts":
@@ -717,16 +765,6 @@ export const gate = defineGate({
           'import { defineGate } from "../contract/policy.ts";\nimport { outer } from "../lib/__probe-shared.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", analysis: "syntax", create: (ctx) => outer(ctx.node), mustFlag: [1], mustPass: [1] });\n',
       },
       why: "ARM E DECLARED LIMIT (#2249) — ONE hop, and this row is the limit stated as a RUN rather than as prose: a helper that imports the reader from a THIRD module is two hops and the arm does not follow it",
-    },
-    {
-      mode: "source",
-      files: {
-        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
-        "tooling/src/verify/lib/__probe-shared.ts": "export function typeOf(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\n",
-        "tooling/src/verify/gates/__probe.ts":
-          'import { defineGate } from "../contract/policy.ts";\nimport * as shared from "../lib/__probe-shared.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", analysis: "syntax", create: (ctx) => shared.typeOf(ctx.node), mustFlag: [1], mustPass: [1] });\n',
-      },
-      why: "ARM E DECLARED LIMIT (#2249) — a NAMESPACE import names no member at the import boundary, so the hop has nothing to resolve and does not guess",
     },
     {
       mode: "source",

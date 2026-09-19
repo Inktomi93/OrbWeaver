@@ -144,6 +144,40 @@ export function namedImportLocalNames(sf: SourceFile, exportName: string, matche
   return out;
 }
 
+/** Does `sf` bring in the exported member `exportName` of a module matching `matchesSpecifier` AT ALL,
+ *  in either import spelling? A named import proves the member by name; a namespace import proves only the
+ *  MODULE, which is the honest limit — `import * as ns from "…/contract/policy.ts"` makes every export of
+ *  that module reachable, and which one a file uses is a question about its REFERENCES, not its imports
+ *  (`referencesModuleExport` below is that question).
+ *
+ *  It exists because a file-level `getNamedImports().some(…)` test is the #1506 namespace hole in its
+ *  simplest form: the namespace spelling produces no `ImportSpecifier`, so the file reads as "does not
+ *  import it" and every verdict downstream of that flag silently disappears (#2459 — two policies keyed
+ *  their whole gate-module recognition on it). */
+export function importsModuleExport(sf: SourceFile, exportName: string, matchesSpecifier: (specifier: string) => boolean): boolean {
+  if (namedImportLocalNames(sf, exportName, matchesSpecifier).size > 0) {
+    return true;
+  }
+  return sf
+    .getImportDeclarations()
+    .some((declaration) => declaration.getNamespaceImport() !== undefined && matchesSpecifier(declaration.getModuleSpecifierValue()));
+}
+
+/** Does this REFERENCE node denote the exported member `exportName` of a module matching
+ *  `matchesSpecifier`, however the import and the read are spelled? The two shapes are the two halves a
+ *  callee position can take:
+ *   • a bare identifier bound by `import { exportName }` / `import { exportName as local }`;
+ *   • a member read of any spelling off an `import * as ns` binding (`ns.exportName`, `ns["exportName"]`).
+ *
+ *  A gate asking this about a CALLEE subscribes to `CallExpression` alone and asks about
+ *  `call.getExpression()`; it needs no import-specifier visitor, which is the point. */
+export function referencesModuleExport(node: Node, exportName: string, matchesSpecifier: (specifier: string) => boolean): boolean {
+  if (TsNode.isIdentifier(node)) {
+    return namedImportLocalNames(node.getSourceFile(), exportName, matchesSpecifier).has(node.getText());
+  }
+  return moduleMemberReference(node, matchesSpecifier)?.name === exportName;
+}
+
 /** THE COMBINED DOOR: does `node` reference an exported member of a module matching `matchesSpecifier`,
  *  however that reference is spelled?
  *

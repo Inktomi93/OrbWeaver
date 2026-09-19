@@ -7,6 +7,7 @@
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import {
+  importsModuleExport,
   moduleMemberReference,
   namedImportLocalNames,
   namespaceImportSpecifier,
@@ -14,6 +15,7 @@ import {
   readNumericConstant,
   readStringConstant,
   readsMemberNamed,
+  referencesModuleExport,
 } from "../../../../tooling/src/verify/lib/symbol-reference.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -115,6 +117,57 @@ test("moduleMemberReference keys on the IMPORTED name, so aliasing the local bin
   const isDb = (specifier: string): boolean => specifier === "@orb/db";
   const specifiers = sourceOf('import { chatDigests as t } from "@orb/db";\nexport const a = t;\n').getDescendantsOfKind(SyntaxKind.ImportSpecifier);
   expect(specifiers.map((n) => moduleMemberReference(n, isDb)?.name)).toEqual(["chatDigests"]);
+});
+
+// ── #2459: the FILE-level and REFERENCE-level doors, both minted from a measured blind spot ──────────
+//
+// `tests/tooling/gate-spelling-twins.int.test.ts` reported `gate-modernization` and
+// `real-corpus-liveness-manifest` NEWLY BLIND to the namespace twin of their own mustFlag fixtures. Both
+// recognised a gate module by `declaration.getNamedImports().some((ni) => ni.getName() === "defineGate")`
+// and a gate CALL by `Node.isIdentifier(callee) && callee.getText() === "defineGate"` — so
+// `import * as p from "../contract/policy.ts"; p.defineGate({…})` read as "not a gate module" and every
+// verdict under it disappeared. These two readers are that question with the spelling removed.
+const IS_POLICY = (specifier: string): boolean => specifier.includes("contract/policy");
+
+test("importsModuleExport sees a named import AND a namespace import of the same module", () => {
+  expect(importsModuleExport(sourceOf('import { defineGate } from "../contract/policy.ts";\n'), "defineGate", IS_POLICY)).toBe(true);
+  expect(
+    importsModuleExport(sourceOf('import { defineGate as define } from "../contract/policy.ts";\n'), "defineGate", IS_POLICY),
+    "an alias is still the import",
+  ).toBe(true);
+  // THE DEFECT: `getNamedImports()` answers [] here, so the file read as "does not import it".
+  expect(importsModuleExport(sourceOf('import * as p from "../contract/policy.ts";\n'), "defineGate", IS_POLICY)).toBe(true);
+});
+
+test("importsModuleExport refuses a different module and a different export — the widening is not a blanket yes", () => {
+  expect(importsModuleExport(sourceOf('import { defineGate } from "../lib/other.ts";\n'), "defineGate", IS_POLICY), "wrong module").toBe(false);
+  expect(importsModuleExport(sourceOf('import { somethingElse } from "../contract/policy.ts";\n'), "defineGate", IS_POLICY), "wrong export").toBe(false);
+  expect(importsModuleExport(sourceOf("export const a = 1;\n"), "defineGate", IS_POLICY), "no import at all").toBe(false);
+});
+
+test("referencesModuleExport answers for a CALLEE in both import spellings and every member spelling", () => {
+  const calleeOf = (code: string): Node | undefined => sourceOf(code).getDescendantsOfKind(SyntaxKind.CallExpression)[0]?.getExpression();
+  for (const code of [
+    'import { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({});\n',
+    'import { defineGate as define } from "../contract/policy.ts";\nexport const gate = define({});\n',
+    'import * as p from "../contract/policy.ts";\nexport const gate = p.defineGate({});\n',
+    'import * as p from "../contract/policy.ts";\nexport const gate = p["defineGate"]({});\n',
+  ]) {
+    const callee = calleeOf(code);
+    expect(callee === undefined ? "no callee" : referencesModuleExport(callee, "defineGate", IS_POLICY), code).toBe(true);
+  }
+});
+
+test("referencesModuleExport refuses a same-named LOCAL and a same-named import from elsewhere", () => {
+  const calleeOf = (code: string): Node | undefined => sourceOf(code).getDescendantsOfKind(SyntaxKind.CallExpression)[0]?.getExpression();
+  for (const code of [
+    "function defineGate(x: unknown): unknown {\n  return x;\n}\nexport const gate = defineGate({});\n",
+    'import { defineGate } from "../lib/other.ts";\nexport const gate = defineGate({});\n',
+    'import * as p from "../lib/other.ts";\nexport const gate = p.defineGate({});\n',
+  ]) {
+    const callee = calleeOf(code);
+    expect(callee === undefined ? "no callee" : referencesModuleExport(callee, "defineGate", IS_POLICY), code).toBe(false);
+  }
 });
 
 test("moduleMemberReference: a local object and another module's import are NOT references", () => {
