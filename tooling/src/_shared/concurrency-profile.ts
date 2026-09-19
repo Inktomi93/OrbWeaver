@@ -151,11 +151,15 @@ export function parseConcurrencyProfile(body: string, name: ConcurrencyProfileNa
  *  · `defaultMs`   → every stage without a ceiling of its own
  *  · `ctSuiteMs`   → the whole-CT-suite stage, which is the one that outgrew the constant
  *  · `ctHostWaitMs`→ how long a CT run may queue for a host-wide slot (ct-runner-lock.ts reads it too, so
- *                    the wait a run may spend and the ceiling that must cover it cannot drift apart). */
+ *                    the wait a run may spend and the ceiling that must cover it cannot drift apart).
+ *  · `mutationGateMs` → the Stryker mutation stage: a whole-corpus mutant run is measured in HOURS, not
+ *                    minutes (2026-09-19: the sandbox fix let it run, and it blew the 45-minute default every
+ *                    time — a ceiling below the honest runtime is the #1848 lie again). Owner-ruled ~2 h. */
 export interface StageBudgets {
   readonly defaultMs: number;
   readonly ctSuiteMs: number;
   readonly ctHostWaitMs: number;
+  readonly mutationGateMs: number;
 }
 
 const MS_PER_MINUTE = 60_000;
@@ -199,6 +203,7 @@ export function stageBudgetsFor(profile: ConcurrencyProfile, body: string): Stag
     defaultMs: defaultMinutes * MS_PER_MINUTE,
     ctSuiteMs: Math.max(defaultMinutes, ctMinutes) * MS_PER_MINUTE,
     ctHostWaitMs: hostWaitMinutes * MS_PER_MINUTE,
+    mutationGateMs: Math.max(defaultMinutes, positiveField(budgets, "mutationGateMinutes")) * MS_PER_MINUTE,
   };
 }
 

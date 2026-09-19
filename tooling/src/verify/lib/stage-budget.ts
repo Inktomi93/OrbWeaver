@@ -35,3 +35,9 @@ export function stageHangCeilingBaseMs(stage: StageDef): number {
 export function ctSuiteHangCeilingMs(): number {
   return readStageBudgets().ctSuiteMs;
 }
+
+/** The ceiling for the MUTATION-GATE stage — a whole-corpus Stryker pass runs for hours, so its ceiling is
+ *  its own profile row (owner-ruled 2026-09-19), read the same way the CT ceiling is. */
+export function mutationGateHangCeilingMs(): number {
+  return readStageBudgets().mutationGateMs;
+}

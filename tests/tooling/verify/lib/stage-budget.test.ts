@@ -16,7 +16,7 @@
 import { readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
 import type { StageDef } from "@orb/tooling/verify";
 import { REGISTRY } from "../../../../tooling/src/verify/lib/registry.ts";
-import { ctSuiteHangCeilingMs, stageHangCeilingBaseMs } from "../../../../tooling/src/verify/lib/stage-budget.ts";
+import { ctSuiteHangCeilingMs, mutationGateHangCeilingMs, stageHangCeilingBaseMs } from "../../../../tooling/src/verify/lib/stage-budget.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function stage(name: string): StageDef {
@@ -34,6 +34,15 @@ test("the WHOLE-CT-SUITE stage runs at push and full, with a ceiling derived fro
   // default every other stage gets. A regression to a shared constant makes these two equal.
   expect(stageHangCeilingBaseMs(ct)).toBe(ctSuiteHangCeilingMs());
   expect(stageHangCeilingBaseMs(ct), "the CT suite outgrew the default — that is the whole defect").toBeGreaterThan(readStageBudgets().defaultMs);
+});
+
+test("the MUTATION-GATE stage carries its own profile-derived ceiling, above the default", () => {
+  const mutation = stage("quality:mutation-gate");
+  expect(mutation.tiers).toEqual(["full"]);
+  expect(stageHangCeilingBaseMs(mutation)).toBe(mutationGateHangCeilingMs());
+  // 2026-09-19: the sandbox fix let Stryker actually run, and it blew the 45-minute default every time —
+  // a stage whose honest runtime exceeds its ceiling is a scheduled tool error, never a verdict.
+  expect(stageHangCeilingBaseMs(mutation), "a whole-corpus mutant run outgrows the default").toBeGreaterThan(readStageBudgets().defaultMs);
 });
 
 test("the vitest half is its own stage, and the composite that hid both cannot run in a tier", () => {
