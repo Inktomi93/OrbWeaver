@@ -19,12 +19,11 @@ import { createDiscoveryService, DistillFailedError } from "@orb/server/domain/d
 import { createTagService } from "@orb/server/domain/tag";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
-import type { DiscoveryContext } from "../../../../../packages/server/src/domain/discovery/index.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness } from "../../tag/_support.ts";
 import { makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
-import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 
 // A canned distillation reply (the FAKE summarize returns this per input) — the tags here are what must land
 // as pending suggestions, proving the INJECTED role drives the output.
@@ -68,7 +67,7 @@ const SCHEMA_FAIL_REPLY = "{}";
  *  which may reject to simulate a provider error. Records the batch + retry inputs and the PEAK number of
  *  retries in flight at once — the observable that pins the bounded-concurrency fan-out (F2). */
 function makeDistillProbe(cfg: { readonly batchReply: (userPrompt: string) => string; readonly retry?: (userPrompt: string) => Promise<string> }): {
-  readonly op: DiscoveryContext["summarize"];
+  readonly op: RoleClients["structured"];
   readonly batchInputs: string[];
   readonly retryInputs: string[];
   readonly peakConcurrentRetries: () => number;
@@ -79,7 +78,7 @@ function makeDistillProbe(cfg: { readonly batchReply: (userPrompt: string) => st
   let inFlight = 0;
   let peak = 0;
   const usage = { tokensIn: null, tokensOut: null, costUsd: null };
-  const op: DiscoveryContext["summarize"] = async (inputs: SummarizeInput[], _opts?: SummarizeOptions) => {
+  const op: RoleClients["structured"] = async (inputs, _opts) => {
     if (calls === 0) {
       calls += 1;
       for (const i of inputs) {
@@ -126,7 +125,7 @@ describe("distillCharacters", () => {
       ...makeDiscoveryHarness(db, {
         attachCardTagByName: tagSvc.attachCardTagByName,
       }).ctx,
-      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: summarize.op, summarize: summarize.op })),
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: summarize.op })),
     });
 
     const stats = await svc.distillCharacters({ funderUserId: owner });
@@ -143,7 +142,7 @@ describe("distillCharacters", () => {
       tone: "whimsical",
       setting: "a floating archipelago",
       elevatorPitch: "A runaway cartographer maps the last uncharted sky.",
-      model: "configured-summarizer",
+      model: "test-summarize-model",
     });
     expect(summary[0]?.tags).toEqual(["airships", "found-family", "sky-pirates"]);
     expect(summary[0]?.subGenres).toEqual(["adventure"]);
@@ -185,7 +184,7 @@ describe("distillCharacters", () => {
     });
     const svc = createDiscoveryService({
       ...makeDiscoveryHarness(db, { attachCardTagByName: tagSvc.attachCardTagByName }).ctx,
-      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: makeDistillSummarize(altReply).op, summarize: makeDistillSummarize(altReply).op })),
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: makeDistillSummarize(altReply).op })),
     });
 
     await svc.distillCharacters({ characterId: character, ownerId: owner, funderUserId: owner });
@@ -203,11 +202,11 @@ describe("distillCharacters", () => {
   /** A summarize probe recording the SYSTEM prompt of every call. Call 1 (the batch) replies with a payload
    *  that parses as JSON but fails the schema, so the bounded per-card RETRY fires — which is the second
    *  call site the resolved prose has to reach (a retry on a different system prompt is a silent drift). */
-  function makeSystemProbe(): { readonly op: DiscoveryContext["summarize"]; readonly systems: string[] } {
+  function makeSystemProbe(): { readonly op: RoleClients["structured"]; readonly systems: string[] } {
     const systems: string[] = [];
     let calls = 0;
     const usage = { tokensIn: null, tokensOut: null, costUsd: null };
-    const op: DiscoveryContext["summarize"] = (inputs: SummarizeInput[], _opts?: SummarizeOptions) => {
+    const op: RoleClients["structured"] = (inputs: readonly SummarizeInput[], _opts) => {
       calls += 1;
       for (const i of inputs) {
         systems.push(i.systemPrompt);
@@ -227,7 +226,7 @@ describe("distillCharacters", () => {
       ...makeDiscoveryHarness(db, {
         resolveUserProse: () => Promise.resolve({ "discovery.distill.system": { text: "Summarize this card as JSON.", baseVersion: 1 } }),
       }).ctx,
-      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, summarize: probe.op })) })),
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
     });
 
     await svc.distillCharacters({ characterId: character, ownerId: owner, funderUserId: owner });
@@ -252,7 +251,7 @@ describe("distillCharacters", () => {
           return Promise.resolve({ "discovery.distill.system": { text: "never reached", baseVersion: 1 } });
         },
       }).ctx,
-      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, summarize: probe.op })) })),
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
     });
 
     await svc.distillCharacters({ funderUserId: owner });
@@ -269,7 +268,7 @@ describe("distillCharacters", () => {
     const tagSvc = createTagService(makeTagHarness(db).ctx);
     const ctx = {
       ...makeDiscoveryHarness(db, { attachCardTagByName: tagSvc.attachCardTagByName }).ctx,
-      summarize: makeDistillSummarize(DISTILL_REPLY).op,
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: makeDistillSummarize(DISTILL_REPLY).op })),
     };
     const svc = createDiscoveryService(ctx);
 
@@ -306,7 +305,10 @@ describe("distillCharacters", () => {
       batchReply: (prompt) => (prompt.includes("Beta") ? SCHEMA_FAIL_REPLY : DISTILL_REPLY),
       retry: () => Promise.resolve(DISTILL_REPLY),
     });
-    const svc = createDiscoveryService({ ...makeDiscoveryHarness(db).ctx, roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, summarize: probe.op })) });
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db).ctx,
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
+    });
 
     const stats = await svc.distillCharacters({ ownerId: owner, funderUserId: owner });
 
@@ -332,7 +334,10 @@ describe("distillCharacters", () => {
       batchReply: (prompt) => (prompt.includes("Beta") ? SCHEMA_FAIL_REPLY : DISTILL_REPLY),
       retry: () => Promise.resolve(SCHEMA_FAIL_REPLY),
     });
-    const svc = createDiscoveryService({ ...makeDiscoveryHarness(db).ctx, roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, summarize: probe.op })) });
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db).ctx,
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
+    });
 
     const stats = await svc.distillCharacters({ ownerId: owner, funderUserId: owner });
 
@@ -353,7 +358,10 @@ describe("distillCharacters", () => {
       batchReply: (prompt) => (prompt.includes("Beta") ? SCHEMA_FAIL_REPLY : DISTILL_REPLY),
       retry: () => Promise.reject(new Error("429 rate limited")),
     });
-    const svc = createDiscoveryService({ ...makeDiscoveryHarness(db).ctx, roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, summarize: probe.op })) });
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db).ctx,
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
+    });
 
     // The pass RESOLVES (pre-fix, the rethrown provider error aborted the whole batch before commit).
     const stats = await svc.distillCharacters({ ownerId: owner, funderUserId: owner });
@@ -374,7 +382,10 @@ describe("distillCharacters", () => {
     const character = await seedCharacter(db, { id: "character_solo", ownerId: owner, name: "Solo", description: "Solo the smuggler." });
     // The model ignores the schema on the batch call AND on the retry — the card produces nothing.
     const probe = makeDistillProbe({ batchReply: () => SCHEMA_FAIL_REPLY, retry: () => Promise.resolve(SCHEMA_FAIL_REPLY) });
-    const svc = createDiscoveryService({ ...makeDiscoveryHarness(db).ctx, roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, summarize: probe.op })) });
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db).ctx,
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
+    });
 
     await expect(svc.distillCharacters({ characterId: character, ownerId: owner, funderUserId: owner })).rejects.toBeInstanceOf(DistillFailedError);
     // Nothing was written — the failure is total, not partial.
@@ -433,7 +444,7 @@ describe("distillCharacters", () => {
     const probe = makeDistillProbe({ batchReply: () => DISTILL_REPLY });
     const svc = createDiscoveryService({
       ...makeDiscoveryHarness(db, { attachCardTagByName: tagSvc.attachCardTagByName }).ctx,
-      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, summarize: probe.op })) })),
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
     });
 
     const refusal: unknown = await svc.distillCharacters({ characterId: character, ownerId: owner, funderUserId: owner }).then(
@@ -454,7 +465,10 @@ describe("distillCharacters", () => {
     const bare = await seedCharacter(db, { id: "character_bare", ownerId: owner, name: "Bare" });
     await seedCharacter(db, { id: "character_alpha", ownerId: owner, name: "Alpha", description: "Alpha the aeronaut." });
     const probe = makeDistillProbe({ batchReply: () => DISTILL_REPLY });
-    const svc = createDiscoveryService({ ...makeDiscoveryHarness(db).ctx, roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, summarize: probe.op })) });
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db).ctx,
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
+    });
 
     const stats = await svc.distillCharacters({ ownerId: owner, funderUserId: owner });
 
@@ -477,7 +491,10 @@ describe("distillCharacters", () => {
     await seedCharacter(db, { id: "character_beta", ownerId: owner, name: "Beta", description: "Beta the botanist." });
     // EVERY card double-fails — the batch's per-card containment is the law here (a sweep reports, never aborts).
     const probe = makeDistillProbe({ batchReply: () => SCHEMA_FAIL_REPLY, retry: () => Promise.resolve(SCHEMA_FAIL_REPLY) });
-    const svc = createDiscoveryService({ ...makeDiscoveryHarness(db).ctx, roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, summarize: probe.op })) });
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db).ctx,
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
+    });
 
     // Both batch shapes: the global sweep and the owner-narrowed (still multi-card) sweep.
     await expect(svc.distillCharacters({ funderUserId: owner })).resolves.toMatchObject({ scanned: 2, distilled: 0, failed: 2 });
@@ -500,7 +517,10 @@ describe("distillCharacters", () => {
       batchReply: () => SCHEMA_FAIL_REPLY,
       retry: () => Promise.resolve(DISTILL_REPLY),
     });
-    const svc = createDiscoveryService({ ...makeDiscoveryHarness(db).ctx, roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op, summarize: probe.op })) });
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db).ctx,
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
+    });
 
     const stats = await svc.distillCharacters({ ownerId: owner, funderUserId: owner });
 

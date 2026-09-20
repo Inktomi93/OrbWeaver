@@ -128,7 +128,16 @@ function makeSearchRoleClients(controls: FakeRoleClientControls = {}): RoleClien
     });
   };
   const summarize = (_inputs: readonly SummarizeInput[]): Promise<SummarizeResult> => Promise.resolve({ items: [], model: "test-summarize-model" });
-  return makeFakeRoleClients({ embed, rerank, imageEmbed, summarize, structured: summarize, embedDim: VECTOR_DIM });
+  return makeFakeRoleClients({
+    embed,
+    rerank,
+    imageEmbed,
+    summarize,
+    structured: summarize,
+    embedDim: VECTOR_DIM,
+    embedModel,
+    imageEmbedModel,
+  });
 }
 
 /** Build the search service over a real db + a scripted role-clients bundle + the frozen clock. `now` is
@@ -137,7 +146,12 @@ export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () =>
   // The REAL databank scope resolver, bound to the db — the honest wiring the compose root uses, so the
   // `documents` lens's scope gating (the gate-8 leak test) is exercised end-to-end over real junctions.
   const roleClients = makeSearchRoleClients(controls);
-  const ctx: SearchContext = { db, roleClientsFor: () => Promise.resolve(roleClients), now, resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope) };
+  const ctx: SearchContext = {
+    db,
+    roleClientsFor: () => Promise.resolve(roleClients),
+    now,
+    resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
+  };
   return createSearchService(ctx);
 }
 

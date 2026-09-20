@@ -194,7 +194,7 @@ describe("computeThemes", () => {
 
   test("NO DIGESTS: the pass spends no summarize call either", async () => {
     const db = await freshDb();
-    await seedUser(db, "user_a");
+    const owner = await seedUser(db, "user_a");
     const summarize = makeSummarizeRecorder([]);
     const svc = createDiscoveryService(makeDiscoveryHarness(db, { summarize }).ctx);
 
