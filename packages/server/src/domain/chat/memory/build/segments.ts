@@ -163,6 +163,7 @@ export async function storeSegments(ctx: ChatContext, collected: CollectedSegmen
     }
     for (const [index, receipt] of receipts.entries()) {
       const expected = collected.pending[index];
+      // @orb-waive membership-enforcer(ownerId): receipt integrity, not chat authority — `expected.ownerId` is the embedding-generation principal (the room's roster-resolved present host in production), while `receipt.ownerId` is the batch-store receipt; equality rejects a cross-principal result during the sweep. Ends when the batch receipt type makes owner mismatch unrepresentable.
       if (
         expected === undefined ||
         receipt.ownerId !== expected.ownerId ||

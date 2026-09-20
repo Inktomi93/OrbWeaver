@@ -113,6 +113,30 @@ describe("memory/build/digests", () => {
     expect(sum.calls).toHaveLength(3);
   });
 
+  test("rejects an embedding-store receipt for a different generation principal", async () => {
+    const chatId = await seedChat(db, "receipt-owner");
+    await seedTurns(db, chatId, aria, 2);
+    const otherOwner = castId<UserId>("user_other_generation_owner");
+    const ctx = makeChatContext(db, {
+      summarize: fakeSummarize().op,
+      embeddingsStore: (params) =>
+        Promise.resolve({
+          ownerId: otherOwner,
+          model: params.model,
+          generationId: testGenerationId(params.ownerId),
+          generationEpoch: 1,
+        }),
+    });
+
+    await expect(
+      generateDigests(ctx, {
+        scope: sharedScope(chatId),
+        config: { blockSize: 2, verbatimWindow: 0 },
+        funderUserId: owner,
+      }),
+    ).rejects.toThrow("memory digest embed space changed during sweep");
+  });
+
   // PROSE-1 census 78/80/81 — the digest + consolidation prompts are per-USER slots resolved against the ROOM
   // HOST. `resolveChatProse` is the ONE seam; with no override the calls carry the shipped defaults (asserted
   // implicitly everywhere else in this file), with one they carry the host's bytes.
