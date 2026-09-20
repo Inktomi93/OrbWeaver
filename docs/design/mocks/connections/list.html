@@ -73,7 +73,7 @@ h2{font-size:1rem;margin:42px 0 10px;letter-spacing:-.01em}
   display:flex;flex-wrap:wrap;gap:4px 8px;line-height:1.5}
 .crow .meta .sep{opacity:.55}
 .badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:1px}
-.badge{font-size:10px;font-weight:600;letter-spacing:.01em;padding:2px 7px;border-radius:var(--radius-full);
+.badge{font-size:10.5px;font-weight:600;letter-spacing:.01em;padding:2px 7px;border-radius:var(--radius-full);
   border:1px solid var(--color-border);color:var(--color-muted-foreground);white-space:nowrap}
 .badge.on{border-color:color-mix(in oklab,var(--color-primary) 45%,transparent);color:var(--color-primary);background:var(--ember-tint)}
 .badge.warn{border-color:color-mix(in oklab,var(--color-warning) 45%,transparent);color:var(--color-warning)}
@@ -102,6 +102,7 @@ h2{font-size:1rem;margin:42px 0 10px;letter-spacing:-.01em}
   align-items:center;gap:6px;white-space:nowrap}
 .btn:hover{background:color-mix(in oklab,var(--color-foreground) 6%,transparent)}
 .btn.primary{background:var(--color-primary);color:var(--color-primary-foreground);border-color:transparent}
+.btn.sm{font-size:11px;padding:4px 9px;min-height:26px}
 .btn.danger{border-color:color-mix(in oklab,var(--color-destructive) 55%,transparent);color:var(--color-destructive)}
 .btn.danger:hover{background:color-mix(in oklab,var(--color-destructive) 14%,transparent)}
 .btn svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
@@ -167,6 +168,41 @@ h2{font-size:1rem;margin:42px 0 10px;letter-spacing:-.01em}
 .st.today{color:var(--color-success);border-color:color-mix(in oklab,var(--color-success) 45%,transparent)}
 .st.changed{color:var(--color-warning);border-color:color-mix(in oklab,var(--color-warning) 45%,transparent)}
 .st.new{color:var(--color-primary);border-color:color-mix(in oklab,var(--color-primary) 50%,transparent);background:var(--ember-tint)}
+
+/* ═══ the row's PRIMARY activation — the identity block IS the door ═══
+   The row is the thing this pane is about, so opening its editor is a row-level act, not the fifth item of
+   an overflow menu. The door is the button that WRAPS the name and the meta line, never a stretched
+   `inset: 0` overlay: an overlay covers the row's own text 100% and the thing a user points at stops being
+   the thing under the pointer (measured — `--design-audit --mobile` reported it as P1 `obscured-target`,
+   "100% covered, 77px overlap → hits button.rowdoor", on the first cut of this fix).
+   The BADGE RAIL stays outside the button, because a badge is a status and not a door.
+   The row therefore still owns exactly ONE trailing action (the kebab) plus one row-level primary. */
+.rowmain{display:flex;flex-direction:column;gap:5px;align-items:flex-start;text-align:left;font:inherit;
+  color:inherit;background:none;border:none;padding:0;cursor:pointer;max-width:100%;min-width:0}
+.rowmain .name,.rowmain .meta{max-width:100%}
+.crow .keyact{flex:none;display:flex;align-items:center;gap:6px;padding-top:2px}
+
+/* ═══ the COARSE-POINTER hit floor — the SAME mechanism the shipped primitives use ═══
+   `--spacing-touch-target` is 44px by default (coarse/unknown pointers) and narrows to 28px under
+   `@media (pointer:fine)` (`tokens.json` spacing.touch-target); Button / Checkbox / Radio / Switch lift the
+   hit area to that square through a CENTRED `::before`, never by growing the visible box
+   (`packages/ui/src/lib/selection-control.ts` TOUCH_TARGET_PSEUDO). The Switch track is itself
+   pointer-conditional — 64x44 coarse / 48x32 fine (`spacing.switch-track` / `switch-track-height`). The mock
+   inherits all three, so a coarse render measures the REAL target and the fine drawing above is unchanged. */
+:root{--spacing-touch-target:2.75rem}
+@media (pointer:fine){:root{--spacing-touch-target:1.75rem}}
+.btn,.kebab{position:relative}
+.btn::before,.kebab::before{content:"";position:absolute;top:50%;left:50%;
+  width:var(--spacing-touch-target);height:var(--spacing-touch-target);transform:translate(-50%,-50%)}
+@media (pointer:coarse){
+  .mitem{min-height:44px}
+  /* the row door is a CONTROL, so it carries the floor on its own box, not on a pseudo */
+  .rowmain{min-height:44px;justify-content:center}
+  .sw{width:64px;height:44px}
+  .sw::after{top:9px;left:9px;width:26px;height:26px}
+  .sw.on::after{left:29px}
+  .swlabel{max-width:none}
+}
 </style></head>
 <body>
 
@@ -199,13 +235,14 @@ grouped provider picker and the Model-roles rows all ship TODAY. Board F below s
       <div class="rows">
         <div class="crow">
           <div class="ident">
-            <div class="name">OpenRouter · Claude Opus 5</div>
-            <div class="meta"><span>OpenRouter</span><span class="sep">·</span><span>anthropic/claude-opus-5</span><span class="sep">·</span><span>key “work”</span></div>
+            <button class="rowmain" type="button" aria-label="Edit OpenRouter · Claude Opus 5">
+              <span class="name">OpenRouter · Claude Opus 5</span>
+              <span class="meta"><span>OpenRouter</span><span class="sep">·</span><span>anthropic/claude-opus-5</span><span class="sep">·</span><span>key “work”</span></span>
+            </button>
             <div class="badges">
               <span class="badge on">Chat</span>
               <span class="badge on">Utility model</span>
               <span class="badge on">Image generation</span>
-              <span class="badge more">+0</span>
               <span class="badge info">3 fields overridden</span>
             </div>
           </div>
@@ -217,8 +254,10 @@ grouped provider picker and the Model-roles rows all ship TODAY. Board F below s
 
         <div class="crow">
           <div class="ident">
-            <div class="name">Claude subscription · Opus</div>
-            <div class="meta"><span>Claude subscription</span><span class="sep">·</span><span>claude-opus-4-6</span><span class="sep">·</span><span>signed in</span></div>
+            <button class="rowmain" type="button" aria-label="Edit Claude subscription · Opus">
+              <span class="name">Claude subscription · Opus</span>
+              <span class="meta"><span>Claude subscription</span><span class="sep">·</span><span>claude-opus-4-6</span><span class="sep">·</span><span>signed in</span></span>
+            </button>
             <div class="badges">
               <span class="badge on">Chat</span>
               <span class="badge warn">Background work off</span>
@@ -232,8 +271,10 @@ grouped provider picker and the Model-roles rows all ship TODAY. Board F below s
 
         <div class="crow">
           <div class="ident">
-            <div class="name">vLLM · Qwen3-32B</div>
-            <div class="meta"><span>vLLM</span><span class="sep">·</span><span>Qwen/Qwen3-32B</span><span class="sep">·</span><span>http://127.0.0.1:8000/v1</span></div>
+            <button class="rowmain" type="button" aria-label="Edit vLLM · Qwen3-32B">
+              <span class="name">vLLM · Qwen3-32B</span>
+              <span class="meta"><span>vLLM</span><span class="sep">·</span><span>Qwen/Qwen3-32B</span><span class="sep">·</span><span>http://127.0.0.1:8000/v1</span></span>
+            </button>
             <div class="badges">
               <span class="badge on">Chat</span>
               <span class="badge on">Utility model</span>
@@ -248,8 +289,10 @@ grouped provider picker and the Model-roles rows all ship TODAY. Board F below s
 
         <div class="crow">
           <div class="ident">
-            <div class="name">local-light · encoder</div>
-            <div class="meta"><span>Built-in (this device)</span><span class="sep">·</span><span>jinaai/jina-clip-v2</span></div>
+            <button class="rowmain" type="button" aria-label="Edit local-light · encoder">
+              <span class="name">local-light · encoder</span>
+              <span class="meta"><span>Built-in (this device)</span><span class="sep">·</span><span>jinaai/jina-clip-v2</span></span>
+            </button>
             <div class="badges">
               <span class="badge on">Text embedding</span>
               <span class="badge on">Image embedding</span>
@@ -265,18 +308,26 @@ grouped provider picker and the Model-roles rows all ship TODAY. Board F below s
 
     <div class="sect">
       <div class="shead"><h3>Saved keys</h3></div>
-      <p class="gloss">The keys your connections reuse. A key is added from a connection; here you can revoke or remove it.</p>
+      <p class="gloss">The keys your connections reuse. A key is added from a connection; here you can replace or revoke it.</p>
       <div class="rows">
         <div class="crow">
           <div class="ident">
             <div class="name">OpenRouter · “work”</div>
-            <div class="meta"><span>used by 3 connections · replace · revoke</span></div>
+            <div class="meta"><span>used by 3 connections</span></div>
+          </div>
+          <div class="keyact">
+            <button class="btn sm" type="button" aria-label="Replace the OpenRouter &ldquo;work&rdquo; key">Replace</button>
+            <button class="btn sm danger" type="button" aria-label="Revoke the OpenRouter &ldquo;work&rdquo; key">Revoke</button>
           </div>
         </div>
         <div class="crow">
           <div class="ident">
             <div class="name">Anthropic · “personal”</div>
-            <div class="meta"><span>used by 1 connection · replace · revoke</span></div>
+            <div class="meta"><span>used by 1 connection</span></div>
+          </div>
+          <div class="keyact">
+            <button class="btn sm" type="button" aria-label="Replace the Anthropic &ldquo;personal&rdquo; key">Replace</button>
+            <button class="btn sm danger" type="button" aria-label="Revoke the Anthropic &ldquo;personal&rdquo; key">Revoke</button>
           </div>
         </div>
       </div>
@@ -290,12 +341,15 @@ grouped provider picker and the Model-roles rows all ship TODAY. Board F below s
 <p class="note"><b>Shell-anatomy answer (the §5.3a question).</b> No collision, under four rules the build keeps:
 (1) the row is <b>flat inside the section</b> — no card, no border-radius frame, no leading selection bar; a card-in-a-card
 and a left accent stripe are LIST-PANE anatomy and inside a settings body they read as a second nav.
-(2) the section header owns exactly ONE action (<b>Add a connection</b>) and the row owns exactly one (the kebab), so the
-settings body never has two competing trailing actions on one line.
+(2) the section header owns exactly ONE action (<b>Add a connection</b>) and the row owns exactly one TRAILING action
+(the kebab), so the settings body never has two competing trailing actions on one line &mdash; but the row also carries a
+row-level PRIMARY: the identity block itself is a button named <b>Edit &lt;the connection&gt;</b>, because on a pane whose
+noun is &ldquo;things you edit&rdquo; the editor must not be the fifth item of an overflow menu. A row-level primary plus one
+trailing action is not two competing trailing actions; it is the shape every row-with-a-menu in the app already has.
 (3) the row's only inline control is the <b>Allow background work</b> switch — it is there because §5.3a makes the Model-roles
 slot refuse a background binding and offer this same switch, and a user who lands here from that refusal must find it without
 opening an editor.
-(4) nothing in the row is a link into another shelf — the kebab's Edit opens the editor in this same body (mock 2).</p>
+(4) nothing in the row is a link into another shelf — the row door opens the editor in this same body (mock 2).</p>
 </div><div class="col">
 <p class="note"><b>Task badges use the ROLE words, never the schema word.</b> <code>task</code> is SEALED (§5.3a); the badge
 text is the Model-roles label. A row shows the roles it CAN serve, and the capability-derived ones only — a badge is a
@@ -303,6 +357,23 @@ statement about the model, not about what the user bound. Two non-role badges ri
 size class and the same reading job: <b>3 fields overridden</b> (the <code>declared_overrides_measured</code> home §5.3a
 names — "a badge on the connection row … NEVER the turn stream") and <b>Model not in list</b> (the
 <code>modelListed: false</code> tell, whose full sentence lives in the editor, mock 2).</p>
+</div></div>
+
+<div class="notes"><div class="col">
+<p class="note"><b>&ldquo;replace&rdquo; and &ldquo;revoke&rdquo; are CONTROLS, not words in a metadata line.</b> &sect;5.3a writes
+them into the reuse string &mdash; <i>&ldquo;used by 3 connections &middot; replace &middot; revoke&rdquo;</i> &mdash; and a
+mono grey span cannot carry them: it has no focus target, no accessible name and no hover affordance, and it renders in the
+identical face as the connection rows' <code>OpenRouter &middot; anthropic/claude-opus-5</code> two rows above, i.e. as
+metadata, which is what it is. Revoking a key is the most consequential act in the section. The row keeps the COUNT as its
+meta line and the two verbs become buttons with subjects (<code>Replace the OpenRouter &ldquo;work&rdquo; key</code> /
+<code>Revoke the OpenRouter &ldquo;work&rdquo; key</code>), because in a list of keys the bare verb names nothing.
+<b>Revoke opens the house <code>ConfirmDialog</code></b> &mdash; a key is shared across connections, so its description names
+the COUNT and what breaks, exactly as Board C's does for a connection. &sect;5.3a's &ldquo;read-only reuse view&rdquo; is
+owed a correction: a view whose two verbs are <i>replace</i> and <i>revoke</i> is not read-only.</p>
+</div><div class="col">
+<p class="note"><b>A Saved-key row is a connection row's anatomy minus its badges</b>, and the two sit 20px apart under two
+headings. The key actions are what tell them apart on sight: a connection row's trailing cluster is a switch and a kebab, a
+key row's is two named buttons. A key row has no editor, so it has no row door.</p>
 </div></div>
 
 <h2>Board B — the row menu: the three actions that make “no defaults” survivable</h2>
@@ -316,8 +387,10 @@ names — "a badge on the connection row … NEVER the turn stream") and <b>Mode
       <div class="rows">
         <div class="crow">
           <div class="ident">
-            <div class="name">OpenRouter · Claude Opus 5</div>
-            <div class="meta"><span>OpenRouter</span><span class="sep">·</span><span>anthropic/claude-opus-5</span><span class="sep">·</span><span>key “work”</span></div>
+            <button class="rowmain" type="button" aria-label="Edit OpenRouter · Claude Opus 5">
+              <span class="name">OpenRouter · Claude Opus 5</span>
+              <span class="meta"><span>OpenRouter</span><span class="sep">·</span><span>anthropic/claude-opus-5</span><span class="sep">·</span><span>key “work”</span></span>
+            </button>
             <div class="badges"><span class="badge on">Chat</span><span class="badge on">Utility model</span><span class="badge on">Image generation</span></div>
           </div>
           <div class="trail">
@@ -330,7 +403,6 @@ names — "a badge on the connection row … NEVER the turn stream") and <b>Mode
             <div class="mitem" role="menuitem"><span class="mt">Add another model on this key</span>
               <span class="md">A new connection on OpenRouter with the same key — you only pick the model.</span></div>
             <div class="msep"></div>
-            <div class="mitem" role="menuitem"><span class="mt">Edit</span></div>
             <div class="mitem destructive" role="menuitem"><span class="mt">Remove</span></div>
           </div>
         </div>
@@ -351,7 +423,18 @@ names — "a badge on the connection row … NEVER the turn stream") and <b>Mode
 serve" writes up to six <code>user</code> bindings in one act — it is the most consequential thing on this pane and the
 least frequent. A button on every row would make the pane's loudest affordance its rarest one; the menu keeps the row
 scannable and still puts the action one click from the row it acts on. Its gloss NAMES the roles it will write, so the
-undo is knowable before the click rather than after it (there is no default to fall back to — §7.2 F2/F16).</p>
+undo is knowable before the click rather than after it (there is no default to fall back to — §7.2 F2/F16).
+<b>Edit is NOT in this menu</b> &mdash; the row itself is the editor door (rule 2 above), so the menu holds only the three
+acts that are not &ldquo;open this thing&rdquo;: the two survivability actions and Remove.</p>
+
+<p class="note"><b>Every control here inherits the primitives' COARSE-POINTER hit floor, and the mock draws it rather than
+asserting it.</b> The visible boxes are the fine-pointer ones (a 32&times;32 kebab, a 34px-tall button, a 48&times;32 switch
+track) because that is what a mouse user sees; under a coarse pointer <code>--spacing-touch-target</code> is 44px and each
+control lifts its hit area to that square through a centred <code>::before</code>, exactly as
+<code>packages/ui/src/lib/selection-control.ts</code>'s <code>TOUCH_TARGET_PSEUDO</code> does for every shipped selection
+control, while the Switch track itself grows to its pointer-conditional 64&times;44. Step 9 gets this for free by composing
+<code>@orb/ui</code> primitives; the reason it is written into the drawing is that a mock which silently draws sub-floor
+geometry is a mock a builder copies as geometry.</p>
 
 <h2>Board C — confirmed remove: the shipped <code>ConfirmDialog</code>, with the count it is missing</h2>
 <div class="stage">
@@ -408,8 +491,10 @@ because §5.3a&rsquo;s word is &ldquo;confirmed remove&rdquo;, not &ldquo;a new 
       <div class="rows">
         <div class="crow" style="flex-wrap:wrap">
           <div class="ident" style="flex:1 1 100%">
-            <div class="name">OpenRouter · Claude Opus 5</div>
-            <div class="meta"><span>OpenRouter</span><span class="sep">·</span><span>anthropic/claude-opus-5</span></div>
+            <button class="rowmain" type="button" aria-label="Edit OpenRouter · Claude Opus 5">
+              <span class="name">OpenRouter · Claude Opus 5</span>
+              <span class="meta"><span>OpenRouter</span><span class="sep">·</span><span>anthropic/claude-opus-5</span></span>
+            </button>
             <div class="badges"><span class="badge on">Chat</span><span class="badge on">Utility model</span><span class="badge more">+1</span><span class="badge info">3 fields overridden</span></div>
           </div>
           <div class="trail" style="flex:1 1 100%;justify-content:space-between;padding-top:6px">
@@ -419,8 +504,10 @@ because §5.3a&rsquo;s word is &ldquo;confirmed remove&rdquo;, not &ldquo;a new 
         </div>
         <div class="crow" style="flex-wrap:wrap">
           <div class="ident" style="flex:1 1 100%">
-            <div class="name">Claude subscription · Opus</div>
-            <div class="meta"><span>Claude subscription</span><span class="sep">·</span><span>claude-opus-4-6</span></div>
+            <button class="rowmain" type="button" aria-label="Edit Claude subscription · Opus">
+              <span class="name">Claude subscription · Opus</span>
+              <span class="meta"><span>Claude subscription</span><span class="sep">·</span><span>claude-opus-4-6</span></span>
+            </button>
             <div class="badges"><span class="badge on">Chat</span><span class="badge warn">Background work off</span></div>
           </div>
           <div class="trail" style="flex:1 1 100%;justify-content:space-between;padding-top:6px">
@@ -430,8 +517,10 @@ because §5.3a&rsquo;s word is &ldquo;confirmed remove&rdquo;, not &ldquo;a new 
         </div>
         <div class="crow" style="flex-wrap:wrap">
           <div class="ident" style="flex:1 1 100%">
-            <div class="name">vLLM · Qwen3-32B</div>
-            <div class="meta"><span>vLLM</span><span class="sep">·</span><span>Qwen/Qwen3-32B</span></div>
+            <button class="rowmain" type="button" aria-label="Edit vLLM · Qwen3-32B">
+              <span class="name">vLLM · Qwen3-32B</span>
+              <span class="meta"><span>vLLM</span><span class="sep">·</span><span>Qwen/Qwen3-32B</span></span>
+            </button>
             <div class="badges"><span class="badge on">Chat</span><span class="badge on">Utility model</span><span class="badge warn">Model not in list</span></div>
           </div>
           <div class="trail" style="flex:1 1 100%;justify-content:space-between;padding-top:6px">
@@ -496,10 +585,11 @@ at <code>146f71cd5</code>. Line cites are into <code>components/connections-list
     <tr><td>Task badges</td><td><span class="st changed">changed</span></td><td><b>A vocabulary defect ships today.</b> <code>:112-116</code> renders <code>{task}</code> raw, so the badges read <code>summarize</code>, <code>generateImage</code>, <code>imageEmbed</code>. §5.3a SEALS <code>task</code> (&ldquo;a schema word &hellip; never reaches copy&rdquo;) and maps it to the six role labels. The mock renders the role labels, caps the rail at two roles + <code>+N</code> at 486, and gives the non-role badges (<code>3 fields overridden</code>, <code>Model not in list</code>) the same rail.</td></tr>
     <tr><td>Allow-background switch</td><td><span class="st changed">changed</span></td><td>Ships with the gloss <code>background</code> (<code>:126</code>) &mdash; one word, ambiguous between a state and a noun. The mock spells <b>Allow background work</b>, which is also what the Model-roles refusal offers (§5.3a), so the two surfaces name the same switch the same way. The control itself is the shipped <code>Switch</code> at its fine-pointer silhouette; no geometry change.</td></tr>
     <tr><td>&ldquo;Use this connection for everything it can serve&rdquo;</td><td><span class="st changed">changed</span></td><td>The action SHIPS (<code>useUseForEverything</code>, <code>:130-136</code>) but its label is <b>&ldquo;Use for everything it can serve&rdquo;</b> &mdash; §5.3a&rsquo;s string names the connection. In a list of N rows the shipped label has no subject; on a row it is the row, but on a phone, in a menu, or read by a screen reader out of row context it is not. The mock uses §5.3a&rsquo;s string and moves the action into the row menu (below).</td></tr>
-    <tr><td>The row menu (kebab)</td><td><span class="st new">new</span></td><td>No menu today: the row carries three inline actions (switch, the sweep button, a trash glyph). That fits 870 and does not fit 486, and step 9 adds two more items with no home &mdash; <b>Add another model on this key</b> and <b>Edit</b> (the four-tier editor, mock 2). A kebab is what those five need; it also gives the sweep action a place to carry its consequence gloss, which a button cannot.</td></tr>
+    <tr><td>The row door (open the editor)</td><td><span class="st new">new</span></td><td>No editor exists today, so no row opens one. The identity block (name + meta) becomes a <code>button</code> named <code>Edit &lt;the connection&gt;</code> &mdash; a WRAPPING button, never an <code>inset:0</code> overlay, which covers the row's own text and steals its hit-test. The badge rail stays outside it. Step 9 owes the keyboard contract (one stop per row, before the kebab).</td></tr>
+    <tr><td>The row menu (kebab)</td><td><span class="st new">new</span></td><td>No menu today: the row carries three inline actions (switch, the sweep button, a trash glyph). That fits 870 and does not fit 486, and step 9 adds one more item with no home &mdash; <b>Add another model on this key</b>. A kebab is what those four need; it also gives the sweep action a place to carry its consequence gloss, which a button cannot. <b>Edit is not one of them</b> &mdash; it is the row door.</td></tr>
     <tr><td>&ldquo;Add another model on this key&rdquo;</td><td><span class="st new">new</span></td><td>§5.3a&rsquo;s second survivability action. Nothing on the tree does this &mdash; a second model on a saved key is a full trip through the add dialog today.</td></tr>
     <tr><td>Confirmed remove</td><td><span class="st changed">changed</span></td><td>The house <code>ConfirmDialog</code> ships (<code>:138-146</code>). Only its description changes: the ROLE COUNT + names, and that the key survives. See Board C.</td></tr>
-    <tr><td>Saved keys section</td><td><span class="st today">today</span></td><td><code>connections-keys-section.tsx</code>. §5.3a&rsquo;s <code>used by 3 connections &middot; replace &middot; revoke</code> read-only reuse view.</td></tr>
+    <tr><td>Saved keys section</td><td><span class="st changed">changed</span></td><td><code>connections-keys-section.tsx</code>. &sect;5.3a&rsquo;s <code>used by 3 connections &middot; replace &middot; revoke</code> string is split: the COUNT stays a meta line, <b>Replace</b> and <b>Revoke</b> become named buttons, and Revoke routes to the house <code>ConfirmDialog</code>. A spec correction is owed &mdash; a reuse view carrying those two verbs is not read-only.</td></tr>
     <tr><td>The <code>user</code>-shelf placement</td><td><span class="st new">new</span></td><td>§5.3a moves the group off the <code>app</code> shelf (beside Automation/Admin) to the <code>user</code> shelf beside Personas / Appearance / Chat behavior. Not a render decision and not drawn here &mdash; it is a <code>config-group-ids.ts</code> edit step 9 owes.</td></tr>
   </tbody>
 </table>
