@@ -22,7 +22,7 @@
 
 import type { BackfillPassResult, ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
-import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, ChatId, EmbedGenerationId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
 /** The raw (partial) memory tuning — the admin-set `AppSettings.memoryDefaults` shape, every field optional.
@@ -75,7 +75,7 @@ export interface MemoryScope {
 export interface MemoryEmbedSpace {
   readonly ownerId: UserId;
   readonly model: string;
-  readonly generationId: string;
+  readonly generationId: EmbedGenerationId;
   readonly generationEpoch: number;
 }
 

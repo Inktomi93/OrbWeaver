@@ -6,7 +6,7 @@
 import type { BlockKey } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatDigests, chatSegments } from "@orb/db";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 import { toVectorBlob } from "./nearest.ts";
 import { digestScopeCond, segmentScopeCond } from "./scope.ts";
@@ -26,7 +26,7 @@ interface NearestDigest {
 interface NearestDigestsParams {
   readonly queryVector: Float32Array;
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId?: EmbedGenerationId | undefined;
   readonly chatIds?: readonly ChatId[] | undefined;
   readonly ownerId?: UserId | undefined;
   readonly scopedCharacterId?: CharacterId | undefined;
@@ -71,7 +71,7 @@ export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParam
 
 /** The owner's materialized chat set, bounding discover's verbatim segment scan (which has no owner column).
  *  groupBy yields the distinct set (ReadOnlyDb has no selectDistinct). */
-export async function ownedChatIds(db: ReadOnlyDb, ownerId: UserId, model: string, generationId?: string): Promise<ChatId[]> {
+export async function ownedChatIds(db: ReadOnlyDb, ownerId: UserId, model: string, generationId?: EmbedGenerationId): Promise<ChatId[]> {
   const rows = await db
     .select({ chatId: chatDigests.chatId })
     .from(chatDigests)
@@ -95,7 +95,7 @@ interface NearestSegment {
 interface NearestSegmentsParams {
   readonly queryVector: Float32Array;
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId?: EmbedGenerationId | undefined;
   readonly chatIds: readonly ChatId[];
   readonly candidates?: readonly BlockKey[] | undefined;
   readonly limit: number;

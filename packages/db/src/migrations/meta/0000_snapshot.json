@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1f6e2289-2830-4919-88a1-1fe16cf47ab7",
+  "id": "bb66b668-c348-428b-b123-d270f16bbc54",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -4599,6 +4599,11 @@
           "name": "character_embeddings_character_generation_unique",
           "columns": ["character_id", "generation_id"],
           "isUnique": true
+        },
+        "character_embeddings_generation_idx": {
+          "name": "character_embeddings_generation_idx",
+          "columns": ["generation_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -4607,6 +4612,15 @@
           "tableFrom": "character_embeddings",
           "tableTo": "characters",
           "columnsFrom": ["character_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "character_embeddings_generation_id_embed_generations_id_fk": {
+          "name": "character_embeddings_generation_id_embed_generations_id_fk",
+          "tableFrom": "character_embeddings",
+          "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -4804,6 +4818,11 @@
           "name": "chat_digests_scoped_character_idx",
           "columns": ["scoped_character_id"],
           "isUnique": false
+        },
+        "chat_digests_generation_idx": {
+          "name": "chat_digests_generation_idx",
+          "columns": ["generation_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -4821,6 +4840,15 @@
           "tableFrom": "chat_digests",
           "tableTo": "characters",
           "columnsFrom": ["scoped_character_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "chat_digests_generation_id_embed_generations_id_fk": {
+          "name": "chat_digests_generation_id_embed_generations_id_fk",
+          "tableFrom": "chat_digests",
+          "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -4938,6 +4966,11 @@
           "name": "chat_segments_chat_block_chunk_unique",
           "columns": ["chat_id", "block_idx", "chunk_idx", "generation_id"],
           "isUnique": true
+        },
+        "chat_segments_generation_idx": {
+          "name": "chat_segments_generation_idx",
+          "columns": ["generation_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -4946,6 +4979,15 @@
           "tableFrom": "chat_segments",
           "tableTo": "chats",
           "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "chat_segments_generation_id_embed_generations_id_fk": {
+          "name": "chat_segments_generation_id_embed_generations_id_fk",
+          "tableFrom": "chat_segments",
+          "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -5066,6 +5108,11 @@
           "name": "document_chunks_document_idx",
           "columns": ["document_id"],
           "isUnique": false
+        },
+        "document_chunks_generation_idx": {
+          "name": "document_chunks_generation_idx",
+          "columns": ["generation_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -5074,6 +5121,15 @@
           "tableFrom": "document_chunks",
           "tableTo": "documents",
           "columnsFrom": ["document_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "document_chunks_generation_id_embed_generations_id_fk": {
+          "name": "document_chunks_generation_id_embed_generations_id_fk",
+          "tableFrom": "document_chunks",
+          "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -5127,13 +5183,28 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "embed_generation_targets_generation_idx": {
+          "name": "embed_generation_targets_generation_idx",
+          "columns": ["generation_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "embed_generation_targets_owner_id_users_id_fk": {
           "name": "embed_generation_targets_owner_id_users_id_fk",
           "tableFrom": "embed_generation_targets",
           "tableTo": "users",
           "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "embed_generation_targets_generation_id_embed_generations_id_fk": {
+          "name": "embed_generation_targets_generation_id_embed_generations_id_fk",
+          "tableFrom": "embed_generation_targets",
+          "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -5242,6 +5313,15 @@
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "embed_generations_connection_id_user_connections_id_fk": {
+          "name": "embed_generations_connection_id_user_connections_id_fk",
+          "tableFrom": "embed_generations",
+          "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -5304,7 +5384,18 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "embed_space_state_active_generation_idx": {
+          "name": "embed_space_state_active_generation_idx",
+          "columns": ["active_generation_id"],
+          "isUnique": false
+        },
+        "embed_space_state_candidate_generation_idx": {
+          "name": "embed_space_state_candidate_generation_idx",
+          "columns": ["candidate_generation_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "embed_space_state_owner_id_users_id_fk": {
           "name": "embed_space_state_owner_id_users_id_fk",
@@ -5442,6 +5533,11 @@
           "name": "image_embeddings_asset_generation_lens_unique",
           "columns": ["asset_id", "generation_id", "lens"],
           "isUnique": true
+        },
+        "image_embeddings_generation_idx": {
+          "name": "image_embeddings_generation_idx",
+          "columns": ["generation_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -5450,6 +5546,15 @@
           "tableFrom": "image_embeddings",
           "tableTo": "assets",
           "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "image_embeddings_generation_id_embed_generations_id_fk": {
+          "name": "image_embeddings_generation_id_embed_generations_id_fk",
+          "tableFrom": "image_embeddings",
+          "tableTo": "embed_generations",
+          "columnsFrom": ["generation_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"

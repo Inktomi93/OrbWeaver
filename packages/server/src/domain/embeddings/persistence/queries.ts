@@ -1,4 +1,4 @@
-// All db access for the store + hub-score write paths. A vector upsert never writes `hub_score` — it's
+// DB access for the store, prune-provenance reads, and hub-score write paths. A vector upsert never writes `hub_score` — it's
 // absent from every `.values(...)` and `onConflictDoUpdate.set(...)` here; `hub_score` is written only by
 // {@link writeHubScoreRows}. `existing*Hash` reads the stored `content_hash` so the verb can short-circuit a
 // no-op before the expensive embed.
@@ -9,7 +9,17 @@ import type { Db } from "@orb/db";
 // vector tables carry no ownerId (D20: scope derives through the FK to the producer). A cross-domain READ
 // from `persistence/`, which is the sanctioned home for exactly that (own-tables-only scopes `persistence/`
 // out; `search/persistence/nearest.ts` joins the same table for the same reason).
-import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, documents, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import {
+  characterEmbeddings,
+  chatDigestSpeakers,
+  chatDigests,
+  chatParticipants,
+  chatSegments,
+  documentChunks,
+  documents,
+  imageEmbeddings,
+  imageIndexSkips,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type {
@@ -21,11 +31,12 @@ import type {
   ChatSegmentId,
   DocumentChunkId,
   DocumentId,
+  EmbedGenerationId,
   ImageEmbeddingId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { HubScoreUpdate, VectorTable } from "../contract/params.ts";
 import type { ExistingCaptionedRow } from "../contract/results.ts";
 
@@ -34,8 +45,27 @@ const LIMIT_ONE = 1;
 /** The lens whose row carries the caption + its facet breakdown (the other lens is pure pixels). */
 const IMAGE_CAPTION_LENS: ImageLens = "image-captioned";
 
+/** Resolve the funder for a post-ingest prune. This is an un-principaled worker read: databank has already
+ * authorized and selected the document before calling the injected embeddings verb. */
+// @orb-waive owner-scoped-reads(documents): same D20 un-principal seam as domain/databank/persistence/queries.ts::loadDocument — ingest/reindex runs after the enqueue authority check and this read derives the owner needed to pin the generation. Ends if ingest takes a documentId straight off a request.
+export async function loadDocumentOwnerForPrune(db: Db, documentId: DocumentId): Promise<UserId | null> {
+  const rows = await db.select({ ownerId: documents.ownerId }).from(documents).where(eq(documents.id, documentId)).limit(LIMIT_ONE);
+  return rows[0]?.ownerId ?? null;
+}
+
+/** Resolve the present host who funds a post-build memory prune. The memory builder has already selected
+ * the chat through its authorized workload path; this persistence read pins the corresponding generation. */
+export async function loadChatHostOwnerForPrune(db: Db, chatId: ChatId): Promise<UserId | null> {
+  const rows = await db
+    .select({ ownerId: chatParticipants.userId })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
+    .limit(LIMIT_ONE);
+  return rows[0]?.ownerId ?? null;
+}
+
 /** The stored `content_hash` for `(characterId, model)`, or `undefined` when no row exists yet. */
-export async function existingCharacterHash(db: Db, characterId: CharacterId, generationId: string): Promise<string | undefined> {
+export async function existingCharacterHash(db: Db, characterId: CharacterId, generationId: EmbedGenerationId): Promise<string | undefined> {
   const rows = await db
     .select({ hash: characterEmbeddings.contentHash })
     .from(characterEmbeddings)
@@ -45,7 +75,7 @@ export async function existingCharacterHash(db: Db, characterId: CharacterId, ge
 }
 
 /** The stored `content_hash` for `(assetId, model, lens)`, or `undefined` when no row exists yet. */
-export async function existingImageHash(db: Db, assetId: AssetId, lens: ImageLens, generationId: string): Promise<string | undefined> {
+export async function existingImageHash(db: Db, assetId: AssetId, lens: ImageLens, generationId: EmbedGenerationId): Promise<string | undefined> {
   const rows = await db
     .select({ hash: imageEmbeddings.contentHash })
     .from(imageEmbeddings)
@@ -55,7 +85,7 @@ export async function existingImageHash(db: Db, assetId: AssetId, lens: ImageLen
 }
 
 /** The captioned-lens row for `(assetId, model)` — hash + facet presence — or `undefined` when none exists. */
-export async function existingCaptionedRow(db: Db, assetId: AssetId, generationId: string): Promise<ExistingCaptionedRow | undefined> {
+export async function existingCaptionedRow(db: Db, assetId: AssetId, generationId: EmbedGenerationId): Promise<ExistingCaptionedRow | undefined> {
   const rows = await db
     .select({ hash: imageEmbeddings.contentHash, captionMeta: imageEmbeddings.captionMeta })
     .from(imageEmbeddings)
@@ -103,7 +133,7 @@ interface UpsertCharacterInput {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId: EmbedGenerationId;
   readonly dim: number;
   /** Epoch-ms from the injected clock — the insert's `created_at` (kept on a conflict update). */
   readonly now: number;
@@ -120,7 +150,7 @@ export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInp
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
-      generationId: input.generationId ?? input.model,
+      generationId: input.generationId,
       dim: input.dim,
       createdAt: input.now,
     })
@@ -147,7 +177,7 @@ interface UpsertImageInput {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId: EmbedGenerationId;
   readonly dim: number;
   readonly now: number;
 }
@@ -166,7 +196,7 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
-      generationId: input.generationId ?? input.model,
+      generationId: input.generationId,
       dim: input.dim,
       createdAt: input.now,
     })
@@ -189,7 +219,7 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
  *  short-circuit never compares against a different model's row. */
 export async function existingSegmentHash(
   db: Db,
-  key: { chatId: ChatId; blockIdx: number; chunkIdx: number; generationId: string },
+  key: { chatId: ChatId; blockIdx: number; chunkIdx: number; generationId: EmbedGenerationId },
 ): Promise<string | undefined> {
   const rows = await db
     .select({ hash: chatSegments.contentHash })
@@ -216,7 +246,7 @@ export async function existingDigestHash(
     scopedCharacterId: CharacterId;
     tier: number;
     blockIdx: number;
-    generationId: string;
+    generationId: EmbedGenerationId;
   },
 ): Promise<string | undefined> {
   const rows = await db
@@ -247,7 +277,7 @@ interface UpsertSegmentInput {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId: EmbedGenerationId;
   readonly dim: number;
   readonly now: number;
 }
@@ -270,7 +300,7 @@ export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Prom
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
-      generationId: input.generationId ?? input.model,
+      generationId: input.generationId,
       dim: input.dim,
       createdAt: input.now,
     })
@@ -301,7 +331,7 @@ interface UpsertDigestInput {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId: EmbedGenerationId;
   readonly dim: number;
   readonly now: number;
   /** The complete speaker projection for this digest. Replaced in the same atomic batch as the digest. */
@@ -318,7 +348,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
     eq(chatDigests.scopedCharacterId, input.scopedCharacterId),
     eq(chatDigests.tier, input.tier),
     eq(chatDigests.blockIdx, input.blockIdx),
-    eq(chatDigests.generationId, input.generationId ?? input.model),
+    eq(chatDigests.generationId, input.generationId),
   );
   const upsert = db
     .insert(chatDigests)
@@ -335,7 +365,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
-      generationId: input.generationId ?? input.model,
+      generationId: input.generationId,
       dim: input.dim,
       createdAt: input.now,
     })
@@ -378,7 +408,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
 /** The stored `content_hash` for a document chunk `(documentId, chunkIdx, model)`, or `undefined` when no row
  *  exists in that space. `model` scopes the read to the active `(model, dim)` space (PD-104 uniformity — the
  *  staleness short-circuit never compares against a different model's row). */
-export async function existingChunkHash(db: Db, documentId: DocumentId, chunkIdx: number, generationId: string): Promise<string | undefined> {
+export async function existingChunkHash(db: Db, documentId: DocumentId, chunkIdx: number, generationId: EmbedGenerationId): Promise<string | undefined> {
   const rows = await db
     .select({ hash: documentChunks.contentHash })
     .from(documentChunks)
@@ -433,7 +463,7 @@ interface UpsertDocumentChunkInput {
   readonly embedding: Float32Array;
   readonly contentHash: string;
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId: EmbedGenerationId;
   readonly dim: number;
   readonly now: number;
 }
@@ -454,7 +484,7 @@ export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInpu
       embedding: input.embedding,
       contentHash: input.contentHash,
       model: input.model,
-      generationId: input.generationId ?? input.model,
+      generationId: input.generationId,
       dim: input.dim,
       createdAt: input.now,
     })

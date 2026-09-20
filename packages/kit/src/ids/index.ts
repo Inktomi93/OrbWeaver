@@ -212,6 +212,8 @@ export type CharacterEmbeddingId = TypeIdOf<"character_embedding">;
 export type ChatDigestId = TypeIdOf<"chat_digest">;
 export type ChatSegmentId = TypeIdOf<"chat_segment">;
 export type ImageEmbeddingId = TypeIdOf<"image_embedding">;
+/** Deterministic SHA-256 identity for an owner/task/connection embedding generation; never TypeID-minted. */
+export type EmbedGenerationId = Branded<"EmbedGenerationId">;
 // Precompute rollup tables (discovery outputs).
 export type DuplicateCharacterPairId = TypeIdOf<"duplicate_character_pair">;
 export type DuplicateChatPairId = TypeIdOf<"duplicate_chat_pair">;

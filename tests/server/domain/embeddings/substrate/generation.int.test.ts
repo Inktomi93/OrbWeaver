@@ -3,13 +3,13 @@ import { documentChunks, embedGenerationTargets, embedSpaceState, userConnection
 import type { DocumentChunkId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { expect, test } from "vitest";
-import type { EmbeddingConnectionSnapshot } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
-import { markGenerationComplete } from "../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
-import { resolveTargetGeneration } from "../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
-import { freshDb } from "../../../support/db.ts";
-import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
-import { seedDocument, seedUser } from "./_support.ts";
+import type { EmbeddingConnectionSnapshot } from "../../../../../packages/server/src/domain/embeddings/contract/service.ts";
+import { markGenerationComplete } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
+import { resolveTargetGeneration } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { seedDocument, seedUser } from "../_support.ts";
 
 async function seedConnection(db: Db, ownerId: UserId, key: string): Promise<EmbeddingConnectionSnapshot> {
   const connectionId = castId<UserConnectionId>(`user_connection_generation_${key}`);

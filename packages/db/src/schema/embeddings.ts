@@ -52,7 +52,9 @@ import type {
   ChatSegmentId,
   DocumentChunkId,
   DocumentId,
+  EmbedGenerationId,
   ImageEmbeddingId,
+  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
@@ -72,6 +74,7 @@ import { checkList } from "../kit/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
+import { userConnections } from "./connection.ts";
 import { documents } from "./databank.ts";
 import { users } from "./users.ts";
 
@@ -101,15 +104,17 @@ const EMBED_GENERATION_TASK_CHECK_LIST = checkList(EMBED_GENERATION_TASKS);
 export const embedGenerations = sqliteTable(
   "embed_generations",
   {
-    id: text("id").primaryKey(),
+    id: text("id").$type<EmbedGenerationId>().primaryKey(),
     ownerId: text("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     task: text("task", { enum: EMBED_GENERATION_TASKS }).notNull(),
     via: text("via", { enum: EMBED_GENERATION_TASKS }).notNull(),
-    connectionId: text("connection_id"),
-    connectionRef: text("connection_ref").notNull(),
+    connectionId: text("connection_id")
+      .$type<UserConnectionId>()
+      .references(() => userConnections.id, { onDelete: "set null" }),
+    connectionRef: text("connection_ref").$type<UserConnectionId>().notNull(),
     fingerprint: text("fingerprint").notNull(),
     space: text("space").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -131,11 +136,18 @@ export const embedGenerationTargets = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     task: text("task", { enum: EMBED_GENERATION_TASKS }).notNull(),
-    generationId: text("generation_id").notNull(),
+    generationId: text("generation_id")
+      .$type<EmbedGenerationId>()
+      .notNull()
+      .references(() => embedGenerations.id, { onDelete: "cascade" }),
     epoch: integer("epoch").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
-  (t) => [primaryKey({ columns: [t.ownerId, t.task] }), check("embed_generation_targets_task_check", sql.raw(`task in (${EMBED_GENERATION_TASK_CHECK_LIST})`))],
+  (t) => [
+    primaryKey({ columns: [t.ownerId, t.task] }),
+    index("embed_generation_targets_generation_idx").on(t.generationId),
+    check("embed_generation_targets_task_check", sql.raw(`task in (${EMBED_GENERATION_TASK_CHECK_LIST})`)),
+  ],
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -164,13 +176,17 @@ export const characterEmbeddings = sqliteTable(
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag — `search`/`memory` compare only within one space.
     model: text("model").notNull(),
-    generationId: text("generation_id").notNull(),
+    generationId: text("generation_id")
+      .$type<EmbedGenerationId>()
+      .notNull()
+      .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     // One row per character per embedding space — the hash-gated upsert's ON CONFLICT target.
     uniqueIndex("character_embeddings_character_generation_unique").on(t.characterId, t.generationId),
+    index("character_embeddings_generation_idx").on(t.generationId),
   ],
 );
 
@@ -214,7 +230,10 @@ export const imageEmbeddings = sqliteTable(
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),
-    generationId: text("generation_id").notNull(),
+    generationId: text("generation_id")
+      .$type<EmbedGenerationId>()
+      .notNull()
+      .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -222,6 +241,7 @@ export const imageEmbeddings = sqliteTable(
     // Both lenses coexist idempotently per (asset, model): the upsert key. A re-embed of the same lens
     // collides here (ON CONFLICT DO UPDATE), so the table never doubles a lens for an asset in one space.
     uniqueIndex("image_embeddings_asset_generation_lens_unique").on(t.assetId, t.generationId, t.lens),
+    index("image_embeddings_generation_idx").on(t.generationId),
     // SQL-side enum enforcement derived from the tuple (mirrors the drizzle `{ enum }` type-side).
     check("image_embeddings_lens_check", sql.raw(`lens in (${IMAGE_LENS_CHECK_LIST})`)),
   ],
@@ -276,7 +296,10 @@ export const chatDigests = sqliteTable(
     keywords: text("keywords", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),
-    generationId: text("generation_id").notNull(),
+    generationId: text("generation_id")
+      .$type<EmbedGenerationId>()
+      .notNull()
+      .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -292,6 +315,7 @@ export const chatDigests = sqliteTable(
     // whose LEFTMOST column is constrained), so a character delete scanned every digest to CASCADE
     // (`fk-columns-indexed` gate).
     index("chat_digests_scoped_character_idx").on(t.scopedCharacterId),
+    index("chat_digests_generation_idx").on(t.generationId),
   ],
 );
 
@@ -343,7 +367,10 @@ export const chatSegments = sqliteTable(
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),
-    generationId: text("generation_id").notNull(),
+    generationId: text("generation_id")
+      .$type<EmbedGenerationId>()
+      .notNull()
+      .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -353,6 +380,7 @@ export const chatSegments = sqliteTable(
     // in the key (PD-104) so a `(model, dim)` change writes a NEW space additively rather than overwriting
     // the old one in place; the old space is reclaimed by the purge+reindex path. Uniform with all 5 producers.
     uniqueIndex("chat_segments_chat_block_chunk_unique").on(t.chatId, t.blockIdx, t.chunkIdx, t.generationId),
+    index("chat_segments_generation_idx").on(t.generationId),
     // #1378 item 4 — the span this chunk claims must be a real span. `seq` is a monotonic per-chat message
     // ordinal, so a negative bound names no message, and `start > end` claims a backwards range that every
     // reader resolving a hit back to canon would read as empty. `chunk_idx`/`block_idx` are reading-order
@@ -423,7 +451,10 @@ export const documentChunks = sqliteTable(
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),
-    generationId: text("generation_id").notNull(),
+    generationId: text("generation_id")
+      .$type<EmbedGenerationId>()
+      .notNull()
+      .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -431,6 +462,7 @@ export const documentChunks = sqliteTable(
     // The idempotent upsert key: one chunk per (document, chunkIdx, model).
     uniqueIndex("document_chunks_doc_chunk_generation_unique").on(t.documentId, t.chunkIdx, t.generationId),
     index("document_chunks_document_idx").on(t.documentId),
+    index("document_chunks_generation_idx").on(t.generationId),
     // #1378 item 4 (the document half) — `char_start`/`char_end` are offsets into
     // `documents.extractedText` with an exclusive end, so a negative offset points outside the text and
     // `start > end` is a backwards slice. Equal bounds stay legal: an empty span is representable.
@@ -520,8 +552,12 @@ export const embedSpaceState = sqliteTable(
     scope: text("scope", { enum: VECTOR_SCOPES }).notNull(),
     // The `(model[@dtype])` space tag (`embedSpaceOf`) the last COMPLETED sweep of this scope wrote — the
     // exact string `nearest.ts` filters on and `purgeStaleVectors` compares against.
-    activeGenerationId: text("active_generation_id").references(() => embedGenerations.id, { onDelete: "set null" }),
-    candidateGenerationId: text("candidate_generation_id").references(() => embedGenerations.id, { onDelete: "set null" }),
+    activeGenerationId: text("active_generation_id")
+      .$type<EmbedGenerationId>()
+      .references(() => embedGenerations.id, { onDelete: "set null" }),
+    candidateGenerationId: text("candidate_generation_id")
+      .$type<EmbedGenerationId>()
+      .references(() => embedGenerations.id, { onDelete: "set null" }),
     candidateEpoch: integer("candidate_epoch"),
     completedAt: integer("completed_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -529,6 +565,8 @@ export const embedSpaceState = sqliteTable(
     // One row per owner per scope — the mark verb's ON CONFLICT target (a completion OVERWRITES, it never
     // accretes: only the latest completed space is a true statement).
     primaryKey({ columns: [t.ownerId, t.scope] }),
+    index("embed_space_state_active_generation_idx").on(t.activeGenerationId),
+    index("embed_space_state_candidate_generation_idx").on(t.candidateGenerationId),
     check("embed_space_state_scope_check", sql.raw(`scope in (${VECTOR_SCOPE_CHECK_LIST})`)),
   ],
 );

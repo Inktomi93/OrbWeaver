@@ -5,8 +5,8 @@
 // aborts cooperatively (an aborted sweep does zero work).
 
 import type { Db } from "@orb/db";
-import { characters, chatDigests, chatSegments } from "@orb/db";
-import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import { characters, chatDigests, chatSegments, embedGenerations, userConnections } from "@orb/db";
+import type { CharacterHandle, CharacterId, ChatId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { logger } from "@orb/server/foundation/observability";
@@ -63,7 +63,19 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
     await seedTurns(db, room, aria, 4);
 
-    const embeddings = createEmbeddingsService(makeStoreHarness(db).ctx);
+    const harness = makeStoreHarness(db);
+    const resolved = await harness.roleClients.resolved("embed");
+    if (resolved === null) {
+      throw new Error("expected test embed connection");
+    }
+    await db.insert(userConnections).values({
+      id: resolved.connectionId,
+      ownerId: host,
+      label: "memory backfill embed",
+      providerId: resolved.providerId,
+      model: resolved.model,
+    });
+    const embeddings = createEmbeddingsService(harness.ctx);
     const ctx = makeChatContext(db, {
       summarize: fakeSummarize().op,
       resolveMemoryEmbedSpace: async (ownerId) => {
@@ -125,7 +137,18 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
 
     const oldSpace = "retired-embed-space";
-    await db.update(chatDigests).set({ model: oldSpace, generationId: "retired-generation" }).where(eq(chatDigests.chatId, room));
+    const retiredGenerationId = castId<EmbedGenerationId>("embed_generation_retired_backfill");
+    await db.insert(embedGenerations).values({
+      id: retiredGenerationId,
+      ownerId: host,
+      task: "embed",
+      via: "embed",
+      connectionId: resolved.connectionId,
+      connectionRef: resolved.connectionId,
+      fingerprint: "retired-backfill-space",
+      space: oldSpace,
+    });
+    await db.update(chatDigests).set({ model: oldSpace, generationId: retiredGenerationId }).where(eq(chatDigests.chatId, room));
 
     const completed = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
     const receipt = completed.completedSpaces[0];
@@ -159,7 +182,12 @@ describe("backfillMemory — the chat × scope enumeration", () => {
       embeddingsStore: store.store,
       embeddingsStoreSegments: async (params) => {
         await store.storeSegments(params);
-        return params.map((param) => ({ ownerId: param.ownerId, model: "drifted-space", generationId: "drifted-generation", generationEpoch: 2 }));
+        return params.map((param) => ({
+          ownerId: param.ownerId,
+          model: "drifted-space",
+          generationId: castId<EmbedGenerationId>("embed_generation_drifted"),
+          generationEpoch: 2,
+        }));
       },
     });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });

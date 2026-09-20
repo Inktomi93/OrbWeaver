@@ -4,7 +4,7 @@
 // strict superset, never a gap). `group-character-backfill` (PD-41/D38) projects its mint counts.
 
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
-import type { UserId } from "@orb/kit/ids";
+import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { ChatWorkloadDeps } from "../../../../packages/server/src/domain/chat/contract/workloads.ts";
@@ -12,6 +12,7 @@ import { createChatWorkloadContributions } from "../../../../packages/server/src
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
+const GENERATION_ID = castId<EmbedGenerationId>("embed_generation_workload");
 const T0 = 1_700_000_000_000;
 const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () => T0 };
 const bulkCtx: WorkloadRunContext = { ...ctx, ownerId: null };
@@ -29,7 +30,7 @@ function build(
       digests: { scanned: 6, changed: 3 },
       segmentsSkippedOverWindow,
       failed,
-      completedSpaces: [{ ownerId: OWNER_ID, model: "embed-space", generationId: "test-generation", generationEpoch: 1 }],
+      completedSpaces: [{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }],
     })),
     backfillGroupCharacters: vi.fn(async () => ({ scanned: 5, changed: 1 })),
     purgeMemoryVectors: vi.fn(async () => undefined),
@@ -51,7 +52,7 @@ describe("memory-backfill", () => {
     await contributions[0].run(bulkCtx, {}, vi.fn(), sig());
     expect(deps.backfillMemory).toHaveBeenCalledWith({ funderUserId: OWNER_ID, ownerId: null, signal: expect.any(AbortSignal) });
     expect(deps.purgeMemoryVectors).toHaveBeenCalledTimes(1);
-    expect(deps.purgeMemoryVectors).toHaveBeenCalledWith([{ ownerId: OWNER_ID, model: "embed-space", generationId: "test-generation", generationEpoch: 1 }]);
+    expect(deps.purgeMemoryVectors).toHaveBeenCalledWith([{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }]);
   });
 
   test("a SINGULAR per-owner run does NOT purge (a model change is box-level)", async () => {

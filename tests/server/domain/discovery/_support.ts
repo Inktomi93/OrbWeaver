@@ -23,6 +23,7 @@ import {
   imageEmbeddings,
   messages,
   messageVariants,
+  userConnections,
   users,
 } from "@orb/db";
 import type {
@@ -34,12 +35,14 @@ import type {
   ChatParticipantId,
   DuplicateCharacterPairId,
   DuplicateChatPairId,
+  EmbedGenerationId,
   Handle,
   ImageEmbeddingId,
   KeywordCooccurrenceId,
   MessageId,
   MessageVariantId,
   ThemeClusterId,
+  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -65,8 +68,18 @@ const VECTOR_DIM = 1024;
 /** The default embed model the seeders tag rows with (the `(model)` space tag). */
 export const EMBED_MODEL = "test-embed-model-1024";
 
-async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed", model: string): Promise<string> {
-  const id = `embed_generation_${ownerId}_${task}_${model}`;
+async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed", model: string): Promise<EmbedGenerationId> {
+  const clients = makeFakeRoleClients(task === "embed" ? { embedModel: model } : { imageEmbedModel: model });
+  const resolved = await clients.resolved(task);
+  if (resolved === null) {
+    throw new Error(`missing test ${task} connection`);
+  }
+  const connectionId = castId<UserConnectionId>(`user_connection_${ownerId}_${task}`);
+  await db
+    .insert(userConnections)
+    .values({ id: connectionId, ownerId, label: `Test ${task}`, providerId: resolved.providerId, model })
+    .onConflictDoNothing();
+  const id = castId<EmbedGenerationId>(`embed_generation_${ownerId}_${task}_${model}`);
   await db
     .insert(embedGenerations)
     .values({
@@ -74,8 +87,8 @@ async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmb
       ownerId,
       task,
       via: task,
-      connectionId: null,
-      connectionRef: `test:${task}`,
+      connectionId,
+      connectionRef: connectionId,
       fingerprint: `test:${task}:${model}`,
       space: model,
       createdAt: FROZEN_AT,

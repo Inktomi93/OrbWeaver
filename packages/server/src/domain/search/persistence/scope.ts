@@ -5,13 +5,13 @@
 
 import type { BlockKey } from "@orb/contracts/search";
 import { characters, chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 interface DigestScopeParams {
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId?: EmbedGenerationId | undefined;
   readonly chatIds?: readonly ChatId[] | undefined;
   readonly ownerId?: UserId | undefined;
   readonly scopedCharacterId?: CharacterId | undefined;
@@ -65,7 +65,7 @@ export function digestScopeCond(params: DigestScopeParams): SQL | undefined {
 
 interface SegmentScopeParams {
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId?: EmbedGenerationId | undefined;
   readonly chatIds: readonly ChatId[];
   readonly candidates?: readonly BlockKey[] | undefined;
 }

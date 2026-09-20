@@ -38,12 +38,25 @@ import {
   embedGenerations,
   messages,
   regexScripts,
+  userConnections,
   worldBooks,
   worldEntries,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, Handle, RegexScriptId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type {
+  CharacterHandle,
+  CharacterId,
+  ChatDigestId,
+  ChatId,
+  EmbedGenerationId,
+  Handle,
+  RegexScriptId,
+  UserConnectionId,
+  UserId,
+  WorldBookId,
+  WorldEntryId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -295,14 +308,16 @@ describe("the accepted offer — the room moves onto the copies", () => {
     const otherChatId = await seedChat(db, "b");
     const mine = castId<ChatDigestId>("chat_digest_mine");
     const theirs = castId<ChatDigestId>("chat_digest_theirs");
-    const generationId = "embed_generation_handoff_copy";
+    const generationId = castId<EmbedGenerationId>("embed_generation_handoff_copy");
+    const connectionId = castId<UserConnectionId>("user_connection_handoff_copy");
+    await db.insert(userConnections).values({ id: connectionId, ownerId: host, label: "handoff copy embed", providerId: castId("custom-openai"), model: "m" });
     await db.insert(embedGenerations).values({
       id: generationId,
       ownerId: host,
       task: "embed",
       via: "embed",
-      connectionId: null,
-      connectionRef: "test:embed",
+      connectionId,
+      connectionRef: connectionId,
       fingerprint: "test:handoff-copy",
       space: "m",
     });

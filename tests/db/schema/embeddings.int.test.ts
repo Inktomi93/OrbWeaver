@@ -19,9 +19,22 @@ import {
   embedGenerations,
   imageEmbeddings,
   imageIndexSkips,
+  userConnections,
 } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
-import type { AssetId, CharacterEmbeddingId, CharacterHandle, CharacterId, ChatDigestId, ChatSegmentId, Handle, ImageEmbeddingId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterEmbeddingId,
+  CharacterHandle,
+  CharacterId,
+  ChatDigestId,
+  ChatSegmentId,
+  EmbedGenerationId,
+  Handle,
+  ImageEmbeddingId,
+  UserConnectionId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
@@ -36,8 +49,13 @@ function rampVector(): Float32Array {
   return Float32Array.from({ length: DIM }, (_unused, i) => i / DIM);
 }
 
-async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<string> {
-  const id = `embed_generation_${ownerId}_${task}_${MODEL}`;
+async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<EmbedGenerationId> {
+  const connectionId = castId<UserConnectionId>(`user_connection_${ownerId}_${task}_${MODEL}`);
+  await db
+    .insert(userConnections)
+    .values({ id: connectionId, ownerId, label: `Test ${task} ${MODEL}`, providerId: castId("custom-openai"), model: MODEL })
+    .onConflictDoNothing();
+  const id = castId<EmbedGenerationId>(`embed_generation_${ownerId}_${task}_${MODEL}`);
   await db
     .insert(embedGenerations)
     .values({
@@ -45,8 +63,8 @@ async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmb
       ownerId,
       task,
       via: task,
-      connectionId: null,
-      connectionRef: `test:${task}`,
+      connectionId,
+      connectionRef: connectionId,
       fingerprint: `test:${task}:${MODEL}`,
       space: MODEL,
     })
