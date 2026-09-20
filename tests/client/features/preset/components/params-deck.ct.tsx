@@ -15,7 +15,6 @@
 // its `aria-label`, which is `"<label> value"`; the SLIDER carries the bare `"<label>"` (the role is not part
 // of a name — F-27). The split is the 2026-08-19 P1-2 fix: the pair used to share one name exactly.
 
-import { removeActionName } from "@orb/client/lib";
 import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -28,12 +27,9 @@ import {
   ParamsDeckCapabilityErrorStory,
   ParamsDeckCapabilityNonRoutingStory,
   ParamsDeckCapabilityTransportFailureStory,
-  ParamsDeckCustomParamsResetStory,
-  ParamsDeckCustomParamsStory,
   ParamsDeckExplicitStory,
   ParamsDeckGhostStory,
   ParamsDeckLogitBiasSwitchStory,
-  ParamsDeckNoCustomParamsStory,
   ParamsDeckPendingCapabilityStory,
   ParamsDeckStaleStory,
 } from "./_params-deck-stories.tsx";
@@ -442,158 +438,15 @@ test("CAPABILITY ERROR (no tRPC data — a transport failure) — the band state
   await expect(deck.getByText(READ_HEADLINE_RE)).toBeVisible();
 });
 
-test("ADVANCED — the ONE collapsed disclosure; it opens onto the escape hatches + the custom-parameter editor", async ({ mount }) => {
-  const deck = await mount(<ParamsDeckCustomParamsStory />);
+test("ADVANCED — the ONE collapsed disclosure; it opens onto the escape hatches", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
 
   await expect(deck.getByLabel("Logit bias", { exact: true })).toBeHidden();
   await deck.getByRole("button", { name: "Advanced" }).click();
 
   await expect(deck.getByLabel("Logit bias", { exact: true })).toBeVisible();
   await expect(deck.getByRole("switch", { name: "Parallel tool calls" })).toBeVisible();
-  // D143a: the stored blob is AUTHORABLE — every key is a real cell, not a read-only list of names.
-  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("dry_multiplier");
-  await expect(deck.getByRole("textbox", { name: "Parameter 1 value" })).toHaveValue("0.8");
   await expect(deck.getByText(CLAUDE_ENV_RE)).toBeVisible();
-});
-
-// ── ADVANCED ▸ customParameters: the escape hatch is authored here (D143a) ────────────────────────────
-
-/** The escape hatch's scope sentence — the D143 posture, stated where it is authored. */
-const CUSTOM_SCOPE_RE = /Sent verbatim on a Local vLLM or Custom OpenAI-compatible connection; OpenRouter ignores them/;
-/** The autosave header's HELD arm — what the status must read while a row is unfinished. */
-const NOT_SAVED = "Not saved";
-/** The value-cell refusal and two belt warnings. */
-const INVALID_JSON_RE = /Not valid JSON/;
-const BELT_STREAM_RE = /The local engine owns stream — it is dropped from a vLLM request/;
-const BELT_DRY_RE = /The local engine owns dry_multiplier/;
-
-/** Open ADVANCED, where the editor lives. */
-async function openAdvanced(deck: Locator): Promise<void> {
-  await deck.getByRole("button", { name: "Advanced" }).click();
-}
-
-test("CUSTOM PARAMS — Add mints a row and writes it; the scope copy states what each backend does with it", async ({ mount }) => {
-  const deck = await mount(<ParamsDeckNoCustomParamsStory />);
-  await openAdvanced(deck);
-
-  // The EMPTY arm names its state and offers the one action.
-  await expect(deck.getByText("No custom parameters on this preset.", { exact: true })).toBeVisible();
-  await expect(deck.getByText(CUSTOM_SCOPE_RE)).toBeVisible();
-
-  await deck.getByRole("button", { name: "Add parameter" }).click();
-  await deck.getByRole("textbox", { name: "Parameter 1 name" }).fill("dry_multiplier");
-  await deck.getByRole("textbox", { name: "Parameter 1 value" }).fill("0.8");
-
-  // THE PIN: the authored pair reaches the SAVED config — the read-only row could store nothing at all.
-  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('custom={"dry_multiplier":0.8}');
-});
-
-test("CUSTOM PARAMS — a JSON value is parsed, not stringified: objects and arrays round-trip as themselves", async ({ mount }) => {
-  const deck = await mount(<ParamsDeckNoCustomParamsStory />);
-  await openAdvanced(deck);
-
-  await deck.getByRole("button", { name: "Add parameter" }).click();
-  await deck.getByRole("textbox", { name: "Parameter 1 name" }).fill("transforms");
-  await deck.getByRole("textbox", { name: "Parameter 1 value" }).fill('["middle-out"]');
-
-  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('custom={"transforms":["middle-out"]}');
-});
-
-test("CUSTOM PARAMS — invalid JSON is refused INLINE and HOLDS the save (the header may not read Saved)", async ({ mount }) => {
-  const deck = await mount(<ParamsDeckCustomParamsStory />);
-  await openAdvanced(deck);
-
-  await deck.getByRole("textbox", { name: "Parameter 1 value" }).fill("{oops");
-
-  // The refusal is on the row, in words, and the value is still there to fix.
-  await expect(deck.getByText(INVALID_JSON_RE)).toBeVisible();
-  await expect(deck.getByRole("textbox", { name: "Parameter 1 value" })).toHaveValue("{oops");
-  // …and the write is HELD: an editor that dropped the row silently would still read "Saved".
-  await expect(deck.getByText(NOT_SAVED, { exact: true })).toBeVisible();
-
-  // Fixing it releases the hold and the corrected value lands.
-  await deck.getByRole("textbox", { name: "Parameter 1 value" }).fill("0.9");
-  await expect(deck.getByText(NOT_SAVED, { exact: true })).toBeHidden();
-  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('"dry_multiplier":0.9');
-});
-
-test("CUSTOM PARAMS — a belt-owned key is warned at EDIT time, not learned from a turn", async ({ mount }) => {
-  const deck = await mount(<ParamsDeckCustomParamsStory />);
-  await openAdvanced(deck);
-
-  // The story's second row IS a belt key: the warning names it and says what actually happens.
-  await expect(deck.getByRole("textbox", { name: "Parameter 2 name" })).toHaveValue("stream");
-  await expect(deck.getByText(BELT_STREAM_RE)).toBeVisible();
-
-  // A key the belt does NOT own carries no warning (the warning is per-key, not per-editor).
-  await expect(deck.getByText(BELT_DRY_RE)).toHaveCount(0);
-});
-
-test("CUSTOM PARAMS — remove drops the row, and clearing the LAST one unsets the field", async ({ mount }) => {
-  const deck = await mount(<ParamsDeckCustomParamsStory />);
-  await openAdvanced(deck);
-
-  await deck.getByRole("button", { name: removeActionName("stream") }).click();
-  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('custom={"dry_multiplier":0.8}');
-
-  await deck.getByRole("button", { name: removeActionName("dry_multiplier") }).click();
-  // `null` is the harness's spelling of an ABSENT field — an empty `{}` would persist a lie about intent.
-  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("custom=null");
-  await expect(deck.getByText("No custom parameters on this preset.", { exact: true })).toBeVisible();
-});
-
-test("CUSTOM PARAMS — a blank or duplicate name is refused and holds the save", async ({ mount }) => {
-  const deck = await mount(<ParamsDeckCustomParamsStory />);
-  await openAdvanced(deck);
-
-  await deck.getByRole("textbox", { name: "Parameter 1 name" }).fill("");
-  await expect(deck.getByText("Give this parameter a name.", { exact: true })).toBeVisible();
-  await expect(deck.getByText(NOT_SAVED, { exact: true })).toBeVisible();
-
-  // A duplicate marks BOTH halves — marking only the second reads as "the first one is fine".
-  await deck.getByRole("textbox", { name: "Parameter 1 name" }).fill("stream");
-  await expect(deck.getByText("Another parameter already uses this name.", { exact: true })).toHaveCount(2);
-  await expect(deck.getByText(NOT_SAVED, { exact: true })).toBeVisible();
-});
-
-test.describe("coarse pointer — the custom-parameter row at the NARROWEST real mount", () => {
-  test.use({ hasTouch: true, isMobile: true, viewport: { width: 430, height: 932 } });
-
-  test("both cells and the remove door stay inside the row, and the door clears the touch floor", async ({ mount, page }) => {
-    // The repo's most common rendered defect is a `shrink-0` trailing cluster sized in a wide context. This
-    // row carries one (the remove door) beside two flexing text cells, so it is measured where it is
-    // tightest — a phone, at coarse pointer, where the floor token is at its largest.
-    const deck = await mount(<ParamsDeckCustomParamsStory />);
-    await openAdvanced(deck);
-    await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toBeVisible();
-
-    const door = page.getByRole("button", { name: removeActionName("dry_multiplier") });
-    // The door NAME crosses into the page as an ARGUMENT, never a closure: an `evaluate` body is serialized
-    // and run in the BROWSER, where this spec's node-side import does not exist.
-    const measured = await page.evaluate((doorName: string) => {
-      const probe = document.createElement("div");
-      probe.style.width = "var(--spacing-touch-target)";
-      document.body.append(probe);
-      const floor = Number.parseFloat(getComputedStyle(probe).width);
-      probe.remove();
-
-      const domDoor = document.querySelector(`button[aria-label="${doorName}"]`);
-      const box = domDoor?.getBoundingClientRect();
-      const row = domDoor?.parentElement?.getBoundingClientRect();
-      const cells = [...document.querySelectorAll('input[aria-label^="Parameter 1 "]')].map((el) => el.getBoundingClientRect());
-      return {
-        floor,
-        overflow: cells.some((cell) => row !== undefined && cell.right > row.right + 1),
-        doorOverflow: (box?.right ?? 0) > (row?.right ?? 0) + 1,
-      };
-    }, removeActionName("dry_multiplier"));
-
-    expect(measured.floor, "the touch-target token must resolve, or this assertion is vacuous").toBeGreaterThan(0);
-    await expect.poll(async () => (await boxWithBeforeFloor(door, measured.floor)).x).toBeGreaterThanOrEqual(measured.floor);
-    await expect.poll(async () => (await boxWithBeforeFloor(door, measured.floor)).y).toBeGreaterThanOrEqual(measured.floor);
-    expect(measured.overflow, "a value cell spilling past the row is the squeeze this mount exists to catch").toBe(false);
-    expect(measured.doorOverflow, "the remove door must not be pushed out of the row").toBe(false);
-  });
 });
 
 // ── THE FOLDED ROW HAS A VALUE COLUMN (side-eye 2026-08-30 P2-C) ──────────────────────────────────────
@@ -951,101 +804,10 @@ test.describe("coarse pointer — every knob explainer clears the touch floor", 
   });
 });
 
-// ── #1520 item 1 · A PRESET RESET MUST REACH THE CUSTOM-PARAMETER ROWS ────────────────────────────
-// The editor seeded `rows` ONCE, on the reasoning that the session boundary remounts this subtree whenever
-// the server row underneath changes. That is TRUE OF AN ENTITY SWITCH — the boundary bumps a remount key —
-// and FALSE OF A RESET: the clean server-echo path pushes the new truth in with `form.setFieldValue` on the
-// still-mounted form, which remounts nothing. So after a reset the rows still held the PRE-reset values,
-// and the next add/remove/edit rebuilt the whole `customParameters` record from them — writing the stale
-// parameters back over the freshly-reset server value, plus that one edit.
-//
-// Asserted on the RENDERED CELLS, which is what the reader sees and what the next `commit()` would send.
-test("CUSTOM PARAMS — a RESET reseeds the rows; the pre-reset keys do not survive it (#1520)", async ({ mount }) => {
-  const deck = await mount(<ParamsDeckCustomParamsResetStory />);
-  await openAdvanced(deck);
-
-  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("dry_multiplier");
-  await expect(deck.getByRole("textbox", { name: "Parameter 2 name" })).toHaveValue("stream");
-
-  await deck.getByRole("button", { name: "Reset the preset" }).click();
-
-  // The reset value, and ONLY it. A surviving `dry_multiplier` cell is the defect: it is the value the next
-  // edit's `commit()` would write back over the server's fresh one.
-  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("top_a");
-  await expect(deck.getByRole("textbox", { name: "Parameter 1 value" })).toHaveValue("0.1");
-  await expect(deck.getByRole("textbox", { name: "Parameter 2 name" })).toHaveCount(0);
-});
-
-// ── #1588 · THE RESEED AND THE TWO-WRITER RULING, MEASURED ────────────────────────────────────────
-// #1588 read `custom-parameters-editor.tsx`'s render-time reseed as the OPPOSITE arm of the #1561 ruling —
-// a reseed that discards in-progress typing when a second writer moves the field. MEASURED, it is not: the
-// only writer that can move `customParameters` on a STILL-MOUNTED form is
-// `create-autosave-entity-form.tsx`'s clean server-echo effect, and that effect is gated on
-// `saveState !== "saving" && !hasUnsavedEdits(...)`. Every keystroke in this editor goes through
-// `commit()` → `form.setFieldValue`, so typing makes the form dirty and the echo cannot fire — the value
-// the rows are reseeded FROM only ever moves while there is nothing unsaved to lose. Routing the commit
-// through `lib/edit-session.ts` would put a second, weaker copy of that decision inside the editor, and
-// would have to refuse the #1520 case the pin below requires.
-//
-// THESE THREE ARE FENCES, NOT DEFECT PROOFS — all three pass on the pre-#1588 source, which is the finding.
-// What they buy is that the guard is now asserted where the class is read: if a future writer pushes
-// `serverValues` in without the clean gate, or the editor starts committing somewhere other than the form,
-// these go red instead of the defect shipping.
-
-/** The reset has LANDED and the form has had its chance to react to it: the story's marker mounts on the
- *  commit that hands the new `serverValues` down, and two animation frames past that is strictly after
- *  React has flushed that commit's passive effects — which is where
- *  `create-autosave-entity-form.tsx`'s clean server-echo reseed lives. A `waitForTimeout` here would be a
- *  guess; this is the event. */
-async function resetLanded(deck: Locator, page: Page): Promise<void> {
-  await expect(deck.getByTestId("params-deck-reset-applied")).toBeVisible();
-  await page.waitForFunction(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))), undefined, {
-    polling: "raf",
-  });
+/** Open ADVANCED, where the logit-bias box lives. */
+async function openAdvanced(deck: Locator): Promise<void> {
+  await deck.getByRole("button", { name: "Advanced" }).click();
 }
-
-test("RESEED — an edit the form's validity gate is HOLDING survives a reset arriving underneath it (#1588)", async ({ mount, page }) => {
-  const deck = await mount(<ParamsDeckCustomParamsResetStory />);
-  await openAdvanced(deck);
-  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("dry_multiplier");
-
-  // An UNFINISHED row: `not json` never parses, so the row commits the pending `undefined` marker, the form
-  // is invalid and the save driver holds every write. These keystrokes exist nowhere but the box.
-  await deck.getByRole("textbox", { name: "Parameter 1 value" }).fill("not json");
-  await expect(deck.getByText("Not valid JSON", { exact: false })).toBeVisible();
-
-  await deck.getByRole("button", { name: "Reset the preset" }).click();
-  await resetLanded(deck, page);
-
-  await expect(deck.getByRole("textbox", { name: "Parameter 1 value" })).toHaveValue("not json");
-});
-
-test("RESEED — an edit still inside the autosave debounce survives one too (#1588)", async ({ mount, page }) => {
-  const deck = await mount(<ParamsDeckCustomParamsResetStory />);
-  await openAdvanced(deck);
-  // VALID, so nothing holds it — but not yet saved, which is the narrower window.
-  await deck.getByRole("textbox", { name: "Parameter 1 name" }).fill("dry_range");
-  await deck.getByRole("button", { name: "Reset the preset" }).click();
-  await resetLanded(deck, page);
-
-  // Last-writer-wins is the form's documented posture: the edit is kept and saved, and the reset that
-  // arrived mid-edit is what loses. What must NOT happen is the keystrokes vanishing from the box.
-  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("dry_range");
-  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('"dry_range"');
-});
-
-test("RESEED — an edit already SAVED is replaced by the reset, which is the #1520 arm (#1588)", async ({ mount, page }) => {
-  const deck = await mount(<ParamsDeckCustomParamsResetStory />);
-  await openAdvanced(deck);
-  await deck.getByRole("textbox", { name: "Parameter 1 value" }).fill("0.9");
-  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('"dry_multiplier":0.9');
-
-  await deck.getByRole("button", { name: "Reset the preset" }).click();
-  await resetLanded(deck, page);
-
-  // Nothing unsaved to lose, so the arrived truth wins — the reseed doing exactly its job.
-  await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toHaveValue("top_a");
-});
 
 // ── #1570 item 3 · THE BOX ALWAYS SHOWS WHAT THE PRESET HOLDS, IN BOTH DIRECTIONS ────────────────
 // The field's own ruling is "a blur re-mounts with the CANONICAL serialization of what was actually stored

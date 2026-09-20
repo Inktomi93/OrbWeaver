@@ -35,7 +35,7 @@ const STORY_CAPABILITY = makeGenerationCapability({
     seed: true,
     stop: true,
   },
-  output: { maxTokens: { min: 1, max: 8192 } },
+  output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
   context: { window: 32_768 },
 });
 
@@ -166,52 +166,32 @@ export function ParamsDeckCapabilityTransportFailureStory(): ReactElement {
   return <DeckHarness capability={null} capabilityError={readError(undefined, "Failed to fetch")} effective={undefined} params={{}} />;
 }
 
-/** The deck carrying a stored `customParameters` blob — the ADVANCED editor's populated arm (D143a). One
- *  plain sampler key and one BELT-OWNED key, so the per-row drop warning has a subject. */
-export function ParamsDeckCustomParamsStory(): ReactElement {
-  // Built from PAIRS: the keys are provider wire names (snake_case), which an object literal would put
-  // through the camelCase naming rule.
-  const stored = Object.fromEntries([
-    ["dry_multiplier", 0.8],
-    ["stream", false],
-  ]);
-  return <DeckHarness customParameters={stored} effective={GHOST_EFFECTIVE} params={{}} />;
-}
-
-/** The deck with NO stored blob — the editor's empty arm, where Add is the only affordance. */
-export function ParamsDeckNoCustomParamsStory(): ReactElement {
-  return <DeckHarness effective={GHOST_EFFECTIVE} params={{}} />;
-}
-
 interface DeckHarnessProps {
   readonly params: PromptConfig["params"];
   readonly effective: Parameters<typeof ParamsDeck>[0]["effective"];
   /** `null` = the no-model arm. A defaulted `undefined` would silently fall back to the story capability,
    *  which is exactly the mistake that made the gate story render a model's knobs. */
   readonly capability?: Parameters<typeof ParamsDeck>[0]["capability"] | null;
-  /** The stored escape-hatch blob the ADVANCED editor seeds from. */
-  readonly customParameters?: PromptConfig["customParameters"];
   /** The capability read's THROWN error — passed WHOLE so the gate reads `data.code` (side-eye F-02 + the
    *  2026-08-08 earned-cause fix). `null` = PENDING. */
   readonly capabilityError?: ReadFailure | null;
 }
 
 /** The shared harness: the REAL deck under the REAL autosave boundary, with the last-saved params KEY SET
- *  mirrored to an `<output>` (the key-minimal patch proof) plus the last-saved value of each knob, and the
- *  escape-hatch blob as it was actually written. The header's REAL `AutosaveStatus` rides along: the
+ *  mirrored to an `<output>` (the key-minimal patch proof) plus the last-saved value of each knob. The header's REAL `AutosaveStatus` rides along: the
  *  editor's saved-truth arm is a claim about what that affordance says, so the story must render it rather
  *  than a stand-in. */
-function DeckHarness({ params, effective, capability = STORY_CAPABILITY, customParameters, capabilityError = null }: DeckHarnessProps): ReactElement {
+function DeckHarness({ params, effective, capability = STORY_CAPABILITY, capabilityError = null }: DeckHarnessProps): ReactElement {
   const resolvedCapability = capability ?? undefined;
   const [saved, setSaved] = useState("keys=- ");
   const save = (values: PromptConfig): Promise<void> => {
     const entries = Object.entries(values.params).filter(([, value]) => value !== undefined);
     const keys = entries.map(([key]) => key).sort();
     const pairs = entries.map(([key, value]) => `${key}:${JSON.stringify(value)}`).sort();
-    setSaved(`keys=${keys.join(",")} values=${pairs.join(",")} custom=${JSON.stringify(values.customParameters ?? null)}`);
+    setSaved(`keys=${keys.join(",")} values=${pairs.join(",")}`);
     return Promise.resolve();
   };
-  const serverValues: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, params, ...(customParameters === undefined ? {} : { customParameters }) };
+  const serverValues: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, params };
   return (
     <StoryForm entityId={STORY_PRESET} save={save} serverValues={serverValues}>
       {(session): ReactElement => (
@@ -236,38 +216,9 @@ function DeckHarness({ params, effective, capability = STORY_CAPABILITY, customP
   );
 }
 
-/** THE PRESET RESET AS THE FORM PERFORMS IT (#1520 item 1) — a clean SERVER-ECHO reseed, which is a
- *  different path from an entity SWITCH and the whole reason the defect existed. A switch bumps the
- *  boundary's remount key and the editor reseeds for free; a reset arrives as new `serverValues` on the
- *  STILL-MOUNTED form, which `create-autosave-entity-form.tsx` pushes in with `form.setFieldValue` field by
- *  field, remounting nothing. The button swaps the stored blob to model exactly that. */
-export function ParamsDeckCustomParamsResetStory(): ReactElement {
-  const [reset, setReset] = useState(false);
-  // Built from PAIRS for the same reason the sibling story is: these keys are provider wire names.
-  const before = Object.fromEntries([
-    ["dry_multiplier", 0.8],
-    ["stream", false],
-  ]);
-  const after = Object.fromEntries([["top_a", 0.1]]);
-  return (
-    <>
-      <button onClick={(): void => setReset(true)} type="button">
-        Reset the preset
-      </button>
-      {/* The RESET'S OWN LANDING MARKER (#1588). The three reseed fences assert that something did NOT
-          happen, so they need a positive signal that the new `serverValues` actually reached the form —
-          otherwise they are asserting against a reset that had not been delivered yet, which is a sleep
-          wearing a barrier's clothes. This node mounts on the SAME commit that hands the new blob down. */}
-      {reset ? <p data-testid="params-deck-reset-applied">reset applied</p> : null}
-      <DeckHarness customParameters={reset ? after : before} effective={GHOST_EFFECTIVE} params={{}} />
-    </>
-  );
-}
-
 /** A LOGIT-BIAS map that CHANGES on a still-mounted form — #1502's own case, and the property the blur epoch
  *  must not have weakened: the box belongs to the preset, so a switch REPLACES its text rather than leaving
- *  the previous preset's JSON sitting there for the next blur to write back. Same reseed path as the
- *  custom-parameters story above (new `serverValues`, no remount key bump), because that is what a preset
+ *  the previous preset's JSON sitting there for the next blur to write back. Same reseed path as a preset reset (new `serverValues`, no remount key bump), because that is what a preset
  *  switch does to this subtree. */
 export function ParamsDeckLogitBiasSwitchStory(): ReactElement {
   const [switched, setSwitched] = useState(false);

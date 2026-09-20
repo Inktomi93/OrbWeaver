@@ -9,7 +9,7 @@
 // compiler world has no DOM lib, and `@orb/client/features/user-admin` re-exports section `.tsx` that pull
 // `@orb/ui` browser primitives behind them. The browser world is where a pin behind a feature barrel lives.
 
-import { restartEngineName, revokeSessionName, userActionsName, userEnabledFieldName, userRoleFieldName } from "@orb/client/features/user-admin";
+import { revokeSessionName, userActionsName, userEnabledFieldName, userRoleFieldName } from "@orb/client/features/user-admin";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -22,5 +22,4 @@ test("each per-row admin control names its own subject, in the pane's own gramma
   // the admin table hears the handle first, which is the column it is scanning.
   expect(userActionsName(castId<Handle>("kes"))).toBe("kes actions");
   expect(revokeSessionName("Firefox on Linux")).toBe("Revoke session — Firefox on Linux");
-  expect(restartEngineName("rerank")).toBe("Restart engine — rerank");
 });

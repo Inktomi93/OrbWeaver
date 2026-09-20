@@ -47,7 +47,7 @@ import {
   proseSettingsSection,
 } from "@orb/client/features/chat";
 import { appearanceLooksSection, makeConfigSection } from "@orb/client/features/config";
-import { connectionsHostClaudeSection, connectionsKeysSection, connectionsRolesSection } from "@orb/client/features/credentials";
+import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
 import { addDocumentModal, databankDocumentsTile, databankSection } from "@orb/client/features/databank";
 import { corpusSection } from "@orb/client/features/discovery";
 import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
@@ -70,15 +70,12 @@ import { analyticsSection } from "@orb/client/features/stats";
 import {
   adminCatalogSection,
   adminEmbeddingsSection,
-  adminEnginesSection,
   adminUsersSection,
-  computeSection,
   mediaTrustSection,
   memoryTuningSection,
   multiUserSection,
   operationsSection,
   rateLimitsSection,
-  sharedAccessSection,
   structuredOutputSection,
   systemTuningSection,
 } from "@orb/client/features/user-admin";
@@ -287,8 +284,8 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
   personaThisChatSection,
   backupExportSection,
   backupImportSection,
+  connectionsListSection,
   connectionsRolesSection,
-  connectionsHostClaudeSection,
   connectionsKeysSection,
   automationLibraryRulesSection,
   automationBudgetSection,
@@ -305,12 +302,9 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
   // `systemTuningSection` used to be omitted here; with the pane a pure skimmer the registry IS the pane, so
   // an omission would render an incomplete admin pane in every CT.
   mediaTrustSection,
-  computeSection,
-  sharedAccessSection,
   multiUserSection,
   operationsSection,
   adminUsersSection,
-  adminEnginesSection,
   adminCatalogSection,
   adminEmbeddingsSection,
   memoryTuningSection,

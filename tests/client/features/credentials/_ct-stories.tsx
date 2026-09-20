@@ -5,27 +5,24 @@
 // (`CtConfigGroupBody`, config-revamp-design.md §6.8) — the production render path, not a surface.
 
 import { useInvalidation, useTRPC } from "@orb/client/data";
-import { connectionsHostClaudeSection, connectionsKeysSection, connectionsRolesSection } from "@orb/client/features/credentials";
+import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
 import { SaveStatusHostContext } from "@orb/client/forms";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { useAggregateSaveStatus } from "@orb/client/state";
 import type { CredRevokedReason } from "@orb/contracts/credentials";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ComponentProps, ReactElement } from "react";
-import { useState } from "react";
-import { AddCredentialDialog } from "../../../../packages/client/src/features/credentials/components/add-credential-dialog.tsx";
-import { ConnectionsHostClaudeSection } from "../../../../packages/client/src/features/credentials/components/connections-host-claude-section.tsx";
+import type { ReactElement } from "react";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
-import { ModelPicker } from "../../../../packages/client/src/features/credentials/components/model-picker.tsx";
 import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The Connections group's three contributed sections, assembled as at the door. */
 const connectionsSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> = createContributorRegistry<ConfigSectionContribution>(
   "config-sections",
-  [connectionsRolesSection, connectionsHostClaudeSection, connectionsKeysSection],
+  [connectionsListSection, connectionsRolesSection, connectionsKeysSection],
 );
 
 /** `<CredentialKeyRow>` under the data layer (`trpc`/`invalidation` read inside the provider tree — the
@@ -37,15 +34,15 @@ function CredentialKeyRowInner(): ReactElement {
     <CredentialKeyRow
       credential={{
         id: castId<UserCredentialId>("user_credential_ctstory0001"),
-        provider: "openrouter",
+        provider: castId<ProviderId>("openrouter"),
         label: "prod key",
-        active: false,
         hasMetadata: false,
         revokedAt: null,
         revokedReason: null,
         createdAt: 0,
         updatedAt: 0,
       }}
+      usedBy={0}
       invalidation={invalidation}
       trpc={trpc}
     />
@@ -62,22 +59,7 @@ export function CredentialKeyRowStory(): ReactElement {
   );
 }
 
-function AddCredentialDialogInner(): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  return <AddCredentialDialog open={true} onOpenChange={(): void => undefined} trpc={trpc} invalidation={invalidation} />;
-}
-
-export function AddCredentialDialogStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <AddCredentialDialogInner />
-    </CtDataProviders>
-  );
-}
-
-/** A `custom_openai` `<CredentialKeyRow>` — the row that carries the "Test endpoint" inspector affordance.
- *  The `credentials.inspectEndpoint` mutation the dialog fires on open is stubbed per-test via routeTrpc. */
+/** A `custom-openai` `<CredentialKeyRow>` — an endpoint key row (the bearer a self-hosted server may require). */
 function CustomCredentialKeyRowInner(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -85,15 +67,15 @@ function CustomCredentialKeyRowInner(): ReactElement {
     <CredentialKeyRow
       credential={{
         id: castId<UserCredentialId>("user_credential_ctstory0002"),
-        provider: "custom_openai",
+        provider: castId<ProviderId>("custom-openai"),
         label: "my endpoint",
-        active: true,
         hasMetadata: true,
         revokedAt: null,
         revokedReason: null,
         createdAt: 0,
         updatedAt: 0,
       }}
+      usedBy={0}
       invalidation={invalidation}
       trpc={trpc}
     />
@@ -122,15 +104,15 @@ function RevokedCredentialKeyRowInner({ reason }: { readonly reason: CredRevoked
     <CredentialKeyRow
       credential={{
         id: castId<UserCredentialId>("user_credential_ctstory0003"),
-        provider: "openrouter",
+        provider: castId<ProviderId>("openrouter"),
         label: "prod key",
-        active: false,
         hasMetadata: false,
         revokedAt: 1,
         revokedReason: reason,
         createdAt: 0,
         updatedAt: 0,
       }}
+      usedBy={0}
       invalidation={invalidation}
       trpc={trpc}
     />
@@ -181,41 +163,9 @@ export function ReasonlessRevokedCredentialKeyRowStory(): ReactElement {
   );
 }
 
-/** `<ModelPicker>` standalone — the row's controlled contract, driven by a caller-supplied facade result.
- *  No data providers: the picker takes `result` as a prop (the surface owns the query). The committed id is
- *  mirrored into `model-picker-value` so a CT can assert the selection actually fired. */
-export function ModelPickerStory({
-  source,
-  result,
-  isLoading = false,
-}: {
-  readonly source: ComponentProps<typeof ModelPicker>["source"];
-  readonly result: ComponentProps<typeof ModelPicker>["result"];
-  /** Drives the catalog-loading arm (default false) — the D5 pin that a loading catalog shows the loading
-   *  skeleton, not the "No models match." empty message. */
-  readonly isLoading?: boolean;
-}): ReactElement {
-  const [value, setValue] = useState("");
-  return (
-    <div style={{ width: 560 }}>
-      <ModelPicker
-        source={source}
-        ariaLabel="Chat model"
-        value={value}
-        onValueChange={setValue}
-        result={result}
-        isLoading={isLoading}
-        ghostLabel="Choose a model"
-      />
-      <div data-testid="model-picker-value">{value}</div>
-    </div>
-  );
-}
-
 /** The whole Connections pane over the real data layer — the LIVE-vs-DRAFT surface (the 2026-08-01 phantom:
  *  a never-persisted selection rendered exactly like the live connection, under a "Saved" chip). Every read
- *  (`settings.getUserSettings`, `sessions.me`, `credentials.list`, `connection.getModelsForSource`) and the
- *  `settings.updateUserSettingsSection` write are stubbed per-test via routeTrpc. The "refetch settings"
+ *  (`connection.list`, `connection.listBindings`, `credentials.list`) and the `connection.setBinding` write are stubbed per-test via routeTrpc. The "refetch settings"
  *  button stands in for the bus-driven `settingsChanged` refetch: the mutation is `busDriven: true`, so it
  *  invalidates nothing itself — the USER_BUS does, and a CT has no bus. */
 function ConnectionsPaneInner(): ReactElement {
@@ -227,19 +177,6 @@ function ConnectionsPaneInner(): ReactElement {
         refetch settings
       </button>
     </div>
-  );
-}
-
-/** The Host Claude section ALONE — the owner's "Test Claude auth" surface. Mounted on its own (rather than
- *  through the whole Connections pane) so the three deployment states it now renders can be driven with one
- *  stubbed procedure instead of the roles pane's whole read set. */
-export function HostClaudeSectionStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ width: 720 }}>
-        <ConnectionsHostClaudeSection />
-      </div>
-    </CtDataProviders>
   );
 }
 

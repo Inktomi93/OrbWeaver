@@ -692,11 +692,11 @@ export function StartChatBurstStory({ chatId }: { readonly chatId: ChatId }): Re
 // Driven on the REAL pair the seam exists for (`settings.updateUserSettingsSection` → the identical
 // `settings.getUserSettings` view): a `busDriven` write reconciles via the bus, so between its 200 and the
 // bus tick the read still serves the PRE-write row — and a surface computing its honesty from that read
-// (Connections' "a turn still uses X") calls a persisted selection unsaved for as long as the tick is
+// (Model roles' "a turn still uses X") calls a persisted selection unsaved for as long as the tick is
 // missing. `echo` closes that window without inventing a second truth source.
 
 interface UpdateSectionVars {
-  readonly section: "routing";
+  readonly section: "seeds";
   readonly patch: Record<string, unknown>;
 }
 
@@ -717,8 +717,8 @@ function SectionEchoInner(): ReactElement {
 
   return (
     <div>
-      <p data-testid="chat-source">{data.config.routing.roleDefaults.chat?.source ?? "unset"}</p>
-      <button type="button" onClick={(): void => mutation.mutate({ section: "routing", patch: { roleDefaults: { chat: { source: "vllm" } } } })}>
+      <p data-testid="seed-preset">{data.config.seeds.defaultPresetId ?? "unset"}</p>
+      <button type="button" onClick={(): void => mutation.mutate({ section: "seeds", patch: { defaultPresetId: "preset_after" } })}>
         save
       </button>
     </div>
@@ -767,9 +767,9 @@ function SectionRefusalInner(): ReactElement {
 
   return (
     <div>
-      <p data-testid="chat-source">{data.config.routing.roleDefaults.chat?.source ?? "unset"}</p>
+      <p data-testid="seed-preset">{data.config.seeds.defaultPresetId ?? "unset"}</p>
       <p data-testid="notified">{notified}</p>
-      <button type="button" onClick={(): void => mutation.mutate({ section: "routing", patch: { roleDefaults: { chat: { source: "vllm" } } } })}>
+      <button type="button" onClick={(): void => mutation.mutate({ section: "seeds", patch: { defaultPresetId: "preset_after" } })}>
         save
       </button>
     </div>

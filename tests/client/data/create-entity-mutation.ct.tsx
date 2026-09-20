@@ -212,22 +212,22 @@ test("echo: the write's own response seeds the read — no refetch, no invalidat
   const view = (): unknown => ({
     userId: "user_ct_echo",
     schemaVersion: 1,
-    config: { ...DEFAULT_USER_SETTINGS, routing: { roleDefaults: stored } },
+    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, ...stored } },
     updatedAt: 0,
   });
   const trpc = await routeTrpc(page, {
     "settings.getUserSettings": () => view(),
     "settings.updateUserSettingsSection": (input: unknown) => {
-      stored = (input as { readonly patch: { readonly roleDefaults: Record<string, unknown> } }).patch.roleDefaults;
+      stored = (input as { readonly patch: Record<string, unknown> }).patch;
       return view();
     },
   });
 
   await mount(<SectionEchoStory />);
-  await expect(page.getByTestId("chat-source")).toHaveText("openrouter");
+  await expect(page.getByTestId("seed-preset")).toHaveText("preset_before");
 
   await page.getByRole("button", { name: "save" }).click();
-  await expect(page.getByTestId("chat-source")).toHaveText("vllm");
+  await expect(page.getByTestId("seed-preset")).toHaveText("preset_after");
 
   await expect.poll(() => trpc.count("settings.updateUserSettingsSection")).toBe(1);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): a belt over the DOM pin above — this story wires NO refetch path at all (the mutation is busDriven, so its settle invalidates nothing, and a CT has no bus), so the read count cannot move.
@@ -240,11 +240,11 @@ test("echo: the write's own response seeds the read — no refetch, no invalidat
 // `invalidates`), so before this arm a refusal was total silence: a five-plane scene write was lost to one
 // over-length label with the panel simply repainting its pre-write state.
 test("refusal: an errors-as-data refusal TOASTS the server's reason and does NOT seed the echo", async ({ mount, page }) => {
-  const stored: Record<string, unknown> = { chat: { source: "openrouter" } };
+  const stored: Record<string, unknown> = { defaultPresetId: "preset_before" };
   const view = (): unknown => ({
     userId: "user_ct_refusal",
     schemaVersion: 1,
-    config: { ...DEFAULT_USER_SETTINGS, routing: { roleDefaults: stored } },
+    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, ...stored } },
     updatedAt: 0,
   });
   await routeTrpc(page, {
@@ -254,7 +254,7 @@ test("refusal: an errors-as-data refusal TOASTS the server's reason and does NOT
   });
 
   await mount(<SectionRefusalStory />);
-  await expect(page.getByTestId("chat-source")).toHaveText("openrouter");
+  await expect(page.getByTestId("seed-preset")).toHaveText("preset_before");
 
   await page.getByRole("button", { name: "save" }).click();
 
@@ -262,5 +262,5 @@ test("refusal: an errors-as-data refusal TOASTS the server's reason and does NOT
   await expect(page.getByTestId("notified")).toHaveText("refused — label exceeds 40 characters");
   // …and the refused response is NOT authoritative for the read it would otherwise seed: the reader still
   // shows the true stored value, never the intent the server declined.
-  await expect(page.getByTestId("chat-source")).toHaveText("openrouter");
+  await expect(page.getByTestId("seed-preset")).toHaveText("preset_before");
 });

@@ -17,21 +17,18 @@ import {
   memorySettingsSection,
   proseSettingsSection,
 } from "@orb/client/features/chat";
-import { connectionsHostClaudeSection, connectionsKeysSection, connectionsRolesSection } from "@orb/client/features/credentials";
+import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
 import { personaListSection, personaNotificationsSection, personaThisChatSection } from "@orb/client/features/persona";
 import { pluginDistributeSection, pluginsInstalledSection, pluginsInstallSection } from "@orb/client/features/plugin";
 import {
   adminCatalogSection,
   adminEmbeddingsSection,
-  adminEnginesSection,
   adminUsersSection,
-  computeSection,
   mediaTrustSection,
   memoryTuningSection,
   multiUserSection,
   operationsSection,
   rateLimitsSection,
-  sharedAccessSection,
   systemTuningSection,
 } from "@orb/client/features/user-admin";
 import {
@@ -164,34 +161,34 @@ describe("assertSettingsKeyPartition", () => {
   });
 
   // The stage-4 LEAF arm (SET-SEAMS §2.3 as amended): the app tier has no namespaces, so two sections may
-  // own different LEAVES of one nested key (`engineLaunch`) — but never a leaf AND its parent, in either
+  // own different LEAVES of one nested key (`rateLimits`) — but never a leaf AND its parent, in either
   // declaration order, because the parent's owner clears the whole object.
   test("two APP-tier sections claiming disjoint LEAVES of one nested key pass", () => {
-    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["engineLaunch.genModel", "engineLaunch.genMaxModelLen"] } };
-    const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["engineLaunch.genPresencePenalty"] } };
+    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits.aiTurn", "rateLimits.publicIp"] } };
+    const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["rateLimits.login"] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [one, two]);
     expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).not.toThrow();
   });
 
   test("a LEAF claim beside its PARENT throws — parent-first", () => {
-    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["engineLaunch"] } };
-    const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["engineLaunch.genPresencePenalty"] } };
+    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits"] } };
+    const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["rateLimits.login"] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [one, two]);
     expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).toThrow(NESTED_CLAIM);
   });
 
   test("a LEAF claim beside its PARENT throws — leaf-first (declaration order can't hide it)", () => {
-    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["engineLaunch.genPresencePenalty"] } };
-    const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["engineLaunch"] } };
+    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits.login"] } };
+    const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["rateLimits"] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [one, two]);
     expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).toThrow(NESTED_CLAIM);
   });
 
-  // A key that merely PREFIXES another is not nested (`engineLaunchExtra` ≠ inside `engineLaunch`) — the
+  // A key that merely PREFIXES another is not nested (`rateLimitsExtra` ≠ inside `rateLimits`) — the
   // check keys on the dot, never on a bare string prefix.
   test("a sibling key sharing a name PREFIX is not a nesting conflict", () => {
-    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["engineLaunch" as never] } };
-    const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["engineLaunchExtra" as never] } };
+    const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits" as never] } };
+    const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["rateLimitsExtra" as never] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [one, two]);
     expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).not.toThrow();
   });
@@ -242,8 +239,8 @@ function realDoorSections(): ReturnType<typeof createContributorRegistry<ConfigS
     personaThisChatSection,
     backupExportSection,
     backupImportSection,
+    connectionsListSection,
     connectionsRolesSection,
-    connectionsHostClaudeSection,
     connectionsKeysSection,
     automationLibraryRulesSection,
     automationBudgetSection,
@@ -258,12 +255,9 @@ function realDoorSections(): ReturnType<typeof createContributorRegistry<ConfigS
     imageryTemplatesSection,
     proseSettingsSection,
     mediaTrustSection,
-    computeSection,
-    sharedAccessSection,
     multiUserSection,
     operationsSection,
     adminUsersSection,
-    adminEnginesSection,
     adminCatalogSection,
     adminEmbeddingsSection,
     memoryTuningSection,

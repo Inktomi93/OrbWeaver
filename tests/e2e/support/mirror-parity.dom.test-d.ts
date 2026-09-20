@@ -64,7 +64,6 @@ import type {
   ActorRefInput,
   AppearanceThemeSettings,
   CanonMessage,
-  ChatRoute,
   CompactionIntent,
   ConfigView,
   ContextFitPreview,
@@ -265,6 +264,8 @@ test("CanonMessage mirrors MessageView (the canon rows every honesty spec reads)
       | "genFinishedAt"
       | "generationId"
       | "toolCalls"
+      | "connectionId"
+      | "costProvenance"
     >
   >(keys<CanonMessage, MessageView>());
   expectTypeOf<MessageView>().toExtend<CanonMessage>();
@@ -405,12 +406,6 @@ test("the settings mirrors project the ONE UserSettings config blob", () => {
   expectTypeOf<ContractUserSettings["appearance"]["backgroundImageKind"]>().toExtend<AppearanceThemeSettings["config"]["appearance"]["backgroundImageKind"]>();
   expectTypeOf<ContractUserSettings["appearance"]["backgroundAssetHash"]>().toExtend<AppearanceThemeSettings["config"]["appearance"]["backgroundAssetHash"]>();
   expectTypeOf<ContractUserSettings["theme"]["selectedThemeId"]>().toExtend<AppearanceThemeSettings["config"]["theme"]["selectedThemeId"]>();
-});
-
-test("ChatRoute mirrors the routing.roleDefaults.chat pin the harness swaps", () => {
-  type ContractChatRoute = NonNullable<NonNullable<NonNullable<ContractUserSettings["routing"]>["roleDefaults"]>["chat"]>;
-  pin<Subset<"model" | "providerRouting">>(keys<ChatRoute, ContractChatRoute>());
-  expectTypeOf<Total<ContractChatRoute>>().toExtend<Total<ChatRoute>>();
 });
 
 // ── UNPINNABLE HERE (no `@orb/contracts` home — the honest scope statement) ───────────────────────────
