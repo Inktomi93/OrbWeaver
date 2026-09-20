@@ -751,12 +751,12 @@ function agentSdkChatRequest(args: { readonly req: TurnRequest; readonly onDelta
   };
 }
 
-/** The ARRAY-WIRE arm of the turn mapping (chat-completions / responses / anthropic-messages): the transcript
- *  travels as real history rows and the preset's passthrough channels ride the request as-is. The three apis
- *  share one shape (`HistoryChatRequest`); the discriminant is the connection's own `api`. */
+/** The ARRAY-WIRE arm of the turn mapping (chat-completions / anthropic-messages): the transcript travels as
+ *  real history rows and the preset's passthrough channels ride the request as-is. Both apis share one shape
+ *  (`HistoryChatRequest`); the discriminant is the connection's own `api`. */
 function arrayWireChatRequest(args: {
   readonly req: TurnRequest;
-  readonly api: "chat-completions" | "responses" | "anthropic-messages";
+  readonly api: "chat-completions" | "anthropic-messages";
   readonly onDelta: (delta: ChatDeltaEvent) => void;
   readonly promptCacheMinDepth: number;
 }): ChatRequest {
@@ -914,7 +914,7 @@ export function createRunChatTurnBridge(deps: {
     };
 
     // The wire SHAPE is the connection's own `api` (validated ∈ the provider's `apis` on write and at resolve,
-    // §7.3): the stateful agent-sdk seed+prompt split, or one of the three history-array wires.
+    // §7.3): the stateful agent-sdk seed+prompt split, or one of the two history-array wires.
     const api = req.connection.api;
     if (api === null) {
       // A chat task resolved to a row with no chat api (an embedding-kind connection bound to `chat`) — the

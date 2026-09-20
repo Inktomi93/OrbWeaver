@@ -123,7 +123,7 @@ interface HistoryChatRequest extends ChatRequestCommon {
 /**
  * The discriminated input every backend consumes:
  *   - `agent-sdk` — a single prompt string (history is implicit in the resumed session) + the seed.
- *   - `chat-completions` / `responses` / `anthropic-messages` — an assembled history array.
+ *   - `chat-completions` / `anthropic-messages` — an assembled history array.
  */
 export type ChatRequest =
   | (ChatRequestCommon & {
@@ -140,11 +140,10 @@ export type ChatRequest =
       readonly terminalTools?: readonly WireTool[] | undefined;
     })
   | (HistoryChatRequest & { readonly api: "chat-completions" })
-  | (HistoryChatRequest & { readonly api: "responses" })
   | (HistoryChatRequest & { readonly api: "anthropic-messages" });
 
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
-export type OpenAiCompatChatRequest = ChatRequest & { readonly api: "chat-completions" | "responses" };
+export type OpenAiCompatChatRequest = ChatRequest & { readonly api: "chat-completions" };
 export type AnthropicChatRequest = ChatRequest & { readonly api: "anthropic-messages" };
 
 /** The per-wire raw → normalized fold. `other` is a NAMED arm for a recognised-but-unclassified value; an
