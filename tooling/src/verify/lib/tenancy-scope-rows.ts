@@ -38,6 +38,16 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
     why: "D30 per-user overlay on an OWNERLESS chat — the tagger IS the scope subject, so the chatId does NOT make it membership-scoped.",
   },
   { table: "daily_stats", scope: "ownerId", why: "D23 parentless per-user aggregate (×day)." },
+  {
+    table: "embed_generations",
+    scope: "ownerId",
+    why: "D23 per-owner immutable vector provenance — the retained owner remains the tenancy belt after a deleted connection is SET NULL.",
+  },
+  {
+    table: "embed_generation_targets",
+    scope: "ownerId",
+    why: "D23 parentless per-user aggregate (×embedding task) — the owner/task pair is the migration target identity.",
+  },
   { table: "embed_space_state", scope: "ownerId", why: "D23 parentless per-user aggregate (×vector scope) — §10-5's completion record; no producer FK." },
   { table: "documents", scope: "ownerId", why: "D49 databank producer — top-level owned canon." },
   { table: "global_documents", scope: "ownerId", why: "D49 personal-bank scope junction — the ownerId IS the scope subject (not the documentId's owner)." },

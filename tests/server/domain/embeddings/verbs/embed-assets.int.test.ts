@@ -9,18 +9,30 @@
 //   • a vanished asset row is a skip, not an error;
 //   • cooperative abort: an aborted signal does no work.
 
-import { embedSpaceState, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import type { ProviderId } from "@orb/contracts/inference";
+import { embedGenerations, embedSpaceState, imageEmbeddings, imageIndexSkips, userConnections } from "@orb/db";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, IMAGE_EMBED_MODEL, makeStoreHarness, pngBytes, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
 
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
 const signal = (): AbortSignal => new AbortController().signal;
+
+async function seedSweepConnection(db: Awaited<ReturnType<typeof freshDb>>, ownerId: UserId): Promise<void> {
+  await db.insert(userConnections).values({
+    id: TEST_CONNECTION_ID,
+    ownerId,
+    label: "image sweep vector connection",
+    providerId: castId<ProviderId>(TEST_PROVIDER_ID),
+    model: EMBED_MODEL,
+  });
+}
 
 /** A degenerate 1×1 asset and a real 64×64 asset seeded for one owner, plus the per-asset bytes map the
  *  sweep's `loadAssetBytes` fake serves. Distinct hashes — `assets` is unique(owner, hash). */
@@ -32,6 +44,7 @@ async function seedAdmissionMix(db: Awaited<ReturnType<typeof freshDb>>): Promis
   bytes: ReadonlyMap<AssetId, Uint8Array>;
 }> {
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  await seedSweepConnection(db, owner);
   const degenerate = await seedAsset(db, owner, { id: "asset_tiny", hash: "hash-tiny" });
   const real = await seedAsset(db, owner, { id: "asset_real", hash: "hash-real" });
   return {
@@ -53,6 +66,7 @@ async function seedOneAsset(db: Awaited<ReturnType<typeof freshDb>>): Promise<{
   bytes: ReadonlyMap<AssetId, Uint8Array>;
 }> {
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  await seedSweepConnection(db, owner);
   const assetId = await seedAsset(db, owner);
   return { owner, assetId, ids: [assetId], bytes: new Map([[assetId, IMG]]) };
 }
@@ -98,7 +112,13 @@ describe("embedAssets — the bulk image sweep", () => {
     // …and the sweep's terminal recorded WHERE it left this owner's images, which is what makes the read
     // side's `activeSpace` a fact about finished work rather than about a settings row.
     const state = await db.select().from(embedSpaceState).where(eq(embedSpaceState.ownerId, seeded.owner));
-    expect(state).toEqual([expect.objectContaining({ scope: "images", space: EMBED_MODEL })]);
+    expect(state).toEqual([expect.objectContaining({ scope: "images" })]);
+    const activeGenerationId = state[0]?.activeGenerationId;
+    if (activeGenerationId === null || activeGenerationId === undefined) {
+      throw new Error("the image sweep must promote an active generation");
+    }
+    const generation = await db.select({ space: embedGenerations.space }).from(embedGenerations).where(eq(embedGenerations.id, activeGenerationId));
+    expect(generation).toEqual([{ space: EMBED_MODEL }]);
   });
 
   test("§10-5 the ordinary image arm records its own space — the mark follows the arm, not a constant", async () => {
@@ -110,7 +130,13 @@ describe("embedAssets — the bulk image sweep", () => {
     await svc.embedAssets({ ownerId: null, force: false, signal: signal() });
 
     const state = await db.select().from(embedSpaceState).where(eq(embedSpaceState.ownerId, seeded.owner));
-    expect(state).toEqual([expect.objectContaining({ scope: "images", space: IMAGE_EMBED_MODEL })]);
+    expect(state).toEqual([expect.objectContaining({ scope: "images" })]);
+    const activeGenerationId = state[0]?.activeGenerationId;
+    if (activeGenerationId === null || activeGenerationId === undefined) {
+      throw new Error("the image sweep must promote an active generation");
+    }
+    const generation = await db.select({ space: embedGenerations.space }).from(embedGenerations).where(eq(embedGenerations.id, activeGenerationId));
+    expect(generation).toEqual([{ space: IMAGE_EMBED_MODEL }]);
   });
 
   test("§10-5 an ABORTED sweep records nothing — a half-moved corpus must never read as complete", async () => {

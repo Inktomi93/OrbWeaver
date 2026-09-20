@@ -14,13 +14,12 @@ import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { ImagesParams } from "../contract/params.ts";
 import type { ImageSearchHit } from "../contract/results.ts";
-import type { SearchService } from "../contract/service.ts";
+import type { ActiveQuerySpace, SearchService } from "../contract/service.ts";
 import { resolveAvatarOwners } from "../persistence/display.ts";
 import { nearestImages } from "../persistence/image-nearest.ts";
 import { CAPTION_LENS, OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
 import { relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
 import { applyRerank } from "../substrate/rerank.ts";
-import type { ActiveQuerySpace } from "../substrate/space.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 

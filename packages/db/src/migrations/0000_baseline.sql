@@ -715,10 +715,12 @@ CREATE TABLE `character_embeddings` (
 	`generation_id` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`generation_id`) REFERENCES `embed_generations`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `character_embeddings_character_generation_unique` ON `character_embeddings` (`character_id`,`generation_id`);--> statement-breakpoint
+CREATE INDEX `character_embeddings_generation_idx` ON `character_embeddings` (`generation_id`);--> statement-breakpoint
 CREATE TABLE `chat_digest_speakers` (
 	`digest_id` text NOT NULL,
 	`character_id` text NOT NULL,
@@ -746,12 +748,14 @@ CREATE TABLE `chat_digests` (
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`scoped_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`scoped_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`generation_id`) REFERENCES `embed_generations`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_digests_scope_unique` ON `chat_digests` (`chat_id`,`scoped_character_id`,`tier`,`block_idx`,`generation_id`);--> statement-breakpoint
 CREATE INDEX `chat_digests_chat_idx` ON `chat_digests` (`chat_id`);--> statement-breakpoint
 CREATE INDEX `chat_digests_scoped_character_idx` ON `chat_digests` (`scoped_character_id`);--> statement-breakpoint
+CREATE INDEX `chat_digests_generation_idx` ON `chat_digests` (`generation_id`);--> statement-breakpoint
 CREATE TABLE `chat_segments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -768,10 +772,12 @@ CREATE TABLE `chat_segments` (
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`generation_id`) REFERENCES `embed_generations`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "chat_segments_span_check" CHECK(block_idx >= 0 and chunk_idx >= 0 and seq_start >= 0 and seq_end >= seq_start)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_segments_chat_block_chunk_unique` ON `chat_segments` (`chat_id`,`block_idx`,`chunk_idx`,`generation_id`);--> statement-breakpoint
+CREATE INDEX `chat_segments_generation_idx` ON `chat_segments` (`generation_id`);--> statement-breakpoint
 CREATE TABLE `document_chunks` (
 	`id` text PRIMARY KEY NOT NULL,
 	`document_id` text NOT NULL,
@@ -787,11 +793,13 @@ CREATE TABLE `document_chunks` (
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`generation_id`) REFERENCES `embed_generations`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "document_chunks_span_check" CHECK(chunk_idx >= 0 and char_start >= 0 and char_end >= char_start)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `document_chunks_doc_chunk_generation_unique` ON `document_chunks` (`document_id`,`chunk_idx`,`generation_id`);--> statement-breakpoint
 CREATE INDEX `document_chunks_document_idx` ON `document_chunks` (`document_id`);--> statement-breakpoint
+CREATE INDEX `document_chunks_generation_idx` ON `document_chunks` (`generation_id`);--> statement-breakpoint
 CREATE TABLE `embed_generation_targets` (
 	`owner_id` text NOT NULL,
 	`task` text NOT NULL,
@@ -800,9 +808,11 @@ CREATE TABLE `embed_generation_targets` (
 	`updated_at` integer NOT NULL,
 	PRIMARY KEY(`owner_id`, `task`),
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`generation_id`) REFERENCES `embed_generations`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "embed_generation_targets_task_check" CHECK(task in ('embed', 'imageEmbed'))
 );
 --> statement-breakpoint
+CREATE INDEX `embed_generation_targets_generation_idx` ON `embed_generation_targets` (`generation_id`);--> statement-breakpoint
 CREATE TABLE `embed_generations` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -814,6 +824,7 @@ CREATE TABLE `embed_generations` (
 	`space` text NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`connection_id`) REFERENCES `user_connections`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "embed_generations_task_check" CHECK(task in ('embed', 'imageEmbed')),
 	CONSTRAINT "embed_generations_via_check" CHECK(via in ('embed', 'imageEmbed'))
 );
@@ -834,6 +845,8 @@ CREATE TABLE `embed_space_state` (
 	CONSTRAINT "embed_space_state_scope_check" CHECK(scope in ('cards', 'memory', 'documents', 'images'))
 );
 --> statement-breakpoint
+CREATE INDEX `embed_space_state_active_generation_idx` ON `embed_space_state` (`active_generation_id`);--> statement-breakpoint
+CREATE INDEX `embed_space_state_candidate_generation_idx` ON `embed_space_state` (`candidate_generation_id`);--> statement-breakpoint
 CREATE TABLE `image_embeddings` (
 	`id` text PRIMARY KEY NOT NULL,
 	`asset_id` text NOT NULL,
@@ -848,10 +861,12 @@ CREATE TABLE `image_embeddings` (
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`generation_id`) REFERENCES `embed_generations`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "image_embeddings_lens_check" CHECK(lens in ('image-raw', 'image-captioned'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `image_embeddings_asset_generation_lens_unique` ON `image_embeddings` (`asset_id`,`generation_id`,`lens`);--> statement-breakpoint
+CREATE INDEX `image_embeddings_generation_idx` ON `image_embeddings` (`generation_id`);--> statement-breakpoint
 CREATE TABLE `image_index_skips` (
 	`asset_id` text PRIMARY KEY NOT NULL,
 	`reason` text NOT NULL,

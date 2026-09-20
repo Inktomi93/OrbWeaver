@@ -22,7 +22,7 @@ import type { EmbedPassParams } from "../contract/params.ts";
 // `AvatarAnalysis` is the SHAPE of the injected analysis op, taken from the domain's contract/; the runtime
 // function (`indexer/caption.ts`) is wired at `service.ts` and never imported across the subsystem seam.
 import type { AvatarAnalysis, BulkEmbedResult, StoreResult } from "../contract/results.ts";
-import type { EmbeddingsService } from "../contract/service.ts";
+import type { EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
 import { existingCaptionedRow, existingImageHash, existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
 import { markGenerationComplete } from "../persistence/space-state.ts";
 import { resolveTargetGeneration } from "../substrate/generation.ts";
@@ -34,6 +34,25 @@ import { resolveImageSpace } from "../substrate/task-model.ts";
 interface EmbedAssetsDeps {
   readonly store: EmbeddingsService["store"];
   readonly analyze: (ownerId: UserId, bytes: Uint8Array) => Promise<AvatarAnalysis>;
+}
+
+interface ImageSweepSpace {
+  readonly ownerId: UserId;
+  readonly space: NonNullable<Awaited<ReturnType<typeof resolveImageSpace>>>;
+  readonly generation: PinnedGeneration;
+}
+
+async function resolveImageSweepSpace(ctx: EmbeddingsContext, assetId: AssetId): Promise<ImageSweepSpace | null> {
+  const ownerId = await ctx.loadAssetOwner(assetId);
+  if (ownerId === null) {
+    return null;
+  }
+  const space = await resolveImageSpace(ctx, ownerId);
+  if (space === null) {
+    return null;
+  }
+  const generation = await resolveTargetGeneration(ctx, ownerId, "imageEmbed", space.via);
+  return generation === null ? null : { ownerId, space, generation };
 }
 
 /** One asset's sweep step: hash + breakdown pre-check (both lenses) → store raw → analyse → store captioned. */
@@ -51,15 +70,15 @@ async function embedOneAsset(
   if (bytes === null) {
     return "skipped";
   }
-  const ownerId = await ctx.loadAssetOwner(assetId);
   // THE JOINT-SPACE RULE (§10-3), identical to the on-write handler's: the owner's images go into their
   // image space when they have an image-capable embedder, else into their TEXT space by the caption alone.
   // Only an owner with no vector connection at all is skipped — an unbound `imageEmbed` used to lose every
   // picture here silently.
-  const space = ownerId === null ? null : await resolveImageSpace(ctx, ownerId);
-  if (ownerId === null || space === null) {
+  const resolved = await resolveImageSweepSpace(ctx, assetId);
+  if (resolved === null) {
     return "skipped"; // no owner / no vector connection at all — nothing funds the embed (§7.5-2)
   }
+  const { generation, ownerId, space } = resolved;
   const model = space.model;
   if (space.via === "embed") {
     reportImageSpaceDegrade(ownerId, model, space.degraded);
@@ -69,14 +88,14 @@ async function embedOneAsset(
   const hash = contentHash(bytes);
   // The raw lens does not exist in the captioned-text arm (nothing there can embed pixels), so it is
   // vacuously current — never a reason to re-run the expensive analysis, and never a store call.
-  const rawCurrent = space.via === "embed" || (await existingImageHash(ctx.db, assetId, "image-raw", model)) === hash;
+  const rawCurrent = space.via === "embed" || (await existingImageHash(ctx.db, assetId, "image-raw", generation.id)) === hash;
   // THE CAPTIONED LENS NEEDS TWO CONDITIONS, not one (issue #164). Every row written before 2026-08-18 has a
   // matching bytes hash and a `caption_meta` of `{model}` — no facet breakdown at all — so a hash-only
   // pre-check declares the whole pre-existing corpus current and the facet columns stay empty forever. The
   // facet-presence half is what makes `index {source:"image"}` a RESUMABLE facet backfill: it re-analyses
   // exactly the facetless rows and skips everything already broken down, with no `force` (which would
   // needlessly re-embed both lenses for every asset on the box).
-  const captioned = await existingCaptionedRow(ctx.db, assetId, model);
+  const captioned = await existingCaptionedRow(ctx.db, assetId, generation.id);
   const captionedCurrent = captioned !== undefined && captioned.hash === hash && captioned.hasFacets;
   if (!force && rawCurrent && captionedCurrent) {
     return "skipped";

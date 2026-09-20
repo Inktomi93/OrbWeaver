@@ -181,8 +181,8 @@ const DOMAIN_FRESHNESS: Readonly<Record<string, FreshnessRow>> = {
   embeddings: {
     plane: "user-bus:corpusRecomputed",
     roomReach: {
-      lane: "none",
-      why: "vectors are derived data with no member-visible projection at all (Knowledge-Cluster); no chat-anchored table FKs a vector table.",
+      lane: "seated-exempt",
+      why: "SEATED — `chat_digests` / `chat_segments` now FK `embed_generations.id`, but that link is immutable vector provenance, not a live room projection: members never read a generation or raw vector, and every search resolves the server-side active generation at query time (`search/substrate/space.ts`; `search/persistence/nearest.ts`). The owner-facing derived analytics still refresh through `corpusRecomputed` above. Ends if a room surface renders generation/vector state or retains vector-derived results across a generation promotion.",
     },
     why: "the indexer's bulk terminals share discovery's corpusRecomputed member — one event per pass, two producers, one client filter.",
   },

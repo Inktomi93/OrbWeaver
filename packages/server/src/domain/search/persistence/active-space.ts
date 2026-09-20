@@ -3,11 +3,11 @@
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { ReadOnlyDb } from "@orb/db";
 import { embedGenerations, embedGenerationTargets, embedSpaceState } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 
-export interface ActiveGenerationRow {
-  readonly id: string;
+interface ActiveGenerationRow {
+  readonly id: EmbedGenerationId;
   readonly task: "embed" | "imageEmbed";
   readonly via: "embed" | "imageEmbed";
   readonly connectionId: string | null;
@@ -15,7 +15,7 @@ export interface ActiveGenerationRow {
   readonly space: string;
 }
 
-export type GenerationRead =
+type GenerationRead =
   | { readonly status: "unrecorded" }
   | { readonly status: "moving" }
   | { readonly status: "ready"; readonly generation: ActiveGenerationRow };

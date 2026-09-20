@@ -43,6 +43,7 @@ import type {
   ChatParticipantId,
   ChatStreamEventId,
   ChatTurnId,
+  EmbedGenerationId,
   Handle,
   MessageAssetId,
   MessageId,
@@ -1061,7 +1062,7 @@ export interface StoreSegmentParams {
   readonly lens: "segment";
   readonly ownerId: UserId;
   readonly model: string;
-  readonly generationId: string;
+  readonly generationId: EmbedGenerationId;
   readonly generationEpoch: number;
   readonly chatId: ChatId;
   readonly blockIdx: number;

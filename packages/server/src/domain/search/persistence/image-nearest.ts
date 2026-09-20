@@ -6,7 +6,7 @@
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { ReadOnlyDb } from "@orb/db";
 import { assets, characters, imageEmbeddings } from "@orb/db";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { toVectorBlob } from "./nearest.ts";
 
@@ -25,7 +25,7 @@ interface NearestImagesParams {
   readonly ownerId: UserId;
   readonly queryVector: Float32Array;
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId?: EmbedGenerationId | undefined;
   readonly lens: ImageLens;
   readonly limit: number;
 }
@@ -62,7 +62,7 @@ export async function readSeedAvatarVector(
     readonly ownerId: UserId;
     readonly characterId: CharacterId;
     readonly model: string;
-    readonly generationId?: string | undefined;
+    readonly generationId?: EmbedGenerationId | undefined;
     readonly lens: ImageLens;
   },
 ): Promise<Float32Array | null> {
@@ -97,7 +97,7 @@ interface NearestAvatarCharactersParams {
   readonly ownerId: UserId;
   readonly queryVector: Float32Array;
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId?: EmbedGenerationId | undefined;
   readonly lens: ImageLens;
   readonly excludeCharacterId: CharacterId;
   readonly limit: number;

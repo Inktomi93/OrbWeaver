@@ -23,6 +23,7 @@ import {
   embedGenerations,
   keywordCooccurrence,
   themeClusters,
+  userConnections,
   users,
 } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
@@ -34,9 +35,11 @@ import type {
   ChatId,
   DuplicateCharacterPairId,
   DuplicateChatPairId,
+  EmbedGenerationId,
   Handle,
   KeywordCooccurrenceId,
   ThemeClusterId,
+  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -75,7 +78,12 @@ async function seedDigest(db: Db, chatId: ChatId, id: string, generationOwnerId:
     .insert(users)
     .values({ id: ownerId, handle: castId<Handle>("h-digest-owner") })
     .onConflictDoNothing();
-  const generationId = `embed_generation_${generationOwnerId}_embed_${MODEL}`;
+  const connectionId = castId<UserConnectionId>(`user_connection_${generationOwnerId}_embed_${MODEL}`);
+  await db
+    .insert(userConnections)
+    .values({ id: connectionId, ownerId: generationOwnerId, label: `Test embed ${MODEL}`, providerId: castId("custom-openai"), model: MODEL })
+    .onConflictDoNothing();
+  const generationId = castId<EmbedGenerationId>(`embed_generation_${generationOwnerId}_embed_${MODEL}`);
   await db
     .insert(embedGenerations)
     .values({
@@ -83,8 +91,8 @@ async function seedDigest(db: Db, chatId: ChatId, id: string, generationOwnerId:
       ownerId: generationOwnerId,
       task: "embed",
       via: "embed",
-      connectionId: null,
-      connectionRef: "test:embed",
+      connectionId,
+      connectionRef: connectionId,
       fingerprint: `test:embed:${MODEL}`,
       space: MODEL,
     })

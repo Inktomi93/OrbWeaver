@@ -5,7 +5,7 @@
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { GenerationReceipt, GenerationTask } from "../../../../../packages/server/src/domain/embeddings/contract/generation.ts";
 import { markGenerationComplete } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
@@ -17,10 +17,19 @@ import { seedUser } from "../../embeddings/_support.ts";
 const NOW = 1_700_000_000_000;
 
 async function seedTarget(db: Db, ownerId: UserId, input: { task: GenerationTask; id: string; space: string }): Promise<GenerationReceipt> {
-  const { task, id, space } = input;
-  await db
-    .insert(embedGenerations)
-    .values({ id, ownerId, task, via: task, connectionId: null, connectionRef: `connection:${id}`, fingerprint: `fingerprint:${id}`, space, createdAt: NOW });
+  const { task, space } = input;
+  const id = castId<EmbedGenerationId>(input.id);
+  await db.insert(embedGenerations).values({
+    id,
+    ownerId,
+    task,
+    via: task,
+    connectionId: null,
+    connectionRef: castId<UserConnectionId>(`connection:${id}`),
+    fingerprint: `fingerprint:${id}`,
+    space,
+    createdAt: NOW,
+  });
   await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1, updatedAt: NOW });
   return { id, task, via: task, epoch: 1, space };
 }

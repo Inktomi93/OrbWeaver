@@ -6,8 +6,8 @@
 // that the fabricated handle FK-throws (the original silent killer).
 
 import type { Db } from "@orb/db";
-import { chatDigests, embedGenerations } from "@orb/db";
-import type { CharacterId, Handle } from "@orb/kit/ids";
+import { chatDigests, embedGenerations, userConnections } from "@orb/db";
+import type { CharacterId, EmbedGenerationId, Handle, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
@@ -91,14 +91,16 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "grp");
-    const generationId = "embed_generation_group_bucket_bad";
+    const generationId = castId<EmbedGenerationId>("embed_generation_group_bucket_bad");
+    const connectionId = castId<UserConnectionId>("user_connection_group_bucket_bad");
+    await db.insert(userConnections).values({ id: connectionId, ownerId: host, label: "group bucket embed", providerId: castId("custom-openai"), model: "m" });
     await db.insert(embedGenerations).values({
       id: generationId,
       ownerId: host,
       task: "embed",
       via: "embed",
-      connectionId: null,
-      connectionRef: "test:embed",
+      connectionId,
+      connectionRef: connectionId,
       fingerprint: "test:group-bucket",
       space: "m",
     });
