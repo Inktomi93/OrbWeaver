@@ -5,7 +5,7 @@
 // own scope-gating is proven in the search-domain gate-8 test; here we drive the fit/format/null logic.
 
 import { databankRetrievalSettingsSchema } from "@orb/contracts/databank";
-import type { ChatId, DocumentId , UserId} from "@orb/kit/ids";
+import type { ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { describe } from "vitest";

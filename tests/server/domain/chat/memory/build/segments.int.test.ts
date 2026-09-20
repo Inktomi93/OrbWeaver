@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import type { CharacterId, Handle , UserId} from "@orb/kit/ids";
+import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import { beforeEach, describe, vi } from "vitest";

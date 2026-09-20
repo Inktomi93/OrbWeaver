@@ -436,7 +436,7 @@
       }
     },
     {
-      "includes": ["packages/*/src/**/index.ts", "tooling/src/*/index.ts"],
+      "includes": ["packages/*/src/**/index.ts", "tooling/src/*/index.ts", "tooling/src/stack/lib/engine-fleet/index.ts"],
       "linter": {
         "rules": {
           "performance": {
@@ -457,7 +457,7 @@
       }
     },
     {
-      "includes": ["packages/server/src/foundation/env/**"],
+      "includes": ["packages/server/src/foundation/env/**", "tooling/src/stack/lib/engine-fleet/env.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -533,7 +533,9 @@
         "tests/contracts/inference/**",
         "tests/inference/**",
         "tooling/src/model-ab/**",
-        "tooling/src/verify/gates/**"
+        "tooling/src/verify/gates/**",
+        "tooling/src/stack/lib/engine-fleet/**",
+        "tests/tooling/stack/lib/engine-fleet/**"
       ],
       "linter": {
         "rules": {
@@ -595,6 +597,16 @@
       }
     },
     {
+      "includes": ["scripts/codemods/inference-test-cutover.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["scripts/research/agent-cli-artifact-census.ts"],
       "linter": {
         "rules": {
@@ -629,8 +641,7 @@
             "noBitwiseOperators": "off"
           },
           "style": {
-            "useNumericSeparators": "off",
-            "useShorthandAssign": "off"
+            "useNumericSeparators": "off"
           }
         }
       }

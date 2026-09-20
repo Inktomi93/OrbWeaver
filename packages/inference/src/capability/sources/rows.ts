@@ -40,7 +40,7 @@ export function compileRows(file: string, raw: unknown): readonly CompiledRow[] 
   }));
 }
 
-export function rowMatches(compiled: CompiledRow, query: RowQuery): boolean {
+function rowMatches(compiled: CompiledRow, query: RowQuery): boolean {
   const match = compiled.row.match;
   if (match === undefined) {
     return false;

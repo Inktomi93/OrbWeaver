@@ -17,6 +17,7 @@
     "@eslint/config-array": "catalog:",
     "@orb/contracts": "workspace:*",
     "@orb/default-content": "workspace:*",
+    "@orb/inference": "workspace:*",
     "@orb/kit": "workspace:*",
     "@orb/server": "workspace:*",
     "@playwright/test": "catalog:",

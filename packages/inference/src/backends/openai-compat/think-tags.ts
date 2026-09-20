@@ -35,7 +35,7 @@ export interface ReasoningTags {
 const XML_OPEN_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;
 
 /** `<think>` + `</think>` → `think`; anything else → undefined (the post-hoc split keeps that case). */
-export function tagNameOf(tags: ReasoningTags | undefined): string | undefined {
+function tagNameOf(tags: ReasoningTags | undefined): string | undefined {
   const name = tags === undefined ? undefined : XML_OPEN_RE.exec(tags.prefix)?.groups?.["name"];
   return name !== undefined && tags?.suffix === `</${name}>` ? name : undefined;
 }

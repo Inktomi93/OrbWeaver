@@ -12,10 +12,10 @@
 
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import type { EngineLaunchMarker } from "./launch-ownership.ts";
 import type { EngineLaunchConfig } from "./build-argv.ts";
 import { buildEngineArgv, engineCudaVisibleDevices } from "./build-argv.ts";
 import type { VLLM_ENGINES } from "./engines.ts";
+import type { EngineLaunchMarker } from "./launch-ownership.ts";
 import { ENGINE_LAUNCH_MARKER_ENV } from "./process-identity.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];

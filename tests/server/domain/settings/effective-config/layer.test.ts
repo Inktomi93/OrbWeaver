@@ -92,5 +92,4 @@ describe("layer (floor-merge)", () => {
     expect(layer({ structuredOutputVehicle: "response-format" }).structuredOutputShape).toBe(DEFAULT_STRUCTURED_OUTPUT_SHAPE);
     expect(layer({ structuredOutputVehicle: null }).structuredOutputVehicle).toBe(DEFAULT_STRUCTURED_OUTPUT_VEHICLE); // clear → floor
   });
-
 });

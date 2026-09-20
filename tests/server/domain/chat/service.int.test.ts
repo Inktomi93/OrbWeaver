@@ -132,7 +132,6 @@ function makeService(
         injectionTokenBudget: 0,
       }),
 
-
     holder: "replica-test",
     lockTtlMs: 60_000,
   };

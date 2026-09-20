@@ -7,8 +7,10 @@ import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credenti
 import type { UserCredentialId } from "@orb/kit/ids";
 
 /** Mint a decrypted secret. `credentialId` is `null` and `kind` is `none` exactly together (the keyless arm). */
-export function mintSecret(args: { readonly credentialId: UserCredentialId; readonly kind: Exclude<ResolvedSecretKind, "none">; readonly secret: string }): ResolvedSecret;
-export function mintSecret(args: { readonly credentialId: null; readonly kind: "none"; readonly secret: null }): ResolvedSecret;
-export function mintSecret(args: { readonly credentialId: UserCredentialId | null; readonly kind: ResolvedSecretKind; readonly secret: string | null }): ResolvedSecret {
+export function mintSecret(
+  args:
+    | { readonly credentialId: UserCredentialId; readonly kind: Exclude<ResolvedSecretKind, "none">; readonly secret: string }
+    | { readonly credentialId: null; readonly kind: "none"; readonly secret: null },
+): ResolvedSecret {
   return { credentialId: args.credentialId, kind: args.kind, secret: args.secret } as ResolvedSecret;
 }

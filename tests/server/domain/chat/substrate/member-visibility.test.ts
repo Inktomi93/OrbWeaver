@@ -3,6 +3,7 @@
 // `stripHiddenSpans` (kit), the CONSEQUENCE asserted is "zero truth bytes in the serialized payload".
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../../../../../packages/server/src/domain/chat/contract/views.ts";
@@ -18,7 +19,6 @@ import {
   stripReasoningFromView,
 } from "../../../../../packages/server/src/domain/chat/substrate/member-visibility.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import type { ProviderId } from "@orb/contracts/inference";
 
 const LIE = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
 const chatId = castId<ChatId>("chat_1");
@@ -323,7 +323,7 @@ function deceptionTurnRows(): ChatBusReplayEvent[] {
         chatId,
         intent: "send",
         api: "chat-completions",
-provider: castId<ProviderId>("custom-openai"),
+        provider: castId<ProviderId>("custom-openai"),
         model: "m",
         speakerCharacterId: null,
         targetMessageId: null,

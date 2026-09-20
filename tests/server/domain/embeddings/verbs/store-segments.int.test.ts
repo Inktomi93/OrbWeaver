@@ -8,6 +8,8 @@
 //   • `hub_score` is never touched.
 
 import { chatSegments } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
@@ -15,8 +17,6 @@ import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedChat } from "../_support.ts";
-import { castId } from "@orb/kit/ids";
-import type { UserId } from "@orb/kit/ids";
 
 const SEGMENT_TEXT = "Alice: meet me at the docks.\nBob: I'll bring the relic.";
 

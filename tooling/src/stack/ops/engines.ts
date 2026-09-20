@@ -32,30 +32,6 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { engineDeploymentEnv, engineLaunchEnvFloor, fleetEnv as env, processEnvSnapshot } from "../lib/engine-fleet/index.ts";
-import type {
-  EngineLaunchConfig,
-  EngineLaunchIdentity,
-  EngineLaunchMarker,
-  EngineSpawnSpec,
-  EngineUtilFractions,
-} from "../lib/engine-fleet/index.ts";
-import {
-  buildEngineSpawnSpec,
-  captureEngineLaunchIdentity,
-  countGpus,
-  decideWakeBudget,
-  engineIdentityFilePath,
-  engineVramNeed,
-  fleetRunDir,
-  mintEngineLaunchMarker,
-  queryGpuVram,
-  reapOrphanedFamily,
-  resolveEngineLaunchConfig,
-  signalEngineLaunchIdentity,
-  VLLM_ENGINES,
-  writeEngineLaunchIdentities,
-} from "../lib/engine-fleet/index.ts";
 import { print } from "../../_shared/artifacts.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
@@ -64,6 +40,27 @@ import { spawnFullPriorityChild } from "../../_shared/proc.ts";
 import { runTool, UsageError } from "../../_shared/run-tool.ts";
 import type { EngineBootOutcome, EngineHealthWait, EngineLaunchProbes } from "../contract/types.ts";
 import { probeEngineAdoption } from "../lib/engine-adoption.ts";
+import type { EngineLaunchConfig, EngineLaunchIdentity, EngineLaunchMarker, EngineSpawnSpec, EngineUtilFractions } from "../lib/engine-fleet/index.ts";
+import {
+  buildEngineSpawnSpec,
+  captureEngineLaunchIdentity,
+  countGpus,
+  decideWakeBudget,
+  engineDeploymentEnv,
+  engineIdentityFilePath,
+  engineLaunchEnvFloor,
+  engineVramNeed,
+  fleetEnv as env,
+  fleetRunDir,
+  mintEngineLaunchMarker,
+  processEnvSnapshot,
+  queryGpuVram,
+  reapOrphanedFamily,
+  resolveEngineLaunchConfig,
+  signalEngineLaunchIdentity,
+  VLLM_ENGINES,
+  writeEngineLaunchIdentities,
+} from "../lib/engine-fleet/index.ts";
 import { classifyEngineBoot, decideEngineLaunch, stopSpawnedEngines } from "../lib/engine-launch.ts";
 import { probePortHealth } from "../lib/port-health.ts";
 import { acquireSpawnLock, pidIsAlive, releaseSpawnLock } from "../lib/spawn-lock.ts";

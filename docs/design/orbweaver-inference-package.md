@@ -2860,6 +2860,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         NOT fixed (product-side residue, reported not touched): `CHAT_OP_CODES.budgetExceeded` survives with
         no raiser and carries the orphaned `consent_required` JSDoc above it; `verbs/turn.ts`'s
         `isDrainVerdictDrop` header + `requestTurn`'s four-wall JSDoc still describe the deleted belts.
+
       - *THE RECORD-TRUTH TAIL (2026-09-20, lane cb-record-tail — the follow-ups
         `inference-record-truth-2026-09-20.md` §4 named, plus the residue the chat-reds lane reported above)*.
         **B7's client half:** the per-message cost reveal now gates on the provider's DIALECT, not on

@@ -1,6 +1,6 @@
 import type { BlockKey, MemoryQueryOptions, MemoryRetrievalMode } from "@orb/contracts/search";
 import { MEMORY_RETRIEVAL_MODES, memoryRetrievalModeSchema } from "@orb/contracts/search";
-import type { CharacterId, ChatId , UserId} from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 

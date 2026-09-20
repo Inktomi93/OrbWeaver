@@ -2,7 +2,14 @@
 // Two floor origins: env-mirrored fields read foundation/env, born-in-DB fields read a code floor only an
 // admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
-import type { AgentSdkConcurrency, AppSettings, EffectiveAppConfig, RateLimits, ResolvedAgentSdkConcurrency, ResolvedRateLimits } from "@orb/contracts/settings";
+import type {
+  AgentSdkConcurrency,
+  AppSettings,
+  EffectiveAppConfig,
+  RateLimits,
+  ResolvedAgentSdkConcurrency,
+  ResolvedRateLimits,
+} from "@orb/contracts/settings";
 import {
   DEFAULT_DISCREET_LOGIN,
   DEFAULT_LOCAL_MULTI_USER,

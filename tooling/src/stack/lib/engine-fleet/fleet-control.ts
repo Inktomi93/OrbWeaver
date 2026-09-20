@@ -13,9 +13,9 @@
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fleetEnv as env } from "./env.ts";
 import { engineBaseUrl } from "./engine-url.ts";
 import { VLLM_ENGINES } from "./engines.ts";
+import { fleetEnv as env } from "./env.ts";
 import type { EngineUtilFractions, GpuVram, WakeBudgetVerdict } from "./wake-budget.ts";
 import { decideWakeBudget, engineVramNeed } from "./wake-budget.ts";
 

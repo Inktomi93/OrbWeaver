@@ -32,7 +32,6 @@ function nextCredentialId(): UserCredentialId {
   return castId<UserCredentialId>(`user_credential_${credentialIdCounter}`);
 }
 
-
 /** A recorded `audit` op call (PD-142) — tests assert every credential mutation writes a durable row. */
 interface AuditCall {
   readonly entry: Parameters<CredentialContext["audit"]>[0];

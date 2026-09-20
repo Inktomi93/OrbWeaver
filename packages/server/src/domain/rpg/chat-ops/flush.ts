@@ -36,9 +36,9 @@
 // it never rolls back a write that already landed. `flushTurn` below states the reasoning.
 
 import { coEmitsProseWithTools } from "@orb/contracts/inference";
-import { generationOf } from "@orb/inference";
 import type { RpgExtractionMode, RpgFoldFallbackReason, RpgRecordedToolCall } from "@orb/contracts/rpg";
 import { markLockSuppressions, recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
+import { generationOf } from "@orb/inference";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat/index.ts";
 import type { StagedPatch, StagedTurnFlush } from "../contract/params.ts";

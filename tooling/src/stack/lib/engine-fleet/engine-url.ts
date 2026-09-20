@@ -8,8 +8,8 @@
 // (profile-2/D2, docs/design/containerize-prod-image-spec.md §3.6) relocates the host; the egress
 // internal-backend allowlist (infra/network/egress.ts) reads the SAME env key so the two can never drift.
 
-import { fleetEnv as env } from "./env.ts";
 import type { VLLM_ENGINES } from "./engines.ts";
+import { fleetEnv as env } from "./env.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 

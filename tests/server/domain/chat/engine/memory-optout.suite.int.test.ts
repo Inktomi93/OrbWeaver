@@ -108,7 +108,6 @@ async function groupHarness(): Promise<{
   const engine = createTurnEngine(ctx, {
     emit: (): Promise<void> => Promise.resolve(),
 
-
     holder: "replica-1",
     lockTtlMs: 60_000,
     // The REAL build front doors — exactly what the composition root injects (engine.ts §3a threads

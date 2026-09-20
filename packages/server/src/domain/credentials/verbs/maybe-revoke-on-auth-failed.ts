@@ -19,10 +19,10 @@
 // surfacing the generation's OWN error, and replacing it with a db error would misreport the failure.
 // Idempotent (re-revoking re-stamps `revoked_at`/`revoked_reason`).
 
+import type { ProviderErrorKind } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { getLog, securityEvent } from "#foundation/observability";
-import type { ProviderErrorKind } from "@orb/inference";
 import type { CredentialContext } from "../context.ts";
 import type { MaybeRevokeParams } from "../contract/params.ts";
 import type { CredentialsService } from "../contract/service.ts";

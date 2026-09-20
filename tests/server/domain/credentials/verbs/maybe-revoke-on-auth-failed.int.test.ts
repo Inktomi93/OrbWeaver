@@ -9,11 +9,11 @@
 // have to notice a chip in the Connections pane to get it back.
 
 import { userCredentials } from "@orb/db";
+import type { ProviderErrorKind } from "@orb/inference";
+import { PROVIDER_ERROR_KINDS } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCredentialsService } from "@orb/server/domain/credentials";
-import type { ProviderErrorKind } from "@orb/inference";
-import { PROVIDER_ERROR_KINDS } from "@orb/inference";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";

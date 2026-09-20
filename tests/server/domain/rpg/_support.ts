@@ -12,6 +12,7 @@ import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contra
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
+import type { WireTool } from "@orb/inference";
 import type {
   CharacterHandle,
   CharacterId,
@@ -28,7 +29,6 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
-import type { WireTool } from "@orb/inference";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
 import type { HandSnapshotTarget, TurnSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params.ts";
 import type {

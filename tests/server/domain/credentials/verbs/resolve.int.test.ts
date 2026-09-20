@@ -47,7 +47,10 @@ describe("resolve", () => {
     const token = await svc.add({ principal: principal(owner), provider: "claude-sub", key: "sk-ant-oat01-…", metadata: { auth: "oauthToken" } });
     const bearer = await svc.add({ principal: principal(owner), provider: "vllm", key: "vllm-bearer", metadata: { auth: "endpoint" } });
 
-    expect(await svc.resolve({ ownerId: owner, credentialId: token.id, providerId: CLAUDE_SUB })).toMatchObject({ kind: "oauthToken", secret: "sk-ant-oat01-…" });
+    expect(await svc.resolve({ ownerId: owner, credentialId: token.id, providerId: CLAUDE_SUB })).toMatchObject({
+      kind: "oauthToken",
+      secret: "sk-ant-oat01-…",
+    });
     expect(await svc.resolve({ ownerId: owner, credentialId: bearer.id, providerId: VLLM })).toMatchObject({ kind: "bearer", secret: "vllm-bearer" });
   });
 
@@ -89,7 +92,9 @@ describe("resolve", () => {
     const owner = await seedUser(db, { id: "user_o", role: "user" });
     const added = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-or" });
 
-    await expect(svc.resolve({ ownerId: owner, credentialId: added.id, providerId: castId<ProviderId>("anthropic") })).rejects.toBeInstanceOf(CredentialsDecryptError);
+    await expect(svc.resolve({ ownerId: owner, credentialId: added.id, providerId: castId<ProviderId>("anthropic") })).rejects.toBeInstanceOf(
+      CredentialsDecryptError,
+    );
   });
 
   test("a missing or FOREIGN credential id is the typed no-credential floor (no silent fallback)", async () => {
@@ -99,7 +104,9 @@ describe("resolve", () => {
     const other = await seedUser(db, { id: "user_other", role: "user" });
     const theirs = await svc.add({ principal: principal(other), provider: "openrouter", key: "sk-theirs" });
 
-    await expect(svc.resolve({ ownerId: owner, credentialId: castId("user_credential_missing"), providerId: OPENROUTER })).rejects.toThrow(DomainNoCredentialError);
+    await expect(svc.resolve({ ownerId: owner, credentialId: castId("user_credential_missing"), providerId: OPENROUTER })).rejects.toThrow(
+      DomainNoCredentialError,
+    );
     await expect(svc.resolve({ ownerId: owner, credentialId: theirs.id, providerId: OPENROUTER })).rejects.toThrow(DomainNoCredentialError);
   });
 

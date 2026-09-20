@@ -17,6 +17,7 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../support/composed-real.ts";
+import type { ProviderId } from "@orb/contracts/inference";
 import { assets, characterDocuments, documents, notifications, plugins, themes, userCredentials, workloadSchedules, workloads } from "@orb/db";
 import type {
   AssetId,
@@ -51,7 +52,6 @@ import type { AppCaller } from "../../support/fixtures.ts";
 import { expect, OWNER_USER_ID, test } from "../../support/fixtures.ts";
 import { principal as automationPrincipal } from "../domain/automation/_support.ts";
 import { seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
-import type { ProviderId } from "@orb/contracts/inference";
 
 // ── Owner A's distinctive marker names — these strings exist ONLY in A's owned rows, so their appearance in
 //    a stranger's result is an unambiguous LEAK signal (an echoed input id is NOT a leak — a stranger's own

@@ -2,14 +2,14 @@
 // ops (generate/fetch/store/extract/caption/stats). The infra executor + role resolver + CAS write + the
 // chat/character/assets ops are stubs — imagery declares their ports; the composition root binds the real infra.
 
-import type { Resolved } from "@orb/inference";
-import { generationOf } from "@orb/inference";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, users } from "@orb/db";
+import type { Resolved } from "@orb/inference";
+import { generationOf } from "@orb/inference";
 import type { AssetId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";

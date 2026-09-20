@@ -21,7 +21,6 @@ export interface ChatArgs {
   readonly force: boolean;
 }
 
-
 export interface RunFullSeedDeps {
   readonly db: Db;
   readonly now: () => number;

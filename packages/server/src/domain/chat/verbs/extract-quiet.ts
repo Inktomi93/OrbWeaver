@@ -114,7 +114,11 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
     // The side-gen sampling ladder: the `extract_quiet` floor (temp 0.4, 320 out — near-deterministic keyword
     // extraction) ← the chat host's default-preset params (extract-quiet is chat-scoped).
     const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.extract_quiet, await deps.resolveChatPresetParams(p.chatId));
-    const res = await deps.summarize(p.funderUserId, [{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }], toSummarizeOptions(posture));
+    const res = await deps.summarize(
+      p.funderUserId,
+      [{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }],
+      toSummarizeOptions(posture),
+    );
     const item = res.items[0];
     return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
   };

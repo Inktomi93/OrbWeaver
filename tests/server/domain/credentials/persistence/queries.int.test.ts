@@ -2,8 +2,8 @@
 // the owner-scoped reads, the projection drops every secret field (invariant #4), the one-active-per-slot
 // promote, owner-scoped delete, and the revoke/clear stamps.
 
-import type { UserCredentialId } from "@orb/kit/ids";
 import type { ProviderId } from "@orb/contracts/inference";
+import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { aadFor } from "../../../../../packages/server/src/domain/credentials/persistence/aad.ts";

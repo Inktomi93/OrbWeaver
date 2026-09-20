@@ -18,12 +18,12 @@ import {
 } from "../../../../../packages/client/src/features/credentials/lib/connections-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-function available(id: string, available = true, cause?: ProviderAvailability["cause"]): ProviderAvailability {
+function available(id: string, isAvailable = true, cause?: ProviderAvailability["cause"]): ProviderAvailability {
   const provider = builtinProvider(id);
   if (provider === undefined) {
     throw new Error(`no built-in provider ${id}`);
   }
-  return { provider, available, ...(cause === undefined ? {} : { cause }) };
+  return { provider, available: isAvailable, ...(cause === undefined ? {} : { cause }) };
 }
 
 test("every routable task has exactly ONE Model-roles row, in the client's render order (a new task is caught here)", () => {

@@ -3,9 +3,8 @@
 // shell), so this is a pure deterministic mapping test: each engine gets its own port and the shared store
 // root.
 
-import { resolveEngineDeploymentFacts } from "@orb/tooling/stack/lib/engine-fleet";
 import type { EngineLaunchConfig } from "@orb/tooling/stack/lib/engine-fleet";
-import { buildEngineSpawnSpec, ENGINE_LAUNCH_MARKER_ENV, mintEngineLaunchMarker } from "@orb/tooling/stack/lib/engine-fleet";
+import { buildEngineSpawnSpec, ENGINE_LAUNCH_MARKER_ENV, mintEngineLaunchMarker, resolveEngineDeploymentFacts } from "@orb/tooling/stack/lib/engine-fleet";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 

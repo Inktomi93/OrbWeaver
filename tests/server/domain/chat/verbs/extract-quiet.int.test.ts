@@ -8,13 +8,13 @@ import { historyFloor } from "@orb/contracts/chat";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
-import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { Db } from "@orb/db";
-import type { ChatId, Handle , UserId} from "@orb/kit/ids";
+import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatUserMacroDefs } from "@orb/server/domain/chat";
 import { createExtractQuiet } from "@orb/server/domain/chat";
 import { describe } from "vitest";
+import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
@@ -25,11 +25,7 @@ interface SummarizeCall {
 }
 
 /** A recording summarize fake returning one item with a known cost. */
-function fakeSummarize(
-  sink: SummarizeCall[],
-  text = "resolved keywords",
-  costUsd: number | null = 0.007,
-): SummarizeOp {
+function fakeSummarize(sink: SummarizeCall[], text = "resolved keywords", costUsd: number | null = 0.007): SummarizeOp {
   return (_funderUserId, inputs, opts): Promise<SummarizeResult> => {
     sink.push({ inputs, opts });
     return Promise.resolve({ items: [{ text, usage: { tokensIn: null, tokensOut: null, costUsd } }], model: "sum-model" });
@@ -81,7 +77,12 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
-    const result = await extractQuiet({ chatId, instruction: "Describe {{char}} in the current moment.", historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
+    const result = await extractQuiet({
+      chatId,
+      instruction: "Describe {{char}} in the current moment.",
+      historyFloorSeq: historyFloor(0),
+      funderUserId: HOST_ID,
+    });
 
     expect(calls).toHaveLength(1);
     const item = calls[0]?.inputs[0];

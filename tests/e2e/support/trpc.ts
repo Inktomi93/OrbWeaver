@@ -354,7 +354,7 @@ export interface NewConnection {
 }
 
 /** Every connection row the caller owns (`connection.list`). */
-export function listConnections(): Promise<readonly ConnectionRow[]> {
+function listConnections(): Promise<readonly ConnectionRow[]> {
   return trpcQuery<readonly ConnectionRow[]>("connection.list", undefined);
 }
 
@@ -371,7 +371,7 @@ export interface TaskBinding {
 }
 
 /** The caller's own (`user` actor) Model-roles readout. */
-export function listBindings(): Promise<readonly TaskBinding[]> {
+function listBindings(): Promise<readonly TaskBinding[]> {
   return trpcQuery<readonly TaskBinding[]>("connection.listBindings", undefined);
 }
 

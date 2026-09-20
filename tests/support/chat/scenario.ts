@@ -15,13 +15,13 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, DurableChatBusEvent, GroupPolicy, MessageView } from "@orb/contracts/chat";
-import type { Resolved } from "@orb/inference";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import type { Resolved } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createActiveTurns } from "../../../packages/server/src/domain/chat/active-turns.ts";
@@ -40,9 +40,9 @@ import { createClaimChat } from "../../../packages/server/src/domain/chat/verbs/
 import { createTurn } from "../../../packages/server/src/domain/chat/verbs/turn.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../server/domain/chat/_support.ts";
 import { freshDb } from "../db.ts";
+import { makeResolved } from "../factories/resolved-connection.ts";
 import type { Tape } from "./tape.ts";
 import { scriptedRunner } from "./tape.ts";
-import { makeResolved } from "../factories/resolved-connection.ts";
 
 /** The default resolved connection every scripted turn runs against (the keyless endpoint row, `test-model`). */
 function connectionOf(): Resolved<"chat"> {
