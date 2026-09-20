@@ -44,12 +44,26 @@ export function checkAccessibleName(input: AccessibleNameInput): Finding | null 
  *  decision supplies the fifth answer, which is not a route but the absence of a question: `name` means the
  *  tooltip only repeats the control's accessible name, so there is nothing a user is missing.
  *
- *  POLARITY (#987): `withheld` where this instrument cannot judge — a fine-pointer pass measures a pointer
- *  the defect does not exist on, and a trigger outside the seal publishes no decision, so neither is ever a
- *  silent zero. `excluded` where measured facts prove the rule inapplicable. */
+ *  POLARITY (#987): `withheld` where this instrument cannot judge — a trigger outside the seal publishes
+ *  no decision, so the question stays open and the run is honestly NO VERDICT. `excluded` where measured
+ *  facts prove the rule inapplicable.
+ *
+ *  THE POINTER IS AN EXCLUSION, NOT A WITHHOLDING (#2468, measured 2026-09-20). This arm shipped as
+ *  `withheld(finePointer)` on 2026-09-19, and the pointer is a fact the pass KNOWS about itself — so
+ *  every desktop `--design-audit` of any surface carrying a visible tooltip trigger became a NO VERDICT
+ *  the day it landed, whatever the surface actually looks like: on `--goto characters` at `a5b34759f` the
+ *  population read candidates=17, judged=0, withheld(finePointer=17) — one of three rules holding that
+ *  run's verdict. The rule's own question is COARSE-ONLY by construction — "at a coarse pointer,
+ *  where the popup cannot be opened at all" — so on a fine pointer the popup opens on hover and there is
+ *  no defect to have. That is a candidate whose measured facts close the question by proving the rule
+ *  does not apply, which §"Polarity" spells `excluded`, exactly as `canvas-ink` spells a canvas the DOM
+ *  census reached and cannot read. Nothing goes quiet: the population row still prints
+ *  `candidates=N … excluded(finePointer=N)`, and the SAME surface at `--mobile` judges the same cohort
+ *  (measured: `candidates=7 excluded(tooltipRepeatsName=7)`), which is the proof this closes a regime,
+ *  not an eye. `noDescriptionWiring` below is untouched and is the rule's surviving refusal. */
 export function classifyUnreachableHint(input: UnreachableHintInput): CandidateDisposition {
   if (!input.coarsePointer) {
-    return { kind: "withheld", reason: "finePointer" };
+    return { kind: "excluded", reason: "finePointer" };
   }
   if (input.describesDecision === null) {
     return { kind: "withheld", reason: "noDescriptionWiring" };

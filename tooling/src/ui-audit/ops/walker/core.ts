@@ -3,6 +3,7 @@
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+// AT THE CAP: the next addition is a SIBLING segment (census-frame.ts, obscured-reach.ts) — never an arm here, never a deleted comment buying its line (Core-Tooling-Law.md §4.3).
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { INTERACTIVE_SELECTOR_JS } from "../../lib/checks-interactive.ts";
 import { SELECTION_RAIL_SEL } from "../../lib/selection-rail-sel.ts";

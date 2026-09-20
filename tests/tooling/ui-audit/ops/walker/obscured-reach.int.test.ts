@@ -20,10 +20,11 @@
 //
 // WHY THIS TIER. `elementFromPoint` is the compositor; there is no unit-testable surface for "the browser
 // declines to answer at this coordinate", and the sub-pixel boundary is the whole mechanism.
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
-import { AUDIT_ARGV, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
+import type { RelationalPopulationReport } from "../../../../support/ui-audit-relational.ts";
+import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
 
 const VIEWPORT = "800x1000";
 
@@ -68,4 +69,92 @@ test("a subject the reveal cannot make answerable STILL withholds its verdict", 
   expect(res.stdout, "and the subject is NAMED with its reason, never a bare count").toMatch(/#unreachable centre=.* centre-outside-frame/u);
   expect(res.stdout).toContain("design-audit=NO-VERDICT");
   await expect(res).toExitWith(2);
+});
+
+// ── THE CENSUS ITSELF (moved here with its subject at #2491, from census-collision.int.test.ts) ──
+//
+// The four arms below were authored against `ops/walker/census-collision.ts` while the obscured census
+// still lived inside it. The census moved to `ops/walker/obscured-reach.ts`; these moved WITH it, because
+// a spec whose name resolves to a file that is not its subject is exactly the lie `test-layout`'s own
+// DECLARED CAPABILITY LIMIT (#2264) says that gate cannot catch.
+
+test("obscured targets scan past the old cap and retain a later distinct collision decision", async ({ runCli, scratch }) => {
+  const collision = (
+    home: string,
+    loser: string,
+    winner: string,
+    text: string,
+  ): string => `<div data-slot="${home}" style="position:relative;width:180px;height:24px">
+  <span data-slot="${loser}" style="position:absolute;left:0;top:0;width:48px;height:20px;background:#333">${text}</span>
+  <button data-slot="${winner}" style="position:absolute;left:12px;top:0;width:80px;height:20px">Go</button>
+</div>`;
+  const repeated = Array.from({ length: 23 }, () => collision("cast-row", "rule-count", "start", "2 rules")).join("");
+  const distinct = collision("archive-row", "archive-label", "delete", "Archive");
+  await writeFile(join(scratch, "obscured-populations.html"), relationalDocument(`${repeated}${distinct}`));
+  const auditRun = await runCli("snap", ["--file", join(scratch, "obscured-populations.html"), ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  const report = JSON.parse(await readFile(auditReport(auditRun.stdout), "utf8")) as RelationalPopulationReport;
+  expect(report.findings.filter(({ rule }) => rule === "obscured-target")).toHaveLength(2);
+  expect(report.populationAccounting?.["obscured-target"]).toMatchObject({
+    affected: 24,
+    populations: 2,
+    emitted: 6,
+    withheld: { cap: 18 },
+  });
+});
+
+test("obscured withholding names the exact partially visible subject and centre", async ({ runCli, scratch }) => {
+  await writeFile(
+    join(scratch, "obscured-unaskable.html"),
+    relationalDocument('<p data-slot="edge-copy" style="position:fixed;left:-80px;top:20px;width:100px;height:24px">Edge copy</p>'),
+  );
+  const result = await runCli("snap", ["--file", join(scratch, "obscured-unaskable.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
+
+  expect(result.code).toBe(2);
+  expect(report.obscuredUnaskable).toEqual([
+    expect.objectContaining({
+      selector: expect.stringContaining("data-slot=edge-copy"),
+      reason: "centre-outside-frame",
+      centre: expect.objectContaining({ x: -30 }),
+    }),
+  ]);
+  expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ candidates: 1, judged: 0, withheld: { unaskable: 1 } });
+});
+
+test("obscured census recentres a partially visible subject before judging its centre", async ({ runCli, scratch }) => {
+  await writeFile(
+    join(scratch, "obscured-recentred.html"),
+    relationalDocument(
+      '<div style="height:220px"></div><button data-slot="bottom-action" style="display:block;width:160px;height:80px">Bottom action</button>',
+    ),
+  );
+  const result = await runCli("snap", ["--file", join(scratch, "obscured-recentred.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
+
+  expect(result.code).toBe(0);
+  expect(report.obscuredRecentred).toBe(1);
+  expect(report.obscuredUnaskable).toEqual([]);
+  expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ candidates: 1, judged: 1, withheld: { unaskable: 0 } });
+});
+
+test("obscured census keeps a null compositor answer withheld after the centre is in frame", async ({ runCli, scratch }) => {
+  await writeFile(
+    join(scratch, "obscured-hit-test-null.html"),
+    relationalDocument(`<span data-slot="null-hit" style="display:block;width:120px;height:40px">Null answer</span>
+<script>Object.defineProperty(document, "elementFromPoint", { value: function () { return null; } });</script>`),
+  );
+  const result = await runCli("snap", ["--file", join(scratch, "obscured-hit-test-null.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as RelationalPopulationReport;
+
+  expect(result.code).toBe(2);
+  expect(report.obscuredUnaskable).toEqual([expect.objectContaining({ selector: expect.stringContaining("data-slot=null-hit"), reason: "hit-test-null" })]);
+  expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ candidates: 1, judged: 0, withheld: { unaskable: 1 } });
 });

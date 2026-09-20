@@ -51,17 +51,20 @@
 //   z-index-escalation        every censused positive z-index is judged
 //   icon-tile-stack           every heading with a visible previous sibling is judged
 //   reveal-coverage           accounting-only, no items/checker — census-interactive.ts's rest-hidden-
-//                             reveal count is the whole rule (#1077)
+//                             reveal count is the whole rule (#1077), published as excluded(restHiddenReveal):
+//                             the fine REST regime does not offer them and the coarse one judges them (#2468)
 //   canvas-ink                accounting-only, no items/checker — census-collision.ts's visible-canvas
 //                             count is the whole rule (#1079)
 //
 // RUNG 2b · partitionedFindings — the checker itself names each candidate's disposition, because `null`
 // meant two different things and a bare zero conflated them:
 //   control-aspect            excluded(roleWithoutSilhouette) · withheld(animating, degenerateBox)
-//   unreachable-hint          excluded(tooltipRepeatsName, hasReachableDescription, visibleOwnText,
-//                             pressDoor) · withheld(finePointer, noDescriptionWiring) — a fine-pointer
-//                             pass measures a pointer the defect cannot exist on, and a trigger
-//                             outside the tooltip seal publishes no decision to read (#2452)
+//   unreachable-hint          excluded(finePointer, tooltipRepeatsName, hasReachableDescription,
+//                             visibleOwnText, pressDoor) · withheld(noDescriptionWiring) — a fine-pointer
+//                             pass measures a pointer the defect cannot exist ON, which CLOSES the
+//                             question (#2468; it shipped as a withholding at #2452 and made every
+//                             desktop audit a NO VERDICT), while a trigger outside the tooltip seal
+//                             publishes no decision to read and leaves it open
 //   border-contrast           excluded(noDeclaredBorder, inactiveExempt) · withheld(the backdrop's own
 //                             unresolved reason, borderColorUnreadable) — a control that declared no
 //                             boundary made no claim, and an unresolvable surround is not a clean edge

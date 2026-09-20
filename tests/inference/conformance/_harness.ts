@@ -328,7 +328,18 @@ export interface ChatArmOptions {
   readonly pricing?: boolean | undefined;
 }
 
-function chatRequestFor(wire: Wire, options: ChatArmOptions, sink: { deltas: string[]; events: ChatEvent[] }): ChatRequest {
+/** What `driveChat` collects out of the executor's callbacks. ONE declaration rather than a shape
+ *  re-spelled at the parameter and re-asserted at the call site: the `as string[]`/`as ChatEvent[]` the
+ *  empty literals used to carry were a hand-shaped value asserted complete, which survives `ChatEvent`
+ *  gaining an arm — and this harness is the substrate of the suite that found #1400 alive on the
+ *  openai-compat wire, so a fixture that can drift out from under `ChatEvent` is the fake outranking the
+ *  oracle one level down. The arrays are MUTATED (pushed into), never reassigned. */
+interface ChatEventSink {
+  readonly deltas: string[];
+  readonly events: ChatEvent[];
+}
+
+function chatRequestFor(wire: Wire, options: ChatArmOptions, sink: ChatEventSink): ChatRequest {
   const capability = options.capability ?? chatCapability();
   const connection = fakeResolved({
     task: "chat",
@@ -369,7 +380,7 @@ function runtimeFor(wire: Wire, frames: () => Record<string, unknown>[], sse: ()
 /** Drive ONE chat turn on ONE wire through the real executor. Resolves with the turn plus everything the
  *  cross-backend laws read; REJECTS with whatever the wire threw (the failure arms assert on that). */
 export async function driveChat(wire: Wire, options: ChatArmOptions): Promise<ChatArmResult> {
-  const sink = { deltas: [] as string[], events: [] as ChatEvent[] };
+  const sink: ChatEventSink = { deltas: [], events: [] };
   const recorded: RecordedRequest[] = [];
   const model = modelForWire(wire);
   const runtime = runtimeFor(
