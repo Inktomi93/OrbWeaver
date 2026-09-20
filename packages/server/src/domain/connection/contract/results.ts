@@ -16,6 +16,8 @@ export interface ConnectionView extends UserConnection {
  *  synthesized with + the tasks. */
 export interface ConnectionCapabilityView {
   readonly capability: Capability;
+  /** The same evidence fold with this row's declaration omitted. */
+  readonly baseline: Capability;
   readonly warnings: readonly ResolvedWarning[];
   readonly tasks: readonly Task[];
 }
