@@ -5,7 +5,7 @@
 // (the same predicates chat's own seam wraps). Owns no business logic — it only threads the already-built infra
 // handles + sibling service front doors onto the `DatabankContext`.
 
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { EMBED_SPACE_DIMS, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
@@ -90,9 +90,11 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     // The DB7 scrapeWeb port: infra/network's `fetchWebDocument` (the ANY_HOST arbitrary-URL class — no host
     // pin, but https + private-range denial run per hop; throws on refusal/non-2xx/cap, the verb maps it).
     fetchUrl: fetchWebDocument,
+    // `model` is the SPACE TAG (`embedSpaceOf`), never the bare row column: every count read here is
+    // compared against `document_chunks.model`, which carries the dtype the backend stamped (§10-2).
     getActiveEmbedSpace: async (ownerId) => {
       const space = await (await deps.roleClientsFor(ownerId)).resolved("embed");
-      return space === null ? null : { model: space.model, dim: EMBED_SPACE_DIMS };
+      return space === null ? null : { model: embedSpaceOf(space.model, embedDtypeOf(space.capability)), dim: EMBED_SPACE_DIMS };
     },
     // The OWNER's real databank settings (chunk params ingest uses + retrieval params gather passes to
     // search.documents) — the extracted binding (below), replacing the compose-stub-goes-stale 0-param stub.

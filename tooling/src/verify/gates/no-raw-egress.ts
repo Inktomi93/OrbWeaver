@@ -10,8 +10,21 @@
 // provider-returned URL was response-controlled. Each home that actually performs credentialed or
 // loopback egress is now its own `(subject, operation)` row in `lib/reviewed-grants.ts` with `why` and
 // `endsWhen`; a file that stops doing raw egress reds at a stale row, and a NEW file in `infra/network`
-// or `infra/providers` reds until someone reviews it. That is the two-sided ratchet the legacy
-// stale-zone `finalize` arm was hand-rolling, moved to the central table that owns liveness.
+// or in the inference package's `backends/` reds until someone reviews it. That is the two-sided ratchet
+// the legacy stale-zone `finalize` arm was hand-rolling, moved to the central table that owns liveness.
+//
+// WIDENED TO `@inference` 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
+// `docs/design/orbweaver-inference-package.md`). THIS IS THE SECURITY-LOAD-BEARING HALF of that audit.
+// The whole of `packages/server/src/infra/providers/` — every hosted wire, every credentialed request the
+// product makes — moved to `packages/inference/src/`, a tree the `@server` root does not reach. For the
+// window between the extraction and this commit the policy ran GREEN over 1,380 admitted `@server` paths
+// while the tree's PRIMARY credentialed-egress surface (`packages/inference/src/backends/**`) was judged by
+// nothing: a new `fetch` there could have landed unreviewed, which is the exact thing the B5a ratchet
+// exists to make impossible. SEVEN of its eight reviewed grants went stale in the same move (their subjects
+// were absolute `infra/providers/**` paths) and were re-pointed or retired in this commit; the stale-grant
+// alarms were the only signal that the population had gone blind, and an alarm is not a finding.
+// `@server` STAYS in the population: `infra/network/egress.ts` (the guard itself), the imagery and plugin
+// egress homes and every future server-side call still live there.
 //
 // IDENTITY, NOT SPELLING. Legacy matched a CallExpression whose callee was an Identifier with the text
 // `fetch`, so `globalThis.fetch(url)`, `globalThis["fetch"](url)` and a stored `const f = fetch` alias
@@ -69,9 +82,11 @@ function fetchCandidate(node: MorphNode): boolean {
 }
 
 /** A `typeof globals.fetch === "function"` capability probe reads whether the environment HAS the api, and
- *  a TYPE QUERY (`readonly fetch?: typeof fetch` — the injected-port declaration in the agent-sdk host
- *  token deps, found by this conversion) names the api's TYPE. Neither performs egress: the first is a
- *  guard every one-home writes, the second is how a port declares the shape it accepts. */
+ *  a TYPE QUERY (`readonly sdkFetch?: typeof fetch` — the injected-port declaration at
+ *  `packages/inference/src/deps.ts`, and `readonly fetch: typeof fetch` on every backend's transport deps)
+ *  names the api's TYPE. Neither performs egress: the first is a guard every one-home writes, the second is
+ *  how a port declares the shape it accepts. The conversion found this shape at the agent-sdk host-token
+ *  deps, a module the `@orb/inference` extraction deleted; the shape it proved is live in the new package. */
 function isCapabilityProbe(node: MorphNode): boolean {
   const parent = node.getParent();
   return Node.isTypeOfExpression(parent) || Node.isTypeQuery(parent);
@@ -118,8 +133,9 @@ export const gate = defineGate({
   severity: "error",
   // The legacy predicate admitted all server source and subtracted two directory zones; the homes are
   // grants now, so nothing is subtracted. `entire-population` because grant liveness is a whole-population
-  // verdict.
-  population: "@server",
+  // verdict — and that is also why the widening had to be BOTH roots in one edit: a grant liveness verdict
+  // taken over half the corpus calls every row whose subject sits in the other half stale.
+  population: { in: ["@server", "@inference"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],
@@ -166,9 +182,9 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "packages/server/src/infra/providers/vllm/engine/client.ts": 'export const load = async (): Promise<unknown> => await fetch("https://x");\n' },
+      files: { "packages/inference/src/backends/openai-compat/transport.ts": 'export const load = async (): Promise<unknown> => await fetch("https://x");\n' },
       expect: { count: 1 },
-      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a sanctioned provider-egress home reds like any other file and is licensed by an exact grant row, so a SECOND file in that directory is a finding until someone reviews it — which the legacy directory regex could not express",
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a sanctioned provider-egress home reds like any other file and is licensed by an exact grant row, so a SECOND file in that directory is a finding until someone reviews it — which the legacy directory regex could not express. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/vllm/engine/client.ts`, a path the `@orb/inference` extraction deleted; `packages/inference/src/backends/openai-compat/` is the tree's credentialed-egress directory today, so this row is ALSO the `@inference` half of the population fence — it reds only because the widening landed",
     },
     {
       mode: "types",
@@ -255,10 +271,9 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/backends/agent-sdk/host-token.ts":
-          "export interface HostTokenDeps {\n  readonly fetch?: typeof fetch;\n}\nexport const deps: HostTokenDeps = {};\n",
+        "packages/inference/src/deps.ts": "export interface InferenceDeps {\n  readonly sdkFetch?: typeof fetch;\n}\nexport const deps: InferenceDeps = {};\n",
       },
-      why: "A TYPE QUERY IS NOT A CALL, and this is the live shape that proved it: `agent-sdk/host-token.ts` declares its injected port as `readonly fetch?: typeof fetch`. Widening the subject from the legacy identifier-CALLEE to every reference named `fetch` picked it up as a raw-egress finding on the first real pass — a port DECLARATION is the fix this law wants, not the hole",
+      why: "A TYPE QUERY IS NOT A CALL. The shape that proved it was `agent-sdk/host-token.ts`'s `readonly fetch?: typeof fetch` — widening the subject from the legacy identifier-CALLEE to every reference named `fetch` picked that declaration up as a raw-egress finding on the first real pass, and a port DECLARATION is the fix this law wants, not the hole. RE-POINTED 2026-09-20: that module was deleted by the `@orb/inference` extraction, and the identical shape is live at `packages/inference/src/deps.ts` (`sdkFetch`) plus every backend's transport deps — so the row keeps its meaning AND its real-tree subject",
     },
     {
       mode: "types",
@@ -274,7 +289,7 @@ export const gate = defineGate({
         "packages/client/src/features/x/load.ts": 'export const load = async (): Promise<unknown> => await globalThis.fetch("https://x");\n',
         "packages/server/src/domain/hub/verbs/anchor.ts": "export const noop = (): void => undefined;\n",
       },
-      why: 'THE POPULATION FENCE (`population: "@server"`), which nothing exercised: this law is about SERVER egress — the browser has no `safeFetch` and no SSRF surface to close — so the byte-identical ambient-root call that `mustFlag[2]` reports is NOT a finding in client source. Widen the root and this row flags. The clean server file is the ANCHOR the fence needs: a falsifier holding only the out-of-population file admits zero paths and comes back a `[population]` TOOL ERROR, which proves nothing',
+      why: 'THE POPULATION FENCE (`population: { in: ["@server", "@inference"] }`), which nothing exercised: this law is about BACKEND egress — the browser has no `safeFetch` and no SSRF surface to close — so the byte-identical ambient-root call that `mustFlag[2]` reports is NOT a finding in client source. Widen the roots to `@client` and this row flags. The clean server file is the ANCHOR the fence needs: a falsifier holding only the out-of-population file admits zero paths and comes back a `[population]` TOOL ERROR, which proves nothing. The `@inference` half of the fence is held POSITIVELY by `mustFlag[1]`, whose only admitted file is under `packages/inference/src/`: drop `@inference` from the population and that row goes to the same empty-population tool error',
     },
   ],
 });

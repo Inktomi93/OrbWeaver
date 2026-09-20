@@ -114,7 +114,11 @@ export function createTupleVocabularyFacts(): {
 /** The exported-tuple index, shared by every policy that judges a derived vocabulary.
  *
  *  Its population is exactly the packages whose exported tuples the consuming policies read: `@client`
- *  (`CHROME_ZONES`), `@server` (`WARNING_CODES`) and `@contracts` (`CHAT_WARNING_CODES`). A tuple name
+ *  (`CHROME_ZONES`), `@server` (`USER_ROLES` readers), `@contracts` (`CHAT_WARNING_CODES`) and
+ *  `@inference` (`WARNING_CODES`, which moved out of `packages/server/src/infra/providers/contract/` with
+ *  the `@orb/inference` extraction — the §12 audit, 2026-09-20). Dropping `@inference` takes `WARNING_CODES`
+ *  back to `absent`, which is exactly the state that WITHHELD `warning-code-coverage` and made
+ *  `pnpm check:structure` exit 2 for every lane between the extraction and this commit. A tuple name
  *  claimed by two exported declarations anywhere in that population is an `ambiguous` refusal at read
  *  time, never a silently narrowed vocabulary, and an index that collected nothing refuses outright
  *  rather than answering `absent` for every name.
@@ -129,13 +133,13 @@ export function createTupleVocabularyFacts(): {
  *
  *  THE `indexed === 0` REFUSAL ABOVE SURVIVES DELIBERATELY and is a narrower claim than the retired receipt:
  *  not "this vocabulary is empty" but "this collector indexed nothing at all across `@client` +
- *  `@server` + `@contracts`", which no real or fixture corpus carrying a single exported variable can
+ *  `@server` + `@contracts` + `@inference`", which no real or fixture corpus carrying a single exported variable can
  *  produce, and which would otherwise answer `absent` for every name and read as a unanimous, confident
  *  nothing. It blocks no consumer arm — an absent-vocabulary fixture needs only one unrelated exported
  *  variable to index. */
 export const tupleVocabularyFact = defineFact({
   id: "tuple-vocabularies",
-  population: { in: ["@client", "@server", "@contracts"] },
+  population: { in: ["@client", "@server", "@contracts", "@inference"] },
   analysis: "types",
   resources: [],
   create: (ctx) => {

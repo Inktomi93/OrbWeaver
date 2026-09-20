@@ -132,6 +132,12 @@ export interface StageResult {
   readonly notices: readonly string[];
 }
 
+/** THE NOTICE CHANNEL'S ONE SPELLING. It sat as a private `const` in `ops/run.ts` (the lifter) AND again in
+ *  `ops/db-baseline-parity.ts` (an emitter); a third emitter arrived at #2472 and a third copy of a
+ *  string-keyed protocol is how the lifter and its emitters silently stop agreeing. It lives HERE because
+ *  the field it feeds is documented directly above, and both sides already depend on this contract. */
+export const NOTICE_MARKER = "[verify-notice]";
+
 /** WHO wrote this artifact (#1029). `reports/verify.json` is a `latest` POINTER now — published only when
  *  a run finishes — so the identity is part of the verdict: a reader who cannot say which run produced the
  *  file it is holding cannot say the verdict is theirs. `concurrent` names the other verify runs that were

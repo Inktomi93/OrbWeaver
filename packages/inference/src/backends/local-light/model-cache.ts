@@ -10,6 +10,7 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
 import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
+import { embedSpaceOf } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { ProviderError } from "../../contract/errors.ts";
@@ -45,11 +46,13 @@ export function resolveEmbedDtype(configured: string | undefined): DataType {
   return DATA_TYPES.find((candidate) => candidate === configured) ?? DEFAULT_EMBED_DTYPE;
 }
 
-/** THE VECTOR-SPACE IDENTITY of a local-light embedding — `<repo>@<dtype>`: a re-quantised encoder is a
- *  DIFFERENT SPACE, so the dtype rides INSIDE the tag and a flip re-indexes through the model-change machinery.
- *  `@` cannot occur in a HuggingFace repo id, so the tag never collides with a real model id. */
+/** This backend's SERVED space tag — the deployment's resolved dtype folded through the ONE shared
+ *  derivation (`@orb/contracts/inference` `embedSpaceOf`). It is deliberately not a second spelling of
+ *  `${modelId}@${dtype}`: the read side derives the same tag from the owner's resolved capability, and a
+ *  private copy here is how the two sides silently drifted apart once already (§10-2). This function
+ *  survives only to narrow `DataType` onto the derivation's `string | undefined`. */
 export function localLightEmbedSpaceTag(modelId: string, dtype: DataType): string {
-  return `${modelId}@${dtype}`;
+  return embedSpaceOf(modelId, dtype);
 }
 
 /** The MODEL SLOTS this cache loads, in PREFETCH ORDER — smallest weights first. */

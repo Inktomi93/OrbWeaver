@@ -64,7 +64,13 @@ export const gate = defineGate({
   family: "role-vocabulary",
   authority: "reviewed-grant",
   severity: "error",
-  population: "@server",
+  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
+  // `docs/design/orbweaver-inference-package.md`). ~104 source files left `packages/server/src/infra/providers/`
+  // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
+  // day they moved, silently. D17's lattice must not be re-spelled below the server either. The build log for the extraction states that
+  // no `isOwner` / `role === "owner"` read exists in `packages/inference` — a prose claim with no enforcer until
+  // now. Measured at the widening: ZERO findings, so the log's claim is now held rather than asserted.
+  population: { in: ["@server", "@inference"] },
   analysis: "types",
   execution: "entire-population",
   facts: [tupleVocabularyFact],

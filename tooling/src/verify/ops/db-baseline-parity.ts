@@ -31,6 +31,7 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { SchemaBaselineComparison } from "../contract/scoped.ts";
+import { NOTICE_MARKER } from "../contract/stage.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:db-baseline");
 
@@ -144,13 +145,12 @@ function printGroup(label: string, statements: readonly string[]): void {
 // A lane worktree has no `data/` and gets `no-db` (silence); a fresh checkout gets `trivial` (silence);
 // an unreadable db gets `unknown`, which is REPORTED — "I could not measure" is never printed as clean.
 const DEV_DB_MIGRATIONS = "packages/db/src/migrations";
-const NOTICE = "[verify-notice]";
 const MIB = 1_048_576;
 const HASH_PREFIX = 12;
 const DEFAULT_DATABASE_URL = "file:./data/orbweaver.db"; // mirrors foundation/env's default.
 
 function noticeLine(text: string): void {
-  process.stdout.write(`${NOTICE} ${text}\n`);
+  process.stdout.write(`${NOTICE_MARKER} ${text}\n`);
 }
 
 /** Print the local-db divergence forecast, if there is anything to say. Never throws, never gates. */

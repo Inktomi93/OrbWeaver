@@ -8,6 +8,10 @@
 //                     production wiring — tests exercise the real injection graph, not a parallel
 //                     test-only assembly (Spine-Testing esoterica).
 //   services        — `app.services` (the transport `Services` bundle), for direct front-door calls.
+//   providerFetch   — the transport the composed inference runtime issues EVERY provider request on.
+//                     Defaults to a REFUSING fake: an unscripted provider call fails loudly instead of
+//                     silently reaching whatever happens to be listening on this box. Override it in a
+//                     suite that needs a scripted wire (see the `providerFetch` fixture below).
 //   ownerCaller     — tRPC caller as the box OWNER (role 'owner' — the owner∪admin apex, D17).
 //   adminCaller     — a SEPARATE delegated admin (role 'admin') — distinct from the owner so
 //                     admin-vs-owner gates can be exercised.
@@ -59,6 +63,7 @@ export interface Fixtures {
   clock: Clock;
   ids: SeededIds;
   db: Db;
+  providerFetch: typeof fetch;
   app: ServicesResult;
   services: Services;
   ownerCaller: AppCaller;
@@ -75,6 +80,37 @@ export const OTHER_USER_ID = castId<UserId>("user_fixture_other");
 
 // ≥32 chars (the env floor for session-derived keys); FIXED so assertions stay deterministic.
 const TEST_SESSION_SECRET = "test-session-secret-at-least-32-chars";
+
+function urlOf(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  return input instanceof URL ? input.toString() : input.url;
+}
+
+/** THE DEFAULT PROVIDER TRANSPORT FOR EVERY COMPOSED TEST — a refusal, not the network.
+ *
+ *  `InferenceDeps.sdkFetch` is required and `buildBackends` resolves it ONCE, synchronously, while the `app`
+ *  fixture runs `createServices()` — which vitest executes BEFORE the test callback. So a
+ *  `vi.spyOn(globalThis, "fetch")` inside a test body is DEAD for everything that fixture already built, and
+ *  while this default was the ambient `fetch` a composed-real test reached a real listening inference engine
+ *  on the box's loopback and asserted against its real answer. A refusal cannot do that silently.
+ *
+ *  A suite that legitimately drives the wire scripts it explicitly:
+ *  `const wired = test.extend<Pick<Fixtures, "providerFetch">>({ providerFetch: async ({}, use) => { … } });` */
+function refusingFetch(): typeof fetch {
+  return (input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> => {
+    const url = urlOf(input);
+    const method = init?.method ?? "GET";
+    return Promise.reject(
+      new Error(
+        `support/fixtures: the composed graph attempted an unscripted provider request (${method} ${url}). ` +
+          "The `providerFetch` fixture refuses real egress so a test cannot silently reach a live engine or a " +
+          "hosted provider. Override `providerFetch` with a scripted fake if this call is the behaviour under test.",
+      ),
+    );
+  };
+}
 
 // No-op rate-limit gate: integration tests through these callers must not throttle as a side effect of
 // the ladder; the rate-limit primitive has its own slice test (tests/server/transport/rate-limit).
@@ -124,7 +160,10 @@ export const test = base.extend<Fixtures>({
     const { freshDb } = await import("./db.ts");
     await use(await freshDb());
   },
-  app: async ({ db, clock }, use): Promise<void> => {
+  providerFetch: async ({}, use): Promise<void> => {
+    await use(refusingFetch());
+  },
+  app: async ({ db, clock, providerFetch }, use): Promise<void> => {
     const { createServices } = await import("@orb/server/entry/compose");
     const casDir = await mkdtemp(join(tmpdir(), "orb-fixture-cas-"));
     const variantDir = await mkdtemp(join(tmpdir(), "orb-fixture-var-"));
@@ -136,6 +175,7 @@ export const test = base.extend<Fixtures>({
       casDir,
       variantDir,
       sessionSecret: TEST_SESSION_SECRET,
+      providerSeams: { sdkFetch: providerFetch },
     });
     await use(result);
     await rm(casDir, { recursive: true, force: true });
