@@ -2,7 +2,16 @@
 // `UserConnection` / `ConnectionBinding` (`@orb/contracts/inference` — secret-free by construction: a row names
 // its credential by id). What this file adds is the pane's DERIVED reads.
 
-import type { Capability, ConnectionBinding, ModelCatalogEntry, ResolvedConnectionView, RoutableTask, Task, UserConnection } from "@orb/contracts/inference";
+import type {
+  Capability,
+  ConnectionBinding,
+  ModelCatalogEntry,
+  ResolvedConnectionView,
+  RoutableTask,
+  Task,
+  UnavailableCause,
+  UserConnection,
+} from "@orb/contracts/inference";
 import type { ResolvedWarning } from "@orb/inference";
 
 /** A connection row with what the pane renders beside it: the tasks it may serve and the provider's label. */
@@ -27,7 +36,10 @@ export interface BindingView {
   readonly task: RoutableTask;
   readonly binding: ConnectionBinding | null;
   readonly resolved: ResolvedConnectionView | null;
-  readonly unavailableCause: string | null;
+  /** The CLOSED cause union, not a free string: the pane turns it into a sentence, and an open discriminator
+   *  on a display-bound field is how a raw `endpoint-unreachable` ends up on screen as a label. It was
+   *  already `availability.cause` at the producer (`verbs/bindings.ts`); this only stops the type widening. */
+  readonly unavailableCause: UnavailableCause | null;
 }
 
 export interface EndpointModelsResult {

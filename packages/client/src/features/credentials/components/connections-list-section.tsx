@@ -1,30 +1,55 @@
 // The CONNECTIONS section (Settings → Connections) — the user's connection rows: label · provider · model ·
-// the Model roles it may serve, with §5.3a's one-click survivor, the background switch and
-// a confirmed remove. Owns its own `QueryBoundary` (config-revamp-design.md §6.8 — one contributed section
-// per read).
+// key, the Model roles each row may serve, the background switch, and a row MENU carrying §5.3a's
+// no-defaults survivability actions. Owns its own `QueryBoundary` (config-revamp-design.md §6.8 — one
+// contributed section per read).
+//
+// THE BADGE RAIL SITS OUTSIDE THE ROW BODY, ON PURPOSE. `ListRow`'s `leading`/`markers`/`subtitleLead` all
+// render INSIDE the body — which becomes a native `<button>` the moment the row is `clickable` (the editor
+// door) — and a badge is a STATUS, not a door. So the rail is a sibling under the row rather than a slot
+// inside it, and the row door can land on this call site without swallowing it.
+//
+// THE SWEEP IS A MENU ITEM AND NOT A ROW BUTTON. "Use this connection for everything it can serve" writes up
+// to six `user` bindings in one act — the pane's most consequential and least frequent action. A button on
+// every row makes the loudest affordance the rarest one; the menu also gives it room for the gloss that
+// NAMES the roles it will write, so the undo is knowable BEFORE the click rather than after it (there is no
+// default to fall back to — §7.2 F2/F16).
+//
+// THE REMOVE CONFIRM IS THE HOUSE `ConfirmDialog` AND ONLY ITS DESCRIPTION MOVED. The shipped sentence was
+// correct and UNQUANTIFIED — it could not tell a user whether they were about to break one role or five,
+// which is the only thing they need in order to decide — and it omitted the one fact that stops a user
+// keeping a dead row out of fear: the CREDENTIAL survives, because a key is its own row (§5.3).
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Icon, Plus, Trash2 } from "@orb/ui/icons";
+import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
+import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, QueryBoundary } from "#components";
+import { QueryBoundary, RowActionsMenu } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { configAnchorId } from "#state";
 import { useRemoveConnection, useUpdateConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
-import { connectionRoleLabels, connectionSummary } from "../lib/connections-model.ts";
+import { boundRoleLabels, connectionRoleLabels, connectionSummary, joinRoleLabels, sweepRoleLabels } from "../lib/connections-model.ts";
 import { CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
+type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
+type CredentialListItem = inferOutput<Trpc["credentials"]["list"]>[number];
+
+/** The ROW width below which the background switch drops its visible gloss (its accessible name keeps the
+ *  whole sentence). Measured, not guessed: the 486 settings body renders this row at ~440px, and at 870 it
+ *  renders at ~830 — so the crossover sits between them and the label is present at one end and gone at the
+ *  other. `ListRow` observes the row's own box, which is what a container query would key on. */
+const COLLAPSE_SWITCH_LABEL_BELOW_PX = 520;
 
 export function ConnectionsListSection(): ReactElement {
   return (
@@ -43,6 +68,11 @@ function ConnectionsBody(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: connections } = useSuspenseQuery(trpc.connection.list.queryOptions());
+  // The bindings read is what lets the REMOVE confirm say how many roles it breaks, and the credential read
+  // is what lets a row say WHICH key it uses — with several connections on one key (§5.3) neither fact is
+  // derivable from anything else already on the row.
+  const { data: bindings } = useSuspenseQuery(trpc.connection.listBindings.queryOptions());
+  const { data: credentials } = useSuspenseQuery(trpc.credentials.list.queryOptions());
   const [addOpen, setAddOpen] = useState(false);
 
   return (
@@ -73,7 +103,7 @@ function ConnectionsBody(): ReactElement {
       ) : (
         <Stack gap="field">
           {connections.map((connection) => (
-            <ConnectionRow key={connection.id} connection={connection} trpc={trpc} invalidation={invalidation} />
+            <ConnectionRow key={connection.id} connection={connection} bindings={bindings} credentials={credentials} trpc={trpc} invalidation={invalidation} />
           ))}
         </Stack>
       )}
@@ -83,12 +113,35 @@ function ConnectionsBody(): ReactElement {
   );
 }
 
+/** The key a row uses, in the words Saved keys shows — `key "work"`. `null` for a keyless row. */
+function keyClause(connection: ConnectionListItem, credentials: readonly CredentialListItem[]): string | null {
+  if (connection.credentialId === null) {
+    return null;
+  }
+  const credential = credentials.find((candidate) => candidate.id === connection.credentialId);
+  return credential === undefined ? null : `key "${credential.label ?? "default"}"`;
+}
+
+/** The REMOVE confirm's description: the count and the ROLE NAMES it unsets, plus the fact the key stays. */
+function removalDescription(roles: readonly string[], key: string | null): string {
+  const rolesSentence =
+    roles.length === 0
+      ? "No model roles use it."
+      : `${roles.length} model role${roles.length === 1 ? "" : "s"} use${roles.length === 1 ? "s" : ""} it — ${joinRoleLabels(roles)}. They become Not set, and there is no default model, so those turns stop until you pick something else.`;
+  const keySentence = key === null ? "" : ` The ${key} stays in Saved keys.`;
+  return `${rolesSentence} Past messages keep their attribution.${keySentence} This can't be undone.`;
+}
+
 function ConnectionRow({
   connection,
+  bindings,
+  credentials,
   trpc,
   invalidation,
 }: {
   readonly connection: ConnectionListItem;
+  readonly bindings: readonly BindingView[];
+  readonly credentials: readonly CredentialListItem[];
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
 }): ReactElement {
@@ -96,56 +149,103 @@ function ConnectionRow({
   const remove = useRemoveConnection(deps);
   const update = useUpdateConnection(deps);
   const applyEverywhere = useUseForEverything(deps);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const subtitle = [connection.providerLabel, connection.baseUrl, connection.modelListed ? null : "typed model id — sent as-is"]
-    .filter((part) => part !== null)
-    .join(" · ");
+
+  const name = connectionSummary(connection);
+  const key = keyClause(connection, credentials);
+  const subtitle = [connection.providerLabel, connection.baseUrl, key].filter((part) => part !== null).join(" · ");
+  const sweepRoles = sweepRoleLabels(connection);
+  const boundRoles = boundRoleLabels(connection.id, bindings);
+  // THE SWITCH'S SUBJECT RIDES ITS ACCESSIBLE NAME, NOT ITS PIXELS — measured, not preferred. The row it
+  // belongs to is the row it is IN, so a sighted reader already has the subject; spelling it visibly made
+  // the trailing cluster wider than the identity block and truncated the connection's own name to
+  // "local-light · reranker · Xenova/ms…" while the switch label spelled that model in full (snap
+  // `config_to_connections`, 870px). A screen-reader user has no row context, so the NAME keeps it — which
+  // is also why the shipped one-word "background" gloss had to go.
+  // The Model-roles REPAIR switch is the opposite case and spells its subject visibly: it sits in a role
+  // row and writes a DIFFERENT row's flag, so there is no context to inherit.
+  const switchLabel = "Allow background work";
+  const switchName = `${switchLabel} on ${name}`;
 
   return (
-    <ListRow
-      title={connectionSummary(connection)}
-      subtitle={subtitle}
-      leading={
-        <Row gap="field" align="center">
-          {connectionRoleLabels(connection.tasks).map((label) => (
-            <Badge key={label} intent="neutral" size="sm">
-              {label}
-            </Badge>
-          ))}
-        </Row>
-      }
-      actions={
-        <Row gap="field" align="center">
+    <Stack gap="tight">
+      <ListRow
+        title={name}
+        subtitle={subtitle}
+        // THE ROW'S NAME OUTRANKS THE SWITCH'S GLOSS BELOW ~480px (measured: at the 486 settings body the
+        // in-flow cluster truncated the identity to "local-light · encoder · jinaai…" while spelling the
+        // switch's label in full — snap `config_to_connections`, 486x1700). The gloss is the one element
+        // here that is REDUNDANT: the Switch's own accessible name already carries "Allow background work
+        // on <connection>", so dropping the visible text costs a screen-reader user nothing and buys the
+        // name ~130px. Nothing else in the cluster collapses — a control that disappears is a capability
+        // that disappears.
+        collapseBelow={COLLAPSE_SWITCH_LABEL_BELOW_PX}
+        renderActions={(collapsed): ReactElement => (
           <Row gap="field" align="center">
-            <Switch
-              aria-label={`Allow background work on this connection: ${connection.label}`}
-              checked={connection.allowBackground}
-              disabled={update.isPending}
-              onCheckedChange={(checked): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: checked } })}
-            />
-            <Text voice="gloss">Allow background work on this connection</Text>
+            <Row gap="field" align="center">
+              <Switch
+                aria-label={switchName}
+                checked={connection.allowBackground}
+                disabled={update.isPending}
+                onCheckedChange={(checked): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: checked } })}
+              />
+              {collapsed ? null : (
+                <Text voice="gloss" as="span">
+                  {switchLabel}
+                </Text>
+              )}
+            </Row>
+            <RowActionsMenu
+              label={`More actions for ${name}`}
+              destructive={{
+                confirmLabel: "Remove",
+                description: removalDescription(boundRoles, key),
+                label: "Remove",
+                onConfirm: (): void => remove.mutate({ connectionId: connection.id }),
+                title: `Remove "${connection.label}"?`,
+              }}
+            >
+              <MenuItem
+                className="flex-col items-start"
+                disabled={applyEverywhere.isPending || sweepRoles.length === 0}
+                onClick={(): void => applyEverywhere.mutate({ connectionId: connection.id })}
+              >
+                <Text voice="label" as="span" ink="inherit">
+                  Use this connection for everything it can serve
+                </Text>
+                <Text voice="gloss" as="span">
+                  Sets {joinRoleLabels(sweepRoles)} to this connection. You can change any of them after.
+                </Text>
+              </MenuItem>
+            </RowActionsMenu>
           </Row>
-          <Button
-            intent="secondary"
-            size="sm"
-            disabled={applyEverywhere.isPending}
-            onClick={(): void => applyEverywhere.mutate({ connectionId: connection.id })}
-          >
-            Use this connection for everything it can serve
-          </Button>
-          <Button intent="ghost" size="sm" aria-label={`Remove the ${connection.label} connection`} onClick={(): void => setDeleteOpen(true)}>
-            <Icon icon={Trash2} size="sm" />
-          </Button>
-          <ConfirmDialog
-            confirmLabel="Remove"
-            description="Every role using this connection goes unset until you pick another. Past messages keep their attribution. This can't be undone."
-            onConfirm={(): void => remove.mutate({ connectionId: connection.id })}
-            onOpenChange={setDeleteOpen}
-            open={deleteOpen}
-            title={`Remove "${connection.label}"?`}
-          />
-        </Row>
-      }
-    />
+        )}
+      />
+      <ConnectionBadges connection={connection} />
+    </Stack>
+  );
+}
+
+/** The row's status rail: the Model roles this connection CAN serve (a statement about the model, never
+ *  about what the user bound), plus the two CONDITION badges. `task` is SEALED — the badge text is always
+ *  the Model-roles label, never the schema word. */
+function ConnectionBadges({ connection }: { readonly connection: ConnectionListItem }): ReactElement {
+  return (
+    <Row gap="field" align="center" className="flex-wrap">
+      {connectionRoleLabels(connection.tasks).map((label) => (
+        <Badge key={label} intent="primary" size="sm" tone="soft">
+          {label}
+        </Badge>
+      ))}
+      {connection.modelListed ? null : (
+        <Badge intent="warning" size="sm" tone="soft">
+          Model not in list
+        </Badge>
+      )}
+      {connection.allowBackground ? null : (
+        <Badge intent="warning" size="sm" tone="soft">
+          Background work off
+        </Badge>
+      )}
+    </Row>
   );
 }
