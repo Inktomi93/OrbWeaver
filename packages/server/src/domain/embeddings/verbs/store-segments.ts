@@ -42,9 +42,9 @@ async function gate(ctx: EmbeddingsContext, params: readonly SegmentStoreParams[
 }
 
 /** The produced vector for one pending item, or the typed failure: the family filtered the input (`null`), the
- *  flood came back short, or the vector does not match the declared space. */
-function vectorFor(vectors: readonly (Float32Array | null)[], at: number, p: SegmentStoreParams, model: string): Float32Array {
-  const vector = vectors[at];
+ *  flood came back short, or the vector does not match the declared width. `model` is THIS item's owner's
+ *  answer, never the batch's — see `flood`. */
+function vectorFor(vector: Float32Array | null | undefined, p: SegmentStoreParams, model: string): Float32Array {
   if (vector === null || vector === undefined) {
     throw new EmbedFailedError(p.lens, model);
   }
@@ -52,6 +52,40 @@ function vectorFor(vectors: readonly (Float32Array | null)[], at: number, p: Seg
     throw new SpaceMismatchError(model, p.dim, vector.length);
   }
   return vector;
+}
+
+/** THE FLOOD. One call per OWNER, every pending chunk of theirs. Deliberately NOT chunked or throttled here:
+ *  sizing the wire batch is the provider surface's job (it knows the engine's chunk size + worker count), and
+ *  a second client-side limiter would only re-create the starvation this verb removes. The split is by funder
+ *  because each owner's embed connection defines their space (section 7.5-2) -- still one call per owner,
+ *  never one per chunk.
+ *
+ *  THE SPACE TAG IS KEPT PER ITEM, not per batch. Each owner's flood answers in THAT owner's space, so a
+ *  mixed-owner batch carries two tags; the previous shape folded them into one `modelTag` and stamped every
+ *  row with whichever owner's flood happened to run last -- a silent cross-owner mis-tagging of the same
+ *  class the space-tag derivation (`embedSpaceOf`) exists to make impossible. */
+async function flood(
+  ctx: EmbeddingsContext,
+  pending: readonly PendingSegment[],
+): Promise<Map<number, { readonly model: string; readonly vector: Float32Array | null }>> {
+  const byOwner = new Map<UserId, PendingSegment[]>();
+  for (const item of pending) {
+    const bucket = byOwner.get(item.params.ownerId);
+    if (bucket === undefined) {
+      byOwner.set(item.params.ownerId, [item]);
+    } else {
+      bucket.push(item);
+    }
+  }
+  const out = new Map<number, { readonly model: string; readonly vector: Float32Array | null }>();
+  for (const [ownerId, items] of byOwner) {
+    const rc = await ctx.roleClientsFor(ownerId);
+    const result = await rc.embed(items.map((p) => p.params.text));
+    for (const [i, item] of items.entries()) {
+      out.set(pending.indexOf(item), { model: result.model, vector: result.vectors[i] ?? null });
+    }
+  }
+  return out;
 }
 
 export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["storeSegments"] {
@@ -62,35 +96,12 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
       return results;
     }
 
-    // THE FLOOD. One call, every pending chunk. Deliberately NOT chunked or throttled here: sizing the wire
-    // batch is the provider surface's job (it knows the engine's chunk size + worker count), and a second
-    // client-side limiter would only re-create the starvation this verb removes.
-    // One flood PER OWNER: each owner's embed connection defines their space (§7.5-2), so a mixed-owner batch
-    // is split by funder before it goes to the wire — still one call per owner, never one per chunk.
-    const byOwner = new Map<UserId, typeof pending>();
-    for (const item of pending) {
-      const bucket = byOwner.get(item.params.ownerId);
-      if (bucket === undefined) {
-        byOwner.set(item.params.ownerId, [item]);
-      } else {
-        bucket.push(item);
-      }
-    }
-    const vectorsByIndex = new Map<number, Float32Array | null>();
-    let modelTag = "";
-    for (const [ownerId, items] of byOwner) {
-      const rc = await ctx.roleClientsFor(ownerId);
-      const result = await rc.embed(items.map((p) => p.params.text));
-      modelTag = result.model;
-      for (const [i, item] of items.entries()) {
-        vectorsByIndex.set(pending.indexOf(item), result.vectors[i] ?? null);
-      }
-    }
-    const embedded = { model: modelTag, vectors: pending.map((_, i) => vectorsByIndex.get(i) ?? null) };
+    const embeddedByIndex = await flood(ctx, pending);
 
     // The row writes stay SEQUENTIAL — they are db upserts, and the engine is already done by here.
     for (const [i, item] of pending.entries()) {
       const p = item.params;
+      const embedded = embeddedByIndex.get(i) ?? { model: p.model, vector: null };
       await upsertChatSegment(ctx.db, {
         id: ctx.newChatSegmentId(),
         chatId: p.chatId,
@@ -99,7 +110,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
         seqStart: p.seqStart,
         seqEnd: p.seqEnd,
         text: p.text,
-        embedding: vectorFor(embedded.vectors, i, p, embedded.model),
+        embedding: vectorFor(embedded.vector, p, embedded.model),
         contentHash: p.contentHash,
         model: embedded.model,
         dim: p.dim,

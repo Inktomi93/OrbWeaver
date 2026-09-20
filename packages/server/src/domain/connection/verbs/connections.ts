@@ -3,8 +3,11 @@
 // resolver never re-decides it: the provider is registered, the `api` is one the row lists, an endpoint row
 // carries a URL (a hosted one does not), the URL parses and passes the F12 admission, the credential is the
 // caller's, and the label is unique per owner (auto-minted `<provider> · <model>`, collision-suffixed).
-// PD-139a (§10-4): a `model`/`declared` change on a row a vector task is bound to re-raises the purge+reindex
-// trigger through `onEmbedSpaceChanged` — the settings-blob trigger this replaces enqueued the same workload.
+// PD-139a (§10-4): a write that moves one of the caller's vector SPACES re-raises the purge+reindex trigger
+// through `onEmbedSpaceChanged` — the settings-blob trigger this replaces enqueued the same workload. The
+// condition is a before/after comparison of the resolved space tags (`substrate/embed-space.ts`), NOT a
+// column diff: the space is derived from the row's model AND its resolved capability, so a provider or
+// `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ProviderDef, ProviderId, UserConnection } from "@orb/contracts/inference";
 import { connectionTasks } from "@orb/contracts/inference";
@@ -24,10 +27,11 @@ import {
   listOwnedLabels,
   updateOwnedConnection,
 } from "../persistence/connections.ts";
+import type { EmbedSpaces } from "../substrate/embed-space.ts";
+import { spacesDiffer, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
 
 const LABEL_SEPARATOR = " · ";
-const VECTOR_TASKS = new Set(["embed", "imageEmbed"]);
 
 function requireProvider(ctx: ConnectionContext, providerId: string): ProviderDef {
   const provider = ctx.runtime.providers.registry.get(providerId);
@@ -104,10 +108,11 @@ async function requireOwnedRow(ctx: ConnectionContext, ownerId: UserId, connecti
   return row;
 }
 
-/** Is this row bound to a VECTOR task by the owner's `user` bindings? (the PD-139a trigger's condition) */
+/** Is this row bound to a VECTOR task by the owner's `user` bindings? `remove` asks this BEFORE the delete,
+ *  because after it there is no row left to resolve a before/after space comparison through. */
 async function boundToVectorTask(ctx: ConnectionContext, ownerId: UserId, connectionId: UserConnectionId): Promise<boolean> {
   const bindings = await listBindingsForActor(ctx.db, { actorKind: "user", actorId: ownerId });
-  return bindings.some((binding) => binding.connectionId === connectionId && VECTOR_TASKS.has(binding.task));
+  return bindings.some((binding) => binding.connectionId === connectionId && VECTOR_TASKS.includes(binding.task));
 }
 
 export function createList(ctx: ConnectionContext): ConnectionService["list"] {
@@ -197,14 +202,15 @@ export function createUpdate(ctx: ConnectionContext): ConnectionService["update"
     const ownerId = params.principal.userId;
     const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
     const patch = await validatedPatch(ctx, ownerId, row, params.patch);
+    // Snapshot BEFORE the write: after it, "what did this used to resolve to" is unanswerable.
+    const before: EmbedSpaces = await vectorSpacesOf(ctx, params.principal);
     const now = ctx.now();
     await updateOwnedConnection(ctx.db, ownerId, row.id, { ...patch, updatedAt: now });
     await ctx.audit(
       { actorUserId: ownerId, action: "connection.update", entityType: "connection", entityId: row.id, metadata: { fields: Object.keys(params.patch) } },
       now,
     );
-    const spaceChanged = (patch.model !== undefined && patch.model !== row.model) || params.patch.declared !== undefined;
-    if (spaceChanged && (await boundToVectorTask(ctx, ownerId, row.id))) {
+    if (spacesDiffer(before, await vectorSpacesOf(ctx, params.principal))) {
       ctx.onEmbedSpaceChanged(ownerId);
     }
     return toView(ctx, await requireOwnedRow(ctx, ownerId, row.id));

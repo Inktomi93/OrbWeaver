@@ -18,6 +18,7 @@ import { castId } from "@orb/kit/ids";
 import type { ConnectionContext, ConnectionService, EndpointAdmission } from "@orb/server/domain/connection";
 import { createConnectionPorts, createConnectionService } from "@orb/server/domain/connection";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { fakeModelCache } from "../../../inference/_support.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { makeResolvedSecret } from "../../../support/factories/resolved-connection.ts";
@@ -54,6 +55,11 @@ export interface HarnessOptions {
   readonly routes?: readonly FakeRoute[] | undefined;
   /** The bundled `claude` runtime — absent ⇒ the agent-sdk wire is NOT built (the shipped default). */
   readonly claudeExecutable?: string | undefined;
+  /** ON ⇒ the in-process `local-light` tier gets its SCRIPTED model cache (`deps.localLight.cache`), so an
+   *  `embed`/`imageEmbed`/`rerank` call on a `local-light` row runs the REAL backend — its space-tag
+   *  derivation included — without loading ONNX weights. OFF (the default) leaves `localLight` absent, which
+   *  is what every resolve-only scenario wants. */
+  readonly localLight?: boolean | undefined;
 }
 
 export interface ConnectionHarness {
@@ -183,6 +189,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     agentSdk: { summarizeConcurrency: (): number => 1 },
     userRuntimeDir: (ownerId): string => `/tmp/orb-test/${ownerId}/claude`,
     embedSpace: { dims: 1024 },
+    ...(options.localLight === true ? { localLight: { cache: fakeModelCache(1024) } } : {}),
     sdkFetch: fakeFetch(options.routes ?? [], requests),
   };
   const runtime = await createInferenceRuntime(deps);
