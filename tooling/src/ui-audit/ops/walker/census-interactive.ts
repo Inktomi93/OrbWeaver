@@ -76,7 +76,8 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap targets + accessible names + action doors ──
   // THE TWO-ARM REVEAL CONTRACT (#1077): ROW_REVEAL/subtitleReveal is opacity-0 at fine rest, ALWAYS-ON
   // at coarse (\`pointer-coarse:opacity-100\`) — coarse covers itself, so the gap is fine-only.
-  // \`restHiddenRevealFine\` feeds census-collision.ts's \`reveal-coverage\` WITHHELD row, never a silent drop.
+  // \`restHiddenRevealFine\` feeds census-collision.ts's \`reveal-coverage\` EXCLUDED row (#2468 — it was a
+  // WITHHELD row until the fine-rest regime was named there), never a silent drop.
   var pointerCoarse = window.matchMedia("(pointer: coarse)").matches;
   var restHiddenRevealFine = 0;
   var tapTargets = [];

@@ -50,6 +50,7 @@ import { WALKER_CENSUS_TEXT } from "./walker/census-text.ts";
 import { WALKER_CENSUS_TIER } from "./walker/census-tier.ts";
 import { WALKER_CORE } from "./walker/core.ts";
 import { WALKER_HIT_EXTENT } from "./walker/hit-extent.ts";
+import { WALKER_OBSCURED_REACH } from "./walker/obscured-reach.ts";
 import { WALKER_RESOLVE } from "./walker/resolve.ts";
 import { WALKER_RETURNS } from "./walker/returns.ts";
 import { WALKER_STATE_PAINT } from "./walker/state-paint.ts";
@@ -116,10 +117,16 @@ ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function 
 // measures the page's RESTING frame against the viewport, and it reads only CORE's primitives, so its
 // placement owes nothing to a later segment's `var` vocabulary (its own header carries the ruling).
 //
+// WALKER_OBSCURED_REACH sits immediately after WALKER_CENSUS_COLLISION, whose function-scope half it
+// is: it reads that segment's `relationalAccounting` and writes the `obscured-target` row back into it.
+// It is a sibling FILE rather than an arm inside that one because the compositor-reach mechanism is its
+// own subject with its own committed proof (ops/walker/obscured-reach.ts's header states the #2491 mirror
+// this closed); the composition order is what makes the split free.
+//
 // WALKER_STATE_PAINT sits immediately after WALKER_RESOLVE in BOTH compositions (here and
 // ops/hover.ts): its functions call RESOLVE's `parseRgb`/`resolveBackdrop` and CORE's `describe`
 // (call-time resolution — safe), and its `var` vocabulary (STATE_PAINT_ATTRS, PSEUDOS,
 // STATE_VARIANT_TRANSFORM_RE) must be INITIALIZED before WALKER_CENSUS_DECOR and
 // WALKER_CENSUS_GLOW read it — the exact "var hoists UNDEFINED" ordering rule stated above.
 export const COLLECT_SAMPLES_JS = `(async () => {
-${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}})()`;
+${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_OBSCURED_REACH}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}})()`;
