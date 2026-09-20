@@ -83,10 +83,11 @@ describe("capabilities", () => {
       credentialId: null,
       baseUrl: BYO_BASE_URL,
       model: "bge-m3",
-      declared: { kind: "embedding" },
+      declared: { kind: "embedding", embedding: { dims: 768 } },
     });
     const read = await h.svc.capabilities({ principal: owner.principal, connectionId: row.id });
-    expect(read.capability.kind).toBe("embedding");
+    expect(read.capability).toMatchObject({ kind: "embedding", embedding: { dims: 768 } });
+    expect(read.baseline).toMatchObject({ kind: "embedding", embedding: { dims: 1024 } });
     expect([...read.tasks].toSorted()).toEqual(["embed", "imageEmbed"]);
   });
 });
