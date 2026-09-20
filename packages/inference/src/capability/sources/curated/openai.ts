@@ -33,6 +33,24 @@ export const openaiRows = [
   },
   {
     match: {
+      model: "^(openai/)?o(3|4)-mini(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["low", "medium", "high"],
+        mandatory: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-20",
+      cite: "o4-mini-2025-04-16 live request: reasoning effort 'none' → 400 unsupported_value; supported values reported as low, medium, high; o3-mini shares the measured mandatory-reasoning cell",
+    },
+  },
+  {
+    match: {
       model: "^(openai/)?(gpt-5|o[1-9])",
     },
     generation: {
