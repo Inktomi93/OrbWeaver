@@ -2357,7 +2357,7 @@ today's tree; step 4 is the pivot and everything after it is written against con
 | F22 | The ALT-MINT POLICY for a model-generated inline image | none — `contracts/chat/content-blocks.ts:38` is `alt: z.string()` with no `.min(1)`, so `""` already parses (verify9 M1; an earlier draft called this a schema change — it is not) | prefer the model's caption, else the preceding prose sentence, else `""`; never a counter (side-eye 8 P1-9 — baked into canon, unfixable at render). The §6.7 reducer's rule, no zod edit. |
 | F23 | `replyMedia` is global-only under D154, and it is the one gen knob whose per-room desire is strongest (an RPG room wants pictures, a help room does not) | D154 | **Global-only now** (the ruling holds); recorded as a known tension beside the per-connection-override fork in §8.7 so the first "let me turn pictures on for this room" request is a fork, not a surprise (side-eye 8 P3-4). |
 | F24 | `image-embed.ts` sends the pair's TEXT part to the wire with no window clamp while `embed.ts`/`rerank.ts` clamp (#165/#173); the tree neither justifies nor flags the gap | the #165 owner ruling (clamp memory-feeding embeds only with a logged receipt) | **Clamp the text part exactly as `embed` does; images keep rerank's fast-400 backstop** (§8.1b). Two surfaces already carry the rule, so the third gets it — not a new mechanism. If the owner wants image-embed text uncapped, it is one arm of a wire-level pin, not a lane default (scout-surfaces 1). |
-| F25 | **Compaction GENERATION is api-axis gated to `agent-sdk`** — `engine.ts:801-805`, a recorded owner ruling: "Stateless apis (chat-completions/responses) NEVER generate a marker — the history-budget fit hard-cap is their only trim". Under this program the fleet is gone, `anthropic-messages` is a first-class wire and most users will be on openai-compat, so the gate means the MAJORITY of connections have no compaction at all, only truncation. The marker itself is already portable (chat canon, survives an api swap; the read side is source-agnostic, D25) — only the WRITE is gated. | the api-axis ruling at `engine.ts:801-805`; D25; PD-140 | **UN-GATE (owner ruling 2026-09-20).** Marker generation fires on every wire, not just `agent-sdk`. Its own lane: the trigger is already api-agnostic in shape (context-usage pct + fit-dropped-rows), so the work is removing the gate at `engine.ts:958` (`compaction.mode === "managed" && prep.connection.api === "agent-sdk"`), deciding the ceiling source per wire (PROVIDER-truth usage where the wire reports it, fit estimate otherwise), and proving a stateless chat compacts. NOTE FOR THAT LANE — the gate's own comment has DRIFTED and must not be trusted as an enumeration: `:801-805` names the excluded set as "(chat-completions/responses)", written when `CHAT_APIS` had three members. It now has four — `anthropic-messages` joined as the first-party API-key wire (§8.5) and is ALSO excluded by the predicate, silently. **`agent-sdk` and `anthropic-messages` are two different wires** (owner clarification 2026-09-20): the first is the subscription's subprocess, the second is `@ai-sdk/anthropic` over HTTP; nothing about Claude-the-model makes a connection stateful, and the gate keys on the API axis alone. PD-140 (the marker silently dropped when the preset has no `compact_summary` section) is in scope for the same lane — an ungated writer with a dropped reader is worse than the gate. |
+| F25 | **Compaction GENERATION is api-axis gated to `agent-sdk`** — `engine.ts:801-805`, a recorded owner ruling: "Stateless apis (chat-completions/responses) NEVER generate a marker — the history-budget fit hard-cap is their only trim". Under this program the fleet is gone, `anthropic-messages` is a first-class wire and most users will be on openai-compat, so the gate means the MAJORITY of connections have no compaction at all, only truncation. The marker itself is already portable (chat canon, survives an api swap; the read side is source-agnostic, D25) — only the WRITE is gated. | the api-axis ruling at `engine.ts:801-805`; D25; PD-140 | **KEEP THE GATE (owner ruling 2026-09-20, LATER WORD — this supersedes the un-gate ruling recorded earlier the same day).** Owner: "its fine that there is only gating on agent sdk for compaction, that was kinda the intent at least for now." So `engine.ts:965`/`:1078` stay as written and F25 is CLOSED without a lane. The consequence is INTENDED, not a defect, and is recorded here so nobody re-files it: on `openai-compat` and `anthropic-messages` connections there is NO compaction at all — the history-budget fit hard-cap is their only trim. Do not "fix" that on sight. The gate's own comment at `:808` still enumerates the excluded set as "(chat-completions/responses)", written when `CHAT_APIS` had three members; it now has four and `anthropic-messages` is ALSO excluded by the predicate — that COMMENT is stale even though the CODE is correct, and repairing it is the only thing F25 leaves behind. PD-140 (the marker silently dropped when the preset carries no `compact_summary` section) is NOT closed by this ruling: it is an independent read-side defect, now scoped to agent-sdk chats only, and stays filed on its own. |
 | F26 | Anthropic Message Batches for the background `summarize`/`structured` rail (half price, experimental `ai`-core import) | none — audit row C7 | **DROPPED PERMANENTLY (owner ruling 2026-09-20).** We will not batch. The per-item `doGenerate` runner stays and the experimental import is not taken; C7 is recorded as decided so it is not re-opened from the SDK docs. |
 | F21 | `extras` precedence on the openai-compatible transport: modelled-wins (D143(b)/D156) vs passthrough-wins | D143(b), D156, `VLLM_BELT_OWNED_PARAMETER_KEYS` (`contracts/preset/index.ts:687-696`) | **MODELLED WINS, unchanged** (§8.1; ground5 H1 caught an earlier draft reversing it with no fork). Custom-byo's passthrough inverse is retired with that backend; `transport.excludeBody` is the user's door for a rejected modelled key. Flip only by an explicit owner word. |
 
@@ -2927,6 +2927,51 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         binder's own provenance pin and the agent-sdk idle-timeout fake-timer pin were deleted with their
         sources and have no successor, and `tests/server/entry/boot/local-light-prefetch-*.suite.int.test.ts`
         still poll `/api/trpc/admin.vllmEngines`, a procedure that no longer exists.
+
+      - *BUILD LOG, 2026-09-20 (lane cb-compose-harness — the 8 compose/boot harnesses the cut-over left
+        red; 16 tests, all green, `0c7fbde35`)*. Three families, and the SECOND one paid for a trap worth
+        the whole lane. (1) The unit harnesses handed the retired `roleClients`/`embedModel`/
+        `bindRoleClients` bundle; they now hand a `roleClientsFor(funderUserId)` fake matching each seam's
+        actual `Pick<RoleClientsWithSignal, …>` slice. `refinery.test.ts`'s `WORKLOAD_KEYS` pin went from
+        seven members to the true SIX — `roleClientsFor` replaced BOTH `summarize` and the
+        `summarizerContextTokens` thunk — and the assertion stayed `toStrictEqual` over the exact key set;
+        the header comment was rewritten to keep the pin's ORIGINAL reason (a role re-point must take
+        effect on the next call, which the getter collapse preserves by threading the binder verbatim).
+        (2) The composed-real files were fixed by SEEDING `user_connections` + `connection_bindings`
+        through the real per-funder fold — never by weakening a pin — because no default connection exists
+        any more (F2/F16, D142 retired): #759's `PresetNotFoundError` degrade needed a `summarize`
+        connection, the D53 ReDoS pair needed an `embed` binding (databank's `search.documents` resolves
+        the binding BEFORE checking whether the room has a scope at all, and with no attached documents
+        the zero-embed-calls short-circuit then fires, so no HTTP double was needed), and
+        `peekPrompt`'s multi-human persona arms needed a `chat` binding for the host.
+        **THE TRAP, and it generalises far past this lane: a `vi.spyOn(globalThis, "fetch")` inside a test
+        body is DEAD for anything the shared `app`/`services` fixture already built.** `buildBackends`
+        resolves `deps.sdkFetch ?? globalThis.fetch` ONCE, synchronously, during the fixture's own
+        `createServices()` — which vitest runs BEFORE the test callback — so the captured reference
+        predates any spy the body installs. Proven live and ugly: the unmocked run reached a REAL
+        listening vLLM engine on the box's `:8703` and came back with its real "model does not exist"
+        answer. A composed-real test that needs a faked wire must build its OWN
+        `createServices({ providerSeams: { sdkFetch } })` rather than use the shared fixture. This is the
+        THIRD independent receipt that production never injects `sdkFetch` (see the F12/egress note
+        below): the doc's §11 calls it "the egress-guarded fetch every provider receives", the gate-reach
+        lane found the two ambient `fetch` sites, and this lane found a test silently reaching live infra
+        through the same hole. The belt that actually holds is the boot-installed global undici
+        dispatcher (`infra/network/egress.ts:8-16,295`, `entry/lifecycle.ts:330`, `EGRESS_FIREWALL`
+        defaults true), whose DNS-lookup override closes the rebinding TOCTOU — so this is a
+        DOC-VS-TREE divergence and a test-determinism hazard, NOT an SSRF hole. The clean fix is to make
+        `sdkFetch` REQUIRED and inject it at the composition root (the `no-raw-clock:entry-lifecycle`
+        precedent); until then every composed-real test is one missing seam away from live inference.
+        (3) The two boot suites polled `admin.vllmEngines`, deleted with the admin Engines surface. The
+        tRPC-round-trip half now polls the pre-existing PUBLIC `health` procedure (`router.ts:44`) and the
+        download-in-flight half reads the injected cache double's own `preloads` record — the literal
+        call the runtime made, which is a STRONGER proof than the deleted admin read-model ever was.
+        **FINDING, filed not fixed: `runtime.localLight.prefetch.status()`/`retry()` has NO tRPC route
+        post-cutover** (census over `domain/admin`, `transport`, `foundation` came back clean), yet
+        `entry/boot/local-light-prefetch.ts`'s own header still promises "which the Connections pane
+        renders on the local-light rows" and §8.3 specifies exactly that per-row `downloading / ready /
+        failed` state. So step 9 owes a surface its §13 row never enumerated. Same drift class as the
+        chat-reds lane's stale JSDoc residue: `entry/compose/admin.ts`'s docstring still describes a
+        `vllmEngine`/`localLightPrefetch` dep the real `AdminComposeDeps` no longer has.
 19. **A destination file named in a scope sentence owes its own behaviour rows.** §8.1b named
     `{embed,rerank,image-embed}.ts` as the surviving trio and then cited only two of them; the third had a
     different request shape, its own retry site and NO clamp, and no pass caught it until a scout read the file
