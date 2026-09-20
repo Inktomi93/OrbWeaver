@@ -2774,6 +2774,30 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         replayable; a continue REPLACES them with the continuation's, only the last generation's signed blocks
         replay; fork class `member-projected`, the P3 cut `reasoning` takes). The funnel knob, the converter
         carry and `wire-history.ts`'s re-materialization ahead of the tool-call part are the doors lane's.
+      - *THE CHAT-DOMAIN RUNTIME REDS (2026-09-20, lane cb-chat-reds — `tests/server/domain/chat`, 13 failures
+        → 0 / 2382 passing)*. Five pins DELETED, subjects gone: the engine's four belt-refusal pins
+        (`budget exhausted → budget_exceeded` ×2 and `max-pro-sub … without consent → consent_required` ×2,
+        F11/F13) and `requestTurn`'s WALL 4 (consent, F13) — the seam's header now names two walls, not four.
+        Three pins KEPT with only their dead half dropped: the stats-attribution pin loses its
+        `debitBudget` assertion and keeps `buildTurnStatsDeltas`' `runAsUserId` keying (§8.4-3, unchanged);
+        the concurrent-drain pin loses "no double-spend" and keeps exactly-once CLAIMING; `requestTurn`'s
+        FIRES/SPENDS/STAMPS pin loses SPENDS. The drain's TEMPORAL-requeue pin was RE-POINTED rather than
+        deleted — its subject is the non-permanent class itself, so it now drives the other documented member
+        (a provider outage) instead of the retired budget throw. Both test harnesses carried an INERT
+        `debitBudget` (neither was ever handed to `createTurnEngine`/`createTurn` after the belt left
+        `ChatServiceDeps`), removed with the pins. Three fixture repairs the cut-over left: provider ids
+        `custom_openai` → `custom-openai` and `max-pro-sub` → `claude-sub` (§5.2/§7.2 — `makeResolved` throws
+        on an unknown registry id, which failed the whole credential-strikeout FILE and hid a second red);
+        that file's `SearchContext` double still wired `roleClients` and needed `roleClientsFor` +
+        `makeFakeRoleClients` (§7.5-1b); and the recovered-turn fixture spread `tools` onto the Capability
+        ROOT where it belongs on the GENERATION descriptor, which left the wire tool-less and the prose-less
+        RECOVERY unreachable (the turn refused with `empty_generation`). NEW seeder `seedConnection` in
+        chat's `_support.ts`: `message_variants.connection_id` (§5.3b) is a real FK, and any pin driving the
+        REAL compose bridge — which stamps `TurnEconomics.connectionId` off the resolved connection — now
+        fails the commit batch with `SQLITE_CONSTRAINT_FOREIGNKEY` unless the `user_connections` row exists.
+        NOT fixed (product-side residue, reported not touched): `CHAT_OP_CODES.budgetExceeded` survives with
+        no raiser and carries the orphaned `consent_required` JSDoc above it; `verbs/turn.ts`'s
+        `isDrainVerdictDrop` header + `requestTurn`'s four-wall JSDoc still describe the deleted belts.
 19. **A destination file named in a scope sentence owes its own behaviour rows.** §8.1b named
     `{embed,rerank,image-embed}.ts` as the surviving trio and then cited only two of them; the third had a
     different request shape, its own retry site and NO clamp, and no pass caught it until a scout read the file
