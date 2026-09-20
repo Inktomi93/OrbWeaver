@@ -22,7 +22,7 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
-import type { ChatApi, GenerationCapability } from "@orb/contracts/inference";
+import type { ChatApi } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
@@ -33,7 +33,7 @@ import type { StructuredOutputShape } from "@orb/contracts/settings";
 import { DEFAULT_STRUCTURED_OUTPUT_SHAPE } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, messages, messageVariants, presets } from "@orb/db";
-import type { ChatResult } from "@orb/inference";
+import type { ChatResult, ResolveOutcome } from "@orb/inference";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
@@ -50,7 +50,7 @@ import { commitSnapshotForVariant, findSnapshotByVariant, writeStagedSnapshot } 
 import { findTurnToolCallsByVariant } from "../../../../packages/server/src/domain/rpg/persistence/turn-tool-calls.ts";
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
-import { makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
@@ -66,7 +66,9 @@ function tc(api: ChatApi, over: Partial<RpgTurnContext> = {}): RpgTurnContext {
     connection: makeResolved({
       api,
       model: castId<ModelId>("fake-chat-model"),
-      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, tools: { parallel: true } }),
+      capability: makeCapability(
+        makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, tools: { parallel: true } }),
+      ),
     }),
 
     // Default: an empty transcript (the round fires with an empty beat; the canned fakes ignore prompt
@@ -268,7 +270,7 @@ const CANNED_EXTRACTION = {
  *  the tool round instead); the `structured` dispatcher arm is the HOST RESYNC's. */
 interface ExtractionSpy {
   readonly summarizeModels: string[];
-  readonly chatTurns: { model: string; hasResponseFormat: boolean; hasToolServer: boolean; ownerConsented: boolean }[];
+  readonly chatTurns: { model: string; hasResponseFormat: boolean; hasToolServer: boolean }[];
   /** The WIRE TOOLS each `runChatTurn` carried (the tool round's vehicle) — so a test can assert the round's set
    *  + its ref-constrained parameters reached the request, the tool-arm twin of `schemas`. */
   readonly wireTools: { name: string; description: string; parameters: Record<string, unknown> }[][];
@@ -371,8 +373,18 @@ function buildCannedRpgWithText(args: {
       // The READ-side `trackersReadOnly` pill resolves the ROOM connection via `resolveChat` (the F1 seam — the
       // per-chat-routing verb, not the host's global `resolveRole` default). The state ROUNDS re-resolve NOTHING;
       // they ride the `turnConnection` handed to `onTurnCompleted` below.
-
-
+      resolve: (): Promise<ResolveOutcome> =>
+        Promise.resolve({
+          resolved: makeResolved({
+            api,
+            model: castId<ModelId>("fake-chat-model"),
+            capability: makeCapability(
+              capability ??
+                makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, tools: { parallel: true } }),
+            ),
+          }),
+          warnings: [],
+        }),
     },
     executor: {
       // The array/vLLM extraction arm now rides the `structured` role (owner ruling 2026-07-27 — split from
@@ -553,13 +565,6 @@ test("CHEAP turn repairs a named existing item's omitted move with one inventory
     expect.objectContaining({ name: "Small brass key", location: "front hoodie pocket" }),
   ]);
 });
-
-
-/** The tool NAMES on a captured openai-compat body (`tools[].function.name`). */
-function capturedToolNames(body: Record<string, unknown>): string[] {
-  const tools = (body["tools"] as readonly { function?: { name?: string } }[] | undefined) ?? [];
-  return tools.map((t) => t.function?.name ?? "");
-}
 
 test("CHEAP turn (agent-sdk degrade) — a wire with no `tools[]` runs ONE structured CHAT call instead", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "cheap-agent");
@@ -916,7 +921,9 @@ test("F1 (room connection): the round runs on the TURN's connection (vllm), neve
     connection: makeResolved({
       api: "chat-completions",
       model: castId<ModelId>("threaded-vllm-model"), // NOT the pill's "fake-chat-model"
-      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, tools: { parallel: true } }),
+      capability: makeCapability(
+        makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, tools: { parallel: true } }),
+      ),
     }),
   });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, vllmTurn);
@@ -940,7 +947,7 @@ test("F2 (readonly gate): a turn connection with no writer capability fires NO s
     connection: makeResolved({
       api: "chat-completions",
       model: castId<ModelId>("no-tools-model"),
-      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }), // tools ABSENT
+      capability: makeCapability(makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } })), // tools ABSENT
     }),
   });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyTurn);
@@ -1265,38 +1272,6 @@ test("F3: the host is resolved by ROLE, not join order (post-handoff: first-join
   expect(await app.chatRpgOps.resolveHostUserId(chatId)).toBe(host);
 });
 
-// ── D112 (as amended): the FOLD GUARD is wired end-to-end off the resolved CAPABILITY, not a source branch ──
-/** Build an rpg whose ROOM connection resolves with `capability` — the wiring the `resolveStateDelivery` op
- *  reads BOTH delivery verdicts off. The state rounds are unreachable here (the gather is what's under test). */
-function buildRpgWithCapability(app: ServicesResult, db: Db, capability: GenerationCapability): ReturnType<typeof buildRpg> {
-  return buildRpg({
-    db,
-    now: () => FROZEN_AT,
-    rpgChatOps: app.chatRpgOps,
-    // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
-    resolveViewerVisibility: createResolveViewerVisibility({ db }),
-    connection: {
-
-    },
-    executor: {
-      structured: () => Promise.reject(new Error("unreached — the gather makes no model call")),
-      runChatTurn: () => Promise.reject(new Error("unreached")),
-    },
-    resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
-    resolvePresetOwned: () => Promise.resolve(false),
-    copyPresetToUser: () => Promise.resolve(null),
-    toolUse: { register: () => undefined },
-    // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
-    character: {
-      create: () => Promise.reject(new Error("unused: promotion not exercised")),
-      findByHandle: () => Promise.resolve(null),
-      findByImportHash: () => Promise.resolve(null),
-    },
-    chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
-    structuredOutputShape: () => DEFAULT_STRUCTURED_OUTPUT_SHAPE,
-  });
-}
-
 // ── FIX 1: a game READ degrades to trackersReadOnly:true when the chat connection is unresolvable, never 500s ──
 /** Build an rpg over the REAL chat wiring + real db, but with a `resolveChat` that THROWS `err` — the
  *  misconfigured-backend repro (a stale routing setting whose (api,source) pair maps to no coherent backend).
@@ -1310,7 +1285,7 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
-
+      resolve: (): Promise<ResolveOutcome> => Promise.reject(err),
     },
     executor: {
       structured: () => Promise.reject(new Error("unreached — the round never fires on a readonly READ")),
@@ -2786,8 +2761,17 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
       // Tools but NO structured output — the populate round's own capability gate must refuse it.
-
-
+      resolve: (): Promise<ResolveOutcome> =>
+        Promise.resolve({
+          resolved: makeResolved({
+            api: "chat-completions",
+            model: castId<ModelId>("fake-chat-model"),
+            capability: makeCapability(
+              makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: false, modalities: ["text"] }, tools: { parallel: true } }),
+            ),
+          }),
+          warnings: [],
+        }),
     },
     executor: {
       structured: (req): Promise<SummarizeResult> => {
