@@ -59,6 +59,41 @@ export function CredentialKeyRowStory(): ReactElement {
   );
 }
 
+/** The same row with `usedBy: 1` — the reuse line's SINGULAR arm (§5.3a "used by N connections"). Its own
+ *  story because `usedBy` is a prop the section computes, so there is no way to drive the branch from the
+ *  network the way a stubbed read would let us. */
+function ReusedCredentialKeyRowInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  return (
+    <CredentialKeyRow
+      credential={{
+        id: castId<UserCredentialId>("user_credential_ctstory0004"),
+        provider: castId<ProviderId>("openrouter"),
+        label: "shared key",
+        hasMetadata: false,
+        revokedAt: null,
+        revokedReason: null,
+        createdAt: 0,
+        updatedAt: 0,
+      }}
+      usedBy={1}
+      invalidation={invalidation}
+      trpc={trpc}
+    />
+  );
+}
+
+export function ReusedCredentialKeyRowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 560 }}>
+        <ReusedCredentialKeyRowInner />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** A `custom-openai` `<CredentialKeyRow>` — an endpoint key row (the bearer a self-hosted server may require). */
 function CustomCredentialKeyRowInner(): ReactElement {
   const trpc = useTRPC();

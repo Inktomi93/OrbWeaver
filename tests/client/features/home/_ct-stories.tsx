@@ -373,12 +373,23 @@ export function HomeScrollCueFittingStory(): ReactElement {
  *  scroller inside the 1224px pane the 56px rail leaves). The spec drives both for the width matrix. */
 const FOLD_PANE_PX = { inline: 1224, block: 752 };
 
-/** The shipped home in a REAL scrolling pane over an EMPTY bank — the fold-reach instrument (#499). */
+/** The shipped home in a REAL scrolling pane over an EMPTY bank — the fold-reach instrument (#499).
+ *
+ *  THE PANE PAINTS ITS OWN BACKDROP, and it must. A `ThemeScope` override (`hooksConfig.theme`) emits CSS
+ *  VARIABLES on a wrapper; it paints nothing by itself, and in production the app shell is what fills the
+ *  viewport with `--color-background`. Without this declaration the #1128 light arm inverted its TOKENS
+ *  while the page kept the dark root paint, so the framebuffer sampler read the light theme's near-black
+ *  ink on the dark theme's near-black backdrop and reported every CTA at ~1.1:1 — a fixture artifact that
+ *  reads exactly like an unreadable surface. Spelled as the token, never a literal, so the declaration
+ *  follows whichever scope is in force. */
 export function HomeFoldStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <div data-home-fold-pane={true} style={{ display: "grid", inlineSize: FOLD_PANE_PX.inline, blockSize: FOLD_PANE_PX.block }}>
+        <div
+          data-home-fold-pane={true}
+          style={{ background: "var(--color-background)", display: "grid", inlineSize: FOLD_PANE_PX.inline, blockSize: FOLD_PANE_PX.block }}
+        >
           <HomeSurface
             onNewChat={(): void => undefined}
             tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [...SHIPPED_TILES, makeSectionJumpTile(SHIPPED_TILES)])}

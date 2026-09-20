@@ -208,7 +208,7 @@ test("variables-mode: a failed create surfaces error + retry; retry re-fires the
 // persisted selection unsaved for exactly as long as the tick is missing. The read is fetched ONCE here
 // (the mount); the post-save value can therefore only have come from the write's response.
 test("echo: the write's own response seeds the read — no refetch, no invalidate", async ({ mount, page }) => {
-  let stored: Record<string, unknown> = { chat: { source: "openrouter" } };
+  let stored: Record<string, unknown> = { defaultPresetId: "preset_before" };
   const view = (): unknown => ({
     userId: "user_ct_echo",
     schemaVersion: 1,
