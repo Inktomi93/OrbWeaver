@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "611a16b4-fe74-4ff5-bee8-9c301a0d9ae6",
+  "id": "36047714-8389-4fef-9288-a66ce3c8da15",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -2410,6 +2410,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "reasoning_parts": {
+          "name": "reasoning_parts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "model": {
           "name": "model",
           "type": "text",
@@ -2474,6 +2481,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "reasoning_tokens": {
+          "name": "reasoning_tokens",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "cost_usd": {
           "name": "cost_usd",
           "type": "real",
@@ -2488,6 +2502,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'unrecorded'"
+        },
+        "cost_details": {
+          "name": "cost_details",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "context_window": {
           "name": "context_window",
@@ -3519,14 +3540,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "active": {
-          "name": "active",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        },
         "revoked_at": {
           "name": "revoked_at",
           "type": "integer",
@@ -3592,7 +3605,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "user_credentials_revoked_reason_check": {
+          "name": "user_credentials_revoked_reason_check",
+          "value": "revoked_reason is null or revoked_reason in ('auth_failed', 'unreachable', 'user')"
+        }
+      }
     },
     "character_documents": {
       "name": "character_documents",
@@ -8350,7 +8368,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 8
+          "default": 9
         },
         "config": {
           "name": "config",
