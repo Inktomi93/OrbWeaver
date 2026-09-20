@@ -276,6 +276,24 @@ export type CompactionMode = (typeof COMPACTION_MODES)[number];
 export const REPLY_MEDIA = ["text", "text+image"] as const;
 export type ReplyMedia = (typeof REPLY_MEDIA)[number];
 
+// REASONING CARRY (inference program §8.8) — how much of the model's OWN prior thinking rides back into the
+// next request. ORDERED, and the order is the point: `capability.reasoning.replay` gates the rungs from the
+// top, so a wire that accepts nothing drops the knob to `off` while a wire that accepts prose still honours
+// both rungs (in prose form). SillyTavern models these as two unrelated controls in two panels
+// (`power_user.reasoning.add_to_prompts` + `oai_settings.tool_reasoning_mode`); conflating the axes is the
+// defect, splitting the PANELS is not the fix.
+//   • `off`          — never replay. The default: most providers advise against cross-turn replay.
+//   • `tool-chain`   — replay within the ACTIVE tool chain only (ST's `promptIdx > lastUserIdx` fence, which
+//                      is the honest boundary: a tool chain is ONE logical turn, and a model that signed its
+//                      thinking loses verified reasoning every hop without it — a CORRECTNESS property).
+//   • `conversation` — additionally replay prior TURNS' thinking, materialized onto their assistant rows.
+// GLOBAL and preset-owned like every gen setting (D154).
+export const CARRY_REASONING_MODES = ["off", "tool-chain", "conversation"] as const;
+export type CarryReasoning = (typeof CARRY_REASONING_MODES)[number];
+
+/** The rung an absent `carryReasoning` reads as — stated once so the funnel and the panel agree. */
+export const CARRY_REASONING_DEFAULT: CarryReasoning = "off";
+
 const TEMPERATURE_MIN = 0;
 const TEMPERATURE_MAX = 2;
 const TOP_P_MIN = 0;
@@ -349,6 +367,8 @@ export const userIntentSchema = z.strictObject({
   effort: effortLevelSchema.optional(),
   thinkingBudgetTokens: generationKnobSchemas.thinkingBudgetTokens,
   thinkingDisplay: z.enum(THINKING_DISPLAYS).optional(),
+  // How much of the model's own prior thinking rides back (§8.8). Absent ⇒ `CARRY_REASONING_DEFAULT`.
+  carryReasoning: z.enum(CARRY_REASONING_MODES).optional(),
 
   maxOutputTokens: generationKnobSchemas.maxOutputTokens,
   maxContextTokens: generationKnobSchemas.maxContextTokens,

@@ -197,6 +197,10 @@ function samplingDropDescription(knob: AdjustedKnob | undefined): string {
       return "That quality level isn't one this app knows, so your own settings were used instead.";
     case "replyMedia":
       return "This model writes text only, so it couldn't add pictures to its reply.";
+    case "carryReasoning":
+      // Two causes, one honest sentence: the model refuses replayed thinking, or thinking was off this turn.
+      // Naming which would take a second structured field on the warning; "it wasn't used" is true of both.
+      return "This reply didn't get the model's earlier thinking back — either the model won't take it, or thinking was off.";
     case "temperature":
     case "topP":
     case "topK":
@@ -226,6 +230,7 @@ function assertNeverKnob(knob: never): never {
  *  imported because a client feature may not import another feature's internals at runtime; the mapped
  *  `Record` is the exhaustiveness enforcer (a new `ADJUSTED_KNOBS` member fails `tsc` here). */
 const KNOB_LABELS: Record<AdjustedKnob, string> = {
+  carryReasoning: "Reasoning carry",
   frequencyPenalty: "Frequency penalty",
   logitBias: "Logit bias",
   minP: "Min-P",

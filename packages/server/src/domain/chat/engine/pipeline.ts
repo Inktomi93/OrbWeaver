@@ -27,6 +27,7 @@ import type {
   ChatContentPart,
   ChatDeltaEvent,
   ChatInjection,
+  ChatReasoningPart,
   MessageView,
   ToolCallRecord,
 } from "@orb/contracts/chat";
@@ -39,11 +40,11 @@ import {
   coEmitsProseWithTools,
   roleHandlingFloorOf,
 } from "@orb/contracts/inference";
-import type { UserIntent } from "@orb/contracts/preset";
+import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
-import { generationOf } from "@orb/inference";
+import { generationOf, resolveCarryReasoning } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -634,6 +635,13 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // regex pass (§3.9 pin: a promptOnly/AI_OUTPUT script sees the FULL card bytes; the stub replaces them for
   // the wire below it). All six connection modes consume the resulting TurnMessage[], so the collapse is
   // uniform per backend.
+  // §8.8 REASONING CARRY — resolved HERE, once, off the ONE funnel policy (`resolveCarryReasoning`), because
+  // the `conversation` rung materializes prior turns' thinking at the history-build seam below, which runs
+  // upstream of every wire call. The warnings sink is deliberately a THROWAWAY: the backend's own
+  // `resolveChat` raises the drop on the turn stream, and raising it twice would show the user two notices
+  // for one decision.
+  const carryReasoning = resolveCarryReasoning(effectiveIntent, generationOf(args.connection), []);
+
   const converted = await buildWireHistory(
     {
       visionOk: acceptsImageInput(generationOf(args.connection)),
@@ -641,6 +649,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
       resolveImageUrl: args.resolveImageUrl,
       cardKeepLastX: args.cardKeepLastX,
       canon: args.canon,
+      carryReasoning,
     },
     shaped.history,
   );
@@ -684,7 +693,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const registryNames: ReadonlySet<string> = new Set(attach.set === null ? [] : args.attachedToolNames);
   const terminal = attachTerminalTools(args, attach.request, registryNames);
   const structured = attachResponseFormat(args, terminal.request);
-  const loop = await runRecurseLoop({ args, request: structured.request, set: attach.set, terminalNames: terminal.names });
+  const loop = await runRecurseLoop({ args, request: structured.request, set: attach.set, terminalNames: terminal.names, carryReasoning });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
   const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx);
   return {
@@ -900,6 +909,11 @@ async function runRecurseLoop(input: {
   /** The TERMINAL half of the tool-identity partition (#1404) — {@link attachTerminalTools}'s name set. Calls
    *  in it are collected for the terminal channel and are structurally unreachable from the executor below. */
   readonly terminalNames: ReadonlySet<string>;
+  /** §8.8's RESOLVED carry rung. Above `off`, each depth's reasoning parts ride back on the NEXT leg's
+   *  assistant row — the ST `promptIdx > lastUserIdx` fence made structural, because this loop IS the active
+   *  tool chain and nothing older is reachable from here. BOTH live rungs behave identically in-loop: the
+   *  `conversation`/`tool-chain` difference is what the HISTORY carries, not what the chain does. */
+  readonly carryReasoning: CarryReasoning;
 }): Promise<{
   content: string;
   reasoning: string | null;
@@ -954,7 +968,7 @@ async function runRecurseLoop(input: {
     }
     const batch = await args.tools.executeToolCalls(set, calls, args.toolExecFrame);
     records.push(...batch);
-    history = [...history, ...toolExchangeMessages(reduced.content, batch)];
+    history = [...history, ...toolExchangeMessages(reduced.content, batch, carriedReasoning(reduced.economics, input.carryReasoning))];
     depth += 1;
   }
   return { content, reasoning, economics, records, terminalCalls, warnings: [...warnings.values()], reasoningMs };
@@ -1000,11 +1014,23 @@ function asUnexecutedRecord(call: ToolCallInput): ToolCallRecord {
   };
 }
 
+/** THE IN-CHAIN CARRY (§8.8): the depth's replayable thinking when the resolved rung is above `off`, else
+ *  nothing. The parts are always PRODUCED (the wire records what the model emitted); this is the one place
+ *  that decides whether they ride back, so `off` is a real "the model does not see its prior thinking". */
+function carriedReasoning(economics: TurnEconomics | null, carry: CarryReasoning): readonly ChatReasoningPart[] {
+  return carry === "off" ? [] : (economics?.reasoningParts ?? []);
+}
+
 /** Materializes one depth's exchange into wire rows from the records, so a swipe-replay reassembles the
  *  identical wire history: one assistant row with that depth's prose + tool-call parts, then one tool row
- *  per record. */
-function toolExchangeMessages(depthText: string, batch: readonly ToolCallRecord[]): TurnMessage[] {
+ *  per record.
+ *
+ *  REASONING GOES FIRST, ahead of the prose AND the tool calls. Anthropic requires the `thinking` block at
+ *  the head of an assistant turn (the converter emits the parts in array order), and a signed block that
+ *  arrives after a `tool_use` is not the turn the model signed. */
+function toolExchangeMessages(depthText: string, batch: readonly ToolCallRecord[], reasoning: readonly ChatReasoningPart[]): TurnMessage[] {
   const assistantParts: ChatContentPart[] = [
+    ...reasoning,
     ...(depthText.length > 0 ? [{ type: "text", text: depthText } as const] : []),
     ...batch.map(
       (record) =>

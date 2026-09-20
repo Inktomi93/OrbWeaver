@@ -25,6 +25,21 @@ export const VERBOSITY_LEVELS = ["low", "medium", "high"] as const;
 export type Verbosity = (typeof VERBOSITY_LEVELS)[number];
 export const verbositySchema = z.enum(VERBOSITY_LEVELS);
 
+/** WHAT THE MODEL WILL ACCEPT BACK when a prior reply's thinking rides the next request (§8.8). A
+ *  CAPABILITY, not an `EndpointFeatures` quirk: features is the openai-compat chat body/stream schema
+ *  (§8.1b) and this fact must hold for `anthropic-messages` and `agent-sdk` too.
+ *
+ *  • `signed` — the wire round-trips an opaque signature / encrypted block (Anthropic thinking blocks,
+ *    OpenRouter `reasoning_details`, Gemini thought signatures). The replay is VERIFIED thinking.
+ *  • `text`   — only prose can ride back, with no provenance.
+ *  • `none`   — do not send prior thinking at all.
+ *
+ *  Absent ⇒ `REASONING_REPLAY_FLOOR` (`none`), the fail-closed rung (D68/D69): a wire nobody measured
+ *  never gets a signed block it may reject. Read through `reasoningReplayOf`, never re-spelled. */
+export const REASONING_REPLAY_MODES = ["signed", "text", "none"] as const;
+export type ReasoningReplayMode = (typeof REASONING_REPLAY_MODES)[number];
+export const reasoningReplayModeSchema = z.enum(REASONING_REPLAY_MODES);
+
 /** The Anthropic-only reasoning-display knob. */
 export const REASONING_DISPLAY_MODES = ["summarized", "omitted"] as const;
 export type ReasoningDisplayMode = (typeof REASONING_DISPLAY_MODES)[number];
@@ -71,6 +86,10 @@ export const reasoningCapabilitySchema = z.object({
   mandatory: z.boolean().optional(),
   defaultEnabled: z.boolean().optional(),
   defaultEffort: effortLevelSchema.optional(),
+  /** What a REPLAYED prior reasoning block may carry on this wire (§8.8). Rides `EVIDENCE_TIERS` like every
+   *  other cell, so a curated family default is overridable by a dated `measured/*` row and by the user's own
+   *  `declared` block. Absent ⇒ {@link REASONING_REPLAY_FLOOR}. */
+  replay: reasoningReplayModeSchema.optional(),
   supportsMaxTokens: z.boolean().optional(),
 });
 export type ReasoningCapability = z.infer<typeof reasoningCapabilitySchema>;
@@ -139,6 +158,9 @@ export const TURNS_FLOOR: TurnsCapability = {
   roleHandlingFloor: "strict",
   explicitPromptCache: false,
 };
+
+/** The fail-closed reasoning-replay rung for a model whose descriptor states none: send nothing back. */
+export const REASONING_REPLAY_FLOOR: ReasoningReplayMode = "none";
 
 /** The fail-closed minimum cacheable-prefix floor (tokens). */
 export const CACHE_MIN_FLOOR = 4096;
