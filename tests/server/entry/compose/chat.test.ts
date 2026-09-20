@@ -433,7 +433,6 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
   } as const;
 
   const wireRequest: TurnRequest = {
-    // @orb-waive no-test-fabrication(unknown): minimal ResolvedCredential/capability doubles — the bridge reads only `connection.api`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     connection: makeResolved({ api: "chat-completions", model: castId<ModelId>("test-model") }),
     chatId: castId<ChatId>("chat_bridgewarn"),
     // @orb-waive no-test-fabrication(unknown): the bridge reads only prompt.static + prompt.dynamic. Ends when this deliberate test boundary can be expressed without a fabricated typed value.

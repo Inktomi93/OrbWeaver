@@ -108,19 +108,11 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
-    id: "query-freshness-coverage:admin-vllmengines",
-    policyId: "query-freshness-coverage",
-    subject: "admin.vllmEngines",
-    operation: "uncovered-query-freshness",
-    why: "POLLS: features/user-admin/components/admin-engines-section.tsx sets a status-adaptive `refetchInterval` (fast while an engine is mid-transition, slow at steady state) — an engine's liveness is a machine fact no bus announces.",
-    endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
-  },
-  {
     id: "query-freshness-coverage:notifications-presence",
     policyId: "query-freshness-coverage",
     subject: "notifications.presence",
     operation: "uncovered-query-freshness",
-    why: "POLLS (#1039): features/chat/hooks/use-roster-presence.ts sets `refetchInterval = PRESENCE_POLL_MS` (20s) beside a finite 10s staleTime, and the hook's header argues the choice — presence has NO bus (the registry is a ref-count over open sockets with no event and no fan-out), the roster it decorates is itself a query, and the server debounces disconnects behind a 15s grace window, so a sub-second driver could not see a change sooner than the poll does. The `admin.vllmEngines` shape exactly: a machine liveness fact nothing announces. The row goes STALE-RED the day presence grows a bus member and the seam gains its filter, which is the intended end condition.",
+    why: "POLLS (#1039): features/chat/hooks/use-roster-presence.ts sets `refetchInterval = PRESENCE_POLL_MS` (20s) beside a finite 10s staleTime, and the hook's header argues the choice — presence has NO bus (the registry is a ref-count over open sockets with no event and no fan-out), the roster it decorates is itself a query, and the server debounces disconnects behind a 15s grace window, so a sub-second driver could not see a change sooner than the poll does. A machine liveness fact nothing announces — the shape the retired `admin.vllmEngines` row carried before the engine surface left the server. The row goes STALE-RED the day presence grows a bus member and the seam gains its filter, which is the intended end condition.",
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
@@ -161,14 +153,6 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     subject: "admin.listSessions",
     operation: "uncovered-query-freshness",
     why: "writer-local — the session revoke/reset/kill mutations (features/user-admin/hooks/use-admin-mutations.ts) each `invalidates` it; another user's session lifecycle reaches this admin's bus through nothing.",
-    endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
-  },
-  {
-    id: "query-freshness-coverage:settings-getappsettings",
-    policyId: "query-freshness-coverage",
-    subject: "settings.getAppSettings",
-    operation: "uncovered-query-freshness",
-    why: "writer-local — AppSettings is admin-only and emits no user-bus event; both writers (`useUpdateAppSettings`/`useUpdateAppOverrides` in features/user-admin/hooks/use-admin-mutations.ts and the system-settings surface's own mutation) `invalidates` it.",
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
