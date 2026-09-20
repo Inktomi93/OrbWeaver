@@ -71,6 +71,11 @@ export interface ToolCallInput {
  *  (the agent-sdk seed has no image channel); the tool-exchange parts ride as STRUCTURE (#1605). */
 export type AgentSeedBlock = Extract<ChatContentPart, { type: "text" | "tool-call" | "tool-result" }>;
 
+/** The model's own thinking as a content part — DERIVED from `ChatContentPart`, never re-spelled. The turn
+ *  produces these (`ChatResult.reasoningParts`), the record persists them, and the assembly materializes
+ *  them back onto the assistant row so the next leg of a tool loop replays verified reasoning. */
+export type ReasoningContentPart = Extract<ChatContentPart, { type: "reasoning" }>;
+
 export interface AgentSeedTurn {
   readonly role: "user" | "assistant";
   readonly content: readonly AgentSeedBlock[];
@@ -186,7 +191,13 @@ export interface ChatResult {
   readonly reply: string;
   readonly toolCalls?: readonly ToolCallInput[] | undefined;
   readonly reasoning: string;
-  /** True when the model reasoned but the trace was withheld. */
+  /** The model's thinking as REPLAYABLE parts, in stream order, each carrying the wire's own opaque
+   *  provenance (Anthropic signature / redacted payload, OpenRouter `reasoning_details`). Distinct from
+   *  `reasoning`, which is the rendered prose: these are what a tool loop must hand back. Absent on the
+   *  wires that surface no per-part provenance. */
+  readonly reasoningParts?: readonly ReasoningContentPart[] | undefined;
+  /** True when the model reasoned but the trace was withheld — a REAL redacted block, never inferred from
+   *  "no text but some reasoning tokens" (that shape is also an adaptive model with display off). */
   readonly reasoningRedacted: boolean;
   /** The raw upstream stop word — declared-opaque provenance for `finishReason`. */
   readonly stopReason: string | null;

@@ -1,14 +1,23 @@
 // ONE chat turn on the anthropic-messages wire over the SDK's V4 `doStream` (§8.5). The converter is the
 // SDK's: it hoists the leading system block(s), places `cacheControl` per message, forwards a mid-history
 // `system` row + its `clearAt`/`effort` under the betas the curated row enabled, and merges same-role rows
-// (a no-op after our floor). Ours: the funnel, the prompt plan (the assistant-image re-attach is NOT wired on
-// this transport — the SDK exposes no post-convert hook; a prior reply picture riding back is dropped with a
-// warning, stated rather than hidden), the cache PLACEMENT (the one placer, `backends/kit/cache-control.ts`),
-// the thinking/effort spelling, the shared reducer and result fold, pre-commit retry.
+// (a no-op after our floor). Ours: the funnel, the prompt plan, the cache PLACEMENT (the one placer,
+// `backends/kit/cache-control.ts`), the thinking/effort spelling, the shared reducer and result fold,
+// pre-commit retry.
+//
+// AN ASSISTANT IMAGE IS DROPPED HERE, AND THE REASON IS THE WIRE, NOT THE HOOK. An earlier header claimed
+// "the SDK exposes no post-convert hook" — that was false (`wrapFetch.shapeBody` is exactly one, and the
+// openrouter transport re-attaches through it). MEASURED 2026-09-20 against the live API: an `image` block on
+// an assistant row is `400 "messages.1.content: 'image' blocks are not permitted within assistant turns"`
+// (req_011CfEBBYooCmJyWSAv45UPL; the identical body without the block is 200, req_011CfEBBZzjfJ88KQ58U3qzi).
+// So a prior reply picture riding back has nowhere to go on this wire and is dropped LOUDLY, by the wire's
+// own rule. (Second-order: the converter also GROUPS consecutive same-role rows into one wire message and
+// hoists the leading system block out of `messages[]`, so the openai-compat transport's plan-index walk
+// would not align here even if the block were legal.)
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { GenerationCapability } from "@orb/contracts/inference";
-import { cacheMinTokensOf } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, cacheMinTokensOf } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { scrubWireSchema } from "@orb/kit/json-schema";
@@ -31,7 +40,7 @@ import { resolvedScrubSet } from "../kit/sanitize.ts";
 import { functionTools, jsonResponseFormat, standardSampling, toolChoiceOf } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
-import { measuredCostOf, toChatResult } from "../v4/result.ts";
+import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
 import type { AnthropicCall, AnthropicTransportDeps } from "./model.ts";
@@ -174,6 +183,22 @@ function anthropicOptions(
   };
 }
 
+/** THE PREFILL BELT (§A2). The assembly already reshapes a trailing assistant row when the capability says
+ *  the model refuses prefill (`needsContinuation`), so this never fires on the normal path — it exists so a
+ *  caller that BYPASSES the assembly cannot reach the upstream 400. MEASURED 2026-09-19: `claude-opus-5` and
+ *  `claude-opus-4-6` reject a trailing assistant row with a 400 — "This model does not support assistant
+ *  message prefill" — on both routes, thinking on or off; `claude-opus-4-5` accepts it. A tool exchange is NOT a
+ *  prefill (the plan's `endsOnAssistant` already excludes an assistant row that ends in a tool call). */
+function refusePrefill(plan: WirePlan, generation: GenerationCapability, label: string): void {
+  if (plan.endsOnAssistant && !acceptsAssistantPrefill(generation)) {
+    throw new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: `${label}: the delivered history ends on an assistant row, and this model does not accept assistant message prefill`,
+    });
+  }
+}
+
 /** A hosted row has no body hook: every `extras` key is dropped, loudly. */
 function dropExtras(connection: Resolved, warnings: ResolvedWarning[]): void {
   for (const key of Object.keys(connection.extras ?? {})) {
@@ -252,10 +277,8 @@ function emitReceipts(args: {
   log.sampling({
     turnId: knobs.turnId,
     requested: { ...req.params },
-    applied: { ...knobs.sampling },
-    dropped: warnings
-      .filter((w) => w.code === "sampling_knob_dropped" || w.code === "verbosity_dropped")
-      .map((w) => ({ knob: w.knob ?? w.code, reason: w.message })),
+    applied: appliedSampling(knobs.sampling, warnings),
+    dropped: warnings.filter((w) => DROPPED_SAMPLING_CODES.has(w.code)).map((w) => ({ knob: w.knob ?? w.code, reason: w.message })),
   });
 }
 
@@ -277,10 +300,11 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     rowOptions: rowOptionsFor(generation, warnings),
     splitSystem: true,
   });
+  refusePrefill(plan, generation, label);
   if (plan.assistantMedia.size > 0) {
     warnings.push({
       code: "image_edit_dropped",
-      message: "a prior reply picture was not re-sent: the anthropic transport exposes no post-convert hook for assistant images",
+      message: "a prior reply picture was not re-sent: the Anthropic Messages wire does not permit image blocks inside an assistant turn",
     });
   }
   const cache = placeCache(plan, req, generation, log);
@@ -307,6 +331,9 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
       ...(deps.addSpanEvent !== undefined ? { addSpanEvent: deps.addSpanEvent } : {}),
     },
   );
+  // The SDK's OWN drops (§A3) land in the SAME array as the funnel's, BEFORE the result is folded — so one
+  // push reaches the turn's `warning` events, the capability receipt and the sampling receipt alike.
+  warnings.push(...sdkWarnings(drain.warnings));
   const turn = toChatResult(drain, {
     model: connection.model,
     providerId: connection.providerId,

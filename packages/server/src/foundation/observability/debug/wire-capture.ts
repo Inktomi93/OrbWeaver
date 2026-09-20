@@ -85,6 +85,11 @@ export interface WireCapture {
   readonly at: number;
   /** The final request body in the backend's own wire vocabulary (see the header). */
   readonly body: Record<string, unknown>;
+  /** What came back's ENVELOPE, when the send produced a response: the provider's headers, lower-cased and
+   *  secret-scrubbed at the send boundary. The support handle (`request-id`) and the rate-limit budget live
+   *  here, and without them a captured request cannot be correlated with anything the provider logged.
+   *  Absent on a transport failure (the request is still recorded) and on the agent-sdk wire (no HTTP). */
+  readonly responseHeaders?: Readonly<Record<string, string>> | undefined;
 }
 
 /** Filter for a host read: by `chatId` and/or `providerId`, newest-first, capped by `limit`. */

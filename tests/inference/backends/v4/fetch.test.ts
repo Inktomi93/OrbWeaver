@@ -65,6 +65,36 @@ test("the wire capture is secret-scrubbed by value, including a key-in-body cred
   expect(captured[0]?.body["model"]).toBe("m");
 });
 
+test("the capture carries the RESPONSE headers beside the request body (D1 — what came back, not just what went out)", async () => {
+  const captured: Parameters<WireCaptureSink>[0][] = [];
+  const sink: WireCaptureSink = (entry) => {
+    captured.push(entry);
+  };
+  const headers = { "request-id": "req_011CfE", "anthropic-ratelimit-requests-remaining": "42" };
+  const fetchImpl = wrap(respond("{}", { status: 200, headers }), {
+    capture: { sink, chatId: undefined, api: "anthropic-messages", wire: "anthropic-messages" satisfies Wire, providerId: "anthropic", model: "m" },
+  });
+  await fetchImpl("https://api.anthropic.com/v1/messages", { method: "POST", body: JSON.stringify({ model: "m" }) });
+  expect(captured).toHaveLength(1);
+  expect(captured[0]?.responseHeaders?.["request-id"]).toBe("req_011CfE");
+  expect(captured[0]?.responseHeaders?.["anthropic-ratelimit-requests-remaining"]).toBe("42");
+  expect(captured[0]?.body["model"]).toBe("m");
+});
+
+test("a transport failure still records the request, with no response headers to claim", async () => {
+  const captured: Parameters<WireCaptureSink>[0][] = [];
+  const sink: WireCaptureSink = (entry) => {
+    captured.push(entry);
+  };
+  const boom: typeof fetch = () => Promise.reject(new Error("socket hang up"));
+  const fetchImpl = wrap(boom, {
+    capture: { sink, chatId: undefined, api: "chat-completions", wire: "openai-compat" satisfies Wire, providerId: "vllm", model: "m" },
+  });
+  await fetchImpl("https://box.local/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m" }) }).catch(() => undefined);
+  expect(captured).toHaveLength(1);
+  expect(captured[0]?.responseHeaders).toBeUndefined();
+});
+
 test("shapeBody rewrites the outbound body once (the openrouter transport's post-convert hook)", async () => {
   let sent: string | undefined;
   const upstream: typeof fetch = (_input, init) => {

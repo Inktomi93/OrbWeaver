@@ -21,6 +21,12 @@ function fakeSecret(kind: ResolvedSecretKind, secret: string | null, credentialI
   return { kind, secret, credentialId } as unknown as ResolvedSecret;
 }
 
+/** An `apiKey` secret for a hosted-wire turn test — the SDK providers refuse to build a request without one,
+ *  so a fake-fetch turn still needs a credential the transport can spell into its auth header. */
+export function fakeApiKeySecret(secret: string): ResolvedSecret {
+  return fakeSecret("apiKey", secret);
+}
+
 function silentLog(): InferenceLog & { readonly lines: { level: string; message: string; fields: Record<string, unknown> }[] } {
   const lines: { level: string; message: string; fields: Record<string, unknown> }[] = [];
   const push =
