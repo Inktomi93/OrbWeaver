@@ -24,7 +24,7 @@ export const WIRE_DEFS: Record<Wire, WireDef> = {
   // `imageEmbed` a model whose embedding capability declares `input ∋ image` — the wire CAN serve them;
   // `connectionTasks` + `requirementMet` decide per row.
   "openai-compat": {
-    apis: ["chat-completions", "responses"],
+    apis: ["chat-completions"],
     serves: ["chat", "summarize", "structured", "generateImage", "embed", "imageEmbed", "rerank"],
     deltas: ["text", "reasoning", "image", "tool-call", "citation", "usage"],
   },

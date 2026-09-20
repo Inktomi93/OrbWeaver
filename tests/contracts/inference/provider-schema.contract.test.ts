@@ -42,7 +42,10 @@ test("a row may NARROW its wire's tasks, never widen them", () => {
 
 test("a row may not claim an api its wire does not speak", () => {
   expect(providerDefSchema.safeParse({ ...ENDPOINT_ROW, apis: ["anthropic-messages"] }).success).toBe(false);
-  expect(providerDefSchema.safeParse({ ...ENDPOINT_ROW, apis: ["chat-completions", "responses"] }).success).toBe(true);
+  expect(providerDefSchema.safeParse({ ...ENDPOINT_ROW, apis: ["chat-completions"] }).success).toBe(true);
+  // `responses` was RETIRED from `CHAT_APIS` (owner ruling 2026-09-20 — the OpenRouter Responses runner was
+  // demolished with `@openrouter/sdk` and never replaced). A stored row still naming it must not parse.
+  expect(providerDefSchema.safeParse({ ...ENDPOINT_ROW, apis: ["chat-completions", "responses"] }).success).toBe(false);
 });
 
 test("`dialect` names the openai-compat transport package and exists nowhere else", () => {

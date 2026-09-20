@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-08-14
+updated: 2026-09-20
 ---
 
 # Orbweaver — SillyTavern Feature-Gap Register
@@ -32,7 +32,7 @@ updated: 2026-08-14
 
 ## 1. Inference backends & sampling
 
-The wall behind most of this: orbweaver speaks **`ChatApi = agent-sdk | chat-completions | responses`** — all OpenAI-shaped messages/agent-session protocols. It has **no raw text-completion path** and no instruct-style prompt-assembly. Anything text-completion is not "add a source" (the D39 template only fits OpenAI/Anthropic-wire backends) — it needs a 4th protocol axis + an assembly subsystem the design rejects.
+The wall behind most of this: orbweaver speaks **`ChatApi = chat-completions | agent-sdk | anthropic-messages`** (the tuple is the truth — `packages/contracts/src/inference/apis.ts`; `responses` was retired 2026-09-20 and `anthropic-messages` returned 2026-09-19) — all OpenAI-shaped or Anthropic-shaped messages/agent-session protocols. It has **no raw text-completion path** and no instruct-style prompt-assembly. Anything text-completion is not "add a source" (the D39 template only fits OpenAI/Anthropic-wire backends) — it needs a new protocol axis member + an assembly subsystem the design rejects.
 
 | Feature | What it is (ST) | Status | Difficulty | Note / home |
 | - | - | - | - | - |

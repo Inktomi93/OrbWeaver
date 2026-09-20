@@ -2551,11 +2551,30 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
       only; `stop_reason`/`terminal_reason` have ZERO branching readers on the tree (census `pnpm ast ident`),
       which is what "opaque provenance" means. `MessageView.finishReason`, `TurnEconomics.finishReason` and the
       canon-write chain are typed `NormalizedFinishReason | null`; `reasoningEffort` is `EffortLevel | null`.
-    - *`api: "responses"` is REFUSED by the openai-compat backend today* (the SDK's openai-compatible provider
-      speaks chat-completions; a responses transport is a separate `@ai-sdk/openai`-style model). The wire
-      def and the openrouter row still LIST it, so a connection may pick it and fail at send — close by either
-      adding the transport or dropping the member from `WIRE_DEFS["openai-compat"].apis` + the row (a fork,
-      not decided here).
+    - *`api: "responses"` is RETIRED — the member is DROPPED* (owner ruling 2026-09-20, closing the fork this
+      entry used to state as open). The history is the part that matters, because it is the premise a future
+      reader will get wrong: `responses` was NOT an unbuilt transport. It was a WORKING feature — a 523-line
+      runner that lived at infra/providers/backends/openrouter/runners/chat/responses.ts on the pre-cutover
+      tree (the path is deliberately un-backticked: it no longer exists, and `146f71cd5^` is where to read it)
+      running a full turn over OpenRouter's GA Responses API via `@openrouter/sdk`'s `responses.send`, with its
+      own stream reducer and view→`ChatResult` mapper because the Responses event/usage shapes differ from
+      chat-completions. It was
+      DEMOLISHED AS COLLATERAL in `146f71cd5`: this program dropped `@openrouter/sdk` wholesale (§8.2, F9) and
+      the runner went with the dependency. The replacement `@openrouter/ai-sdk-provider` speaks
+      chat-completions, and the AI SDK's Responses transport is a DIFFERENT model (`@ai-sdk/openai`'s
+      `.responses()`) that was never wired. So the vocabulary outlived the implementation by exactly one
+      refactor, and a listed member whose only possible outcome was a typed refusal at send is a trap for the
+      user (pick it, save a connection, every turn fails) and for the next reader of `CHAT_APIS` (who assumes
+      four working protocols). Retired: the `CHAT_APIS` member, `WIRE_DEFS["openai-compat"].apis`, the
+      openrouter row's `apis`, the `ChatRequest` arm, the openai-compat typed refusal, the curated
+      `api: "responses"` capability row, the client api-picker label, the `user_connections.api` CHECK
+      (forward migration `0001_retire_responses_api`), and `backends/kit/reasoning-budget.ts` + its
+      importer-less `backends/kit/index.ts` barrel (`effortToResponsesReasoning` was that module's chain head;
+      `effortToOpenAIReasoning`/`OPENAI_EFFORT_LEVELS` had no call site either). **If reviving it is ever
+      wanted, the honest path is `@ai-sdk/openai`'s `.responses()` transport — not restoring the deleted
+      runner, which is written against a dependency this package no longer has.** One visible consequence:
+      OpenRouter was the only provider listing two apis, so `showsApiControl` (§5.3a) is now false for every
+      provider and the api control never renders.
     - *`Resolved.ownerId`* is the CONNECTION ROW's owner (the funder), never a box owner — no `isOwner` /
       `role === "owner"` read exists in `packages/inference` or `contracts/inference`; the resolver refuses
       (and records a security event for) a binding that names a stranger's row.

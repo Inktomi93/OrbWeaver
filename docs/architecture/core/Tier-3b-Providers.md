@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-05
+updated: 2026-09-20
 ---
 
 # Orbweaver — `infra/providers`: the sealed execution tier (roles · backends · the local engine)
@@ -123,7 +123,7 @@ The OR catalog parse and the chat/responses wire schemas (`backends/kit/wire-sch
 
 7. **`detectModelFamily` anchors reject third-party forks.** `^(?:anthropic\/)?claude[-/]` matches bare + `anthropic/`-prefixed Claude but rejects `some-org/claude-fork` → an alien backend containing "claude" never receives Anthropic-only `cache_control`. The same anchor is deliberately duplicated in `backends/kit/cache-control.ts`'s `isAnthropicModel` (it gates the wire send).
 
-8. **The Opus 4.8 adaptive/budget conflict + the OR-responses XOR are API-level, enforced in the funnel.** `enabled + budget_tokens` to an adaptive model → live 400; `resolve-chat` drops the budget (emits adaptive + a warning). OR responses rejects `effort`+`max_tokens` together → `effortToResponsesReasoning` emits exactly one. Mandatory-reasoning endpoints 400 on `effort:'none'` at request-open → the runners strip and replay ONCE (pre-commit-safe).
+8. **The Opus 4.8 adaptive/budget conflict is API-level, enforced in the funnel.** `enabled + budget_tokens` to an adaptive model → live 400; `resolve-chat` drops the budget (emits adaptive + a warning). Mandatory-reasoning endpoints 400 on `effort:'none'` at request-open → the runners strip and replay ONCE (pre-commit-safe). *(The OR-responses `effort`/`max_tokens` XOR that used to sit beside these has NO enforcement point any more and needs none: `responses` was retired from `CHAT_APIS` by owner ruling 2026-09-20 and its builder `effortToResponsesReasoning` deleted with the rest of `backends/kit/reasoning-budget.ts`. Reviving the api means wiring `@ai-sdk/openai`'s `.responses()` transport, and the XOR comes back with it.)*
 
 9. **`summarize` is a request shaper over `chat`, not a separate engine.** The vLLM surface maps the batch contract onto `chat-completion` with bounded workers feeding vLLM's continuous batcher; OR summarize runs sequential (per-key rate limits).
 

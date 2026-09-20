@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-06
+updated: 2026-09-20
 ---
 
 # THE VOCABULARY MAP — one concept, one word
@@ -174,7 +174,6 @@ package-internal vocabulary and **never appears inside the server domain tier or
 | claude code sub | `claude-sub` | `agent-sdk` | `agent-sdk` |
 | anthropic direct | `anthropic` | `anthropic-messages` | `anthropic-messages` |
 | chat complete openrouter | `openrouter` | `chat-completions` | `openai-compat` |
-| openrouter responses | `openrouter` | `responses` | `openai-compat` |
 | openai direct | `openai` | `chat-completions` | `openai-compat` |
 | vllm endpoint | `vllm` | `chat-completions` | `openai-compat` |
 | lm studio endpoint | `lm-studio` | `chat-completions` | `openai-compat` |
@@ -184,8 +183,12 @@ package-internal vocabulary and **never appears inside the server domain tier or
 
 Standing confusion-killers: `agent-sdk` is the only stateful wire and the only subscription path, and
 since 2026-09-19 (F18) it is the SUBSCRIPTION's wire and nothing else's — **"claude code via openrouter
-key" is a retired word, do not resurrect it**; `responses` is OpenRouter's alone among the built-in
-rows; `local-light` never serves a chat turn. `anthropic-messages` is now a LIVE api and `anthropic` a
+key" is a retired word, do not resurrect it**. **`responses` is ALSO a RETIRED word** — it was
+OpenRouter's alone among the built-in rows, and the owner dropped it from
+`CHAT_APIS` on 2026-09-20 because the runner that served it was demolished as collateral of the
+`@orb/inference` cut-over (`146f71cd5` dropped `@openrouter/sdk`) and never replaced, leaving a picker
+option whose only outcome was a typed refusal at send. Do not resurrect the word without the transport;
+`local-light` never serves a chat turn. `anthropic-messages` is now a LIVE api and `anthropic` a
 live provider (F6 flipped the 2026-07-24 ruling that purged them) — it is the first-party API-key wire
 over `@ai-sdk/anthropic` and is NOT the subscription's subprocess, which is a different wire. The old
 `source` words (`max-pro-sub`, `custom_openai`) are retired spellings of provider ids, not axes.
