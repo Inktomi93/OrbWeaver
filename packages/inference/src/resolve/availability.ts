@@ -14,8 +14,9 @@ import type { Resolved } from "../contract/resolved.ts";
 import type { ResolveArgs, ResolverContext } from "./resolve-task.ts";
 import { NoConnectionError, resolveTask } from "./resolve-task.ts";
 
-/** What the endpoint probe can say about a row's server. */
-export type Reachability = "up" | "down" | "asleep" | "unknown";
+/** What the endpoint probe can say about a row's server — the axis, homed ONCE (§7.5). */
+const REACHABILITY_STATES = ["up", "down", "asleep", "unknown"] as const;
+export type Reachability = (typeof REACHABILITY_STATES)[number];
 
 /** The openai-compat backend's probe — cached `GET /v1/models` per connection + the sleep read. */
 export type ReachabilityProbe = (args: {

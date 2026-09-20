@@ -111,6 +111,16 @@ const SCHEMA_OWNERS: Readonly<Record<string, OwnershipRuling>> = {
     owners: ["assets"],
     why: "a satellite table of the assets producer — the same mapping `db-structure`'s NON_DOMAIN_PRODUCERS makes (gallery → domain/assets).",
   },
+  "connection-bindings": {
+    owners: ["connection"],
+    why:
+      "a SATELLITE of the `connection` producer — `connection_bindings` + `provider_rows` live apart from " +
+      "`user_connections` (`schema/connection.ts`) ONLY to break an import cycle: the bindings FK " +
+      "`automation_rules` and `plugins`, whose schema files import `chat.ts`, which FKs `user_connections`. " +
+      "Same producer, two files; the `gallery → assets` satellite mapping above is the precedent. The " +
+      "automatic same-named-domain dispatch cannot find it because there is no `domain/connection-bindings/` " +
+      "and never will be — the split is a cycle fix, not a second producer.",
+  },
   "sdk-session": {
     owners: [],
     why:

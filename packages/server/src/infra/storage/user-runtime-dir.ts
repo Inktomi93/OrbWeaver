@@ -6,9 +6,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { UserId } from "@orb/kit/ids";
-
-const RUNTIME_TOOLS = ["claude"] as const;
-export type RuntimeTool = (typeof RUNTIME_TOOLS)[number];
+import type { RuntimeTool } from "./contract.ts";
 
 /** A TypeID (`user_…`) is `[a-z0-9_]+`; anything else could escape the root and is refused before a path is built. */
 const OWNER_SEGMENT = /^[a-z0-9_]+$/;

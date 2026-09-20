@@ -10,9 +10,10 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ConnectionBinding, ModelCatalogEntry, ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { Db } from "@orb/db";
-import type { InferenceRuntime, ProviderRegistry, ResolveOutcome } from "@orb/inference";
+import type { BindingStore, ConnectionStore, InferenceRuntime, ProviderRegistry, ProviderStore, ResolveOutcome, SnapshotStore } from "@orb/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
+import type { ENDPOINT_ADMISSIONS } from "#infra/network";
 import type {
   CatalogModelsParams,
   ConnectionDiagnosticParams,
@@ -47,7 +48,7 @@ import type {
  *  `public` = not a private address (the SSRF guard judges it as any host); `admitted` = private and on the
  *  deployment allowlist; `refused` = private and NOT admitted (the pane's inline "Admit `<host>`" affordance);
  *  `invalid` = not an http(s) URL. */
-export type EndpointAdmission = "public" | "admitted" | "refused" | "invalid";
+export type EndpointAdmission = (typeof ENDPOINT_ADMISSIONS)[number];
 
 /** The DI bundle the connection verbs close over (wired at the entry composition root). */
 export interface ConnectionContext {
@@ -116,6 +117,15 @@ export interface ConnectionService {
   readonly registerProvider: (params: RegisterProviderParams) => Promise<void>;
   readonly dropProvider: (params: DropProviderParams) => Promise<void>;
   readonly registry: ProviderRegistry;
+}
+
+/** The runtime's FOUR persistence ports over this domain's tables (inference program §11) — `@orb/inference`
+ *  owns no `@orb/db`, so the composition root hands it these. READ side only; the writes stay in the verbs. */
+export interface ConnectionPorts {
+  readonly connections: ConnectionStore;
+  readonly bindings: BindingStore;
+  readonly providerStore: ProviderStore;
+  readonly snapshotStore: SnapshotStore;
 }
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (`refresh-model-catalog`). */

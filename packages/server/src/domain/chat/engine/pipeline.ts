@@ -180,7 +180,7 @@ const EMPTY_HISTORY_MACRO_NAMES: HistoryMacroNames = {
 
 /** What the CONVERT seam gets when the §8.8 carry rung is below `conversation`: nothing to materialize, and
  *  no read performed to learn that. */
-const EMPTY_REASONING_BY_MESSAGE: ReadonlyMap<MessageId, readonly ChatReasoningPart[]> = new Map<MessageId, readonly ChatReasoningPart[]>();
+const EMPTY_REASONING_BY_MESSAGE: ReadonlyMap<MessageId, readonly ChatReasoningPart[]> = new Map<MessageId, readonly ChatReasoningPart[]>([]);
 
 /** The pipeline product the engine persists — the reduced generation + the request + the fit offset. */
 interface TurnPipelineResult {

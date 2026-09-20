@@ -11,10 +11,9 @@ import { canFund, connectionTasks, isRoutableTask, ROUTABLE_TASKS, taskDef } fro
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { CONNECTION_OP_CODES, ConnectionNotFoundError } from "../contract/errors.ts";
-import type { BindingActorInput, SetBindingParams } from "../contract/params.ts";
+import type { BindingActorInput, SetBindingParams, StoredActor } from "../contract/params.ts";
 import type { BindingView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
-import type { StoredActor } from "../persistence/bindings.ts";
 import { listBindingsForActor, upsertBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
 import { VECTOR_TASKS } from "../substrate/embed-space.ts";
@@ -56,7 +55,7 @@ function requireServable(ctx: ConnectionContext, row: UserConnection, task: Rout
   }
 }
 
-export function createListBindings(ctx: ConnectionContext): ConnectionService["listBindings"] {
+function createListBindings(ctx: ConnectionContext): ConnectionService["listBindings"] {
   return async (params): Promise<readonly BindingView[]> => {
     const actor = await storedActorFor(ctx, params.principal.userId, params.actor);
     const rows = await listBindingsForActor(ctx.db, actor);
@@ -89,7 +88,7 @@ async function bindingReadout(
   }
 }
 
-export function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding"] {
+function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding"] {
   return async (params: SetBindingParams): Promise<ConnectionBinding> => {
     const userId = params.principal.userId;
     const actor = await storedActorFor(ctx, userId, params.actor);
@@ -118,7 +117,7 @@ export function createSetBinding(ctx: ConnectionContext): ConnectionService["set
   };
 }
 
-export function createUseForEverything(ctx: ConnectionContext): ConnectionService["useForEverything"] {
+function createUseForEverything(ctx: ConnectionContext): ConnectionService["useForEverything"] {
   return async (params): Promise<readonly ConnectionBinding[]> => {
     const userId = params.principal.userId;
     const row = await fetchOwnedConnection(ctx.db, userId, params.connectionId);
@@ -138,5 +137,17 @@ export function createUseForEverything(ctx: ConnectionContext): ConnectionServic
       ctx.onEmbedSpaceChanged(userId);
     }
     return written;
+  };
+}
+
+/** The binding slice of `ConnectionService` this grouped file owns. */
+type BindingVerbs = Pick<ConnectionService, "listBindings" | "setBinding" | "useForEverything">;
+
+/** The `connection_bindings` verb bundle (`verb-naming`: one factory named for the file). */
+export function createBindings(ctx: ConnectionContext): BindingVerbs {
+  return {
+    listBindings: createListBindings(ctx),
+    setBinding: createSetBinding(ctx),
+    useForEverything: createUseForEverything(ctx),
   };
 }
