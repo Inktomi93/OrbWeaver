@@ -9,6 +9,10 @@ import { createRequire } from "node:module";
 const SDK_PACKAGE = "@anthropic-ai/claude-agent-sdk";
 
 export function resolveClaudeExecutable(): string | null {
+  // THE WAIVER BELOW CANNOT BIND TODAY and its stale-waiver alarm is EXPECTED (#2477): `caught-failure-ownership`
+  // declares `population: ["@packages", "@showcase", "@default-content", "@tooling"]` and `@packages` is the
+  // explicit six-root list, so `packages/inference/src/**` is judged by that policy not at all. The marker stays
+  // because it is SOUND — deleting it to silence the alarm would bless the coverage hole and lose this reason.
   // @orb-waive caught-failure-ownership(catch): a MODULE-RESOLUTION miss IS the answer — the wire is unbuilt (the
   // registry's `needs` predicate names it), not a failure to report. Ends if the SDK grows a second install shape.
   try {

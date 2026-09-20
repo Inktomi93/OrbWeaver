@@ -239,10 +239,20 @@ function writeAllFixtures(): void {
   fx(`${S}/domain/__dc_feat/usebackend.ts`, `import "../../../../inference/src/backends/__dc_back/i.ts";\n`);
   fx("packages/inference/src/backends/__dc_back/cross.ts", `import "../__dc_back2/i.ts";\n`);
   fx("packages/inference/src/backends/agent-sdk/__dc.ts", VAL);
-  // The firewall's `from` is the surviving openrouter-NAMED plane (catalog + capability sources), not a
-  // family dir — openrouter is a provider row on the shared openai-compat transport now, so the fixture
-  // has to be one of those real module names rather than a `__dc`-prefixed one.
+  // The firewall's `from` is EVERY backend except agent-sdk itself, PLUS the surviving openrouter-NAMED
+  // plane (catalog + capability sources) — openrouter is a provider row on the shared openai-compat
+  // transport now, so the named-plane fixture has to be one of those real module names rather than a
+  // `__dc`-prefixed one, while the execution-plane arm needs a sibling family dir.
   fx("packages/inference/src/catalog/openrouter.ts", `import "../backends/agent-sdk/__dc.ts";\n`);
+  // THE TRANSITIVE ARM — what `reachable: true` is FOR, and the only arm a direct-edge fixture cannot
+  // prove: a sibling backend reaches the subscription plane through the SHARED seam `backends/kit/`, with
+  // no agent-sdk edge of its own anywhere in its own directory. If the widened `from` ever collapses back
+  // to one directory, this fixture stops firing and the case below reds.
+  fx("packages/inference/src/backends/kit/__dc_hop.ts", `import "../agent-sdk/__dc.ts";\n`);
+  fx("packages/inference/src/backends/__dc_back/to-sub.ts", `import "../kit/__dc_hop.ts";\n`);
+  // THE NEGATIVE CONTROL for the `pathNot`: a LIVE agent-sdk→agent-sdk edge, which the rule must not
+  // report. Without an edge here the exemption would read as proven by the mere absence of one.
+  fx("packages/inference/src/backends/agent-sdk/__dc_self.ts", `import "./__dc.ts";\n`);
 
   fx(`${S}/domain/__dc_feat/persistence/io.ts`, `import "node:fs";\n`);
   fx(EMBEDDINGS, VAL);
@@ -435,6 +445,24 @@ test("a cruise SEES files that did not exist when any previous cruise ran (the r
 
 test.each(ACTIVE_RULES)("config rule %s fires on its fixture", (rule) => {
   expect(firedRules).toContain(rule);
+});
+
+// The credential firewall's OWN case, beyond the generic "it fired at all" row above. The rule was
+// NARROWED to `backends/openrouter/` → the openrouter-named catalog modules when the family collapsed into
+// the shared openai-compat transport, which left every OTHER sibling free to reach the subscription plane;
+// it was widened back to "no backend but agent-sdk reaches agent-sdk, through ANY chain". A pin that only
+// proved the rule PASSES on the real tree would have been green through the whole narrow window.
+test("the credential firewall fires on a TRANSITIVE sibling-backend chain and exempts agent-sdk's own modules", () => {
+  const firewall = allViolations.filter((violation) => violation.rule.name === "credential-firewall-openrouter-not-agent-sdk");
+  const sources = firewall.map((violation) => violation.from);
+  // Reaches agent-sdk only through `backends/kit/` — no direct edge exists in `__dc_back/`.
+  expect(sources).toContain("packages/inference/src/backends/__dc_back/to-sub.ts");
+  // The shared seam itself is a sibling and is policed on its own account.
+  expect(sources).toContain("packages/inference/src/backends/kit/__dc_hop.ts");
+  // The surviving openrouter-NAMED plane, which is not under `backends/` at all.
+  expect(sources).toContain("packages/inference/src/catalog/openrouter.ts");
+  // The `pathNot` arm, proven against a LIVE agent-sdk→agent-sdk edge rather than against its absence.
+  expect(sources.filter((from) => from.startsWith("packages/inference/src/backends/agent-sdk/"))).toEqual([]);
 });
 
 test("allows only data/trpc.ts → server root as the client backend type seam", () => {

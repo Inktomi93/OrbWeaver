@@ -15,7 +15,7 @@
 //   • the field ABSENT ⇒ the server predates #412 and CANNOT be asked. Same class as off: exit 2, because
 //     the op still cannot render a verdict — it just cannot say which way.
 //
-// AUTH: the same two-tier debug gate as the trace endpoints (admin session, else x-debug-token; bare
+// AUTH: the same two-tier debug gate as the trace endpoints (owner session, else x-debug-token; bare
 // single-user dev needs neither). Hits the server DIRECTLY on PORT (default 8788), not the vite proxy.
 import process from "node:process";
 import type { WireCapture, WireOutcome } from "@orb/server/foundation/observability";
@@ -114,7 +114,7 @@ export async function capturesOp(argv: readonly string[]): Promise<number> {
   const res = await fetch(url, { headers: authHeaders() });
   if (!res.ok) {
     process.stderr.write(
-      `wire-tap: HTTP ${res.status} from ${url} — 401 = token mismatch (pass DEBUG_TOKEN / use an admin session), 404 = debug API disabled\n`,
+      `wire-tap: HTTP ${res.status} from ${url} — 401 = token mismatch (pass DEBUG_TOKEN / use an owner session), 404 = debug API disabled\n`,
     );
     return EXIT.toolError;
   }

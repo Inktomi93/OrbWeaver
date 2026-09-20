@@ -2,7 +2,7 @@
 // Resolves (exit 0) on Ctrl-C — the SIGINT handler clears the interval so the loop drains naturally
 // (no process.exit: the runner owns exits).
 //
-// AUTH (two-tier gate, foundation/observability/debug/routes.ts): an admin session short-circuits
+// AUTH (two-tier gate, foundation/observability/debug/routes.ts): an owner session short-circuits
 // first, then the x-debug-token fallback. Single-user dev needs no token; the header rides only when
 // one is provided (--token=… or env DEBUG_TOKEN). Connection: hits the server DIRECTLY on PORT
 // (default 8788), not through the vite dev proxy.
@@ -43,10 +43,10 @@ let firstPoll = true;
 
 function explainStatus(status: number): string {
   if (status === HTTP_UNAUTHORIZED) {
-    return "401 — token mismatch; pass --token=… or export DEBUG_TOKEN (an admin session cookie also passes)";
+    return "401 — token mismatch; pass --token=… or export DEBUG_TOKEN (an owner session cookie also passes)";
   }
   if (status === HTTP_NOT_FOUND) {
-    return "404 — debug API disabled: server has no DEBUG_TOKEN set AND no admin session reached it";
+    return "404 — debug API disabled: server has no DEBUG_TOKEN set AND no owner session reached it";
   }
   return `HTTP ${status}`;
 }

@@ -242,8 +242,11 @@ export interface EngineAdoptionEvidence {
 /** What an UNAUTHENTICATED `GET /api/_debug/info` tells us about the live instance's debug posture.
  *
  *  Since AUTHFIX-2 (2026-08-07) the expected answer from a plain dev stack is `token` (or `off`), NOT
- *  `open`. The gate's first arm requires an admin SESSION, and this probe deliberately presents none. */
-/** `off` = 404, `DEBUG_TOKEN` unset and no admin session presented: the whole surface is off ·
+ *  `open`. The gate's first arm requires an OWNER SESSION, and this probe deliberately presents none.
+ *  OWNER, not admin, since the 2026-09-20 owner ruling that `admin` is delegated in-app authority rather
+ *  than box-operator authority: a delegated admin is refused at every `/api/_debug/*` probe. The
+ *  `x-debug-token` headless arm every tooling caller here uses is untouched by that ruling. */
+/** `off` = 404, `DEBUG_TOKEN` unset and no owner session presented: the whole surface is off ·
  *  `token` = 401, the token gate is ARMED and we did not present one (the normal answer) ·
  *  `open` = 200, reachable with NO credential — post-AUTHFIX-2 this probe should never see it ·
  *  `unknown` = no answer at all. */

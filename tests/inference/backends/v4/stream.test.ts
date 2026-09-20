@@ -12,15 +12,30 @@ import { ProviderError } from "../../../../packages/inference/src/contract/error
 import { expect, test } from "../../../support/fixtures.ts";
 
 // The SDK's own stream-part type, DERIVED from `drainStream`'s signature — `tests/` has no `@ai-sdk/provider`
-// dependency (the package owns the SDK; the batch runner's test uses the same idiom).
+// dependency (the package owns the SDK; the batch runner's test uses the same idiom). `ProviderMetadata` and
+// its inner `JSONObject` are derived the same way rather than re-spelled as `Record<string, unknown>`: the
+// loose spelling forced an `as unknown as` double cast at every call site, and that cast was hiding real
+// drift — a `{ type: "unsupported-setting", setting }` warning the V4 union cannot carry and usage objects
+// missing every field but `total` (both repaired below, `packages/inference/src/backends/v4/stream.ts`).
 type StreamArg = Parameters<typeof drainStream>[0];
 type StreamPart = StreamArg extends ReadableStream<infer P> ? P : never;
-type JSONObject = Record<string, unknown>;
+type FinishPart = Extract<StreamPart, { type: "finish" }>;
+type ProviderMetadata = NonNullable<Extract<StreamPart, { type: "reasoning-delta" }>["providerMetadata"]>;
+type JSONObject = ProviderMetadata[string];
 
-/** A loosely-shaped stream part, cast to the SDK's real (large, picky) discriminated union — the test's
- *  honesty rests on `drainStream` actually reading these fields, which every assertion below checks. */
-function part(p: Record<string, unknown>): StreamPart {
-  return p as unknown as StreamPart;
+/** Contextual typing for an authored stream part — the array literals below are checked against the SDK's
+ *  real (large, picky) discriminated union, so a part shape the wire cannot produce is a tsc red here. */
+function part(p: StreamPart): StreamPart {
+  return p;
+}
+
+/** The V4 nested usage shape, spelled once: every count is a REQUIRED field that may hold `undefined`, so a
+ *  `{ total }` literal is not a usage object. */
+function usageOf(inputTotal: number, outputTotal: number): FinishPart["usage"] {
+  return {
+    inputTokens: { total: inputTotal, noCache: undefined, cacheRead: undefined, cacheWrite: undefined },
+    outputTokens: { total: outputTotal, text: undefined, reasoning: undefined },
+  };
 }
 
 function streamOf(parts: readonly StreamPart[]): StreamArg {
@@ -34,7 +49,7 @@ function streamOf(parts: readonly StreamPart[]): StreamArg {
   });
 }
 
-const FINISH = part({ type: "finish", finishReason: { unified: "stop", raw: "stop" }, usage: { inputTokens: { total: 1 }, outputTokens: { total: 1 } } });
+const FINISH = part({ type: "finish", finishReason: { unified: "stop", raw: "stop" }, usage: usageOf(1, 1) });
 
 function anthropicMeta(fields: JSONObject): { readonly anthropic: JSONObject } {
   return { anthropic: fields };
@@ -47,9 +62,9 @@ test("a reasoning block's text and provenance arrive on DIFFERENT parts and fold
   const drain = await drainStream(
     streamOf([
       part({ type: "reasoning-start", id: "r1", providerMetadata: anthropicMeta({}) }),
-      part({ type: "reasoning-delta", id: "r1", delta: "thinking about it", providerMetadata: undefined }),
+      part({ type: "reasoning-delta", id: "r1", delta: "thinking about it" }),
       part({ type: "reasoning-delta", id: "r1", delta: "...", providerMetadata: anthropicMeta({ signature: "sig-abc" }) }),
-      part({ type: "reasoning-end", id: "r1", providerMetadata: undefined }),
+      part({ type: "reasoning-end", id: "r1" }),
       part({ type: "text-delta", id: "t1", delta: "the answer" }),
       FINISH,
     ]),
@@ -64,10 +79,10 @@ test("a reasoning block's text and provenance arrive on DIFFERENT parts and fold
 test("TWO reasoning blocks (two SDK ids) each keep their OWN text and provenance — no cross-block bleed", async () => {
   const drain = await drainStream(
     streamOf([
-      part({ type: "reasoning-start", id: "r1", providerMetadata: undefined }),
+      part({ type: "reasoning-start", id: "r1" }),
       part({ type: "reasoning-delta", id: "r1", delta: "block one", providerMetadata: anthropicMeta({ signature: "sig-1" }) }),
-      part({ type: "reasoning-start", id: "r2", providerMetadata: undefined }),
-      part({ type: "reasoning-delta", id: "r2", delta: "block two", providerMetadata: undefined }),
+      part({ type: "reasoning-start", id: "r2" }),
+      part({ type: "reasoning-delta", id: "r2", delta: "block two" }),
       part({ type: "reasoning-end", id: "r2", providerMetadata: openrouterMeta([{ type: "reasoning.text", text: "block two", signature: "sig-2" }]) }),
       FINISH,
     ]),
@@ -89,7 +104,7 @@ test("a redacted block carries provenance with NO text at all — the block surv
   const drain = await drainStream(
     streamOf([
       part({ type: "reasoning-start", id: "r1", providerMetadata: anthropicMeta({ redactedData: "opaque-payload" }) }),
-      part({ type: "reasoning-end", id: "r1", providerMetadata: undefined }),
+      part({ type: "reasoning-end", id: "r1" }),
       part({ type: "text-delta", id: "t1", delta: "done" }),
       FINISH,
     ]),
@@ -101,9 +116,9 @@ test("a redacted block carries provenance with NO text at all — the block surv
 test("a reasoning block with NO provenance on any part is DROPPED — replaying bare text is what every converter refuses", async () => {
   const drain = await drainStream(
     streamOf([
-      part({ type: "reasoning-start", id: "r1", providerMetadata: undefined }),
-      part({ type: "reasoning-delta", id: "r1", delta: "unsigned thinking", providerMetadata: undefined }),
-      part({ type: "reasoning-end", id: "r1", providerMetadata: undefined }),
+      part({ type: "reasoning-start", id: "r1" }),
+      part({ type: "reasoning-delta", id: "r1", delta: "unsigned thinking" }),
+      part({ type: "reasoning-end", id: "r1" }),
       FINISH,
     ]),
     { label: "test" },
@@ -129,7 +144,7 @@ test("onReasoning fires once per NON-EMPTY delta; a zero-length delta (the signa
   const seen: string[] = [];
   await drainStream(
     streamOf([
-      part({ type: "reasoning-delta", id: "r1", delta: "a", providerMetadata: undefined }),
+      part({ type: "reasoning-delta", id: "r1", delta: "a" }),
       part({ type: "reasoning-delta", id: "r1", delta: "", providerMetadata: anthropicMeta({ signature: "sig" }) }),
       FINISH,
     ]),
@@ -155,19 +170,22 @@ test("onText fires per text-delta and onPart fires once per stream part (control
 test("stream-start warnings accumulate and finish carries usage + providerMetadata + responseId from response-metadata", async () => {
   const drain = await drainStream(
     streamOf([
-      part({ type: "stream-start", warnings: [{ type: "unsupported-setting", setting: "temperature" }] }),
+      // `{ type: "unsupported", feature }` is the V4 warning shape — the V2-era `{ type: "unsupported-setting",
+      // setting }` this arm used to assert is a value the SDK union cannot carry, and only the double cast
+      // let it through.
+      part({ type: "stream-start", warnings: [{ type: "unsupported", feature: "temperature" }] }),
       part({ type: "response-metadata", id: "resp-123" }),
       part({ type: "text-delta", id: "t1", delta: "ok" }),
       part({
         type: "finish",
         finishReason: { unified: "stop", raw: "stop" },
-        usage: { inputTokens: { total: 5 }, outputTokens: { total: 2 } },
+        usage: usageOf(5, 2),
         providerMetadata: { anthropic: { foo: "bar" } },
       }),
     ]),
     { label: "test" },
   );
-  expect(drain.warnings).toEqual([{ type: "unsupported-setting", setting: "temperature" }]);
+  expect(drain.warnings).toEqual([{ type: "unsupported", feature: "temperature" }]);
   expect(drain.responseId).toBe("resp-123");
   expect(drain.usage).toEqual({ inputTokens: { total: 5 }, outputTokens: { total: 2 } });
   expect(drain.providerMetadata).toEqual({ anthropic: { foo: "bar" } });

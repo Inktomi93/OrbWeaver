@@ -310,9 +310,6 @@ function EndpointModelsCheck({
     }
     const forDraft = currentDraftKey;
     const key = keyValue.trim();
-    // @orb-waive caught-failure-ownership(mutateAsync): an advisory-only list — the .catch records a
-    // zero-count verdict with the failure as its reason, which IS the rendered typed-id state. Ends if the
-    // failure branch stops writing a distinguishable UI state.
     void list
       .mutateAsync({ baseUrl: draftBaseUrl, ...(key !== "" ? { key } : {}) })
       .then((result): void => {
