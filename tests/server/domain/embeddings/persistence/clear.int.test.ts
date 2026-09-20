@@ -74,7 +74,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
     });
     expect(await db.select().from(characterEmbeddings)).toHaveLength(2); // both spaces coexist
 
-    const purged = await purgeStaleVectors(db, "character_embeddings", EMBED_MODEL);
+    const purged = await purgeStaleVectors(db, "character_embeddings", owner, EMBED_MODEL);
 
     expect(purged).toBe(1);
     const rows = await db.select().from(characterEmbeddings);
@@ -84,7 +84,8 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
 
   test("chat_segments — the previously-OVERWRITING family: a model change now INSERTS additively (not in place), then purges clean", async () => {
     const db = await freshDb();
-    const chatId = await seedChat(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const chatId = await seedChat(db, "chat_test", owner);
     // The SAME (chatId, blockIdx) in two models. BEFORE PD-104 the key omitted `model`, so the second
     // upsert OVERWROTE the first in place (silently corrupting a mixed-space table); now `model` is in the
     // key so both coexist — the uniform behaviour the fix guarantees.
@@ -118,7 +119,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
     });
     expect(await db.select().from(chatSegments)).toHaveLength(2); // additive — NOT an in-place overwrite
 
-    const purged = await purgeStaleVectors(db, "chat_segments", EMBED_MODEL);
+    const purged = await purgeStaleVectors(db, "chat_segments", owner, EMBED_MODEL);
 
     expect(purged).toBe(1);
     const rows = await db.select().from(chatSegments);
@@ -130,7 +131,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const assetId = await seedAsset(db, owner);
-    const chatId = await seedChat(db);
+    const chatId = await seedChat(db, "chat_test", owner);
     const documentId = await seedDocument(db, owner);
 
     // Seed one OLD-space + one NEW-space row in every table (image on its own model axis).
@@ -267,11 +268,11 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
     });
 
     // Purge each table's old space against its active model.
-    expect(await purgeStaleVectors(db, "character_embeddings", EMBED_MODEL)).toBe(1);
-    expect(await purgeStaleVectors(db, "image_embeddings", IMAGE_EMBED_MODEL)).toBe(1);
-    expect(await purgeStaleVectors(db, "chat_segments", EMBED_MODEL)).toBe(1);
-    expect(await purgeStaleVectors(db, "chat_digests", EMBED_MODEL)).toBe(1);
-    expect(await purgeStaleVectors(db, "document_chunks", EMBED_MODEL)).toBe(1);
+    expect(await purgeStaleVectors(db, "character_embeddings", owner, EMBED_MODEL)).toBe(1);
+    expect(await purgeStaleVectors(db, "image_embeddings", owner, IMAGE_EMBED_MODEL)).toBe(1);
+    expect(await purgeStaleVectors(db, "chat_segments", owner, EMBED_MODEL)).toBe(1);
+    expect(await purgeStaleVectors(db, "chat_digests", owner, EMBED_MODEL)).toBe(1);
+    expect(await purgeStaleVectors(db, "document_chunks", owner, EMBED_MODEL)).toBe(1);
 
     // The invariant: every table retains EXACTLY its active-space row and nothing outside it.
     const stale = [

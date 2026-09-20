@@ -20,8 +20,8 @@ export function createPurgeMemoryVectors(ctx: EmbeddingsContext): EmbeddingsServ
     if (activeModel === null) {
       return { segments: 0, digests: 0 };
     }
-    const segments = await purgeStaleVectors(ctx.db, "chat_segments", activeModel);
-    const digests = await purgeStaleVectors(ctx.db, "chat_digests", activeModel);
+    const segments = await purgeStaleVectors(ctx.db, "chat_segments", ownerId, activeModel);
+    const digests = await purgeStaleVectors(ctx.db, "chat_digests", ownerId, activeModel);
     return { segments, digests };
   };
 }

@@ -22,7 +22,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
-    const chatId = await seedChat(db);
+    const chatId = await seedChat(db, "chat_test", owner);
     // One OLD-space + one active-space row in each model-keyed chat-memory table (both coexist because the
     // upsert key now includes `model` — PD-104).
     await upsertChatSegment(db, {
@@ -101,7 +101,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
-    const chatId = await seedChat(db);
+    const chatId = await seedChat(db, "chat_test", owner);
     await upsertChatSegment(db, {
       id: castId<ChatSegmentId>("chat_segment_active"),
       chatId,

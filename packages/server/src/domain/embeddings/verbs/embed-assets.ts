@@ -30,7 +30,7 @@ interface EmbedAssetsDeps {
 }
 
 /** One asset's sweep step: hash + breakdown pre-check (both lenses) → store raw → analyse → store captioned. */
-async function embedOneAsset(ctx: EmbeddingsContext, deps: EmbedAssetsDeps, assetId: AssetId, force: boolean): Promise<"embedded" | "skipped"> {
+async function embedOneAsset(ctx: EmbeddingsContext, deps: EmbedAssetsDeps, assetId: AssetId, force: boolean, spaces: Map<UserId, string>): Promise<"embedded" | "skipped"> {
   // ADMISSION FLOOR (recorded skip, read FIRST): an asset already refused by the dimension floor is honored
   // here — no byte load, no caption, no embed — so a re-index does not re-attempt it. `force` still bypasses
   // it (a deliberate re-index of everything), mirroring how `force` bypasses the hash/facet pre-check below.
@@ -53,6 +53,7 @@ async function embedOneAsset(ctx: EmbeddingsContext, deps: EmbedAssetsDeps, asse
   if (ownerId === null || model === null) {
     return "skipped"; // no owner / no imageEmbed binding — nothing funds the embed (§7.5-2)
   }
+  spaces.set(ownerId, model);
   // Both lenses share the bytes' hash — pre-check them so a current asset skips before the expensive
   // analysis call ever runs.
   const hash = contentHash(bytes);
@@ -103,11 +104,13 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps)
     // know it (issue #166: a sweep that only ever reported a sentence left the card an indeterminate bar
     // through a 350-image run).
     const assetIds = await ctx.listImageAssetIds(ownerId);
+    // Every owner the sweep resolved, with the image space it embedded into — the purge set.
+    const spaces = new Map<UserId, string>();
     for (const assetId of assetIds) {
       if (signal.aborted) {
         break; // cooperative abort between assets — every completed embed is durable + idempotent
       }
-      const outcome = await embedOneAsset(ctx, deps, assetId, force);
+      const outcome = await embedOneAsset(ctx, deps, assetId, force, spaces);
       if (outcome === "embedded") {
         embedded += 1;
       } else {
@@ -115,12 +118,12 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps)
       }
       onProgress?.(embedded + skipped, assetIds.length);
     }
-    // PD-104 purge (reclaim the old image space) — only after a complete bulk sweep, never on abort or a
-    // singular per-owner pass. A no-op unless the box image-embed model changed since the last index.
-    // PD-104 purge — against the WORKLOAD principal's imageEmbed space (step 8 owes the per-owner join).
-    const purgeModel = ownerId === null ? null : await requireTaskModel(ctx, ownerId, "imageEmbed");
-    if (purgeModel !== null && !signal.aborted) {
-      await purgeStaleVectors(ctx.db, "image_embeddings", purgeModel);
+    // PD-104 purge (reclaim each touched owner's old image space) — only after a complete sweep, never on
+    // abort. A no-op for an owner whose imageEmbed binding did not change since the last index.
+    if (!signal.aborted) {
+      for (const [spaceOwnerId, model] of spaces) {
+        await purgeStaleVectors(ctx.db, "image_embeddings", spaceOwnerId, model);
+      }
     }
     return { embedded, skipped };
   };
