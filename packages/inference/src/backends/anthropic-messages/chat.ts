@@ -15,25 +15,29 @@
 // hoists the leading system block out of `messages[]`, so the openai-compat transport's plan-index walk
 // would not align here even if the block were legal.)
 
-import type { JSONObject, LanguageModelV4CallOptions, SharedV4ProviderOptions } from "@ai-sdk/provider";
+import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, cacheMinTokensOf } from "@orb/contracts/inference";
+import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { scrubWireSchema } from "@orb/kit/json-schema";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { AnthropicChatRequest, ChatHistoryMessage, ChatResult } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
+import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
+import { effortWordOf } from "../kit/applied-effort.ts";
 import type { CacheBreakpointRow } from "../kit/cache-control.ts";
 import { ANTHROPIC_CACHE_1H, computeCacheBreakpointPlacements } from "../kit/cache-control.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
+import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-headers.ts";
 import type { AddSpanEvent } from "../kit/retry.ts";
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
@@ -45,6 +49,7 @@ import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
 import type { AnthropicCall, AnthropicTransportDeps } from "./model.ts";
 import { ANTHROPIC_KEY, anthropicModelFor } from "./model.ts";
+import { refusalEventOf } from "./refusal.ts";
 
 /** The SDK's effort enum — `minimal` has no arm on this wire and drops with a warning. */
 const SDK_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
@@ -206,6 +211,22 @@ function dropExtras(connection: Resolved, warnings: ResolvedWarning[]): void {
   }
 }
 
+function isJsonObject(value: unknown): value is JSONObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** B1: the effort THIS request carried, read off the OPTIONS the builder produced (never recomputed from the
+ *  knobs): thinking spelled OFF ⇒ `none`; a spelled SDK effort ⇒ that word; neither (a `minimal` the SDK vocabulary
+ *  dropped, an adaptive turn with no dial) ⇒ `null` — the model reasoned at its own default, which is unrecorded. */
+function appliedEffortOf(options: Pick<LanguageModelV4CallOptions, "providerOptions">): EffortLevel | null {
+  const anthropic = options.providerOptions?.[ANTHROPIC_KEY];
+  const thinking = anthropic?.["thinking"];
+  if (isJsonObject(thinking) && thinking["type"] === "disabled") {
+    return "none";
+  }
+  return effortWordOf(anthropic?.["effort"]);
+}
+
 interface StreamOnceArgs {
   readonly call: AnthropicCall;
   readonly options: LanguageModelV4CallOptions;
@@ -213,6 +234,8 @@ interface StreamOnceArgs {
   readonly now: () => number;
   readonly markCommitted: () => void;
   readonly onFirstDelta: (at: number) => void;
+  /** The response headers the V4 stream result exposes (B6) — before the first part, once per attempt. */
+  readonly onResponse: (headers: SharedV4Headers | undefined) => void;
 }
 
 async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
@@ -228,7 +251,8 @@ async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
     markCommitted();
   };
   try {
-    const { stream } = await anthropicModelFor(call).doStream({ ...args.options, abortSignal: idle.signal });
+    const { stream, response } = await anthropicModelFor(call).doStream({ ...args.options, abortSignal: idle.signal });
+    args.onResponse(response?.headers);
     return await drainStream(stream, {
       label: call.label,
       onPart: idle.reset,
@@ -292,6 +316,9 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
   let firstDeltaAt: number | undefined;
+  // A box, not a `let`: the value is assigned inside the stream callback, and TypeScript narrows a `let` read
+  // after an `await` to its initializer (a property read is re-widened across the call).
+  const response: { rateLimit: RateLimitSnapshot | null } = { rateLimit: null };
   const secrets = resolvedScrubSet(connection);
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
@@ -322,6 +349,9 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
         onFirstDelta: (at) => {
           firstDeltaAt = at;
         },
+        onResponse: (headers) => {
+          response.rateLimit = rateLimitFromHeaders(headers, deps.now());
+        },
       }),
     (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, label, secrets)),
     {
@@ -334,19 +364,32 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   // The SDK's OWN drops (§A3) land in the SAME array as the funnel's, BEFORE the result is folded — so one
   // push reaches the turn's `warning` events, the capability receipt and the sampling receipt alike.
   warnings.push(...sdkWarnings(drain.warnings));
-  const turn = toChatResult(drain, {
+  const finishedAt = deps.now();
+  const folded = toChatResult(drain, {
     model: connection.model,
     providerId: connection.providerId,
     generation,
     maxOutputTokens: knobs.maxOutputTokens,
     startedAt,
     firstDeltaAt,
-    now: deps.now(),
-    measuredCostUsd: measuredCostOf(drain.providerMetadata),
+    now: finishedAt,
+    measuredCost: measuredCostOf(drain.providerMetadata, drain.usage?.raw),
     pricing: connection.features.pricing,
-    generationId: null,
+    // The `msg_…` response id — the support handle (B7); OpenRouter's is the `gen-…` on its own transport.
+    generationId: drain.responseId ?? null,
+    appliedEffort: appliedEffortOf(options),
+    rateLimit: response.rateLimit,
     warnings,
   });
+  // The direct wire's two extra signals beside the warnings (A5 · B6): a classifier block as the existing
+  // `refusal` member, and the rate-limit canary from `allowed_warning` up.
+  const extraEvents: ChatEvent[] = [refusalEventOf(drain, connection.model, finishedAt), rateLimitCanaryEvent(response.rateLimit, finishedAt)].filter(
+    (event): event is ChatEvent => event !== null,
+  );
+  const turn: ChatResult = extraEvents.length > 0 ? { ...folded, events: [...folded.events, ...extraEvents] } : folded;
+  if (response.rateLimit !== null) {
+    log.emit(response.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...response.rateLimit });
+  }
   emitReceipts({ log, req, generation, knobs, turn, written: cache.written, warnings });
   for (const event of turn.events) {
     req.onEvent?.(event);

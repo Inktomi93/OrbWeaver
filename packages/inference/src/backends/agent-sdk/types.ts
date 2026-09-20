@@ -2,6 +2,7 @@
 // contract stays SDK-free.
 
 import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
+import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import type { WireCaptureSink } from "../../contract/backend.ts";
 import type { ContextUsage } from "../../contract/chat.ts";
@@ -67,4 +68,7 @@ export interface TurnStreamContext {
   readonly expectStructured?: boolean | undefined;
   /** True when the request's TERMINAL tools actually MOUNTED (D112 R1). */
   readonly captureTerminalTools?: boolean | undefined;
+  /** What the spawned runtime was told for effort (`ChatResult.appliedEffort`): `none` when thinking was disabled,
+   *  the SDK effort word when one was set, `null` when neither (the runtime's own default — unrecorded). */
+  readonly appliedEffort: EffortLevel | null;
 }

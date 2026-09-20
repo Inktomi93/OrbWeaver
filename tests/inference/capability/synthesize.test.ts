@@ -112,3 +112,26 @@ test("endpoint posture: tools without coEmitsProse ⇒ silencesProse; undeclared
   // A hosted row is untouched.
   expect(applyEndpointPosture(hostedRow(), base, false)).toBe(base);
 });
+
+// `sampling` is the STATED SET of knobs a tier vouches for (§8.7 step 2: absent ⇒ not honoured; D68: absence is
+// the fail-closed truth), so a tier that states it REPLACES the set beneath — a patch grammar cannot express a
+// measured absence. Founding case (B3, measured 2026-09-20 `gen-1789884252-n94Ebcm1uMVMG1XhxsbB`): OpenRouter's
+// catalog ADVERTISES `temperature` for anthropic/claude-opus-5 and strips it upstream; a dated measured `{}` must
+// win, and under the one-level merge `{...advertised, ...{}}` it could not.
+test("sampling is a stated SET: a measured `{}` erases an advertised range; a declared list is the whole list", () => {
+  const advertised = { sampling: { temperature: { min: 0, max: 2 }, topP: { min: 0, max: 1 } } };
+  const measuredEmpty: CapabilityOverride = {
+    kind: "generation",
+    generation: { sampling: {} },
+    evidence: { tier: "measured", dated: "2026-09-20", cite: "test" },
+  };
+  expect(generationOf(synthesizeCapability("generation", "anthropic", { advertised, measured: [measuredEmpty] }).capability).sampling).toEqual({});
+  // PLANTED CONTROL: without the measured row the advertised set stands (the fold is not simply dropping sampling).
+  expect(generationOf(synthesizeCapability("generation", "anthropic", { advertised }).capability).sampling).toEqual(advertised.sampling);
+  // A declared `temperature` alone is "this server honours temperature" — the advertised topP does NOT survive beside it.
+  const declared = synthesizeCapability("generation", "other", { advertised, declared: { generation: { sampling: { temperature: { min: 0, max: 1 } } } } });
+  expect(generationOf(declared.capability).sampling).toEqual({ temperature: { min: 0, max: 1 } });
+  // The sibling nested blocks keep their one-level merge (a declared effort list leaves the curated mode in place).
+  const nested = synthesizeCapability("generation", "other", { curated: [curated], declared: { generation: { reasoning: { effortLevels: ["low"] } } } });
+  expect(generationOf(nested.capability).reasoning).toMatchObject({ mode: "effort", effortLevels: ["low"] });
+});

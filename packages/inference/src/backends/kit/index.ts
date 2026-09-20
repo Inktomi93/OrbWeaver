@@ -9,6 +9,7 @@ export type { FlattenedAbort } from "./abort-flatten.ts";
 export { flattenAbortSignal, foldAbortInto } from "./abort-flatten.ts";
 export type { AnthImageBlock, AnthImageMediaType } from "./anth-image-block.ts";
 export { ANTH_IMAGE_MEDIA_TYPES, toAnthImageBlock } from "./anth-image-block.ts";
+export { effortWordOf } from "./applied-effort.ts";
 export type { AnthropicCacheDirective, CacheBreakpointPlacement, CacheBreakpointRow, CacheControlTextBlock, OpenRouterRouting } from "./cache-control.ts";
 export {
   ANTHROPIC_CACHE_1H,
@@ -51,6 +52,7 @@ export type {
   ProviderTurnUsage,
 } from "./provider-log.ts";
 export { PROVIDER_LOG_LEVELS, providerLogger } from "./provider-log.ts";
+export { parseGoDuration, RATE_LIMIT_WARN_UTILIZATION, rateLimitCanaryEvent, rateLimitFromHeaders } from "./rate-limit-headers.ts";
 export type { ChatCompletionsReasoning, ReasoningRequest, ResponsesReasoning } from "./reasoning-budget.ts";
 export { effortToOpenAIReasoning, effortToResponsesReasoning, OPENAI_EFFORT_LEVELS } from "./reasoning-budget.ts";
 export type { AddSpanEvent, RetryOptions } from "./retry.ts";

@@ -198,6 +198,33 @@ export function anthropicTextStream(text: string): SseEvent[] {
   ];
 }
 
+/** The Anthropic CLASSIFIER-BLOCK script (audit A5): a 200 whose `message_delta` carries `stop_reason: "refusal"`
+ *  plus `stop_details` — what a Fable safety block looks like on the wire. */
+export function anthropicRefusalStream(details: { readonly category: string; readonly explanation: string }): SseEvent[] {
+  return [
+    {
+      event: "message_start",
+      data: {
+        type: "message_start",
+        message: {
+          id: "msg_refused",
+          type: "message",
+          role: "assistant",
+          model: "m",
+          content: [],
+          stop_reason: null,
+          usage: { input_tokens: 10, output_tokens: 1 },
+        },
+      },
+    },
+    {
+      event: "message_delta",
+      data: { type: "message_delta", delta: { stop_reason: "refusal", stop_details: { type: "refusal", ...details } }, usage: { output_tokens: 0 } },
+    },
+    { event: "message_stop", data: { type: "message_stop" } },
+  ];
+}
+
 /** A generation capability with the axes a hosted chat turn reads; overrides replace whole axes. */
 export function generationCapability(overrides: Partial<GenerationCapability> = {}): Capability {
   const generation: GenerationCapability = {

@@ -6,9 +6,10 @@
 // openrouter mandatory-reasoning strip-and-replay-once ride `runWithPreCommitRetry`; every degrade is a
 // `warning` event (D41).
 
-import type { JSONObject, LanguageModelV4CallOptions, SharedV4ProviderOptions } from "@ai-sdk/provider";
+import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { Dialect, GenerationCapability } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, cacheMinTokensOf } from "@orb/contracts/inference";
+import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -17,16 +18,19 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
+import type { RateLimitSnapshot } from "../../contract/events.ts";
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
+import { effortWordOf } from "../kit/applied-effort.ts";
 import type { CacheBreakpointRow, OpenRouterRouting } from "../kit/cache-control.ts";
 import { ANTHROPIC_CACHE_1H, computeCacheBreakpointPlacements, effectiveProviderRouting, isAnthropicModel } from "../kit/cache-control.ts";
 import { extractHttpErrorDiagnostic, providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
+import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-headers.ts";
 import type { AddSpanEvent } from "../kit/retry.ts";
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../kit/sanitize.ts";
@@ -263,6 +267,25 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
   };
 }
 
+function isJsonObject(value: unknown): value is JSONObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** B1: the effort the LAST attempt's options carried, read off the shape (never recomputed from the knobs):
+ *  openrouter — `providerOptions.openrouter.reasoning.effort` (`"none"` when off; a budget or the mandatory
+ *  replay carries no effort word ⇒ `null`); openai-compatible — the V4 `reasoning` word when the row spells
+ *  `reasoning_effort`, else nothing was sent ⇒ `null`. */
+function appliedEffortOf(shape: TurnShape | undefined, dialect: Dialect): EffortLevel | null {
+  if (shape === undefined) {
+    return null;
+  }
+  if (dialect === "openrouter") {
+    const reasoning = shape.options.providerOptions?.[OPENROUTER_KEY]?.["reasoning"];
+    return isJsonObject(reasoning) ? effortWordOf(reasoning["effort"]) : null;
+  }
+  return effortWordOf(shape.options.reasoning);
+}
+
 // ── the stream ────────────────────────────────────────────────────────────────────────────────────────────
 
 interface StreamOnceArgs {
@@ -273,6 +296,8 @@ interface StreamOnceArgs {
   readonly now: () => number;
   readonly markCommitted: () => void;
   readonly onFirstDelta: (at: number) => void;
+  /** The response headers the V4 stream result exposes (B6) — before the first part, once per attempt. */
+  readonly onResponse: (headers: SharedV4Headers | undefined) => void;
 }
 
 async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
@@ -289,7 +314,8 @@ async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
   };
   try {
     const model = languageModelFor(call);
-    const { stream } = await model.doStream({ ...args.options, abortSignal: idle.signal });
+    const { stream, response } = await model.doStream({ ...args.options, abortSignal: idle.signal });
+    args.onResponse(response?.headers);
     return await drainStream(stream, {
       label,
       onPart: idle.reset,
@@ -385,6 +411,11 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
   let firstDeltaAt: number | undefined;
+  // What the answering ATTEMPT established (a box, not `let`s: both are assigned inside callbacks, and TypeScript
+  // narrows a `let` read after an `await` to its initializer): the shape it was built with — the mandatory-reasoning
+  // replay rebuilds it without the reasoning block, so the applied effort is read off THIS, never the first
+  // attempt's intent — and the rate-limit snapshot off its response headers.
+  const attempt: { shape: TurnShape | undefined; rateLimit: RateLimitSnapshot | null } = { shape: undefined, rateLimit: null };
   const secrets = resolvedScrubSet(connection);
   const anthropicRoute = dialect === "openrouter" && isAnthropicModel(connection.model);
   const plan = buildWirePlan({
@@ -414,6 +445,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           dialect === "openrouter"
             ? openRouterShape(req, knobs, warnings, includeReasoning)
             : openAiCompatibleShape(req, knobs, warnings, providerOptionsKey(connection.providerId));
+        attempt.shape = shape;
         const call: ModelCall = {
           connection,
           deps: deps.transport,
@@ -437,6 +469,9 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           onFirstDelta: (at) => {
             firstDeltaAt = at;
           },
+          onResponse: (headers) => {
+            attempt.rateLimit = rateLimitFromHeaders(headers, deps.now());
+          },
         });
       },
       classify,
@@ -446,19 +481,29 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const drain = await drainWithReplay(run, dialect === "openrouter" && !knobs.reasoning.enabled);
   // The SDK's OWN drops (§A3), folded into the same array as the funnel's before the result is built.
   warnings.push(...sdkWarnings(drain.warnings));
-  const turn = toChatResult(drain, {
+  const finishedAt = deps.now();
+  const folded = toChatResult(drain, {
     model: connection.model,
     providerId: connection.providerId,
     generation,
     maxOutputTokens: knobs.maxOutputTokens,
     startedAt,
     firstDeltaAt,
-    now: deps.now(),
-    measuredCostUsd: measuredCostOf(drain.providerMetadata),
+    now: finishedAt,
+    measuredCost: measuredCostOf(drain.providerMetadata, drain.usage?.raw),
     pricing: connection.features.pricing,
-    generationId: dialect === "openrouter" ? (drain.responseId ?? null) : null,
+    // The provider's response id (B7): OpenRouter's `gen-…` (the cost-settlement key) or an endpoint's own
+    // `chatcmpl-…` — both opaque provenance on the row.
+    generationId: drain.responseId ?? null,
+    appliedEffort: appliedEffortOf(attempt.shape, dialect),
+    rateLimit: attempt.rateLimit,
     warnings,
   });
+  const canary = rateLimitCanaryEvent(attempt.rateLimit, finishedAt);
+  const turn: ChatResult = canary === null ? folded : { ...folded, events: [...folded.events, canary] };
+  if (attempt.rateLimit !== null) {
+    log.emit(attempt.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...attempt.rateLimit });
+  }
   emitReceipts({ log, req, generation, knobs, turn, written: cache.written, warnings });
   for (const event of turn.events) {
     req.onEvent?.(event);

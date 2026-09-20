@@ -6,16 +6,30 @@
 //
 // Also pinned here: the A2 prefill belt (a trailing assistant row on a model whose capability refuses prefill
 // is a typed refusal, never a silent send), the A3 SDK-warning surfacing, and B2's applied/dropped receipt.
+//
+// The RECORD-TRUTH pins (audit A5 · A8/B1 · B6 · B7): a MANDATORY cell clamps an effort `none` UP and the body
+// carries `thinking: adaptive` + the low effort, recorded as `appliedEffort: "low"`; a non-mandatory adaptive
+// cell turns thinking OFF and records `"none"`; a classifier block (finish `refusal` + `stop_details`) becomes
+// the existing `refusal` event beside the `filter` finish; the Anthropic rate-limit headers become
+// `rateLimit`, and the `msg_…` id is the row's `generationId`.
 
+import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { runAnthropicChatTurn } from "../../../../packages/inference/src/backends/anthropic-messages/chat.ts";
-import type { AnthropicChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
+import type { AnthropicChatRequest, ChatResult } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
 import type { RecordedRequest, SseEvent } from "../_hosted-support.ts";
-import { anthropicRedactedStream, anthropicTextStream, anthropicThinkingToolStream, generationCapability, scriptedSseFetch } from "../_hosted-support.ts";
+import {
+  anthropicRedactedStream,
+  anthropicRefusalStream,
+  anthropicTextStream,
+  anthropicThinkingToolStream,
+  generationCapability,
+  scriptedSseFetch,
+} from "../_hosted-support.ts";
 
 const NOW = 1_700_000_000_000;
 const THINKING = "The user wants Paris weather; call the tool.";
@@ -146,4 +160,96 @@ test("A3/B2: an SDK-dropped sampler knob becomes a warning event and leaves the 
   const dropped = sampling?.fields["dropped"] as { knob: string }[];
   expect(applied["frequencyPenalty"]).toBeUndefined();
   expect(dropped.map((d) => d.knob)).toContain("frequencyPenalty");
+});
+
+// ── the record-truth pins (audit A5 · A8/B1 · B6 · B7) ───────────────────────────────────────────────────
+
+const RESET = "2026-09-20T06:04:11Z";
+/** The direct wire's own header set (measured 2026-09-20, `req_011CfEBkpjRWAjtLDifB2qpW`; remaining lowered to pick an axis). */
+const RATE_HEADERS = {
+  "anthropic-ratelimit-requests-limit": "5000",
+  "anthropic-ratelimit-requests-remaining": "4999",
+  "anthropic-ratelimit-requests-reset": RESET,
+  "anthropic-ratelimit-tokens-limit": "6000000",
+  "anthropic-ratelimit-tokens-remaining": "1500000",
+  "anthropic-ratelimit-tokens-reset": RESET,
+  "request-id": "req_test",
+};
+
+const ADAPTIVE_REASONING: GenerationCapability["reasoning"] = { mode: "adaptive", enabled: true, effortLevels: ["low", "medium", "high", "xhigh", "max"] };
+
+/** A Fable-shaped request: effort `none` on an adaptive cell, mandatory or not. */
+function fableRequest(mandatory: boolean): AnthropicChatRequest {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "anthropic",
+    model: "claude-fable-5-1",
+    capability: generationCapability({ reasoning: mandatory ? { ...ADAPTIVE_REASONING, mandatory: true } : ADAPTIVE_REASONING }),
+    baseUrl: "https://api.anthropic.com",
+    secret: fakeApiKeySecret("sk-ant-probe-not-a-real-key"),
+  });
+  return turnRequest({ connection, params: { effort: "none" } as UserIntent, tools: undefined });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function thinkingTypeOf(recorded: RecordedRequest | undefined): unknown {
+  const thinking = recorded?.body["thinking"];
+  return isRecord(thinking) ? thinking["type"] : undefined;
+}
+
+async function recordedTurn(
+  req: AnthropicChatRequest,
+  stream: SseEvent[],
+  headers: Readonly<Record<string, string>> = {},
+): Promise<{ turn: ChatResult; body: RecordedRequest | undefined }> {
+  const recorded: RecordedRequest[] = [];
+  const turn = await runAnthropicChatTurn(req, deps(scriptedSseFetch([stream], recorded, headers)));
+  return { turn, body: recorded[0] };
+}
+
+test("A8/B1: a MANDATORY cell clamps effort `none` up — the body carries adaptive thinking and the record says the wire's `low`", async () => {
+  const { turn, body } = await recordedTurn(fableRequest(true), anthropicTextStream("ok"));
+  expect(thinkingTypeOf(body)).toBe("adaptive");
+  expect(JSON.stringify(body?.body)).toContain('"effort":"low"');
+  expect(turn.appliedEffort).toBe("low");
+  expect(turn.events.flatMap((e) => (e.kind === "warning" ? [e.code] : []))).toContain("reasoning_mandatory_clamp");
+  expect(turn.reply).toBe("ok");
+});
+
+test("B1 (control): a non-mandatory adaptive cell turns thinking OFF for effort `none` — the body says disabled, the record says `none`", async () => {
+  const { turn, body } = await recordedTurn(fableRequest(false), anthropicTextStream("ok"));
+  expect(thinkingTypeOf(body)).toBe("disabled");
+  expect(turn.appliedEffort).toBe("none");
+});
+
+test("B6 + B7: the Anthropic rate-limit headers become the snapshot (tightest axis = tokens) and the msg_ id is the generationId", async () => {
+  const { turn } = await recordedTurn(fableRequest(true), anthropicTextStream("ok"), RATE_HEADERS);
+  expect(turn.rateLimit).toMatchObject({ status: "allowed", rateLimitType: "tokens", resetsAt: Date.parse(RESET) });
+  expect(turn.rateLimit?.utilization).toBeCloseTo(0.75);
+  expect(turn.generationId).toBe("msg_leg2");
+  expect(turn.usage).toMatchObject({ tokensIn: 10, costProvenance: "unrecorded" });
+  // PLANTED CONTROL: a response without the family leaves the snapshot null.
+  const bare = await recordedTurn(fableRequest(true), anthropicTextStream("ok"));
+  expect(bare.turn.rateLimit).toBeNull();
+});
+
+test("A5: a classifier block is a `filter` finish with the refusal event carrying the category and explanation", async () => {
+  const { turn } = await recordedTurn(fableRequest(true), anthropicRefusalStream({ category: "cyber", explanation: "blocked under the Usage Policy" }));
+  expect(turn.finishReason).toBe("filter");
+  expect(turn.stopReason).toBe("refusal");
+  const refusal = turn.events.find((e) => e.kind === "refusal");
+  expect(refusal).toMatchObject({
+    kind: "refusal",
+    model: "claude-fable-5-1",
+    category: "cyber",
+    explanation: "blocked under the Usage Policy",
+    retried: false,
+    fallbackModel: null,
+  });
+  // PLANTED CONTROL: a plain end_turn carries no refusal event.
+  const plain = await recordedTurn(fableRequest(true), anthropicTextStream("ok"));
+  expect(plain.turn.events.some((e) => e.kind === "refusal")).toBe(false);
 });

@@ -13,6 +13,9 @@
 //      actually ends on an assistant row; `prefillSuppressesThinking` strips the thinking toggle then.
 //   6. `modalities: ["text","image"]` when the funnel resolved `replyImages` (§6.7).
 //   7. the effort spelling: `features.effort: "none"` strips the SDK's `reasoning_effort` with `effort_dropped`.
+//   8. the output-cap spelling: `features.outputCapField: "max_completion_tokens"` renames the SDK's `max_tokens`
+//      (OpenAI's reasoning models 400 on the old word — inference audit H2, measured 2026-09-20). Never on the
+//      openrouter dialect, which speaks OR's own body.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
 import type { Dialect, EndpointFeatures } from "@orb/contracts/inference";
@@ -25,6 +28,8 @@ import { applyIncludeExclude } from "../kit/openai-body.ts";
 import type { OutboundMedia, WirePlan } from "../v4/prompt.ts";
 
 const REASONING_EFFORT_KEY = "reasoning_effort";
+const MAX_TOKENS_KEY = "max_tokens";
+const MAX_COMPLETION_TOKENS_KEY = "max_completion_tokens";
 const CONTINUE_FINAL_MESSAGE_KEY = "continue_final_message";
 const ADD_GENERATION_PROMPT_KEY = "add_generation_prompt";
 const MODALITIES_KEY = "modalities";
@@ -160,6 +165,16 @@ function applyEffortSpelling(body: Record<string, unknown>, args: ShapeArgs): Re
   return rest;
 }
 
+/** Rule 8: the output cap under the word the server takes. The SDK always writes `max_tokens`; a row that
+ *  declares `max_completion_tokens` gets it renamed, nothing else is touched. */
+function applyOutputCapSpelling(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
+  if (args.dialect === "openrouter" || args.features.outputCapField !== MAX_COMPLETION_TOKENS_KEY || !(MAX_TOKENS_KEY in body)) {
+    return body;
+  }
+  const { [MAX_TOKENS_KEY]: cap, ...rest } = body;
+  return { ...rest, [MAX_COMPLETION_TOKENS_KEY]: cap };
+}
+
 /** The whole shaper, in rule order. Pure: returns a new object, never mutates the SDK's argument. */
 export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
   let body = mergeExtras(raw, args);
@@ -171,5 +186,5 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
   if (args.replyImages) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }
-  return applyEffortSpelling(body, args);
+  return applyOutputCapSpelling(applyEffortSpelling(body, args), args);
 }

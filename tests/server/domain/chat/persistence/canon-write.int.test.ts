@@ -3,18 +3,20 @@
 // select-active (the pointer flip), and that `buildCommittedMessageView` equals the re-read row byte-for-byte.
 
 import type { UserMacroDraws } from "@orb/contracts/chat";
+import { costDetailsSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import {
   appendVariantStatements,
   buildCommittedMessageView,
   commitCanonAppend,
+  continueVariantStatements,
   insertCanonMessageStatements,
   MAX_CANON_APPEND_ATTEMPTS,
   selectActiveVariantStatement,
@@ -393,5 +395,133 @@ describe("commitCanonAppend — the allocation retry is BOUNDED", () => {
 
     expect(landedSeq).toBe(2); // the sibling took 1; the re-allocation took 2
     expect((await loadCanonHistory(db, chatId)).map((m) => m.content)).toEqual(["sibling", "mine"]);
+  });
+});
+
+// B5 / B8 (the audit's "a field nothing keeps"): `ChatUsage.reasoningTokens` and `costDetails` are normalized on
+// every wire and now PERSIST on the variant — `reasoning_tokens` (integer) and `cost_details` (a JSON sidecar whose
+// only parser is `costDetailsSchema`, §5.3c class 3). B1 rides the same continue path: a continued variant's
+// `tokensOut`/`costUsd` are already the CONTINUATION's, so the effort/reasoning-tokens/cost-details it applied
+// re-stamp with them (a stale `costDetails` beside a fresh `costUsd` would contradict itself).
+describe("persistence/canon-write — reasoning_tokens + cost_details (B5/B8) and the applied effort across a continue (B1)", () => {
+  const details = { totalUsd: 0.18, promptUsd: 0.08, completionUsd: 0.1 } as const;
+
+  test("POSITIVE: an insert stamps reasoningTokens + costDetails, and the JSON round-trips through costDetailsSchema", async () => {
+    const chatId = await seedChat(db, "a");
+    const { messageId, variantId } = ids("m1");
+    await db.batch(
+      batchMany(
+        insertCanonMessageStatements(db, {
+          messageId,
+          variantId,
+          chatId,
+          seq: 1,
+          role: "assistant",
+          now: FROZEN_AT,
+          variant: { content: "reasoned", reasoningTokens: 17, costDetails: details, reasoningEffort: "low" },
+        }),
+      ),
+    );
+    const [row] = await db
+      .select({ reasoningTokens: messageVariants.reasoningTokens, costDetails: messageVariants.costDetails })
+      .from(messageVariants)
+      .where(eq(messageVariants.id, variantId));
+    expect(row?.reasoningTokens).toBe(17);
+    expect(costDetailsSchema.parse(row?.costDetails)).toEqual(details);
+  });
+
+  test("NEGATIVE: an unreported field stays NULL (never a fabricated zero / empty record), and a malformed stored blob degrades at the read seam", async () => {
+    const chatId = await seedChat(db, "a");
+    const { messageId, variantId } = ids("m1");
+    await db.batch(
+      batchMany(insertCanonMessageStatements(db, { messageId, variantId, chatId, seq: 1, role: "assistant", now: FROZEN_AT, variant: { content: "plain" } })),
+    );
+    const [row] = await db
+      .select({ reasoningTokens: messageVariants.reasoningTokens, costDetails: messageVariants.costDetails })
+      .from(messageVariants)
+      .where(eq(messageVariants.id, variantId));
+    expect(row?.reasoningTokens).toBeNull();
+    expect(row?.costDetails).toBeNull();
+    // A blob no producer of ours wrote (a hand edit, a future shape) parses to a refusal, not a crash or a cast.
+    await db.run(sql`update message_variants set cost_details = '{"promptUsd":"x"}' where id = ${variantId}`);
+    const [tampered] = await db.select({ costDetails: messageVariants.costDetails }).from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(costDetailsSchema.safeParse(tampered?.costDetails).success).toBe(false);
+  });
+
+  test("A1 storage: reasoningParts round-trip as typed JSON; an empty list is NULL (nothing replayable); a continue replaces them", async () => {
+    const chatId = await seedChat(db, "a");
+    const { messageId, variantId } = ids("m1");
+    const signed = [{ type: "reasoning" as const, text: "Paris needs the tool.", meta: { anthropic: { signature: "sig-1" } } }];
+    await db.batch(
+      batchMany(
+        insertCanonMessageStatements(db, {
+          messageId,
+          variantId,
+          chatId,
+          seq: 1,
+          role: "assistant",
+          now: FROZEN_AT,
+          variant: { content: "first", reasoning: "Paris needs the tool.", reasoningParts: signed },
+        }),
+      ),
+    );
+    const read = async (): Promise<unknown> =>
+      (await db.select({ reasoningParts: messageVariants.reasoningParts }).from(messageVariants).where(eq(messageVariants.id, variantId)))[0]?.reasoningParts;
+    expect(await read()).toEqual(signed);
+    // A continuation that reasoned nothing replayable REPLACES the base's blocks with NULL (the rendered
+    // `reasoning` text is combined by the caller; the replay material is the LAST generation's only).
+    await db.batch(
+      batchMany(
+        continueVariantStatements(db, {
+          variantId,
+          variant: { content: "first and more", reasoningParts: [] },
+          preContinueContent: "first",
+          preContinueReasoning: null,
+          lastContinuationContent: " and more",
+          lastContinuationReasoning: null,
+        }),
+      ),
+    );
+    expect(await read()).toBeNull();
+  });
+
+  test("a continue re-stamps reasoningEffort + reasoningTokens + costDetails to the continuation's (beside the tokens/cost it already re-stamps)", async () => {
+    const chatId = await seedChat(db, "a");
+    const { messageId, variantId } = ids("m1");
+    await db.batch(
+      batchMany(
+        insertCanonMessageStatements(db, {
+          messageId,
+          variantId,
+          chatId,
+          seq: 1,
+          role: "assistant",
+          now: FROZEN_AT,
+          variant: { content: "first", tokensOut: 5, reasoningTokens: 3, costDetails: details, reasoningEffort: "high" },
+        }),
+      ),
+    );
+    await db.batch(
+      batchMany(
+        continueVariantStatements(db, {
+          variantId,
+          variant: { content: "first and more", tokensOut: 9, reasoningTokens: 21, costDetails: { totalUsd: 0.4 }, reasoningEffort: "low" },
+          preContinueContent: "first",
+          preContinueReasoning: null,
+          lastContinuationContent: " and more",
+          lastContinuationReasoning: null,
+        }),
+      ),
+    );
+    const [row] = await db
+      .select({
+        tokensOut: messageVariants.tokensOut,
+        reasoningTokens: messageVariants.reasoningTokens,
+        costDetails: messageVariants.costDetails,
+        reasoningEffort: messageVariants.reasoningEffort,
+      })
+      .from(messageVariants)
+      .where(eq(messageVariants.id, variantId));
+    expect(row).toEqual({ tokensOut: 9, reasoningTokens: 21, costDetails: { totalUsd: 0.4 }, reasoningEffort: "low" });
   });
 });

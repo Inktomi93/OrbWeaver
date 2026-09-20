@@ -181,3 +181,23 @@ test("replyImages spells modalities; an effort the row cannot spell is stripped 
   const or = args({ dialect: "openrouter", features: { ...WIRE_DEFAULT_FEATURES, effort: "none" } });
   expect(shapeOutboundBody(RAW, or)["reasoning_effort"]).toBe("high");
 });
+
+// Rule 8 (H2, measured 2026-09-20): OpenAI's reasoning models 400 on the SDK's `max_tokens`
+// (`req_f68c8dc2e4a24908a2e5be64132edbc0`: "Unsupported parameter: 'max_tokens' … Use 'max_completion_tokens'")
+// and accept the renamed cap (`req_8eff1a4cbff5461b820f47331f2c26b2`); the row's `features.outputCapField` says which
+// word the server takes. The openrouter transport speaks OR's own body and is never renamed.
+test("outputCapField: max_completion_tokens renames the SDK's max_tokens; absent / max_tokens / openrouter leave it", () => {
+  const capped = { ...RAW, max_tokens: 100 };
+  const renamed = shapeOutboundBody(capped, args({ features: { ...SPELLS_EFFORT, outputCapField: "max_completion_tokens" } }));
+  expect(renamed["max_completion_tokens"]).toBe(100);
+  expect("max_tokens" in renamed).toBe(false);
+  // The default (absent) and the explicit `max_tokens` spelling both keep the SDK's word.
+  expect(shapeOutboundBody(capped, args())["max_tokens"]).toBe(100);
+  expect(shapeOutboundBody(capped, args({ features: { ...SPELLS_EFFORT, outputCapField: "max_tokens" } }))["max_tokens"]).toBe(100);
+  // The openrouter dialect is untouched even when a row (wrongly) declares the field.
+  const or = shapeOutboundBody(capped, args({ dialect: "openrouter", features: { ...SPELLS_EFFORT, outputCapField: "max_completion_tokens" } }));
+  expect(or["max_tokens"]).toBe(100);
+  expect("max_completion_tokens" in or).toBe(false);
+  // Pure: the SDK's object is untouched.
+  expect(capped["max_tokens"]).toBe(100);
+});
