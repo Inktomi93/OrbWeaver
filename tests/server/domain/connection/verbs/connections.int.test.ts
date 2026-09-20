@@ -182,6 +182,45 @@ describe("update", () => {
     await h.svc.update({ principal: owner.principal, connectionId: vector.id, patch: { model: "bge-m3-v2" } });
     expect(h.embedSpaceChanges).toEqual([owner.userId]);
   });
+
+  // THE TRIGGER'S CONDITION IS THE RESOLVED SPACE TAG, not a column diff (§10-4). The predicate this
+  // replaced was `model changed || declared !== undefined`, which is wrong in BOTH directions: any
+  // `declared` edit forced a full box-wide purge+reindex, and a `declared` edit that genuinely moved the
+  // space was indistinguishable from one that did not. Both arms are pinned here because the expensive
+  // mistake (over-firing) and the silent one (under-firing) have opposite fixes.
+  test("a `declared` edit fires the embed-space trigger only when it MOVES the resolved space", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const vector = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "bge-m3",
+      declared: { kind: "embedding", embedding: { dtype: "q8" } },
+      allowBackground: true,
+    });
+    await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: vector.id });
+    h.embedSpaceChanges.length = 0;
+
+    // An axis the space tag does not read. Same model, same dtype — nothing to re-embed.
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: vector.id,
+      patch: { declared: { kind: "embedding", embedding: { dtype: "q8", maxInputTokens: 4096 } } },
+    });
+    expect(h.embedSpaceChanges, "a declared edit that leaves the space tag alone is not a space change").toEqual([]);
+
+    // The dtype IS the space (#2417): a re-quantised encoder produces different vectors, so the corpus is
+    // stale even though `model` never moved — the case the column diff could not see.
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: vector.id,
+      patch: { declared: { kind: "embedding", embedding: { dtype: "fp16", maxInputTokens: 4096 } } },
+    });
+    expect(h.embedSpaceChanges, "a dtype flip IS a space change, with no model change to betray it").toEqual([owner.userId]);
+  });
 });
 
 describe("remove", () => {
