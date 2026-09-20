@@ -60,6 +60,12 @@
 // widening that repairs a legacy blind spot. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
 // (virtual) admitted by both; outside `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected
 // by both.
+//
+// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — `castId` is a `@orb/kit`
+// export and the package imports kit, so the banned shape was reachable in 112 files no policy was asking
+// about. The `@packages` measurement quoted above is that era's snapshot and stays as written. MEASURED
+// (`pnpm check:structure --check no-mint-via-cast`, whole tree): population 3,315 → 3,427, findings 0 → 0 —
+// a SEAL on a `hard` ban, which is the arm where a silent narrowing costs the most.
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveCallableOrigin } from "../../_shared/reference-fact-call.ts";
@@ -161,7 +167,7 @@ export const gate = defineGate({
   family: "id-brand-flow",
   authority: "hard",
   severity: "error",
-  population: "@packages",
+  population: "@product",
   analysis: "types",
   execution: "selected-files",
   facts: [],

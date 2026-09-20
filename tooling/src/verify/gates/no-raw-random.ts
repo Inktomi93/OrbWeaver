@@ -44,6 +44,16 @@
 // `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
+//
+// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — an injected-PRNG seam is
+// exactly what a retry/backoff path needs, and the package's was judged by nothing. MEASURED (`pnpm
+// check:structure --check no-raw-random`, whole tree): population 4,690 → 4,802, findings 0 → 0, grant
+// consumption unchanged at 1 — a SEAL. `@tooling` stays declared beside it; the sibling asymmetry stated
+// above is unchanged.
+// A REPORTED BLIND SPOT THAT WAS NOT ONE, recorded so it is not re-filed: #2488 cited
+// `backends/kit/retry.ts:65` as a live violation. That is `opts.random ?? Math.random` — a REFERENCE, not a
+// call — and it is the site named by this header's own THE SUBJECT IS THE CALL paragraph, at its
+// pre-extraction path. The limit is deliberate and pinned; widening onto it remains its own decision.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../_shared/reference-fact.ts";
@@ -91,7 +101,7 @@ export const gate = defineGate({
   family: "ambient-determinism",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@packages", "@tooling"], notNamed: ["*.test.*"] },
+  population: { in: ["@product", "@tooling"], notNamed: ["*.test.*"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],

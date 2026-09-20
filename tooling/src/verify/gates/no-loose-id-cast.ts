@@ -37,6 +37,13 @@
 // matched `scripts/`) and `domain/rpg/tools/*` (3, matched `tools/`); an UNRECORDED widening that repairs a legacy
 // blind spot. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both;
 // outside `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
+//
+// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — the declaration named
+// the six roots it was authored against while the rule means EVERY authored product source: a cast that
+// erases type checking, or launders a value straight into a canonical id brand, is the same defect wherever
+// the product declares it. MEASURED (`pnpm check:structure --check no-loose-id-cast`, whole tree, before and
+// after): population 3,315 → 3,427 (+112, `packages/inference/src/`), findings 0 → 0. A SEAL over a clean
+// tree, not a debt discovery — worth what it costs the day a laundering cast is written in that package.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { canonicalIdBrand, ID_BRAND_HOME } from "../lib/id-brand.ts";
@@ -89,7 +96,7 @@ export const gate = defineGate({
   family: "id-brand-flow",
   authority: "ordinary",
   severity: "error",
-  population: "@packages",
+  population: "@product",
   analysis: "types",
   execution: "selected-files",
   facts: [],

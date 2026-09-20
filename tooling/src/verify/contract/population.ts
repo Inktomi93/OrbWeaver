@@ -8,8 +8,20 @@
 // (`readPolicyWorkspacePackages`), so a new `packages/foo` that joins no root — and is therefore judged by
 // no policy — reds, and so does a root naming a package that does not exist. The two deliberate
 // asymmetries (`@tests`/`@scripts` are authored trees with no package; the workspace root has no `src/`)
-// live there as data with a `why`, two-sided against staleness. `AUTHORED_MEMBERSHIP` below is the
-// separate, tsc-enforced half — which roots `@authored` MEANS (#1980).
+// live there as data with a `why`, two-sided against staleness. `AUTHORED_MEMBERSHIP` and
+// `PRODUCT_MEMBERSHIP` below are the separate, tsc-enforced half — which roots `@authored` and `@product`
+// MEAN (#1980, #2488).
+//
+// A SHARED GLOB STRING DOES NOT ESTABLISH SHARED SEMANTICS (`docs/history/type-worlds-program-2026-09-10.md`
+// line 84), and `@packages` is this repo's instance of that law. It is an explicit SIX-root list — an honest
+// recording of "the roots the policies declaring it were authored against" — but most of its declarers mean
+// "the authored code the product is built from", and those two answers diverged the day `@inference` became
+// its own root (`146f71cd5`). Sixteen policies declared the string; the set never widened and announced
+// nothing, which is line 126's "a smaller unannounced population is not a speed improvement". `@product`
+// below is the second meaning given its own name and its own classification, so a policy SAYS which one it
+// means. `@packages` keeps its recorded six-root meaning and is NOT a compatibility alias for `@product`
+// (line 82 forbids retaining an alias for familiarity): its remaining declarers are the ones whose subject
+// is reachable only from a root that can import `@orb/db`, and each states that in its own header.
 export const POPULATION_ROOTS = {
   "@client": ["packages/client/src/"],
   "@ui": ["packages/ui/src/"],
@@ -109,10 +121,91 @@ const AUTHORED_ROOTS: readonly PopulationRoot[] = (Object.keys(AUTHORED_MEMBERSH
   (root) => AUTHORED_MEMBERSHIP[root].authored,
 );
 
+/** One root's membership of `@product`, with the reason an excluded root is excluded — the same shape and
+ *  the same obligation as `AuthoredMembership`, for the second question a root must answer.
+ *
+ *  It is a SECOND type rather than a reuse because the two classifications are two different questions, and
+ *  a shared discriminant would let a reader satisfy one while meaning the other — which is the `@packages`
+ *  defect (#2488) reproduced inside the vocabulary that exists to prevent it.
+ *  @public knip type-face false positive — the `satisfies Readonly<Record<PopulationRoot, ProductMembership>>`
+ *  contract of the classification table below — what makes a missing `why` a compile error — never named at a call site. */
+export type ProductMembership = { readonly product: true } | { readonly product: false; readonly why: string };
+
+/** WHICH ROOTS `@product` MEANS — the CLASSIFICATION, from which the set below is derived (#2488).
+ *
+ *  `@product` is "the authored code the PRODUCT is built from": the workspace-package sources that ship as
+ *  the running application, as opposed to the instrument tree (`@tooling`), the test mirror (`@tests`) and
+ *  the script tree (`@scripts`). The word is the repo's own — `contract/resource-css.ts`'s
+ *  `CssInventoryRequest = "authored" | "product"` and the `product-css` resource kind already draw this axis,
+ *  and the constitution's test tiers draw it again (the PRODUCT node tests vs the INSTRUMENT battery). It is
+ *  deliberately NOT `@runtime`: `@inference`'s own row above glosses that package as "the provider runtime",
+ *  so a set named for one of its members would not identify its subject
+ *  (`docs/history/type-worlds-program-2026-09-10.md` line 82).
+ *
+ *  EXHAUSTIVE over `PopulationRoot` by the `satisfies` below, so the enforcer is tsc (constitution §2.2 rung
+ *  2): a new root that is not classified here fails with a missing-property error naming the root, exactly as
+ *  `AUTHORED_MEMBERSHIP` does. The decision cannot be skipped, only made and stated — and a new package now
+ *  costs TWO stated decisions rather than silently joining or silently missing either set.
+ *
+ *  `@product` ⊆ `@authored` by construction (a product source is authored); the subset is asserted in
+ *  `tests/tooling/verify/contract/population.test.ts` rather than derived, so an exclusion that disagrees
+ *  between the two maps reds instead of resolving by precedence. */
+const PRODUCT_MEMBERSHIP = {
+  "@client": { product: true },
+  "@ui": { product: true },
+  "@server": { product: true },
+  "@db": { product: true },
+  "@contracts": { product: true },
+  "@kit": { product: true },
+  "@showcase": {
+    product: false,
+    why:
+      "the SAME open question `AUTHORED_MEMBERSHIP` records, and `@product` deliberately takes no new position on " +
+      "it: an authored workspace package whose admission is a measured, ruled behaviour change across every policy " +
+      "declaring the set, never something a second set resolves in passing. A policy that needs the package TODAY " +
+      "declares both refs (`['@product', '@showcase']`), which is what `d-citation-integrity` and `no-vanity-alias` do",
+  },
+  "@default-content": {
+    product: false,
+    why: "the same open question as `@showcase`, held for the same reason; `caught-failure-ownership` declares both refs",
+  },
+  "@inference": { product: true },
+  "@tooling": {
+    product: false,
+    why:
+      "the INSTRUMENT tree — `@orb/tooling` sits ABOVE the package cake (Core-0 §9) and ships no product runtime, " +
+      "so it is the OTHER half of the product/instrument axis rather than a member of this one. A policy judging " +
+      "both declares both refs (`['@product', '@tooling']`), which is what `no-raw-random` and " +
+      "`caught-failure-ownership` do; `@authored` is the set that spans them",
+  },
+  "@tests": {
+    product: false,
+    why:
+      "the CENTRAL test mirror (constitution §0.2) mirrors product sources rather than being them, and several " +
+      "declarers exclude it for a load-bearing reason of their own — scanning tests reds their own proofs " +
+      "(`freeze-provenance.ts`'s declared limit). A policy whose subject is a test declares `@tests` itself",
+  },
+  "@scripts": {
+    product: false,
+    why: "repo-level dev supervisors, probes and one-shots: authored, never shipped, and imported by nothing the product runs",
+  },
+} as const satisfies Readonly<Record<PopulationRoot, ProductMembership>>;
+
+/** The classified roots, in `POPULATION_ROOTS` declaration order — the same ordering rule `AUTHORED_ROOTS`
+ *  follows, so the two derived sets are read the same way. */
+const PRODUCT_ROOTS: readonly PopulationRoot[] = (Object.keys(PRODUCT_MEMBERSHIP) as readonly PopulationRoot[]).filter(
+  (root) => PRODUCT_MEMBERSHIP[root].product,
+);
+
 export const POPULATION_SETS = {
   "@frontend": ["@client", "@ui"],
   "@backend": ["@server", "@db", "@contracts"],
+  /** THE SIX ROOTS THE DECLARING POLICIES WERE AUTHORED AGAINST — a recorded snapshot, not "the packages".
+   *  Hand-typed on purpose: it must not widen when a package lands, which is the ruling the `@showcase` root
+   *  above states. A policy that means "the authored code the product is built from" says `@product`. */
   "@packages": ["@client", "@ui", "@server", "@db", "@contracts", "@kit"],
+  /** "the authored code the PRODUCT is built from" — DERIVED from `PRODUCT_MEMBERSHIP` above, never re-typed here. */
+  "@product": PRODUCT_ROOTS,
   /** "everything this repo authors" — DERIVED from `AUTHORED_MEMBERSHIP` above, never re-typed here. */
   "@authored": AUTHORED_ROOTS,
 } as const satisfies Readonly<Record<`@${string}`, readonly PopulationRoot[]>>;

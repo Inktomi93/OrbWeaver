@@ -10,12 +10,23 @@
 // boundaries (is this the sealed X, does this re-export land on the same declaration); this policy's three
 // arms never resolve an origin at all — the subject IS the AUTHORED alias syntax and a same-file/whole-
 // population NAME census, not a resolved identity. No shared `lib/` reader applies.
-// POPULATION PORT: byte-identical. Legacy `scanRoot` was `p.startsWith("packages/") && p.includes("/src/")`
-// minus `TEST_FILE` — i.e. every workspace package's `src/`, tests excluded. The final population is the
-// exact seven `packages/<pkg>/src/` roots (`["@packages", "@showcase"]`; `@packages` covers client/ui/
-// server/db/contracts/kit, `@showcase` is the seventh — §12.4's showcase root is deliberately OUTSIDE
-// `@packages`); the `TEST_FILE` suffix exclusion is not expressible in the population algebra (a content
-// suffix, not a path prefix) and stays a code-level filter, ported verbatim.
+// POPULATION PORT. Legacy `scanRoot` was `p.startsWith("packages/") && p.includes("/src/")` minus
+// `TEST_FILE` — i.e. EVERY workspace package's `src/`, tests excluded. The final population is the declared
+// `["@product", "@showcase"]`; the `TEST_FILE` suffix exclusion is not expressible in the population algebra
+// (a content suffix, not a path prefix) and stays a code-level filter, ported verbatim.
+// THE ROOT MEMBERSHIP IS NOT RE-TYPED HERE. It was, as "the exact seven `packages/<pkg>/src/` roots", beside
+// an UNDATED claim of byte-identity — and both rotted the moment a package landed: `packages/inference/src/`
+// (`146f71cd5`) and `packages/default-content/src/` joined the tree, the legacy regex would have matched
+// both, and the declaration admitted neither, so "byte-identical" described a tree that no longer existed
+// (GATE-AUTHORING §7: quote a count only when something derives it at read time). Read the membership off
+// `contract/population.ts`'s `PRODUCT_MEMBERSHIP`, which is tsc-exhaustive over the root list.
+// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product`, which restores the legacy
+// regex's coverage of `packages/inference/src/` (+112 files: 3,316 → 3,428). NOT free, and the finding is
+// the one worth reading: 4 findings, all in `packages/inference/src/contract/diagnostics.ts`, all the
+// SANCTIONED distinct-alias-per-verb shape — a false positive this policy's own `mustPass` fixture path had
+// been modelling at the pre-extraction path. Fixed at `isContractVocabHome` (below) rather than waived.
+// The `@showcase`/`@default-content` halves of the legacy regex remain outside, by the open question
+// `AUTHORED_MEMBERSHIP`/`PRODUCT_MEMBERSHIP` record — `@showcase` is declared here, `@default-content` is not.
 // LEGACY at 86ce80b6c.
 //
 // THE IDENTIFIER-FREQUENCY CENSUS IS A VISITOR, NOT A DESCENDANT WALK (guide §3: gate modules cannot
@@ -73,10 +84,21 @@ function isDbWireSuffixRename(spec: string, rel: string, original: string, alias
   return spec.startsWith("@orb/contracts") && alias === `${original}Wire`;
 }
 
-/** A file under any `/contract/` segment in `packages/server/src` — the distinct-alias-per-verb doctrine's
- *  home (domain + infra contract dirs), where several type aliases onto one shared shape is the convention. */
+/** A file under any `/contract/` segment — the distinct-alias-per-verb doctrine's home, where several type
+ *  aliases onto one shared shape is the convention (a verb's signature names its OWN request type).
+ *
+ *  THE SEGMENT IS THE SUBJECT, NOT A PACKAGE PREFIX, and that is a correction this policy paid for. The
+ *  predicate used to read `rel.startsWith("packages/server/src/") && rel.includes("/contract/")`, and its own
+ *  `mustPass` fixture models `…/infra/providers/contract/diagnostics.ts`. The inference extraction moved that
+ *  exact file to `packages/inference/src/contract/diagnostics.ts`; the doctrine did not move, so the prefix
+ *  silently stopped covering the file the proof row is about. Measured 2026-09-20 with `@product` (lane
+ *  cb-population-truth, #2488): four findings on that one file, all four the sanctioned shape. The ruling
+ *  survives — its INPUT changed. Both homes now carry a `mustPass` row, and rule (c)'s discriminating cut is
+ *  unchanged: `packages/contracts/src/connection/index.ts` has no `/contract/` segment and still flags twice.
+ *  `contract/` directories live in exactly two packages today (`packages/{server,inference}/src`), so the
+ *  segment form admits nothing new on this tree while following the next extraction by construction. */
 function isContractVocabHome(rel: string): boolean {
-  return rel.startsWith("packages/server/src/") && rel.includes("/contract/");
+  return rel.includes("/contract/");
 }
 
 interface MaybeNamedExportable {
@@ -229,7 +251,7 @@ export const gate = defineGate({
   family: "no-vanity-alias",
   authority: "ordinary",
   severity: "error",
-  population: ["@packages", "@showcase"],
+  population: ["@product", "@showcase"],
   analysis: "syntax",
   execution: "entire-population",
   facts: [],
@@ -383,6 +405,14 @@ export const gate = defineGate({
           "export type ProbeRequest = DiagnosticRequestCommon;\nexport type AccountCreditsRequest = DiagnosticRequestCommon;\n",
       },
       why: "distinct-alias-per-verb onto one shape in an infra /contract/ vocab home — contract doctrine, scoped out of rule c (class-8)",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/inference/src/contract/diagnostics.ts":
+          "export type ProbeRequest = DiagnosticRequestCommon;\nexport type AccountCreditsRequest = DiagnosticRequestCommon;\n",
+      },
+      why: "THE SAME FILE AT ITS LIVE PATH, and the row that dies if `isContractVocabHome` goes back to a `packages/server/src/` prefix: the inference extraction moved this vocab home BELOW server, so the prefix form flagged all four of its real aliases (measured under `@product`, 2026-09-20) while the sibling row above stayed green — a fixture path is not a doctrine",
     },
     {
       mode: "source",
