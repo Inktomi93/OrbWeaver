@@ -17,6 +17,8 @@ import { loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 
+type PictureParams = Parameters<ChatContext["generatePicture"]>[0];
+
 /** The alt text stamped on each generated-image ref (one home — no scattered magic string). */
 const GENERATED_IMAGE_ALT = "generated image";
 
@@ -55,9 +57,9 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
         caller: principal,
         chatId,
         mode,
-        ...(prompt !== undefined ? { prompt } : {}),
-        ...(n !== undefined ? { n } : {}),
-        ...(size !== undefined ? { size } : {}),
+        ...(prompt !== undefined ? ({ prompt } satisfies Pick<PictureParams, "prompt">) : {}),
+        ...(n !== undefined ? ({ n } satisfies Pick<PictureParams, "n">) : {}),
+        ...(size !== undefined ? ({ size } satisfies Pick<PictureParams, "size">) : {}),
       });
 
       // ONE message body STRING: the prompt (if any) + one markdown image ref per generated asset (D51).
