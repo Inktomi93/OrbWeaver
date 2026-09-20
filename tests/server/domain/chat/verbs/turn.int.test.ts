@@ -21,7 +21,6 @@ import { chats, personaBooks, personas, statsCanonVersions, worldBooks, worldEnt
 import type { BatchStmt } from "@orb/db/kit";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
-import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -146,12 +145,6 @@ function harness(
     /** Override the disabled-account gate (default = everyone enabled; the containment test disables a
      *  member). */
     resolveUserEnabled?: ChatContext["resolveUserEnabled"];
-    /** Override the resolved connection's credential `source` (default `vllm`; the drain drop-path pins
-     *  `max-pro-sub` so the engine's consent belt refuses a by-proxy deferred turn). */
-    connectionSource?: string;
-    /** Override the engine's per-turn budget debit (default no-op). The drain requeue-path pins a thrower
-     *  (`DomainRateLimitError` → `budget_exceeded`) to prove a temporal drop re-queues, not drops. */
-    debitBudget?: (triggeredBy: UserId, budget: number | null) => Promise<void>;
     /** A per-call reply sequence (PD-146 auto-behavior pins: the send fires a follow-up turn). Each
      *  `runChatTurn` call yields the next reply; the last repeats once exhausted. Overrides `content`. */
     replyTape?: readonly ScriptedReply[];
@@ -248,7 +241,7 @@ function harness(
     claimChat: createClaimChat(ctx),
     prng: over.prng ?? seededPrng(),
     delay: () => Promise.resolve(),
-    resolveConnection: () => Promise.resolve(over.connection ?? testConnection(over.connectionSource ?? "vllm")),
+    resolveConnection: () => Promise.resolve(over.connection ?? testConnection("vllm")),
     resolveForeignInputs: (args) => {
       over.onForeignInputs?.(args);
       return Promise.resolve({
@@ -1551,36 +1544,23 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     expect(await loadPendingTurns(db, chatId)).toHaveLength(0);
   });
 
-  test("consent_required is a PERMANENT verdict: the drain drops the row AND notifies the triggering member", async () => {
+  // The CONSENT drop-path pin that stood here is DELETED, subject gone (@orb/inference §14 F13): by-proxy
+  // funding and the whole owner-consent belt are deleted, so `consent_required` has no raiser and
+  // `isDrainVerdictDrop` now classifies exactly one permanent verdict (`ChatNotFoundError`). The drop
+  // MECHANISM it pinned — claim, notify the frozen triggeredBy, stay deleted — is still live on that arm and
+  // is not covered here; a chat-gone drop pin is owed to the drain (reported to the orchestrator, not faked).
+
+  test("a TRANSIENT fault is TEMPORAL: the drain RE-QUEUES the row (no drop, no notification) to retry next drain", async () => {
     const { host, member, chatId, names } = await seedMemberRoom();
-    // A queued by-proxy turn: the member triggered it; it funds the host's box.
-    await seedPendingTurn(db, { chatId, key: "drop", triggeredBy: member, runAsUserId: host });
-    // The host box is a hosted (max-pro-sub) credential + owner consent is OFF (harness default policy), so
-    // the engine's consent belt refuses a non-owner-triggered hosted turn → a permanent verdict drop.
-    const h = harness(db, names, { connectionSource: "max-pro-sub" });
-
-    const report = await h.turn.drainDeferredTurns({ all: true });
-
-    expect(report).toStrictEqual({ ran: 0, dropped: 1 });
-    expect(await loadPendingTurns(db, chatId)).toHaveLength(0); // consumed (dropped), no reboot re-run
-    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
-    // The frozen triggeredBy member is told their owed reply never ran + why (the kick/handoff inbox precedent).
-    expect(h.notifications).toHaveLength(1);
-    expect(h.notifications[0]).toStrictEqual({
-      type: "deferred-turn-dropped",
-      recipientUserId: member,
-      chatId,
-      reason: "consent",
-    });
-  });
-
-  test("budget_exceeded is TEMPORAL: the drain RE-QUEUES the row (no drop, no notification) to retry next drain", async () => {
-    const { host, member, chatId, names } = await seedMemberRoom();
-    await seedPendingTurn(db, { chatId, key: "budget", triggeredBy: member, runAsUserId: host });
-    // The per-member budget is exhausted this window → the engine throws budget_exceeded. A spent window is
-    // "not now", not "never" — the owed reply must survive to the next drain edge, unspammed.
+    await seedPendingTurn(db, { chatId, key: "transient", triggeredBy: member, runAsUserId: host });
+    // WAS a per-member `budget_exceeded` thrower until @orb/inference §14 F11 retired that belt. The pin's
+    // subject is the TEMPORAL class itself — anything that is not a permanent verdict — so it now drives the
+    // other documented member of that class: a provider outage. "Not now" is not "never", so the owed reply
+    // must survive to the next drain edge, unspammed.
     const h = harness(db, names, {
-      debitBudget: () => Promise.reject(new DomainRateLimitError("per-member budget exhausted")),
+      runChatTurn: () => {
+        throw new Error("provider outage");
+      },
     });
 
     const report = await h.turn.drainDeferredTurns({ all: true });
@@ -1595,9 +1575,11 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
   });
 
-  test("two concurrent drains claim each row exactly once (no double-run / double-spend)", async () => {
+  test("two concurrent drains claim each row exactly once (no double-run)", async () => {
     // N rows across N DISTINCT chats (no per-chat lock contention) — the atomic DELETE…RETURNING claim is
-    // the only serializer, so overlapping boot ∥ host-return snapshots can't run or spend a row twice.
+    // the only serializer, so overlapping boot ∥ host-return snapshots can't run a row twice. The
+    // double-SPEND half of this pin went with the member-budget belt (@orb/inference §14 F11); the
+    // exactly-once CLAIM it also proved is untouched and is what the counts below assert.
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));
     const chatIds: ChatId[] = [];
@@ -1617,14 +1599,8 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
       await seedPendingTurn(db, { chatId, key: `p${i}`, triggeredBy: member, runAsUserId: host });
       chatIds.push(chatId);
     }
-    let debits = 0;
     const names: Record<string, string> = {};
-    const h = harness(db, names, {
-      debitBudget: () => {
-        debits += 1;
-        return Promise.resolve();
-      },
-    });
+    const h = harness(db, names);
 
     // Two overlapping drains race the same 4 candidate rows.
     const [a, b] = await Promise.all([h.turn.drainDeferredTurns({ all: true }), h.turn.drainDeferredTurns({ hostUserId: host })]);
@@ -1632,7 +1608,6 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     // Across BOTH drains, exactly 4 rows ran (each claimed once); the losers skipped.
     expect(a.ran + b.ran).toBe(4);
     expect(a.dropped + b.dropped).toBe(0);
-    expect(debits).toBe(4); // exactly-once spend — no double debit
     expect(await loadPendingTurnsForReclaim(db)).toHaveLength(0); // all consumed
     // Each chat got exactly one AI response (never two).
     for (const chatId of chatIds) {
@@ -2557,20 +2532,14 @@ describe("storage stays RAW (D51) — macros in message content are never resolv
   });
 });
 
-// The non-human turn seam (automation-design/03 §4 / 05 §AC-B) — the four walls, none optional. requestTurn is
-// principal-free: the funding host is resolved from the room, the funder is the responsible human, and the turn
-// routes through the SAME engine belts a human send clears (consent + per-member budget). No free turn, no
-// consent bypass, no infinite cascade, no cross-tenant funding.
-describe("requestTurn — the non-human turn seam (four walls: depth · authority · budget · consent)", () => {
-  test("FIRES + SPENDS the funder's budget + STAMPS initiator/depth on the reply (the getTurnOrigin round-trip)", async () => {
+// The non-human turn seam (automation-design/03 §4 / 05 §AC-B) — the walls, none optional. requestTurn is
+// principal-free: the funding host is resolved from the room and the funder is the responsible human whose
+// connection the turn spends (@orb/inference §8.4-3). No infinite cascade, no cross-tenant funding. The
+// budget and consent walls were retired with their belts (§14 F11/F13), so two of the original four remain.
+describe("requestTurn — the non-human turn seam (walls: depth · authority)", () => {
+  test("FIRES + STAMPS initiator/depth on the reply (the getTurnOrigin round-trip)", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
-    const debits: { triggeredBy: UserId; budget: number | null }[] = [];
-    const h = harness(db, names, {
-      debitBudget: (triggeredBy, budget) => {
-        debits.push({ triggeredBy, budget });
-        return Promise.resolve();
-      },
-    });
+    const h = harness(db, names);
 
     const outcome = await h.requestTurn({ chatId, initiator: "automation", funderUserId: host, automationDepth: 2 });
 
@@ -2578,8 +2547,9 @@ describe("requestTurn — the non-human turn seam (four walls: depth · authorit
     expect(outcome.aborted).toBe(false);
     expect(outcome.messages).toHaveLength(1);
     expect(outcome.messages[0]?.role).toBe("assistant");
-    // SPENDS — the engine debited the funder's (triggeredBy) per-member budget; a non-human turn is never free.
-    expect(debits).toEqual([{ triggeredBy: host, budget: null }]);
+    // The SPENDS assertion that stood here is deleted with the per-member budget belt (@orb/inference §14
+    // F11) — there is no debit op on the turn path to observe. The funder still decides WHOSE connection
+    // pays (§8.4-3), which `resolveConnection`'s funder key is the pin for, not a budget count.
     // ORIGIN — the reply slot carries the non-human origin the cascade guard reads back through getTurnOrigin.
     const replyId = outcome.messages[0]?.id;
     expect(replyId).toBeDefined();
@@ -2611,20 +2581,9 @@ describe("requestTurn — the non-human turn seam (four walls: depth · authorit
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
   });
 
-  test("WALL 4 (consent, D17): a by-proxy hosted (max-pro-sub) turn without owner consent is refused fail-closed", async () => {
-    const { chatId, names } = await seedRoom("natural", ["aria"]);
-    // A present MEMBER funds the turn (funder ≠ host ⇒ by-proxy); the host box is a hosted credential + consent OFF
-    // (the harness default policy). The engine's assertMaxProSubConsent belt refuses it — requestTurn re-routes it,
-    // never bypasses it.
-    const member = await seedUser(db, castId<Handle>("member"));
-    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const h = harness(db, names, { connectionSource: "max-pro-sub" });
-
-    await expect(h.requestTurn({ chatId, initiator: "automation", funderUserId: member, automationDepth: 1 })).rejects.toMatchObject({
-      code: "consent_required",
-    });
-    expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
-  });
+  // WALL 4 (consent, D17) is DELETED, subject gone (@orb/inference §14 F13): there is no by-proxy hosted
+  // funding left to consent to — every turn spends the FUNDER's own connection (§8.4-3) — so
+  // `assertMaxProSubConsent` and `consent_required` no longer exist. The walls that remain are pinned above.
 
   test("a 'plugin' initiator is accepted + stamped (the membrane seam); a 'human' initiator is refused (no forged human turn)", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);

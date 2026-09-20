@@ -20,6 +20,7 @@
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
@@ -35,6 +36,7 @@ import type { SearchContext } from "../../../../../packages/server/src/domain/se
 import { createDigests } from "../../../../../packages/server/src/domain/search/verbs/digests.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeApiKeySecret } from "../../../../support/factories/resolved-connection.ts";
+import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
   FROZEN_AT,
@@ -67,16 +69,16 @@ const ASSEMBLE_CTX: AssembleContext = {
 /** One recorded strike — exactly the argument object the engine handed the injected op. */
 type StrikeCall = Parameters<ChatContext["maybeRevokeOnAuthFailed"]>[0];
 
-/** A BYO (`custom_openai`) connection whose credential carries a REAL row id, so "which id was struck" is an
+/** A BYO (`custom-openai`) connection whose credential carries a REAL row id, so "which id was struck" is an
  *  answerable question. `testConnection`'s shared double is keyless (`credentialId: null`) by design. */
 function byoConnection(api: Resolved<"chat">["api"] = "chat-completions"): Resolved<"chat"> {
   return {
-    ...testConnection("custom_openai", api),
+    ...testConnection("custom-openai", api),
     credential: makeApiKeySecret("sk-test", BYO_CREDENTIAL),
   };
 }
 
-/** The keyless twin (vllm/local-light/max-pro-sub): no row exists to revoke, so the id is structurally null. */
+/** The keyless twin (vllm/local-light/claude-sub): no row exists to revoke, so the id is structurally null. */
 function keylessConnection(): Resolved<"chat"> {
   return { ...testConnection("vllm"), model: castId<ModelId>("test-model") };
 }
@@ -244,7 +246,7 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     expect(strikes).toEqual([]);
   });
 
-  test("a KEYLESS source strikes with a null id — vllm/local-light/max-pro-sub own no row to revoke", async () => {
+  test("a KEYLESS source strikes with a null id — vllm/local-light/claude-sub own no row to revoke", async () => {
     const chatId = await seedChat(db, "strike-keyless");
     const engine = engineOver(throwingTurn(authFailed()));
 
@@ -327,11 +329,14 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: 0 });
     await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
     const rejected = new ProviderError({ kind: "auth_failed", retryable: false, message: "the upstream rejected the key (401)", apiErrorStatus: 401 });
-    // @orb-waive no-test-fabrication(unknown): minimal RoleClients double — this path throws at the FIRST call (`embed`) and reads Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    // nothing else off the bundle.
+    // The verb binds its bundle through the funder-keyed `roleClientsFor` seam (@orb/inference §7.5-1b), so
+    // the double is the shared scripted bundle with ONE callable replaced: `requireSpaceModel` must still
+    // answer a space (it runs first) and the rejection must land on the `embed` call itself.
+    // @orb-waive no-test-fabrication(unknown): the SearchContext double carries only the fields this path
+    // reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const searchCtx = {
       db,
-      roleClients: { embed: (): Promise<never> => Promise.reject(rejected) },
+      roleClientsFor: (): Promise<RoleClients> => Promise.resolve(makeFakeRoleClients({ embed: (): Promise<never> => Promise.reject(rejected) })),
       now: () => FROZEN_AT,
       resolveActiveDocumentIds: () => Promise.resolve([]),
     } as unknown as SearchContext;
