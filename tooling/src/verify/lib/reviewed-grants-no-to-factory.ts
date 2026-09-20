@@ -1,32 +1,17 @@
-// Reviewed grants: no-raw-egress, no-raw-interactive-intrinsics, no-raw-intl-time, no-raw-matchmedia, no-raw-random....
+// Reviewed grants: no-raw-interactive-intrinsics, no-raw-intl-time, no-raw-matchmedia, no-raw-random....
 // Split from reviewed-grants.ts — see that file for the central home comment.
+//
+// NO `no-raw-egress` ROW LIVES HERE ANY MORE (2026-09-20, lane cb-gate-reach, the @orb/inference §12 extraction
+// audit). The three this file carried — `vllm-fleet-control`, `vllm-gen-window`, `vllm-supervisor` — licensed
+// loopback engine-plane calls under `packages/server/src/infra/providers/vllm/engine/`. That whole plane left the
+// server for `tooling/src/stack/lib/engine-fleet/` in the same program (the F1 fleet yeet), which is `@tooling`
+// and OUTSIDE this policy's population and its law: D61/B5a is about the SERVER's egress surface, not a dev
+// instrument's loopback control of engines the developer's own box supervises. The rows were RETIRED rather than
+// re-pointed because re-pointing would have widened an SSRF policy into the instrument tree by side effect. The
+// surviving `no-raw-egress` rows are in `reviewed-grants-depcruise-to-egress.ts`.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
-  {
-    id: "no-raw-egress:vllm-fleet-control",
-    policyId: "no-raw-egress",
-    subject: "packages/server/src/infra/providers/vllm/engine/fleet-control.ts",
-    operation: "raw-fetch",
-    why: "the engine LIFECYCLE control plane (`POST /sleep`) against a loopback engine this process supervises — no auth, no credential, no user-influenced URL, and a hard `AbortSignal.timeout`.",
-    endsWhen: "engine traffic leaves loopback, at which point the lifecycle plane needs the SSRF guard rather than this row.",
-  },
-  {
-    id: "no-raw-egress:vllm-gen-window",
-    policyId: "no-raw-egress",
-    subject: "packages/server/src/infra/providers/vllm/engine/gen-window.ts",
-    operation: "raw-fetch",
-    why: "the loopback `GET /v1/models` read that discovers an engine's context window; a failure degrades to the env-owned window. Same loopback, no-credential class as the rest of the engine plane.",
-    endsWhen: "engine traffic leaves loopback, at which point this read needs the SSRF guard rather than this row.",
-  },
-  {
-    id: "no-raw-egress:vllm-supervisor",
-    policyId: "no-raw-egress",
-    subject: "packages/server/src/infra/providers/vllm/engine/supervisor.ts",
-    operation: "raw-fetch",
-    why: "the loopback `/is_sleeping` HEALTH probe the supervisor uses to decide whether an engine needs waking; any failure reads as not-sleeping (fails toward healthy). Same loopback, no-credential class as the rest of the engine plane.",
-    endsWhen: "engine traffic leaves loopback, at which point the health probe needs the SSRF guard rather than this row.",
-  },
   {
     id: "no-raw-interactive-intrinsics:app-shell-surface",
     policyId: "no-raw-interactive-intrinsics",

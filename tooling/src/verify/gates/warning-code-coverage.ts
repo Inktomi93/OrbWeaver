@@ -2,7 +2,7 @@
 // vocabularies. A declared-never-emitted code is silently dead wire, which D41 bans.
 //
 // TWO CHANNELS, TWO INDEPENDENT DENOMINATORS, never summed: `WARNING_CODES`
-// (server/infra/providers/contract/resolve.ts, emitted anywhere under server/infra/providers) and
+// (`packages/inference/src/contract/resolve.ts`, emitted anywhere under `packages/inference/src/`) and
 // `CHAT_WARNING_CODES` (contracts/chat/bus.ts, emitted under server/domain/chat). Each vocabulary is read
 // through the shared `tupleVocabularyFact`, which resolves the sanctioned spreads, and is then BOUND TO ITS
 // DECLARING MODULE: a tuple of the right name declared anywhere else is a different vocabulary and refuses
@@ -47,6 +47,19 @@
 // stay inside the reader, so the population is a superset of what it judges. Controls: inside: the real shared member
 // `packages/contracts/src/chat/bus.ts` admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
+//
+// WIDENED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of `docs/design/orbweaver-inference-package.md`).
+// Everything the two POPULATION PORT paragraphs above say remains true OF THE PORT; this is a later, separate
+// change with its own reason. The provider channel's tuple home and every one of its emit sites left
+// `packages/server/src/infra/providers/` for the new `@orb/inference` workspace package, a tree NO root in the
+// declared population reached — so `tupleVocabularyFact` answered `absent` for `WARNING_CODES`, this policy's own
+// receipt refused (`resolved zero members; left 1 unresolved`), authority recorded `owner-incomplete`, and the
+// policy was WITHHELD. That is `pnpm check:structure` exit 2 — a tool error, not a verdict — for every lane on
+// this tree, and it is precisely the "rename tripwire" the header above promises, firing correctly on a MOVE.
+// Three coupled sites move together and none of them works alone: (1) `@inference` joins this population;
+// (2) `@inference` joins the SHARED `tupleVocabularyFact` population, or the index never sees the declaration to
+// answer with; (3) the channel row's `home`/`emitScope`. The proof rows' fixture paths moved with them —
+// a fixture under the OLD directory now admits zero paths and refuses for empty population, which proves nothing.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveStableExpression } from "../../_shared/reference-fact.ts";
@@ -77,8 +90,12 @@ interface Channel {
 const CHANNELS: readonly Channel[] = [
   {
     tuple: "WARNING_CODES",
-    home: "packages/server/src/infra/providers/contract/resolve.ts",
-    emitScope: "packages/server/src/infra/providers/",
+    // RE-POINTED 2026-09-20 (the §12 extraction audit). The provider channel's home and emit scope moved
+    // WHOLE out of `packages/server/src/infra/providers/` into the `@orb/inference` package; the emit scope
+    // is the package's `src/` root rather than a subdirectory because the emitters are spread across
+    // `backends/v4/`, `funnel/` and `resolve/` with no common parent below it.
+    home: "packages/inference/src/contract/resolve.ts",
+    emitScope: "packages/inference/src/",
     chat: false,
   },
   {
@@ -116,9 +133,49 @@ function namesAccumulator(node: MorphNode): boolean {
   return (Node.isVariableDeclaration(node) || Node.isParameterDeclaration(node)) && node.getName() === SINK;
 }
 
+/** Does this reference bind a PARAMETER or a LOCAL variable, rather than an imported module member? The
+ *  fence the field arm below needs: `args.warnings` proves the accumulator only when `args` is something
+ *  this function was handed, never an imported bag that happens to carry the name. */
+function bindsLocalValue(receiver: MorphNode): boolean {
+  if (!Node.isIdentifier(receiver)) {
+    return false;
+  }
+  const binding = resolveStableExpression(receiver);
+  for (const declaration of binding.trace.declarations) {
+    if (Node.isImportSpecifier(declaration)) {
+      return false;
+    }
+    if (Node.isParameterDeclaration(declaration) || Node.isVariableDeclaration(declaration)) {
+      return true;
+    }
+  }
+  // THE REFUSAL IS THE ANSWER for the dominant live shape, and the first draft of this reader got it wrong:
+  // `constInitializer` answers `unresolved("missing", <the ParameterDeclaration>, …)` for a PARAMETER, because
+  // a parameter has no stable initializer to follow — so the parameter never reaches `trace.declarations` and
+  // the loop above returns false for every `args.warnings.push(…)` on the tree. Conformance caught it as a
+  // failing `mustPass` row rather than a real-corpus guess. The refusal's own NODE carries the declaration,
+  // which is the same door `isWarningsSink`'s bare-identifier arm below already uses for a parameter named
+  // `warnings`; an IMPORT refusal can never land here, since `importedTarget` resolves before this point.
+  return binding.kind === "unresolved" && (Node.isParameterDeclaration(binding.node) || Node.isVariableDeclaration(binding.node));
+}
+
 /** The shared trace owns alias hops. Reaching the named accumulator proves the sink even when its
- *  own initializer is runtime data; a member merely named `warnings` does not prove that local binding. */
+ *  own initializer is runtime data.
+ *
+ *  THE FIELD ARM (2026-09-20). Until the `@orb/inference` extraction this reader required a BARE identifier,
+ *  with the stated reason that "a member merely named `warnings` does not prove that local binding". The
+ *  reason is sound and the narrowing is kept for an IMPORTED member; what changed is the corpus. The package's
+ *  body shapers thread the accumulator as a field of their own options object — `args.warnings.push({ code,
+ *  message })` at `packages/inference/src/backends/openai-compat/body.ts` — so on the first run after the
+ *  population widening the bare-identifier requirement produced a FALSE ACCUSATION on a live emit
+ *  (`reasoning_dropped_for_prefill`). A false accusation on a real emit is not the safe side of this policy's
+ *  fail-direction: it pushes an author toward deleting a working warning code. The field arm therefore admits
+ *  `<receiver>.warnings` when the RECEIVER provably binds a parameter or a local, which keeps the
+ *  imported-lookalike fence that the original narrowing was actually about. */
 function isWarningsSink(node: MorphNode): boolean {
+  if (Node.isPropertyAccessExpression(node)) {
+    return node.getName() === SINK && bindsLocalValue(node.getExpression());
+  }
   if (!Node.isIdentifier(node)) {
     return false;
   }
@@ -149,10 +206,54 @@ function isPushedWarning(object: ObjectLiteralExpression, call: CallExpression):
   return receiver !== undefined && isWarningsSink(receiver) && object.getProperty("message") !== undefined;
 }
 
+/** The nearest enclosing call IN THIS OBJECT'S OWN FUNCTION SCOPE, or `undefined` when a function boundary
+ *  comes first.
+ *
+ *  `getFirstAncestorByKind(CallExpression)` is the wrong question and it produced a FALSE ACCUSATION the day
+ *  the population widened: `declaredOverridesMeasured` at `packages/inference/src/capability/synthesize.ts`
+ *  emits through `.map((field) => ({ code, field, message }))`, where the object is the ARROW'S OWN RESULT and
+ *  the only call above it is the `.map` that owns the arrow, three parents up and on the other side of a
+ *  function boundary. Asking for the call WITHIN the scope separates "this object is an argument of that call"
+ *  from "this object is produced inside a callback that call happens to take". */
+function callInSameScope(object: MorphNode): CallExpression | undefined {
+  // ONE TAIL RETURN, the house idiom for `T | undefined` under `noImplicitReturns` + biome's
+  // `noUselessUndefined` (.claude/rules/gates-and-tooling.md): an accumulator satisfies both without
+  // suppressing either. The loop stops by clearing `node`, never by an early `return;`.
+  let node: MorphNode | undefined = object.getParent();
+  let found: CallExpression | undefined;
+  while (node !== undefined && found === undefined) {
+    if (Node.isCallExpression(node)) {
+      found = node;
+    } else if (Node.isArrowFunction(node) || Node.isFunctionExpression(node) || Node.isFunctionDeclaration(node) || Node.isMethodDeclaration(node)) {
+      node = undefined;
+    } else {
+      node = node.getParent();
+    }
+  }
+  return found;
+}
+
+/** Is this object literal the RESULT of the function that encloses it — a `return` expression, or the concise
+ *  body of an arrow (`() => ({ … })`, which carries no ReturnStatement at all and which the old
+ *  ReturnStatement-only test therefore could not see)? */
+function isFunctionResult(object: ObjectLiteralExpression): boolean {
+  const parent = object.getParent();
+  if (parent === undefined) {
+    return false;
+  }
+  if (Node.isReturnStatement(parent) || Node.isArrowFunction(parent)) {
+    return true;
+  }
+  if (!Node.isParenthesizedExpression(parent)) {
+    return false;
+  }
+  const grandparent = parent.getParent();
+  return grandparent !== undefined && (Node.isArrowFunction(grandparent) || Node.isReturnStatement(grandparent));
+}
+
 /** An EXECUTABLE warning record — never an arbitrary object that happens to carry a `code`. */
 function isExecutableWarningRecord(object: ObjectLiteralExpression, channel: Channel): boolean {
-  const call = object.getFirstAncestorByKind(SyntaxKind.CallExpression);
-  const returned = object.getFirstAncestorByKind(SyntaxKind.ReturnStatement);
+  const call = callInSameScope(object);
   const name = call === undefined ? undefined : calleeName(call);
   if (call !== undefined && name === "push") {
     return isPushedWarning(object, call);
@@ -160,7 +261,7 @@ function isExecutableWarningRecord(object: ObjectLiteralExpression, channel: Cha
   if (channel.chat && CHAT_EMITTERS.some((emitter) => emitter === name)) {
     return stringOf(propertyValue(object, "type")) === "warning";
   }
-  return returned !== undefined && call === undefined && object.getProperty("message") !== undefined;
+  return call === undefined && isFunctionResult(object) && object.getProperty("message") !== undefined;
 }
 
 /** The code a canonical mapper return carries: a bare literal, or the `code` of a returned payload. */
@@ -232,20 +333,36 @@ function inEmitScope(candidate: Candidate, channel: Channel): boolean {
   return candidate.path.startsWith(channel.emitScope) && candidate.path !== channel.home;
 }
 
-function recordCode(candidate: Candidate, channel: Channel): string | undefined {
+/** Every code ONE `code:` initializer can carry. A conditional picks between static spellings at runtime and
+ *  BOTH are emitted — `result.ts`'s `isToolFeature(warning.feature) ? "sdk_unsupported_tool" :
+ *  "sdk_unsupported_setting"` is the live shape, and it is the ONLY emit site either member has. Reading it
+ *  with a single-value scalar reader answered `undefined` and accused `sdk_unsupported_setting` of being dead
+ *  wire on the first run after the population widening. Recursive, so a nested conditional is total too; a
+ *  branch that is not a static string contributes nothing rather than silencing its sibling. */
+function codesOf(node: MorphNode | undefined): readonly string[] {
+  if (node === undefined) {
+    return [];
+  }
+  if (Node.isConditionalExpression(node)) {
+    return [...codesOf(node.getWhenTrue()), ...codesOf(node.getWhenFalse())];
+  }
+  const scalar = stringOf(node);
+  return scalar === undefined ? [] : [scalar];
+}
+
+function recordCodes(candidate: Candidate, channel: Channel): readonly string[] {
   const object = candidate.node;
   if (!Node.isObjectLiteralExpression(object)) {
-    return;
+    return [];
   }
-  return isExecutableWarningRecord(object, channel) ? stringOf(propertyValue(object, "code")) : undefined;
+  return isExecutableWarningRecord(object, channel) ? codesOf(propertyValue(object, "code")) : [];
 }
 
 /** Every code this channel can prove is executably emitted. */
 function emittedCodes(state: Collected, channel: Channel): ReadonlySet<string> {
   const codes = new Set<string>();
   for (const candidate of state.records.filter((entry) => inEmitScope(entry, channel))) {
-    const code = recordCode(candidate, channel);
-    if (code !== undefined) {
+    for (const code of recordCodes(candidate, channel)) {
       codes.add(code);
     }
   }
@@ -263,7 +380,7 @@ export const gate = defineGate({
   family: "warning-code-coverage",
   authority: "ordinary",
   severity: "error",
-  population: { in: ["@server", "@contracts"] },
+  population: { in: ["@server", "@contracts", "@inference"] },
   analysis: "types",
   execution: "entire-population",
   facts: [tupleVocabularyFact],
@@ -318,10 +435,10 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/provider-codes.ts": 'export const BASE_WARNING_CODES = ["never_emitted"] as const;\n',
-        "packages/server/src/infra/providers/contract/resolve.ts":
+        "packages/inference/src/contract/provider-codes.ts": 'export const BASE_WARNING_CODES = ["never_emitted"] as const;\n',
+        "packages/inference/src/contract/resolve.ts":
           'import { BASE_WARNING_CODES } from "./provider-codes.ts";\nexport const WARNING_CODES = [...BASE_WARNING_CODES, "provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/resolve-chat.ts":
           'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
@@ -332,8 +449,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts":
           'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/base-codes.ts": 'export const BASE_CHAT_WARNING_CODES = ["never_emitted"] as const;\n',
         "packages/contracts/src/chat/bus.ts":
@@ -346,8 +463,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts":
           'declare const audit: { code: string; message: string }[];\naudit.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
@@ -358,8 +475,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts":
           'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const code = "chat_ok";\n',
@@ -370,8 +487,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts":
           'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/other.ts": 'export function toChatWarningCode(): string {\n  return "chat_ok";\n}\n',
@@ -382,7 +499,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts":
+        "packages/inference/src/contract/resolve.ts":
           'export const WARNING_CODES = ["provider_ok"] as const;\nexport function describe(): { code: string; message: string } {\n  return { code: "provider_ok", message: "beside the vocabulary" };\n}\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
@@ -393,7 +510,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts":
           'declare function emit(event: unknown): void;\ndeclare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "wrong channel" });\nemit({ type: "warning", code: "chat_ok" });\n',
@@ -404,9 +521,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
-          'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "provider_ok" });\n',
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "provider_ok" });\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
       },
@@ -416,13 +532,25 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts": 'declare const warnings: { code: string }[];\nwarnings.push({ code: "provider_ok" });\n',
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts": 'declare const warnings: { code: string }[];\nwarnings.push({ code: "provider_ok" });\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
       },
       expect: { count: 1, token: '"provider_ok"', messageIncludes: 'Member: "provider_ok"' },
       why: 'THE PUSHED-RECORD `message` REQUIREMENT, pinned (§4.1). A `{ code }` with no `message` pushed onto the real `warnings` sink is not an EXECUTABLE warning record — nothing reaches a human — so it cannot discharge a code\'s emit obligation. Same reversed direction as the row above: deleting `object.getProperty("message") !== undefined` from `isPushedWarning` makes the bare record count as an emit and this row goes 1 → 0. Its twin is mustFlag[2], which holds the OTHER half of the same recogniser (the sink identity) with the message present',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/ctx.ts": "export const ctx: { warnings: { code: string; message: string }[] } = { warnings: [] };\n",
+        "packages/inference/src/resolve-chat.ts": 'import { ctx } from "./ctx.ts";\nctx.warnings.push({ code: "provider_ok", message: "visible" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { count: 1, token: '"provider_ok"', messageIncludes: 'Member: "provider_ok"' },
+      why: "THE FIELD ARM'S OWN FENCE, and the reason the 2026-09-20 widening is not just 'accept any member named warnings': the receiver here binds an IMPORTED module member, not a parameter or a local, so `bindsLocalValue` refuses and the code stays uncovered. Delete that fence and this row goes GREEN — an imported bag anywhere in the package would start certifying codes as emitted, which is the false-clean direction this policy refuses",
     },
   ],
   // THE REFUSAL ARM (§4.5b, #1977 worked case, migrated onto the bar by #2109 item 2 / #2111). Until now the two
@@ -435,7 +563,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         "packages/client/src/state/provider-warnings.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/resolve-chat.ts":
           'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
@@ -448,8 +576,41 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/backends/body.ts":
+          'export function shape(args: { warnings: { code: string; message: string }[] }): void {\n  args.warnings.push({ code: "provider_ok", message: "visible" });\n}\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
+      },
+      why: "THE FIELD ARM (2026-09-20): the accumulator threaded as a FIELD of the function's own options object, which is how `packages/inference/src/backends/openai-compat/body.ts` spells it. The bare-identifier-only reader called this live emit dead and accused `reasoning_dropped_for_prefill`; restore that narrowing and this row reds",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/capability/synthesize.ts":
+          'export function overrides(fields: readonly string[]): { code: string; field: string; message: string }[] {\n  return fields.map((field) => ({ code: "provider_ok", field, message: "declared overrides a measurement" }));\n}\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
+      },
+      why: "THE SCOPE-AWARE CALL PLUS THE CONCISE ARROW RESULT (2026-09-20), the two halves of one live shape — `declaredOverridesMeasured` emits through `.map((field) => ({ … }))`. The old reader failed it TWICE: `getFirstAncestorByKind(CallExpression)` found the `.map` on the far side of the arrow, and the object is an arrow's concise body with no ReturnStatement to find. Cut either half and this row reds",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["sdk_tool", "sdk_setting"] as const;\n',
+        "packages/inference/src/backends/result.ts":
+          'declare const warnings: { code: string; message: string }[];\ndeclare const isTool: boolean;\nwarnings.push({ code: isTool ? "sdk_tool" : "sdk_setting", message: "the provider refused it" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
+      },
+      why: "THE CONDITIONAL CODE (2026-09-20): ONE emit site covers TWO members, which is the only emit either `sdk_unsupported_tool` or `sdk_unsupported_setting` has (`backends/v4/result.ts` picks between them on `isToolFeature`). A single-value scalar reader answers `undefined` for a ternary and reds BOTH members; `codesOf` unfolds both branches. Drop the unfold and this row reds with two findings, not one — which is also why the fixture declares two members",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts":
           'declare const warnings: { code: string; message: string }[];\nconst sink = warnings;\nsink.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emitQuiet(event: unknown): void;\nemitQuiet({ type: "warning", code: "chat_ok" });\n',
@@ -459,8 +620,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts":
           'export function build(): { code: string; message: string } {\n  return { code: "provider_ok", message: "visible" };\n}\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/warnings.ts": 'export function toChatWarning(): string {\n  return "chat_ok";\n}\n',
@@ -470,8 +631,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts":
           'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/warnings.ts":
@@ -482,8 +643,8 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/inference/src/resolve-chat.ts":
           'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/bus.ts":
           'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\nexport const decoy = { code: "chat_ok", message: "an inert record is not an emit" };\n',
@@ -494,9 +655,9 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/server/src/infra/providers/contract/resolve.ts":
+        "packages/inference/src/contract/resolve.ts":
           '// @orb-waive warning-code-coverage("provider_ok"): pinned identity arm; ends when the provider emits this code.\nexport const WARNING_CODES = ["provider_ok"] as const;\n',
-        "packages/server/src/infra/providers/resolve-chat.ts":
+        "packages/inference/src/resolve-chat.ts":
           'declare const audit: { code: string; message: string }[];\naudit.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',

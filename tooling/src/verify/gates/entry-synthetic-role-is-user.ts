@@ -131,7 +131,15 @@ export const gate = defineGate({
   family: "entry-synthetic-role-is-user",
   authority: "hard",
   severity: "error",
-  population: { in: ["@server"], notUnder: [ENTRY_GLOB] },
+  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
+  // `docs/design/orbweaver-inference-package.md`). ~104 source files left `packages/server/src/infra/providers/`
+  // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
+  // day they moved, silently. `entry/` is the only sanctioned home for a hardcoded `role`, and the inference package is not it. The
+  // package is also the tree's densest source of the OTHER `role` vocabulary (a chat message's
+  // `role: "user"`), which is precisely the shared word this policy's object-shape discriminator was rewritten
+  // to tell apart — so the widening also exercises that discriminator against the corpus most able to break it.
+  // Measured at the widening: ZERO findings.
+  population: { in: ["@server", "@inference"], notUnder: [ENTRY_GLOB] },
   analysis: "syntax",
   execution: "selected-files",
   facts: [],

@@ -139,7 +139,16 @@ export const gate = defineGate({
   family: "assumes-single-replica",
   authority: "ordinary",
   severity: "error",
-  population: { in: ["@server"], notUnder: ["packages/server/src/**/persistence/**"] },
+  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
+  // `docs/design/orbweaver-inference-package.md`). ~104 source files left `packages/server/src/infra/providers/`
+  // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
+  // day they moved, silently. NAMED IN §12's WIDEN SET BY THE PROGRAM ITSELF, with its reason: the registry's runtime rows live in
+  // `provider_rows`, not a module-level map, precisely so nothing in the package needs the annotation. The package
+  // nonetheless carries per-process state that DOES (`backends/local-light/model-cache.ts`'s in-flight load
+  // rejectors), and it already carries the `ASSUMES(single-replica)` line — written by an author whom no gate was
+  // watching. Measured at the widening: ZERO findings. The `notUnder` stays server-shaped because the package has
+  // no `persistence/` directory (persistence is four injected ports).
+  population: { in: ["@server", "@inference"], notUnder: ["packages/server/src/**/persistence/**"] },
   analysis: "syntax",
   execution: "selected-files",
   facts: [],
