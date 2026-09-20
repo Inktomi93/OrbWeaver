@@ -104,7 +104,17 @@ const config = {
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/db": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
-    "packages/inference": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
+    "packages/inference": {
+      entry: ["src/**/index.ts!"],
+      project: ["src/**/*.ts!"],
+      // @ai-sdk/provider is imported 15 times and EVERY import is `import type` (the V4 model/call-option
+      // interfaces the three hosted backends implement). knip's production view drops type-only imports, so
+      // strict mode reads the package as unused; it is not — dropping it breaks `tsc`, and the catalog pin
+      // must additionally satisfy every `@ai-sdk/*` provider package's own dependency on it at install
+      // (pnpm-workspace.yaml:201-208). An ignore with this reason, never a package.json edit — and the `!`
+      // keeps it PRODUCTION-only, so the default view still accounts for the package normally.
+      ignoreDependencies: ["@ai-sdk/provider!"],
+    },
     // @orb/showcase-plugins: the TS surface is one reader module; `bundles/**` is guest .js + content that
     // no import graph reaches by construction (the QuickJS realm has no module loader), so the project glob
     // stays scoped to src/ rather than accusing nine shipped bundles of being dead files.
@@ -132,7 +142,17 @@ const config = {
     "packages/client": {
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.
       entry: ["index.html"],
-      project: ["src/**/*.{ts,tsx}!"],
+      // The second pattern SUBTRACTS the transcript reading-port budget from the SHIPPABLE view only (#2426,
+      // owner-ruled 2026-09-19): it is a zero-import `.ts` leaf whose one consumer is a playwright-ct spec —
+      // deliberately not a const inside `chat-controls-band.tsx`, because a CT spec's node side cannot import
+      // a `.tsx` (playwright-ct rewrites named imports from a component file into generated component consts
+      // and the spec then collects ZERO tests). So it has no production importer BY CONSTRUCTION, and the
+      // production view calls the file dead. Subtracted from `project` rather than parked in `ignore`: an
+      // `ignore` row cannot carry the `!` production marker, so it would read as redundant in the DEFAULT
+      // view (where the spec does reach the file) and `treatConfigHintsAsErrors` would red the default run.
+      // The default view still judges the file; the band's header cites it; its enforcer is
+      // `tests/client/features/chat/components/chat-controls-band.ct.tsx`.
+      project: ["src/**/*.{ts,tsx}!", "!src/features/chat/lib/chat-reading-port.ts!"],
       // Tailwind v4: the vite plugin (@tailwindcss/vite) requires the bare `tailwindcss` package
       // resolvable at build; nothing imports it directly.
       ignoreDependencies: ["tailwindcss"],

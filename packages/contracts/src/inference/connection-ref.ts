@@ -3,13 +3,8 @@
 // (the local-light floor is two SEEDED rows, §7.2). Every actor's refs are `connection_bindings` ROWS keyed
 // `(actorKind, actor, task)`; a chat is NOT an actor (F20) and neither is an rpg game.
 
-import type { UserConnectionId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-
-export interface ConnectionRef {
-  readonly connectionId: UserConnectionId;
-}
 
 export const connectionRefSchema = z.object({ connectionId: typeIdSchema(ID_PREFIX.userConnection) });
 

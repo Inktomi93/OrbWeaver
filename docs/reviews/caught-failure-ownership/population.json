@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 580,
-    "reported": 0,
+    "sites": 583,
+    "reported": 2,
     "byVerdict": {
-      "deliberate-absorb": 580,
-      "unproven": 0
+      "deliberate-absorb": 581,
+      "unproven": 2
     },
     "byGrammar": {
-      "default": 154,
+      "default": 157,
       "empty": 290,
       "promise": 136
     }
@@ -1448,7 +1448,7 @@
     {
       "siteId": "packages/contracts/src/preset/index.ts::catch::1",
       "path": "packages/contracts/src/preset/index.ts",
-      "line": 3097,
+      "line": 3096,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -1456,7 +1456,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ST mirror — JSON.parse of custom_stopping_strings",
-      "markerLine": 3092
+      "markerLine": 3091
     },
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::catch::1",
@@ -2020,7 +2020,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 930,
+      "line": 968,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -2028,12 +2028,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`deps.emit` is the chat bus, which already",
-      "markerLine": 925
+      "markerLine": 963
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1848,
+      "line": 1941,
       "column": 13,
       "grammar": "empty",
       "position": "catch",
@@ -2041,12 +2041,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).",
-      "markerLine": 1844
+      "markerLine": 1937
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1874,
+      "line": 1967,
       "column": 14,
       "grammar": "empty",
       "position": "deltaErr",
@@ -2054,12 +2054,12 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 1868
+      "markerLine": 1961
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1989,
+      "line": 2082,
       "column": 10,
       "grammar": "promise",
       "position": "releasedBody",
@@ -2067,7 +2067,7 @@
       "snippet": "void releasedBody.catch((): undefined => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.",
-      "markerLine": 1988
+      "markerLine": 2081
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::catch::1",
@@ -2174,9 +2174,22 @@
       "markerLine": 2266
     },
     {
+      "siteId": "packages/server/src/domain/connection/substrate/embed-space.ts::catch::1",
+      "path": "packages/server/src/domain/connection/substrate/embed-space.ts",
+      "line": 48,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a refused resolve IS the \"no space\" answer this comparison",
+      "markerLine": 43
+    },
+    {
       "siteId": "packages/server/src/domain/connection/verbs/bindings.ts::catch::1",
       "path": "packages/server/src/domain/connection/verbs/bindings.ts",
-      "line": 87,
+      "line": 86,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -2184,7 +2197,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a resolve REFUSAL is the readout's other arm — the availability",
-      "markerLine": 82
+      "markerLine": 81
     },
     {
       "siteId": "packages/server/src/domain/databank/ingest/index.ts::error::1",
@@ -2891,7 +2904,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1267,
+      "line": 1274,
       "column": 9,
       "grammar": "default",
       "position": "catch",
@@ -2899,12 +2912,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 1263
+      "markerLine": 1270
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::3",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1300,
+      "line": 1307,
       "column": 9,
       "grammar": "empty",
       "position": "catch",
@@ -2912,12 +2925,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 1289
+      "markerLine": 1296
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::catch::4",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1337,
+      "line": 1344,
       "column": 11,
       "grammar": "empty",
       "position": "catch",
@@ -2925,12 +2938,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1329
+      "markerLine": 1336
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1038,
+      "line": 1045,
       "column": 16,
       "grammar": "empty",
       "position": "err",
@@ -2938,12 +2951,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 1032
+      "markerLine": 1039
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::runChatTurn::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 926,
+      "line": 933,
       "column": 8,
       "grammar": "promise",
       "position": "runChatTurn",
@@ -2951,7 +2964,7 @@
       "snippet": ".runChatTurn(chatReq)",
       "verdict": "deliberate-absorb",
       "reason": "propagated — the rejection reaches",
-      "markerLine": 922
+      "markerLine": 929
     },
     {
       "siteId": "packages/server/src/entry/compose/emit-chat-changed.ts::catch::1",
@@ -2965,6 +2978,32 @@
       "verdict": "deliberate-absorb",
       "reason": "best-effort — documented below: a failed roster",
       "markerLine": 21
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/inline-reply-image.ts::catch::1",
+      "path": "packages/server/src/entry/compose/inline-reply-image.ts",
+      "line": 58,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/inline-reply-image.ts::catch::2",
+      "path": "packages/server/src/entry/compose/inline-reply-image.ts",
+      "line": 79,
+      "column": 7,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::catch::1",
@@ -3593,7 +3632,7 @@
     {
       "siteId": "packages/server/src/transport/rate-limit.ts::where::1",
       "path": "packages/server/src/transport/rate-limit.ts",
-      "line": 90,
+      "line": 72,
       "column": 6,
       "grammar": "promise",
       "position": "where",
@@ -3601,7 +3640,7 @@
       "snippet": ".where(and(like(rateLimitBuckets.key, `${prefix}%`), lt(rateLimitBuckets.expiresAt, args.now)))",
       "verdict": "deliberate-absorb",
       "reason": "a best-effort expiry GC that runs on EVERY rate-limited request — giving it its own detached root would push one extra trace bucket per request through a 500-entry ring and evict the real traces. A failed sweep is self-healing (the next request re-runs it) and cannot affect the verdict above. Ends if the sweep ever moves off the per-request path (a scheduled job would get its own root).",
-      "markerLine": 87
+      "markerLine": 69
     },
     {
       "siteId": "packages/server/src/transport/trpc/stream/socket.ts::err::1",

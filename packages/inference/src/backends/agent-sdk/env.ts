@@ -11,7 +11,8 @@ import type { ClaudeIsolationPinKey } from "@orb/contracts/preset";
 import { HOST_OWNED_CLAUDE_ENV_KEYS, isAllowedClaudeRuntimeEnvKey } from "@orb/contracts/preset";
 import { ProviderError } from "../../contract/errors.ts";
 
-/** The documented headless subscription credential env (`claude setup-token`). */
+/** The documented headless subscription credential env (`claude setup-token`).
+ *  @public Test-anchored module surface; the firewall's env spec pins this key by name. */
 export const CLAUDE_OAUTH_TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN";
 
 // Non-Claude-namespaced app secrets the child has no business seeing — the deploy's `*_FILE` shim exports
@@ -108,7 +109,8 @@ const ISOLATION_PINS: Readonly<Record<ClaudeIsolationPinKey, string>> = {
 };
 
 /** Keys a preset's escape hatch can never set or unset — auth, credential isolation, config dir, AND every
- *  host-owned pin above. Spread from the contracts vocabulary rather than re-spelled — one home, no drift. */
+ *  host-owned pin above. Spread from the contracts vocabulary rather than re-spelled — one home, no drift.
+ *  @public Test-anchored module surface; the firewall's env spec asserts membership directly. */
 export const RESERVED_CLAUDE_ENV_KEYS: ReadonlySet<string> = new Set<string>([
   ...HOST_OWNED_CLAUDE_ENV_KEYS,
   "ANTHROPIC_API_KEY",

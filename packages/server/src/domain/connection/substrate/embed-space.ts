@@ -15,22 +15,31 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
 import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
+import type { EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext } from "../contract/service.ts";
+
+/** The ONE door this module needs — a runtime that can `resolve`. Narrower than the whole context slice on
+ *  purpose: the snapshot reads nothing else off it, so the module is exercisable against a resolve alone
+ *  (its mirror test drives exactly that). */
+interface SpaceResolveCtx {
+  readonly runtime: Pick<ConnectionContext["runtime"], "resolve">;
+}
 
 /** The routable tasks whose binding defines a vector space. Both are `scope: "owner"` in `TASK_DEFS`. */
 export const VECTOR_TASKS: readonly RoutableTask[] = ["embed", "imageEmbed"];
 
-/** `task -> space tag`, `null` where nothing resolves. */
-export type EmbedSpaces = Readonly<Record<string, string | null>>;
-
-export async function vectorSpacesOf(ctx: Pick<ConnectionContext, "runtime">, principal: Principal): Promise<EmbedSpaces> {
-  const entries = await Promise.all(VECTOR_TASKS.map(async (task): Promise<readonly [string, string | null]> => [task, await spaceFor(ctx, principal, task)]));
+/** Resolve every vector task's space tag for `principal` RIGHT NOW — the snapshot the write verbs take
+ *  before and after their write. The shape is {@link EmbedSpaces} (contract/results.ts). */
+export async function vectorSpacesOf(ctx: SpaceResolveCtx, principal: Principal): Promise<EmbedSpaces> {
+  const entries = await Promise.all(
+    VECTOR_TASKS.map(async (task): Promise<readonly [RoutableTask, string | null]> => [task, await spaceFor(ctx, principal, task)]),
+  );
   return Object.fromEntries(entries);
 }
 
 /** A resolve REFUSAL is a legitimate reading of "no space" — an unbound, unservable or unfundable task has
  *  no vectors to strand — so it folds to `null` rather than failing the write that asked. */
-async function spaceFor(ctx: Pick<ConnectionContext, "runtime">, principal: Principal, task: RoutableTask): Promise<string | null> {
+async function spaceFor(ctx: SpaceResolveCtx, principal: Principal, task: RoutableTask): Promise<string | null> {
   // @orb-waive caught-failure-ownership(catch): a refused resolve IS the "no space" answer this comparison
   // needs; nothing is swallowed, and a throw here would fail a connection write over an unrelated task.
   try {

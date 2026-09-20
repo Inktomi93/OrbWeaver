@@ -21,6 +21,7 @@ import { createOpenAiCompatBackend } from "../backends/openai-compat/index.ts";
 import type { BackendRegistry, ProviderBackend } from "../contract/backend.ts";
 import type { InferenceDeps } from "../deps.ts";
 
+/** @public knip type-face false positive — the shape of `BACKEND_DEFS` below, in the module that owns it. */
 export interface BackendDef {
   readonly serves: readonly Task[];
   /** The missing need's name, or `null` when the wire can be built on these deps. */
@@ -29,6 +30,10 @@ export interface BackendDef {
 
 const ALWAYS = (): null => null;
 
+/** @public Test-anchored module surface; the table test pins every wire's `serves` against `WIRE_DEFS`.
+ *  Unreachable from `server` BY DESIGN — the package's exports map carries only the star subpath onto each
+ *  directory index, so there is no `registry` subpath at all: that is what seals wire→backend dispatch
+ *  inside this package at RESOLVE time (a server import fails `tsc` TS2307 and dependency-cruiser both). */
 export const BACKEND_DEFS: Record<Wire, BackendDef> = {
   "openai-compat": { serves: WIRE_DEFS["openai-compat"].serves, needs: ALWAYS },
   "anthropic-messages": { serves: WIRE_DEFS["anthropic-messages"].serves, needs: ALWAYS },

@@ -43,7 +43,8 @@ function precedingProse(content: string, upTo: number): string {
 }
 
 /** F22's mint: the last complete sentence of the prose in front of the picture, trimmed and capped; `""`
- *  when there is no prose (the picture opened the turn) or nothing survives the strip. NEVER a counter. */
+ *  when there is no prose (the picture opened the turn) or nothing survives the strip. NEVER a counter.
+ *  @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function mintInlineImageAlt(content: string, atChars: number): string {
   const prose = precedingProse(content, atChars).trimEnd();
   if (prose.length === 0) {

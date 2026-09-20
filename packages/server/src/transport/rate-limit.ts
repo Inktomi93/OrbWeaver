@@ -1,7 +1,10 @@
-// The DB-backed fixed-window rate-limiter primitive + the per-member count budget. Both ride the shared
-// rate_limit_buckets table, so the cap is multi-replica-correct: a per-process in-memory limiter gives N×
-// the configured cap under N replicas; one shared bucket makes the cap real regardless of which replica
-// answered. Instances are constructed at the entry/ composition root and threaded onto ctx.rateLimit.
+// The DB-backed fixed-window rate-limiter primitive. It rides the shared rate_limit_buckets table, so the
+// cap is multi-replica-correct: a per-process in-memory limiter gives N× the configured cap under N
+// replicas; one shared bucket makes the cap real regardless of which replica answered. Instances are
+// constructed at the entry/ composition root and threaded onto ctx.rateLimit.
+//
+// The per-member COUNT budget that also rode this table was DELETED with D17's "local compute shared with
+// authenticated principals, count-budgeted" clause (@orb/inference §14 F11, owner word 2026-09-19).
 //
 // This is the one sanctioned server-side @orb/db importer in transport/ (dep-cruiser exempts exactly this
 // file path — do not make it a directory).
@@ -15,12 +18,7 @@
 import type { Db } from "@orb/db";
 import { rateLimitBuckets } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
 import { and, like, lt, sql } from "drizzle-orm";
-
-// Its rows share rate_limit_buckets with the generic limiters; the scope: prefix isolates them
-// lexicographically for the sweep's prefix scan.
-const MEMBER_BUDGET_SCOPE = "member-budget";
 
 export interface RateLimitConfig {
   /** Short tag distinguishing this limiter's rows in the shared table — e.g. "login-ip", "public-ip". */
@@ -39,23 +37,7 @@ export interface RateLimiter {
   readonly consume: (id: string) => Promise<void>;
 }
 
-/** Config for the per-member count budget (a fixed-window cap; the cap itself is supplied per-debit from
- *  an admin-flippable AppSettings knob). `windowMs` is a live getter so an admin retune of the window
- *  (nonOwnerLocalComputeBudgetWindowMs) applies without a restart — matching the per-debit-live cap. */
-export interface MemberBudgetConfig {
-  readonly windowMs: () => number;
-  readonly now: () => number;
-}
-
-/** The per-member turn/request count budget — meters all backends against the caller, attributed to
- *  `triggeredBy`. */
-export interface MemberBudget {
-  /** Debit one turn/request against `triggeredBy`'s budget. `budget === null` → unbounded (no-op). Over
-   *  budget → {@link DomainRateLimitError}. */
-  readonly debit: (triggeredBy: UserId, budget: number | null) => Promise<void>;
-}
-
-/** The atomic fixed-window consume shared by every limiter + the member budget. Increments the
+/** The atomic fixed-window consume every limiter shares. Increments the
  *  `(scope, id, windowStart)` bucket and throws when the post-increment count exceeds `points`. */
 async function consumeWindow(
   db: Db,
@@ -110,23 +92,5 @@ export function createRateLimiter(db: Db, cfg: RateLimitConfig): RateLimiter {
         windowMs: cfg.windowMs,
         now: cfg.now(),
       }),
-  };
-}
-
-/** Construct the per-member count budget over the shared bucket table. */
-export function createMemberBudget(db: Db, cfg: MemberBudgetConfig): MemberBudget {
-  return {
-    debit: (triggeredBy: UserId, budget: number | null): Promise<void> => {
-      if (budget === null) {
-        return Promise.resolve();
-      }
-      return consumeWindow(db, {
-        scope: MEMBER_BUDGET_SCOPE,
-        id: triggeredBy,
-        points: budget,
-        windowMs: cfg.windowMs(),
-        now: cfg.now(),
-      });
-    },
   };
 }
