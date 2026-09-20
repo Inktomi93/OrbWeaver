@@ -11,6 +11,7 @@
 // Drives the PRODUCTION path: the real contributed sections through the config host's own resolver, with
 // every read and the write stubbed at the network (routeTrpc).
 
+import { TASKS } from "@orb/contracts/inference";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // The row labels + render order are read from their ONE home rather than re-typed — a re-spelled literal is
@@ -143,6 +144,22 @@ test("every routable task gets a row, in the pane's own render order", async ({ 
   // The Utility row's §5.3a copy names all three of its consumers — a cheap text-only model bound here
   // silently breaks captioning, so the row may not read as "summaries" alone.
   await expect(page.getByText("Summaries, structured extraction and image captions.", { exact: false })).toBeVisible();
+});
+
+test("a connection row speaks in Model roles and carries the exact bulk/background actions", async ({ mount, page }) => {
+  await stubPane(page, { connections: [connectionRow({ tasks: TASKS })] });
+  await mount(<ConnectionsSettingsStory />);
+
+  const section = page.locator("#config-anchor-connections-connections");
+  await expect(section.getByText("OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5", { exact: true })).toBeVisible();
+  for (const label of ROLE_ROWS_ORDERED.map((row) => row.label)) {
+    await expect(section.getByText(label, { exact: true })).toBeVisible();
+  }
+  await expect(section.getByText("agent", { exact: true })).toHaveCount(0);
+  await expect(section.getByText("structured", { exact: true })).toHaveCount(0);
+  await expect(section.getByRole("button", { name: "Use this connection for everything it can serve" })).toBeVisible();
+  await expect(section.getByText("Allow background work on this connection", { exact: true })).toBeVisible();
+  await expect(section.getByRole("switch", { name: "Allow background work on this connection: OpenRouter · Claude Sonnet 5" })).toBeChecked();
 });
 
 // A slot only ever offers what it can actually use: `connection.tasks` is the compatibility fact, and a row

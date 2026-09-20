@@ -3,8 +3,8 @@
 // (Hosted (key) · Your own server (URL) · Subscription · Built-in — never twelve options flat), and the
 // per-row readouts. Labels come from the registry rows (`ProviderDef.label`), never a hand table.
 
-import type { ProviderAuth, ProviderAvailability, ProviderDef, RoutableTask } from "@orb/contracts/inference";
-import { canFund } from "@orb/contracts/inference";
+import type { ProviderAuth, ProviderAvailability, ProviderDef, RoutableTask, Task } from "@orb/contracts/inference";
+import { bindingTaskOf, canFund } from "@orb/contracts/inference";
 import type { SelectItems, SelectOptionGroup } from "@orb/ui/select";
 
 /** One Model-roles row's descriptor. */
@@ -47,6 +47,13 @@ const ROLE_RENDER_ORDER: readonly RoutableTask[] = ["chat", "summarize", "genera
 
 /** The role rows in render order; a routable task missing from the order list is a `tsc`-visible gap in the test. */
 export const ROLE_ROWS_ORDERED: readonly RoleRow[] = ROLE_RENDER_ORDER.map((task) => ROLE_ROWS[task]);
+
+/** The user-facing Model-role labels a connection may serve. Non-routable tasks fold through their
+ *  binding (`agent` → Chat, `structured` → Utility model), so schema task names never leak into copy. */
+export function connectionRoleLabels(tasks: readonly Task[]): readonly string[] {
+  const roles = new Set(tasks.map(bindingTaskOf));
+  return ROLE_ROWS_ORDERED.filter((row) => roles.has(row.task)).map((row) => row.label);
+}
 
 /** The four picker groups, keyed on the provider row's `auth` (§5.3a) — the group label is the user's word. */
 const AUTH_GROUP_LABELS: Record<ProviderAuth, string> = {
