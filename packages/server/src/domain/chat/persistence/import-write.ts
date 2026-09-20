@@ -363,6 +363,8 @@ function messageStatements(args: MessageStatementsArgs): {
             id: ctx.newMessageAssetId(),
             messageId,
             assetId,
+            // An imported attachment is a user upload by construction (ST carries no model-emitted pictures).
+            origin: "attached",
             createdAt: message.createdAt,
           }),
         ),

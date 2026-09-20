@@ -40,7 +40,7 @@ import {
   refinerySchemaDocumentSchema,
   transpileForgeDesign,
 } from "@orb/contracts/refinery";
-import type { SummarizeOptions } from "@orb/contracts/role-clients";
+import type { RoleClients, StructuredOptions, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { UserId } from "@orb/kit/ids";
 import { dropNullValues, projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
@@ -95,23 +95,25 @@ function tolerant<T>(schema: z.ZodType<T>): z.ZodType<T> {
   return z.preprocess((value) => dropNullValues(value), schema) as unknown as z.ZodType<T>;
 }
 
-export async function resolveForgeCall(ctx: RefineryContext, ownerId: UserId): Promise<{ overrides: ProseOverrides; sampleOpts: SummarizeOptions }> {
-  const [overrides, presetParams] = await Promise.all([ctx.resolveUserProse(ownerId), ctx.resolveUserPresetParams(ownerId)]);
-  return { overrides, sampleOpts: toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.schema_forge, presetParams)) };
+export async function resolveForgeCall(
+  ctx: RefineryContext,
+  ownerId: UserId,
+): Promise<{ overrides: ProseOverrides; sampleOpts: SummarizeOptions; rc: RoleClients }> {
+  const [overrides, presetParams, rc] = await Promise.all([ctx.resolveUserProse(ownerId), ctx.resolveUserPresetParams(ownerId), ctx.roleClientsFor(ownerId)]);
+  return { overrides, sampleOpts: toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.schema_forge, presetParams)), rc };
 }
 
 /** One enforced call. `format` picks the grammar; `task` is the `{{task}}` splice; `payload` is the
  *  validator (already `tolerant`). Throws `StructuredOutputError` when both the turn and its one retry fail. */
 async function runCall<T>(
-  ctx: RefineryContext,
   args: ForgeTurnArgs,
   spec: { readonly format: keyof typeof RESPONSE_FORMATS; readonly task: string; readonly user: string; readonly payload: z.ZodType<T> },
 ): Promise<T> {
   const system = resolveProseText("refinery.schemaForge.system", args.overrides, { core: CORE_TEXTS[args.stage], task: spec.task });
-  const opts: SummarizeOptions = { ...args.sampleOpts, responseFormat: RESPONSE_FORMATS[spec.format] };
+  const opts: StructuredOptions = { ...args.sampleOpts, responseFormat: RESPONSE_FORMATS[spec.format] };
   const run = async (correction?: string): Promise<string> => {
     const userPrompt = correction === undefined ? spec.user : `${spec.user}\n\n${correction}`;
-    const res = await ctx.summarize([{ systemPrompt: system, userPrompt }], opts);
+    const res = await args.rc.structured([{ systemPrompt: system, userPrompt }], opts);
     return res.items[0]?.text ?? "";
   };
   return await runStructuredTurn({ payloadSchema: spec.payload, run, onRetry: traceStructuredRetry("refine-schema-forge") });
@@ -120,22 +122,22 @@ async function runCall<T>(
 // ── the arms ─────────────────────────────────────────────────────────────────────────────────────────────
 
 /** `single` — one enforced call for the whole design, hints included. */
-async function runSingleArm(ctx: RefineryContext, args: ForgeTurnArgs): Promise<ForgeDesignEnvelope> {
-  return await runCall(ctx, args, { format: "design", task: TASK_DESIGN, user: args.userPrompt, payload: tolerant(forgeDesignEnvelopeSchema) });
+async function runSingleArm(args: ForgeTurnArgs): Promise<ForgeDesignEnvelope> {
+  return await runCall(args, { format: "design", task: TASK_DESIGN, user: args.userPrompt, payload: tolerant(forgeDesignEnvelopeSchema) });
 }
 
 /** `guided` — plan the paths, then give each planned field its own turn in ONE batched call, then assemble.
  *  A field whose own turn produced nothing usable is DROPPED and counted; a plan whose every field failed
  *  resolves as the failed arm upstream (an empty `fields` list refuses at the envelope belt). */
-async function runGuidedArm(ctx: RefineryContext, args: ForgeTurnArgs): Promise<ForgeDesignEnvelope> {
-  const plan = await runCall(ctx, args, { format: "plan", task: TASK_PLAN, user: args.userPrompt, payload: tolerant(forgePlanEnvelopeSchema) });
+async function runGuidedArm(args: ForgeTurnArgs): Promise<ForgeDesignEnvelope> {
+  const plan = await runCall(args, { format: "plan", task: TASK_PLAN, user: args.userPrompt, payload: tolerant(forgePlanEnvelopeSchema) });
   const system = resolveProseText("refinery.schemaForge.system", args.overrides, { core: CORE_TEXTS[args.stage], task: TASK_FIELD });
   const roster = plan.fields.map((f) => `- ${f.path}: ${f.intent}`).join("\n");
   const inputs = plan.fields.map((f) => ({
     systemPrompt: system,
     userPrompt: `${args.userPrompt}\n\nThe whole schema will be:\n${roster}\n\nDesign THIS field only: ${f.path} — ${f.intent}`,
   }));
-  const res = await ctx.summarize(inputs, { ...args.sampleOpts, responseFormat: RESPONSE_FORMATS.field });
+  const res = await args.rc.structured(inputs, { ...args.sampleOpts, responseFormat: RESPONSE_FORMATS.field });
   const payload = tolerant(forgeFieldEnvelopeSchema);
   const fields: ForgeFieldRow[] = [];
   for (const [index, item] of res.items.entries()) {
@@ -173,15 +175,15 @@ function parseFieldReply(payload: z.ZodType<{ field: ForgeFieldRow }>, text: str
 }
 
 /** `two-stage` — structure first (no hints), then the display vocabulary against the finished paths. */
-async function runTwoStageArm(ctx: RefineryContext, args: ForgeTurnArgs): Promise<ForgeDesignEnvelope> {
-  const structure = await runCall(ctx, args, {
+async function runTwoStageArm(args: ForgeTurnArgs): Promise<ForgeDesignEnvelope> {
+  const structure = await runCall(args, {
     format: "design",
     task: `${TASK_DESIGN} Leave every display hint (role / group / label / chart / tones) unset — a second pass chooses them.`,
     user: args.userPrompt,
     payload: tolerant(forgeDesignEnvelopeSchema),
   });
   const roster = structure.fields.map((f) => `- ${f.path} (${f.type}${f.enum === undefined ? "" : `: ${f.enum.join(" / ")}`}) — ${f.description}`).join("\n");
-  const hinted = await runCall(ctx, args, {
+  const hinted = await runCall(args, {
     format: "hints",
     task: TASK_HINTS,
     user: `${args.userPrompt}\n\nThe finished fields:\n${roster}`,
@@ -195,7 +197,7 @@ async function runTwoStageArm(ctx: RefineryContext, args: ForgeTurnArgs): Promis
 }
 
 /** The arm dispatch — a mapped Record, not a switch: a new arm without a runner is a tsc error (§5.5). */
-const FORGE_ARMS: Readonly<Record<RefineryForgeArm, (ctx: RefineryContext, args: ForgeTurnArgs) => Promise<ForgeDesignEnvelope>>> = {
+const FORGE_ARMS: Readonly<Record<RefineryForgeArm, (args: ForgeTurnArgs) => Promise<ForgeDesignEnvelope>>> = {
   single: runSingleArm,
   guided: runGuidedArm,
   "two-stage": runTwoStageArm,
@@ -215,10 +217,10 @@ function beltRefusalOf(name: string, description: string, schema: Record<string,
  * double structured-output failure, → the `failed` arm carrying what the model actually said (errors-as-data,
  * show-the-partial — the raw never rides an error message).
  */
-export async function runForgeTurn(ctx: RefineryContext, args: ForgeTurnArgs): Promise<SchemaForgeResult> {
+export async function runForgeTurn(args: ForgeTurnArgs): Promise<SchemaForgeResult> {
   let design: ForgeDesignEnvelope;
   try {
-    design = await FORGE_ARMS[args.arm](ctx, args);
+    design = await FORGE_ARMS[args.arm](args);
   } catch (err) {
     if (err instanceof StructuredOutputError) {
       return { kind: "failed", message: "The model couldn't produce a usable schema design — its raw reply is below for hand-fixing.", raw: err.raw };

@@ -90,7 +90,7 @@ function printCapture(row: WireCapture): void {
   const keys = Object.keys(row.body);
   const shown = keys.slice(0, BODY_KEY_CAP).join(",");
   const more = keys.length > BODY_KEY_CAP ? `,…+${keys.length - BODY_KEY_CAP}` : "";
-  print(`${at}  ${row.backend}/${row.api}  model=${row.model}  chat=${row.chatId ?? "-"}  body{${shown}${more}}`);
+  print(`${at}  ${row.providerId}/${row.api}  model=${row.model}  chat=${row.chatId ?? "-"}  body{${shown}${more}}`);
 }
 
 function printOutcome(row: WireOutcome): void {

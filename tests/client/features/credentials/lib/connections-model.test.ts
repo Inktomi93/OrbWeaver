@@ -6,7 +6,7 @@
 // LIVE-vs-DRAFT drift model the pane discloses per row, and the per-role source constraints matching the
 // settings schema (a stricter/looser list than the server would hide or mis-offer a legal choice).
 
-import { ROUTING_ROLE_KEYS } from "@orb/contracts/connection";
+import { ROUTABLE_TASKS } from "@orb/contracts/inference";
 import type { CredentialProvider } from "@orb/contracts/credentials";
 import { CRED_PROVIDERS } from "@orb/contracts/credentials";
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";

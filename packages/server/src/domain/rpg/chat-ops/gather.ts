@@ -92,7 +92,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
 
   // ONE connection resolve, TWO verdicts (§4.6 + the D112 fold guard): can the model write this game's state at
   // all, and — if it can — does mounting tools on THIS wire cost the narrative?
-  const { trackersReadOnly, foldGuarded } = await ctx.resolveStateDelivery(chatId);
+  const { trackersReadOnly, foldGuarded } = await ctx.resolveStateDelivery(chatId, args.funderUserId);
   // THE TURN'S READ BASE (VER-1b — the READ twin of VER-1a's write base). A FRESH turn reads the resolution
   // HEAD. A REGEN (swipe/reroll) reads the state as of BEFORE its target slot, because on a regen the head IS
   // the abandoned variant's snapshot — still selected/committed while the replacement generates. Reading it

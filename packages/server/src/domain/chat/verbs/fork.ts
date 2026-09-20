@@ -165,6 +165,9 @@ function forkVariantValues(args: {
     idx: variant.idx,
     model: variant.model,
     provider: variant.provider,
+    // Attribution outlives the row it names (SET NULL) and reveals only WHICH of the generator's connections
+    // wrote the swipe — an id, not a secret; it rides beside `provider`/`model` as the same readout.
+    connectionId: variant.connectionId,
     reasoningEffort: variant.reasoningEffort,
     tokensIn: variant.tokensIn,
     tokensOut: variant.tokensOut,
@@ -172,6 +175,7 @@ function forkVariantValues(args: {
     cacheReadTokens: variant.cacheReadTokens,
     cacheWriteTokens: variant.cacheWriteTokens,
     costUsd: variant.costUsd,
+    costProvenance: variant.costProvenance,
     contextWindow: variant.contextWindow,
     maxOutputTokens: variant.maxOutputTokens,
     ttftMs: variant.ttftMs,

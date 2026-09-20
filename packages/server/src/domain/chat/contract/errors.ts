@@ -67,7 +67,6 @@ export const CHAT_OP_CODES = {
   backgroundUnavailable: "background_unavailable",
   /** A non-owner-triggered `max-pro-sub` turn without explicit owner consent (by-proxy refused, fail-closed,
    *  default OFF). */
-  consentRequired: "consent_required",
   /** The per-member turn/request COUNT budget is exhausted (debited in-lock). */
   budgetExceeded: "budget_exceeded",
   /** `requestTurn` was asked to stamp a reply DEEPER than `AUTOMATION_DEPTH_HARD_CAP` (automation-design/03 §4).

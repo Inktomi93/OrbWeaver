@@ -1,33 +1,29 @@
-// domain/connection — FRONT DOOR: the only legal external import (domain-feature-front-door). Re-exports
-// the public surface:
-//   • createConnectionService — the factory the entry composition root wires.
-//   • the service contract + its DI bundle/deps types (transport/tests reference the service type).
-//   • the verb param/result shapes + the client-facing views.
-//   • the typed errors.
-// The cross-boundary types — ResolvedConnection, ModelCapability, ChatApi, CredentialSource, RoutingRoleKey,
-// ModelCatalogEntry, ChatModelId, DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID — live in
-// `@orb/contracts/connection`; callers (chat, buddy, workloads, transport, client) import them from there
-// directly, NOT through this door (§7.4 — one home, contracts is the cross-boundary node). The curated
-// `CHAT_MODELS` catalog + `getChatModel` are connection-internal (the `catalog/` subsystem) — never exported.
+// domain/connection — FRONT DOOR: the only legal external import (domain-feature-front-door). Re-exports the
+// public surface: the service factory + its contract, the runtime PORTS the composition root hands
+// `createInferenceRuntime`, the verb param/result shapes, the typed errors and the local-light seed. The
+// cross-boundary types (`UserConnection`, `ConnectionBinding`, `ResolvedConnectionView`, `Task`, …) live in
+// `@orb/contracts/inference`; callers import them from there directly, NOT through this door.
 
 export type { ConnectionContext } from "./context.ts";
-export {
-  AgentModelHealError,
-  AgentSdkCatalogUnavailableError,
-  CatalogUnavailableError,
-  ConnectionRoutingError,
-} from "./contract/errors.ts";
+export { CONNECTION_OP_CODES, ConnectionNotFoundError } from "./contract/errors.ts";
 export type {
-  GetCatalogParams,
-  GetGenerationCostParams,
-  GetOrCreditsParams,
+  BindingActorInput,
+  ConnectionDiagnosticParams,
+  ConnectionFields,
+  CreateConnectionParams,
+  ListEndpointModelsParams,
+  LocalLightSeedDeps,
   RefreshCatalogParams,
-  ResolveChatParams,
-  ResolveRoleParams,
-  RouteOverride,
-  TestClaudeAuthParams,
+  ResolveChatCapabilityParams,
+  ResolveTaskParams,
+  SetBindingParams,
+  UpdateConnectionParams,
 } from "./contract/params.ts";
-export type { AgentSdkCatalogSnapshot, CatalogSnapshot } from "./contract/results.ts";
-export type { ConnectionService, ConnectionWorkloadDeps, LocalEngineReachability } from "./contract/service.ts";
+export type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, ConnectionView, EndpointModelsResult } from "./contract/results.ts";
+export type { ConnectionService, ConnectionWorkloadDeps, EndpointAdmission } from "./contract/service.ts";
+export { seedLocalLightConnections } from "./persistence/local-light-seed.ts";
+export type { ConnectionPorts } from "./persistence/ports.ts";
+export { createConnectionPorts } from "./persistence/ports.ts";
 export { createConnectionService } from "./service.ts";
+export { toResolvedView } from "./substrate/resolved-view.ts";
 export { createConnectionWorkloadContributions } from "./workload-contributions.ts";

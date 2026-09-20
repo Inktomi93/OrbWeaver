@@ -5,8 +5,8 @@
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
 import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
+import type { Capability } from "@orb/contracts/inference";
+import type { Resolved } from "@orb/inference";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { assets, characters, chatEvents, chatParticipants, chatStreamEvents, chats, messages, messageVariants, pendingTurns, personas } from "@orb/db";
@@ -45,6 +45,7 @@ import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/s
 import { createChatTeachingContributions } from "../../../../packages/server/src/domain/chat/teaching-contribution.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeCapability, makeResolved, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 export const FROZEN_AT = FROZEN_AT_MS;
@@ -478,10 +479,10 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     applyStatsDelta: () => undefined,
     bumpStatsCanonVersion: () => undefined,
     summarize: notStubbed,
-    summarizerContextTokens: () => 32_000,
+    summarizerContextTokens: () => Promise.resolve(32_000),
     // The embed window the segment build measures each verbatim block against (#165). The production floor
     // (env.VLLM_EMBED_MAX_MODEL_LEN) so a test block only trips the skip when it is genuinely huge.
-    embedContextTokens: () => 8192,
+    embedContextTokens: () => Promise.resolve(8192),
     memorySummarizer: {},
     // The emit-op CONTRACT (PD-24): the op OWNS the commit of the producer's co-statements (the verb hands
     // them UNEXECUTED). The default fake honors that half (executes them; drops the event) so a membership
@@ -569,27 +570,15 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
   return { ...base, ...overrides };
 }
 
-/** The minimal `ModelCapability` shape the chat engine/verb int-tests inject — reasoning off, an 8k output
- *  ceiling, a 200k window. Byte-identical across the engine/service/turn/round/solo/pipeline suites (W1d hoist).
- *  FABRICATION-OK: only the fields the belts read are populated; the fake role never validates the full shape. */
-// @orb-waive no-test-fabrication(unknown): partial ModelCapability — only the belt-read fields are set (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-export const TEST_CAPABILITY = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
-  output: { maxTokens: { min: 1, max: 8192 } },
-  context: { window: 200_000 },
-} as unknown as ModelCapability;
+/** The chat engine/verb int-tests' generation capability — reasoning off, an 8k output ceiling, a 200k window.
+ *  Byte-identical across the engine/service/turn/round/solo/pipeline suites (W1d hoist); the `makeResolved`
+ *  factory's own default, named here so the suites keep one spelling. */
+export const TEST_CAPABILITY: Capability = makeCapability();
 
-/** A `ResolvedConnection` over `TEST_CAPABILITY` (`source` defaults to `"vllm"`). Byte-identical `connectionOf`
- *  in service/turn/engine.int (W1d hoist). */
-export function testConnection(source = "vllm", api: ResolvedConnection["api"] = "chat-completions"): ResolvedConnection {
-  return {
-    api,
-    model: castId<ModelId>("test-model"),
-    // @orb-waive no-test-fabrication(unknown): minimal ResolvedCredential double — only `.source` is read (§9 consent belt). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    credential: { source, credentialId: null } as unknown as ResolvedCredential,
-    capability: TEST_CAPABILITY,
-  };
+/** A `Resolved<"chat">` over `TEST_CAPABILITY` (the keyless `custom-openai` endpoint row by default).
+ *  Byte-identical `connectionOf` in service/turn/engine.int (W1d hoist). */
+export function testConnection(providerId = TEST_PROVIDER_ID, api: Resolved["api"] = "chat-completions"): Resolved<"chat"> {
+  return makeResolved({ providerId, api, capability: TEST_CAPABILITY });
 }
 
 /** A scripted role turn that captures each `TurnRequest` into `sink` then yields a fixed `"reply"` text delta +
@@ -610,7 +599,7 @@ export function scriptedRoleTurn(sink: TurnRequest[]): ChatContext["runChatTurn"
  *  ONE home for the stub (the managed-compaction suite wires the REAL core). Returns an idempotent no-op result. */
 export const stubRunCompaction = (_args: {
   readonly chatId: ChatId;
-  readonly connection: ResolvedConnection;
+  readonly connection: Resolved<"chat">;
   readonly ownerId: UserId;
   readonly coveragePoint?: number | undefined;
   readonly instructions?: string | undefined;

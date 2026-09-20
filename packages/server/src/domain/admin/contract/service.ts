@@ -1,4 +1,4 @@
-// The typed API surface: AdminContext (the DI bundle), SessionAdminPort/VllmSupervisorPort/EmbedProducerPort
+// The typed API surface: AdminContext (the DI bundle), SessionAdminPort/EmbedProducerPort
 // (dependency-inversion ports into sibling domains), and AdminService (the verb interface). Every
 // cross-feature/infra dep arrives as an injected op — admin sideways-imports nothing.
 
@@ -15,12 +15,10 @@ import type {
   ListSessionsParams,
   ListUsersParams,
   ResetPasswordParams,
-  RestartVllmEngineParams,
   RevokeSessionParams,
   RevokeUserSessionsParams,
   SetEnabledParams,
   SetRoleParams,
-  VllmEnginesParams,
 } from "./params.ts";
 import type {
   CreateUserResult,
@@ -31,9 +29,8 @@ import type {
   SetEnabledResult,
   SetRoleResult,
   UnclaimedLinkOutcome,
-  VllmEnginesResult,
 } from "./results.ts";
-import type { AdminEngineStatus, SessionAdminView } from "./views.ts";
+import type { SessionAdminView } from "./views.ts";
 
 /** The session-management slice admin needs — satisfied structurally by the real `SessionsService` at the
  *  composition root. Not re-exported from the front door — a private port. */
@@ -64,13 +61,6 @@ interface SessionAdminPort {
   readonly settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown) => Promise<UnclaimedLinkOutcome>;
 }
 
-/** The vLLM-supervisor slice admin needs — satisfied at the root by mapping `infra/providers`' supervisor
- *  handle into this shape. */
-interface VllmSupervisorPort {
-  readonly allEngineStatuses: () => Record<string, AdminEngineStatus>;
-  readonly restartEngine: (engine: string) => Promise<string>;
-}
-
 /** The inline-embed slice admin needs — composed at the root from `character` and `embeddings`. Resolves
  *  `false` when the caller doesn't own the character, it's gone, or it has no embeddable text. */
 interface EmbedProducerPort {
@@ -85,7 +75,7 @@ export interface AdminContext {
   readonly newUserId: () => UserId;
   readonly hashPassword: (plain: string) => Promise<string>;
   /** The BEST-EFFORT audit channel (`logAudit`: suppress → count → drop) — correct for the read-ish and
-   *  advisory verbs (`listSessions`/`revokeSession`/`vllm`/`embed`), where a degraded audit channel must not
+   *  advisory verbs (`listSessions`/`revokeSession`/`embed`), where a degraded audit channel must not
    *  break the action. NOT for a privileged durable write: those take
    *  {@link AdminContext.auditStatementAfterWrite} (#1691, and #1707 for `linkSsoIdentity` — an SSO BIND is
    *  a durable identity write, so it left this channel). */
@@ -124,7 +114,6 @@ export interface AdminContext {
    */
   readonly emitUserEvent: EmitUserEvent;
   readonly sessions: SessionAdminPort;
-  readonly vllm: VllmSupervisorPort;
   readonly embed: EmbedProducerPort;
 }
 
@@ -142,8 +131,5 @@ export interface AdminService {
   readonly listSessions: (params: ListSessionsParams) => Promise<ListSessionsResult>;
   readonly revokeSession: (params: RevokeSessionParams) => Promise<void>;
   readonly revokeUserSessions: (params: RevokeUserSessionsParams) => Promise<RevokeUserSessionsResult>;
-  readonly vllmEngines: (params: VllmEnginesParams) => Promise<VllmEnginesResult>;
-  /** Returns the supervisor's own free-form line — prose for a toast, not an identifier (see results.ts). */
-  readonly restartVllmEngine: (params: RestartVllmEngineParams) => Promise<string>;
   readonly embedCharacterCard: (params: EmbedCharacterCardParams) => Promise<void>;
 }

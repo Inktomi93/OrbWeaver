@@ -4,7 +4,8 @@
 // can't edit — doc 03 §3) → steps 8-12 the shared generation tail (`runGeneration`). The store-then-provenance
 // GC ordering + materialization live in `generate-core` (one home, shared with `editImage`).
 
-import type { ModelCapability } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
+import { acceptsImageEdit } from "@orb/contracts/inference";
 import type { CharacterId } from "@orb/kit/ids";
 import { ImageryNotConfiguredError } from "../contract/errors.ts";
 import type { GeneratePictureParams } from "../contract/params.ts";
@@ -45,7 +46,7 @@ interface AvatarReference {
 async function avatarReferenceGate(
   ctx: ImageryContext,
   p: GeneratePictureParams,
-  resolution: { readonly model: string; readonly capability: ModelCapability },
+  resolution: { readonly model: string; readonly capability: GenerationCapability },
   subjectCharacterId: CharacterId | null,
 ): Promise<{ readonly edit: AvatarReference | undefined; readonly warnings: readonly ImageryWarning[] }> {
   if (p.useAvatarReference !== true || subjectCharacterId === null) {
@@ -55,7 +56,7 @@ async function avatarReferenceGate(
   if (card.avatarAssetId === null) {
     return { edit: undefined, warnings: [] };
   }
-  if (resolution.capability.input?.imageEdit !== true) {
+  if (!acceptsImageEdit(resolution.capability)) {
     return {
       edit: undefined,
       warnings: [{ code: "image_edit_dropped", detail: `${resolution.model} lacks image-edit; generated without the avatar reference` }],
@@ -187,7 +188,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
     const outcome = await runGeneration(
       ctx,
       {
-        credential: resolution.connection.credential,
+        connection: resolution.connection,
         model: resolution.connection.model,
         owner: p.caller.userId,
         prompt,

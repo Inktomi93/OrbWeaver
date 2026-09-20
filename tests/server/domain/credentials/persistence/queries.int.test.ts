@@ -3,6 +3,7 @@
 // promote, owner-scoped delete, and the revoke/clear stamps.
 
 import type { UserCredentialId } from "@orb/kit/ids";
+import type { ProviderId } from "@orb/contracts/inference";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { aadFor } from "../../../../../packages/server/src/domain/credentials/persistence/aad.ts";
@@ -12,8 +13,6 @@ import {
   fetchOwnedCredential,
   insertSealed,
   listOwnedCredentials,
-  loadActiveCredential,
-  promoteActive,
   setRevokedById,
   toCredentialView,
 } from "../../../../../packages/server/src/domain/credentials/persistence/queries.ts";
@@ -23,6 +22,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const box = createSecretBox(Buffer.alloc(32, 7));
+const OPENROUTER = castId<ProviderId>("openrouter");
 const FROZEN_AT = 1_750_000_000_000;
 let counter = 0;
 function nextId(): UserCredentialId {
@@ -38,11 +38,10 @@ describe("persistence/queries", () => {
     await insertSealed(db, {
       id,
       ownerId: owner,
-      provider: "openrouter",
+      provider: OPENROUTER,
       label: "default",
-      sealed: box.encrypt("sk-secret", aadFor(owner, "openrouter")),
+      sealed: box.encrypt("sk-secret", aadFor(owner, OPENROUTER)),
       metadata: null,
-      active: true,
       now: FROZEN_AT,
     });
     const row = await fetchOwnedCredential(db, owner, id);
@@ -54,7 +53,7 @@ describe("persistence/queries", () => {
     expect(view).not.toHaveProperty("ciphertext");
     expect(view).not.toHaveProperty("iv");
     expect(view).not.toHaveProperty("tag");
-    expect(view).toMatchObject({ id, provider: "openrouter", active: true });
+    expect(view).toMatchObject({ id, provider: "openrouter" });
   });
 
   test("fetchOwnedCredential is owner-scoped (a non-owner gets undefined)", async () => {
@@ -65,79 +64,17 @@ describe("persistence/queries", () => {
     await insertSealed(db, {
       id,
       ownerId: alice,
-      provider: "openrouter",
+      provider: OPENROUTER,
       label: "default",
-      sealed: box.encrypt("k", aadFor(alice, "openrouter")),
+      sealed: box.encrypt("k", aadFor(alice, OPENROUTER)),
       metadata: null,
-      active: true,
       now: FROZEN_AT,
     });
     expect(await fetchOwnedCredential(db, bob, id)).toBeUndefined();
     expect(await fetchOwnedCredential(db, alice, id)).toBeDefined();
   });
 
-  test("promoteActive enforces one-active-per-(owner,provider)", async () => {
-    const db = await freshDb();
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const a = nextId();
-    const b = nextId();
-    await insertSealed(db, {
-      id: a,
-      ownerId: owner,
-      provider: "openrouter",
-      label: "a",
-      sealed: box.encrypt("ka", aadFor(owner, "openrouter")),
-      metadata: null,
-      active: true,
-      now: FROZEN_AT,
-    });
-    await insertSealed(db, {
-      id: b,
-      ownerId: owner,
-      provider: "openrouter",
-      label: "b",
-      sealed: box.encrypt("kb", aadFor(owner, "openrouter")),
-      metadata: null,
-      active: false,
-      now: FROZEN_AT,
-    });
-    await promoteActive(db, {
-      ownerId: owner,
-      credentialId: b,
-      provider: "openrouter",
-      now: FROZEN_AT,
-    });
-    const active = await loadActiveCredential(db, owner, "openrouter");
-    expect(active?.id).toBe(b);
-    const all = await listOwnedCredentials(db, owner);
-    expect(all.filter((r) => r.active)).toHaveLength(1);
-  });
-
   // The promote leg is owner-scoped in its OWN where, not just by the verb that calls it: naming a stranger's
-  // credentialId must move zero rows. Without the predicate the batch flips a foreign row active — a
-  // cross-tenant write that would also silently break that owner's one-active-per-slot invariant.
-  test("promoteActive cannot activate a credential the ownerId does not own", async () => {
-    const db = await freshDb();
-    const alice = await seedUser(db, { id: "user_a", role: "user" });
-    const bob = await seedUser(db, { id: "user_b", role: "user" });
-    const theirs = nextId();
-    await insertSealed(db, {
-      id: theirs,
-      ownerId: bob,
-      provider: "openrouter",
-      label: "bob",
-      sealed: box.encrypt("kb", aadFor(bob, "openrouter")),
-      metadata: null,
-      active: false,
-      now: FROZEN_AT,
-    });
-
-    await promoteActive(db, { ownerId: alice, credentialId: theirs, provider: "openrouter", now: FROZEN_AT });
-
-    expect((await fetchOwnedCredential(db, bob, theirs))?.active).toBe(false);
-    expect(await loadActiveCredential(db, bob, "openrouter")).toBeUndefined();
-  });
-
   test("revoke then clear round-trips the revoked_at + revoked_reason PAIR", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { id: "user_o", role: "user" });
@@ -145,11 +82,10 @@ describe("persistence/queries", () => {
     await insertSealed(db, {
       id,
       ownerId: owner,
-      provider: "openrouter",
+      provider: OPENROUTER,
       label: "default",
-      sealed: box.encrypt("k", aadFor(owner, "openrouter")),
+      sealed: box.encrypt("k", aadFor(owner, OPENROUTER)),
       metadata: null,
-      active: true,
       now: FROZEN_AT,
     });
     expect(await setRevokedById(db, { ownerId: owner, credentialId: id, revokedAt: FROZEN_AT, reason: "auth_failed" })).toEqual([{ id }]);
@@ -171,11 +107,10 @@ describe("persistence/queries", () => {
     await insertSealed(db, {
       id,
       ownerId: bob,
-      provider: "openrouter",
+      provider: OPENROUTER,
       label: "default",
-      sealed: box.encrypt("k", aadFor(bob, "openrouter")),
+      sealed: box.encrypt("k", aadFor(bob, OPENROUTER)),
       metadata: null,
-      active: true,
       now: FROZEN_AT,
     });
 
@@ -191,11 +126,10 @@ describe("persistence/queries", () => {
     await insertSealed(db, {
       id,
       ownerId: alice,
-      provider: "openrouter",
+      provider: OPENROUTER,
       label: "default",
-      sealed: box.encrypt("k", aadFor(alice, "openrouter")),
+      sealed: box.encrypt("k", aadFor(alice, OPENROUTER)),
       metadata: null,
-      active: true,
       now: FROZEN_AT,
     });
     await deleteOwnedCredential(db, bob, id);

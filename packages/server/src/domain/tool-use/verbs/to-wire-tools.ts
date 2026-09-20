@@ -4,7 +4,7 @@
 // cares). The translators wrap these in their own dialect envelopes (`{type:"function",…}`) — this
 // verb emits the neutral contract shape.
 
-import type { WireTool } from "#infra/providers";
+import type { WireTool } from "@orb/inference";
 import type { ResolvedToolSet } from "../contract/results.ts";
 
 export function createToWireTools(): (set: ResolvedToolSet) => readonly WireTool[] {

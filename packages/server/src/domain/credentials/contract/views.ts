@@ -2,15 +2,16 @@
 // field (ciphertext/iv/tag) or the plaintext key; toCredentialView in persistence/queries.ts is the only
 // projection that produces it. Domain-internal (client gets it by tRPC inference, not a deep import).
 
-import type { CredentialProvider, CredRevokedReason } from "@orb/contracts/credentials";
+import type { CredRevokedReason } from "@orb/contracts/credentials";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 
 export interface CredentialView {
   readonly id: UserCredentialId;
-  readonly provider: CredentialProvider;
+  /** The provider REGISTRY id the key was sealed for (half the AAD). */
+  readonly provider: ProviderId;
   /** Nullable at the column; add always writes one (default "default"). */
   readonly label: string | null;
-  readonly active: boolean;
   readonly hasMetadata: boolean;
   readonly revokedAt: number | null;
   /** WHY it was revoked, so the Connections pane can say which of the three things happened instead of a

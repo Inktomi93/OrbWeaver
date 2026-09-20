@@ -148,6 +148,7 @@ export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {
   MacroFreezeRecord,
+  MessageAssetOrigin,
   MessageSlot,
   MessageView,
   ReattributeScope,
@@ -157,12 +158,16 @@ export type {
   UserMacroDraws,
   VariablePrecondition,
   VariableWriteResult,
+  VariantMetadata,
+  VariantProviderMetadata,
 } from "./messages.ts";
 export {
   CHAT_MESSAGE_LIST_MAX_LIMIT,
   combineTokenProvenance,
+  MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
   macroFreezeSchema,
+  messageAssetOriginSchema,
   messageSlotSchema,
   reattributeScopeSchema,
   standaloneVariableDeltaSchema,
@@ -175,6 +180,8 @@ export {
   variableDeltaSchema,
   variablePreconditionSchema,
   variablePreconditionsSchema,
+  variantMetadataSchema,
+  variantProviderMetadataSchema,
   varOpSchema,
 } from "./messages.ts";
 export type {

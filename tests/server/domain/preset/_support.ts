@@ -4,7 +4,7 @@
 // real injected dep, not an internal-module mock. Seeds the `users` FK parent directly (presets.ownerId
 // RESTRICT-references it); preset's OWN code never touches `users` (the no-direct-users-read chokepoint).
 
-import type { ResolvedChatCapability } from "@orb/contracts/connection";
+import type { ResolvedConnectionView } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -13,7 +13,7 @@ import type { Handle, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PresetContext } from "../../../../packages/server/src/domain/preset/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeResolvedChatCapability } from "../../../support/factories/resolved-connection.ts";
+import { makeResolvedView } from "../../../support/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
@@ -32,7 +32,7 @@ export interface PresetHarness {
 /** Build a harness whose injected chat-capability op answers with `capability` (the `resolveEffective`
  *  fixtures) — a real injected dep at the root, never a module mock. */
 export interface HarnessOptions {
-  readonly capability?: ResolvedChatCapability;
+  readonly capability?: ResolvedConnectionView;
   /** The injected backward-bindings read (`listUsage`). Unstubbed it THROWS — a verb that reached it
    *  without a test saying so would otherwise pass on a silent empty. */
   readonly resolvePresetUsage?: PresetContext["resolvePresetUsage"];
@@ -90,7 +90,7 @@ export function makeHarness(db: Db, options: HarnessOptions = {}): PresetHarness
     },
     // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
     emitUserEvent: (): void => undefined,
-    resolveChatCapability: (): Promise<ResolvedChatCapability> => Promise.resolve(options.capability ?? makeResolvedChatCapability()),
+    resolveChatCapability: (): Promise<ResolvedConnectionView> => Promise.resolve(options.capability ?? makeResolvedView()),
     resolvePresetUsage:
       options.resolvePresetUsage ??
       ((): never => {

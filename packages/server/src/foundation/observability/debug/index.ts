@@ -45,7 +45,6 @@ export {
   type SocketInspector,
   toDebugLimit,
   tokenMatches,
-  type VllmMetricsInspector,
 } from "./routes.ts";
 export {
   isWireCaptureEnabled,

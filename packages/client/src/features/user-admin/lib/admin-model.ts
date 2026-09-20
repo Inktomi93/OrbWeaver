@@ -44,35 +44,10 @@ export const ROLE_BADGE_INTENT: Record<UserRole, NonNullable<BadgeProps["intent"
   user: "neutral",
 };
 
-/** Engine-row status → badge intent. The map covers BOTH tiers this panel lists: the supervised vLLM engines
- *  and the in-process local-light model slots (`queued`/`downloading`/`ready`/`failed`), whose rows arrive on
- *  the same read. Unknown states default to danger — never silently healthy. */
-export function engineBadgeIntent(status: string): NonNullable<BadgeProps["intent"]> {
-  if (status === "adopted" || status === "owned" || status === "ready") {
-    return "success";
-  }
-  // sleeping / sleeping-held are healthy-but-idle (weights on CPU, scheduler paused) — NOT an error;
-  // an on-demand request wakes them. Distinct from the warming/warning states.
-  if (status === "sleeping" || status === "sleeping-held") {
-    return "info";
-  }
-  // `downloading`/`queued` are the local-light warm-up in flight — transitional like `starting`, and a
-  // several-minute state on a first boot, so it must not read as a fault.
-  if (status === "starting" || status === "stack-pending" || status === "down" || status === "downloading" || status === "queued") {
-    return "warning";
-  }
-  return "danger"; // hung / failed / foreign / anything new
-}
-
 // The Admin pane's ACCESSIBLE-NAME builders. Every per-row control here repeats the row's handle (or the
-// engine key) because the pane renders N otherwise-identical controls, and an unqualified name would hand a
+// handle) because the pane renders N otherwise-identical controls, and an unqualified name would hand a
 // reader N identical subjects. They are exported — and the specs IMPORT them rather than re-spelling the
 // literal — so a copy change is a compile error rather than a locator that silently stops matching (#2261).
-
-/** The per-engine Restart button. `Restart engine — vllm-chat`. */
-export function restartEngineName(engine: string): string {
-  return `Restart engine — ${engine}`;
-}
 
 /** One user row's ⋯ trigger. `kes actions` — the pane's own grammar, not the library `Actions for <x>`. */
 export function userActionsName(handle: Handle): string {

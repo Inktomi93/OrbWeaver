@@ -26,6 +26,7 @@ import { PLUGIN_ASSET_READ_MAX_BYTES, pluginToolWireName } from "@orb/contracts/
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
+import type { RoleClientsWithSignal } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -84,7 +85,6 @@ import type { WorldInfoService } from "#domain/world-info";
 import { superviseDetached } from "#foundation/observability";
 import { fetchPluginBundle } from "#infra/network";
 import { createPluginHost } from "#infra/plugin-host";
-import type { RoleClientsWithSignal } from "#infra/providers";
 import { publishAutomationEvent, publishNotification, publishUserEvent } from "../../transport/trpc/index.ts";
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
@@ -136,7 +136,8 @@ export interface AutomationPluginComposeDeps {
    *  authority is its room's roster and needs none of this; a chat-less rule has no roster, so the account
    *  itself is the only standing fact left to re-prove per fire. */
   readonly sessions: Pick<SessionsService, "loadUserById">;
-  readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClientsWithSignal>;
+  /** The per-FUNDER role-client binder (§8.5b): a rule spends its AUTHOR's rows, a plugin its INSTALLER's. */
+  readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   /** The process-wide PLUGIN-MACRO registry (plugin-ui-plane §5.15, U6) — minted at the composition ROOT and
    *  handed to BOTH this plane (which writes it at activation) and chat's compose (which reads it per turn as
    *  `ChatContext.pluginMacros`). Minted there rather than here purely because chat composes FIRST: one shared
@@ -201,7 +202,7 @@ function buildQuietResponseFormat(schema: PluginQuietSchema): ResponseFormat {
 }
 
 export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): Promise<AutomationPluginComposeResult> {
-  const { db, now, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, bindRoleClients, pluginMacros } = deps;
+  const { db, now, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, roleClientsFor, pluginMacros } = deps;
   /** The VISION arm of the U6 `llm.quiet` widening: guest-named asset ids → bytes, read under the INSTALLER's
    *  OWN Principal (`readOwnedAssetBytes`), which is the whole wall — a guest can name an id but it can only
    *  ever reach an asset its installer owns, and a foreign/absent id THROWS rather than being dropped (a
@@ -366,17 +367,15 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     },
     // The generic quiet-LLM op (C1 widened it from the /autobg-only shape): the DOMAIN owns the prompt text
     // and names its `SIDE_GEN_POSTURES` floor per call; this seam owns only the wire — resolve the author's
-    // role clients by ROW READ, fold their preset params over the named floor, and pass an optional
-    // `responseFormat` through the summarize facade, which routes a constrained call to the STRUCTURED role
-    // (role-clients.ts — the one facade, two wire roles). A user with no preset params gets the floor
-    // byte-identically.
+    // role clients, fold their preset params over the named floor, and DISPATCH on the optional
+    // `responseFormat`: present ⇒ `structured`, absent ⇒ `summarize` (the ONE place the deleted facade sniff
+    // is legitimately re-homed — this contract makes the field optional, `/autobg` passes none; inference
+    // program §13 row 2). A user with no preset params gets the floor byte-identically.
     summarizeQuiet: async ({ authorUserId, systemPrompt, prompt, posture, responseFormat }) => {
-      const rc = await bindRoleClients(authorUserId);
-      const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUserPresetParams(authorUserId));
-      const res = await rc.summarize([{ systemPrompt, userPrompt: prompt }], {
-        ...toSummarizeOptions(sampling),
-        ...(responseFormat !== undefined ? { responseFormat } : {}),
-      });
+      const rc = await roleClientsFor(authorUserId);
+      const sampling = toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUserPresetParams(authorUserId)));
+      const inputs = [{ systemPrompt, userPrompt: prompt }];
+      const res = responseFormat === undefined ? await rc.summarize(inputs, sampling) : await rc.structured(inputs, { ...sampling, responseFormat });
       const item = res.items[0];
       return { text: (item?.text ?? "").trim() };
     },
@@ -684,15 +683,15 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // downgrade to an unconstrained/imageless generation the plugin would then mis-read as its answer.
     llm: {
       quiet: async ({ installerUserId, prompt, signal, opts }) => {
-        const rc = await bindRoleClients(installerUserId);
+        const rc = await roleClientsFor(installerUserId);
         const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, await deps.resolveUserPresetParams(installerUserId));
         const images = await resolveQuietImages(installerUserId, opts?.imageAssetIds);
+        // The SCHEMA arm (§5.9-2): a schema names `structured` on the grant's `summarize` binding; no schema
+        // is prose `summarize` — the explicit two-arm dispatch, never a sniffed option.
         const responseFormat = opts?.schema === undefined ? undefined : buildQuietResponseFormat(opts.schema);
-        const res = await rc.summarize([{ systemPrompt: PLUGIN_QUIET_SYSTEM, userPrompt: prompt, ...(images.length > 0 ? { images } : {}) }], {
-          ...toSummarizeOptions(posture),
-          signal,
-          ...(responseFormat !== undefined ? { responseFormat } : {}),
-        });
+        const inputs = [{ systemPrompt: PLUGIN_QUIET_SYSTEM, userPrompt: prompt, ...(images.length > 0 ? { images } : {}) }];
+        const sampling = { ...toSummarizeOptions(posture), signal };
+        const res = responseFormat === undefined ? await rc.summarize(inputs, sampling) : await rc.structured(inputs, { ...sampling, responseFormat });
         return { text: (res.items[0]?.text ?? "").trim() };
       },
     },
@@ -757,7 +756,12 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // the membrane).
     search: {
       documents: async ({ installerUserId, queryText, limit }) => {
-        const hits = await deps.search.documents({ scope: { ownerId: installerUserId }, queryText, ...(limit !== undefined ? { k: limit } : {}) });
+        const hits = await deps.search.documents({
+          scope: { ownerId: installerUserId },
+          ownerId: installerUserId,
+          queryText,
+          ...(limit !== undefined ? { k: limit } : {}),
+        });
         return hits.map((hit) => ({
           documentId: hit.documentId,
           documentName: hit.documentName,

@@ -12,24 +12,21 @@
 // half — which is exactly why it MUST stay the canonical enum (a slot move = a GCM decrypt failure).
 // The secret material lives in `ciphertext`/`iv`/`tag`; `CredentialView` never exposes them.
 //
-// one-active-per-(user,provider): a PARTIAL UNIQUE index on (owner_id, provider) WHERE active — at most
-// one active credential per user per provider; `setActive` flips the flag, inactive rows coexist (the
-// health UI probes them by id).
+// UNDER CONNECTIONS-AS-THE-UNIT (inference program §5.3, F7): the `provider` column is becoming the provider
+// REGISTRY id (a string validated at the domain, CHECK-free — plugin rows are runtime data) and WHICH key
+// resolves is the CONNECTION's `credentialId`, never an active-per-slot flag. So the SQL-level `provider`
+// CHECK and the `(owner_id, provider) WHERE active` partial unique are GONE from the DDL here. The `active`
+// column and the `{ enum: CRED_PROVIDERS }` typing survive only until the credentials domain's cut-over
+// (`loadActiveCredential`/`setActive` still read them); that lane deletes both. A credential row is a sealed
+// secret with a label; connections give it meaning.
 
 import type { ProviderMetadata } from "@orb/contracts/credentials";
-import { CRED_PROVIDERS, CRED_REVOKED_REASONS } from "@orb/contracts/credentials";
+import { CRED_REVOKED_REASONS } from "@orb/contracts/credentials";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "../kit/check-list.ts";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { users } from "./users.ts";
-
-// A freshly-added credential is active (the domain's `add`/`upsert` deactivates any prior active row
-// for the same slot first; the partial unique index below is the backstop).
-const DEFAULT_ACTIVE = true;
-// CHECK list derived from the canonical tuple (NOT re-spelled): `provider in ('openrouter', …)`.
-// A static fragment because a CHECK is DDL and cannot carry bound parameters (mirrors users.ts).
-const PROVIDER_CHECK_LIST = checkList(CRED_PROVIDERS);
 
 export const userCredentials = sqliteTable(
   "user_credentials",
@@ -41,15 +38,14 @@ export const userCredentials = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    // Derives CRED_PROVIDERS (the STORAGE axis). The `enum` option is type-only; the CHECK below is the
-    // SQL-level guard.
-    provider: text("provider", { enum: CRED_PROVIDERS }).notNull(),
+    // The provider REGISTRY id (`ProviderId`, inference program §5.3c class 2) — validated at the domain against
+    // the registry, CHECK-free because plugin rows are runtime data. It is HALF THE AAD, so a respelling
+    // orphans the ciphertext by construction.
+    provider: text("provider").$type<ProviderId>().notNull(),
     // AES-256-GCM at-rest secret material (AAD = `${userId}|${provider}`, supplied by the domain).
     ciphertext: text("ciphertext").notNull(),
     iv: text("iv").notNull(),
     tag: text("tag").notNull(),
-    // The one-active-per-(owner,provider) flag (enforced by the partial unique index).
-    active: integer("active", { mode: "boolean" }).notNull().default(DEFAULT_ACTIVE),
     // Set when the credential is revoked; null = live. THE POLICY (#1373, wired end to end — adapter
     // `ProviderErrorKind` → post-generation hook → this row → the Connections pane): ONE provider
     // `auth_failed` revokes (there is no strike COUNTER on this table and none is wanted — a key the
@@ -74,9 +70,5 @@ export const userCredentials = sqliteTable(
   (table) => [
     // Owner-scoped reads (fetchOwned / list).
     index("user_credentials_owner_idx").on(table.ownerId),
-    // one-active-per-(user,provider): SQLite UNIQUE ignores rows failing the WHERE predicate, so any
-    // number of inactive rows for a slot coexist with the single active one.
-    uniqueIndex("user_credentials_active_unique").on(table.ownerId, table.provider).where(sql`${table.active} = 1`),
-    check("user_credentials_provider_check", sql.raw(`provider in (${PROVIDER_CHECK_LIST})`)),
   ],
 );

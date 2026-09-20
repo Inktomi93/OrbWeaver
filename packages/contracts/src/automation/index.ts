@@ -704,7 +704,8 @@ const triggerFactPayloadSchema = z.object({
     .object({
       intent: z.string(),
       api: z.string(),
-      source: z.string(),
+      // The provider REGISTRY id the turn ran on (inference program §5.3b — was the retired `source` word).
+      provider: z.string(),
       model: z.string(),
       // @orb-waive no-raw-id(speakerCharacterId): guest-marshalled predicate data crosses the sandbox as an unbranded structured-clone string. Ends if the membrane validates canonical brands before cloning.
       speakerCharacterId: z.string().nullable(),

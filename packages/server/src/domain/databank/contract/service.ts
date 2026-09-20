@@ -74,12 +74,17 @@ type EnsureChatHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;
  *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
 type EnsureChatMemberOp = (principal: Principal, chatId: ChatId) => Promise<void>;
 
-/** The active embed space `(model, dim)` the chunk-store arm tags rows with. Box-global (a model change is a
- *  box-level event), so a boot constant — the same space `embeddings.store` writes into. */
+/** The active embed space `(model, dim)` the chunk-store arm tags rows with — PER OWNER (the owner's `embed`
+ *  binding defines it, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed into,
+ *  and every chunk-count read answers zero through {@link NO_EMBED_SPACE_MODEL}. */
 interface ActiveEmbedSpace {
   readonly model: string;
   readonly dim: number;
 }
+
+/** The model tag a count read uses when the owner has NO space: no stored chunk ever carries the empty tag, so
+ *  the read is honestly zero without a second query shape. */
+export const NO_EMBED_SPACE_MODEL = "";
 
 /** Read a user's databank settings (chunk params + retrieval knobs). v1 returns the schema defaults (ST's
  *  bank-wide values); the per-user override lands with the Phase-6 panel. */
@@ -135,7 +140,7 @@ export interface DatabankContext {
   readonly extractorVersion: string;
   /** The web-document fetch (DB7 scrapeWeb) — the ANY_HOST safeFetch guard, allowlist + cap compose-bound. */
   readonly fetchUrl: SafeFetchOp;
-  readonly getActiveEmbedSpace: () => ActiveEmbedSpace;
+  readonly getActiveEmbedSpace: (ownerId: UserId) => Promise<ActiveEmbedSpace | null>;
   readonly getDatabankSettings: GetDatabankSettingsOp;
   readonly enqueueIngest: EnqueueIngestOp;
   readonly enqueueReindex: EnqueueReindexOp;

@@ -1,113 +1,103 @@
-// support/factories/resolved-connection — typed builders for the provider-turn value objects tests
-// fabricated ~200 times via `as unknown as X` (test-support-dry-punchlist §5, W1h). The point of these
-// factories is the TYPED RETURN: a new required field on `ModelCapability`/`ResolvedConnection` becomes a
-// compile error HERE (one place) instead of silently passing every fabricated literal.
+// support/factories/resolved-connection — typed builders for the resolved-connection value objects tests
+// used to fabricate via `as unknown as X` (test-support-dry-punchlist §5, W1h). The point of these factories
+// is the TYPED RETURN: a new required field on `GenerationCapability` / `Resolved` becomes a compile error
+// HERE (one place) instead of silently passing every fabricated literal.
 //
-//   • makeModelCapability — parsed through the real `modelCapabilitySchema`, so a new required schema key
-//     errors at the default literal below (not silently absent in 30 test files).
-//   • makeResolvedCredential — `ResolvedCredential` is BRAND-PROTECTED (contracts/credentials §128: the only
-//     legit producer is the domain mint factory), so it is UN-buildable without a cast. The cast is
-//     encapsulated here ONCE; the typed input keeps the shape honest for the keyless routing markers
-//     (vllm/local-light/max-pro-sub) that ~150 sites fabricate. Keyed variants (openrouter/custom_openai)
-//     keep bespoke construction — they carry secrets a blanket default shouldn't invent.
-//   • makeResolvedConnection — composes the three; `api`/`model` default to the vLLM chat routing marker.
+//   • makeGenerationCapability — parsed through the real `generationCapabilitySchema`, so a new required
+//     schema key errors at the default literal below (not silently absent in 30 test files).
+//   • makeCapability — the KIND union over a generation descriptor (what `Resolved.capability` carries).
+//   • makeResolvedSecret — `ResolvedSecret` is BRAND-PROTECTED (contracts/credentials: the only legit producer
+//     is the credentials domain's resolve factory), so it is UN-buildable without a cast. The cast is
+//     encapsulated here ONCE; the typed input keeps the shape honest.
+//   • makeResolved — a server-side `Resolved<T>` over a BUILT-IN provider row (default: `custom-openai`, the
+//     open BYO endpoint, keyless — the closest thing to the retired keyless vLLM marker every chat harness
+//     used to default to). `generation` is the convenience override for the chat-shaped capability.
+//   • makeResolvedView — the credential-free `ResolvedConnectionView` (`connection.resolveChatCapability`).
 
-import type { ChatApi, ModelCapability, ResolvedChatCapability, ResolvedConnection } from "@orb/contracts/connection";
-import { modelCapabilitySchema } from "@orb/contracts/connection";
-import type { CustomOpenAiCredential, OpenRouterCredential, ResolvedCredential } from "@orb/contracts/credentials";
-import type { ModelId, UserCredentialId } from "@orb/kit/ids";
+import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credentials";
+import type { Capability, GenerationCapability, ResolvedConnectionView, Task } from "@orb/contracts/inference";
+import { builtinProvider, foldFeatures, generationCapabilitySchema, requirementMet, taskDef } from "@orb/contracts/inference";
+import type { Resolved } from "@orb/inference";
+import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
-/** The keyless routing-marker sources — the credential arms carrying no secret, so a blanket default is
- *  safe (vllm/local-light/max-pro-sub all reduce to `{ source, credentialId: null }`). Tuple-declared (not
- *  an inline union) per §7.5 no-inline-union-redecl. */
-export const KEYLESS_SOURCES = ["vllm", "local-light", "max-pro-sub"] as const;
-export type KeylessSource = (typeof KEYLESS_SOURCES)[number];
+/** The default keyless endpoint provider a test connection resolves through. */
+export const TEST_PROVIDER_ID = "custom-openai";
+export const TEST_BASE_URL = "http://127.0.0.1:8703/v1";
+export const TEST_OWNER_ID: UserId = castId<UserId>("user_test_owner");
+export const TEST_CONNECTION_ID: UserConnectionId = castId<UserConnectionId>("user_connection_test0001");
 
-/** FABRICATION-OK brand cast — the ONE sanctioned place outside the domain mint (contracts/credentials
- *  §128); `ResolvedCredential` is brand-protected and unforgeable, so every `make*` builder below routes
- *  its fully-typed input through this single cast. The builders' typed parameters keep each shape honest;
- *  a missing/renamed public field breaks the object literal HERE, not silently in 150 test files. */
-function brand<C extends ResolvedCredential>(value: Omit<C, keyof CredentialBrandMarker>): C {
-  // @orb-waive no-test-fabrication(unknown): the ONE sanctioned brand cast (see the JSDoc above) — ResolvedCredential is unforgeable. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  return value as unknown as C;
-}
-// The contracts brand is a phantom `unique symbol` we can't name here; this local mirror lets `Omit` drop
-// it from the builder's input shape so callers pass ONLY the real public fields. (No runtime effect.)
-interface CredentialBrandMarker {
-  readonly [brandKey: symbol]: unknown;
+/** FABRICATION-OK brand cast — the ONE sanctioned place outside the domain mint; `ResolvedSecret` is
+ *  brand-protected and unforgeable, so every builder routes its fully-typed input through this single cast. */
+export function makeResolvedSecret(kind: ResolvedSecretKind = "none", secret: string | null = null, credentialId: UserCredentialId | null = null): ResolvedSecret {
+  // @orb-waive no-test-fabrication(unknown): the ONE sanctioned brand cast (see the JSDoc above) — ResolvedSecret is unforgeable. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  return { kind, secret, credentialId } as unknown as ResolvedSecret;
 }
 
-/** A brand-protected keyless `ResolvedCredential` (default `vllm`). The keyless W1h fix so ~150 call sites
- *  drop their own `as unknown as` and import this. */
-export function makeResolvedCredential(source: KeylessSource = "vllm"): ResolvedCredential {
-  return brand<ResolvedCredential>({ source, credentialId: null });
+/** A brand-protected KEYED `apiKey` secret (the hosted-row shape). */
+export function makeApiKeySecret(secret = "sk-test", credentialId: UserCredentialId | null = castId<UserCredentialId>("user_credential_test0001")): ResolvedSecret {
+  return makeResolvedSecret("apiKey", secret, credentialId);
 }
 
-/** A brand-protected KEYED `openrouter` credential (W1h). Carries a real `apiKey`; `credentialId` defaults
- *  to null (env-seeded) — override with `{ credentialId }` for a stored-row credential. */
-export function makeOpenRouterCredential(overrides: Partial<Omit<OpenRouterCredential, "source" | keyof CredentialBrandMarker>> = {}): OpenRouterCredential {
-  return brand<OpenRouterCredential>({
-    source: "openrouter",
-    apiKey: overrides.apiKey ?? "sk-or-test",
-    credentialId: overrides.credentialId ?? null,
-  });
-}
-
-/** A brand-protected KEYED `custom_openai` (BYO OpenAI-compatible endpoint) credential (W1h). The active
- *  row IS the endpoint, so `credentialId` is non-null; `baseUrl` is required. `apiKey`/`headers` are null
- *  for a no-auth local server; `contextWindow` is the user-declared BYO ceiling (undefined until set). */
-export function makeCustomOpenAiCredential(
-  overrides: Partial<Omit<CustomOpenAiCredential, "source" | keyof CredentialBrandMarker>> = {},
-): CustomOpenAiCredential {
-  return brand<CustomOpenAiCredential>({
-    source: "custom_openai",
-    baseUrl: overrides.baseUrl ?? "https://byo.test/v1",
-    apiKey: overrides.apiKey ?? null,
-    headers: overrides.headers ?? null,
-    credentialId: overrides.credentialId ?? castId<UserCredentialId>("ucred_test"),
-    contextWindow: overrides.contextWindow,
-    model: overrides.model,
-    includeBody: overrides.includeBody ?? null,
-    excludeBody: overrides.excludeBody ?? null,
-    responseMap: overrides.responseMap ?? null,
-  });
-}
-
-const DEFAULT_CAPABILITY: ModelCapability = {
+const DEFAULT_GENERATION: GenerationCapability = {
   reasoning: { mode: "none", enabled: false },
   sampling: {},
-  output: { maxTokens: { min: 1, max: 8192 } },
+  input: ["text"],
+  output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
   context: { window: 200_000 },
 };
 
-/** A fully-valid `ModelCapability`, parsed through the real schema so the return is provably in-shape and a
- *  new required schema field breaks the default literal above (the one-place error W1h buys). */
-export function makeModelCapability(overrides: Partial<ModelCapability> = {}): ModelCapability {
-  return modelCapabilitySchema.parse({ ...DEFAULT_CAPABILITY, ...overrides });
+/** A fully-valid `GenerationCapability`, parsed through the real schema so the return is provably in-shape
+ *  and a new required schema field breaks the default literal above (the one-place error W1h buys). */
+export function makeGenerationCapability(overrides: Partial<GenerationCapability> = {}): GenerationCapability {
+  return generationCapabilitySchema.parse({ ...DEFAULT_GENERATION, ...overrides });
 }
 
-/** The `connection.resolveChatCapability` wire shape — the descriptor PLUS the `(api, source, model)` it was
- *  resolved for (the identity the Connections pane names on a never-saved row). Defaults to the same keyless
- *  vLLM chat marker `makeResolvedConnection` uses. */
-export function makeResolvedChatCapability(overrides: Partial<ResolvedChatCapability> = {}): ResolvedChatCapability {
+/** The kind union over a generation descriptor. */
+export function makeCapability(generation: GenerationCapability = makeGenerationCapability()): Capability {
+  return { kind: "generation", generation };
+}
+
+export interface MakeResolvedOverrides<T extends Task> extends Partial<Omit<Resolved<T>, "task" | "capability">> {
+  readonly task?: T | undefined;
+  /** The chat-shaped capability (a shorthand for `capability: { kind: "generation", generation }`). */
+  readonly generation?: Partial<GenerationCapability> | undefined;
+  readonly capability?: Capability | undefined;
+}
+
+/** A server-side `Resolved<T>` (default task `chat`) over a built-in provider row; every axis overridable. */
+export function makeResolved<T extends Task = "chat">(overrides: MakeResolvedOverrides<T> = {}): Resolved<T> {
+  const task = (overrides.task ?? "chat") as T;
+  const providerId = overrides.providerId ?? TEST_PROVIDER_ID;
+  const provider = overrides.provider ?? builtinProvider(providerId);
+  if (provider === undefined) {
+    throw new Error(`makeResolved: no built-in provider "${providerId}"`);
+  }
+  const capability = overrides.capability ?? makeCapability(makeGenerationCapability(overrides.generation));
+  const { generation: _generation, capability: _capability, task: _task, ...rest } = overrides;
   return {
-    api: "chat-completions" as ChatApi,
-    source: "vllm",
+    task,
+    ownerId: TEST_OWNER_ID,
+    connectionId: TEST_CONNECTION_ID,
+    providerId: provider.id,
+    wire: provider.wire,
+    api: provider.apis[0] ?? null,
     model: castId<ModelId>("test-model"),
-    capability: makeModelCapability(),
-    ...overrides,
+    capability,
+    requirement: requirementMet(capability, taskDef(task).requires),
+    provider,
+    credential: makeResolvedSecret(),
+    baseUrl: provider.baseUrl ?? (provider.auth === "endpoint" ? TEST_BASE_URL : null),
+    features: foldFeatures(provider.features, undefined),
+    extras: null,
+    transport: null,
+    allowBackground: false,
+    ...rest,
   };
 }
 
-/** A `ResolvedConnection` over the keyless vLLM chat marker; override any axis (a different capability, a
- *  keyed credential built elsewhere, a specific model id). */
-export function makeResolvedConnection(overrides: Partial<ResolvedConnection> = {}): ResolvedConnection {
-  return {
-    api: "chat-completions" as ChatApi,
-    model: castId<ModelId>("test-model"),
-    credential: makeResolvedCredential(),
-    capability: makeModelCapability(),
-    ...overrides,
-  };
+/** The `connection.resolveChatCapability` wire shape — the credential-free projection of `makeResolved`. */
+export function makeResolvedView(overrides: Partial<ResolvedConnectionView> = {}): ResolvedConnectionView {
+  const { task, connectionId, providerId, wire, api, model, capability, requirement } = makeResolved();
+  return { task, connectionId, providerId, wire, api, model, capability, requirement, ...overrides };
 }

@@ -7,7 +7,7 @@
 // The rest pin the LABEL half the parity test cannot see: which rung produced each value (explicit /
 // quality / modelDefault / clamped / floor) and the stored-but-unhonored (staleness) list.
 
-import type { ModelCapability } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -17,7 +17,7 @@ import { createPresetService, PresetNotFoundError } from "@orb/server/domain/pre
 import { resolveChat } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/index.ts";
+import { makeGenerationCapability, makeResolvedView } from "../../../../support/factories/index.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedPreset, seedUser } from "../_support.ts";
@@ -41,7 +41,7 @@ function configWith(params: UserIntent): PromptConfig {
 /** Seed one owned preset carrying `params` and resolve it against `capability`. */
 async function resolveWith(params: UserIntent, capability: ModelCapability): Promise<EffectivePreset> {
   const db = await freshDb();
-  const svc = createPresetService(makeHarness(db, { capability: makeResolvedChatCapability({ capability }) }).ctx);
+  const svc = createPresetService(makeHarness(db, { capability: makeResolvedView({ capability }) }).ctx);
   const owner = await seedUser(db);
   await seedPreset(db, { id: PRESET_ID, ownerId: owner, config: configWith(params) });
   return await svc.resolveEffective({ principal: principal(owner), id: PRESET_ID });
@@ -49,7 +49,7 @@ async function resolveWith(params: UserIntent, capability: ModelCapability): Pro
 
 describe("resolveEffective — parity with the turn pipeline's own funnel", () => {
   test("every projected value equals what `resolveChat` computes for the same inputs", async () => {
-    const capability = makeModelCapability({
+    const capability = makeGenerationCapability({
       ...SAMPLING_CAPABLE,
       reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] },
       verbosity: ["low", "high"],
@@ -73,7 +73,7 @@ describe("resolveEffective — parity with the turn pipeline's own funnel", () =
   });
 
   test("an unset sampling knob reports the QUALITY dial's value, from the funnel", async () => {
-    const capability = makeModelCapability(SAMPLING_CAPABLE);
+    const capability = makeGenerationCapability(SAMPLING_CAPABLE);
     const effective = await resolveWith({ quality: "balanced" }, capability);
     expect(effective.knobs.temperature).toStrictEqual({ value: QUALITY_SAMPLING.balanced.temperature, provenance: "quality" });
   });
@@ -81,20 +81,20 @@ describe("resolveEffective — parity with the turn pipeline's own funnel", () =
 
 describe("resolveEffective — provenance", () => {
   test("an explicit in-range knob reads `explicit`; the same knob out of range reads `clamped`", async () => {
-    const capability = makeModelCapability(SAMPLING_CAPABLE);
+    const capability = makeGenerationCapability(SAMPLING_CAPABLE);
     expect(await resolveWith({ temperature: 0.73 }, capability).then((e) => e.knobs.temperature)).toStrictEqual({ value: 0.73, provenance: "explicit" });
     expect(await resolveWith({ temperature: 1.9 }, capability).then((e) => e.knobs.temperature)).toStrictEqual({ value: 1.2, provenance: "clamped" });
   });
 
   test("a quality-fed knob the capability clamps reads `clamped`, not `quality`", async () => {
     // `deep` maps temperature to 1.0; a model capped at 0.5 moves it — the dial did not get what it asked.
-    const capability = makeModelCapability({ sampling: { temperature: { min: 0, max: 0.5 } } });
+    const capability = makeGenerationCapability({ sampling: { temperature: { min: 0, max: 0.5 } } });
     const effective = await resolveWith({ quality: "deep" }, capability);
     expect(effective.knobs.temperature).toStrictEqual({ value: 0.5, provenance: "clamped" });
   });
 
   test("a model-supplied reasoning budget reads `modelDefault`", async () => {
-    const capability = makeModelCapability({
+    const capability = makeGenerationCapability({
       reasoning: { mode: "budget", enabled: true, defaultEffort: "medium", budgetRange: { min: 1024, max: 4096 } },
     });
     const effective = await resolveWith({}, capability);
@@ -102,12 +102,12 @@ describe("resolveEffective — provenance", () => {
   });
 
   test("an unset output cap reads the ENGINE FLOOR the wire actually falls back to", async () => {
-    const effective = await resolveWith({}, makeModelCapability());
+    const effective = await resolveWith({}, makeGenerationCapability());
     expect(effective.knobs.maxOutputTokens).toStrictEqual({ value: DEFAULT_MAX_OUTPUT_TOKENS, provenance: "floor" });
   });
 
   test("reasoning switched off is the effective effort `none` — not an absent knob and not staleness", async () => {
-    const effective = await resolveWith({ effort: "none" }, makeModelCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low"] } }));
+    const effective = await resolveWith({ effort: "none" }, makeGenerationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low"] } }));
     expect(effective.knobs.effort).toStrictEqual({ value: "none", provenance: "explicit" });
     expect(effective.stale).toStrictEqual([]);
   });
@@ -116,7 +116,7 @@ describe("resolveEffective — provenance", () => {
 describe("resolveEffective — the staleness list (F7)", () => {
   test("a stored knob this model does not honor is reported stale and renders no value", async () => {
     // The default fixture descriptor advertises NO sampling ranges: every stored sampling knob drops.
-    const effective = await resolveWith({ minP: 0.05, topA: 0.2, temperature: 0.7 }, makeModelCapability());
+    const effective = await resolveWith({ minP: 0.05, topA: 0.2, temperature: 0.7 }, makeGenerationCapability());
     expect(effective.stale).toStrictEqual([
       { knob: "temperature", value: 0.7 },
       { knob: "minP", value: 0.05 },
@@ -126,7 +126,7 @@ describe("resolveEffective — the staleness list (F7)", () => {
   });
 
   test("nothing stored, nothing stale", async () => {
-    expect((await resolveWith({}, makeModelCapability(SAMPLING_CAPABLE))).stale).toStrictEqual([]);
+    expect((await resolveWith({}, makeGenerationCapability(SAMPLING_CAPABLE))).stale).toStrictEqual([]);
   });
 });
 
@@ -135,14 +135,14 @@ describe("resolveEffective — a knob the model does not have is ABSENT, not cla
     // The measured lie: `resolvedEffortOf` returned `none` for a model with `reasoning.mode: "none"`, and
     // the dial's `high` then had something to be "clamped" from — so the readout printed
     // `effort · none · clamped` about a knob that does not exist on that model, on a value nothing moved.
-    const effective = await resolveWith({ quality: "deep" }, makeModelCapability({ reasoning: { mode: "none", enabled: false } }));
+    const effective = await resolveWith({ quality: "deep" }, makeGenerationCapability({ reasoning: { mode: "none", enabled: false } }));
     expect(effective.knobs.effort).toBeUndefined();
     // …and the absence is not laundered into staleness either: nothing was STORED for effort.
     expect(effective.stale).toStrictEqual([]);
   });
 
   test("a model that CAN reason still reports the dial's effort, labelled as the dial's", async () => {
-    const effective = await resolveWith({ quality: "deep" }, makeModelCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["high"] } }));
+    const effective = await resolveWith({ quality: "deep" }, makeGenerationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["high"] } }));
     expect(effective.knobs.effort).toStrictEqual({ value: "high", provenance: "quality" });
   });
 });
@@ -152,7 +152,7 @@ describe("resolveEffective — the QUALITY MAPPING datum (side-eye F-15)", () =>
     // The whole distinction: "what does deep DO" is a fact about the DIAL and stays true under an
     // override. The client used to derive it from the funnel's OUTPUT, so a fully-overridden dial rendered
     // "everything is overridden" in the one place the mapping was supposed to appear.
-    const capability = makeModelCapability({ ...SAMPLING_CAPABLE, reasoning: { mode: "effort", enabled: true, effortLevels: ["high"] } });
+    const capability = makeGenerationCapability({ ...SAMPLING_CAPABLE, reasoning: { mode: "effort", enabled: true, effortLevels: ["high"] } });
     const effective = await resolveWith({ quality: "deep", temperature: 0.4 }, capability);
 
     expect(effective.knobs.temperature).toStrictEqual({ value: 0.4, provenance: "explicit" });
@@ -166,7 +166,7 @@ describe("resolveEffective — the QUALITY MAPPING datum (side-eye F-15)", () =>
   });
 
   test("no dial set means no mapping — there is nothing to state", async () => {
-    expect((await resolveWith({}, makeModelCapability(SAMPLING_CAPABLE))).qualityMapping).toBeNull();
+    expect((await resolveWith({}, makeGenerationCapability(SAMPLING_CAPABLE))).qualityMapping).toBeNull();
   });
 
   test("the OFF arm is the ABSENCE, and it feeds nothing (owner ruling O-18)", async () => {
@@ -175,7 +175,7 @@ describe("resolveEffective — the QUALITY MAPPING datum (side-eye F-15)", () =>
     // SOMETHING). This is the server half of that arm: same model, same absent knobs, and temperature must
     // come from the MODEL, not from a dial — compare against the `quality: "balanced"` case above, where the
     // identical params resolve to the dial's own number with provenance `quality`.
-    const capability = makeModelCapability(SAMPLING_CAPABLE);
+    const capability = makeGenerationCapability(SAMPLING_CAPABLE);
     const off = await resolveWith({}, capability);
     expect(off.qualityMapping).toBeNull();
     expect(off.knobs.temperature?.provenance).not.toBe("quality");
@@ -184,14 +184,14 @@ describe("resolveEffective — the QUALITY MAPPING datum (side-eye F-15)", () =>
 
   test("the mapping never names a knob THIS model cannot take (the F-14 honesty, applied to the dial)", async () => {
     // No reasoning and no temperature range means the dial feeds nothing here, so it claims nothing.
-    expect((await resolveWith({ quality: "fast" }, makeModelCapability())).qualityMapping).toBeNull();
+    expect((await resolveWith({ quality: "fast" }, makeGenerationCapability())).qualityMapping).toBeNull();
   });
 });
 
 describe("resolveEffective — scope", () => {
   test("names the model it resolved against", async () => {
-    const effective = await resolveWith({}, makeModelCapability());
-    expect(effective.model).toBe(makeResolvedChatCapability().model);
+    const effective = await resolveWith({}, makeGenerationCapability());
+    expect(effective.model).toBe(makeResolvedView().model);
   });
 
   test("throws PresetNotFoundError for a preset the caller cannot read", async () => {

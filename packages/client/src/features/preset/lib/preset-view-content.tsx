@@ -2,7 +2,7 @@
 // is the new deck; the other four are the landed bodies re-homed per preset-surface-redesign.md §3's
 // schema→home map (Data and Transforms simply stack the leaves that used to be sub-tabs).
 
-import type { ModelCapability } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
@@ -21,7 +21,7 @@ import type { ReadFailure } from "./resolve-failure.ts";
 
 export interface ViewContentProps {
   readonly form: AppFormInstance<PromptConfig>;
-  readonly capability: ModelCapability | undefined;
+  readonly capability: GenerationCapability | undefined;
   readonly capabilityError: ReadFailure | null;
   /** The funnel projected for this preset (§4.3) — undefined while unavailable. */
   readonly effective: EffectiveProfileRow | undefined;

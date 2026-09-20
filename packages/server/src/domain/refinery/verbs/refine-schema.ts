@@ -16,6 +16,13 @@ export function createRefineSchema(ctx: RefineryContext): RefineryService["refin
     const ask = refineryGuidanceSchema.parse(instruction);
     const call = await resolveForgeCall(ctx, principal.userId);
     const userPrompt = `The schema as it stands today:\n${JSON.stringify(schema)}\n\nChange to make: ${ask}\n\nRe-describe the COMPLETE schema after that change — every field, not just the changed one.`;
-    return runForgeTurn(ctx, { stage, arm: arm ?? REFINERY_FORGE_ARM_DEFAULT, userPrompt, overrides: call.overrides, sampleOpts: call.sampleOpts });
+    return runForgeTurn({
+      stage,
+      arm: arm ?? REFINERY_FORGE_ARM_DEFAULT,
+      userPrompt,
+      overrides: call.overrides,
+      sampleOpts: call.sampleOpts,
+      rc: call.rc,
+    });
   };
 }

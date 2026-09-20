@@ -1,28 +1,59 @@
 // The Connections group's nav entries — the ONE home for both ends of the anchor wiring (the
-// `workloads-jobs-nav.ts` precedent): each contribution def spells its `nav` from these, each section body
-// stamps `configAnchorId("connections", …)` from the same constant, and the roles section's "fix the key"
-// action scrolls to the keys anchor through it. The group is a `sections` skimmer (config-revamp-design.md
-// §6.8) — these three ARE its rows.
+// `workloads-jobs-nav.ts` precedent): each contribution def spells its `nav` from these and each section
+// body stamps `configAnchorId("connections", …)` from the same constant. The group is a `sections` skimmer
+// (config-revamp-design.md §6.8) — these three ARE its rows: the user's connection rows first (the unit every
+// role references), Model roles, then the saved-key reuse view (inference program §5.3a).
 
 import type { ConfigSubcategory } from "#state";
+
+export const CONNECTIONS_LIST_SUBCATEGORY: ConfigSubcategory = {
+  id: "connections",
+  label: "Connections",
+  keywords: ["connection", "provider", "model", "key", "url", "openrouter", "anthropic", "vllm", "ollama", "claude"],
+  teach: {
+    summary: "Each connection is one provider + one model, with its own key or server URL. Every turn you trigger runs on YOUR connections, in any room.",
+    affects: ["which models your roles can pick from"],
+  },
+  settings: [
+    {
+      id: "add-connection",
+      label: "Add a connection",
+      keywords: ["add", "connection", "provider", "key", "url", "model"],
+      teach: {
+        summary: "Pick a provider, paste a key or a server URL, pick a model. The key is stored once and never shown again.",
+        affects: ["the connections your roles can use"],
+      },
+    },
+  ],
+};
 
 export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
   id: "model-roles",
   label: "Model roles",
-  keywords: ["chat", "agent", "embed", "rerank", "summarize", "image", "model", "provider"],
+  keywords: ["chat", "embed", "rerank", "summarize", "utility", "image", "model", "provider"],
   teach: {
-    summary: "Which connection each role resolves to by default: chat, embedding, image-embedding and the rest. A room or preset can override any role.",
-    affects: ["the default model for every role, on this account"],
+    summary:
+      "Which of your connections each role uses: chat, the utility model, embeddings and the rest. Rooms never override this — a turn always runs on the connection of whoever triggered it.",
+    affects: ["the connection every role resolves to, for you"],
   },
   settings: [
     {
       id: "chat-model",
       label: "Chat model",
-      keywords: ["chat", "conversation", "source", "provider", "role-handling"],
+      keywords: ["chat", "conversation", "provider"],
       teach: {
-        summary: "The connection every conversation resolves to by default \u2014 a room's own connection or a preset's routing can pick differently.",
-        affects: ["every new turn that does not name its own connection"],
-        related: [{ group: "connections", sub: "saved-keys", setting: "active-key" }],
+        summary: "The connection every conversation turn you trigger runs on — in your rooms and in anyone else's.",
+        affects: ["every turn you send"],
+        related: [{ group: "connections", sub: "connections", setting: "add-connection" }],
+      },
+    },
+    {
+      id: "utility-model",
+      label: "Utility model",
+      keywords: ["summarize", "structured", "caption", "memory", "digest", "background"],
+      teach: {
+        summary: "Summaries, structured extraction and image captions run here. It must allow background work, or those quietly skip.",
+        affects: ["memory digests, captions, extraction and the turn-arbiter"],
       },
     },
     {
@@ -30,52 +61,19 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
       label: "Text embedding model",
       keywords: ["embed", "vector", "search", "memory", "dimension"],
       teach: {
-        summary: "The model that turns text into vectors \u2014 memory recall, search and the corpus analyses all read from what it wrote.",
+        summary: "The model that turns text into vectors — memory recall, search and the corpus analyses all read from what it wrote.",
         affects: ["memory recall, search and corpus analysis quality", "the whole index: changing it means re-embedding"],
       },
     },
-    {
-      id: "image-embed-model",
-      label: "Image embedding model",
-      keywords: ["image", "clip", "multimodal", "caption", "cross-modal"],
-      teach: { summary: "The model that embeds images for visual similarity and gallery search.", affects: ["image search and similarity browsing"] },
-    },
   ],
-};
-
-export const CONNECTIONS_HOST_CLAUDE_SUBCATEGORY: ConfigSubcategory = {
-  id: "host-claude",
-  label: "Host Claude",
-  keywords: ["claude", "subscription", "max", "pro", "auth", "health", "probe", "owner"],
-  teach: {
-    summary: "The host's Claude subscription status and health probe. The owner authenticates here; members ride the subscription when allowed.",
-    affects: ["Claude-subscription availability for the whole deployment"],
-  },
 };
 
 export const CONNECTIONS_KEYS_SUBCATEGORY: ConfigSubcategory = {
   id: "saved-keys",
   label: "Saved keys",
-  keywords: ["credential", "api key", "provider", "openrouter", "anthropic", "openai"],
+  keywords: ["credential", "api key", "provider", "revoke", "remove"],
   teach: {
-    summary: "Provider API keys stored once and resolved by every connection to that provider. Add, test and switch the active credential per provider here.",
-    affects: ["every connection that uses a provider whose key is stored here"],
+    summary: "The keys your connections reuse. A key is added from a connection; here you can revoke or remove it.",
+    affects: ["every connection that uses that key"],
   },
-  settings: [
-    {
-      id: "add-key",
-      label: "Add a provider key",
-      keywords: ["credential", "api key", "add", "openrouter", "anthropic", "openai"],
-      teach: {
-        summary: "Store a provider API key once; every connection to that provider resolves its credential from here.",
-        affects: ["every connection to that provider"],
-      },
-    },
-    {
-      id: "active-key",
-      label: "Active credential per provider",
-      keywords: ["active", "default", "credential", "switch", "test", "health", "remove"],
-      teach: { summary: "Which stored credential a provider uses when it holds more than one.", affects: ["every connection to that provider"] },
-    },
-  ],
 };

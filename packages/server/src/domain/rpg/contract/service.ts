@@ -55,7 +55,7 @@ import type {
   RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
-import type { WireTool } from "#infra/providers";
+import type { WireTool } from "@orb/inference";
 import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../chat/index.ts";
 import type {
   AddJournalEntryParams,
@@ -388,7 +388,9 @@ type RpgResolvePresetUserMacros = (chatId: ChatId) => Promise<readonly UserMacro
  *  ONE resolve of the host connection, TWO verdicts — the connection resolve is the expensive part (credential +
  *  routing + catalog), so a per-turn caller that needs both must never pay for it twice. Its VALUE is
  *  INTEGRATION-supplied (W1c wires the real connection resolve); a fake returns fixed booleans in tests. */
-export type RpgResolveStateDelivery = (chatId: ChatId) => Promise<RpgStateDeliveryVerdict>;
+/** `viewerUserId` — WHOSE chat connection the verdict reads (§8.4-3(b): the round runs on the trigger's row, so
+ *  the pill resolves under the same member; a read-side caller passes the reader). */
+export type RpgResolveStateDelivery = (chatId: ChatId, viewerUserId: UserId) => Promise<RpgStateDeliveryVerdict>;
 
 /** What the resolved connection can do for THIS game's state delivery. Both fields are CAPABILITY-derived (the
  *  composition root reads the descriptor; rpg never sees a credential/source — D112's ban on a `credential.source`

@@ -6,6 +6,7 @@
 // chat_digests / chat_segments / assets / image_embeddings).
 
 import type { ImageLens } from "@orb/contracts/embeddings";
+import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import {
   assets,
@@ -44,6 +45,7 @@ import { resolveTier0Range } from "../../../../packages/server/src/domain/chat/i
 import type { DiscoveryContext } from "../../../../packages/server/src/domain/discovery/index.ts";
 import { createStatsService } from "../../../../packages/server/src/domain/stats/service.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 /** A fixed instant for the service's injected clock (only `reconcile` reads it). */
@@ -92,13 +94,13 @@ export function makeHubScoreRecorder(): HubScoreRecorder {
 /** A scripted `summarize` — returns each input's name from `names` in order (default a fixed label). Records
  *  the inputs so a test can assert the naming pass fired. */
 export interface SummarizeRecorder {
-  readonly op: DiscoveryContext["summarize"];
+  readonly op: RoleClients["summarize"];
   readonly calls: { systemPrompt: string; userPrompt: string }[][];
 }
 
 export function makeSummarizeRecorder(names: readonly string[] = []): SummarizeRecorder {
   const calls: { systemPrompt: string; userPrompt: string }[][] = [];
-  const op: DiscoveryContext["summarize"] = (inputs) => {
+  const op: RoleClients["summarize"] = (inputs) => {
     calls.push(inputs.map((i) => ({ systemPrompt: i.systemPrompt, userPrompt: i.userPrompt })));
     return Promise.resolve({
       items: inputs.map((_input, idx) => ({
@@ -165,7 +167,6 @@ export function makeDiscoveryHarness(
   overrides: {
     readonly summarize?: SummarizeRecorder;
     readonly hubScores?: HubScoreRecorder;
-    readonly summarizerModel?: string;
     readonly attachCardTagByName?: DiscoveryContext["attachCardTagByName"];
     readonly resolveUserPresetParams?: DiscoveryContext["resolveUserPresetParams"];
     readonly resolveUserProse?: DiscoveryContext["resolveUserProse"];
@@ -188,8 +189,7 @@ export function makeDiscoveryHarness(
     newKeywordCooccurrenceId: seededMinter<KeywordCooccurrenceId>("keyword_cooccurrence"),
     newCharacterKeywordProfileId: seededMinter<CharacterKeywordProfileId>("character_keyword_profile"),
     newDuplicateChatPairId: seededMinter<DuplicateChatPairId>("duplicate_chat_pair"),
-    summarize: summarize.op,
-    summarizerModel: () => overrides.summarizerModel ?? "test-summarize-model",
+    roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ summarize: summarize.op, structured: summarize.op })),
     attachCardTagByName: overrides.attachCardTagByName ?? tagAttach.op,
     // The side-gen sampling ladder's middle rung; default = an empty posture (no preset params) so the distill/
     // analyze floors stand. A test asserting the ladder overrides it with a scripted params object.

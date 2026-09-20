@@ -19,7 +19,7 @@
 // the strike is a PASSENGER — it can never alter, mask or delay the failure the caller is about to see.
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { Resolved } from "@orb/inference";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";

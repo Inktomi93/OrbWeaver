@@ -27,7 +27,7 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { makeModelCapability, makeResolvedChatCapability } from "../../../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolvedView } from "../../../../../support/factories/resolved-connection.ts";
 import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
 import {
   EffectiveProfileFailedStory,
@@ -221,7 +221,7 @@ const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEF
 /** The SETTLED-successful capability read, through the typed factory (a new required descriptor field is a
  *  compile error there, never a silently-absent key here). Settled in BOTH wiring arms: this file pins the
  *  EFFECTIVE panel, and a co-pending capability read would let its own gate account for a quiet screen. */
-const CAPABILITY = makeResolvedChatCapability({ capability: makeModelCapability() });
+const CAPABILITY = makeResolvedView({ capability: makeGenerationCapability() });
 
 /** `effective` is the routeTrpc HANDLER for `preset.resolveEffective`, not its value — routeTrpc CALLS each
  *  map value, so wrapping a handler again answers with a function and the query settles to an error. */

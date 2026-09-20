@@ -1,4 +1,4 @@
-// Descriptor-driven params-panel model: the panel renders from `ModelCapability` — a sampling knob
+// Descriptor-driven params-panel model: the panel renders from `GenerationCapability` — a sampling knob
 // shows only where the descriptor lists it, ranges come from each knob's `Range`, reasoning control is
 // keyed by the model's actual `reasoning` axis. Never hardcode a knob stack or model-name string-match;
 // the knob vocabulary comes only from @orb/contracts.
@@ -6,7 +6,7 @@
 // The `quality` dial (fast/balanced/deep) is a distinct user field the server-side resolver maps onto
 // the descriptor axes; this client model owns only the dial's display copy.
 
-import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contracts/connection";
+import type { EffortLevel, GenerationCapability, Range, Verbosity } from "@orb/contracts/inference";
 import type { Quality } from "@orb/contracts/preset";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select";
@@ -42,7 +42,7 @@ export interface KnobBinding {
 interface SamplingKnobSpec {
   /** The `capability.sampling` key that gates this knob (renders only when it carries a `Range`). It is
    *  ALSO the `EffectiveKnob` name the effective profile keys its readings by (one spelling, both reads). */
-  readonly key: keyof NonNullable<ModelCapability["sampling"]>;
+  readonly key: keyof NonNullable<GenerationCapability["sampling"]>;
   /** The `params.<field>` path this knob binds (the nested TanStack Form name — a typed literal). */
   readonly field: KnobParamPath;
   /** The row's human label. */
@@ -126,12 +126,13 @@ export interface ResolvedSamplingKnob extends SamplingKnobSpec {
  * carries a `Range`, each paired with that `Range`. A model with `sampling: {}` yields `[]` (no
  * sampling section); an unlisted knob is absent, never a disabled slider.
  */
-export function samplingKnobsFor(capability: ModelCapability): readonly ResolvedSamplingKnob[] {
+export function samplingKnobsFor(capability: GenerationCapability): readonly ResolvedSamplingKnob[] {
   const sampling = capability.sampling;
   const knobs: ResolvedSamplingKnob[] = [];
   for (const spec of SAMPLING_KNOB_SPECS) {
     const range = sampling[spec.key];
-    if (range !== undefined && typeof range !== "boolean") {
+    // `sampling.exclusive` is the knob-PAIR list, not a knob — never a slider.
+    if (range !== undefined && typeof range !== "boolean" && !Array.isArray(range)) {
       knobs.push({ ...spec, range });
     }
   }
@@ -139,7 +140,7 @@ export function samplingKnobsFor(capability: ModelCapability): readonly Resolved
 }
 
 /** `true` when the descriptor supports a raw integer `seed` (a distinct control from the sliders above). */
-export function supportsSeed(capability: ModelCapability): boolean {
+export function supportsSeed(capability: GenerationCapability): boolean {
   return capability.sampling.seed === true;
 }
 
@@ -165,7 +166,7 @@ export interface ReasoningControl {
 
 /** Derive the reasoning control from the capability descriptor. A `mode:'none'` model renders no
  *  reasoning control at all. */
-export function reasoningControlFor(capability: ModelCapability): ReasoningControl {
+export function reasoningControlFor(capability: GenerationCapability): ReasoningControl {
   const reasoning = capability.reasoning;
   if (reasoning.mode === "none") {
     return { kind: "none", reasons: false };
@@ -189,7 +190,7 @@ export function reasoningControlFor(capability: ModelCapability): ReasoningContr
 
 /** The verbosity levels the panel renders — the descriptor's own list, or `undefined` when the model does
  *  not honor verbosity (the section is then absent). */
-export function verbosityLevelsFor(capability: ModelCapability): readonly Verbosity[] | undefined {
+export function verbosityLevelsFor(capability: GenerationCapability): readonly Verbosity[] | undefined {
   return capability.verbosity;
 }
 

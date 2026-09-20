@@ -6,7 +6,6 @@
 
 import { GUIDED_GAME_STEER_KINDS } from "@orb/kit/guided";
 import { z } from "zod";
-import type { OpenRouterProviderRouting } from "#connection";
 import type { ChatDocumentVisibility } from "#databank";
 import { GUIDED_IMPERSONATE_PERSONS, guidedActionKindSchema, REWRITE_TOGGLE_IDS } from "#preset";
 import type { ChatRpgPointer } from "#rpg";
@@ -241,24 +240,23 @@ export interface ChatMetadata {
   group?: GroupConfig;
   roomOverrides?: RoomOverrides;
   opening?: OpeningPolicy;
-  providerRouting?: OpenRouterProviderRouting;
   /** A chat-level knob (in a multi-human room the loop spends the host's money, so the funder tunes it). */
   toolRecurseLimit?: number;
   /** The host's per-document databank retrieval-visibility override (D85 — the membership-widened chat scope's
    *  governance knob). Absent ⇒ nothing hidden. Written by the host-gated `chat.setChatDocumentVisibility`
    *  verb; READ by `databank/persistence/scope.ts` (the union filter). Schema is databank's (documentId vocab)
-   *  — the providerRouting precedent. */
+   *  — the databankVisibility precedent. */
   databankVisibility?: ChatDocumentVisibility;
   /** BG-C — the host-set per-chat carried BACKGROUND source. Absent ⇒ no chat background (the card-carried
    *  twin, then the viewer's own appearance, wins). Written ONLY by the host-gated `chat.setChatBackground`
    *  verb; READ client-side (getChat carries it), applied at the app-root background layer in a TRUE-SOLO room.
-   *  Schema is theme's (`ThemeBackground`) — the providerRouting/databankVisibility precedent. */
+   *  Schema is theme's (`ThemeBackground`) — the databankVisibility precedent. */
   background?: ThemeBackground;
   /** The OPAQUE rpg sync pointer — mode-free `{gameId}`, written ONCE by `createGame`
    *  through the `setRpgPointer` chat op, stored BLIND (chat never dereferences it). The truth is `rpg_games`;
    *  this is a SYNC SIGNAL so the client's takeover gate is a read off data it already holds. A corrupt blob
    *  heals to absent at the parser (`.catch(undefined)`). Schema is rpg's (`ChatRpgPointer`) — the
-   *  providerRouting/databankVisibility/background foreign-schema precedent. */
+   *  databankVisibility/background foreign-schema precedent. */
   rpg?: ChatRpgPointer;
   /** D121-E display-tier HOST OPTION (owner ruling 2026-08-02). Absent/false ⇒ the default: display-tier
    *  regex is PER-USER — each viewer sees only their own scripts applied to the transcript, and nobody can

@@ -1,7 +1,9 @@
 // credentials.int — the user_credentials slice against a real libSQL :memory: db (FK enforcement ON
-// via createDb). Covers: the insert→select round-trip (branded id + metadata JSON parse), the provider
-// enum CHECK (+ the test-mirror that the db column derives CRED_PROVIDERS), the one-active-per-
-// (owner,provider) partial unique index, and the ownerId FK.
+// via createDb). Covers: the insert→select round-trip (branded id + metadata JSON parse), the test-mirror
+// that the db column still types CRED_PROVIDERS, the revoked-reason column, the ownerId FK — and, under
+// connections-as-the-unit (inference program §5.3, F7), that the SQL-level provider CHECK and the
+// one-active-per-(owner,provider) partial unique are GONE: the column is becoming a registry id validated at
+// the domain, and WHICH key resolves is the connection's `credentialId`, never an active flag.
 
 import { CRED_PROVIDERS, CRED_REVOKED_REASONS, parseProviderMetadata } from "@orb/contracts/credentials";
 import { userCredentials } from "@orb/db";
@@ -89,76 +91,36 @@ test("test-mirror: every CRED_REVOKED_REASONS member round-trips through the rev
   expect(rows.map((r) => r.revokedReason).sort()).toEqual(CRED_REVOKED_REASONS.toSorted());
 });
 
-test("the provider CHECK rejects an off-enum value", async () => {
+test("there is NO provider CHECK: a registry id outside CRED_PROVIDERS is stored (validated at the domain, never in SQL)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_cred_owner" });
 
-  // A `string`-typed value downcast to the enum union forces an invalid value at the SQL boundary
-  // (a string-literal `as` would trip TS2352 — the literal doesn't overlap the union).
-  const invalidProvider: string = "totally_invalid";
-
-  let caught: unknown;
-  try {
-    await db.insert(userCredentials).values({
-      id: castId<UserCredentialId>("user_credential_bad"),
-      ownerId,
-      provider: invalidProvider as (typeof CRED_PROVIDERS)[number],
-      ciphertext: "ct",
-      iv: "iv",
-      tag: "tag",
-    });
-  } catch (err) {
-    caught = err;
-  }
-  expect(isConstraintViolation(caught)?.kind).toBe("check");
+  // A plugin provider id is runtime data — a SQL CHECK would be the closed-BACKEND_KEYS mistake again.
+  const registryId: string = "plugin:acme/relay";
+  await db.insert(userCredentials).values({
+    id: castId<UserCredentialId>("user_credential_plugin"),
+    ownerId,
+    provider: registryId as (typeof CRED_PROVIDERS)[number],
+    ciphertext: "ct",
+    iv: "iv",
+    tag: "tag",
+  });
+  const rows = await db.select().from(userCredentials);
+  expect(rows.map((r) => r.provider)).toEqual([registryId]);
 });
 
-test("one-active-per-(owner,provider): a second active row collides; an inactive one coexists", async () => {
+test("two ACTIVE rows for one (owner, provider) coexist — the connection decides which key resolves, not a slot flag", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_cred_owner" });
-
-  await db.insert(userCredentials).values({
-    id: castId<UserCredentialId>("user_credential_active_a"),
-    ownerId,
-    provider: "openrouter",
-    ciphertext: "ct",
-    iv: "iv",
-    tag: "tag",
-    active: true,
-  });
-
-  // A second ACTIVE row for the same (owner, provider) violates the partial unique index.
-  let caught: unknown;
-  try {
-    await db.insert(userCredentials).values({
-      id: castId<UserCredentialId>("user_credential_active_b"),
-      ownerId,
-      provider: "openrouter",
-      ciphertext: "ct",
-      iv: "iv",
-      tag: "tag",
-      active: true,
-    });
-  } catch (err) {
-    caught = err;
-  }
-  expect(isConstraintViolation(caught)?.kind).toBe("unique");
-
-  // An INACTIVE row for the same slot is allowed (UNIQUE ignores rows failing the WHERE predicate).
-  await db.insert(userCredentials).values({
-    id: castId<UserCredentialId>("user_credential_inactive"),
-    ownerId,
-    provider: "openrouter",
-    ciphertext: "ct",
-    iv: "iv",
-    tag: "tag",
-    active: false,
-  });
-  const inactive = await db
+  await db.insert(userCredentials).values([
+    { id: castId<UserCredentialId>("user_credential_active_a"), ownerId, provider: "openrouter", ciphertext: "ct", iv: "iv", tag: "tag", active: true },
+    { id: castId<UserCredentialId>("user_credential_active_b"), ownerId, provider: "openrouter", ciphertext: "ct", iv: "iv", tag: "tag", active: true },
+  ]);
+  const rows = await db
     .select()
     .from(userCredentials)
-    .where(and(eq(userCredentials.ownerId, ownerId), eq(userCredentials.active, false)));
-  expect(inactive).toHaveLength(1);
+    .where(and(eq(userCredentials.ownerId, ownerId), eq(userCredentials.provider, "openrouter")));
+  expect(rows.filter((r) => r.active)).toHaveLength(2);
 });
 
 test("the ownerId FK rejects a missing user", async () => {

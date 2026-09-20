@@ -6,7 +6,6 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import { swapIdentityMacros } from "@orb/kit/macro";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
-import { env } from "#foundation/env";
 
 type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality" | "scenario" | "greetings">;
 
@@ -46,9 +45,12 @@ function normalizePlaceholders(text: string, charName: string, userName: string)
 }
 
 /** Field ORDER is load-bearing: last-token pooling weights later text less, so identity fields lead.
- *  `maxTokens` is the embed engine's effective window (self-report ⊕ env floor); defaulted to the env floor
- *  so a bare unit call (and every existing pure test) sizes off the single-home window, never a literal. */
-export function buildCardEmbedText(card: CardEmbedFields, userName = "User", maxTokens: number = env.VLLM_EMBED_MAX_MODEL_LEN): string {
+ *  `maxTokens` is the RESOLVED embed model's window (`EmbeddingCapability.maxInputTokens`, inference program
+ *  §10-5); the default is the pooling-window floor a bare unit call sizes off. */
+/** The embed window floor when no model is resolved — the pooling engines' 8192 (the pre-program env default). */
+const DEFAULT_EMBED_WINDOW_TOKENS = 8192;
+
+export function buildCardEmbedText(card: CardEmbedFields, userName = "User", maxTokens: number = DEFAULT_EMBED_WINDOW_TOKENS): string {
   const budget = safeTokenWindow(maxTokens);
   const name = card.name;
   const first = card.greetings[0]?.text ?? null;

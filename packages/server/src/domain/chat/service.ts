@@ -66,8 +66,6 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
 
   const engine = createTurnEngine(ctx, {
     emit: deps.emit,
-    debitBudget: deps.debitBudget,
-    resolveTurnPolicy: deps.resolveTurnPolicy,
     holder: deps.holder,
     lockTtlMs: deps.lockTtlMs,
     generateSegments,

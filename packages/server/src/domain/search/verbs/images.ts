@@ -20,17 +20,20 @@ import { nearestImages } from "../persistence/image-nearest.ts";
 import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
 import { relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
 import { applyRerank } from "../substrate/rerank.ts";
+import { requireSpaceModel } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createImages(ctx: SearchContext): SearchService["images"] {
   return async (params: ImagesParams): Promise<ImageSearchHit[]> => {
     const { ownerId, query, topN, lens } = params;
+    const rc = await ctx.roleClientsFor(ownerId);
+    const imageEmbedModel = await requireSpaceModel(rc, "imageEmbed");
     requirePositiveTopN(topN, "images");
     if (query.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "images requires a query text to embed + scan");
     }
 
-    const embedded = await ctx.roleClients.imageEmbed({ kind: "text", input: query });
+    const embedded = await rc.imageEmbed({ kind: "text", input: query });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -39,7 +42,7 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
     const pool = await nearestImages(ctx.db, {
       ownerId,
       queryVector,
-      model: ctx.roleClients.imageEmbedModel,
+      model: imageEmbedModel,
       lens,
       limit: OWNER_OVERFETCH * topN,
     });
@@ -53,8 +56,7 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
       score: r.distance,
     }));
 
-    const ordered =
-      params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), ctx.roleClients.rerank, topN) : ranked;
+    const ordered = params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN) : ranked;
 
     // A HIT IS A PICTURE AND A PLACE (side-eye corpus re-pass U4). The hash makes the result renderable; the
     // avatar owner makes it navigable. Resolved AFTER the slice, so the enrichment join is sized by what is

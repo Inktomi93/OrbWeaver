@@ -33,7 +33,10 @@ import type {
   ParticipantView,
 } from "@orb/contracts/chat";
 import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import type { ChatSendAvailability, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { GenerationCapability, SendAvailability } from "@orb/contracts/inference";
+import { acceptsImageInput, acceptsVideoInput } from "@orb/contracts/inference";
+import { generationOf } from "@orb/inference";
+import type { Resolved } from "@orb/inference";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
 import {
@@ -166,10 +169,10 @@ async function resolveReasoningHostOnly(ctx: ChatContext, chatId: ChatId): Promi
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
-  readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
+  readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
   /** The deterministic pre-send serveability verdict for the chat's own resolved connection (#54). Reads the
    *  SAME chat-row routing overlay `resolveConnection` reads; fires no turn/API call. Wired at compose. */
-  readonly checkSendAvailability: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ChatSendAvailability>;
+  readonly checkSendAvailability: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<SendAvailability>;
   /** The foreign half of the assemble ctx (preset/persona/settings). The chat-internal half is gathered
    *  by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
@@ -214,13 +217,15 @@ interface PreviewInputs {
   /** The previewed chat — carried so the registry build can stamp the GAME group's `MacroSourceRef.id`. */
   readonly chatId: ChatId;
   readonly hostUserId: UserId;
+  /** The READER — whose connection the preview resolved under (§8.4-3). */
+  readonly funderUserId: UserId;
   readonly model: string;
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
    *  assistantPrefill) to shape faithfully. Undefined when the connection resolver omits it (a test double). */
-  readonly capability: ModelCapability | undefined;
+  readonly capability: GenerationCapability | undefined;
   /** The resolved protocol axis — previewContextFit source-modes the divider boundary on it (agent-sdk → the
    *  marker coverage point; stateless → the fit boundary). */
-  readonly api: ResolvedConnection["api"];
+  readonly api: Resolved<"chat">["api"];
   readonly characterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
   /** The room's effective GroupConfig — its `output` axis is the ONE the SHAPE peek resolves, so a preview
@@ -401,6 +406,9 @@ async function resolvePreviewInputs(
   deps: ReadDeps,
   chatId: ChatId,
   opts: {
+    /** The READER — whose connection the preview resolves (§8.4-3: a preview is an honesty instrument for the
+     *  turn THIS user would run, so it follows the funder, never the host). */
+    readonly funderUserId: UserId;
     readonly anchorPersonaId: PersonaId | null;
     readonly speakerCharacterId?: CharacterId | null | undefined;
     /** D8 / §7.1 — assemble as if THIS preset were the chat's active one (the preset editor's bound readout
@@ -444,7 +452,8 @@ async function resolvePreviewInputs(
       const actor = classifyParticipant(r);
       return actor?.kind === "human" && actor.userId === hostUserId;
     })?.activePersonaId ?? null;
-  const connection = await deps.resolveConnection({ runAsUserId: hostUserId, chatId });
+  // The preview follows the FUNDER (§8.4-3): the reader's own connection, as their turn would run.
+  const connection = await deps.resolveConnection({ funderUserId: opts.funderUserId, chatId });
   // THE GM-PRESET REDIRECT — the SAME early hop the turn runs (`verbs/turn.ts`: `resolvePresetOverride` before
   // the foreign read). A game chat assembles its `gmPresetId`, not the host's default preset; without this hop
   // every preview surface on a game chat would render the host's DEFAULT preset's templates
@@ -480,8 +489,9 @@ async function resolvePreviewInputs(
   return {
     chatId,
     hostUserId,
+    funderUserId: opts.funderUserId,
     model: connection.model,
-    capability: connection.capability,
+    capability: generationOf(connection),
     api: connection.api,
     characterIds,
     personaIds,
@@ -521,6 +531,8 @@ async function previewGatherFields(
     readonly chatId: ChatId;
     /** The room's frozen host (D19) — the identity the collection resolves under, exactly as a turn does. */
     readonly hostUserId: UserId;
+    /** The READER — whose chat connection the rpg delivery verdict reads (§8.4-3). */
+    readonly funderUserId: UserId;
     /** PROSE-1 — the previewed preset's teach/heading overrides, threaded for the same reason the whole gather
      *  is: the preview must show the bytes the model actually receives, and a host who re-authored a teach on
      *  this preset would otherwise read the shipped default on their own honesty instrument. */
@@ -550,6 +562,7 @@ async function previewGatherFields(
       ? null
       : await ctx.rpg.gatherTurnContext({
           chatId: args.chatId,
+          funderUserId: args.funderUserId,
           pendingUserText: undefined,
           respondsToLatestUserTurn: false,
           steerIdentity: args.identity,
@@ -602,6 +615,7 @@ async function buildPreviewContext(
   const gather = await previewGatherFields(ctx, {
     chatId,
     hostUserId: inputs.hostUserId,
+    funderUserId: inputs.funderUserId,
     identity: {
       user: inputs.foreign.personas.active?.name,
       char: participants
@@ -751,20 +765,19 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   };
 }
 
-/** The honest-refusal pre-send gate (#54): the deterministic serveability verdict for THIS chat's own
- *  resolved connection. Member-gated (any participant may read it — the composer disables SEND on it). The
- *  connection resolves under the ROOM HOST (matching `resolveConnection`'s `runAsUserId`), so the verdict is
- *  the host's connection the turn actually runs on — a member's own settings never enter the room's routing.
- *  A hostless room is a leak-free NOT_FOUND (as `resolvePreviewInputs`). Fires no turn/API call. */
+/** The honest-refusal pre-send gate (#54): the deterministic serveability verdict for the CALLER's own chat
+ *  connection — the one their turn in this room actually runs on (inference program §8.4-3: the funder's
+ *  row, never the host's). Member-gated (any participant may read it — the composer disables SEND on it). A
+ *  hostless room is a leak-free NOT_FOUND (as `resolvePreviewInputs`). Fires no turn/API call. */
 function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatService["checkSendAvailability"] {
-  return async ({ principal, chatId }: GetChatParams): Promise<ChatSendAvailability> => {
+  return async ({ principal, chatId }: GetChatParams): Promise<SendAvailability> => {
     await requireParticipant(ctx, principal, chatId);
     const participants = await loadParticipants(ctx.db, chatId);
     const hostUserId = hostUserIdOf(participants);
     if (hostUserId === null) {
       throw new ChatNotFoundError(chatId);
     }
-    return deps.checkSendAvailability({ runAsUserId: hostUserId, chatId });
+    return deps.checkSendAvailability({ funderUserId: principal.userId, chatId });
   };
 }
 
@@ -1018,7 +1031,7 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
 function createListEffectiveRegex(ctx: ChatContext, deps: ReadDeps): ChatService["listEffectiveRegex"] {
   return async ({ principal, chatId }: ListEffectiveRegexParams): Promise<EffectiveRegexView> => {
     const { chat } = await requireHost(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, { anchorPersonaId: chat.anchorPersonaId });
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, { funderUserId: principal.userId, anchorPersonaId: chat.anchorPersonaId });
     return resolveRegexTiers(
       {
         ...(await ctx.resolveRegexSources({
@@ -1122,7 +1135,7 @@ async function shapeNextTurn(
 async function fitShapedHistory(args: {
   readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
   readonly assembled: AssembledPrompt;
-  readonly capability: ModelCapability | undefined;
+  readonly capability: GenerationCapability | undefined;
   readonly shaped: ReturnType<typeof shapeTurn>;
   /** The CONVERT env — the previews' twin of the turn's (`runTurnPipeline`), resolved under the HOST because
    *  every preview already is (`resolvePreviewInputs`: connection, preset, `{{user}}`). */
@@ -1147,8 +1160,8 @@ async function fitShapedHistory(args: {
   });
   const converted = await buildWireHistory(
     {
-      visionOk: args.capability?.input?.vision === true,
-      videoOk: args.capability?.input?.video === true,
+      visionOk: args.capability !== undefined && acceptsImageInput(args.capability),
+      videoOk: args.capability !== undefined && acceptsVideoInput(args.capability),
       resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref }),
       cardKeepLastX: args.convert.cardKeepLastX,
       canon: args.convert.canon,
@@ -1163,7 +1176,7 @@ async function fitShapedHistory(args: {
  *  BYO endpoint with no declared window) AND that guessed window is what actually BINDS: a preset
  *  `maxContextTokens` at or below it is the user's own declared cap, which is real truth and wins the `min()`,
  *  so the ceiling is honest even though the model's window isn't known. */
-function ceilingIsEstimated(capability: ModelCapability | undefined, maxContextTokens: number | undefined): boolean {
+function ceilingIsEstimated(capability: GenerationCapability | undefined, maxContextTokens: number | undefined): boolean {
   if (capability?.context.windowEstimated !== true) {
     return false;
   }
@@ -1210,6 +1223,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
   return async ({ principal, chatId, speakerCharacterId, guided, presetOverride }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
       ...(presetOverride === undefined ? {} : { presetOverride }),
@@ -1252,6 +1266,7 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
   return async ({ principal, chatId, speakerCharacterId }: PeekPromptParams): Promise<AssembledPrompt> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
@@ -1272,6 +1287,7 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
   return async ({ principal, chatId, speakerCharacterId }: GetShapeTraceParams): Promise<ShapeTrace> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
@@ -1364,6 +1380,7 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
   return async ({ principal, chatId, speakerCharacterId }: PreviewContextFitParams): Promise<ContextFitPreview> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
@@ -1403,6 +1420,7 @@ function createGetActivePresetConfig(ctx: ChatContext, deps: ReadDeps): ChatServ
   return async ({ principal, chatId }: GetActivePresetConfigParams): Promise<PromptConfig> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
     });
     return inputs.foreign.promptConfig;
@@ -1420,6 +1438,7 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
   return async ({ principal, chatId, sectionId, speakerCharacterId }: PreviewSectionParams): Promise<SectionPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
@@ -1475,6 +1494,7 @@ function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatSer
   return async ({ principal, chatId, presetId }: PreviewActionTemplatesParams): Promise<ActionTemplatesPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      funderUserId: principal.userId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       presetOverride: presetId,
     });

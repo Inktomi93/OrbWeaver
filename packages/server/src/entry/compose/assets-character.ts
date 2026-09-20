@@ -24,6 +24,7 @@ import {
   personas as personasTable,
 } from "@orb/db";
 import { readSeedAvatar, readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
+import type { RoleClientsWithSignal } from "@orb/inference";
 import type { AssetId, CharacterHandle, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
@@ -47,7 +48,6 @@ import { createCopyCharacterBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
-import type { RoleClientsWithSignal } from "#infra/providers";
 import type { Cas, VariantCache } from "#infra/storage";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../boot/index.ts";
@@ -67,7 +67,8 @@ export interface AssetsCharacterComposeDeps {
   readonly emit: AssetsContext["emit"];
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly tag: Pick<TagService, "attachCardTagByName" | "detachCardTagByName">;
-  readonly roleClients: Pick<RoleClientsWithSignal, "summarize">;
+  /** The per-FUNDER role-client binder (§8.5b) — the greeting studio spends the CALLER's own `summarize` row. */
+  readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "summarize">>;
   /** The keystone's late-bound materializeBackground holder (character + seeders reference it at request time). */
   readonly materializeBackground: MaterializeBackgroundOp;
   /** LIVE effective per-image byte cap (the background materialize belt reads it per download). */
@@ -166,7 +167,7 @@ export function createPersonaSeedLatch(deps: {
 }
 
 export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCharacterComposeResult {
-  const { db, now, cas, variants, imageAdapter, tag, roleClients, settings } = deps;
+  const { db, now, cas, variants, imageAdapter, tag, roleClientsFor, settings } = deps;
 
   // Captured as a named const so the portability registry's gallery descriptor can reuse it.
   const assetsCtx: AssetsContext = {
@@ -314,7 +315,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // reference resolved at request time (it composes below). generateGreetingText runs the bounded side-LLM
     // completion over the summarize lane (the imagery captionImage precedent) at quiet-generate's floor
     // (temp 0.3, 1024 out — a bounded rewrite, not an open turn); the caller IS the request owner so
-    // roleClients (bound for deps.ownerId) is the caller's connection.
+    // the bundle is bound for the caller — their own `summarize` connection, never a box owner's (§8.5b).
     resolveGreetingTemplate: async ({ caller, kind }): Promise<{ template: string; prose: ProseOverrides }> => {
       const defaultPresetId = (await settings.getUserSettings({ principal: caller })).config.seeds.defaultPresetId;
       const fallback = DEFAULT_GUIDED_ACTIONS[kind].prompt;
@@ -346,7 +347,8 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
       // maps to the summarize seam's `maxTokens`; an absent knob is omitted (the backend default stands).
       const presetParams = await deps.resolveUserPresetParams(caller.userId);
       const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.greeting_studio, presetParams);
-      const res = await roleClients.summarize([{ systemPrompt: prompt, userPrompt: "" }], toSummarizeOptions(posture));
+      const rc = await roleClientsFor(caller.userId);
+      const res = await rc.summarize([{ systemPrompt: prompt, userPrompt: "" }], toSummarizeOptions(posture));
       const item = res.items[0];
       return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
     },

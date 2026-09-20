@@ -5,8 +5,6 @@ import { isPlainObject } from "@orb/kit/guards";
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, storedGroupConfigSchema } from "#chat";
-import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
-import { credentialSourceSchema } from "#credentials";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
@@ -213,12 +211,6 @@ export function clampMemorySummarizerMaxTokens(raw: number): number | null {
   return Math.max(1, Math.round(raw));
 }
 
-export const vllmConcurrencySchema = z.object({
-  embed: z.number().int().positive().optional(),
-  summarize: z.number().int().positive().optional(),
-});
-export type VllmConcurrency = z.infer<typeof vllmConcurrencySchema>;
-
 // The agent-sdk summarize concurrency (Q6): the max in-flight summarize calls the agent-sdk backend runs.
 // DISTINCT from vllmConcurrency.summarize (a vLLM engine policy, floor 32) — this caps the Claude-Agent-SDK
 // subprocess fan-out (floor 4, byte-identical to the former hardcoded SUMMARIZE_CONCURRENCY). Positive int.
@@ -245,50 +237,6 @@ const durationMs = (): z.ZodOptional<z.ZodNumber> => z.number().int().positive()
 // Engines section's "restart to apply" affordance. Every field optional — unset falls to the env floor
 // (foundation/env) resolved by resolveEngineLaunchConfig. Mostly a LAUNCH tier (applies on engine restart),
 // distinct from vllmConcurrency (a HOT policy, applies on next use) — with TWO deliberate hot leaves that ride
-// this section because they configure the same gen engine: `genPresencePenalty` and `genRepetitionPenalty` are
-// per-REQUEST sampler defaults and apply on the next request. GPU-util fractions are 0<u≤1.
-const GPU_UTIL_FLOOR = 0;
-const GPU_UTIL_CEIL = 1;
-const gpuUtil = (): z.ZodOptional<z.ZodNumber> => z.number().gt(GPU_UTIL_FLOOR).max(GPU_UTIL_CEIL).optional();
-export const engineLaunchSchema = z.object({
-  embedModel: z.string().min(1).optional(),
-  rerankModel: z.string().min(1).optional(),
-  genModel: z.string().min(1).optional(),
-  embedMaxModelLen: z.number().int().positive().optional(),
-  rerankMaxModelLen: z.number().int().positive().optional(),
-  genMaxModelLen: z.number().int().positive().optional(),
-  embedGpuUtil: gpuUtil(),
-  rerankGpuUtilMulti: gpuUtil(),
-  rerankGpuUtilSingle: gpuUtil(),
-  genGpuUtilMulti: gpuUtil(),
-  genGpuUtilSingle: gpuUtil(),
-  poolingMaxPixels: z.number().int().positive().optional(),
-  genMaxPixels: z.number().int().positive().optional(),
-  // The gen engine's default repetition_penalty, applied PER REQUEST by the vLLM chat surface when a preset is
-  // silent (#23). Was a `--override-generation-config` launch flag until 2026-08-14 — it existed for the
-  // retired sampler-less agent-sdk /v1/messages wire, and baking it clobbered the checkpoint's own
-  // generation_config.json on every call. Admin-retunable; applies on the NEXT REQUEST, no engine restart
-  // (genPresencePenalty is the exact precedent). 0<p (a positive multiplier; 1 = no penalty). `.nullable()`:
-  // joined genPresencePenalty in admin-system-tuning (moved off the restart-gated launch editor) and rides
-  // the SAME leaf-null merge-clear sentinel Reset sends.
-  genRepetitionPenalty: z.number().gt(GPU_UTIL_FLOOR).nullable().optional(),
-  // The gen engine's default PRESENCE penalty applied per-REQUEST whenever the vLLM chat surface serves (main
-  // chat AND role/side-gen traffic, e.g. when main chat rides agent-sdk and a swapped genModel runs on vLLM).
-  // Replaces the surface's silent CARD_DEFAULT_PRESENCE_PENALTY=1.5 that hit ANY model; env floor 1.5,
-  // admin-retunable per launched model (genRepetitionPenalty is the exact precedent). OpenAI presence_penalty
-  // range is -2..2; a preset that sets its own presencePenalty still wins over this default. `.nullable()`: a
-  // LEAF `null` is the merge-clear sentinel (the System-tuning section's Reset sends `{ genPresencePenalty:
-  // null }` — a nested `undefined` would be stripped by tRPC's plain-JSON wire and no-op the reset; a null
-  // survives, and the resolver's `?? floor` reads null as the floor). Clearing ONLY this leaf, never the
-  // whole engineLaunch section (which the restart-gated launch editor owns).
-  genPresencePenalty: z.number().min(GEN_PRESENCE_PENALTY_MIN).max(GEN_PRESENCE_PENALTY_MAX).nullable().optional(),
-});
-export type EngineLaunch = z.infer<typeof engineLaunchSchema>;
-
-// D17 — asymmetric default: shared LOCAL compute is opt-out (ON), hosted `max-pro-sub` is opt-in (OFF,
-// ban-prone + real money).
-export const DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE = true;
-export const DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB = false;
 
 // the retired FINAL-Auth-Modes-and-Onboarding design set §9 — runtime-flippable, so AppSettings not ENV.
 export const DEFAULT_LOCAL_MULTI_USER = false;
@@ -374,13 +322,8 @@ export const appSettingsSchema = z.object({
   memoryDefaults: memoryDefaultsSchema.nullable().optional().catch(undefined),
   memorySummarizer: memorySummarizerSchema.nullable().optional().catch(undefined),
   rateLimits: rateLimitsSchema.nullable().optional().catch(undefined),
-  vllmConcurrency: vllmConcurrencySchema.nullable().optional().catch(undefined),
   agentSdkConcurrency: agentSdkConcurrencySchema.nullable().optional().catch(undefined),
-  engineLaunch: engineLaunchSchema.nullable().optional().catch(undefined),
-  allowNonOwnerLocalCompute: z.boolean().nullable().optional().catch(undefined),
-  nonOwnerLocalComputeBudget: z.number().int().positive().nullable().optional().catch(undefined),
   // The non-owner local-compute budget WINDOW (ms) — the cap's sibling (compose read it hardcoded at 24h).
-  nonOwnerLocalComputeBudgetWindowMs: durationMs().nullable().optional().catch(undefined),
   maxImageBytes: z.number().int().min(MAX_IMAGE_BYTES_FLOOR).max(MAX_IMAGE_BYTES_CEIL).nullable().optional().catch(undefined),
   // Databank single-document upload cap — TIGHTEN-only (schema max = the route belt).
   maxDatabankBytes: z.number().int().min(MAX_DATABANK_BYTES_FLOOR).max(MAX_DATABANK_BYTES_CEIL).nullable().optional().catch(undefined),
@@ -390,7 +333,11 @@ export const appSettingsSchema = z.object({
   catalogRefreshIntervalMs: durationMs().nullable().optional().catch(undefined),
   // The image-variant lossy-encoder quality (folded into the variant cache key — see resolve-variant).
   imageVariantQuality: imageVariantQualitySchema().nullable().optional().catch(undefined),
-  allowNonOwnerMaxProSub: z.boolean().nullable().optional().catch(undefined),
+  /** GOVERNANCE (inference program F12): the PRIVATE-range hosts/CIDRs an `auth: endpoint` connection may dial
+   *  (`127.0.0.1`, `::1`, `192.168.1.0/24`…). Per DEPLOYMENT, never per principal — the same SSRF guard with a
+   *  data input. Env floor `PRIVATE_ENDPOINT_ALLOWLIST`; DB override wins; born `[127.0.0.1, ::1]` under
+   *  `AUTH_MODE=single-user`, empty on a multi-user install (hosted providers only). */
+  privateEndpointAllowlist: z.array(z.string().min(1)).nullable().optional().catch(undefined),
   localMultiUser: z.boolean().nullable().optional().catch(undefined),
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
   // The JSON-Schema shape structured-output requests ride (D126) — see STRUCTURED_OUTPUT_SHAPES above.
@@ -469,58 +416,11 @@ export function parseAppSettings(raw: unknown): AppSettings {
 // UserSettings — the per-user tier. Namespaced; each section `.prefault({})`.
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-// The per-role source subsets NARROW what a user may store, as defense-in-depth ahead of the runtime
-// credential firewall (`infra/providers/roles/firewall.ts::ROLE_SOURCE_POLICY` — contracts can't import
-// server-side policy, so these lists are hand-kept). Per-field `.catch(undefined)` self-heals a stale source.
-//
-// They currently agree with their firewall rows, but only because both sides are kept in sync by hand —
-// this is not enforced by construction. `SUMMARIZE_SOURCES` excludes `max-pro-sub` (owner ruling, 2026-08-07):
-// batch roles like summarize don't spend the owner's metered subscription, so the source is not offered here
-// and the firewall's `summarize` row does not permit it either. If either list changes, check the other.
-export const INFERENCE_SOURCES = ["openrouter", "vllm", "local-light"] as const;
-export const SUMMARIZE_SOURCES = ["openrouter", "vllm"] as const;
-// The generateImage role's permitted sources — mirrors ROLE_SOURCE_POLICY.generateImage
-export const GENERATE_IMAGE_SOURCES = ["openrouter"] as const;
-
-const inferenceRoleSourceSchema = z.enum(INFERENCE_SOURCES);
-// `model` accepts `null` (the client's explicit deepMergePlain clear on a provider switch), mirroring
-// chatRoleConfigSchema.model. `.min(1)` still self-heals a stale empty string to undefined.
-const inferenceRoleConfigSchema = z.object({
-  source: inferenceRoleSourceSchema.optional().catch(undefined),
-  model: z.string().min(1).nullable().optional().catch(undefined),
-});
-const summarizeRoleConfigSchema = z.object({
-  source: z.enum(SUMMARIZE_SOURCES).optional().catch(undefined),
-  model: z.string().min(1).nullable().optional().catch(undefined),
-});
-const generateImageRoleConfigSchema = z.object({
-  source: z.enum(GENERATE_IMAGE_SOURCES).optional().catch(undefined),
-  model: z.string().min(1).nullable().optional().catch(undefined),
-});
-const chatRoleConfigSchema = z.object({
-  api: chatApiSchema.optional().catch(undefined),
-  source: credentialSourceSchema.optional().catch(undefined),
-  model: z.string().nullable().optional().catch(undefined),
-  providerRouting: openRouterProviderRoutingSchema.optional().catch(undefined),
-});
-
-const roleDefaultsSchema = z
-  .object({
-    chat: chatRoleConfigSchema.optional(),
-    // The agent role is a per-user connection choice (api + source + model), same shape as chat (D67
-    // api-unpin) — the agent's api is NOT server-pinned. (The `buddy` domain that was to validate the
-    // resolved api at its entry was purged 2026-07-25; the connection role itself stays live for the
-    // rebuild to graft onto.)
-    agent: chatRoleConfigSchema.optional(),
-    embed: inferenceRoleConfigSchema.optional(),
-    rerank: inferenceRoleConfigSchema.optional(),
-    imageEmbed: inferenceRoleConfigSchema.optional(),
-    summarize: summarizeRoleConfigSchema.optional(),
-    generateImage: generateImageRoleConfigSchema.optional(),
-  })
-  .prefault({});
-
-export const USER_SETTINGS_SCHEMA_VERSION = 8;
+// ROUTING LEFT THE SETTINGS BLOB (inference program §5.3, F7/F16): a user's per-task picks are
+// `connection_bindings` rows (`actorKind: "user"`), never `roleDefaults.<task>` leaves here; the source lists
+// (`INFERENCE_SOURCES` …) that mirrored the firewall are gone with the axis. v8 → v9 DROPS the `routing`
+// section outright (no lift, pre-launch posture).
+export const USER_SETTINGS_SCHEMA_VERSION = 9;
 
 const SCAN_DEPTH_MIN = 1;
 const SCAN_DEPTH_MAX = 200;
@@ -559,8 +459,6 @@ const COOCCURRENCE_MAX_PAIRS_MIN = 100;
 const COOCCURRENCE_MAX_PAIRS_MAX = 1_000_000;
 const HUB_FRACTION_FLOOR = 0;
 const HUB_FRACTION_CEIL = 1;
-
-const routingSchema = z.object({ roleDefaults: roleDefaultsSchema }).prefault({});
 
 const themeSettingsSchema = z
   .object({
@@ -893,7 +791,6 @@ export const userSettingsSchema = z.object({
   // The DB also pins a `user_settings.schemaVersion` COLUMN (`storedVersion`), which BEATS this in-blob
   // value so a client can't spoof past a lift.
   schemaVersion: z.number().int().positive().default(USER_SETTINGS_SCHEMA_VERSION),
-  routing: routingSchema,
   seeds: seedsSchema,
   worldInfo: worldInfoSchema,
   memory: memorySchema,
@@ -924,7 +821,6 @@ export type UserSettings = z.infer<typeof userSettingsSchema>;
 
 /** The object-valued namespaces a section-patch can target (`updateUserSettingsSection`). */
 export const USER_SETTINGS_SECTIONS = [
-  "routing",
   "seeds",
   "worldInfo",
   "memory",
@@ -966,15 +862,8 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
     if (c["defaultModel"] !== undefined && c["defaultModel"] !== null) {
       chat["model"] = c["defaultModel"];
     }
-    const oldRoleDefaults = (c["roleDefaults"] as Record<string, unknown> | undefined) ?? {};
     return {
       schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
-      routing: {
-        roleDefaults: {
-          ...oldRoleDefaults,
-          ...(Object.keys(chat).length > 0 ? { chat } : {}),
-        },
-      },
       seeds: { defaultPersonaId: c["defaultPersonaId"] ?? null },
       worldInfo: {
         ...(c["wiScanDepth"] !== undefined ? { scanDepth: c["wiScanDepth"] } : {}),
@@ -1041,6 +930,12 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
     const { regex: _retiredLibrary, ...rest } = c;
     return rest;
   },
+  // v8→v9 (inference program §13 step 4): `routing.roleDefaults` LEAVES the blob — per-task picks are
+  // `connection_bindings` rows now; the old leaves are dropped, never lifted (pre-launch, F19).
+  8: (c) => {
+    const { routing: _dropped, ...rest } = c;
+    return rest;
+  },
 };
 
 export const userSettingsConfig = defineVersionedConfig<UserSettings>({
@@ -1067,11 +962,6 @@ export interface ResolvedRateLimits {
   login: number;
 }
 
-export interface ResolvedVllmConcurrency {
-  embed: number;
-  summarize: number;
-}
-
 export interface ResolvedAgentSdkConcurrency {
   summarize: number;
 }
@@ -1079,24 +969,6 @@ export interface ResolvedAgentSdkConcurrency {
 /** The RESOLVED vLLM engine launch config (env floor ⊕ admin override), every field present. The server's
  *  engine spawner consumes this to build the serve argv (structurally the infra `EngineLaunchConfig`, minus
  *  the env-only ports the spawner reads directly). Applied on engine RESTART, not next-use. */
-export interface ResolvedEngineLaunch {
-  embedModel: string;
-  rerankModel: string;
-  genModel: string;
-  embedMaxModelLen: number;
-  rerankMaxModelLen: number;
-  genMaxModelLen: number;
-  embedGpuUtil: number;
-  rerankGpuUtilMulti: number;
-  rerankGpuUtilSingle: number;
-  genGpuUtilMulti: number;
-  genGpuUtilSingle: number;
-  poolingMaxPixels: number;
-  genMaxPixels: number;
-  genRepetitionPenalty: number;
-  genPresencePenalty: number;
-}
-
 export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
   importSkipCharacters: string[];
@@ -1107,13 +979,8 @@ export interface EffectiveAppConfig {
   memoryDefaults: MemoryDefaults;
   memorySummarizer: MemorySummarizerConfig;
   rateLimits: ResolvedRateLimits;
-  vllmConcurrency: ResolvedVllmConcurrency;
   agentSdkConcurrency: ResolvedAgentSdkConcurrency;
-  engineLaunch: ResolvedEngineLaunch;
-  allowNonOwnerLocalCompute: boolean;
-  nonOwnerLocalComputeBudget: number | null;
-  nonOwnerLocalComputeBudgetWindowMs: number;
-  allowNonOwnerMaxProSub: boolean;
+  privateEndpointAllowlist: string[];
   localMultiUser: boolean;
   discreetLogin: boolean;
   maxImageBytes: number;

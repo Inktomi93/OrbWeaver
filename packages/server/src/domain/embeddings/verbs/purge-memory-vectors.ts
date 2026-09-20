@@ -12,10 +12,14 @@ import type { EmbeddingsContext } from "../context.ts";
 import type { PurgeMemoryVectorsResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { purgeStaleVectors } from "../persistence/clear.ts";
+import { requireTaskModel } from "../substrate/task-model.ts";
 
 export function createPurgeMemoryVectors(ctx: EmbeddingsContext): EmbeddingsService["purgeMemoryVectors"] {
-  return async (): Promise<PurgeMemoryVectorsResult> => {
-    const activeModel = ctx.roleClients.embedModel;
+  return async ({ ownerId }): Promise<PurgeMemoryVectorsResult> => {
+    const activeModel = await requireTaskModel(ctx, ownerId, "embed");
+    if (activeModel === null) {
+      return { segments: 0, digests: 0 };
+    }
     const segments = await purgeStaleVectors(ctx.db, "chat_segments", activeModel);
     const digests = await purgeStaleVectors(ctx.db, "chat_digests", activeModel);
     return { segments, digests };

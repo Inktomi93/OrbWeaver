@@ -30,11 +30,20 @@ import type {
   MessageView,
   ToolCallRecord,
 } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
-import { acceptsAssistantPrefill, acceptsHistorySystemRows, coEmitsProseWithTools } from "@orb/contracts/connection";
+import {
+  acceptsAssistantPrefill,
+  acceptsHistorySystemRows,
+  acceptsImageInput,
+  acceptsMidConversationSystem,
+  acceptsVideoInput,
+  coEmitsProseWithTools,
+  roleHandlingFloorOf,
+} from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
+import type { Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
+import { generationOf } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -44,7 +53,6 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
-import type { ResolvedWarning, ToolCallInput, WireTool } from "#infra/providers";
 import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
@@ -86,15 +94,12 @@ interface RunTurnPipelineArgs {
   /** The immutable assemble ctx (never mutated here). */
   readonly assembleContext: AssembleContext;
   readonly canon: readonly MessageView[];
-  readonly connection: ResolvedConnection;
+  readonly connection: Resolved<"chat">;
   readonly intent: UserIntent;
   /** The host's `UserSettings.chat.customStoppingStrings` (PD-146), folded into the request's stop set
    *  (Set-deduped after the intent's own stops). Absent/empty ⇒ the request `intent` is untouched. */
   readonly extraStopSequences?: readonly string[] | undefined;
   readonly kind: TurnKind;
-  /** The owner-consent verdict the engine derived, threaded onto the built TurnRequest so the infra
-   *  firewall re-verifies it. */
-  readonly ownerConsented: boolean;
   readonly chatId: ChatId;
   /** A synthetic trailing user turn (regen/continue); null for a plain send. */
   readonly appendUserTurn?: string | null | undefined;
@@ -230,7 +235,7 @@ interface TurnPipelineResult {
  *  self-hosted vLLM the whole window), which reserved the entire context and starved history (amnesia). */
 function fitBudget(args: RunTurnPipelineArgs, intent: UserIntent, systemTokens: number): ReturnType<typeof buildHistoryBudget> {
   return buildHistoryBudget({
-    windowTokens: args.connection.capability.context.window,
+    windowTokens: generationOf(args.connection).context.window,
     // Context Size (ST `openai_max_context`): the user's soft ceiling. Unset ⇒ undefined ⇒ the fit's
     // `min(window, ∞)` resolves to the window, so context length and window line up by default.
     maxContextTokens: intent.maxContextTokens,
@@ -534,7 +539,7 @@ async function applyDynamicTransform(args: RunTurnPipelineArgs, built: Assembled
  *  channels count: `attachedToolNames` (the executed/recursed set) and `terminalTools` (the R1 folded set,
  *  attached `tool_choice:"auto"` and never recursed). */
 function honorsAssistantPrefill(args: RunTurnPipelineArgs): boolean {
-  return acceptsAssistantPrefill(args.connection.capability) && !turnCarriesTools(args);
+  return acceptsAssistantPrefill(generationOf(args.connection)) && !turnCarriesTools(args);
 }
 
 /** SHAPE's synthetic trailing user row: the caller's, minus a CONTINUATION FALLBACK the prefill verdict makes
@@ -605,15 +610,15 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     assistantPrefill: prefillHonored,
     // midConversationSystem gates the depth-0 system-injection delivery: a declaring model gets a REAL
     // system wire row; the TURNS_FLOOR default demotes to the visible `[Note from system: …]` user note.
-    midConversationSystem: args.connection.capability.turns?.midConversationSystem === true,
+    midConversationSystem: acceptsMidConversationSystem(generationOf(args.connection)),
     // historySystemRows gates the DEPTH>0 system-injection delivery: on a MEASURED mid-array-system model an
     // author's note / depth-N world-info entry rides at its depth as a real system row; unmeasured ⇒ it
     // demotes to the visible `[Note from system: …]` user note. Read through the contract helper — never a
     // second spelling of the capability field. It does NOT touch narrator canon rows: the D129(B) delivery
     // that also read this bit was owner-ruled out 2026-08-18 (group narration is the assistant's own voice).
-    historySystemRows: acceptsHistorySystemRows(args.connection.capability),
+    historySystemRows: acceptsHistorySystemRows(generationOf(args.connection)),
     roleHandling: effectiveIntent.advanced?.roleHandling,
-    roleHandlingFloor: args.connection.capability.turns?.roleHandlingFloor,
+    roleHandlingFloor: roleHandlingFloorOf(generationOf(args.connection)),
     squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
     // The room host's note frames (PROSE-1) rode onto the ctx at build; SHAPE frames the spliced injections.
     prose: ctx.prose,
@@ -631,8 +636,8 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // uniform per backend.
   const converted = await buildWireHistory(
     {
-      visionOk: args.connection.capability.input?.vision === true,
-      videoOk: args.connection.capability.input?.video === true,
+      visionOk: acceptsImageInput(generationOf(args.connection)),
+      videoOk: acceptsVideoInput(generationOf(args.connection)),
       resolveImageUrl: args.resolveImageUrl,
       cardKeepLastX: args.cardKeepLastX,
       canon: args.canon,
@@ -666,12 +671,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     prompt: assembled,
     history,
     intent: effectiveIntent,
-    // The preset's BYOK provider-passthrough blob (PD-148) — flows onto the request only when set. It is
-    // applied ONLY by the custom-byo backend (preset-wins, with the two-layer prototype-pollution defense); on
-    // OpenRouter it is intentionally not applied (BYOK/custom-byo-only) and dropped-and-loud.
-    ...(ctx.promptConfig.customParameters !== undefined ? { customParameters: ctx.promptConfig.customParameters } : {}),
     kind: args.kind,
-    ownerConsented: args.ownerConsented,
     cacheBreakpointFromEnd,
     signal: args.signal,
   };
@@ -735,7 +735,7 @@ async function attachTools(
   baseRequest: TurnRequest,
 ): Promise<{ request: TurnRequest; set: ChatToolSet | null; unsupported: boolean; mcpRecords: readonly ToolCallRecord[] }> {
   const wantTools = args.attachedToolNames.length > 0 && args.tools !== null;
-  const toolsSupported = args.connection.capability.tools !== undefined;
+  const toolsSupported = generationOf(args.connection).tools !== undefined;
   // Aliased narrowing: `!wantTools` returning implies `args.tools !== null` below (tsc 5.5+).
   if (!wantTools) {
     return { request: baseRequest, set: null, unsupported: false, mcpRecords: [] };
@@ -830,7 +830,7 @@ function attachTerminalTools(
   registryNames: ReadonlySet<string>,
 ): { request: TurnRequest; attached: boolean; names: ReadonlySet<string>; collided: readonly string[] } {
   const requested = args.terminalTools ?? [];
-  if (requested.length === 0 || !coEmitsProseWithTools(args.connection.capability)) {
+  if (requested.length === 0 || !coEmitsProseWithTools(generationOf(args.connection))) {
     return { request: baseRequest, attached: false, names: new Set(), collided: [] };
   }
   const collided = requested.filter((tool) => registryNames.has(tool.name)).map((tool) => tool.name);
@@ -882,7 +882,7 @@ function attachResponseFormat(args: RunTurnPipelineArgs, baseRequest: TurnReques
   if (args.responseFormat === undefined) {
     return { request: baseRequest, unsupported: false };
   }
-  if (args.connection.capability.output.structured !== true) {
+  if (generationOf(args.connection).output.structured !== true) {
     return { request: baseRequest, unsupported: true };
   }
   return { request: { ...baseRequest, responseFormat: args.responseFormat }, unsupported: false };

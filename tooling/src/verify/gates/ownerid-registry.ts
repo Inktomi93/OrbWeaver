@@ -2,7 +2,7 @@
 // producer, a parentless per-user aggregate, or a sanctioned scope-subject. Every other table DERIVES its
 // owner by following one FK to an owned entity, so a new stamp on an unclassified table is a doubling.
 //
-// OWNERID_CLASSIFICATIONS IS AUTHORITATIVE DATA, NOT A GRANT (exception-authority-census: "27 schema
+// OWNERID_CLASSIFICATIONS IS AUTHORITATIVE DATA, NOT A GRANT (exception-authority-census: "28 schema
 // ownership classifications"). It is the ruling itself — which tables the ledger decided OWN rather than
 // derive — so it stays in the module as typed rows with a `why`, and the policy is HARD: the escape is
 // re-deciding D23, never a comment at the stamp.
@@ -66,6 +66,9 @@ export const OWNERID_CLASSIFICATIONS: Readonly<Record<string, OwnershipClassific
     why: "D23 true producer (D61 B6 — a saved party is the user's authored artifact; its character references are a LIST via the roster_preset_members junction, so there is no single required FK to derive the owner through)",
   },
   tags: { why: "D23 true producer" },
+  user_connections: {
+    why: "D23 true producer (a connection is the user's own row — inference program §5.3; the resolver refuses a binding that names a stranger's)",
+  },
   user_credentials: { why: "D23 true producer" },
   workloads: { why: "D23 true producer" },
   workload_schedules: {
@@ -196,8 +199,8 @@ export const gate = defineGate({
         "packages/db/src/schema/chat.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n',
       },
-      expect: { count: 27, messageIncludes: "classifies nothing" },
-      why: "THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling. `count` is `Object.keys(OWNERID_CLASSIFICATIONS).length` (27, derived by planting `count: 99`), and it is EXACT on purpose: without it the row passed on ONE stale finding as readily as on all of them, so a stale sweep that silently shrank to a single row would still have looked green (#1968/#2001). It moves with the table, which is the coupling this arm is FOR.",
+      expect: { count: 28, messageIncludes: "classifies nothing" },
+      why: "THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling. `count` is `Object.keys(OWNERID_CLASSIFICATIONS).length` (28, derived by planting `count: 99`), and it is EXACT on purpose: without it the row passed on ONE stale finding as readily as on all of them, so a stale sweep that silently shrank to a single row would still have looked green (#1968/#2001). It moves with the table, which is the coupling this arm is FOR.",
     },
   ],
   mustPass: [

@@ -16,6 +16,7 @@ import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
 import { blockKeyStr, collapseByContentHash, dedupeRankedBlocks } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
+import { requireSpaceModel } from "../substrate/space.ts";
 
 interface CorpusCandidate {
   readonly id: string;
@@ -34,15 +35,17 @@ function blockSlot(chatId: BlockKey["chatId"], blockIdx: number): string {
 export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
   return async (params: CorpusParams): Promise<CorpusHit[]> => {
     const text = params.queryText;
+    const rc = await ctx.roleClientsFor(params.ownerId);
+    const embedModel = await requireSpaceModel(rc, "embed");
     if (text.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "corpus requires a queryText to embed + scan");
     }
-    const embedded = await ctx.roleClients.embed(text, { inputType: "query" });
+    const embedded = await rc.embed(text, { inputType: "query" });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
     }
-    const model = ctx.roleClients.embedModel;
+    const model = embedModel;
 
     const digestPool = (
       await nearestDigests(ctx.db, {
@@ -105,7 +108,7 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
     const candidates = [...digestCandidates, ...segmentCandidates];
     const ranked =
       params.mode === "mixC"
-        ? await applyRerank(text, candidates, ctx.roleClients.rerank, candidates.length)
+        ? await applyRerank(text, candidates, rc.rerank, candidates.length)
         : candidates.toSorted(
             compareCslsBy(
               (c) => c.distance,

@@ -16,13 +16,13 @@
 // holds its OWN libSQL/WAL connection snapshot — a second writer's committed rows are NOT guaranteed visible
 // to that live connection, so a seed run WHILE the stack is up may land in the file yet stay invisible until
 // the stack RESTARTS. Either restart after seeding, or point a fresh DATABASE_URL at a scratch file.
-import process from "node:process";
 import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
 import { DB_LAUNCHED, runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
 import { createServices } from "@orb/server/entry/compose";
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import { env } from "@orb/server/foundation/env";
 import { and, desc, eq } from "drizzle-orm";
 import { print } from "../../_shared/artifacts.ts";
@@ -31,7 +31,7 @@ import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import type { Db, Services } from "../contract/types.ts";
-import { inertVllmClient } from "../lib/fake-vllm.ts";
+import { fakeLocalLightCache } from "../lib/fake-local-light.ts";
 import { CHAT_SEED_SESSION_SECRET, principalOf } from "../lib/fixture.ts";
 import { buildTranscript, parseChatArgs, SEED_HANDLE_PREFIX, transcriptFilename } from "../lib/transcript.ts";
 
@@ -109,10 +109,9 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
     casDir: env.ASSETS_DIR,
     variantDir: `${env.ASSETS_DIR}/../variants`,
     sessionSecret,
-    vllmDisabled: true,
-    repoRoot: process.cwd(),
     holder: "seed-chat",
-    providerSeams: { vllmClient: inertVllmClient(), vllmEmbedDim: env.VLLM_EMBED_DIM },
+    // The seeded local-light rows embed through the scripted cache — no download, no GPU, byte-stable.
+    providerSeams: { localLight: { cache: fakeLocalLightCache(EMBED_SPACE_DIMS) } },
   });
 
   // The idempotent boot seeds (owner cards, default persona, preset, themes) — safe on an already-seeded db.

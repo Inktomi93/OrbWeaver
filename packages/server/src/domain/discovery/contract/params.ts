@@ -22,6 +22,8 @@ export interface ComputeThemesOptions {
   readonly k?: number;
   readonly seed?: number;
   readonly ownerId?: UserId | null;
+  /** WHO FUNDS the cluster naming — the workload's acting user (`WorkloadRunContext.userId`). */
+  readonly funderUserId: UserId;
 }
 
 /** Options for the `compute*HubScores` passes. `denseMax` forces the streaming branch on a small fixture. */
@@ -34,6 +36,8 @@ export interface ComputeHubScoresOptions {
 
 /** Options for the `distillCharacters` pass. `characterId` narrows to one card; absent = whole-library batch. */
 export type DistillCharactersOptions = DistillTargetNarrow & {
+  /** WHO FUNDS the pass — the caller on the on-demand arm, the workload's acting user on the batch arm. */
+  readonly funderUserId: UserId;
   readonly signal?: AbortSignal | undefined;
   /** Per-card position for the caller's progress surface (`done`, `total`). The PASS owns the denominator —
    *  the workload wrapper never reads the target list — so N-of-M can only originate here (issue #166). */

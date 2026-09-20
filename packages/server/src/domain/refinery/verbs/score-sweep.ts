@@ -36,7 +36,7 @@
 
 import type { RefineryScorePayload, RefineryScoreSweepResult, RefinerySelection } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
-import type { SummarizeOptions } from "@orb/contracts/role-clients";
+import type { RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import type { ReportProgress } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
@@ -52,6 +52,7 @@ import { outputEstimateOf, resolveStageSampling } from "../substrate/output-budg
 import { buildScorePrompt, defaultSelectionOf } from "../substrate/refine-prompt.ts";
 import { REFINERY_RESPONSE_FORMATS } from "../substrate/stage-resolution.ts";
 import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
+import { summarizerFactsOf } from "../substrate/summarizer.ts";
 
 /** The sweep's score MODE, recorded as a default rather than a knob: a library pass is TRIAGE — it keeps
  *  one number per card and discards the critique, so paying for the full per-field rubric would buy output
@@ -105,7 +106,7 @@ export function createScoreSweep(deps: RefineryWorkloadDeps): ScoreSweep {
 }
 
 async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions): Promise<RefineryScoreSweepResult> {
-  const { ownerId, rescoreAll, report, signal } = opts;
+  const { ownerId, funderUserId, rescoreAll, report, signal } = opts;
   signal?.throwIfAborted();
   // The FILL arm pushes "already scored" into SQL — a re-run over a scored library must not pay one model
   // call per card it already knows (`rescoreAll` is the explicit refresh opt-in).
@@ -131,22 +132,26 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
     const prompts = buildScorePrompt({ card: target.card, selection, mode: SWEEP_SCORE_MODE, guidance: null, overrides });
     return { target, system: prompts.system, user: prompts.user, subject: { stage: "score", card: target.card, selection } };
   });
-  const sampleOpts: SummarizeOptions = {
+  // The funder's `summarize` binding answers every card — the sweep is one caller's workload, whoever's
+  // cards it enumerates (§7.5-2); the model's window sizes the output cap exactly as a session run does.
+  const rc = await deps.roleClientsFor(funderUserId);
+  const facts = await summarizerFactsOf(rc);
+  const sampleOpts: StructuredOptions = {
     responseFormat: REFINERY_RESPONSE_FORMATS.score,
-    ...toSummarizeOptions(sweepOutputSamplingOf(items, presetParams, deps.summarizerContextTokens())),
+    ...toSummarizeOptions(sweepOutputSamplingOf(items, presetParams, facts.contextTokens)),
   };
 
   signal?.throwIfAborted();
   report({ message: `scoring ${items.length} card${items.length === 1 ? "" : "s"}`, current: 0, total: items.length });
   // One batched call fills the role's parallel-slot pipeline; `items[i]` pairs 1:1 with `result.items[i]`.
-  const replies = await fetchBatchReplies(deps, items, sampleOpts);
+  const replies = await fetchBatchReplies(rc, items, sampleOpts);
 
   // The fan's audience is accumulated as the waves land and announced in a `finally`, so a CANCELLED sweep
   // still tells the owners whose cards it already stamped (an abort mid-pass would otherwise leave the
   // library sorting on half-new scores until something unrelated moved).
   const stampedOwners = new Set<UserId>();
   try {
-    const { scored, failed } = await stampParsedScores(deps, { items, replies, sampleOpts }, { report, signal }, stampedOwners);
+    const { scored, failed } = await stampParsedScores(deps, { rc, items, replies, sampleOpts }, { report, signal }, stampedOwners);
     // `failed` cards were READY (they reached the model), so they are not skipped — the four counts partition
     // the candidate set exactly: scanned = scored + skipped + failed.
     return { scanned: inScope, scored, skipped, failed };
@@ -194,12 +199,12 @@ function readyTargetsOf(targets: readonly RefineryScoreTarget[]): { target: Refi
  *  degrades to empty replies, and the bounded, per-card-contained retry path below re-fetches each card one at
  *  a time (`SWEEP_RETRY_CONCURRENCY`-bounded) — the poison card fails alone (counted `failed`), the rest score.
  *  This is the same isolation the memory backfill's `summarizeBatchIsolated` gives its digest batch. */
-async function fetchBatchReplies(deps: RefineryWorkloadDeps, items: readonly SweepItem[], sampleOpts: SummarizeOptions): Promise<{ text: string }[]> {
+async function fetchBatchReplies(rc: RoleClients, items: readonly SweepItem[], sampleOpts: StructuredOptions): Promise<{ text: string }[]> {
   const replies: { text: string }[] = [];
   for (let i = 0; i < items.length; i += SWEEP_SUBMISSION_SIZE) {
     const chunk = items.slice(i, i + SWEEP_SUBMISSION_SIZE);
     try {
-      const res = await deps.summarize(
+      const res = await rc.structured(
         chunk.map((item) => ({ systemPrompt: item.system, userPrompt: item.user })),
         sampleOpts,
       );
@@ -222,18 +227,23 @@ async function fetchBatchReplies(deps: RefineryWorkloadDeps, items: readonly Swe
  *  action is identical (re-run the pass). */
 async function stampParsedScores(
   deps: RefineryWorkloadDeps,
-  pass: { readonly items: readonly SweepItem[]; readonly replies: readonly { readonly text: string }[]; readonly sampleOpts: SummarizeOptions },
+  pass: {
+    readonly rc: RoleClients;
+    readonly items: readonly SweepItem[];
+    readonly replies: readonly { readonly text: string }[];
+    readonly sampleOpts: StructuredOptions;
+  },
   progress: { readonly report: ReportProgress; readonly signal: AbortSignal | undefined },
   /** The terminal fan's audience, filled in as each wave stamps (the caller owns it — see `announceSweep`). */
   stampedOwners: Set<UserId>,
 ): Promise<{ scored: number; failed: number }> {
-  const { items, replies, sampleOpts } = pass;
+  const { rc, items, replies, sampleOpts } = pass;
   let scored = 0;
   let failed = 0;
   for (let i = 0; i < items.length; i += SWEEP_RETRY_CONCURRENCY) {
     progress.signal?.throwIfAborted();
     const wave = items.slice(i, i + SWEEP_RETRY_CONCURRENCY);
-    const outcome = await runWave(deps, { wave, replies: replies.slice(i, i + wave.length), sampleOpts, stampedOwners });
+    const outcome = await runWave(deps, { rc, wave, replies: replies.slice(i, i + wave.length), sampleOpts, stampedOwners });
     scored += outcome.scored;
     failed += outcome.failed;
     progress.report({ message: `scored ${scored} of ${items.length}`, current: i + wave.length, total: items.length });
@@ -247,15 +257,16 @@ async function stampParsedScores(
 async function runWave(
   deps: RefineryWorkloadDeps,
   args: {
+    readonly rc: RoleClients;
     readonly wave: readonly SweepItem[];
     readonly replies: readonly { readonly text: string }[];
-    readonly sampleOpts: SummarizeOptions;
+    readonly sampleOpts: StructuredOptions;
     /** The terminal fan's audience — every owner this wave actually stamped (the caller announces). */
     readonly stampedOwners: Set<UserId>;
   },
 ): Promise<{ scored: number; failed: number }> {
-  const { wave, replies, sampleOpts, stampedOwners } = args;
-  const parsed = await Promise.all(wave.map((item, j) => parseOneScore(deps, item, replies[j]?.text ?? "", sampleOpts)));
+  const { rc, wave, replies, sampleOpts, stampedOwners } = args;
+  const parsed = await Promise.all(wave.map((item, j) => parseOneScore(rc, item, replies[j]?.text ?? "", sampleOpts)));
   let scored = 0;
   for (const [j, payload] of parsed.entries()) {
     const item = wave[j];
@@ -272,14 +283,9 @@ async function runWave(
 /** Parse ONE card's score through the structured-turn helper (D79): the batch reply is the first attempt
  *  (already fetched — it cannot throw); a per-card retry re-summarizes that one card with the validation
  *  issues appended. Returns the payload, or `null` when the card FAILED (containment — the header). */
-async function parseOneScore(
-  deps: RefineryWorkloadDeps,
-  item: SweepItem,
-  batchText: string,
-  sampleOpts: SummarizeOptions,
-): Promise<RefineryScorePayload | null> {
+async function parseOneScore(rc: RoleClients, item: SweepItem, batchText: string, sampleOpts: StructuredOptions): Promise<RefineryScorePayload | null> {
   const run = (correction?: string): Promise<string> =>
-    correction === undefined ? Promise.resolve(batchText) : retryScoreOne(deps, item, correction, sampleOpts);
+    correction === undefined ? Promise.resolve(batchText) : retryScoreOne(rc, item, correction, sampleOpts);
   // @orb-waive caught-failure-ownership(catch): bookkeeping — documented above: `null` is the
   // FAILED containment the header cites (the `parseOneDistill` precedent); the caller counts it into
   // `failed` and the sweep continues. Ends if a per-card cause needs to travel past this boundary.
@@ -292,7 +298,7 @@ async function parseOneScore(
 
 /** Re-summarize ONE card with the zod issues appended — the structured-turn helper's bounded retry. Rides
  *  the SAME resolved posture AND the same assembled prompt the batch call used. */
-async function retryScoreOne(deps: RefineryWorkloadDeps, item: SweepItem, correction: string, sampleOpts: SummarizeOptions): Promise<string> {
-  const res = await deps.summarize([{ systemPrompt: item.system, userPrompt: `${item.user}\n\n${correction}` }], sampleOpts);
+async function retryScoreOne(rc: RoleClients, item: SweepItem, correction: string, sampleOpts: StructuredOptions): Promise<string> {
+  const res = await rc.structured([{ systemPrompt: item.system, userPrompt: `${item.user}\n\n${correction}` }], sampleOpts);
   return res.items[0]?.text ?? "";
 }

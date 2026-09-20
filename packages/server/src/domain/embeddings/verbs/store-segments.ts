@@ -16,6 +16,7 @@
 //
 // A one-element call is the live post-turn path — same code, batch of one.
 
+import type { UserId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context.ts";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type { SegmentStoreParams } from "../contract/params.ts";
@@ -64,7 +65,28 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
     // THE FLOOD. One call, every pending chunk. Deliberately NOT chunked or throttled here: sizing the wire
     // batch is the provider surface's job (it knows the engine's chunk size + worker count), and a second
     // client-side limiter would only re-create the starvation this verb removes.
-    const embedded = await ctx.roleClients.embed(pending.map((p) => p.params.text));
+    // One flood PER OWNER: each owner's embed connection defines their space (§7.5-2), so a mixed-owner batch
+    // is split by funder before it goes to the wire — still one call per owner, never one per chunk.
+    const byOwner = new Map<UserId, typeof pending>();
+    for (const item of pending) {
+      const bucket = byOwner.get(item.params.ownerId);
+      if (bucket === undefined) {
+        byOwner.set(item.params.ownerId, [item]);
+      } else {
+        bucket.push(item);
+      }
+    }
+    const vectorsByIndex = new Map<number, Float32Array | null>();
+    let modelTag = "";
+    for (const [ownerId, items] of byOwner) {
+      const rc = await ctx.roleClientsFor(ownerId);
+      const result = await rc.embed(items.map((p) => p.params.text));
+      modelTag = result.model;
+      for (const [i, item] of items.entries()) {
+        vectorsByIndex.set(pending.indexOf(item), result.vectors[i] ?? null);
+      }
+    }
+    const embedded = { model: modelTag, vectors: pending.map((_, i) => vectorsByIndex.get(i) ?? null) };
 
     // The row writes stay SEQUENTIAL — they are db upserts, and the engine is already done by here.
     for (const [i, item] of pending.entries()) {

@@ -4,7 +4,7 @@
 // client both need the identities); callers import those directly from there (a re-export here would be a
 // banned barrel), so this file owns only the databank-local NotFound.
 
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { DomainNotFoundError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 import type { CharacterId } from "@orb/kit/ids";
 
 const DATABANK_ENTITY_KINDS = ["document"] as const;
@@ -27,6 +27,15 @@ export class DocumentNotFoundError extends DomainNotFoundError {
  *  not the server); the SPECIFIC reason (and any resolved private address) stays server-side on `.cause` + the
  *  safeFetch `securityEvent` log — a client-visible reason would be an SSRF oracle (the hub `importGif`
  *  precedent: one leak-free code, the reason stays server-side). Maps to BAD_REQUEST via `classifyDomainError`. */
+/** The owner has no `embed` connection bound — a bank cannot be chunked into nobody's space (§7.5). The
+ *  `no-connection` class: a Connections-pane edit fixes it. */
+export class DatabankNoEmbedSpaceError extends DomainUnavailableError {
+  constructor() {
+    super("No embedding connection is bound — bind one under Connections › Model roles to index documents.");
+    this.name = this.constructor.name;
+  }
+}
+
 export class ScrapeFailedError extends DomainOperationError {
   constructor(options?: { readonly cause?: unknown }) {
     super("scrape_failed", "The web page could not be scraped.");

@@ -129,6 +129,9 @@ export interface SubmitManualRewriteParams extends RefineryActorParams {
  *  same spelling the engine uses — never "an owner I forgot to pass". */
 export interface ScoreSweepOptions {
   readonly ownerId: UserId | null;
+  /** WHO FUNDS the sweep — the workload's acting user (`WorkloadRunContext.userId`); their `summarize`
+   *  binding answers every card in the pass, owner-narrowed or bulk (inference program §7.5-2). */
+  readonly funderUserId: UserId;
   /** FILL (false, the default the contribution passes) scores only cards with no score yet; REFRESH (true)
    *  re-scores every card. See `refineScoreSweepWorkloadParams`. */
   readonly rescoreAll: boolean;

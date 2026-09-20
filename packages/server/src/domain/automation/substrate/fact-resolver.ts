@@ -123,8 +123,9 @@ async function resolveTurn(ops: AutomationOps, event: BusEvent): Promise<Resolve
     }
     const turn = {
       intent: event.intent,
-      api: event.api,
-      source: event.source,
+      // `api` is `null` on a non-chat kind at the contract; the fact vocabulary is strings, so absent reads "".
+      api: event.api ?? "",
+      provider: event.provider,
       model: event.model,
       speakerCharacterId: event.speakerCharacterId,
       automationDepth,
@@ -136,7 +137,7 @@ async function resolveTurn(ops: AutomationOps, event: BusEvent): Promise<Resolve
     if (automationDepth === null) {
       return null;
     }
-    return { fact: { ...base, turn: { intent: event.intent, api: "", source: "", model: "", speakerCharacterId: null, automationDepth } }, automationDepth };
+    return { fact: { ...base, turn: { intent: event.intent, api: "", provider: "", model: "", speakerCharacterId: null, automationDepth } }, automationDepth };
   }
   if (event.type === "turnAborted") {
     // An aborted turn commits NO reply slot, so depth can't be read via `getTurnOrigin` (the sibling paths' way).
@@ -144,7 +145,7 @@ async function resolveTurn(ops: AutomationOps, event: BusEvent): Promise<Resolve
     // (an automation turn that failed) yields a depth ≥ 1 fact, and `runGates` suppresses non-opted `turnAborted`
     // rules. Hardcoding 0 here let a depth-0 "retry on failure" rule self-loop (the default-no-retrigger hole).
     const automationDepth = event.automationDepth;
-    const turn = { intent: event.intent, api: "", source: "", model: "", speakerCharacterId: null, abortReason: event.reason, automationDepth };
+    const turn = { intent: event.intent, api: "", provider: "", model: "", speakerCharacterId: null, abortReason: event.reason, automationDepth };
     return { fact: { ...base, turn }, automationDepth };
   }
   return { fact: base, automationDepth: 0 };

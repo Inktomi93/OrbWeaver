@@ -12,8 +12,10 @@
 // FLAG: only the four DERIVE roles below are buildable — chat/agent/generateImage join when their
 // result contracts land (confirm with lead before wiring a chat member here).
 
+import type { ModelId, UserConnectionId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { z } from "zod";
+import type { Capability, ProviderId } from "#inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "#providers";
 
 /** WHICH WIRE VEHICLE a structured-output request rides on a backend that has more than one. Minted here
@@ -139,43 +141,47 @@ export interface SummarizeOptions {
   repetitionPenalty?: number | undefined;
   /** Min-p nucleus floor (vLLM family). */
   minP?: number | undefined;
-  /** Structured-output constraint (D79) — vLLM enforces via guided decoding, the agent-sdk via its native
-   *  output format; a family that can't honor it drops it (no-op knob doctrine). */
-  responseFormat?: ResponseFormat | undefined;
 }
 
-/** Bound-callable role clients — the composition root binds credential + model id ONCE at boot. The
- *  `*Model` fields carry the model id baked into each callable, for DB provenance columns. */
+/** The options a `structured` call takes: the summarize sampling PLUS the REQUIRED schema constraint (D79 —
+ *  the wire enforces it: vLLM guided decoding, OpenAI/OR `response_format`, the agent-sdk `outputFormat`, or the
+ *  forced-tool vehicle when the deployment says so). Structured generation is a DISTINCT task from prose
+ *  summarization (owner ruling 2026-07-27; inference program §7.5-1): the caller NAMES it, nothing sniffs it. */
+export interface StructuredOptions extends SummarizeOptions {
+  responseFormat: ResponseFormat;
+}
+
+/** The tasks a `RoleClients` bundle serves — the derive roles; chat/agent/generateImage reach the executor
+ *  through their own doors. `structured` RIDES the `summarize` binding (F4 — one Model-roles slot). */
+export const ROLE_CLIENT_TASKS = ["embed", "rerank", "imageEmbed", "summarize", "structured"] as const;
+export type RoleClientTask = (typeof ROLE_CLIENT_TASKS)[number];
+
+/** What a task resolves to RIGHT NOW for the bundle's funder — model, capability and connection id in ONE
+ *  object (inference program §7.5-1b: replaces the six per-role getters). The credential never rides. */
+export interface ResolvedTaskView {
+  readonly model: ModelId;
+  readonly connectionId: UserConnectionId;
+  readonly providerId: ProviderId;
+  readonly capability: Capability;
+}
+
+/** The per-FUNDER role-client bundle `roleClientsFor(funder, actor?)` mints: every callable resolves its task
+ *  through the binding fold AT CALL TIME (a re-pointed binding governs the very next call), names its task at
+ *  the call site, and never exposes a credential or a provider id. `resolved(task)` is the one read of WHAT a
+ *  task resolves to — `null` when the fold ends in `no-connection`. */
 export interface RoleClients {
   /** Text-embedding. Single string or array — result vectors are index-aligned. `inputType` is the
    *  asymmetric-retrieval hint ("query" vs "document"); symmetric embedders ignore it. */
-  embed: (input: string | string[], opts?: { inputType?: "query" | "document"; instruction?: string }) => Promise<EmbedResult>;
+  embed: (input: string | readonly string[], opts?: { inputType?: "query" | "document"; instruction?: string }) => Promise<EmbedResult>;
   /** Cross-encoder rerank. Documents carry caller ids; hits preserve them. `opts.instruction` is the
    *  per-task `<Instruct>` for instruction-aware rerankers; text-only families ignore it. */
   rerank: (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }) => Promise<RerankResult>;
   /** Joint image+text embedding (image + text in one shared space). Discriminate via `kind`. */
   imageEmbed: (req: ImageEmbedInput) => Promise<ImageEmbedResult>;
-  /** Batched summarization. Returns one item per input; pass non-empty user prompts only. */
-  summarize: (inputs: SummarizeInput[], opts?: SummarizeOptions) => Promise<SummarizeResult>;
-
-  /** Model id baked into `embed` — stored on every embedding row's `model` column. */
-  embedModel: string;
-  /** Model id baked into `rerank` — provenance only (rerank scores aren't persisted long-term). */
-  rerankModel: string;
-  /** Model id baked into `imageEmbed` — stored on `image_embeddings.model`. */
-  imageEmbedModel: string;
-  /** Model id baked into `summarize` — stored on `chat_digests.summarizerModel`. */
-  summarizerModel: string;
-  /** The summarizer model's resolved context window in tokens. The memory build's token-guard reads
-   *  this to fit each summarizer call to the user's actual context — trim-to-fit, never silent truncation. */
-  summarizerContextTokens: number;
-  /** Does the RESOLVED summarize model accept an IMAGE on its user turn (`capability.input.vision`)? A live
-   *  getter over the same per-call resolution `summarizerModel` reads, so a role re-point is honoured without
-   *  a restart. The one consumer is avatar analysis (`domain/embeddings/indexer/caption.ts`), which is the
-   *  only summarize caller that ATTACHES an image: a text-only summarize model cannot answer it, and asking
-   *  anyway spends a provider call — and, on a local engine, a WAKE — per asset to learn that (#2422).
-   *  TRUTH-ONLY in one direction: a source whose descriptor errs permissive (the vllm arm advertises
-   *  `input.vision` unconditionally by D143(c) — per-checkpoint modality is undetectable on that wire) says
-   *  true for a non-VL checkpoint, which is why the caller ALSO latches on the backend's own rejection. */
-  summarizerVision: boolean;
+  /** Batched PROSE summarization. Returns one item per input; pass non-empty user prompts only. */
+  summarize: (inputs: readonly SummarizeInput[], opts?: SummarizeOptions) => Promise<SummarizeResult>;
+  /** Batched SCHEMA-CONSTRAINED generation — the one-shot structured primitive; `responseFormat` REQUIRED. */
+  structured: (inputs: readonly SummarizeInput[], opts: StructuredOptions) => Promise<SummarizeResult>;
+  /** What `task` resolves to for this bundle's funder right now, or `null` (`no-connection`). */
+  resolved: (task: RoleClientTask) => Promise<ResolvedTaskView | null>;
 }

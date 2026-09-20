@@ -337,9 +337,11 @@ CREATE TABLE `message_assets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`message_id` text NOT NULL,
 	`asset_id` text NOT NULL,
+	`origin` text NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "message_assets_origin_check" CHECK(origin in ('attached', 'illustration', 'inline-reply'))
 );
 --> statement-breakpoint
 CREATE INDEX `message_assets_message_idx` ON `message_assets` (`message_id`);--> statement-breakpoint
@@ -373,6 +375,7 @@ CREATE TABLE `message_variants` (
 	`macro_freezes` text,
 	`reasoning` text,
 	`model` text,
+	`connection_id` text,
 	`provider` text,
 	`reasoning_effort` text,
 	`tokens_in` integer,
@@ -381,6 +384,7 @@ CREATE TABLE `message_variants` (
 	`cache_read_tokens` integer,
 	`cache_write_tokens` integer,
 	`cost_usd` real,
+	`cost_provenance` text DEFAULT 'unrecorded' NOT NULL,
 	`context_window` integer,
 	`context_boundary_message_id` text,
 	`max_output_tokens` integer,
@@ -404,12 +408,17 @@ CREATE TABLE `message_variants` (
 	`metadata` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`connection_id`) REFERENCES `user_connections`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`context_boundary_message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "message_variants_token_provenance_check" CHECK(token_provenance in ('measured', 'estimated', 'unrecorded'))
+	CONSTRAINT "message_variants_token_provenance_check" CHECK(token_provenance in ('measured', 'estimated', 'unrecorded')),
+	CONSTRAINT "message_variants_cost_provenance_check" CHECK(cost_provenance in ('measured', 'estimated', 'unrecorded')),
+	CONSTRAINT "message_variants_finish_reason_check" CHECK(finish_reason is null or finish_reason in ('stop', 'length', 'filter', 'tool', 'other')),
+	CONSTRAINT "message_variants_reasoning_effort_check" CHECK(reasoning_effort is null or reasoning_effort in ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `message_variants_message_idx_unique` ON `message_variants` (`message_id`,`idx`);--> statement-breakpoint
 CREATE INDEX `message_variants_context_boundary_idx` ON `message_variants` (`context_boundary_message_id`);--> statement-breakpoint
+CREATE INDEX `message_variants_connection_idx` ON `message_variants` (`connection_id`);--> statement-breakpoint
 CREATE TABLE `messages` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -456,6 +465,79 @@ CREATE TABLE `pending_turns` (
 CREATE INDEX `pending_turns_chat_idx` ON `pending_turns` (`chat_id`);--> statement-breakpoint
 CREATE INDEX `pending_turns_triggered_by_idx` ON `pending_turns` (`triggered_by`);--> statement-breakpoint
 CREATE INDEX `pending_turns_run_as_user_idx` ON `pending_turns` (`run_as_user_id`);--> statement-breakpoint
+CREATE TABLE `user_connections` (
+	`id` text PRIMARY KEY NOT NULL,
+	`owner_id` text NOT NULL,
+	`label` text NOT NULL,
+	`provider_id` text NOT NULL,
+	`credential_id` text,
+	`base_url` text,
+	`model` text NOT NULL,
+	`api` text DEFAULT 'auto' NOT NULL,
+	`declared` text,
+	`extras` text,
+	`transport` text,
+	`model_listed` integer DEFAULT true NOT NULL,
+	`allow_background` integer DEFAULT false NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`credential_id`) REFERENCES `user_credentials`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "user_connections_api_check" CHECK(api in ('chat-completions', 'responses', 'agent-sdk', 'anthropic-messages', 'auto'))
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `user_connections_owner_label_unique` ON `user_connections` (`owner_id`,`label`);--> statement-breakpoint
+CREATE INDEX `user_connections_credential_idx` ON `user_connections` (`credential_id`);--> statement-breakpoint
+CREATE TABLE `connection_bindings` (
+	`id` text PRIMARY KEY NOT NULL,
+	`actor_kind` text NOT NULL,
+	`user_id` text,
+	`rule_id` text,
+	`plugin_id` text,
+	`task` text NOT NULL,
+	`connection_id` text,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`rule_id`) REFERENCES `automation_rules`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`plugin_id`) REFERENCES `plugins`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`connection_id`) REFERENCES `user_connections`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "connection_bindings_actor_kind_check" CHECK(actor_kind in ('user', 'automation-rule', 'plugin-grant')),
+	CONSTRAINT "connection_bindings_task_check" CHECK(task in ('chat', 'summarize', 'generateImage', 'embed', 'imageEmbed', 'rerank')),
+	CONSTRAINT "connection_bindings_actor_shape_check" CHECK((actor_kind = 'user' and user_id is not null and rule_id is null and plugin_id is null) or (actor_kind = 'automation-rule' and rule_id is not null and user_id is null and plugin_id is null) or (actor_kind = 'plugin-grant' and plugin_id is not null and user_id is null and rule_id is null))
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `connection_bindings_user_task_unique` ON `connection_bindings` (`user_id`,`task`) WHERE "connection_bindings"."actor_kind" = 'user';--> statement-breakpoint
+CREATE UNIQUE INDEX `connection_bindings_rule_task_unique` ON `connection_bindings` (`rule_id`,`task`) WHERE "connection_bindings"."actor_kind" = 'automation-rule';--> statement-breakpoint
+CREATE UNIQUE INDEX `connection_bindings_plugin_task_unique` ON `connection_bindings` (`plugin_id`,`task`) WHERE "connection_bindings"."actor_kind" = 'plugin-grant';--> statement-breakpoint
+CREATE INDEX `connection_bindings_connection_idx` ON `connection_bindings` (`connection_id`);--> statement-breakpoint
+CREATE TABLE `provider_rows` (
+	`id` text PRIMARY KEY NOT NULL,
+	`label` text NOT NULL,
+	`wire` text NOT NULL,
+	`dialect` text,
+	`auth` text NOT NULL,
+	`base_url` text,
+	`apis` text NOT NULL,
+	`serves` text,
+	`catalog` text NOT NULL,
+	`metered` integer NOT NULL,
+	`docs_url` text,
+	`features` text,
+	`origin_kind` text NOT NULL,
+	`origin_plugin_id` text,
+	`origin_user_id` text,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`origin_plugin_id`) REFERENCES `plugins`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`origin_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "provider_rows_wire_check" CHECK(wire in ('openai-compat', 'anthropic-messages', 'agent-sdk', 'local-light')),
+	CONSTRAINT "provider_rows_dialect_check" CHECK(dialect is null or dialect in ('openai-compatible', 'openrouter')),
+	CONSTRAINT "provider_rows_auth_check" CHECK(auth in ('apiKey', 'oauthToken', 'endpoint', 'none')),
+	CONSTRAINT "provider_rows_catalog_check" CHECK(catalog in ('url', 'builtin')),
+	CONSTRAINT "provider_rows_origin_kind_check" CHECK(origin_kind in ('plugin', 'admin')),
+	CONSTRAINT "provider_rows_origin_shape_check" CHECK((origin_kind = 'plugin' and origin_plugin_id is not null and origin_user_id is null) or (origin_kind = 'admin' and origin_plugin_id is null))
+);
+--> statement-breakpoint
+CREATE INDEX `provider_rows_origin_plugin_idx` ON `provider_rows` (`origin_plugin_id`);--> statement-breakpoint
+CREATE INDEX `provider_rows_origin_user_idx` ON `provider_rows` (`origin_user_id`);--> statement-breakpoint
 CREATE TABLE `user_credentials` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -470,12 +552,10 @@ CREATE TABLE `user_credentials` (
 	`label` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "user_credentials_provider_check" CHECK(provider in ('openrouter', 'anthropic', 'openai', 'custom_openai'))
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE INDEX `user_credentials_owner_idx` ON `user_credentials` (`owner_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `user_credentials_active_unique` ON `user_credentials` (`owner_id`,`provider`) WHERE "user_credentials"."active" = 1;--> statement-breakpoint
 CREATE TABLE `character_documents` (
 	`character_id` text NOT NULL,
 	`document_id` text NOT NULL,
@@ -754,16 +834,20 @@ CREATE TABLE `imagery_generations` (
 	`prompt` text NOT NULL,
 	`negative_prompt` text,
 	`model` text NOT NULL,
+	`provider` text,
+	`connection_id` text,
 	`cost_usd` real,
 	`edited` integer DEFAULT false NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`subject_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`connection_id`) REFERENCES `user_connections`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "imagery_generations_mode_check" CHECK(mode in ('free', 'character', 'face', 'scenario', 'background', 'character_multimodal', 'face_multimodal'))
 );
 --> statement-breakpoint
 CREATE INDEX `imagery_generations_reuse_idx` ON `imagery_generations` (`subject_character_id`,`mode`,`identity_hash`);--> statement-breakpoint
+CREATE INDEX `imagery_generations_connection_idx` ON `imagery_generations` (`connection_id`);--> statement-breakpoint
 CREATE INDEX `imagery_generations_asset_idx` ON `imagery_generations` (`asset_id`);--> statement-breakpoint
 CREATE INDEX `imagery_generations_chat_idx` ON `imagery_generations` (`chat_id`);--> statement-breakpoint
 CREATE TABLE `notifications` (
@@ -1157,12 +1241,16 @@ CREATE TABLE `session_entries` (
 	`seeded_through_seq` integer NOT NULL,
 	`canon_hash` text NOT NULL,
 	`is_primary` integer DEFAULT false NOT NULL,
+	`connection_id` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`connection_id`) REFERENCES `user_connections`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `session_entries_chat_seq_unique` ON `session_entries` (`chat_id`,`seq`);--> statement-breakpoint
 CREATE UNIQUE INDEX `session_entries_sdk_session_unique` ON `session_entries` (`sdk_session_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `session_entries_primary_unique` ON `session_entries` (`chat_id`,`connection_id`) WHERE "session_entries"."is_primary" = 1;--> statement-breakpoint
+CREATE INDEX `session_entries_connection_idx` ON `session_entries` (`connection_id`);--> statement-breakpoint
 CREATE TABLE `oidc_transactions` (
 	`state` text PRIMARY KEY NOT NULL,
 	`code_verifier` text NOT NULL,

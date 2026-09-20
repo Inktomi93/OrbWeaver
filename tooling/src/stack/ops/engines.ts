@@ -32,14 +32,14 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { engineDeploymentEnv, engineLaunchEnvFloor, env, processEnvSnapshot } from "@orb/server/foundation/env";
+import { engineDeploymentEnv, engineLaunchEnvFloor, fleetEnv as env, processEnvSnapshot } from "../lib/engine-fleet/index.ts";
 import type {
   EngineLaunchConfig,
   EngineLaunchIdentity,
   EngineLaunchMarker,
   EngineSpawnSpec,
   EngineUtilFractions,
-} from "@orb/server/infra/providers/vllm/engine";
+} from "../lib/engine-fleet/index.ts";
 import {
   buildEngineSpawnSpec,
   captureEngineLaunchIdentity,
@@ -55,7 +55,7 @@ import {
   signalEngineLaunchIdentity,
   VLLM_ENGINES,
   writeEngineLaunchIdentities,
-} from "@orb/server/infra/providers/vllm/engine";
+} from "../lib/engine-fleet/index.ts";
 import { print } from "../../_shared/artifacts.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";

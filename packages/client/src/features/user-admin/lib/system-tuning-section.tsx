@@ -16,21 +16,7 @@ export const systemTuningSection: ConfigSectionContribution = {
   nav: SYSTEM_TUNING_SUBCATEGORY,
   owns: {
     tier: "app",
-    keys: [
-      "agentSdkConcurrency",
-      "promptTransformDeadlineMs",
-      "nonOwnerLocalComputeBudgetWindowMs",
-      "catalogRefreshIntervalMs",
-      "imageVariantQuality",
-      "maxDatabankBytes",
-      "promptCacheMinDepth",
-      // The LEAF, not the parent (SET-SEAMS stage 4): the restart-gated launch editor (`admin-engines`)
-      // owns every other `engineLaunch` field, so this section writes — and resets — these two leaves
-      // ALONE. `genRepetitionPenalty` joined `genPresencePenalty` here (both per-request gen defaults,
-      // applied live) rather than staying in the restart-gated launch editor.
-      "engineLaunch.genPresencePenalty",
-      "engineLaunch.genRepetitionPenalty",
-    ],
+    keys: ["agentSdkConcurrency", "promptTransformDeadlineMs", "catalogRefreshIntervalMs", "imageVariantQuality", "maxDatabankBytes", "promptCacheMinDepth"],
   },
   body: () => <SystemTuningSection sectionId={SECTION_ID} />,
 };

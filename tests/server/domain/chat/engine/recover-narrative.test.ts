@@ -5,7 +5,8 @@
 // (the injected provider seam) — nothing here is mocked.
 
 import type { AssembleContext, ChatDeltaEvent, MessageView } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
+import type { Resolved } from "@orb/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -17,7 +18,7 @@ import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/
 import { resolveTurnNarrative } from "../../../../../packages/server/src/domain/chat/engine/recover-narrative.ts";
 import type { ToolCallInput } from "../../../../../packages/server/src/domain/tool-use/contract/params.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { makeModelCapability, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type PipelineArgs = Parameters<typeof runTurnPipeline>[0];
@@ -31,7 +32,7 @@ const FIXTURE_HUMAN = castId<UserId>("user_fixture_human");
 
 /** `tools` PRESENT + `silencesProse` unset ⇒ `coEmitsProseWithTools` is true, which is the capability gate the
  *  terminal channel attaches behind. A model that silences prose could never produce the recoverable shape. */
-const CAPABILITY: ModelCapability = makeModelCapability({
+const CAPABILITY: ModelCapability = makeGenerationCapability({
   output: { maxTokens: { min: 1, max: 8192 } },
   context: { window: 200_000 },
   tools: { parallel: true },
@@ -40,7 +41,7 @@ const CAPABILITY: ModelCapability = makeModelCapability({
 const CONNECTION: ResolvedConnection = {
   api: "chat-completions",
   model: castId<ModelId>("test-model"),
-  credential: makeResolvedCredential(),
+  credential: makeResolvedSecret(),
   capability: CAPABILITY,
 };
 

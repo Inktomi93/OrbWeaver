@@ -11,11 +11,12 @@
 //
 // Read-only: no write, no audit, no event.
 
-import type { ModelCapability } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
+import { requireGenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, parsePromptConfig, QUALITY_EFFORT, QUALITY_SAMPLING } from "@orb/contracts/preset";
-import type { ResolvedChatKnobs } from "#infra/providers";
-import { resolveChat } from "#infra/providers";
+import type { ResolvedChatKnobs } from "@orb/inference";
+import { resolveChat } from "@orb/inference";
 import type { PresetContext } from "../context.ts";
 import { PresetNotFoundError } from "../contract/errors.ts";
 import type { ResolveEffectiveParams } from "../contract/params.ts";
@@ -60,7 +61,7 @@ interface KnobProbe {
  *  `effort · none · clamped` on a model where nothing was clamped and the knob does not exist (side-eye
  *  F-14). The absence is the honest answer — the same doctrine the deck already applies to an unlisted
  *  sampling knob. */
-function resolvedEffortOf(reasoning: ResolvedChatKnobs["reasoning"], capability: ModelCapability): string | undefined {
+function resolvedEffortOf(reasoning: ResolvedChatKnobs["reasoning"], capability: GenerationCapability): string | undefined {
   if (capability.reasoning.mode === "none") {
     return;
   }
@@ -75,7 +76,7 @@ function resolvedEffortOf(reasoning: ResolvedChatKnobs["reasoning"], capability:
  *  explicitly overridden below. A knob THIS MODEL cannot take is left out (the same F-14 honesty as the
  *  effort reading above — the mapping may not name a knob the deck refuses to render). `null` with no dial
  *  set, and with an EMPTY entry list, because "deep →" with nothing after it is not a datum. */
-function qualityMappingOf(quality: UserIntent["quality"], capability: ModelCapability): QualityMapping | null {
+function qualityMappingOf(quality: UserIntent["quality"], capability: GenerationCapability): QualityMapping | null {
   if (quality === undefined) {
     return null;
   }
@@ -104,7 +105,7 @@ function provenanceOf(probe: KnobProbe, resolved: number | string): EffectivePro
 
 /** The per-knob probe table. EXHAUSTIVE over `EFFECTIVE_KNOBS` (a `Record`, not a switch — house dispatch
  *  discipline): a new knob in the tuple fails `tsc` here until it names its three rungs. */
-function probeKnobs(params: UserIntent, capability: ModelCapability): Record<EffectiveKnob, KnobProbe> {
+function probeKnobs(params: UserIntent, capability: GenerationCapability): Record<EffectiveKnob, KnobProbe> {
   const resolved = resolveChat(params, capability);
   const { sampling, reasoning } = resolved;
   const quality = params.quality;
@@ -143,7 +144,9 @@ export function createResolveEffective(ctx: PresetContext): Pick<PresetService, 
     if (row === undefined) {
       throw new PresetNotFoundError(params.id);
     }
-    const { model, capability } = await ctx.resolveChatCapability({ principal: params.principal });
+    const resolved = await ctx.resolveChatCapability({ principal: params.principal });
+    const { model } = resolved;
+    const capability = requireGenerationCapability(resolved.capability);
     const intent = parsePromptConfig(row.config).params;
     const probes = probeKnobs(intent, capability);
 

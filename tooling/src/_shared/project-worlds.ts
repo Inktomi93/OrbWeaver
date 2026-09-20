@@ -21,6 +21,9 @@ const PACKAGE_WORLD_DEFINITIONS = {
   kit: "iso",
   contracts: "iso",
   db: "node",
+  // The provider runtime (`docs/design/orbweaver-inference-package.md` §3.1): node-only, between db and
+  // server in the cake — the SDK provider packages + the agent-sdk subprocess never reach a browser.
+  inference: "node",
   server: "node",
   "default-content": "node",
   "showcase-plugins": "node",

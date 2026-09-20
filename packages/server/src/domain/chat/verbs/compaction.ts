@@ -20,7 +20,7 @@
 // not the resolved speaker name — richer per-speaker labeling is a later refinement.
 
 import type { DurableChatBusEvent } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { Resolved } from "@orb/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -46,7 +46,7 @@ import { compactionCostDelta } from "../substrate/stats-delta.ts";
  *  rides. */
 interface RunCompactionArgs {
   readonly chatId: ChatId;
-  readonly connection: ResolvedConnection;
+  readonly connection: Resolved<"chat">;
   /** The host whose box funds the marker generation — the quiet-op cost lands on THIS owner's stats. */
   readonly ownerId: UserId;
   readonly coveragePoint?: number | undefined;
@@ -63,7 +63,7 @@ interface CompactionDeps {
   /** The quiet-generation seam — a non-canon generation through the chat's own model (wired at compose). */
   readonly quietGenerate: QuietGenerate;
   /** Resolve the chat's connection for the MANUAL lever (the engine hook passes its own `prep.connection`). */
-  readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
+  readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
 }
 
 /** Build the marker generation's user prompt from the prior marker (folded in so the new marker supersedes it),
@@ -95,7 +95,7 @@ async function buildMarker(
   quietGenerate: QuietGenerate,
   env: {
     readonly chatId: ChatId;
-    readonly connection: ResolvedConnection;
+    readonly connection: Resolved<"chat">;
     readonly ownerId: UserId;
     readonly priorSummary: string | null;
     readonly transcript: string;
@@ -257,9 +257,9 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): (arg
  *  core, emit `chatUpdated`. */
 function createCompact(ctx: ChatContext, deps: CompactionDeps, runCompaction: (args: RunCompactionArgs) => Promise<CompactResult>): ChatService["compact"] {
   return async ({ principal, chatId, instructions }: CompactParams): Promise<CompactResult> => {
-    // The caller IS the host (requireHost passed) → the host funds the marker generation on the chat's connection.
+    // The caller IS the host (requireHost passed) → the host funds the marker generation on their OWN connection.
     await requireHost(ctx, principal, chatId);
-    const connection = await deps.resolveConnection({ runAsUserId: principal.userId, chatId });
+    const connection = await deps.resolveConnection({ funderUserId: principal.userId, chatId });
     const result = await runCompaction({ chatId, connection, ownerId: principal.userId, ...(instructions !== undefined ? { instructions } : {}) });
     await deps.emit({ type: "chatUpdated", chatId });
     return result;

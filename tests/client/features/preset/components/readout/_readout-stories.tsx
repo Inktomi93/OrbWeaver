@@ -35,7 +35,7 @@ import { PromptReadout } from "../../../../../../packages/client/src/features/pr
 import { CapabilityCard, EffectiveProfile } from "../../../../../../packages/client/src/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "../../../../../../packages/client/src/features/preset/components/readout/transforms-readout.tsx";
 import { CtDataProviders } from "../../../../../support/browser/ct-data-providers.tsx";
-import { makeModelCapability } from "../../../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability } from "../../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
 const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");
@@ -279,7 +279,7 @@ export function LongModelPathReadoutStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 380 }}>
-        <CapabilityCard capability={makeModelCapability()} model={LOCAL_WEIGHTS_PATH} />
+        <CapabilityCard capability={makeGenerationCapability()} model={LOCAL_WEIGHTS_PATH} />
         <EffectiveProfile
           contextWindow={32_768}
           effective={{
@@ -294,7 +294,7 @@ export function LongModelPathReadoutStory(): ReactElement {
         {/* The NO-OP arm, in the same mount (playwright-ct allows one `mount` per test): a hosted id is
             already its own display name, so the row must carry NO gloss. */}
         <div data-testid="hosted-id-panel">
-          <CapabilityCard capability={makeModelCapability()} model="claude-opus-4-8" />
+          <CapabilityCard capability={makeGenerationCapability()} model="claude-opus-4-8" />
         </div>
       </div>
     </CtDataProviders>

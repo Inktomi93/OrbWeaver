@@ -17,10 +17,11 @@
 // plain `integer("x_at")` epoch-MS NUMBERS (contracts view timestamps as `number`), born at insert via
 // `(unixepoch() * 1000)`.
 
-import type { ChatId, SessionEntryId } from "@orb/kit/ids";
+import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { chats } from "./chat.ts";
+import { userConnections } from "./connection.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // session_entries — one persisted agent-sdk session in a chat's prompt-cache lineage (D8). Keyed by
@@ -61,6 +62,14 @@ export const sessionEntries = sqliteTable(
     // The dual-session reap's `keepPrimary`: among a chat's lineage exactly one entry
     // is the live primary; reseeds spawn a secondary that is later reaped. NOT a staleness flag.
     isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
+    // The CONNECTION the session was spawned under (inference program §5.3b): per-user runtime dirs mean a
+    // session file is reachable only from the dir it was written in, so a funder change reseeds and the
+    // primary is per `(chat, connection)`. CASCADE with the connection (its dir goes with the row). NULLABLE
+    // until the per-user agent-sdk cut-over lands its writer (the pre-cutover writer has no connection to
+    // name); the partial unique below already keys on it.
+    connectionId: text("connection_id")
+      .$type<UserConnectionId>()
+      .references(() => userConnections.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
@@ -68,5 +77,10 @@ export const sessionEntries = sqliteTable(
     uniqueIndex("session_entries_chat_seq_unique").on(t.chatId, t.seq),
     // The reseed/resume lookup key — one entry per agent-sdk session handle.
     uniqueIndex("session_entries_sdk_session_unique").on(t.sdkSessionId),
+    // ONE primary per (chat, connection) — the promotion is demote → promote in one batch (the
+    // `chat.ts` host-handoff idiom), so the reseed-on-the-same-connection case never trips it.
+    uniqueIndex("session_entries_primary_unique").on(t.chatId, t.connectionId).where(sql`${t.isPrimary} = 1`),
+    // The CASCADE parent scan on a connection delete (`fk-columns-indexed` gate).
+    index("session_entries_connection_idx").on(t.connectionId),
   ],
 );

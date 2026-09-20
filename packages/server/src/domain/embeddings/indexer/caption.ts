@@ -37,15 +37,16 @@
 // wire), so the local arm is caught by the backend's own refusal instead - once.
 
 import { imageBreakdownSchema } from "@orb/contracts/embeddings";
+import { acceptsImageInput } from "@orb/contracts/inference";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ResponseFormat, RoleClients } from "@orb/contracts/role-clients";
+import { ProviderError } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import { getLog } from "#foundation/observability";
-import { ProviderError } from "#infra/providers";
 import type { AvatarAnalysis } from "../contract/results.ts";
 import { announceAvatarAnalysisSkip, avatarAnalysisUnservable, markAvatarAnalysisUnservable } from "../substrate/avatar-analysis-availability.ts";
 
@@ -78,12 +79,18 @@ const skipped = (model: string): AvatarAnalysis => ({ caption: "", captionMeta: 
  * ladder). Pass `undefined` when no preset context is available — the floor stands alone.
  */
 export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8Array, presetParams?: SideGenSampling | undefined): Promise<AvatarAnalysis> {
-  const model = roleClients.summarizerModel;
+  // The CAPTION lens is a `structured` call WITH an image input (inference program §7.5-1): it names its task
+  // and reads the vision requirement off the resolved capability — `accepts(cap, "input", "image")`.
+  const resolved = await roleClients.resolved("structured");
+  if (resolved === null) {
+    return skipped("(no-connection)");
+  }
+  const model = resolved.model;
   if (avatarAnalysisUnservable(model)) {
     // Already answered by the backend this process. Silent: the loud line was logged when it latched.
     return skipped(model);
   }
-  if (!roleClients.summarizerVision) {
+  if (resolved.capability.kind !== "generation" || !acceptsImageInput(resolved.capability.generation)) {
     if (announceAvatarAnalysisSkip(model)) {
       getLog().warn(
         { model },
@@ -95,7 +102,7 @@ export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8A
   const posture = toSummarizeOptions(resolveSideGenSampling(ANALYSIS_FLOOR, presetParams));
   const run = async (correction?: string): Promise<string> => {
     const userPrompt = correction === undefined ? ANALYSIS_USER_PROMPT : `${ANALYSIS_USER_PROMPT}\n\n${correction}`;
-    const result = await roleClients.summarize([{ systemPrompt: ANALYSIS_SYSTEM_PROMPT, userPrompt, images: [bytes] }], {
+    const result = await roleClients.structured([{ systemPrompt: ANALYSIS_SYSTEM_PROMPT, userPrompt, images: [bytes] }], {
       responseFormat: ANALYSIS_RESPONSE_FORMAT,
       ...posture,
     });

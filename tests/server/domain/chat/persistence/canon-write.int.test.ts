@@ -85,7 +85,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
       role: "assistant" as const,
       characterId: characterId as CharacterId,
       now: FROZEN_AT,
-      variant: { content: "voiced", costUsd: 0.002, finishReason: "stop" },
+      variant: { content: "voiced", costUsd: 0.002, finishReason: "stop" as const },
     };
 
     await db.batch(batchMany(insertCanonMessageStatements(db, params)));

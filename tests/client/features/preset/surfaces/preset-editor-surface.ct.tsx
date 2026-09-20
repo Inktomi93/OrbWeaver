@@ -32,7 +32,7 @@ import type { Locator, Page } from "@playwright/test";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/browser/autosave-status-transcript.ts";
 import { pixelExtremaContrast, pixelSurface } from "../../../../support/browser/pixel-contrast.ts";
 import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
-import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import { assertTokenRoundtrip } from "../../../../support/node/assert-token-roundtrip.ts";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
@@ -181,8 +181,8 @@ function updatesAgainst(trpc: TrpcRecorder, presetId: PresetId): UpdateCall[] {
  *  They passed unstamped while the gate asserted this sentence over every code alike (2026-08-08). */
 const CAPABILITY_FAILURE_RE = /Your chat model couldn't be resolved/;
 const ROUTING_FAULT_MESSAGE = "no chat connection configured";
-const CAPABILITY = makeResolvedChatCapability({
-  capability: makeModelCapability({
+const CAPABILITY = makeResolvedView({
+  capability: makeGenerationCapability({
     sampling: { temperature: { min: 0, max: 2 } },
     output: { maxTokens: { min: 1, max: 8192 } },
     context: { window: 32_768 },

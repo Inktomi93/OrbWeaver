@@ -24,7 +24,7 @@ const OWNER: Principal = principal(castId<UserId>("usr_owner"), { role: "owner",
 function resolverFor(sourceByRole: Record<string, CredentialSource>, model = ""): Mock<ConnectionService["resolveRole"]> {
   return vi.fn<ConnectionService["resolveRole"]>(({ role }) =>
     Promise.resolve(
-      makeResolvedConnection({
+      makeResolved({
         model: castId<ModelId>(model),
         credential: makeResolvedCredential(keylessSourceFor(sourceByRole[role])),
       }),

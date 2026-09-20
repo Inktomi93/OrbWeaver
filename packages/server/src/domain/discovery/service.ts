@@ -56,7 +56,8 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
   const themeDeps = {
     now: ctx.now,
     newThemeClusterId: ctx.newThemeClusterId,
-    summarize: ctx.summarize,
+    roleClientsFor: ctx.roleClientsFor,
+    resolveUserPresetParams: ctx.resolveUserPresetParams,
     tier0RangeOf: ctx.tier0RangeOf,
   };
   const coocDeps = {

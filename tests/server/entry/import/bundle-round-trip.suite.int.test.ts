@@ -313,6 +313,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
       id: castId<MessageAssetId>("msgasset_p8"),
       messageId: msgId,
       assetId: attachBlob.assetId,
+      origin: "attached",
       createdAt: clock.now(),
     });
 

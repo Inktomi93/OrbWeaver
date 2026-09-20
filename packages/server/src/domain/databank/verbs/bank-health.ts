@@ -21,10 +21,11 @@ import type { BankHealthView, IngestPhase } from "@orb/contracts/databank";
 import type { BankHealthParams } from "../contract/params.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import { countOwnedDocuments } from "../persistence/queries.ts";
+import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createBankHealth(ctx: DatabankContext): DatabankService["bankHealth"] {
   return async ({ principal }: BankHealthParams): Promise<BankHealthView> => {
-    const chunkCounts = await ctx.chunkCountsByOwner({ ownerId: principal.userId, model: ctx.getActiveEmbedSpace().model });
+    const chunkCounts = await ctx.chunkCountsByOwner({ ownerId: principal.userId, model: await activeSpaceModel(ctx, principal.userId) });
     const chunkedIds = [...chunkCounts.keys()];
     const nowMs = ctx.now();
     // In this substrate a chunk row exists only after a successful embed, so the two sums are the same

@@ -4,22 +4,16 @@
 // boot/connection mints are internal — NOT exposed. `provider`/`metadata` derive from
 // `@orb/contracts/credentials`.
 //
-// Esoteric #9: `fetchModels`/`inspectEndpoint`/`testHealth` are `.mutation()` despite being reads — they make
-// an outbound call to a user-supplied `baseUrl` (an SSRF surface; `testHealth` joined that set when its
-// custom_openai arm started really dialling the endpoint, SID-01) and `testHealth` additionally writes the
-// revocation state, so they keep the CSRF gate tRPC applies to mutations. Do NOT demote to `.query()`.
+// A credential is a SEALED SECRET WITH A LABEL (§5.3): which key RESOLVES is the CONNECTION's decision, so there
+// is no `setActive` here; health, endpoint model listing and inspection live on the connection router (a
+// probe is a property of the row that dials, never of the key alone). `provider` is a registry id validated
+// at the domain (the id is half the AAD — an unknown id would seal a key nothing can open).
 
-import { credentialProviderSchema, providerMetadataSchema } from "@orb/contracts/credentials";
+import { providerMetadataSchema } from "@orb/contracts/credentials";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
-
-const customEndpointDraft = z.object({
-  baseUrl: z.string().min(1),
-  key: z.string().optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-});
 
 export const credentialsRouter = t.router({
   list: authedProcedure.query(({ ctx }) => ctx.services.credentials.list({ principal: ctx.auth })),
@@ -32,7 +26,7 @@ export const credentialsRouter = t.router({
   add: authedProcedure
     .input(
       z.object({
-        provider: credentialProviderSchema,
+        provider: z.string().min(1),
         label: z.string().optional(),
         key: z.string().min(1),
         metadata: providerMetadataSchema.optional(),
@@ -48,20 +42,9 @@ export const credentialsRouter = t.router({
       }),
     ),
 
-  setActive: authedProcedure
-    .input(z.object({ credentialId: brandedId<UserCredentialId>() }))
-    .mutation(({ ctx, input }) => ctx.services.credentials.setActive({ principal: ctx.auth, credentialId: input.credentialId })),
-
   remove: authedProcedure
     .input(z.object({ credentialId: brandedId<UserCredentialId>() }))
     .mutation(({ ctx, input }) => ctx.services.credentials.remove({ principal: ctx.auth, credentialId: input.credentialId })),
-
-  testHealth: authedProcedure.input(z.object({ credentialId: brandedId<UserCredentialId>() })).mutation(({ ctx, input }) =>
-    ctx.services.credentials.testHealth({
-      principal: ctx.auth,
-      credentialId: input.credentialId,
-    }),
-  ),
 
   markRevokedByUser: authedProcedure
     .input(z.object({ credentialId: brandedId<UserCredentialId>(), reason: z.string().optional() }))
@@ -77,30 +60,6 @@ export const credentialsRouter = t.router({
     ctx.services.credentials.clearRevoked({
       principal: ctx.auth,
       credentialId: input.credentialId,
-    }),
-  ),
-
-  // SSRF-surfaced reads — `.mutation()` to keep the CSRF gate (Esoteric #9).
-  fetchModels: authedProcedure
-    .input(
-      z.object({
-        credentialId: brandedId<UserCredentialId>().optional(),
-        draft: customEndpointDraft.optional(),
-      }),
-    )
-    .mutation(({ ctx, input }) =>
-      ctx.services.credentials.fetchModels({
-        principal: ctx.auth,
-        ...(input.credentialId !== undefined ? { credentialId: input.credentialId } : {}),
-        ...(input.draft !== undefined ? { draft: input.draft } : {}),
-      }),
-    ),
-
-  inspectEndpoint: authedProcedure.input(z.object({ credentialId: brandedId<UserCredentialId>(), model: z.string().optional() })).mutation(({ ctx, input }) =>
-    ctx.services.credentials.inspectEndpoint({
-      principal: ctx.auth,
-      credentialId: input.credentialId,
-      ...(input.model !== undefined ? { model: input.model } : {}),
     }),
   ),
 });

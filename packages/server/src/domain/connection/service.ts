@@ -1,41 +1,41 @@
-// domain/connection — COMPOSITION ROOT. Wires the 5 verbs over the injected `ConnectionContext` (db +
-// clock + credentials.resolve + providers.fetchOrCatalog + settings.loadUserSettings). ZERO logic: it only
-// calls the verb factories and assembles the `ConnectionService`. `resolveChat` delegates to the same
-// `resolveRole` instance (the one home for resolution) — wired here at the root, never sibling-imported.
+// domain/connection — COMPOSITION ROOT. Wires the verbs over the injected `ConnectionContext` (db + clock +
+// THE RUNTIME + the cross-domain ownership reads). ZERO logic: it only calls the verb factories and assembles
+// the `ConnectionService`.
 
 import type { ConnectionContext } from "./context.ts";
 import type { ConnectionService } from "./contract/service.ts";
-import { createCheckChatAvailability } from "./verbs/check-chat-availability.ts";
-import { createGetAgentSdkCatalog } from "./verbs/get-agent-sdk-catalog.ts";
-import { createGetCatalog } from "./verbs/get-catalog.ts";
-import { createGetGenerationCost } from "./verbs/get-generation-cost.ts";
-import { createGetModelsForSource } from "./verbs/get-models-for-source.ts";
-import { createGetOrCredits } from "./verbs/get-or-credits.ts";
-import { createGetOrSkinTierModels } from "./verbs/get-or-skin-tier-models.ts";
-
-import { createRefreshAgentSdkCatalog } from "./verbs/refresh-agent-sdk-catalog.ts";
-import { createRefreshCatalog } from "./verbs/refresh-catalog.ts";
-import { createResolveChat } from "./verbs/resolve-chat.ts";
-import { createResolveChatCapability, createResolveRole } from "./verbs/resolve-role.ts";
-import { createTestClaudeAuth } from "./verbs/test-claude-auth.ts";
+import { createListBindings, createSetBinding, createUseForEverything } from "./verbs/bindings.ts";
+import { createCatalogModels, createListEndpointModels, createRefreshCatalog } from "./verbs/catalogs.ts";
+import { createCreate, createGet, createList, createRemove, createUpdate } from "./verbs/connections.ts";
+import { createAccountCredits, createGenerationCost, createInspectEndpoint, createProbe, createVerifyAuth } from "./verbs/diagnostics.ts";
+import { createDropProvider, createProvidersAvailable, createRegisterProvider } from "./verbs/providers.ts";
+import { createAvailability, createCapabilities, createResolve, createResolveChatCapability } from "./verbs/resolve.ts";
 
 export function createConnectionService(ctx: ConnectionContext): ConnectionService {
-  const resolveRole = createResolveRole(ctx);
-  const resolveChat = createResolveChat(resolveRole);
   return {
-    resolveRole,
-    resolveChat,
+    resolve: createResolve(ctx),
+    availability: createAvailability(ctx),
     resolveChatCapability: createResolveChatCapability(ctx),
-    checkChatAvailability: createCheckChatAvailability(ctx, resolveChat),
-    getModelsForSource: createGetModelsForSource(ctx),
-
-    getOrSkinTierModels: createGetOrSkinTierModels(ctx),
-    getCatalog: createGetCatalog(ctx),
+    capabilities: createCapabilities(ctx),
+    list: createList(ctx),
+    get: createGet(ctx),
+    create: createCreate(ctx),
+    update: createUpdate(ctx),
+    remove: createRemove(ctx),
+    listBindings: createListBindings(ctx),
+    setBinding: createSetBinding(ctx),
+    useForEverything: createUseForEverything(ctx),
+    catalogModels: createCatalogModels(ctx),
+    listEndpointModels: createListEndpointModels(ctx),
     refreshCatalog: createRefreshCatalog(ctx),
-    getAgentSdkCatalog: createGetAgentSdkCatalog(ctx),
-    refreshAgentSdkCatalog: createRefreshAgentSdkCatalog(ctx),
-    testClaudeAuth: createTestClaudeAuth(ctx),
-    getOrCredits: createGetOrCredits(ctx),
-    getGenerationCost: createGetGenerationCost(ctx),
+    probe: createProbe(ctx),
+    accountCredits: createAccountCredits(ctx),
+    generationCost: createGenerationCost(ctx),
+    verifyAuth: createVerifyAuth(ctx),
+    inspectEndpoint: createInspectEndpoint(ctx),
+    providersAvailable: createProvidersAvailable(ctx),
+    registerProvider: createRegisterProvider(ctx),
+    dropProvider: createDropProvider(ctx),
+    registry: ctx.runtime.providers.registry,
   };
 }

@@ -37,10 +37,11 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { engineLaunchEnvFloor } from "@orb/server/foundation/env";
-import type { VLLM_ENGINES } from "@orb/server/infra/providers/vllm/engine";
-import { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "@orb/server/infra/providers/vllm/engine";
+
+import type { VLLM_ENGINES } from "./engine-fleet/index.ts";
+import { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "./engine-fleet/index.ts";
 import type { EnginesComposeInput } from "../contract/types.ts";
+import { engineLaunchEnvFloor } from "./engine-fleet/env.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 
@@ -60,7 +61,7 @@ const GEN_SERVICE = "vllm-gen";
 /** The model/cache volume mount point + the two cache env keys the bare-metal spawn sets on the child
  *  (spawn-engine.ts `cacheEnv`) mapped onto it. */
 const MODELS_MOUNT = "/models";
-const TEMPLATES_REL = "packages/server/src/infra/providers/vllm/engine/templates";
+const TEMPLATES_REL = "tooling/src/stack/lib/engine-fleet/templates";
 
 /** Per-engine container facts that are NOT in the argv: the compose profile, the service name, and the
  *  shared-memory size. SHM IS DERIVED, not a taste: vLLM uses `/dev/shm` for torch's inter-process
@@ -261,7 +262,7 @@ function headerLines(input: EnginesComposeInput): readonly string[] {
     "#",
     "# GENERATED — DO NOT HAND-EDIT. Regenerate with `pnpm engines compose` (writes this file); a stale copy",
     "# is a RED row in tests/tooling/stack/lib/engines-compose.test.ts. The serve flags come from the ONE argv",
-    "# builder the bare-metal fleet uses (packages/server/src/infra/providers/vllm/engine/build-argv.ts), so",
+    "# builder the bare-metal fleet uses (tooling/src/stack/lib/engine-fleet/build-argv.ts), so",
     "# these containers and `pnpm engines` can never run different flags. The generator, and the reasons for",
     "# every departure from the bare-metal spawn, are tooling/src/stack/lib/engines-compose.ts.",
     "#",

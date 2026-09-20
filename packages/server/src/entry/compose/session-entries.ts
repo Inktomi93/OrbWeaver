@@ -13,8 +13,8 @@
 
 import type { Db } from "@orb/db";
 import { sessionEntries } from "@orb/db";
+import type { SessionEntryWriter } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
-import type { SessionEntryWriter } from "@orb/server/infra/providers";
 import { eq, max } from "drizzle-orm";
 import { minter } from "./minter.ts";
 

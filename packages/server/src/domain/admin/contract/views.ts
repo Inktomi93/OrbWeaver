@@ -28,16 +28,3 @@ export interface SessionAdminView {
   readonly userAgent: string | null;
   readonly createdAt: number;
 }
-
-// Declared here because infra's EngineStatusRecord vocab never crosses the providers boundary. Carries the
-// live lifecycle record MERGED with the engine's env-only DEPLOYMENT facts (port + store path) — read-only
-// operator facts shown beside the status in the admin Engines panel (the #14 ruling: displayed, not edited).
-export interface AdminEngineStatus {
-  readonly status: string;
-  readonly detail: string;
-  readonly updatedAt: number;
-  /** The engine's loopback serve port (env-only deployment fact). */
-  readonly port: number;
-  /** The resolved shared store root — where the multi-GB model/cache tree lives (env-only deployment fact). */
-  readonly storePath: string;
-}

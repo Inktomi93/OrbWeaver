@@ -8,6 +8,7 @@ import type { GetDocumentParams } from "../contract/params.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import type { DocumentDetailView } from "../contract/views.ts";
 import { loadOwnedDocument, toDocumentView } from "../persistence/queries.ts";
+import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createGet(ctx: DatabankContext): DatabankService["get"] {
   return async ({ principal, id, includeText }: GetDocumentParams): Promise<DocumentDetailView> => {
@@ -15,7 +16,7 @@ export function createGet(ctx: DatabankContext): DatabankService["get"] {
     if (row === undefined) {
       throw new DocumentNotFoundError(id);
     }
-    const counts = await ctx.countChunks({ documentIds: [id], model: ctx.getActiveEmbedSpace().model });
+    const counts = await ctx.countChunks({ documentIds: [id], model: await activeSpaceModel(ctx, principal.userId) });
     const base = toDocumentView(
       {
         id: row.id,

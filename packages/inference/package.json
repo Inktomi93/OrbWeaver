@@ -1,0 +1,29 @@
+{
+  "name": "@orb/inference",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*/index.ts"
+  },
+  "imports": {
+    "#*": "./src/*/index.ts"
+  },
+  "dependencies": {
+    "@orb/kit": "workspace:*",
+    "@orb/contracts": "workspace:*",
+    "@ai-sdk/anthropic": "catalog:",
+    "@ai-sdk/openai-compatible": "catalog:",
+    "@ai-sdk/provider": "catalog:",
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
+    "@huggingface/transformers": "catalog:",
+    "@openrouter/ai-sdk-provider": "catalog:",
+    "ai": "catalog:",
+    "zod": "catalog:"
+  }
+}

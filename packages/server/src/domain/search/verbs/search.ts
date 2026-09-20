@@ -26,6 +26,7 @@ import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { blockKeyStr } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
+import { requireSpaceModel } from "../substrate/space.ts";
 
 /** The sibling verbs the dispatch delegates to for the owner-wide card/corpus/image surfaces + the
  *  (owner-gated) within-chat verbatim `segments`. Digests are NOT delegated — every digest scope routes
@@ -63,7 +64,9 @@ interface DigestScanArgs {
  *  `speakerCharacterId` is the by-character cross-chat OR-branch (scoped-producer OR present-as-speaker);
  *  `scopedCharacterId` narrows to one egocentric POV. Consumes SCOPE_INSTRUCTIONS for embed + rerank. */
 async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<DigestSourceHit[]> {
-  const embedded = await ctx.roleClients.embed(args.query, {
+  const rc = await ctx.roleClientsFor(args.ownerId);
+  const embedModel = await requireSpaceModel(rc, "embed");
+  const embedded = await rc.embed(args.query, {
     inputType: "query",
     instruction: SCOPE_INSTRUCTIONS.digests.query,
   });
@@ -73,7 +76,7 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<Dig
   }
   const pool = await nearestDigests(ctx.db, {
     queryVector,
-    model: ctx.roleClients.embedModel,
+    model: embedModel,
     ownerId: args.ownerId,
     ...(args.chatId !== undefined ? { chatIds: [args.chatId] } : {}),
     ...(args.scopedCharacterId !== undefined ? { scopedCharacterId: args.scopedCharacterId } : {}),
@@ -104,9 +107,7 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<Dig
       ),
     );
   // Instruction-aware rerankers key off the scope <Instruct>; text-only families ignore the prefix.
-  const ordered = args.rerank
-    ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`, ranked, ctx.roleClients.rerank, ranked.length)
-    : ranked;
+  const ordered = args.rerank ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`, ranked, rc.rerank, ranked.length) : ranked;
   const top = ordered.slice(0, args.topN);
   // The DESTINATION vocabulary (R1a), resolved for the SURVIVORS only — the same rank-then-enrich shape
   // discover uses, so an 80-row pool never pays for 60 display joins it throws away.
@@ -159,12 +160,13 @@ async function dispatchSegments(ctx: SearchContext, verbs: DelegateVerbs, params
     throw new SearchError(SEARCH_SCOPE_REQUIRED, "segments needs an egocentric scopedCharacterId on the chat scope");
   }
   // Owner belt: a chat the principal produced no digests in is not theirs to search (a foreign chatId → []).
-  const owned = await ownedChatIds(ctx.db, ownerId, ctx.roleClients.embedModel);
+  const owned = await ownedChatIds(ctx.db, ownerId, await requireSpaceModel(await ctx.roleClientsFor(ownerId), "embed"));
   if (!owned.includes(scope.chatId)) {
     return [];
   }
   return await verbs.segments({
     scope: { chat: scope.chatId },
+    ownerId,
     scopedCharacterId: scope.scopedCharacterId,
     queryText: query,
     mode: memoryMode(rerank),
@@ -223,7 +225,7 @@ export function createSearch(ctx: SearchContext, verbs: DelegateVerbs): SearchSe
         requireOwnerScope(scope, over);
         return {
           over,
-          hits: await verbs.documents({ scope: { ownerId }, queryText: query, k: topN, minScore: 0, rerank }),
+          hits: await verbs.documents({ scope: { ownerId }, ownerId, queryText: query, k: topN, minScore: 0, rerank }),
         };
       case "segments":
         return { over, hits: await dispatchSegments(ctx, verbs, params) };

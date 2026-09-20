@@ -128,6 +128,15 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     endsWhen: "the factory's reset stops being driven behind the storage blindfold.",
   },
   {
+    id: "no-untyped-soft-ref:user-connections-provider",
+    policyId: "no-untyped-soft-ref",
+    subject: "user_connections.providerId",
+    operation: "soft-reference",
+    why: "the provider REGISTRY is built-in rows ∪ `provider_rows` (inference program §5.2/§5.9-1): a built-in id (`openrouter`, `vllm`, `local-light`…) has NO row to FK, so the column is a registry id validated at the domain's writer verb against the live registry, CHECK-free because plugin rows are runtime data (§5.3c class 2).",
+    endsWhen:
+      "the built-in provider rows are persisted in `provider_rows` too (one table for the whole registry), at which point this column can carry a real FK.",
+  },
+  {
     id: "no-untyped-soft-ref:audit-logs-entity",
     policyId: "no-untyped-soft-ref",
     subject: "audit_logs.entityId",

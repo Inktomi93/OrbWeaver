@@ -26,7 +26,7 @@ export function createGetTrackerView(ctx: RpgContext): Pick<RpgService, "getTrac
   async function getTrackerView(params: ReadGameParams): Promise<RpgTrackerView> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
     const [{ trackersReadOnly }, visibility] = await Promise.all([
-      ctx.resolveStateDelivery(params.chatId),
+      ctx.resolveStateDelivery(params.chatId, params.principal.userId),
       ctx.resolveViewerVisibility(params.chatId, params.principal.userId),
     ]);
     const view = await buildTrackerView(ctx, game, trackersReadOnly);

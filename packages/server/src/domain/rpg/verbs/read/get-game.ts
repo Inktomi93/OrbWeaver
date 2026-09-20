@@ -11,7 +11,7 @@ import { deriveEffectiveDelivery } from "../../substrate/readonly-axis.ts";
 export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
   async function getGame(params: ReadGameParams): Promise<RpgGameView> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
-    const { trackersReadOnly, foldGuarded, canPopulate } = await ctx.resolveStateDelivery(params.chatId);
+    const { trackersReadOnly, foldGuarded, canPopulate } = await ctx.resolveStateDelivery(params.chatId, params.principal.userId);
     return {
       id: game.id,
       chatId: game.chatId,

@@ -9,6 +9,7 @@ import type { RenameDocumentParams } from "../contract/params.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import type { DocumentView } from "../contract/views.ts";
 import { toDocumentView } from "../persistence/queries.ts";
+import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createRename(ctx: DatabankContext): DatabankService["rename"] {
   return async ({ principal, id, name }: RenameDocumentParams): Promise<DocumentView> => {
@@ -27,7 +28,7 @@ export function createRename(ctx: DatabankContext): DatabankService["rename"] {
     // Announced after the RETURNING proved the row was the caller's and was written; a not-owned/not-found
     // rename threw above, so a refused write announces nothing (survey H3).
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
-    const counts = await ctx.countChunks({ documentIds: [id], model: ctx.getActiveEmbedSpace().model });
+    const counts = await ctx.countChunks({ documentIds: [id], model: await activeSpaceModel(ctx, ownerId) });
     return toDocumentView(
       {
         id: row.id,

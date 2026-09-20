@@ -12,10 +12,15 @@ import type { EmbeddingsContext } from "../context.ts";
 import type { PurgeDocumentVectorsResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { purgeStaleVectors } from "../persistence/clear.ts";
+import { requireTaskModel } from "../substrate/task-model.ts";
 
 export function createPurgeDocumentVectors(ctx: EmbeddingsContext): EmbeddingsService["purgeDocumentVectors"] {
-  return async (): Promise<PurgeDocumentVectorsResult> => {
-    const chunks = await purgeStaleVectors(ctx.db, "document_chunks", ctx.roleClients.embedModel);
+  return async ({ ownerId }): Promise<PurgeDocumentVectorsResult> => {
+    const activeModel = await requireTaskModel(ctx, ownerId, "embed");
+    if (activeModel === null) {
+      return { chunks: 0 };
+    }
+    const chunks = await purgeStaleVectors(ctx.db, "document_chunks", activeModel);
     return { chunks };
   };
 }

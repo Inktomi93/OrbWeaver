@@ -4,14 +4,13 @@
 
 export { aboutSection } from "./lib/about-section.tsx";
 export { adminApprovalsSection } from "./lib/admin-approvals-section.tsx";
-export { adminEnginesSection } from "./lib/admin-engines-section.tsx";
 export { adminGroup } from "./lib/admin-group.tsx";
 export { adminLinkSsoSection } from "./lib/admin-link-sso-section.tsx";
-export { restartEngineName, revokeSessionName, userActionsName, userEnabledFieldName, userRoleFieldName } from "./lib/admin-model.ts";
+export { revokeSessionName, userActionsName, userEnabledFieldName, userRoleFieldName } from "./lib/admin-model.ts";
 export { adminCatalogSection, adminEmbeddingsSection } from "./lib/admin-ops-sections.tsx";
 export { adminUsersSection } from "./lib/admin-users-section.tsx";
 export { memoryTuningSection } from "./lib/memory-tuning-section.tsx";
 export { rateLimitsSection } from "./lib/rate-limits-section.tsx";
 export { structuredOutputSection } from "./lib/structured-output-section.tsx";
-export { computeSection, mediaTrustSection, multiUserSection, operationsSection, sharedAccessSection } from "./lib/system-config-sections.tsx";
+export { mediaTrustSection, multiUserSection, operationsSection } from "./lib/system-config-sections.tsx";
 export { systemTuningSection } from "./lib/system-tuning-section.tsx";

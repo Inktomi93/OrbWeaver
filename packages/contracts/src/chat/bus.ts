@@ -10,7 +10,7 @@
 //     TYPE-LEVEL UNREPRESENTABLE (no member declares a field to carry one).
 
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
-import type { ChatApi, CredentialSource, EffortLevel } from "#connection";
+import type { ChatApi, EffortLevel, ProviderId } from "#inference";
 import type { WiBusEvent } from "#world-info";
 import type { MessageView } from "./messages.ts";
 import type { ReactionEmoji } from "./reactions.ts";
@@ -116,6 +116,10 @@ export const PLAIN_CHAT_WARNING_CODES = [
   // order fell back to the deterministic talkativeness-weighted `natural` arbitration. Emitted from the turn
   // verb's arbitrate step: the round still happens, but the user is told the MATH picked, not the model.
   "smart_arbitration_degraded",
+  // A BACKGROUND task (summaries, captions, digests) could not run for this turn's funder — no binding, or the
+  // bound row has `allowBackground` off (inference program §5.3a: the background tasks share ONE degrade
+  // notice so "nothing ran" is never the whole signal). The turn itself is unaffected.
+  "background_task_degraded",
   // A `system`-placement guided steer FELL BACK to a depth-0 injection because the active preset's template
   // lacks (or disabled) the `{{guided_instruction}}` marker (§10 addendum / F8). The steer still lands — via
   // the ChatInjection channel — instead of vanishing behind the config-editor's marker chip. Degraded-and-loud
@@ -156,6 +160,9 @@ export const PROVIDER_ADJUSTMENT_KINDS = [
   // A sampling/quality knob was not sent: the resolved model exposes no range for it, does not support it,
   // or (for `thinkingBudgetTokens`) reasons by effort level and has no budget field. `knob` names which.
   "sampling_knob_dropped",
+  // Two knobs the model rejects TOGETHER (`capability.sampling.exclusive`); the funnel kept the first-listed
+  // and dropped the other. `knob` names the dropped one.
+  "sampling_knob_conflict",
   // The requested reasoning effort is not one the model lists — it chose its own.
   "effort_dropped",
   // A thinking-budget request hit an ADAPTIVE-reasoning model, which budgets itself (an explicit budget 400s it).
@@ -202,6 +209,8 @@ export const ADJUSTED_KNOBS = [
   "quality",
   // The reasoning token budget, dropped on an effort-mode model that has no budget field.
   "thinkingBudgetTokens",
+  // The reply-pictures ask (`text+image`), dropped on a model whose capability produces text only.
+  "replyMedia",
 ] as const;
 export type AdjustedKnob = (typeof ADJUSTED_KNOBS)[number];
 
@@ -461,8 +470,9 @@ export type ChatBusEvent =
       type: "turnStarted";
       chatId: ChatId;
       intent: TurnIntent;
-      api: ChatApi;
-      source: CredentialSource;
+      api: ChatApi | null;
+      /** The provider REGISTRY id the turn resolved to (inference program §5.3c) — the source axis is retired. */
+      provider: ProviderId;
       model: string;
       /** The roster character speaking this turn (group "whose turn is it" automation; ST GROUP_MEMBER_DRAFTED).
        *  Null for a single-character chat or a non-character turn. */

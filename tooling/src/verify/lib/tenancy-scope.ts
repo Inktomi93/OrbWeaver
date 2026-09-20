@@ -111,6 +111,11 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   { table: "tags", scope: "ownerId", why: "D23 true producer — a tag has no owning parent to derive through." },
   { table: "theme_clusters", scope: "ownerId", why: "D23 parentless per-user aggregate (×cluster)." },
   { table: "themes", scope: "ownerId", why: "D44/D63 user theme library; seed palettes are null-owner rows, non-editable by construction." },
+  {
+    table: "user_connections",
+    scope: "ownerId",
+    why: "D23 true producer — a connection is the user's own row (inference program §5.3); the binding fold reads ONLY the funder's rows.",
+  },
   { table: "user_credentials", scope: "ownerId", why: "D23 true producer — the credential vault is single-owned." },
   { table: "workload_schedules", scope: "ownerId", why: "D23 true producer — a user-authored recurring-run config with no owned anchor to derive from." },
   { table: "workloads", scope: "ownerId", why: "D23 true producer — the per-user execution queue." },
@@ -191,6 +196,11 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   },
   { table: "rpg_games", scope: "membership", why: "the rpg plane hangs off the room — `gmUserId` is a ROLE within the room, not an ownership stamp." },
   { table: "session_entries", scope: "membership", why: "the agent-sdk session cache is chat-anchored (D8/D25); produced by infra, never a user-facing read." },
+  {
+    table: "connection_bindings",
+    scope: "parent",
+    why: "an actor → connection pick (inference program §5.3): the owner DERIVES one FK away through the arm's actor (`users` / `automation_rules.ownerId` / `plugins.ownerId`), so the row carries no stamp of its own (D23 no doubling).",
+  },
 
   // ── (c) junction-derived — a pure LINK; BOTH parents must be reachable by the caller. ──────────────────
   {
@@ -360,6 +370,11 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
     why: "the append-only system log (writer: foundation/observability's `logAudit`); `actorUserId` is a SET-NULL attribution stamp, not a read scope — the log outlives its actor by design (D24).",
   },
   { table: "oidc_transactions", scope: "global", why: "transient pre-identity auth state — there is no principal yet when it is written or read." },
+  {
+    table: "provider_rows",
+    scope: "global",
+    why: "the runtime provider REGISTRY (plugin-shipped / admin-added `ProviderDef` rows, inference program §5.9-1): deployment-wide vocabulary every principal's picker reads; `origin_*` is provenance, never a read key.",
+  },
   { table: "rate_limit_buckets", scope: "global", why: "transport-tier counters (producer: transport/rate-limit.ts) — keyed by bucket, never by tenant." },
   {
     table: "settings",

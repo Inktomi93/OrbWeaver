@@ -43,6 +43,9 @@ export interface CorpusParams {
  *  omits them (the verb stays total; the real caller — chat's gather, the panel — passes settings values). */
 export interface DocumentSearchParams {
   readonly scope: { readonly chatId: ChatId } | { readonly ownerId: UserId };
+  /** The OWNER of the document space (the chat host on a chat scope, the caller on a personal one) — their
+   *  `embed`/`rerank` bindings define the space and fund the query (inference program §7.5). */
+  readonly ownerId: UserId;
   readonly queryText: string;
   readonly k?: number | undefined;
   readonly minScore?: number | undefined;

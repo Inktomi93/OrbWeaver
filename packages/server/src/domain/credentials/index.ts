@@ -1,5 +1,5 @@
-// domain/credentials — FRONT DOOR: the only legal external import. Cross-boundary types (ResolvedCredential,
-// CredentialHealth, ProviderMetadata, CredentialProvider, CredentialSource) live in @orb/contracts/credentials;
+// domain/credentials — FRONT DOOR: the only legal external import. Cross-boundary types (ResolvedSecret,
+// CredentialHealth, ProviderMetadata) live in @orb/contracts/credentials;
 // callers import them from there directly, not through this front door.
 
 export type { CredentialContext } from "./context.ts";

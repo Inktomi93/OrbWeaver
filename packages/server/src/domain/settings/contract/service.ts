@@ -27,12 +27,6 @@ import type {
 } from "./params.ts";
 import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views.ts";
 
-/** Injected cross-feature op (PD-139a): fired AFTER a user-settings write that CHANGED the box's
- *  `routing.roleDefaults.embed.model` or `.imageEmbed.model`. Wired at the entry root to enqueue a bulk
- *  purge+reindex (`workloads.start` index/all/force) — the trigger the PD-104 purge+reindex machine was
- *  missing. Fire-and-forget by contract, exactly like `emitUserEvent`: it returns void and the wired op
- *  swallows its own errors, so a failed or duplicate enqueue can NEVER fail the settings write. */
-type OnEmbedModelChanged = () => void;
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SettingsContext {
@@ -50,8 +44,6 @@ export interface SettingsContext {
   /** User-bus live-freshness emit: user-settings writes fire `settingsChanged`, theme verbs fire
    *  `themesChanged`, after the durable write. AppSettings/GlobalSettings are global/admin — no emit. */
   readonly emitUserEvent: EmitUserEvent;
-  /** PD-139a: fired (fire-and-forget) after a write that changed the embed/imageEmbed model id. */
-  readonly onEmbedModelChanged: OnEmbedModelChanged;
   /** Materialize a user-pasted external background URL into an owned CAS asset (side-eye F-P0-2). Compose-built
    *  from infra + assets.store; drives `addExternalBackground`. */
   readonly materializeBackground: MaterializeBackgroundOp;
@@ -75,7 +67,6 @@ export interface SettingsServiceDeps {
   readonly requireOwner: RequireOwner;
   readonly newThemeId: () => ThemeId;
   readonly emitUserEvent: EmitUserEvent;
-  readonly onEmbedModelChanged: OnEmbedModelChanged;
   readonly materializeBackground: MaterializeBackgroundOp;
   readonly newBackgroundEntryId: () => string;
   readonly versionIdentity: () => VersionIdentity;

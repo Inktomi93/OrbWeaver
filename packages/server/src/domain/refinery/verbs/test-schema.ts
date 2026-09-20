@@ -5,7 +5,7 @@
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
-import type { SummarizeOptions } from "@orb/contracts/role-clients";
+import type { StructuredOptions } from "@orb/contracts/role-clients";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
@@ -32,9 +32,9 @@ export function createTestSchema(ctx: RefineryContext): RefineryService["testSch
     // open on the hosted wire; this projection is the enforcement, not a formality.
     const lifted = liftJsonSchema(doc.schema);
     const projected = projectJsonSchema(lifted);
-    const [overrides, presetParams] = await Promise.all([ctx.resolveUserProse(ownerId), ctx.resolveUserPresetParams(ownerId)]);
+    const [overrides, presetParams, rc] = await Promise.all([ctx.resolveUserProse(ownerId), ctx.resolveUserPresetParams(ownerId), ctx.roleClientsFor(ownerId)]);
     const posture = stage === "score" ? SIDE_GEN_POSTURES.refine_score : SIDE_GEN_POSTURES.refine_analyze;
-    const sampleOpts: SummarizeOptions = {
+    const sampleOpts: StructuredOptions = {
       responseFormat: { name: "refinery_schema_preview", schema: projected },
       ...toSummarizeOptions(resolveSideGenSampling(posture, presetParams)),
     };
@@ -66,7 +66,7 @@ export function createTestSchema(ctx: RefineryContext): RefineryService["testSch
     const parse = buildStageParse(lifted);
     const run = async (correction?: string): Promise<string> => {
       const userPrompt = correction === undefined ? prompts.user : `${prompts.user}\n\n${correction}`;
-      const res = await ctx.summarize([{ systemPrompt: prompts.system, userPrompt }], sampleOpts);
+      const res = await rc.structured([{ systemPrompt: prompts.system, userPrompt }], sampleOpts);
       return res.items[0]?.text ?? "";
     };
     try {

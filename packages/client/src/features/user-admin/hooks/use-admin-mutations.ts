@@ -57,22 +57,6 @@ export const useRevokeUserSessions = createEntityMutation<inferInput<Trpc["admin
   errorToast: "Couldn't revoke the sessions.",
 });
 
-/** Bounce a vLLM engine through the supervisor (PD-3). Resolves to a human status line. */
-export const useRestartEngine = createEntityMutation<inferInput<Trpc["admin"]["restartVllmEngine"]>, string>({
-  options: (trpc) => trpc.admin.restartVllmEngine.mutationOptions(),
-  invalidates: (trpc) => [trpc.admin.vllmEngines.queryFilter()],
-  errorToast: "Couldn't restart the engine.",
-});
-
-/** Save the vLLM engine LAUNCH config (a partial AppSettings.engineLaunch patch, #14). Rides the SAME
- *  admin-gated settings.updateAppSettings path (which stamps the schema version) — no new subsystem. The
- *  new flags apply only on the NEXT engine restart, so the surface shows a "restart to apply" affordance. */
-export const useUpdateAppSettings = createEntityMutation<{ readonly partial: AppSettings }, EffectiveAppConfig>({
-  options: (trpc) => trpc.settings.updateAppSettings.mutationOptions(),
-  invalidates: (trpc) => [trpc.settings.getAppSettings.queryFilter()],
-  errorToast: "Couldn't save the engine launch config.",
-});
-
 /** Write an AppSettings-override PATCH from an admin settings SECTION (Phase B ③: memory tuning, summarizer,
  *  rate limits). Same admin-gated `updateAppSettings` path; a field value = an override, `null` = clear it
  *  to the floor. Invalidates BOTH admin reads — `getAppSettings` (the engine-launch surface) AND
@@ -83,22 +67,15 @@ export const useUpdateAppOverrides = createEntityMutation<{ readonly partial: Ap
   errorToast: "Couldn't save the setting.",
 });
 
-/** Refresh the OpenRouter model catalog (fetch `/models` → write the KV snapshot, warm the cache).
- *  Invalidates the reads that actually DERIVE from the snapshot — the picker facade and the capability
- *  descriptor — not `getCatalog` (no client consumer; that proc's client-side value is the server-side
- *  cache warm). */
+/** Refresh ONE provider's model catalog (`GET /models` → write the KV snapshot, warm the cache) — the
+ *  OpenRouter row is the only built-in with an enriched hosted list; the agent-sdk daemon catalog is warmed on
+ *  demand under the calling user's OWN `claude-sub` row (inference program §4 callout), never here.
+ *  Invalidates the reads that DERIVE from the snapshot — the per-connection picker list + the capability
+ *  descriptor. */
 export const useRefreshCatalog = createEntityMutation<inferInput<Trpc["connection"]["refreshCatalog"]>, unknown>({
   options: (trpc) => trpc.connection.refreshCatalog.mutationOptions(),
-  invalidates: (trpc) => [trpc.connection.getModelsForSource.queryFilter(), trpc.connection.resolveChatCapability.queryFilter()],
+  invalidates: (trpc) => [trpc.connection.catalogModels.queryFilter(), trpc.connection.resolveChatCapability.queryFilter()],
   errorToast: "Couldn't refresh the model catalog.",
-});
-
-/** Refresh the agent-SDK daemon model catalog (run `supportedModels()` → write the KV snapshot).
- *  Same targets as the OR refresh: the picker facade + capability read both snapshots. */
-export const useRefreshAgentSdkCatalog = createEntityMutation<inferInput<Trpc["connection"]["refreshAgentSdkCatalog"]>, unknown>({
-  options: (trpc) => trpc.connection.refreshAgentSdkCatalog.mutationOptions(),
-  invalidates: (trpc) => [trpc.connection.getModelsForSource.queryFilter(), trpc.connection.resolveChatCapability.queryFilter()],
-  errorToast: "Couldn't refresh the agent-SDK catalog.",
 });
 
 /** PD-90 — the inline single-card embed (admin-only; drives the GPU embed engine). Reconciles nothing;

@@ -124,6 +124,10 @@ const PORTABLE_CANON_TABLES: Record<PortableKind, readonly string[]> = {
  *  longer declares is RED (delete it), and an owner-stamped table with neither a row here nor a
  *  `PORTABLE_CANON_TABLES` cell is RED (classify it). */
 const NON_PORTABLE_CANON: Readonly<Record<string, NonPortableRow>> = {
+  userConnections: {
+    classification: "DEFERRED",
+    why: "a connection is provider + model + a `credentialId` into RULED-OUT `user_credentials` + a box-local `baseUrl` (inference program §5.3); the credential half can never travel and the URL half is per-box, so today the restore posture is re-create from the picker (the local-light floor re-seeds at boot, §7.2). Ends when the Connections pane ships an export arm that carries the credential-FREE half (provider, model, declared, extras, transport, bindings) and the import re-links keys.",
+  },
   userCredentials: {
     classification: "RULED-OUT",
     why: "spec R10 — secrets never leave the box; the restore posture is re-enter your keys. Ends never (a portable credential IS the defect).",

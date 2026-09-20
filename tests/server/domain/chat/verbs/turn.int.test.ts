@@ -7,8 +7,10 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
+import type { Resolved } from "@orb/inference";
 import type { Can, Principal } from "@orb/contracts/identity";
+import type { NormalizedFinishReason } from "@orb/contracts/inference";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -75,7 +77,7 @@ function principal(userId: UserId): Principal {
 }
 
 /** A scripted role turn — text delta + a terminal `final` carrying the content/economics. */
-function scripted(content: string, finishReason?: string): ChatContext["runChatTurn"] {
+function scripted(content: string, finishReason?: NormalizedFinishReason): ChatContext["runChatTurn"] {
   return () =>
     (async function* (): AsyncGenerator<TurnStreamChunk> {
       await Promise.resolve();
@@ -91,7 +93,7 @@ function scripted(content: string, finishReason?: string): ChatContext["runChatT
  *  send fires ≥2 `runChatTurn` calls that must reply distinctly). */
 interface ScriptedReply {
   readonly content: string;
-  readonly finishReason?: string;
+  readonly finishReason?: NormalizedFinishReason;
 }
 
 /** A deterministic PRNG (Park-Miller LCG) — D46 (never `Math.random`). */

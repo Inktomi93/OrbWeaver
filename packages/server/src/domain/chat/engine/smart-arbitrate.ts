@@ -20,16 +20,16 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
+import type { RoleClientsWithSignal } from "@orb/inference";
 import { includesWholeName } from "@orb/kit/speaker-label";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate } from "../contract/arbitration.ts";
-import type { SummarizeOp } from "../contract/context.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
 import { selectSpeakers } from "./select-speakers.ts";
 
 /** The 7b inputs (file-local — the driver passes a literal). */
 interface SmartArbitrateParams {
   /** The injected side-LLM (`ChatContext.summarize`). */
-  readonly summarize: SummarizeOp;
+  readonly summarize: RoleClientsWithSignal["summarize"];
   /** The present roster's character candidates (the eligible set is derived here). */
   readonly candidates: readonly ArbiterCandidate[];
   /** Display names for the candidates (id → name) — the prompt vocabulary + the roster-validating parse. */

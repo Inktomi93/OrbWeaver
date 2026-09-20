@@ -1,0 +1,219 @@
+// The resolver: `(task, principal, actor?, requires?)` → `Resolved<Task>`, in ONE fold, reading only the
+// principal's own rows. The steps, in order and each with its refusal named:
+//   1. the §7.1 binding fold (no row ⇒ `no-connection`, never a born default — F2/F16);
+//   2. the connection row — it must be the FUNDER's (a binding that names a stranger's row is a domain bug,
+//      refused and recorded, never served);
+//   3. the provider row from the registry (a dropped plugin provider ⇒ `no-connection`);
+//   4. the model's KIND: the OpenRouter catalog row → curated → the row's `declared.kind` → the task's own
+//      kind; then `connectionTasks` decides whether this row may serve the task at all;
+//   5. api coherence (data), the secret (by id, the funder's), the model id normalised (no heal);
+//   6. the catalog warm this provider's `catalog` strategy owns, then the evidence bundle → synthesis →
+//      the endpoint posture floors → the features fold;
+//   7. the requirement verdict and `canFund` — VERDICTS on the result, never throws.
+
+import type { Principal } from "@orb/contracts/identity";
+import type {
+  AgentSdkModel,
+  Capability,
+  EndpointFeatures,
+  ModelCatalogEntry,
+  ModelKind,
+  ProviderDef,
+  RequirementVerdict,
+  Task,
+  UserConnection,
+} from "@orb/contracts/inference";
+import { canFund, connectionTasks, foldFeatures, requirementMet, taskDef } from "@orb/contracts/inference";
+import type { ModelId } from "@orb/kit/ids";
+import { detectModelFamily } from "../capability/families.ts";
+import { applyEndpointPosture } from "../capability/floor.ts";
+import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
+import { advertisedFromOpenAiCompat } from "../capability/sources/advertised/openai-compat.ts";
+import { advertisedFromOpenRouter } from "../capability/sources/advertised/openrouter.ts";
+import { curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
+import { MEASURED_ANTHROPIC } from "../capability/sources/measured/anthropic.ts";
+import type { Evidence } from "../capability/synthesize.ts";
+import { synthesizeCapability } from "../capability/synthesize.ts";
+import type { EndpointModel } from "../catalog/endpoint.ts";
+import type { Mirror } from "../catalog/mirror.ts";
+import { ProviderError } from "../contract/errors.ts";
+import type { ResolvedWarning } from "../contract/resolve.ts";
+import type { Resolved } from "../contract/resolved.ts";
+import type { BindingActor, InferenceDeps } from "../deps.ts";
+import type { ProviderRegistry } from "../registry/providers.ts";
+import { resolveApi } from "./coherence.ts";
+import { normalizeModelId } from "./heal.ts";
+import { foldBindings } from "./precedence.ts";
+
+export interface ResolveArgs {
+  readonly task: Task;
+  readonly principal: Principal;
+  readonly actor?: BindingActor | undefined;
+  /** An explicit row instead of the fold — the turn's own already-resolved connection re-read, a pane preview. */
+  readonly connectionId?: UserConnection["id"] | undefined;
+}
+
+/** Everything the resolver reads that is not a dep: the registry + the catalog mirrors + the warms. */
+export interface ResolverContext {
+  readonly deps: InferenceDeps;
+  readonly registry: ProviderRegistry;
+  readonly openRouterCatalog: Mirror<ModelCatalogEntry[]>;
+  readonly endpointModels: (baseUrl: string) => Mirror<EndpointModel[]>;
+  readonly agentSdkCatalog: Mirror<AgentSdkModel[]>;
+  readonly warmOpenRouter: () => Promise<void>;
+  readonly warmEndpoint: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<void>;
+  readonly warmAgentSdk: (connection: UserConnection) => Promise<void>;
+}
+
+export class NoConnectionError extends ProviderError {
+  constructor(message: string) {
+    super({ kind: "invalid", retryable: false, message });
+    this.name = "NoConnectionError";
+  }
+}
+
+/** Which kind this row's model is — never guessed from the task alone when any evidence states one. */
+function kindOf(ctx: ResolverContext, args: { readonly task: Task; readonly provider: ProviderDef; readonly connection: UserConnection }): ModelKind {
+  const { task, provider, connection } = args;
+  const catalogRow = provider.dialect === "openrouter" ? ctx.openRouterCatalog.get()?.find((entry) => entry.id === connection.model) : undefined;
+  return (
+    connection.declared?.kind ??
+    catalogRow?.kind ??
+    curatedKind({ model: connection.model, providerId: provider.id, wire: provider.wire }) ??
+    taskDef(task).kind
+  );
+}
+
+function advertisedFor(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection, model: ModelId): Evidence["advertised"] {
+  if (provider.wire === "agent-sdk") {
+    const row = agentSdkRowFor(model, ctx.agentSdkCatalog.get());
+    return row === undefined ? undefined : advertisedFromAgentSdk(row);
+  }
+  if (provider.dialect === "openrouter") {
+    const entry = ctx.openRouterCatalog.get()?.find((candidate) => candidate.id === model);
+    return entry === undefined ? undefined : advertisedFromOpenRouter(entry);
+  }
+  const baseUrl = provider.wire === "openai-compat" ? (provider.baseUrl ?? connection.baseUrl) : null;
+  const entry =
+    baseUrl === null
+      ? undefined
+      : ctx
+          .endpointModels(baseUrl)
+          .get()
+          ?.find((candidate) => candidate.id === model);
+  return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry);
+}
+
+async function warmFor(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection, secret: string | null): Promise<void> {
+  if (provider.catalog === "builtin") {
+    return;
+  }
+  if (provider.wire === "agent-sdk") {
+    await ctx.warmAgentSdk(connection);
+    return;
+  }
+  if (provider.dialect === "openrouter") {
+    await ctx.warmOpenRouter();
+    return;
+  }
+  await ctx.warmEndpoint(connection, provider, secret);
+}
+
+export interface ResolveOutcome {
+  readonly resolved: Resolved;
+  readonly warnings: readonly ResolvedWarning[];
+}
+
+async function connectionFor(ctx: ResolverContext, args: ResolveArgs): Promise<UserConnection> {
+  const funder = args.principal.userId;
+  let connectionId = args.connectionId ?? null;
+  if (connectionId === null) {
+    const fold = await foldBindings(ctx.deps.bindings, { task: args.task, funder, ...(args.actor !== undefined ? { actor: args.actor } : {}) });
+    connectionId = fold.connectionId;
+  }
+  if (connectionId === null) {
+    throw new NoConnectionError(`no connection is bound for "${args.task}"`);
+  }
+  const connection = await ctx.deps.connections.get(connectionId);
+  if (connection === null) {
+    throw new NoConnectionError(`connection ${connectionId} no longer exists`);
+  }
+  if (connection.ownerId !== funder) {
+    // A binding may only point at a row its derived owner holds — enforced at the writer verb; reaching here
+    // is a domain bug, and serving it would spend a stranger's key. Refuse and record.
+    ctx.deps.securityEvent?.("connection_owner_mismatch", { task: args.task, connectionId, funder, owner: connection.ownerId });
+    throw new NoConnectionError(`connection ${connectionId} is not the funder's`);
+  }
+  return connection;
+}
+
+/** The one requirement a WIRE adds beyond the capability: rerank on the openai-compat wire is a plain POST
+ *  to the row's `features.rerankPath` (no SDK rerank model), so a row without the path — an LM Studio /
+ *  Ollama / custom row whose connection never declared one — reads `requirement-unmet`, never a 404 at send.
+ *  A verdict on the folded features, which is why it lives here and not on the provider row. */
+function withWireRequirement(base: RequirementVerdict, task: Task, provider: ProviderDef, features: EndpointFeatures): RequirementVerdict {
+  if (task !== "rerank" || provider.wire !== "openai-compat" || features.rerankPath !== undefined) {
+    return base;
+  }
+  const missing = [...(base.ok ? [] : base.missing), "features.rerankPath"];
+  return { ok: false, missing };
+}
+
+export async function resolveTask(ctx: ResolverContext, args: ResolveArgs): Promise<ResolveOutcome> {
+  const connection = await connectionFor(ctx, args);
+  const provider = ctx.registry.get(connection.providerId);
+  if (provider === undefined) {
+    throw new NoConnectionError(`provider "${connection.providerId}" is not registered (a plugin provider reads no-connection until its plugin activates)`);
+  }
+  const declared = connection.declared;
+  const kind = kindOf(ctx, { task: args.task, provider, connection });
+  const served = connectionTasks(provider, kind);
+  if (!served.includes(args.task)) {
+    throw new ProviderError({
+      kind: "forbidden",
+      retryable: false,
+      message: `connection "${connection.label}" (${provider.id}, ${kind}) cannot serve "${args.task}"`,
+    });
+  }
+  const api = resolveApi(provider, connection, kind);
+  const credential = await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id });
+  await warmFor(ctx, provider, connection, credential.secret);
+  const model = normalizeModelId(connection.model, provider.wire === "agent-sdk" ? ctx.agentSdkCatalog.get() : null);
+  const family = detectModelFamily(model);
+  const evidence: Evidence = {
+    declared,
+    measured: family === "anthropic" ? MEASURED_ANTHROPIC : [],
+    advertised: advertisedFor(ctx, provider, connection, model),
+    curated: curatedRows({ model, providerId: provider.id, wire: provider.wire, api }),
+  };
+  const synthesized = synthesizeCapability(kind, family, evidence);
+  const capability: Capability = applyEndpointPosture(provider, synthesized.capability, declared?.generation?.input !== undefined);
+  const features = foldFeatures(provider.features, declared?.features);
+  const requirement = withWireRequirement(requirementMet(capability, taskDef(args.task).requires), args.task, provider, features);
+  const resolved: Resolved = {
+    task: args.task,
+    ownerId: connection.ownerId,
+    connectionId: connection.id,
+    providerId: provider.id,
+    wire: provider.wire,
+    api,
+    model,
+    capability,
+    requirement,
+    provider,
+    credential,
+    baseUrl: provider.baseUrl ?? connection.baseUrl,
+    features,
+    extras: connection.extras,
+    transport: connection.transport,
+    allowBackground: connection.allowBackground,
+  };
+  const warnings: ResolvedWarning[] = [...synthesized.warnings];
+  if (!canFund(connection, args.task)) {
+    warnings.push({
+      code: "background_task_degraded",
+      message: `"${args.task}" is a background task and connection "${connection.label}" does not allow background work`,
+    });
+  }
+  return { resolved, warnings };
+}

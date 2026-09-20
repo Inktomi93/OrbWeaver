@@ -1,79 +1,46 @@
-// verb: resolve — the turn-time credential chokepoint. Dispatches on CredentialSource (assertNever-exhaustive)
-// and returns a brand-protected ResolvedCredential built only through substrate/mint. max-pro-sub is
-// owner-only; openrouter/custom_openai decrypt the user's active row; a missing/revoked BYO credential is
-// DomainNoCredentialError with no silent host-fallback (would spend the owner's quota).
+// verb: resolve — the turn-time credential chokepoint, BY ID off the connection row (inference program §5.3).
+// Returns a brand-protected `ResolvedSecret` built only through `substrate/mint-secret`. A `null` credentialId
+// is the keyless arm (`auth: none`, an open endpoint); a missing / foreign / revoked row is
+// `DomainNoCredentialError` with no silent fallback (the connection reads `no-connection` at send until
+// re-keyed). WHAT KIND of secret the row holds comes from its metadata's `auth` discriminator — `apiKey`,
+// `oauthToken` (a pasted `claude setup-token`) or `endpoint` (the optional bearer) — never from the provider.
 
-import type { CustomOpenAiCredential, OpenRouterCredential, ResolvedCredential } from "@orb/contracts/credentials";
-import { DomainNoCredentialError, DomainOperationError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credentials";
+import { parseProviderMetadata } from "@orb/contracts/credentials";
+import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { CredentialContext } from "../context.ts";
-import { CREDENTIALS_OP_CODES } from "../contract/errors.ts";
 import type { ResolveCredentialParams } from "../contract/params.ts";
 import type { CredentialsService } from "../contract/service.ts";
 import { aadFor } from "../persistence/aad.ts";
-import { loadActiveCredential } from "../persistence/queries.ts";
+import { fetchOwnedCredential } from "../persistence/queries.ts";
 import { decryptSealed } from "../substrate/decrypt.ts";
-import { mintCustomOpenAi, mintLocalLight, mintMaxProSub, mintOpenRouter, mintVllm } from "../substrate/mint.ts";
-import { parseCustomOpenAiEndpoint } from "../substrate/parse-metadata.ts";
+import { mintSecret } from "../substrate/mint-secret.ts";
 
-function assertNever(value: never): never {
-  throw new Error(`unhandled credential source: ${String(value)}`);
-}
-
-/** The user's active OpenRouter key, or the typed no-credential floor (active-but-revoked falls through). */
-async function resolveOpenRouter(ctx: CredentialContext, ownerId: UserId): Promise<OpenRouterCredential> {
-  const active = await loadActiveCredential(ctx.db, ownerId, "openrouter");
-  if (active === undefined || active.revokedAt !== null) {
-    throw new DomainNoCredentialError("openrouter");
+/** The metadata `auth` arm → the secret kind. A row with no metadata (every pre-metadata key) is an API key. */
+function kindOf(metadata: unknown): Exclude<ResolvedSecretKind, "none"> {
+  const parsed = parseProviderMetadata(metadata);
+  if (parsed === null || parsed.auth === "apiKey") {
+    return "apiKey";
   }
-  const plaintext = decryptSealed(ctx.box, active, aadFor(ownerId, "openrouter"));
-  return mintOpenRouter(plaintext, active.id);
-}
-
-/** The user's active custom_openai endpoint (the active row IS the endpoint selection). */
-async function resolveCustomOpenAi(ctx: CredentialContext, ownerId: UserId): Promise<CustomOpenAiCredential> {
-  const active = await loadActiveCredential(ctx.db, ownerId, "custom_openai");
-  if (active === undefined || active.revokedAt !== null) {
-    throw new DomainNoCredentialError("custom_openai");
+  if (parsed.auth === "oauthToken") {
+    return "oauthToken";
   }
-  const endpoint = parseCustomOpenAiEndpoint(active.metadata);
-  if (endpoint === null) {
-    throw new DomainOperationError(CREDENTIALS_OP_CODES.metadataInvalid, "custom_openai credential is missing its baseUrl metadata.");
-  }
-  // A successfully decrypted empty plaintext is the intentional no-auth arm. Decrypt failure throws the
-  // typed configuration error before this mint, so it can never become a keyless request.
-  const plaintext = decryptSealed(ctx.box, active, aadFor(ownerId, "custom_openai"));
-  return mintCustomOpenAi({
-    baseUrl: endpoint.baseUrl,
-    apiKey: plaintext.length > 0 ? plaintext : null,
-    headers: endpoint.headers,
-    credentialId: active.id,
-    model: endpoint.model ?? undefined,
-    contextWindow: endpoint.contextWindow,
-    includeBody: endpoint.includeBody,
-    excludeBody: endpoint.excludeBody,
-    responseMap: endpoint.responseMap,
-  });
+  return "bearer";
 }
 
 export function createResolve(ctx: CredentialContext): CredentialsService["resolve"] {
-  // async so a synchronous throw (e.g. the max-pro-sub owner-gate) surfaces as a rejected promise.
-  return async (params: ResolveCredentialParams): Promise<ResolvedCredential> => {
-    const { principal } = params;
-    const source = params.source;
-    switch (source) {
-      case "vllm":
-        return mintVllm();
-      case "local-light":
-        return mintLocalLight();
-      case "max-pro-sub":
-        return mintMaxProSub(principal, ctx.requireOwner);
-      case "openrouter":
-        return await resolveOpenRouter(ctx, principal.userId);
-      case "custom_openai":
-        return await resolveCustomOpenAi(ctx, principal.userId);
-      default:
-        return assertNever(source);
+  return async (params: ResolveCredentialParams): Promise<ResolvedSecret> => {
+    const { ownerId, credentialId, providerId } = params;
+    if (credentialId === null) {
+      return mintSecret({ credentialId: null, kind: "none", secret: null });
     }
+    const row = await fetchOwnedCredential(ctx.db, ownerId, credentialId);
+    if (row === undefined || row.revokedAt !== null) {
+      throw new DomainNoCredentialError(providerId);
+    }
+    // The AAD is `${owner}|${providerId}` — a row sealed under another provider id (or lifted to another
+    // owner) decrypt-fails as the typed configuration error, never as a wrong key on the wire.
+    const plaintext = decryptSealed(ctx.box, row, aadFor(ownerId, providerId));
+    return mintSecret({ credentialId: row.id, kind: kindOf(row.metadata), secret: plaintext });
   };
 }

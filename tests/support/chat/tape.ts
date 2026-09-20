@@ -20,8 +20,8 @@
 //     settled, never because of an error's NAME: engine.ts `abortReasonFor`). Assert with
 //     the `toThrowProviderError(kind)` matcher (support/matchers.ts).
 
-import type { ProviderErrorKind } from "@orb/server/infra/providers";
-import { ProviderError } from "@orb/server/infra/providers";
+import type { ProviderErrorKind } from "@orb/inference";
+import { ProviderError } from "@orb/inference";
 import type { RunChatTurnOp } from "../../../packages/server/src/domain/chat/contract/context.ts";
 import type { TurnEconomics, TurnRequest, TurnStreamChunk } from "../../../packages/server/src/domain/chat/contract/results.ts";
 

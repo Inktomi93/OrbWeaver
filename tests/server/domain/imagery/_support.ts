@@ -2,8 +2,8 @@
 // ops (generate/fetch/store/extract/caption/stats). The infra executor + role resolver + CAS write + the
 // chat/character/assets ops are stubs — imagery declares their ports; the composition root binds the real infra.
 
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
+import type { Resolved } from "@orb/inference";
+import { generationOf } from "@orb/inference";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
@@ -13,6 +13,7 @@ import { assets, users } from "@orb/db";
 import type { AssetId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
+import { makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
@@ -34,13 +35,13 @@ export function principal(userId: UserId): Principal {
 /** A `resolveGenerateImage` override whose resolved model advertises a concrete `input.imageEdit` capability
  *  (the harness default is opaque `{}`) — drives the B3 avatar-reference gate + the editImage capability gate. */
 export function resolutionWith(imageEdit: boolean): ImageryContext["resolveGenerateImage"] {
-  return () =>
-    Promise.resolve({
-      // @orb-waive no-test-fabrication(unknown): minimal connection double — credential/model are forwarded to the executor, never read by the fakes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      connection: { api: "chat-completions", model: castId<ModelId>("img-model"), credential: {}, capability: {} } as unknown as ResolvedConnection,
-      // @orb-waive no-test-fabrication(ModelCapability): only input.imageEdit is read by the gate. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      capability: { input: { vision: false, imageEdit } } as ModelCapability,
-    });
+  const connection = makeResolved({
+    task: "generateImage",
+    providerId: "openrouter",
+    model: castId<ModelId>("img-model"),
+    generation: { imageEdit, output: { maxTokens: { min: 1, max: 8192 }, modalities: ["image"] } },
+  });
+  return () => Promise.resolve({ connection, capability: generationOf(connection) });
 }
 
 /** The card fields imagery reads — `avatarAssetId` (caption/B3) + `contentHash` (the I3 identity hash). */
@@ -73,20 +74,17 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
   const extractInstructions: string[] = [];
   const captionInstructions: string[] = [];
   const readAssetCalls: AssetId[] = [];
-  // @orb-waive no-test-fabrication(ResolvedConnection): minimal ResolvedConnection double — the free-mode orchestrator forwards credential/capability opaquely; the fakes never read them. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  const connection = {
-    api: "chat-completions",
+  const connection: Resolved<"generateImage"> = makeResolved({
+    task: "generateImage",
+    providerId: "openrouter",
     model: castId<ModelId>("img-model"),
-    // @orb-waive no-test-fabrication(unknown): opaque credential — forwarded, never read by the fakes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    credential: {} as unknown as ResolvedCredential,
-    // @orb-waive no-test-fabrication(unknown): opaque capability — forwarded, never read by the fakes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    capability: {} as unknown as ResolvedConnection["capability"],
-  } as ResolvedConnection;
+    generation: { output: { maxTokens: { min: 1, max: 8192 }, modalities: ["image"] } },
+  });
   const ctx: ImageryContext = {
     db,
     now: () => FROZEN_AT,
     newGenerationId: (): ImageryGenerationId => castId<ImageryGenerationId>(ids.next("imagery_generation")),
-    resolveGenerateImage: () => Promise.resolve({ connection, capability: connection.capability }),
+    resolveGenerateImage: () => Promise.resolve({ connection, capability: generationOf(connection) }),
     generateImage: (req) => {
       generateCalls.push(req.n ?? 1);
       generateRequests.push(req);

@@ -1,6 +1,6 @@
-// Admin ops bodies (Settings → Admin) over the built connection/admin verbs: the two model-catalog
-// refreshers (OpenRouter `/models` + the agent-SDK `supportedModels()`, both admin-gated) and the PD-90
-// inline single-card embed. All three are adminProcedure server-side — this pane is UX honesty over that
+// Admin ops bodies (Settings → Admin) over the built connection/admin verbs: the OpenRouter model-catalog
+// refresher (`GET /models`, admin-gated — the agent-sdk daemon list is warmed under each user's own
+// `claude-sub` row, inference program §4) and the PD-90 inline single-card embed. Both are adminProcedure server-side — this pane is UX honesty over that
 // floor. The embed has no natural character-ops home in the admin surface, so it takes a raw character id
 // (an admin diagnostic utility, not an end-user flow).
 
@@ -14,26 +14,30 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { configAnchorId } from "#state";
-import { useEmbedCharacterCard, useRefreshAgentSdkCatalog, useRefreshCatalog } from "../hooks/use-admin-mutations.ts";
+import { useEmbedCharacterCard, useRefreshCatalog } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "../lib/admin-ops-nav.ts";
 
-/** The two model-catalog refreshers — re-fetch the catalogs the role pickers browse. */
+/** The one built-in row with an enriched hosted catalog (reasoning/modality/pricing fields). */
+const OPENROUTER_PROVIDER_ID = "openrouter";
+
+/** The OpenRouter catalog refresher — re-fetches the enriched list every OpenRouter connection's picker browses. */
 export function AdminCatalogSection(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const refreshCatalog = useRefreshCatalog({ trpc, invalidation });
-  const refreshAgentSdk = useRefreshAgentSdkCatalog({ trpc, invalidation });
 
   return (
     <Section className="@container" divider={true} heading={ADMIN_CATALOG_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_CATALOG_SUBCATEGORY.id)}>
       <Stack gap="row">
-        <Text voice="gloss">Re-fetch the model catalogs the role pickers browse. Each runs live against its provider.</Text>
+        <Text voice="gloss">Re-fetch the OpenRouter model catalog every OpenRouter connection browses. Runs live against the provider.</Text>
         <Row gap="field" align="center" className="flex-wrap">
-          <Button intent="secondary" size="sm" disabled={refreshCatalog.isPending} onClick={(): void => refreshCatalog.mutate()}>
-            Refresh model catalog
-          </Button>
-          <Button intent="secondary" size="sm" disabled={refreshAgentSdk.isPending} onClick={(): void => refreshAgentSdk.mutate()}>
-            Refresh agent-SDK catalog
+          <Button
+            intent="secondary"
+            size="sm"
+            disabled={refreshCatalog.isPending}
+            onClick={(): void => refreshCatalog.mutate({ providerId: OPENROUTER_PROVIDER_ID })}
+          >
+            Refresh OpenRouter catalog
           </Button>
         </Row>
       </Stack>

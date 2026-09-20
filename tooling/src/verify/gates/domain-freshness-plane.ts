@@ -149,10 +149,10 @@ const DOMAIN_FRESHNESS: Readonly<Record<string, FreshnessRow>> = {
   connection: {
     plane: "none",
     roomReach: {
-      lane: "none",
-      why: "no chat-anchored table FKs a connection table, and a member never reads a connection: the server resolves the room's connection per turn. Ends if a room ever renders which backend it is speaking to.",
+      lane: "seated-exempt",
+      why: "`message_variants.connection_id` / `session_entries.connection_id` / `imagery_generations.connection_id` FK `user_connections` as ATTRIBUTION (inference program §5.3b — SET NULL provenance of which row generated a swipe), never a pointer a room renders live: a member reads the variant's `provider`/`model` copy, not the connection row. Ends when the per-swipe attribution readout (§5.3a) renders the connection LABEL in a room, at which point the row joins the entity→room bridge.",
     },
-    why: "the only writes are the model-CATALOG SNAPSHOT caches (persistence/catalog-snapshot.ts, agent-sdk-catalog-snapshot.ts) — a re-derivable cache of what a connection can list, not user canon. The user-facing member `connectionsChanged` is the one live owner deferral, declared in tooling/src/verify/gates/user-bus-deferred-member.ts (#1822); this row flips to `user-bus:connectionsChanged` the day that deferral is deleted.",
+    why: "the writes are the model-CATALOG SNAPSHOT caches (persistence/catalog-snapshot.ts, agent-sdk-catalog-snapshot.ts — re-derivable, not user canon) and the BOOT-time local-light seed (persistence/local-light-seed.ts — runs before any client is connected, so no client has a stale view to refresh). The user-facing member `connectionsChanged` is the one live owner deferral, declared in tooling/src/verify/gates/user-bus-deferred-member.ts (#1822); this row flips to `user-bus:connectionsChanged` when the Connections pane's write verbs land (inference program §13 step 9).",
   },
   credentials: {
     plane: "user-bus:credentialsChanged",

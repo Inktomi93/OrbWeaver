@@ -9,10 +9,10 @@
 
 import type { FsckReport } from "#assets";
 import type { BackfillPassResult, MemoryBackfillResult } from "#chat";
-import type { CatalogRefreshResult } from "#connection";
 import type { IngestRunResult } from "#databank";
 import type { AnalyticsResult } from "#discovery";
 import type { EmbedPassResult } from "#embeddings";
+import type { CatalogRefreshResult } from "#inference";
 import type { RefineryScoreSweepResult } from "#refinery";
 import type { ReconcileStatsWorkloadResult } from "#stats";
 

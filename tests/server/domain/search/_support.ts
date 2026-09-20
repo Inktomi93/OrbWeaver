@@ -48,6 +48,7 @@ import { resolveActiveDocumentIds } from "../../../../packages/server/src/domain
 import type { SearchContext, SearchService } from "../../../../packages/server/src/domain/search/index.ts";
 import { createSearchService } from "../../../../packages/server/src/domain/search/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 const FROZEN_AT = FROZEN_AT_MS;
@@ -91,7 +92,7 @@ export interface FakeRoleClientControls {
 
 /** A scripted `RoleClients` — only `embed` / `rerank` matter to search; the other roles are never called
  *  in the W2 core (typed stubs so the bundle satisfies the interface). */
-function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients {
+function makeSearchRoleClients(controls: FakeRoleClientControls = {}): RoleClients {
   const embedModel = controls.embedModel ?? EMBED_MODEL;
   const imageEmbedModel = controls.imageEmbedModel ?? IMAGE_EMBED_MODEL;
   const embedVector = controls.embedVector ?? ((): Float32Array<ArrayBuffer> => vec(1));
@@ -108,9 +109,9 @@ function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients
 
   const embed: RoleClients["embed"] =
     controls.embed ??
-    ((input: string | string[], opts?: { inputType?: "query" | "document"; instruction?: string }): Promise<EmbedResult> => {
-      controls.onEmbed?.(input, opts);
-      const inputs = Array.isArray(input) ? input : [input];
+    ((input: string | readonly string[], opts?: { inputType?: "query" | "document"; instruction?: string }): Promise<EmbedResult> => {
+      controls.onEmbed?.(typeof input === "string" ? input : [...input], opts);
+      const inputs = typeof input === "string" ? [input] : [...input];
       return Promise.resolve({
         vectors: inputs.map((t) => embedVector(t)),
         model: embedModel,
@@ -118,25 +119,16 @@ function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients
       });
     });
 
-  return {
-    embed,
-    rerank,
-    imageEmbed: (req: ImageEmbedInput): Promise<ImageEmbedResult> => {
-      // Only the cross-modal text→image path (`kind: "text"`) is exercised by `images`.
-      const texts = req.kind === "text" && !Array.isArray(req.input) ? [req.input] : [];
-      return Promise.resolve({
-        vectors: texts.map((t) => imageEmbedVector(t)),
-        model: imageEmbedModel,
-      });
-    },
-    summarize: (_inputs: SummarizeInput[]): Promise<SummarizeResult> => Promise.resolve({ items: [], model: "test-summarize-model" }),
-    embedModel,
-    rerankModel: "test-rerank-model",
-    imageEmbedModel,
-    summarizerModel: "test-summarize-model",
-    summarizerContextTokens: 32_000,
-    summarizerVision: true,
+  const imageEmbed = (req: ImageEmbedInput): Promise<ImageEmbedResult> => {
+    // Only the cross-modal text→image path (`kind: "text"`) is exercised by `images`.
+    const texts = req.kind === "text" && !Array.isArray(req.input) ? [req.input] : [];
+    return Promise.resolve({
+      vectors: texts.map((t) => imageEmbedVector(t)),
+      model: imageEmbedModel,
+    });
   };
+  const summarize = (_inputs: readonly SummarizeInput[]): Promise<SummarizeResult> => Promise.resolve({ items: [], model: "test-summarize-model" });
+  return makeFakeRoleClients({ embed, rerank, imageEmbed, summarize, structured: summarize, embedDim: VECTOR_DIM });
 }
 
 /** Build the search service over a real db + a scripted role-clients bundle + the frozen clock. `now` is
@@ -144,7 +136,8 @@ function makeFakeRoleClients(controls: FakeRoleClientControls = {}): RoleClients
 export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () => number = (): number => FROZEN_AT_MS): SearchService {
   // The REAL databank scope resolver, bound to the db — the honest wiring the compose root uses, so the
   // `documents` lens's scope gating (the gate-8 leak test) is exercised end-to-end over real junctions.
-  const ctx: SearchContext = { db, roleClients: makeFakeRoleClients(controls), now, resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope) };
+  const roleClients = makeSearchRoleClients(controls);
+  const ctx: SearchContext = { db, roleClientsFor: () => Promise.resolve(roleClients), now, resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope) };
   return createSearchService(ctx);
 }
 

@@ -5,8 +5,8 @@
 
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
+import type { GenerationCapability } from "@orb/contracts/inference";
+import type { Resolved } from "@orb/inference";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -78,7 +78,8 @@ interface ImageEditInput {
  *  Structural over contract/kit types (no `#infra`) — the widened twin of the infra `ImageGenerateRequest`
  *  (imagery-design/01 §4; two spellings of one request must not drift). */
 export interface ImageGenerateRequest {
-  readonly credential: ResolvedCredential;
+  /** The RESOLVED `generateImage` connection — the runtime dispatches on its wire; credential rides inside. */
+  readonly connection: Resolved<"generateImage">;
   readonly model: ModelId;
   readonly prompt: string;
   /** The generation owner (the caller's user id) — the widened twin of the infra `ImageGenerateRequest.owner`. */
@@ -95,7 +96,7 @@ export interface ImageGenerateRequest {
    *  verb (the same model the edit gate reads), so it is REQUIRED here — a request build that omits it fails
    *  `tsc`, closing the "belt strips every edit because capability was never forwarded" seam. The widened twin
    *  of the infra `ImageGenerateRequest.capability` (optional there — the belt treats absent as no-edit). */
-  readonly capability: ModelCapability;
+  readonly capability: GenerationCapability;
 }
 
 /** The settled cost of one generation call (null when the provider did not report it). */
@@ -116,8 +117,8 @@ export interface ImageGenerateResult {
 /** The role + capability the resolver returns as one resolution — the edit gate and the request build must
  *  read the same model. */
 export interface ResolvedGenerateImage {
-  readonly connection: ResolvedConnection;
-  readonly capability: ModelCapability;
+  readonly connection: Resolved<"generateImage">;
+  readonly capability: GenerationCapability;
 }
 
 /** The injected-op bundle every imagery verb closes over, assembled at the composition root. */

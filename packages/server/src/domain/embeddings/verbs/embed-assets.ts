@@ -11,7 +11,7 @@
 // PURGES `image_embeddings` rows in any OTHER space. BULK-ONLY (ownerId === null); skipped on abort so the
 // space is never left with a gap. A no-op unless the box image-embed model changed.
 
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, UserId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 // `AvatarAnalysis` is the SHAPE of the injected analysis op, taken from the domain's contract/; the runtime
@@ -22,10 +22,11 @@ import { purgeStaleVectors } from "../persistence/clear.ts";
 import { existingCaptionedRow, existingImageHash, existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
 import { contentHash } from "../substrate/hash.ts";
 import { imageBelowFloor } from "../substrate/image-admission.ts";
+import { requireTaskModel } from "../substrate/task-model.ts";
 
 interface EmbedAssetsDeps {
   readonly store: EmbeddingsService["store"];
-  readonly analyze: (bytes: Uint8Array) => Promise<AvatarAnalysis>;
+  readonly analyze: (ownerId: UserId, bytes: Uint8Array) => Promise<AvatarAnalysis>;
 }
 
 /** One asset's sweep step: hash + breakdown pre-check (both lenses) → store raw → analyse → store captioned. */
@@ -47,7 +48,11 @@ async function embedOneAsset(ctx: EmbeddingsContext, deps: EmbedAssetsDeps, asse
     await insertImageSkip(ctx.db, { assetId, reason: "below-dimension-floor", width: admission.width, height: admission.height, now: ctx.now() });
     return "skipped";
   }
-  const model = ctx.roleClients.imageEmbedModel;
+  const ownerId = await ctx.loadAssetOwner(assetId);
+  const model = ownerId === null ? null : await requireTaskModel(ctx, ownerId, "imageEmbed");
+  if (ownerId === null || model === null) {
+    return "skipped"; // no owner / no imageEmbed binding — nothing funds the embed (§7.5-2)
+  }
   // Both lenses share the bytes' hash — pre-check them so a current asset skips before the expensive
   // analysis call ever runs.
   const hash = contentHash(bytes);
@@ -66,16 +71,18 @@ async function embedOneAsset(ctx: EmbeddingsContext, deps: EmbedAssetsDeps, asse
   const raw = await deps.store({
     kind: "avatar",
     lens: "image-raw",
+    ownerId,
     assetId,
     content: bytes,
     model,
     dim: ctx.imageEmbedDim,
     force,
   });
-  const analysis = await deps.analyze(bytes);
+  const analysis = await deps.analyze(ownerId, bytes);
   const captionedWrite = await deps.store({
     kind: "avatar",
     lens: "image-captioned",
+    ownerId,
     assetId,
     content: bytes,
     caption: analysis.caption,
@@ -110,8 +117,10 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps)
     }
     // PD-104 purge (reclaim the old image space) — only after a complete bulk sweep, never on abort or a
     // singular per-owner pass. A no-op unless the box image-embed model changed since the last index.
-    if (ownerId === null && !signal.aborted) {
-      await purgeStaleVectors(ctx.db, "image_embeddings", ctx.roleClients.imageEmbedModel);
+    // PD-104 purge — against the WORKLOAD principal's imageEmbed space (step 8 owes the per-owner join).
+    const purgeModel = ownerId === null ? null : await requireTaskModel(ctx, ownerId, "imageEmbed");
+    if (purgeModel !== null && !signal.aborted) {
+      await purgeStaleVectors(ctx.db, "image_embeddings", purgeModel);
     }
     return { embedded, skipped };
   };

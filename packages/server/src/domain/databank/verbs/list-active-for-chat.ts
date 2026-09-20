@@ -19,6 +19,7 @@ import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import type { ActiveChatDocumentView } from "../contract/views.ts";
 import { loadMetaByIds, toDocumentView } from "../persistence/queries.ts";
 import { resolveChatDocumentSources, resolveChatHiddenDocumentIds, resolveChatHost } from "../persistence/scope.ts";
+import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createListActiveForChat(ctx: DatabankContext): DatabankService["listActiveForChat"] {
   return async ({ principal, chatId }: ListActiveForChatParams): Promise<ActiveChatDocumentView[]> => {
@@ -37,7 +38,7 @@ export function createListActiveForChat(ctx: DatabankContext): DatabankService["
     const visibleIds = isHost ? union : union.filter((id) => !hiddenSet.has(id));
     const [metas, counts] = await Promise.all([
       loadMetaByIds(ctx.db, visibleIds),
-      ctx.countChunks({ documentIds: visibleIds, model: ctx.getActiveEmbedSpace().model }),
+      ctx.countChunks({ documentIds: visibleIds, model: await activeSpaceModel(ctx, principal.userId) }),
     ]);
     // The credit lookup cannot miss — a meta is loaded only for an id the union produced — but the fallback
     // is an empty list rather than a non-null assertion (the row would simply carry no provenance chip).

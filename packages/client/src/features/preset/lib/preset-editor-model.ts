@@ -10,7 +10,6 @@
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { proseCarrierMisses, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import { isProseSlotId, PROSE_SLOTS, proseOverBy } from "@orb/contracts/prose";
-import { pendingCustomParameterNames } from "./custom-parameters-model.ts";
 
 /** Assign `value` to `target[key]` only when defined — keeps the merge branch-free. */
 function assignIfDefined<T extends object, K extends keyof T>(target: T, key: K, value: T[K] | undefined): void {
@@ -114,17 +113,7 @@ function normalizePresetProse(prose: PromptConfig["prose"]): PromptConfig["prose
  * invalid form is three independent no-writes, not a hand-rolled guard at one call site.
  */
 export function validatePresetConfig(config: PromptConfig): { fields: Record<string, string> } | undefined {
-  const prose = validatePresetProse(config);
-  // THE CUSTOM-PARAMETER ARM (D143a). An unfinished row — blank name, duplicate name, value text that is not
-  // JSON yet — commits its slot as the pending `undefined` marker (`custom-parameters-model.ts`), which the
-  // wire schema refuses. Holding the write here is what keeps the header off "Saved" while the author is
-  // mid-edit, and it is a REFUSAL rather than a silent skip because dropping the row would delete a
-  // parameter the author is in the middle of fixing.
-  const pending = pendingCustomParameterNames(config.customParameters);
-  if (pending.length === 0) {
-    return prose;
-  }
-  return { fields: { ...prose?.fields, customParameters: `Not valid yet: ${pending.join(", ")}` } };
+  return validatePresetProse(config);
 }
 
 /** The framing-override half of {@link validatePresetConfig} — see that function for the mount seam.
@@ -165,9 +154,6 @@ export function mergeOnSubmit(edited: PromptConfig, server: PromptConfig): Promp
     userMacros: edited.userMacros,
     prose: normalizePresetProse(edited.prose),
   };
-  // The EDITED blob, not the server's: the escape hatch is authored in the deck now (D143a), so taking the
-  // server's copy here would make every add/edit/remove a silent no-op.
-  assignIfDefined(next, "customParameters", edited.customParameters);
   assignIfDefined(next, "namesBehavior", edited.namesBehavior);
   assignIfDefined(next, "continuePostfix", edited.continuePostfix);
   assignIfDefined(next, "formatStrings", edited.formatStrings);

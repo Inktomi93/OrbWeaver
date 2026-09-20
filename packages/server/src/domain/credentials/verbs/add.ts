@@ -1,15 +1,14 @@
-// SSRF BELT COUPLING: both write paths re-derive the egress belt's OWNER-SAVED endpoint admissions
-// (`substrate/egress-admission.ts`) after the durable write and BEFORE returning, so a saved
-// `custom_openai` endpoint is dialable on the very next turn with no `EGRESS_ALLOWLIST` edit — and a rotate
-// that RE-POINTS a row's `baseUrl` closes the old host:port in the same breath. The derivation is scoped to
-// the OWNER row, not to `params.principal`, so a member's add widens nothing.
-//
 // verb: add — upsert a credential (ownership-scoped). Seals the raw key with AES-256-GCM bound to
-// `${ownerId}|${provider}`, then either rotates the existing (owner, provider, label) row in place
-// (clearing revocation) or inserts a new one. First credential in a slot auto-marks active; later ones
-// default inactive. TOCTOU loser of two concurrent first-adds -> CredentialsConflictError.
+// `${ownerId}|${providerId}`, then either rotates the existing (owner, provider, label) row in place
+// (clearing revocation) or inserts a new one. No `active` flag any more (inference program §5.3): which key a
+// turn uses is the CONNECTION's `credentialId`, so a second key on the same provider is just a second labelled
+// row. The provider id is validated against the REGISTRY before anything is sealed — it is half the AAD, and a
+// key sealed under an unknown id could never be opened. TOCTOU loser of two concurrent first-adds ->
+// CredentialsConflictError.
 
+import type { ProviderId } from "@orb/contracts/inference";
 import { isConstraintViolation } from "@orb/db/kit";
+import { castId } from "@orb/kit/ids";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import type { CredentialContext } from "../context.ts";
@@ -18,18 +17,20 @@ import type { AddCredentialParams } from "../contract/params.ts";
 import type { CredentialsService } from "../contract/service.ts";
 import type { CredentialView } from "../contract/views.ts";
 import { aadFor } from "../persistence/aad.ts";
-import { fetchOwnedCredential, findSlotLabelRow, hasAnyInSlot, insertSealed, rotateSealed, toCredentialView } from "../persistence/queries.ts";
-import { republishOwnerSavedEndpoints } from "../substrate/egress-admission.ts";
+import { fetchOwnedCredential, findSlotLabelRow, insertSealed, rotateSealed, toCredentialView } from "../persistence/queries.ts";
 
 const DEFAULT_LABEL = "default";
 
 export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
   return async (params: AddCredentialParams): Promise<CredentialView> => {
     const ownerId = params.principal.userId;
-    const { provider } = params;
     if (!ctx.box.enabled) {
       throw new DomainOperationError(CREDENTIALS_OP_CODES.disabled, "Per-user credential storage is disabled (no CREDENTIALS_KEY configured).");
     }
+    if (!ctx.providerKnown(params.provider)) {
+      throw new DomainOperationError(CREDENTIALS_OP_CODES.providerUnknown, `"${params.provider}" is not a registered provider.`);
+    }
+    const provider = castId<ProviderId>(params.provider);
     const trimmedLabel = params.label?.trim();
     const label = trimmedLabel !== undefined && trimmedLabel !== "" ? trimmedLabel : DEFAULT_LABEL;
     const metadata = params.metadata ?? null;
@@ -43,24 +44,13 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
         { actorUserId: ownerId, action: "credential.add", entityType: "credential", entityId: existing.id, metadata: { provider, label, rotated: true } },
         now,
       );
-      await republishOwnerSavedEndpoints(ctx);
       ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId: existing.id });
       return reloadView(ctx, ownerId, existing.id);
     }
 
-    const firstInSlot = !(await hasAnyInSlot(ctx.db, ownerId, provider));
     const id = ctx.newCredentialId();
     try {
-      await insertSealed(ctx.db, {
-        id,
-        ownerId,
-        provider,
-        label,
-        sealed,
-        metadata,
-        active: firstInSlot,
-        now,
-      });
+      await insertSealed(ctx.db, { id, ownerId, provider, label, sealed, metadata, now });
     } catch (err) {
       if (isConstraintViolation(err)?.kind === "unique") {
         const conflict = new CredentialsConflictError(`A ${provider} credential already exists for this slot — refresh and retry.`);
@@ -73,7 +63,6 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
       { actorUserId: ownerId, action: "credential.add", entityType: "credential", entityId: id, metadata: { provider, label, rotated: false } },
       now,
     );
-    await republishOwnerSavedEndpoints(ctx);
     ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId: id });
     return reloadView(ctx, ownerId, id);
   };

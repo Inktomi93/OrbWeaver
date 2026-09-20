@@ -10,7 +10,7 @@
 // `KNOB_NUMBER_FORMAT`), never locale-grouped.
 //
 // Still descriptor-driven: every sampling knob, effort level and verbosity level comes from
-// `ModelCapability` via capability-panel-model.ts — never a hardcoded knob stack or a model-name match, and
+// `GenerationCapability` via capability-panel-model.ts — never a hardcoded knob stack or a model-name match, and
 // an unlisted knob is ABSENT, never a disabled slider. What CHANGED is the row grammar: the override
 // Switch is gone (D4). A knob is a `KnobRow` — slider + editable mono twin — and an UNSET knob ghosts at
 // its RESOLVED EFFECTIVE value with a provenance gloss, so the datum is never hidden (F2) and the funnel's
@@ -33,7 +33,7 @@
 // step. A knob row is NOT one of these: its control is a flexing rail, which is `KnobGrid`'s own track set
 // (`--width-label-col`), and the two tokens are deliberately different widths (see their descriptions).
 
-import type { EffortLevel, ModelCapability, Range } from "@orb/contracts/connection";
+import type { EffortLevel, GenerationCapability, Range } from "@orb/contracts/inference";
 import type { PromptConfig, Quality } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -74,7 +74,7 @@ export interface ParamsDeckProps {
    *  and names the cause it has EARNED (a routing verdict only on a routing refusal — F-02 + the 2026-08-08
    *  earned-cause fix). There is no third arm — a settled-successful read always carries a descriptor, so
    *  `undefined` here means pending-or-failed and nothing else. */
-  readonly capability: ModelCapability | undefined;
+  readonly capability: GenerationCapability | undefined;
   /** The funnel projected for this preset (`preset.resolveEffective`) — `undefined` while it is
    *  unavailable (no chat model, or the read has not landed), which degrades to un-ghosted rows. */
   readonly effective: EffectiveProfileRow | undefined;
@@ -207,7 +207,7 @@ function SamplingCluster({
   effective,
 }: {
   readonly form: AppForm;
-  readonly capability: ModelCapability;
+  readonly capability: GenerationCapability;
   readonly effective: EffectiveProfileRow | undefined;
 }): ReactElement {
   const knobs = samplingKnobsFor(capability);
@@ -306,7 +306,7 @@ function ReasoningCluster({
   effective,
 }: {
   readonly form: AppForm;
-  readonly capability: ModelCapability;
+  readonly capability: GenerationCapability;
   readonly effective: EffectiveProfileRow | undefined;
 }): ReactElement {
   const control = reasoningControlFor(capability);

@@ -3,16 +3,19 @@
 // each name-worthy cluster LLM-named → `theme_clusters` + `digest_theme_assignments`. Group-room digests
 // are excluded (they belong to the synthetic group character, not an owner's solo theme space).
 
-import type { SummarizeInput } from "@orb/contracts/role-clients";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import type { RoleClients, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { digestThemeAssignments, themeClusters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
+import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { eq } from "drizzle-orm";
 import type { ComputeThemesOptions, ThemeLevel } from "../contract/params.ts";
 import type { ThemeComputeStats } from "../contract/results.ts";
-import type { ComputeThemesDeps, Summarize } from "../contract/service.ts";
+import type { ComputeThemesDeps } from "../contract/service.ts";
 import { readOwnedDigestVectors } from "../persistence/embed-store-reads.ts";
 import { collapseByHash } from "../substrate/collapse.ts";
 import { kmeans } from "../substrate/kmeans.ts";
@@ -140,7 +143,7 @@ function buildDrafts(solo: readonly OwnedDigest[], opts: ComputeThemesOptions, s
   return { drafts, owners };
 }
 
-async function nameDrafts(drafts: readonly ClusterDraft[], summarize: Summarize): Promise<(string | null)[]> {
+async function nameDrafts(drafts: readonly ClusterDraft[], rc: RoleClients, sampleOpts: SummarizeOptions): Promise<(string | null)[]> {
   const names = new Array<string | null>(drafts.length).fill(null);
   const targets: number[] = [];
   const inputs: SummarizeInput[] = [];
@@ -159,7 +162,7 @@ async function nameDrafts(drafts: readonly ClusterDraft[], summarize: Summarize)
   }
   // A provider fault PROPAGATES and aborts the whole pass — deliberate: a themes recompute is an atomic
   // replace, and half-named clusters written over the old set is worse than a workload row that says it failed.
-  const result = await summarize(inputs);
+  const result = await rc.summarize(inputs, sampleOpts);
   for (let t = 0; t < targets.length; t += 1) {
     const item = result.items[t];
     const idx = targets[t];
@@ -178,7 +181,7 @@ async function nameDrafts(drafts: readonly ClusterDraft[], summarize: Summarize)
  * `digest_theme_assignments`, then both are reinserted). Standalone `(db, deps, opts?)` so the
  * `compute-themes` runner drives it without the whole service.
  */
-export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: ComputeThemesOptions = {}): Promise<ThemeComputeStats> {
+export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: ComputeThemesOptions): Promise<ThemeComputeStats> {
   const seed = opts.seed ?? DEFAULT_SEED;
   const all = await readOwnedDigestVectors(db, opts.ownerId);
   const solo = all.filter((r) => !r.isGroup);
@@ -196,7 +199,10 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
     return { ownersProcessed: 0, clustersWritten: 0, digestsAssigned: 0, digestsRead: all.length, soloDigestsRead: 0 };
   }
   const { drafts, owners } = buildDrafts(solo, opts, seed);
-  const names = await nameDrafts(drafts, deps.summarize);
+  // The `theme_name` posture ← the funder's default-preset params (§7.5-3 arm ii); prose `summarize`.
+  const rc = await deps.roleClientsFor(opts.funderUserId);
+  const sampleOpts = toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name, await deps.resolveUserPresetParams(opts.funderUserId)));
+  const names = await nameDrafts(drafts, rc, sampleOpts);
   const computedAt = deps.now();
 
   const clusterRows: ClusterRow[] = [];

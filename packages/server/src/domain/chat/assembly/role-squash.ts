@@ -10,7 +10,7 @@
 // `completion` names-behavior carries the speaker in an out-of-band `name` field, which a merge cannot
 // preserve — so two adjacent rows with distinct `name` fields are left un-merged.
 
-import type { RoleHandling } from "@orb/contracts/connection";
+import type { RoleHandling } from "@orb/contracts/inference";
 import type { MessageRole } from "@orb/kit/message-role";
 
 const ROLE_HANDLING_RANK: Record<RoleHandling, number> = {

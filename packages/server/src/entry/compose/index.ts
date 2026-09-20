@@ -13,8 +13,6 @@ export type { MaterializeBackgroundDeps } from "./materialize-background.ts";
 export { createMaterializeBackground } from "./materialize-background.ts";
 export type { ImageRefAssets } from "./resolve-image-ref.ts";
 export { resolveImageRefToUrl } from "./resolve-image-ref.ts";
-export type { RoleClientsBinderDeps } from "./role-clients.ts";
-export { bindRoleClientsForUser } from "./role-clients.ts";
 export type { DeleteReachCapture } from "./room-reach.ts";
 export { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 export type { ServicesDeps, ServicesResult } from "./services.ts";

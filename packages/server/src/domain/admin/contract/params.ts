@@ -57,12 +57,6 @@ export interface RevokeUserSessionsParams extends AdminActorParams {
   readonly userId: UserId;
 }
 
-export interface VllmEnginesParams extends AdminActorParams {}
-
-export interface RestartVllmEngineParams extends AdminActorParams {
-  readonly engine: string;
-}
-
 export interface EmbedCharacterCardParams extends AdminActorParams {
   readonly characterId: CharacterId;
 }

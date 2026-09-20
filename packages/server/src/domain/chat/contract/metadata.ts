@@ -14,7 +14,6 @@ import {
   roomOverridesSchema,
   storedGroupConfigSchema,
 } from "@orb/contracts/chat";
-import { openRouterProviderRoutingSchema } from "@orb/contracts/connection";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import { chatRpgPointerSchema } from "@orb/contracts/rpg";
 
@@ -41,7 +40,6 @@ const chatMetadataSchema = z
     group: storedGroupConfigSchema.optional().catch(undefined),
     roomOverrides: roomOverridesSchema.optional().catch(undefined),
     opening: openingPolicySchema.optional().catch(undefined),
-    providerRouting: openRouterProviderRoutingSchema.optional().catch(undefined),
     toolRecurseLimit: toolRecurseLimitSchema.optional().catch(undefined),
     databankVisibility: chatDocumentVisibilitySchema.optional().catch(undefined),
     background: themeBackgroundSchema.optional().catch(undefined),

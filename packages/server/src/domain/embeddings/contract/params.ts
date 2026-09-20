@@ -25,13 +25,16 @@ export type SourceLens = (typeof TEXT_LENSES)[number] | ImageLens;
 export const VECTOR_TABLES = ["character_embeddings", "image_embeddings", "chat_digests", "chat_segments", "document_chunks"] as const;
 export type VectorTable = (typeof VECTOR_TABLES)[number];
 
-// Store params: a discriminated union on `lens`. No ownerId/principal field — vector rows FK to their
-// producer only; owner-scope derives at search time.
+// Store params: a discriminated union on `lens`. `ownerId` is the entity OWNER — the FUNDER whose embed
+// connection produces the vector and whose binding defines the space (inference program §7.5-2, a vector task
+// is `scope: "owner"`). Vector rows still FK to their producer only; owner-scope at search time derives from
+// the producer, never from a column here.
 
 /** Embed a character card's text. Unique key: `(characterId, model)`. */
 export interface CardTextStoreParams {
   readonly kind: "card";
   readonly lens: "card-text";
+  readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly content: string;
   readonly model: string;
@@ -44,6 +47,7 @@ export interface CardTextStoreParams {
 export interface ImageRawStoreParams {
   readonly kind: "avatar";
   readonly lens: "image-raw";
+  readonly ownerId: UserId;
   readonly assetId: AssetId;
   readonly content: Uint8Array;
   readonly model: string;
@@ -57,6 +61,7 @@ export interface ImageRawStoreParams {
 export interface ImageCaptionedStoreParams {
   readonly kind: "avatar";
   readonly lens: "image-captioned";
+  readonly ownerId: UserId;
   readonly assetId: AssetId;
   readonly content: Uint8Array;
   /** Combined into the embed input AND written to `image_embeddings.caption`. */
@@ -81,6 +86,7 @@ export interface ImageCaptionedStoreParams {
 export interface SegmentStoreParams {
   readonly kind: "chat-block";
   readonly lens: "segment";
+  readonly ownerId: UserId;
   readonly chatId: ChatId;
   readonly blockIdx: number;
   /** Position within the block (0 when one chunk covers it whole — the overwhelming majority). */
@@ -102,6 +108,7 @@ export interface SegmentStoreParams {
 export interface DigestStoreParams {
   readonly kind: "chat-block";
   readonly lens: "digest";
+  readonly ownerId: UserId;
   readonly chatId: ChatId;
   readonly scopedCharacterId: CharacterId;
   /** True when the block is from a group room (drives the egocentric-vs-shared recall split). */
@@ -129,6 +136,7 @@ export interface DigestStoreParams {
 export interface DocumentChunkStoreParams {
   readonly kind: "document";
   readonly lens: "chunk";
+  readonly ownerId: UserId;
   readonly content: string;
   readonly model: string;
   readonly dim: number;

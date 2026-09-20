@@ -14,12 +14,13 @@ export function createGenerateSchema(ctx: RefineryContext): RefineryService["gen
   return async ({ principal, description, stage, arm }) => {
     const ask = askSchema.parse(description);
     const call = await resolveForgeCall(ctx, principal.userId);
-    return runForgeTurn(ctx, {
+    return runForgeTurn({
       stage,
       arm: arm ?? REFINERY_FORGE_ARM_DEFAULT,
       userPrompt: `Describe-to-schema request:\n${ask}`,
       overrides: call.overrides,
       sampleOpts: call.sampleOpts,
+      rc: call.rc,
     });
   };
 }

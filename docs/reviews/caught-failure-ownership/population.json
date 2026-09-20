@@ -1513,7 +1513,7 @@
     {
       "siteId": "packages/contracts/src/preset/index.ts::catch::1",
       "path": "packages/contracts/src/preset/index.ts",
-      "line": 3121,
+      "line": 3129,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -1521,7 +1521,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ST mirror — JSON.parse of custom_stopping_strings",
-      "markerLine": 3116
+      "markerLine": 3124
     },
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::catch::1",
@@ -1617,7 +1617,7 @@
     {
       "siteId": "packages/kit/src/ids/index.ts::err::1",
       "path": "packages/kit/src/ids/index.ts",
-      "line": 322,
+      "line": 333,
       "column": 14,
       "grammar": "empty",
       "position": "err",
@@ -1625,7 +1625,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "zod transform pattern — fromString's throw is",
-      "markerLine": 316
+      "markerLine": 327
     },
     {
       "siteId": "packages/kit/src/json-schema/lift.ts::catch::1",
@@ -2085,7 +2085,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 921,
+      "line": 922,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -2093,12 +2093,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`deps.emit` is the chat bus, which already",
-      "markerLine": 916
+      "markerLine": 917
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1855,
+      "line": 1854,
       "column": 13,
       "grammar": "empty",
       "position": "catch",
@@ -2106,12 +2106,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).",
-      "markerLine": 1851
+      "markerLine": 1850
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1881,
+      "line": 1880,
       "column": 14,
       "grammar": "empty",
       "position": "deltaErr",
@@ -2119,12 +2119,12 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 1875
+      "markerLine": 1874
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1996,
+      "line": 1995,
       "column": 10,
       "grammar": "promise",
       "position": "releasedBody",
@@ -2132,7 +2132,7 @@
       "snippet": "void releasedBody.catch((): undefined => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.",
-      "markerLine": 1995
+      "markerLine": 1994
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::catch::1",
@@ -2202,7 +2202,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::catch::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 1282,
+      "line": 1283,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -2210,12 +2210,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — non-fatal, mirrors neo: the",
-      "markerLine": 1276
+      "markerLine": 1277
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::err::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2472,
+      "line": 2473,
       "column": 12,
       "grammar": "empty",
       "position": "err",
@@ -2223,12 +2223,12 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below — a permanent verdict",
-      "markerLine": 2466
+      "markerLine": 2467
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::run::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2263,
+      "line": 2264,
       "column": 14,
       "grammar": "promise",
       "position": "run",
@@ -2236,7 +2236,7 @@
       "snippet": "void run.catch((err: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "the fault has NOWHERE to go — this generator",
-      "markerLine": 2259
+      "markerLine": 2260
     },
     {
       "siteId": "packages/server/src/domain/connection/verbs/get-models-for-source.ts::err::1",

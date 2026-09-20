@@ -2,7 +2,7 @@
 // arbitration/auto-mode (the "who/how-many speaks" chunk wraps this). The tool-recurse loop is built in
 // pipeline.ts (recurses on finishReason:"tool" up to toolRecurseLimit).
 //
-// Lifecycle (read top to bottom in executeTurn): acquire lock → security belts (consent + budget debit) →
+// Lifecycle (read top to bottom in executeTurn): acquire lock →
 // emit turnStarted → load canon + next-seq → runTurnPipeline (assemble→shape→run→reduce→fit) → persist the
 // canon + stats delta in one atomic batch → emit messageCommitted + turnCompleted → release lock. On any
 // error after turnStarted: emit turnAborted then rethrow, never swallow. Pre-start refusals throw a coded
@@ -16,9 +16,9 @@
 // The chat bus emit, the per-member budget debit, and the per-turn host policy are not ChatContext ops —
 // they're injected as engine deps wired at the entry composition root.
 
-import type { AssembleContext, ChatWarning, DurableChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
+import type { AssembleContext, ChatWarning, DurableChatBusEvent, MessageView, TokenProvenance, TurnAbortReason } from "@orb/contracts/chat";
 import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { NormalizedFinishReason } from "@orb/contracts/inference";
 
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
 import {
@@ -32,18 +32,18 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
-import type { CharacterId, ChatId, ChatTurnId, MessageId, UserId } from "@orb/kit/ids";
-import type { RowMacroNameContext } from "@orb/kit/macro";
-import { estimateTokens } from "@orb/kit/tokens";
-import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
 // A VALUE import from infra, unlike this file's other `#infra/providers` type-only imports: the fault-outcome
 // arm needs `instanceof` against the real class to read a thrown turn's OWN classification (see
 // `providerTerminalReason`). Legal in the tier order (domain sits ABOVE infra); the reverse edge is what
 // `infra-below-domain` bans.
-import type { ResolvedWarning } from "#infra/providers";
-import { ProviderError } from "#infra/providers";
+import type { Resolved, ResolvedWarning } from "@orb/inference";
+import { generationOf, ProviderError } from "@orb/inference";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { RowMacroNameContext } from "@orb/kit/macro";
+import { estimateTokens } from "@orb/kit/tokens";
+import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
-import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
+import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type {
   MemoryConfig,
@@ -81,17 +81,13 @@ import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
 import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
-import { debitTurnBudget } from "./budget.ts";
 import { runTurnPipeline } from "./pipeline.ts";
 import { resolveTurnNarrative } from "./recover-narrative.ts";
 import { abortedOutcome, committedOutcome } from "./result.ts";
-import { assertMaxProSubConsent, resolveOwnerConsented } from "./turn-identity.ts";
 
 /** The non-ctx engine deps wired at the composition root. */
 interface EngineDeps {
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
-  readonly debitBudget: DebitBudgetOp;
-  readonly resolveTurnPolicy: ResolveTurnPolicyOp;
   readonly holder: string;
   readonly lockTtlMs: number;
   /** Injected memory segment builder, typed to the real signature — no `any` at this seam. */
@@ -99,6 +95,7 @@ interface EngineDeps {
     ctx: ChatContext,
     args: {
       readonly chatId: ChatId;
+      readonly funderUserId: UserId;
       readonly config?: MemoryConfig | null | undefined;
       readonly macroNames?: RowMacroNameContext | undefined;
       readonly signal?: AbortSignal | undefined;
@@ -109,6 +106,7 @@ interface EngineDeps {
     ctx: ChatContext,
     args: {
       readonly scope: MemoryScope;
+      readonly funderUserId: UserId;
       readonly config?: MemoryConfig | null | undefined;
       readonly macroNames?: RowMacroNameContext | undefined;
       readonly witnessing?: readonly WitnessInterval[] | undefined;
@@ -143,7 +141,7 @@ interface EngineDeps {
    *  source-agnostic). */
   readonly runCompaction: (args: {
     readonly chatId: ChatId;
-    readonly connection: ResolvedConnection;
+    readonly connection: Resolved<"chat">;
     readonly ownerId: UserId;
     readonly coveragePoint?: number | undefined;
     readonly instructions?: string | undefined;
@@ -169,6 +167,8 @@ function continuePostfixDelimiter(prep: TurnPrep): string {
 interface EconomicsCommon {
   readonly model: string | null;
   readonly provider: string | null;
+  readonly connectionId: UserConnectionId | null;
+  readonly costProvenance: TokenProvenance;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
   readonly cacheReadTokens: number | null;
@@ -180,6 +180,8 @@ function economicsCommon(e: TurnEconomics | null): EconomicsCommon {
   return {
     model: e?.model ?? null,
     provider: e?.provider ?? null,
+    connectionId: e?.connectionId ?? null,
+    costProvenance: e?.costProvenance ?? "unrecorded",
     tokensIn: e?.tokensIn ?? null,
     tokensOut: e?.tokensOut ?? null,
     cacheReadTokens: e?.cacheReadTokens ?? null,
@@ -886,13 +888,13 @@ function resolveCoveragePoint(
  *  `undefined` ⇒ under threshold / nothing old enough → no pre-turn compaction. */
 function preTurnCoveragePoint(args: {
   readonly compaction: NonNullable<UserIntent["compaction"]>;
-  readonly connection: ResolvedConnection;
+  readonly connection: Resolved<"chat">;
   readonly maxContextTokens: number | undefined;
   readonly canonAll: readonly MessageView[];
   readonly currentCoverage: number;
 }): number | undefined {
   const pct = args.compaction.thresholdPct ?? MANAGED_COMPACT_DEFAULT_PCT;
-  const window = args.connection.capability.context.window;
+  const window = generationOf(args.connection).context.window;
   const ceiling = Math.min(window, args.maxContextTokens ?? Number.POSITIVE_INFINITY);
   if (!Number.isFinite(ceiling) || ceiling <= 0) {
     return; // no trustworthy ceiling → the pre-check can't threshold (the reactive arm still fires).
@@ -1035,8 +1037,8 @@ async function runPreTurnCompaction(
 /** Whether the prompt-eligible context above the current coverage is AT/OVER the model's effective context WINDOW
  *  — the no-wall belt's trip condition (a turn dispatched now would overflow). Estimator-based (the same
  *  `estimateTokens` the fit uses); the fit-pass then does the actual drop-oldest trim at the window. */
-function contextAtOrOverWindow(connection: ResolvedConnection, canonAll: readonly MessageView[], currentCoverage: number): boolean {
-  const window = connection.capability.context.window;
+function contextAtOrOverWindow(connection: Resolved<"chat">, canonAll: readonly MessageView[], currentCoverage: number): boolean {
+  const window = generationOf(connection).context.window;
   if (!Number.isFinite(window) || window <= 0) {
     return false;
   }
@@ -1434,12 +1436,11 @@ function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipelin
   throw new ChatOperationError(CHAT_OP_CODES.emptyGeneration, emptyGenerationMessage(result));
 }
 
-/** The provider `finish_reason`/`stop_reason` spellings that mean "the output budget ran out". Free strings on
- *  the wire (`TurnEconomics.finishReason` is provider-faithful by design), so this is a recognition list, not
- *  a union — an unrecognized value falls through to the generic arm rather than being asserted about. */
-const BUDGET_FINISH_REASONS = new Set(["length", "max_tokens", "max_output_tokens", "MAX_TOKENS"]);
-/** …and the ones that mean "the model stopped in order to call tools". */
-const TOOL_FINISH_REASONS = new Set(["tool", "tool_calls", "tool_use", "function_call"]);
+/** `finishReason` is the NORMALIZED tuple (every wire folds its raw `stop_reason` onto it in the runtime), so
+ *  "the output budget ran out" and "the model stopped to call tools" are ONE member each — the raw word is
+ *  opaque provenance and is never consulted here (§5.3c class 4). */
+const BUDGET_FINISH_REASON: NormalizedFinishReason = "length";
+const TOOL_FINISH_REASON: NormalizedFinishReason = "tool";
 
 /**
  * WHAT HAPPENED, not "no text" (dogfood EMPTYGEN-REASONING). The single generic string cost this project a
@@ -1454,9 +1455,8 @@ const TOOL_FINISH_REASONS = new Set(["tool", "tool_calls", "tool_use", "function
  */
 function emptyGenerationMessage(result: Awaited<ReturnType<typeof runTurnPipeline>>): string {
   const unchanged = "nothing was written (the previous reply is unchanged)";
-  const finish = result.economics?.finishReason ?? "";
-  const stop = result.economics?.stopReason ?? "";
-  if (BUDGET_FINISH_REASONS.has(finish) || BUDGET_FINISH_REASONS.has(stop)) {
+  const finish = result.economics?.finishReason ?? null;
+  if (finish === BUDGET_FINISH_REASON) {
     // On a reasoning wire `maxOutputTokens` caps THINKING AND RESPONSE TOGETHER, so a model at medium effort
     // can spend the entire budget deliberating and emit no prose at all. Naming the number is the point: the
     // fix is the preset's, and a user told "no text" has no way to find it.
@@ -1464,7 +1464,7 @@ function emptyGenerationMessage(result: Awaited<ReturnType<typeof runTurnPipelin
     const capText = cap === null || cap === undefined ? "its output limit" : `its output limit of ${String(cap)} tokens`;
     return `the model used ${capText} before writing any of the reply — raise the preset's max output tokens (with reasoning on, that limit covers the model's thinking too), ${unchanged}`;
   }
-  if (TOOL_FINISH_REASONS.has(finish) || TOOL_FINISH_REASONS.has(stop)) {
+  if (finish === TOOL_FINISH_REASON) {
     // Reached only when RECOVERY did not apply or did not rescue it: the folded path re-runs this turn for its
     // narrative (`recover-narrative.ts`), so this arm now means the model called tools and then declined to
     // narrate TWICE, or that tools rode on a path with no recovery channel.
@@ -1527,17 +1527,15 @@ async function emitMemoryRerankWarningOnce(deps: EngineDeps, chatId: ChatId, epi
   }
 }
 
-/** What the PRE-START half resolved: the loaded write target (null for a new slot) and the enforced consent
- *  verdict the built `TurnRequest` carries. */
+/** What the PRE-START half resolved: the loaded write target (null for a new slot). */
 interface PreStartResolution {
   readonly target: NonNullable<Awaited<ReturnType<typeof loadSlotTarget>>> | null;
-  readonly ownerConsented: boolean;
 }
 
 /** The PRE-START half of the lifecycle: resolve the persist target, then run the security belts. Every throw
  *  here happens BEFORE `turnStarted` — a refusal, not an aborted turn. Extracted so {@link executeTurn} can
  *  wrap exactly this region in the accepted-slot close (and to keep its complexity budget). */
-async function runPreStart(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep, persist: TurnPersist): Promise<PreStartResolution> {
+async function runPreStart(ctx: ChatContext, prep: TurnPrep, persist: TurnPersist): Promise<PreStartResolution> {
   // append-variant/continue load the write target before turnStarted — a missing target is a pre-start
   // refusal (leak-free NOT_FOUND). Resolved FIRST (before the consent/budget belts) so the agent-speaker id +
   // its connection are known while the belts still gate — a refused turn never debits budget, and the belt
@@ -1546,26 +1544,9 @@ async function runPreStart(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep, p
   if (persist.mode !== "new-slot" && target === null) {
     throw new ChatNotFoundError(prep.chatId);
   }
-  // Agent-speaker connection swap (D60) is DESIGN-of-record, not built (agent principals are dormant;
-  // Spine-Identity §4) — a character/human always keeps the round connection byte-identically.
-  const connection = prep.connection;
-  // Security belts before any turnStarted: consent + budget debit attributed to triggeredBy, on the
-  // EFFECTIVE connection (the agent's own, or the round connection).
-  const policy = await deps.resolveTurnPolicy(prep.runAsUserId);
-  const identity = { triggeredBy: prep.triggeredBy, runAsUserId: prep.runAsUserId };
-  assertMaxProSubConsent({
-    source: connection.credential.source,
-    identity,
-    ownerConsent: policy.allowNonOwnerMaxProSub,
-  });
-  // The enforced consent verdict, threaded onto the built TurnRequest so the infra credential firewall
-  // re-verifies it (domain derives, infra verifies).
-  const ownerConsented = resolveOwnerConsented({
-    identity,
-    ownerConsent: policy.allowNonOwnerMaxProSub,
-  });
-  await debitTurnBudget(deps.debitBudget, prep.triggeredBy, policy.budget);
-  return { target, ownerConsented };
+  // No security belt runs here any more (inference program §8.4-3): the turn runs on the FUNDER's own
+  // connection, so there is no by-proxy spend to consent to and no shared compute to budget.
+  return { target };
 }
 
 /** Closes the client turn slot a PRE-START refusal would otherwise strand OPEN (a stuck Stop button). Fires
@@ -1598,7 +1579,7 @@ async function closePreStartRefusal(deps: EngineDeps, prep: TurnPrep): Promise<v
 async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<TurnOutcome> {
   // Absent persist mode = a new assistant slot.
   const persist: TurnPersist = prep.persist ?? { mode: "new-slot", role: "assistant" };
-  const { target, ownerConsented } = await runPreStart(ctx, deps, prep, persist).catch(async (err: unknown) => {
+  const { target } = await runPreStart(ctx, prep, persist).catch(async (err: unknown) => {
     // PRE-START refusal: nothing started, so the engine's post-start catch below never runs — close the
     // caller's accepted slot here or it strands open.
     await closePreStartRefusal(deps, prep);
@@ -1620,7 +1601,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     chatId: prep.chatId,
     intent,
     api: connection.api,
-    source: connection.credential.source,
+    provider: connection.providerId,
     model: connection.model,
     speakerCharacterId: prep.speakerCharacterId,
     targetMessageId: persist.mode === "new-slot" ? null : persist.targetMessageId,
@@ -1683,7 +1664,6 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       intent: prep.intent,
       extraStopSequences: prep.extraStopSequences,
       kind: prep.kind,
-      ownerConsented,
       chatId: prep.chatId,
       appendUserTurn: prep.appendUserTurn,
       appendUserTurnIsContinuationFallback: prep.appendUserTurnIsContinuationFallback,
@@ -1776,7 +1756,6 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     fireRpgTurnCompleted(ctx, view, turnId, {
       kind: prep.kind,
       connection,
-      ownerConsented,
       transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames),
       terminalToolCalls: result.terminalToolCalls,
       terminalToolsCollided: result.terminalToolsCollided,
@@ -1804,6 +1783,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         try {
           await deps.generateSegments(ctx, {
             chatId: prep.chatId,
+            funderUserId: prep.triggeredBy,
             config: memoryConfig,
             macroNames,
           });
@@ -1822,6 +1802,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
             });
             await deps.generateDigests(ctx, {
               scope: { chatId: prep.chatId, scopedCharacterId: groupCharacterId, isGroup: true },
+              funderUserId: prep.triggeredBy,
               config: memoryConfig,
               macroNames,
             });
@@ -1838,6 +1819,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
                   scopedCharacterId: charId,
                   isGroup: chars.length > 1,
                 },
+                funderUserId: prep.triggeredBy,
                 config: memoryConfig,
                 macroNames,
                 witnessing: await deps.loadWitnessHorizons(ctx.db, prep.chatId, charId),
@@ -2011,15 +1993,8 @@ function dropDelta(): void {
  *  composer-fill flows (guided impersonate drafts the user's next line INTO the composer for review). Reads the
  *  FULL canon as context (a `new-slot` at the tail — impersonate's shape). An abort mid-generation is a clean
  *  outcome: `{ text: <whatever streamed>, aborted: true }`; a provider/DB fault still throws. */
-async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep, onText: (text: string) => void = dropDelta): Promise<GeneratedText> {
+async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText: (text: string) => void = dropDelta): Promise<GeneratedText> {
   const connection = prep.connection;
-  // The SAME security belts a persisted turn runs (consent + budget), attributed to triggeredBy on the
-  // effective connection — a generation is billable whether or not it lands in canon.
-  const policy = await deps.resolveTurnPolicy(prep.runAsUserId);
-  const identity = { triggeredBy: prep.triggeredBy, runAsUserId: prep.runAsUserId };
-  assertMaxProSubConsent({ source: connection.credential.source, identity, ownerConsent: policy.allowNonOwnerMaxProSub });
-  const ownerConsented = resolveOwnerConsented({ identity, ownerConsent: policy.allowNonOwnerMaxProSub });
-  await debitTurnBudget(deps.debitBudget, prep.triggeredBy, policy.budget);
 
   const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
   const historyMacroNames: HistoryMacroNames = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: canonAll }));
@@ -2038,7 +2013,6 @@ async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep:
       intent: prep.intent,
       extraStopSequences: prep.extraStopSequences,
       kind: prep.kind,
-      ownerConsented,
       chatId: prep.chatId,
       appendUserTurn: prep.appendUserTurn,
       appendUserTurnIsContinuationFallback: prep.appendUserTurnIsContinuationFallback,
@@ -2101,7 +2075,7 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
     }
     return await runInLockWithHeartbeat(ctx, deps, prep);
   };
-  return { runTurn, generateText: (prep, onText) => generateTextUnpersisted(ctx, deps, prep, onText) };
+  return { runTurn, generateText: (prep, onText) => generateTextUnpersisted(ctx, prep, onText) };
 }
 
 /** Emit the domain `warning` events for the capability drops the pipeline flagged this turn (image parts,
@@ -2144,7 +2118,13 @@ export async function emitCapabilityDropWarnings(
   // The infra runners' own drops (D41 read end). Deduped upstream; independent of each other, so they fan
   // concurrently — all awaited here, which is what keeps them BEFORE the turn's terminal bus event. TOTAL
   // since #1440: the translation answers for every infra code, so nothing is filtered out here any more.
-  await Promise.all(result.runnerWarnings.map((warning) => emit({ type: "warning", chatId, ...toChatWarning(warning) })));
+  // `declared_overrides_measured` is NOT a turn-stream notice by ruling (inference program §5.3a): it renders
+  // as a badge on the connection row, and the user asked for the override — filtered BEFORE the fold.
+  await Promise.all(
+    result.runnerWarnings
+      .filter((warning) => warning.code !== "declared_overrides_measured")
+      .map((warning) => emit({ type: "warning", chatId, ...toChatWarning(warning) })),
+  );
 }
 
 /** The infra→chat warning translation (D41 no-silent-degrade, the READ end). Chat OWNS its bus vocabulary, so
@@ -2171,7 +2151,15 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
     // `verbs/generate-image.ts`) — mapped rather than carried because the two vocabularies agree on it.
     case "image_edit_dropped":
       return { code: "image_edit_dropped" };
+    case "smart_arbitration_degraded":
+      return { code: "smart_arbitration_degraded" };
+    case "background_task_degraded":
+      return { code: "background_task_degraded" };
+    // Filtered upstream (§5.3a — a connection-row badge, never the turn stream); listed so the tail stays total.
+    case "declared_overrides_measured":
+      return { code: "background_task_degraded" };
     case "sampling_knob_dropped":
+    case "sampling_knob_conflict":
     case "effort_dropped":
     case "adaptive_budget_dropped":
     case "display_dropped":

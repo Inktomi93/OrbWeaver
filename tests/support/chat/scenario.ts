@@ -15,8 +15,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, DurableChatBusEvent, GroupPolicy, MessageView } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
+import type { Resolved } from "@orb/inference";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -43,25 +42,11 @@ import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } f
 import { freshDb } from "../db.ts";
 import type { Tape } from "./tape.ts";
 import { scriptedRunner } from "./tape.ts";
+import { makeResolved } from "../factories/resolved-connection.ts";
 
-/** The default model capability (mirrors the chat int fakes — a big window, no reasoning/tools). */
-// @orb-waive no-test-fabrication(unknown): minimal `ModelCapability` double (the turn.int harness precedent) — only window/output are read. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-const CAPABILITY = {
-  reasoning: { mode: "none", enabled: false },
-  sampling: {},
-  output: { maxTokens: { min: 1, max: 8192 } },
-  context: { window: 200_000 },
-} as unknown as ModelCapability;
-
-/** The default resolved connection every scripted turn runs against (`vllm`/`test-model`). */
-function connectionOf(): ResolvedConnection {
-  return {
-    api: "chat-completions",
-    model: castId<ModelId>("test-model"),
-    // @orb-waive no-test-fabrication(unknown): minimal `ResolvedCredential` double (turn.int precedent) — only `.source` is read (§9 belt). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    credential: { source: "vllm", credentialId: null } as unknown as ResolvedCredential,
-    capability: CAPABILITY,
-  };
+/** The default resolved connection every scripted turn runs against (the keyless endpoint row, `test-model`). */
+function connectionOf(): Resolved<"chat"> {
+  return makeResolved();
 }
 
 /** A minimal live card for a roster member (name only — the shape the assembly reads). */
@@ -130,15 +115,6 @@ export interface ChatScenarioOptions {
   /** Extra `ChatContext` overrides merged over the defaults (an escape hatch for a seam the driver doesn't
    *  surface — `readPresence`, `resolveSeatDeco`, …). Applied AFTER the driver's own wiring. */
   readonly ctx?: Partial<ChatContext>;
-  /** The engine's SECURITY-BELT deps (the two the composition root injects, not `ChatContext` ops — see
-   *  `engine/budget.ts` FLAG[budget-op-not-on-ctx]). Defaults: an unlimited budget that always debits and no
-   *  owner consent. Override to drive a PRE-START refusal through the real verbs (`debitBudget` rejecting with
-   *  `DomainRateLimitError` ⇒ `budget_exceeded`; a `max-pro-sub` connection + a member triggerer ⇒
-   *  `consent_required`). */
-  readonly engineBelts?: {
-    readonly debitBudget?: Parameters<typeof createTurnEngine>[1]["debitBudget"];
-    readonly resolveTurnPolicy?: Parameters<typeof createTurnEngine>[1]["resolveTurnPolicy"];
-  };
   /** Override the FOREIGN resolver (preset/persona/settings). The default returns `personas`/`promptConfig`
    *  verbatim; supply this to SPY on the chat-supplied keys (`trigger`/`anchorPersonaId`) or to resolve
    *  `active` per-triggerer, the way the real composition root does. (There is no `personaIds` key to spy on
@@ -255,8 +231,6 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
   };
   const engine = createTurnEngine(ctx, {
     emit,
-    debitBudget: options.engineBelts?.debitBudget ?? ((): Promise<void> => Promise.resolve()),
-    resolveTurnPolicy: options.engineBelts?.resolveTurnPolicy ?? (() => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false })),
     holder: "replica-1",
     lockTtlMs: 60_000,
     generateSegments: () => Promise.resolve({ written: 0, skipped: 0 }),

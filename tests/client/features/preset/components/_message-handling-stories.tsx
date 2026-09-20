@@ -9,18 +9,18 @@
 
 import type { AppFormInstance } from "@orb/client/forms/editor";
 import { createAutosaveEntityForm } from "@orb/client/forms/editor";
-import type { ModelCapability, RoleHandling } from "@orb/contracts/connection";
+import type { GenerationCapability, RoleHandling } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
 import { MessageHandlingSection } from "../../../../../packages/client/src/features/preset/components/message-handling-section.tsx";
-import { makeModelCapability } from "../../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = "preset_msghandlingaaa";
 
 /** The Claude shape: `refineCuratedTurns` floors every Claude arm at `strict` (the wire hard-errors on
  *  adjacent same-role rows), so the floor note is TRUE and must render. */
-const STRICT_CAPABILITY: ModelCapability = makeModelCapability({
+const STRICT_CAPABILITY: ModelCapability = makeGenerationCapability({
   turns: {
     assistantPrefill: false,
     midConversationSystem: false,
@@ -32,7 +32,7 @@ const STRICT_CAPABILITY: ModelCapability = makeModelCapability({
 });
 
 /** The vLLM shape (`VLLM_TURNS`): no floor at all — the user's pick is the whole answer. */
-const FLOORLESS_CAPABILITY: ModelCapability = makeModelCapability({
+const FLOORLESS_CAPABILITY: ModelCapability = makeGenerationCapability({
   turns: {
     assistantPrefill: false,
     midConversationSystem: true,

@@ -82,6 +82,7 @@ function writeNativeSubstrate(): void {
     "packages/kit",
     "packages/contracts",
     "packages/db",
+    "packages/inference",
     "packages/server",
     "packages/client",
     "packages/ui",
@@ -140,6 +141,11 @@ function writeAllFixtures(): void {
     `import type { ResolvedCredential } from "../credentials/index.ts";\nexport type X = ResolvedCredential;\n`,
   );
   fx("packages/db/src/__dc/up.ts", `import "../../../server/src/foundation/__dc/target.ts";\n`);
+  // inference-cake + browser-no-inference: the runtime sits between db and server — an inference→db edge
+  // reaches UP the cake (db must be a port), and the browser never pulls the node-only runtime.
+  fx("packages/inference/src/__dc/target.ts", VAL);
+  fx("packages/inference/src/__dc/up.ts", `import "../../../db/src/__dc/target.ts";\n`);
+  fx("packages/client/src/__dc/inference.ts", `import "../../../inference/src/__dc/target.ts";\n`);
   fx("packages/showcase-plugins/__dc/target.ts", VAL);
   fx("packages/showcase-plugins/__dc/up.ts", `import "../../db/src/__dc/target.ts";\n`);
   fx("packages/client/src/__dc/showcase.ts", `import "../../../showcase-plugins/__dc/target.ts";\n`);

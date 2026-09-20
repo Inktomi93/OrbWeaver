@@ -35,7 +35,8 @@
 // CANCELLED ROUND IS BYTE-IDENTICAL TO A NON-WRITING TURN — it refuses to write and discards its staging, and
 // it never rolls back a write that already landed. `flushTurn` below states the reasoning.
 
-import { coEmitsProseWithTools } from "@orb/contracts/connection";
+import { coEmitsProseWithTools } from "@orb/contracts/inference";
+import { generationOf } from "@orb/inference";
 import type { RpgExtractionMode, RpgFoldFallbackReason, RpgRecordedToolCall } from "@orb/contracts/rpg";
 import { markLockSuppressions, recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
@@ -182,7 +183,7 @@ function foldFallbackReason(turn: CompletedTurn, mode: RpgExtractionMode, calls:
   if (turn.turnConnection.terminalToolsCollided.length > 0) {
     return "terminal-declaration-collided";
   }
-  return coEmitsProseWithTools(turn.turnConnection.connection.capability) ? "no-terminal-channel" : "local-engine-fold-guard";
+  return coEmitsProseWithTools(generationOf(turn.turnConnection.connection)) ? "no-terminal-channel" : "local-engine-fold-guard";
 }
 
 function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, mode: RpgExtractionMode): RpgRunToolRound {
@@ -408,7 +409,7 @@ async function flushWritableTurn(
  *  already total — and the ledger the inner function writes is what makes the event honest about WHICH arm
  *  ended the round. */
 export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGameRow["config"]["extractionMode"], turn: CompletedTurn): Promise<void> {
-  if (deriveTrackersReadOnly(mode, turn.turnConnection.connection.capability)) {
+  if (deriveTrackersReadOnly(mode, generationOf(turn.turnConnection.connection))) {
     // Manual-steering: the resolved connection has no write path for this mode — no round, no failing call.
     // It STILL settles, with the arm named: this game will never extract, and a reader (or a barrier) that
     // learns that immediately is told the truth, where silence reads exactly like a round still in flight.

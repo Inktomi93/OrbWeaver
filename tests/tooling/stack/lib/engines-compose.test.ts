@@ -9,8 +9,8 @@
 //      both derive from `lib/vllm-version.env`, and its two lines cannot disagree.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { engineLaunchEnvFloor } from "@orb/server/foundation/env";
-import { buildEngineArgv, resolveEngineLaunchConfig, VLLM_ENGINES } from "@orb/server/infra/providers/vllm/engine";
+
+import { buildEngineArgv, resolveEngineLaunchConfig, VLLM_ENGINES } from "@orb/tooling/stack/lib/engine-fleet";
 import {
   deriveVllmPin,
   ENGINES_COMPOSE_DEFAULT_GPU_COUNT,

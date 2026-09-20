@@ -32,7 +32,7 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     embedCorpus: createEmbedCorpus(ctx, { store }),
     embedAssets: createEmbedAssets(ctx, {
       store,
-      analyze: (bytes): Promise<AvatarAnalysis> => analyzeAvatarImage(ctx.roleClients, bytes),
+      analyze: async (ownerId, bytes): Promise<AvatarAnalysis> => analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes),
     }),
     purgeMemoryVectors: createPurgeMemoryVectors(ctx),
     pruneDocumentChunks: createPruneDocumentChunks(ctx),

@@ -16,6 +16,7 @@ import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGME
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { collapseSegmentChunks } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
+import { requireSpaceModel } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 interface DiscoverCandidate {
@@ -120,17 +121,19 @@ async function groupByCharacter(
 export function createDiscover(ctx: SearchContext): SearchService["discover"] {
   return async (params: DiscoverParams): Promise<DiscoverCharacter[]> => {
     const { ownerId, queryText, topN } = params;
+    const rc = await ctx.roleClientsFor(ownerId);
+    const embedModel = await requireSpaceModel(rc, "embed");
     if (queryText.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "discover requires a queryText to embed + scan");
     }
     // `poolK` below is `topN × FACTOR` handed straight to a DB limit — guarded before it can become one.
     requirePositiveTopN(topN, "discover");
-    const embedded = await ctx.roleClients.embed(queryText, { inputType: "query" });
+    const embedded = await rc.embed(queryText, { inputType: "query" });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
     }
-    const model = ctx.roleClients.embedModel;
+    const model = embedModel;
 
     const chatIds = await ownedChatIds(ctx.db, ownerId, model);
     if (chatIds.length === 0) {
@@ -170,7 +173,7 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
     );
 
     // Rerank segments before grouping so a promoted segment can pull in a low-CSLS character.
-    const ranked = params.rerank === true ? await applyRerank(queryText, sorted, ctx.roleClients.rerank, sorted.length) : sorted;
+    const ranked = params.rerank === true ? await applyRerank(queryText, sorted, rc.rerank, sorted.length) : sorted;
 
     return await groupByCharacter(ctx, ownerId, ranked, topN);
   };

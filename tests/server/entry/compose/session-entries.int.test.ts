@@ -114,5 +114,8 @@ test("the persisted row's own columns are EXACTLY the schema's — no extra/secr
   const rows = await db.select().from(sessionEntries).where(eq(sessionEntries.chatId, chatId));
   const row = rows[0];
   expect(row).toBeDefined();
-  expect(Object.keys(row ?? {}).sort()).toEqual(["canonHash", "chatId", "createdAt", "id", "isPrimary", "sdkSessionId", "seededThroughSeq", "seq"].sort());
+  // `connectionId` is the §5.3b per-user-runtime-dir column: NULL from this pre-cutover writer, present on the row.
+  expect(Object.keys(row ?? {}).sort()).toEqual(
+    ["canonHash", "chatId", "connectionId", "createdAt", "id", "isPrimary", "sdkSessionId", "seededThroughSeq", "seq"].sort(),
+  );
 });
