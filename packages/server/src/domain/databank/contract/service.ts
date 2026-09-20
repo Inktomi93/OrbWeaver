@@ -19,7 +19,7 @@ import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { AssetId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { EmbeddingsService, GenerationReceipt } from "#domain/embeddings";
 import type { SearchService } from "#domain/search";
 import type { AuditEntry } from "#foundation/observability";
@@ -111,9 +111,10 @@ export interface DatabankContext {
    * `trpc.databank`, which is what makes a second tab/device reconcile at all (event-bus coverage survey H3 —
    * before this the whole bank was writer-local `invalidates` at `staleTime: Infinity`).
    *
-   * SCOPE — the OWNER's library, never the room's view. A chat/character attach also changes what a
-   * PARTICIPANT sees (`listActiveForChat`); that half is member-visible state and fans to the roster on the
-   * chat bus, never to one user (`membership-fan-guard`). This op announces the bank you own.
+   * SCOPE — the OWNER's library, never the room's view. A chat/character/global attach also changes what a
+   * PARTICIPANT sees (`listActiveForChat`); that half is member-visible state and fans to the ROOM on the
+   * chat bus through the five room-fan ops below, never to one user (`membership-fan-guard`). This op
+   * announces the bank you own, and it is no longer the ONLY announcement a junction write makes (#2471).
    *
    * FLAG[emit-is-total] — satisfied BY CONSTRUCTION, not by a classifier: the op is synchronous,
    * `void`-returning and non-throwing (transport's `publishUserEvent` → `defineBusChannel.publish`,
@@ -122,6 +123,40 @@ export interface DatabankContext {
    * the rule is the simple one every user-bus producer follows: emit AFTER the commit.
    */
   readonly emitUserEvent: EmitUserEvent;
+  /**
+   * THE ROOM PLANE (#2471, the entity→room bridge's `databank` kind). The per-chat rack
+   * (`listActiveForChat`) is member-readable room-public prompt context, so a junction write is NOT an
+   * owner-only event: every co-member sitting in a credited room is reading the set it just changed. Each op
+   * below fans a live-only `roomEntityChanged{entity:"databank"}` to the rooms whose rack MOVED; the
+   * resolvers and the SQL live at `entry/compose/room-reach.ts` (a domain may not import chat, its bus, or
+   * another domain's junctions to fan — the `RegexContext` precedent).
+   *
+   * FIVE ops rather than one, because each write knows a DIFFERENT key and the rule is always "resolve
+   * through a junction this write did not tear down":
+   *   • {@link emitRoomDatabankChanged} — `attachToChat`/`detachFromChat`, which already hold the `chatId`;
+   *   • {@link fanDatabankRoomsForCharacter} — the character-scope pair, whose reach is the rooms SEATING
+   *     the character (read off `chat_participants`, which the write does not touch, so one lookup serves
+   *     the attach AND the detach);
+   *   • {@link fanDatabankRoomsForMember} — the global-scope pair, same argument one axis over (D85 credits
+   *     every PRESENT MEMBER's globals, so the reach is the owner's own seats);
+   *   • {@link fanDatabankRoomsForDocument} — `rename`, where the library row moved and all three junctions
+   *     survive, so the document's own full reach is resolvable after the write;
+   *   • {@link captureRoomReachForDelete} — `remove`, whose three junctions CASCADE, so a post-write reach
+   *     is ∅ ALWAYS: snapshot before the DELETE, fan the returned thunk once RETURNING confirms it.
+   *
+   * FLAG[emit-is-total] — the same by-construction argument as `emitUserEvent`: live-only, no durable row,
+   * no FK. The async arms are error-isolated at compose (a failed reach query degrades to fanning nothing),
+   * so no reach lookup can ever fault the write it follows.
+   */
+  readonly emitRoomDatabankChanged: (chatId: ChatId) => void;
+  /** @see emitRoomDatabankChanged — the `rename` arm. */
+  readonly fanDatabankRoomsForDocument: (documentId: DocumentId) => Promise<void>;
+  /** @see emitRoomDatabankChanged — the character-scope attach/detach arm. */
+  readonly fanDatabankRoomsForCharacter: (characterId: CharacterId) => Promise<void>;
+  /** @see emitRoomDatabankChanged — the global-scope attach/detach arm. */
+  readonly fanDatabankRoomsForMember: (ownerId: UserId) => Promise<void>;
+  /** @see emitRoomDatabankChanged — the `remove` arm: call BEFORE the delete, fan the thunk after. */
+  readonly captureRoomReachForDelete: (documentId: DocumentId) => Promise<() => void>;
   // injected cross-feature ops (types from the owning contracts; wired at compose)
   readonly assetsStore: AssetsStoreOp;
   readonly loadAssetBytes: LoadAssetBytesOp;

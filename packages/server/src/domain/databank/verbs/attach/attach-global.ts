@@ -26,7 +26,11 @@ export function createAttachGlobal(ctx: DatabankContext): DatabankService["attac
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.attachGlobal", entityType: "document", entityId: documentId }, ctx.now());
     // Announced only on a REAL scope change: the idempotent re-attach returns above, so a no-op toggle sends
-    // nothing (survey H3). This is the driver behind the library row's Everywhere toggle on a second tab.
+    // nothing (survey H3). The user-bus half is the driver behind the library row's Everywhere toggle on a
+    // second tab; the room half is D85 (#2471) — a global document is credited to every room its owner is
+    // PRESENTLY SEATED IN, for every co-member, so those rooms' racks just changed. Keyed on the ownerId
+    // (`chat_participants`, untouched by this write) so the detach twin shares the lookup.
+    await ctx.fanDatabankRoomsForMember(ownerId);
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

@@ -18,8 +18,9 @@ export function createDetachFromChat(ctx: DatabankContext): DatabankService["det
       return; // not attached — idempotent
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.detachFromChat", entityType: "document", entityId: documentId, metadata: { chatId } }, ctx.now());
-    // The host's own bank view; the room's half is the SAME owner-deferred gap `attach-to-chat` states in
-    // full, held by `membership-write-fan:databank-detach-from-chat`.
+    // Both planes, the same pair `attach-to-chat` states in full: the host's own bank on the user bus, the
+    // room's rack on the chat bus. Removing a document from a room is as member-visible as adding one.
+    ctx.emitRoomDatabankChanged(chatId);
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

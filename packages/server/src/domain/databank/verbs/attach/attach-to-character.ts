@@ -30,9 +30,13 @@ export function createAttachToCharacter(ctx: DatabankContext): DatabankService["
       { actorUserId: ownerId, action: "databank.attachToCharacter", entityType: "document", entityId: documentId, metadata: { characterId } },
       ctx.now(),
     );
-    // Both sides of this junction are the caller's OWN rows, so the whole change is owner-scoped — one
-    // `databankChanged` covers the attachment chips and the character rack alike (survey H3). Real attach
-    // only; the idempotent re-attach returned above.
+    // Both sides of this junction are the caller's OWN rows, so `databankChanged` covers the attachment
+    // chips and the character rack alike (survey H3). But the ROOM plane is not owner-scoped: a seated
+    // roster character credits its documents to every co-member's rack (D85), so the rooms SEATING this
+    // character hear it too (#2471). Keyed on the characterId, not the junction row — `chat_participants`
+    // is untouched by this write, which is what lets the detach twin use the same lookup. Real attach only;
+    // the idempotent re-attach returned above.
+    await ctx.fanDatabankRoomsForCharacter(characterId);
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }
