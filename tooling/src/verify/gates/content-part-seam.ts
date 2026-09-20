@@ -39,6 +39,15 @@
 // `@packages`-vs-`@authored` boundary question (contract/population.ts, #1980), not a decision taken here:
 // widening it is a behaviour change across every policy declaring `@packages` and is measured and ruled, not
 // done in passing.
+//
+// `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT) — and note that this is NOT a
+// widening of `@packages`, which stays the untouched six-root list for the reason above. It is the second-ref
+// pattern `contract/population.ts` prescribes. It is owed because the extraction moved the seam's ONLY
+// sanctioned consumer — the sealed runner tier — out of `packages/server/src/infra/providers/` and out of every
+// declared root, taking SIX of this policy's reviewed grants stale with it and leaving the D51 seam's actual
+// consumers judged by nothing. Those six became three live rows (`inference-contract-chat`,
+// `inference-backend-kit-history`, `inference-v4-prompt`); four of the old runner subjects no longer exist at
+// all, their backends collapsed into `openai-compat` or deleted with the vLLM fleet.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -73,7 +82,11 @@ export const gate = defineGate({
   family: "content-part-seam",
   authority: "reviewed-grant",
   severity: "error",
-  population: "@packages",
+  // `@packages` + `@inference`: the second ref is the documented pattern for a workspace package that is
+  // deliberately NOT folded into `@packages` (contract/population.ts — "a policy that needs the package
+  // TODAY declares both refs"). It is owed here because the D51 seam's ONLY legitimate consumers, the
+  // sealed runner tier, ALL moved into `packages/inference/src/` with the `@orb/inference` extraction.
+  population: { in: ["@packages", "@inference"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],
