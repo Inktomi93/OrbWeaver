@@ -2,7 +2,7 @@
 // the happy path (belts → turnStarted → generate → persist → committed/completed → lock released), the abort
 // CLASSIFICATION (a FAULT emits turnAborted(error) then rethrows; a caller cancel emits turnAborted(user) then
 // RETURNS the aborted outcome — an abort is an outcome, not an exception), and the pre-start belt refusals
-// (budget / consent / locked).
+// (locked — the budget/consent belts were retired by @orb/inference §14 F11/F13).
 
 import type { AssembleContext, ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
@@ -13,7 +13,6 @@ import { characterStats, chatLocks, chats, dailyStats, messages, messageVariants
 import type { BatchStmt } from "@orb/db/kit";
 import type { ChatEvent, ChatResult } from "@orb/inference";
 import { generationOf, resolveChat } from "@orb/inference";
-import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, ModelId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
@@ -42,6 +41,7 @@ import {
   makeChatContext,
   seedCharacter,
   seedChat,
+  seedConnection,
   seedMessage,
   seedParticipant,
   seedUser,
@@ -97,7 +97,6 @@ interface Harness {
   deltas: StatsDelta[];
   /** The `chatsChanged` member-fan calls (PD user-bus lane) — one per terminal turn, list-only (no `detail`). */
   chatChangedFans: { chatId: ChatId; options: unknown }[];
-  debitBudget: ReturnType<typeof vi.fn>;
   engine: ReturnType<typeof createTurnEngine>;
 }
 
@@ -105,9 +104,6 @@ function harness(
   database: Db,
   over: {
     runChatTurn?: ChatContext["runChatTurn"];
-    budget?: number | null;
-    allowNonOwnerMaxProSub?: boolean;
-    debit?: () => Promise<void>;
     generateSegments?: Parameters<typeof createTurnEngine>[1]["generateSegments"];
     generateDigests?: Parameters<typeof createTurnEngine>[1]["generateDigests"];
     loadWitnessHorizons?: Parameters<typeof createTurnEngine>[1]["loadWitnessHorizons"];
@@ -145,7 +141,6 @@ function harness(
       return Promise.resolve();
     },
   });
-  const debitBudget = vi.fn(over.debit ?? ((): Promise<void> => Promise.resolve()));
   const engine = createTurnEngine(ctx, {
     emit: (event: DurableChatBusEvent): Promise<void> => {
       events.push(event);
@@ -160,7 +155,7 @@ function harness(
     recallMemory: over.recallMemory ?? recallMemory,
     runCompaction: over.runCompaction ?? stubRunCompaction,
   });
-  return { ctx, events, deltas, chatChangedFans, debitBudget, engine };
+  return { ctx, events, deltas, chatChangedFans, engine };
 }
 
 let db: Db;
@@ -531,7 +526,9 @@ describe("createTurnEngine — happy path", () => {
     await h.engine.runTurn(prepOf(chatId, { triggeredBy: MEMBER, runAsUserId: HOST }));
     expect(h.deltas).toHaveLength(1);
     expect(h.deltas[0]?.ownerId).toBe(HOST);
-    expect(h.debitBudget).toHaveBeenCalledWith(MEMBER, null);
+    // The per-member budget DEBIT that was asserted beside this is deleted with the belt (@orb/inference
+    // §14 F11). Stats attribution is the live half and is unchanged: `buildTurnStatsDeltas` still keys the
+    // delta on `prep.runAsUserId` (the host's assembly scope, §8.4-3), never on the triggering member.
   });
 
   test("the lock is released — a second turn runs (seq advances)", async () => {
@@ -985,33 +982,10 @@ describe("createTurnEngine — error path (turnAborted then rethrow)", () => {
 });
 
 describe("createTurnEngine — pre-start belt refusals (no turnStarted)", () => {
-  test("budget exhausted → budget_exceeded, nothing emitted", async () => {
-    const chatId = await seedChat(db, "a");
-    const h = harness(db, {
-      budget: 1,
-      debit: () => Promise.reject(new DomainRateLimitError("over", { remainingPoints: 0 })),
-    });
-    await expect(h.engine.runTurn(prepOf(chatId))).rejects.toMatchObject({
-      code: "budget_exceeded",
-    });
-    expect(h.events).toHaveLength(0);
-  });
-
-  test("max-pro-sub by a member without consent → consent_required, nothing emitted", async () => {
-    const chatId = await seedChat(db, "a");
-    const h = harness(db);
-    await expect(
-      h.engine.runTurn(
-        prepOf(chatId, {
-          connection: testConnection("max-pro-sub"),
-          triggeredBy: MEMBER,
-          runAsUserId: HOST,
-        }),
-      ),
-    ).rejects.toMatchObject({ code: "consent_required" });
-    expect(h.events).toHaveLength(0);
-  });
-
+  // The BUDGET and CONSENT refusals that stood here are DELETED, subjects gone (@orb/inference program
+  // §14 F11 + F13): F11 retired the D17 member-budget belt (there is no owner compute to budget any more)
+  // and F13 deleted by-proxy funding with the whole consent belt, so `budget_exceeded`/`consent_required`
+  // have no raiser on this path. `locked` is the surviving pre-start refusal.
   test("a turn already in flight (held lock) → locked", async () => {
     const chatId = await seedChat(db, "a");
     await tryAcquireLock(db, {
@@ -1026,33 +1000,16 @@ describe("createTurnEngine — pre-start belt refusals (no turnStarted)", () => 
   });
 });
 
-// The three refusals above stay BUS-SILENT because nobody opened a client slot for those turns (the founding
+// The refusal above stays BUS-SILENT because nobody opened a client slot for that turn (the founding
 // `opening` turn is the ONE live caller of that shape — `forceCharacterTurn` joined the accepting set on
 // 2026-08-14, so it is no longer an example here). When the CALLER accepted first
-// (`slotAccepted` — every verb that emits `turnAccepted`), the same refusals owe a `turnAborted`: the client's
+// (`slotAccepted` — every verb that emits `turnAccepted`), the same refusal owes a `turnAborted`: the client's
 // slot is open, `turnStarted` never fires, and nothing else on these paths emits, so the slot would strand as a
 // stuck Stop button. Depth rides `automationDepth` exactly as a real abort's does.
 describe("createTurnEngine — an ACCEPTED turn's pre-start refusals CLOSE the slot (slotAccepted)", () => {
-  test("budget exhausted → budget_exceeded + exactly turnAborted(error)", async () => {
-    const chatId = await seedChat(db, "a");
-    const h = harness(db, {
-      budget: 1,
-      debit: () => Promise.reject(new DomainRateLimitError("over", { remainingPoints: 0 })),
-    });
-    await expect(h.engine.runTurn(prepOf(chatId, { slotAccepted: true }))).rejects.toMatchObject({ code: "budget_exceeded" });
-    expect(types(h.events)).toEqual(["turnAborted"]);
-    expect(h.events[0]).toMatchObject({ type: "turnAborted", intent: "send", reason: "error", automationDepth: 0 });
-  });
-
-  test("max-pro-sub without consent → consent_required + exactly turnAborted(error)", async () => {
-    const chatId = await seedChat(db, "a");
-    const h = harness(db);
-    await expect(
-      h.engine.runTurn(prepOf(chatId, { slotAccepted: true, connection: testConnection("max-pro-sub"), triggeredBy: MEMBER, runAsUserId: HOST })),
-    ).rejects.toMatchObject({ code: "consent_required" });
-    expect(types(h.events)).toEqual(["turnAborted"]);
-  });
-
+  // The budget/consent twins of the two deleted pre-start pins above are gone for the same reason
+  // (@orb/inference §14 F11/F13). The slot-close CONTRACT they shared is unchanged and still pinned by the
+  // `locked` and MISSING-persist-target arms below — every accepted-then-refused turn owes one turnAborted.
   test("a held lock → locked + exactly turnAborted(error)", async () => {
     const chatId = await seedChat(db, "a");
     await tryAcquireLock(db, { chatId, holder: "other-replica", now: FROZEN_AT, expiresAt: FROZEN_AT + 60_000 });
@@ -1848,7 +1805,9 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
   test("…and a RECOVERED turn logs the recovery instead of the refusal (the two classes stay apart)", async () => {
     const chatId = await seedChat(db, "empty-recovered-log");
     const toolCapable = testConnection();
-    const connection = { ...toolCapable, capability: { ...toolCapable.capability, tools: { parallel: true, silencesProse: false } } };
+    // `tools` is a GENERATION-capability axis (`capability.generation.tools` — `coEmitsProseWithTools` reads
+    // it there); spreading it onto the Capability ROOT left the wire tool-less and the recovery unreachable.
+    const connection = { ...toolCapable, capability: makeCapability({ ...generationOf(toolCapable), tools: { parallel: true, silencesProse: false } }) };
     let call = 0;
     const h = harness(db, {
       runChatTurn: () => {
@@ -2021,6 +1980,10 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
   // temperature range is exactly what produces this drop in production.
   test("a knob the model doesn't expose reaches the user, naming that knob (#1440)", async () => {
     const chatId = await seedChat(db, "cp-knob");
+    // The REAL compose bridge stamps `TurnEconomics.connectionId` off the resolved connection (@orb/inference
+    // 5.3b attribution), and `message_variants.connection_id` FKs onto `user_connections` — so this pin, the
+    // only one here driving the bridge rather than a bare scripted generator, owes the row the commit points at.
+    await seedConnection(db, await seedUser(db, castId<Handle>("host")));
     const resolved = resolveChat({ temperature: 0.9 }, NoSamplingCapability);
     const knobDropped = createRunChatTurnBridge({
       runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...orLeafResult, events: warningEvents(resolved.warnings, FROZEN_AT) }),
