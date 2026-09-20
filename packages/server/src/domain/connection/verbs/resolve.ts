@@ -5,9 +5,11 @@
 
 import type { ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
 import type { ResolveOutcome } from "@orb/inference";
+import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { ResolveChatCapabilityParams, ResolveTaskParams } from "../contract/params.ts";
 import type { ConnectionCapabilityView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
+import { fetchOwnedConnection } from "../persistence/connections.ts";
 import { toResolvedView } from "../substrate/resolved-view.ts";
 
 /** The credential-free half of a `Resolved` — what crosses to a client or a bus payload. */
@@ -40,6 +42,16 @@ export function createResolveChatCapability(ctx: ConnectionContext): ConnectionS
 
 export function createCapabilities(ctx: ConnectionContext): ConnectionService["capabilities"] {
   return async (params): Promise<ConnectionCapabilityView> => {
+    // The OWNER BELT runs HERE, before the runtime read — the same pre-gate every other id-taking verb in
+    // this domain runs (`diagnostics.ts::resolveRow`, `catalogs.ts::catalogModels`, `bindings.ts`). The
+    // runtime holds its own belt (`@orb/inference` `ownedConnection` → `requireOwned`) and keeps it as
+    // defense in depth, but it throws a `ProviderError`, which no domain class covers: it reached the wire
+    // as an unmapped 500 whose MESSAGE differs for "not yours" and "no such row" — an existence oracle for
+    // a foreign id, and a fault log an authenticated stranger could raise at will (caught by the transport
+    // cross-tenant sweep, 2026-09-20). `ConnectionNotFoundError` is the domain's one refusal for both.
+    if ((await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId)) === null) {
+      throw new ConnectionNotFoundError(params.connectionId);
+    }
     const read = await ctx.runtime.capabilities.for({ connectionId: params.connectionId, principal: params.principal });
     return { capability: read.capability, warnings: read.warnings, tasks: read.tasks };
   };
