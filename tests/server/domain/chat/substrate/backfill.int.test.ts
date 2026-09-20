@@ -5,15 +5,18 @@
 // aborts cooperatively (an aborted sweep does zero work).
 
 import type { Db } from "@orb/db";
-import { characters } from "@orb/db";
+import { characters, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { logger } from "@orb/server/foundation/observability";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ResolveBackfillMemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
 import { backfillGroupCharacters, backfillMemory } from "../../../../../packages/server/src/domain/chat/substrate/backfill.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../../embeddings/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize, seedTurns } from "../memory/_support.ts";
 
@@ -52,6 +55,95 @@ async function seedRooms(host: UserId): Promise<{ soloChar: CharacterId; groupCh
 const HOST_ID = castId<UserId>("user_host");
 
 describe("backfillMemory — the chat × scope enumeration", () => {
+  test("a model change re-embeds unchanged memory before the real old-space purge", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const room = await seedChat(db, "room_model_change");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+    await seedTurns(db, room, aria, 4);
+
+    const embeddings = createEmbeddingsService(makeStoreHarness(db).ctx);
+    const ctx = makeChatContext(db, {
+      summarize: fakeSummarize().op,
+      resolveMemoryEmbedSpace: (ownerId) => Promise.resolve({ ownerId, model: EMBED_MODEL }),
+      embeddingsStore: async (params) => {
+        const result = await embeddings.store({
+          kind: "chat-block",
+          lens: "digest",
+          ownerId: host,
+          chatId: params.key.chatId,
+          scopedCharacterId: params.key.scopedCharacterId,
+          isGroup: params.isGroup,
+          tier: params.key.tier,
+          blockIdx: params.key.blockIdx,
+          text: params.text,
+          topicAnchor: params.topicAnchor,
+          keywords: params.keywords,
+          speakerCharacterIds: params.speakerCharacterIds,
+          contentHash: params.contentHash,
+          model: EMBED_MODEL,
+          dim: EMBED_DIM,
+        });
+        return { ownerId: host, model: result.model };
+      },
+      embeddingsStoreSegments: async (params) => {
+        const results = await embeddings.storeSegments(
+          params.map((p) => ({
+            kind: "chat-block" as const,
+            lens: "segment" as const,
+            ownerId: host,
+            chatId: p.chatId,
+            blockIdx: p.blockIdx,
+            chunkIdx: p.chunkIdx,
+            seqStart: p.seqStart,
+            seqEnd: p.seqEnd,
+            text: p.text,
+            contentHash: p.contentHash,
+            model: EMBED_MODEL,
+            dim: EMBED_DIM,
+          })),
+        );
+        return results.map((result) => ({ ownerId: host, model: result.model }));
+      },
+    });
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
+    await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
+
+    const oldSpace = "retired-embed-space";
+    await db.update(chatSegments).set({ model: oldSpace }).where(eq(chatSegments.chatId, room));
+    await db.update(chatDigests).set({ model: oldSpace }).where(eq(chatDigests.chatId, room));
+
+    await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
+    await embeddings.purgeMemoryVectors({ ownerId: host, completedSpace: EMBED_MODEL });
+    expect((await db.select().from(chatSegments)).map((row) => row.model)).toEqual([EMBED_MODEL, EMBED_MODEL]);
+    expect((await db.select().from(chatDigests)).map((row) => row.model)).toEqual([EMBED_MODEL, EMBED_MODEL]);
+  });
+
+  test("a provider space drift during the segment flood fails the sweep receipt", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const room = await seedChat(db, "room_drift");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+    await seedTurns(db, room, aria, 4);
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, {
+      summarize: fakeSummarize().op,
+      embeddingsStore: store.store,
+      embeddingsStoreSegments: async (params) => {
+        await store.storeSegments(params);
+        return params.map((param) => ({ ownerId: param.ownerId, model: "drifted-space" }));
+      },
+    });
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
+
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
+
+    expect(counts.failed).toBe(1);
+    expect(counts.completedSpaces).toEqual([]);
+  });
+
   test("segments visit every chat; digest buckets mirror the engine's scopes (group bucket only >1 character)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     await seedRooms(host);
@@ -243,7 +335,36 @@ describe("backfillMemory — the chat × scope enumeration", () => {
       segmentsSkippedOverWindow: 0,
       digests: { scanned: 0, changed: 0 },
       failed: 0,
+      completedSpaces: [],
     });
+  });
+
+  test("a chat with no aged memory work does not resolve an embed binding", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const room = await seedChat(db, "empty_memory");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    const resolveMemoryEmbedSpace = vi.fn(() => Promise.reject(new Error("must not resolve")));
+    const ctx = makeChatContext(db, { resolveMemoryEmbedSpace });
+
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, enabledMemory);
+
+    expect(counts.failed).toBe(0);
+    expect(counts.completedSpaces).toEqual([]);
+    expect(resolveMemoryEmbedSpace).not.toHaveBeenCalled();
+  });
+
+  test("a memory-disabled chat does not resolve an embed binding", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const room = await seedChat(db, "disabled_memory");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    const resolveMemoryEmbedSpace = vi.fn(() => Promise.reject(new Error("must not resolve")));
+    const ctx = makeChatContext(db, { resolveMemoryEmbedSpace });
+    const disabled: ResolveBackfillMemoryConfig = () => Promise.resolve({ mode: "off" });
+
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, disabled);
+
+    expect(counts.failed).toBe(0);
+    expect(resolveMemoryEmbedSpace).not.toHaveBeenCalled();
   });
 
   test("a memory-DISABLED host's chat is SKIPPED (D36 opt-out) while an enabled host's chat still builds", async () => {

@@ -292,7 +292,9 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
   const character = createCharacterService(makeCharHarness(db).ctx);
   const assetsH = await makeAssetsHarness(db);
   const assets = createAssetsService(assetsH.ctx);
-  const store: Mock<EmbeddingsService["store"]> = vi.fn<EmbeddingsService["store"]>(() => Promise.resolve({ outcome: "written", contentHash: "stub-hash" }));
+  const store: Mock<EmbeddingsService["store"]> = vi.fn<EmbeddingsService["store"]>((params) =>
+    Promise.resolve({ outcome: "written", contentHash: "stub-hash", model: params.model }),
+  );
   const loadCharacterOwner = async (characterId: CharacterId): Promise<UserId | null> => {
     const rows = await db.select({ ownerId: charactersTable.ownerId }).from(charactersTable).where(eq(charactersTable.id, characterId)).limit(1);
     return rows[0]?.ownerId ?? null;
@@ -687,14 +689,14 @@ describe("persona.remove seed re-point (owner invariant)", () => {
 // change that enqueued only `index` would strand every document chunk in the OLD space. This drives the REAL
 // settings → trigger → `workloads.start` seam through the full graph (no faked enqueue) and asserts BOTH rows.
 describe("embed-model change reindex trigger (DBK-B(b))", () => {
-  test("changing the embed model enqueues BOTH a bulk index AND a bulk databank-reindex", async () => {
+  test("changing the embed model enqueues all three bulk embed-space sweeps", async () => {
     const db = await freshDb();
     const result = await buildGraph(db); // vLLM-disabled full graph
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     // No bulk reindex work exists before the change (causation control).
     const before = await db.select().from(workloads);
-    expect(before.filter((r) => r.mode === "bulk" && (r.kind === "index" || r.kind === "databank-reindex"))).toHaveLength(0);
+    expect(before.filter((r) => r.mode === "bulk" && (r.kind === "index" || r.kind === "databank-reindex" || r.kind === "memory-backfill"))).toHaveLength(0);
 
     await result.services.connection.setBinding({
       principal: principal(owner),
@@ -707,7 +709,8 @@ describe("embed-model change reindex trigger (DBK-B(b))", () => {
 
     const bulkKinds = new Set((await db.select().from(workloads)).filter((r) => r.mode === "bulk").map((r) => r.kind));
     expect(bulkKinds.has("index")).toBe(true); // character/image/memory chunks
-    expect(bulkKinds.has("databank-reindex")).toBe(true); // document chunks — the DBK-B(b) addition
+    expect(bulkKinds.has("databank-reindex")).toBe(true); // document chunks
+    expect(bulkKinds.has("memory-backfill")).toBe(true); // chat memory
   });
 
   test("a detached enqueue rejection is structured and operator-visible without failing the settings write", async () => {
@@ -725,14 +728,15 @@ describe("embed-model change reindex trigger (DBK-B(b))", () => {
         connectionId: null,
       }),
     ).resolves.toBeDefined();
-    await drain(() => errorSpy.mock.calls.filter((call) => (call[0] as { spanName?: string }).spanName === "embeddings.modelChangeReindex").length === 2);
+    await drain(() => errorSpy.mock.calls.filter((call) => (call[0] as { spanName?: string }).spanName === "embeddings.modelChangeReindex").length === 3);
 
     const failures = errorSpy.mock.calls.filter((call) => (call[0] as { spanName?: string }).spanName === "embeddings.modelChangeReindex");
-    expect(failures).toHaveLength(2);
+    expect(failures).toHaveLength(3);
     expect(failures.map((call) => call[0])).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ err: enqueueFailure, workloadKind: "index", spanName: "embeddings.modelChangeReindex" }),
         expect.objectContaining({ err: enqueueFailure, workloadKind: "databank-reindex", spanName: "embeddings.modelChangeReindex" }),
+        expect.objectContaining({ err: enqueueFailure, workloadKind: "memory-backfill", spanName: "embeddings.modelChangeReindex" }),
       ]),
     );
     expect(failures.every((call) => call[1] === "detached operation failed")).toBe(true);

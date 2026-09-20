@@ -59,7 +59,7 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
         // that skipped chats did not re-derive the whole corpus into the active embed space, so reclaiming
         // the old space would delete vectors nothing replaced.
         if (enumerationScope === null && !signal.aborted && counts.failed === 0) {
-          await deps.purgeMemoryVectors();
+          await deps.purgeMemoryVectors(counts.completedSpaces);
         }
         // HONEST ACCOUNTING (#165, the #156 family): a per-chat skip is a chat whose memory silently did not
         // build. Returning the tally landed `succeeded` on a run that skipped every chat it touched, so the
@@ -76,7 +76,12 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
               `${counts.segments.changed} segments and ${counts.digests.changed} digests did build.`,
           );
         }
-        return counts;
+        return {
+          segments: counts.segments,
+          segmentsSkippedOverWindow: counts.segmentsSkippedOverWindow,
+          digests: counts.digests,
+          failed: counts.failed,
+        };
       },
     },
     {

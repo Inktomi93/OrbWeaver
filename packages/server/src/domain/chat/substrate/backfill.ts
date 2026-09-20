@@ -27,7 +27,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, eq, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
-import type { BackfillPassCounts, MemoryBackfillCounts, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
+import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
 import {
   collectConsolidationTier,
   logBuild,
@@ -124,6 +124,7 @@ interface PlanSweep {
   segmentsScanned: number;
   digestsScanned: number;
   failed: number;
+  readonly spaces: Map<UserId, string>;
 }
 
 /** The per-chat plan dependencies (bundled to keep `planOneChat` at ≤4 params). */
@@ -135,6 +136,14 @@ interface PlanDeps {
   readonly funderUserId: UserId;
 }
 
+function recordSpace(sweep: PlanSweep, space: { readonly ownerId: UserId; readonly model: string }): void {
+  const priorSpace = sweep.spaces.get(space.ownerId);
+  if (priorSpace !== undefined && priorSpace !== space.model) {
+    throw new Error(`memory embed space changed during planning for owner ${space.ownerId}`);
+  }
+  sweep.spaces.set(space.ownerId, space.model);
+}
+
 /** Plan ONE chat: COLLECT its segment chunks (no embed), then tier-0 COLLECT each of its scope buckets into
  *  `sweep`. No summarize, no vector write — both are corpus-wide phases of their own. */
 async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, sweep: PlanSweep): Promise<void> {
@@ -144,10 +153,28 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
   if (config?.mode === "off") {
     return; // the host disabled memory — skip enumerate/mint/plan entirely.
   }
+  if (hostUserId === null) {
+    // Preserve enumeration accounting for a stale hostless room, but do not spend the workload principal's
+    // unrelated embed binding on rows that have no owner-space to land in.
+    sweep.segmentsScanned += 1;
+    sweep.digestsScanned += characterIds.length;
+    return;
+  }
   // COLLECT only — the chunking, the hash gate and the shrink prune happen here; the embeds do not. Every
   // chat's pending chunks pool into one corpus-wide flood (PHASE 1b), which is what the owner batching ruling
   // asks for: batch by phase, never one awaited embed per block interleaved with db reads.
-  sweep.segments.push(await collectSegments(ctx, { chatId, funderUserId: deps.funderUserId, config, macroNames, signal: deps.signal }));
+  const segments = await collectSegments(ctx, {
+    chatId,
+    funderUserId: deps.funderUserId,
+    embedOwnerId: hostUserId,
+    config,
+    macroNames,
+    signal: deps.signal,
+  });
+  sweep.segments.push(segments);
+  if (segments.embedSpace !== null) {
+    recordSpace(sweep, segments.embedSpace);
+  }
   sweep.segmentsScanned += 1;
   const characterIdSet = new Set<CharacterId>(characterIds);
   for (const scope of await scopesFor(ctx, chatId, characterIds, hostUserId)) {
@@ -162,9 +189,11 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
       macroNames,
       signal: deps.signal,
       ...(witnessing !== undefined ? { witnessing } : {}),
+      embedOwnerId: hostUserId,
     });
     sweep.digestsScanned += 1; // each (chat × scope) bucket is one scanned unit, planned or a no-op
     if (plan !== null) {
+      recordSpace(sweep, plan.embedSpace);
       sweep.plans.push(plan);
     }
   }
@@ -178,7 +207,7 @@ async function planAllBuckets(
   args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null; readonly funderUserId: UserId },
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<PlanSweep> {
-  const sweep: PlanSweep = { plans: [], segments: [], segmentsScanned: 0, digestsScanned: 0, failed: 0 };
+  const sweep: PlanSweep = { plans: [], segments: [], segmentsScanned: 0, digestsScanned: 0, failed: 0, spaces: new Map() };
   const deps: PlanDeps = { signal: args.signal, resolveMemoryConfig, funderUserId: args.funderUserId };
   for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
     if (args.signal.aborted) {
@@ -318,6 +347,7 @@ async function collectTierAcrossBuckets(ctx: ChatContext, state: CommitState, ti
         existing: plan.existing,
         signal: state.signal,
         funderUserId: state.funderUserId,
+        embedSpace: plan.embedSpace,
       });
       if (cons === null) {
         continue; // this bucket's consolidation ceiling
@@ -467,16 +497,18 @@ export async function backfillMemory(
   ctx: ChatContext,
   args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null; readonly funderUserId: UserId },
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
-): Promise<MemoryBackfillCounts> {
+): Promise<MemoryBackfillSweepCounts> {
   const sweep = await planAllBuckets(ctx, args, resolveMemoryConfig);
   const segments = await storeAllSegments(ctx, sweep.segments);
   const perPlanTexts = await summarizeAllPending(ctx, args.funderUserId, sweep.plans);
   const committed = await commitAllPlans(ctx, sweep.plans, perPlanTexts, { signal: args.signal, funderUserId: args.funderUserId });
+  const failed = sweep.failed + segments.failed + committed.failed;
   return {
     segments: { scanned: sweep.segmentsScanned, changed: segments.written },
     segmentsSkippedOverWindow: segments.skippedOverWindow,
     digests: { scanned: sweep.digestsScanned, changed: committed.changed },
-    failed: sweep.failed + segments.failed + committed.failed,
+    failed,
+    completedSpaces: failed === 0 && !args.signal.aborted ? [...sweep.spaces].map(([ownerId, model]) => ({ ownerId, model })) : [],
   };
 }
 
@@ -495,6 +527,7 @@ async function storeAllSegments(ctx: ChatContext, collected: readonly SegmentWor
   const skippedOverWindow = collected.reduce((n, c) => n + c.skippedOverWindow, 0);
   try {
     const stored = await storeSegments(ctx, {
+      embedSpace: null,
       pending,
       skipped: collected.reduce((n, c) => n + c.skipped, 0),
       skippedOverWindow,

@@ -1041,6 +1041,8 @@ type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly person
  */
 export interface StoreDigestParams {
   readonly lens: "digest";
+  readonly ownerId: UserId;
+  readonly model: string;
   readonly key: BlockKey;
   readonly text: string;
   readonly contentHash: string;
@@ -1056,6 +1058,8 @@ export interface StoreDigestParams {
  *  one truncated row (#172), each carrying the honest span of the messages its text contains. */
 export interface StoreSegmentParams {
   readonly lens: "segment";
+  readonly ownerId: UserId;
+  readonly model: string;
   readonly chatId: ChatId;
   readonly blockIdx: number;
   readonly chunkIdx: number;
@@ -1065,11 +1069,23 @@ export interface StoreSegmentParams {
   readonly contentHash: string;
 }
 
+/** The owner + concrete vector-space tag one memory pass resolved before reading its hash gates. */
+export interface MemoryEmbedSpace {
+  readonly ownerId: UserId;
+  readonly model: string;
+}
+
+/** The space the embeddings boundary actually stamped. */
+export interface MemoryStoreReceipt extends MemoryEmbedSpace {}
+
+/** Resolve the host's current concrete embed space for memory planning. */
+export type ResolveMemoryEmbedSpaceOp = (ownerId: UserId) => Promise<MemoryEmbedSpace>;
+
 /** memory's digest vector write — the one write path.
  *
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<void>;
+export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemoryStoreReceipt>;
 
 /**
  * memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (#172,
@@ -1079,7 +1095,7 @@ export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<void>;
  * one chat's chunks. Nothing here decides concurrency — that is the provider surface's.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[]) => Promise<void>;
+export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[]) => Promise<readonly MemoryStoreReceipt[]>;
 
 /** memory's digest SHRINK reclaim — the blocks-that-no-longer-exist half of the build. `keepPerTier[k]` is
  *  the surviving block COUNT at tier k; every stored row with `blockIdx >= keepPerTier[tier]` is beyond canon
@@ -1394,6 +1410,7 @@ export interface ChatContext {
   readonly resolveCurrentPersona: ResolveCurrentPersonaOp;
   readonly resolveConnectedPersona: ResolveConnectedPersonaOp;
   readonly verifyPersonaOwned: VerifyPersonaOwnedOp;
+  readonly resolveMemoryEmbedSpace: ResolveMemoryEmbedSpaceOp;
   readonly embeddingsStore: EmbeddingsStoreOp;
   readonly embeddingsStoreSegments: EmbeddingsStoreSegmentsOp;
   readonly embeddingsPruneBlocks: EmbeddingsPruneBlocksOp;

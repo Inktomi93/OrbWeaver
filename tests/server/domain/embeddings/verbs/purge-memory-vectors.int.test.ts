@@ -90,14 +90,14 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     // The harness's roleClients.embedModel is EMBED_MODEL — the active space the purge scopes against.
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
 
-    const purged = await svc.purgeMemoryVectors({ ownerId: owner });
+    const purged = await svc.purgeMemoryVectors({ ownerId: owner, completedSpace: EMBED_MODEL });
 
     expect(purged).toEqual({ segments: 1, digests: 1 });
     expect((await db.select().from(chatSegments)).map((r) => r.model)).toEqual([EMBED_MODEL]);
     expect((await db.select().from(chatDigests)).map((r) => r.model)).toEqual([EMBED_MODEL]);
   });
 
-  test("is a no-op when every row is already in the active space", async () => {
+  test("refuses a stale completion receipt without deleting either space", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
@@ -135,9 +135,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     });
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
 
-    const purged = await svc.purgeMemoryVectors({ ownerId: owner });
-
-    expect(purged).toEqual({ segments: 0, digests: 0 });
+    await expect(svc.purgeMemoryVectors({ ownerId: owner, completedSpace: STALE_MODEL })).rejects.toThrow(/changed before purge/u);
     expect(await db.select().from(chatSegments)).toHaveLength(1);
     expect(await db.select().from(chatDigests)).toHaveLength(1);
   });

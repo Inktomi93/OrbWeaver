@@ -24,7 +24,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../../context.ts";
-import type { StoreSegmentParams } from "../../contract/context.ts";
+import type { MemoryEmbedSpace, StoreSegmentParams } from "../../contract/context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes } from "../persistence/queries.ts";
 import type { MemoryConfig, MsgRow, SegmentPassCounts } from "../types.ts";
@@ -40,11 +40,14 @@ interface GenerateSegmentsArgs {
   readonly config?: MemoryConfig | null | undefined;
   readonly macroNames?: RowMacroNameContext | undefined;
   readonly signal?: AbortSignal | undefined;
+  readonly embedSpace?: MemoryEmbedSpace | undefined;
+  readonly embedOwnerId?: UserId | undefined;
 }
 
 /** One chat's collected segment work: the chunk writes that survived the hash gate, plus the counts the pass
  *  already knows (hash-skipped chunks, blocks past the pathological ceiling). File-local by the same gate. */
 interface CollectedSegments {
+  readonly embedSpace: MemoryEmbedSpace | null;
   readonly pending: readonly StoreSegmentParams[];
   readonly skipped: number;
   readonly skippedOverWindow: number;
@@ -66,7 +69,7 @@ function chunkHash(blockIdx: number, chunkIdx: number, chunkCount: number, rows:
  */
 export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsArgs): Promise<CollectedSegments> {
   const cfg = resolveCfg(args.config);
-  const empty: CollectedSegments = { pending: [], skipped: 0, skippedOverWindow: 0 };
+  const empty: CollectedSegments = { embedSpace: null, pending: [], skipped: 0, skippedOverWindow: 0 };
   if (cfg.mode === "off") {
     return empty;
   }
@@ -77,6 +80,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
   if (cutoff < cfg.blockSize) {
     return empty;
   }
+  const embedSpace = args.embedSpace ?? (await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId));
 
   const canon = await loadCanonThroughSeq(ctx.db, args.chatId, cutoff);
   const blocks = sliceBlocks(canon, cfg.blockSize);
@@ -84,7 +88,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
 
   const pending: StoreSegmentParams[] = [];
   const chunkCounts: { blockIdx: number; chunkCount: number }[] = [];
-  const existing = await loadSegmentHashes(ctx.db, args.chatId);
+  const existing = await loadSegmentHashes(ctx.db, args.chatId, embedSpace.model);
   let skipped = 0;
   let skippedOverWindow = 0;
   for (const block of blocks) {
@@ -121,6 +125,8 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
       }
       pending.push({
         lens: "segment",
+        ownerId: embedSpace.ownerId,
+        model: embedSpace.model,
         chatId: args.chatId,
         blockIdx: block.blockIdx,
         chunkIdx: chunk.chunkIdx,
@@ -139,7 +145,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
   // The CHUNK ceilings ride along for the same reason one level down: a block that used to need 5 chunks and
   // now needs 2 would strand three rows still claiming spans.
   await ctx.embeddingsPruneBlocks({ lens: "segment", chatId: args.chatId, keepBlockCount: blocks.length, chunkCounts });
-  return { pending, skipped, skippedOverWindow };
+  return { embedSpace, pending, skipped, skippedOverWindow };
 }
 
 /**
@@ -149,7 +155,16 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
  */
 export async function storeSegments(ctx: ChatContext, collected: CollectedSegments): Promise<SegmentPassCounts> {
   if (collected.pending.length > 0) {
-    await ctx.embeddingsStoreSegments(collected.pending);
+    const receipts = await ctx.embeddingsStoreSegments(collected.pending);
+    if (receipts.length !== collected.pending.length) {
+      throw new Error("memory segment embed space changed during sweep");
+    }
+    for (const [index, receipt] of receipts.entries()) {
+      const expected = collected.pending[index];
+      if (expected === undefined || receipt.ownerId !== expected.ownerId || receipt.model !== expected.model) {
+        throw new Error("memory segment embed space changed during sweep");
+      }
+    }
   }
   return { written: collected.pending.length, skipped: collected.skipped, skippedOverWindow: collected.skippedOverWindow };
 }

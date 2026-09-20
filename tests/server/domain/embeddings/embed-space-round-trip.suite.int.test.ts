@@ -99,7 +99,10 @@ async function driveOwnerWithBoundEncoder(db: Db, sources: StoreHarnessSources =
  *  `documents`). Running the REAL verbs is the point: the completion rows only exist because work finished. */
 async function runEmbedSweeps(drive: Drive): Promise<void> {
   await drive.svc.embedCorpus({ force: false, signal: new AbortController().signal, ownerId: drive.userId });
-  await drive.svc.purgeMemoryVectors({ ownerId: drive.userId });
+  const completedSpace = await requireTaskModel(drive.ctx, drive.userId, "embed");
+  if (completedSpace !== null) {
+    await drive.svc.purgeMemoryVectors({ ownerId: drive.userId, completedSpace });
+  }
   await drive.svc.purgeDocumentVectors({ ownerId: drive.userId });
 }
 
