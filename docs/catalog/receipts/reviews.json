@@ -1144,6 +1144,50 @@
       "verifiedCanonicalSha256": "b559d6ec3edea93f03b5c1ba8514f4ce72453d2d2f3b3670e893605f83f4c183"
     },
     {
+      "path": "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md",
+      "assignedSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3",
+      "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
+      "verifiedAt": "2026-09-19",
+      "evidence": [
+        "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane gate-park-U's re-derivation of every Parked row whose wake condition named the #1584 gate-system revamp, the Codex ESLint hold or a dead gate lane, against main 047320b97: 32 rows censused (31 handed + #2283 found by a widened sweep), dispositioned 16 SUPERSEDED / 15 RE-FILE / 1 KEEP PARKED.",
+        "Spot-verified against the tree at the receipting commit: tooling/src/verify/gates/query-freshness-coverage-debt.ts:17 still declares `workItem: 1965` (severity `warning`, authority `hard` at :14-15), so the report's one hard coupled site is live as written."
+      ],
+      "claims": [
+        {
+          "claim": "`query-freshness-coverage-debt` is a warning policy carrying `workItem: 1965`, and the final contract requires that citation to resolve to a live issue — so closing #1965 turns `pnpm check` red; it is the only such citation across the 32 re-derived rows.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/query-freshness-coverage-debt.ts:17"
+            },
+            {
+              "kind": "issue",
+              "target": "#1965"
+            }
+          ]
+        },
+        {
+          "claim": "The re-derivation's dispositions rest on an all-final gate corpus: every module under tooling/src/verify/gates is a `defineGate` policy and no legacy `GateDescriptor` survives, which is what retires the wake conditions that named the legacy runtime.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/content-part-seam.ts:7"
+            },
+            {
+              "kind": "issue",
+              "target": "#2451"
+            }
+          ]
+        }
+      ],
+      "summary": "Re-derivation of the 32 Parked board rows whose wake conditions named the (now closed) #1584 gate-runtime program: 16 SUPERSEDED, 15 RE-FILE, 1 KEEP PARKED, with the gate corpus measured all-final (339 modules, 339 defineGate calls) and the legacy `__g_` planter suites confirmed deleted. Flags one hard coupled site the orchestrator must act on before closing anything: `query-freshness-coverage-debt` declares `workItem: 1965`, and the final contract requires a warning policy's workItem to be a LIVE issue, so closing #1965 reds `pnpm check`.",
+      "verifiedCanonicalSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3"
+    },
+    {
       "path": "docs/reviews/gate-runtime/planner-cli-integration.md",
       "assignedSha256": "90ca11af0ff621be30b4bb90e1aa11208dd63e2506ca50a032b9b760e8ea757e",
       "disposition": "current",
@@ -3675,7 +3719,8 @@
       "evidence": [
         "docs/reviews/misc/2026-08-14-refinery-custom-schema-drive.md:1-182 full read against frozen foundation",
         "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14",
-        "docs/reviews/misc/2026-08-14-refinery-custom-schema-drive.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/reviews/misc/2026-08-14-refinery-custom-schema-drive.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "2026-09-20: the require_parameters evidence re-DERIVED after the OpenRouter backend was replaced by the openai-compat wire's openrouter transport — the measured fact's live home is the schema-forge header (packages/contracts/src/refinery/schema-forge.ts:24-29), which records that require_parameters is NO LONGER sent"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -3684,7 +3729,7 @@
           "evidence": [
             {
               "kind": "code",
-              "target": "packages/server/src/infra/providers/backends/openrouter/index.ts:274"
+              "target": "packages/contracts/src/refinery/schema-forge.ts:24"
             },
             {
               "kind": "issue",
@@ -5287,6 +5332,135 @@
       ]
     },
     {
+      "path": "docs/reviews/side-eye/2026-09-19-attribution-band-and-composer-plate.md",
+      "assignedSha256": "917cec499e07de37b400efc1d6bb80ac05cac3707a214d6cd99d7bf62fe70eb1",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "917cec499e07de37b400efc1d6bb80ac05cac3707a214d6cd99d7bf62fe70eb1",
+      "verifiedCommit": "d18511c04a2f879654a977d08c4cbb0b349b535a",
+      "verifiedAt": "2026-09-19",
+      "evidence": [
+        "docs/reviews/side-eye/2026-09-19-attribution-band-and-composer-plate.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane side-eye-F's live-stack drive of two surfaces — the sticky attribution band (#1873) and the over-art composer/bubble plate (#2389) — with one `--ref d4e226a2e` isolated-stage control for the pre-#1873 A/B, and the appearance state every number was taken under stated up front.",
+        "Spot-verified against the tree at the receipting commit: the sticky band is `data-sticky` on the message row header (packages/client/src/features/chat/components/message-row-header.tsx:159), whose header states the backing invariant the P1 measures against."
+      ],
+      "claims": [
+        {
+          "claim": "#1873's top-only sticky cancellation removed the opaque fill below the pinned name — the band's padding-bottom went 8px → 0px and its margin-bottom 8px → 20px — which is a rendered regression, not a mechanism failure: the same build's untouched `tide` skin still measures 36px/8px/8px.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/message-row-header.tsx:159"
+            },
+            {
+              "kind": "issue",
+              "target": "#1873"
+            }
+          ]
+        },
+        {
+          "claim": "The #2389 over-art composer and bubble plate rules are gated on `html[data-blur-messages]`, which is OFF in both the shipped defaults and the owner's row, so the bubble arms are latent there and had to be driven under `--appearance-preset maximal`.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/styles/globals.css:306"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:d4e226a2e4c2d49593321ac8e93eb520d59b837c"
+            }
+          ]
+        }
+      ],
+      "summary": "SHIP WITH FIXES. The #1873 sticky attribution band's mechanism holds — zero oscillation at seven scrollport heights including the exact threshold, nonVirtualizedCls 0 over a driven scroll — but the top-only cancellation dropped the band's 8px of opaque fill below the pinned name (padding-bottom 8px → 0px), so a sheared half-line of prose abuts the name; the untouched `tide` skin still renders it correctly in the same build and is the control that proves the regression. The #2389 over-art plate is correct and holds at the worst legal art in both polarities (6.48:1 / 6.72:1 light, 4.68:1 dark, byte-identical dark arm). Two defects were stumbled on outside both commits: a P0 (typed composer text at 1.13:1 in a card-themed room under the Light app theme) and a P1 (the mobile chat reading port is 185px of a 740px viewport)."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md",
+      "assignedSha256": "0d590412a766741d620e382d031a204f086b1a510dffad94767530cacee388a1",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "0d590412a766741d620e382d031a204f086b1a510dffad94767530cacee388a1",
+      "verifiedCommit": "13d897fa5da14d51b9aea1af4a685fe8a51bbcad",
+      "verifiedAt": "2026-09-19",
+      "evidence": [
+        "docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane side-eye-M's three live-stack audits — the #1316 list-collapse felt transition, tooltip-on-touch, and modal scroll-lock on touch — each measured on the owner's appearance row AND under `--appearance-preset defaults`, with the per-rAF getBoundingClientRect census standing in where `snap --motion` REFUSED for want of vsync.",
+        "Spot-verified against the tree at the receipting commit: `HintTrigger` — the anatomy behind `<Field hint>` / `<Section hint>` that audit 2 indicts — is packages/ui/src/primitives/hint-trigger/hint-trigger.tsx:1."
+      ],
+      "claims": [
+        {
+          "claim": "`HintTrigger` is the anatomy behind `<Field hint>` and `<Section hint>` across 92 call sites, of which exactly one passes a touch fallback — so on a coarse pointer the tooltip's content is unreachable and the trigger is a control that does nothing.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/hint-trigger/hint-trigger.tsx:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#2452"
+            }
+          ]
+        },
+        {
+          "claim": "The #1316 collapse's dropped-frame lane has NO VERDICT rather than a clean one — `snap --motion` refused on this surface (exit 2, frames-raw=0/0) because headless has no vsync — so the audit's per-rAF rect census is the only receipt for the 154px composer lurch.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1316"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/snap/lib/motion-gaps.ts:1"
+            }
+          ]
+        }
+      ],
+      "summary": "Three audits. #1316's felt transition SHIPS WITH FIXES — the topbar trail does not move, transcript rows do not jump, focus survives and the collapse costs no CLS, but two counter classes were missed and both are measurable: the composer lurches 154px sideways on the first painted frame of every dock/undock, and on a phone the list panel enters from double its own width because the mobile `animation: none` cancel is out-specified. Tooltip-on-touch is DO NOT SHIP as-is: `HintTrigger` has 92 call sites and exactly one passes a touch fallback, so a phone gets a 55x55 button that does nothing and an `aria-describedby` that resolves to nothing at rest (15 of them on one settings pane). Modal scroll-lock on touch SHIPS — attacked and held, with one P3 nuisance on the non-modal popovers."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-19-field-ink-after-tw-merge.md",
+      "assignedSha256": "c7f2df56b29587ea7d8dd289deb350a2f13681add08aa37cfc2a1a1682a8b207",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "c7f2df56b29587ea7d8dd289deb350a2f13681add08aa37cfc2a1a1682a8b207",
+      "verifiedCommit": "35b67542263dc0676417afc707fca6d3adc68723",
+      "verifiedAt": "2026-09-19",
+      "evidence": [
+        "docs/reviews/side-eye/2026-09-19-field-ink-after-tw-merge.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane side-eye-Y's paired `snap --isolated --ref` before/after drive of #2450's text-entry floor (BEFORE 53f5a63de, AFTER fe1294944), including the environment row recording that the live `:5173` graph was partially stale and that every number was re-taken on pinned isolated stages afterwards, plus an explicit retraction of the finding that artefact produced.",
+        "Spot-verified against the tree at the receipting commit: packages/ui/src/lib/field-control.ts:15 is the `FIELD_CONTROL_BOX` whose `text-foreground` the tw-merge defect used to drop, and packages/ui/src/primitives/macro-textarea/variants.ts is the P1's subject."
+      ],
+      "claims": [
+        {
+          "claim": "The rendered delta of #2450 is `FIELD_CONTROL_BOX`'s `text-foreground` surviving tailwind-merge again, which moved field ink onto primary ink wherever the inherited ink differed — the list panes, which carry `--color-sidebar-foreground` — and raised contrast on every measured arm rather than lowering it.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/lib/field-control.ts:15"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:fe1294944bdb18078facc32b0a20e46d65d11769"
+            }
+          ]
+        },
+        {
+          "claim": "The P1 is a token intent that was never visible before: the MacroTextarea always asked for `text-code`, and only painted 15px because the very tw-merge defect #2450 fixed let `text-field` win — so the 13px/81-characters-per-line result needs an owner decision rather than a silent landing.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/macro-textarea/variants.ts:17"
+            },
+            {
+              "kind": "issue",
+              "target": "#2450"
+            }
+          ]
+        }
+      ],
+      "summary": "SHIP. #2450's text-entry floor does what it says on every control this review could reach and makes the most common control in the app more internally consistent: restoring `text-foreground` on `FIELD_CONTROL_BOX` moved field ink onto primary ink in the list panes (+1.2 to +1.9 contrast across all three shipped themes and coarse, every arm PASS), and the iOS focus-zoom floor closed at coarse with nothing moving on a mouse. Two things the commit message gets wrong are recorded: [P1] the MacroTextarea prose editors shrink 15px → 13px on a mouse and their measure leaves the 65-75 band at 81 characters per line, which needs a design decision because nobody has ever seen that surface at its authored size; [P2] `snap --design-audit` reaches NO-VERDICT on every field surface on both pointers, so its `findings=0` must not be quoted as clean. One earlier finding is explicitly RETRACTED as an artefact of the stale dev graph."
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",
       "assignedSha256": "12d634274d027af4584e2aa78d956fccb740bfe258142d972681579becd1356f",
       "disposition": "needs-owner",
@@ -5980,45 +6154,6 @@
       ]
     },
     {
-      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-final.md",
-      "assignedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
-      "verifiedCommit": "b23839843a46cf0755fc4794d5dd330c246309ce",
-      "verifiedAt": "2026-09-02",
-      "summary": "CT corpus audit FINAL closeout (#1229, lane cb-ct-audit-final): derived the true covered/remainder arithmetic from the ten folded shard reports' own per-file verdicts rather than their stated totals — corpus 469 files/113,931 lines, covered by the ten reports 414 files/105,540 lines (8 confirmed cross-shard duplicate reads, all tracing to leg4b), true remainder 55 files/8,391 lines (vs. the brief's naive 428/~41 hypothesis). Full-read all 55 remainder files (user-admin x14, discovery x8, world-info x5, stats x5, regex x5, auth x5, credentials x3, tag x2, chat x2, routes x2, plus 5 singles) against leg1's unchanged rubric — zero new findings. Re-checked leg4b's PROVISIONAL corpus-search-results.ct.tsx SCENES-door verdict against today's post-#1249 source and confirmed CLEAN. Campaign declared COMPLETE at 469/469 files, 113,931/113,931 lines, five total findings (#1240 #1241 #1242 #1258 #1261), severity ceiling P3.",
-      "evidence": [
-        "born-reviewed at b23839843a46cf0755fc4794d5dd330c246309ce: authored and full-read by lane cb-ct-audit-final (stickler) in the same session — the derived-arithmetic section, the 55-file per-area verdict tables, the taxonomy sweep receipts, the corpus-search-results.ct.tsx re-check, and the #1229 issue summary"
-      ],
-      "claims": [
-        {
-          "claim": "The ten folded shard reports' stated-population sum (428) is neither the covered count nor the remainder complement: cross-referencing each report's own per-file verdicts (not its stated totals or 'excl' cross-references) surfaces 8 confirmed cross-shard duplicate full-reads (all traced to leg4b) and a true remainder of 55 files never verdicted by any report — corpus 469 = covered 414 + remainder 55.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/client/state/character-selection-store.ct.tsx:1",
-              "note": "one of the 8 confirmed cross-shard duplicates (L4-client-core state/ chunk and leg4b batch 1 item 3 each independently read and verdicted this file)"
-            }
-          ]
-        },
-        {
-          "claim": "leg4b's PROVISIONAL verdict on corpus-search-results.ct.tsx's SCENES door-look block (flagged against a pre-#1249 base) resolves CLEAN on today's tree: the RoomDoor component's post-#1249 className applies RECEDED_INK per the assertion's relational checks (justify-start, arrow present, colour !== bodyColour), and the source's own header comment names this exact CT assertion as the fix's target.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/discovery/components/corpus-hit-rows.tsx:158"
-            },
-            {
-              "kind": "test",
-              "target": "tests/client/features/discovery/components/corpus-search-results.ct.tsx:483"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L1-ui.md",
       "assignedSha256": "c00698488c8efe87b9d06936d1cfe9417f5be7517b81d76dc7e3184b3c416db6",
       "disposition": "current",
@@ -6117,6 +6252,45 @@
             {
               "kind": "code",
               "target": "packages/client/src/data/use-carried-appearance.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-final.md",
+      "assignedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
+      "verifiedCommit": "b23839843a46cf0755fc4794d5dd330c246309ce",
+      "verifiedAt": "2026-09-02",
+      "summary": "CT corpus audit FINAL closeout (#1229, lane cb-ct-audit-final): derived the true covered/remainder arithmetic from the ten folded shard reports' own per-file verdicts rather than their stated totals — corpus 469 files/113,931 lines, covered by the ten reports 414 files/105,540 lines (8 confirmed cross-shard duplicate reads, all tracing to leg4b), true remainder 55 files/8,391 lines (vs. the brief's naive 428/~41 hypothesis). Full-read all 55 remainder files (user-admin x14, discovery x8, world-info x5, stats x5, regex x5, auth x5, credentials x3, tag x2, chat x2, routes x2, plus 5 singles) against leg1's unchanged rubric — zero new findings. Re-checked leg4b's PROVISIONAL corpus-search-results.ct.tsx SCENES-door verdict against today's post-#1249 source and confirmed CLEAN. Campaign declared COMPLETE at 469/469 files, 113,931/113,931 lines, five total findings (#1240 #1241 #1242 #1258 #1261), severity ceiling P3.",
+      "evidence": [
+        "born-reviewed at b23839843a46cf0755fc4794d5dd330c246309ce: authored and full-read by lane cb-ct-audit-final (stickler) in the same session — the derived-arithmetic section, the 55-file per-area verdict tables, the taxonomy sweep receipts, the corpus-search-results.ct.tsx re-check, and the #1229 issue summary"
+      ],
+      "claims": [
+        {
+          "claim": "The ten folded shard reports' stated-population sum (428) is neither the covered count nor the remainder complement: cross-referencing each report's own per-file verdicts (not its stated totals or 'excl' cross-references) surfaces 8 confirmed cross-shard duplicate full-reads (all traced to leg4b) and a true remainder of 55 files never verdicted by any report — corpus 469 = covered 414 + remainder 55.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/state/character-selection-store.ct.tsx:1",
+              "note": "one of the 8 confirmed cross-shard duplicates (L4-client-core state/ chunk and leg4b batch 1 item 3 each independently read and verdicted this file)"
+            }
+          ]
+        },
+        {
+          "claim": "leg4b's PROVISIONAL verdict on corpus-search-results.ct.tsx's SCENES door-look block (flagged against a pre-#1249 base) resolves CLEAN on today's tree: the RoomDoor component's post-#1249 className applies RECEDED_INK per the assertion's relational checks (justify-start, arrow present, colour !== bodyColour), and the source's own header comment names this exact CT assertion as the fix's target.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/discovery/components/corpus-hit-rows.tsx:158"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/discovery/components/corpus-search-results.ct.tsx:483"
             }
           ]
         }
@@ -7114,6 +7288,50 @@
       "summary": "A stickler review of the tool-guard.mjs re-registration and CT-rule rewrite (commit 40223a091 plus a docs follow-up), reproducing every claim by spawning the committed guard with real probe payloads rather than reasoning from the diff. It confirms six findings, severity ceiling P2, none a regression: a raw ./node_modules/.bin/playwright CT spelling gap (268 corpus sightings), a glued group-closer that still shields a destructive script, the hook being linted by nothing with its only behavioral pin gated to the --full tier, and several heavy-tool spellings that pass un-floored. Readers must not read the 175-row A/B probe as a whole-tree verification — several classes (real CT execution, the 179k-row replay, structure re-run bare) were explicitly not covered."
     },
     {
+      "path": "docs/reviews/stickler/2026-09-19-inference-ai-sdk-integration-audit.md",
+      "assignedSha256": "0de6bdc4f0e69732ea9b9ea3f92c699d268f10e486568d6094349e02be0b0cd1",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "0de6bdc4f0e69732ea9b9ea3f92c699d268f10e486568d6094349e02be0b0cd1",
+      "verifiedCommit": "bd99e9ad3ad35dad9132a0ebf6be5599df294e11",
+      "verifiedAt": "2026-09-20",
+      "evidence": [
+        "docs/reviews/stickler/2026-09-19-inference-ai-sdk-integration-audit.md:1-195 full read 2026-09-20 by the orchestrator before cutting its three lanes",
+        "sections A-H carry live-probe receipts (request ids) taken 2026-09-19 against the installed provider dists; A2 is RETRACTED to belt-only and A8/H1-H4 were added by those probes"
+      ],
+      "summary": "Frontier review of @orb/inference against the installed Vercel AI SDK provider layer: A1 (reasoning is never replayed — thinking + tool loops 400) is the launch blocker; sections B-E are record truth, doors, telemetry and pin hygiene; C5/C6/C7 and the .responses() transport are owner forks.",
+      "claims": [
+        {
+          "claim": "A1 is real on the tree: the V4 stream reducer keeps reasoning TEXT only and drops the per-part provider metadata the Anthropic and OpenRouter replay contracts require.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/backends/v4/stream.ts:72"
+            }
+          ]
+        },
+        {
+          "claim": "A3 is real: the SDK's stream-start warnings are accumulated into the drain and never read by the result fold.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/backends/v4/result.ts:92"
+            }
+          ]
+        },
+        {
+          "claim": "E1 is real: the package's own pin contract names wire-capture byte pins per transport that the test tree does not yet carry.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/backends/openai-compat/model.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
       "assignedSha256": "9c23c043e70bfc3de53fdaa367c2292aa80c3acfdddced12bf7a00a4485eea11",
       "disposition": "current",
@@ -7218,179 +7436,6 @@
           ]
         }
       ]
-    },
-    {
-      "path": "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md",
-      "assignedSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3",
-      "verifiedCommit": "92fe26becaa4055b6d7cc10c85cb7d9cde6c75b6",
-      "verifiedAt": "2026-09-19",
-      "evidence": [
-        "docs/reviews/gate-runtime/parked-rows-rederivation-2026-09-19.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane gate-park-U's re-derivation of every Parked row whose wake condition named the #1584 gate-system revamp, the Codex ESLint hold or a dead gate lane, against main 047320b97: 32 rows censused (31 handed + #2283 found by a widened sweep), dispositioned 16 SUPERSEDED / 15 RE-FILE / 1 KEEP PARKED.",
-        "Spot-verified against the tree at the receipting commit: tooling/src/verify/gates/query-freshness-coverage-debt.ts:17 still declares `workItem: 1965` (severity `warning`, authority `hard` at :14-15), so the report's one hard coupled site is live as written."
-      ],
-      "claims": [
-        {
-          "claim": "`query-freshness-coverage-debt` is a warning policy carrying `workItem: 1965`, and the final contract requires that citation to resolve to a live issue — so closing #1965 turns `pnpm check` red; it is the only such citation across the 32 re-derived rows.",
-          "evidence": [
-            {
-              "kind": "gate",
-              "target": "tooling/src/verify/gates/query-freshness-coverage-debt.ts:17"
-            },
-            {
-              "kind": "issue",
-              "target": "#1965"
-            }
-          ]
-        },
-        {
-          "claim": "The re-derivation's dispositions rest on an all-final gate corpus: every module under tooling/src/verify/gates is a `defineGate` policy and no legacy `GateDescriptor` survives, which is what retires the wake conditions that named the legacy runtime.",
-          "evidence": [
-            {
-              "kind": "gate",
-              "target": "tooling/src/verify/gates/content-part-seam.ts:7"
-            },
-            {
-              "kind": "issue",
-              "target": "#2451"
-            }
-          ]
-        }
-      ],
-      "summary": "Re-derivation of the 32 Parked board rows whose wake conditions named the (now closed) #1584 gate-runtime program: 16 SUPERSEDED, 15 RE-FILE, 1 KEEP PARKED, with the gate corpus measured all-final (339 modules, 339 defineGate calls) and the legacy `__g_` planter suites confirmed deleted. Flags one hard coupled site the orchestrator must act on before closing anything: `query-freshness-coverage-debt` declares `workItem: 1965`, and the final contract requires a warning policy's workItem to be a LIVE issue, so closing #1965 reds `pnpm check`.",
-      "verifiedCanonicalSha256": "3c79f9592804a63d65cbbce67a0c4938943d5cb351bffe4c0c261606af6953d3"
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-09-19-attribution-band-and-composer-plate.md",
-      "assignedSha256": "917cec499e07de37b400efc1d6bb80ac05cac3707a214d6cd99d7bf62fe70eb1",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "917cec499e07de37b400efc1d6bb80ac05cac3707a214d6cd99d7bf62fe70eb1",
-      "verifiedCommit": "d18511c04a2f879654a977d08c4cbb0b349b535a",
-      "verifiedAt": "2026-09-19",
-      "evidence": [
-        "docs/reviews/side-eye/2026-09-19-attribution-band-and-composer-plate.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane side-eye-F's live-stack drive of two surfaces — the sticky attribution band (#1873) and the over-art composer/bubble plate (#2389) — with one `--ref d4e226a2e` isolated-stage control for the pre-#1873 A/B, and the appearance state every number was taken under stated up front.",
-        "Spot-verified against the tree at the receipting commit: the sticky band is `data-sticky` on the message row header (packages/client/src/features/chat/components/message-row-header.tsx:159), whose header states the backing invariant the P1 measures against."
-      ],
-      "claims": [
-        {
-          "claim": "#1873's top-only sticky cancellation removed the opaque fill below the pinned name — the band's padding-bottom went 8px → 0px and its margin-bottom 8px → 20px — which is a rendered regression, not a mechanism failure: the same build's untouched `tide` skin still measures 36px/8px/8px.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/chat/components/message-row-header.tsx:159"
-            },
-            {
-              "kind": "issue",
-              "target": "#1873"
-            }
-          ]
-        },
-        {
-          "claim": "The #2389 over-art composer and bubble plate rules are gated on `html[data-blur-messages]`, which is OFF in both the shipped defaults and the owner's row, so the bubble arms are latent there and had to be driven under `--appearance-preset maximal`.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/styles/globals.css:306"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:d4e226a2e4c2d49593321ac8e93eb520d59b837c"
-            }
-          ]
-        }
-      ],
-      "summary": "SHIP WITH FIXES. The #1873 sticky attribution band's mechanism holds — zero oscillation at seven scrollport heights including the exact threshold, nonVirtualizedCls 0 over a driven scroll — but the top-only cancellation dropped the band's 8px of opaque fill below the pinned name (padding-bottom 8px → 0px), so a sheared half-line of prose abuts the name; the untouched `tide` skin still renders it correctly in the same build and is the control that proves the regression. The #2389 over-art plate is correct and holds at the worst legal art in both polarities (6.48:1 / 6.72:1 light, 4.68:1 dark, byte-identical dark arm). Two defects were stumbled on outside both commits: a P0 (typed composer text at 1.13:1 in a card-themed room under the Light app theme) and a P1 (the mobile chat reading port is 185px of a 740px viewport)."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md",
-      "assignedSha256": "0d590412a766741d620e382d031a204f086b1a510dffad94767530cacee388a1",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "0d590412a766741d620e382d031a204f086b1a510dffad94767530cacee388a1",
-      "verifiedCommit": "13d897fa5da14d51b9aea1af4a685fe8a51bbcad",
-      "verifiedAt": "2026-09-19",
-      "evidence": [
-        "docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane side-eye-M's three live-stack audits — the #1316 list-collapse felt transition, tooltip-on-touch, and modal scroll-lock on touch — each measured on the owner's appearance row AND under `--appearance-preset defaults`, with the per-rAF getBoundingClientRect census standing in where `snap --motion` REFUSED for want of vsync.",
-        "Spot-verified against the tree at the receipting commit: `HintTrigger` — the anatomy behind `<Field hint>` / `<Section hint>` that audit 2 indicts — is packages/ui/src/primitives/hint-trigger/hint-trigger.tsx:1."
-      ],
-      "claims": [
-        {
-          "claim": "`HintTrigger` is the anatomy behind `<Field hint>` and `<Section hint>` across 92 call sites, of which exactly one passes a touch fallback — so on a coarse pointer the tooltip's content is unreachable and the trigger is a control that does nothing.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/ui/src/primitives/hint-trigger/hint-trigger.tsx:1"
-            },
-            {
-              "kind": "issue",
-              "target": "#2452"
-            }
-          ]
-        },
-        {
-          "claim": "The #1316 collapse's dropped-frame lane has NO VERDICT rather than a clean one — `snap --motion` refused on this surface (exit 2, frames-raw=0/0) because headless has no vsync — so the audit's per-rAF rect census is the only receipt for the 154px composer lurch.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1316"
-            },
-            {
-              "kind": "code",
-              "target": "tooling/src/snap/lib/motion-gaps.ts:1"
-            }
-          ]
-        }
-      ],
-      "summary": "Three audits. #1316's felt transition SHIPS WITH FIXES — the topbar trail does not move, transcript rows do not jump, focus survives and the collapse costs no CLS, but two counter classes were missed and both are measurable: the composer lurches 154px sideways on the first painted frame of every dock/undock, and on a phone the list panel enters from double its own width because the mobile `animation: none` cancel is out-specified. Tooltip-on-touch is DO NOT SHIP as-is: `HintTrigger` has 92 call sites and exactly one passes a touch fallback, so a phone gets a 55x55 button that does nothing and an `aria-describedby` that resolves to nothing at rest (15 of them on one settings pane). Modal scroll-lock on touch SHIPS — attacked and held, with one P3 nuisance on the non-modal popovers."
-    },
-    {
-      "path": "docs/reviews/side-eye/2026-09-19-field-ink-after-tw-merge.md",
-      "assignedSha256": "c7f2df56b29587ea7d8dd289deb350a2f13681add08aa37cfc2a1a1682a8b207",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "c7f2df56b29587ea7d8dd289deb350a2f13681add08aa37cfc2a1a1682a8b207",
-      "verifiedCommit": "35b67542263dc0676417afc707fca6d3adc68723",
-      "verifiedAt": "2026-09-19",
-      "evidence": [
-        "docs/reviews/side-eye/2026-09-19-field-ink-after-tw-merge.md:1 (full read by lane reds-AC while clearing the docs:catalog stage for #2470). Lane side-eye-Y's paired `snap --isolated --ref` before/after drive of #2450's text-entry floor (BEFORE 53f5a63de, AFTER fe1294944), including the environment row recording that the live `:5173` graph was partially stale and that every number was re-taken on pinned isolated stages afterwards, plus an explicit retraction of the finding that artefact produced.",
-        "Spot-verified against the tree at the receipting commit: packages/ui/src/lib/field-control.ts:15 is the `FIELD_CONTROL_BOX` whose `text-foreground` the tw-merge defect used to drop, and packages/ui/src/primitives/macro-textarea/variants.ts is the P1's subject."
-      ],
-      "claims": [
-        {
-          "claim": "The rendered delta of #2450 is `FIELD_CONTROL_BOX`'s `text-foreground` surviving tailwind-merge again, which moved field ink onto primary ink wherever the inherited ink differed — the list panes, which carry `--color-sidebar-foreground` — and raised contrast on every measured arm rather than lowering it.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/ui/src/lib/field-control.ts:15"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:fe1294944bdb18078facc32b0a20e46d65d11769"
-            }
-          ]
-        },
-        {
-          "claim": "The P1 is a token intent that was never visible before: the MacroTextarea always asked for `text-code`, and only painted 15px because the very tw-merge defect #2450 fixed let `text-field` win — so the 13px/81-characters-per-line result needs an owner decision rather than a silent landing.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/ui/src/primitives/macro-textarea/variants.ts:17"
-            },
-            {
-              "kind": "issue",
-              "target": "#2450"
-            }
-          ]
-        }
-      ],
-      "summary": "SHIP. #2450's text-entry floor does what it says on every control this review could reach and makes the most common control in the app more internally consistent: restoring `text-foreground` on `FIELD_CONTROL_BOX` moved field ink onto primary ink in the list panes (+1.2 to +1.9 contrast across all three shipped themes and coarse, every arm PASS), and the iOS focus-zoom floor closed at coarse with nothing moving on a mouse. Two things the commit message gets wrong are recorded: [P1] the MacroTextarea prose editors shrink 15px → 13px on a mouse and their measure leaves the 65-75 band at 81 characters per line, which needs a design decision because nobody has ever seen that surface at its authored size; [P2] `snap --design-audit` reaches NO-VERDICT on every field surface on both pointers, so its `findings=0` must not be quoted as clean. One earlier finding is explicitly RETRACTED as an artefact of the stale dev graph."
     }
   ]
 }

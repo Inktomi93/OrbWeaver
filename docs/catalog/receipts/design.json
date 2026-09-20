@@ -1438,6 +1438,28 @@
       "summary": ""
     },
     {
+      "path": "docs/design/mocks/README.md",
+      "assignedSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
+      "evidence": [
+        "re-attested at ffd7d9a33 by the orchestrator: the regex-section/ row added (#1742 canvas source; five boards × two themes; updated 2026-09-05).",
+        "re-attested at 626a06121 by the orchestrator: the config-collections/ row added (#1725 canvas source; build.mjs → canvas.html; eleven boards × two themes).",
+        "docs/design/mocks/README.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/design/mocks/README.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
+        "docs/design/mocks/README.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
+        "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f — config-revamp row appended"
+      ],
+      "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence.",
+      "verifiedCanonicalSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba"
+    },
+    {
       "path": "docs/design/mocks/characters-landing/DESIGN.md",
       "assignedSha256": "5dff52c976078ed15ed41fdaca17c00ebd0135fe91647e99ebd786cf1eb99f5e",
       "disposition": "current",
@@ -1611,28 +1633,6 @@
         }
       ],
       "summary": "Context bracket mock (#860): the context panel as ONE head+foot chrome for chats, game rooms and characters — the canvas source (build.mjs → seven .dc.html + canvas.json), true-size default-state renders, the ruling, the slot table, the rulings that survive with a changed input, and the coupled sites for the build lane."
-    },
-    {
-      "path": "docs/design/mocks/README.md",
-      "assignedSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
-      "evidence": [
-        "re-attested at ffd7d9a33 by the orchestrator: the regex-section/ row added (#1742 canvas source; five boards × two themes; updated 2026-09-05).",
-        "re-attested at 626a06121 by the orchestrator: the config-collections/ row added (#1725 canvas source; build.mjs → canvas.html; eleven boards × two themes).",
-        "docs/design/mocks/README.md:1 (design; unheaded)",
-        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "docs/design/mocks/README.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-        "docs/design/mocks/README.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
-        "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f — config-revamp row appended"
-      ],
-      "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence.",
-      "verifiedCanonicalSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba"
     },
     {
       "path": "docs/design/mocks/regex-section/DESIGN.md",
@@ -1947,6 +1947,50 @@
         }
       ],
       "verifiedCanonicalSha256": "5b98e54771b902a12374039602e7cd5efe4ce8f1bcb11008d327733da75268ea"
+    },
+    {
+      "path": "docs/design/orbweaver-inference-package.md",
+      "assignedSha256": "ef3f613ab833c1cc300e75d1227a00916be0dd40aeee3bcbb64ac1fbcd7addef",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "ef3f613ab833c1cc300e75d1227a00916be0dd40aeee3bcbb64ac1fbcd7addef",
+      "verifiedCommit": "bd99e9ad3ad35dad9132a0ebf6be5599df294e11",
+      "verifiedAt": "2026-09-20",
+      "evidence": [
+        "docs/design/orbweaver-inference-package.md:1-2602 full read 2026-09-20 by the orchestrator driving the program (re-read in full after compaction, per the owner's standing order)",
+        "§13's landing order is the program's spine; §15c item 18 is the BUILD LOG of every deviation, kept current as each step lands"
+      ],
+      "summary": "The active @orb/inference program: five primitives (wire · provider · connection · modality · task), the per-user connection table with FK bindings, the Vercel AI SDK provider layer, and the §13 landing order. Steps 1-7 have landed; 6d, 3b/9 and 8 plus the closeout remain.",
+      "claims": [
+        {
+          "claim": "The package exists and is the node-only layer between db and server that the program specifies.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/index.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "Connections are a per-user table whose bindings are FK rows, replacing the retired settings `routing.roleDefaults` leaves.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/connection-bindings.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "Vector tasks are owner-scoped, so the PD-104 old-space reclaim scopes on the owner's entity tree rather than deleting globally by model.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/embeddings/persistence/clear.ts:52"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/pane-standardization-design.md",
@@ -2498,6 +2542,70 @@
       ]
     },
     {
+      "path": "docs/design/tooling-size-mid-band-splits.md",
+      "assignedSha256": "c78a4e7a27132aef3437185549185d79faba8b01f5286bb335183c57f7c78588",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "c78a4e7a27132aef3437185549185d79faba8b01f5286bb335183c57f7c78588",
+      "verifiedCommit": "cc785195d70f1dcbb40f1efe323b6508feed1c7d",
+      "verifiedAt": "2026-09-18",
+      "claims": [
+        {
+          "claim": "Every module the tooling-size gate reported between 480 and 900 lines on 2026-09-18 is under the 450-line cap after its split, every new sibling is under it too, and the 13 out-of-band files the gate still reports are that run's positive control.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/tooling-size.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:cc785195d70f1dcbb40f1efe323b6508feed1c7d"
+            }
+          ]
+        },
+        {
+          "claim": "Every sibling is a strict leaf its original imports, no cycle type-only included, because the cruiser preset's no-circular rule carries no type-only exemption.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": ".dependency-cruiser.cjs:78"
+            }
+          ]
+        },
+        {
+          "claim": "A value re-export is biome-RED outside the index.ts barrels, so a moved value keeps its consumers through a delegating function in the original or a repointed import, never a barrel line.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "biome.json:311"
+            }
+          ]
+        },
+        {
+          "claim": "No lib/ or ops/ sibling exports a type alias, and the grant-pinned Project constructions and the fenced waiver engine stay in the modules their gates name.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/no-inline-types.ts:136"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/tooling-project-home.ts:1"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/policy-legacy-imports.ts:157"
+            }
+          ]
+        }
+      ],
+      "summary": "Design record for the seventeen 480-900-line @orb/tooling splits of 2026-09-18: the four laws that shaped every cut (no value re-exports, no cycles, no new lib/ops type aliases, pinned capabilities stay), the per-module seam table with each new leaf and its consumer changes, the rejected alternatives, the coupled sites and the floor.",
+      "evidence": [
+        "born-reviewed by the forge lane (author) 2026-09-18 at 8fcdc21e124accf5ca3558825a67d7514cf9c6ed: the seventeen splits landed in that commit with the scoped floor named in its message (biome/eslint 0; both native programs PASS; check:structure tooling-size 17 -> 0 in the band with the 13 out-of-band files still reported; gate:contract 0; depcruise 0; 31 node suites 511 passed with the 9 reds re-derived as 4 load timeouts green alone and 5 identical on the unmodified base tree)."
+      ]
+    },
+    {
       "path": "docs/design/tracked-field-unification.md",
       "assignedSha256": "48a435e133655419d4fa799f85ba34d2bd736b912ea39e043986b797e829208e",
       "disposition": "needs-owner",
@@ -2691,70 +2799,6 @@
         }
       ],
       "verifiedCanonicalSha256": "ca8400363b6351730aa1e24ed1bbecee957ff3be85626b71ee5aa8ce262c96fd"
-    },
-    {
-      "path": "docs/design/tooling-size-mid-band-splits.md",
-      "assignedSha256": "c78a4e7a27132aef3437185549185d79faba8b01f5286bb335183c57f7c78588",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "c78a4e7a27132aef3437185549185d79faba8b01f5286bb335183c57f7c78588",
-      "verifiedCommit": "cc785195d70f1dcbb40f1efe323b6508feed1c7d",
-      "verifiedAt": "2026-09-18",
-      "claims": [
-        {
-          "claim": "Every module the tooling-size gate reported between 480 and 900 lines on 2026-09-18 is under the 450-line cap after its split, every new sibling is under it too, and the 13 out-of-band files the gate still reports are that run's positive control.",
-          "evidence": [
-            {
-              "kind": "gate",
-              "target": "tooling/src/verify/gates/tooling-size.ts:1"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:cc785195d70f1dcbb40f1efe323b6508feed1c7d"
-            }
-          ]
-        },
-        {
-          "claim": "Every sibling is a strict leaf its original imports, no cycle type-only included, because the cruiser preset's no-circular rule carries no type-only exemption.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": ".dependency-cruiser.cjs:78"
-            }
-          ]
-        },
-        {
-          "claim": "A value re-export is biome-RED outside the index.ts barrels, so a moved value keeps its consumers through a delegating function in the original or a repointed import, never a barrel line.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "biome.json:311"
-            }
-          ]
-        },
-        {
-          "claim": "No lib/ or ops/ sibling exports a type alias, and the grant-pinned Project constructions and the fenced waiver engine stay in the modules their gates name.",
-          "evidence": [
-            {
-              "kind": "gate",
-              "target": "tooling/src/verify/gates/no-inline-types.ts:136"
-            },
-            {
-              "kind": "gate",
-              "target": "tooling/src/verify/gates/tooling-project-home.ts:1"
-            },
-            {
-              "kind": "gate",
-              "target": "tooling/src/verify/gates/policy-legacy-imports.ts:157"
-            }
-          ]
-        }
-      ],
-      "summary": "Design record for the seventeen 480-900-line @orb/tooling splits of 2026-09-18: the four laws that shaped every cut (no value re-exports, no cycles, no new lib/ops type aliases, pinned capabilities stay), the per-module seam table with each new leaf and its consumer changes, the rejected alternatives, the coupled sites and the floor.",
-      "evidence": [
-        "born-reviewed by the forge lane (author) 2026-09-18 at 8fcdc21e124accf5ca3558825a67d7514cf9c6ed: the seventeen splits landed in that commit with the scoped floor named in its message (biome/eslint 0; both native programs PASS; check:structure tooling-size 17 -> 0 in the band with the 13 out-of-band files still reported; gate:contract 0; depcruise 0; 31 node suites 511 passed with the 9 reds re-derived as 4 load timeouts green alone and 5 identical on the unmodified base tree)."
-      ]
     }
   ]
 }
