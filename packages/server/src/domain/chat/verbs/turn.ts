@@ -23,13 +23,13 @@ import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
+import type { Resolved, WireTool } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, UserMacroDef } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { getLog, withRequestSpan } from "#foundation/observability";
-import type { Resolved, WireTool } from "@orb/inference";
 import type { ChatContext } from "../context.ts";
 import type { ActiveTurns } from "../contract/active-turns.ts";
 import type { ArbiterCandidate, AutoModeResult, SpeakerCandidate } from "../contract/arbitration.ts";
