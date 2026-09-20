@@ -15,10 +15,10 @@
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
-import type { BulkEmbedResult } from "../contract/results.ts";
+import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
-import { purgeStaleVectors } from "../persistence/clear.ts";
-import { upsertCompletedSpace } from "../persistence/space-state.ts";
+import { markGenerationComplete } from "../persistence/space-state.ts";
+import { resolveTargetGeneration } from "../substrate/generation.ts";
 import { requireTaskModel } from "../substrate/task-model.ts";
 
 /** One card's sweep step: no text or no owner/embed binding ⇒ skipped (a card whose owner has no `embed`
@@ -27,7 +27,7 @@ async function embedOneCard(
   ctx: EmbeddingsContext,
   deps: { readonly store: EmbeddingsService["store"] },
   characterId: CharacterId,
-  sweep: { readonly force: boolean | undefined; readonly spaces: Map<UserId, string> },
+  sweep: { readonly force: boolean | undefined; readonly receipts: Map<UserId, StoreResult> },
 ): Promise<"written" | "skipped"> {
   const text = await ctx.loadCardText(characterId);
   if (text === undefined || text.length === 0) {
@@ -38,7 +38,6 @@ async function embedOneCard(
   if (cardOwnerId === null || embedModel === null) {
     return "skipped";
   }
-  sweep.spaces.set(cardOwnerId, embedModel);
   const result = await deps.store({
     kind: "card",
     lens: "card-text",
@@ -49,6 +48,11 @@ async function embedOneCard(
     dim: ctx.embedDim,
     force: sweep.force,
   });
+  const prior = sweep.receipts.get(cardOwnerId);
+  if (prior !== undefined && prior.generationId !== result.generationId) {
+    throw new Error(`embedding generation changed during card sweep for owner ${cardOwnerId}`);
+  }
+  sweep.receipts.set(cardOwnerId, result);
   return result.outcome === "written" ? "written" : "skipped";
 }
 
@@ -57,12 +61,12 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
     let embedded = 0;
     let skipped = 0;
     // Every owner the sweep resolved, with the space it embedded into — the purge set.
-    const spaces = new Map<UserId, string>();
+    const receipts = new Map<UserId, StoreResult>();
     for (const characterId of await ctx.listCharacterIds(ownerId)) {
       if (signal.aborted) {
         break;
       }
-      if ((await embedOneCard(ctx, deps, characterId, { force, spaces })) === "written") {
+      if ((await embedOneCard(ctx, deps, characterId, { force, receipts })) === "written") {
         embedded += 1;
       } else {
         skipped += 1;
@@ -71,15 +75,23 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
     // PD-104 purge (reclaim each touched owner's old space) — only after a complete sweep, never on abort.
     // A no-op for an owner whose embed binding did not change since the last index.
     if (!signal.aborted) {
-      for (const [spaceOwnerId, model] of spaces) {
-        // THE COMPLETION MARK (§10-5), recorded BEFORE the purge and only on a complete, non-aborted sweep:
-        // this owner's card corpus is now entirely in `model`. The read side's `activeSpace` folds this row
-        // with `memory` and `documents` — the other two halves of the same `embed` space — and calls the
-        // space complete only when all three agree.
-        await upsertCompletedSpace(ctx.db, { ownerId: spaceOwnerId, scope: "cards", space: model, now: ctx.now() });
-        await purgeStaleVectors(ctx.db, "character_embeddings", spaceOwnerId, model);
-      }
+      await completeCardSweep(ctx, ownerId, receipts);
     }
     return { embedded, skipped };
   };
+}
+
+async function completeCardSweep(ctx: EmbeddingsContext, ownerId: UserId | null, receipts: ReadonlyMap<UserId, StoreResult>): Promise<void> {
+  for (const [spaceOwnerId, receipt] of receipts) {
+    const generation = await resolveTargetGeneration(ctx, spaceOwnerId, "embed");
+    if (generation !== null && generation.id === receipt.generationId && generation.epoch === receipt.generationEpoch) {
+      await markGenerationComplete(ctx.db, { ownerId: spaceOwnerId, scope: "cards", generation, now: ctx.now() });
+    }
+  }
+  if (ownerId !== null && !receipts.has(ownerId)) {
+    const generation = await resolveTargetGeneration(ctx, ownerId, "embed");
+    if (generation !== null) {
+      await markGenerationComplete(ctx.db, { ownerId, scope: "cards", generation, now: ctx.now() });
+    }
+  }
 }

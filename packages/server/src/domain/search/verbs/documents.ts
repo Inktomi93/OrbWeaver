@@ -18,7 +18,7 @@ import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
 import { collapseByContentHash } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
-import { requireSpaceModel } from "../substrate/space.ts";
+import { withActiveQuerySpace } from "../substrate/space.ts";
 
 interface DocumentCandidate {
   /** The rerank runner keys on `id`; the chunk id is unique so it doubles as the candidate id. */
@@ -72,70 +72,72 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
   return async (params: DocumentSearchParams): Promise<DocumentChunkHit[]> => {
     const queryText = params.queryText;
     const rc = await ctx.roleClientsFor(params.ownerId);
-    const embedModel = await requireSpaceModel(ctx, params.ownerId, "embed");
-    if (queryText.trim().length === 0) {
-      throw new SearchError(SEARCH_EMPTY_QUERY, "documents requires a queryText to embed + scan");
-    }
-    const k = params.k ?? DEFAULT_DOCUMENT_K;
-    const minScore = params.minScore ?? DEFAULT_DOCUMENT_MIN_SCORE;
+    return await withActiveQuerySpace(ctx, params.ownerId, "embed", async (space) => {
+      if (queryText.trim().length === 0) {
+        throw new SearchError(SEARCH_EMPTY_QUERY, "documents requires a queryText to embed + scan");
+      }
+      const k = params.k ?? DEFAULT_DOCUMENT_K;
+      const minScore = params.minScore ?? DEFAULT_DOCUMENT_MIN_SCORE;
 
-    // 1. allowlist — resolved by databank (D85: the membership-widened chat union minus the host's per-document
-    //    visibility exclusions, or the whole owned bank for a personal scope). Empty ⇒ ZERO embed calls
-    //    (the trigger-discipline mirror). A host-hidden document never enters the allowlist, so it never
-    //    embeds, ranks, or reaches a prompt.
-    const allowlist = await ctx.resolveActiveDocumentIds(params.scope);
-    if (allowlist.length === 0) {
-      return [];
-    }
+      // 1. allowlist — resolved by databank (D85: the membership-widened chat union minus the host's per-document
+      //    visibility exclusions, or the whole owned bank for a personal scope). Empty ⇒ ZERO embed calls
+      //    (the trigger-discipline mirror). A host-hidden document never enters the allowlist, so it never
+      //    embeds, ranks, or reaches a prompt.
+      const allowlist = await ctx.resolveActiveDocumentIds(params.scope);
+      if (allowlist.length === 0) {
+        return [];
+      }
 
-    // 2. embed the query in the chunks' space.
-    const embedded = await rc.embed(queryText, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.documents.query });
-    const queryVector = embedded.vectors[0];
-    if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
-    }
+      // 2. embed the query in the chunks' space.
+      const embedded = await space.connection.embed(queryText, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.documents.query });
+      const queryVector = embedded.vectors[0];
+      if (queryVector === null || queryVector === undefined) {
+        throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
+      }
 
-    // 3. scope-belted cosine scan (WHERE document_id IN allowlist AND model AND dim).
-    const pool = await nearestDocumentChunks(ctx.db, {
-      documentIds: allowlist,
-      queryVector,
-      model: embedModel,
-      dim: queryVector.length,
-      limit: Math.min(k * OWNER_OVERFETCH, SCOPED_POOL_K),
-    });
+      // 3. scope-belted cosine scan (WHERE document_id IN allowlist AND model AND dim).
+      const pool = await nearestDocumentChunks(ctx.db, {
+        documentIds: allowlist,
+        queryVector,
+        model: space.model,
+        generationFingerprint: space.fingerprint,
+        dim: queryVector.length,
+        limit: Math.min(k * OWNER_OVERFETCH, SCOPED_POOL_K),
+      });
 
-    // 4. minScore floor + 5. CSLS hub-adjust (NULL_HUB_FALLBACK keeps it a rank-preserving shift while
-    //    discovery has no document-hubness pass — one uniform pipeline, no documents special-case).
-    const candidates = pool
-      .filter((r) => 1 - r.distance >= minScore)
-      .map(
-        (r): DocumentCandidate => ({
-          id: r.chunkId,
-          sourceText: r.content,
-          documentId: r.documentId,
-          documentName: r.documentName,
-          chunkId: r.chunkId,
-          chunkIdx: r.chunkIdx,
-          content: r.content,
-          contentHash: r.contentHash,
-          distance: r.distance,
-          hubScore: r.hubScore,
-          score: cslsAdjust(r.distance, r.hubScore),
-        }),
+      // 4. minScore floor + 5. CSLS hub-adjust (NULL_HUB_FALLBACK keeps it a rank-preserving shift while
+      //    discovery has no document-hubness pass — one uniform pipeline, no documents special-case).
+      const candidates = pool
+        .filter((r) => 1 - r.distance >= minScore)
+        .map(
+          (r): DocumentCandidate => ({
+            id: r.chunkId,
+            sourceText: r.content,
+            documentId: r.documentId,
+            documentName: r.documentName,
+            chunkId: r.chunkId,
+            chunkIdx: r.chunkIdx,
+            content: r.content,
+            contentHash: r.contentHash,
+            distance: r.distance,
+            hubScore: r.hubScore,
+            score: cslsAdjust(r.distance, r.hubScore),
+          }),
+        );
+      const ranked = candidates.toSorted(
+        compareCslsBy(
+          (c) => c.distance,
+          (c) => c.hubScore,
+        ),
       );
-    const ranked = candidates.toSorted(
-      compareCslsBy(
-        (c) => c.distance,
-        (c) => c.hubScore,
-      ),
-    );
 
-    // 6. optional cross-encoder rerank (default OFF, databank-design/05 §3.5).
-    const reordered =
-      params.rerank === true ? await applyRerank(`${SCOPE_INSTRUCTIONS.documents.rerank}\n${queryText}`, ranked, rc.rerank, ranked.length) : ranked;
+      // 6. optional cross-encoder rerank (default OFF, databank-design/05 §3.5).
+      const reordered =
+        params.rerank === true ? await applyRerank(`${SCOPE_INSTRUCTIONS.documents.rerank}\n${queryText}`, ranked, rc.rerank, ranked.length) : ranked;
 
-    // 7. collapse duplicate chunks (after rank, before k-cap) → 8. k-cap → 9. reading-order restore.
-    const collapsed = collapseByContentHash(reordered);
-    return restoreReadingOrder(collapsed.slice(0, k));
+      // 7. collapse duplicate chunks (after rank, before k-cap) → 8. k-cap → 9. reading-order restore.
+      const collapsed = collapseByContentHash(reordered);
+      return restoreReadingOrder(collapsed.slice(0, k));
+    });
   };
 }

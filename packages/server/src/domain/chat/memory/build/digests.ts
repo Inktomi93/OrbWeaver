@@ -141,7 +141,12 @@ interface PassCounts {
 const EMPTY_TIER0_COUNTS: Tier0Counts = { written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 };
 
 function assertStoreSpace(expected: MemoryEmbedSpace, actual: MemoryEmbedSpace): void {
-  if (actual.ownerId !== expected.ownerId || actual.model !== expected.model) {
+  if (
+    actual.ownerId !== expected.ownerId ||
+    actual.model !== expected.model ||
+    actual.generationId !== expected.generationId ||
+    actual.generationEpoch !== expected.generationEpoch
+  ) {
     throw new Error(`memory digest embed space changed during sweep for owner ${expected.ownerId}`);
   }
 }
@@ -202,7 +207,7 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
   // the vanished block's summary INTO a fresh parent, laundering it back into the pool through a row whose
   // hash is legitimately current. Nothing is re-stored by this call, so the build's no-op economy is intact.
   await ctx.embeddingsPruneBlocks({ lens: "digest", chatId, scopedCharacterId, keepPerTier: blockCeilings(allBlocks.length, cfg.fanOut, cfg.maxTier) });
-  const existing = await loadDigestHashes(ctx.db, chatId, scopedCharacterId, embedSpace.model);
+  const existing = await loadDigestHashes(ctx.db, chatId, scopedCharacterId, embedSpace.generationId);
 
   const collected = await collectTier0(ctx, args, { blocks, existing, macroNames });
   return {

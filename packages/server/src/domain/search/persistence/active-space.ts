@@ -1,21 +1,69 @@
-// The retrieval side's read of `embed_space_state` — which `(model[@dtype])` space each half of this
-// owner's corpus has COMPLETELY settled into (inference program §10-5).
-//
-// A CROSS-DOMAIN TABLE READ FROM `persistence/`, which is the sanctioned home for exactly that: the table
-// belongs to `domain/embeddings` (the only writer — `persistence/space-state.ts`), and search may not import
-// a sibling domain, so it reads the rows itself here, exactly as `nearest.ts` reads databank's `documents`
-// to derive owner scope. The one thing that must NOT be duplicated is the FOLD from scope rows to a task's
-// answer, and it is not: both sides call `foldActiveSpace` in `@orb/contracts/embeddings`.
-//
-// `ReadOnlyDb` by construction (search's whole context is), so this cannot become a second writer.
+// Read the immutable active encoder generation for one owner and logical task.
 
-import type { CompletedSpaceRow } from "@orb/contracts/embeddings";
+import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { ReadOnlyDb } from "@orb/db";
-import { embedSpaceState } from "@orb/db";
+import { embedGenerations, embedGenerationTargets, embedSpaceState } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-/** Every scope this owner has completed a sweep for, with the space that sweep left it in. */
-export function readCompletedSpaces(db: ReadOnlyDb, ownerId: UserId): Promise<CompletedSpaceRow[]> {
-  return db.select({ scope: embedSpaceState.scope, space: embedSpaceState.space }).from(embedSpaceState).where(eq(embedSpaceState.ownerId, ownerId));
+export interface ActiveGenerationRow {
+  readonly id: string;
+  readonly task: "embed" | "imageEmbed";
+  readonly via: "embed" | "imageEmbed";
+  readonly connectionId: string | null;
+  readonly fingerprint: string;
+  readonly space: string;
+}
+
+export type GenerationRead =
+  | { readonly status: "unrecorded" }
+  | { readonly status: "moving" }
+  | { readonly status: "ready"; readonly generation: ActiveGenerationRow };
+
+export async function readGeneration(db: ReadOnlyDb, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<GenerationRead> {
+  const states = await db
+    .select({ scope: embedSpaceState.scope, generationId: embedSpaceState.activeGenerationId, candidateGenerationId: embedSpaceState.candidateGenerationId })
+    .from(embedSpaceState)
+    .where(eq(embedSpaceState.ownerId, ownerId));
+  const required = VECTOR_SCOPES_BY_TASK[task];
+  const relevant = states.filter((row) => required.includes(row.scope));
+  const ids = required.map((scope) => relevant.find((row) => row.scope === scope)?.generationId ?? null);
+  const id = ids[0];
+  let selected = id;
+  if (selected === null || selected === undefined || ids.some((candidate) => candidate !== selected)) {
+    if (relevant.some((row) => row.generationId !== null || row.candidateGenerationId !== null)) {
+      return { status: "moving" };
+    }
+    const target = await db
+      .select({ generationId: embedGenerationTargets.generationId })
+      .from(embedGenerationTargets)
+      .where(and(eq(embedGenerationTargets.ownerId, ownerId), eq(embedGenerationTargets.task, task)))
+      .limit(1);
+    selected = target[0]?.generationId;
+    if (selected !== undefined) {
+      return { status: "moving" };
+    }
+  }
+  if (selected === undefined) {
+    return { status: "unrecorded" };
+  }
+  const rows = await db
+    .select({
+      id: embedGenerations.id,
+      task: embedGenerations.task,
+      via: embedGenerations.via,
+      connectionId: embedGenerations.connectionId,
+      fingerprint: embedGenerations.fingerprint,
+      space: embedGenerations.space,
+    })
+    .from(embedGenerations)
+    .where(and(eq(embedGenerations.id, selected), eq(embedGenerations.ownerId, ownerId)))
+    .limit(1);
+  const generation = rows[0];
+  return generation === undefined ? { status: "moving" } : { status: "ready", generation };
+}
+
+export async function readActiveGeneration(db: ReadOnlyDb, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<ActiveGenerationRow | null> {
+  const read = await readGeneration(db, ownerId, task);
+  return read.status === "ready" ? read.generation : null;
 }

@@ -20,7 +20,8 @@ import { nearestImages } from "../persistence/image-nearest.ts";
 import { CAPTION_LENS, OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
 import { relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
 import { applyRerank } from "../substrate/rerank.ts";
-import { requireImageSpace } from "../substrate/space.ts";
+import type { ActiveQuerySpace } from "../substrate/space.ts";
+import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createImages(ctx: SearchContext): SearchService["images"] {
@@ -32,62 +33,70 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
     // has their pictures in the text space as captions: the query must be embedded as TEXT and the only
     // lens that exists there is `image-captioned`, so the ask is overridden rather than answered with an
     // empty scan of rows that were never written.
-    const space = await requireImageSpace(ctx, ownerId);
-    const lens = space.via === "embed" ? CAPTION_LENS : params.lens;
-    requirePositiveTopN(topN, "images");
-    if (query.trim().length === 0) {
-      throw new SearchError(SEARCH_EMPTY_QUERY, "images requires a query text to embed + scan");
-    }
+    return await withActiveQuerySpace(ctx, ownerId, "imageEmbed", async (space) => {
+      const lens = space.via === "embed" ? CAPTION_LENS : params.lens;
+      requirePositiveTopN(topN, "images");
+      if (query.trim().length === 0) {
+        throw new SearchError(SEARCH_EMPTY_QUERY, "images requires a query text to embed + scan");
+      }
 
-    const embedded = space.via === "embed" ? await rc.embed(query, { inputType: "query" }) : await rc.imageEmbed({ kind: "text", input: query });
-    const queryVector = embedded.vectors[0];
-    if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
-    }
+      const queryVector = await embedImageQuery(space, query);
 
-    const pool = await nearestImages(ctx.db, {
-      ownerId,
-      queryVector,
-      model: space.model,
-      lens,
-      limit: OWNER_OVERFETCH * topN,
-    });
+      const pool = await nearestImages(ctx.db, {
+        ownerId,
+        queryVector,
+        model: space.model,
+        generationId: space.generationId,
+        lens,
+        limit: OWNER_OVERFETCH * topN,
+      });
 
-    const ranked = pool.map((r) => ({
-      id: r.assetId,
-      assetId: r.assetId,
-      hash: r.hash,
-      sourceText: r.caption,
-      caption: r.caption,
-      score: r.distance,
-    }));
-
-    const ordered = params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN) : ranked;
-
-    // A HIT IS A PICTURE AND A PLACE (side-eye corpus re-pass U4). The hash makes the result renderable; the
-    // avatar owner makes it navigable. Resolved AFTER the slice, so the enrichment join is sized by what is
-    // actually returned rather than by the overfetch pool.
-    const hits = ordered.slice(0, topN);
-    const owners = await resolveAvatarOwners(
-      ctx.db,
-      ownerId,
-      hits.map((r) => r.assetId),
-    );
-    const ownerByAsset = new Map(owners.map((o) => [o.assetId, o]));
-
-    // `score` here IS the raw distance (the CSLS skip above), so the readout derives from it directly.
-    return hits.map((r) => {
-      const owner = ownerByAsset.get(r.assetId);
-      return {
+      const ranked = pool.map((r) => ({
+        id: r.assetId,
         assetId: r.assetId,
         hash: r.hash,
-        characterId: owner?.characterId ?? null,
-        characterName: owner?.name ?? null,
-        score: r.score,
-        relevance: relevanceOf(r.score),
-        lens,
+        sourceText: r.caption,
         caption: r.caption,
-      };
+        score: r.distance,
+      }));
+
+      const ordered = params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN) : ranked;
+
+      // A HIT IS A PICTURE AND A PLACE (side-eye corpus re-pass U4). The hash makes the result renderable; the
+      // avatar owner makes it navigable. Resolved AFTER the slice, so the enrichment join is sized by what is
+      // actually returned rather than by the overfetch pool.
+      const hits = ordered.slice(0, topN);
+      const owners = await resolveAvatarOwners(
+        ctx.db,
+        ownerId,
+        hits.map((r) => r.assetId),
+      );
+      const ownerByAsset = new Map(owners.map((o) => [o.assetId, o]));
+
+      // `score` here IS the raw distance (the CSLS skip above), so the readout derives from it directly.
+      return hits.map((r) => {
+        const owner = ownerByAsset.get(r.assetId);
+        return {
+          assetId: r.assetId,
+          hash: r.hash,
+          characterId: owner?.characterId ?? null,
+          characterName: owner?.name ?? null,
+          score: r.score,
+          relevance: relevanceOf(r.score),
+          lens,
+          caption: r.caption,
+        };
+      });
     });
   };
+}
+
+async function embedImageQuery(space: ActiveQuerySpace, query: string): Promise<Float32Array> {
+  const embedded =
+    space.via === "embed" ? await space.connection.embed(query, { inputType: "query" }) : await space.connection.imageEmbed({ kind: "text", input: query });
+  const vector = embedded.vectors[0];
+  if (vector === null || vector === undefined) {
+    throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
+  }
+  return vector;
 }

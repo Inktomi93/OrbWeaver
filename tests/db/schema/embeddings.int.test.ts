@@ -8,7 +8,18 @@
 
 import { IMAGE_LENSES, IMAGE_SKIP_REASONS } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
-import { assets, characterEmbeddings, characters, chatDigestSpeakers, chatDigests, chatSegments, chats, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import {
+  assets,
+  characterEmbeddings,
+  characters,
+  chatDigestSpeakers,
+  chatDigests,
+  chatSegments,
+  chats,
+  embedGenerations,
+  imageEmbeddings,
+  imageIndexSkips,
+} from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterEmbeddingId, CharacterHandle, CharacterId, ChatDigestId, ChatSegmentId, Handle, ImageEmbeddingId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -23,6 +34,24 @@ const DIM = 1024;
 const MODEL = "qwen3-vl";
 function rampVector(): Float32Array {
   return Float32Array.from({ length: DIM }, (_unused, i) => i / DIM);
+}
+
+async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<string> {
+  const id = `embed_generation_${ownerId}_${task}_${MODEL}`;
+  await db
+    .insert(embedGenerations)
+    .values({
+      id,
+      ownerId,
+      task,
+      via: task,
+      connectionId: null,
+      connectionRef: `test:${task}`,
+      fingerprint: `test:${task}:${MODEL}`,
+      space: MODEL,
+    })
+    .onConflictDoNothing();
+  return id;
 }
 
 async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
@@ -69,6 +98,7 @@ test("character_embeddings round-trips a 1024-dim Float32 blob + content_hash + 
     embedding: vec,
     contentHash: "hash-of-card-text",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
 
@@ -102,6 +132,7 @@ test("content_hash is NOT NULL — a vector write missing it is rejected", async
       embedding: rampVector(),
       // contentHash omitted on purpose.
       model: MODEL,
+      generationId: await seedGeneration(db, ownerId, "embed"),
       dim: DIM,
     } as never);
   } catch (err) {
@@ -121,6 +152,7 @@ test("character_embeddings is UNIQUE per (characterId, model) — a duplicate co
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
 
@@ -133,6 +165,7 @@ test("character_embeddings is UNIQUE per (characterId, model) — a duplicate co
       embedding: rampVector(),
       contentHash: "h2",
       model: MODEL,
+      generationId: await seedGeneration(db, ownerId, "embed"),
       dim: DIM,
     });
   } catch (err) {
@@ -155,6 +188,7 @@ test("character_embeddings.hubScore is a FLOAT — a fractional value round-trip
     contentHash: "h",
     hubScore,
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
 
@@ -177,6 +211,7 @@ test("no vector table carries an ownerId column (D20 — owner-scope derives fro
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
   await db.insert(imageEmbeddings).values({
@@ -186,6 +221,7 @@ test("no vector table carries an ownerId column (D20 — owner-scope derives fro
     lens: "image-raw",
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "imageEmbed"),
     dim: DIM,
   });
   await db.insert(chatDigests).values({
@@ -198,6 +234,7 @@ test("no vector table carries an ownerId column (D20 — owner-scope derives fro
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
   await db.insert(chatSegments).values({
@@ -211,6 +248,7 @@ test("no vector table carries an ownerId column (D20 — owner-scope derives fro
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
 
@@ -236,6 +274,7 @@ test("image_embeddings holds BOTH lenses per (asset, model) and rejects a duplic
     lens: "image-raw",
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "imageEmbed"),
     dim: DIM,
   });
   await db.insert(imageEmbeddings).values({
@@ -246,6 +285,7 @@ test("image_embeddings holds BOTH lenses per (asset, model) and rejects a duplic
     caption: "a brooding knight",
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "imageEmbed"),
     dim: DIM,
   });
 
@@ -262,6 +302,7 @@ test("image_embeddings holds BOTH lenses per (asset, model) and rejects a duplic
       lens: "image-raw",
       contentHash: "h",
       model: MODEL,
+      generationId: await seedGeneration(db, ownerId, "imageEmbed"),
       dim: DIM,
     });
   } catch (err) {
@@ -283,6 +324,7 @@ test("image_embeddings.lens CHECK rejects a non-member lens value", async () => 
       lens: "nope" as never,
       contentHash: "h",
       model: MODEL,
+      generationId: await seedGeneration(db, ownerId, "imageEmbed"),
       dim: DIM,
     });
   } catch (err) {
@@ -347,6 +389,7 @@ test("chat_digests round-trips its distilled `text` body + topicAnchor + keyword
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
 
@@ -360,6 +403,7 @@ test("chat_digests round-trips its distilled `text` body + topicAnchor + keyword
 
 test("chat_segments round-trips its verbatim `text` transcript", async () => {
   const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_stext", handle: castId<Handle>("h-user_stext") });
   const chatId = await seedChat(db, { id: "chat_stext" });
   const id = castId<ChatSegmentId>("chat_segment_text");
   await db.insert(chatSegments).values({
@@ -373,6 +417,7 @@ test("chat_segments round-trips its verbatim `text` transcript", async () => {
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
   const rows = await db.select().from(chatSegments).where(eq(chatSegments.id, id));
@@ -384,8 +429,18 @@ test("chat_segments round-trips its verbatim `text` transcript", async () => {
 // one block coexist, and a re-write of the SAME chunk collides (the idempotent upsert target).
 test("chat_segments admits N chunks per (chat, block) and keys uniqueness off chunk_idx", async () => {
   const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_chunks", handle: castId<Handle>("h-user_chunks") });
   const chatId = await seedChat(db, { id: "chat_chunks" });
-  const base = { chatId, blockIdx: 3, seqStart: 10, seqEnd: 11, embedding: rampVector(), model: MODEL, dim: DIM };
+  const base = {
+    chatId,
+    blockIdx: 3,
+    seqStart: 10,
+    seqEnd: 11,
+    embedding: rampVector(),
+    model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
+    dim: DIM,
+  };
   await db.insert(chatSegments).values({ ...base, id: castId<ChatSegmentId>("chat_segment_c0"), chunkIdx: 0, text: "chunk 0", contentHash: "h0" });
   await db.insert(chatSegments).values({ ...base, id: castId<ChatSegmentId>("chat_segment_c1"), chunkIdx: 1, text: "chunk 1", contentHash: "h1" });
   expect(await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId))).toHaveLength(2);
@@ -417,6 +472,7 @@ test("chat_digests.text is NOT NULL — a digest write missing its body is rejec
       embedding: rampVector(),
       contentHash: "h",
       model: MODEL,
+      generationId: await seedGeneration(db, ownerId, "embed"),
       dim: DIM,
     } as never);
   } catch (err) {
@@ -428,6 +484,7 @@ test("chat_digests.text is NOT NULL — a digest write missing its body is rejec
 // ── chat_digests.scopedCharacterId: a REAL CharacterId FK (no '' sentinel — inv 8) + CASCADE + UNIQUE ──
 test("chat_digests.scopedCharacterId FKs a real character — a dangling id is rejected (no '' sentinel)", async () => {
   const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_fk", handle: castId<Handle>("h-user_fk") });
   const chatId = await seedChat(db, { id: "chat_fk" });
   let caught: unknown;
   try {
@@ -442,6 +499,7 @@ test("chat_digests.scopedCharacterId FKs a real character — a dangling id is r
       embedding: rampVector(),
       contentHash: "h",
       model: MODEL,
+      generationId: await seedGeneration(db, ownerId, "embed"),
       dim: DIM,
     });
   } catch (err) {
@@ -466,6 +524,7 @@ test("deleting the scoped character CASCADEs its scoped digests (scopedCharacter
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
   await db.delete(characters).where(eq(characters.id, characterId));
@@ -491,6 +550,7 @@ test("two distinct scope buckets coexist at the same (chat, tier, block); a same
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
   // Same (chat, tier, block) but a distinct scopedCharacterId ⇒ no collision.
@@ -505,6 +565,7 @@ test("two distinct scope buckets coexist at the same (chat, tier, block); a same
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
   const all = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
@@ -523,6 +584,7 @@ test("two distinct scope buckets coexist at the same (chat, tier, block); a same
       embedding: rampVector(),
       contentHash: "h2",
       model: MODEL,
+      generationId: await seedGeneration(db, ownerId, "embed"),
       dim: DIM,
     });
   } catch (err) {
@@ -549,6 +611,7 @@ test("deleting a chat CASCADEs its digests, segments, and digest-speaker rows", 
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
   await db.insert(chatSegments).values({
@@ -562,6 +625,7 @@ test("deleting a chat CASCADEs its digests, segments, and digest-speaker rows", 
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
   await db.insert(chatDigestSpeakers).values({ digestId, characterId });
@@ -594,6 +658,7 @@ test("chat_digest_speakers round-trips, dedupes on the composite PK, and CASCADE
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId: await seedGeneration(db, ownerId, "embed"),
     dim: DIM,
   });
 

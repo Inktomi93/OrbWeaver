@@ -20,7 +20,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
-import type { EmbeddingsService } from "#domain/embeddings";
+import type { EmbeddingsService, GenerationReceipt } from "#domain/embeddings";
 import type { SearchService } from "#domain/search";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -230,5 +230,6 @@ export interface DatabankIngest {
  *  DELETE lives in embeddings/persistence (the ONE vector write path), injected here as a typed op. */
 export interface DatabankWorkloadDeps {
   readonly databankIngest: DatabankIngest;
-  readonly purgeDocumentVectors: () => Promise<void>;
+  readonly beginDocumentVectorSweep: () => Promise<readonly { readonly ownerId: UserId; readonly generation: GenerationReceipt }[]>;
+  readonly purgeDocumentVectors: (receipts: readonly { readonly ownerId: UserId; readonly generation: GenerationReceipt }[]) => Promise<void>;
 }

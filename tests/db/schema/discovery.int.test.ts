@@ -20,6 +20,7 @@ import {
   digestThemeAssignments,
   duplicateCharacterPairs,
   duplicateChatPairs,
+  embedGenerations,
   keywordCooccurrence,
   themeClusters,
   users,
@@ -64,7 +65,7 @@ async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<Chara
   return characterId;
 }
 
-async function seedDigest(db: Db, chatId: ChatId, id: string): Promise<ChatDigestId> {
+async function seedDigest(db: Db, chatId: ChatId, id: string, generationOwnerId: UserId): Promise<ChatDigestId> {
   const digestId = castId<ChatDigestId>(id);
   // The digest `scopedCharacterId` is a real `CharacterId` FK (inv 8) — lazily seed an owner + synthetic
   // group char so the FK holds (`text` is NOT NULL too).
@@ -73,6 +74,20 @@ async function seedDigest(db: Db, chatId: ChatId, id: string): Promise<ChatDiges
   await db
     .insert(users)
     .values({ id: ownerId, handle: castId<Handle>("h-digest-owner") })
+    .onConflictDoNothing();
+  const generationId = `embed_generation_${generationOwnerId}_embed_${MODEL}`;
+  await db
+    .insert(embedGenerations)
+    .values({
+      id: generationId,
+      ownerId: generationOwnerId,
+      task: "embed",
+      via: "embed",
+      connectionId: null,
+      connectionRef: "test:embed",
+      fingerprint: `test:embed:${MODEL}`,
+      space: MODEL,
+    })
     .onConflictDoNothing();
   await db
     .insert(characters)
@@ -88,6 +103,7 @@ async function seedDigest(db: Db, chatId: ChatId, id: string): Promise<ChatDiges
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
+    generationId,
     dim: DIM,
   });
   return digestId;
@@ -510,7 +526,7 @@ test("digest_theme_assignments uses a composite PK, DERIVE ownerId, and CASCADEs
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_dta", handle: castId<Handle>("h-user_dta") });
   const chatId = await seedChat(db, { id: "chat_dta" });
-  const digestId = await seedDigest(db, chatId, "chat_digest_dta");
+  const digestId = await seedDigest(db, chatId, "chat_digest_dta", ownerId);
   const themeClusterId = await seedThemeCluster(db, {
     ownerId,
     id: "theme_cluster_dta",
@@ -548,7 +564,7 @@ test("digest_theme_assignments CASCADEs when its digest is deleted", async () =>
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_dta2", handle: castId<Handle>("h-user_dta2") });
   const chatId = await seedChat(db, { id: "chat_dta2" });
-  const digestId = await seedDigest(db, chatId, "chat_digest_dta2");
+  const digestId = await seedDigest(db, chatId, "chat_digest_dta2", ownerId);
   const themeClusterId = await seedThemeCluster(db, {
     ownerId,
     id: "theme_cluster_dta2",

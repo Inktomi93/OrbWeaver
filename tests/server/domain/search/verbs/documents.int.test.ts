@@ -4,8 +4,10 @@
 // representative), the empty-allowlist ZERO-embed short-circuit (the trigger-discipline mirror), and THE
 // flagship gate-8 owner/host-scope no-leak pin (two users share one chat; no cross-tenant chunk surfaces).
 
+import { documentChunks, embedGenerations } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -98,9 +100,11 @@ describe("documents", () => {
     const db = await freshDb();
     const alpha = await seedUser(db, { handle: castId<Handle>("alpha") });
     const beta = await seedUser(db, { handle: castId<Handle>("beta") });
+    const gamma = await seedUser(db, { handle: castId<Handle>("gamma") });
     const room = await seedChat(db, "chat_shared");
     await seedChatParticipant(db, room, alpha, "host");
     await seedChatParticipant(db, room, beta, "member");
+    await seedChatParticipant(db, room, gamma, "member");
 
     // Alpha (host): one GLOBAL doc + one CHAT-attached doc. Beta (member): one ATTACHED global doc
     // + one PRIVATE (never-attached) doc — the widened scope's leak floor.
@@ -108,13 +112,38 @@ describe("documents", () => {
     const aChat = await seedDocument(db, { id: "document_a_chat", ownerId: alpha, name: "AlphaChat" });
     const bGlobal = await seedDocument(db, { id: "document_b_global", ownerId: beta, name: "BetaGlobal" });
     const bPrivate = await seedDocument(db, { id: "document_b_private", ownerId: beta, name: "BetaPrivate" });
+    const bPending = await seedDocument(db, { id: "document_b_pending", ownerId: beta, name: "BetaPending" });
+    const gIncompatible = await seedDocument(db, { id: "document_g_incompatible", ownerId: gamma, name: "GammaIncompatible" });
     await seedGlobalDocument(db, alpha, aGlobal);
     await seedChatDocument(db, room, aChat);
     await seedGlobalDocument(db, beta, bGlobal);
+    await seedGlobalDocument(db, beta, bPending);
+    await seedGlobalDocument(db, gamma, gIncompatible);
     await seedDocumentChunk(db, { documentId: aGlobal, chunkIdx: 0, content: "alpha-global", embedding: vec(1) });
     await seedDocumentChunk(db, { documentId: aChat, chunkIdx: 0, content: "alpha-chat", embedding: vec(1) });
     await seedDocumentChunk(db, { documentId: bGlobal, chunkIdx: 0, content: "beta-global", embedding: vec(1) });
     await seedDocumentChunk(db, { documentId: bPrivate, chunkIdx: 0, content: "beta-private", embedding: vec(1) });
+    const pendingChunk = await seedDocumentChunk(db, { documentId: bPending, chunkIdx: 0, content: "beta-pending", embedding: vec(1) });
+    await seedDocumentChunk(db, { documentId: gIncompatible, chunkIdx: 0, content: "gamma-incompatible", embedding: vec(1) });
+
+    const generations = await db.select().from(embedGenerations);
+    const alphaGeneration = generations.find((row) => row.ownerId === alpha);
+    const betaGeneration = generations.find((row) => row.ownerId === beta);
+    const gammaGeneration = generations.find((row) => row.ownerId === gamma);
+    if (alphaGeneration === undefined || betaGeneration === undefined || gammaGeneration === undefined) {
+      throw new Error("expected one active document generation per member");
+    }
+    expect(alphaGeneration.connectionId).not.toBe(betaGeneration.connectionId);
+    expect(alphaGeneration.fingerprint).toBe(betaGeneration.fingerprint);
+    const pendingGenerationId = "generation_beta_pending";
+    await db.insert(embedGenerations).values({
+      ...betaGeneration,
+      id: pendingGenerationId,
+      connectionId: "connection_beta_pending",
+      connectionRef: "connection_beta_pending",
+    });
+    await db.update(documentChunks).set({ generationId: pendingGenerationId }).where(eq(documentChunks.id, pendingChunk));
+    await db.update(embedGenerations).set({ fingerprint: "incompatible-vector-geometry" }).where(eq(embedGenerations.id, gammaGeneration.id));
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
 
@@ -123,6 +152,7 @@ describe("documents", () => {
     const turnScope = await svc.documents({ scope: { chatId: room }, queryText: "q", ownerId: alpha });
     expect(new Set(turnScope.map((h) => h.documentId))).toEqual(new Set([aGlobal, aChat, bGlobal]));
     expect(turnScope.some((h) => h.documentId === bPrivate)).toBe(false);
+    expect(turnScope.some((h) => h.documentId === bPending || h.documentId === gIncompatible)).toBe(false);
 
     // (b) Beta's personal search sees ONLY beta's bank — zero of alpha's, even sharing the room.
     const betaPersonal = await svc.documents({ scope: { ownerId: beta }, queryText: "q", ownerId: alpha });

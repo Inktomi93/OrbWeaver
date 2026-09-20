@@ -45,12 +45,13 @@ import { resolve } from "node:path";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, LiveOnlyChatEventType } from "@orb/contracts/chat";
 import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import type { EmbedResult } from "@orb/contracts/providers";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { automationRules, chatParticipants, plugins, userCredentials } from "@orb/db";
 import { fetchOwned } from "@orb/db/kit";
 import { readSeedDemoChat } from "@orb/default-content";
-import type { InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
+import type { InferenceDeps, InferenceRuntime, Resolved, RoleClientsWithSignal } from "@orb/inference";
 import { createInferenceRuntime, resolveClaudeExecutable } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, PersonaId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
@@ -67,7 +68,7 @@ import type { ConnectionContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
-import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
+import type { EmbeddingConnectionSnapshot, EmbeddingsIndexer, EmbeddingsService, GenerationReceipt } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createImportService } from "#domain/import";
 import { PersonaNotFoundError } from "#domain/persona";
@@ -459,6 +460,62 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // `connection_bindings` (§7.1) under that user's own Principal.
   const resolveFunderPrincipal = createHostPrincipalResolver(sessions);
   const roleClientsFor = async (funderUserId: UserId): Promise<RoleClientsWithSignal> => runtime.roleClientsFor(await resolveFunderPrincipal(funderUserId));
+  const executeEmbed = (
+    encoderConnection: Resolved<"embed">,
+    input: string | readonly string[],
+    opts?: Parameters<EmbeddingConnectionSnapshot["embed"]>[1],
+  ): Promise<EmbedResult> => {
+    if (encoderConnection.capability.kind !== "embedding") {
+      throw new Error("text embed connection has a non-embedding capability");
+    }
+    const knobs = runtime.funnel.embed(opts ?? {}, encoderConnection.capability.embedding);
+    return runtime.executor.embed({
+      connection: encoderConnection,
+      input,
+      ...(knobs.dimensions === undefined ? {} : { dimensions: knobs.dimensions }),
+      ...(knobs.truncateTo === undefined ? {} : { truncateTo: knobs.truncateTo }),
+      ...(knobs.inputType === undefined ? {} : { inputType: knobs.inputType }),
+      ...(knobs.instruction === undefined ? {} : { instruction: knobs.instruction }),
+    });
+  };
+  const isResolvedTask = <T extends Resolved["task"]>(candidate: Resolved, task: T): candidate is Resolved<T> => candidate.task === task;
+  const snapshotOf = (generationConnection: Resolved): EmbeddingConnectionSnapshot => ({
+    connectionId: generationConnection.connectionId,
+    providerId: generationConnection.providerId,
+    model: generationConnection.model,
+    capability: generationConnection.capability,
+    api: generationConnection.api ?? "none",
+    wire: generationConnection.wire,
+    baseUrl: generationConnection.baseUrl,
+    features: generationConnection.features,
+    extras: generationConnection.extras,
+    transport: generationConnection.transport,
+    embed: (input, opts): ReturnType<EmbeddingConnectionSnapshot["embed"]> => {
+      if (!isResolvedTask(generationConnection, "embed") || generationConnection.capability.kind !== "embedding") {
+        throw new Error("generation is not a text embed connection");
+      }
+      return executeEmbed(generationConnection, input, opts);
+    },
+    imageEmbed: (input): ReturnType<EmbeddingConnectionSnapshot["imageEmbed"]> => {
+      if (!isResolvedTask(generationConnection, "imageEmbed")) {
+        throw new Error("generation is not an image embed connection");
+      }
+      return runtime.executor.imageEmbed({ connection: generationConnection, input });
+    },
+  });
+  const resolveEmbeddingConnection: import("#domain/embeddings").ResolveEmbeddingConnection = async (ownerId, task, connectionId) => {
+    const principal = await resolveFunderPrincipal(ownerId);
+    let outcome: Awaited<ReturnType<typeof runtime.resolve>>;
+    try {
+      outcome = await runtime.resolve({ task, principal, ...(connectionId === undefined ? {} : { connectionId }) });
+    } catch (error) {
+      if (connectionId === undefined) {
+        throw error;
+      }
+      return null;
+    }
+    return snapshotOf(outcome.resolved);
+  };
 
   // The connection domain — selection's thin front door over the runtime (§3.3). The four ownership /
   // admission reads it needs are wired here rather than derived inside the domain: a credential row is the
@@ -596,6 +653,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     audit,
     roleClientsFor,
+    resolveEmbeddingConnection,
     eventBus,
     attachCardTagByName: tag.attachCardTagByName,
     resolveUserPresetParams,
@@ -1036,9 +1094,19 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // purge per corpus owner, the row counts advisory. The fan STAYS after §10-5's `activeSpace` getter
     // landed: the injected op carries no owner, and `listCorpusOwners()` is exactly the set a BULK sweep
     // covered, which is what makes the completion each purge records (`embed_space_state`) a true statement.
-    purgeDocumentVectors: async (): Promise<void> => {
+    beginDocumentVectorSweep: async () => {
+      const receipts: { ownerId: UserId; generation: GenerationReceipt }[] = [];
       for (const ownerId of await searchDiscovery.listCorpusOwners()) {
-        await embeddings.purgeDocumentVectors({ ownerId });
+        const generation = await embeddings.resolveGeneration(ownerId, "embed");
+        if (generation !== null) {
+          receipts.push({ ownerId, generation });
+        }
+      }
+      return receipts;
+    },
+    purgeDocumentVectors: async (receipts): Promise<void> => {
+      for (const receipt of receipts) {
+        await embeddings.purgeDocumentVectors(receipt);
       }
     },
     backfillMemory: (args) => chatCompose.backfill.memory(args),
@@ -1046,8 +1114,34 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     isMemoryEnabled: chatCompose.isMemoryEnabled,
     backfillGroupCharacters: (args) => chatCompose.backfill.groupCharacters(args),
     purgeMemoryVectors: async (spaces): Promise<void> => {
-      for (const { ownerId, model } of spaces) {
-        await embeddings.purgeMemoryVectors({ ownerId, completedSpace: model });
+      const completed = new Map(spaces.map((space) => [space.ownerId, space]));
+      for (const ownerId of await searchDiscovery.listCorpusOwners()) {
+        let receipt = completed.get(ownerId);
+        if (receipt === undefined) {
+          if (await chatCompose.isMemoryEnabled(ownerId)) {
+            continue;
+          }
+          const generation = await embeddings.resolveGeneration(ownerId, "embed");
+          if (generation === null) {
+            continue;
+          }
+          receipt = {
+            ownerId,
+            model: generation.space,
+            generationId: generation.id,
+            generationEpoch: generation.epoch,
+          };
+        }
+        await embeddings.purgeMemoryVectors({
+          ownerId,
+          generation: {
+            id: receipt.generationId,
+            task: "embed",
+            via: "embed",
+            epoch: receipt.generationEpoch,
+            space: receipt.model,
+          },
+        });
       }
     },
     loadUserSettings: settings.loadUserSettings,
