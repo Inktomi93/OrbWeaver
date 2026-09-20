@@ -16,7 +16,8 @@ import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGME
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { collapseSegmentChunks } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
-import { requireSpaceModel } from "../substrate/space.ts";
+import type { ActiveQuerySpace } from "../substrate/space.ts";
+import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 interface DiscoverCandidate {
@@ -122,59 +123,63 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
   return async (params: DiscoverParams): Promise<DiscoverCharacter[]> => {
     const { ownerId, queryText, topN } = params;
     const rc = await ctx.roleClientsFor(ownerId);
-    const embedModel = await requireSpaceModel(ctx, ownerId, "embed");
-    if (queryText.trim().length === 0) {
-      throw new SearchError(SEARCH_EMPTY_QUERY, "discover requires a queryText to embed + scan");
-    }
-    // `poolK` below is `topN × FACTOR` handed straight to a DB limit — guarded before it can become one.
-    requirePositiveTopN(topN, "discover");
-    const embedded = await rc.embed(queryText, { inputType: "query" });
-    const queryVector = embedded.vectors[0];
-    if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
-    }
-    const model = embedModel;
+    return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
+      const queryVector = await embedDiscoverQuery(space.connection.embed, queryText, topN);
+      const model = space.model;
 
-    const chatIds = await ownedChatIds(ctx.db, ownerId, model);
-    if (chatIds.length === 0) {
-      return [];
-    }
+      const chatIds = await ownedChatIds(ctx.db, ownerId, model, space.generationId);
+      if (chatIds.length === 0) {
+        return [];
+      }
 
-    const poolK = Math.min(topN * DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENT_POOL_CAP);
-    const pool = await nearestSegments(ctx.db, { queryVector, model, chatIds, limit: poolK });
-    if (pool.length === 0) {
-      return [];
-    }
+      const poolK = Math.min(topN * DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENT_POOL_CAP);
+      const pool = await nearestSegments(ctx.db, { queryVector, model, generationId: space.generationId, chatIds, limit: poolK });
+      if (pool.length === 0) {
+        return [];
+      }
 
-    // RANK FIRST, COLLAPSE SECOND. Each block's chunk rows collapse to ONE (#172 — a block is N rows now):
-    // evidence and `matchCount` are per SCENE, and counting two chunks of one block twice would inflate a
-    // character's rank on the strength of one long message. But `collapseSegmentChunks` is FIRST-WINS over an
-    // already-ranked list, so the order it is handed IS the choice of which chunk represents the block —
-    // collapsing a raw-distance order threw away the chunk this verb actually ranks by, and a farther chunk
-    // with the better hub adjustment lost its block to a closer, hubbier one. CSLS is the ranking; the
-    // representative is the chunk that wins it.
-    const sorted: DiscoverCandidate[] = collapseSegmentChunks(
-      pool
-        .map((s) => ({
-          id: blockSlot(s.chatId, s.blockIdx),
-          chatId: s.chatId,
-          blockIdx: s.blockIdx,
-          sourceText: s.text,
-          distance: s.distance,
-          hubScore: s.hubScore,
-          score: cslsAdjust(s.distance, s.hubScore),
-        }))
-        .sort(
-          compareCslsBy(
-            (c) => c.distance,
-            (c) => c.hubScore,
+      // RANK FIRST, COLLAPSE SECOND. Each block's chunk rows collapse to ONE (#172 — a block is N rows now):
+      // evidence and `matchCount` are per SCENE, and counting two chunks of one block twice would inflate a
+      // character's rank on the strength of one long message. But `collapseSegmentChunks` is FIRST-WINS over an
+      // already-ranked list, so the order it is handed IS the choice of which chunk represents the block —
+      // collapsing a raw-distance order threw away the chunk this verb actually ranks by, and a farther chunk
+      // with the better hub adjustment lost its block to a closer, hubbier one. CSLS is the ranking; the
+      // representative is the chunk that wins it.
+      const sorted: DiscoverCandidate[] = collapseSegmentChunks(
+        pool
+          .map((s) => ({
+            id: blockSlot(s.chatId, s.blockIdx),
+            chatId: s.chatId,
+            blockIdx: s.blockIdx,
+            sourceText: s.text,
+            distance: s.distance,
+            hubScore: s.hubScore,
+            score: cslsAdjust(s.distance, s.hubScore),
+          }))
+          .sort(
+            compareCslsBy(
+              (c) => c.distance,
+              (c) => c.hubScore,
+            ),
           ),
-        ),
-    );
+      );
 
-    // Rerank segments before grouping so a promoted segment can pull in a low-CSLS character.
-    const ranked = params.rerank === true ? await applyRerank(queryText, sorted, rc.rerank, sorted.length) : sorted;
+      // Rerank segments before grouping so a promoted segment can pull in a low-CSLS character.
+      const ranked = params.rerank === true ? await applyRerank(queryText, sorted, rc.rerank, sorted.length) : sorted;
 
-    return await groupByCharacter(ctx, ownerId, ranked, topN);
+      return await groupByCharacter(ctx, ownerId, ranked, topN);
+    });
   };
+}
+
+async function embedDiscoverQuery(embed: ActiveQuerySpace["connection"]["embed"], queryText: string, topN: number): Promise<Float32Array> {
+  if (queryText.trim().length === 0) {
+    throw new SearchError(SEARCH_EMPTY_QUERY, "discover requires a queryText to embed + scan");
+  }
+  requirePositiveTopN(topN, "discover");
+  const vector = (await embed(queryText, { inputType: "query" })).vectors[0];
+  if (vector === null || vector === undefined) {
+    throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
+  }
+  return vector;
 }

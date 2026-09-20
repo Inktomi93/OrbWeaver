@@ -1,8 +1,6 @@
-// verb: purgeMemoryVectors — PD-139(b), the chat-memory arm of the PD-104 old-space reclaim. Load-bearing
-// assertions (mirroring embed-corpus.int's purge tests): the verb deletes the `chat_segments`/`chat_digests`
-// rows stranded in an OLD embed `(model)` space, keeps ONLY the active-space rows (`roleClients.embedModel`),
-// and reports the reclaimed counts per table. The BULK-ONLY + skip-on-abort guard lives in the runner
-// (memory-backfill.test.ts), so this verb-level test drives the DELETE half directly.
+// verb: purgeMemoryVectors — memory completion records a generation receipt. Retired generations remain
+// readable until cards, memory, and documents have all completed the same pending generation; promotion
+// then performs the old-space reclaim atomically.
 
 import { chatDigests, chatSegments } from "@orb/db";
 import type { ChatDigestId, ChatSegmentId, Handle } from "@orb/kit/ids";
@@ -18,7 +16,7 @@ const NOW = 1_750_000_000_000;
 const STALE_MODEL = "old-embed-model-v0";
 
 describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () => {
-  test("purges the stranded old-model segment + digest rows, keeping only the active space", async () => {
+  test("retains both memory generations until cards and documents complete", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
@@ -90,11 +88,15 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     // The harness's roleClients.embedModel is EMBED_MODEL — the active space the purge scopes against.
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
 
-    const purged = await svc.purgeMemoryVectors({ ownerId: owner, completedSpace: EMBED_MODEL });
+    const generation = await svc.resolveGeneration(owner, "embed");
+    if (generation === null) {
+      throw new Error("expected generation");
+    }
+    const purged = await svc.purgeMemoryVectors({ ownerId: owner, generation });
 
-    expect(purged).toEqual({ segments: 1, digests: 1 });
-    expect((await db.select().from(chatSegments)).map((r) => r.model)).toEqual([EMBED_MODEL]);
-    expect((await db.select().from(chatDigests)).map((r) => r.model)).toEqual([EMBED_MODEL]);
+    expect(purged).toEqual({ segments: 0, digests: 0 });
+    expect((await db.select().from(chatSegments)).map((r) => r.model).sort()).toEqual([EMBED_MODEL, STALE_MODEL].sort());
+    expect((await db.select().from(chatDigests)).map((r) => r.model).sort()).toEqual([EMBED_MODEL, STALE_MODEL].sort());
   });
 
   test("refuses a stale completion receipt without deleting either space", async () => {
@@ -135,7 +137,14 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     });
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
 
-    await expect(svc.purgeMemoryVectors({ ownerId: owner, completedSpace: STALE_MODEL })).rejects.toThrow(/changed before purge/u);
+    const generation = await svc.resolveGeneration(owner, "embed");
+    if (generation === null) {
+      throw new Error("expected generation");
+    }
+    await expect(svc.purgeMemoryVectors({ ownerId: owner, generation: { ...generation, id: "stale-generation" } })).resolves.toEqual({
+      segments: 0,
+      digests: 0,
+    });
     expect(await db.select().from(chatSegments)).toHaveLength(1);
     expect(await db.select().from(chatDigests)).toHaveLength(1);
   });

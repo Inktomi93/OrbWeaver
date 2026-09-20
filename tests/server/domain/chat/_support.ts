@@ -571,7 +571,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
       const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(1);
       return rows[0]?.ownerId === ownerId;
     },
-    resolveMemoryEmbedSpace: (ownerId) => Promise.resolve({ ownerId, model: "test-embed-1024" }),
+    resolveMemoryEmbedSpace: (ownerId) => Promise.resolve({ ownerId, model: "test-embed-1024", generationId: "test-generation", generationEpoch: 1 }),
     embeddingsStore: notStubbed,
     embeddingsStoreSegments: notStubbed,
     // Default = the REAL prune against the seeded vector tables (the `verifyPersonaOwned` precedent), not a
@@ -580,15 +580,15 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // embeddings/persistence functions the composition root wires — the DELETE has one home.
     embeddingsPruneBlocks: async (params) => {
       if (params.lens === "digest") {
-        await pruneChatDigests(db, params.chatId, params.scopedCharacterId, params.keepPerTier);
+        await pruneChatDigests(db, params.chatId, params.scopedCharacterId, { keepPerTier: params.keepPerTier });
         return;
       }
       // #1395 — the KNOWN-stale invalidation arm, real for the same reason the shrink is.
       if (params.lens === "digest-stale") {
-        await dropChatDigestKeys(db, params.chatId, params.scopedCharacterId, params.keys);
+        await dropChatDigestKeys(db, params.chatId, params.scopedCharacterId, { keys: params.keys });
         return;
       }
-      await pruneChatSegments(db, params.chatId, params.keepBlockCount, params.chunkCounts);
+      await pruneChatSegments(db, params.chatId, { keepBlockCount: params.keepBlockCount, chunkCounts: params.chunkCounts });
     },
     searchDigests: notStubbed,
     searchCorpus: notStubbed,

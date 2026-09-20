@@ -145,6 +145,7 @@ function parseBody(body: unknown): unknown {
 function safeJsonParse(text: string): unknown {
   try {
     return JSON.parse(text);
+    // @orb-waive caught-failure-ownership(catch): malformed provider prose fails closed to `null`, which cannot be classified as a moderation block. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null can begin authorizing a more specific classification.
   } catch {
     return null;
   }

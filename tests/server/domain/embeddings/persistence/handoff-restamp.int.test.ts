@@ -8,7 +8,7 @@
 // departed host's card, so their next library cleanup would still evaporate the transferred room's memory.
 
 import type { Db } from "@orb/db";
-import { characters, chatDigestSpeakers, chatDigests } from "@orb/db";
+import { characters, chatDigestSpeakers, chatDigests, embedGenerations } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -30,6 +30,24 @@ async function seedCard(db: Db, ownerId: UserId, key: string): Promise<Character
 /** One digest row + its speakers entry, both keyed to `characterId`. */
 async function seedDigest(db: Db, key: string, chatId: ChatId, characterId: CharacterId): Promise<ChatDigestId> {
   const id = castId<ChatDigestId>(`chat_digest_${key}`);
+  const ownerId = (await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, characterId)))[0]?.ownerId;
+  if (ownerId === undefined) {
+    throw new Error(`missing owner for ${characterId}`);
+  }
+  const generationId = `embed_generation_${ownerId}_embed_m`;
+  await db
+    .insert(embedGenerations)
+    .values({
+      id: generationId,
+      ownerId,
+      task: "embed",
+      via: "embed",
+      connectionId: null,
+      connectionRef: "test:embed",
+      fingerprint: "test:handoff-restamp",
+      space: "m",
+    })
+    .onConflictDoNothing();
   await db.insert(chatDigests).values({
     id,
     chatId,
@@ -41,6 +59,7 @@ async function seedDigest(db: Db, key: string, chatId: ChatId, characterId: Char
     topicAnchor: "a",
     keywords: [],
     model: "m",
+    generationId,
     dim: 1,
     embedding: new Float32Array([0]),
   });

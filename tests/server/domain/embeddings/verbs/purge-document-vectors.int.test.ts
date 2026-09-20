@@ -15,7 +15,7 @@ import { EMBED_DIM, EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUs
 const OLD_MODEL = "old-embed-model-v1";
 
 describe("purgeDocumentVectors (PD-139(c))", () => {
-  test("deletes only the rows outside the active embed space; the active space survives", async () => {
+  test("retains the previous document corpus until the other embed scopes complete", async () => {
     const db = await freshDb();
     const harness = makeStoreHarness(db); // roleClients.embedModel === EMBED_MODEL
     const svc = createEmbeddingsService(harness.ctx);
@@ -31,13 +31,17 @@ describe("purgeDocumentVectors (PD-139(c))", () => {
     await svc.store({ kind: "document", lens: "chunk", content: "canon slice", model: OLD_MODEL, dim: EMBED_DIM, fkRefs, ownerId: owner });
     embedAs(harness, EMBED_MODEL);
     await svc.store({ kind: "document", lens: "chunk", content: "canon slice", model: EMBED_MODEL, dim: EMBED_DIM, fkRefs, ownerId: owner });
-    expect(await db.select().from(documentChunks)).toHaveLength(2);
+    expect(await db.select().from(documentChunks)).toHaveLength(1);
 
-    const { chunks } = await svc.purgeDocumentVectors({ ownerId: owner });
+    const generation = await svc.resolveGeneration(owner, "embed");
+    if (generation === null) {
+      throw new Error("expected generation");
+    }
+    const { chunks } = await svc.purgeDocumentVectors({ ownerId: owner, generation });
 
-    expect(chunks).toBe(1); // the OLD_MODEL row reclaimed
+    expect(chunks).toBe(0);
     const rows = await db.select().from(documentChunks);
-    expect(rows.map((r) => r.model)).toEqual([EMBED_MODEL]); // no strand in the retired space
+    expect(rows.map((r) => r.model)).toEqual([OLD_MODEL]);
   });
 
   test("is a no-op when every row is already in the active space", async () => {
@@ -55,7 +59,11 @@ describe("purgeDocumentVectors (PD-139(c))", () => {
       ownerId: owner,
     });
 
-    const { chunks } = await svc.purgeDocumentVectors({ ownerId: owner });
+    const generation = await svc.resolveGeneration(owner, "embed");
+    if (generation === null) {
+      throw new Error("expected generation");
+    }
+    const { chunks } = await svc.purgeDocumentVectors({ ownerId: owner, generation });
 
     expect(chunks).toBe(0);
     expect(await db.select().from(documentChunks)).toHaveLength(1);

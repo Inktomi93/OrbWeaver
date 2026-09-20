@@ -7,7 +7,7 @@
 
 import { DOC_ORIGINS } from "@orb/contracts/databank";
 import type { Db } from "@orb/db";
-import { assets, characterDocuments, characters, chatDocuments, chats, documentChunks, documents, globalDocuments, users } from "@orb/db";
+import { assets, characterDocuments, characters, chatDocuments, chats, documentChunks, documents, embedGenerations, globalDocuments, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, DocumentChunkId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -25,6 +25,24 @@ const DIM = 1024;
 const MODEL = "qwen3-vl";
 function rampVector(): Float32Array {
   return Float32Array.from({ length: DIM }, (_unused, i) => i / DIM);
+}
+
+async function seedGeneration(db: Db, ownerId: UserId): Promise<string> {
+  const id = `embed_generation_${ownerId}_embed_${MODEL}`;
+  await db
+    .insert(embedGenerations)
+    .values({
+      id,
+      ownerId,
+      task: "embed",
+      via: "embed",
+      connectionId: null,
+      connectionRef: "test:embed",
+      fingerprint: `test:embed:${MODEL}`,
+      space: MODEL,
+    })
+    .onConflictDoNothing();
+  return id;
 }
 
 test("documents.origin enum mirrors DOC_ORIGINS (derives the tuple, never re-spells)", () => {
@@ -149,6 +167,7 @@ test("document_chunks: vector round-trip, unique(documentId,chunkIdx,model), doc
   const docId = await seedDoc(db, ownerId, "document_db_d", "hash-d");
   const vec = rampVector();
   const chunkId = castId<DocumentChunkId>("document_chunk_db_d");
+  const generationId = await seedGeneration(db, ownerId);
   await db.insert(documentChunks).values({
     id: chunkId,
     documentId: docId,
@@ -159,6 +178,7 @@ test("document_chunks: vector round-trip, unique(documentId,chunkIdx,model), doc
     embedding: vec,
     contentHash: "ch",
     model: MODEL,
+    generationId,
     dim: DIM,
   });
   const rows = await db.select().from(documentChunks).where(eq(documentChunks.id, chunkId));
@@ -179,6 +199,7 @@ test("document_chunks: vector round-trip, unique(documentId,chunkIdx,model), doc
       embedding: vec,
       contentHash: "ch2",
       model: MODEL,
+      generationId,
       dim: DIM,
     }),
   ).rejects.toSatisfy(isConstraintErr);

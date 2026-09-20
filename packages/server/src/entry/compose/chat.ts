@@ -9,7 +9,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
-import { EMBED_SPACE_DIMS, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -38,7 +38,9 @@ import type {
   GetMembership,
   GetPendingUserText,
   MemoryConfig,
+  MemoryEmbedSpace,
   MemoryRecallRecorder,
+  MemoryStoreReceipt,
   PostNarratorMessage,
   PresenceReadOp,
   PromptTransformRegistry,
@@ -629,6 +631,26 @@ export interface ChatComposeResult {
   };
 }
 
+type EmbeddingSegmentRow = Parameters<EmbeddingsService["storeSegments"]>[0][number];
+
+function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Awaited<ReturnType<EmbeddingsService["storeSegments"]>>): MemoryStoreReceipt[] {
+  const receipts: MemoryStoreReceipt[] = [];
+  for (const [index, result] of results.entries()) {
+    const row = rows[index];
+    if (row === undefined) {
+      throw new Error("embeddings.storeSegments returned more results than inputs");
+    }
+    if (result.generationId === undefined || result.generationEpoch === undefined) {
+      throw new Error("embeddings store omitted its generation receipt");
+    }
+    receipts.push({ ownerId: row.ownerId, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch });
+  }
+  if (receipts.length !== rows.length) {
+    throw new Error("embeddings.storeSegments returned fewer results than inputs");
+  }
+  return receipts;
+}
+
 /**
  * Adapt {@link ToolUseService} into the `ChatToolOps` seam. Chat's opaque `ChatToolSet` IS the
  * `ResolvedToolSet` this seam minted; the exec frame's `runAsUserId` resolves to the live host
@@ -1074,12 +1096,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // The host's EMBED model tag — the space a chat's digests/segments are written into (§7.5/§10). No binding
   // is the honest `NoConnectionError`: memory's vector build needs a space, and a default would silently write
   // into a space nobody reads.
-  const resolveMemoryEmbedSpace = async (hostUserId: UserId): Promise<{ readonly ownerId: UserId; readonly model: string }> => {
-    const resolved = await (await input.roleClientsFor(hostUserId)).resolved("embed");
-    if (resolved === null) {
+  const resolveMemoryEmbedSpace = async (hostUserId: UserId): Promise<MemoryEmbedSpace> => {
+    const generation = await input.embeddings.resolveGeneration(hostUserId, "embed");
+    if (generation === null) {
       throw new NoConnectionError("no embed connection is bound for this user — bind one in Connections");
     }
-    return { ownerId: hostUserId, model: embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability)) };
+    return { ownerId: hostUserId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
   };
 
   // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
@@ -1525,14 +1547,17 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         model: params.model,
         dim: EMBED_SPACE_DIMS,
       });
-      return { ownerId: params.ownerId, model: result.model };
+      if (result.generationId === undefined || result.generationEpoch === undefined) {
+        throw new Error("embeddings store omitted its generation receipt");
+      }
+      return { ownerId: params.ownerId, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
     },
     // The SEGMENT half is a BATCH op (#172): memory hands over every pending chunk — one chat's on the live
     // path, the whole corpus's on the sweep — and embeddings submits them to the engine as ONE flood. The
     // space tag (`model`/`dim`) is stamped here, the same single home the digest arm above reads.
     embeddingsStoreSegments: async (params) => {
       // One host + one space per chat in the flood (the corpus sweep hands over many chats at once).
-      const rows: Parameters<EmbeddingsService["storeSegments"]>[0][number][] = [];
+      const rows: EmbeddingSegmentRow[] = [];
       for (const p of params) {
         const hostUserId = await resolveChatHostUserId(p.chatId);
         if (hostUserId !== p.ownerId) {
@@ -1554,18 +1579,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         });
       }
       const results = rows.length === 0 ? [] : await input.embeddings.storeSegments(rows);
-      const receipts: { ownerId: UserId; model: string }[] = [];
-      for (const [index, result] of results.entries()) {
-        const row = rows[index];
-        if (row === undefined) {
-          throw new Error("embeddings.storeSegments returned more results than inputs");
-        }
-        receipts.push({ ownerId: row.ownerId, model: result.model });
-      }
-      if (receipts.length !== rows.length) {
-        throw new Error("embeddings.storeSegments returned fewer results than inputs");
-      }
-      return receipts;
+      return memorySegmentReceipts(rows, results);
     },
     // The SHRINK half of the same seam: memory stores every block that exists, then reclaims the ones that
     // stopped existing. Straight pass-through of the two lens arms — the DELETE itself lives in embeddings

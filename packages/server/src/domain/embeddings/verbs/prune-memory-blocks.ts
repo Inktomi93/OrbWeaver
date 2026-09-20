@@ -14,11 +14,14 @@
 // a narrow, named, non-`store` write seam. Store-then-prune, never clear-then-store, so the build's no-op
 // economy is untouched — an ordinary pass deletes nothing and re-embeds nothing.
 
+import { chatParticipants } from "@orb/db";
+import { and, eq, isNull } from "drizzle-orm";
 import type { EmbeddingsContext } from "../context.ts";
 import type { PruneMemoryBlocksParams } from "../contract/params.ts";
 import type { PruneMemoryBlocksResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../persistence/clear.ts";
+import { resolveTargetGeneration } from "../substrate/generation.ts";
 
 function assertNever(value: never): never {
   throw new Error(`pruneMemoryBlocks: unhandled lens ${String(value)}`);
@@ -26,18 +29,37 @@ function assertNever(value: never): never {
 
 export function createPruneMemoryBlocks(ctx: EmbeddingsContext): EmbeddingsService["pruneMemoryBlocks"] {
   return async (params: PruneMemoryBlocksParams): Promise<PruneMemoryBlocksResult> => {
+    const host = await ctx.db
+      .select({ ownerId: chatParticipants.userId })
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, params.chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
+      .limit(1);
+    const generation = host[0]?.ownerId === null || host[0]?.ownerId === undefined ? null : await resolveTargetGeneration(ctx, host[0].ownerId, "embed");
+    if (generation === null) {
+      return { rowsDeleted: 0 };
+    }
     switch (params.lens) {
       case "digest": {
-        const rowsDeleted = await pruneChatDigests(ctx.db, params.chatId, params.scopedCharacterId, params.keepPerTier);
+        const rowsDeleted = await pruneChatDigests(ctx.db, params.chatId, params.scopedCharacterId, {
+          keepPerTier: params.keepPerTier,
+          generationId: generation.id,
+        });
         return { rowsDeleted };
       }
       // #1395 — the KNOWN-stale reclaim (hash mismatch proved it stale, the re-summarize came back empty).
       case "digest-stale": {
-        const rowsDeleted = await dropChatDigestKeys(ctx.db, params.chatId, params.scopedCharacterId, params.keys);
+        const rowsDeleted = await dropChatDigestKeys(ctx.db, params.chatId, params.scopedCharacterId, {
+          keys: params.keys,
+          generationId: generation.id,
+        });
         return { rowsDeleted };
       }
       case "segment": {
-        const rowsDeleted = await pruneChatSegments(ctx.db, params.chatId, params.keepBlockCount, params.chunkCounts);
+        const rowsDeleted = await pruneChatSegments(ctx.db, params.chatId, {
+          keepBlockCount: params.keepBlockCount,
+          chunkCounts: params.chunkCounts,
+          generationId: generation.id,
+        });
         return { rowsDeleted };
       }
       default:

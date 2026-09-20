@@ -88,7 +88,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
 
   const pending: StoreSegmentParams[] = [];
   const chunkCounts: { blockIdx: number; chunkCount: number }[] = [];
-  const existing = await loadSegmentHashes(ctx.db, args.chatId, embedSpace.model);
+  const existing = await loadSegmentHashes(ctx.db, args.chatId, embedSpace.generationId);
   let skipped = 0;
   let skippedOverWindow = 0;
   for (const block of blocks) {
@@ -127,6 +127,8 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
         lens: "segment",
         ownerId: embedSpace.ownerId,
         model: embedSpace.model,
+        generationId: embedSpace.generationId,
+        generationEpoch: embedSpace.generationEpoch,
         chatId: args.chatId,
         blockIdx: block.blockIdx,
         chunkIdx: chunk.chunkIdx,
@@ -161,7 +163,13 @@ export async function storeSegments(ctx: ChatContext, collected: CollectedSegmen
     }
     for (const [index, receipt] of receipts.entries()) {
       const expected = collected.pending[index];
-      if (expected === undefined || receipt.ownerId !== expected.ownerId || receipt.model !== expected.model) {
+      if (
+        expected === undefined ||
+        receipt.ownerId !== expected.ownerId ||
+        receipt.model !== expected.model ||
+        receipt.generationId !== expected.generationId ||
+        receipt.generationEpoch !== expected.generationEpoch
+      ) {
         throw new Error("memory segment embed space changed during sweep");
       }
     }

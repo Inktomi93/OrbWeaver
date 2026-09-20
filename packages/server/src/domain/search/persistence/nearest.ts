@@ -3,7 +3,7 @@
 // characters.ownerId (never a users read) AND character_embeddings.model (never cross-space compare).
 
 import type { ReadOnlyDb } from "@orb/db";
-import { characterEmbeddings, characters, documentChunks, documents } from "@orb/db";
+import { characterEmbeddings, characters, documentChunks, documents, embedGenerations, embedSpaceState } from "@orb/db";
 import type { CharacterId, DocumentChunkId, DocumentId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 
@@ -18,6 +18,7 @@ interface NearestCharactersParams {
   readonly ownerId: UserId;
   readonly queryVector: Float32Array;
   readonly model: string;
+  readonly generationId?: string | undefined;
   readonly limit: number;
   /** Self-exclusion for the "more like this" scan — a character is never its own neighbour. */
   readonly excludeCharacterId?: CharacterId | undefined;
@@ -45,6 +46,7 @@ export async function nearestCharacters(db: ReadOnlyDb, params: NearestCharacter
       and(
         eq(characters.ownerId, params.ownerId),
         eq(characterEmbeddings.model, params.model),
+        params.generationId === undefined ? undefined : eq(characterEmbeddings.generationId, params.generationId),
         params.excludeCharacterId === undefined ? undefined : ne(characterEmbeddings.characterId, params.excludeCharacterId),
       ),
     )
@@ -78,6 +80,8 @@ interface NearestDocumentChunksParams {
   readonly queryVector: Float32Array;
   /** The `(model, dim)` space tag — same space the chunks were embedded in (invariant 6). */
   readonly model: string;
+  readonly generationId?: string | undefined;
+  readonly generationFingerprint?: string | undefined;
   readonly dim: number;
   readonly limit: number;
 }
@@ -87,6 +91,10 @@ interface NearestDocumentChunksParams {
  *  WHERE (never a post-filter), the ONLY belt this table needs — ownership already resolved into the id set. */
 export async function nearestDocumentChunks(db: ReadOnlyDb, params: NearestDocumentChunksParams): Promise<NearestDocumentChunk[]> {
   const distance = sql<number>`vector_distance_cos(${documentChunks.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
+  let generationCondition = params.generationId === undefined ? undefined : eq(documentChunks.generationId, params.generationId);
+  if (params.generationFingerprint !== undefined) {
+    generationCondition = and(eq(embedGenerations.fingerprint, params.generationFingerprint), eq(embedSpaceState.activeGenerationId, embedGenerations.id));
+  }
   const rows = await db
     .select({
       chunkId: documentChunks.id,
@@ -100,7 +108,23 @@ export async function nearestDocumentChunks(db: ReadOnlyDb, params: NearestDocum
     })
     .from(documentChunks)
     .innerJoin(documents, eq(documentChunks.documentId, documents.id))
-    .where(and(inArray(documentChunks.documentId, [...params.documentIds]), eq(documentChunks.model, params.model), eq(documentChunks.dim, params.dim)))
+    .leftJoin(embedGenerations, and(eq(documentChunks.generationId, embedGenerations.id), eq(documents.ownerId, embedGenerations.ownerId)))
+    .leftJoin(
+      embedSpaceState,
+      and(
+        eq(embedSpaceState.ownerId, embedGenerations.ownerId),
+        eq(embedSpaceState.scope, "documents"),
+        eq(embedSpaceState.activeGenerationId, embedGenerations.id),
+      ),
+    )
+    .where(
+      and(
+        inArray(documentChunks.documentId, [...params.documentIds]),
+        eq(documentChunks.model, params.model),
+        generationCondition,
+        eq(documentChunks.dim, params.dim),
+      ),
+    )
     .orderBy(distance)
     .limit(params.limit);
 
@@ -122,12 +146,19 @@ export async function readSeedCharacterVector(
   db: ReadOnlyDb,
   ownerId: UserId,
   characterId: CharacterId,
+  generationId?: string,
 ): Promise<{ readonly embedding: Float32Array; readonly model: string } | null> {
   const rows = await db
     .select({ embedding: characterEmbeddings.embedding, model: characterEmbeddings.model })
     .from(characterEmbeddings)
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
-    .where(and(eq(characterEmbeddings.characterId, characterId), eq(characters.ownerId, ownerId)))
+    .where(
+      and(
+        eq(characterEmbeddings.characterId, characterId),
+        eq(characters.ownerId, ownerId),
+        generationId === undefined ? undefined : eq(characterEmbeddings.generationId, generationId),
+      ),
+    )
     .limit(1);
   const row = rows[0];
   return row === undefined ? null : { embedding: row.embedding, model: row.model };
