@@ -12,7 +12,9 @@ test("every member parses to itself and anything else is REFUSED (the enum stays
   for (const api of CHAT_APIS) {
     expect(chatApiSchema.parse(api)).toBe(api);
   }
-  for (const notAnApi of ["", "chat-completion", "openai", "responses "]) {
+  // `responses` is a RETIRED member (owner ruling 2026-09-20 — the OpenRouter Responses runner was
+  // demolished with `@openrouter/sdk` and never replaced); a stored row still naming it must not parse.
+  for (const notAnApi of ["", "chat-completion", "openai", "responses", "responses "]) {
     expect(chatApiSchema.safeParse(notAnApi).success, `"${notAnApi}" must not parse as a chat api`).toBe(false);
   }
 });

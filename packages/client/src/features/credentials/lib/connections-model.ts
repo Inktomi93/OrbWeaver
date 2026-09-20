@@ -91,7 +91,6 @@ export function showsApiControl(provider: ProviderDef | undefined): boolean {
 
 const CHAT_API_LABEL_PAIRS = [
   ["chat-completions", "Chat Completions"],
-  ["responses", "Responses"],
   ["agent-sdk", "Agent SDK (Claude subscription)"],
   ["anthropic-messages", "Anthropic Messages"],
 ] as const;

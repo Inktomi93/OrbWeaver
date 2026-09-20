@@ -13,7 +13,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     dialect: "openrouter",
     auth: "apiKey",
     baseUrl: "https://openrouter.ai/api/v1",
-    apis: ["chat-completions", "responses"],
+    apis: ["chat-completions"],
     // The whole wire set. `rerank` rides the wire's plain-POST arm: OpenRouter answers `POST /rerank` with
     // the same `{ results: [{ index, relevance_score }] }` shape vLLM does (raw SDK 1.1.8 `rerankRerank`,
     // `pathToFunc("/rerank")`), so the row names the path like the vllm row does.

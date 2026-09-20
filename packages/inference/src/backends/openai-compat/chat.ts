@@ -472,17 +472,10 @@ async function drainWithReplay(run: (includeReasoning: boolean) => Promise<Strea
   }
 }
 
-/** Runs one chat-completions turn (the `responses` api is not wired on this transport — a typed refusal). */
+/** Runs one chat-completions turn — the only api this wire speaks (`WIRE_DEFS["openai-compat"].apis`). */
 export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps: OpenAiCompatChatDeps): Promise<ChatResult> {
   const { connection } = req;
   const label = `${connection.providerId} chat (${connection.model})`;
-  if (req.api !== "chat-completions") {
-    throw new ProviderError({
-      kind: "invalid",
-      retryable: false,
-      message: `${label}: the "${req.api}" api is not wired on the openai-compat wire (needs a responses transport)`,
-    });
-  }
   const generation = requireGeneration(connection, label);
   const dialect = connection.provider.dialect ?? "openai-compatible";
   const knobs = resolveChat(req.params, generation);
