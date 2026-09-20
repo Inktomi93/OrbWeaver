@@ -19,7 +19,7 @@ import type {
   TurnInitiator,
 } from "@orb/contracts/chat";
 import type { Can, ChatMembership, ParticipantRole, Principal } from "@orb/contracts/identity";
-import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
@@ -1010,6 +1010,7 @@ export type GeneratePictureOp = (p: {
   readonly mode: PromptTemplateMode;
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
+  readonly size?: SizePresetName | undefined;
 }) => Promise<{
   readonly images: readonly { readonly assetId: AssetId }[];
   // Imagery's native warning vocabulary (e.g. `image_edit_dropped` — an edit/avatar-reference input dropped for
@@ -1166,6 +1167,9 @@ type GatherDatabankOp = (args: {
   readonly hostUserId: UserId;
   readonly queryText: string;
   readonly tokenBudget: number;
+  readonly k?: number | undefined;
+  readonly minScore?: number | undefined;
+  readonly rerank?: boolean | undefined;
 }) => Promise<{ readonly text: string } | null>;
 
 /** The chat's active preset's declared ChoiceBlock variables, resolved under the host's settings. Empty

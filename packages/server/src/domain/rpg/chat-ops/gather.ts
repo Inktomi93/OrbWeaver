@@ -210,6 +210,6 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
     tools: [],
     celBindings: { rpg: feed.rpg },
     cardKeepLastX: game.config.features.cardKeepLastX,
-    ...(folded !== null && folded.tools.length > 0 ? { terminalTools: folded.tools } : {}),
+    ...(folded !== null && folded.tools.length > 0 ? ({ terminalTools: folded.tools } satisfies Pick<RpgGatherResult, "terminalTools">) : {}),
   };
 }

@@ -24,6 +24,7 @@ import type {
   RpgTrackerDef,
   RpgTrackerView,
 } from "@orb/contracts/rpg";
+import type { WireTool } from "@orb/inference";
 import type { CelValue } from "@orb/kit/cel";
 import type { ChatId, MessageId, MessageVariantId, PresetId, RpgCheckpointId, RpgGameId, RpgJournalId, RpgQuestId, RpgSnapshotId } from "@orb/kit/ids";
 
@@ -465,6 +466,7 @@ export interface RpgGatherResult {
    *  engine's `runTurnPipeline` so the X newest cards ride the wire full; 0 = every card stubs. A plain
    *  number on the STRUCTURAL gather contract (chat names no rpg type). */
   readonly cardKeepLastX: number;
+  readonly terminalTools?: readonly WireTool[] | undefined;
 }
 
 /** The macro + CEL feed a game turn's GATHER builds (parity-plus §12) — the string macro map (rpgSceneState/
