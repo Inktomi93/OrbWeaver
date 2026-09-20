@@ -195,19 +195,18 @@ catalog:
   # (`LanguageModelV4.doStream` / `EmbeddingModelV4.doEmbed` / `ImageModelV4.doGenerate`) and the
   # openai-compatible provider's `transformRequestBody` post-convert hook, which is where the dialects do their
   # body work; the OpenRouter provider FORWARDS per-message `cache_control` as an implementation fact, not a
-  # typed contract. A caret bump can move any of those under us silently, so every bump re-runs the wire-capture
-  # byte pins under `tests/inference/backends/openai-compat/**` before it is trusted. `ai` is the peer
-  # the OpenRouter provider requires (`^7.0.0`); the `@ai-sdk/provider` pin must satisfy every provider
+  # typed contract. A caret bump can move any of those under us silently, so every bump re-runs the
+  # wire-capture byte pins under `tests/inference/backends/{anthropic-messages,openai-compat}/chat.test.ts`
+  # before it is trusted. `ai` is the peer the OpenRouter provider requires (`^7.0.0`); the
+  # `@ai-sdk/provider` pin must satisfy every provider
   # package's own `@ai-sdk/provider` dependency at install (4.0.17 on 2026-09-19).
-  # @openrouter/ai-sdk-provider: 3.0.0, NOT 3.1.0 — 3.1.0 was published 2026-09-19T08:32Z, inside the
-  # minimumReleaseAge window at landing, and forcing past the gate is an owner call (the agent-sdk precedent
-  # above). The program doc's `dist/index.d.ts` line cites were read against 3.1.0; bump when mature and
-  # re-read `imageModel()` + the per-message `cache_control` forwarding before trusting either.
+  # @openrouter/ai-sdk-provider 3.1.0 cleared the 24h minimumReleaseAge floor on 2026-09-20; the exact
+  # per-transport byte pins guard its request conversion alongside the Vercel SDK providers.
   ai: 7.0.107
   "@ai-sdk/provider": 4.0.17
   "@ai-sdk/openai-compatible": 3.0.53
   "@ai-sdk/anthropic": 4.0.58
-  "@openrouter/ai-sdk-provider": 3.0.0
+  "@openrouter/ai-sdk-provider": 3.1.0
   # @huggingface/transformers: the in-process local-light tier (transformers.js/ONNX, CPU+CUDA) — the
   # "any box" embed/rerank/imageEmbed path (D39). Pulls onnxruntime-node (native; allowBuilds-approved).
   "@huggingface/transformers": ^4.3.0
