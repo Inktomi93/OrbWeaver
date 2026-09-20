@@ -1544,11 +1544,33 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     expect(await loadPendingTurns(db, chatId)).toHaveLength(0);
   });
 
-  // The CONSENT drop-path pin that stood here is DELETED, subject gone (@orb/inference §14 F13): by-proxy
-  // funding and the whole owner-consent belt are deleted, so `consent_required` has no raiser and
-  // `isDrainVerdictDrop` now classifies exactly one permanent verdict (`ChatNotFoundError`). The drop
-  // MECHANISM it pinned — claim, notify the frozen triggeredBy, stay deleted — is still live on that arm and
-  // is not covered here; a chat-gone drop pin is owed to the drain (reported to the orchestrator, not faked).
+  // THE PERMANENT-VERDICT DROP PATH. The consent drop-pin that stood here was deleted with its subject
+  // (@orb/inference §14 F13 took by-proxy funding and the whole owner-consent belt), which left the drop
+  // MECHANISM — claim, notify the frozen `triggeredBy`, stay deleted — with no coverage at all. It is
+  // re-pinned on the ONE arm that still raises it: `loadRoom` refuses a room whose host participant is gone
+  // (`turn.ts` `loadRoom` → `ChatNotFoundError`), which is a verdict no later drain edge can change.
+  test("a HOSTLESS room is a PERMANENT drop: the claimed row stays deleted and the member is notified", async () => {
+    const member = await seedUser(db, castId<Handle>("gone-member"));
+    const goneHost = await seedUser(db, castId<Handle>("gone-host"));
+    const chatId = await seedChat(db, "gone", { metadata: { group: { output: "per-speaker", policy: "natural" } } });
+    // A member seat and a character, but NO host participant — the room the frozen row was queued against
+    // no longer has anyone to run as.
+    await seedParticipant(db, { chatId, key: "gm", userId: member, role: "member" });
+    const charId = await seedCharacter(db, goneHost, "gone-aria");
+    await seedParticipant(db, { chatId, key: "gone-aria", characterId: charId, joinSeq: 0 });
+    await seedPendingTurn(db, { chatId, key: "gone", triggeredBy: member, runAsUserId: goneHost });
+    const h = harness(db, {});
+
+    const report = await h.turn.drainDeferredTurns({ all: true });
+
+    expect(report).toStrictEqual({ ran: 0, dropped: 1 });
+    // CLAIMED AND NOT RE-QUEUED — the half a "dropped" count alone cannot prove.
+    expect(await loadPendingTurns(db, chatId)).toHaveLength(0);
+    // The frozen `triggeredBy` is told their owed reply is never coming (never the resolved host).
+    expect(h.notifications).toStrictEqual([{ type: "deferred-turn-dropped", recipientUserId: member, chatId, reason: "chat-gone" }]);
+    // Nothing was generated on the way out.
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
+  });
 
   test("a TRANSIENT fault is TEMPORAL: the drain RE-QUEUES the row (no drop, no notification) to retry next drain", async () => {
     const { host, member, chatId, names } = await seedMemberRoom();

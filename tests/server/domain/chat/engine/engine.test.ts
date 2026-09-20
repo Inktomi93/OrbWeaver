@@ -28,7 +28,32 @@ const NO_DOMAIN_DROPS = {
   toolsUnsupported: false,
   structuredOutputUnsupported: false,
   guidedPlacedAsInjection: false,
+  providerRefused: false,
 } as const;
+
+/** Run the real emit seam over the DOMAIN flags (no runner warnings) and return the bus events. */
+async function busEventsForFlags(flags: Partial<Record<keyof typeof NO_DOMAIN_DROPS, boolean>>): Promise<DurableChatBusEvent[]> {
+  const events: DurableChatBusEvent[] = [];
+  await emitCapabilityDropWarnings(
+    (event) => {
+      events.push(event);
+      return Promise.resolve();
+    },
+    CHAT,
+    { ...NO_DOMAIN_DROPS, ...flags, runnerWarnings: [] },
+  );
+  return events;
+}
+
+// The PROVIDER-REFUSED arm. Not a capability drop — nothing of ours was dropped — but the same D41
+// obligation: a content-filter refusal otherwise reaches the author as a blank reply with no reason.
+test("a provider refusal emits exactly one `provider_refused` warning", async () => {
+  expect(await busEventsForFlags({ providerRefused: true })).toEqual([{ type: "warning", chatId: CHAT, code: "provider_refused" }]);
+});
+
+test("no refusal emits nothing — the flag gates, it is not a per-turn stamp", async () => {
+  expect(await busEventsForFlags({})).toEqual([]);
+});
 
 /** Run the real emit seam over one runner warning and return the bus events it produced. */
 async function busEventsFor(...runnerWarnings: readonly ResolvedWarning[]): Promise<DurableChatBusEvent[]> {

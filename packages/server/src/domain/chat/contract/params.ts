@@ -276,8 +276,10 @@ export interface ForceCharacterTurnParams extends ChatScopedParams {
  * is NOT on `ChatService` and never routed — it is an injected op the composition root hands automation's
  * `trigger_turn` arm and the Tier-2 plugin membrane's `turn.trigger` host-fn. The verb resolves the funding
  * host from the room itself (never a caller-supplied id), gates the funder's membership, threads the origin
- * onto the reply slot, and runs the turn through the SAME engine belts a human send clears — consent
- * (`assertMaxProSubConsent`) + per-member budget (`debitTurnBudget`) enforce here unchanged. No free turn.
+ * onto the reply slot, and runs the turn through the SAME engine path a human send clears — the per-chat turn
+ * lock and the cascade-depth cap included. (The owner-consent and per-member budget belts this line used to
+ * name left with the inference program §14 F13/F11; automation's own §3 rate gate is the surviving spend wall, and
+ * it sits in the arm above this op.)
  */
 export interface RequestTurnParams {
   readonly chatId: ChatId;
@@ -285,9 +287,9 @@ export interface RequestTurnParams {
    *  (depth is the lever, not the label). A caller may not pass `"human"` here (see the verb's guard). */
   readonly initiator: TurnInitiator;
   /** The responsible human (D19): the rule AUTHOR / plugin INSTALLER. Becomes `triggeredBy` — spend
-   *  attribution, abort rights, and the D17 by-proxy consent subject. Must be a PRESENT participant of the chat
-   *  (else a leak-free NOT_FOUND — a user with no membership cannot fund a turn on it). NOT the funding box:
-   *  the box is the resolved host (`runAsUserId`). */
+   *  attribution and abort rights, and the funder whose CONNECTION the turn resolves against. Must be a
+   *  PRESENT participant of the chat (else a leak-free NOT_FOUND — a user with no membership cannot fund a
+   *  turn on it). NOT the funding box: the box is the resolved host (`runAsUserId`). */
   readonly funderUserId: UserId;
   /** The parent depth + 1 (automation-design/03 §4). Stamped on the reply slot so the reply's events resolve
    *  their cascade depth; the verb REFUSES a value past `AUTOMATION_DEPTH_HARD_CAP` (the plugin-path belt —

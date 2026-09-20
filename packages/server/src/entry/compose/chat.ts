@@ -669,16 +669,34 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
   };
 }
 
-/** The runner's `ChatResult.events` → the domain stream's `warning` chunks (D41 no-silent-degrade, the READ
+/** The runner's `ChatResult.events` → the domain stream's out-of-band chunks (D41 no-silent-degrade, the READ
  *  end). The bridge CARRIES the infra codes; it does not translate them — chat owns its bus vocabulary, so the
  *  infra→`ChatWarningCode` narrowing lives in the domain (`engine.ts` `toChatWarning`), the mirror of the
  *  IMAGE role's hop where compose hands the domain a narrowed infra code and
  *  `domain/chat/verbs/generate-image.ts` does the re-map. Deduped here because one runner can repeat a code
  *  within a single result; the pipeline dedupes again across recursion depths.
- *  Extracted so the bridge body stays under the cognitive-complexity cap. */
-function warningChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
+ *  Extracted so the bridge body stays under the cognitive-complexity cap.
+ *
+ *  TWO event kinds cross, not one. `refusal` rides as its OWN chunk kind because it is not a degrade of our
+ *  settings but the model's verdict on the request; it collapses to a single chunk for the same reason the
+ *  warnings dedupe (a result can carry more than one), and it crosses PAYLOAD-FREE — the provider's
+ *  `category`/`explanation`/`fallbackModel` are raw strings the chat bus may not carry, and they stay on
+ *  `ChatResult.events` for the wire-outcome ring.
+ *
+ *  WHAT DELIBERATELY DOES NOT CROSS: `rate_limit`. It is an OPERATOR signal about the account's remaining
+ *  headroom, not a fact about this reply — the turn succeeded — and its payload is raw provider strings. It
+ *  has a home already (the `provider.rate_limit` log line beside the emit, and the event on `ChatResult`);
+ *  telling every member of a room that the host is at 80% of a rate limit mid-story is noise, not honesty.
+ *  Same for `compaction`/`api_retry`/`status`/`auth_status`/`model_downgrade`/`permission_leak`: diagnostics
+ *  with no user decision behind them. If one ever earns a room-public surface it needs its own bus member and
+ *  its own ruling, not a quiet addition here. */
+function outOfBandChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
   const seen = new Map<string, TurnStreamChunk>();
+  let refused = false;
   for (const event of events) {
+    if (event.kind === "refusal") {
+      refused = true;
+    }
     if (event.kind === "warning") {
       const { kind: _kind, at: _at, ...warning } = event;
       // KEYED ON THE WHOLE WARNING, not on the code alone (#1440): with the drop's structured half carried
@@ -688,7 +706,7 @@ function warningChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
       seen.set(JSON.stringify(warning), { kind: "warning", ...warning });
     }
   }
-  return [...seen.values()];
+  return refused ? [...seen.values(), { kind: "refusal" }] : [...seen.values()];
 }
 
 /** The AGENT-SDK arm of the turn mapping: the stateful wire. Trailing depth-0 system rows have already been
@@ -902,7 +920,7 @@ export function createRunChatTurnBridge(deps: {
       .then((result) => {
         // BEFORE the terminal `final` (which ends the drain): the turn's honest-degrade warnings. Without this
         // the runner's `events` died at this seam and D41 held only in the logs, never in the product.
-        pump.push(...warningChunks(result.events), finalTurnChunk(req, result));
+        pump.push(...outOfBandChunks(result.events), finalTurnChunk(req, result));
         pump.close();
       })
       .catch((err: unknown) => {

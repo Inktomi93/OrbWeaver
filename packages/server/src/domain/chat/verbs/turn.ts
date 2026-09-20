@@ -2396,20 +2396,23 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
 
 // ── pending_turns drain — the host-offline deferred-turn reclaim (Part III §5) ──
 
-/** A drain VERDICT drop — a PERMANENT refusal, so the claimed row stays deleted (never re-queued):
- *   • `consent_required` — the host's D17 consent belt refused a by-proxy hosted turn (an authority verdict).
- *   • `ChatNotFoundError` — the chat/host is gone (nothing left to run).
- *  Everything else RE-QUEUES: `budget_exceeded` is TEMPORAL (a spent window means "not now", not "never" — the
- *  member's owed reply waits for the next drain edge), and a transient fault (provider outage) is a retry.
- *  Drains fire only at boot + host-return edges, so a re-queued row can't hot-loop. */
+/** A drain VERDICT drop — a PERMANENT refusal, so the claimed row stays deleted (never re-queued). Exactly
+ *  ONE verdict is permanent today: `ChatNotFoundError` — the chat row, or its host participant, is gone, so
+ *  there is nothing left to run and no later edge can change that. (The by-proxy owner-consent verdict that
+ *  was the second member left with the inference program §14 F13, and the per-member turn budget with F11; neither
+ *  belt has a raiser on the tree.)
+ *  Everything else RE-QUEUES: a transient fault (a provider outage) is "not now", not "never", so the
+ *  member's owed reply waits for the next drain edge. Drains fire only at boot + host-return edges, so a
+ *  re-queued row can't hot-loop. */
 function isDrainVerdictDrop(err: unknown): boolean {
   return err instanceof ChatNotFoundError;
 }
 
 /** Reconstruct + run ONE deferred AI round from a durable `pending_turns` row — no principal, no new user
- *  line: the row's frozen triple (`triggeredBy`/`runAsUserId`) funds it and the engine's in-lock belts
- *  re-validate consent + budget. Throws a coded refusal (→ the drain drops the row) or completes (→ the drain
- *  deletes it). Cards + assemble resolve under the row's frozen host; a mid-defer host-handoff funds the
+ *  line: the row's frozen triple (`triggeredBy`/`runAsUserId`) funds it, and the room/host/connection are
+ *  re-resolved at drain time (a room that lost its host, or a funder that lost its connection, refuses here
+ *  rather than at queue time). Throws (→ the drain drops or re-queues the row by class) or completes (→ the
+ *  drain deletes it). Cards + assemble resolve under the row's frozen host; a mid-defer host-handoff funds the
  *  frozen host per D19. */
 async function runDeferredRound(
   ctx: ChatContext,
@@ -2459,9 +2462,8 @@ async function runDeferredRound(
 }
 
 /** Process ONE queued row: CLAIM it atomically (the exactly-once serializer), then RUN it · DROP it on a
- *  permanent verdict (the claim already deleted it) · or RE-QUEUE it (re-insert) on `budget_exceeded`/a
- *  transient fault. A lost claim ("skipped") means a concurrent drain owns the row. Isolated — the fault
- *  never escapes the sweep. */
+ *  permanent verdict (the claim already deleted it) · or RE-QUEUE it (re-insert) on a transient fault. A lost
+ *  claim ("skipped") means a concurrent drain owns the row. Isolated — the fault never escapes the sweep. */
 async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: PendingTurnId }): Promise<"ran" | "dropped" | "requeued" | "skipped"> {
   // Atomic claim-before-run: the `DELETE … RETURNING` is the ONLY serializer (a drained turn is not
   // lock-held), so the boot reclaim ∥ host-return overlap can't double-run or double-spend a row.
@@ -2470,19 +2472,23 @@ async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: Pe
     return "skipped"; // a concurrent drain already claimed this row.
   }
   // @orb-waive caught-failure-ownership(err): fully classified below — a permanent verdict
-  // notifies + logs and returns "dropped"; anything else (budget/transient) re-inserts the row and logs
+  // notifies + logs and returns "dropped"; anything else (a transient fault) re-inserts the row and logs
   // "requeued" (documented in the function header). Ends if a third fault class needs its own handling.
   try {
     await runDeferredRound(ctx, deps, claimed);
     return "ran";
   } catch (err) {
     if (isDrainVerdictDrop(err)) {
-      const reason = err instanceof ChatNotFoundError ? "chat-gone" : "consent";
-      await notifyDeferredTurnDropped(ctx, claimed, reason);
-      getLog().info({ pendingTurnId: claimed.id, chatId: claimed.chatId, reason, dropped: true }, "chat: deferred turn DROPPED at drain (permanent verdict)");
+      // `isDrainVerdictDrop` admits exactly one class, so the reason is not a dispatch: the notification's
+      // `consent` arm survives in the contract for the belt's own sake, but nothing raises it here.
+      await notifyDeferredTurnDropped(ctx, claimed, "chat-gone");
+      getLog().info(
+        { pendingTurnId: claimed.id, chatId: claimed.chatId, reason: "chat-gone", dropped: true },
+        "chat: deferred turn DROPPED at drain (permanent verdict)",
+      );
       return "dropped";
     }
-    // budget_exceeded (temporal) or a transient fault → RE-QUEUE (re-insert the claimed row, same frozen
+    // A transient fault (a provider outage, a wire error) → RE-QUEUE (re-insert the claimed row, same frozen
     // triple + createdAt) to retry on the next drain edge. A crash between claim and re-insert loses the row
     // (the member can resend) — cheaper than a double-run.
     await insertPendingTurn(ctx.db, {
@@ -2492,10 +2498,7 @@ async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: Pe
       runAsUserId: claimed.runAsUserId,
       createdAt: claimed.createdAt,
     });
-    getLog().warn(
-      { pendingTurnId: claimed.id, chatId: claimed.chatId, err, requeued: true },
-      "chat: deferred turn RE-QUEUED at drain (budget window / transient fault)",
-    );
+    getLog().warn({ pendingTurnId: claimed.id, chatId: claimed.chatId, err, requeued: true }, "chat: deferred turn RE-QUEUED at drain (transient fault)");
     return "requeued";
   }
 }
@@ -2522,9 +2525,9 @@ async function notifyDeferredTurnDropped(
 }
 
 /** `drainDeferredTurns` — the boot reclaim (`{all:true}`) + host-return (`{hostUserId}`) drain of the durable
- *  `pending_turns` queue. Each row runs through the engine (consent/budget re-validated in-lock) or is
- *  dropped on a re-validation refusal — both consume the row; a transient fault leaves it queued. Rows drain
- *  oldest-first + SEQUENTIALLY (each takes the per-chat lock + spends the host budget). */
+ *  `pending_turns` queue. Each row runs through the engine or is dropped on a permanent verdict (the room is
+ *  gone) — both consume the row; a transient fault leaves it queued. Rows drain oldest-first + SEQUENTIALLY
+ *  (each takes the per-chat lock, and a drained turn spends the host's connection like any other). */
 function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService["drainDeferredTurns"] {
   return async (scope: DrainDeferredTurnsScope): Promise<DrainReport> => {
     const rows = "all" in scope ? await loadPendingTurnsForReclaim(ctx.db) : await loadPendingTurnsForHost(ctx.db, scope.hostUserId);
@@ -2546,21 +2549,22 @@ function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService
 
 /**
  * `requestTurn` — run an autonomous chat turn on behalf of a NON-HUMAN initiator (an automation rule / a
- * plugin). The FOUR WALLS, none optional:
+ * plugin). THE WALLS, none optional:
  *   1. DEPTH (loop-prevention) — refuse a stamp DEEPER than {@link AUTOMATION_DEPTH_HARD_CAP} (the write-side
  *      belt for a non-dispatch caller; automation's dispatch already bounds its own path), and thread
  *      `initiator`/`automationDepth` onto the reply slot so the reply's events resolve their cascade depth.
  *   2. AUTHORITY (cross-tenant) — the funder must be a PRESENT participant of the chat, else a leak-free
  *      NOT_FOUND (a user with no membership cannot fund a turn on it). The funding host is resolved from the
  *      ROOM, never a caller-supplied id.
- *   3. BUDGET — the engine's per-member `debitTurnBudget(triggeredBy)` runs unchanged inside the round (no free
- *      turn); automation's own §3 spend gate runs in the arm ABOVE this.
- *   4. CONSENT (D17) — the engine's `assertMaxProSubConsent` belt refuses a by-proxy hosted (`max-pro-sub`) turn
- *      without explicit owner consent (fail-closed). requestTurn re-implements NEITHER belt — it routes the
- *      triple (`triggeredBy` = funder, `runAsUserId` = host) through the engine so both fire.
+ *   3. RATE — automation's own §3 spend gate, in the arm ABOVE this; requestTurn re-implements nothing.
+ *      (This wall used to name two engine belts of its own: the per-member turn/request COUNT budget, retired
+ *      by the inference program §14 F11, and the D17 by-proxy owner-consent belt, retired by F13. Neither has
+ *      a raiser on the tree, so neither is claimed here any more — the dispatch gate is the whole spend wall.)
+ *   4. LOCK — the per-chat turn lock the engine takes for every turn, human or not: an autonomous trigger
+ *      never runs beside an in-flight one.
  * Drives ONE round (no auto-mode AI→AI chain — an autonomous trigger is a single injected beat), forcing the
- * named speaker (coerced per-speaker) or arbitrating. A coded refusal (consent/budget/lock/depth) propagates to
- * the caller; the automation arm maps it to a typed refusal.
+ * named speaker (coerced per-speaker) or arbitrating. A coded refusal (lock/depth) propagates to the caller;
+ * the automation arm maps it to a typed refusal.
  */
 /** The resolved substrate a `requestTurn` round runs on — produced only after WALLS 1+2 pass. */
 interface RequestTurnResolved {

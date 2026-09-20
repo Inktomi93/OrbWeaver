@@ -3,9 +3,9 @@
 // is NEVER fired on load: this renders a quiet click-to-reveal trigger, and only a
 // user click builds the query key (via `useGatedQuery`'s skipToken gate). The settled cost is immutable, so
 // it caches forever (staleTime Infinity). The revealed datum is quiet micro-mono-muted text (north-star P5),
-// NOT a pill — matching the sibling gen-duration readout. Renders nothing without a `generationId` AND a
-// `connectionId` (a user/system row has neither; a deleted connection's swipe keeps its handle but has no
-// row to settle it against).
+// NOT a pill — matching the sibling gen-duration readout. What makes the affordance renderable at all is
+// {@link canRevealGenerationCost} (`../lib/message-readout.ts`) — the ONE home for that decision, shared
+// with the metadata row that decides whether to give this readout a slot.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { UserConnectionId } from "@orb/kit/ids";
@@ -15,6 +15,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useGatedQuery, useTRPC } from "#data";
+import { canRevealGenerationCost } from "../lib/message-readout.ts";
 
 /** USD costs are sub-cent; four decimals keeps `$0.0023`-scale precision readable without noise. */
 const COST_FRACTION_DIGITS = 4;
@@ -38,13 +39,15 @@ export function MessageCostReadout({ message }: { readonly message: MessageView 
   const trpc = useTRPC();
   const [revealed, setRevealed] = useState(false);
   const { generationId, connectionId } = message;
-  // The key is built ONLY once revealed AND both halves exist — until then `useGatedQuery` skips the fetch.
-  const gateKey = revealed && generationId !== null && connectionId !== null ? { generationId, connectionId } : undefined;
+  const settleable = canRevealGenerationCost(message);
+  // The key is built ONLY once revealed AND the row is settleable — until then `useGatedQuery` skips the
+  // fetch. The two null re-checks are what narrows the pair for `tsc`; `settleable` is the decision.
+  const gateKey = revealed && settleable && generationId !== null && connectionId !== null ? { generationId, connectionId } : undefined;
   const query = useGatedQuery(gateKey, (key: { readonly generationId: string; readonly connectionId: UserConnectionId }) =>
     trpc.connection.generationCost.queryOptions(key, { staleTime: Number.POSITIVE_INFINITY }),
   );
 
-  if (generationId === null || connectionId === null) {
+  if (!settleable) {
     return null;
   }
 

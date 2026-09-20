@@ -44,7 +44,7 @@ export function warningNotice(warning: ChatWarning): NotifyNotice {
   return warning.code === "settings_adjusted" ? settingsAdjustedNotice(warning) : plainNotice(warning.code);
 }
 
-/** The twelve degrades whose notice is fully determined by the code. */
+/** The outcomes whose notice is fully determined by the code — every `PLAIN_CHAT_WARNING_CODES` member. */
 function plainNotice(code: PlainChatWarningCode): NotifyNotice {
   switch (code) {
     case "image_dropped":
@@ -89,6 +89,13 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
       return {
         description: "OpenRouter ignores them. They apply only on a Custom OpenAI-compatible connection.",
         title: "Your preset's custom parameters weren't sent",
+      };
+    // The one notice about the MODEL's own choice rather than a setting. No reason is quoted: the provider's
+    // own words are unstable prose and never reach the client (see the code's comment in the bus tuple).
+    case "provider_refused":
+      return {
+        description: "Its safety filter stopped this one. Editing the last message or swiping again usually gets past it.",
+        title: "The provider declined to write this reply",
       };
     default:
       return assertNeverCode(code);

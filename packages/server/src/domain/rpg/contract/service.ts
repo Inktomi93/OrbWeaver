@@ -562,12 +562,12 @@ export interface RpgPopulateDelta {
 
 /** The shared input every state round consumes (the tool round, its structured degrade, the fold). Carries the
  *  committed variant's IDENTIFIERS (never its prose — the impl reads the beat itself), the resolution-ladder
- *  base state, AND `turnConnection` — the NARRATION turn's already-resolved route + enforced owner-consent
- *  verdict + its OWN canon transcript (`RpgTurnContext`, chat's front door). The round runs on THAT connection
- *  with THAT consent AND reasons from `turnConnection.transcript` (§1.3) — the
- *  F1 fix: no second `resolveRole` (a room on vllm runs its round on vllm), no force-stamped `ownerConsented`
- *  (a metered-sub round inherits the turn's belt verdict). `turnConnection.connection.capability` also gates
- *  the flush's readonly verdict (F2 — no round on a capability-absent connection). */
+ *  base state, AND `turnConnection` — the NARRATION turn's already-resolved route + its OWN canon transcript
+ *  (`RpgTurnContext`, chat's front door). The round runs on THAT connection AND reasons from
+ *  `turnConnection.transcript` (§1.3) — the F1 fix: no second `resolveRole`, so a room on vllm runs its round
+ *  on vllm. (F1 also carried the turn's owner-consent verdict; that belt left with the inference program §14 F13, so
+ *  the route is what remains.) `turnConnection.connection.capability` also gates the flush's readonly verdict
+ *  (F2 — no round on a capability-absent connection). */
 /** Non-exported: the exported op aliases (`RpgRunExtraction`/`RpgRunToolRound`) ARE the public surface;
  *  nothing names this shape directly outside this file (knip). */
 interface RpgStateRoundInput {
