@@ -53,18 +53,29 @@ import { createFrameQueue } from "./frame-queue.ts";
 import { roomSourceFor } from "./room-sources.ts";
 import type { SocketCell, SocketListener, SocketRegistry, SocketRoom } from "./socket-registry.ts";
 
-/** What a room's fault becomes on the wire. A DOMAIN error keeps its classified code + message (the same
- *  typed-terminal-frame contract `withSubscriptionErrors` gives a whole stream today); anything else is a
+/** The one message an INTERNAL_SERVER_ERROR room frame ever carries. Mirrors the procedure path's
+ *  `UNCLASSIFIED_FAULT_MESSAGE` (`trpc.ts`) in a different voice because a ROOM dying is a different event
+ *  to a reader than a call failing. */
+const ROOM_FAULT_MESSAGE = "The room stopped unexpectedly.";
+
+/** What a room's fault becomes on the wire. A CLASSIFIED error keeps its code + message (the same
+ *  typed-terminal-frame contract `withSubscriptionErrors` gives a whole stream); anything else is a
  *  genuine bug and collapses to a generic INTERNAL_SERVER_ERROR — internals never reach a subscriber. */
 function roomFailure(err: unknown): { readonly code: StreamErrorCode; readonly message: string } {
   const mapped = classifyDomainError(err);
   if (mapped === null) {
-    return { code: "INTERNAL_SERVER_ERROR", message: "The room stopped unexpectedly." };
+    return { code: "INTERNAL_SERVER_ERROR", message: ROOM_FAULT_MESSAGE };
   }
   // `@orb/contracts` cannot depend on `@trpc/server`, so the wide tRPC code union narrows onto our closed
-  // vocabulary HERE — the one mapper seam. The classifier only produces members of it.
+  // vocabulary HERE — the one mapper seam. The classifier is kept inside that vocabulary by its own
+  // header, so a miss means the two drifted.
+  //
+  // A MISS TAKES THE COLLAPSED MESSAGE TOO, and that is the whole point of this arm rather than a bare
+  // `?? "INTERNAL_SERVER_ERROR"`: the frame would otherwise say INTERNAL_SERVER_ERROR while carrying a
+  // classified error's real text, which is exactly the "a 500 must never carry a real message" rule the
+  // procedure path enforces at its formatter. Code and message move together or not at all.
   const code = STREAM_ERROR_CODES.find((known) => known === mapped.code);
-  return { code: code ?? "INTERNAL_SERVER_ERROR", message: mapped.message };
+  return code === undefined ? { code: "INTERNAL_SERVER_ERROR", message: ROOM_FAULT_MESSAGE } : { code, message: mapped.message };
 }
 
 export interface RunSocketArgs {

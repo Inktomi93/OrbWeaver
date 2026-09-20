@@ -204,12 +204,17 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
    *
    *  ONE-SHOT, NOT A LIVE FEED — every settle path unsubscribes. This is the zombie-subscription seam: the
    *  handle was previously discarded, and the link tears itself down only on complete/error. A server fault
-   *  with a RETRYABLE tRPC code (INTERNAL_SERVER_ERROR — what a raw `ProviderError` becomes, since it is not a
-   *  DomainError and so never becomes a typed terminal frame) is NOT an error to `httpSubscriptionLink`: it
+   *  with a RETRYABLE tRPC code (INTERNAL_SERVER_ERROR) is NOT an error to `httpSubscriptionLink`: it
    *  reports "connecting" with the error and lets EventSource reconnect every ~3s FOREVER, re-running the
    *  server generator (a full silent re-generation per reconnect) while NO client callback ever fires — the
    *  owner's dead-engine incident, one gesture and minutes of `impersonateStream` GETs. For a one-shot,
-   *  non-resumable drive that is terminal: reject + unsubscribe on the first server-reported connection error. */
+   *  non-resumable drive that is terminal: reject + unsubscribe on the first server-reported connection error.
+   *
+   *  THE GUARD IS STILL LOAD-BEARING, but the incident's own trigger is gone at the source: a raw
+   *  `ProviderError` used to reach here as a 500 because it is not a `DomainError` and so never became a
+   *  typed terminal frame. `transport/trpc/error-mapping.ts` classifies it now, so a provider fault of a
+   *  modelled kind arrives on `onData` as a terminal frame that terminates. What still lands here is the
+   *  genuinely unmodelled throw — which is exactly the shape this guard was written for. */
   const streamImpersonation = (targetChatId: ChatId, guided: GuidedSteerInput | undefined, fill: (accumulated: string) => void): Promise<void> =>
     new Promise<void>((resolve, reject) => {
       let accumulated = "";

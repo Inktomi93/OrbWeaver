@@ -4,12 +4,13 @@
 // delegates to the injected service verb with the Principal; the CSRF gate fires on cookie mutations only;
 // the injected rate-limit gate's throw maps to TOO_MANY_REQUESTS; the multi-human belt (PD-106) 404s the
 // documented single-user-refused surface list (the invites router + `notifications.presence` — the inbox
-// CRUD trio LEFT that list with #1627) and stays open in multi-user mode; and the errorFormatter's
-// PROD-LEAK belt keeps `stack` off the wire shape in EVERY env.
+// CRUD trio LEFT that list with #1627) and stays open in multi-user mode; the errorFormatter's
+// PROD-LEAK belt keeps `stack` off the wire shape in EVERY env; and its UNCLASSIFIED-MESSAGE belt keeps an
+// unmodelled throw's own text off the wire while a classified error keeps both its message and its reason.
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
-import { providerErrorFromHttp, resolvedScrubSet } from "@orb/inference";
+import { ProviderError, providerErrorFromHttp, resolvedScrubSet } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -164,6 +165,26 @@ describe("the unmapped-error 500 log (silent-500 belt)", () => {
     const log = vi.spyOn(logger, "error");
     await expect(caller(makeContext({ auth: null })).persona.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     expect(log).not.toHaveBeenCalled();
+  });
+
+  // A CLASSIFIED PROVIDER FAULT IS NOT A BUG, SO NOT `error` — but it still owes a trace, and this is now
+  // the ONLY place its real message exists: the classifier sends host copy for every kind but `invalid`.
+  // Without this line a dead key, a rate-limit or an upstream 5xx would leave nothing behind anywhere.
+  test("a classified PROVIDER fault logs one WARN carrying toLog(), and is NOT counted as an unmapped fault", async () => {
+    const fault = new ProviderError({ kind: "auth_failed", retryable: false, message: "openrouter chat: HTTP 401 — bad key", apiErrorStatus: 401 });
+    const list = vi.fn<PersonaService["list"]>().mockRejectedValue(fault);
+    const ctx = makeContext({ auth: principal("user"), services: { persona: { list } } });
+    const warn = vi.spyOn(logger, "warn");
+    const error = vi.spyOn(logger, "error");
+
+    await expect(caller(ctx).persona.list()).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledOnce();
+    const [bindings] = warn.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
+    expect(bindings).toMatchObject({ event: "trpc.provider", path: "persona.list", kind: "auth_failed", apiErrorStatus: 401 });
+    // The message the WIRE did not get is exactly what the log did.
+    expect(bindings["message"]).toBe("openrouter chat: HTTP 401 — bad key");
   });
 });
 
@@ -378,6 +399,77 @@ describe("errorFormatter — `stack` never reaches the wire (PROD-LEAK belt)", (
       },
     });
     expect(shaped.data).toMatchObject({ code: "BAD_REQUEST", httpStatus: 400, path: "persona.list", reason: "bad_input" });
+  });
+
+  // ── THE UNCLASSIFIED-MESSAGE BELT ────────────────────────────────────────────────────────────────────
+  //
+  // `getErrorShape` sets `shape.message = error.message`, and `TRPCError`'s constructor inherits the
+  // CAUSE's message when given none — so a throw nothing modelled put its own raw text on the wire. The
+  // formatter now substitutes a fixed sentence whenever `data.code` is INTERNAL_SERVER_ERROR, and does it
+  // by destructuring `message` OUT of `shape` so the spread cannot carry it (the same "unrepresentable,
+  // not merely unlikely" shape as the `stack` strip above).
+  //
+  // BOTH PLANTED CONTROLS RUN HERE, because either alone is a false green: the first proves the belt
+  // closes on a message that must not ride, the second proves it is keyed on the CODE rather than blanket
+  // — a blanket collapse would pass the first and silently degrade every typed refusal in the product.
+
+  /** `getErrorShape`'s output for one (code, message) pair, as it reaches the configured formatter. */
+  function shapeFor(
+    code: Parameters<typeof errorFormatter>[0]["shape"]["data"]["code"],
+    httpStatus: number,
+    message: string,
+    error: Parameters<typeof errorFormatter>[0]["error"],
+  ): { readonly message: string } {
+    return errorFormatter({
+      error,
+      type: "query",
+      path: "persona.list",
+      input: undefined,
+      ctx: undefined,
+      shape: { message, code: -32_603, data: { code, httpStatus, path: "persona.list", stack: LEAKING_STACK } },
+    });
+  }
+
+  test("CONTROL A — an UNCLASSIFIED 500's own message never reaches the wire", () => {
+    // The three provenances a raw throw's message actually holds on this tree: a host path (the
+    // `local-light` cache-dir error), an unsanitized upstream body (`fetchJson`), a driver string.
+    const raw = "ENOENT: no such file, mkdir '/home/opuser/orb/.cache' — <html>502 <b>upstream</b></html> sk-or-v1-abc";
+    const shaped = shapeFor("INTERNAL_SERVER_ERROR", 500, raw, mappedError(new DomainOperationError("x", "y")));
+    expect(shaped.message).not.toContain("/home/opuser");
+    expect(shaped.message).not.toContain("sk-or-v1-abc");
+    expect(shaped.message).not.toContain("<html>");
+    // Not an empty string either — a surface that renders `error.message` must still say something.
+    expect(shaped.message.length).toBeGreaterThan(0);
+  });
+
+  test("CONTROL B — a CLASSIFIED error keeps its own message AND its reason, unchanged", () => {
+    const refusal = new DomainOperationError("owner_not_present", "the agent's owner is not a present member");
+    const mapped = mappedError(refusal);
+    const shaped = errorFormatter({
+      error: mapped,
+      type: "query",
+      path: "persona.list",
+      input: undefined,
+      ctx: undefined,
+      shape: { message: mapped.message, code: -32_600, data: { code: "BAD_REQUEST", httpStatus: 400, path: "persona.list", stack: LEAKING_STACK } },
+    });
+    expect(shaped.message).toBe("the agent's owner is not a present member");
+    expect(shaped.data).toMatchObject({ code: "BAD_REQUEST", reason: "owner_not_present" });
+  });
+
+  test("a classified PROVIDER failure rides its `provider_<kind>` reason so the client can still discriminate", () => {
+    const mapped = mappedError(new ProviderError({ kind: "rate_limit", retryable: true, message: "openrouter chat: HTTP 429 — slow down" }));
+    const shaped = errorFormatter({
+      error: mapped,
+      type: "query",
+      path: "search.search",
+      input: undefined,
+      ctx: undefined,
+      shape: { message: mapped.message, code: -32_029, data: { code: "TOO_MANY_REQUESTS", httpStatus: 429, path: "search.search", stack: LEAKING_STACK } },
+    });
+    expect(shaped.data).toMatchObject({ reason: "provider_rate_limit" });
+    // Host copy, not the upstream sentence — the classifier already substituted it.
+    expect(shaped.message).not.toContain("HTTP 429");
   });
 
   test("a provider-reflected credential is absent from the tRPC/UI wire shape and retained cause graph", () => {
