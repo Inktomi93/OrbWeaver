@@ -4,6 +4,8 @@
 
 import type { EffortLevel, HookJSONOutput, Options, ThinkingConfig } from "@anthropic-ai/claude-agent-sdk";
 import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from "@anthropic-ai/claude-agent-sdk";
+import type { AdjustedKnob } from "@orb/contracts/chat";
+import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract/resolve.ts";
@@ -165,6 +167,46 @@ function buildEnvOverrides(params: UserIntent, resolved: ResolvedChatKnobs): Cla
   };
 }
 
+/** The SDK's feature name → our knob vocabulary when the two agree — the same `knobOf` idiom
+ *  `backends/v4/result.ts` uses for the hosted wires' SDK warnings, not a second mapping. A resolved knob
+ *  with no `AdjustedKnob` of our own still drops loudly; it simply rides as prose, exactly as it does there. */
+function knobOf(name: string): AdjustedKnob | undefined {
+  return ADJUSTED_KNOBS.find((knob) => knob === name);
+}
+
+/**
+ * THE SAMPLER DROP (D41, no silent degrade). `buildGenerationOptions` above spells ONLY `thinking` and
+ * `effort`: the bundled Claude runtime exposes no sampler knob at all, so every resolved `temperature` /
+ * `topP` / `topK` / penalty / `seed` / `stop` reaching this translation is a knob that will NOT be sent. It
+ * used to be discarded here in silence while `resolveChat` had already resolved it and `log.sampling`'s
+ * `applied` receipt reported it as applied — the exact shape D41 forbids, and the shape the cross-backend
+ * conformance suite caught on 2026-09-20 (the two hosted wires either send the knob or announce the drop).
+ *
+ * TODAY THIS EMITS NOTHING, BY CONSTRUCTION: `capability/sources/curated/anthropic.ts`'s `wire: "agent-sdk"`
+ * row states `sampling: {}`, so the funnel drops each preset knob with its own `sampling_knob_dropped` long
+ * before translation runs and `resolved.sampling` arrives empty. That is not a reason to skip this. The
+ * capability fold puts `declared` ABOVE curated (§6.2 — "the user's box is the truth about the user's box"),
+ * so a user writing a `declared.sampling` block on a `claude-sub` connection widens the axis with no code
+ * change and no review, and the silent path opens for them alone. The guard was one unasserted data row;
+ * now the code holds it and the row is pinned besides
+ * (`tests/inference/conformance/unsupported-settings.suite.test.ts`).
+ */
+function droppedSamplerWarnings(resolved: ResolvedChatKnobs): ResolvedWarning[] {
+  const out: ResolvedWarning[] = [];
+  for (const [name, value] of Object.entries(resolved.sampling)) {
+    if (value === undefined) {
+      continue;
+    }
+    const knob = knobOf(name);
+    out.push({
+      code: "sampling_knob_dropped",
+      ...(knob !== undefined ? { knob } : {}),
+      message: `${name} ignored: the bundled Claude runtime exposes no sampler knob on the agent-sdk wire`,
+    });
+  }
+  return out;
+}
+
 export function toSdkGeneration(
   params: UserIntent,
   capability: GenerationCapability,
@@ -179,7 +221,7 @@ export function toSdkGeneration(
   return {
     envOverrides: buildEnvOverrides(params, resolved),
     options: buildGenerationOptions(resolved),
-    warnings: resolved.warnings,
+    warnings: [...resolved.warnings, ...droppedSamplerWarnings(resolved)],
     turnId: resolved.turnId,
     knobs: resolved,
   };

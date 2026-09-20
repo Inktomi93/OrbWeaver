@@ -3,8 +3,9 @@
 // nested usage and the provider metadata off the `finish` part. Shared by the openai-compat and
 // anthropic-messages backends (both drive a V4 `doStream`). `onText`/`onReasoning` fire per delta —
 // the caller marks the retry COMMITTED on the first one; `onPart` fires on every part (the idle-timer reset).
-// A stream that ends without a `finish` part is a TRUNCATED turn and fails closed (#1400's class), never an
-// empty success. An `error` part is re-thrown for the caller's classifier.
+// A stream that ends without a `finish` part — or with one the PROVIDER SYNTHESIZED on flush rather than read
+// off the wire (`isSynthesizedFinish`, whose comment carries the measurement) — is a TRUNCATED turn and fails
+// closed (#1400's class), never an empty success. An `error` part is re-thrown for the caller's classifier.
 
 import type {
   JSONObject,
@@ -202,6 +203,41 @@ function reasoningPartsOf(acc: Accumulator): readonly ReasoningContentPart[] {
   return out;
 }
 
+/**
+ * THE SYNTHESIZED FINISH (the #1400 class, re-found by the cross-backend conformance suite 2026-09-20).
+ *
+ * `acc.finish === undefined` below is the honest truncation guard — and on the openai-compat wire it is
+ * STRUCTURALLY UNREACHABLE, because both of that wire's providers manufacture a `finish` part on FLUSH
+ * whether or not the upstream ever sent one:
+ *   · `@ai-sdk/openai-compatible@3.0.53` — `dist/index.js:1410` initialises
+ *     `finishReason = { unified: "other", raw: undefined }` and `:1467-1477`'s `flush(controller)` enqueues
+ *     it unconditionally with `convertOpenAICompatibleCompletionUsage(undefined)` (an all-`undefined` usage).
+ *   · `@openrouter/ai-sdk-provider@3.1.0` — the same initialiser at `dist/index.js:4583` / `:5386`, emitted
+ *     from its own flush at `:5036` / `:5485`.
+ * (The direct `@ai-sdk/anthropic@4.0.58` wire does NOT do this: `dist/index.js:5886` enqueues `finish` only
+ * inside the `message_stop` case, so a truncated Anthropic stream genuinely has no finish part and the
+ * `undefined` guard fires. That asymmetry is exactly what made this invisible — one wire failed closed and
+ * looked like proof the class was handled.)
+ *
+ * The measured consequence on a truncated openai-compat stream: `drainStream` returned normally and the turn
+ * RESOLVED with `reply: ""`, `finishReason: "other"`, `stopReason: "other"` and null tokens — an empty reply
+ * committed to canon as a successful turn. A partial stream committed the partial text the same way. A
+ * byte-equality wire pin cannot see this: the REQUEST is unchanged.
+ *
+ * THE TELL, and why it cannot swallow a legitimate termination: a real `other` finish always carries at
+ * least ONE of the two things the synthesized default lacks — the provider's own raw stop word, or a token
+ * count. The guard fires only when BOTH are absent, which is the flush default and nothing else. A genuine
+ * `finish_reason: "error"`/`"other"` carries `raw`; an endpoint that reports no usage still carries `raw`; a
+ * provider that omits the stop word still reports tokens. `0` tokens is a REPORTED zero and is `!== undefined`,
+ * so a legitimately empty generation is untouched.
+ */
+function isSynthesizedFinish(finish: LanguageModelV4FinishReason, usage: LanguageModelV4Usage | undefined): boolean {
+  if (finish.unified !== "other" || finish.raw !== undefined) {
+    return false;
+  }
+  return usage === undefined || (usage.inputTokens.total === undefined && usage.outputTokens.total === undefined);
+}
+
 export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPart>, callbacks: DrainCallbacks): Promise<StreamDrain> {
   const acc: Accumulator = {
     reply: "",
@@ -229,7 +265,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
   } finally {
     reader.releaseLock();
   }
-  if (acc.finish === undefined) {
+  if (acc.finish === undefined || isSynthesizedFinish(acc.finish, acc.usage)) {
     throw new ProviderError({ kind: "server", retryable: true, message: `${callbacks.label}: the stream ended without a finish part (truncated turn)` });
   }
   return {

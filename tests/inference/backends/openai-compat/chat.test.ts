@@ -19,6 +19,7 @@ import type { UserIntent } from "@orb/contracts/preset";
 import type { JsonValue } from "@orb/kit/json";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
 import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
+import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
@@ -370,4 +371,73 @@ test("C3: `web_search_options` rides when declared, and the body carries nothing
 
   const without = await sentBody(orRequest({ tools: undefined }));
   expect(without["web_search_options"]).toBeUndefined();
+});
+
+// THE MANDATORY-REASONING STRIP-AND-REPLAY-ONCE (`drainWithReplay`) — previously UNTESTED anywhere
+// (`rg isMandatoryReasoningRejection` hit only the source), and now load-bearing twice over.
+//
+// It is the recovery for an endpoint that rejects `reasoning.effort:"none"` with a 400: the runner peels the
+// upstream body off the RAW thrown error, recognises the refusal, and replays the turn ONCE with the
+// reasoning block omitted. That peel is also the reason `backends/kit/retry.ts` re-throws the ORIGINAL error
+// rather than its classification — `providerErrorFromHttp` replaces `cause` with a scrubbed `new Error(safe)`
+// on any credential-bearing scrub set, which would destroy exactly the body this reads.
+//
+// WHICH IS WHY THIS PIN EXISTS NOW. The 2026-09-20 conformance work added a typed-failure boundary to this
+// runner so a streaming failure leaves the package as a `ProviderError` instead of a raw SDK object. Its
+// whole safety argument is that the classify sits OUTSIDE `drainWithReplay`, so the replay still sees the
+// raw error. Nothing proved that. This does: if the classify is ever moved inside — or `retry.ts` is
+// "simplified" to throw `mapped` — the peel stops matching, the replay never fires, and this reds with a
+// 400 instead of a reply.
+test("the openrouter mandatory-reasoning 400 is peeled, stripped and replayed once — and the classify boundary does not break it", async () => {
+  const recorded: RecordedRequest[] = [];
+  const rejection = JSON.stringify({ error: { message: "Reasoning is mandatory for this endpoint and cannot be disabled.", code: 400 } });
+  const success = openAiTextStream("replayed.");
+  let call = 0;
+  const fetchImpl: typeof fetch = (input, init) => {
+    call += 1;
+    const raw = typeof init?.body === "string" ? init.body : "{}";
+    recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown> });
+    if (call === 1) {
+      return Promise.resolve(new Response(rejection, { status: 400, headers: { "content-type": "application/json" } }));
+    }
+    const body = success.map((event) => `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`).join("");
+    return Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } }));
+  };
+
+  // `effort: "none"` is what makes the turn REPLAYABLE: `drainWithReplay`'s second argument is
+  // `dialect === "openrouter" && !knobs.reasoning.enabled`.
+  const req = orRequest({ params: { effort: "none" }, tools: undefined });
+  const turn = await runOpenAiCompatChatTurn(req, turnDeps(fetchImpl));
+
+  expect(recorded, "the turn was sent twice: the rejected attempt and the stripped replay").toHaveLength(2);
+  const first = recorded[0]?.body ?? {};
+  const second = recorded[1]?.body ?? {};
+  expect(JSON.stringify(first), "attempt 1 carried the reasoning block the endpoint refuses").toContain('"reasoning"');
+  expect(JSON.stringify(second), "the replay omitted it entirely — stripped, not re-spelled").not.toContain('"reasoning"');
+  expect(turn.reply, "the replay produced the turn").toBe("replayed.");
+});
+
+test("a 400 that is NOT a mandatory-reasoning refusal is NOT replayed, and reaches the caller as a typed ProviderError", async () => {
+  // The negative control for the arm above — without it, a `drainWithReplay` that replayed EVERY failure
+  // would pass it — and simultaneously the proof for the typed-failure boundary: the raw `APICallError` the
+  // SDK threw must arrive as `ProviderError`, which is what `contract/errors.ts` promises every consumer.
+  const recorded: RecordedRequest[] = [];
+  const fetchImpl: typeof fetch = (input, init) => {
+    const raw = typeof init?.body === "string" ? init.body : "{}";
+    recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown> });
+    return Promise.resolve(
+      new Response(JSON.stringify({ error: { message: "model not found on this route", code: 400 } }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  };
+  const req = orRequest({ params: { effort: "none" }, tools: undefined });
+  const failure = await runOpenAiCompatChatTurn(req, turnDeps(fetchImpl)).then(
+    () => null,
+    (err: unknown) => err,
+  );
+  expect(failure, "an unrelated 400 must surface as the contract's ONE error class, never a raw SDK object").toBeInstanceOf(ProviderError);
+  expect(failure instanceof ProviderError ? failure.kind : null, "a 400 is a structurally-invalid request").toBe("invalid");
+  expect(recorded, "an unrelated failure is not replayed").toHaveLength(1);
 });
