@@ -1,5 +1,5 @@
 // The CONNECTIONS section (Settings → Connections) — the user's connection rows: label · provider · model ·
-// the tasks it may serve, with "Use for everything" (§5.3a's one-click survivor), the background switch and
+// the Model roles it may serve, with §5.3a's one-click survivor, the background switch and
 // a confirmed remove. Owns its own `QueryBoundary` (config-revamp-design.md §6.8 — one contributed section
 // per read).
 
@@ -20,7 +20,7 @@ import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { configAnchorId } from "#state";
 import { useRemoveConnection, useUpdateConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
-import { connectionSummary } from "../lib/connections-model.ts";
+import { connectionRoleLabels, connectionSummary } from "../lib/connections-model.ts";
 import { CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
 
@@ -107,9 +107,9 @@ function ConnectionRow({
       subtitle={subtitle}
       leading={
         <Row gap="field" align="center">
-          {connection.tasks.map((task) => (
-            <Badge key={task} intent="neutral" size="sm">
-              {task}
+          {connectionRoleLabels(connection.tasks).map((label) => (
+            <Badge key={label} intent="neutral" size="sm">
+              {label}
             </Badge>
           ))}
         </Row>
@@ -118,12 +118,12 @@ function ConnectionRow({
         <Row gap="field" align="center">
           <Row gap="field" align="center">
             <Switch
-              aria-label={`Allow background work on ${connection.label}`}
+              aria-label={`Allow background work on this connection: ${connection.label}`}
               checked={connection.allowBackground}
               disabled={update.isPending}
               onCheckedChange={(checked): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: checked } })}
             />
-            <Text voice="gloss">background</Text>
+            <Text voice="gloss">Allow background work on this connection</Text>
           </Row>
           <Button
             intent="secondary"
@@ -131,7 +131,7 @@ function ConnectionRow({
             disabled={applyEverywhere.isPending}
             onClick={(): void => applyEverywhere.mutate({ connectionId: connection.id })}
           >
-            Use for everything it can serve
+            Use this connection for everything it can serve
           </Button>
           <Button intent="ghost" size="sm" aria-label={`Remove the ${connection.label} connection`} onClick={(): void => setDeleteOpen(true)}>
             <Icon icon={Trash2} size="sm" />
