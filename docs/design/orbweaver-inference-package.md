@@ -2978,6 +2978,194 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         sources and have no successor, and `tests/server/entry/boot/local-light-prefetch-*.suite.int.test.ts`
         still poll `/api/trpc/admin.vllmEngines`, a procedure that no longer exists.
 
+      - *BUILD LOG, 2026-09-20 (lane cb-affected-base — `tests:instrument-affected`, #2472, `541abae6d`)*.
+        TWO instruments lying at once. (1) A SIGKILLed vitest worker fork exited **1** — indistinguishable
+        from a failed assertion — and wrote NO json report at all. Now exit **2** naming what died and which
+        specs never reported, with the genuine reds still present. Landed in `scripts/vitest-supervised.mjs`
+        rather than stage-locally, because that runner already owns the #1490 "a contained wedge is a TOOL
+        ERROR, never a verdict" ruling and a pool crash is that ruling with a new input; stage-local would
+        have left `pnpm test` reporting a dead harness as a product red. CONSEQUENCE: a pool crash is exit 2
+        for every node-lane consumer, and a run with BOTH a crash and real failures is 2 — correct, because
+        the crashed files never reported. (2) `origin/main` was **280 commits** behind local main, so the
+        affected set was the whole unpushed backlog: **2932 files, 488 of them `tooling/src`**, on every run.
+        After: 7 sources → 6 specs. The `repo-paths.ts:112` comment claiming "the union with the working tree
+        covers that" was a safety argument that CANNOT be one — a union only ADDS paths and cannot shrink a
+        stale base; deleted, not softened. **The wider finding: `pnpm verify --changed` was selecting 2932
+        files on a clean main**, so every "scoped, fast inner loop" run on this checkout was a whole-tree run
+        wearing a scoped label. TWO MORE LIES found in passing: the stage passed `--reporter=default`, which
+        REPLACES the config reporter list, so it wrote no json report ever and the supervisor's
+        `verdictFromReport` salvage was reading a file that never existed; and vitest records a SIGKILLed file
+        as `passed`, so the artifact was actively misleading (now stamped `success:false`). **And the ruling
+        had a TEST BODY, not just a comment**: `policy-scope.test.ts` carried a committed, green arm titled
+        "changed uses origin/main for an AHEAD main checkout" asserting the defect AS a requirement. Retargeted
+        with the fork stated in prose at the test, the published-baseline mechanism still pinned by a sibling
+        arm and a new `merge-base.test.ts`, and a positive control so the narrowing cannot become a blinding.
+
+      - *BUILD LOG, 2026-09-20 (lane cb-egress-sweep — the F12 SSRF net and the cross-tenant sweep,
+        `a983b7ae9`)*. The three egress pins were red because the PRODUCT is now correct: they pinned the
+        deleted `internalBackendHostPorts` + `VLLM_ENGINE_HOST` bypass. Rewritten so every step-6b receipt is
+        a named case, with the born-value arms driven END TO END (wipe `process.env`, craft `AUTH_MODE`,
+        re-import the resolver and the network module from a fresh registry, publish, assert the guard's
+        verdict) rather than as copied literals. Preserved every adversarial case (the 21-target encoding
+        matrix, per-hop redirect re-validation, the cross-origin credential-header strip) and added the ones
+        the new input deserves — containment, exact-key host matching, the IPv6 unbracket round-trip, and the
+        fence that matters most: **the allowlist does not widen `safeFetch`**. The sweep's 19 unclassified
+        `connection.*` procedures came out 15 PROBED / 4 EXEMPT with 9 stale rows dropped; the planted control
+        (delete the owner predicate) fired **13 of 15**, which is simultaneously proof the probes have teeth
+        and proof the `capabilities` fix mattered. `search.similarArt` classified EXEMPT with the receipt that
+        its refusal is byte-identical for a real target, a stranger's own, and one that does not exist — a
+        caller-precondition, not a leak. **TWO FINDINGS FOR THE OWNER: F12 is HOST-scoped, so an admitted host
+        is admitted at EVERY port** — strictly more permissive than the port-scoped rule it replaced (checked
+        at the owner's prompting: Docker did NOT force this; `engines-compose.ts:19-26` is one hostname with
+        three ports and the OLD rule covered it while staying port-scoped) — **and a `host:port` entry is
+        silently INERT** (`classifyAllowlistEntry` splits on `/` only). Owner approved optional `host:port`
+        entries; Docker is where the widening is least harmful and loopback is where it bites.
+
+      - *BUILD LOG, 2026-09-20 (lanes cb-barrier-drain `4a3eca09e` + cb-pkg-seal `37d7b0d02` — the dead-code
+        detectors, and the hole they were both standing in).* The orphan ratchet's population was a hand-kept
+        opt-IN tuple (`kit contracts db server client`) that left `@orb/inference` — 113 files, landed the same
+        week — unjudged with no announcement. Now DERIVED from `_shared/project-worlds.ts::PACKAGE_NAMES`
+        (already pinned equal to the native `packages/*` inventory by a committed test) minus a
+        `satisfies Partial<Record<PackageName, string>>` opt-out map, so a new package is covered on day one
+        and a stale exclusion fails `tsc`. ONE opt-out, `ui`, with its R2 design reason quoted —
+        `default-content`/`showcase-plugins` were NOT exempted (single-file, zero findings; exempting them
+        would have been an unforced blind spot). **The deeper finding is why the ratchet was the only
+        instrument that could see it.** Node's exports `"./*"` is NOT a glob — it matches across `/`, so
+        `{"./*": "./src/*/index.ts"}` publishes every barrel at any depth (proven: `@orb/inference/backends/
+        agent-sdk/session` resolved from `server`). Knip's `entry: ["src/**/index.ts!"]` is therefore CORRECT
+        and blind at once: entries are roots, so nothing re-exported through a barrel can ever be called dead.
+        A package with both has NO dead-export detection. `@orb/inference` was narrowed to `{ ".": … }` and
+        `@orb/db` to `./kit` + `./schema` — and the census behind that refuted the orchestrator's twice:
+        ZERO subpaths of `@orb/inference` are imported anywhere (the orchestrator's grep had matched a COMMENT
+        in the barrel's own header), and `@orb/db`'s five were two. Seal receipts are `require.resolve` →
+        `ERR_PACKAGE_PATH_NOT_EXPORTED` with a still-wildcarded sibling as the both-ways control, because a
+        worktree `tsc` CANNOT prove a subpath removal (#1623). **Two disposition rules were paid for here.**
+        First: `@public-twin` exempts ONLY when apisurface calls the named VALUE public — a twin of an INTERNAL
+        value is itself rot and reds — and running apisurface FIRST flipped 11 of 14 rows away from the
+        "obvious twin" reading. Second: deleting a type face can CASCADE, because when a schema's only
+        reference is its own `z.infer` alias, removing the alias orphans the schema next run. cb-pkg-seal also
+        REVERSED its own delete of `reasoning-budget.ts` after re-deriving (`ast chains` called the module
+        wholly dead; `responses` was a live `CHAT_APIS` member whose absence is a TYPED REFUSAL and which a law
+        doc names by function — "unwired ≠ worthless"), and found the extraction had silently DROPPED a valid
+        `@public future` marker off `AgentDialogKind`. It also REFUSED a brief line with a receipt: dropping
+        knip's entry rows produces 32 findings in `inference`, the exact class the 2026-08-09
+        `includeEntryExports` pivot already evaluated and REJECTED as architecturally-normal composition.
+
+      - *BUILD LOG, 2026-09-20 (lane cb-ct-cutover — the 48 CT reds, `78e9ea1fc`)*. The node suites were cut
+        over and the CT specs were not; 5155 passed / 48 failed, clustered exactly on the surfaces this program
+        rewrote. The composer arms were driving `engine-off` and `engine-down` — the causes §7.4 RETIRED and
+        RENAMED — and now drive three LIVE causes reading their copy from its one home rather than re-typed
+        literals, with a three-distinct-strings assertion so "the cause drives the copy" cannot pass on a table
+        that answers the same sentence everywhere. The two admin counts were RE-DERIVED, not decremented:
+        "thirteen sections" is `ANCHOR_ORDER.length` crossed with each `nav.id` (three left, three arrived — a
+        coincidence arithmetic would have gotten wrong), and the reset arm is SIX live keys pinned by
+        `toStrictEqual` so a knob added without a reset key now fails. Specs whose SUBJECT was deleted were
+        deleted WITH it (the two `engineLaunch` gen-penalty knobs, three `SharedAccessSection` specs, two
+        `credentials.testHealth` specs, the host-Claude parity spec). **THREE FINDINGS BEYOND THE ASSIGNMENT.**
+        (1) `tests/support/browser/ct-data-providers.tsx`'s `realSettingsSections` is a HAND-MAINTAINED mirror
+        of the section door and had drifted THREE behind, so every shell CT rendered the admin pane short,
+        silently; the file's own header warns "an omission here renders an incomplete group in every CT" and
+        nothing was checking it. No gate compares the mirror to the door, and the same class exists for
+        `ct-config-groups.ts`. (2) Another VACUOUS PASS: "Shared access offers no Reset" was `toHaveCount(0)`
+        against a section that no longer renders. (3) A contrast failure reading ~1.11:1 on three CTAs was a
+        FIXTURE artifact, not an unreadable surface — `ThemeScope` emits CSS variables and paints NOTHING, so
+        the light arm inverted its tokens over the dark root's paint and the sampler read light ink on dark
+        paint; fixed in the story by giving the pane `background: var(--color-background)`.
+
+      - *BUILD LOG, 2026-09-20 (lane cb-variant-metadata — §5.3c's class-3 read seam, `677d04ae1`)*. The
+        contract had landed and the reader never had: the column was still `$type<Record<string, unknown>>`,
+        `queries.ts` handed the raw bag through, `stats-delta.ts` read the one key by hand, and NOTHING called
+        `variantMetadataSchema`. Now `$type<VariantMetadata>` with every reader through `parseVariantMetadata`
+        (`.catch(EMPTY).parse`, the `handoffOffer`/`toolCalls` idiom), which discharges #184 — the
+        `open-json-column-key-parity-deferred` gate now reports zero and is dischargeable (a five-site
+        retirement; its count literal is 343). `$type<>` is TypeScript-only, so no migration. **A LATENT CRASH
+        was shipped and invisible:** `variantProviderMetadataSchema`'s fourth arm used
+        `z.string().regex(...)` as a `z.discriminatedUnion` discriminator. That constructs fine, typechecks
+        fine, and then THROWS `Invalid discriminated union option at index "3"` on EVERY object input —
+        including the three valid literal arms — from inside zod's option map; `safeParse` does not contain it
+        and neither does `.catch`. The first history read of a row carrying `providerMetadata` would have
+        crashed the chat list. Split to `z.union([literalArms, patternArm])`. Nothing caught it: not tsc, not a
+        gate, not a test — only a new consumer finally exercising it. **§5.3c's own table was WRONG about "one
+        key":** `token_count` has a named reader in `domain/import/substrate/token-usage.ts` feeding the
+        token-usage backfill, and filing it as foreign residue would have silently degraded every
+        `exactRecovered` row to `estimated` with NO test failure, because a reader that stops finding its key
+        returns null rather than throwing. `MessageView` gets no projected field (it crosses tRPC; the payload
+        is stats-plane with no render surface; `importResidue` is foreign bytes with no business reaching a
+        browser). The ST import now PROMOTES the two keys with named readers and lands everything else under a
+        named `importResidue: JsonValue` — nothing dropped, and a foreign file can no longer author a key at
+        the MODELED level, which it previously could (`extra.providerMetadata` landed in the slot our own
+        per-provider sidecar reads).
+
+      - *BUILD LOG, 2026-09-20 (lane cb-provider-error — the unclassified-500 channel, `5cca62097`)*.
+        `ProviderError` is not a `DomainError`, so `classifyDomainError` returned null, tRPC answered 500, and
+        the error formatter strips only `stack` — publishing the throw's raw text. 37 server files / 64 call
+        sites reach the runtime; five look at the type. The red-first receipt is the actual HEAD response
+        body on a `persona.list` GET, whose `error.message` carried an `ENOENT: permission denied, mkdir`
+        naming the RESOLVED ABSOLUTE cache path, immediately followed by a raw `<html>502 upstream</html>`
+        page — an absolute host path AND unsanitized upstream markup on one 500, to any authenticated caller. `fetch-json` produced a **65,564-character**
+        message of raw HTML with a control char intact. Closed STRUCTURALLY: the formatter destructures
+        `message` OUT of `shape` (the same unrepresentable-not-unlikely form as the `stack` strip) and writes
+        fixed host copy for every `INTERNAL_SERVER_ERROR`, which holds for every future unclassified throw
+        class. **The orchestrator's mapping rule had to be INVERTED, with a receipt:** "only kinds whose
+        messages are ours" selects the EMPTY SET, because `classifyHttpStatus` maps upstream statuses onto six
+        of the twelve kinds, so every one mixes our vocabulary with foreign prose. Fixed copy is the DEFAULT;
+        `invalid` is the single exception (where `NoConnectionError` and the registry's admin refusals live).
+        `auth_failed` deliberately does NOT map to `UNAUTHORIZED` (the client's `recoverIfStaleSession` ladder
+        keys on it and would fire a re-auth for a provider's dead key); `model_unavailable` avoids `NOT_FOUND`
+        (the client maps that to "may have been deleted"). **THREE MORE DEFECTS.** (1) `classifyDomainError`
+        opened with `err.cause ?? err`, an unconditional deref that skipped every MODELLED error carrying a
+        cause — which is the house idiom for a leak-free collapse — so `ScrapeFailedError({cause})`, the SSRF
+        refusal whose whole point is keeping the resolved private address server-side, reached callers as a 500
+        with its curated sentence discarded. (2) A THIRD unscrubbed upstream path the census missed,
+        `agent-sdk/catalog.ts:53`. (3) **The owner's dead-engine incident is explained**: `INTERNAL_SERVER_ERROR`
+        is in tRPC's `retryableRpcCodes`, so an unclassified `ProviderError` out of a SUBSCRIPTION generator was
+        not an error to `httpSubscriptionLink` at all — it reported "connecting" and let EventSource reconnect
+        every ~3s FOREVER, silently re-running the generator. A classified one becomes a terminal frame.
+
+      - *BUILD LOG, 2026-09-20 (lane cb-responses-retire — `responses` retired, `1911bbcdd`; owner ruling)*.
+        Recorded because the HISTORY decides the disposition and was misread once already: `responses` is NOT
+        unbuilt scaffolding but a **demolished working feature** — `openrouter/runners/chat/responses.ts` was
+        523 lines over OpenRouter's GA Responses API with its own stream reducer and view→`ChatResult` mapper,
+        deleted in `146f71cd5` as collateral of dropping `@openrouter/sdk` (F9). The replacement provider
+        speaks chat-completions; the SDK's Responses transport is a different model that was never wired. So
+        the picker offered an api whose only outcome was a typed refusal at send. Retired from `CHAT_APIS` and
+        every site it reached, with a forward migration narrowing the `user_connections.api` CHECK (and a
+        hand-added backfill BEFORE the `PRAGMA`, because drizzle's 12-step rebuild re-INSERTs every row through
+        the narrowed CHECK). Went WIDER than briefed: `effortToOpenAIReasoning` and `OPENAI_EFFORT_LEVELS` had
+        no call site either, so `reasoning-budget.ts` went whole, and `backends/kit/index.ts` with it — a
+        barrel with ZERO importers that read as "used" only because the old `./*` published it. CONSEQUENCE
+        worth knowing: OpenRouter was the only provider with two apis, so the pane's api control now never
+        renders at all (§5.3a's "a one-option combobox can only be gotten wrong"). Revival, if ever wanted, is
+        `@ai-sdk/openai`'s `.responses()` transport — explicitly NOT restoring the deleted runner.
+
+      - *BUILD LOG, 2026-09-20 (lanes cb-embed-space + cb-embed-finish — §10, `fb9c95362` + `0d126b195`)*.
+        **A live silent-data-loss bug on the DEFAULT configuration.** The vector WRITE stamped
+        `embedded.model` (the backend's tag) while every READ derived `resolved.model` (the connection row's).
+        Those differ on exactly one backend — `local-light`, which folds its dtype in — and local-light is the
+        SEEDED default on every fresh install. So on a stock box rows were written `jinaai/jina-clip-v2@q8`
+        and read on `jinaai/jina-clip-v2`: search empty forever, the staleness gate never matching so every
+        sweep re-embedded everything, and `purgeStaleVectors` deleting every row whose model ≠ the un-suffixed
+        tag — the next bulk sweep would eat the owner's entire corpus. Fixed at the DERIVATION: one
+        `embedSpaceOf(model, dtype)` in contracts that both sides call. A write-time refusal was built and then
+        BACKED OUT because it collided with issue 724's own pin ("stamp the model that actually produced the
+        vector"): the ruling survives, its INPUT changed — 724 assumed declared and produced were the same
+        derivation and they were not. Enforcement moved UP the ladder to a test-time agreement pin instead.
+        **§10-5's premise was unachievable as written.** A retrieval does TWO things with a space — it filters
+        the scan AND embeds the query through the LIVE connection — and because §10-1 admits every space at
+        1024 dims, pointing those at different spaces returns confidently-ranked GARBAGE rather than nothing.
+        So `activeSpace` landed as arm B: persist the last-complete space, REFUSE the read with a named
+        `SEARCH_SPACE_REINDEXING` while the live embedder disagrees. That is the FLOOR of the invisible-swap
+        arm, not a lesser alternative — arm A needs the old connection to still resolve, `connection_bindings.
+        connectionId` is FK SET NULL, and the usual reason to re-bind `embed` is that the old row was deleted,
+        so A is "A where the connection survives, B where it does not". It also makes the purge safe by
+        construction. State is keyed by SWEEP, not by task (the `embed` space is written by three independent
+        sweeps with three aborts; a per-task flag would claim completion while `document_chunks` was still in
+        the old geometry) and keeps `unrecorded` and `moving` as DIFFERENT states, because collapsing them to
+        one `null` makes the reader serve the live space mid-move. §10-3's joint-space rule closed a quiet
+        coverage hole: `indexer/handlers.ts` SILENTLY SKIPPED an image when the owner had no `imageEmbed`
+        binding — now the captioned-text arm runs and the picture is findable in the text space, with the read
+        side mirrored so the rows are not written where nothing scans.
+
       - *BUILD LOG, 2026-09-20 (lane cb-compose-harness — the 8 compose/boot harnesses the cut-over left
         red; 16 tests, all green, `0c7fbde35`)*. Three families, and the SECOND one paid for a trap worth
         the whole lane. (1) The unit harnesses handed the retired `roleClients`/`embedModel`/
