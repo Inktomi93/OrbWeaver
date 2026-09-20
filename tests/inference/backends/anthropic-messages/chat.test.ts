@@ -253,3 +253,53 @@ test("A5: a classifier block is a `filter` finish with the refusal event carryin
   const plain = await recordedTurn(fableRequest(true), anthropicTextStream("ok"));
   expect(plain.turn.events.some((e) => e.kind === "refusal")).toBe(false);
 });
+
+// ── §8.8 the `conversation` rung's ROW SHAPE, against the real converter ─────────────────────────────────
+// The assembly materializes a PRIOR TURN's thinking onto its assistant history row ahead of the body
+// (`substrate/wire-history.ts`, pinned at that seam). This is the other half of that claim: the bytes the
+// Anthropic converter actually produces from that row — a `thinking` block with its signature FIRST, then
+// the prose — because a spec type permitting a shape is not a converter emitting it (§15c-1).
+
+test("a prior turn's replayed thinking converts to a leading `thinking` block ahead of the row's prose", async () => {
+  const recorded: RecordedRequest[] = [];
+  const fetchImpl = scriptedSseFetch([anthropicTextStream("Understood.")], recorded);
+  const req = turnRequest({
+    history: [
+      { role: "user", content: [{ type: "text", text: "Is the map genuine?" }] },
+      // EXACTLY what `buildWireHistory` emits on the `conversation` rung: thinking first, then the body.
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: THINKING, meta: { anthropic: { signature: SIGNATURE } } },
+          { type: "text", text: "The map is genuine." },
+        ],
+      },
+      { role: "user", content: [{ type: "text", text: "Are you sure?" }] },
+    ],
+    tools: undefined,
+  });
+  await runAnthropicChatTurn(req, deps(fetchImpl));
+
+  const blocks = assistantRowOf(recorded[0] as RecordedRequest)["content"];
+  expect(blocks).toMatchObject([
+    { type: "thinking", thinking: THINKING, signature: SIGNATURE },
+    { type: "text", text: "The map is genuine." },
+  ]);
+});
+
+test("PLANTED CONTROL: the same row WITHOUT the carry sends prose only — no thinking block at all", async () => {
+  const recorded: RecordedRequest[] = [];
+  const fetchImpl = scriptedSseFetch([anthropicTextStream("Understood.")], recorded);
+  const req = turnRequest({
+    history: [
+      { role: "user", content: [{ type: "text", text: "Is the map genuine?" }] },
+      { role: "assistant", content: [{ type: "text", text: "The map is genuine." }] },
+      { role: "user", content: [{ type: "text", text: "Are you sure?" }] },
+    ],
+    tools: undefined,
+  });
+  await runAnthropicChatTurn(req, deps(fetchImpl));
+
+  const blocks = assistantRowOf(recorded[0] as RecordedRequest)["content"];
+  expect(blocks).toMatchObject([{ type: "text", text: "The map is genuine." }]);
+});

@@ -23,7 +23,6 @@
 // the `assembly-access.ts` DI seam this directory already owns.
 
 import type { ChatContentPart, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
-import type { CarryReasoning } from "@orb/contracts/preset";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
 import { cardWireStub, tokenizeContent } from "@orb/kit/content";
 import type { MessageId } from "@orb/kit/ids";
@@ -332,10 +331,12 @@ export async function buildWireHistory(
     /** The loaded canon — read for the assistant-authored set below, AND (under `carryReasoning:
      *  "conversation"`) for each assistant row's persisted replayable thinking. */
     readonly canon: readonly MessageView[];
-    /** §8.8's RESOLVED carry rung (`resolveCarryReasoning`, the ONE policy home — never re-derived here).
-     *  `conversation` is the only rung this seam acts on: `tool-chain` carries inside the ACTIVE chain, which
-     *  is the engine's in-turn loop and never reaches the persisted history. */
-    readonly carryReasoning: CarryReasoning;
+    /** §8.8's `conversation` CARRY SOURCE: each canon slot's persisted replayable thinking, keyed by slot id.
+     *  Supplied ONLY on that rung (the caller resolves it through `resolveCarryReasoning`, the one policy
+     *  home, and passes an EMPTY map otherwise) — `tool-chain` carries inside the ACTIVE chain, which is the
+     *  engine's in-turn loop and never reaches the persisted history. A map rather than a `MessageView` field
+     *  because these blobs are host-side replay material that must not cross to a client. */
+    readonly reasoningByMessage: ReadonlyMap<MessageId, readonly ChatReasoningPart[]>;
   },
   shapedHistory: readonly ShapedHistoryRow[],
 ): Promise<WireRow[]> {
@@ -351,19 +352,13 @@ export async function buildWireHistory(
   // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
   // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
   const assistantMessageIds = new Set(env.canon.filter((m) => m.role === "assistant").map((m) => m.id));
-  // The §8.8 `conversation` source: each canon row's persisted replayable thinking, keyed by slot id. Built
-  // ONLY on that rung — the map is the whole cost of the feature on every other turn, and it is zero.
-  const storedReasoning =
-    env.carryReasoning === "conversation"
-      ? new Map(env.canon.flatMap((m) => (m.reasoningParts === undefined || m.reasoningParts.length === 0 ? [] : [[m.id, m.reasoningParts] as const])))
-      : new Map<MessageId, readonly ChatReasoningPart[]>();
   return await Promise.all(
     tokenized.map(async ({ h, spans }): Promise<WireRow> => {
       const userAuthored = h.messageId === undefined || !assistantMessageIds.has(h.messageId);
       const { parts: bodyParts, imageDropped, videoDropped } = await toContentParts(spans, partsEnv, { role: h.role, userAuthored });
       // A SHAPE fold may have re-roled a character's assistant line to `user` (`scopeToSpeaker`); its thinking
       // must not ride back on a row the wire will deliver as the user speaking.
-      const parts = h.role === "assistant" && h.messageId !== undefined ? carryReasoningParts(bodyParts, storedReasoning.get(h.messageId)) : bodyParts;
+      const parts = h.role === "assistant" && h.messageId !== undefined ? carryReasoningParts(bodyParts, env.reasoningByMessage.get(h.messageId)) : bodyParts;
       const row: TurnMessage = h.name === undefined ? { role: h.role, content: parts } : { role: h.role, content: parts, name: h.name };
       const costRow: ShapedHistoryRow = {
         role: h.role,

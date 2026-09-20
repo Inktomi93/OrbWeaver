@@ -92,6 +92,10 @@ interface RunTurnPipelineArgs {
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   /** Resolves a parsed message-image ref → a model-fetchable URL + its media kind, or null to drop it. */
   readonly resolveImageUrl: (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
+  /** §8.8's `conversation` carry source: this chat's persisted replayable thinking, keyed by canon slot id.
+   *  Injected (the domain holds no db handle) and LAZY — called only when the resolved rung is
+   *  `conversation`, so a turn that carries nothing performs no read. */
+  readonly loadReasoningParts: () => Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>>;
   /** The immutable assemble ctx (never mutated here). */
   readonly assembleContext: AssembleContext;
   readonly canon: readonly MessageView[];
@@ -166,6 +170,10 @@ const EMPTY_HISTORY_MACRO_NAMES: HistoryMacroNames = {
   characterNamesById: new Map<CharacterId, RowCharacterName>(),
   personaNamesById: new Map<PersonaId, RowPersonaName>(),
 };
+
+/** What the CONVERT seam gets when the §8.8 carry rung is below `conversation`: nothing to materialize, and
+ *  no read performed to learn that. */
+const EMPTY_REASONING_BY_MESSAGE: ReadonlyMap<MessageId, readonly ChatReasoningPart[]> = new Map<MessageId, readonly ChatReasoningPart[]>();
 
 /** The pipeline product the engine persists — the reduced generation + the request + the fit offset. */
 interface TurnPipelineResult {
@@ -649,7 +657,9 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
       resolveImageUrl: args.resolveImageUrl,
       cardKeepLastX: args.cardKeepLastX,
       canon: args.canon,
-      carryReasoning,
+      // The `conversation` rung's source, read ONLY on that rung — the op is injected (the domain holds no
+      // db handle) and lazy, so every other turn pays nothing for a feature it did not ask for.
+      reasoningByMessage: carryReasoning === "conversation" ? await args.loadReasoningParts() : EMPTY_REASONING_BY_MESSAGE,
     },
     shaped.history,
   );

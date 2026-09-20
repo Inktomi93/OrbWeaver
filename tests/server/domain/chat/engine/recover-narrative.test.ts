@@ -4,13 +4,13 @@
 // and the tools-removed second wire call. Both passes run the REAL pipeline over a scripted `runChatTurn`
 // (the injected provider seam) — nothing here is mocked.
 
-import type { AssembleContext, ChatDeltaEvent, MessageView } from "@orb/contracts/chat";
+import type { AssembleContext, ChatDeltaEvent, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { Resolved } from "@orb/inference";
-import type { ChatId, ChatTurnId, ModelId, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatTurnId, MessageId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -111,6 +111,8 @@ function argsOf(over: Partial<PipelineArgs>, passes: readonly (readonly TurnStre
     applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
     runChatTurn,
     resolveImageUrl: (ref) => Promise.resolve({ url: ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url, media: "image" as const }),
+    // §8.8: the `conversation` carry source. THROWS if reached — this harness runs the `off` rung.
+    loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => Promise.reject(new Error("loadReasoningParts must not be reached")),
     assembleContext: ctxOf(),
     canon: [userRow("the party opens the door")],
     connection: CONNECTION,

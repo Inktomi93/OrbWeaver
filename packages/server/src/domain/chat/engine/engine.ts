@@ -16,7 +16,7 @@
 // The chat bus emit, the per-member budget debit, and the per-turn host policy are not ChatContext ops —
 // they're injected as engine deps wired at the entry composition root.
 
-import type { AssembleContext, ChatWarning, DurableChatBusEvent, MessageView, TokenProvenance, TurnAbortReason } from "@orb/contracts/chat";
+import type { AssembleContext, ChatReasoningPart, ChatWarning, DurableChatBusEvent, MessageView, TokenProvenance, TurnAbortReason } from "@orb/contracts/chat";
 import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { NormalizedFinishReason } from "@orb/contracts/inference";
 
@@ -70,6 +70,7 @@ import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadCanonHistory,
+  loadCanonReasoningParts,
   loadCanonStatRows,
   loadChatRow,
   loadMaxMessageSeq,
@@ -1660,6 +1661,8 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       now: ctx.now,
       applyRegexReplace: ctx.applyRegexReplace,
       resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
+      loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
       assembleContext: speakerAssembleContext,
       canon: scopeCanon(canonAll, persist, target),
       historyMacroNames,
@@ -2012,6 +2015,8 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
       now: ctx.now,
       applyRegexReplace: ctx.applyRegexReplace,
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
+      loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
       assembleContext: prep.assembleContext,
       canon: canonAll,
       historyMacroNames,

@@ -12,6 +12,7 @@
 import type {
   ChatBusEvent,
   ChatListCursor,
+  ChatReasoningPart,
   HandoffOffer,
   JoinHistoryVisibility,
   MessageView,
@@ -21,6 +22,7 @@ import type {
   UserMacroDraws,
 } from "@orb/contracts/chat";
 import {
+  chatReasoningPartSchema,
   handoffOfferSchema,
   macroFreezeRecordSchema,
   NO_HANDOFF_OFFER,
@@ -145,6 +147,7 @@ const messageViewSelection = {
 } as const;
 
 const toolCallsSchema = toolCallRecordSchema.array();
+const reasoningPartsSchema = chatReasoningPartSchema.array();
 
 // The `messageViewSelection` row → `MessageView`: every scalar column mirrors the view 1:1; the sole
 // re-map is the `toolCalls` JSON blob, safeParsed with `toolCallRecordSchema` (the `variableDelta` read
@@ -641,6 +644,32 @@ export async function loadCanonHistory(db: Db, chatId: ChatId): Promise<MessageV
     .where(eq(messages.chatId, chatId))
     .orderBy(asc(messages.seq));
   return rows.map(toMessageView);
+}
+
+/** THE §8.8 `conversation` CARRY SOURCE: every canon slot's persisted replayable thinking, keyed by slot id.
+ *  Rows with a NULL/empty/malformed blob are simply absent from the map — a caller asks "does this row have
+ *  thinking to replay" and gets one answer.
+ *
+ *  A SEPARATE READ, not a column on `messageViewSelection`, on purpose. `MessageView` crosses the tRPC
+ *  boundary to the browser, and a thinking signature / an OpenAI encrypted-reasoning blob is host-side replay
+ *  material with no render surface — putting it on the view would ship KBs of provider-opaque bytes to every
+ *  client on every history read and would need its own member-visibility strip to stay out of a deception
+ *  game's non-host viewer. The engine calls this ONLY on the `conversation` rung, so every other turn pays
+ *  nothing. The blob is PARSED (`chatReasoningPartSchema`), never the drizzle `$type` cast. */
+export async function loadCanonReasoningParts(db: Db, chatId: ChatId): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> {
+  const rows = await db
+    .select({ messageId: messages.id, reasoningParts: messageVariants.reasoningParts })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.chatId, chatId));
+  const out = new Map<MessageId, readonly ChatReasoningPart[]>();
+  for (const row of rows) {
+    const parsed = reasoningPartsSchema.safeParse(row.reasoningParts);
+    if (parsed.success && parsed.data.length > 0) {
+      out.set(row.messageId, parsed.data);
+    }
+  }
+  return out;
 }
 
 /** One slot ⋈ its selected variant. The engine re-reads this after an append-variant/continue commit;

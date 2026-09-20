@@ -8,7 +8,6 @@ import type {
   AssemblySectionRow,
   AssemblySource,
   ChatContentPart,
-  ChatReasoningPart,
   GroupConfig,
   InviteView,
   MessageView,
@@ -277,13 +276,6 @@ export interface TurnEconomics {
   readonly generationId?: string | null;
   /** The reducer-assembled model-emitted calls; the loop pivots on finishReason === "tool" and reads these. */
   readonly toolCalls?: readonly ToolCallInput[] | undefined;
-  /** THE DEPTH'S REPLAYABLE THINKING (§8.8): the model's reasoning as content parts, in stream order, each
-   *  carrying the wire's own opaque provenance (an Anthropic signature, OpenRouter `reasoning_details`).
-   *  Distinct from `reasoning`, the rendered prose. The tool loop hands these back on the NEXT leg's
-   *  assistant row when `carryReasoning` is above `off` — without them a model that signed its thinking
-   *  loses verified reasoning every hop (and 400s on the arms that enforce it). Absent on a wire that
-   *  surfaces no per-part provenance, and on a turn that did not reason. */
-  readonly reasoningParts?: readonly ChatReasoningPart[] | undefined;
 }
 
 /**

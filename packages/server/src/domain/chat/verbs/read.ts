@@ -23,6 +23,7 @@ import type {
   AssembleContext,
   AssemblePersona,
   ChatInjection,
+  ChatReasoningPart,
   ContextFitPreview,
   EffectiveRegexView,
   GroupConfig,
@@ -53,7 +54,7 @@ import type { Resolved } from "@orb/inference";
 import { generationOf, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -118,6 +119,7 @@ import {
   listMemberChats,
   loadAncestorChain,
   loadCanonHistory,
+  loadCanonReasoningParts,
   loadChatEventBounds,
   loadChatEventReplay,
   loadChatLastMessages,
@@ -1165,11 +1167,15 @@ async function fitShapedHistory(args: {
       resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref }),
       cardKeepLastX: args.convert.cardKeepLastX,
       canon: args.convert.canon,
-      // §8.8: the preview prices the SAME rows the next turn sends, so it must resolve the carry rung the
-      // same way the turn will (`resolveCarryReasoning`, the one policy home). A capability-less preview
-      // (no resolved connection) cannot know, and `off` is the honest floor rather than a guess that
-      // over-prices the window. Warnings are the TURN's to raise, so the sink is a throwaway here too.
-      carryReasoning: args.capability === undefined ? "off" : resolveCarryReasoning(params, args.capability, []),
+      // §8.8: the preview prices the SAME rows the next turn sends, so it resolves the carry rung the way
+      // the turn will (`resolveCarryReasoning`, the one policy home) and reads the replay material only on
+      // the `conversation` rung. A capability-less preview (no resolved connection) cannot know the rung and
+      // takes the `off` floor rather than a guess that over-prices the window. Warnings are the TURN's to
+      // raise, so the sink is a throwaway here.
+      reasoningByMessage:
+        args.capability !== undefined && resolveCarryReasoning(params, args.capability, []) === "conversation"
+          ? await loadCanonReasoningParts(args.ctx.db, args.convert.chatId)
+          : new Map<MessageId, readonly ChatReasoningPart[]>(),
     },
     args.shaped.history,
   );
