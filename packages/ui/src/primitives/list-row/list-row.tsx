@@ -8,8 +8,8 @@
 // arms and their costs: folding the subtitle into the name (verbose announcements at every call site) and
 // moving the subtitle out of the button (the hit target shrinks to the title line). Do not "fix" the axe
 // rule here without reopening #512's ruling.
-import type { MouseEventHandler, ReactElement, ReactNode, RefObject } from "react";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import type { MouseEventHandler, ReactElement, ReactNode } from "react";
+import { useId } from "react";
 import type { Slots } from "./parts.tsx";
 import { ListRowContent } from "./parts.tsx";
 import { listRowVariants } from "./variants.ts";
@@ -104,18 +104,19 @@ export interface ListRowProps {
    */
   subtitleReveal?: string;
   /**
-   * Trailing actions. Rendered as a sibling of the clickable body, never nested inside it. Ignored
-   * when `renderActions` is supplied.
+   * Trailing actions. Rendered as a sibling of the clickable body, never nested inside it.
    */
   actions?: ReactNode;
   /**
-   * The collapse-aware actions form: a render fn given `collapsed` — true once the row's own
-   * width drops below `collapseBelow` (a ResizeObserver on the root). Wins over `actions` when
-   * both are set. No-op collapse (always false) when `collapseBelow` is omitted.
+   * Lets the `actions` cluster drop to its OWN LINE beneath the identity once the row itself is narrower
+   * than `@lg` (32rem) — a container query on the row's own box, never the viewport's. For a row whose
+   * controls are REST-VISIBLE and therefore cannot buy the identity any width by hiding: below that width
+   * the name and the cluster stop fitting on one line, and the name is what loses (#2486, measured at the
+   * 486px settings body). Mutually exclusive with `actionsFloat`, which answers the same squeeze for a
+   * cluster that is hidden at rest. The stacked cluster is still a SIBLING of the body — stacking is a
+   * layout arm, never a change to what the row's `<button>` contains (#512).
    */
-  renderActions?: (collapsed: boolean) => ReactNode;
-  /** The row width (px) at/below which `renderActions` receives `collapsed=true`. */
-  collapseBelow?: number;
+  stackActions?: boolean;
   /**
    * Lifts the `actions` cluster OUT OF FLOW at the row's inline end (fine pointers only), so a cluster
    * that is HIDDEN at rest stops reserving width the title/subtitle need. Pass it for a row whose
@@ -233,25 +234,6 @@ function ListRowBody({
   );
 }
 
-/** Tracks whether the observed element's width dropped at/below `threshold`. useLayoutEffect +
- *  ResizeObserver so the collapse settles before paint. */
-function useCollapsedBelow(ref: RefObject<HTMLElement | null>, threshold: number | undefined): boolean {
-  const [collapsed, setCollapsed] = useState(false);
-  useLayoutEffect(() => {
-    const node = ref.current;
-    if (node === null || threshold === undefined) {
-      setCollapsed(false);
-      return;
-    }
-    const measure = (): void => setCollapsed(node.getBoundingClientRect().width <= threshold);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return (): void => observer.disconnect();
-  }, [ref, threshold]);
-  return collapsed;
-}
-
 export function ListRow({
   leading,
   title,
@@ -267,9 +249,8 @@ export function ListRow({
   meta,
   markers,
   actions,
-  renderActions,
-  collapseBelow,
   actionsFloat = false,
+  stackActions = false,
   rowTint = "body",
   clickable = false,
   selected = false,
@@ -280,10 +261,7 @@ export function ListRow({
   onClick,
   className,
 }: ListRowProps): ReactElement {
-  const slots = listRowVariants({ density, clickable, float: actionsFloat, subtitleWrap, subtitlePlacement, rowTint, titleStep });
-  const rootRef = useRef<HTMLDivElement>(null);
-  const collapsed = useCollapsedBelow(rootRef, renderActions === undefined ? undefined : collapseBelow);
-  const resolvedActions = renderActions !== undefined ? renderActions(collapsed) : actions;
+  const slots = listRowVariants({ density, clickable, float: actionsFloat, stackActions, subtitleWrap, subtitlePlacement, rowTint, titleStep });
   // Stable per-row id base for the describedby wiring; the subtitle/meta ids only attach where the slot renders.
   const baseId = useId();
   const subtitleId = subtitle === undefined || subtitleDecorative ? undefined : `${baseId}-subtitle`;
@@ -293,7 +271,7 @@ export function ListRow({
   return (
     // `data-selected` rides the ROOT as well as the body: the `rowTint="row"` arm paints the selected skin
     // here, and an attribute the default arm simply doesn't style costs nothing.
-    <div className={slots.root({ className })} data-selected={selected ? "" : undefined} data-slot="list-row-root" ref={rootRef}>
+    <div className={slots.root({ className })} data-selected={selected ? "" : undefined} data-slot="list-row-root">
       <ListRowBody
         ariaDescribedBy={describedBy}
         ariaLabel={titleQualifier === undefined ? title : `${title} · ${titleQualifier}`}
@@ -323,9 +301,9 @@ export function ListRow({
           titleStep={titleStep}
         />
       </ListRowBody>
-      {resolvedActions === undefined ? null : (
+      {actions === undefined ? null : (
         <div className={slots.actions()} data-slot="list-row-actions">
-          {resolvedActions}
+          {actions}
         </div>
       )}
     </div>

@@ -580,6 +580,32 @@ function titleTruncationCount(page: Page): Promise<number> {
   });
 }
 
+/** How many connection rows still render their trailing cluster ON the identity's line. The stacked arm's
+ *  rendered fact is geometric, never a class or a prop: the cluster's box starts at or below the identity
+ *  block's bottom edge. Zero is the 486 answer; at 870 every row is inline and this counts them all. */
+function rowsWithInlineCluster(page: Page): Promise<number> {
+  return page.locator("#config-anchor-connections-connections").evaluate((section) => {
+    const rows = [...section.querySelectorAll('[data-slot="list-row-root"]')];
+    return rows.filter((row) => {
+      const body = row.querySelector('[data-slot="list-row-body"]');
+      const actions = row.querySelector('[data-slot="list-row-actions"]');
+      return body !== null && actions !== null && actions.getBoundingClientRect().top < body.getBoundingClientRect().bottom;
+    }).length;
+  });
+}
+
+/** The first connection row's `cluster right edge − last control's right edge`, in CSS px. On the STACKED
+ *  line the kebab is the row's end-aligned control (Board D: "left-aligned switch + right-aligned kebab"),
+ *  so this is ~0; a cluster whose children were wrapped in one box leaves the kebab glued to the switch and
+ *  this reads the whole remaining width instead. */
+function kebabOffsetFromRowEnd(page: Page): Promise<number> {
+  return page.locator("#config-anchor-connections-connections").evaluate((section) => {
+    const actions = section.querySelector('[data-slot="list-row-actions"]');
+    const last = actions?.lastElementChild ?? null;
+    return actions === null || last === null ? Number.NaN : actions.getBoundingClientRect().right - last.getBoundingClientRect().right;
+  });
+}
+
 /** `title width − trailing-cluster width` on the WIDEST connection row, in CSS px. Negative means the
  *  row's controls have taken more of the line than its name, which is the squeeze the 486 arm must not be. */
 function identityVersusControls(page: Page): Promise<number> {
@@ -610,6 +636,13 @@ test("at 870px (context panel closed) no copy is cut, nothing bleeds, and the sw
   await expect(connections.getByText("Allow background work", { exact: true }).first()).toBeVisible();
   // …and the row's own NAME is never the thing that truncates — it is the row's identity.
   await expect.poll(async () => await titleTruncationCount(page)).toBe(0);
+  // THE WIDE HALF OF #2486's PAIR: a row with room keeps its cluster INLINE. Asserted here so the stack at
+  // 486 is a width-keyed arm rather than "this pane always stacks" — the same reason both ends are measured.
+  await expect.poll(async () => await rowsWithInlineCluster(page)).toBeGreaterThan(0);
+  // …and INLINE is where "the identity is never narrower than its controls" is a statement about anything:
+  // it was the 486 arm's interim pin while the row could only squeeze (#2486), and it moved here when the
+  // narrow arm became a stack, because two boxes on different lines do not compete for one line's width.
+  await expect.poll(async () => await identityVersusControls(page)).toBeGreaterThanOrEqual(0);
 });
 
 test("at 486px (context panel open) the row's NAME survives — the switch's gloss yields, the switch does not", async ({ mount, page }) => {
@@ -622,28 +655,43 @@ test("at 486px (context panel open) the row's NAME survives — the switch's glo
   }
   await expect.poll(async () => await bleedCount(page)).toBe(0);
 
-  // THE NARROW END. The gloss is the ONE redundant element in the trailing cluster — the Switch's own
-  // accessible name already carries the whole sentence — so it is what yields, and the row's identity is
-  // what it yields TO. A control that disappeared here would be a capability that disappeared.
+  // THE NARROW END, AND IT IS THE MOCK'S STACK NOW (#2486). The interim pin here could only assert the
+  // RELATIONSHIP that survived a squeeze — "the identity is never narrower than its controls" — because
+  // `ListRow` had no stacking arm and a 52-character auto-minted label could not fit beside a switch and a
+  // kebab in a 486px body whatever the cluster gave up. `list.html` Board D's answer is a STACK: identity
+  // full width, cluster on its own line below, and the switch's visible gloss BACK at every width (the
+  // narrow arm was the only reason it ever went away — its accessible name always carried the subject).
+  //
+  // THE INTERIM PIN IS RETIRED HERE, DELIBERATELY. It asserted `title width − cluster width >= 0` as the
+  // proxy for "the identity won the squeeze"; in the STACK the two boxes are on different lines and the
+  // cluster is the full row width, so the subtraction compares a padded title against a full-width strip
+  // and reads -18 by construction — a measure of nothing. It still means what it always meant at the WIDE
+  // end, where the row IS inline, and that is where it now lives (see the 870 test).
   const connections = page.locator("#config-anchor-connections-connections");
-  await expect(connections.getByText("Allow background work", { exact: true })).toHaveCount(0);
+  // THE RENDERED FACT, never the prop: every connection row's trailing cluster starts BELOW its identity
+  // block, and no row name truncates any more — which the squeeze arm could never claim.
+  await expect.poll(async () => await rowsWithInlineCluster(page)).toBe(0);
+  await expect.poll(async () => await titleTruncationCount(page)).toBe(0);
+  // …and the stacked line is SPANNED — switch at the start, kebab at the end, as Board D draws it. MEASURED
+  // on the isolated stage at 486x1700 before this was pinned: the kebab sat glued to the switch's gloss,
+  // because this call site wrapped both clusters in ONE child and `justify-between` had nothing to push.
+  await expect.poll(async () => await kebabOffsetFromRowEnd(page)).toBeLessThan(2);
+  await expect(connections.getByText("Allow background work", { exact: true }).first()).toBeVisible();
   await expect(connections.getByRole("switch", { name: /^Allow background work on /u }).first()).toBeVisible();
   await expect(connections.getByRole("button", { name: /^More actions for /u }).first()).toBeVisible();
-
-  // STATED LIMIT, MEASURED RATHER THAN WISHED. A 52-character auto-minted label ("OpenRouter · Claude
-  // Sonnet 5 · anthropic/claude-sonnet-5") still cannot fit beside a switch and a kebab in a 486px body, so
-  // this is NOT a zero-truncation claim — the mock's answer is a STACK (identity full width, cluster on its
-  // own line) and `ListRow` renders `actions` as an in-flow sibling with no stacking arm. What IS asserted
-  // is the relationship that survives the squeeze: the row's IDENTITY is never narrower than its controls.
-  // The gloss drop is what buys that; before it, the cluster was the wider of the two.
-  await expect.poll(async () => await identityVersusControls(page)).toBeGreaterThanOrEqual(0);
 });
 
 // A COARSE POINTER IS A BROWSER-CONTEXT FLAG, not a viewport: at a fine pointer the floor token answers
 // 28px, so a narrow viewport alone would measure the wrong floor. The mocks could not answer this at all —
 // `model-roles.html` drew every control as a styled `div` and measured ZERO tappable candidates.
 test.describe("coarse pointer — the row's picker and its repair switch meet the touch floor", () => {
-  test.use({ hasTouch: true, viewport: { width: 486, height: 900 } });
+  // 486 WIDE IS THE LOAD-BEARING HALF; the HEIGHT is only "tall enough that the section under test is in the
+  // viewport". `hitExtent` walks `elementFromPoint` out from the control's centre in VIEWPORT coordinates, so
+  // a control below the fold resolves to `null` and the walk reports 1px — a false P0 that says nothing
+  // about the touch floor. The story mounts without a scroller (`scrollIntoViewIfNeeded` moves nothing:
+  // MEASURED, the picker stayed at y=947 in a 900px viewport), so the height is what has to give. It went
+  // 900 → 1400 when #2486's stacked connection rows made this pane taller.
+  test.use({ hasTouch: true, viewport: { width: 486, height: 1400 } });
 
   test("the picker and the background-repair switch are pressable with a finger", async ({ mount, page }) => {
     // Settled snapshot: pointer class is fixed when the browser CONTEXT is created, not by page state.
@@ -654,6 +702,10 @@ test.describe("coarse pointer — the row's picker and its repair switch meet th
     const floor = await touchFloorPx(page);
     const picker = roleSelect(page, "Utility model");
     await expect(picker).toBeVisible();
+    // IN-VIEWPORT IS A PREMISE OF THE MEASUREMENT and `toBeVisible` does not imply it (the viewport note on
+    // the describe has the measurement): below the fold every extent below reads 1px and the arm turns into
+    // a false P0. Asserted, not assumed.
+    await expect(picker).toBeInViewport();
     await expect.poll(async () => await hitExtent(picker, "y"), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
 
     // SCOPED to the roles section: the connection LIST row carries a switch with the IDENTICAL name, which
@@ -662,6 +714,7 @@ test.describe("coarse pointer — the row's picker and its repair switch meet th
       .locator("#config-anchor-connections-model-roles")
       .getByRole("switch", { name: "Allow background work on Cheap utility · openai/gpt-5-mini" });
     await expect(repair).toBeVisible();
+    await expect(repair).toBeInViewport();
     await expect.poll(async () => await hitExtent(repair, "y"), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
     await expect.poll(async () => await hitExtent(repair, "x"), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
   });
