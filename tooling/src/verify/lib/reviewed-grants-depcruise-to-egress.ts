@@ -429,6 +429,14 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     endsWhen: "the guard stops issuing the request itself (a lower transport primitive takes over), at which point this row is consumed zero times and reds.",
   },
   {
+    id: "no-raw-egress:entry-compose-transport",
+    policyId: "no-raw-egress",
+    subject: "packages/server/src/entry/compose/services.ts",
+    operation: "raw-fetch",
+    why: "the composition root READS the ambient transport it INJECTS into the inference runtime (`InferenceDeps.sdkFetch`, a REQUIRED field) — the `no-raw-clock:entry-lifecycle` shape: a root that cannot read the ambient api cannot mint the one every tier below receives injected. This reference performs no egress itself and is never a user-influenced URL; provider calls are backstopped by the boot-installed global undici dispatcher (`packages/server/src/infra/network/egress.ts`), and user-influenced URLs go through `safeFetch` on a different path entirely. The row EXISTS so the fallback does not: while `sdkFetch` was optional, every runtime and backend resolved `?? globalThis.fetch` on its own, which is an ambient read this policy could not see (the inference package is outside `@server`) and which let a composed-real test reach a real inference engine.",
+    endsWhen: "the transport arrives from a platform seam the root RECEIVES rather than reads here; the row is then consumed zero times and reds.",
+  },
+  {
     id: "no-raw-egress:vllm-engine-client",
     policyId: "no-raw-egress",
     subject: "packages/server/src/infra/providers/vllm/engine/client.ts",
