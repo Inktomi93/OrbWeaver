@@ -140,6 +140,7 @@ interface PassCounts {
 const EMPTY_TIER0_COUNTS: Tier0Counts = { written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 };
 
 function assertStoreSpace(expected: MemoryEmbedSpace, actual: MemoryEmbedSpace): void {
+  // @orb-waive membership-enforcer(ownerId): receipt integrity, not chat authority — `expected.ownerId` is the embedding-generation principal (the room's roster-resolved present host in production), while `actual.ownerId` is the store receipt; equality rejects a cross-principal result during the sweep. Ends when the store receipt type makes owner mismatch unrepresentable.
   if (
     actual.ownerId !== expected.ownerId ||
     actual.model !== expected.model ||
