@@ -12,7 +12,7 @@ import type { CatalogRefreshOutcome, EndpointModelsResult } from "../contract/re
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
 
-export function createCatalogModels(ctx: ConnectionContext): ConnectionService["catalogModels"] {
+function createCatalogModels(ctx: ConnectionContext): ConnectionService["catalogModels"] {
   return async (params): Promise<readonly ModelCatalogEntry[]> => {
     const row = await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId);
     if (row === null) {
@@ -39,7 +39,7 @@ async function admitEndpointDraft(ctx: ConnectionContext, params: Parameters<Con
   }
 }
 
-export function createListEndpointModels(ctx: ConnectionContext): ConnectionService["listEndpointModels"] {
+function createListEndpointModels(ctx: ConnectionContext): ConnectionService["listEndpointModels"] {
   return async (params): Promise<EndpointModelsResult> => {
     await admitEndpointDraft(ctx, params);
     try {
@@ -59,6 +59,18 @@ export function createListEndpointModels(ctx: ConnectionContext): ConnectionServ
   };
 }
 
-export function createRefreshCatalog(ctx: ConnectionContext): ConnectionService["refreshCatalog"] {
+function createRefreshCatalog(ctx: ConnectionContext): ConnectionService["refreshCatalog"] {
   return async (params): Promise<CatalogRefreshOutcome> => ctx.runtime.catalogs.refresh(params.providerId);
+}
+
+/** The slice of `ConnectionService` this grouped file owns. */
+type CatalogVerbs = Pick<ConnectionService, "catalogModels" | "listEndpointModels" | "refreshCatalog">;
+
+/** The catalog verb bundle (`verb-naming`: one factory named for the file). */
+export function createCatalogs(ctx: ConnectionContext): CatalogVerbs {
+  return {
+    catalogModels: createCatalogModels(ctx),
+    listEndpointModels: createListEndpointModels(ctx),
+    refreshCatalog: createRefreshCatalog(ctx),
+  };
 }

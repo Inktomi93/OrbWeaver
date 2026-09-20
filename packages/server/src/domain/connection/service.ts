@@ -4,11 +4,11 @@
 
 import type { ConnectionContext } from "./context.ts";
 import type { ConnectionService } from "./contract/service.ts";
-import { createListBindings, createSetBinding, createUseForEverything } from "./verbs/bindings.ts";
-import { createCatalogModels, createListEndpointModels, createRefreshCatalog } from "./verbs/catalogs.ts";
-import { createCreate, createGet, createList, createRemove, createUpdate } from "./verbs/connections.ts";
-import { createAccountCredits, createGenerationCost, createInspectEndpoint, createProbe, createVerifyAuth } from "./verbs/diagnostics.ts";
-import { createDropProvider, createProvidersAvailable, createRegisterProvider } from "./verbs/providers.ts";
+import { createBindings } from "./verbs/bindings.ts";
+import { createCatalogs } from "./verbs/catalogs.ts";
+import { createConnections } from "./verbs/connections.ts";
+import { createDiagnostics } from "./verbs/diagnostics.ts";
+import { createProviders } from "./verbs/providers.ts";
 import { createAvailability, createCapabilities, createResolve, createResolveChatCapability } from "./verbs/resolve.ts";
 
 export function createConnectionService(ctx: ConnectionContext): ConnectionService {
@@ -17,25 +17,11 @@ export function createConnectionService(ctx: ConnectionContext): ConnectionServi
     availability: createAvailability(ctx),
     resolveChatCapability: createResolveChatCapability(ctx),
     capabilities: createCapabilities(ctx),
-    list: createList(ctx),
-    get: createGet(ctx),
-    create: createCreate(ctx),
-    update: createUpdate(ctx),
-    remove: createRemove(ctx),
-    listBindings: createListBindings(ctx),
-    setBinding: createSetBinding(ctx),
-    useForEverything: createUseForEverything(ctx),
-    catalogModels: createCatalogModels(ctx),
-    listEndpointModels: createListEndpointModels(ctx),
-    refreshCatalog: createRefreshCatalog(ctx),
-    probe: createProbe(ctx),
-    accountCredits: createAccountCredits(ctx),
-    generationCost: createGenerationCost(ctx),
-    verifyAuth: createVerifyAuth(ctx),
-    inspectEndpoint: createInspectEndpoint(ctx),
-    providersAvailable: createProvidersAvailable(ctx),
-    registerProvider: createRegisterProvider(ctx),
-    dropProvider: createDropProvider(ctx),
+    ...createConnections(ctx),
+    ...createBindings(ctx),
+    ...createCatalogs(ctx),
+    ...createDiagnostics(ctx),
+    ...createProviders(ctx),
     registry: ctx.runtime.providers.registry,
   };
 }

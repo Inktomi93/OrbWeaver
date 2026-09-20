@@ -6,16 +6,28 @@
 import type { ProviderAvailability } from "@orb/contracts/inference";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 
-export function createProvidersAvailable(ctx: ConnectionContext): ConnectionService["providersAvailable"] {
+/** The provider-registry slice of `ConnectionService` this grouped file owns. */
+type ProviderVerbs = Pick<ConnectionService, "providersAvailable" | "registerProvider" | "dropProvider">;
+
+function createProvidersAvailable(ctx: ConnectionContext): ConnectionService["providersAvailable"] {
   return (params): Promise<readonly ProviderAvailability[]> => Promise.resolve(ctx.runtime.providers.available(params.principal));
 }
 
-export function createRegisterProvider(ctx: ConnectionContext): ConnectionService["registerProvider"] {
+function createRegisterProvider(ctx: ConnectionContext): ConnectionService["registerProvider"] {
   return async (params): Promise<void> => {
     await ctx.runtime.providers.register(params.row, params.origin);
   };
 }
 
-export function createDropProvider(ctx: ConnectionContext): ConnectionService["dropProvider"] {
+function createDropProvider(ctx: ConnectionContext): ConnectionService["dropProvider"] {
   return (params): Promise<void> => ctx.runtime.providers.drop(params.providerId);
+}
+
+/** The registry-door verb bundle (`verb-naming`: one factory named for the file). */
+export function createProviders(ctx: ConnectionContext): ProviderVerbs {
+  return {
+    providersAvailable: createProvidersAvailable(ctx),
+    registerProvider: createRegisterProvider(ctx),
+    dropProvider: createDropProvider(ctx),
+  };
 }

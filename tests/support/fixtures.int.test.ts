@@ -96,6 +96,13 @@ const scripted = test.extend<Pick<Fixtures, "providerFetch">>({
   },
 });
 
+// @orb-waive audit-client-tests(describe): NOT empty — it holds one test declared through `scripted`, a
+// `test.extend` fixture alias. `tooling/src/verify/lib/test-call-shape.ts` reads a runner by ROOT NAME and
+// its declared limit admits only `test`/`it`, so a fixture alias is invisible to it. The alias CANNOT be
+// renamed into that set here: `it` is refused by biome `lint/nursery/useConsistentTestIt` (this repo prefers
+// `test`), and `test` is already bound in this module by the fixtures import — rebinding it would silently
+// hand the scripted providerFetch to every other test in the file. ENDS WHEN the shape reader resolves a
+// fixture alias to its `test.extend` origin, or this suite moves to its own module.
 describe("a suite that drives the wire substitutes the transport", () => {
   // THE RED-FIRST ARM, and its red names the hazard. Run against the source where `sdkFetch` was optional,
   // the `app` fixture passed no `providerSeams` and every backend resolved `?? globalThis.fetch`: the override

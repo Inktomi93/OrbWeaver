@@ -357,12 +357,17 @@ export function publishPrivateEndpointAllowlist(entries: readonly string[]): voi
   }
 }
 
+/** THE ADMISSION AXIS, homed at its producer (§7.5 — one `as const` tuple, every reader derives). The
+ *  connection domain's `EndpointAdmission` is `(typeof ENDPOINT_ADMISSIONS)[number]`; nothing re-spells the
+ *  four members. The verdicts themselves are documented on {@link endpointAdmission} below. */
+export const ENDPOINT_ADMISSIONS = ["public", "admitted", "refused", "invalid"] as const;
+
 /** The WRITE-TIME admission read the connection domain runs before it saves an endpoint row (the guard above
  *  re-judges every connect): `public` = not a private/loopback literal (a hostname resolves at connect, where
  *  the DNS gate judges it); `admitted` = private and on the allowlist; `refused` = private and not; `invalid`
  *  = not an http(s) URL. `localhost` is folded to loopback so the pane's inline "Admit" affordance fires for
  *  the spelling people actually type. */
-export function endpointAdmission(baseUrl: string): "public" | "admitted" | "refused" | "invalid" {
+export function endpointAdmission(baseUrl: string): (typeof ENDPOINT_ADMISSIONS)[number] {
   const url = URL.parse(baseUrl);
   if (url === null || (url.protocol !== "http:" && url.protocol !== "https:")) {
     return "invalid";

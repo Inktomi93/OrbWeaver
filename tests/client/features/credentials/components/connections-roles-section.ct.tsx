@@ -193,8 +193,11 @@ test("picking a connection writes EXACTLY that task's binding", async ({ mount, 
   await expect
     .poll(() => recorder.lastInput("connection.setBinding"), { intervals: [20, 50, 100] })
     .toEqual({ task: "embed", connectionId: EMBED_CONNECTION_ID });
+  // SETTLE on the rendered arm first: the row is non-interactive while its write is in flight, so waiting for
+  // it to come back enabled reads the recorder after the surface has finished rather than mid-transition.
+  await expect(roleSelect(page, "Text embedding")).toBeEnabled();
   // One row's pick is one write — a slot that patched its neighbours would be the roleDefaults blob again.
-  expect(recorder.count("connection.setBinding")).toBe(1);
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
 // THE 2026-08-01 INCIDENT, re-pointed at the surface that replaced it. That pane rendered FORM state, so an

@@ -24,7 +24,7 @@ test("the catalog refresher fires its admin-gated verb for the OpenRouter row", 
 
   await component.getByRole("button", { name: "Refresh OpenRouter catalog" }).click();
   await expect.poll(() => trpc.count("connection.refreshCatalog"), { intervals: [20, 50, 100] }).toBe(1);
-  expect(trpc.lastInput("connection.refreshCatalog")).toEqual({ providerId: "openrouter" });
+  await expect.poll(() => trpc.lastInput("connection.refreshCatalog"), { intervals: [20, 50, 100] }).toEqual({ providerId: "openrouter" });
 });
 
 test("the inline card embed is gated on a non-empty id and sends it verbatim", async ({ mount, page }) => {

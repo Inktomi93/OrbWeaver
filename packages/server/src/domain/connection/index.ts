@@ -20,9 +20,8 @@ export type {
   UpdateConnectionParams,
 } from "./contract/params.ts";
 export type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, ConnectionView, EndpointModelsResult } from "./contract/results.ts";
-export type { ConnectionService, ConnectionWorkloadDeps, EndpointAdmission } from "./contract/service.ts";
+export type { ConnectionPorts, ConnectionService, ConnectionWorkloadDeps, EndpointAdmission } from "./contract/service.ts";
 export { seedLocalLightConnections } from "./persistence/local-light-seed.ts";
-export type { ConnectionPorts } from "./persistence/ports.ts";
 export { createConnectionPorts } from "./persistence/ports.ts";
 export { createConnectionService } from "./service.ts";
 export { toResolvedView } from "./substrate/resolved-view.ts";

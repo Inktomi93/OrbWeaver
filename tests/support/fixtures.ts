@@ -97,7 +97,11 @@ function urlOf(input: Parameters<typeof fetch>[0]): string {
  *  on the box's loopback and asserted against its real answer. A refusal cannot do that silently.
  *
  *  A suite that legitimately drives the wire scripts it explicitly:
- *  `const wired = test.extend<Pick<Fixtures, "providerFetch">>({ providerFetch: async ({}, use) => { … } });` */
+ *  `const wired = test.extend<Pick<Fixtures, "providerFetch">>({ providerFetch: async ({}, use) => { … } });`
+ *  A `describe` holding ONLY alias-declared tests reads as EMPTY to `audit-client-tests`:
+ *  `tooling/src/verify/lib/test-call-shape.ts` reads a runner by ROOT NAME and admits only `test`/`it`. The
+ *  alias cannot simply be renamed into that set (`it` is refused by biome's `useConsistentTestIt`, `test` is
+ *  already bound by this import), so such a suite carries an `@orb-waive audit-client-tests(describe)`. */
 function refusingFetch(): typeof fetch {
   return (input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> => {
     const url = urlOf(input);
