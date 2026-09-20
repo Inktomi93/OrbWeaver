@@ -24,8 +24,9 @@
 //
 // Round-trip drift guard: buildChatJsonl(parseChatJsonl(buildChatJsonl(p))) === buildChatJsonl(p).
 
-import type { MessageKind, TokenProvenance } from "@orb/contracts/chat";
-import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
+import type { MessageKind, TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
+import { DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY, VARIANT_METADATA_TOKEN_COUNT_KEY } from "@orb/contracts/chat";
+import { jsonValueSchema } from "@orb/kit/json";
 import type { MessageRole } from "@orb/kit/message-role";
 import { epochToMs, isoToMs, msToWallClock, wallClockToMs } from "@orb/kit/time";
 import { z } from "zod";
@@ -55,7 +56,9 @@ export interface ParsedVariant {
   readonly reasoning: string | null;
   readonly genStarted: number | null;
   readonly genFinished: number | null;
-  readonly metadata: Record<string, unknown> | null;
+  /** The PARSED sidecar this take's `swipe_info[i]`/`extra` yields (§5.3c class 3) — the residue rule is
+   *  {@link variantMetadata}. */
+  readonly metadata: VariantMetadata | null;
 }
 
 /** Provenance for an AGENT-authored assistant row (D60 self-attribution; PD-17). An agent principal voices
@@ -117,7 +120,8 @@ export interface ParsedChatMessage {
   readonly genStarted: number | null;
   readonly genFinished: number | null;
   readonly ttftMs: number | null;
-  readonly metadata: Record<string, unknown> | null;
+  /** The take's PARSED sidecar (§5.3c class 3) — {@link variantMetadata} owns the shape. */
+  readonly metadata: VariantMetadata | null;
   readonly activeVariantIdx: number | null;
   readonly variants: readonly ParsedVariant[];
   readonly agentAuthor?: ParsedAgentAuthor;
@@ -622,6 +626,21 @@ function kindOf(m: RawMessage, role: MessageRole): MessageKind {
 // entries) and any foreign residue — rides along untouched, so flattening is not a drop.
 const SWIPE_INFO_NON_SIDECAR_KEYS: ReadonlySet<string> = new Set(["extra", "gen_started", "gen_finished"]);
 
+/** One of ST's numeric sidecar values (`reasoning_duration`, `token_count`) as a number, or `undefined` when
+ *  the file carries none — or carries something that is not a measurement. ST writes these as numbers; a
+ *  hand-edited or foreign export may write the numeric string, which the retired `Number(metadata[key])`
+ *  readers coerced, so both are accepted HERE, at the producer, which is where a foreign format is allowed to
+ *  be lenient. Anything else stays in the residue rather than being coerced into a fake measurement. */
+function importedNumber(value: unknown): number | undefined {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  // The blank-string fence is not defensive noise: `Number("")` is 0, so an empty field would otherwise be
+  // PROMOTED into a slot the rollups sum — a fabricated zero-length measurement out of nothing.
+  const n = typeof value === "string" && value.trim().length > 0 ? Number(value) : Number.NaN;
+  return Number.isFinite(n) ? n : undefined;
+}
+
 /** ONE canonical shape for a variant's `metadata`, on BOTH parse paths: ST's FLAT `extra` blob, with the
  *  swipe entry's non-sidecar residue merged underneath it.
  *
@@ -632,8 +651,23 @@ const SWIPE_INFO_NON_SIDECAR_KEYS: ReadonlySet<string> = new Set(["extra", "gen_
  *  every swipe-bearing imported message (12,718 of 24,824 corpus rows; `reasoning_duration` is present on
  *  75,309 of 76,238 swipe entries). The fix is one shape at the WRITER, never dual-shape readers.
  *
- *  `extra` wins on a key collision: it is the authoritative generation sidecar, the residue is context. */
-function variantMetadata(swipeEntry: unknown): Record<string, unknown> | null {
+ *  `extra` wins on a key collision: it is the authoritative generation sidecar, the residue is context.
+ *
+ *  THE PRODUCER-SIDE PARSE (§5.3c class 3). The column is `VariantMetadata`, so this writer emits THAT shape
+ *  rather than the flattened bag. The two keys that HAVE named live readers stay at the TOP level —
+ *  `reasoning_duration` (the one place the rollups' `json_extract(metadata, '$.reasoning_duration')` can see
+ *  it, which is the 2026-08-08 fix, unchanged) and `token_count` (`domain/import`'s token-usage backfill) —
+ *  and everything else ST carried lands verbatim under `importResidue`, a declared-OPAQUE `JsonValue`
+ *  (§5.3c class 4: never compared, switched on or joined). Nothing is dropped; what changes is that a
+ *  FOREIGN FILE CAN NO LONGER AUTHOR A KEY AT THE MODELED LEVEL. Pre-fix, an `extra.providerMetadata` in
+ *  someone else's export flattened straight into the slot our own per-provider sidecar reads — foreign bytes
+ *  wearing our contract's name, which is the whole reason class 3 refuses a bag.
+ *
+ *  The residue is PARSED, not cast: `jsonValueSchema` is the proof these foreign bytes are storable JSON, and
+ *  a residue that cannot be (it never happens through `JSON.parse`, but the type cannot say so) is omitted
+ *  rather than asserted. An empty residue is omitted too — an entry whose only keys were the promoted ones
+ *  should not carry an empty object. */
+function variantMetadata(swipeEntry: unknown): VariantMetadata | null {
   const si = asObj(swipeEntry);
   if (si === null) {
     return null;
@@ -644,7 +678,34 @@ function variantMetadata(swipeEntry: unknown): Record<string, unknown> | null {
       merged[k] = v;
     }
   }
-  return { ...merged, ...(asObj(si["extra"]) ?? {}) };
+  const flat: Record<string, unknown> = { ...merged, ...(asObj(si["extra"]) ?? {}) };
+  // The TWO keys with named live readers are PROMOTED to the modeled level; a key whose promotion FAILS (a
+  // value that is not a measurement) stays in the residue rather than becoming a fake one.
+  const reasoningMs = importedNumber(flat[VARIANT_METADATA_REASONING_MS_KEY]);
+  const tokenCount = importedNumber(flat[VARIANT_METADATA_TOKEN_COUNT_KEY]);
+  const promoted = new Set(
+    [reasoningMs === undefined ? undefined : VARIANT_METADATA_REASONING_MS_KEY, tokenCount === undefined ? undefined : VARIANT_METADATA_TOKEN_COUNT_KEY].filter(
+      (k) => k !== undefined,
+    ),
+  );
+  const residue = Object.fromEntries(Object.entries(flat).filter(([k]) => !promoted.has(k)));
+  const parsedResidue = Object.keys(residue).length === 0 ? undefined : jsonValueSchema.safeParse(residue);
+  const out: VariantMetadata = {
+    ...(reasoningMs === undefined ? {} : { [VARIANT_METADATA_REASONING_MS_KEY]: reasoningMs }),
+    ...(tokenCount === undefined ? {} : { [VARIANT_METADATA_TOKEN_COUNT_KEY]: tokenCount }),
+    ...(parsedResidue?.success === true ? { importResidue: parsedResidue.data } : {}),
+  };
+  // NULL, not `{}`, when the entry recorded nothing (the `reasoning_parts` / live-turn posture): an empty blob
+  // would make the column's "has a sidecar" question a lie. This is also what keeps the message-level caller
+  // below byte-identical to its old `asObj(parsed.extra)` on a line that carries no `extra` at all.
+  return Object.keys(out).length === 0 ? null : out;
+}
+
+/** The MESSAGE-level take's sidecar (a line's own flat `extra`), through the one shape {@link variantMetadata}
+ *  builds for the swipe pool. Wrapping it as a synthetic `swipe_info` entry is what keeps ONE producer for the
+ *  column across both parse paths — the 2026-08-08 audit's whole finding was two shapes here. */
+function messageMetadata(extra: unknown): VariantMetadata | null {
+  return variantMetadata({ extra });
 }
 
 // Fewer than this many SURVIVING swipes ⇒ no real alternates (the lone generation lives on the message's
@@ -801,7 +862,7 @@ function parseMessageLine(line: string, zone: string): ParsedChatMessage | null 
     genStarted: parseStDate(parsed.gen_started, zone),
     genFinished: parseStDate(parsed.gen_finished, zone),
     ttftMs: ex.ttftMs,
-    metadata: asObj(parsed.extra),
+    metadata: messageMetadata(parsed.extra),
     activeVariantIdx,
     variants,
     // Present only when the export carried a valid provenance sidecar; omitted (exactOptional) otherwise.

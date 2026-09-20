@@ -21,6 +21,7 @@ import type {
   ToolCallRecord,
   TurnInitiator,
   UserMacroDraws,
+  VariantMetadata,
 } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { CostDetails, NormalizedFinishReason } from "@orb/contracts/inference";
@@ -81,12 +82,14 @@ interface CanonVariantInput {
    *  `msg_…` — the support handle; B7). Absent/null where the wire reports none (agent-sdk / a user-authored row). */
   readonly generationId?: string | null | undefined;
   readonly ttftMs?: number | null | undefined;
-  /** The generation's OPEN metadata sidecar (`message_variants.metadata`) — today exactly one key, the
-   *  measured reasoning window (`VARIANT_METADATA_REASONING_MS_KEY`, #184), which the stats rollups extract
-   *  by JSON path. Absent/null ⇒ no sidecar (a turn that never reasoned, a verbatim/greeting seed). NOT on
+  /** The generation's metadata sidecar (`message_variants.metadata`) — a CLOSED shape (§5.3c class 3), today
+   *  carrying exactly one key on this path: the measured reasoning window
+   *  (`VARIANT_METADATA_REASONING_MS_KEY`, #184), which the stats rollups extract by JSON path. Typed rather
+   *  than a bag, so this writer and those readers are bound by `tsc` — the producer-side half of class 3.
+   *  Absent/null ⇒ no sidecar (a turn that never reasoned, a verbatim/greeting seed). NOT on
    *  `VariantEconomics`: the read `MessageView` does not carry it — it is a stats-plane fact, not a rendered
    *  one — and the ST import writes the same column through its own path. */
-  readonly metadata?: Record<string, unknown> | null | undefined;
+  readonly metadata?: VariantMetadata | null | undefined;
   // The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`, CHECK-enforced) — the per-wire raw → normalized fold
   // happens in the runtime; `stopReason` keeps the raw upstream word as provenance.
   readonly finishReason?: NormalizedFinishReason | null | undefined;

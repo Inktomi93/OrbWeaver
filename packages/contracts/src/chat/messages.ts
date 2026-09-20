@@ -112,20 +112,29 @@ export const chatReasoningPartSchema = z.object({
 
 /** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's REASONING TIME in ms.
  *
- *  The column is an OPEN blob (`Record<string, unknown>`), so no type binds its writers to its readers — the
- *  exact shape that let this key be READ by three sites while only the ST import ever WROTE it (#184; the
- *  same column already cost one nested-shape fidelity bug, `server/kit/serde/chat` §variantMetadata). One
- *  home for the string is the cheapest binding available: the live turn's writer
+ *  The column was an OPEN blob (`Record<string, unknown>`) until §5.3c class 3 closed it onto
+ *  {@link variantMetadataSchema}, so nothing bound its writers to its readers — the exact shape that let this
+ *  key be READ by three sites while only the ST import ever WROTE it (#184; the same column already cost one
+ *  nested-shape fidelity bug, `server/kit/serde/chat` §variantMetadata). The type is now the binding and this
+ *  constant is the key's one spelling: the live turn's writer
  *  (`domain/chat/engine/engine.ts`) and the live stats mirror (`domain/chat/substrate/stats-delta.ts`) both
  *  spell it from here. DECLARED LIMIT: the two SQL readers in `domain/stats/write/rebuild-from-canon.ts`
  *  address it as a JSON PATH inside a `sql` template, where an interpolated value would bind as a
  *  PARAMETER rather than a path literal — those two sites cite this constant in a comment instead. */
 export const VARIANT_METADATA_REASONING_MS_KEY = "reasoning_duration";
 
-/** The per-provider OPAQUE-BY-DECLARATION sidecar a variant carries (§5.3c): a CLOSED union of NAMED shapes —
- *  a reader like the OpenRouter cost pill names a typed field or does not compile; a plugin provider's payload
- *  lands under `raw` with NO reader by key. Never `Record<ProviderId, unknown>` (the #164 open-bag class). */
-export const variantProviderMetadataSchema = z.discriminatedUnion("provider", [
+/** THE ONE SPELLING of the `message_variants.metadata` key carrying SillyTavern's `extra.token_count` — the
+ *  count of the ROW'S OWN TEXT (not an API usage split), which only the ST import writes and only
+ *  `domain/import`'s token-usage backfill reads (`substrate/token-usage.ts`
+ *  `recordedTokenCountFromMetadata`). It is a DECLARED key of this sidecar rather than foreign residue for
+ *  exactly that reason: it has a named live reader, so closing the column has to bind that reader too or the
+ *  backfill silently degrades every `exactRecovered` row to `estimated`. §5.3c's table named only the
+ *  reasoning window because it enumerated the LIVE-TURN writer; the tree has two keys with readers. */
+export const VARIANT_METADATA_TOKEN_COUNT_KEY = "token_count";
+
+/** The FIRST-PARTY arms of the per-provider sidecar: one NAMED shape per provider we ourselves write, keyed
+ *  on a `provider` LITERAL so zod dispatches in one lookup and `tsc` narrows a reader to exactly one arm. */
+const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
   z.object({
     provider: z.literal("openrouter"),
     cache: z.object({ readTokens: z.number().optional(), writeTokens: z.number().optional() }).optional(),
@@ -144,24 +153,67 @@ export const variantProviderMetadataSchema = z.discriminatedUnion("provider", [
     servedModel: z.string().optional(),
   }),
   z.object({ provider: z.literal("anthropic"), cacheReadTokens: z.number().optional(), cacheWriteTokens: z.number().optional() }),
-  z.object({ provider: z.string().regex(/^plugin:[a-z0-9-]+\/[a-z0-9-]+$/u), raw: z.unknown() }),
 ]);
-/** @public future: the §5.3c class-3 parse-on-read seam for `message_variants.metadata` (UNBUILT — the
- *  column is still `$type<Record<string, unknown>>` and `queries.ts`'s variant selections hand the raw bag
- *  through; `stats-delta.ts` reads the one key by hand). This is the shape that seam parses to. */
+
+/** A PLUGIN provider's arm. Its `provider` is a PATTERN (`plugin:<namespace>/<id>`), not a literal — plugin
+ *  ids are runtime data, so the set is unenumerable by construction. `raw` is `JsonValue` per §5.3c: storable
+ *  and re-parsable, with NO reader by key (the `ReasoningPartMeta.openrouter.reasoningDetails` posture). */
+const pluginProviderMetadataSchema = z.object({ provider: z.string().regex(/^plugin:[a-z0-9-]+\/[a-z0-9-]+$/u), raw: jsonValueSchema });
+
+/** The per-provider OPAQUE-BY-DECLARATION sidecar a variant carries (§5.3c): a CLOSED union of NAMED shapes —
+ *  a reader like the OpenRouter cost pill names a typed field or does not compile; a plugin provider's payload
+ *  lands under `raw` with NO reader by key. Never `Record<ProviderId, unknown>` (the #164 open-bag class).
+ *
+ *  TWO LAYERS, and the split is load-bearing rather than stylistic: a `z.discriminatedUnion` REQUIRES every
+ *  option's discriminator to expose enumerable literal values, and the plugin arm's cannot. Carrying it as a
+ *  fourth option compiled and constructed fine and then THREW zod's "Invalid discriminated union option at
+ *  index 3" on EVERY object input — including a valid openrouter arm — from inside zod's own option map,
+ *  where `safeParse` does not contain it and neither does `.catch`. A throwing read seam is strictly
+ *  worse than the open bag it replaced (it fails the history read that lists a chat), so the named arms keep
+ *  their fast literal dispatch and the pattern arm is a plain union member beside them. Pinned by the
+ *  `providerMetadata union is CLOSED by provider` case in tests/contracts/chat/messages.contract.test.ts. */
+export const variantProviderMetadataSchema = z.union([namedProviderMetadataSchema, pluginProviderMetadataSchema]);
+/** The parsed `providerMetadata` arm — what a typed reader (an OpenRouter cost pill, a cache-receipt badge)
+ *  narrows on. A plugin provider's arm carries `raw` and NO reader by key. */
 export type VariantProviderMetadata = z.infer<typeof variantProviderMetadataSchema>;
 
 /** `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
- *  {@link VARIANT_METADATA_REASONING_MS_KEY} and the provider sidecar. `.catch` → `{}` at the reader.
- *  The seam itself is UNBUILT (§5.3c class 3): today every variant read hands the raw bag through. */
+ *  {@link VARIANT_METADATA_REASONING_MS_KEY}, the provider sidecar, and the ST import's foreign residue.
+ *
+ *  §5.3c CLASS 3 — a parsed JSON sidecar with a zod schema at the read seam and a producer-side parse on
+ *  write, never `Record<string, unknown>` past the seam. The column's `$type` is this shape
+ *  (`db/schema/chat.ts`), every reader goes through {@link parseVariantMetadata}, and every writer builds
+ *  this object rather than a bag — which is what puts the SQL rollup readers'
+ *  `json_extract(metadata, '$.reasoning_duration')` under `open-json-column-key-parity` at all (an open bag
+ *  is one level BELOW that gate's reach: it judges the column's `$type`, never a bag inside it).
+ *
+ *  `importResidue` is the ST import's OWN doorway and the reason closing this type is not a data drop: an ST
+ *  `swipe_info[i].extra` carries arbitrary foreign keys (`api`, `bias`, `send_date`, a tool's own residue)
+ *  which the import preserved verbatim by flattening them into this column. They keep landing — under ONE
+ *  named, `JsonValue`-typed field, which is §5.3c class 4: declared-OPAQUE provenance, never compared,
+ *  switched on or joined, and unreadable by key without an explicit narrow. Flattening them back into the
+ *  modeled level is what let a foreign file's `providerMetadata` key masquerade as ours. */
 export const variantMetadataSchema = z.object({
   [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
+  [VARIANT_METADATA_TOKEN_COUNT_KEY]: z.number().optional(),
   providerMetadata: variantProviderMetadataSchema.optional(),
+  importResidue: jsonValueSchema.optional(),
 });
-/** @public future: the §5.3c class-3 parse-on-read seam for `message_variants.metadata` (UNBUILT — the
- *  column is still `$type<Record<string, unknown>>` and `queries.ts`'s variant selections hand the raw bag
- *  through; `stats-delta.ts` reads the one key by hand). This is the shape that seam parses to. */
+/** The parsed `message_variants.metadata` sidecar — the type the column's `$type` carries and every reader
+ *  holds. Every field optional: an absent sidecar and a sidecar that recorded nothing are one value. */
 export type VariantMetadata = z.infer<typeof variantMetadataSchema>;
+
+/** The `{}` a degraded read yields — frozen so the `.catch` fallback can never be mutated by a caller into a
+ *  shared stand-in that then looks like real recorded provenance. */
+const EMPTY_VARIANT_METADATA: VariantMetadata = Object.freeze({});
+
+/** THE READ SEAM for `message_variants.metadata` (§5.3c class 3 — the `macroFreezes`/`toolCalls`/
+ *  `handoffOffer` idiom). A malformed, absent or foreign-shaped blob DEGRADES to `{}`; it never throws,
+ *  because a history read must not fail on one old row whose shape nobody models, and it is never the
+ *  drizzle `$type` cast — the annotation states the contract, this function proves it. */
+export function parseVariantMetadata(raw: unknown): VariantMetadata {
+  return variantMetadataSchema.catch(EMPTY_VARIANT_METADATA).parse(raw);
+}
 
 /** The `messages` SLOT (D26): identity + attribution + selection ONLY — NO content, NO economics. A swipe
  *  APPENDs a `message_variants` row and `selectVariant` flips `selectedVariantId` (a pointer move, never a

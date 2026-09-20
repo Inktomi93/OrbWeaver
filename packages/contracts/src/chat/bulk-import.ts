@@ -15,7 +15,7 @@ import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { UserMacroValues } from "../preset/index.ts";
 import type { CHAT_INJECTION_POSITIONS } from "./assemble.ts";
-import type { TokenProvenance } from "./messages.ts";
+import type { TokenProvenance, VariantMetadata } from "./messages.ts";
 import type { ChatMetadata } from "./metadata.ts";
 import type { MessageKind } from "./participants.ts";
 import type { SeatKnobs } from "./roster.ts";
@@ -34,7 +34,9 @@ export interface BulkImportVariantInput {
   readonly ttftMs: number | null;
   readonly genStartedAt: number | null;
   readonly genFinishedAt: number | null;
-  readonly metadata: Record<string, unknown> | null;
+  /** The variant's sidecar as the bundle carries it — the same closed `VariantMetadata` the column stores
+   *  (§5.3c class 3), so an import round-trip cannot widen it back into a bag. */
+  readonly metadata: VariantMetadata | null;
   /** The variant's INPUT token count. An orb-native bundle carries the recorded usage figure. The ST jsonl
    *  arm supplies it for a `user`/`system` slot: ST has ONE `extra.token_count` — the count of the row's own
    *  TEXT, not an API usage split — so on a non-assistant row it is an inbound count and belongs here, not in
