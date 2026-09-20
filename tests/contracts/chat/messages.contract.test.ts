@@ -296,6 +296,23 @@ test("the providerMetadata union is CLOSED by provider — an unknown provider i
   expect(parseVariantMetadata({ providerMetadata: { provider: "some-new-vendor", cost: 1 } })).toEqual({});
 });
 
+test("the plugin arm's id is a TEMPLATE LITERAL — it validates the pattern and does not absorb the named arms", () => {
+  // The type half is what a value test cannot see and is the whole reason for the spelling: as a bare
+  // `z.string().regex(…)` the plugin arm's `provider` was `string`, which SWALLOWED every named literal, so
+  // `meta.provider === "claude-sub"` narrowed to `claude-sub | plugin` and reading `warmSpareClaimed` off the
+  // result did not compile — the union's own promise, broken by its most permissive arm. The narrow below
+  // compiles only under the template-literal spelling; `tsc` is the assertion.
+  const claudeSub = parseVariantMetadata({ providerMetadata: { provider: "claude-sub", warmSpareClaimed: true, cacheCreation1hTokens: 4096 } });
+  const arm = claudeSub.providerMetadata;
+  expect(arm !== undefined && arm.provider === "claude-sub" && arm.warmSpareClaimed).toBe(true);
+
+  // The runtime half: `templateLiteral` composes its parts' patterns, so the id is still fully validated.
+  // A half-formed plugin id degrades the WHOLE sidecar (`.catch({})`) rather than landing an unaddressable row.
+  for (const bad of ["plugin:BAD", "plugin:acme", "plugin:acme/vision/extra", "plugin:", "notplugin:acme/vision"]) {
+    expect(parseVariantMetadata({ providerMetadata: { provider: bad, raw: {} } }), `${bad} must not parse as a plugin arm`).toEqual({});
+  }
+});
+
 test("importResidue is declared-OPAQUE: any JSON rides, and a non-JSON value is refused", () => {
   // The ST import's doorway (§5.3c class 4). It is `JsonValue`, never `Record<string, unknown>` — storable
   // and re-parsable by construction, and unreadable by key without an explicit narrow.
