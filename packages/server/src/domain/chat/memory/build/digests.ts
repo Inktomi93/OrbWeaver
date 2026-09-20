@@ -19,6 +19,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../../context.ts";
+import type { MemoryEmbedSpace } from "../../contract/context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries.ts";
 import type { BlockSpan, DigestRow, MemoryConfig, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types.ts";
@@ -39,6 +40,8 @@ interface GenerateDigestsArgs {
   readonly macroNames?: RowMacroNameContext | undefined;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
   readonly signal?: AbortSignal | undefined;
+  readonly embedSpace?: MemoryEmbedSpace | undefined;
+  readonly embedOwnerId?: UserId | undefined;
 }
 
 /** The admin-resolved summarize call options (`AppSettings.memorySummarizer`) — passed onto every `summarize`
@@ -137,6 +140,12 @@ interface PassCounts {
 
 const EMPTY_TIER0_COUNTS: Tier0Counts = { written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 };
 
+function assertStoreSpace(expected: MemoryEmbedSpace, actual: MemoryEmbedSpace): void {
+  if (actual.ownerId !== expected.ownerId || actual.model !== expected.model) {
+    throw new Error(`memory digest embed space changed during sweep for owner ${expected.ownerId}`);
+  }
+}
+
 /** One pending tier-0 block: everything the STORE needs, plus the summarize `input`. */
 interface Tier0Pending {
   readonly block: BlockSpan;
@@ -150,6 +159,7 @@ interface Tier0Pending {
  *  (`storeTier0`) and consolidates corpus-wide tier-by-tier (`collectConsolidationTier`/`storeConsolidationTier`)
  *  rather than committing a bucket at a time. `null` for the no-op cases (mode off, no aged-out block). */
 interface DigestPlan {
+  readonly embedSpace: MemoryEmbedSpace;
   readonly scope: MemoryScope;
   readonly funderUserId: UserId;
   readonly cfg: ReturnType<typeof resolveCfg>;
@@ -181,6 +191,7 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "no aged-out block" });
     return null;
   }
+  const embedSpace = args.embedSpace ?? (await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId));
 
   const canon = await loadCanonThroughSeq(ctx.db, chatId, cutoff);
   const allBlocks = sliceBlocks(canon, cfg.blockSize);
@@ -191,10 +202,11 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
   // the vanished block's summary INTO a fresh parent, laundering it back into the pool through a row whose
   // hash is legitimately current. Nothing is re-stored by this call, so the build's no-op economy is intact.
   await ctx.embeddingsPruneBlocks({ lens: "digest", chatId, scopedCharacterId, keepPerTier: blockCeilings(allBlocks.length, cfg.fanOut, cfg.maxTier) });
-  const existing = await loadDigestHashes(ctx.db, chatId, scopedCharacterId);
+  const existing = await loadDigestHashes(ctx.db, chatId, scopedCharacterId, embedSpace.model);
 
   const collected = await collectTier0(ctx, args, { blocks, existing, macroNames });
   return {
+    embedSpace,
     scope: args.scope,
     funderUserId: args.funderUserId,
     cfg,
@@ -218,6 +230,7 @@ async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: reado
     existing: plan.existing,
     signal: plan.signal,
     funderUserId: plan.funderUserId,
+    embedSpace: plan.embedSpace,
   });
   const total: Tier0Counts = {
     written: stored.written + consolidated.written,
@@ -356,8 +369,10 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
       continue;
     }
     const parsed = parseDigest(raw);
-    await ctx.embeddingsStore({
+    const receipt = await ctx.embeddingsStore({
       lens: "digest",
+      ownerId: plan.embedSpace.ownerId,
+      model: plan.embedSpace.model,
       key: { chatId, tier: 0, blockIdx: item.block.blockIdx, scopedCharacterId },
       text: raw.trim(),
       contentHash: item.hash,
@@ -366,6 +381,7 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
       isGroup,
       speakerCharacterIds: blockSpeakerIds(item.block.rows),
     });
+    assertStoreSpace(plan.embedSpace, receipt);
     written += 1;
   }
   await invalidateStale(ctx, plan.scope, staleKeys);
@@ -433,6 +449,7 @@ interface ConsPending {
  *  children + the tally of already-current parents skipped. `parentTier` is the tier the writes land in.
  *  Non-exported — backfill derives it by inference (no-inline-types: no build-internal type in an export). */
 interface ConsolidationTierPlan {
+  readonly embedSpace: MemoryEmbedSpace;
   readonly parentTier: number;
   readonly pending: readonly ConsPending[];
   readonly speakerMap: ReadonlyMap<string, CharacterId[]>;
@@ -449,15 +466,16 @@ async function consolidateTiers(
     readonly existing: ReadonlyMap<string, string>;
     readonly signal: AbortSignal | undefined;
     readonly funderUserId: UserId;
+    readonly embedSpace: MemoryEmbedSpace;
   },
 ): Promise<PassCounts> {
-  const { cfg, existing, signal, funderUserId } = args;
+  const { cfg, existing, signal, funderUserId, embedSpace } = args;
   let written = 0;
   let skipped = 0;
   let skippedEmpty = 0;
   for (let tier = 0; tier < cfg.maxTier; tier += 1) {
     signal?.throwIfAborted();
-    const pass = await consolidateOneTier(ctx, scope, cfg, { tier, existing, signal, funderUserId });
+    const pass = await consolidateOneTier(ctx, scope, cfg, { tier, existing, signal, funderUserId, embedSpace });
     if (pass === null) {
       break; // fewer than fanOut children at this tier → the consolidation ceiling
     }
@@ -475,7 +493,13 @@ async function consolidateOneTier(
   ctx: ChatContext,
   scope: MemoryScope,
   cfg: ReturnType<typeof resolveCfg>,
-  args: { readonly tier: number; readonly existing: ReadonlyMap<string, string>; readonly signal: AbortSignal | undefined; readonly funderUserId: UserId },
+  args: {
+    readonly tier: number;
+    readonly existing: ReadonlyMap<string, string>;
+    readonly signal: AbortSignal | undefined;
+    readonly funderUserId: UserId;
+    readonly embedSpace: MemoryEmbedSpace;
+  },
 ): Promise<PassCounts | null> {
   const plan = await collectConsolidationTier(ctx, scope, cfg, args);
   if (plan === null) {
@@ -506,10 +530,16 @@ export async function collectConsolidationTier(
   ctx: ChatContext,
   scope: MemoryScope,
   cfg: ReturnType<typeof resolveCfg>,
-  args: { readonly tier: number; readonly existing: ReadonlyMap<string, string>; readonly signal: AbortSignal | undefined; readonly funderUserId: UserId },
+  args: {
+    readonly tier: number;
+    readonly existing: ReadonlyMap<string, string>;
+    readonly signal: AbortSignal | undefined;
+    readonly funderUserId: UserId;
+    readonly embedSpace: MemoryEmbedSpace;
+  },
 ): Promise<ConsolidationTierPlan | null> {
   const { tier, existing, signal } = args;
-  const children = await loadDigestsForScope(ctx.db, scope.chatId, scope.scopedCharacterId, tier);
+  const children = await loadDigestsForScope(ctx.db, scope.chatId, scope.scopedCharacterId, { tier, model: args.embedSpace.model });
   if (children.length < cfg.fanOut) {
     return null; // no complete group above this tier → the consolidation ceiling
   }
@@ -564,7 +594,7 @@ export async function collectConsolidationTier(
       },
     });
   }
-  return { parentTier, pending, speakerMap, skipped };
+  return { embedSpace: args.embedSpace, parentTier, pending, speakerMap, skipped };
 }
 
 /** The consolidation summarize batch (per-item-isolated on failure) — same wire home as `summarizeDigestBatch`
@@ -614,8 +644,10 @@ export async function storeConsolidationTier(
       }
       continue;
     }
-    await ctx.embeddingsStore({
+    const receipt = await ctx.embeddingsStore({
       lens: "digest",
+      ownerId: plan.embedSpace.ownerId,
+      model: plan.embedSpace.model,
       key: {
         chatId: scope.chatId,
         tier: plan.parentTier,
@@ -629,6 +661,7 @@ export async function storeConsolidationTier(
       isGroup: scope.isGroup,
       speakerCharacterIds: unionSpeakers(item.ordered, plan.speakerMap),
     });
+    assertStoreSpace(plan.embedSpace, receipt);
     written += 1;
   }
   // #1395 — the same invalidation the tier-0 store applies: a parent queued by a hash mismatch and then

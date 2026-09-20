@@ -85,7 +85,7 @@ export async function loadCanonThroughSeq(db: Db, chatId: ChatId, throughSeq: nu
 
 /** The `(tier:blockIdx) → content_hash` map for one scope bucket (the digest staleness gate — re-summarize a
  *  block iff missing or its hash changed). Keyed by the `${tier}:${blockIdx}` string the build looks up. */
-export async function loadDigestHashes(db: Db, chatId: ChatId, scopedCharacterId: CharacterId): Promise<Map<string, string>> {
+export async function loadDigestHashes(db: Db, chatId: ChatId, scopedCharacterId: CharacterId, model: string): Promise<Map<string, string>> {
   const rows = await db
     .select({
       tier: chatDigests.tier,
@@ -93,7 +93,7 @@ export async function loadDigestHashes(db: Db, chatId: ChatId, scopedCharacterId
       contentHash: chatDigests.contentHash,
     })
     .from(chatDigests)
-    .where(and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId)));
+    .where(and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId), eq(chatDigests.model, model)));
   // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for digest hashes. Ends if it outlives the call.
   const out = new Map<string, string>();
   for (const r of rows) {
@@ -106,11 +106,11 @@ export async function loadDigestHashes(db: Db, chatId: ChatId, scopedCharacterId
  *  keyed by the same string the build looks up — the `loadDigestHashes` idiom. Segments are NOT scope-keyed
  *  (shared per chat), and since #172 a block is a ROW SET: the gate is per CHUNK, which is also what makes a
  *  half-written block self-heal (the chunks that never landed have no row, so nothing skips them). */
-export async function loadSegmentHashes(db: Db, chatId: ChatId): Promise<Map<string, string>> {
+export async function loadSegmentHashes(db: Db, chatId: ChatId, model: string): Promise<Map<string, string>> {
   const rows = await db
     .select({ blockIdx: chatSegments.blockIdx, chunkIdx: chatSegments.chunkIdx, contentHash: chatSegments.contentHash })
     .from(chatSegments)
-    .where(eq(chatSegments.chatId, chatId));
+    .where(and(eq(chatSegments.chatId, chatId), eq(chatSegments.model, model)));
   // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for segment hashes. Ends if it outlives the call.
   const out = new Map<string, string>();
   for (const r of rows) {
@@ -122,11 +122,26 @@ export async function loadSegmentHashes(db: Db, chatId: ChatId): Promise<Map<str
 /** The NON-vector digest facets for one scope bucket (mixA's tier-0 read, tiered's all-tiers read, and the
  *  consolidation child read), ordered tier-asc then blockIdx-asc (chronological within a tier). `tier`
  *  filters to one tier when given (mixA = tier 0; the consolidation reads tier k). */
-export async function loadDigestsForScope(db: Db, chatId: ChatId, scopedCharacterId: CharacterId, tier?: number): Promise<DigestRow[]> {
+export async function loadDigestsForScope(
+  db: Db,
+  chatId: ChatId,
+  scopedCharacterId: CharacterId,
+  options?: { readonly tier?: number; readonly model?: string },
+): Promise<DigestRow[]> {
+  const { tier, model } = options ?? {};
   const where =
     tier === undefined
-      ? and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId))
-      : and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId), eq(chatDigests.tier, tier));
+      ? and(
+          eq(chatDigests.chatId, chatId),
+          eq(chatDigests.scopedCharacterId, scopedCharacterId),
+          ...(model === undefined ? [] : [eq(chatDigests.model, model)]),
+        )
+      : and(
+          eq(chatDigests.chatId, chatId),
+          eq(chatDigests.scopedCharacterId, scopedCharacterId),
+          eq(chatDigests.tier, tier),
+          ...(model === undefined ? [] : [eq(chatDigests.model, model)]),
+        );
   const rows = await db
     .select({
       id: chatDigests.id,

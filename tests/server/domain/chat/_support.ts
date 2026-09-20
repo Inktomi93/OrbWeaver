@@ -571,6 +571,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
       const rows = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(1);
       return rows[0]?.ownerId === ownerId;
     },
+    resolveMemoryEmbedSpace: (ownerId) => Promise.resolve({ ownerId, model: "test-embed-1024" }),
     embeddingsStore: notStubbed,
     embeddingsStoreSegments: notStubbed,
     // Default = the REAL prune against the seeded vector tables (the `verifyPersonaOwned` precedent), not a

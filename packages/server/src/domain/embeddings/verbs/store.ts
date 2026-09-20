@@ -75,7 +75,7 @@ function assertSpace(model: string, dim: number, vector: Float32Array): void {
 async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Promise<StoreResult> {
   const hash = contentHash(p.content);
   if (p.force !== true && (await existingCharacterHash(ctx.db, p.characterId, p.model)) === hash) {
-    return { outcome: "noop", contentHash: hash };
+    return { outcome: "noop", contentHash: hash, model: p.model };
   }
   const embedded = await (await ctx.roleClientsFor(p.ownerId)).embed(p.content);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
@@ -89,7 +89,7 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Pr
     dim: p.dim,
     now: ctx.now(),
   });
-  return { outcome: "written", contentHash: hash };
+  return { outcome: "written", contentHash: hash, model: embedded.model };
 }
 
 /** Is the stored row for this lens already current for these bytes? The raw lens is a pure hash question; the
@@ -134,13 +134,13 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
   // both places would be two homes for one currency definition, so this IS that home and the sweep's
   // pre-check is only an early-out that avoids loading bytes.
   if (p.force !== true && (await isImageLensCurrent(ctx, p, hash))) {
-    return { outcome: "noop", contentHash: hash };
+    return { outcome: "noop", contentHash: hash, model: p.model };
   }
   // Skip-don't-write on an empty caption (the summarizer returned nothing): content_hash covers bytes only,
   // so a row written with caption:"" would never regenerate without force. Leave it unwritten so the next
   // indexer run retries it — the raw lens already carries the image-only signal.
   if (p.lens === "image-captioned" && p.caption.trim().length === 0) {
-    return { outcome: "noop", contentHash: hash };
+    return { outcome: "noop", contentHash: hash, model: p.model };
   }
   // THE JOINT-SPACE DISPATCH (§10-3). The captioned lens has two arms: the joint image+caption vector when
   // the owner HAS an image-capable embedder, and — when they do not — the caption as plain TEXT through the
@@ -163,7 +163,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     dim: p.dim,
     now: ctx.now(),
   });
-  return { outcome: "written", contentHash: hash };
+  return { outcome: "written", contentHash: hash, model: embedded.model };
 }
 
 /** digest → `chat_digests` (the distilled lens). `contentHash` is precomputed by memory; the distilled
@@ -178,7 +178,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     model: p.model,
   });
   if (existing === hash) {
-    return { outcome: "noop", contentHash: hash };
+    return { outcome: "noop", contentHash: hash, model: p.model };
   }
   const embedded = await (await ctx.roleClientsFor(p.ownerId)).embed(p.text);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
@@ -201,7 +201,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     speakerCharacterIds: p.speakerCharacterIds,
   });
   // The persistence seam commits the digest and its complete speaker projection as one atomic batch.
-  return { outcome: "written", contentHash: hash };
+  return { outcome: "written", contentHash: hash, model: embedded.model };
 }
 
 /** chunk → `document_chunks` (the databank RAG lens). Hash-gated on `(documentId, chunkIdx, model)`; `content`
@@ -210,7 +210,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
 async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): Promise<StoreResult> {
   const hash = contentHash(p.content);
   if ((await existingChunkHash(ctx.db, p.fkRefs.documentId, p.fkRefs.chunkIdx, p.model)) === hash) {
-    return { outcome: "noop", contentHash: hash };
+    return { outcome: "noop", contentHash: hash, model: p.model };
   }
   const embedded = await (await ctx.roleClientsFor(p.ownerId)).embed(p.content);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
@@ -228,7 +228,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
     dim: p.dim,
     now: ctx.now(),
   });
-  return { outcome: "written", contentHash: hash };
+  return { outcome: "written", contentHash: hash, model: embedded.model };
 }
 
 export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] {

@@ -1045,9 +1045,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The #156 admission gate's read — one hop to the ONE memory-config merge, never a second settings read.
     isMemoryEnabled: chatCompose.isMemoryEnabled,
     backfillGroupCharacters: (args) => chatCompose.backfill.groupCharacters(args),
-    purgeMemoryVectors: async (): Promise<void> => {
-      for (const ownerId of await searchDiscovery.listCorpusOwners()) {
-        await embeddings.purgeMemoryVectors({ ownerId });
+    purgeMemoryVectors: async (spaces): Promise<void> => {
+      for (const { ownerId, model } of spaces) {
+        await embeddings.purgeMemoryVectors({ ownerId, completedSpace: model });
       }
     },
     loadUserSettings: settings.loadUserSettings,
