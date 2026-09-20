@@ -86,13 +86,21 @@ test(
     }
     const base = `http://localhost:${String(address.port)}`;
 
-    // Read the engine surface REPEATEDLY: the schedule is detached, so a single same-tick read would pass
+    // `admin.vllmEngines` — this test's former combined read (a live server + the local-light row filter in
+    // one shot) — is DELETED with the vLLM fleet (§4), and its read-model half has no tRPC successor
+    // (`runtime.localLight.prefetch.status()` is a pure in-process read, unwired — see the `-boot` sibling's
+    // header for the receipt). "No local-light row was published" is a claim about `publish()` inside
+    // `local-light/prefetch.ts::warm()`, which fires only from `walk()`, which fires only when `start()` is
+    // handed a NONEMPTY plan (`LOCAL_LIGHT_PREFETCH=off` ⇒ `planLocalLightPrefetch` short-circuits to `[]`,
+    // so `warm`/`publish` never run at all) — `preload()` on the injected cache double is the SAME gate one
+    // layer down and the one this file can actually observe, so it is the direct proof, not a proxy for one.
+    // Read the server surface REPEATEDLY: the schedule is detached, so a single same-tick read would pass
     // even against a prefetch that simply had not started yet. Three spaced reads past the point where the
     // ON arm has already published (its sibling test lands within one poll) is the honest negative.
     for (let i = 0; i < SETTLE_READS; i += 1) {
-      const res = await pollUntilOk(`${base}/api/trpc/admin.vllmEngines`);
-      const body = (await res.json()) as { result?: { data?: Record<string, unknown> } };
-      expect(Object.keys(body.result?.data ?? {}).filter((k) => k.startsWith("local-light:"))).toEqual([]);
+      const res = await pollUntilOk(`${base}/api/trpc/health`);
+      expect(await res.json()).toMatchObject({ result: { data: { ok: true } } });
+      expect(preloads).toEqual([]);
       await new Promise<void>((resolve) => {
         setTimeout(resolve, POLL_DELAY_MS);
       });

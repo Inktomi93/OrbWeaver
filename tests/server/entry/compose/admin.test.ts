@@ -61,7 +61,8 @@ interface Fakes {
    *  a Restart on one of those rows means. */
   readonly localLightStatus: ReturnType<typeof vi.fn>;
   readonly localLightRetry: ReturnType<typeof vi.fn>;
-  /** The MUTABLE active embed-model tag — the thunk must read it per call, not at compose. */
+  /** The MUTABLE active embed-model tag — `roleClientsFor(...).resolved("embed")` must read it per call
+   *  (§7.5-1b — the six per-role getters collapsed into one `resolved(task)` read), not at compose. */
   embedModel: string;
 }
 
@@ -111,7 +112,10 @@ function build(f: Fakes, withEngine = true): ReturnType<typeof buildAdmin> {
     localLightPrefetch: { start, status: f.localLightStatus, retry: f.localLightRetry },
     character: { getCard: f.getCard, loadCardText: f.loadCardText },
     embeddings: { store: f.store },
-    embedModel: () => f.embedModel,
+    // The per-FUNDER binder (§8.5b): only `resolved("embed")` is read here — the model reply itself is the
+    // MUTABLE `f.embedModel`, closed over live so a re-point reaches the very next call.
+    roleClientsFor: (_funderUserId: UserId) =>
+      Promise.resolve({ resolved: (task: string) => Promise.resolve(task === "embed" ? { model: f.embedModel } : null) }),
     cas: {},
     imageTransform: {},
     exportCardScripts: () => Promise.resolve([]),
