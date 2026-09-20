@@ -576,7 +576,19 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
       retryOpts,
     );
 
-  const drain = await drainWithReplay(run, dialect === "openrouter" && !knobs.reasoning.enabled);
+  // THE TYPED-FAILURE BOUNDARY. `runWithPreCommitRetry` re-throws the ORIGINAL error on purpose (its JSDoc
+  // states it: the classification is only the retry policy's input, and the openai-compat replay below peels
+  // `responseBody`/`cause` off that raw object, which `providerErrorFromHttp` would have scrubbed away). That
+  // ruling stands — but it left every streaming-chat failure escaping the package RAW, breaking the one thing
+  // `contract/errors.ts` promises: "ONE error class across every task so a consumer catches a single type
+  // regardless of which backend threw". Measured 2026-09-20 by the cross-backend conformance suite: a
+  // cancelled turn surfaced a bare `DOMException: AbortError` here while the agent-sdk and local-light wires
+  // surfaced `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection straight on
+  // without normalising. So the classify happens HERE, outside everything that needs the raw error and
+  // inside nothing that does. `classify` returns an existing `ProviderError` untouched.
+  const drain = await drainWithReplay(run, dialect === "openrouter" && !knobs.reasoning.enabled).catch((err: unknown): never => {
+    throw classify(err);
+  });
   // The SDK's OWN drops (§A3), folded into the same array as the funnel's before the result is built.
   warnings.push(...sdkWarnings(drain.warnings));
   const finishedAt = deps.now();

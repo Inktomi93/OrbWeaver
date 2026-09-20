@@ -239,3 +239,41 @@ export function generationCapability(overrides: Partial<GenerationCapability> = 
   };
   return { kind: "generation", generation };
 }
+
+// ── the cross-backend conformance fixtures (tests/inference/conformance) ──────────────────────────────────
+// These three are WIRE-NEUTRAL fake-transport utilities rather than more Anthropic/OpenAI event scripts: the
+// conformance suite drives every wire through one arm, so the transport-shaped differences (does the fake
+// honour the abort signal? does the call stream or `doGenerate`?) belong beside the SSE fixtures, not in a
+// rival harness.
+
+/**
+ * Wrap a fake `fetch` so an ALREADY-ABORTED `init.signal` rejects with `signal.reason` — which is what
+ * undici does per spec, and therefore the only way a cancellation pin can observe WHICH reason a backend
+ * handed the transport. A fake that ignores the signal makes every cancellation arm pass vacuously (the
+ * turn simply succeeds), and it is what lets the abort-flatten law (`backends/kit/abort-flatten.ts`) be
+ * asserted from outside: with the fold in place the reason is always a plain `AbortError`; with
+ * `AbortSignal.any` it is the caller's own — which the transport classifier then reads.
+ */
+export function abortAware(inner: typeof fetch): typeof fetch {
+  return (input, init): Promise<Response> => {
+    const signal = init?.signal;
+    if (signal?.aborted === true) {
+      return Promise.reject(signal.reason);
+    }
+    return Promise.resolve(inner(input, init));
+  };
+}
+
+/** A `fetch` that answers each call with the next scripted JSON body as literal TEXT and records what was
+ *  sent. TEXT, not an object, so a TRUNCATED body (`{"choices": `) is expressible — the non-streaming
+ *  `doGenerate` path the `structured` task takes on both hosted wires. */
+export function scriptedJsonFetch(bodies: readonly string[], recorded: RecordedRequest[], status = 200): typeof fetch {
+  let call = 0;
+  return (input, init): Promise<Response> => {
+    const body = bodies[Math.min(call, bodies.length - 1)] ?? "{}";
+    call += 1;
+    const raw = typeof init?.body === "string" ? init.body : "{}";
+    recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown> });
+    return Promise.resolve(new Response(body, { status, headers: { "content-type": "application/json" } }));
+  };
+}
