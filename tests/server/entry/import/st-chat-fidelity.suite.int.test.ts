@@ -200,13 +200,19 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
       .from(messageVariants)
       .orderBy(asc(messageVariants.id));
     const durations = swipedVariants.flatMap((v) => {
-      const d = v.metadata?.["reasoning_duration"];
+      const d = v.metadata?.reasoning_duration;
       return typeof d === "number" ? [d] : [];
     });
     expect(durations.sort((a, b) => a - b)).toEqual([SWIPE_B_REASONING_MS, SWIPE_A_REASONING_MS].sort((a, b) => a - b));
     // Lossless: the per-swipe `send_date` ST records beside `extra` (78,407 corpus entries) still rides in the
-    // blob — flattening must not become a drop.
-    expect(swipedVariants.some((v) => typeof v.metadata?.["send_date"] === "string")).toBe(true);
+    // blob — under the declared-opaque `importResidue` since §5.3c class 3 closed the column, because
+    // flattening must not become a drop.
+    expect(
+      swipedVariants.some((v) => {
+        const residue = v.metadata?.importResidue;
+        return typeof residue === "object" && residue !== null && !Array.isArray(residue) && typeof residue["send_date"] === "string";
+      }),
+    ).toBe(true);
 
     // And the READER agrees: the rollup the owner actually sees. The selected take folds through the message
     // stream, the discarded take through the swipe stream — both reach `ownerStats.reasoningMs`.

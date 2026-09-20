@@ -8,7 +8,7 @@
 // Owner = `runAsUserId` (the host, who funds + owns the turn). `triggeredBy` is the budget axis, not the
 // stats owner — they differ in a hosted by-proxy turn.
 
-import type { TokenProvenance } from "@orb/contracts/chat";
+import type { TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
 import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -30,10 +30,12 @@ interface TurnEconomicsInput {
   readonly genTimeMs?: number | null | undefined;
   /** The generation's context window → `owner_stats.maxContextTokens` (a MAX extremum, owner grain only). */
   readonly contextWindow?: number | null | undefined;
-  /** The variant's OPEN metadata sidecar — read for `reasoning_duration` only (#184). The swipe/continue
-   *  builders below read the same key off the COMMITTED row; this is the new-slot path's copy of it, so all
-   *  three modes contribute reasoning time and the live writer can't drift from a rebuild on this column. */
-  readonly metadata?: Record<string, unknown> | null | undefined;
+  /** The variant's PARSED metadata sidecar (§5.3c class 3) — read for `reasoning_duration` only (#184). The
+   *  swipe/continue builders below read the same key off the COMMITTED row; this is the new-slot path's copy
+   *  of it, so all three modes contribute reasoning time and the live writer can't drift from a rebuild on
+   *  this column. The key is a typed `number | undefined` here because the column's shape is closed — a
+   *  reader naming a key no writer produces stops compiling instead of rendering 0 forever. */
+  readonly metadata?: VariantMetadata | null | undefined;
 }
 
 /** Set `target[key]` only when `value` is a real number (omit absent economics). */
@@ -213,7 +215,10 @@ interface CanonRowInput {
   readonly model: string | null;
   readonly provider: string | null;
   readonly reasoning: string | null;
-  readonly metadata: Record<string, unknown> | null;
+  /** The variant's PARSED sidecar (§5.3c class 3 — `parseVariantMetadata` at the query seam). `null` on the
+   *  paths that build a row from something other than a committed variant read (an edit, a fork's source, a
+   *  claim) and have no sidecar to carry. */
+  readonly metadata: VariantMetadata | null;
   readonly selectedIdx: number | null;
   readonly variantCount: number;
 }
@@ -231,15 +236,18 @@ interface SwipeRowInput {
   readonly model: string | null;
   readonly provider: string | null;
   readonly reasoning: string | null;
-  readonly metadata: Record<string, unknown> | null;
+  /** The variant's PARSED sidecar — the {@link CanonRowInput.metadata} twin. */
+  readonly metadata: VariantMetadata | null;
 }
 
 /** metadata.reasoning_duration as non-negative rounded ms, or 0 (mirrors the rebuild's `reasoningMsOf`).
  *  The key has ONE home (`VARIANT_METADATA_REASONING_MS_KEY`), shared with the live turn's writer — this
- *  reader is exactly the half that had no live producer until #184. */
-function reasoningMsOf(metadata: Record<string, unknown> | null): number {
-  const d = Number(metadata?.[VARIANT_METADATA_REASONING_MS_KEY]);
-  return Number.isFinite(d) && d > 0 ? Math.round(d) : 0;
+ *  reader is exactly the half that had no live producer until #184. The blob arrives PARSED
+ *  (`parseVariantMetadata` at the query seam), so the value is already `number | undefined`: the finite
+ *  guard is about the VALUE (a negative or zero window is not a measurement), never about the type. */
+function reasoningMsOf(metadata: VariantMetadata | null): number {
+  const d = metadata?.[VARIANT_METADATA_REASONING_MS_KEY];
+  return d !== undefined && Number.isFinite(d) && d > 0 ? Math.round(d) : 0;
 }
 
 /** The completed gen window (gf−gs) when both bounds are present and ordered, else null (rebuild twin). */

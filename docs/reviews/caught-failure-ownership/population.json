@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 583,
-    "reported": 2,
+    "sites": 582,
+    "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 581,
-      "unproven": 2
+      "deliberate-absorb": 582,
+      "unproven": 0
     },
     "byGrammar": {
-      "default": 157,
+      "default": 156,
       "empty": 290,
       "promise": 136
     }
@@ -2020,7 +2020,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 968,
+      "line": 978,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -2028,12 +2028,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`deps.emit` is the chat bus, which already",
-      "markerLine": 963
+      "markerLine": 973
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1941,
+      "line": 1951,
       "column": 13,
       "grammar": "empty",
       "position": "catch",
@@ -2041,12 +2041,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).",
-      "markerLine": 1937
+      "markerLine": 1947
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1967,
+      "line": 1977,
       "column": 14,
       "grammar": "empty",
       "position": "deltaErr",
@@ -2054,12 +2054,12 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 1961
+      "markerLine": 1971
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 2082,
+      "line": 2092,
       "column": 10,
       "grammar": "promise",
       "position": "releasedBody",
@@ -2067,7 +2067,7 @@
       "snippet": "void releasedBody.catch((): undefined => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.",
-      "markerLine": 2081
+      "markerLine": 2091
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::catch::1",
@@ -2982,28 +2982,15 @@
     {
       "siteId": "packages/server/src/entry/compose/inline-reply-image.ts::catch::1",
       "path": "packages/server/src/entry/compose/inline-reply-image.ts",
-      "line": 58,
+      "line": 69,
       "column": 5,
       "grammar": "default",
       "position": "catch",
       "ordinal": 1,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "packages/server/src/entry/compose/inline-reply-image.ts::catch::2",
-      "path": "packages/server/src/entry/compose/inline-reply-image.ts",
-      "line": 79,
-      "column": 7,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "an attacker-influenceable provider image URL whose every belt",
+      "markerLine": 55
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::catch::1",
@@ -3580,7 +3567,7 @@
     {
       "siteId": "packages/server/src/kit/serde/chat/index.ts::catch::1",
       "path": "packages/server/src/kit/serde/chat/index.ts",
-      "line": 713,
+      "line": 774,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -3588,7 +3575,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "null flows through asTyped(…, schema) at",
-      "markerLine": 708
+      "markerLine": 769
     },
     {
       "siteId": "packages/server/src/kit/serde/lib/index.ts::catch::1",
