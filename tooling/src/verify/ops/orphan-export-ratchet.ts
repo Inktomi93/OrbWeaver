@@ -35,7 +35,13 @@
 //     named marker, or DELETE.
 //   • the `ui` PACKAGE, whole — R2 of docs/architecture/core/ui-package-design.md: every `@orb/ui` export is
 //     a sealed-surface handle that exists to be available, so "no consumer yet" is its designed state, not
-//     rot. `ui` is simply absent from RATCHETED_PACKAGES (never scanned).
+//     rot. It is a named row in RATCHET_OPT_OUTS (below), never an omission.
+//
+// THE POPULATION IS OPT-OUT, NEVER OPT-IN (2026-09-20). It used to be a hand-kept opt-IN tuple
+// (`kit/contracts/db/server/client`), which is a population that fails SILENTLY: `@orb/inference` landed with
+// 113 source files entirely outside the ratchet and nothing announced it — an omission is indistinguishable
+// from a decision. The roster is now DERIVED from the canonical workspace membership minus written
+// exclusions, so a NEW package is judged the day it lands. See RATCHET_OPT_OUTS.
 //
 // EVERY EXEMPTION IS TWO-SIDED FROM BIRTH (owner requirement 2026-08-03; the house shape is
 // `bus-coverage.ts`'s STALE arm). A marker that only ever ADDS permission is how "mark it and it falls off
@@ -63,6 +69,8 @@ import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import type { PackageName } from "@orb/tooling/_shared/project-worlds";
+import { PACKAGE_NAMES } from "@orb/tooling/_shared/project-worlds";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { ApiSurfaceEntry } from "@orb/tooling/ast";
@@ -74,10 +82,23 @@ refuseDirectInvocation(import.meta.url, "pnpm check:orphan-ratchet");
 /** The ledger's ONE home — exported so the debt walk (ops/debt.ts) enumerates the rows this ratchet
  *  admits instead of re-spelling the path (a rename would leave that walk silently reading nothing). */
 export const BASELINE_REL = "tooling/src/verify/ops/orphan-export-ratchet.baseline.json";
-/** Every workspace package the ratchet judges. `ui` is absent BY LAW (ui-package-design.md R2) — see header. */
-const RATCHETED_PACKAGES = ["kit", "contracts", "db", "server", "client"] as const;
-/** The R2-sealed package, exempt as a whole; named here so the exemption is legible, not implicit. */
-const SEALED_PACKAGE_REASON = "packages/ui — the R2 sealed surface (docs/architecture/core/ui-package-design.md R2): every export exists to be available";
+/** The WHOLE-PACKAGE exemptions — the only way out of the ratchet, and each one carries its reason (header,
+ *  "THE POPULATION IS OPT-OUT"). Two-sided like every other exemption here: the `PackageName` key type is a
+ *  compile-time enforcer, so a row naming a package the workspace no longer has fails `tsc` instead of
+ *  quietly exempting nothing. */
+const RATCHET_OPT_OUTS = {
+  ui: "the R2 sealed surface (docs/architecture/core/ui-package-design.md R2) — every `@orb/ui` export is a handle that exists to be AVAILABLE, so 'no consumer yet' is its designed state, not rot",
+} as const satisfies Partial<Record<PackageName, string>>;
+
+/** Every workspace package the ratchet judges — DERIVED from `PACKAGE_NAMES` (the canonical workspace
+ *  membership, pinned to the native `packages/` inventory by tests/tooling/package-roster.test.ts), never
+ *  hand-listed. A package added to the workspace is ratcheted on the day it lands. */
+const RATCHETED_PACKAGES: readonly PackageName[] = PACKAGE_NAMES.filter((name) => !Object.hasOwn(RATCHET_OPT_OUTS, name));
+
+/** The opt-outs rendered for the baseline's note, so the exemption is legible in the ledger, not implicit. */
+const SEALED_PACKAGE_REASON = Object.entries(RATCHET_OPT_OUTS)
+  .map(([name, reason]) => `packages/${name} — ${reason}`)
+  .join(" · ");
 // The `@public`-family READER (`publicMarkerOf`) + the PUBLIC/INTERNAL/UNUSED classifier (`collectApiSurface`)
 // both live in tooling/src/ast (the @orb/tooling front door) beside the orphan substrate this stage shares, and are IMPORTED here —
 // never re-spelled. `publicMarkerOf` is the same grammar the `chains` fixpoint reads to decide alive roots;

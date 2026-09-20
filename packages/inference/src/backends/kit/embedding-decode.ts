@@ -45,23 +45,6 @@ export function decodeEmbeddingVector(embedding: WireEmbedding, prefix: string, 
   return vector;
 }
 
-/**
- * Decode a whole response's embeddings and assert the COUNT matches the inputs. Positional alignment is the
- * only thing tying vector N to input N — a short or long list silently re-pairs every vector after the gap,
- * which is the same wrong-neighbours failure as a width mismatch and just as undetectable downstream.
- */
-export function decodeEmbeddingVectors(
-  embeddings: readonly WireEmbedding[],
-  prefix: string,
-  expectedCount: number,
-  expectedDimensions?: number,
-): Float32Array<ArrayBuffer>[] {
-  if (embeddings.length !== expectedCount) {
-    throw invalid(`${prefix}: embedding count does not match the inputs — expected ${expectedCount}, got ${embeddings.length}`);
-  }
-  return embeddings.map((embedding) => decodeEmbeddingVector(embedding, prefix, expectedDimensions));
-}
-
 /** Base64 → an exactly-sized, 4-byte-aligned copy. The copy is NOT optional: `Buffer.from` returns a view
  *  into a POOLED ArrayBuffer at an arbitrary `byteOffset`, and a direct float32 view of a misaligned offset
  *  would RangeError even for a well-formed payload. The length check is the separate, wire-level fact. */
