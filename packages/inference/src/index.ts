@@ -42,7 +42,7 @@ import type { ProviderOrigin, ProviderRegistry } from "./registry/providers.ts";
 import { createProviderRegistry } from "./registry/providers.ts";
 import { checkAvailability } from "./resolve/availability.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
-import { resolveTask } from "./resolve/resolve-task.ts";
+import { connectionNotFoundMessage, resolveTask } from "./resolve/resolve-task.ts";
 import { createProviderDiagnostics } from "./roles/diagnostics.ts";
 import { createProviderExecutor } from "./roles/executor.ts";
 import type { RoleClientsFor } from "./roles/role-clients.ts";
@@ -171,9 +171,24 @@ function requireProvider(registry: ProviderRegistry, providerId: string): Provid
   return provider;
 }
 
+/** The ONE refusal an id-taking runtime read answers with when the row is not the caller's — whether it is a
+ *  STRANGER'S row or NO row at all. The two answers are deliberately identical, kind AND text (the text comes
+ *  from the resolver's shared {@link connectionNotFoundMessage}, whose header states the rule): two
+ *  distinguishable refusals are an existence oracle for any id a caller can type, and a kind-only collapse
+ *  would not be enough, because `invalid` is the one arm the transport lets carry its OWN message to the
+ *  caller. The domain door pre-gates every id-taking verb with the same refusal
+ *  (`domain/connection/contract/errors.ts::ConnectionNotFoundError`); this belt is the defense-in-depth copy
+ *  behind it and must never answer more precisely than the door it backs. NO `securityEvent` here, unlike the
+ *  resolver's owner fence: that one records a BINDING naming a stranger's row, a domain bug no caller can
+ *  provoke, while this id arrives FROM the caller — recording it would let an authenticated stranger fill the
+ *  security log by typing ids. */
+function connectionNotFound(connectionId: UserConnection["id"]): ProviderError {
+  return new ProviderError({ kind: "invalid", retryable: false, message: connectionNotFoundMessage(connectionId) });
+}
+
 function requireOwned(connection: UserConnection, principal: Principal): void {
   if (connection.ownerId !== principal.userId) {
-    throw new ProviderError({ kind: "forbidden", retryable: false, message: `connection ${connection.id} is not the caller's` });
+    throw connectionNotFound(connection.id);
   }
 }
 
@@ -240,7 +255,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const ownedConnection = async (connectionId: UserConnection["id"], principal: Principal): Promise<UserConnection> => {
     const connection = await deps.connections.get(connectionId);
     if (connection === null) {
-      throw new ProviderError({ kind: "invalid", retryable: false, message: `connection ${connectionId} no longer exists` });
+      throw connectionNotFound(connectionId);
     }
     requireOwned(connection, principal);
     return connection;

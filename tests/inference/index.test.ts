@@ -2,14 +2,44 @@
 // none, no born default), the owner fence (a binding naming a stranger's row is refused AND recorded), the
 // `canFund`/requirement verdicts on availability, `providers.available` with `runtime-missing`, the builtin
 // catalog for local-light, and `capabilities.for`.
+//
+// The owner-fence arms are the NON-ORACLE proof: an id-taking read must answer a caller who does not own the
+// id identically whether or not a row is behind it. They probe the SAME id in both states, so any difference
+// in class, kind or message is the oracle.
 
 import type { Principal } from "@orb/contracts/identity";
 import { builtinProvider } from "@orb/contracts/inference";
-import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, NoConnectionError } from "@orb/inference";
+import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, NoConnectionError, ProviderError } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { principal } from "../support/factories/principal.ts";
 import { expect, test } from "../support/fixtures.ts";
 import { fakeConnection, fakeDeps, memoryStores, newPluginId, newRuleId, newUserId } from "./_support.ts";
+
+/** The rejection a call produced, as a value — so two refusals can be COMPARED rather than merely matched
+ *  one at a time, which is the only way to assert "these two answers are indistinguishable". A call that
+ *  RESOLVES is a test failure, never a silent `undefined`. */
+async function caught(promise: Promise<unknown>): Promise<unknown> {
+  let thrown: unknown;
+  let resolved = false;
+  try {
+    await promise;
+    resolved = true;
+  } catch (err) {
+    thrown = err;
+  }
+  if (resolved) {
+    throw new Error("expected the call to reject, but it resolved");
+  }
+  return thrown;
+}
+
+/** The three fields a caller can actually tell two `ProviderError`s apart by. */
+function refusalShape(err: unknown): { readonly name: string; readonly kind: string; readonly message: string } {
+  if (!(err instanceof ProviderError)) {
+    throw new Error(`expected a ProviderError, got ${String(err)}`);
+  }
+  return { name: err.name, kind: err.kind, message: err.message };
+}
 
 interface Scene {
   readonly deps: ReturnType<typeof fakeDeps>;
@@ -202,8 +232,10 @@ test("catalogs.models: the builtin strategy lists the curated local-light rows w
   expect(models.map((m) => m.id)).toContain(DEFAULT_EMBED_MODEL);
   expect(models.find((m) => m.id === DEFAULT_EMBED_MODEL)?.kind).toBe("embedding");
   expect(models.find((m) => m.id === DEFAULT_RERANK_MODEL)?.kind).toBe("rerank");
-  // Another principal cannot list through someone else's row.
-  await expect(runtime.catalogs.models({ connection, principal: s.bob })).rejects.toMatchObject({ kind: "forbidden" });
+  // Another principal cannot list through someone else's row — and the refusal says NOTHING about the row
+  // existing (it used to answer `forbidden` / "is not the caller's", which named the row as someone's).
+  const refusal = await caught(runtime.catalogs.models({ connection, principal: s.bob }));
+  expect(refusal).toMatchObject({ kind: "invalid", message: `connection ${connection.id} not found` });
 });
 
 test("capabilities.for reads one descriptor + the tasks a row serves, for the owner only", async () => {
@@ -213,7 +245,65 @@ test("capabilities.for reads one descriptor + the tasks a row serves, for the ow
   const read = await runtime.capabilities.for({ connectionId: ids.rerank, principal: s.alice });
   expect(read.capability.kind).toBe("rerank");
   expect(read.tasks).toEqual(["rerank"]);
-  await expect(runtime.capabilities.for({ connectionId: ids.rerank, principal: s.bob })).rejects.toMatchObject({ kind: "forbidden" });
+  await expect(runtime.capabilities.for({ connectionId: ids.rerank, principal: s.bob })).rejects.toBeInstanceOf(ProviderError);
+});
+
+// The owner belt's whole job, stated as the property an oracle would break: the answer to "read this id" must
+// be a function of the ID ALONE for a caller who does not own it — never of whether a row is behind it. The two
+// probes below use the SAME id, so a difference in kind, in message, or in class IS the oracle. Before
+// 2026-09-20 the arms were `forbidden` / "connection X is not the caller's" and `invalid` / "connection X no
+// longer exists" — two tRPC codes and, on the second, the raw text (`error-mapping.ts` lets `invalid` carry its
+// own message), so this pair failed on all three counts.
+test("the owner fence answers a STRANGER'S row exactly as it answers NO row — same id, same refusal", async () => {
+  const s = scene();
+  const ids = seedLocalLight(s, s.aliceId);
+  const runtime = await createInferenceRuntime(s.deps);
+
+  const exists = await caught(runtime.capabilities.for({ connectionId: ids.rerank, principal: s.bob }));
+  s.stores.connections.rows.delete(ids.rerank);
+  const absent = await caught(runtime.capabilities.for({ connectionId: ids.rerank, principal: s.bob }));
+
+  expect(refusalShape(exists)).toEqual(refusalShape(absent));
+  // Pinned literally, because the TEXT is half the answer on the `invalid` arm: the transport carries it.
+  expect(refusalShape(exists)).toEqual({ name: "ProviderError", kind: "invalid", message: `connection ${ids.rerank} not found` });
+});
+
+test("POSITIVE CONTROL — the collapse did not blunt the fence: the owner still reads, and an unservable row is still `forbidden`", async () => {
+  const s = scene();
+  const ids = seedLocalLight(s, s.aliceId);
+  const runtime = await createInferenceRuntime(s.deps);
+  // The owner resolves through both id-taking belts.
+  expect((await runtime.capabilities.for({ connectionId: ids.embed, principal: s.alice })).capability.kind).toBe("embedding");
+  const row = s.stores.connections.rows.get(ids.embed);
+  if (row === undefined) {
+    throw new Error("seeded row missing");
+  }
+  expect((await runtime.catalogs.models({ connection: row, principal: s.alice })).length).toBeGreaterThan(0);
+  // And `forbidden` still means what it meant — the row cannot serve the task. The two live readers of that
+  // kind (`resolve/availability.ts`, `entry/compose/rpg.ts`) sit on THIS arm, never on the owner fence.
+  s.stores.bindings.bind({ actorKind: "user", actorId: s.aliceId, task: "rerank", connectionId: ids.embed });
+  await expect(runtime.resolve({ task: "rerank", principal: s.alice })).rejects.toMatchObject({ kind: "forbidden" });
+});
+
+// The resolver's own owner fence (`resolve-task.ts::connectionFor`) is the second belt, and it is reachable
+// with a caller-supplied `connectionId`. Its kinds were already collapsed (both `NoConnectionError`); its
+// MESSAGES were not. Same property, same probe.
+test("the resolver's funder fence answers a stranger's row exactly as it answers no row, and records only the former", async () => {
+  const s = scene();
+  const bobRows = seedLocalLight(s, s.bobId);
+  const runtime = await createInferenceRuntime(s.deps);
+
+  const exists = await caught(runtime.resolve({ task: "embed", principal: s.alice, connectionId: bobRows.embed }));
+  s.stores.connections.rows.delete(bobRows.embed);
+  const absent = await caught(runtime.resolve({ task: "embed", principal: s.alice, connectionId: bobRows.embed }));
+
+  expect(exists).toBeInstanceOf(NoConnectionError);
+  expect(absent).toBeInstanceOf(NoConnectionError);
+  expect(refusalShape(exists)).toEqual(refusalShape(absent));
+  expect(refusalShape(exists)).toEqual({ name: "NoConnectionError", kind: "invalid", message: `connection ${bobRows.embed} not found` });
+  // Indistinguishable OUTWARD, fully attributable INWARD: only the not-yours probe raised the security event.
+  expect(s.securityEvents.map((e) => e.kind)).toEqual(["connection_owner_mismatch"]);
+  expect(s.securityEvents[0]?.fields["owner"]).toBe(s.bobId);
 });
 
 test("providers.register refuses a built-in id and a mis-namespaced plugin row; drop removes a runtime row", async () => {
