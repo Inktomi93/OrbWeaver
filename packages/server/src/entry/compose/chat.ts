@@ -536,6 +536,9 @@ export interface ChatComposeInput {
   /** Materialize a user-pasted external carried-background URL into an owned CAS asset (side-eye F-P0-2) — the
    *  shared compose-built op the `setChatBackground` verb runs for a `kind:"external"` source. */
   readonly materializeBackground: MaterializeBackgroundOp;
+  /** §6.7's inline-reply picture store, built at the keystone (it needs the boot-level per-image byte cap) —
+   *  the `materializeBackground` precedent one line up. */
+  readonly storeInlineReplyImage: ChatContext["storeInlineReplyImage"];
   readonly readPresence: PresenceReadOp;
   /** imagery's orchestrator → chat's `generatePicture` op (mapped to the chat-local structural result below). */
   readonly generatePicture: ImageryService["generatePicture"];
@@ -823,6 +826,10 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       terminalReason: result.terminalReason,
       generationId: result.generationId ?? null,
       ...(result.toolCalls !== undefined ? { toolCalls: result.toolCalls } : {}),
+      // §6.7: the pictures a modalities-capable chat model emitted inside this completion, forwarded RAW.
+      // The engine owns materialize + CAS store (the bytes must land under the room HOST, which this seam
+      // does not know) and the span emission; carrying them is all this bridge may honestly do.
+      ...(result.images !== undefined ? { replyImages: result.images } : {}),
       // §8.8: the depth's replayable thinking, carried across the seam so the engine's tool loop can hand it
       // back on the next leg. The wire produced them honestly (never gated on the carry knob) — WHETHER they
       // ride back is the pipeline's decision, off the one funnel answer.
@@ -1372,6 +1379,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Owner-scoped: a foreign/gone id is simply absent from the result.
     filterOwnedAssetIds: async (userId, assetIds) => (await input.assets.resolveOwnedAssetRefs(userId, assetIds)).map((r) => r.assetId),
     materializeBackground: input.materializeBackground,
+    storeInlineReplyImage: input.storeInlineReplyImage,
     // The chat op type erases the batch to `unknown`; this wrapper restores the concrete type.
     applyStatsDelta: (batch, opDb, delta) => {
       applyStatsDelta(batch as BatchStmt[], opDb, delta);

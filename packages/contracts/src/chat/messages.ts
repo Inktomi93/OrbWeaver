@@ -34,6 +34,12 @@ export const MESSAGE_ASSET_ORIGINS = ["attached", "illustration", "inline-reply"
 export type MessageAssetOrigin = (typeof MESSAGE_ASSET_ORIGINS)[number];
 export const messageAssetOriginSchema = z.enum(MESSAGE_ASSET_ORIGINS);
 
+/** The ONE origin `substrate/wire-history` rides back to the model as an assistant image part (§6.7) —
+ *  named because three sites must agree on it exactly: the commit that STAMPS it (the turn's inline-reply
+ *  asset rows), the loader that reads the origin set, and the predicate that admits it. A fourth spelling of
+ *  the literal is how a fence silently widens to every assistant-row asset. */
+export const INLINE_REPLY_ORIGIN: MessageAssetOrigin = "inline-reply";
+
 export const TOKEN_PROVENANCES = ["measured", "estimated", "unrecorded"] as const;
 export type TokenProvenance = (typeof TOKEN_PROVENANCES)[number];
 export const tokenProvenanceSchema = z.enum(TOKEN_PROVENANCES);

@@ -502,6 +502,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // F-P0-2: only `setChatBackground` with a `kind:"external"` source reaches this — throws loudly otherwise;
     // the external-materialize test overrides it with a stub returning a stored asset (or a typed refusal).
     materializeBackground: notStubbed,
+    // §6.7: the inline-reply picture store. Throwing by default — a turn that reaches it without the suite
+    // asking for pictures is a defect, and the suites that DO want one override it with a fake that mints ids.
+    storeInlineReplyImage: notStubbed,
     resolveUserPublics: notStubbed,
     mintSyntheticGroupCharacter: notStubbed,
     // The assemble gather calls this every round (round-level recall over the shared bucket); default to

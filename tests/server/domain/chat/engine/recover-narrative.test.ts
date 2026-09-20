@@ -10,7 +10,7 @@ import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { Resolved } from "@orb/inference";
-import type { ChatId, ChatTurnId, MessageId, ModelId, UserId } from "@orb/kit/ids";
+import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -114,6 +114,10 @@ function argsOf(over: Partial<PipelineArgs>, passes: readonly (readonly TurnStre
     // §8.8: the `conversation` carry source. THROWS if reached — this harness runs the `off` rung.
     loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> =>
       Promise.reject(new Error("loadReasoningParts must not be reached")),
+    // §6.7's origin set. THROWS if reached — this harness's canon carries no assistant-row `asset:` span, so
+    // the lazy load must never fire (that no-read-without-cause property is the pin).
+    loadInlineReplyAssetIds: (): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> =>
+      Promise.reject(new Error("loadInlineReplyAssetIds must not be reached")),
     assembleContext: ctxOf(),
     canon: [userRow("the party opens the door")],
     connection: CONNECTION,
