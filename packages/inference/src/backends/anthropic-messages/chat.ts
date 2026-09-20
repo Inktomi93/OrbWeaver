@@ -355,6 +355,17 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const prompt = withMessageOptions(plan.prompt, ANTHROPIC_KEY, cache.patches);
   const options = anthropicOptions(req, knobs, warnings, toolCache);
   const call: AnthropicCall = { connection, deps: deps.transport, label, api: req.api, chatId: req.chatId };
+  const classify = (err: unknown): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, label, secrets));
+  // THE TYPED-FAILURE BOUNDARY. `runWithPreCommitRetry` re-throws the ORIGINAL error on purpose (its JSDoc
+  // states it: the classification is only the retry policy's input, and the openai-compat replay below peels
+  // `responseBody`/`cause` off that raw object, which `providerErrorFromHttp` would have scrubbed away). That
+  // ruling stands — but it left every streaming-chat failure escaping the package RAW, breaking the one thing
+  // `contract/errors.ts` promises: "ONE error class across every task so a consumer catches a single type
+  // regardless of which backend threw". Measured 2026-09-20 by the cross-backend conformance suite: a
+  // cancelled turn surfaced a bare `DOMException: AbortError` here while the agent-sdk and local-light wires
+  // surfaced `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection straight on
+  // without normalising. So the classify happens HERE, outside everything that needs the raw error and
+  // inside nothing that does. `classify` returns an existing `ProviderError` untouched.
   const drain = await runWithPreCommitRetry(
     (markCommitted) =>
       streamOnce({
@@ -370,14 +381,16 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
           response.rateLimit = rateLimitFromHeaders(headers, deps.now());
         },
       }),
-    (err): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, label, secrets)),
+    classify,
     {
       ...(req.signal !== undefined ? { signal: req.signal } : {}),
       now: deps.now,
       ...(deps.random !== undefined ? { random: deps.random } : {}),
       ...(deps.addSpanEvent !== undefined ? { addSpanEvent: deps.addSpanEvent } : {}),
     },
-  );
+  ).catch((err: unknown): never => {
+    throw classify(err);
+  });
   // The SDK's OWN drops (§A3) land in the SAME array as the funnel's, BEFORE the result is folded — so one
   // push reaches the turn's `warning` events, the capability receipt and the sampling receipt alike.
   warnings.push(...sdkWarnings(drain.warnings));

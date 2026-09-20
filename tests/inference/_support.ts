@@ -127,6 +127,14 @@ export interface FakeDepsOptions {
   readonly secrets?: ReadonlyMap<string, ResolvedSecret> | undefined;
   readonly log?: InferenceLog | undefined;
   readonly securityEvents?: { kind: string; fields: Record<string, unknown> }[] | undefined;
+  /** The send-boundary sink (`InferenceDeps.captureWire`) — the ONE observation point that exists on EVERY
+   *  wire, including agent-sdk (whose `body` is the SDK query input, since that wire has no HTTP body). A
+   *  cross-backend "this knob was never sent" pin reads it rather than a per-wire request recorder. */
+  readonly captureWire?: InferenceDeps["captureWire"];
+  /** The agent-sdk `query` seam (`InferenceDeps.agentSdk.query`, typed `unknown` there on purpose): a
+   *  function returning an async iterable of SDK-shaped frames. The ONLY way to drive that wire without the
+   *  bundled `claude` subprocess. */
+  readonly agentSdkQuery?: unknown;
 }
 
 const NO_NETWORK: typeof fetch = () => Promise.reject(new Error("tests/inference: unexpected network call"));
@@ -158,7 +166,8 @@ export function fakeDeps(options: FakeDepsOptions = {}): InferenceDeps & { reado
     connections: stores.connections,
     bindings: stores.bindings,
     providerStore: stores.providerStore,
-    agentSdk: { summarizeConcurrency: () => 2 },
+    agentSdk: { summarizeConcurrency: () => 2, ...(options.agentSdkQuery !== undefined ? { query: options.agentSdkQuery } : {}) },
+    ...(options.captureWire !== undefined ? { captureWire: options.captureWire } : {}),
     userRuntimeDir: (ownerId, tool) => `/tmp/orb-test/${ownerId}/${tool}`,
     embedSpace: { dims: 1024 },
     localLight: { cache: fakeModelCache() },
