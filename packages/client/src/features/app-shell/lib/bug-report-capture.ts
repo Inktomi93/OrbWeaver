@@ -217,9 +217,10 @@ async function refusalReason(response: Response): Promise<string | null> {
   }
 }
 
-/** POST one captured report. Same-origin, credentialed — the `/api/_debug` gate admits an admin/owner
- *  session (on the dev box this button lives on, that IS the loopback owner fallback) or `x-debug-token`,
- *  exactly as `readAutomationFires` documents for the read side. */
+/** POST one captured report. Same-origin, credentialed — the `/api/_debug` gate admits an OWNER session
+ *  (D17: a delegated `admin` is refused there; on the dev box this button lives on, the owner session IS
+ *  the loopback owner fallback) or `x-debug-token`, exactly as `readAutomationFires` documents for the
+ *  read side. */
 export async function submitBugReport(bundle: BugReportClientBundle): Promise<BugReportSubmission> {
   // @orb-waive fetch-fn-in-features(fetch): POST to /api/_debug — a non-tRPC observability endpoint outside the data/ seam; ends when _debug routes migrate to tRPC
   const response = await fetch(BUG_REPORT_ROUTE, {

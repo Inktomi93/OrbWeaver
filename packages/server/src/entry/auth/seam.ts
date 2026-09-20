@@ -30,12 +30,13 @@
 //
 // The seam also owns ONE verdict beside the mint: `debugGateAdmits` — whether the /api/_debug door opens for
 // the principal this file already minted for the request. It RESOLVES NOTHING (#1193): a second, peer-less
-// resolution at that door is what closed it to the owner's own dev session.
+// resolution at that door is what closed it to the owner's own dev session. It is OWNER-only, deliberately
+// narrower than every other privileged surface in the app (D17 — see the verdict's own doc).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { isAdmin } from "#domain/admin";
+import { isOwner } from "#domain/admin";
 import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import { ownerHandles } from "#domain/sessions";
 import type { AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore } from "#infra/auth";
@@ -88,9 +89,9 @@ export interface SeamResult {
 }
 
 /** The constructed seam — bound at boot, called per request. `debugGateAdmits` is the DEBUG-GATE verdict
- *  only — never a general "is this caller an admin" test (that is `can()`/`requireAdmin`, D17) — and it
- *  judges the principal `resolvePrincipal` ALREADY minted for the request rather than resolving a second
- *  time; read its doc before touching it. */
+ *  only — never a general "is this caller privileged" test (that is `can()`/`requireAdmin`, D17), and it is
+ *  strictly NARROWER than the app's admin gate: OWNER only. It judges the principal `resolvePrincipal`
+ *  ALREADY minted for the request rather than resolving a second time; read its doc before touching it. */
 export interface AuthSeam {
   readonly resolvePrincipal: (headers: Headers, req?: PerRequestSeamDeps) => Promise<SeamResult>;
   readonly debugGateAdmits: (principal: Principal | null, headers: Headers) => boolean;
@@ -377,11 +378,28 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   }
 
   /**
-   * The debug-gate admin verdict — its ONE consumer is `createDebugAuthMiddleware`'s `adminAuth` arm
+   * The debug-gate verdict — its ONE consumer is `createDebugAuthMiddleware`'s `adminAuth` arm
    * (`entry/app.ts`), which SHORT-CIRCUITS the `DEBUG_TOKEN` check when this returns true. TWO conditions,
    * both required: the caller PRESENTED a credential (`debugGateCredentialed`, read its doc — that is where
-   * every arm's WHY lives), and that credential's principal satisfies `can(p,'admin',global)` — i.e. `role`
-   * is `owner` or `admin` (D17), asked through the ONE kernel's boolean form.
+   * every arm's WHY lives), and that credential's principal satisfies `can(p,'owner',global)` — i.e. `role`
+   * is `owner` (D17), asked through the ONE kernel's boolean form.
+   *
+   * IT IS OWNER-ONLY, NOT `isAdmin` (2026-09-20). This door is BOX-OPERATOR scope, and D17 splits the two
+   * global roles by exactly that: `owner` is the single box holder; `admin` is DELEGATED in-app authority
+   * that cannot reach owner-only resources, and an actor's inference connections belong to the principal who
+   * configured them with no owner credential inherited by another principal. What sits behind the gate is not
+   * "the app as an admin" — the probes are principal-BLIND whole-deployment reads that serve classes tRPC
+   * refuses even to the owner: any room's selected-variant message content (tRPC answers a non-member
+   * `ChatNotFoundError`, D18), every user's config/persona/preset rows, and the wire-capture ring, which
+   * holds the literal provider request body of every user's turn — the assembled prompt: system text,
+   * persona prose, the transcript — plus the model's literal reply bytes when `WIRE_CAPTURE_REPLY=on`.
+   * "They already have admin, so there is no delta" is structurally FALSE at this door.
+   *
+   * THE NARROWING IS HERE, NOT ON ONE ROUTE, because this verdict is the surface's entire boundary
+   * (`foundation/observability/debug/routes.ts` header). Scoping only the wire ring would deny a room's
+   * prompt bytes at `/wire/captures` and serve the same room's whole transcript at `/db/chat/:id` one route
+   * over. The headless `x-debug-token` arm is untouched — that is the operator credential a deployment
+   * hands out deliberately, and it never rides a browser's ambient cookie.
    *
    * IT JUDGES, IT DOES NOT RESOLVE (#1193). The principal is the one `resolvePrincipal` already minted for
    * this request in `entry/app.ts`'s middleware — spine invariant #2, "resolve once". The old shape re-ran
@@ -409,7 +427,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
     if (principal === null || !debugGateCredentialed(config, headers, ownerFallbackIsOperatorCredential)[principal.via]) {
       return false;
     }
-    return isAdmin(principal);
+    return isOwner(principal);
   }
 
   return { resolvePrincipal, debugGateAdmits };

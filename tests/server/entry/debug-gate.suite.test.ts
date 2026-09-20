@@ -8,8 +8,10 @@
 // THE INVARIANT (non-negotiable): a caller who presented NO CREDENTIAL THIS DEPLOYMENT ACCEPTS never reaches
 // a /api/_debug route — in EVERY AUTH_MODE, from ANY `Host`, from any NON-LOOPBACK peer, with or without a
 // `DEBUG_TOKEN` configured. The ways in are exactly three, and the third is posture-scoped:
-//   1. an admin/owner SESSION COOKIE (`via:"cookie"`),
-//   2. a SIGNED-JWT SSO identity (`via:"header"`; a proxy-asserted raw `Remote-User:` is NOT one),
+//   1. an OWNER SESSION COOKIE (`via:"cookie"`) — a DELEGATED `admin` is refused here (D17: this is
+//      box-operator scope, not in-app authority; the last describe in this file is that pin),
+//   2. a SIGNED-JWT SSO identity at role OWNER (`via:"header"`; a proxy-asserted raw `Remote-User:`
+//      is NOT a credential, and a verified JWT for a delegated admin is not enough either),
 //   3. the box operator's LOOPBACK owner fallback (`via:"fallback"`) — ONLY where
 //      `foundation/env::resolveOwnerFallbackCredential` says that arm is this box's operator credential
 //      (a NON-PRODUCTION box), never in production, where a same-host proxy makes every external request a
@@ -41,17 +43,17 @@
 
 import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
+import type { ChatId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { ownerHandles } from "@orb/server/domain/sessions";
 import { createAuthSeam } from "@orb/server/entry/auth";
 import type { PrincipalEnv } from "@orb/server/entry/http";
-import { registerDebugRoutes } from "@orb/server/foundation/observability/debug";
+import { recordWireCapture, registerDebugRoutes, resetWireCaptures } from "@orb/server/foundation/observability/debug";
 import type { AuthConfig, ForwardJwtVerifier } from "@orb/server/infra/auth";
 import type { Context } from "hono";
 import { Hono } from "hono";
-import { describe } from "vitest";
+import { afterEach, beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 const OK = 200;
@@ -68,7 +70,7 @@ const LAN_PEER = "10.0.0.7";
 
 /** The gate's refusal shapes, INCLUDING the arm-naming reason (#1193). Asserted by BODY so a deny is never
  *  confused with an unregistered route, and so the sentence the owner is shown cannot silently go blank. */
-const ADMIN_REFUSED = "the admin-session arm refused this request (no admin or owner session on it)";
+const ADMIN_REFUSED = "the admin-session arm refused this request (/api/_debug is owner-only, and this request carries no owner session)";
 const DISABLED_BODY = {
   error: "debug API disabled — set DEBUG_TOKEN to enable",
   reason: `${ADMIN_REFUSED}, and DEBUG_TOKEN is not configured on this server`,
@@ -412,8 +414,8 @@ describe("the two real credentials still open the gate", () => {
     expect(res.status).toBe(OK);
   });
 
-  test("an ADMIN session cookie authorizes with no token configured (the arm's documented purpose)", async () => {
-    const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("admin") });
+  test("an OWNER session cookie authorizes with no token configured (the arm's documented purpose)", async () => {
+    const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("owner") });
     const res = await get(app, "/api/_debug/info", { cookie: "__Host-orb_session=t" });
     expect(res.status).toBe(OK);
   });
@@ -424,33 +426,34 @@ describe("the two real credentials still open the gate", () => {
     expect(res.status).toBe(OK);
   });
 
-  test("a signed forward-header SSO admin authorizes (via:'header' is a credential)", async () => {
+  test("a signed forward-header SSO OWNER authorizes (via:'header' is a credential)", async () => {
     const app = gateApp({
       config: baseConfig({ mode: "forward-header", verifyForwardJwt: true, jwksAllowlist: ["idp.example.test"] }),
-      sessions: forwardSessions("admin"),
+      sessions: forwardSessions("owner"),
       verifyForwardJwt: acceptingJwtVerifier,
     });
     const res = await get(app, "/api/_debug/info", { "x-authentik-jwt": "jwt", "x-authentik-meta-jwks": "{}" });
     expect(res.status).toBe(OK);
   });
 
-  test("a plain USER session cookie is still refused (the role gate is unchanged)", async () => {
+  test("a plain USER session cookie is still refused (the role gate denies below owner)", async () => {
     const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("user"), expectedToken: OPERATOR_TOKEN });
     expect(await outcomes(app, { cookie: "__Host-orb_session=t" })).toEqual(allRefused("absent"));
   });
 
   // THE HEADER ARM'S OTHER SUB-PATH (#1193). An UNSIGNED forward-header identity from an ALLOWLISTED proxy
-  // peer authenticates the whole app as this admin — and is still refused HERE. The credential at this door
+  // peer authenticates the whole app as this OWNER — and is still refused HERE. The credential at this door
   // is a verified signature, never the trusted-proxy allowlist's word, so the diagnostics surface cannot
-  // silently inherit whatever `FORWARD_AUTH_TRUSTED_PROXIES` happens to contain.
-  test("an UNSIGNED forward-header admin from a trusted proxy is refused (only a verified JWT is a credential)", async () => {
+  // silently inherit whatever `FORWARD_AUTH_TRUSTED_PROXIES` happens to contain. Driven at role OWNER on
+  // purpose: at role `admin` the refusal would be over-determined and this arm would prove nothing.
+  test("an UNSIGNED forward-header OWNER from a trusted proxy is refused (only a verified JWT is a credential)", async () => {
     const app = gateApp({
       config: baseConfig({ mode: "forward-header", forwardTrustedProxies: ["127.0.0.0/8"] }),
-      sessions: forwardSessions("admin"),
+      sessions: forwardSessions("owner"),
       expectedToken: OPERATOR_TOKEN,
       peerIp: LOOPBACK_PEER,
     });
-    // The principal really does resolve (the app would serve this caller as an admin) — the gate still says no.
+    // The principal really does resolve (the app would serve this caller as the owner) — the gate still says no.
     expect(await outcomes(app, { "x-authentik-username": "sso-admin" })).toEqual(allRefused("absent"));
   });
 });
@@ -527,5 +530,86 @@ describe("the bug-report WRITE route is behind the same gate", () => {
       }),
     );
     expect(res.status).toBe(BAD_REQUEST);
+  });
+});
+
+// ── D17: /api/_debug IS BOX-OPERATOR SCOPE, NEVER DELEGATED-ADMIN SCOPE ──────────────────────────────────
+// The gate admits a credential and then hands over PRINCIPAL-BLIND WHOLE-DEPLOYMENT reads (`@owner-scope-ok`,
+// D20) — the whole db, the log/trace rings, and the wire-capture ring, which holds the literal provider
+// request bodies (every user's assembled prompt: system text, persona prose, the transcript) plus, with
+// `WIRE_CAPTURE_REPLY=on`, the model's literal reply bytes. D17 splits the two global roles by exactly this:
+// `owner` is the single box holder, `admin` is DELEGATED in-app authority that cannot reach owner-only
+// resources, and an actor's inference connections belong to the principal who configured them with no owner
+// credential inherited by another principal. A delegated admin therefore does not get the box's diagnostics.
+//
+// THE WIRE RING IS THE WORST CASE, not the only one — this is why the verdict narrows the GATE rather than
+// one route. `/api/_debug/db/chat/:id` returns any room's selected-variant message content, which is a
+// SUPERSET of what a capture of that room's turn reveals, so scoping the ring alone would deny the bytes at
+// one door and serve them at the next. The fourth test here is that whole-surface assertion.
+describe("D17: a DELEGATED admin is not the box operator — the wire ring is the worst case", () => {
+  /** What a FOREIGN user's turn left in the ring: their persona prose, verbatim, inside the assembled prompt.
+   *  Asserted BY VALUE in both directions so a refusal can never be confused with an empty ring — the second
+   *  pin reads it back through the owner arm, which is the fence against exactly that vacuous pass. */
+  const foreignPromptMarker = "cb-debug-gate-foreign-persona-a7f3";
+  const foreignChat = castId<ChatId>("chat_someone_elses_room");
+
+  /** One capture from someone else's turn. The admin under test is not its owner, not a participant of that
+   *  room, and not the box holder. */
+  function seedForeignCapture(): void {
+    resetWireCaptures();
+    recordWireCapture({
+      chatId: foreignChat,
+      api: "chat-completions",
+      wire: "openai-compat",
+      providerId: "vllm",
+      model: "qwen3",
+      at: 1,
+      body: { messages: [{ role: "system", content: `You are ${foreignPromptMarker}.` }] },
+    });
+  }
+
+  beforeEach(seedForeignCapture);
+  afterEach(resetWireCaptures);
+
+  test("an ADMIN session cookie cannot read another user's provider wire bytes", async () => {
+    const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("admin"), expectedToken: OPERATOR_TOKEN });
+    const res = await get(app, "/api/_debug/wire/captures", { cookie: "__Host-orb_session=t" });
+    // The LEAK assertion runs FIRST on purpose: pre-fix it is what names the foreign prompt bytes in the
+    // failure output, where a bare status mismatch would only say "200".
+    expect(await res.text()).not.toContain(foreignPromptMarker);
+    expect(res.status).toBe(UNAUTHORIZED);
+  });
+
+  // THE EMPTY-RING FENCE (and the instrument's positive control): the very bytes the admin was refused come
+  // back for the box holder, so the refusal above is about the ROLE and not about a ring nobody wrote to.
+  test("the OWNER's session still reads it — proving the ring really held the foreign bytes", async () => {
+    const app = gateApp({ config: baseConfig({ mode: "oidc" }), sessions: cookieSessions("owner"), expectedToken: OPERATOR_TOKEN });
+    const res = await get(app, "/api/_debug/wire/captures", { cookie: "__Host-orb_session=t" });
+    expect(res.status).toBe(OK);
+    expect(await res.text()).toContain(foreignPromptMarker);
+  });
+
+  test("the operator's x-debug-token still reads it (the headless arm is untouched)", async () => {
+    const app = gateApp({ config: baseConfig({ mode: "single-user" }), sessions: ownerRowSessions(), expectedToken: OPERATOR_TOKEN });
+    const res = await get(app, "/api/_debug/wire/captures", { "x-debug-token": OPERATOR_TOKEN });
+    expect(res.status).toBe(OK);
+    expect(await res.text()).toContain(foreignPromptMarker);
+  });
+
+  test("the narrowing is the GATE, not one route — a delegated admin is refused on every probe", async () => {
+    const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("admin"), expectedToken: OPERATOR_TOKEN });
+    expect(await outcomes(app, { cookie: "__Host-orb_session=t" })).toEqual(allRefused("absent"));
+  });
+
+  test("a signed forward-header SSO ADMIN is refused too (the role gate binds every credential arm)", async () => {
+    const app = gateApp({
+      config: baseConfig({ mode: "forward-header", verifyForwardJwt: true, jwksAllowlist: ["idp.example.test"] }),
+      sessions: forwardSessions("admin"),
+      verifyForwardJwt: acceptingJwtVerifier,
+      expectedToken: OPERATOR_TOKEN,
+    });
+    const res = await get(app, "/api/_debug/wire/captures", { "x-authentik-jwt": "jwt", "x-authentik-meta-jwks": "{}" });
+    expect(await res.text()).not.toContain(foreignPromptMarker);
+    expect(res.status).toBe(UNAUTHORIZED);
   });
 });
