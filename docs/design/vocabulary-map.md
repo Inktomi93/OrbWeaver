@@ -159,6 +159,18 @@ on-stage set is **the present characters**.
 
 ## The connection register (REWRITTEN 2026-09-19 — `orbweaver-inference-package.md` F7/F6/F18)
 
+| Code word | Product word |
+| - | - |
+| `binding` | **Model roles** |
+| `wire` | SEALED — package-internal only |
+| `dialect` | SEALED — package-internal only |
+| `task` | SEALED — use the six model-role labels |
+| `kind` | SEALED — use the model-role task phrasing |
+| `declared` | **What this server accepts** |
+| `features` | **Endpoint quirks** |
+| `extras` | **Extra request fields** |
+| `transport` | **Request & response shaping** |
+
 **The `source` axis is RETIRED and D109's 6-mode canon with it.** A connection is named by its
 `(provider × api)` pair, never by a marketing word, and the provider is a REGISTRY ROW, not a union
 member — built-in rows live in `packages/contracts/src/inference/builtin-providers.ts` and a plugin or
