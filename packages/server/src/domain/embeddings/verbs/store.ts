@@ -23,6 +23,7 @@
 // so the corpus sweep can submit one embed flood instead of one awaited embed per block. Same hash gate, same
 // space tripwire, same single write path — a batch shape, because its producer holds a batch of work.
 
+import type { RoleClients } from "@orb/contracts/role-clients";
 import type { EmbeddingsContext } from "../context.ts";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type {
@@ -101,6 +102,26 @@ async function isImageLensCurrent(ctx: EmbeddingsContext, p: ImageRawStoreParams
   return row !== undefined && row.hash === hash && row.hasFacets;
 }
 
+/** THE JOINT-SPACE DISPATCH (§10-3) — which role op actually produces this image lens's vector.
+ *
+ *  `image-raw` is pixels, so only an image embedder can serve it; the indexer never asks for it in the
+ *  degraded arm. `image-captioned` has two arms: the joint image+caption vector, and — when the owner has
+ *  no image-capable embedder — the caption as plain TEXT through the `embed` role, which lands the picture
+ *  in their text space instead of dropping it. Both results carry `{vectors, model}`, and the row is
+ *  stamped with the PROVIDER's `model` either way (the issue-724 ruling), so the arm never invents a tag. */
+function embedImageLens(
+  rc: RoleClients,
+  p: ImageRawStoreParams | ImageCaptionedStoreParams,
+): Promise<{ readonly vectors: readonly (Float32Array | null)[]; readonly model: string }> {
+  if (p.lens === "image-raw") {
+    return rc.imageEmbed({ kind: "image", input: p.content });
+  }
+  if (p.via === "embed") {
+    return rc.embed(p.caption);
+  }
+  return rc.imageEmbed({ kind: "multimodal", input: { image: p.content, text: p.caption } });
+}
+
 /** image-raw / image-captioned → `image_embeddings` (both lenses coexist per `(asset, model, lens)`;
  *  `force` bypasses the staleness short-circuit — PD-53 bulk re-index). */
 async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | ImageCaptionedStoreParams): Promise<StoreResult> {
@@ -121,11 +142,13 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
   if (p.lens === "image-captioned" && p.caption.trim().length === 0) {
     return { outcome: "noop", contentHash: hash };
   }
-  const req =
-    p.lens === "image-captioned"
-      ? ({ kind: "multimodal", input: { image: p.content, text: p.caption } } as const)
-      : ({ kind: "image", input: p.content } as const);
-  const embedded = await (await ctx.roleClientsFor(p.ownerId)).imageEmbed(req);
+  // THE JOINT-SPACE DISPATCH (§10-3). The captioned lens has two arms: the joint image+caption vector when
+  // the owner HAS an image-capable embedder, and — when they do not — the caption as plain TEXT through the
+  // `embed` role, landing the picture in the owner's text space instead of dropping it on the floor. The
+  // raw lens has no fallback by construction: nothing but an image embedder can embed pixels, so the
+  // indexer never asks for it in the degraded arm.
+  const rc = await ctx.roleClientsFor(p.ownerId);
+  const embedded = await embedImageLens(rc, p);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertImageEmbedding(ctx.db, {

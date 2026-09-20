@@ -486,7 +486,7 @@ CREATE TABLE `user_connections` (
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`credential_id`) REFERENCES `user_credentials`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "user_connections_api_check" CHECK(api in ('chat-completions', 'responses', 'agent-sdk', 'anthropic-messages', 'auto'))
+	CONSTRAINT "user_connections_api_check" CHECK(api in ('chat-completions', 'agent-sdk', 'anthropic-messages', 'auto'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `user_connections_owner_label_unique` ON `user_connections` (`owner_id`,`label`);--> statement-breakpoint
@@ -788,6 +788,16 @@ CREATE TABLE `document_chunks` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `document_chunks_doc_chunk_model_unique` ON `document_chunks` (`document_id`,`chunk_idx`,`model`);--> statement-breakpoint
 CREATE INDEX `document_chunks_document_idx` ON `document_chunks` (`document_id`);--> statement-breakpoint
+CREATE TABLE `embed_space_state` (
+	`owner_id` text NOT NULL,
+	`scope` text NOT NULL,
+	`space` text NOT NULL,
+	`completed_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	PRIMARY KEY(`owner_id`, `scope`),
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "embed_space_state_scope_check" CHECK(scope in ('cards', 'memory', 'documents', 'images'))
+);
+--> statement-breakpoint
 CREATE TABLE `image_embeddings` (
 	`id` text PRIMARY KEY NOT NULL,
 	`asset_id` text NOT NULL,

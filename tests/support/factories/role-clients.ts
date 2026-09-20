@@ -37,6 +37,10 @@ export interface FakeRoleClientControls {
   readonly unbound?: readonly RoleClientTask[] | undefined;
   /** The summarize/structured model's image-input fact (the caption lens's requirement). Default true. */
   readonly summarizerVision?: boolean | undefined;
+  /** The `imageEmbed` model's image-input fact — the JOINT-SPACE RULE's input (§10-3, `canEmbedImages`).
+   *  `false` models a bound-but-text-only embedder, which is the second of the two ways an owner falls back
+   *  to the captioned-text lens (the first is no binding at all, i.e. `unbound: ["imageEmbed"]`). Default true. */
+  readonly imageEmbedVision?: boolean | undefined;
   readonly summarizerContextTokens?: number | undefined;
   readonly embedDim?: number | undefined;
   /** The model id `resolved(task)` reports — and, for the default callables, the model id their own reply
@@ -111,7 +115,10 @@ export function makeFakeRoleClients(controls: FakeRoleClientControls = {}): Role
   );
   const views: Record<RoleClientTask, ResolvedTaskView> = {
     embed: view(embedModel, { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: dim, input: ["text"] } }),
-    imageEmbed: view(imageEmbedModel, { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: dim, input: ["text", "image"] } }),
+    imageEmbed: view(imageEmbedModel, {
+      kind: "embedding",
+      embedding: { ...EMBEDDING_FLOOR, dims: dim, input: controls.imageEmbedVision === false ? ["text"] : ["text", "image"] },
+    }),
     rerank: view(rerankModel, { kind: "rerank", rerank: RERANK_FLOOR }),
     summarize: view(summarizeModel, generation),
     structured: view(structuredModel, generation),

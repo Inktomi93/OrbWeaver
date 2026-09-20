@@ -1,6 +1,6 @@
 // The dispatch axes (SourceKind, SourceLens) + the verb input shapes for the embeddings write surface.
 
-import type { ImageCaptionMeta, ImageLens } from "@orb/contracts/embeddings";
+import type { ImageCaptionMeta, ImageLens, VectorScope } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
@@ -70,6 +70,12 @@ export interface ImageCaptionedStoreParams {
    *  bag: the facet vocabulary has one home in `@orb/contracts/embeddings` and both sides import it
    *  (issue #164 — the reader named fourteen facets this carrier could not promise). */
   readonly captionMeta?: ImageCaptionMeta | undefined;
+  /** THE JOINT-SPACE ARM (§10-3). `imageEmbed` = the joint image+caption vector through the owner's image
+   *  embedder. `embed` = the CAPTIONED-TEXT fallback: the owner has no image-capable embedder, so the
+   *  caption alone is embedded as TEXT into their `embed` space. The store verb dispatches the role op off
+   *  this — it is not derivable from `model`, which is just a tag, and guessing it wrong writes a vector
+   *  into a geometry nothing queries. */
+  readonly via: "imageEmbed" | "embed";
   readonly model: string;
   readonly dim: number;
   /** Re-embed even on a matched `content_hash`. */
@@ -263,4 +269,14 @@ export interface WriteHubScoresParams {
 
 export interface ClearTableParams {
   readonly table: VectorTable;
+}
+
+/** `upsertCompletedSpace` input (§10-5) — "this owner's `scope` is now COMPLETELY in `space`", recorded at a
+ *  sweep's completed, non-aborted terminal. `now` is injected (test-determinism); `space` is the
+ *  `(model[@dtype])` tag, never the bare model column. */
+export interface MarkSpaceCompleteInput {
+  readonly ownerId: UserId;
+  readonly scope: VectorScope;
+  readonly space: string;
+  readonly now: number;
 }

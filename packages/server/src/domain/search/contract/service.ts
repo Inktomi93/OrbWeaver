@@ -54,6 +54,19 @@ export interface DigestSearchEvents {
 }
 
 /** DI bundle the search verbs close over. Read-only (ReadOnlyDb — a write call is a tsc error). */
+/** WHERE an owner's pictures are, and HOW a query reaches them — the joint-space rule's read-side answer
+ *  (§10-3, `substrate/space.ts::requireImageSpace`).
+ *
+ *  `via: "imageEmbed"` is the ordinary arm: the query is embedded by the image embedder and both lenses are
+ *  scannable. `via: "embed"` is the captioned-text fallback — the owner has no image-capable embedder, so
+ *  their pictures live in the TEXT space as captions and only `image-captioned` exists there; the query must
+ *  be embedded as text or it lands in a different geometry. `model` is the space tag `nearest.ts` filters on
+ *  in both arms. */
+export interface ImageQuerySpace {
+  readonly via: "imageEmbed" | "embed";
+  readonly model: string;
+}
+
 export interface SearchContext {
   readonly db: ReadOnlyDb;
   /** The per-OWNER role-client bundle (inference program §7.5-2): every retrieval embeds the query in the

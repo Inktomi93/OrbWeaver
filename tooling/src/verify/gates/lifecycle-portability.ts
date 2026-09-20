@@ -203,6 +203,15 @@ const NON_PORTABLE_CANON: Readonly<Record<string, NonPortableRow>> = {
   },
   keywordCooccurrence: { classification: "DERIVED", why: "a discovery analytics index over library canon; rebuilt by reindex. Ends never." },
   themeClusters: { classification: "DERIVED", why: "discovery clustering over embeddings, themselves derived. Ends never." },
+  embedSpaceState: {
+    classification: "DERIVED",
+    why:
+      "the last COMPLETE embed space per (owner, vector scope) — a statement ABOUT the vector substrate, which is " +
+      "itself DERIVED and does not travel (inference program §10-5). Carrying it would be worse than dropping it: it " +
+      "would tell the new box that a corpus it has not embedded yet is settled, which is precisely the false-settled " +
+      "state the table exists to prevent. Absent, the restored box reads as `unrecorded` and serves its live space " +
+      "until its first sweep records one. Ends never.",
+  },
 };
 
 /** A single-entity door: the transport + the cite arm B resolves. */

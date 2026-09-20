@@ -1016,8 +1016,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     databankIngest,
     importWorkloads,
     refineryWorkloads,
-    // The old-space reclaim after a BULK sweep is PER OWNER now (vector tasks are owner-scoped, §7.5; the
-    // per-owner `activeSpace` getter is step 8's) — one purge per corpus owner, the row counts advisory.
+    // The old-space reclaim after a BULK sweep is PER OWNER (vector tasks are owner-scoped, §7.5) — one
+    // purge per corpus owner, the row counts advisory. The fan STAYS after §10-5's `activeSpace` getter
+    // landed: the injected op carries no owner, and `listCorpusOwners()` is exactly the set a BULK sweep
+    // covered, which is what makes the completion each purge records (`embed_space_state`) a true statement.
     purgeDocumentVectors: async (): Promise<void> => {
       for (const ownerId of await searchDiscovery.listCorpusOwners()) {
         await embeddings.purgeDocumentVectors({ ownerId });

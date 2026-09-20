@@ -36,7 +36,7 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
   return async (params: CorpusParams): Promise<CorpusHit[]> => {
     const text = params.queryText;
     const rc = await ctx.roleClientsFor(params.ownerId);
-    const embedModel = await requireSpaceModel(rc, "embed");
+    const embedModel = await requireSpaceModel(ctx, params.ownerId, "embed");
     if (text.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "corpus requires a queryText to embed + scan");
     }

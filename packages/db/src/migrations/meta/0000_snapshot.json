@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "36047714-8389-4fef-9288-a66ce3c8da15",
+  "id": "4373c870-c8ce-4650-b989-48907d5a9b57",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -3180,7 +3180,7 @@
       "checkConstraints": {
         "user_connections_api_check": {
           "name": "user_connections_api_check",
-          "value": "api in ('chat-completions', 'responses', 'agent-sdk', 'anthropic-messages', 'auto')"
+          "value": "api in ('chat-completions', 'agent-sdk', 'anthropic-messages', 'auto')"
         }
       }
     },
@@ -5057,6 +5057,65 @@
         "document_chunks_span_check": {
           "name": "document_chunks_span_check",
           "value": "chunk_idx >= 0 and char_start >= 0 and char_end >= char_start"
+        }
+      }
+    },
+    "embed_space_state": {
+      "name": "embed_space_state",
+      "columns": {
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "space": {
+          "name": "space",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "embed_space_state_owner_id_users_id_fk": {
+          "name": "embed_space_state_owner_id_users_id_fk",
+          "tableFrom": "embed_space_state",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "embed_space_state_owner_id_scope_pk": {
+          "columns": ["owner_id", "scope"],
+          "name": "embed_space_state_owner_id_scope_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "embed_space_state_scope_check": {
+          "name": "embed_space_state_scope_check",
+          "value": "scope in ('cards', 'memory', 'documents', 'images')"
         }
       }
     },
