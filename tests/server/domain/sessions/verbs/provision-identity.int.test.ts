@@ -1,6 +1,6 @@
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { users } from "@orb/db";
+import { userConnections, users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -115,6 +115,33 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
     expect(first.role).toBe("owner");
     const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] })));
     expect(again.role).toBe("owner");
+  });
+});
+
+// #2481 — the SSO/JIT first login is the second user-create site the local-light convenience seed rides
+// (inference program §7.2 / §5.3b). Before this the seed was a boot sweep only, so every account provisioned
+// after the listener bound resolved `embed`/`rerank` to `no-connection` until the next restart. The seed is an
+// INJECTED op (`domain/sessions` may not import `domain/connection`), runs only once the row has SETTLED, and
+// never runs for a login the gate refuses.
+describe("sessions.provisionIdentity — the new account's vector floor (#2481)", () => {
+  test("a first SSO login seeds the local-light rows", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const result = asProvisioned(await svc.provisionIdentity(identity()));
+    expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, result.userId))).toHaveLength(2);
+  });
+
+  test("a DENIED login seeds nothing (no row to seed for)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    expect((await svc.provisionIdentity(identity({ groups: ["outsiders"] }))).outcome).toBe("denied");
+    expect(await db.select().from(userConnections)).toHaveLength(0);
+  });
+
+  test("a RETURNING user's login re-seeds nothing new", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const first = asProvisioned(await svc.provisionIdentity(identity()));
+    await svc.provisionIdentity(identity());
+    expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, first.userId))).toHaveLength(2);
   });
 });
 

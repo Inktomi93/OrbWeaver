@@ -2,7 +2,7 @@
 // weak_password, cannot_grant_owner), the password is hashed (and never surfaces in the view), and a
 // duplicate handle is rejected as user_exists.
 
-import { users } from "@orb/db";
+import { userConnections, users } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -34,6 +34,16 @@ describe("createUser", () => {
     const rows = await db.select().from(users).where(eq(users.id, view.id));
     expect(rows[0]?.passwordHash).toBe(`scrypt$test$${GOOD_PASSWORD}`);
     expect(await auditActions(db)).toEqual(["admin.createUser"]);
+  });
+
+  // #2481 — the admin mint is the third user-create site the local-light convenience seed rides (inference
+  // program §7.2 / §5.3b). It runs AFTER the audited batch commits, never inside it: a seed failure must not
+  // un-create an account. The seed is an INJECTED op — `domain/admin` may not import `domain/connection`.
+  test("the minted account carries its local-light vector floor (#2481)", async () => {
+    const db = await freshDb();
+    const { svc, admin } = await seedAdminCaller(db);
+    const view = await svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("newbie"), password: GOOD_PASSWORD });
+    expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, view.id))).toHaveLength(2);
   });
 
   test("an empty handle is rejected (invalid_handle)", async () => {

@@ -44,6 +44,17 @@ export interface SessionsContext {
    *  (GCM verifies before it returns a byte); `verbs/revoke` owns the degrade, because a logout must end
    *  the session whether or not the end-session HINT survives. */
   openIdToken: (sealed: Sealed, sessionId: SessionId) => string;
+  /** #2481 / inference program §5.3b — the new account's local-light vector floor, as an INJECTED op:
+   *  `domain/sessions` may not import `domain/connection`, so the composition root hands the seed in and the
+   *  two minting verbs call it once their `users` row has SETTLED. Deliberately REQUIRED, not optional — the
+   *  defect it closes is a mint site that silently seeds nothing, and an optional field would let the next
+   *  composition root reintroduce exactly that without failing `tsc`.
+   *
+   *  TOTAL by contract: it resolves whatever happens. A convenience seed may never fail a login — the
+   *  composition root (`entry/boot/seed-local-light.ts`) owns the degrade and logs the warning the connection
+   *  pane repairs. Idempotent by the `(owner_id, label)` unique, so the `onConflictDoNothing` loser calling it
+   *  for the WINNER's id double-seeds nothing. */
+  seedUserConnections: (userId: UserId) => Promise<void>;
 }
 
 export interface SessionsService {

@@ -41,6 +41,7 @@ import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { createSessionsService } from "@orb/server/domain/sessions";
+import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import type { AuthRoutesDeps, OidcRoutesDeps } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import type { OidcTransaction, OidcVerifiedTokens } from "@orb/server/infra/auth";
@@ -99,7 +100,12 @@ beforeEach(async () => {
   // hard-deny fire instead, which is that control working: a subject-bearing login may never auto-link
   // onto an existing unbound account by handle.)
   await db.insert(users).values({ id: USER_ID, handle: castId<Handle>("alice"), externalId: castId<ExternalId>("sub-alice") });
-  sessions = createSessionsService({ db, now: (): number => NOW, sessionSecret: PEPPER });
+  sessions = createSessionsService({
+    db,
+    now: (): number => NOW,
+    sessionSecret: PEPPER,
+    seedUserConnections: createLocalLightUserSeed({ db, now: (): number => NOW }),
+  });
   app = new Hono();
   const deps: AuthRoutesDeps = {
     sessions,
