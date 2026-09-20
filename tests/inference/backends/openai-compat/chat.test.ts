@@ -15,6 +15,7 @@
 // response become `rateLimit`. B7: the endpoint's own response id is the row's `generationId`.
 
 import type { UserIntent } from "@orb/contracts/preset";
+import type { JsonValue } from "@orb/kit/json";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
 import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -45,15 +46,15 @@ function orRequest(overrides: Partial<OpenAiCompatChatRequest> = {}): OpenAiComp
     capability: generationCapability(),
     secret: fakeApiKeySecret("sk-or-not-a-real-key"),
   });
-  return {
+  const base: OpenAiCompatChatRequest = {
     api: "chat-completions",
     connection,
     params: { effort: "high" } satisfies UserIntent,
     systemPrompt: { static: "You are a helpful assistant.", dynamic: "" },
     history: [{ role: "user", content: [{ type: "text", text: "What is the weather in Paris?" }] }],
     tools: [{ name: "get_weather", description: "Weather for a city.", parameters: { type: "object", properties: { city: { type: "string" } } } }],
-    ...overrides,
-  } as OpenAiCompatChatRequest;
+  };
+  return { ...base, ...overrides };
 }
 
 function assistantRowOf(recorded: RecordedRequest): Record<string, unknown> {
@@ -105,7 +106,7 @@ test("H1(b): verbosity rides extraBody on the OR route when the capability adver
     capability: generationCapability({ verbosity: ["low", "medium", "high"] }),
     secret: fakeApiKeySecret("sk-or-not-a-real-key"),
   });
-  const req = orRequest({ connection, params: { effort: "high", verbosity: "low" } as UserIntent, tools: undefined });
+  const req = orRequest({ connection, params: { effort: "high", verbosity: "low" }, tools: undefined });
   const turn = await runOpenAiCompatChatTurn(req, turnDeps(fetchImpl));
   expect(warningCodes(turn)).not.toContain("verbosity_dropped");
   expect(recorded[0]?.body["verbosity"]).toBe("low");
@@ -122,7 +123,7 @@ test("E2: a hyphenated provider id keys providerOptions by its camel form (no pe
     baseUrl: "https://box.local/v1",
     secret: fakeApiKeySecret("sk-box-not-a-real-key"),
   });
-  const req = orRequest({ connection, params: { effort: "high", repetitionPenalty: 1.1 } as UserIntent, tools: undefined });
+  const req = orRequest({ connection, params: { effort: "high", repetitionPenalty: 1.1 }, tools: undefined });
   const turn = await runOpenAiCompatChatTurn(req, turnDeps(fetchImpl));
   const messages = turn.events.flatMap((event) => (event.kind === "warning" ? [event.message] : []));
   expect(messages.filter((message) => message.includes("providerOptions key"))).toHaveLength(0);
@@ -153,7 +154,7 @@ function endpointRequest(effort: "none" | "reasoning_effort"): OpenAiCompatChatR
     secret: fakeApiKeySecret("sk-box-not-a-real-key"),
     declaredFeatures: { effort },
   });
-  return orRequest({ connection, params: { effort: "high" } as UserIntent, tools: undefined });
+  return orRequest({ connection, params: { effort: "high" }, tools: undefined });
 }
 
 test("B1: a row that spells no reasoning_effort records appliedEffort null — the ask was high, the wire carried nothing", async () => {
@@ -192,17 +193,17 @@ test("B6 + B7: the response headers become the rate-limit snapshot and the endpo
 // `response-healing` — the server-side answer to the malformed JSON our non-streaming structured task has to
 // re-ask for — was unreachable no matter what the connection declared.
 
-const extrasConnection = (extras: Record<string, unknown>): OpenAiCompatChatRequest["connection"] =>
-  ({
-    ...fakeResolved({
-      task: "chat",
-      providerId: "openrouter",
-      model: "anthropic/claude-opus-4-5",
-      capability: generationCapability(),
-      secret: fakeApiKeySecret("sk-or-not-a-real-key"),
-    }),
+/** A connection whose `extras` the belt has to judge — minted through the real factory's own `extras`
+ *  axis, so a change to the resolved shape breaks HERE rather than being hidden by a cast. */
+const extrasConnection = (extras: Readonly<Record<string, JsonValue>>): OpenAiCompatChatRequest["connection"] =>
+  fakeResolved({
+    task: "chat",
+    providerId: "openrouter",
+    model: "anthropic/claude-opus-4-5",
+    capability: generationCapability(),
+    secret: fakeApiKeySecret("sk-or-not-a-real-key"),
     extras,
-  }) as OpenAiCompatChatRequest["connection"];
+  });
 
 async function sentBody(req: OpenAiCompatChatRequest): Promise<Record<string, unknown>> {
   const recorded: RecordedRequest[] = [];
