@@ -4,143 +4,157 @@ status: active
 updated: 2026-09-20
 ---
 
-# Orbweaver — `infra/providers`: the sealed execution tier (roles · backends · the local engine)
+# Orbweaver — `@orb/inference`: the provider runtime (wires · providers · resolution · execution)
 
-> **⚠ BUILD-STATE RIDER:** `BACKEND_KEYS` is FIVE members (`agent-sdk · openrouter · vllm · local-light · custom-openai`); `PROVIDER_ROLES` is EIGHT members, including `structured`. D67/D68 are the design record for a future `anth-direct` backend.
+> **The tier MOVED.** The old `infra/providers` directory under `packages/server/src/` no longer exists: the execution tier was extracted into the `@orb/inference` workspace package on 2026-09-19 (`146f71cd5`) and the cake gained a layer — `kit ← contracts ← db ← inference ← server` (`.dependency-cruiser.cjs` rule `inference-cake`). The design record is [`../../design/orbweaver-inference-package.md`](../../design/orbweaver-inference-package.md); the TREE is the authority and the code's file headers are the per-module law.
 
-The infra **execution layer** — the sealed inference backends behind the role contracts. It **executes**; it never **selects**. `domain/connection` selects (backend/model/credential/capability) and hands in a resolved request; providers runs it. `runner`/`family`/`protocol` are derived INSIDE providers and never leak upward.
+Everything the deleted revision of this file described is GONE from the tree — the closed backend-key tuple, the deriveRunner (api, source) matrix, the provider-roles tuple, the roles firewall and its role-source policy, the credential-source dispatch axis, the in-server vLLM engine plane, the OpenRouter agent-sdk skin, the custom-byo backend. Those names are spelled here without code formatting on purpose: they have no referent, and a backticked cite would claim one. Do not carry a sentence forward from a doc that names them.
 
-> **Roles are the firewall. Backends are sealed strategies. The domain calls a role, never a backend.**
+## 1. The axes (code vs data vs a user's row)
 
-- **Public surface = ROLES:** `chat · agent · embed · rerank · imageEmbed · summarize · structured · generateImage` (`PROVIDER_ROLES`, `contract/backend.ts`; `structured` added D109-4). Each is a thin contract; the domain builds a request ONCE and calls the role — it never sees sessions, seed frames, env vars, or name-stamping.
-- **Behind each role = sealed implementations.** No backend imports another; cross-backend work goes through the role contract or the pure `backends/kit/` (the shared OpenAI-compat reducer both `openrouter` and `custom-byo` import DOWN).
-- **Each backend internalizes ALL its own quirks** — statefulness, env config, name handling, caching. Editing one backend cannot touch another.
-- **Adding a backend** = a new sealed impl in `backends/` + (if new auth) a new credential arm; consumers do not change.
+| Axis | What it decides | Kind | Home |
+| - | - | - | - |
+| **wire** | how bytes are spelled and parsed | **CODE** — one sealed backend per member; a plugin can never add one | `packages/contracts/src/inference/wires.ts` (`WIRES`, `WIRE_DEFS`) |
+| **provider** | who serves the bytes | **DATA** — registry rows through ONE zod schema (built-in · plugin manifest · admin) | `packages/contracts/src/inference/provider-schema.ts` + `builtin-providers.ts` |
+| **api** | the chat PROTOCOL a turn is addressed by | closed tuple | `packages/contracts/src/inference/apis.ts` (`CHAT_APIS`) |
+| **connection** | the user's row: provider + model + credential + overrides | **A USER TABLE** (`user_connections`) | `packages/contracts/src/inference/connection.ts` |
+| **binding** | which connection an actor's task resolves to | **A USER TABLE** (`connection_bindings`) | same file (`connectionBindingSchema`) |
+| **task** | what a caller asks for, NAMED AT THE CALL SITE | closed tuple + `TASK_DEFS` | `packages/contracts/src/inference/tasks.ts` (`TASKS`) |
+| **kind** | what the model IS (`generation` · `embedding` · `rerank`) | closed tuple | `packages/contracts/src/inference/kinds.ts` |
+| **modality** | `text` · `image` · `video` · `audio` · `file` · `vector` | closed tuple | `packages/contracts/src/inference/modalities.ts` |
 
-## What this tier owns
+**The tuples are the truth, not this prose.** Wires today: `openai-compat` · `anthropic-messages` · `agent-sdk` · `local-light`. Tasks today: `chat` · `agent` · `summarize` · `structured` · `generateImage` · `embed` · `imageEmbed` · `rerank`. Read the tuple, never a list in a doc.
 
-- **The role dispatchers** (`roles/`) — one thin dispatcher per role + `dispatch.ts` (`deriveRunner(api, source)` → `BackendKey`; `requireBackend`/`requireRoleImpl`) + `firewall.ts` (`assertCredentialAllowed` — role×source×consent policy). Chat/agent derive the backend from `{api, source}`; the non-chat roles dispatch on `credential.source`. Every switch is `assertNever`-exhaustive; invalid pairings fail-closed with a typed `ProviderError`.
-- **The sealed backends** (`backends/`) — `openrouter` (stateless chat-completions/responses + embed/rerank/image runners + catalog/account/probe), `agent-sdk` (STATEFUL — the Max sub + the OR-Anthropic skin + agent mode; owns its session-as-canon-derived-cache internally in `session/`), `custom-byo` (raw-fetch to a user-wired endpoint, FULLY user-declared — see Esoteric §10), `local-light` (D39 — keyless in-process transformers.js/ONNX, CPU+CUDA; serves ONLY embed/rerank/imageEmbed), and the shared pure `backends/kit/` (openai-compat reducer/mapper, cache-control, reasoning-budget, wire-schemas, error-classify, retry, idle-timeout, sanitize, history).
-- **The agent-sdk credential firewall** (`backends/agent-sdk/env.ts`) — the per-turn env builders, the `RESERVED_CLAUDE_ENV_KEYS` denylist, the ephemeral `CLAUDE_CONFIG_DIR` symlink-isolation, the isolation/cost pins. Security-load-bearing, rebuilt every turn (Esoteric §1).
-- **The vLLM local engine** (`vllm/`) — its own multi-role subsystem: `engine/` (supervisor lifecycle: adopt/spawn/death-couple/breaker/health/orphan-reap; status + control registries; the loopback client; gpu detect) + `surfaces/` (independent chat/embed/rerank/image-embed/summarize registrations). The remote backends serve chat; vLLM serves five roles — that asymmetry is why it is its own engine, not a chat-backend peer.
-- **`resolve-chat.ts`** — the `(UserIntent × ModelCapability) → wire knobs` funnel. Needs the wire-quirk knowledge (the XORs, the adaptive/budget guard) so it stays infra; it READS the injected `ModelCapability` (connection produced it) and never authors it.
-- **The diagnostic surfaces** (`diagnostics.ts` + per-family `account`/`probe`/`catalog` fetch) — family-agnostic, credential-shaped; `credentials`/`connection` call them through injection. The catalog SNAPSHOT + TTL cache are connection's; providers keeps only the live HTTP fetch verb (`fetchOrCatalog`).
-- **`contract/`** — the ONE typed front door for infra-internal request shapes (`ChatRequest` variants, `AgentTurnRequest`, `ChatEvent`/`ChatError`/wire vocab, `BackendKey`, `BackendRegistry`). Cross-boundary shapes are re-exports from `@orb/contracts` (see Contract homes).
+**`vllm` is a PROVIDER ROW, not a module** (D7, amended 2026-09-19): an `auth: endpoint` row on the `openai-compat` wire whose `features` carry the prefill/sleep/rerank knobs. The only surviving runtime slice is `packages/inference/src/backends/openai-compat/reachability.ts`, keyed on the folded `features.sleep` and never on a provider id. LM Studio, Ollama and the BYO row are the same shape — a server's quirks are `features`, never a code path (`packages/contracts/src/inference/features.ts`).
 
-NOT owned: **selection/routing/policy** (which backend a role uses, per-agent connection, model pick, role defaults → `connection.resolveRole`); the **capability descriptor** (`resolveModelCapability` + the curated Claude catalog + family detection → `domain/connection/catalog/`); **credential resolve/CRUD/health-state** (→ `credentials`; providers receives a brand-protected `ResolvedCredential` and returns raw `ProbeResult`s); **vector math** (→ `@orb/kit/vector-math`); **the embedding store / vector-space setting** (→ `embeddings` / `connection`).
+## 2. Dispatch
 
-## Layout
+`backend = registry.get(connection.wire)` — one map lookup, no matrix (`packages/inference/src/registry/dispatch.ts`). The supporting rules:
+
+- **One backend per wire.** `BACKEND_DEFS: Record<Wire, BackendDef>` (`packages/inference/src/registry/backends.ts`); `buildBackends(deps)` constructs only the wires whose `needs` are present (the `agent-sdk` wire needs the bundled `claude` executable). A wire that is not built is ABSENT from the registry, availability reads `unavailable`/`runtime-missing`, and the picker never offers it.
+- **`apis ⊆ WIRE_DEFS[wire].apis`** and **`serves ⊆ WIRE_DEFS[wire].serves`**, refused at the provider-row parse (`provider-schema.ts::wireIssues`) and re-checked at resolve (`packages/inference/src/resolve/coherence.ts`). A row NARROWS a wire; it never widens it.
+- **`serves` is pinned against the implemented methods** by a table test — `tests/inference/registry/backends.test.ts` walks every `WIRES` member and asserts the built backend's present methods equal `WIRE_DEFS[wire].serves`.
+- **Fail-closed by absence.** An unwired wire and an unimplemented method both throw a typed `ProviderError`, never a silent default (`requireBackend` / `requireMethod`).
+- **Adding a provider is a ROW + the table test** — a `satisfies`-checked entry in `packages/contracts/src/inference/builtin-providers.ts`, or a plugin-manifest / admin row through the same schema at runtime. Zero code. Adding a WIRE is a new sealed backend + a `BACKEND_DEFS` entry + a `WIRE_DEFS` entry; every consumer is unchanged because `Record<Wire, …>` makes a missed arm a `tsc` error.
+
+## 3. The boundary (re-derived — the old "it executes; it never selects" no longer describes the package)
+
+The package now owns RESOLUTION as well as execution, deliberately: selection is a fold over the user's OWN DATA, not policy, and "the connection IS the pick" (`packages/inference/src/contract/resolved.ts`). The three lines that are actually true:
+
+1. **`@orb/inference` resolves and executes; `domain/connection` is the DOOR, not the decider.** The domain writes its three tables and gates the principal; every read verb is a thin delegation to `runtime.*` (`packages/server/src/domain/connection/verbs/resolve.ts`). It decides exactly one thing: the PROJECTION — a client or a bus payload gets the credential-free `ResolvedConnectionView`, never the secret-bearing `Resolved` (`packages/server/src/domain/connection/substrate/resolved-view.ts`).
+2. **Inside the package the executor still never selects.** `createProviderExecutor` dispatches on the ALREADY-RESOLVED wire; `canFund`, `requirementMet` and `connectionTasks` were decided at resolve (`packages/inference/src/roles/executor.ts`).
+3. **The package knows no domain and no persistence.** Connections, bindings, provider rows and catalog snapshots are four PORTS the server wires to drizzle; observability is a structural `span`/`log` shape; the provider transport is a required injected `fetch` (`packages/inference/src/deps.ts`). No `@orb/db`, no `@orb/server`, no `@orb/client`.
+
+**Resolution, in one line:** `(task, principal, actor?) → Resolved` = the binding fold over the funder's own rows → the connection row (must be the funder's) → the provider row → the model's kind → `connectionTasks` → api coherence → the credential by id → the catalog warm → the evidence synthesis → the feature fold → the `requirement`/`canFund` VERDICTS (`packages/inference/src/resolve/resolve-task.ts`). There is **no born default**: the fold ends at the funder's own rows and answers `no-connection` (`packages/inference/src/resolve/precedence.ts`).
+
+## 4. The tell that it is right (run these)
+
+```bash
+# 1. The package has ONE public entry: `exports` is `{".": "./src/index.ts"}`.
+#    So no server file can reach a backend, the registry, or the wire→backend map — a deep
+#    import fails to RESOLVE (tsc TS2307) before dependency-cruiser ever sees it.
+jq '.exports' packages/inference/package.json          # => { ".": "./src/index.ts" }
+rg -n '"@orb/inference/' packages tooling tests scripts   # => 0 hits (control: the same
+rg -c '"@orb/contracts/' packages                          #     pattern on contracts hits many)
+
+# 2. The browser never imports it (node-only: subprocess, ONNX runtime, guarded fetch).
+rg -n '@orb/inference' packages/client packages/ui      # => 0 hits
+
+# 3. The cake direction and the browser fence are the tier-3 backstop.
+pnpm depcruise                                          # rules: inference-cake, browser-no-inference
+
+# 4. `serves` is data, and the table test is what keeps it honest.
+pnpm test:scoped tests/inference/registry/backends.test.ts
+```
+
+A bare zero from step 1 or 2 is only a measurement because step 1 carries its own positive control on the same pattern; report the control count, never a lone zero.
+
+## 5. Layout
 
 ```
-infra/providers/
-├── index.ts            FRONT DOOR — createProviderExecutor / createBackendRegistry + role factories +
-│                       diagnostics + fetchOrCatalog + the contract re-exports. NO catalog, NO profiles,
-│                       NO DEFAULT_*_MODEL_ID (those are connection/contracts).
-├── contract/           the sealed typed surface (barrel; outside deep-reach is RED)
-├── roles/              the firewall — chat · agent · embed · rerank · image-embed · summarize ·
-│                       generate-image + dispatch.ts + firewall.ts
-├── backends/
-│   ├── openrouter/     runners/{chat,embed,rerank,image} · client · catalog · account · probe · credential-guard
-│   ├── agent-sdk/      env.ts (THE credential firewall) · runner · agent-runner · translate · types ·
-│   │                   verify · verify-auth · session/ (SessionStore + seed/reseed frames — backend-internal)
-│   ├── custom-byo/     runners/chat · inspect (the "Test endpoint" inspector)
-│   ├── local-light/    embed · rerank · image-embed · model-cache (D39; no chat surface)
-│   └── kit/            shared infra-pure wire helpers (the strategy-isolation seam)
-├── vllm/               engine/ (supervisor · engine-control · engine-status · engines · client ·
-│                       chat-completion · embedding · image · gpu) + surfaces/ (5 role registrations)
-├── resolve-chat.ts     the UserIntent × ModelCapability → wire-knobs funnel
-├── diagnostics.ts      account / probe dispatch on credential.source
+packages/inference/src/
+├── index.ts          createInferenceRuntime(deps) — THE ONE surface: resolve · availability · executor ·
+│                     capabilities · funnel · roleClientsFor · catalogs · diagnostics · providers · localLight
+├── deps.ts           InferenceDeps — the four persistence PORTS + span/log + the injected fetch
+├── contract/         the typed internal surface (backend · chat · agent · roles · events · errors ·
+│                     resolve · resolved · diagnostics), re-exported through index.ts
+├── registry/         backends.ts (BACKEND_DEFS + buildBackends) · providers.ts (built-ins ∪ runtime rows) ·
+│                     dispatch.ts (the lookup, the provider span, the abort flatten)
+├── resolve/          resolve-task.ts · precedence.ts (the binding fold) · availability.ts · coherence.ts · heal.ts
+├── capability/       synthesize.ts (the evidence fold) · families.ts · floor.ts · sources/{advertised,
+│                     curated, measured} — the `declared` tier comes off the connection row, not a source dir
+├── catalog/          openrouter.ts · endpoint.ts · mirror.ts (the snapshot + TTL mirror)
+├── funnel/           resolve-chat.ts · resolve-embed.ts — (intent × capability) → wire knobs
+├── roles/            executor.ts · role-clients.ts · diagnostics.ts
+└── backends/         openai-compat/ · anthropic-messages/ · agent-sdk/ (+ session/) · local-light/ ·
+                      v4/ (the Vercel-AI-SDK v4 seam) · kit/ (the shared pure wire helpers)
 ```
 
-## Contract homes (one home, one direction)
+## 6. Contract homes (one home, one direction)
 
 | Shape | Home |
 | - | - |
-| `EmbedResult` / `RerankResult` / `ImageEmbedResult` / `SummarizeResult` | `@orb/contracts/providers` (DAG Layer 0 — lands BEFORE `role-clients`, which depends on them) |
-| `ResolvedCredential` (brand) / `CredentialHealth` / `CredentialSource` | `@orb/contracts/credentials` |
-| `ModelCapability` / `ChatApi` / `DEFAULT_*_MODEL_ID` | `@orb/contracts/connection` |
-| `RoleClients` (the bundle — pre-bound thunks, type-only, no credential in any signature) | `@orb/contracts/role-clients` |
-| Request shapes (`ChatRequest`, `AgentTurnRequest`, `ChatEvent`, `ChatError`, wire vocab, `BackendKey`) | `infra/providers/contract/` — infra-internal, behind the barrel; they carry `AbortSignal` + branded credentials and are NOT wire shapes |
+| every axis tuple (§1) + the capability schemas + the evidence ladder + derived policy | `@orb/contracts/inference` — ISOMORPHIC; the client renders the picker from it |
+| `EmbedResult` / `RerankResult` / `ImageEmbedResult` / `SummarizeResult` / `AccountCredits` / `EndpointInspection` | `@orb/contracts/providers` |
+| `ResolvedSecret` / `CredentialHealth` | `@orb/contracts/credentials` |
+| `RoleClients` (the pre-bound derive bundle, no credential in any signature) | `@orb/contracts/role-clients` |
+| `Resolved<Task>` (carries the SECRET), `ChatRequest`, `AgentTurnRequest`, `ChatEvent`, `ProviderError` | `packages/inference/src/contract/` — internal, behind the single entry |
+| `ResolvedConnectionView` (the credential-FREE projection a client or a bus may see) | `packages/contracts/src/inference/resolved.ts` |
 
-## The boot binder (the composition seam)
+The split is load-bearing: `ResolvedConnectionView` must stay importable by a bus contract, and the secret-bearing half must not (D16 fences secret-bearing shapes to `#credentials`).
 
-`entry/compose/role-clients.ts` mints the `RoleClients` bundle — **keep the bundle** (the gold-standard cross-feature hub), never per-role-op injection scatter. `bindRoleClientsForUser` resolves `connection.resolveRole({role})` PER ROLE (honoring `routing.roleDefaults.<role>` incl. the local-light arm) and binds each callable through the wired `ProviderExecutor`. There is NO vLLM-floor default and no `createDefaultRoleClients` — every context receives `roleClients` as a required entry-wired dep (a missing wire is a `tsc` error).
+## 7. The composition seam
 
-## The inference roles are multi-backend & hardware-tiered
+`packages/server/src/entry/compose/services.ts` constructs the runtime once and exposes `roleClientsFor(funderUserId)` — a PER-CALL bundle, not a boot-time binding. Each callable folds its task at call time, so a re-pointed binding governs the very next call with no restart and no invalidation hook to forget (`packages/inference/src/roles/role-clients.ts`). There is no `createDefaultRoleClients` and no floor default; a missing wire is a `tsc` error.
 
-Each role is a thin contract with sealed backends across three hardware tiers, picked per role by `resolveRole`:
+## 8. Capability synthesis
 
-| Role | local-light (transformers.js/ONNX, CPU or CUDA) | local-heavy (vLLM) | hosted (key) |
-| - | - | - | - |
-| embed | small models (BGE/MiniLM/…) — the "any box" tier *(own space)* | Qwen3-VL (multimodal, dual-lens) | OpenRouter Qwen-embed (SAME space as vLLM, guarded) · others |
-| rerank | ONNX cross-encoder *(own space)* | vLLM Qwen reranker | OpenRouter `rerank.rerank` (text-only; caller ids preserved, never raw indexes) |
-| imageEmbed | CLIP/SigLIP ONNX *(own space)* | Qwen3-VL | OpenRouter Qwen-VL (SAME space as vLLM) |
-| generateImage | — | — | OpenRouter image models |
-| summarize | *(not a model — a `chat` turn shaped, on whatever chat backend resolves)* | | |
+ONE fold in `EVIDENCE_TIERS` order — `declared → measured → advertised → curated → family-floor → kind-floor` (`packages/contracts/src/inference/evidence.ts`, folded by `packages/inference/src/capability/synthesize.ts`). Each tier is a PARTIAL that overrides only the fields it states; `family-floor` ORs in and never subtracts; `sampling` REPLACES because it is the stated SET a tier vouches for and a patch grammar cannot express a measured absence. `declared` wins over a dated measurement with a `declared_overrides_measured` warning naming the field — the user's box is the truth about the user's box.
 
-- `summarize` is a request shaper over the `chat` role everywhere — never a separate engine.
-- **Local compute is the OWNER's box resource (D17's second class).** The vLLM role credential is keyless/loopback — shared with authenticated principals by design. Unlike `max-pro-sub` (owner-only, consent-default-OFF, ban-prone + $), local compute carries no ban/wallet risk, only finite-hardware contention: non-owner use is allowed by default, governed by a per-member turn/request COUNT budget (transport), the supervisor concurrency limits + spawn mutex, and an owner throttle/disable knob — NOT a credential gate.
+## 9. The embedding-space invariant (lives ABOVE the package; constrains the embed surfaces)
 
-### The embedding-space invariant (lives ABOVE providers; constrains the embed surfaces)
+**The embed model DEFINES the vector space `(model, dim)`.** `embeddings` tags every vector with its space; `search`/memory compare ONLY within one space. The deployment's width is a task REQUIREMENT (`EMBED_SPACE_DIMS`, `TASK_DEFS.embed.requires.dims`), so a row that cannot produce it reads `requirement-unmet` instead of poisoning the space. Same model, different backend = the same space = a free local↔hosted switch only with the guard: pin the provider (no silent reroute to a different quant) and probe once (embed the same text both ways, assert cosine ≈ 1.0) — MRL truncation and L2 normalization must match. Different model/dim = its own space = a deliberate re-index workload, never a per-turn knob. The embed/imageEmbed surfaces carry `model` + `dimensions` through so `embeddings` can tag the space; this package never compares vectors (`@orb/kit/vector-math`'s dim-mismatch throw is the tripwire). Cluster boundary: [`Knowledge-Cluster.md`](Knowledge-Cluster.md).
 
-**The embed model DEFINES the vector space `(model, dim)`.** `embeddings` tags every vector with its space; `search`/memory compare ONLY within one space. Same model, different backend = the SAME space = free local↔hosted switch **only with the guard**: (a) pin the OR `provider` (no silent reroute to a different quant) and (b) a one-time probe (embed the same text both ways, assert cosine ≈ 1.0) — MRL truncation + L2 normalization must match. Different model/dim = its own space = a deliberate, rare re-index workload, never a per-turn knob. rerank/imageEmbed inherit it (a reranker pairs with the embed space; image↔image cosine works only inside a joint multimodal space). The embed/imageEmbed surfaces carry `model` + `dimensions` through so embeddings can tag the space; providers never compares vectors (the `@orb/kit/vector-math` dim-mismatch throw is the tripwire).
+## 10. Esoteric / load-bearing details (preserve exactly — the numbering is cited from code and from the inference program doc; do not renumber)
 
-## Spine intersections
+1. **The agent-sdk credential firewall is rebuilt EVERY turn and ordered for safety** (`packages/inference/src/backends/agent-sdk/env.ts`). ONE arm since 2026-09-19: the user's pasted `claude setup-token` rides `CLAUDE_CODE_OAUTH_TOKEN`, writable state lives in the user's OWN runtime dir (`CLAUDE_CONFIG_DIR = <USER_RUNTIME_DIR>/<owner>/claude`, never `~/.claude`), every other auth/identity knob is pinned `undefined`. Layering IS the security: host baseline (Claude/Anthropic namespace stripped, app secrets stripped) → runtime knobs → the user escape hatch (ALLOWLISTED to the Claude runtime knob namespace, then RESERVED-filtered) → **the auth pins LAST**, so nothing above can override them. Reorder these and a preset can repoint auth. The host-file arm, the OpenRouter skin and the first-party-key arm are DELETED — the subprocess is the subscription's alone.
 
-### §7.1 — the credential firewall
+2. **There is no born default and no floor: every resolution is a fold over the FUNDER's own rows.** `binding(actor, task) → binding(actor, ridesOn) → binding(funder, task) → binding(funder, ridesOn) → none`, one indexed lookup per hop (`packages/inference/src/resolve/precedence.ts`). `scope: "owner"` tasks (the vector space) ignore the actor ref — an owner has ONE space. A binding whose connection was deleted reads `no-connection` (SET NULL), never a dangling id. The neo bug this replaces was a sync default silently routing background roles somewhere the user never picked.
 
-The Max-sub path symlinks ONLY `.credentials.json` into an ephemeral `CLAUDE_CONFIG_DIR` and nulls the OR-skin trio; the OR-skin path uses an EMPTY ephemeral dir + the OR key with every host credential source nulled — the sub OAuth token is **structurally unreachable** from a paid spawn regardless of runtime credential precedence. `RESERVED_CLAUDE_ENV_KEYS` is applied AFTER the preset escape hatch, so a preset can never repoint auth/routing. The `max-pro-sub` owner gate is a credentials concern (the brand is unconstructable except after `requireOwner`, D17); providers never re-checks. The transitive hole is also closed: dep-cruiser `credential-firewall-openrouter-not-agent-sdk` (`reachable:true`) forbids any openrouter module reaching agent-sdk through ANY chain.
+3. **The agent-sdk seed-frame shape is load-bearing — the canon feed is WIRED.** A fresh `SessionStore` seeded from canon must use full frames (`type`/`uuid`/`parentUuid`/message + timestamp) — bare frames get "No conversation found"; an ASSISTANT-FIRST seed does not resume. The `init` frame carries a SHAPE GUARD that throws loudly at boot (`packages/inference/src/backends/agent-sdk/verify.ts`). The request carries `seed` (the model-visible pre-turn transcript, split from shaped history by the entry bridge — TOTAL since #1607: a history with no trailing user row seeds WHOLE and the prompt is the host-authored `AGENT_CONTINUATION_PROMPT_STUB`). `ensureSeededSession` RESUMES a recorded session only while its stored transcript still matches the seed (assistant runs concatenate — the SDK splits one reply per block; user runs join with `AGENT_PROMPT_TAIL_JOINER`) and otherwise reseeds a fresh DETERMINISTIC session (`seedSessionId(chatId, seed, salt)`), so a swipe or edit can never resume a transcript holding the rejected text, and byte-identical rebuilds keep the API-side prefix cache warm across reseeds AND process restarts (a durable store is an optimization, not a correctness need). The store is keyed by `sessionId` ONLY — the SDK derives `SessionKey.projectKey` from its sanitized spawn cwd, so honoring it would orphan our pre-spawn seeds. Backend-internal (`packages/inference/src/backends/agent-sdk/session/`); the domain never sees a session concept.
 
-### §7.2 — the homeless fourth nature
+4. **Absence fails CLOSED, in both directions, and says which absence.** A wire whose `needs` were unmet is not in the registry → `requireBackend` throws typed and availability reads the ACTIONABLE cause (`runtime-missing` for the agent-sdk wire with no `claude` executable, `unavailable` otherwise — `packages/inference/src/resolve/availability.ts`). A wire that IS built but lacks a method → `requireMethod` throws typed rather than a `TypeError` on an undefined call. No arm of either path has a default.
 
-The agent-sdk runtime config (isolation pins + reserved denylist + 3-mode firewall) is nature (c): backend-internal config of the agent-sdk strategy, called "env" only because it EMITS env vars. It stays in `backends/agent-sdk/env.ts` (D8). Generation params (`UserIntent`) are nature (d) — they ride the request and `resolve-chat` projects them per backend. The vLLM engine reads `VLLM_*` from `foundation/env`.
+5. **`cache_control` placement is split: the runner PLACES, the chat domain COMPUTES.** `computeCacheBreakpointPlacements` (`packages/inference/src/backends/kit/cache-control.ts`) turns a CONVERSATIONAL depth-from-end — counted in role switches over canon rows by `domain/chat/assembly/shape.ts::computeHistoryBreakpoint`, never in wire-array offsets — into the structured-block form, gated on `cacheMinTokens`, and places a PAIR (`depth`, `depth+2`) so a hit survives Anthropic's 20-block lookback on a long conversation. A requested depth the conversation cannot reach places nothing and says so loudly (`provider.cache_depth_unreachable`) — D41, no silent degrade. Two wire facts are load-bearing: an UNKNOWN ttl makes OpenRouter answer 200 and silently drop the whole block (~10x the cost of a cached turn), so the ttl allowlist is a belt; and `order` alone does not pin a provider (`allow_fallbacks` defaults TRUE, and a probe caught a turn walking Anthropic → Bedrock → Azure → Google, re-billing the prefix at every non-caching hop), so `effectiveProviderRouting` pins `order` + `allow_fallbacks: false`. **The agent-sdk path caches DIFFERENTLY** — the SDK owns the wire body, so the runner cannot place breakpoints on it. Dynamic system context routes per a resolved channel (`resolveDynamicContext` in the funnel, `routeDynamicContext` in `packages/inference/src/backends/agent-sdk/runner.ts`): `system-block` joins static+dynamic into ONE `systemPrompt` (re-writing the whole system block every scene change); `message-tail` sends only the static half and injects the dynamic half through a `UserPromptSubmit` hook's `additionalContext` (`dynamicContextOptions`), cache-safe by construction. `message-tail` is gated on the model's `midConversationSystem` capability and an off-capability request DEMOTES. SDK caching is CONTENT-keyed, not session-keyed — which is what makes deterministic reseeds and cross-restart resume affordable with no durable store. The measured per-channel matrix is frozen in [`../history/tier-3-archaeology-record.md`](../history/tier-3-archaeology-record.md); **the hand-run probe that produced it was deleted with the package extraction and has no successor on the tree** — re-running it after an SDK bump means rebuilding it first.
 
-### §7.3 — the wire-schema seam
+6. **A foreign connection id and a missing one are ONE indistinguishable refusal — kind AND text.** `connectionNotFoundMessage` is a single literal shared by the resolver's owner fence and the runtime root's id-taking reads (`packages/inference/src/resolve/resolve-task.ts`), because `invalid` is the one error arm the transport lets carry its own message to the caller, so two distinguishable refusals would be an existence oracle for any id a caller can type. The distinction survives INWARD: the owner-mismatch arm records a `securityEvent` (a binding naming a stranger's row is a domain bug no caller can provoke); the caller-supplied-id belt records nothing, or an authenticated stranger could fill the security log by typing ids. The domain door pre-gates with the same refusal (`domain/connection/contract/errors.ts::ConnectionNotFoundError`); this belt must never answer more precisely than the door it backs.
 
-The OR catalog parse and the chat/responses wire schemas (`backends/kit/wire-schemas.ts`) are lenient zod parses at the HTTP boundary — the zod-parse-at-the-wire pattern. They stay infra (vendor wire shapes); connection owns the parsed snapshot.
+7. **`detectModelFamily` anchors reject third-party forks, and the anchor is DELIBERATELY duplicated.** `/^(anthropic\/)?claude[-/]/i` matches bare and `anthropic/`-prefixed Claude but rejects `some-org/claude-fork`, so an alien endpoint whose id merely contains "claude" never receives Anthropic-only `cache_control` or the Claude family floor. The same anchor is duplicated on purpose in `packages/inference/src/backends/kit/cache-control.ts::isAnthropicModel` (it gates the WIRE send) beside the synthesis copy in `packages/inference/src/capability/families.ts` — two homes, both file headers naming the other. **No gate enforces this pair**: the `inference-model-regex-fence` those two headers cite does not exist on the tree, so the honesty mechanism is the header cross-reference and nothing else.
 
-### §7.5 — the sealed dispatch axes
+8. **The reasoning guard is API-level and lives ONLY in the funnel.** `packages/inference/src/funnel/resolve-chat.ts` owns reasoning gating, the effort clamp, the adaptive/budget guard, sampling capability-gating, the output clamp, the dynamic-context channel and the reply-images decision — never re-derived per backend, and its second consumer is `preset.resolveEffective` so the editor projects exactly what the next turn sends. Every drop is LOUD (D41): a budget handed to an `adaptive` or `effort` model 400s live, so the funnel drops it and emits `adaptive_budget_dropped` / the effort-mode warning. Downstream, an endpoint that rejects `reasoning.effort:"none"` gets a strip-and-replay ONCE, pre-commit-safe (`packages/inference/src/backends/openai-compat/chat.ts`), and the APPLIED effort is read back off the options the LAST attempt built, never recomputed from the knobs (`packages/inference/src/backends/kit/applied-effort.ts`).
 
-- **`BackendKey` (`agent-sdk | openrouter | vllm | local-light | custom-openai` — five members since the anth-direct purge; the `BACKEND_KEYS` tuple is the truth)** — derived inside via `deriveRunner(api, source)` / `backendForSource`; never leaves the tier (`ResolvedConnection` carries `backend`-opaque vocab, never `runner`/`family`).
-- **`credential.source`** — the non-chat dispatchers switch on it; unsupported pairings throw typed. `local-light` serves the three derive roles only (its backend simply lacks the other methods; `requireRoleImpl` throws typed not-supported).
-- Adding a backend = the source arm + the runner arm + the credential arm simultaneously; `assertNever` makes a missed arm a `tsc` error. *Gates: NONE — all four gates this line once named (`providers-runner-seal`, `infra-strategy-isolation`, `vllm-surface-isolation`, `providers-public-surface-only`) are gone; the last, `providers-runner-seal`, was RETIRED 2026-09-20 with the `@orb/inference` §12 extraction audit because its four sealed symbols and their declaration home no longer exist. The seal is RESOLVE-TIME now: the backend-dispatch vocabulary lives in `packages/inference/src/registry/backends.ts`, which `@orb/inference`'s exports map does not expose, so a server-tier import of it fails to resolve at `tsc` AND at dependency-cruiser. Nothing in the rest of this §7.5 bullet survives the extraction either — see the BUILD-STATE RIDER above.*
+9. **`summarize` and `structured` are request SHAPERS over a chat-capable wire, never separate engines.** Both are ordinary tasks on `WIRE_DEFS[wire].serves`, implemented by the same backends that serve `chat` (`packages/inference/src/backends/openai-compat/batch.ts`, `packages/inference/src/backends/anthropic-messages/batch.ts`, `packages/inference/src/backends/agent-sdk/summarize.ts`); `structured` returns the SAME `SummarizeResult` with schema-conforming JSON in each item's `text`. `structured` is a METHOD on the bundle, never sniffed off an option, and its wire VEHICLE is decided where both the ask and the resolved capability are in hand — `auto` ⇒ the enforcing `response-format` when the model advertises structured output, else the servable-everywhere forced tool (`packages/inference/src/roles/role-clients.ts`).
 
-## Esoteric / load-bearing details (preserve exactly)
+10. **An `auth: endpoint` row is FULLY user-declared — nothing is baked.** The user supplies the base URL and auth, the `features` overrides (prefill arm, strict-JSON posture, effort field, sleep/wake paths, rerank path, reasoning keys), the model profile via `declared` capability, the extra body fields (`extras`), and the request/response transforms (`ConnectionTransport`: headers, an include/exclude body pair applied as the endpoint's final word, and a dot-path `responseMap` that reshapes a non-OpenAI reply into one the shared reducer can read). Folded once at resolve — `wire default ← provider row ← connection.declared.features`. `extras` is open by definition and its ratchet is the belt denylist applied on write AND read, MODELLED WINS (D143(b)/D156). The endpoint's whole behavior is the user's config, so it ripples into nothing.
 
-1. **The agent-sdk credential firewall is rebuilt EVERY turn and ordered for safety.** Layering: host baseline (minus secrets) → runtime knobs → user escape hatch → **auth firewall LAST**; the reserved-keys filter runs on the escape hatch BEFORE the auth overlay. Reorder these and the sub token can leak to a paid endpoint. The `CLAUDE_CODE_DISABLE_*` pins were each verified against the bundled runtime binary — they are NOT grep-able in the JS wrapper; do not "clean up" names that look unused. `disallowedTools` removes the cowork bundle that `tools:[]` does NOT. (`backends/agent-sdk/env.ts` is the authority.)
+11. **The embedding-space invariant constrains the embed surfaces, and the local-light dtype is EXECUTION truth.** §9 states the invariant. Its sharp edge in this package: a `local-light` embedding connection inherits the deployment's served dtype, and an explicit `declared.embedding.dtype` that disagrees is REFUSED at resolve before any writer, reader or purge can act on a space tag the encoder does not produce (`withLocalLightEmbedDtype`, `packages/inference/src/resolve/resolve-task.ts`). The dtype is part of the space tag (`localLightEmbedSpaceTag`).
 
-2. **The binder honors `routing.roleDefaults.<role>` per role — no vLLM floor.** `bindRoleClientsForUser` resolves each role via `connection.resolveRole` at bind time; a sync vLLM-floor default (neo's bug) silently routed workload roles to vLLM even when the user pinned OpenRouter. Invariant #6 is the gate.
+## 11. Invariants (each names its enforcer)
 
-3. **The agent-sdk seed-frame shape is load-bearing — the canon feed is WIRED.** A fresh `SessionStore` seeded from canon must use full frames (`type`/`uuid`/`parentUuid`/message + timestamp) — bare frames get "No conversation found"; an ASSISTANT-FIRST seed does not resume (greetings get the user-stub prefix). The `init` frame carries a SHAPE GUARD (missing `session_id`/`apiKeySource` throws loudly at boot). The live wiring: the agent-sdk request arm carries `seed` (the model-visible pre-turn transcript, split from shaped history by the entry bridge — TOTAL since #1607: a history with no trailing user row seeds WHOLE and the prompt is the host-authored `AGENT_CONTINUATION_PROMPT_STUB`, so no turn on this wire is ever a flattened transcript string); `SessionCache.ensureSeededSession` RESUMES the recorded session only while its stored transcript still matches the seed (merged role-runs: assistant runs concatenate — the SDK splits one reply per block; user runs join with the contract `AGENT_PROMPT_TAIL_JOINER`) and otherwise reseeds a fresh DETERMINISTIC session (`seedSessionId(chatId, seed, salt)`) — a swipe/edit can never resume a transcript holding the rejected text, and byte-identical rebuilds keep the API-side prefix cache warm across reseeds AND process restarts (a durable store is an optimization, not a correctness need). The store is keyed by `sessionId` ONLY — the SDK derives `SessionKey.projectKey` from its sanitized spawn cwd, so honoring it would orphan our pre-spawn seeds; session uuids are globally unique, making the key safe. Backend-internal (`agent-sdk/session/`); the domain never sees a session concept — the request seed is chat-domain vocabulary (role + content BLOCKS derived from `ChatContentPart`; a tool exchange rides as a real `tool_use`/`tool_result` pair when both halves are present, adjacent and parseable, and degrades to announced text when they are not — #1605, and the SDK spelling is minted only in `session/frames.ts`).
+1. **A domain calls the runtime front door, never a backend.** No per-wire dispatch arm in any domain. *(resolve-time: `packages/inference/package.json` exports exactly `"."`, so a deep import fails `tsc` TS2307 — plus the `inference-cake` dep-cruiser rule.)*
+2. **Backends are sealed — no backend imports another.** Cross-backend work goes through `contract/` or the pure `backends/kit/`. *(REVIEW-ONLY today: the `infra-strategy-isolation` dep-cruiser rule that enforced it is still in `.dependency-cruiser.cjs` but scoped to the deleted server path — see §12. A prose-only boundary is a wish; this one needs its rule re-pointed at `packages/inference/src/backends/`.)*
+3. **The backend-dispatch vocabulary never leaves the package.** `BACKEND_DEFS`, `ProviderBackend`, `requireBackend` are unreachable from `server`. `wire` itself is PUBLIC (it is on `ResolvedConnectionView` and the client renders the picker from it) — the seal is on the MAP, not the word. *(resolve-time, same mechanism as #1.)*
+4. **The package's public surface is the single `.` entry.** Everything a consumer may use is re-exported by `packages/inference/src/index.ts`. *(resolve-time.)*
+5. **The agent-sdk firewall is unleakable and unconstructable-around.** Reserved keys filtered before the auth overlay; the auth pins last; the pasted token is the only credential the spawn can see. *(test-time: `tests/inference/backends/agent-sdk/env.test.ts`.)*
+6. **No born default — every task resolves through the funder's own bindings or answers `no-connection`.** *(test-time: `tests/inference/resolve/resolve-task.suite.test.ts`, `tests/inference/roles/role-clients.suite.test.ts`.)*
+7. **One backend per wire, and `serves` is DATA pinned against the implemented methods.** *(test-time: `tests/inference/registry/backends.test.ts` — it also pins that a skipped wire is absent and named.)*
+8. **The task contract is thin and stable — adding a wire changes no consumer.** *(compile-time: `Record<Wire, …>` and `assertNever` make a missed arm a `tsc` error.)*
+9. **The funnel READS the capability and never authors it.** No capability synthesis inside any runner or the funnel; synthesis has one home. *(compile-time: `resolveChat(intent, capability)` takes the descriptor as an argument.)*
+10. **`vector-math` is `kit`, not this package.** *(resolve-time + the `kit-purity` dep-cruiser rule.)*
+11. **The isomorphic vocabulary is `@orb/contracts/inference`; `@orb/inference` is NODE-ONLY.** The browser renders the picker from contracts. *(dep-cruiser `browser-no-inference`.)*
 
-4. **The vLLM supervisor lifecycle is a measured matrix.** Death-coupling is a pipe-watchdog (`setsid … & cat; kill`) holding a stdin pipe — ANY server death (incl. SIGKILL) kills the engine's process GROUP. Orphan-reap finds EngineCore workers by `/proc/<pid>/cwd === repoRoot` (the only surviving marker). ONE spawn mutex serializes boot + restarts (concurrent boots gave embed a NEGATIVE KV budget). The breaker (3 restarts / 10m → `failed`, half-open 15m) and `pendingSpawn` flag are load-bearing. `decideTick`/`breakerAllows`/`findOrphanedEngineCores` are PURE cores — keep them unit-testable.
+## 12. Known gaps (stated, not invented)
 
-5. **`cache_control` placement is split: the runner PLACES, the chat domain COMPUTES.** `placeHistoryCacheBreakpoint` converts the message at `historyCacheBreakpointFromEnd` (the offset the chat pipeline computed) into the structured-block form, gated on `cacheMinTokens`. Offset-from-end is robust to the runner's empty-filter + front-drop fit. PER-BLOCK on the static system block pins the cache at the stable prefix (a top-level directive pins it at the volatile newest message → 0 cache writes, measured). Guaranteed Anthropic caching uses chat-completions; the responses runner's top-level `cacheControl` is a measured no-op kept for forward-compat.
-
-   **The agent-sdk path caches DIFFERENTLY — the SDK owns the wire body, so the runner can't place breakpoints on it.** Dynamic system context instead routes per a resolved `dynamicContextChannel` (`routeDynamicContext`, `backends/agent-sdk/runner.ts`): `system-block` joins static+dynamic into ONE `systemPrompt` string (re-writes the whole ~12.7k system block every scene change); `message-tail` (LIVE) sends only the static half as `systemPrompt` and injects the dynamic half through a `UserPromptSubmit` hook's `additionalContext` (`dynamicContextOptions`) — cache-safe by construction, it never touches the prefix. `message-tail` is gated on the model's `midConversationSystem` capability; an off-capability `dynamicContext:'hook'` request demotes to `system-block`. The SDK caching is CONTENT-keyed, not session-keyed — a byte-identical fresh session or deterministic reseed cache-reads the prior prefix (what makes per-speaker reseeds + cross-restart resume affordable with no durable store). The measured probe matrix (per-channel cacheRead/Write, the dead `[static,dynamic]`-array and raw-`api_system`-frame channels, pinned to SDK/model versions) is frozen in `history/tier-3-archaeology-record.md`; reproduce with the hand-run `scripts/probes/sdk-cache-probe.ts` (`pnpm sdk:cache-probe`, re-run after every SDK bump — it prints per-turn cacheRead/cacheWrite).
-
-6. **`getChatModel` 3-stage prefix-match (in `domain/connection/catalog/`, preserve).** OR uses version-only ids; the curated catalog dated form. Stage 3 prefix-matches with a boundary check (next char `-`). Exact-match-only silently falls Haiku through to synthesis with the wrong profile.
-
-7. **`detectModelFamily` anchors reject third-party forks.** `^(?:anthropic\/)?claude[-/]` matches bare + `anthropic/`-prefixed Claude but rejects `some-org/claude-fork` → an alien backend containing "claude" never receives Anthropic-only `cache_control`. The same anchor is deliberately duplicated in `backends/kit/cache-control.ts`'s `isAnthropicModel` (it gates the wire send).
-
-8. **The Opus 4.8 adaptive/budget conflict is API-level, enforced in the funnel.** `enabled + budget_tokens` to an adaptive model → live 400; `resolve-chat` drops the budget (emits adaptive + a warning). Mandatory-reasoning endpoints 400 on `effort:'none'` at request-open → the runners strip and replay ONCE (pre-commit-safe). *(The OR-responses `effort`/`max_tokens` XOR that used to sit beside these has NO enforcement point any more and needs none: `responses` was retired from `CHAT_APIS` by owner ruling 2026-09-20 and its builder `effortToResponsesReasoning` deleted with the rest of `backends/kit/reasoning-budget.ts`. Reviving the api means wiring `@ai-sdk/openai`'s `.responses()` transport, and the XOR comes back with it.)*
-
-9. **`summarize` is a request shaper over `chat`, not a separate engine.** The vLLM surface maps the batch contract onto `chat-completion` with bounded workers feeding vLLM's continuous batcher; OR summarize runs sequential (per-key rate limits).
-
-10. **`custom-byo` is FULLY user-declared — nothing baked.** The user declares all four: endpoint+auth, request mappings, the **model profile** (via `ModelCapability` — the runner reads `req.capability`, never a baked window/tier/thinking constant), and the **response mappings**. The "Test endpoint" inspector sends the ACTUAL shaped request and shows a redacted request + raw response. The backend's entire behavior is the user's config, so it ripples into nothing.
-
-11. **The embedding-space invariant constrains the embed surfaces** (see the section above): surfaces carry `model` + `dimensions` through; providers never compares vectors; the vector-math dim-mismatch throw is the tripwire if a space swap slips through.
-
-## Invariants (gated)
-
-1. **The domain calls a role, never a backend.** No per-backend dispatch arm in any domain; the chat domain has ONE turn path. *(dep-cruiser: domains import the providers barrel only; `backends/**`/`vllm/**` deep imports are RED.)*
-2. **Backends are sealed — no backend imports another.** Cross-backend work only via the contract or `backends/kit/`. *(`infra-strategy-isolation` + the transitive `credential-firewall-openrouter-not-agent-sdk` reachability rule.)*
-3. **`runner`/`family`/`protocol` never leave `infra/providers`.** *(compile-time + grep gate: `runner`/`family` never appear in `domain/connection/**`.)*
-4. **`providers/contract/*` is reachable only through the barrel.** *(`providers-public-surface-only`.)*
-5. **The agent-sdk firewall is unleakable + unconstructable-around.** Reserved-keys before the auth overlay; auth firewall last; `max-pro-sub` owner-gated upstream. *(test-time: the OR-skin spawn can never see the sub token; a preset cannot set/strip a reserved key.)*
-6. **All role connections honor `routing.roleDefaults.<role>` — no hard-pin.** The binder resolves per role. *(test-time.)*
-7. **vLLM is its own multi-role engine, not a chat-backend peer.** Surfaces independent; lifecycle one owner. *(`vllm-surface-isolation`.)*
-8. **The chat-turn contract is thin + stable.** Adding a backend changes no consumer. *(`assertNever`-exhaustive dispatch.)*
-9. **`resolve-chat` reads the descriptor, never authors it.** No capability synthesis inside any runner or the funnel. *(compile-time: the funnel takes an injected `ModelCapability`.)*
-10. **`vector-math` is `kit`, not infra.** *(resolve-time + `kit-purity`.)*
-11. **`DEFAULT_*_MODEL_ID` constants are off the providers barrel** (they live in `@orb/contracts/connection` — the foundation→infra edge stays dead). *(resolve-time.)*
+- **The agent-sdk behavioral probe fleet is GONE.** `scripts/probes/sdk-*.ts` (cache, session, hook-wire, tool-seed, …) and their `pnpm sdk:*-probe` aliases were deleted in the extraction commit `146f71cd5`; the measured matrices they produced survive only as frozen records in `../history/`. Any claim in §10 item 3 or 5 that says "re-run after an SDK bump" currently has no runnable instrument.
+- **Four dep-cruiser rules are DEAD NO-OPS that read as enforcement.** `providers-public-surface-only`, `vllm-surface-isolation`, `credential-firewall-openrouter-not-agent-sdk` and the providers half of `infra-strategy-isolation` are all scoped to `packages/server/src/infra/providers/**` in `.dependency-cruiser.cjs`, a path that no longer exists — they match nothing and pass forever. Three of them are what the deleted revision of this file cited as invariants #2/#4/#7. Re-point or retire them; until then, invariant 2 has no enforcer.
+- **`inference-model-regex-fence` does not exist.** Two code headers cite it (`packages/inference/src/capability/families.ts`, `packages/contracts/src/inference/capability/reads.ts`); no gate of that name is on the tree. The two-homes rule for the Anthropic anchor is review-enforced only.
