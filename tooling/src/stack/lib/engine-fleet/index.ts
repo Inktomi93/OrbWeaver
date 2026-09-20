@@ -10,10 +10,8 @@ export { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } 
 export { engineBaseUrl } from "./engine-url.ts";
 export { VLLM_ENGINES } from "./engines.ts";
 export { engineDeploymentEnv, engineLaunchEnvFloor, fleetEnv, processEnvSnapshot } from "./env.ts";
-export type { AutoSleepState, EngineCapacityMetrics, EngineMetrics, WakeDecision } from "./fleet-control.ts";
+export type { WakeDecision } from "./fleet-control.ts";
 export {
-  advanceAutoSleep,
-  capacityWarnings,
   clearHold,
   clearStopped,
   decideWake,
@@ -24,12 +22,8 @@ export {
   fleetRunDir,
   getIsSleeping,
   holdMarkerPath,
-  initialAutoSleepState,
-  isEngineIdle,
   isHeld,
   isStopped,
-  parseEngineCapacity,
-  parseEngineMetrics,
   postSleep,
   postWakeAndAwait,
   stoppedMarkerPath,
@@ -37,6 +31,8 @@ export {
   writeHold,
   writeStopped,
 } from "./fleet-control.ts";
+export type { AutoSleepDecision, AutoSleepState, EngineCapacityMetrics, EngineMetrics } from "./fleet-metrics.ts";
+export { advanceAutoSleep, capacityWarnings, initialAutoSleepState, isEngineIdle, parseEngineCapacity, parseEngineMetrics } from "./fleet-metrics.ts";
 export { countGpus, detectGpu } from "./gpu.ts";
 export type { ObservedEngineProcess } from "./proc-observe.ts";
 export {
