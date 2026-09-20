@@ -868,8 +868,8 @@ const compactionInFlight = new Set<ChatId>();
  *
  *  API-AXIS GATED (owner ruling): compaction GENERATION fires for any `connection.api === "agent-sdk"` chat —
  *  the runner axis, NOT a backend/source name (zero backend-name branches). It rebuilds the marker via the chat's
- *  OWN model through the injected `runCompaction` → `quietGenerate`. Stateless apis (chat-completions/responses)
- *  NEVER generate a marker — the history-budget fit hard-cap is their only trim. The STORED marker is durable chat
+ *  OWN model through the injected `runCompaction` → `quietGenerate`. Stateless apis (chat-completions/
+ *  anthropic-messages) NEVER generate a marker — the history-budget fit hard-cap is their only trim. The STORED marker is durable chat
  *  state that CARRIES FORWARD on an api swap (the read side is api-moded but source-agnostic; only WRITE is gated).
  *
  *  TRIGGER (either): (1) total context usage ≥ the managed pct of the effective ceiling (PROVIDER-truth usage
