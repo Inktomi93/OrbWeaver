@@ -72,6 +72,19 @@ export class NoConnectionError extends ProviderError {
   }
 }
 
+/** THE ONE refusal TEXT every id-taking belt in this package answers a foreign or absent connection id with —
+ *  `connectionFor` below and `requireOwned`/`ownedConnection` in the package root. It is a single literal on
+ *  purpose: the two FACTS it stands for ("that row is someone else's" and "there is no such row") must be one
+ *  indistinguishable answer, or the pair is an existence oracle for any id a caller can type. The kind is
+ *  already collapsed at both belts, but `invalid` is the one arm the transport lets carry its OWN message to
+ *  the caller (`transport/trpc/error-mapping.ts`), so the WORDS are half of the answer — and sharing them
+ *  across both belts also means a caller cannot tell which belt refused. The distinction survives INWARD, in
+ *  the `securityEvent` the owner-mismatch arm records. Same rule, same wording as the domain door this backs:
+ *  `domain/connection/contract/errors.ts::ConnectionNotFoundError`. */
+export function connectionNotFoundMessage(connectionId: UserConnection["id"]): string {
+  return `connection ${connectionId} not found`;
+}
+
 /** Which kind this row's model is — never guessed from the task alone when any evidence states one. */
 function kindOf(ctx: ResolverContext, args: { readonly task: Task; readonly provider: ProviderDef; readonly connection: UserConnection }): ModelKind {
   const { task, provider, connection } = args;
@@ -136,13 +149,18 @@ async function connectionFor(ctx: ResolverContext, args: ResolveArgs): Promise<U
   }
   const connection = await ctx.deps.connections.get(connectionId);
   if (connection === null) {
-    throw new NoConnectionError(`connection ${connectionId} no longer exists`);
+    throw new NoConnectionError(connectionNotFoundMessage(connectionId));
   }
   if (connection.ownerId !== funder) {
     // A binding may only point at a row its derived owner holds — enforced at the writer verb; reaching here
     // is a domain bug, and serving it would spend a stranger's key. Refuse and record.
     ctx.deps.securityEvent?.("connection_owner_mismatch", { task: args.task, connectionId, funder, owner: connection.ownerId });
-    throw new NoConnectionError(`connection ${connectionId} is not the funder's`);
+    // THE SAME TEXT the missing-row arm above throws, on purpose. `args.connectionId` is caller-supplied, so
+    // "this row exists but is not yours" and "no such row" must be one indistinguishable answer or the pair is
+    // an existence oracle — the `kind` was already collapsed (both are `NoConnectionError`), but `invalid`
+    // carries its OWN message to the caller at the transport, so the message is half of the answer. The
+    // distinction survives INWARD in the `securityEvent` above, which is where an operator wants it.
+    throw new NoConnectionError(connectionNotFoundMessage(connectionId));
   }
   return connection;
 }

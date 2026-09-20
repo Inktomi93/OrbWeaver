@@ -45,10 +45,12 @@ export function createCapabilities(ctx: ConnectionContext): ConnectionService["c
     // The OWNER BELT runs HERE, before the runtime read — the same pre-gate every other id-taking verb in
     // this domain runs (`diagnostics.ts::resolveRow`, `catalogs.ts::catalogModels`, `bindings.ts`). The
     // runtime holds its own belt (`@orb/inference` `ownedConnection` → `requireOwned`) and keeps it as
-    // defense in depth, but it throws a `ProviderError`, which no domain class covers: it reached the wire
-    // as an unmapped 500 whose MESSAGE differs for "not yours" and "no such row" — an existence oracle for
-    // a foreign id, and a fault log an authenticated stranger could raise at will (caught by the transport
-    // cross-tenant sweep, 2026-09-20). `ConnectionNotFoundError` is the domain's one refusal for both.
+    // defense in depth, but it throws a `ProviderError`, which no domain class covers, so it reaches the
+    // wire as a raw provider failure rather than this domain's curated 404. It USED TO answer "not yours"
+    // and "no such row" differently — an existence oracle for a foreign id (caught by the transport
+    // cross-tenant sweep, 2026-09-20); that belt now collapses both arms itself, so the two layers agree
+    // and neither depends on the other for confidentiality. `ConnectionNotFoundError` is the domain's one
+    // refusal for both, and it is what a client keys on.
     if ((await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId)) === null) {
       throw new ConnectionNotFoundError(params.connectionId);
     }
