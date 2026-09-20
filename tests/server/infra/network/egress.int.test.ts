@@ -8,19 +8,36 @@
 // The rejection is the branch that also fires `securityEvent("egress_blocked")`. Offline + deterministic:
 // a literal resolves to itself, so nothing is ever dialed.
 //
-// INTERNAL-BACKEND AUTO-ALLOW (PORT-SCOPED): the box's own backends are auto-allowlisted by
-// installEgressFirewall at their EXACT host:port — vLLM engines 127.0.0.1:8701/8702/8703, declared internal
-// intent like the OIDC issuer. Those are proved
-// NOT-SSRF-blocked below: an allowed loopback target with nothing listening yields a plain connection error
-// (ECONNREFUSED), NOT our SSRF_BLOCKED signal. Least-privilege: a NON-configured loopback port (e.g.
-// 127.0.0.1:22) stays BLOCKED. This does not touch the safeFetch path, whose unconditional private-range
-// denial never consults the allowlist.
+// ── THE F12 DEPLOYMENT ALLOWLIST (rewritten 2026-09-20, inference program §14 fork F12) ──────────────────
+// What this file pinned until today was the RETIRED admission model: an env-declared internal-backend bypass
+// (`internalBackendHostPorts`, keyed on `VLLM_ENGINE_HOST` + the three engine ports) and, beside it, an
+// owner-ROW derivation that published whatever endpoints the single `users.role='owner'` row had saved. Both
+// were a one-box premise — they assumed one privileged human whose LAN is the LAN — and both are DELETED.
+// There is no vLLM-named code path, no `VLLM_*` key in the server schema, and no principal anywhere near the
+// guard.
+//
+// The replacement is ONE deployment setting, `AppSettings.privateEndpointAllowlist` (env floor
+// `PRIVATE_ENDPOINT_ALLOWLIST`, DB override wins), published onto this guard at boot and after every
+// Governance write (`entry/compose/services.ts`). A private/loopback/link-local target is admitted IFF its
+// host — or its literal/resolved ADDRESS, for a CIDR entry — is in that set; a public target rides the
+// unchanged SSRF guard. THREE properties this file owes, because each is a way the model can silently rot:
+//   1. It is per-DEPLOYMENT, never per-principal. `endpointAdmission(baseUrl)` and the connector take a URL
+//      and nothing else — there is no seam an "…unless they are the owner" branch could hide in. The
+//      owner-vs-member half is proven where principals EXIST, at the write seam that calls this:
+//      tests/server/domain/connection/verbs/connections.int.test.ts ("per-DEPLOYMENT, not per-principal").
+//   2. It is HOST/CIDR-scoped, NOT host:PORT-scoped. The retired internal-backend rule admitted exactly
+//      three ports; an F12 entry admits its host at EVERY port. That is the widening an operator buys, and
+//      it is pinned below so the next person to edit the allowlist meets it as a stated fact.
+//   3. Nothing the operator can spell reaches link-local/multicast/6to4/Teredo (`NEVER_ADMISSIBLE_RANGES`),
+//      enforced twice — on the literal at publish, and on the RESOLVED address at the DNS gate.
+// The safeFetch path is untouched by all of it: its unconditional private-range denial never consults the
+// allowlist (the `ownerConfiguredEndpoint` class is the one named opt-out, compose-bound, not caller-suppliable).
 
 import process from "node:process";
-import { fetchOpenAiModels, installEgressFirewall } from "@orb/server/infra/network";
+import { endpointAdmission, fetchOpenAiModels, installEgressFirewall, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
-import { afterAll, beforeAll, describe, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // Capture/restore the process-global dispatcher through undici's PUBLIC accessors. Restoring is MANDATORY:
@@ -33,6 +50,10 @@ import { expect, test } from "../../../support/fixtures.ts";
 //   reads, so the old symbol-poking restore silently became a no-op and leaked the firewall into every
 //   later test in the worker. Never hardcode the slot; the accessors are the contract.
 //   (The handoff those accessors depend on is itself guarded by dispatcher-contract.suite.int.test.ts.)
+//
+// The PUBLISHED ALLOWLIST is module state and needs the same discipline: every arm republishes the whole
+// set (that IS the production contract — a removed entry closes by its ABSENCE from the next publish) and
+// the teardown publishes EMPTY, so no arm can widen a sibling suite's guard.
 
 // Flatten the error → `.cause` chain into one string: undici wraps a connect rejection as a "fetch failed"
 // TypeError whose cause carries our SSRF_BLOCKED signal.
@@ -46,16 +67,31 @@ function errorChainText(err: unknown): string {
   return parts.join(" <- ");
 }
 
+/** "BLOCKED" iff OUR connector rejected the dial; "attempted" for any other outcome (ECONNREFUSED on an
+ *  admitted-but-dead port is the normal one) — i.e. the firewall let it through. Nothing is ever dialed for
+ *  a blocked target: the refusal happens before the socket. */
+async function dialVerdict(url: string): Promise<"BLOCKED" | "attempted"> {
+  const err: unknown = await fetch(url).then(
+    () => null,
+    (e: unknown) => e,
+  );
+  return errorChainText(err).includes("SSRF_BLOCKED") ? "BLOCKED" : "attempted";
+}
+
 describe("installEgressFirewall — boot-installed global SSRF dispatcher (s7 HIGH regression)", () => {
   // Importing `@orb/server/infra/network` above already loaded undici + set its default dispatcher.
   const original: Dispatcher = getGlobalDispatcher();
   beforeAll(() => {
     // EGRESS_FIREWALL defaults to "true" (env floor) exactly as production boot sees it → the installer
-    // swaps in the private-IP-rejecting dispatcher.
+    // swaps in the private-IP-rejecting dispatcher. The allowlist is published EMPTY: that is a fresh
+    // MULTI-USER install's born value, and it is also what a replica that has not published yet holds —
+    // the guard fails CLOSED, admitting nothing.
     installEgressFirewall();
+    publishPrivateEndpointAllowlist([]);
   });
   afterAll(() => {
     setGlobalDispatcher(original);
+    publishPrivateEndpointAllowlist([]);
   });
 
   test("blocks the cloud-metadata link-local LITERAL (169.254.169.254) — the connector gate, never dialed", async () => {
@@ -64,36 +100,32 @@ describe("installEgressFirewall — boot-installed global SSRF dispatcher (s7 HI
     expect(errorChainText(err)).toContain("SSRF_BLOCKED");
   });
 
-  test("still blocks an IPv6 loopback LITERAL ([::1]) — NOT an internal backend, stays SSRF-blocked", async () => {
+  test("still blocks an IPv6 loopback LITERAL ([::1]) while the allowlist is empty", async () => {
     const err = await fetch("http://[::1]/x").catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(errorChainText(err)).toContain("SSRF_BLOCKED");
   });
 
-  // The box's OWN vLLM engines are hardcoded http://127.0.0.1:<VLLM_*_PORT> (engine/client.ts) — port-scoped
-  // allowlisted so the server's own inference isn't SSRF-blocked. Proof: the connect is ATTEMPTED (nothing
-  // listens on this port in the test worker → ECONNREFUSED/timeout), so the failure is NOT our SSRF_BLOCKED
-  // signal. The env defaults are 8701/8702/8703 (foundation/env floor, as the runner sees them).
-  test("auto-allows the exact vLLM backend host:ports (127.0.0.1:8701/8702/8703) — connect attempted, not SSRF-blocked", async () => {
-    const results = await Promise.all(
-      [8701, 8702, 8703].map(async (port) => [port, errorChainText(await fetch(`http://127.0.0.1:${port}/models`).catch((e: unknown) => e))] as const),
-    );
-    for (const [port, txt] of results) {
-      expect(txt, `127.0.0.1:${port}`).not.toContain("SSRF_BLOCKED");
-    }
+  // The F12 receipt an empty set owes, and the one the retired model got WRONG: with nothing admitted, the
+  // box's own loopback backend is refused like any other private target. Under the deleted rules this exact
+  // URL was auto-allowed — by the env-declared engine ports, or by the owner having saved it — which is the
+  // whole reason both were retired. There is no principal in the call, and none in `endpointAdmission`'s
+  // signature: an owner asking is byte-identical to a member asking.
+  test("a fresh MULTI-USER install (born EMPTY) refuses the box's own loopback backend — no principal is consulted", async () => {
+    expect(endpointAdmission("http://127.0.0.1:8703")).toBe("refused");
+    expect(await dialVerdict("http://127.0.0.1:8703/v1/models")).toBe("BLOCKED");
   });
 
-  // LEAST-PRIVILEGE: a NON-configured loopback port stays SSRF-blocked even though the HOST is 127.0.0.1.
-  // This is the whole point of port-scoping — the firewall is not a blanket loopback pass. (Port 9998 is a
-  // normal high port — NOT one of Node/undici's "bad port" set, which fetch rejects before the connector.)
-  test("still blocks a NON-configured loopback port (127.0.0.1:9998) — least-privilege, host alone is not enough", async () => {
+  test("still blocks an arbitrary loopback port (127.0.0.1:9998) — an empty set admits nothing", async () => {
+    // Port 9998 is a normal high port — NOT one of Node/undici's "bad port" set, which fetch rejects before
+    // the connector, so the refusal under test really is ours.
     const err = await fetch("http://127.0.0.1:9998/x").catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(errorChainText(err)).toContain("SSRF_BLOCKED");
   });
 
   test("fetchOpenAiModels drops a private-address baseUrl (defense-in-depth: firewall + safeFetch) → []", async () => {
-    // The user-supplied `/models` probe (credentials.fetchModels/inspectEndpoint) must never reach an
+    // The user-supplied `/models` probe (connection.listEndpointModels/inspectEndpoint) must never reach an
     // internal endpoint. With the firewall installed, the SSRF connect is rejected; fetchOpenAiModels
     // swallows it and returns [] — no data leaked, no internal port-scan oracle.
     const ids = await fetchOpenAiModels({
@@ -105,67 +137,180 @@ describe("installEgressFirewall — boot-installed global SSRF dispatcher (s7 HI
   });
 });
 
-// ── VLLM_ENGINE_HOST relocation: the internal-backend bypass FOLLOWS the declared engine host ────────────
-// Profile-2/D2 (docs/design/containerize-prod-image-spec.md §3.6): a slim app container points at an
-// EXTERNAL vLLM via VLLM_ENGINE_HOST; the egress private-range block must open for exactly
-// `<that host>:<the three engine ports>` — declared operator intent, the same class as the OIDC-issuer
-// auto-allow — and CLOSE for the loopback default it replaced (the set READS env, it never accumulates).
-// The env floor is frozen at module load, so this drives a FRESH module registry with a crafted
-// process.env (the tests/server/foundation/env/index.test.ts reimport pattern). 127.0.0.2 is used as the
-// relocated host: still local (a connect attempt fails FAST as ECONNREFUSED, never a slow dial-out), but
-// NEVER where the engines actually bind (they bind 127.0.0.1 — build-argv LOOPBACK_HOST), so nothing can
-// be listening and the pass/block verdicts stay deterministic on a box with a live fleet.
-describe("installEgressFirewall — VLLM_ENGINE_HOST relocates the internal-backend bypass", () => {
+// ── The admission itself: what a published set does, and what it can never do ────────────────────────────
+// Every arm publishes its own WHOLE set (production's contract) and the teardown publishes empty. The dial
+// assertions use a loopback host with nothing listening, so an admitted target fails ECONNREFUSED — which is
+// exactly the evidence wanted: the connect was ATTEMPTED rather than refused by us.
+describe("publishPrivateEndpointAllowlist — the deployment's private-endpoint admission (F12)", () => {
+  const original: Dispatcher = getGlobalDispatcher();
+  beforeAll(() => {
+    installEgressFirewall();
+  });
+  afterEach(() => {
+    publishPrivateEndpointAllowlist([]);
+  });
+  afterAll(() => {
+    setGlobalDispatcher(original);
+    publishPrivateEndpointAllowlist([]);
+  });
+
+  test("an ADMITTED loopback endpoint is dialled, not SSRF-blocked — for whoever asks", async () => {
+    publishPrivateEndpointAllowlist(["127.0.0.1"]);
+    expect(endpointAdmission("http://127.0.0.1:8703")).toBe("admitted");
+    expect(await dialVerdict("http://127.0.0.1:8703/v1/models")).toBe("attempted");
+  });
+
+  // THE WIDENING, stated rather than discovered: F12 entries are hosts and CIDRs, so an admitted host is
+  // admitted at EVERY port. The retired internal-backend rule was host:PORT-scoped (three declared engine
+  // ports; 127.0.0.1:22 stayed blocked) and that least-privilege half did NOT survive the replacement. An
+  // operator who admits `127.0.0.1` on a multi-user box has admitted every service on it to any member who
+  // can author an endpoint connection. If a future change re-narrows this, this is the pin it must flip.
+  test("an admitted host is admitted at EVERY port — F12 is host/CIDR-scoped, not host:port-scoped", async () => {
+    publishPrivateEndpointAllowlist(["127.0.0.1"]);
+    expect(await dialVerdict("http://127.0.0.1:9998/x")).toBe("attempted");
+  });
+
+  test("a private address OUTSIDE the set stays blocked while a sibling is admitted", async () => {
+    publishPrivateEndpointAllowlist(["127.0.0.1"]);
+    expect(endpointAdmission("http://10.0.0.5:8000")).toBe("refused");
+    expect(await dialVerdict("http://10.0.0.5:8000/v1/models")).toBe("BLOCKED");
+  });
+
+  // The CIDR spelling is dialled against a LOOPBACK /8, deliberately: an ADMITTED target is really
+  // connected to, and a dial at a routable-but-absent LAN address hangs until the suite timeout, while
+  // loopback refuses instantly. The RFC1918 half is decided by `endpointAdmission` and never dialled.
+  test("a CIDR entry admits every address inside it (the LAN-subnet spelling)", async () => {
+    publishPrivateEndpointAllowlist(["127.0.0.0/8"]);
+    expect(endpointAdmission("http://127.0.0.9:8000")).toBe("admitted");
+    expect(await dialVerdict("http://127.0.0.9:8000/v1/models")).toBe("attempted");
+    // …and only inside it: an address outside the entry is untouched by it.
+    expect(endpointAdmission("http://192.168.1.10:8000")).toBe("refused");
+    expect(await dialVerdict("http://192.168.1.10:8000/v1/models")).toBe("BLOCKED");
+  });
+
+  // The publish is WHOLE-SET by design: a Governance edit that drops an entry closes it by its ABSENCE from
+  // the next publish, never by a delete call nobody wrote. The dial is re-judged live, so the close takes
+  // effect on the very next connect — no cache, no restart.
+  test("a removed entry closes by ABSENCE of the next publish, on the next connect", async () => {
+    publishPrivateEndpointAllowlist(["127.0.0.1"]);
+    expect(await dialVerdict("http://127.0.0.1:8703/v1/models")).toBe("attempted");
+    publishPrivateEndpointAllowlist([]);
+    expect(endpointAdmission("http://127.0.0.1:8703")).toBe("refused");
+    expect(await dialVerdict("http://127.0.0.1:8703/v1/models")).toBe("BLOCKED");
+  });
+
+  // NEVER_ADMISSIBLE, the class the whole belt exists for. The operator here is not an attacker — they are
+  // careless, or copying a stale runbook — and the answer is the same: the publish REFUSES the entry
+  // (classify → null) and the guard blocks the dial anyway. `169.254.169.254` is the cloud-metadata service
+  // (IAM credentials); `2002::/16` and `2001::/32` are tunnel blocks that embed an arbitrary inner address,
+  // so admitting one would be admitting the whole internet through a loophole.
+  test("link-local / multicast / tunnel blocks are refused HOWEVER the operator spells them", async () => {
+    publishPrivateEndpointAllowlist(["169.254.169.254", "169.254.0.0/16", "fe80::/10", "224.0.0.1", "2002::/16", "2001::/32"]);
+    expect(endpointAdmission("http://169.254.169.254")).toBe("refused");
+    expect(await dialVerdict("http://169.254.169.254/latest/meta-data/")).toBe("BLOCKED");
+    expect(endpointAdmission("http://[fe80::1]")).toBe("refused");
+    expect(await dialVerdict("http://[fe80::1]/x")).toBe("BLOCKED");
+    expect(endpointAdmission("http://[2002::1]")).toBe("refused");
+  });
+
+  // A hostname entry admits that NAME — and the name still resolves at connect, where the second
+  // never-admissible check runs on the RESOLVED address. `localhost` is folded to loopback at the
+  // write-time read so the pane's inline "Admit" affordance fires for the spelling people actually type.
+  test("a HOSTNAME entry admits the name; `localhost` folds to loopback at the write-time read", () => {
+    publishPrivateEndpointAllowlist(["ollama.lan"]);
+    expect(endpointAdmission("http://ollama.lan:11434")).toBe("admitted");
+    expect(endpointAdmission("http://other.lan:11434")).toBe("public"); // a NAME we cannot resolve here is not "refused" — the DNS gate judges it at connect
+    publishPrivateEndpointAllowlist(["127.0.0.1"]);
+    expect(endpointAdmission("http://localhost:8703")).toBe("admitted");
+  });
+
+  test("a public address rides the unchanged SSRF guard — the allowlist is not consulted for it", () => {
+    publishPrivateEndpointAllowlist([]);
+    expect(endpointAdmission("https://openrouter.ai")).toBe("public");
+    expect(endpointAdmission("ftp://openrouter.ai")).toBe("invalid");
+    expect(endpointAdmission("not-a-url")).toBe("invalid");
+  });
+});
+
+// ── THE BORN VALUE: a FRESH install, end to end (env floor → the settings layer → publish → the verdict) ──
+// The step-6b receipt is about what a box does on its FIRST boot with nobody having configured anything, so
+// it is taken through the real floor resolver rather than against a copied literal — `layer({})` is what
+// `entry/compose/services.ts` publishes from. The env floor is frozen at module load, so each arm drives a
+// FRESH module registry with a crafted process.env (the reimport pattern from
+// tests/server/foundation/env/index.test.ts).
+/** The one key `AUTH_MODE=local` cannot boot without (`AUTH_MODE_REQUIRED_ENV`) — the scrypt pepper, not a
+ *  subject of this file. Stated once so a mode arm reads as its own allowlist story. */
+const SESSION_SECRET: readonly [string, string] = ["SESSION_SECRET", "test-session-secret-at-least-32-chars"];
+
+describe("the BORN private-endpoint allowlist — single-user admits its own box, multi-user admits nothing", () => {
   let snapshot: Record<string, string | undefined>;
   let original: Dispatcher;
 
-  // biome-ignore-start lint/style/noProcessEnv: the VLLM_ENGINE_HOST describe DRIVES the sole env reader by crafting process.env (the reimport pattern from tests/server/foundation/env/index.test.ts).
-  beforeAll(async () => {
+  // biome-ignore-start lint/style/noProcessEnv: this describe DRIVES the sole env reader (foundation/env) by crafting process.env — the reimport pattern from tests/server/foundation/env/index.test.ts.
+  beforeEach(() => {
     snapshot = { ...process.env };
-    for (const k of Object.keys(process.env)) {
-      delete process.env[k];
-    }
-    process.env["VITEST"] = "1";
-    process.env["ORB_ENV_NO_FILE"] = "1";
-    // NO AUTH_FALLBACK pin: #2406 made it resolve per mode, so a wiped env boots at single-user + owner.
-    // (Between #1864 and #2406 this floor had to state it or the re-import threw before any egress code ran.)
-    process.env["VLLM_ENGINE_HOST"] = "127.0.0.2";
-    vi.resetModules();
-    const freshNetwork = await import("@orb/server/infra/network");
     original = getGlobalDispatcher();
-    freshNetwork.installEgressFirewall();
   });
-  // biome-ignore-end lint/style/noProcessEnv: end of the block above
 
-  // biome-ignore-start lint/style/noProcessEnv: the VLLM_ENGINE_HOST describe DRIVES the sole env reader by crafting process.env (the reimport pattern from tests/server/foundation/env/index.test.ts).
-  afterAll(() => {
+  afterEach(() => {
     setGlobalDispatcher(original);
-    for (const k of Object.keys(process.env)) {
-      delete process.env[k];
+    for (const key of Object.keys(process.env)) {
+      delete process.env[key];
     }
     Object.assign(process.env, snapshot);
     vi.resetModules();
+    publishPrivateEndpointAllowlist([]);
   });
-  // biome-ignore-end lint/style/noProcessEnv: end of the block above
 
-  test("the relocated host's exact engine ports pass — connect attempted (ECONNREFUSED), not SSRF-blocked", async () => {
-    const results = await Promise.all(
-      [8701, 8702, 8703].map(async (port) => [port, errorChainText(await fetch(`http://127.0.0.2:${port}/models`).catch((e: unknown) => e))] as const),
-    );
-    for (const [port, txt] of results) {
-      expect(txt, `127.0.0.2:${port}`).not.toContain("SSRF_BLOCKED");
+  /** Boot a fresh install at `mode`: wipe env → craft it → re-import the floor resolver AND the guard from a
+   *  fresh registry → publish what a first boot would publish → install the firewall. Returns the fresh
+   *  network module (its `endpointAdmission` reads the state `publish` just wrote). `extra` is TUPLES rather
+   *  than an object literal because env keys are SCREAMING_SNAKE and an object key would be a naming-rule
+   *  violation the assignment form does not have. */
+  async function freshInstall(mode: string, extra: readonly (readonly [string, string])[] = []): Promise<typeof import("@orb/server/infra/network")> {
+    for (const key of Object.keys(process.env)) {
+      delete process.env[key];
     }
+    process.env["VITEST"] = "1";
+    process.env["ORB_ENV_NO_FILE"] = "1";
+    process.env["AUTH_MODE"] = mode;
+    for (const [key, value] of extra) {
+      process.env[key] = value;
+    }
+    vi.resetModules();
+    const { layer } = await import("../../../../packages/server/src/domain/settings/effective-config/layer.ts");
+    const network = await import("@orb/server/infra/network");
+    // Exactly what the composition root does at boot: resolve the config with NO stored overrides (a fresh
+    // db has none), then hand the guard the resolved list.
+    network.publishPrivateEndpointAllowlist(layer({}).privateEndpointAllowlist);
+    network.installEgressFirewall();
+    return network;
+  }
+
+  test("AUTH_MODE=single-user is born with loopback admitted — one human, one box, nothing to protect from", async () => {
+    const network = await freshInstall("single-user");
+    expect(network.endpointAdmission("http://127.0.0.1:8703")).toBe("admitted");
+    expect(network.endpointAdmission("http://[::1]:8703")).toBe("admitted");
+    expect(await dialVerdict("http://127.0.0.1:8703/v1/models")).toBe("attempted");
+    // Loopback only — the born set is not a blanket private-range pass.
+    expect(network.endpointAdmission("http://192.168.1.10:8000")).toBe("refused");
   });
 
-  test("a NON-configured port on the relocated host stays SSRF-blocked (port-scoping survives relocation)", async () => {
-    const err = await fetch("http://127.0.0.2:9998/x").catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(Error);
-    expect(errorChainText(err)).toContain("SSRF_BLOCKED");
+  test("a fresh MULTI-USER install is born EMPTY — hosted providers only until an admin admits a host", async () => {
+    const network = await freshInstall("local", [SESSION_SECRET]);
+    expect(network.endpointAdmission("http://127.0.0.1:8703")).toBe("refused");
+    expect(await dialVerdict("http://127.0.0.1:8703/v1/models")).toBe("BLOCKED");
+    expect(network.endpointAdmission("https://openrouter.ai")).toBe("public");
   });
 
-  test("the DISPLACED loopback default is no longer bypassed — the set reads env, it never accumulates", async () => {
-    const err = await fetch("http://127.0.0.1:8701/models").catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(Error);
-    expect(errorChainText(err)).toContain("SSRF_BLOCKED");
+  test("PRIVATE_ENDPOINT_ALLOWLIST is the operator's floor and it OUTRANKS the mode default, both ways", async () => {
+    // A multi-user box whose operator declared its LAN inference host…
+    const declared = await freshInstall("local", [SESSION_SECRET, ["PRIVATE_ENDPOINT_ALLOWLIST", "10.0.0.0/8, 127.0.0.1"]]);
+    expect(declared.endpointAdmission("http://10.0.0.5:8000")).toBe("admitted");
+    expect(declared.endpointAdmission("http://127.0.0.1:8703")).toBe("admitted");
+    // …and a single-user box whose operator declared an EMPTY one: an explicit empty string is a decision,
+    // so the born loopback default does NOT re-appear under it.
+    const emptied = await freshInstall("single-user", [["PRIVATE_ENDPOINT_ALLOWLIST", ""]]);
+    expect(emptied.endpointAdmission("http://127.0.0.1:8703")).toBe("refused");
   });
 });
