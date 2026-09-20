@@ -10,6 +10,7 @@
 // story's "refetch settings" button stands in for the `settingsChanged` refetch that `busDriven: true`
 // mutations rely on.
 
+import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -66,7 +67,7 @@ interface SettingsStub {
 /** The unconfigured chat default as the SERVER resolves it (resolve-role.ts: chat-completions × local vLLM
  *  for EVERY principal role since #196 — the sub is reached only by picking it) — what the never-saved chat
  *  row names. `resolveFails` scripts the no-chat-connection rejection. */
-const RESOLVED_CHAT = makeResolvedView({ api: "chat-completions", source: "vllm", model: castId<ModelId>(VLLM_MODEL) });
+const RESOLVED_CHAT = makeResolvedView({ api: "chat-completions", providerId: castId<ProviderId>("vllm"), model: castId<ModelId>(VLLM_MODEL) });
 
 async function stubSettings(page: Page, roleDefaults: Record<string, unknown>, opts: { readonly resolveFails?: boolean } = {}): Promise<SettingsStub> {
   let stored = roleDefaults;

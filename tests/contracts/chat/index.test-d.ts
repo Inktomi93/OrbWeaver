@@ -84,7 +84,7 @@ test("ChatBusEvent's key vocabulary is CLOSED (a new member's free-text field is
     // turn lifecycle (scalars + enum literals + ids)
     | "intent"
     | "api"
-    | "source"
+    | "provider"
     | "model"
     | "speakerCharacterId"
     | "targetMessageId"

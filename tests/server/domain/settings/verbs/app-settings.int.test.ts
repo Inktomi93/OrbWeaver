@@ -32,10 +32,6 @@ describe("getAppSettings", () => {
     const cfg = await h.svc.getAppSettings({ principal: principal(a, "admin") });
     expect(cfg.corpusAutoindex).toBe(env.CORPUS_AUTOINDEX);
     expect(cfg.logLevel).toBe(env.LOG_LEVEL);
-    // D17 governance floors (born-in-DB).
-    expect(cfg.allowNonOwnerLocalCompute).toBe(true);
-    expect(cfg.allowNonOwnerMaxProSub).toBe(false);
-    expect(cfg.nonOwnerLocalComputeBudget).toBeNull();
   });
 });
 

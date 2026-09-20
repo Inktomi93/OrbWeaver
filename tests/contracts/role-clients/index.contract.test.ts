@@ -40,21 +40,11 @@ const noopRoleClients: RoleClients = {
   resolved: (): Promise<null> => Promise.resolve(null),
 };
 
-test("a no-op object satisfies RoleClients: four derive callables + four model-provenance strings", () => {
-  expect(Object.keys(noopRoleClients).sort()).toEqual(
-    [
-      "embed",
-      "embedModel",
-      "imageEmbed",
-      "imageEmbedModel",
-      "rerank",
-      "rerankModel",
-      "summarize",
-      "summarizerContextTokens",
-      "summarizerModel",
-      "summarizerVision",
-    ].sort(),
-  );
+test("a no-op object satisfies RoleClients: five derive/structured callables + the one resolved(task) read", () => {
+  // inference program §7.5-1b — the six per-role model-provenance getters (embedModel/rerankModel/
+  // imageEmbedModel/summarizerModel/summarizerContextTokens/summarizerVision) were REPLACED by the single
+  // `resolved(task)` read (`ResolvedTaskView`), so the bundle's key set shrank to the five callables.
+  expect(Object.keys(noopRoleClients).sort()).toEqual(["embed", "imageEmbed", "rerank", "resolved", "structured", "summarize"].sort());
   // FLAG pin: the bundle has NO chat/agent/generateImage member (not groundable at L1 — no such
   // result contract in @orb/contracts/providers). If one is added later this assertion changes.
   expect("chat" in noopRoleClients).toBe(false);
