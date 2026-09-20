@@ -78,6 +78,28 @@ export const useClearRevokedCredential = createEntityMutation<inferInput<Trpc["c
   errorToast: "Couldn't clear the revoked flag.",
 });
 
+/** The editor's reachability check (§5.3a's Diagnostics tier). A `.mutation()` despite being read-shaped —
+ *  it DIALS a user-supplied endpoint, so it keeps the CSRF gate tRPC applies to mutations (the router's
+ *  esoteric #9). Invalidates nothing: the verdict is the mutation's own data, not a cached read. */
+export const useProbeConnection = createEntityMutation<inferInput<Trpc["connection"]["probe"]>, inferOutput<Trpc["connection"]["probe"]>>({
+  options: (trpc) => trpc.connection.probe.mutationOptions(),
+  invalidates: () => [],
+  errorToast: "Couldn't reach that server.",
+});
+
+/** The inline "Admit `<host>`" write (§5.3a) — the deployment's private-endpoint allowlist, OWNER-gated at
+ *  the verb (`domain/settings/verbs/app-settings.ts::OWNER_GATED_FIELDS`). It lives here rather than being
+ *  imported from `features/user-admin`: a feature imports no other feature (UI-Arch §2.1), and the
+ *  cross-domain read rides `trpc.settings.*` like every other. */
+export const useAdmitPrivateEndpoint = createEntityMutation<
+  inferInput<Trpc["settings"]["updateAppSettings"]>,
+  inferOutput<Trpc["settings"]["updateAppSettings"]>
+>({
+  options: (trpc) => trpc.settings.updateAppSettings.mutationOptions(),
+  invalidates: (trpc) => [trpc.settings.pathFilter()],
+  errorToast: "Couldn't admit that host — only the box owner can change the allowed endpoints.",
+});
+
 /** Remove a stored credential (deletes the row + its secret material); connections on it read `no-connection`. */
 export const useRemoveCredential = createEntityMutation<inferInput<Trpc["credentials"]["remove"]>, unknown>({
   options: (trpc) => trpc.credentials.remove.mutationOptions(),
