@@ -57,5 +57,14 @@ test("P2-5: …and at the both-panels-hidden pane, where the extra width goes to
 test("P2-5: the four behaviours are still spelled — on the field's hint, where they cost no width", async ({ mount, page }) => {
   const component = await mount(<DeliveryTabNarrowStory />);
   await component.getByRole("button", { name: "More info about Speaker names" }).hover();
-  await expect(page.getByText("Default prefixes only on a persona switch")).toBeVisible();
+  // ADDRESSED PER HOME, not by bare text. The hint has TWO homes by design — the rendered popup a sighted
+  // reader sees, and the `sr-only` description the trigger's `aria-describedby` points at (the popup itself
+  // is `aria-hidden`) — so a bare `getByText` is a strict-mode violation rather than a defect. Both are
+  // asserted: the teaching this ruling MOVED here has to reach both readers, or O-4 traded a truncated
+  // explanation for a missing one.
+  // The delivery arm mounts FOUR hinted fields, so each home is addressed by the hint that carries THIS
+  // behaviour rather than by its slot alone (the slot resolves to all four sr-only descriptions).
+  const behaviour = "Default prefixes only on a persona switch";
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toContainText(behaviour);
+  await expect(page.locator('[data-slot="tooltip-description"]').filter({ hasText: behaviour })).toHaveCount(1);
 });

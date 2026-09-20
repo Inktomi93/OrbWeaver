@@ -21,6 +21,13 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
+// The deferred group's OWN description, as `connectionsGroup` (connections-group.tsx) spells it — the
+// placeholder body renders the real def's copy, so this is the string the pane must show and NOT a generic
+// one. Re-derived at the `@orb/inference` cut-over (2026-09-20), which rewrote the group in the user's
+// words. It is a literal here on purpose: a CT SPEC runs node-side and cannot import the `.tsx` module the
+// def lives in — the browser-side `ct-config-groups.ts` is what reads the real def.
+const CONNECTIONS_DESCRIPTION = "Your providers, keys and models — and which one each role uses.";
+
 const SETTINGS_VIEW = { userId: "user_ct_placeholder", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 // A plain user — the placeholder group (connections) is un-gated, so this only feeds the LIST's
 // admin-gating projection; the deep link lands straight on the placeholder group, so no real group mounts.
@@ -51,7 +58,7 @@ test("a deferred category renders the teaching placeholder: its distinct copy + 
   // mistaken for a real pane whose controls FAILED to render.
   await expect(region.getByText("Not built yet")).toBeVisible();
   // …with the category's OWN distinct copy (its ConfigGroupDefinition description), never a generic sparkle.
-  await expect(region.getByText("Provider credentials and the per-role model connections.")).toBeVisible();
+  await expect(region.getByText(CONNECTIONS_DESCRIPTION)).toBeVisible();
   // …titled by the group's own label (scoped to the region — the LIST band carries the same word).
   await expect(region.getByText("Connections", { exact: true })).toBeVisible();
 });
@@ -92,7 +99,7 @@ test("the LIST says a group is unbuilt — in WORDS, on a row that still works a
   await band.click();
   const region = component.getByRole("region", { name: "Connections settings" });
   await expect(region.getByText("Not built yet")).toBeVisible();
-  await expect(region.getByText("Provider credentials and the per-role model connections.")).toBeVisible();
+  await expect(region.getByText(CONNECTIONS_DESCRIPTION)).toBeVisible();
 });
 
 test("a BUILT group's row says nothing about readiness — the LIST greys only the unbuilt arm", async ({ mount, page }) => {

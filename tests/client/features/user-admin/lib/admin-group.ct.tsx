@@ -33,64 +33,56 @@ const USERS = [
   },
 ];
 
-const APP_SETTINGS = {
-  engineLaunch: {
-    embedModel: "Qwen/Qwen3-VL-Embedding-2B",
-    rerankModel: "Qwen/Qwen3-VL-Reranker-2B",
-    genModel: "Qwen/Qwen3-VL-8B-Instruct",
-    embedMaxModelLen: 8192,
-    rerankMaxModelLen: 8192,
-    genMaxModelLen: 32_768,
-    embedGpuUtil: 0.14,
-    rerankGpuUtilMulti: 0.16,
-    rerankGpuUtilSingle: 0.22,
-    genGpuUtilMulti: 0.28,
-    genGpuUtilSingle: 0.5,
-    poolingMaxPixels: 1_843_200,
-    genMaxPixels: 4_194_304,
-    genRepetitionPenalty: 1.05,
-  },
-};
+const APP_SETTINGS = {};
 
-/** The thirteen sections at the `admin` anchor, in the door's declared order (main.tsx) — which IS the render
- *  order: the five that merged in from the retired SYSTEM pane (SET-SEAMS stage 4 / §10 Q2), then the four
- *  that moved out of the retired admin pane surface, then the AppSettings admin-tier sections. */
+/** The sections at the `admin` anchor, in the door's declared order (`compose/config-sections.ts`) — which IS
+ *  the render order: the ones that merged in from the retired SYSTEM pane (SET-SEAMS stage 4 / §10 Q2), then
+ *  the ones that moved out of the retired admin pane surface, then the AppSettings admin-tier sections, then
+ *  About last (owner ask 2026-09-18).
+ *
+ *  RE-DERIVED at the `@orb/inference` cut-over (2026-09-20) from the door array + each section's `nav.id`
+ *  (`configAnchorId(anchor, nav.id)`), never by arithmetic off the old list. Three anchors LEFT with the
+ *  in-server vLLM fleet — `compute`, `shared-access`, `engines` — and three arrived since — `approvals`,
+ *  `link-sso`, `about`. The COUNT is the point of the pin below: it is `ANCHOR_ORDER.length`, derived here
+ *  and nowhere spelled as a number. */
 const ANCHOR_ORDER = [
   "config-anchor-admin-media-trust",
-  "config-anchor-admin-compute",
-  "config-anchor-admin-shared-access",
   "config-anchor-admin-multi-user",
   "config-anchor-admin-operations",
   "config-anchor-admin-users",
-  "config-anchor-admin-engines",
+  "config-anchor-admin-approvals",
+  "config-anchor-admin-link-sso",
   "config-anchor-admin-model-catalog",
   "config-anchor-admin-card-embeddings",
   "config-anchor-admin-memory-tuning",
   "config-anchor-admin-rate-limits",
   "config-anchor-admin-system-tuning",
   "config-anchor-admin-structured-output",
+  "config-anchor-admin-about",
 ];
 
-/** The nav rows the pane DERIVES from its contributions, in door order. */
+/** The nav rows the pane DERIVES from its contributions, in door order — one per `ANCHOR_ORDER` entry, read
+ *  off each subcategory's `navLabel` where it has one and its `label` otherwise. About is the only row in
+ *  this pane that differs between the two ("About" in the rail, "About this install" as the heading), which
+ *  is exactly why the list is read per-row rather than assumed to be the headings. */
 const NAV_LABELS = [
   "Media & trust",
-  "Compute",
-  "Shared access",
   "Multi-user",
   "Operations",
   "Users",
-  "Engines",
+  "Approvals",
+  "Link SSO identity",
   "Model catalog",
   "Card embeddings",
   "Memory tuning",
   "Rate limits",
   "System tuning",
   "Structured output",
+  "About",
 ];
 
-// The resolved slice the NINE AppSettings sections read together (each has its own CT pinning its own
-// knobs; here they all mount at once, so ONE stub must satisfy all of them). Untyped route stubs, so a
-// partial suffices.
+// The resolved slice the AppSettings sections read together (each has its own CT pinning its own knobs; here
+// they all mount at once, so ONE stub must satisfy all of them). Untyped route stubs, so a partial suffices.
 const RESOLVED_APP = {
   ...APP_SETTINGS,
   memoryDefaults: {},
@@ -98,18 +90,14 @@ const RESOLVED_APP = {
   rateLimits: { publicIp: 60, authed: 600, aiTurn: 30, login: 10 },
   agentSdkConcurrency: { summarize: 4 },
   promptTransformDeadlineMs: 250,
-  nonOwnerLocalComputeBudgetWindowMs: 86_400_000,
   catalogRefreshIntervalMs: 86_400_000,
   imageVariantQuality: 80,
   maxDatabankBytes: 20_971_520,
-  // … the five sections that merged in from the System pane (stage 4).
+  promptCacheMinDepth: 0,
+  // … the sections that merged in from the System pane (stage 4).
   forbidExternalMedia: true,
   trustHtml: false,
   maxImageBytes: 5_000_000,
-  vllmConcurrency: { embed: 4, summarize: 2 },
-  allowNonOwnerLocalCompute: true,
-  nonOwnerLocalComputeBudget: null,
-  allowNonOwnerMaxProSub: false,
   localMultiUser: false,
   discreetLogin: false,
   corpusAutoindex: false,
@@ -127,7 +115,9 @@ function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): 
     "rosterPreset.list": [],
     "admin.listUsers": () => USERS,
     "sessions.me": () => viewer,
-    "admin.vllmEngines": () => ({}),
+    // About (last at this anchor) suspends on the version identity — unfed, its boundary renders the error
+    // state and its anchor never lands, which reads as a short pane rather than as a missing stub.
+    "settings.getVersion": () => ({ version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout" }),
     "settings.getAppSettings": () => APP_SETTINGS,
     "settings.getAppSettingsWithOverrides": () => ({ resolved: RESOLVED_APP, overrides: {} }),
     // The plain-viewer arm lands on the default `appearance` pane, whose sections read the user settings.
@@ -137,7 +127,7 @@ function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): 
   });
 }
 
-test("the skimmer renders all thirteen admin sections, in the door's declared order", async ({ mount, page }) => {
+test("the skimmer renders every contributed admin section, in the door's declared order", async ({ mount, page }) => {
   await stub(page, OWNER_VIEWER);
   await mount(<AdminGroupStory />);
   // Every section resolves its OWN read behind its OWN boundary, so wait on the full set rather than on one
@@ -186,10 +176,12 @@ test("a plain viewer sees no Admin band and no admin section", async ({ mount, p
 });
 
 // §7.4 / §10 Q4 — a SUB-level deep link resolves the pane in render and lands on the section's anchor once
-// the pane's DOM has it. The sub ids are byte-identical across the move, so old links keep working.
+// the pane's DOM has it. The sub ids are byte-identical across the move, so old links keep working. The
+// probe moved from `engines` (deleted with the in-server vLLM fleet) to `model-catalog`, another of the subs
+// that came out of the retired admin pane surface in the same stage — the claim itself is unchanged.
 test("a sub-level deep link lands on the moved section's anchor", async ({ mount, page }) => {
   await stub(page, OWNER_VIEWER);
-  await mount(<ConfigHostStory target="admin" sub="engines" />);
+  await mount(<ConfigHostStory target="admin" sub="model-catalog" />);
 
-  await expect(page.locator("#config-anchor-admin-engines")).toBeVisible();
+  await expect(page.locator("#config-anchor-admin-model-catalog")).toBeVisible();
 });

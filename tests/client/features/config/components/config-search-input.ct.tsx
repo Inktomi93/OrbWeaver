@@ -107,18 +107,31 @@ test("a hit jumps: the selected section's anchor lands in the CONTENT pane, mark
   await expect(search).toHaveValue("avatar size");
 });
 
-test("@shelf:user narrows to the user shelf; an APP group's rows drop out", async ({ mount, page }) => {
+// The shelf token, driven in BOTH directions over TWO rows that sit on different shelves — a one-row probe
+// passes on a filter that drops everything. The rows were re-picked at the `@orb/inference` cut-over
+// (2026-09-20): Connections moved from the `app` shelf to `user` (every row is the member's own now,
+// §5.3a), so "Model roles" is the USER-shelf row and Automation's "Library-wide rules" is the APP-shelf one.
+// A plain viewer is mounted here, so Admin — the only other `app` group — is invisible by `when` parity.
+test("@shelf:… narrows to that shelf; the other shelf's rows drop out", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory />);
   const search = component.getByRole("combobox", { name: "Search settings" });
+  const userShelfRow = component.getByRole("option", { name: /Model roles/ });
+  const appShelfRow = component.getByRole("option", { name: /Library-wide rules/ });
 
   await search.fill("model roles");
-  await expect(component.getByRole("option", { name: /Model roles/ })).toBeVisible();
-
+  await expect(userShelfRow).toBeVisible();
   await search.fill("@shelf:user model roles");
-  await expect(component.getByRole("option", { name: /Model roles/ })).toHaveCount(0);
+  await expect(userShelfRow).toBeVisible();
   await search.fill("@shelf:app model roles");
-  await expect(component.getByRole("option", { name: /Model roles/ })).toBeVisible();
+  await expect(userShelfRow).toHaveCount(0);
+
+  await search.fill("library-wide rules");
+  await expect(appShelfRow).toBeVisible();
+  await search.fill("@shelf:app library-wide rules");
+  await expect(appShelfRow).toBeVisible();
+  await search.fill("@shelf:user library-wide rules");
+  await expect(appShelfRow).toHaveCount(0);
 });
 
 test("a COLLECTION MEMBER is found by name (the dynamic `useSearchRows` fiber) and opens as the member", async ({ mount, page }) => {

@@ -14,7 +14,7 @@
 
 // The helper copy is asserted from its ONE home, never re-typed here — a re-spelled literal is how a copy
 // change goes green against a string nobody ships.
-import { IMPERSONATE_STOP_LABEL, IMAGE_GEN_SPENDS_NOW as SPENDS_RIGHT_AWAY } from "@orb/client/lib";
+import { IMPERSONATE_STOP_LABEL, IMAGE_GEN_SPENDS_NOW as SPENDS_RIGHT_AWAY, sendUnavailableReason } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -70,12 +70,19 @@ test("D111: the ⋯ chat-options menu renders in the composer, LEFT of the guide
 // DESCRIPTION (an `sr-only` line the trigger's `aria-describedby` points at — read at rest, on any pointer),
 // and the band's visible refusal line at a coarse pointer, asserted in its own arm below. An assertion on
 // `title` would pass again the day someone re-adds it, which is the defect.
-const ENGINE_OFF_REASON = "Local engine is off — enable it to send.";
-const ENGINE_DOWN_REASON = "Local engine is down — start it to send.";
-const NO_CONNECTION_REASON = "This chat has no working connection — configure one to send.";
+//
+// THE CAUSE VOCABULARY MOVED (`@orb/inference` cut-over, 2026-09-20): with the in-server vLLM fleet gone
+// there is no engine to be off, so `engine-off` is RETIRED (an unbound task is `no-connection` like every
+// other absence) and `engine-down` is `endpoint-unreachable` — `UNAVAILABLE_CAUSES`, `resolved.ts:33-40`.
+// The three arms below therefore drive three LIVE causes, and each expected string is read from the copy's
+// ONE home (`sendUnavailableReason`) rather than re-typed: a re-spelled literal is how a copy change goes
+// green against a string nobody ships.
+const NO_CONNECTION_REASON = sendUnavailableReason("no-connection");
+const ENDPOINT_UNREACHABLE_REASON = sendUnavailableReason("endpoint-unreachable");
+const RUNTIME_MISSING_REASON = sendUnavailableReason("runtime-missing");
 
-test("#54: engine-off — Send is aria-disabled and DESCRIBED by the engine-off reason, with no native title", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
+test("#54: no-connection — Send is aria-disabled and DESCRIBED by the cause reason, with no native title", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
   const component = await mount(<ComposerStory />); // committed; text present so it's not draft-empty-disabled
   await component.getByLabel("Message", { exact: true }).fill("hello");
   const send = component.getByRole("button", { name: "Send message" });
@@ -84,26 +91,33 @@ test("#54: engine-off — Send is aria-disabled and DESCRIBED by the engine-off 
   await expect(send).not.toHaveAttribute("disabled", "");
   // The name still NAMES the control (what a voice-control user says); the reason is its DESCRIPTION.
   await expect(send).toHaveAccessibleName("Send message");
-  await expect(send).toHaveAccessibleDescription(ENGINE_OFF_REASON);
+  await expect(send).toHaveAccessibleDescription(NO_CONNECTION_REASON);
   await expect(send).not.toHaveAttribute("title");
 });
 
-test("#54: engine-down — Send carries the engine-down reason (a DEAD registered engine under adopt-only)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-down" }) });
+test("#54: endpoint-unreachable — Send carries the unreachable-endpoint reason (a bound server that did not answer)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.checkSendAvailability": () => ({ available: false, cause: "endpoint-unreachable" }),
+  });
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("hello");
   const send = component.getByRole("button", { name: "Send message" });
   await expect(send).toHaveAttribute("aria-disabled", "true");
-  await expect(send).toHaveAccessibleDescription(ENGINE_DOWN_REASON);
+  await expect(send).toHaveAccessibleDescription(ENDPOINT_UNREACHABLE_REASON);
 });
 
-test("#54: no-connection — Send carries the no-connection reason (the cause drives the copy)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
+test("#54: runtime-missing — Send carries the runtime-missing reason (the cause drives the copy)", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "runtime-missing" }) });
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("hello");
   const send = component.getByRole("button", { name: "Send message" });
   await expect(send).toHaveAttribute("aria-disabled", "true");
-  await expect(send).toHaveAccessibleDescription(NO_CONNECTION_REASON);
+  await expect(send).toHaveAccessibleDescription(RUNTIME_MISSING_REASON);
+  // The three arms above must stay three DIFFERENT strings, or "the cause drives the copy" is unproven by
+  // a table that happens to answer the same sentence everywhere.
+  expect(new Set([NO_CONNECTION_REASON, ENDPOINT_UNREACHABLE_REASON, RUNTIME_MISSING_REASON]).size).toBe(3);
 });
 
 // #2443 — the SIGHTED touch user's half. A disabled Base UI Button swallows its own click, so the refusal
@@ -114,9 +128,9 @@ test.describe("#2443: the band's refusal at a coarse pointer", () => {
   test.use({ hasTouch: true });
 
   test("an unserveable connection states its reason as VISIBLE copy under the guided cluster", async ({ mount, page }) => {
-    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
     const component = await mount(<ComposerStory />);
-    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(ENGINE_OFF_REASON);
+    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(NO_CONNECTION_REASON);
   });
 
   test("a serveable connection shows no refusal line (the band is not permanently annotated)", async ({ mount, page }) => {
@@ -132,7 +146,7 @@ test.describe("#2443: the band's refusal at a coarse pointer", () => {
 // correct because the tooltip and the per-control descriptions carry the same string there. Without this arm
 // the coarse assertion above would also pass on a line that rendered unconditionally.
 test("#2443: at a FINE pointer the refusal line does not render — the tooltip is the carrier there", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
   const component = await mount(<ComposerStory />);
   const line = component.locator('[data-slot="composer-guided-refusal"]');
   // The node is in the DOM (the cause IS in force) but the fragment stands it down at this pointer.
@@ -145,7 +159,7 @@ test("#54: an unserveable connection refuses the SEND click — no chat.send fir
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
-    "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }),
+    "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }),
     "chat.send": () => ({ ok: true }),
   });
   const component = await mount(<ComposerStory />);
@@ -158,18 +172,18 @@ test("#54: an unserveable connection refuses the SEND click — no chat.send fir
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(0);
 });
 
-test("#54: engine-off idles the guided fire actions with the engine-off reason (Response, Draft your line)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
+test("#54: an unserveable connection idles the guided fire actions with the cause reason (Response, Draft your line)", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
   const component = await mount(<ComposerStory />);
-  // Response is otherwise NEVER disabled — an off engine is its only disabled state; the reason surfaces.
+  // Response is otherwise NEVER disabled — an unserveable connection is its only disabled state; the reason surfaces.
   const response = component.getByRole("button", { name: "Generate reply" });
   await expect(response).toHaveAttribute("aria-disabled", "true");
   // THE REASON'S CARRIER IS THE TOOLTIP, not a native `title` (side-eye 2026-08-21 — the guided icons are
   // TooltipTriggers, and carrying both stacked Chrome's OS tooltip on the rendered popup). The claim is
-  // unchanged: the idled control names the engine-off cause, and it does so on FOCUS, which is what
+  // unchanged: the idled control names the unavailable cause, and it does so on FOCUS, which is what
   // `focusableWhenDisabled` keeps it in the tab order for. #206 below pins the same pairing for every control.
   await response.focus();
-  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText(`Generate reply — ${ENGINE_OFF_REASON}`);
+  await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toHaveText(`Generate reply — ${NO_CONNECTION_REASON}`);
   await expect(component.getByRole("button", { name: "Draft your line" })).toHaveAttribute("aria-disabled", "true");
 });
 
@@ -405,17 +419,17 @@ test("#206: every icon control exposes plain-language names and tooltips on hove
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": groupedComposerChat,
-    "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }),
+    "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }),
   });
   const component = await mount(<ComposerStory />);
   const expectedTooltips = [
     { name: "Chat options", tooltip: "Chat options" },
-    { name: "Draft your line", tooltip: `Draft your line — ${ENGINE_OFF_REASON}` },
-    { name: "Try another reply", tooltip: `Try another reply — ${ENGINE_OFF_REASON}` },
-    { name: "Generate reply", tooltip: `Generate reply — ${ENGINE_OFF_REASON}` },
-    { name: "Continue the reply", tooltip: `Continue the reply — ${ENGINE_OFF_REASON}` },
+    { name: "Draft your line", tooltip: `Draft your line — ${NO_CONNECTION_REASON}` },
+    { name: "Try another reply", tooltip: `Try another reply — ${NO_CONNECTION_REASON}` },
+    { name: "Generate reply", tooltip: `Generate reply — ${NO_CONNECTION_REASON}` },
+    { name: "Continue the reply", tooltip: `Continue the reply — ${NO_CONNECTION_REASON}` },
     { name: "Message tools", tooltip: "Message tools" },
-    { name: "Send message", tooltip: ENGINE_OFF_REASON },
+    { name: "Send message", tooltip: NO_CONNECTION_REASON },
   ] as const;
   const composer = component.locator('[data-slot="composer"]');
   await expect(composer.getByRole("button")).toHaveCount(COMPOSER_ACTIONS.length);
@@ -429,7 +443,7 @@ test("#206: every icon control exposes plain-language names and tooltips on hove
     // is a description, not a label). Two controls used to spell a third thing — a friendlier twin of the
     // name ("Manage this chat" over "Chat options", "More message actions" over "Message tools") — and the
     // words on screen were then in no name at all.
-    expect(tooltip === name || tooltip.includes(ENGINE_OFF_REASON), `${name}: its tooltip must BE its name, or the transient reason`).toBe(true);
+    expect(tooltip === name || tooltip.includes(NO_CONNECTION_REASON), `${name}: its tooltip must BE its name, or the transient reason`).toBe(true);
     const control = component.getByRole("button", { name, exact: true });
     const popup = page.locator('[data-slot="tooltip-popup"][data-open]');
     await control.hover();
