@@ -190,7 +190,7 @@ function deadGlobs(rows: readonly ConfigGrantRow[], repoPaths: readonly string[]
     ratified: {},
     ratifiedAnchorFile: "tsconfig.json",
     anchorOk: false,
-    messages: { deadPattern: GLOB_MESSAGE, staleRatified: "", deadCite: "", budgetMoved: "" },
+    messages: { deadPattern: GLOB_MESSAGE, staleRatified: "", deadCite: "" },
     exists: () => true,
   });
   return outcome.findings.flatMap((finding) => {
