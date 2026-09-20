@@ -80,7 +80,8 @@ function build(f: Fakes): ReturnType<typeof buildImagery> {
     executor: { generateImage: vi.fn() },
     assets: { store: vi.fn(), readOwnedAssetBytes: f.readOwnedAssetBytes },
     character: { getCard: vi.fn(), get: f.characterGet },
-    roleClients: { summarize: f.summarize },
+    // The per-FUNDER role-client binder (§8.5b) — only `summarize` is read on this seam.
+    roleClientsFor: (_funderUserId: UserId) => Promise.resolve({ summarize: f.summarize }),
     resolveUserPresetParams: f.resolveUserPresetParams,
     resolveChatPresetParams: vi.fn(() => Promise.resolve({})),
     resolveUserMacroDefs: vi.fn(() => Promise.resolve({})),

@@ -16,12 +16,19 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
+import { tmpdir } from "node:os";
 import type { Principal } from "@orb/contracts/identity";
-import type { PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import { providerIdSchema } from "@orb/contracts/inference";
+import { connectionBindings, userConnections } from "@orb/db";
+import type { ConnectionBindingId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createServices } from "@orb/server/entry/compose";
 import { describe, vi } from "vitest";
 import { createPersonaSeedLatch } from "../../../../packages/server/src/entry/compose/assets-character.ts";
+import { createFrozenClock } from "../../../support/clock.ts";
+import { freshDb } from "../../../support/db.ts";
 import { seedUser } from "../../../support/factories/index.ts";
+import { TEST_BASE_URL, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 function principalOf(userId: UserId): Principal {
@@ -183,7 +190,8 @@ describe("createPersonaSeedLatch — the seeder never relitigates a persona pick
 // `app.roleClients`/`services.preset` are the SAME instances the composed `AssetsCharacterComposeDeps`
 // closes over (compose-observe-via-service-spyon), so spying on them intercepts the real injected reads.
 describe("compose/assets-character.ts — resolveGreetingTemplate narrows to PresetNotFoundError (#759)", () => {
-  const fakeSummary = { items: [{ text: "a fake greeting", usage: { tokensIn: null, tokensOut: null, costUsd: null } }], model: "test-model" };
+  const fakeGreetingText = "a fake greeting";
+  const fakeSummary = { items: [{ text: fakeGreetingText, usage: { tokensIn: null, tokensOut: null, costUsd: null } }], model: "test-model" };
 
   test("a non-not-found preset rejection PROPAGATES before any completion runs", async ({ db, app, services }) => {
     const owner = (await seedUser(db, { handle: castId("greethost1") })).id;
@@ -202,7 +210,34 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
     expect(summarizeSpy).not.toHaveBeenCalled();
   });
 
-  test("a genuinely stale/unowned default preset id still degrades to the contract default template", async ({ db, app, services }) => {
+  // §8.5b — `generateGreetingText` now resolves its `summarize` connection through the REAL per-funder
+  // `roleClientsFor` bind, and NO default connection exists any more (F2/F16/D142 retired), so reaching the
+  // completion needs a seeded binding — a `NoConnectionError` otherwise. A post-compose instance-spy
+  // (`app.roleClientsFor(owner)`, then spy its `summarize`) no longer intercepts anything: `roleClientsFor`
+  // mints a FRESH bundle on every call (§7.5-1b). A `globalThis.fetch` spy fails the same way one level
+  // lower — `buildBackends` resolves `deps.sdkFetch ?? globalThis.fetch` ONCE, inside `createServices` (the
+  // shared `app` fixture's OWN setup, which runs before this test's body), so the captured reference is the
+  // pre-spy one (proven live: an unmocked run reached the box's real :8703 vLLM engine and got its real
+  // "model does not exist" answer). So THIS test builds its OWN composed graph — still the real seam,
+  // `createServices` end to end — with the fake fetch wired in from the start via `providerSeams.sdkFetch`.
+  test("a genuinely stale/unowned default preset id still degrades to the contract default template", async () => {
+    const db = await freshDb();
+    const clock = createFrozenClock();
+    // The wire body's field names are OpenAI's, not ours — a raw JSON string sidesteps
+    // `useNamingConvention` on an object literal whose keys this test does not own.
+    const wireBody = `{"id":"chatcmpl-test","choices":[{"index":0,"message":{"role":"assistant","content":${JSON.stringify(fakeGreetingText)}},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`;
+    const fakeFetch: typeof fetch = () => Promise.resolve(new Response(wireBody, { status: 200, headers: { "content-type": "application/json" } }));
+    const { services } = await createServices({
+      db,
+      now: clock.now,
+      ownerId: castId<UserId>("user_greet_owner"),
+      secretBoxKey: null,
+      casDir: tmpdir(),
+      variantDir: tmpdir(),
+      sessionSecret: "test-session-secret-at-least-32-chars",
+      providerSeams: { sdkFetch: fakeFetch },
+    });
+
     const owner = (await seedUser(db, { handle: castId("greethost2") })).id;
     const principal = principalOf(owner);
     const created = await services.character.create({ principal, input: { handle: castId("bryn-greet2"), name: "Bryn", description: "a card" } });
@@ -210,9 +245,25 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
       principal,
       input: { section: "seeds", patch: { defaultPresetId: castId<PresetId>("preset_greet_gone_forever") } },
     });
-    vi.spyOn(await app.roleClientsFor(owner), "summarize").mockResolvedValue(fakeSummary);
+    await db.insert(userConnections).values({
+      id: TEST_CONNECTION_ID,
+      ownerId: owner,
+      label: "greeting studio test connection",
+      providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
+      baseUrl: TEST_BASE_URL,
+      model: "test-model",
+    });
+    await db.insert(connectionBindings).values({
+      id: castId<ConnectionBindingId>("connection_binding_greet2"),
+      actorKind: "user",
+      userId: owner,
+      ruleId: null,
+      pluginId: null,
+      task: "summarize",
+      connectionId: TEST_CONNECTION_ID,
+    });
 
     const result = await services.character.generateGreeting({ principal, characterId: created.id, steer: "cheerful" });
-    expect(result.text).toBe(fakeSummary.items.at(0)?.text);
+    expect(result.text).toBe(fakeGreetingText);
   });
 });

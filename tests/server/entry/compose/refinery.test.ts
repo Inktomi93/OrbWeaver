@@ -6,13 +6,12 @@
 // and be seen, instead of quietly inheriting the service's authority (the principal-less-ops rule).
 //
 // The other two pins are the ones a compose seam gets wrong silently:
-//   • `summarizerContextTokens` is a THUNK over a LIVE getter. `role-clients.ts` deliberately stopped
-//     freezing the summarizer binding at boot so a role re-point takes effect; reading the value HERE would
-//     re-freeze exactly that, and every sweep afterwards would budget against a stale model's context.
+//   • `roleClientsFor` is threaded VERBATIM (never wrapped, memoized or read at compose time — the getter
+//     collapse, §7.5-1b: the six per-role getters, including the old `summarizerContextTokens` thunk, folded
+//     into ONE `resolved(task)` read), so a role re-point takes effect on the very next call.
 //   • the per-user prose resolver is CALLER-SCOPED — it reads the settings of the userId it is handed, and
 //     it is the SAME function object in both halves (one home for the resolution).
 
-import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -31,8 +30,7 @@ const NO_DB = {} as unknown as Db;
 
 /** The EXACT dep set the workload half is allowed to close over (refinery-r0 §9.3 / R4). */
 const WORKLOAD_KEYS = [
-  "summarize",
-  "summarizerContextTokens",
+  "roleClientsFor",
   "resolveUserPresetParams",
   "resolveUserProse",
   "listRefineryScoreTargets",
@@ -42,32 +40,29 @@ const WORKLOAD_KEYS = [
 
 interface Harness {
   readonly deps: RefineryComposeDeps;
-  readonly summarize: RoleClients["summarize"];
+  readonly roleClientsFor: ReturnType<typeof vi.fn>;
   readonly loadUserSettings: ReturnType<typeof vi.fn>;
   readonly resolveUserPresetParams: ReturnType<typeof vi.fn>;
-  /** The MUTABLE live bindings a role re-point flips after compose. */
-  readonly roleClients: { summarize: RoleClients["summarize"]; summarizerModel: string; summarizerContextTokens: number };
 }
 
 function harness(prose: UserSettings["prose"] = {}): Harness {
-  const summarize = vi.fn<RoleClients["summarize"]>();
-  const roleClients = { summarize, summarizerModel: "sum-v1", summarizerContextTokens: 8192 };
+  const roleClientsFor = vi.fn<RefineryComposeDeps["roleClientsFor"]>();
   const loadUserSettings = vi.fn((userId: UserId) => Promise.resolve({ prose: userId === USER ? prose : {} }));
   const resolveUserPresetParams = vi.fn(() => Promise.resolve({}));
   // @orb-waive no-test-fabrication(unknown): the seam stores the character front door and the db and calls neither here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const deps = {
     db: NO_DB,
     now: () => 1000,
-    roleClients,
+    roleClientsFor,
     character: { snapshot: vi.fn(), update: vi.fn(), get: vi.fn(), duplicate: vi.fn() },
     resolveUserPresetParams,
     loadUserSettings,
   } as unknown as RefineryComposeDeps;
-  return { deps, summarize, loadUserSettings, resolveUserPresetParams, roleClients };
+  return { deps, roleClientsFor, loadUserSettings, resolveUserPresetParams };
 }
 
 describe("buildRefinery — the queue's actor gets a SMALLER bundle than the service", () => {
-  test("the workload half closes over exactly the seven library-pass deps — no minters, no clock, no apply ops", () => {
+  test("the workload half closes over exactly the six library-pass deps — no minters, no clock, no apply ops", () => {
     const { refineryWorkloads } = buildRefinery(harness().deps);
 
     expect(Object.keys(refineryWorkloads).sort()).toStrictEqual([...WORKLOAD_KEYS].sort());
