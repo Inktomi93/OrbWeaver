@@ -4,12 +4,12 @@
 // is unset; adds when no openrouter row exists; idempotent (no second add when one already exists).
 
 import type { Principal } from "@orb/contracts/identity";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { Handle, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CredentialView } from "@orb/server/domain/credentials";
 import { seedCredentialFromEnv } from "@orb/server/entry/boot";
 import { expect, test } from "../../../support/fixtures.ts";
-import type { ProviderId } from "@orb/contracts/inference";
 
 const OWNER: Principal = {
   userId: castId<UserId>("u_owner"),
@@ -24,7 +24,7 @@ const KEY = "sk-or-test-key";
 function view(provider: string, id: string): CredentialView {
   return {
     id: castId<UserCredentialId>(id),
-    provider,
+    provider: castId<ProviderId>(provider),
     label: "default",
 
     hasMetadata: false,

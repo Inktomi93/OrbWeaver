@@ -9,7 +9,7 @@ import type { RpgActorEntry, RpgTrackerDef, RpgTrackerValue } from "@orb/contrac
 import { buildTrackerWriteGroups, gameTrackerWriteKeys, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
-import type { ChatId, Handle, MessageId, MessageVariantId, RpgGameId , UserId} from "@orb/kit/ids";
+import type { ChatId, Handle, MessageId, MessageVariantId, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
@@ -138,6 +138,7 @@ test("a PRESET prose override threaded through the gather replaces the shipped t
     chatId,
     pendingUserText: undefined,
     respondsToLatestUserTurn: false,
+    funderUserId: HOST_ID,
     prose: {
       "rpg.card.askInteractive": { text: "OUR TABLE'S OWN CARD ASK — :::card only for in-world signage.", baseVersion: 1 },
       "rpg.reminder.steeringLicense": { text: "OUR TABLE'S OWN LICENSE.", baseVersion: 1 },
@@ -170,6 +171,7 @@ test("the reminder RENDERS the steeringNote's {{user}}/{{char}} from chat's thre
     chatId,
     pendingUserText: undefined,
     respondsToLatestUserTurn: false,
+    funderUserId: HOST_ID,
     steerIdentity: { user: "Alex", char: "Niko" },
   });
   const reminder = out?.injections[0]?.content ?? "";
@@ -192,6 +194,7 @@ test("Ruling B: a MULTI-character game's steeringNote {{char}} renders the JOINE
     chatId,
     pendingUserText: undefined,
     respondsToLatestUserTurn: false,
+    funderUserId: HOST_ID,
     steerIdentity: { user: "Alex", char: "Niko, Aria" },
   });
   const reminder = out?.injections[0]?.content ?? "";
@@ -215,6 +218,7 @@ test("the gather does NOT grant the steeringNote full macro power — {{random}}
     chatId,
     pendingUserText: undefined,
     respondsToLatestUserTurn: false,
+    funderUserId: HOST_ID,
     steerIdentity: { user: "Alex", char: "Niko" },
   });
   const reminder = out?.injections[0]?.content ?? "";
@@ -426,10 +430,14 @@ test("R1: the CHEAP opt-out contributes NO terminal tools (byte-identical to bef
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
   // A FRESH game is BORN folded (owner ruling 2026-08-01), so the fold is what a new room gets with no config.
-  expect((await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID }))?.terminalTools).toBeDefined();
+  expect(
+    (await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID }))?.terminalTools,
+  ).toBeDefined();
   // …and the two-call opt-out mounts NOTHING — the mode, not the capability, decides the vehicle.
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap" });
-  expect((await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID }))?.terminalTools).toBeUndefined();
+  expect(
+    (await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID }))?.terminalTools,
+  ).toBeUndefined();
   expect(h.fakes.foldedToolBuilds).toHaveLength(1); // consulted for the born-folded gather ONLY
 });
 
@@ -466,7 +474,9 @@ test("the fold guard governs ONLY folded — an explicit cheap game on the same 
   // The opt-out mounted no terminal tools before the guard existed and does not now; its post-commit round is
   // the host's deliberate lever and the guard never re-routes it.
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap" });
-  expect((await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID }))?.terminalTools).toBeUndefined();
+  expect(
+    (await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID }))?.terminalTools,
+  ).toBeUndefined();
   expect(h.fakes.foldedToolBuilds).toHaveLength(0);
 });
 

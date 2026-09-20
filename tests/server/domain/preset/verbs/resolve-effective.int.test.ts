@@ -17,7 +17,7 @@ import type { EffectivePreset } from "@orb/server/domain/preset";
 import { createPresetService, PresetNotFoundError } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { makeGenerationCapability, makeResolvedView } from "../../../../support/factories/index.ts";
+import { makeCapability, makeGenerationCapability, makeResolvedView } from "../../../../support/factories/index.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedPreset, seedUser } from "../_support.ts";

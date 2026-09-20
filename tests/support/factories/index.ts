@@ -16,11 +16,12 @@ export type { PersonaRow } from "./persona.ts";
 export { makePersona, seedPersona } from "./persona.ts";
 export { principal } from "./principal.ts";
 export {
-  makeGenerationCapability,
   makeApiKeySecret,
-  makeResolvedView,
+  makeCapability,
+  makeGenerationCapability,
   makeResolved,
   makeResolvedSecret,
+  makeResolvedView,
 } from "./resolved-connection.ts";
 export type { UserRow } from "./user.ts";
 export { makeUser, seedUser } from "./user.ts";

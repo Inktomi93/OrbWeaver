@@ -4,15 +4,16 @@
 // (a history with no trailing USER row — continue-mode, or a transcript ending in tool results), and the tail
 // join must match the backend comparator's user-run joiner.
 
-import type { ChatEvent, ChatRequest, ChatResult, OrSkinTierModels, WarningCode } from "@orb/inference";
+import type { ProviderId } from "@orb/contracts/inference";
+import type { ChatEvent, ChatRequest, ChatResult, WarningCode } from "@orb/inference";
 import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER } from "@orb/inference";
 import type { ChatId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
 import { activePersonaIdFor, createRunChatTurnBridge, extractTrailingSystemRows, splitAgentHistory } from "@orb/server/entry/compose";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
 import { makeResolved } from "../../../support/factories/resolved-connection.ts";
+import { expect, test } from "../../../support/fixtures.ts";
 
 function row(role: TurnMessage["role"], text: string, name?: string): TurnMessage {
   const content: TurnMessage["content"] = [{ type: "text", text }];
@@ -411,12 +412,11 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     terminalReason: null,
     finishReason: null,
     ttftMs: null,
-    warmSpareClaimed: null,
     durationApiMs: null,
     apiErrorStatus: null,
     numTurns: 1,
     usage: {
-      model: "test-model",
+      model: castId<ModelId>("test-model"),
       tokensIn: 1,
       tokensOut: 1,
       cacheReadTokens: 0,
@@ -540,7 +540,7 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     let seen: number | undefined;
     const bridge = createRunChatTurnBridge({
       runChatTurn: (req): Promise<ChatResult> => {
-        seen = "historyCacheBreakpointFromEnd" in req ? req.historyCacheBreakpointFromEnd : undefined;
+        seen = "cacheBreakpointDepth" in req ? req.cacheBreakpointDepth : undefined;
         return Promise.resolve({ ...baseResult, events: [] });
       },
 
@@ -588,6 +588,7 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     const agentConnection = {
       api: "agent-sdk",
       model: castId<ModelId>("test-agent-model"),
+      provider: { id: castId<ProviderId>("test-provider") },
       credential: {},
       capability: {},
     } as unknown as TurnRequest["connection"];
