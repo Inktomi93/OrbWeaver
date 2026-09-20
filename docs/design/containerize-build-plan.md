@@ -156,16 +156,17 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
 
 | Change | Site | Test (suite, red-first mechanism) |
 | - | - | - |
-| `VLLM_ENGINE_HOST` env key, default `127.0.0.1`, host-only | `foundation/env/index.ts` (beside the port floor) | covered via the two consumers below |
+| `VLLM_ENGINE_HOST` env key, default `127.0.0.1`, host-only | `tooling/src/stack/lib/engine-fleet/env.ts` (this plan wrote it into `foundation/env/index.ts`; it landed in tooling instead, matching the next row's F1 move) | covered via the two consumers below |
 | `engineBaseUrl` reads the host | `tooling/src/stack/lib/engine-fleet/engine-url.ts` (moved out of the server on 2026-09-19, F1) | `tests/tooling/stack/lib/engine-fleet/engine-url.test.ts` — new re-import describe (the `reimportEnvWith` house pattern from `tests/server/foundation/env/index.test.ts:45-69`); red on old source (URL stays loopback). Stale test 3 ("never a routable host") truth-repaired to a default-env pin. |
-| `internalBackendHostPorts` keys off the host | `infra/network/egress.ts:81-83` | `tests/server/infra/network/egress.int.test.ts` — new describe: relocated host `127.0.0.2` ⇒ `127.0.0.2:8701` passes, `127.0.0.2:9998` blocked, `127.0.0.1:8701` blocked (the set READS env, never accumulates). Red on old source (first arm SSRF_BLOCKED). |
+| ~~`internalBackendHostPorts` keys off the host~~ | RETIRED 2026-09-20 (inference program F12): `internalBackendHostPorts` and its `egress-admission.ts` owner-row sibling are DELETED — the egress app→vllm hop's admission is now `AppSettings.privateEndpointAllowlist` (deployment-scoped host/CIDR, optionally `host:port`; `infra/network/egress.ts`) | its pin (`tests/server/infra/network/egress.int.test.ts`) was rewritten for the F12 model — see `orbweaver-inference-package.md` §14 fork F12 |
 | ~~`effectiveVllmDisabled(posture, gpuPresent)`~~ | RETIRED 2026-09-19 (F1): there is no posture module, no `ENGINES_POSTURE` and no engine boot arm in the server | its 6-row truth-table pin went with it |
 | ~~Supervisor idle-gate manages-scoped~~ | RETIRED 2026-09-19 (F1): the supervisor loop was not moved, it was deleted — nothing in the server manages an engine | its pin went with it |
 | `engines.sh` tsx→node fallback | `tooling/src/stack/engines.sh:33` | dev tooling (constitution's KISS carve-out); shellcheck + unchanged-dev-path reasoning; no vitest suite exists for the shim |
 
-Shared-value sweep: `VLLM_ENGINE_HOST` has zero pre-existing test references; the default keeps every
-`127.0.0.1` assertion true — proven by running the WHOLE engine suite dir + the egress/env/posture/
-lifecycle suites cold, plus a repo-wide grep of `127.0.0.1:87` / `no GPU on this host` across `tests/`.
+Shared-value sweep (as run at the time; `internalBackendHostPorts` has since been deleted under F12,
+superseding its egress row above): `VLLM_ENGINE_HOST` had zero pre-existing test references; the default
+kept every `127.0.0.1` assertion true — proven by running the WHOLE engine suite dir + the egress/env/
+posture/lifecycle suites cold, plus a repo-wide grep of `127.0.0.1:87` / `no GPU on this host` across `tests/`.
 
 ## 4. Artifact inventory (authored by this lane)
 
