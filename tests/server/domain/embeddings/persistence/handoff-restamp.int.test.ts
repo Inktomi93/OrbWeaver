@@ -8,9 +8,9 @@
 // departed host's card, so their next library cleanup would still evaporate the transferred room's memory.
 
 import type { Db } from "@orb/db";
-import { characters, chatDigestSpeakers, chatDigests, embedGenerations } from "@orb/db";
+import { characters, chatDigestSpeakers, chatDigests, embedGenerations, userConnections } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings/index.ts";
@@ -34,7 +34,12 @@ async function seedDigest(db: Db, key: string, chatId: ChatId, characterId: Char
   if (ownerId === undefined) {
     throw new Error(`missing owner for ${characterId}`);
   }
-  const generationId = `embed_generation_${ownerId}_embed_m`;
+  const generationId = castId<EmbedGenerationId>(`embed_generation_${ownerId}_embed_m`);
+  const connectionId = castId<UserConnectionId>(`user_connection_${ownerId}_embed_m`);
+  await db
+    .insert(userConnections)
+    .values({ id: connectionId, ownerId, label: "handoff restamp embed", providerId: castId("custom-openai"), model: "m" })
+    .onConflictDoNothing();
   await db
     .insert(embedGenerations)
     .values({
@@ -42,8 +47,8 @@ async function seedDigest(db: Db, key: string, chatId: ChatId, characterId: Char
       ownerId,
       task: "embed",
       via: "embed",
-      connectionId: null,
-      connectionRef: "test:embed",
+      connectionId,
+      connectionRef: connectionId,
       fingerprint: "test:handoff-restamp",
       space: "m",
     })

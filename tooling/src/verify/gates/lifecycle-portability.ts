@@ -201,6 +201,18 @@ const NON_PORTABLE_CANON: Readonly<Record<string, NonPortableRow>> = {
     classification: "DERIVED",
     why: "monotonic coordination token for rebuilding the stats rollup plane; restore rebuilds the rollups and starts a fresh token. Ends never.",
   },
+  embedGenerations: {
+    classification: "DERIVED",
+    why:
+      "immutable provenance for vector rows, derived from the owner's box-local connection configuration and rebuilt with the vector substrate. " +
+      "A restore must re-index against its own connections rather than carry another box's generation identities. Ends never.",
+  },
+  embedGenerationTargets: {
+    classification: "RUNTIME",
+    why:
+      "the in-flight per-owner generation and epoch that coordinate local re-index workers. It has no portable meaning without this box's connections, " +
+      "candidate rows, and workload state; restore starts a fresh target. Ends never.",
+  },
   keywordCooccurrence: { classification: "DERIVED", why: "a discovery analytics index over library canon; rebuilt by reindex. Ends never." },
   themeClusters: { classification: "DERIVED", why: "discovery clustering over embeddings, themselves derived. Ends never." },
   embedSpaceState: {

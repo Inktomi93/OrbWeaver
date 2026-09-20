@@ -1,4 +1,5 @@
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
+import type { EmbedGenerationId } from "@orb/kit/ids";
 
 /** noop = content_hash unchanged, no re-embed/write happened; written = a fresh insert or hash-changed update landed. */
 export interface StoreResult {
@@ -7,7 +8,7 @@ export interface StoreResult {
   /** The concrete space of the row that satisfied this write (provider-stamped for a write). */
   readonly model: string;
   /** Immutable encoder generation that satisfied this write/noop. Sweep terminals use it as their receipt. */
-  readonly generationId?: string;
+  readonly generationId?: EmbedGenerationId;
   readonly generationEpoch?: number;
   readonly generationVia?: "embed" | "imageEmbed";
 }

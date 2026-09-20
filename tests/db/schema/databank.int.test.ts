@@ -7,9 +7,32 @@
 
 import { DOC_ORIGINS } from "@orb/contracts/databank";
 import type { Db } from "@orb/db";
-import { assets, characterDocuments, characters, chatDocuments, chats, documentChunks, documents, embedGenerations, globalDocuments, users } from "@orb/db";
+import {
+  assets,
+  characterDocuments,
+  characters,
+  chatDocuments,
+  chats,
+  documentChunks,
+  documents,
+  embedGenerations,
+  globalDocuments,
+  userConnections,
+  users,
+} from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
-import type { AssetId, CharacterHandle, CharacterId, ChatId, DocumentChunkId, DocumentId, Handle, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterHandle,
+  CharacterId,
+  ChatId,
+  DocumentChunkId,
+  DocumentId,
+  EmbedGenerationId,
+  Handle,
+  UserConnectionId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
@@ -27,8 +50,13 @@ function rampVector(): Float32Array {
   return Float32Array.from({ length: DIM }, (_unused, i) => i / DIM);
 }
 
-async function seedGeneration(db: Db, ownerId: UserId): Promise<string> {
-  const id = `embed_generation_${ownerId}_embed_${MODEL}`;
+async function seedGeneration(db: Db, ownerId: UserId): Promise<EmbedGenerationId> {
+  const connectionId = castId<UserConnectionId>(`user_connection_${ownerId}_embed_${MODEL}`);
+  await db
+    .insert(userConnections)
+    .values({ id: connectionId, ownerId, label: `Test embed ${MODEL}`, providerId: castId("custom-openai"), model: MODEL })
+    .onConflictDoNothing();
+  const id = castId<EmbedGenerationId>(`embed_generation_${ownerId}_embed_${MODEL}`);
   await db
     .insert(embedGenerations)
     .values({
@@ -36,8 +64,8 @@ async function seedGeneration(db: Db, ownerId: UserId): Promise<string> {
       ownerId,
       task: "embed",
       via: "embed",
-      connectionId: null,
-      connectionRef: "test:embed",
+      connectionId,
+      connectionRef: connectionId,
       fingerprint: `test:embed:${MODEL}`,
       space: MODEL,
     })

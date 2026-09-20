@@ -4,7 +4,7 @@
 
 import type { ReadOnlyDb } from "@orb/db";
 import { characterEmbeddings, characters, documentChunks, documents, embedGenerations, embedSpaceState } from "@orb/db";
-import type { CharacterId, DocumentChunkId, DocumentId, UserId } from "@orb/kit/ids";
+import type { CharacterId, DocumentChunkId, DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 
 interface NearestCharacter {
@@ -18,7 +18,7 @@ interface NearestCharactersParams {
   readonly ownerId: UserId;
   readonly queryVector: Float32Array;
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId?: EmbedGenerationId | undefined;
   readonly limit: number;
   /** Self-exclusion for the "more like this" scan — a character is never its own neighbour. */
   readonly excludeCharacterId?: CharacterId | undefined;
@@ -80,7 +80,7 @@ interface NearestDocumentChunksParams {
   readonly queryVector: Float32Array;
   /** The `(model, dim)` space tag — same space the chunks were embedded in (invariant 6). */
   readonly model: string;
-  readonly generationId?: string | undefined;
+  readonly generationId?: EmbedGenerationId | undefined;
   readonly generationFingerprint?: string | undefined;
   readonly dim: number;
   readonly limit: number;
@@ -146,7 +146,7 @@ export async function readSeedCharacterVector(
   db: ReadOnlyDb,
   ownerId: UserId,
   characterId: CharacterId,
-  generationId?: string,
+  generationId?: EmbedGenerationId,
 ): Promise<{ readonly embedding: Float32Array; readonly model: string } | null> {
   const rows = await db
     .select({ embedding: characterEmbeddings.embedding, model: characterEmbeddings.model })

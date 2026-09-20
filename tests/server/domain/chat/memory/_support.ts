@@ -3,12 +3,13 @@
 // injected fakes (summarize / embeddingsStore / searchDigests) the build + recall close over. The digest/
 // segment rows carry a dummy F32_BLOB(1024) embedding (memory never reads the vector column — only the facets).
 
+import type { ProviderId } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
-import { characters, chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, embedGenerations } from "@orb/db";
-import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, UserId } from "@orb/kit/ids";
+import { characters, chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, embedGenerations, userConnections } from "@orb/db";
+import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type {
@@ -23,6 +24,10 @@ import { seedMessage } from "../_support.ts";
 
 export const MODEL = "test-embed-1024";
 const DIM = 1024;
+
+export function testGenerationId(ownerId: UserId): EmbedGenerationId {
+  return castId<EmbedGenerationId>(`embed_generation_memory_${ownerId}`);
+}
 
 /** The synthetic group-as-character id (`scopedCharacterId` for the shared bucket — inv 8, no `''` sentinel).
  *  A FK-valid character row must be seeded (`seedCharacter(db, owner, "group")`) before seeding shared digests. */
@@ -47,7 +52,7 @@ function dummyVector(): Float32Array {
   return new Float32Array(DIM);
 }
 
-async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Promise<string> {
+async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Promise<EmbedGenerationId> {
   const hosts = await db
     .select({ ownerId: chatParticipants.userId })
     .from(chatParticipants)
@@ -56,7 +61,18 @@ async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Pr
   if (ownerId === undefined || ownerId === null) {
     throw new Error(`missing host for ${chatId}`);
   }
-  const id = "test-generation";
+  const id = testGenerationId(ownerId);
+  const connectionId = castId<UserConnectionId>(`user_connection_memory_${ownerId}`);
+  await db
+    .insert(userConnections)
+    .values({
+      id: connectionId,
+      ownerId,
+      label: "memory fixture embed",
+      providerId: castId<ProviderId>("custom-openai"),
+      model: MODEL,
+    })
+    .onConflictDoNothing();
   await db
     .insert(embedGenerations)
     .values({
@@ -64,8 +80,8 @@ async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Pr
       ownerId,
       task: "embed",
       via: "embed",
-      connectionId: null,
-      connectionRef: "test:embed",
+      connectionId,
+      connectionRef: connectionId,
       fingerprint: `test:embed:${MODEL}`,
       space: MODEL,
     })
@@ -219,7 +235,7 @@ export function fakeEmbeddingsStore(db: Db): {
       speakers: [...params.speakerCharacterIds],
       ownerId: params.ownerId,
     });
-    return { ownerId: params.ownerId, model: params.model, generationId: "test-generation", generationEpoch: 1 };
+    return { ownerId: params.ownerId, model: params.model, generationId: testGenerationId(params.ownerId), generationEpoch: 1 };
   };
   const storeSegments: EmbeddingsStoreSegmentsOp = async (batch) => {
     segmentBatchSizes.push(batch.length);
@@ -236,7 +252,7 @@ export function fakeEmbeddingsStore(db: Db): {
         ownerId: params.ownerId,
       });
     }
-    return batch.map((params) => ({ ownerId: params.ownerId, model: params.model, generationId: "test-generation", generationEpoch: 1 }));
+    return batch.map((params) => ({ ownerId: params.ownerId, model: params.model, generationId: testGenerationId(params.ownerId), generationEpoch: 1 }));
   };
   return { store, storeSegments, digests, segments, segmentBatchSizes };
 }

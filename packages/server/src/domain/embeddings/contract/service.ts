@@ -20,7 +20,7 @@ import type {
   UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
-import type { GenerationReceipt, GenerationTask, PinnedGeneration } from "./generation.ts";
+import type { GenerationReceipt, GenerationTask } from "./generation.ts";
 import type {
   ClearTableParams,
   CountDocumentChunksParams,
@@ -60,6 +60,10 @@ export interface EmbeddingConnectionSnapshot {
   readonly transport: unknown;
   readonly embed: (input: string | readonly string[], opts?: { inputType?: "query" | "document"; instruction?: string }) => Promise<EmbedResult>;
   readonly imageEmbed: (input: ImageEmbedInput) => Promise<ImageEmbedResult>;
+}
+
+export interface PinnedGeneration extends GenerationReceipt {
+  readonly connection: EmbeddingConnectionSnapshot;
 }
 
 export type ResolveEmbeddingConnection = (

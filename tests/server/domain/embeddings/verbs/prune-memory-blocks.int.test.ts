@@ -11,25 +11,50 @@
 // an ordinary no-shrink pass deletes NOTHING (the build calls this every pass), and the digest's
 // `chat_digest_speakers` join rows go with it.
 
-import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
-import type { ChatDigestId, ChatSegmentId, Handle } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import { chatDigestSpeakers, chatDigests, chatSegments, userConnections } from "@orb/db";
+import type { ChatDigestId, ChatSegmentId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { upsertChatDigest, upsertChatSegment } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
+import { resolveTargetGeneration } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedChat, seedUser } from "../_support.ts";
 
 const NOW = 1_750_000_000_000;
 
+async function seedVectorParents(db: Db, ownerId: UserId): Promise<EmbedGenerationId> {
+  const harness = makeStoreHarness(db);
+  const resolved = await harness.roleClients.resolved("embed");
+  if (resolved === null) {
+    throw new Error("the memory fixture needs an embed connection");
+  }
+  await db.insert(userConnections).values({
+    id: resolved.connectionId,
+    ownerId,
+    label: "memory prune embed",
+    providerId: resolved.providerId,
+    model: resolved.model,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  const generation = await resolveTargetGeneration(harness.ctx, ownerId, "embed");
+  if (generation === null) {
+    throw new Error("the memory generation must resolve");
+  }
+  return generation.id;
+}
+
 describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
   test("digests: deletes every block beyond its TIER's ceiling (the consolidation cascade lands in the same DELETE)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const generationId = await seedVectorParents(db, owner);
     const scopedCharacterId = await seedCharacter(db, owner);
-    const chatId = await seedChat(db);
+    const chatId = await seedChat(db, "chat_test", owner);
     // Tier 0 blocks 0..3 + the two tier-1 consolidations that folded them (fanOut 2).
     for (const [tier, blockIdx] of [
       [0, 0],
@@ -52,6 +77,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         embedding: fakeVector(EMBED_DIM, 1),
         contentHash: `h${tier}${blockIdx}`,
         model: EMBED_MODEL,
+        generationId,
         dim: EMBED_DIM,
         now: NOW,
         speakerCharacterIds: [],
@@ -71,8 +97,9 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
   test("digests: a no-shrink pass deletes NOTHING (the build calls this on every pass)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const generationId = await seedVectorParents(db, owner);
     const scopedCharacterId = await seedCharacter(db, owner);
-    const chatId = await seedChat(db);
+    const chatId = await seedChat(db, "chat_test", owner);
     await upsertChatDigest(db, {
       id: castId<ChatDigestId>("chat_digest_keep"),
       chatId,
@@ -86,6 +113,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       embedding: fakeVector(EMBED_DIM, 1),
       contentHash: "hk",
       model: EMBED_MODEL,
+      generationId,
       dim: EMBED_DIM,
       now: NOW,
       speakerCharacterIds: [],
@@ -101,9 +129,10 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
   test("digests: the prune is SCOPE-keyed — a sibling bucket's blocks are never collateral", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const generationId = await seedVectorParents(db, owner);
     const mine = await seedCharacter(db, owner, { id: "character_mine", name: "mine" });
     const theirs = await seedCharacter(db, owner, { id: "character_theirs", name: "theirs" });
-    const chatId = await seedChat(db);
+    const chatId = await seedChat(db, "chat_test", owner);
     // Witnessing means two buckets legitimately hold DIFFERENT block sets, so a shrink in one says nothing
     // about the other — pruning globally would silently delete a valid digest every single pass.
     for (const scopedCharacterId of [mine, theirs]) {
@@ -120,6 +149,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         embedding: fakeVector(EMBED_DIM, 1),
         contentHash: "h5",
         model: EMBED_MODEL,
+        generationId,
         dim: EMBED_DIM,
         now: NOW,
         speakerCharacterIds: [],
@@ -137,8 +167,9 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
   test("digests: the pruned rows take their chat_digest_speakers join rows with them (no orphan joins)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const generationId = await seedVectorParents(db, owner);
     const scopedCharacterId = await seedCharacter(db, owner);
-    const chatId = await seedChat(db);
+    const chatId = await seedChat(db, "chat_test", owner);
     const digestId = castId<ChatDigestId>("chat_digest_with_speakers");
     await upsertChatDigest(db, {
       id: digestId,
@@ -153,6 +184,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       embedding: fakeVector(EMBED_DIM, 1),
       contentHash: "hs",
       model: EMBED_MODEL,
+      generationId,
       dim: EMBED_DIM,
       now: NOW,
       speakerCharacterIds: [],
@@ -168,8 +200,9 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
 
   test("segments: ONE flat ceiling, chat-wide — a stale seq-span never outlives its block", async () => {
     const db = await freshDb();
-    await seedUser(db, { handle: castId<Handle>("owner") });
-    const chatId = await seedChat(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const generationId = await seedVectorParents(db, owner);
+    const chatId = await seedChat(db, "chat_test", owner);
     for (const blockIdx of [0, 1, 2]) {
       await upsertChatSegment(db, {
         id: castId<ChatSegmentId>(`chat_segment_${blockIdx}`),
@@ -182,6 +215,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         embedding: fakeVector(EMBED_DIM, 1),
         contentHash: `hs${blockIdx}`,
         model: EMBED_MODEL,
+        generationId,
         dim: EMBED_DIM,
         now: NOW,
       });
@@ -203,8 +237,9 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
   // down. `chunkCounts` lists only the blocks whose count is not 1; everything else keeps chunk 0 alone.
   test("segments: the per-block CHUNK ceiling reclaims a re-chunked block's stranded rows", async () => {
     const db = await freshDb();
-    await seedUser(db, { handle: castId<Handle>("owner") });
-    const chatId = await seedChat(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const generationId = await seedVectorParents(db, owner);
+    const chatId = await seedChat(db, "chat_test", owner);
     const rows: { blockIdx: number; chunkIdx: number }[] = [
       { blockIdx: 0, chunkIdx: 0 },
       { blockIdx: 1, chunkIdx: 0 },
@@ -226,6 +261,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         embedding: fakeVector(EMBED_DIM, 1),
         contentHash: `hs${r.blockIdx}_${r.chunkIdx}`,
         model: EMBED_MODEL,
+        generationId,
         dim: EMBED_DIM,
         now: NOW,
       });

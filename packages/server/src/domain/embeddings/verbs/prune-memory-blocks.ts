@@ -14,13 +14,12 @@
 // a narrow, named, non-`store` write seam. Store-then-prune, never clear-then-store, so the build's no-op
 // economy is untouched — an ordinary pass deletes nothing and re-embeds nothing.
 
-import { chatParticipants } from "@orb/db";
-import { and, eq, isNull } from "drizzle-orm";
 import type { EmbeddingsContext } from "../context.ts";
 import type { PruneMemoryBlocksParams } from "../contract/params.ts";
 import type { PruneMemoryBlocksResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../persistence/clear.ts";
+import { loadChatHostOwnerForPrune } from "../persistence/queries.ts";
 import { resolveTargetGeneration } from "../substrate/generation.ts";
 
 function assertNever(value: never): never {
@@ -29,12 +28,8 @@ function assertNever(value: never): never {
 
 export function createPruneMemoryBlocks(ctx: EmbeddingsContext): EmbeddingsService["pruneMemoryBlocks"] {
   return async (params: PruneMemoryBlocksParams): Promise<PruneMemoryBlocksResult> => {
-    const host = await ctx.db
-      .select({ ownerId: chatParticipants.userId })
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, params.chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
-      .limit(1);
-    const generation = host[0]?.ownerId === null || host[0]?.ownerId === undefined ? null : await resolveTargetGeneration(ctx, host[0].ownerId, "embed");
+    const ownerId = await loadChatHostOwnerForPrune(ctx.db, params.chatId);
+    const generation = ownerId === null ? null : await resolveTargetGeneration(ctx, ownerId, "embed");
     if (generation === null) {
       return { rowsDeleted: 0 };
     }

@@ -11,8 +11,8 @@
 
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { ReadOnlyDb } from "@orb/db";
-import type { ChatId, DocumentId, UserId } from "@orb/kit/ids";
-import type { ResolveEmbeddingConnection } from "../../embeddings/contract/service.ts";
+import type { ChatId, DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "#domain/embeddings";
 import type {
   CorpusParams,
   DigestsParams,
@@ -66,6 +66,14 @@ export interface DigestSearchEvents {
 export interface ImageQuerySpace {
   readonly via: "imageEmbed" | "embed";
   readonly model: string;
+}
+
+export interface ActiveQuerySpace {
+  readonly generationId?: EmbedGenerationId | undefined;
+  readonly fingerprint: string;
+  readonly model: string;
+  readonly via: "embed" | "imageEmbed";
+  readonly connection: EmbeddingConnectionSnapshot;
 }
 
 export interface SearchContext {

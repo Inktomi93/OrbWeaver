@@ -6,7 +6,7 @@
 
 import type { Db } from "@orb/db";
 import { assets, characterEmbeddings, characters, chatDigests, chatParticipants, chatSegments, documentChunks, documents, imageEmbeddings } from "@orb/db";
-import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, gte, inArray, isNull, ne, notInArray, or } from "drizzle-orm";
 import type { VectorTable } from "../contract/params.ts";
@@ -124,7 +124,7 @@ export async function pruneChatDigests(
   db: Db,
   chatId: ChatId,
   scopedCharacterId: CharacterId,
-  target: { readonly keepPerTier: readonly number[]; readonly generationId?: string },
+  target: { readonly keepPerTier: readonly number[]; readonly generationId?: EmbedGenerationId },
 ): Promise<number> {
   const { keepPerTier, generationId } = target;
   if (keepPerTier.length === 0) {
@@ -172,7 +172,7 @@ export async function dropChatDigestKeys(
   scopedCharacterId: CharacterId,
   target: {
     readonly keys: readonly { readonly tier: number; readonly blockIdx: number; readonly staleHash: string }[];
-    readonly generationId?: string;
+    readonly generationId?: EmbedGenerationId;
   },
 ): Promise<number> {
   const { keys, generationId } = target;
@@ -211,7 +211,7 @@ export async function pruneChatSegments(
   target: {
     readonly keepBlockCount: number;
     readonly chunkCounts: readonly { readonly blockIdx: number; readonly chunkCount: number }[];
-    readonly generationId?: string;
+    readonly generationId?: EmbedGenerationId;
   },
 ): Promise<number> {
   const { keepBlockCount, chunkCounts, generationId } = target;
@@ -244,7 +244,7 @@ export async function pruneChatSegments(
  *  chunk set) AND rows in a retired `(model)` space (`model != activeModel`), scoped to the one document.
  *  Returns the count deleted. Store-then-prune (never clear-then-store) preserves the no-op economy — a
  *  re-extract with unchanged text re-embeds nothing; the prune is one bounded DELETE. */
-export async function pruneDocumentChunks(db: Db, documentId: DocumentId, keepCount: number, generationId: string): Promise<number> {
+export async function pruneDocumentChunks(db: Db, documentId: DocumentId, keepCount: number, generationId: EmbedGenerationId): Promise<number> {
   const rows = await db
     .delete(documentChunks)
     .where(and(eq(documentChunks.documentId, documentId), eq(documentChunks.generationId, generationId), gte(documentChunks.chunkIdx, keepCount)))
