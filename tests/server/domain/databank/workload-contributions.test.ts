@@ -4,11 +4,12 @@
 // the INJECTED purge op after a BULK non-aborted sweep — never on a singular pass, never on abort.
 
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
-import type { DocumentId, UserId } from "@orb/kit/ids";
+import type { DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { DatabankWorkloadDeps } from "../../../../packages/server/src/domain/databank/contract/service.ts";
 import { createDatabankWorkloadContributions } from "../../../../packages/server/src/domain/databank/workload-contributions.ts";
+import type { GenerationReceipt } from "../../../../packages/server/src/domain/embeddings/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
@@ -20,13 +21,31 @@ const sig = (): AbortSignal => new AbortController().signal;
 
 const RUN = { documents: 1, chunksUpserted: 3, chunksNoop: 0, chunksPruned: 0, reExtracted: 0, failed: [] } as const;
 
+/** The receipt the bulk sweep opens and the purge is supposed to be handed — a real
+ *  {@link GenerationReceipt}, not a placeholder, so the hand-off can be asserted by VALUE. */
+const SWEEP_RECEIPT = {
+  ownerId: OWNER_ID,
+  generation: { id: castId<EmbedGenerationId>("embed_generation_sweep"), task: "embed", via: "embed", epoch: 2, space: "qwen3-embed-test" },
+} as const satisfies { readonly ownerId: UserId; readonly generation: GenerationReceipt };
+
+/**
+ * A recording double of the deps the contributions call — the routing + the purge guard are what is under
+ * test, not the ingest subsystem's own accounting.
+ *
+ * TYPED, NEVER CAST. This used to be `as unknown as DatabankWorkloadDeps`, which is how
+ * `beginDocumentVectorSweep` — added to the contract and wired at `entry/compose/services.ts` — was simply
+ * absent here: the cast said "trust me", the double answered `undefined`, and the two PURGE-semantics tests
+ * (the guard on PD-139(c) silent vector loss) died in a `TypeError` instead of asserting. The literal below
+ * is `satisfies DatabankWorkloadDeps` with nothing suppressing it, so the NEXT member added to that contract
+ * is a named compile error HERE, at construction, rather than a runtime surprise inside a verb — the
+ * enforcement ladder's compile-time rung, which fires before the suite is even allowed to run.
+ */
 function build(): { readonly deps: DatabankWorkloadDeps; readonly contributions: ReturnType<typeof createDatabankWorkloadContributions> } {
-  // A recording slice of the two ingest ops the contributions call — the routing + the purge guard are what
-  // @orb-waive no-test-fabrication(unknown): is under test, not the ingest subsystem's own accounting. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const deps = {
     databankIngest: { ingestDocument: vi.fn(async () => RUN), reindex: vi.fn(async () => RUN) },
+    beginDocumentVectorSweep: vi.fn(async () => [SWEEP_RECEIPT]),
     purgeDocumentVectors: vi.fn(async () => undefined),
-  } as unknown as DatabankWorkloadDeps;
+  } satisfies DatabankWorkloadDeps;
   return { deps, contributions: createDatabankWorkloadContributions(deps) };
 }
 
@@ -75,7 +94,11 @@ describe("databank-reindex", () => {
   test("a BULK (all-owners) sweep reclaims the old document embed space afterwards", async () => {
     const { deps, contributions } = build();
     await contributions[1].run(bulkCtx, { scope: { kind: "owner" } }, vi.fn(), sig());
-    expect(deps.purgeDocumentVectors).toHaveBeenCalledTimes(1);
+    expect(deps.beginDocumentVectorSweep).toHaveBeenCalledTimes(1);
+    // BY VALUE, not just by count: the reclaim is only safe for the generations the sweep OPENED — a purge
+    // handed anything else (or nothing) deletes rows the re-embed never replaced. That is the PD-139(c)
+    // silent-data-loss edge this pair exists to hold.
+    expect(deps.purgeDocumentVectors).toHaveBeenCalledExactlyOnceWith([SWEEP_RECEIPT]);
   });
 
   test("a SINGULAR per-owner run does NOT purge (a model change is box-level)", async () => {
