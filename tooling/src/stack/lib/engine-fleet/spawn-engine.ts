@@ -10,13 +10,13 @@
 // (models/windows/utils/max_pixels/TP) are the LAUNCH config buildEngineArgv turns into argv. The deployment
 // overrides (VLLM_BIN, VLLM_PY, HF_HOME, VLLM_CACHE_ROOT, VLLM_STORE_ROOT) still win, mirroring the old shell.
 
-import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { execNicedSync, runNicedSync } from "../../../_shared/proc.ts";
+import type { EngineLaunchMarker } from "../../contract/engine-ownership.ts";
 import type { EngineLaunchConfig } from "./build-argv.ts";
 import { buildEngineArgv, engineCudaVisibleDevices } from "./build-argv.ts";
 import type { VLLM_ENGINES } from "./engines.ts";
-import type { EngineLaunchMarker } from "./launch-ownership.ts";
-import { ENGINE_LAUNCH_MARKER_ENV } from "./process-identity.ts";
+import { ENGINE_LAUNCH_MARKER_ENV } from "./proc-observe.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 
@@ -49,9 +49,9 @@ export function resolveStoreRoot(repoRoot: string, override?: string | undefined
   }
   // @orb-waive caught-failure-ownership(catch): a git-common-dir resolution failure falls back to the repo root (the documented non-worktree default); local path derivation, no auth/credential/network. Ends if the resolved root ever crosses a trust boundary.
   try {
-    const commonDir = execFileSync("git", ["-C", repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"], {
-      encoding: "utf8",
-    }).trim();
+    // Through the ONE subprocess door (policy `tooling-child-process-door`) — `execNicedSync` keeps
+    // execFileSync's throw-on-non-zero semantics, which is what the fallback below reads.
+    const commonDir = execNicedSync("git", ["-C", repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"]).trim();
     return path.dirname(commonDir);
   } catch {
     return repoRoot;
@@ -80,11 +80,13 @@ function cacheEnv(repoRoot: string, storeRoot: string, deployment: EngineDeploym
  *  the snapshot dir). The `hf` CLI stdout format is version-unstable — snapshot_download() is stable. Throws
  *  if the path can't be resolved (an unlaunchable rerank engine must fail loud, not serve a bad path). */
 function resolveRerankSnapshotPath(python: string, rerankModel: string, cacheEnvVars: Record<string, string>, baseEnv: NodeJS.ProcessEnv): string {
-  const out = execFileSync(python, ["-c", `from huggingface_hub import snapshot_download; print(snapshot_download('${rerankModel}'))`], {
-    encoding: "utf8",
+  // Through the ONE subprocess door (policy `tooling-child-process-door`). `runNicedSync` is the door that
+  // takes an `env`, and it NEVER throws: a non-zero exit (or a failed spawn) comes back as empty stdout,
+  // which falls through to the explicit refusal below — so the "fail loud" contract is unchanged.
+  const out = runNicedSync(python, ["-c", `from huggingface_hub import snapshot_download; print(snapshot_download('${rerankModel}'))`], {
     env: { ...baseEnv, ...cacheEnvVars },
   })
-    .trim()
+    .stdout.trim()
     .split("\n")
     .pop();
   if (out === undefined || out.length === 0) {

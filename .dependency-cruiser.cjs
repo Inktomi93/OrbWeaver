@@ -649,49 +649,49 @@ module.exports = {
       },
     },
 
-    // ════════════════════════════ infra/providers (the sealed executor) ══════════════════════════
+    // ══════════════════ @orb/inference — the sealed provider executor (was infra/providers) ══════════
+    // ALL FOUR STANZAS BELOW WERE RE-POINTED 2026-09-20 (the `@orb/inference` extraction, #2 of
+    // docs/design/orbweaver-inference-package.md): the provider runtime moved WHOLE out of
+    // `packages/server/src/infra/providers/` into `packages/inference/src/`, and every one of these rules
+    // was still aimed at the deleted tree — a `pathNot` exemption over an empty set is an over-grant nobody
+    // can see, which `depcruise-grant-liveness` is what caught. The program's own §12 names the successor
+    // posture verbatim: "Resolve-time: package boundary; BackendKey, backends, credentials never leave
+    // index.ts; dep-cruiser backstop" — so these are the BACKSTOP half, the `ui-cake`/`packages-no-tooling`
+    // posture, with the resolver (a one-entry `exports` map) as the primary.
+    // A FIFTH, `vllm-surface-isolation`, was DELETED rather than re-pointed, by the same document's
+    // ruling: "there is no vllm module left to isolate" — the five role surfaces are gone, vLLM is a
+    // provider ROW on the openai-compat wire, and the owner's fleet is `tooling/src/stack/lib/engine-fleet/`.
+    // Following it there would have widened a provider-execution seal into the instrument tree by side
+    // effect, which is the mistake the `no-raw-egress` engine-plane rows already refused to make.
     {
       name: "providers-public-surface-only",
       comment:
-        "Code outside infra/providers may import ONLY the public surface — the front door (providers/index.ts), the role dispatchers (roles/), and the contract barrel (contract/). Reaching INTO a sealed family (backends/<x>) or the local engine (vllm/) is RED — the family boundary is internal, and the agent-sdk credential firewall must not leak through a deep import. Wildcard match means new families inherit the seal. tests/support is exempt (mock runners instantiate family shapes). (Tier-3b-Providers.md invariants #1/#4.)",
+        'Code outside @orb/inference may import ONLY its public surface — the package front door (packages/inference/src/index.ts). Reaching INTO a sealed family (backends/<x>), the funnel, the registry or the contract internals is RED: the family boundary is internal, and the agent-sdk credential firewall must not leak through a deep import. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/**`, a tree the extraction deleted; the seal that used to need a per-subdir enumeration is now the whole package, because `packages/inference/package.json` exports exactly `".": "./src/index.ts"` — so this stanza is the deep-relative-escape backstop over resolver physics, exactly like `ui-cake`. tests/support is exempt (mock runners instantiate family shapes); tooling is governed by its own narrower half, `tooling-no-provider-families`. (docs/design/orbweaver-inference-package.md §12; Tier-3b-Providers.md invariants #1/#4, whose body still describes the pre-extraction tree.)',
       severity: "error",
-      from: { pathNot: [`${SRV}infra/providers/`, "^tests/support/", "^tooling/"] },
+      from: { pathNot: [INFERENCE, "^tests/support/", "^tooling/"] },
       to: {
-        // Sealed: the families (backends/<x>), the local engine (vllm/), AND the contract internals —
-        // outside callers reach contract/index.ts (the barrel), never contract/<file> (Tier-3b-Providers.md invariant #4).
-        path: `${SRV}infra/providers/(backends|vllm|contract)/`,
-        pathNot: `${SRV}infra/providers/contract/index\\.ts$`,
+        path: INFERENCE,
+        pathNot: `${INFERENCE}index\\.ts$`,
       },
     },
     {
       name: "infra-strategy-isolation",
       comment:
-        "Strategy-pattern infra (providers/backends/<family>, auth/modes/<mode>) stays independent: a module in <group>/<strategy>/ must not import a SIBLING strategy's internals. Cross-strategy work goes through the role/mode contract or a shared pure helper — never a direct reach. One generic rule covers both groups + every future member. (Tier-3b-Providers.md invariant #2; Tier-3-Infra.md MODE_RESOLVERS.)",
+        "Strategy-pattern backends stay independent: a module in `packages/inference/src/backends/<wire>/` must not import a SIBLING backend's internals. Cross-backend work goes through the role contract or the two SHARED PURE seams — `backends/kit/` (the openai-compat reducer, cache-control, retry, error-classify) and `backends/v4/` (the Vercel `LanguageModelV4` slice both hosted wires spell identically) — never a direct reach. One generic rule covers every future wire. THE TWO EXEMPT DIRS ARE DERIVED, NOT PICKED: `WIRES` (`packages/contracts/src/inference/wires.ts:10`) is the closed four-member tuple `openai-compat · anthropic-messages · agent-sdk · local-light`, and everything else under `backends/` is by construction a shared seam — a fifth wire inherits the seal for free, while a third shared seam has to be added here on purpose. RE-POINTED 2026-09-20 from `packages/server/src/infra/(providers/backends|auth/modes)/<x>/`: the providers half moved into @orb/inference, and the auth half went dead in the SAME window for an unrelated reason — `infra/auth/modes/` is five FLAT FILES (cookie-session · forward-header · local · oidc · single-user), so the `<group>/<strategy>/` shape this rule is built on has no member there and a mode has no internals to seal. THE NAME still says `infra`, which is now only historically true; it is kept because `Core-Enforcement-Active-Gates.md` and `Tier-3b-Providers.md` cite it by name and those live outside this change's fence. (docs/design/orbweaver-inference-package.md §12; Tier-3b-Providers.md invariant #2.)",
       severity: "error",
-      from: { path: `${SRV}infra/(providers/backends|auth/modes)/([^/]+)/` },
+      from: { path: `${INFERENCE}backends/([^/]+)/` },
       to: {
-        path: `${SRV}infra/$1/([^/]+)/`,
-        pathNot: [`${SRV}infra/$1/$2/`, `${SRV}infra/providers/backends/kit/`],
-      },
-    },
-    {
-      name: "vllm-surface-isolation",
-      comment:
-        "The vLLM engine's five role surfaces are independent: surfaces/<a> must not import surfaces/<b>. Surfaces register against engine/ (down); changing one surface never touches another. (Tier-3b-Providers.md invariant #7.)",
-      severity: "error",
-      from: { path: `${SRV}infra/providers/vllm/surfaces/([^/]+)` },
-      to: {
-        path: `${SRV}infra/providers/vllm/surfaces/([^/]+)`,
-        pathNot: `${SRV}infra/providers/vllm/surfaces/$1`,
+        path: `${INFERENCE}backends/([^/]+)/`,
+        pathNot: [`${INFERENCE}backends/$1/`, `${INFERENCE}backends/(kit|v4)/`],
       },
     },
     {
       name: "credential-firewall-openrouter-not-agent-sdk",
       comment:
-        "TRANSITIVE credential firewall (./CLAUDE.md hard-won fact: the Max-sub OAuth credential must NEVER leak into the OpenRouter paths — token extraction is what got an account banned). strategy-isolation blocks the DIRECT edge; `reachable: true` closes the transitive hole — no openrouter module may reach agent-sdk through ANY chain (e.g. via a backends/kit helper). (Tier-3b-Providers.md §7.1 firewall; Core-Shared-Dissolution.md §9.)",
+        "TRANSITIVE credential firewall (./CLAUDE.md hard-won fact: the Max-sub OAuth credential must NEVER leak into the OpenRouter paths — token extraction is what got an account banned). `reachable: true` closes the transitive hole that the direct-edge rule above cannot: no openrouter module may reach agent-sdk through ANY chain (e.g. via a backends/kit helper). RE-POINTED 2026-09-20 with a NARROWED subject, and the narrowing is the honest part: openrouter is no longer a backend FAMILY — its runners collapsed into the shared `backends/openai-compat/` transport and its identity is a provider row's `dialect` — so the surviving openrouter-NAMED plane is the catalog + capability-source modules this `from` now enumerates, and the execution path is shared with every other OpenAI-shaped provider and cannot be directory-fenced. The threat the old rule closed was mode-2, the OpenRouter agent-sdk skin, which the same program DELETED by owner word (2026-09-19, F18: `agent-sdk` is the subscription's wire and nothing else's). (Tier-3b-Providers.md §7.1 firewall; Core-Shared-Dissolution.md §9.)",
       severity: "error",
-      from: { path: `${SRV}infra/providers/backends/openrouter/` },
-      to: { path: `${SRV}infra/providers/backends/agent-sdk/`, reachable: true },
+      from: { path: `${INFERENCE}(catalog|capability/sources/[^/]+)/openrouter\\.ts$` },
+      to: { path: `${INFERENCE}backends/agent-sdk/`, reachable: true },
     },
 
     // ════════════════════════════ Persistence + fine-grained domain ═════════════════════════════
@@ -754,12 +754,12 @@ module.exports = {
     {
       name: "tooling-no-provider-families",
       comment:
-        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (Core-Tooling-Law.md §1), and the fleet launcher MUST share `vllm/engine`'s spawn-spec/wake-budget builders with the in-server supervisor or the two owners drift — that shared-builder invariant is the whole point of the ownership inversion (A.4). What stays SEALED against tooling is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. A tool reaching either is RED. (Core-Tooling-Law.md §1/§4.6; providers invariants #1/#4.)",
+        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (Core-Tooling-Law.md §1), so a tool reaching @orb/inference's front door is legal — what stays SEALED is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/(backends|contract)/`, a tree the @orb/inference extraction deleted. THE OLD CARVE-OUT IS GONE WITH ITS SUBJECT: this comment used to exempt `vllm/engine`'s spawn-spec/wake-budget builders because the fleet launcher and the in-server supervisor shared them and must not drift — there is no in-server supervisor any more, the fleet moved WHOLE to `tooling/src/stack/lib/engine-fleet/`, and nothing in @orb/inference builds an engine argv. (Core-Tooling-Law.md §1/§4.6; docs/design/orbweaver-inference-package.md §12.)",
       severity: "error",
       from: { path: "^tooling/" },
       to: {
-        path: "^packages/server/src/infra/providers/(backends|contract)/",
-        pathNot: "^packages/server/src/infra/providers/contract/index\\.ts$",
+        path: `${INFERENCE}(backends|contract)/`,
+        pathNot: `${INFERENCE}contract/index\\.ts$`,
       },
     },
 

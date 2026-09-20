@@ -228,14 +228,21 @@ function writeAllFixtures(): void {
     `import { teachingContribution } from "../teaching-contribution.ts";\nexport const u = teachingContribution;\n`,
   );
 
-  fx(`${S}/infra/providers/backends/__dc_back/i.ts`, VAL);
-  fx(`${S}/infra/providers/backends/__dc_back2/i.ts`, VAL);
-  fx(`${S}/domain/__dc_feat/usebackend.ts`, `import "../../infra/providers/backends/__dc_back/i.ts";\n`);
-  fx(`${S}/infra/providers/backends/__dc_back/cross.ts`, `import "../__dc_back2/i.ts";\n`);
-  fx(`${S}/infra/providers/vllm/surfaces/__dc_s2.ts`, VAL);
-  fx(`${S}/infra/providers/vllm/surfaces/__dc_s1.ts`, `import "./__dc_s2.ts";\n`);
-  fx(`${S}/infra/providers/backends/agent-sdk/__dc.ts`, VAL);
-  fx(`${S}/infra/providers/backends/openrouter/__dc.ts`, `import "../agent-sdk/__dc.ts";\n`);
+  // The @orb/inference seal — providers-public-surface-only · infra-strategy-isolation ·
+  // credential-firewall-openrouter-not-agent-sdk. RE-POINTED 2026-09-20 with the stanzas themselves: the
+  // provider runtime moved WHOLE out of `packages/server/src/infra/providers/` into
+  // `packages/inference/src/`, so a fixture planted at the old tree fired nothing and every one of these
+  // rules was inert. `vllm-surface-isolation`'s two fixtures left with the rule the inference program
+  // deleted; ACTIVE_RULES derives from the config, so the anti-drift case drops it automatically.
+  fx("packages/inference/src/backends/__dc_back/i.ts", VAL);
+  fx("packages/inference/src/backends/__dc_back2/i.ts", VAL);
+  fx(`${S}/domain/__dc_feat/usebackend.ts`, `import "../../../../inference/src/backends/__dc_back/i.ts";\n`);
+  fx("packages/inference/src/backends/__dc_back/cross.ts", `import "../__dc_back2/i.ts";\n`);
+  fx("packages/inference/src/backends/agent-sdk/__dc.ts", VAL);
+  // The firewall's `from` is the surviving openrouter-NAMED plane (catalog + capability sources), not a
+  // family dir — openrouter is a provider row on the shared openai-compat transport now, so the fixture
+  // has to be one of those real module names rather than a `__dc`-prefixed one.
+  fx("packages/inference/src/catalog/openrouter.ts", `import "../backends/agent-sdk/__dc.ts";\n`);
 
   fx(`${S}/domain/__dc_feat/persistence/io.ts`, `import "node:fs";\n`);
   fx(EMBEDDINGS, VAL);
@@ -330,7 +337,7 @@ function writeAllFixtures(): void {
   // tooling-no-provider-families — a tool reaching a provider FAMILY (backends/<x>, where the agent-sdk
   // credential firewall lives). The rule shipped without this pin, so the anti-drift `test.each(ACTIVE_RULES)`
   // case had nothing to fire it and the suite was RED on main before the P6 verify move touched it.
-  fx("tooling/src/__dc_ta/families.ts", `import "../../../packages/server/src/infra/providers/backends/__dc_back/i.ts";\n`);
+  fx("tooling/src/__dc_ta/families.ts", `import "../../../packages/inference/src/backends/__dc_back/i.ts";\n`);
 
   // client-components-tier (G5): components/ never imports UP into features/routes/main.tsx.
   fx("packages/client/src/components/__dc_t/i.ts", VAL);

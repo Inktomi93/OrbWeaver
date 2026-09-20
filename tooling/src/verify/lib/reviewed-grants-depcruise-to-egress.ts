@@ -33,7 +33,10 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     // INDEX while its pattern stayed live and unchanged — the alarm and the finding arrived as a matched
     // pair (grant unused at [65], finding unbound at [67]), which is what makes the diagnosis mechanical.
     // Re-derive the index from the finding's own subject rather than counting rules by hand.
-    subject: "config.forbidden[67].to.pathNot[0]",
+    // Re-pointed 67 → 68 (2026-09-20, the `@orb/inference` extraction): `vllm-surface-isolation` was
+    // DELETED one rule above it and `depcruise-to-egress`'s own row count did not change, so the whole
+    // tail shifted DOWN by one — the mirror of the #2397 insertion, same mechanical diagnosis.
+    subject: "config.forbidden[68].to.pathNot[0]",
     operation: 'depcruise-zero-member-pattern:"^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\\\?url$"',
     why: "a vite ASSET QUERY specifier (`?url`), not a module path and not a repo file: its member set is what the bundler emits at build time, which no static tree read can enumerate — dep-cruiser matches it only as an unresolvable-import exemption. Migrated from the retired gate-local RATIFIED row (#1922 / #2176), whose cite `packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts` (the one importer that makes it live) is no longer liveness-checked by anything (successor citation check: #2349).",
     endsWhen:
