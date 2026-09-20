@@ -1,8 +1,8 @@
 // E2E: the real "start a chat with a character" flow, end-to-end against the full running stack — the
 // proof that this seam makes the app actually generate. single-user AUTH_MODE auto-resolves the owner
-// (no login form); globalSetup (support/global-setup.ts) guarantees ≥1 character card. roleDefaults.chat =
-// chat-completions/vllm (the D109 local wire globalSetup pins) + consent are live, so with a character in
-// the room the turn WILL generate + stream.
+// (no login form); globalSetup (support/global-setup.ts) guarantees ≥1 character card. The `chat` Model role
+// is bound to the harness's local-engine connection (globalSetup's `pinChatConnection` — `vllm` on
+// chat-completions) + consent are live, so with a character in the room the turn WILL generate + stream.
 //
 // OPT-IN (`@live`): this is the ONE spec that fires a real local vLLM chat turn (up to ~120s of live
 // generation), so it is SKIPPED by default and only runs under `E2E_LIVE=1` — routine `pnpm e2e` (and the

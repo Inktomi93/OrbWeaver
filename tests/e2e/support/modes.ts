@@ -11,9 +11,10 @@
 // (target-guard.ts) can PROVE the origin it seeds is a throwaway harness stack.
 //
 // THE INCIDENT that made single-user isolated: it used to run on the DEV ports with NO `DATABASE_URL`, and
-// `reuseExistingServer` locally — so `pnpm e2e` seeded the operator's LIVE dev DB (globalSetup's `pinRouting`
-// rewrote their real `routing.roleDefaults`). `E2E_ALLOW_DEV_TARGET=1` restores exactly that old shape for a
-// deliberate, supervised drive against the running dev stack, and waives the guard with it.
+// `reuseExistingServer` locally — so `pnpm e2e` seeded the operator's LIVE dev DB (globalSetup's
+// `pinChatConnection` authored a connection row in it and re-pointed their real `chat` Model role).
+// `E2E_ALLOW_DEV_TARGET=1` restores exactly that old shape for a deliberate, supervised drive against the
+// running dev stack, and waives the guard with it.
 //
 // AMBIENT-ENV ISOLATION (`ORB_ENV_NO_FILE=1` on every isolated project): a harness stack must see ONLY what
 // this file gives it. The weaker `ORB_ENV_NO_OVERRIDE` this replaces flipped only PRECEDENCE — every key the
@@ -28,7 +29,7 @@
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
 
 import process from "node:process";
-import { DEV_PORTS, E2E_PORTS } from "@orb/tooling/_shared/ports";
+import { DEV_PORTS, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/_shared/ports";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import { devTargetAllowed } from "./target-guard.ts";
 
@@ -144,6 +145,49 @@ const HARNESS_OWNER_HANDLE = "owner";
 // instead of leaving a manual `rm -rf` standing between this fix and the next green run. The old
 // `.cache/e2e-*` dirs are inert leftovers — delete at leisure.
 
+/**
+ * THE HARNESS'S LOCAL-ENGINE CONNECTION — the three facts `global-setup.ts`'s `pinChatConnection` mints it
+ * from and every spec finds it by (`support/trpc.ts::localEngineConnection`).
+ *
+ * WHY IT EXISTS AT ALL: a per-task model pick is a `connection_bindings` row pointing at a `user_connections`
+ * row (inference program §3.2/§7.1) — there is no `routing` settings section any more, so there is nothing to
+ * "pin" without first authoring a connection. The harness authors exactly one: a `vllm` row at the shared
+ * generation engine, `chat` + `summarize` bound to it.
+ *
+ * WHY `ENGINE_PORTS.generate` AND NOT A MODE-OFFSET PORT: the fleet is ADOPTED, never booted per mode
+ * (`ENGINES_POSTURE: "adopt-only"` + `VLLM_DISABLED: "true"` below — isolation here is of the DB, never of
+ * the GPU), so all three mode stacks dial the SAME loopback engine. `openAiPath` appends `/v1` when the
+ * base URL lacks it; spelling it here keeps the row identical to what a user would type.
+ */
+export const E2E_LOCAL_ENGINE_BASE_URL = `http://127.0.0.1:${String(ENGINE_PORTS.generate)}/v1`;
+
+/** The label that row is minted under. `connection.create` collision-suffixes a duplicate label rather than
+ *  refusing it (`verbs/connections.ts::mintLabel`), so the seed must LOOK FIRST — this string is the
+ *  harness's idempotency key across re-runs against a surviving DB, and the key the specs look it up by. */
+export const E2E_LOCAL_ENGINE_LABEL = "e2e local engine";
+
+/** The model id written when the engine's own `/v1/models` answers nothing (engines down, or a stack booted
+ *  with `VLLM_DISABLED`). The row is then saved `modelListed: false` — the product's own typed-id fallback
+ *  (§7.4), not a fabrication: the non-live suite is model-free and only needs the row + binding to EXIST.
+ *  Mirrors `VLLM_GEN_MODEL`'s default in `tooling/src/stack/lib/engine-fleet/env.ts` (the launcher owns that
+ *  env; a test-support module cannot import it — `@orb/tooling` exports only `_shared/*` and package roots). */
+export const E2E_LOCAL_ENGINE_FALLBACK_MODEL = "Qwen/Qwen3-VL-8B-Instruct";
+
+/**
+ * The F12 private-endpoint admission every mode stack boots with, DECLARED rather than inherited (the
+ * `OWNER_HANDLES` posture two blocks up, for the same reason).
+ *
+ * `connection.create` refuses an `auth: endpoint` row whose base URL is a private address this deployment
+ * does not admit (`verbs/connections.ts::requireBaseUrl` → `infra/network::endpointAdmission`), and the
+ * allowlist's env floor is born loopback ONLY under `AUTH_MODE=single-user`
+ * (`settings/effective-config/layer.ts::privateEndpointAllowlistFloor`) — EMPTY on `local` and
+ * `forward-header`. Both of those stacks author loopback endpoint rows (this engine; the local mode's
+ * scripted fixture provider at `E2E_FIXTURE_PROVIDER_PORT`), so without this they would be refused at the
+ * write seam. It is NOT the same key as `EGRESS_ALLOWLIST` below: that one widens the non-safeFetch egress
+ * backstop at connect time, this one is the write-time admission.
+ */
+const LOOPBACK_ENDPOINT_ALLOWLIST = "127.0.0.1";
+
 /** The seeded local-mode credentials (owner via reset, member via createUser) — shared by the seed step and
  *  the specs' `loginLocal(...)` calls. Same handles the dev `multi-user-fixture.sh` uses. */
 export const LOCAL_OWNER = { handle: HARNESS_OWNER_HANDLE, password: "owner-dev-pass" } as const;
@@ -196,6 +240,7 @@ export const SINGLE_USER: ModeProject = {
           ASSETS_DIR: "./.cache/e2e/single/assets",
           STACK_RUN_DIR: `./.cache/e2e/single/${STACK_RUN_SUBDIR}`,
           OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+          PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
           ORB_ENV_NO_FILE: "1",
         }),
   },
@@ -245,6 +290,7 @@ const LOCAL: ModeProject = {
     // (the throttle itself is proven in auth-routes' own tests; here it is noise on a single-tenant loopback).
     RATE_LIMIT_LOGIN: "1000",
     OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+    PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
     ORB_ENV_NO_FILE: "1",
   },
   seedMultiUser: true,
@@ -282,6 +328,7 @@ const FORWARD_HEADER: ModeProject = {
     STACK_RUN_DIR: `./.cache/e2e/forward/${STACK_RUN_SUBDIR}`,
     // The owner case in auth-smoke.forward.spec.ts asserts THIS handle resolves role=owner.
     OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+    PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
     ORB_ENV_NO_FILE: "1",
   },
   seedMultiUser: false,

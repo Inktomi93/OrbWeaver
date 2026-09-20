@@ -14,27 +14,25 @@
 // WIRE_CAPTURE=on on the OPERATOR-started live stack (the #14 human-supervised live-drive precedent — NOT set
 // by playwright's webServer). When capture is OFF (empty read), the row SKIPS with an explicit message ("the
 // int test is the authoritative harness") — never a false pass. Self-seeds a fresh chat (shared-DB isolation:
-// never listChats()[0]). Restores the mutated preset + routing in a finally.
+// never listChats()[0]). Restores the mutated preset + the prior chat Model role in a finally.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import type { ChatRoute } from "./support/trpc.ts";
 import {
   fetchWireCaptures,
   getActivePreset,
   getActivePresetConfig,
-  getChatRoute,
   getShapeTrace,
   listCanon,
   listCharacters,
+  pinChatToLocalEngine,
+  restoreChatBinding,
   sendTurn,
-  setChatRoute,
   startChat,
   updatePresetConfig,
 } from "./support/trpc.ts";
 
-const STATELESS_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
 const LOCAL_MODEL_LEAF = "Qwen3-VL-8B-Instruct";
 const PROBE = "Reply with exactly: fidelity-probe-ok";
 // A leading "Author: " prefix on wire content (the completion mode must NOT produce one). Bounded, no nesting.
@@ -49,11 +47,12 @@ interface WireMessage {
 
 test("TASK-24 four-layer capture works on the live stack (names 'completion', one real turn)", { tag: "@live" }, async () => {
   test.setTimeout(180_000);
-  const originalRoute = await getChatRoute();
+  // The STATELESS openai-compat wire is the harness's local-engine connection — the `name` fingerprint this
+  // spec reads manifests there (the agent-sdk path collapses history into a session prompt).
+  const priorChatBinding = await pinChatToLocalEngine();
   const preset = await getActivePreset();
   const originalConfig = preset?.config;
   try {
-    await setChatRoute(STATELESS_ROUTE);
     if (preset !== undefined && originalConfig !== undefined) {
       await updatePresetConfig(preset.id, { ...structuredClone(originalConfig), namesBehavior: "completion" });
     }
@@ -87,8 +86,6 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
     if (preset !== undefined && originalConfig !== undefined) {
       await updatePresetConfig(preset.id, originalConfig).catch(() => null);
     }
-    if (originalRoute !== undefined) {
-      await setChatRoute(originalRoute).catch(() => null);
-    }
+    await restoreChatBinding(priorChatBinding);
   }
 });

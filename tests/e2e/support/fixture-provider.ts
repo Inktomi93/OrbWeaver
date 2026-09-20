@@ -1,6 +1,6 @@
 // A SCRIPTED OpenAI-compatible chat provider — harness test infra (like a mock IdP), NOT a product backdoor.
-// It is a real, external, OpenAI-compatible endpoint the app talks to through its REAL `custom_openai`
-// (BYO) backend + turn/SSE path — the only thing "special" is that WE control exactly what it streams, so a
+// It is a real, external, OpenAI-compatible endpoint the app talks to through a REAL `custom-openai` (BYO
+// endpoint) connection + turn/SSE path — the only thing "special" is that WE control what it streams, so a
 // turn produces a DETERMINISTIC reasoning channel + hidden `<lie>` body (a live 8B emits neither reliably).
 //
 // WHY this exists (the reasoning-channel proof): D110 §3.6's deception reasoning-host-only cut is applied in
@@ -8,7 +8,7 @@
 // streamed `reasoning` deltas + committed `view.reasoning`. There is NO product surface that lets a caller
 // PLANT reasoning (reasoning is model-generated; `editReasoning` is deliberately unwired), so the ONLY
 // legitimate deterministic input is a provider that EMITS a known reasoning stream — driven through the real
-// turn. The app's `custom_openai` credential (a user-declared OpenAI-compatible baseUrl) is exactly that
+// turn. The app's `custom-openai` connection (a user-declared OpenAI-compatible baseUrl) is exactly that
 // seam: a real product feature, here pointed at this fixture.
 //
 // THE SCRIPT (one turn): the SSE stream emits, in order — a `reasoning` channel that SPELLS the lie's truth
@@ -119,7 +119,7 @@ function writeScriptedTurn(write: (frame: string) => void): void {
 }
 
 export interface FixtureProvider {
-  /** The baseUrl to configure on the `custom_openai` credential (the runner appends `/chat/completions`). */
+  /** The baseUrl to write on the `custom-openai` connection (the runner appends `/chat/completions`). */
   readonly baseUrl: string;
   /** The bare host (for the egress allowlist). */
   readonly host: string;

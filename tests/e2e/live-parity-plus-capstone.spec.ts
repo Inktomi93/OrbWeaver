@@ -28,7 +28,6 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat } from "./support/chat-room.ts";
-import type { ChatRoute } from "./support/trpc.ts";
 import {
   createLiteGame,
   deleteChat,
@@ -36,15 +35,15 @@ import {
   editSnapshot,
   fetchDebugErrors,
   fetchWireCaptures,
-  getChatRoute,
   getConfigView,
   getTrackerView,
   listCanon,
   mintFreshCharacter,
+  pinChatToLocalEngine,
   removeCharacter,
+  restoreChatBinding,
   revealHidden,
   sendGameSteerTurn,
-  setChatRoute,
   setFeatureKnobs,
   startChat,
   wireMessagesText,
@@ -53,29 +52,23 @@ import {
 const GM_NAME = "Thornwick";
 const GM_GREETING = "The lantern gutters as you step into the Rusted Gate tavern.";
 
-// The coherent local-vLLM chat route (chat-completions × vllm, D109) — the write-capable connection the
-// lite loop needs (the boot-seeded default already pins this since global-setup; seedGame re-pins + restores
-// to stay isolated on the shared single-user settings row).
-const COHERENT_VLLM_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
-
-/** Seed a fresh lite game on a virgin chat with a spec-owned character, on the write-capable route. Returns the
- *  ids + a cleanup handle (deletes the chat, removes the character AND restores the prior route). The chat is
+/** Seed a fresh lite game on a virgin chat with a spec-owned character, with `chat` bound to the harness's
+ *  local-engine connection — the WRITE-CAPABLE pick the lite loop needs (globalSetup already binds it;
+ *  seedGame re-binds + restores so the spec is isolated on the shared single-user rows). Returns the ids +
+ *  a cleanup handle (deletes the chat, removes the character AND restores the prior binding). The chat is
  *  deleted explicitly: removing a character cascades its seat, never the chat row. A UNIQUE card handle per
  *  spec keeps serial specs from colliding on the shared dev DB. */
 async function seedGame(
   handle: CharacterHandle,
 ): Promise<{ readonly chatId: ChatId; readonly characterId: CharacterId; readonly cleanup: () => Promise<void> }> {
-  const priorRoute = await getChatRoute();
-  await setChatRoute(COHERENT_VLLM_ROUTE);
+  const priorChatBinding = await pinChatToLocalEngine();
   const characterId = await mintFreshCharacter(handle, GM_NAME, GM_GREETING);
   const chatId = await startChat([characterId]);
   await createLiteGame(chatId);
   const cleanup = async (): Promise<void> => {
     await deleteChat(chatId);
     await removeCharacter(characterId);
-    if (priorRoute !== undefined) {
-      await setChatRoute(priorRoute);
-    }
+    await restoreChatBinding(priorChatBinding);
   };
   return { chatId, characterId, cleanup };
 }

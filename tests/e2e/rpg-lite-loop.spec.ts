@@ -42,7 +42,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
 import { hasRpgFlush, rpgTurnSettled } from "./support/rpg-settle.ts";
-import type { ActorRefInput, ChatRoute, TrackerActor, TrackerView } from "./support/trpc.ts";
+import type { ActorRefInput, TrackerActor, TrackerView } from "./support/trpc.ts";
 import {
   abortTurn,
   addJournalEntry,
@@ -54,7 +54,6 @@ import {
   fetchDebugErrors,
   fetchRpgTraces,
   fetchWireCaptures,
-  getChatRoute,
   getConfigView,
   getGame,
   getTrackerView,
@@ -65,9 +64,11 @@ import {
   mintFreshCharacter,
   patchActor,
   patchSheet,
+  pinChatToLocalEngine,
   removeCharacter,
+  restoreChatBinding,
   restoreCheckpoint,
-  setChatRoute,
+  setChatBinding,
   setExtractionMode,
   setGameFeatures,
   setTrackers,
@@ -123,34 +124,24 @@ async function characterActor(chatId: ChatId, characterId: CharacterId): Promise
   return found;
 }
 
-// The COHERENT local-vLLM chat route ("vllm chat complete" — chat-completions × vllm). The boot-seeded default
-// routing pins `chat: {api:"agent-sdk", source:"vllm"}` — a RETIRED, incoherent pair (2026-07-27 owner ruling,
-// agent-sdk/env.ts): `resolveChat` throws on it, so `deriveTrackersReadOnly` returns readonly-by-construction
-// and NO state round can fire. The live loop needs a write-capable connection, so the seed pins the coherent
-// route (advertises `tools` ⇒ the state round is eligible) and restores the prior
-// route in cleanup. (The read-only born state under the retired route is the SAD-PATH assertion in SPEC 7.)
-const COHERENT_VLLM_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
-
-/** Seed a fresh lite game on a virgin chat with a spec-owned character, on the WRITE-CAPABLE chat route.
- *  Returns the ids + a cleanup handle that deletes the chat, removes the character AND restores the prior
- *  chat route (the shared single-user settings row). The chat is deleted explicitly because removing a
- *  character cascades its SEAT, not the chat row: a leaked chat stays in the shared DB, where a
+/** Seed a fresh lite game on a virgin chat with a spec-owned character, with `chat` bound to the harness's
+ *  local-engine connection — the WRITE-CAPABLE pick the live loop needs (it advertises `tools`, so the state
+ *  round is eligible). Returns the ids + a cleanup handle that deletes the chat, removes the character AND
+ *  restores the prior `chat` binding (the shared single-user rows). The chat is deleted explicitly because
+ *  removing a character cascades its SEAT, not the chat row: a leaked chat stays in the shared DB, where a
  *  newest/first-chat helper in a later spec can pick it up. The handle is UNIQUE per spec (a distinct card
  *  handle) so serial specs never collide on the shared DB. */
 async function seedGame(
   handle: CharacterHandle,
 ): Promise<{ readonly chatId: ChatId; readonly characterId: CharacterId; readonly cleanup: () => Promise<void> }> {
-  const priorRoute = await getChatRoute();
-  await setChatRoute(COHERENT_VLLM_ROUTE);
+  const priorChatBinding = await pinChatToLocalEngine();
   const characterId = await mintFreshCharacter(handle, GM_NAME, GM_GREETING);
   const chatId = await startChat([characterId]);
   await createLiteGame(chatId);
   const cleanup = async (): Promise<void> => {
     await deleteChat(chatId);
     await removeCharacter(characterId);
-    if (priorRoute !== undefined) {
-      await setChatRoute(priorRoute);
-    }
+    await restoreChatBinding(priorChatBinding);
   };
   return { chatId, characterId, cleanup };
 }
@@ -417,8 +408,8 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     await expect(assistantRow.first()).toBeVisible({ timeout: 120_000 });
     await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: 120_000 });
 
-    // STEERING PROOF: the reminder carried the pre-seeded state into the provider prompt. On the coherent local
-    // route the backend is `vllm` (chat-completions), so the capture body is the openai-compat `messages` array
+    // STEERING PROOF: the reminder carried the pre-seeded state into the provider prompt. On the local-engine
+    // connection the backend is `vllm` (chat-completions), so the capture body is the openai-compat `messages` array
     // (NOT the agent-sdk `prompt`). Flatten every message's content and assert it carries the tracked location
     // AND the steering-reminder markers (the "Game state" block heading + the license line) — this proves the
     // tracked state REACHED the model (the reminder assembled the game-state block + license into the prompt).
@@ -624,21 +615,28 @@ test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idl
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// SPEC 8 — READONLY / CAPABILITY-ABSENT MODE: point the chat route at the RETIRED agent-sdk×vllm pair (an
-// incoherent connection whose resolve throws), and the game is born READ-ONLY by construction — the model has
-// NO write path (manual-steering: the host hand-edits, and those hand values STILL steer). FE=BE: `getGame`
-// reports `trackersReadOnly:true`, the view carries it, and a HAND edit still lands (steering is not inert).
+// SPEC 8 — READONLY / CAPABILITY-ABSENT MODE: CLEAR the `chat` Model role, and the game is born READ-ONLY by
+// construction — the model has NO write path (manual-steering: the host hand-edits, and those hand values
+// STILL steer). FE=BE: `getGame` reports `trackersReadOnly:true`, the view carries it, and a HAND edit still
+// lands (steering is not inert).
+//
+// WHY AN UNBOUND ROLE AND NOT AN INCOHERENT ONE: this arm used to pin the RETIRED `agent-sdk × vllm` pair,
+// whose `resolveChat` threw. That axis is gone — a pick is a connection row, and `api` is validated against
+// the provider ON WRITE (§7.3), so an incoherent row can no longer be authored at all. The one capability
+// -absent state the product still HAS is `no-connection` (§7.2: no defaults, so an unbound task resolves to
+// nothing), and it reaches `deriveTrackersReadOnly` by the same refusal. The SUBJECT survives; its input
+// changed with the product.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 test("rpg-lite (readonly): a capability-absent connection is born read-only but hand-steering still lands", {
   tag: "@live",
 }, async () => {
   test.setTimeout(90_000);
-  // seedGame pins the coherent route; we OVERRIDE to the retired pair for THIS spec, then rely on cleanup's
-  // route-restore. A fresh game read under the retired route resolves readonly-by-construction.
+  // seedGame binds `chat` to the local engine; we UNBIND it for THIS spec, then rely on cleanup's
+  // binding-restore. A fresh game read with no chat connection resolves readonly-by-construction.
   const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-readonly"));
   try {
-    await setChatRoute({ api: "agent-sdk", source: "vllm" });
-    // The game read now derives read-only (the retired pair's resolveChat throws ⇒ no write path).
+    await setChatBinding(null);
+    // The game read now derives read-only (`no-connection` ⇒ no write path).
     expect((await getGame(chatId)).trackersReadOnly).toBe(true);
     expect((await getTrackerView(chatId)).trackersReadOnly).toBe(true);
     // Manual-steering is NOT inert: a host hand-edit still lands as canon (and would still steer the reminder).

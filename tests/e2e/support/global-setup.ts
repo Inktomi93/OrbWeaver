@@ -7,7 +7,9 @@
 //      a wiped library won't re-seed, so if the API reports zero we author a deterministic anchor.
 //   2. ≥1 committed CHAT with ≥1 durable message — the persistence/sequence/injection/multi-tab specs reuse
 //      an existing chat; seeding one model-free (chat.startChat) keeps the non-live suite MODEL-FREE.
-//   3. The routing roleDefaults pinned to the local vLLM engine (the @live specs' coherent chat wire).
+//   3. ONE `vllm` CONNECTION at the shared local generation engine, with the `chat` + `summarize` Model
+//      roles bound to it (the @live specs' local chat wire). There is no `routing` settings section any
+//      more and there are no defaults: without this row every task reads `no-connection`.
 //   4. LOCAL mode ONLY: the multi-user seed (localMultiUser AppSetting on + a member account) by shelling the
 //      dev `seed multi-user` (@orb/tooling) — the ONE source of truth for that sequence, not a reimplementation.
 //   5. The CLIENT IS WARMED in a real browser (#571) — each mode's vite dev server transforms its route graph
@@ -18,9 +20,10 @@
 // The un-credentialed 127.0.0.1 owner-fallback seam resolves the owner in every mode (single-user always;
 // local/forward-header on a local origin), so these seed calls need no login.
 //
-// THE TARGET GUARD (target-guard.ts) runs FIRST, before any write: step 3 below rewrites `roleDefaults`
-// unconditionally, and it once landed in the operator's LIVE dev DB. Every reachable origin must carry the
-// harness stamp and must not hold a dev port, or this whole setup throws and the run dies before it writes.
+// THE TARGET GUARD (target-guard.ts) runs FIRST, before any write: step 3 below AUTHORS A ROW and re-points
+// the `chat` Model role unconditionally, and its predecessor once landed in the operator's LIVE dev DB. Every
+// reachable origin must carry the harness stamp and must not hold a dev port, or this whole setup throws and
+// the run dies before it writes.
 
 import { execFileSync } from "node:child_process";
 import process from "node:process";
@@ -29,8 +32,20 @@ import type { Browser } from "@playwright/test";
 import { chromium, devices } from "@playwright/test";
 import { openNewestChat } from "./chat-room.ts";
 import type { ModeProject } from "./modes.ts";
-import { DEV_TARGET_ALLOWED, LOCAL_MEMBER, LOCAL_OWNER, MODE_PROJECTS } from "./modes.ts";
+import {
+  DEV_TARGET_ALLOWED,
+  E2E_LOCAL_ENGINE_BASE_URL,
+  E2E_LOCAL_ENGINE_FALLBACK_MODEL,
+  E2E_LOCAL_ENGINE_LABEL,
+  LOCAL_MEMBER,
+  LOCAL_OWNER,
+  MODE_PROJECTS,
+} from "./modes.ts";
 import { probeTarget, targetRefusal } from "./target-guard.ts";
+// TYPE-ONLY: `trpc.ts` is bound to the single-user origin at runtime, while this module seeds each mode by
+// its OWN origin — importing the create-input SHAPE keeps the literal below under that file's mirror pin
+// without borrowing its client.
+import type { NewConnection } from "./trpc.ts";
 
 // A deterministic anchor card authored only when the library is empty (a wiped-and-latched DB).
 const ANCHOR_HANDLE = "e2e-anchor";
@@ -97,22 +112,76 @@ async function ensureChat(baseUrl: string, characterId: CharacterId): Promise<vo
   await mutation(baseUrl, "chat.startChat", { characterIds: [characterId] });
 }
 
-/** Pin every role to the local vLLM engine on its LIVE wire (the ONLY coherent local chat wire since D109). */
-async function pinRouting(baseUrl: string): Promise<void> {
-  await mutation(baseUrl, "settings.updateUserSettingsSection", {
-    section: "routing",
-    patch: {
-      roleDefaults: {
-        chat: { api: "chat-completions", source: "vllm" },
-        agent: { api: "chat-completions", source: "vllm" },
-        summarize: { api: "chat-completions", source: "vllm" },
-        embed: { source: "vllm" },
-        rerank: { source: "vllm" },
-        imageEmbed: { source: "vllm" },
-        generateImage: { source: "openrouter" },
-      },
-    },
-  });
+/** A `user_connections` row as this seed reads it back (`connection.list` / `connection.create`). */
+interface SeededConnection {
+  readonly id: string;
+  readonly label: string;
+}
+
+/** `connection.listEndpointModels`'s result — the server-side `GET <baseUrl>/v1/models` the pane calls while
+ *  a row is being authored. It NEVER throws (a failed dial comes back `listed: false` + a reason), so the
+ *  seed can branch on it instead of guarding it. */
+interface EndpointModels {
+  readonly listed: boolean;
+  readonly models: readonly { readonly id: string }[];
+}
+
+/** The row to author, with its model resolved the way the PANE resolves one (§7.4): ask the endpoint's own
+ *  `/v1/models` server-side, take the first id it lists, else write the declared fallback with
+ *  `modelListed: false` — the product's typed-id arm, not a fabrication. The non-live suite is model-free and
+ *  only needs the row + binding to exist, so a fleet that is down must not abort the whole run; a @live spec
+ *  against a down fleet fails on its own turn, where it belongs. Called ONLY when the row is missing, so a
+ *  re-run against a surviving DB costs no dial. */
+async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
+  const listing = await mutation<EndpointModels>(baseUrl, "connection.listEndpointModels", { baseUrl: E2E_LOCAL_ENGINE_BASE_URL });
+  const first = listing.models[0];
+  const listed = listing.listed && first !== undefined;
+  return {
+    label: E2E_LOCAL_ENGINE_LABEL,
+    providerId: "vllm",
+    credentialId: null,
+    baseUrl: E2E_LOCAL_ENGINE_BASE_URL,
+    model: listed && first !== undefined ? first.id : E2E_LOCAL_ENGINE_FALLBACK_MODEL,
+    modelListed: listed,
+    // `summarize` is `spend: "background"`; without this the binding below is refused inline (`canFund`, F5).
+    allowBackground: true,
+  };
+}
+
+/**
+ * Author the harness's ONE local-engine connection and point the chat-side Model roles at it.
+ *
+ * WHY A CONNECTION AND NOT A SETTINGS PATCH: `routing` left `USER_SETTINGS_SECTIONS` with the inference
+ * program — a per-task model pick is a `connection_bindings` row pointing at a `user_connections` row
+ * (§3.2/§7.1), and there are NO defaults (§7.2), so a stack with no connection reads `no-connection` on
+ * every task. This step is what makes a @live turn possible at all.
+ *
+ * IDEMPOTENT BY LOOKUP, NOT BY REFUSAL: `connection.create` collision-suffixes a duplicate `(owner, label)`
+ * (`mintLabel`) instead of refusing it, so a second run against a surviving DB would mint
+ * `e2e local engine (2)` and the specs' label lookup would still find the first. The seed therefore LISTS
+ * first and reuses the row it finds.
+ *
+ * WHICH ROLES: `chat` and `summarize` only.
+ *   • `embed` / `rerank` are ALREADY BOUND for every user — boot seeds two `local-light` connections and
+ *     their bindings (§7.2, `persistence/local-light-seed.ts`). Re-pointing them at a text engine would both
+ *     overwrite a user's own pick on a dev-target drive and be refused anyway (a `generation`-kind row cannot
+ *     serve a vector task, `connectionTasks`).
+ *   • `imageEmbed` is left UNBOUND for the same servability reason — no local image-embedding connection
+ *     exists on this box, and inventing one pointed at the generation engine would be a lie the first
+ *     `requireServable` call would reject.
+ *   • `generateImage` is left UNBOUND: no local provider serves it (the old seed pointed it at `openrouter`,
+ *     which needs a hosted key the harness has no business minting). A spec that needs it must say so.
+ * `summarize` is `spend: "background"`, so the row is created with `allowBackground: true` — otherwise the
+ * binding is refused inline (`canFund`, F5).
+ */
+async function pinChatConnection(baseUrl: string): Promise<void> {
+  const existing = (await query<readonly SeededConnection[]>(baseUrl, "connection.list", undefined)).find(
+    (connection) => connection.label === E2E_LOCAL_ENGINE_LABEL,
+  );
+  const row = existing ?? (await mutation<SeededConnection>(baseUrl, "connection.create", await engineConnectionInput(baseUrl)));
+  for (const task of ["chat", "summarize"]) {
+    await mutation(baseUrl, "connection.setBinding", { task, connectionId: row.id });
+  }
 }
 
 /** LOCAL mode: shell the dev multi-user seed against THIS stack's backend origin (the owner-fallback seam
@@ -134,11 +203,11 @@ function seedMultiUser(mode: ModeProject): void {
   });
 }
 
-/** Seed one mode-project's stack (the common library/chat/routing floor + the local multi-user seed). */
+/** Seed one mode-project's stack (the common library/chat/connection floor + the local multi-user seed). */
 async function seedMode(mode: ModeProject): Promise<void> {
   const characterId = await ensureCharacter(mode.baseUrl);
   await ensureChat(mode.baseUrl, characterId);
-  await pinRouting(mode.baseUrl);
+  await pinChatConnection(mode.baseUrl);
   if (mode.seedMultiUser) {
     seedMultiUser(mode);
   }

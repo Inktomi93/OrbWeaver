@@ -1,45 +1,52 @@
 // E2E (@live): MANAGED COMPACTION end-to-end + SWAP CONTINUITY (workboard #9). Managed compaction is
-// agent-sdk-ONLY (engine gates the generation on `connection.api === "agent-sdk"`), and since D109 retired
-// the agent-sdk × vllm loopback the only agent-sdk route is HOSTED — so each test PINS its own
-// `agent-sdk × max-pro-sub` chat route (snapshot → set → RESTORE in a finally), never the global default
-// (global-setup now pins the local chat-completions × vllm wire). The chat accrues history under a tiny
+// agent-sdk-ONLY (engine gates the generation on `connection.api === "agent-sdk"`), and the `agent-sdk` wire
+// is served by ONE provider: `claude-sub`, the Claude subscription, on a per-user connection whose credential
+// is a token pasted from `claude setup-token` on the operator's own machine (§8.4). So each test binds `chat`
+// to the actor's OWN `claude-sub` connection (snapshot → set → RESTORE in a finally), never the global default
+// (global-setup binds the local vLLM engine).
+//
+// WHY THIS SPEC CAN SKIP ITSELF: no CI run may mint that connection — fabricating a subscription token is not
+// a thing a test is allowed to do, and there is no local agent-sdk route to fall back on (D109 retired the
+// agent-sdk × vllm loopback; the wire is subscription-only by construction, F18). When the actor holds no
+// `claude-sub` row the tests SKIP with that reason spelled out, which is honest unavailable evidence — never
+// a pass, and never a fabricated credential. The chat accrues history under a tiny
 // maxContextTokens with `compaction.mode:"managed"`; the post-turn hook rebuilds the LINEAR marker via the
-// chat's OWN local model (quietGenerate → runChatTurn), stores it on `chats.compactSummary` + `compactedAtSeq`,
+// chat's OWN model (quietGenerate → runChatTurn), stores it on `chats.compactSummary` + `compactedAtSeq`,
 // and the present-tense divider gains the MEMORY FACT ("older messages compacted into a summary") + a PEEK popup
 // revealing the marker text. Then the carry-forward pin: the stored marker is DURABLE chat state — it survives
 // and still drives the divider (previewFit reports `compactSummary`) regardless of the api that reads it.
 //
 // Two pins, one flow:
-//   P1 — MANAGED compaction fires on the local agent-sdk model: after tiny-ceiling turns, the API preview
+//   P1 — MANAGED compaction fires on the subscription model: after tiny-ceiling turns, the API preview
 //        reports a non-null `compactSummary`, and the DOM divider shows the compaction fact + a working peek.
 //   P2 — CARRY-FORWARD: the marker is stored on the chat row (portable), so the previewFit `compactSummary`
 //        stays populated (the read side never regenerates it — only the agent-sdk WRITE path generates).
 //
-// @live: seeds via real API turns on the local model (~15-30s warm; managed compaction adds a summarizer
+// @live: seeds via real API turns on the subscription model (~15-30s warm; managed compaction adds a summarizer
 // generation). Skipped unless E2E_LIVE=1. Fully self-seeding; MINTS its own character (no shared-seed reuse).
 
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { gotoChatsList } from "./support/chat-room.ts";
-import type { ChatRoute } from "./support/trpc.ts";
 import {
-  getChatRoute,
+  claudeSubConnection,
+  getChatBinding,
   getUserSettings,
   listCanon,
   mintFreshCharacter,
   previewContextFit,
   removeCharacter,
+  restoreChatBinding,
   sendTurn,
-  setChatRoute,
+  setChatBinding,
   startChat,
   trpcMutation,
   trpcQuery,
 } from "./support/trpc.ts";
 
-// Managed compaction is agent-sdk-only; since the agent-sdk × vllm skin retired (D109), the only agent-sdk
-// route is the owner's hosted Claude subscription. Each test pins this and restores the prior route.
-const AGENT_SDK_ROUTE: ChatRoute = { api: "agent-sdk", source: "max-pro-sub" };
+/** Why a run without a Claude-subscription connection reports UNAVAILABLE rather than failing or passing. */
+const NO_CLAUDE_SUB = "no `claude-sub` connection for this actor — the agent-sdk wire is subscription-only and a token cannot be minted here";
 
 const TINY_CEILING = 220; // small enough that the fit drops older turns → a boundary → the reactive trigger
 const STABLE_CEILING = 1500; // the STABLE preset cap for the resume leg — small enough the DOMAIN fit trims (→ marker
@@ -47,7 +54,7 @@ const STABLE_CEILING = 1500; // the STABLE preset cap for the resume leg — sma
 const MANAGED = { mode: "managed" as const, thresholdPct: 0.6, instructions: "Summarize tersely; keep names and the current scene." };
 const COMPACTED_INTO_SUMMARY = /compacted into a summary/i;
 
-test("managed compaction fires on the local model, the divider carries the compaction fact + peek, and the marker carries forward", { tag: "@live" }, async ({
+test("managed compaction fires on the bound model, the divider carries the compaction fact + peek, and the marker carries forward", { tag: "@live" }, async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -57,8 +64,13 @@ test("managed compaction fires on the local model, the divider carries the compa
     "Compactor",
     "Hello — let us begin a long, detailed saga together.",
   );
-  const priorRoute = await getChatRoute();
-  await setChatRoute(AGENT_SDK_ROUTE); // managed compaction is agent-sdk-only (D109: no local agent-sdk route)
+  const claudeSub = await claudeSubConnection();
+  test.skip(claudeSub === undefined, NO_CLAUDE_SUB);
+  if (claudeSub === undefined) {
+    throw new Error("Playwright conditional skip returned without stopping the test");
+  }
+  const priorChatBinding = await getChatBinding();
+  await setChatBinding(claudeSub.id); // managed compaction is agent-sdk-only, and only `claude-sub` serves it
   try {
     // ── Seed history under managed compaction + a tiny ceiling so the fit drops rows and the hook fires. ──
     const chatId = await startChat([characterId]);
@@ -117,9 +129,7 @@ test("managed compaction fires on the local model, the divider carries the compa
     const boundaryIdx = postCanon.findIndex((m) => m.id === stampedTurn?.contextBoundaryMessageId);
     expect(boundaryIdx).toBeGreaterThan(0);
   } finally {
-    if (priorRoute !== undefined) {
-      await setChatRoute(priorRoute).catch(() => null);
-    }
+    await restoreChatBinding(priorChatBinding);
     await removeCharacter(characterId);
   }
 });
@@ -159,8 +169,13 @@ test("STABLE-cap leg: managed compaction drops the covered turns from a stable-c
     "Hello — a long saga begins, resumed turn to turn.",
   );
   const priorDefaultPresetId = (await getUserSettings()).config.seeds.defaultPresetId;
-  const priorRoute = await getChatRoute();
-  await setChatRoute(AGENT_SDK_ROUTE); // managed compaction is agent-sdk-only (D109: no local agent-sdk route)
+  const claudeSub = await claudeSubConnection();
+  test.skip(claudeSub === undefined, NO_CLAUDE_SUB);
+  if (claudeSub === undefined) {
+    throw new Error("Playwright conditional skip returned without stopping the test");
+  }
+  const priorChatBinding = await getChatBinding();
+  await setChatBinding(claudeSub.id); // managed compaction is agent-sdk-only, and only `claude-sub` serves it
   const tinyPreset = await trpcMutation<{ readonly id: string }>("preset.create", { name: "e2e-managed-stable", kind: "chat" });
   try {
     // Point the user default at a preset carrying a STABLE maxContextTokens (no per-send override → a stable cap
@@ -217,9 +232,7 @@ test("STABLE-cap leg: managed compaction drops the covered turns from a stable-c
   } finally {
     await trpcMutation("settings.updateUserSettingsSection", { section: "seeds", patch: { defaultPresetId: priorDefaultPresetId ?? null } });
     await trpcMutation("preset.remove", { id: tinyPreset.id });
-    if (priorRoute !== undefined) {
-      await setChatRoute(priorRoute).catch(() => null);
-    }
+    await restoreChatBinding(priorChatBinding);
     await removeCharacter(characterId);
   }
 });
