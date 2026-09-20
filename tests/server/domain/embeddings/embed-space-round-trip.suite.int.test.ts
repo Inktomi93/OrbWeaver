@@ -77,8 +77,8 @@ interface Drive {
 
 /** The whole graph one drive needs: a real runtime over a real db, an owner holding a bound `local-light`
  *  encoder connection, and an embeddings service whose role clients come from THAT runtime. */
-async function driveOwnerWithBoundEncoder(db: Db, sources: StoreHarnessSources = {}): Promise<Drive> {
-  const harness = await makeHarness(db, { localLight: true });
+async function driveOwnerWithBoundEncoder(db: Db, sources: StoreHarnessSources = {}, localLightEmbedDtype?: string): Promise<Drive> {
+  const harness = await makeHarness(db, { localLight: true, ...(localLightEmbedDtype === undefined ? {} : { localLightEmbedDtype }) });
   const { userId, principal } = await seedOwner(db, "user_roundtrip");
   const connection = await harness.svc.create({
     principal,
@@ -169,6 +169,78 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       limit: 5,
     });
     expect(hits).toHaveLength(1);
+  });
+
+  test("an undeclared dtype inherits a nondefault deployment precision for both write and read", async () => {
+    const db = await freshDb();
+    const drive = await driveOwnerWithBoundEncoder(db, {}, "fp16");
+    const characterId = await seedCharacter(db, drive.userId, { name: "fp16 card" });
+    const tag = await requireTaskModel(drive.ctx, drive.userId, "embed");
+    expect(tag).toBe(`${ENCODER}@fp16`);
+
+    await drive.svc.store({
+      kind: "card",
+      lens: "card-text",
+      characterId,
+      content: CARD_TEXT,
+      model: tag ?? "",
+      dim: EMBED_SPACE_DIMS,
+      ownerId: drive.userId,
+    });
+    const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.model).toBe(tag);
+    expect(
+      (await nearestCharacters(db, { ownerId: drive.userId, queryVector: queryVector(), model: tag ?? "", limit: 5 })).map((hit) => hit.characterId),
+    ).toEqual([characterId]);
+  });
+
+  test("a local-light dtype declaration the deployment cannot serve is refused before write, read, or purge", async () => {
+    const db = await freshDb();
+    const drive = await driveOwnerWithBoundEncoder(db);
+    const documentId = await seedDocument(db, drive.userId, { text: CHUNK_TEXT });
+
+    const servedTag = await requireTaskModel(drive.ctx, drive.userId, "embed");
+    await drive.svc.store({
+      kind: "document",
+      lens: "chunk",
+      content: CHUNK_TEXT,
+      model: servedTag ?? "",
+      dim: EMBED_SPACE_DIMS,
+      fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: CHUNK_TEXT.length },
+      ownerId: drive.userId,
+    });
+    expect(await db.select().from(documentChunks)).toHaveLength(1);
+    expect(
+      await nearestDocumentChunks(db, {
+        documentIds: [documentId],
+        queryVector: queryVector(),
+        model: servedTag ?? "",
+        dim: EMBED_SPACE_DIMS,
+        limit: 5,
+      }),
+    ).toHaveLength(1);
+
+    await drive.harness.svc.update({
+      principal: drive.principal,
+      connectionId: drive.connectionId,
+      patch: { declared: { kind: "embedding", embedding: { dtype: "fp16" } } },
+    });
+
+    await expect(
+      drive.svc.store({
+        kind: "document",
+        lens: "chunk",
+        content: `${CHUNK_TEXT} changed`,
+        model: `${ENCODER}@fp16`,
+        dim: EMBED_SPACE_DIMS,
+        fkRefs: { documentId, chunkIdx: 1, charStart: 0, charEnd: CHUNK_TEXT.length },
+        ownerId: drive.userId,
+      }),
+    ).rejects.toMatchObject({ kind: "invalid" });
+    await expect(drive.svc.purgeDocumentVectors({ ownerId: drive.userId })).rejects.toMatchObject({ kind: "invalid" });
+    await expect(requireSpaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ kind: "invalid" });
+    expect(await db.select().from(documentChunks)).toHaveLength(1);
   });
 
   // ── §10-5: the transition, driven end to end ────────────────────────────────────────────────────────

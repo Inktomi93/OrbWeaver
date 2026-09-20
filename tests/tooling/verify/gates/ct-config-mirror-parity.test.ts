@@ -6,7 +6,17 @@ import { gate } from "../../../../tooling/src/verify/gates/ct-config-mirror-pari
 import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { assertRealCorpusLivenessArms } from "../../../support/real-corpus-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
+const CONFIG_MIRROR_FILES = [
+  "packages/client/src/compose/config-sections.ts",
+  "packages/client/src/compose/authed-app.tsx",
+  "tests/support/browser/ct-data-providers.tsx",
+  "tests/support/browser/ct-config-groups.ts",
+];
 
 test("ct config mirror parity keeps missing, extra, duplicate, wrong-anchor and group controls", () => {
   expect(verifyPolicyProofs([gate])).toEqual([]);
@@ -29,4 +39,23 @@ test("the checked-in production and CT config compositions have equal multisets"
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toEqual([]);
   expect(result.policies[0]?.owner.status).toBe("success");
+});
+
+test("ct-config-mirror-parity bites on its real four-file corpus", { timeout: scaledBudget(120_000) }, () => {
+  const fired = assertRealCorpusLivenessArms(REPO_ROOT, [
+    {
+      policy: gate,
+      globs: CONFIG_MIRROR_FILES,
+      overlays: [
+        {
+          kind: "neutralise",
+          path: "tests/support/browser/ct-data-providers.tsx",
+          source: 'const realSettingsSections = createContributorRegistry("config-sections", []);\n',
+        },
+      ],
+      messageIncludes: "Section differences:",
+      types: true,
+    },
+  ]);
+  expect([...fired.keys()], "the declared liveness arm ran and reported").toEqual([gate.id]);
 });

@@ -312,9 +312,14 @@ spawn** when an engine is down (`supervisor.ts:1-5`). The container inherits tha
 - **The `VLLM_ENGINE_HOST` URL change — NOT needed (and it has since LANDED anyway).** `engineBaseUrl` →
   `http://${VLLM_ENGINE_HOST}:<port>` (`engine-url.ts:23-25`) defaults to `127.0.0.1`, which is literally
   correct when the fleet is in the same namespace.
-- **The egress app→vllm hop — NOT an issue.** `internalBackendHostPorts` bypasses the firewall for
-  `${VLLM_ENGINE_HOST}:${VLLM_*_PORT}` (`egress.ts:83-86`), which is exactly what the loopback fleet uses.
-  No new allowlist entry.
+- **The egress app→vllm hop — CONCLUSION CHANGED under F12.** `internalBackendHostPorts` (the
+  `VLLM_ENGINE_HOST`-keyed auto-bypass) is DELETED. Admission is now
+  `AppSettings.privateEndpointAllowlist` (`infra/network/egress.ts`), whose env floor born-admits
+  loopback (`127.0.0.1`/`::1`, any port) only under `AUTH_MODE=single-user` — and this doc's shipped
+  default is `AUTH_MODE=local` (§0 above), not `single-user`. So under the default auth mode the
+  loopback fleet is **no longer auto-admitted**: profile 1's compose deployment needs an explicit
+  `PRIVATE_ENDPOINT_ALLOWLIST=127.0.0.1` (or an owner-set Governance allowlist row) or the app→vllm hop
+  is SSRF-refused. This is a real behavior change from the retired mechanism, not a renamed one.
 - **The GPU-detect gate — does NOT misfire here, and its fix has LANDED.** `gpuPresent = detectGpu()` execs
   `nvidia-smi -L` on the app process (`lifecycle.ts:223-226`); the GPU is passed to THIS container, so
   `gpuPresent=true` → the backend registers under `adopt-or-start`. **REPAIRED 2026-08-19:** this bullet's
@@ -345,9 +350,13 @@ The slim app-only image, no CUDA/vLLM/models. Two arms, both via env, no fleet i
   waiting on are BUILT; nothing here blocks profile 2:**
   1. `engineBaseUrl` reads `VLLM_ENGINE_HOST` host-only, `VLLM_*_PORT` intact (`engine-url.ts:23-25`,
      `env:298`). DONE.
-  2. `internalBackendHostPorts` reads the same `VLLM_ENGINE_HOST` (`egress.ts:83-86`), so an external
-     private-IP engine is not blocked by the egress gate. DONE. (`EGRESS_ALLOWLIST=<host>` remains the
-     fallback for a non-engine internal host.)
+  2. **STALE — `internalBackendHostPorts` is DELETED (F12).** It no longer auto-admits `VLLM_ENGINE_HOST`
+     for the egress gate. A private-IP external engine is now admitted only by
+     `AppSettings.privateEndpointAllowlist` (`egress.ts`) — an explicit `PRIVATE_ENDPOINT_ALLOWLIST=<host>`
+     (or `<host>:<port>`) entry, or an owner-set Governance allowlist row. The `AUTH_MODE=single-user` born
+     floor only covers loopback, so a non-loopback external engine on `single-user` also needs an explicit
+     entry. (`EGRESS_ALLOWLIST=<host>` remains a separate, host-keyed-any-port fallback for a non-engine
+     internal host — unchanged, and NOT a substitute for the allowlist above.)
   3. The GPU-detect gate is `postureManages`-scoped (`foundation/env/posture.ts:61-65`), so a GPU-less app
      container DOES register the external engine under `adopt-only`. DONE.
 

@@ -5,7 +5,7 @@
 // mirrors are one CT composition contract and share no meaningful reader with another policy.
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { resolveModuleMemberOrigin, resolveStableExpression } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { definitionField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
@@ -42,8 +42,11 @@ function objectValue(node: MorphNode | undefined, label: string): ObjectLiteralE
 
 function canonicalVariable(node: MorphNode, label: string): VariableDeclaration {
   const origin = resolveModuleMemberOrigin(node);
-  const local = Node.isIdentifier(node) ? node.getSymbol()?.getDeclarations().find(Node.isVariableDeclaration) : undefined;
-  const declaration = origin.kind === "resolved" && origin.value.canonical.kind === "project" ? origin.value.canonical.declaration : local;
+  const stable = origin.kind === "unresolved" ? resolveStableExpression(node) : undefined;
+  const declaration =
+    origin.kind === "resolved" && origin.value.canonical.kind === "project"
+      ? origin.value.canonical.declaration
+      : stable?.trace.declarations.findLast(Node.isVariableDeclaration);
   if (declaration === undefined || !Node.isVariableDeclaration(declaration)) {
     throw new Error(`${label} does not resolve to one exported variable`);
   }
