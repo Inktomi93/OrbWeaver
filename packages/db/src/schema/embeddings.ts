@@ -93,6 +93,51 @@ const IMAGE_LENS_CHECK_LIST = checkList(IMAGE_LENSES);
 // CHECK list derived from the canonical tuple (NOT re-spelled): `reason in ('below-dimension-floor')`.
 const IMAGE_SKIP_REASON_CHECK_LIST = checkList(IMAGE_SKIP_REASONS);
 
+const EMBED_GENERATION_TASKS = ["embed", "imageEmbed"] as const;
+const EMBED_GENERATION_TASK_CHECK_LIST = checkList(EMBED_GENERATION_TASKS);
+
+/** Immutable provenance for one actual encoder geometry. The id is a hash of the complete non-secret
+ * resolved configuration, so equal model tags on different endpoints remain distinct generations. */
+export const embedGenerations = sqliteTable(
+  "embed_generations",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    task: text("task", { enum: EMBED_GENERATION_TASKS }).notNull(),
+    via: text("via", { enum: EMBED_GENERATION_TASKS }).notNull(),
+    connectionId: text("connection_id"),
+    connectionRef: text("connection_ref").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    space: text("space").notNull(),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("embed_generations_owner_task_idx").on(t.ownerId, t.task),
+    index("embed_generations_connection_idx").on(t.connectionId),
+    check("embed_generations_task_check", sql.raw(`task in (${EMBED_GENERATION_TASK_CHECK_LIST})`)),
+    check("embed_generations_via_check", sql.raw(`via in (${EMBED_GENERATION_TASK_CHECK_LIST})`)),
+  ],
+);
+
+/** The live migration target. Epoch is advanced only when the resolved generation changes. */
+export const embedGenerationTargets = sqliteTable(
+  "embed_generation_targets",
+  {
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    task: text("task", { enum: EMBED_GENERATION_TASKS }).notNull(),
+    generationId: text("generation_id").notNull(),
+    epoch: integer("epoch").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.ownerId, t.task] }), check("embed_generation_targets_task_check", sql.raw(`task in (${EMBED_GENERATION_TASK_CHECK_LIST})`))],
+);
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // character_embeddings — the CARD lens (one lens: `card-text`). FK `characters.id` (D28 — NOT a cv). NO
 // ownerId (D20 — scope derives via `characters.ownerId`). content_hash is the staleness/collapse key.
@@ -119,12 +164,13 @@ export const characterEmbeddings = sqliteTable(
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag — `search`/`memory` compare only within one space.
     model: text("model").notNull(),
+    generationId: text("generation_id").notNull(),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     // One row per character per embedding space — the hash-gated upsert's ON CONFLICT target.
-    uniqueIndex("character_embeddings_character_model_unique").on(t.characterId, t.model),
+    uniqueIndex("character_embeddings_character_generation_unique").on(t.characterId, t.generationId),
   ],
 );
 
@@ -168,13 +214,14 @@ export const imageEmbeddings = sqliteTable(
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),
+    generationId: text("generation_id").notNull(),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     // Both lenses coexist idempotently per (asset, model): the upsert key. A re-embed of the same lens
     // collides here (ON CONFLICT DO UPDATE), so the table never doubles a lens for an asset in one space.
-    uniqueIndex("image_embeddings_asset_model_lens_unique").on(t.assetId, t.model, t.lens),
+    uniqueIndex("image_embeddings_asset_generation_lens_unique").on(t.assetId, t.generationId, t.lens),
     // SQL-side enum enforcement derived from the tuple (mirrors the drizzle `{ enum }` type-side).
     check("image_embeddings_lens_check", sql.raw(`lens in (${IMAGE_LENS_CHECK_LIST})`)),
   ],
@@ -229,6 +276,7 @@ export const chatDigests = sqliteTable(
     keywords: text("keywords", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),
+    generationId: text("generation_id").notNull(),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -238,7 +286,7 @@ export const chatDigests = sqliteTable(
     // (never an in-place overwrite of the old space, never an inconsistent orphan). The old space is
     // reclaimed by the purge+reindex path (`purgeStaleVectors` in the bulk `index` reindex). Dropping
     // scopedCharacterId would bleed a scoped bucket's rows into the shared (group-as-character) bucket.
-    uniqueIndex("chat_digests_scope_unique").on(t.chatId, t.scopedCharacterId, t.tier, t.blockIdx, t.model),
+    uniqueIndex("chat_digests_scope_unique").on(t.chatId, t.scopedCharacterId, t.tier, t.blockIdx, t.generationId),
     index("chat_digests_chat_idx").on(t.chatId),
     // The scope key's SECOND column is not usable for a character-keyed delete (SQLite only uses an index
     // whose LEFTMOST column is constrained), so a character delete scanned every digest to CASCADE
@@ -295,6 +343,7 @@ export const chatSegments = sqliteTable(
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),
+    generationId: text("generation_id").notNull(),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -303,7 +352,7 @@ export const chatSegments = sqliteTable(
     // the key with #172 (a block over the embed window becomes N chunks, never a truncated row). `model` is
     // in the key (PD-104) so a `(model, dim)` change writes a NEW space additively rather than overwriting
     // the old one in place; the old space is reclaimed by the purge+reindex path. Uniform with all 5 producers.
-    uniqueIndex("chat_segments_chat_block_chunk_unique").on(t.chatId, t.blockIdx, t.chunkIdx, t.model),
+    uniqueIndex("chat_segments_chat_block_chunk_unique").on(t.chatId, t.blockIdx, t.chunkIdx, t.generationId),
     // #1378 item 4 — the span this chunk claims must be a real span. `seq` is a monotonic per-chat message
     // ordinal, so a negative bound names no message, and `start > end` claims a backwards range that every
     // reader resolving a hit back to canon would read as empty. `chunk_idx`/`block_idx` are reading-order
@@ -374,12 +423,13 @@ export const documentChunks = sqliteTable(
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),
+    generationId: text("generation_id").notNull(),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     // The idempotent upsert key: one chunk per (document, chunkIdx, model).
-    uniqueIndex("document_chunks_doc_chunk_model_unique").on(t.documentId, t.chunkIdx, t.model),
+    uniqueIndex("document_chunks_doc_chunk_generation_unique").on(t.documentId, t.chunkIdx, t.generationId),
     index("document_chunks_document_idx").on(t.documentId),
     // #1378 item 4 (the document half) — `char_start`/`char_end` are offsets into
     // `documents.extractedText` with an exclusive end, so a negative offset points outside the text and
@@ -470,7 +520,9 @@ export const embedSpaceState = sqliteTable(
     scope: text("scope", { enum: VECTOR_SCOPES }).notNull(),
     // The `(model[@dtype])` space tag (`embedSpaceOf`) the last COMPLETED sweep of this scope wrote — the
     // exact string `nearest.ts` filters on and `purgeStaleVectors` compares against.
-    space: text("space").notNull(),
+    activeGenerationId: text("active_generation_id").references(() => embedGenerations.id, { onDelete: "set null" }),
+    candidateGenerationId: text("candidate_generation_id").references(() => embedGenerations.id, { onDelete: "set null" }),
+    candidateEpoch: integer("candidate_epoch"),
     completedAt: integer("completed_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [

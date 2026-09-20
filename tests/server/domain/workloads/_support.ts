@@ -106,6 +106,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
     ...createDatabankWorkloadContributions({
       // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       databankIngest: { ingestDocument: stub({}), reindex: stub({}) } as never,
+      beginDocumentVectorSweep: stub([]),
       purgeDocumentVectors: stub(undefined),
     }),
     ...createImportWorkloadContributions({

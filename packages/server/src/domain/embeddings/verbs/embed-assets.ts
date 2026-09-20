@@ -21,11 +21,11 @@ import type { EmbeddingsContext } from "../context.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 // `AvatarAnalysis` is the SHAPE of the injected analysis op, taken from the domain's contract/; the runtime
 // function (`indexer/caption.ts`) is wired at `service.ts` and never imported across the subsystem seam.
-import type { AvatarAnalysis, BulkEmbedResult } from "../contract/results.ts";
+import type { AvatarAnalysis, BulkEmbedResult, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
-import { purgeStaleVectors } from "../persistence/clear.ts";
 import { existingCaptionedRow, existingImageHash, existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
-import { upsertCompletedSpace } from "../persistence/space-state.ts";
+import { markGenerationComplete } from "../persistence/space-state.ts";
+import { resolveTargetGeneration } from "../substrate/generation.ts";
 import { contentHash } from "../substrate/hash.ts";
 import { imageBelowFloor } from "../substrate/image-admission.ts";
 import { reportImageSpaceDegrade } from "../substrate/image-space-degrade.ts";
@@ -41,24 +41,14 @@ async function embedOneAsset(
   ctx: EmbeddingsContext,
   deps: EmbedAssetsDeps,
   assetId: AssetId,
-  sweep: { readonly force: boolean; readonly spaces: Map<UserId, string> },
+  sweep: { readonly force: boolean; readonly receipts: Map<UserId, StoreResult> },
 ): Promise<"embedded" | "skipped"> {
   const { force } = sweep;
   // ADMISSION FLOOR (recorded skip, read FIRST): an asset already refused by the dimension floor is honored
   // here — no byte load, no caption, no embed — so a re-index does not re-attempt it. `force` still bypasses
   // it (a deliberate re-index of everything), mirroring how `force` bypasses the hash/facet pre-check below.
-  if (!force && (await existingImageSkip(ctx.db, assetId))) {
-    return "skipped";
-  }
-  const bytes = await ctx.loadAssetBytes(assetId);
-  if (bytes === undefined) {
-    return "skipped";
-  }
-  // ADMISSION FLOOR (dimension gate): a degenerate asset carries no visual signal — record the refusal
-  // (visible + idempotent) and skip BEFORE the expensive caption + image-embed calls.
-  const admission = imageBelowFloor(bytes);
-  if (admission.belowFloor) {
-    await insertImageSkip(ctx.db, { assetId, reason: "below-dimension-floor", width: admission.width, height: admission.height, now: ctx.now() });
+  const bytes = await loadAdmittedAsset(ctx, assetId, force);
+  if (bytes === null) {
     return "skipped";
   }
   const ownerId = await ctx.loadAssetOwner(assetId);
@@ -74,7 +64,6 @@ async function embedOneAsset(
   if (space.via === "embed") {
     reportImageSpaceDegrade(ownerId, model, space.degraded);
   }
-  sweep.spaces.set(ownerId, model);
   // Both lenses share the bytes' hash — pre-check them so a current asset skips before the expensive
   // analysis call ever runs.
   const hash = contentHash(bytes);
@@ -119,7 +108,29 @@ async function embedOneAsset(
     dim: ctx.imageEmbedDim,
     force,
   });
+  const receipt = raw.outcome === "written" ? raw : captionedWrite;
+  const prior = sweep.receipts.get(ownerId);
+  if (prior !== undefined && prior.generationId !== receipt.generationId) {
+    throw new Error(`embedding generation changed during image sweep for owner ${ownerId}`);
+  }
+  sweep.receipts.set(ownerId, receipt);
   return raw.outcome === "written" || captionedWrite.outcome === "written" ? "embedded" : "skipped";
+}
+
+async function loadAdmittedAsset(ctx: EmbeddingsContext, assetId: AssetId, force: boolean): Promise<Uint8Array | null> {
+  if (!force && (await existingImageSkip(ctx.db, assetId))) {
+    return null;
+  }
+  const bytes = await ctx.loadAssetBytes(assetId);
+  if (bytes === undefined) {
+    return null;
+  }
+  const admission = imageBelowFloor(bytes);
+  if (!admission.belowFloor) {
+    return bytes;
+  }
+  await insertImageSkip(ctx.db, { assetId, reason: "below-dimension-floor", width: admission.width, height: admission.height, now: ctx.now() });
+  return null;
 }
 
 export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps): EmbeddingsService["embedAssets"] {
@@ -132,12 +143,12 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps)
     // through a 350-image run).
     const assetIds = await ctx.listImageAssetIds(ownerId);
     // Every owner the sweep resolved, with the image space it embedded into — the purge set.
-    const spaces = new Map<UserId, string>();
+    const receipts = new Map<UserId, StoreResult>();
     for (const assetId of assetIds) {
       if (signal.aborted) {
         break; // cooperative abort between assets — every completed embed is durable + idempotent
       }
-      const outcome = await embedOneAsset(ctx, deps, assetId, { force, spaces });
+      const outcome = await embedOneAsset(ctx, deps, assetId, { force, receipts });
       if (outcome === "embedded") {
         embedded += 1;
       } else {
@@ -148,14 +159,24 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps)
     // PD-104 purge (reclaim each touched owner's old image space) — only after a complete sweep, never on
     // abort. A no-op for an owner whose imageEmbed binding did not change since the last index.
     if (!signal.aborted) {
-      for (const [spaceOwnerId, model] of spaces) {
-        // THE COMPLETION MARK (§10-5), recorded BEFORE the purge and only on a complete, non-aborted sweep:
-        // this owner's image corpus is now entirely in `model`. It is what makes the read side's
-        // `activeSpace` a statement about work that happened, and what the purge below deletes AROUND.
-        await upsertCompletedSpace(ctx.db, { ownerId: spaceOwnerId, scope: "images", space: model, now: ctx.now() });
-        await purgeStaleVectors(ctx.db, "image_embeddings", spaceOwnerId, model);
-      }
+      await completeImageSweep(ctx, ownerId, receipts);
     }
     return { embedded, skipped };
   };
+}
+
+async function completeImageSweep(ctx: EmbeddingsContext, ownerId: UserId | null, receipts: ReadonlyMap<UserId, StoreResult>): Promise<void> {
+  for (const [spaceOwnerId, receipt] of receipts) {
+    const generation = await resolveTargetGeneration(ctx, spaceOwnerId, "imageEmbed", receipt.generationVia);
+    if (generation !== null && generation.id === receipt.generationId && generation.epoch === receipt.generationEpoch) {
+      await markGenerationComplete(ctx.db, { ownerId: spaceOwnerId, scope: "images", generation, now: ctx.now() });
+    }
+  }
+  if (ownerId !== null && !receipts.has(ownerId)) {
+    const emptySpace = await resolveImageSpace(ctx, ownerId);
+    const generation = emptySpace === null ? null : await resolveTargetGeneration(ctx, ownerId, "imageEmbed", emptySpace.via);
+    if (generation !== null) {
+      await markGenerationComplete(ctx.db, { ownerId, scope: "images", generation, now: ctx.now() });
+    }
+  }
 }

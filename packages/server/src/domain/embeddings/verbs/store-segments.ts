@@ -19,26 +19,44 @@
 import type { UserId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context.ts";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
+import type { PinnedGeneration } from "../contract/generation.ts";
 import type { SegmentStoreParams } from "../contract/params.ts";
 import type { StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { existingSegmentHash, upsertChatSegment } from "../persistence/queries.ts";
+import { resolveTargetGeneration } from "../substrate/generation.ts";
 
 /** An input that survived the hash gate, carrying its position in the caller's list (results are
  *  index-aligned to the input, so a noop and a write are told apart per item). */
 interface PendingSegment {
   readonly index: number;
   readonly params: SegmentStoreParams;
+  readonly generation: PinnedGeneration;
 }
 
 /** The hash gate: read each chunk's stored `content_hash` for `(chatId, blockIdx, chunkIdx, model)` and keep
  *  only the ones that differ. The reads run CONCURRENTLY — they are independent point lookups, and the
  *  serialized version was one of the round trips this verb exists to remove. */
 async function gate(ctx: EmbeddingsContext, params: readonly SegmentStoreParams[]): Promise<PendingSegment[]> {
+  const generations = new Map<UserId, PinnedGeneration>();
+  for (const ownerId of new Set(params.map((p) => p.ownerId))) {
+    const generation = await resolveTargetGeneration(ctx, ownerId, "embed");
+    if (generation !== null) {
+      generations.set(ownerId, generation);
+    }
+  }
   const existing = await Promise.all(
-    params.map((p) => existingSegmentHash(ctx.db, { chatId: p.chatId, blockIdx: p.blockIdx, chunkIdx: p.chunkIdx, model: p.model })),
+    params.map((p) => {
+      const generation = generations.get(p.ownerId);
+      return generation === undefined
+        ? Promise.resolve(undefined)
+        : existingSegmentHash(ctx.db, { chatId: p.chatId, blockIdx: p.blockIdx, chunkIdx: p.chunkIdx, generationId: generation.id });
+    }),
   );
-  return params.flatMap((p, index) => (existing[index] === p.contentHash ? [] : [{ index, params: p }]));
+  return params.flatMap((p, index) => {
+    const generation = generations.get(p.ownerId);
+    return generation === undefined || existing[index] === p.contentHash ? [] : [{ index, params: p, generation }];
+  });
 }
 
 /** The produced vector for one pending item, or the typed failure: the family filtered the input (`null`), the
@@ -64,10 +82,7 @@ function vectorFor(vector: Float32Array | null | undefined, p: SegmentStoreParam
  *  mixed-owner batch carries two tags; the previous shape folded them into one `modelTag` and stamped every
  *  row with whichever owner's flood happened to run last -- a silent cross-owner mis-tagging of the same
  *  class the space-tag derivation (`embedSpaceOf`) exists to make impossible. */
-async function flood(
-  ctx: EmbeddingsContext,
-  pending: readonly PendingSegment[],
-): Promise<Map<number, { readonly model: string; readonly vector: Float32Array | null }>> {
+async function flood(pending: readonly PendingSegment[]): Promise<Map<number, { readonly model: string; readonly vector: Float32Array | null }>> {
   const byOwner = new Map<UserId, PendingSegment[]>();
   for (const item of pending) {
     const bucket = byOwner.get(item.params.ownerId);
@@ -78,9 +93,11 @@ async function flood(
     }
   }
   const out = new Map<number, { readonly model: string; readonly vector: Float32Array | null }>();
-  for (const [ownerId, items] of byOwner) {
-    const rc = await ctx.roleClientsFor(ownerId);
-    const result = await rc.embed(items.map((p) => p.params.text));
+  for (const items of byOwner.values()) {
+    const result = await items[0]?.generation.connection.embed(items.map((p) => p.params.text));
+    if (result === undefined) {
+      continue;
+    }
     for (const [i, item] of items.entries()) {
       out.set(pending.indexOf(item), { model: result.model, vector: result.vectors[i] ?? null });
     }
@@ -96,7 +113,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
       return results;
     }
 
-    const embeddedByIndex = await flood(ctx, pending);
+    const embeddedByIndex = await flood(pending);
 
     // The row writes stay SEQUENTIAL — they are db upserts, and the engine is already done by here.
     for (const [i, item] of pending.entries()) {
@@ -113,6 +130,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
         embedding: vectorFor(embedded.vector, p, embedded.model),
         contentHash: p.contentHash,
         model: embedded.model,
+        generationId: item.generation.id,
         dim: p.dim,
         now: ctx.now(),
       });

@@ -12,6 +12,7 @@
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { ReadOnlyDb } from "@orb/db";
 import type { ChatId, DocumentId, UserId } from "@orb/kit/ids";
+import type { ResolveEmbeddingConnection } from "../../embeddings/contract/service.ts";
 import type {
   CorpusParams,
   DigestsParams,
@@ -72,6 +73,7 @@ export interface SearchContext {
   /** The per-OWNER role-client bundle (inference program §7.5-2): every retrieval embeds the query in the
    *  OWNER's space (their `embed`/`imageEmbed` binding) and reranks on their `rerank` row. */
   readonly roleClientsFor: (ownerId: UserId) => Promise<RoleClients>;
+  readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
   /** Consumed only by the lexical fields/suggest engine's per-owner BM25 index cache (TTL freshness). */
   readonly now: () => number;
   /** The databank scope resolver (DB5) — injected by `domain/databank` at compose; consumed ONLY by the

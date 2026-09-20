@@ -66,8 +66,9 @@ function upsertingStore(database: Db): { store: EmbeddingsStoreOp; digests: Stor
       keywords: [...params.keywords],
       isGroup: params.isGroup,
       speakers: [...params.speakerCharacterIds],
+      ownerId: params.ownerId,
     });
-    return { ownerId: params.ownerId, model: params.model };
+    return { ownerId: params.ownerId, model: params.model, generationId: "test-generation", generationEpoch: 1 };
   };
   return { store, digests };
 }

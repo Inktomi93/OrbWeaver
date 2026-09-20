@@ -51,6 +51,7 @@ export function createDatabankWorkloadContributions(deps: DatabankWorkloadDeps):
       lane: "sweep",
       resume: "idempotent-restart",
       run: async (ctx, params, report, signal): Promise<IngestRunResult> => {
+        const generationReceipts = ctx.ownerId === null ? await deps.beginDocumentVectorSweep() : [];
         const mode = params.mode ?? DEFAULT_REINDEX_MODE;
         report({ message: `databank-reindex: ${mode} (${params.scope.kind} scope)` });
         const result = await deps.databankIngest.reindex({ ownerId: ctx.ownerId, scope: params.scope, mode, signal });
@@ -62,7 +63,7 @@ export function createDatabankWorkloadContributions(deps: DatabankWorkloadDeps):
         // embeddings/persistence (the ONE vector write path) — this is the injected op, never a db reach.
         // Skipped on abort: the space stays a strict superset (never a gap); the rerun reclaims it.
         if (ctx.ownerId === null && !signal.aborted) {
-          await deps.purgeDocumentVectors();
+          await deps.purgeDocumentVectors(generationReceipts);
         }
         return result;
       },

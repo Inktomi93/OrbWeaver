@@ -12,14 +12,13 @@ import { nearestCharacters } from "../persistence/nearest.ts";
 import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
 import { applyRerank } from "../substrate/rerank.ts";
-import { requireSpaceModel } from "../substrate/space.ts";
+import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createKnn(ctx: SearchContext): SearchService["knn"] {
   return async (params: KnnParams): Promise<SearchHit[]> => {
     const { ownerId, query, topN } = params;
     const rc = await ctx.roleClientsFor(ownerId);
-    const embedModel = await requireSpaceModel(ctx, ownerId, "embed");
     // The same two refusals `discover`/`digests` make, in the verb `findCharacters` delegates its whole
     // retrieval to. A blank query is not a scan with no results — the embedder is asked for a vector for
     // nothing, and whatever it returns ranks the corpus by noise.
@@ -28,37 +27,40 @@ export function createKnn(ctx: SearchContext): SearchService["knn"] {
     }
     requirePositiveTopN(topN, "knn");
 
-    const embedded = await rc.embed(query, { inputType: "query" });
-    const queryVector = embedded.vectors[0];
-    if (queryVector === null || queryVector === undefined) {
-      throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
-    }
+    return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
+      const embedded = await space.connection.embed(query, { inputType: "query" });
+      const queryVector = embedded.vectors[0];
+      if (queryVector === null || queryVector === undefined) {
+        throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
+      }
 
-    const pool = await nearestCharacters(ctx.db, {
-      ownerId,
-      queryVector,
-      model: embedModel,
-      limit: OWNER_OVERFETCH * topN,
+      const pool = await nearestCharacters(ctx.db, {
+        ownerId,
+        queryVector,
+        model: space.model,
+        generationId: space.generationId,
+        limit: OWNER_OVERFETCH * topN,
+      });
+
+      const ranked = pool
+        .map((c) => ({
+          id: c.characterId,
+          characterId: c.characterId,
+          sourceText: c.sourceText,
+          distance: c.distance,
+          hubScore: c.hubScore,
+          score: cslsAdjust(c.distance, c.hubScore),
+        }))
+        .sort(
+          compareCslsBy(
+            (c) => c.distance,
+            (c) => c.hubScore,
+          ),
+        );
+
+      const ordered = params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN) : ranked;
+
+      return ordered.slice(0, topN).map((c) => ({ characterId: c.characterId, score: c.score, relevance: relevanceOf(c.distance) }));
     });
-
-    const ranked = pool
-      .map((c) => ({
-        id: c.characterId,
-        characterId: c.characterId,
-        sourceText: c.sourceText,
-        distance: c.distance,
-        hubScore: c.hubScore,
-        score: cslsAdjust(c.distance, c.hubScore),
-      }))
-      .sort(
-        compareCslsBy(
-          (c) => c.distance,
-          (c) => c.hubScore,
-        ),
-      );
-
-    const ordered = params.rerank === true ? await applyRerank(query, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN) : ranked;
-
-    return ordered.slice(0, topN).map((c) => ({ characterId: c.characterId, score: c.score, relevance: relevanceOf(c.distance) }));
   };
 }
