@@ -24,6 +24,12 @@
 //      twice with a crashed-worker report is still exit 1 (the non-negotiable survives the retry);
 //   7. #1012 EVIDENCE: a wedge writes an attempt-suffixed `reports/test-wedge-*.txt` naming the wedged pid
 //      and the SUSPECT files, and the re-run's dump does not overwrite the first attempt's.
+//   8. #2472 THE SECOND NON-VERDICT SHAPE: a POOL CRASH (a worker fork dies, vitest finalizes normally and
+//      exits 1) and a SIGNAL-KILLED vitest are both exit 2, they NAME what died and which named spec
+//      operands never reported, and the merged report is not a success. Items 1 and 2 are the positive
+//      controls that make those 2s mean something rather than a blanket escalation: clean is still 0 and a
+//      real red is still 1. This extends #1490's ruling without reversing it — same mechanism ("a run that
+//      never finalized is not a number"), a shape that needs no watchdog because vitest announces it.
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -78,11 +84,21 @@ if (mode === "busy") {
 }
 if (mode === "hang-pass" || mode === "pass") writeFileSync(out, JSON.stringify(COMPLETE_PASS));
 if (mode === "hang-crash") writeFileSync(out, JSON.stringify(CRASH));
+// "pool-crash": a worker fork DIED and vitest then FINALIZED NORMALLY and exited 1 (#2472). The two lines
+// are vitest 4.1.11's verbatim framing, captured 2026-09-20 from a spec that SIGKILLed its own fork.
+if (mode === "pool-crash") {
+  writeFileSync(out, JSON.stringify(CRASH));
+  process.stderr.write("Error: [vitest-pool]: Worker forks emitted error.\\n");
+  process.stderr.write("Caused by: Error: Worker exited unexpectedly\\n");
+}
 process.stdout.write("fake vitest: " + mode + "\\n");
 // A default-reporter-shaped completion line, so the supervisor's wedge dump can diff completed vs planned.
 process.stdout.write(" \\u2713 |" + project + "| tests/" + project + "/a.test.ts (2 tests) 1ms\\n");
 if (mode === "exit0" || mode === "pass") process.exit(0);
-if (mode === "exit1") process.exit(1);
+if (mode === "exit1" || mode === "pool-crash") process.exit(1);
+// "signal-death": the vitest PROCESS ITSELF dies on a signal (an OOM reap, a heap abort) without our
+// watchdog killing it. The owner's exit-2 class in its purest form; the supervisor used to report 1.
+if (mode === "signal-death") process.kill(process.pid, "SIGKILL");
 setInterval(() => {}, 1000); // hang, as a wedged vitest parent would
 `;
 
@@ -168,7 +184,15 @@ interface MergedReport {
   readonly success: boolean;
   readonly numTotalTests?: number;
   readonly numPassedTests?: number;
-  readonly orbShards?: readonly { readonly project: string; readonly exitCode: number; readonly wedges: number }[];
+  readonly orbShards?: readonly {
+    readonly project: string;
+    readonly exitCode: number;
+    readonly wedges: number;
+    /** #2472: the sentence naming what DIED when this shard produced no verdict, else null. */
+    readonly nonVerdict?: string | null;
+    /** #2472: the named spec operands that never printed a result line. */
+    readonly unreported?: readonly string[];
+  }[];
   readonly testResults?: readonly { readonly name: string }[];
 }
 
@@ -207,6 +231,47 @@ test("mirrors a clean child's exit 0", { timeout: scaledBudget(15_000) }, async 
 test("mirrors a failing child's exit 1", { timeout: scaledBudget(15_000) }, async () => {
   const res = await runSupervisor({ mode: "exit1", reportFile: join(dir, "r1.json") });
   expect(res.code).toBe(1);
+});
+
+// ── #2472: A DEAD WORKER FORK IS A TOOL ERROR, NOT A RED ────────────────────────────────────────────────
+// The two arms above are the positive controls that make these ones mean something: the supervisor still
+// distinguishes clean (0) from violations (1), so a 2 below is discrimination and not a blanket escalation.
+//
+// THE DEFECT, measured 2026-09-20 on this repo's own tree: a spec whose fork was SIGKILLed made vitest
+// print the pool's unhandled-error framing, FINALIZE NORMALLY, and exit 1 — the same number
+// `expect(1).toBe(2)` exits with. `tests:instrument-affected` recorded `ok:false, exitCode:1` in
+// `reports/verify.json`, which reads "your tests failed" over a harness that died. The #1490 wedge ruling
+// already said a run that never finalized is not a number; it was keyed on the one non-verdict shape that
+// needed a watchdog to notice. This is the shape vitest announces itself.
+test("a POOL CRASH is exit 2 — vitest exits 1 for a dead fork and for a real red, and those are not the same run", {
+  timeout: scaledBudget(15_000),
+}, async () => {
+  const res = await runSupervisor({ mode: "pool-crash", reportFile: join(dir, "pool-crash.json") });
+  expect(res.code, "a crashed worker is a TOOL ERROR (2), never a violation (1)").toBe(2);
+});
+
+test("…and the exit-2 report NAMES the specs that never reported, so 'not a verdict' is not 'no information'", { timeout: scaledBudget(15_000) }, async () => {
+  const cwd = caseDir("pool-crash-evidence");
+  const reportFile = join(cwd, "reports", "test-report.json");
+  const res = await runSupervisor({
+    mode: "pool-crash",
+    reportFile,
+    cwd,
+    // Named operands: the fake announces a completion line for `tests/none/a.test.ts` only, so the
+    // supervisor must report the OTHER one as never-reported and must not invent the one that did.
+    extraArgs: ["tests/none/a.test.ts", "tests/none/went-down-with-the-fork.test.ts"],
+  });
+  expect(res.code).toBe(2);
+  const report = readJson<MergedReport>(reportFile);
+  expect(report.success, "a run whose fork died is not a pass, whatever the corpse's report says").toBe(false);
+  const shard = report.orbShards?.[0];
+  expect(shard?.nonVerdict, "the refusal names WHAT died").toMatch(/worker pool|worker fork/u);
+  expect(shard?.unreported).toEqual(["tests/none/went-down-with-the-fork.test.ts"]);
+});
+
+test("a SIGNAL-KILLED vitest is exit 2 too — the owner's exit-134/137 class, not a product red", { timeout: scaledBudget(15_000) }, async () => {
+  const res = await runSupervisor({ mode: "signal-death", reportFile: join(dir, "signal-death.json") });
+  expect(res.code).toBe(2);
 });
 
 test("translates --runtime-only into config mode without widening an explicit project selection", { timeout: scaledBudget(15_000) }, async () => {
