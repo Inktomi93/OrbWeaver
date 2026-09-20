@@ -344,7 +344,8 @@ export function roleRequirementVerdicts(row: RoleRow, capability: Capability | n
 
 /** THE ORACLE the unit test runs: every clause `TASK_DEFS` states for a task RIDING this slot must be
  *  covered by an authored `RoleRequirement`. The authored list may say MORE than the contract (captions are
- *  not their own task), never less — which is the only direction that can silently stop warning a user. */
+ *  not their own task), never less — which is the only direction that can silently stop warning a user.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function roleRequirementGaps(row: RoleRow, tasks: readonly Task[]): readonly string[] {
   const authored = row.requirements.map((requirement) => requirement.requires);
   const gaps: string[] = [];

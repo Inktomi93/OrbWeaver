@@ -271,8 +271,11 @@ function tokens(value: unknown): string {
   return `${grouped(value)} tokens`;
 }
 
-/** The leaf paths, for the completeness pin — the anchor `Record` above is the `tsc` half. */
+/** The leaf paths, for the completeness pin — the anchor `Record` above is the `tsc` half.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const QUIRK_LEAF_PATH_LIST: readonly string[] = Object.values(QUIRK_LEAF_PATHS).flat();
+/** The same set derived from the ROW list — the two derivations must agree.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const QUIRK_ROW_PATHS: readonly string[] = QUIRK_LEAVES.map((leaf) => leaf.path);
 
 /** "Endpoint quirks" — one row per FOLDED leaf, with the layer it came from and, when the row overrides it,

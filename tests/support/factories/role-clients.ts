@@ -45,7 +45,7 @@ export interface FakeRoleClientControls {
   readonly embedDim?: number | undefined;
   /** The model id `resolved(task)` reports — and, for the default callables, the model id their own reply
    *  stamps. A caller overriding a callable with `embed`/`imageEmbed`/etc. but stamping a DIFFERENT model on
-   *  its own reply needs its `resolved().model` to agree, or a model-scoped read (e.g. `requireSpaceModel`)
+   *  its own reply needs its `resolved().model` to agree, or a model-scoped read (e.g. the active-space read)
    *  never finds what was actually stored. Defaults to the `FAKE_*_MODEL` constants. */
   readonly embedModel?: string | undefined;
   readonly imageEmbedModel?: string | undefined;

@@ -5,10 +5,9 @@
 // added, this comment is the tripwire: a bare DELETE would then desync the shadow index.
 
 import type { Db } from "@orb/db";
-import { assets, characterEmbeddings, characters, chatDigests, chatParticipants, chatSegments, documentChunks, documents, imageEmbeddings } from "@orb/db";
-import type { CharacterId, ChatId, DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
-import type { SQL } from "drizzle-orm";
-import { and, eq, gte, inArray, isNull, ne, notInArray, or } from "drizzle-orm";
+import { characterEmbeddings, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
+import type { CharacterId, ChatId, DocumentId, EmbedGenerationId } from "@orb/kit/ids";
+import { and, eq, gte, notInArray, or } from "drizzle-orm";
 import type { VectorTable } from "../contract/params.ts";
 
 function assertNever(value: never): never {
@@ -16,10 +15,13 @@ function assertNever(value: never): never {
 }
 
 // FLAG[PD-104]: DEAD — `clearVectorTable` (the whole-table wipe) has ZERO runtime consumers (test-only,
-// PD-103-style). Superseded by `purgeStaleVectors` below (the model-scoped OLD-space reclaim that the
-// PD-104 purge+reindex path actually needs — a full wipe would also nuke the NEW space). Delete this +
-// the `clearTable` verb/param/service-method + their tests once file-removal tooling is in hand (this
-// pass is Edit-only). Registry row: Core-Audits-and-Debt.md PD-104.
+// PD-103-style). The OLD-space reclaim it was kept beside is no longer here: the model-scoped
+// `purgeStaleVectors` was deleted with the generation cutover (#2496), because promotion now retires
+// every non-active generation inside ONE transaction (`persistence/space-state.ts`
+// `retiredVectorStatements`) — `generation_id` is NOT NULL on all five vector tables, so a `!= active`
+// delete reaches every row the model-scoped predicate used to. Delete this + the `clearTable`
+// verb/param/service-method + their tests once file-removal tooling is in hand (this pass is
+// Edit-only). Registry row: Core-Audits-and-Debt.md PD-104.
 /** Dispatch is assertNever-exhaustive over {@link VectorTable} — a new table fails tsc until its arm lands. */
 export async function clearVectorTable(db: Db, table: VectorTable): Promise<void> {
   switch (table) {
@@ -41,67 +43,6 @@ export async function clearVectorTable(db: Db, table: VectorTable): Promise<void
     default:
       assertNever(table);
   }
-}
-
-/** PD-104 — the OLD-vector-space reclaim half of purge+reindex, PER OWNER. Deletes every row in `table` that
- *  belongs to `ownerId`'s entity tree (a card, an asset, a document, a chat the owner HOSTS) and whose `model`
- *  differs from that owner's `activeModel`. Vector tasks are owner-scoped (inference program §7.5): two owners
- *  may legitimately run two embedders, so a global `model != x` delete would reclaim a neighbour's live space —
- *  the row is stale only relative to ITS owner's binding. Returns the number of rows purged. The reindex half
- *  writes the new space FIRST (uniform `(…, model)` upsert keys, so the two spaces coexist), then this reclaims
- *  the old one — no row is ever stranded. Exhaustive over {@link VectorTable} (a new table fails tsc until its
- *  arm lands). Chat rows scope through the PRESENT host row (`role = 'host'`, `left_seq IS NULL` — the #390
- *  one-present-host index), the same owner the digest/segment WRITE seam resolves. */
-export async function purgeStaleVectors(db: Db, table: VectorTable, ownerId: UserId, activeModel: string): Promise<number> {
-  switch (table) {
-    case "character_embeddings": {
-      const owned = db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId));
-      const rows = await db
-        .delete(characterEmbeddings)
-        .where(and(ne(characterEmbeddings.model, activeModel), inArray(characterEmbeddings.characterId, owned)))
-        .returning({ id: characterEmbeddings.id });
-      return rows.length;
-    }
-    case "image_embeddings": {
-      const owned = db.select({ id: assets.id }).from(assets).where(eq(assets.ownerId, ownerId));
-      const rows = await db
-        .delete(imageEmbeddings)
-        .where(and(ne(imageEmbeddings.model, activeModel), inArray(imageEmbeddings.assetId, owned)))
-        .returning({ id: imageEmbeddings.id });
-      return rows.length;
-    }
-    case "chat_digests": {
-      const hosted = db.select({ id: chatParticipants.chatId }).from(chatParticipants).where(presentHost(ownerId));
-      const rows = await db
-        .delete(chatDigests)
-        .where(and(ne(chatDigests.model, activeModel), inArray(chatDigests.chatId, hosted)))
-        .returning({ id: chatDigests.id });
-      return rows.length;
-    }
-    case "chat_segments": {
-      const hosted = db.select({ id: chatParticipants.chatId }).from(chatParticipants).where(presentHost(ownerId));
-      const rows = await db
-        .delete(chatSegments)
-        .where(and(ne(chatSegments.model, activeModel), inArray(chatSegments.chatId, hosted)))
-        .returning({ id: chatSegments.id });
-      return rows.length;
-    }
-    case "document_chunks": {
-      const owned = db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, ownerId));
-      const rows = await db
-        .delete(documentChunks)
-        .where(and(ne(documentChunks.model, activeModel), inArray(documentChunks.documentId, owned)))
-        .returning({ id: documentChunks.id });
-      return rows.length;
-    }
-    default:
-      return assertNever(table);
-  }
-}
-
-/** The PRESENT host predicate — the row both chat-memory arms scope their subquery on. */
-function presentHost(ownerId: UserId): SQL | undefined {
-  return and(eq(chatParticipants.userId, ownerId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq));
 }
 
 /** The chat-memory SHRINK seam (stickler 2026-08-08 canon-message-identity, leg-2 refutation) — the

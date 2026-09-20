@@ -5,7 +5,7 @@
 //     (`deps.localLight.embedDtype`, env `LOCAL_LIGHT_EMBED_DTYPE`) into `EmbedResult.model`, and
 //     `embeddings.store` stamps the provider's answer by the issue-724 ruling (`0fed0b3ee`);
 //   • the READ side's tag is derived from the CURATED capability row's `dtype` (`embedDtypeOf` →
-//     `embedSpaceOf`), which is what `nearest.ts` filters on and `purgeStaleVectors` compares against.
+//     `embedSpaceOf`), which is what `nearest.ts` filters on and a generation's identity is minted from.
 //
 // §10-2's whole ask is "read the same curated fact". They cannot literally be one value — one is a
 // deployment knob and one is a shipped capability row — so this is the enforcement: a test-time pin that
