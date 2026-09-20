@@ -28,6 +28,12 @@ export const anthropicRows = [
       },
       reasoning: {
         displayModes: ["summarized", "omitted"],
+        // SIGNED replay on BOTH routes, stated once on the family base so every Claude id inherits it: the
+        // direct wire round-trips a `thinking` block with its opaque `signature`, and OpenRouter carries the
+        // same material as `reasoning_details` with `format: "anthropic-claude-v1"` (it strips unsigned
+        // entries). Without this cell the fail-closed `REASONING_REPLAY_FLOOR` applies and a tool loop
+        // drops the model's verified reasoning on every hop (audit A1, §8.8).
+        replay: "signed",
       },
       turns: {
         assistantPrefill: false,
