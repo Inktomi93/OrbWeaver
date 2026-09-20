@@ -34,20 +34,32 @@
 // in a new costume. `branchChangedPaths` unions the merge-base diff with the working tree and returns
 // `null` when it cannot answer; `null` RUNS THE WHOLE BATTERY rather than selecting nothing, because an
 // uncomputable precondition that reads as "nothing changed" is a silent false clean (the bare-zero law).
+//
+// …AND THE BRANCH POINT IS DERIVED, NOT ASSUMED (#2472). That base used to be a hardcoded `origin/main`,
+// which on this checkout — the owner pushes by hand and rarely — sat 280 commits behind local main, so
+// "the instruments this branch changed" resolved to 488 `tooling/src` sources: essentially the whole
+// `tests:tooling` battery #1842 deliberately moved to `--full`, run at every `static` barrier, forever.
+// `lib/repo-paths.ts#resolveMergeBase` now takes the candidate base CLOSEST to HEAD. The consequence is
+// stated rather than hidden: on the mainline tip itself the base IS HEAD, this stage measures nothing, and
+// it SAYS SO through the `[verify-notice]` channel — the row's own design ("a branch that touched no
+// tooling/src source runs NOTHING and exits clean in well under a second") with the base that makes the
+// sentence true. Whole-battery coverage of an integrated tree is `pnpm verify --full`, not this row.
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { emitLine, warn } from "@orb/tooling/_shared/log";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { resolveMirrors } from "@orb/tooling/_shared/test-mirror";
+import { NOTICE_MARKER } from "../contract/stage.ts";
 import { toolingTestsNaming } from "../lib/instrument-affected-reach.ts";
-import { branchChangedPaths, existsRel } from "../lib/repo-paths.ts";
+import { branchChangedPaths, existsRel, resolveMergeBase } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm verify --push  /  pnpm check:instrument-affected");
 
 const INSTRUMENT_SRC_PREFIX = "tooling/src/";
 const GATES_PREFIX = "tooling/src/verify/gates/";
 const TS_SUFFIX = ".ts";
+const SHORT_SHA = 12;
 
 /** The instrument sources in a changed set — the only inputs that can select a family test. */
 function instrumentSources(root: string, changed: readonly string[]): readonly string[] {
@@ -107,7 +119,19 @@ export function runInstrumentAffected(root: string): number {
     return runSpecs(root, ["tests/tooling"]);
   }
   if (selection.sources.length === 0) {
-    emitLine("instrument-affected: this branch changed no tooling/src source — nothing to recertify.");
+    // THE EMPTY ANSWER IS ANNOUNCED IN THE ARTIFACT, NOT ONLY IN A LOG NOBODY OPENS (#2472). Since the base
+    // became the real branch point, `pnpm check` ON MAIN resolves it to HEAD and this stage correctly
+    // measures nothing — which is exactly the shape a reader must never mistake for coverage. The
+    // `[verify-notice]` channel puts the ref, the commit and the reason into `reports/verify.json`'s
+    // `notices` for this stage, where the tail block renders it beside the ✓ (contract/stage.ts).
+    // The COMPENSATING control for that inertness is the orchestrator's, not this predicate's: a merge
+    // train touching `tooling/src` owes `pnpm verify --full`, the tier that runs the whole battery.
+    const base = resolveMergeBase(root);
+    emitLine(
+      base !== null && base.isHead
+        ? `${NOTICE_MARKER} instrument-affected measured NOTHING: the merge base resolved to HEAD itself (${base.ref} @ ${base.commit.slice(0, SHORT_SHA)}), so this checkout is ON the mainline tip and has no branch to recertify. This is a fact about the checkout, not a clean bill of health for tooling/src — the whole instrument battery is \`pnpm verify --full\`.`
+        : `instrument-affected: this branch changed no tooling/src source since ${base === null ? "its merge base" : `${base.ref} @ ${base.commit.slice(0, SHORT_SHA)}`} — nothing to recertify.`,
+    );
     return EXIT.clean;
   }
   if (selection.specs.length === 0) {
@@ -124,9 +148,18 @@ export function runInstrumentAffected(root: string): number {
 }
 
 function runSpecs(root: string, specs: readonly string[]): number {
-  const res = runNicedSync(process.execPath, [`${root}/scripts/vitest-supervised.mjs`, "run", ...specs, "--runtime-only", "--reporter=default"], {
-    cwd: root,
-    stdio: "inherit",
-  });
+  // `--reporter=json` ALONGSIDE the default one (#2472): a CLI `--reporter` REPLACES the config's reporter
+  // list, so the bare `--reporter=default` this stage used to pass meant vitest wrote no json report at
+  // all. Two things depended on one existing — the supervised runner's `verdictFromReport`, which reads
+  // the corpse's report to salvage a verdict after a wedge kill, and any reader trying to tell a dead
+  // harness from a red after the fact — and both were getting a file that was never written.
+  const res = runNicedSync(
+    process.execPath,
+    [`${root}/scripts/vitest-supervised.mjs`, "run", ...specs, "--runtime-only", "--reporter=default", "--reporter=json"],
+    {
+      cwd: root,
+      stdio: "inherit",
+    },
+  );
   return res.status ?? EXIT.toolError;
 }

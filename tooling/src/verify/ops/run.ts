@@ -43,6 +43,7 @@ import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { inheritedRunMarker, mintRunMarker, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
+import { NOTICE_MARKER } from "../contract/stage.ts";
 import { colourNeutralParentEnv } from "../lib/child-env.ts";
 import { aggregateExit, noVerdictStages } from "../lib/exit-classifiers.ts";
 import { historyAdvisories } from "../lib/history.ts";
@@ -150,9 +151,6 @@ function failureExcerpt(output: string): string {
   const lines = output.split("\n").filter((l) => l.trim().length > 0);
   return lines.slice(-EXCERPT_LINES).join("\n");
 }
-
-/** The opt-in marker a stage prints to have a line SEEN on a green run (contract/stage.ts `notices`). */
-const NOTICE_MARKER = "[verify-notice]";
 
 /** Lift every `[verify-notice] …` line out of a stage's transcript. A green stage's output otherwise
  *  reaches nobody — it lands in reports/verify/<stage>.log and the console shows one ✓ line. */
