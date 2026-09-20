@@ -14,7 +14,15 @@ import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function capture(chatId: ChatId, wire: "openai-compat" | "agent-sdk", body: Record<string, unknown> = {}): void {
-  recordWireCapture({ chatId, api: wire === "openai-compat" ? "chat-completions" : "agent-sdk", wire, providerId: wire === "openai-compat" ? "openai-compat" : "claude-sub", model: "m", at: 0, body });
+  recordWireCapture({
+    chatId,
+    api: wire === "openai-compat" ? "chat-completions" : "agent-sdk",
+    wire,
+    providerId: wire === "openai-compat" ? "openai-compat" : "claude-sub",
+    model: "m",
+    at: 0,
+    body,
+  });
 }
 
 describe("wire-capture recorder", () => {

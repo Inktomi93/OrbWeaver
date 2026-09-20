@@ -17,13 +17,15 @@
 import { userInfo } from "node:os";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { engineLaunchEnvFloor, processEnvSnapshot } from "../lib/engine-fleet/index.ts";
+import { budget } from "@orb/tooling/_shared/load-budget";
+import { runTool, UsageError } from "../../_shared/run-tool.ts";
 import type { EngineStopOutcome, EngineUtilFractions, GpuVram } from "../lib/engine-fleet/index.ts";
 import {
   clearHold,
   countGpus,
   decideWake,
   engineAdoptionText,
+  engineLaunchEnvFloor,
   enginePortPid,
   fleetRunDir,
   getIsSleeping,
@@ -31,6 +33,7 @@ import {
   isStopped,
   postSleep,
   postWakeAndAwait,
+  processEnvSnapshot,
   queryGpuVram,
   reapOrphanedFamily,
   stopRecordedEngineProcess,
@@ -38,8 +41,6 @@ import {
   writeHold,
   writeStopped,
 } from "../lib/engine-fleet/index.ts";
-import { budget } from "@orb/tooling/_shared/load-budget";
-import { runTool, UsageError } from "../../_shared/run-tool.ts";
 
 const REPO_ROOT = process.cwd();
 const RUN_DIR = fleetRunDir(REPO_ROOT);

@@ -16,12 +16,12 @@ import type { TurnSlot } from "@orb/client/state";
 import { chatStream, subscribeTurnSlot } from "@orb/client/state";
 import type { ChatBusEvent, ChatDeltaEvent, ChatWarning, TurnIntent } from "@orb/contracts/chat";
 import { CHAT_BUS_EVENT_TYPES } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 import { makeMessageView } from "../../features/chat/fixtures.ts";
-import type { ProviderId } from "@orb/contracts/inference";
 
 // ── Harness: real store, spy-wrapped deps ──────────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ function turnStartedEvent(overrides: {
     chatId: overrides.chatId,
     intent: overrides.intent,
     api: "chat-completions",
-provider: castId<ProviderId>("custom-openai"),
+    provider: castId<ProviderId>("custom-openai"),
     model: "test-model",
     speakerCharacterId: overrides.speakerCharacterId,
     targetMessageId: overrides.targetMessageId,

@@ -4,10 +4,10 @@
 // AND proves the belt end-to-end against the real SecretBox: a row decrypts only under its own
 // `(owner, provider)` slot; swapping either half fails the GCM tag check (loud error, not a wrong decrypt).
 
+import type { ProviderId } from "@orb/contracts/inference";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { ProviderId } from "@orb/contracts/inference";
 import { aadFor } from "../../../../../packages/server/src/domain/credentials/persistence/aad.ts";
 import { createSecretBox } from "../../../../../packages/server/src/infra/crypto/secrets.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

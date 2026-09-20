@@ -5,9 +5,9 @@
 
 import type { ChatAction, ChatMembership, GlobalAction, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
+import type { AgentToolServer, AgentToolSpec, ToolCallInput } from "@orb/inference";
 import type { ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import type { z } from "zod";
-import type { AgentToolServer, AgentToolSpec, ToolCallInput } from "@orb/inference";
 
 export type { ToolCallInput } from "@orb/inference";
 

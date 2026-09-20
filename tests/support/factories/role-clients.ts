@@ -84,7 +84,10 @@ export function makeFakeRoleClients(controls: FakeRoleClientControls = {}): Role
   };
   const imageEmbed: RoleClients["imageEmbed"] = (req: ImageEmbedInput): Promise<ImageEmbedResult> => {
     guard("imageEmbed");
-    const texts = req.kind === "text" ? (typeof req.input === "string" ? [req.input] : [...req.input]) : [];
+    let texts: string[] = [];
+    if (req.kind === "text") {
+      texts = typeof req.input === "string" ? [req.input] : [...req.input];
+    }
     return Promise.resolve({ vectors: texts.map((t, i) => fakeVector(t, dim, i + 101)), model: imageEmbedModel });
   };
   const rerank: RoleClients["rerank"] = (_query: RerankQuery, documents: RerankDocument[]): Promise<RerankResult> => {

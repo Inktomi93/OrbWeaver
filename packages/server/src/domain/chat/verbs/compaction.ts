@@ -20,13 +20,13 @@
 // not the resolved speaker name — richer per-speaker labeling is a later refinement.
 
 import type { DurableChatBusEvent } from "@orb/contracts/chat";
-import type { Resolved } from "@orb/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import { chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
+import type { Resolved } from "@orb/inference";
 import { projectBodyForSummary } from "@orb/kit/content";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";

@@ -3,7 +3,7 @@
 // REQUIRED-scopedCharacterId throw (the verbatim lens cannot key without an egocentric POV), and mixC rerank.
 
 import type { MemoryQueryOptions } from "@orb/contracts/search";
-import type { CharacterId, ChatId, Handle , UserId} from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";

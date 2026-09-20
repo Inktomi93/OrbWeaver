@@ -1,4 +1,6 @@
 // are exactly what an ST preset blob carries (the D68-A import mapping tests below).
+
+import { BELT_OWNED_BODY_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 import type { GuidedActionKind, PromptConfig, TemplateDef } from "@orb/contracts/preset";
 import {
   ASSEMBLE_POST_PROCESS_ORDER,
@@ -47,7 +49,6 @@ import { PRESET_PROSE_SLOT_IDS, PROSE_SLOTS } from "@orb/contracts/prose";
 // The cap is read from its ONE home (`@orb/kit/injection`), never re-spelled as a literal here.
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { expect, test } from "../../support/fixtures.ts";
-import { BELT_OWNED_BODY_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 
 // Sample values named so the test isn't littered with bare magic numbers (noMagicNumbers).
 const SAMPLE_TEMPERATURE = 0.7;

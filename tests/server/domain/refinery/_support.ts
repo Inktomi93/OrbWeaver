@@ -3,8 +3,8 @@
 // `summarize` TAPE (FIFO; exhaustion throws LOUD, the Spine-Testing tape doctrine). Deterministic clock +
 // seeded ids (no wall clock, no unseeded typeids).
 
-import type { RefineryAnalyzePayload, RefineryRewritePayload, RefineryScorePayload } from "@orb/contracts/refinery";
 import type { SummarizeResult } from "@orb/contracts/providers";
+import type { RefineryAnalyzePayload, RefineryRewritePayload, RefineryScorePayload } from "@orb/contracts/refinery";
 import type { ResponseFormat, RoleClients, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";

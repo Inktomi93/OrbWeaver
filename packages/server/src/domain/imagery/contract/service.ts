@@ -5,12 +5,12 @@
 
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import type { CharacterCard } from "@orb/contracts/character";
-import type { GenerationCapability } from "@orb/contracts/inference";
-import type { Resolved } from "@orb/inference";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import type { Resolved } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";

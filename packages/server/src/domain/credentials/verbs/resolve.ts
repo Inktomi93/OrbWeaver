@@ -19,6 +19,7 @@ import { mintSecret } from "../substrate/mint-secret.ts";
 /** The metadata `auth` arm → the secret kind. A row with no metadata (every pre-metadata key) is an API key. */
 function kindOf(metadata: unknown): Exclude<ResolvedSecretKind, "none"> {
   const parsed = parseProviderMetadata(metadata);
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap — biome collapses discriminatedUnion(...).nullable() and drops the null arm; `parsed` IS nullable (its declared return type) and the contract test asserts the null return for a bad/retired shape.
   if (parsed === null || parsed.auth === "apiKey") {
     return "apiKey";
   }

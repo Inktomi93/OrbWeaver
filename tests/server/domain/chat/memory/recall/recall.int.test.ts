@@ -1,7 +1,7 @@
 import type { BlockKey } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
-import type { CharacterId, ChatId, Handle, MessageId , UserId} from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";

@@ -3,8 +3,8 @@
 // CAPABILITY read (`resolveEffective`): the type is declared here, the runtime op is wired at the composition
 // root, so preset never imports `connection` (the sideways-import ban, AGENTS §2).
 
-import type { ResolvedConnectionView } from "@orb/contracts/inference";
 import type { Principal } from "@orb/contracts/identity";
+import type { ResolvedConnectionView } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { PresetId } from "@orb/kit/ids";

@@ -6,8 +6,7 @@
 // hardcoded literal, so a default change doesn't silently drift the test).
 
 import process from "node:process";
-import { fleetEnv as env } from "@orb/tooling/stack/lib/engine-fleet";
-import { engineBaseUrl } from "@orb/tooling/stack/lib/engine-fleet";
+import { engineBaseUrl, fleetEnv as env } from "@orb/tooling/stack/lib/engine-fleet";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 

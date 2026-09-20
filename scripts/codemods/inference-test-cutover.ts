@@ -34,8 +34,8 @@ interface Diagnostic {
   readonly column: number;
   readonly code: number;
   readonly message: string;
-  getCode(): number;
-  getLineNumber(): number;
+  getCode: () => number;
+  getLineNumber: () => number;
 }
 
 const TSC_LINE = /^(?<file>[^(]+)\((?<line>\d+),(?<col>\d+)\): error TS(?<code>\d+): (?<message>.*)$/u;
@@ -59,13 +59,32 @@ function readTscLog(path: string): Diagnostic[] {
   return out;
 }
 
+/** How many leading chars of a skipped receiving-type name land in the report line — a full generic
+ *  instantiation is unreadable in the terminal summary. */
+const RECEIVING_TYPE_PREVIEW_CHARS = 40;
+
 const TS_MISSING_PROPERTY = 2741;
 const TS_UNKNOWN_PROPERTY = 2353;
 const TS_ASSIGNMENT_MISMATCH = 2322;
 const TS_ARGUMENT_MISMATCH = 2345;
 
 /** The identifiers a funder is spelled as, in priority order — the first one in scope wins. */
-const FUNDER_CANDIDATES = ["funderUserId", "funder", "hostUserId", "host", "hostId", "ownerId", "owner", "userId", "user", "triggerer", "caller", "author", "admin", "alice"] as const;
+const FUNDER_CANDIDATES = [
+  "funderUserId",
+  "funder",
+  "hostUserId",
+  "host",
+  "hostId",
+  "ownerId",
+  "owner",
+  "userId",
+  "user",
+  "triggerer",
+  "caller",
+  "author",
+  "admin",
+  "alice",
+] as const;
 
 /** A retired property → the receiving-type substrings it may be deleted from (a live same-named property on any
  *  other type is left alone and reported). `*` = any receiving type. */
@@ -129,7 +148,7 @@ let activeProject: CodemodContext["project"] | undefined;
 function nodeAt(diag: Diagnostic): { sf: SourceFile; node: Node } | undefined {
   const sf = activeProject?.getSourceFile(`${process.cwd()}/${diag.file}`);
   if (sf === undefined) {
-    return undefined;
+    return;
   }
   const pos = sf.compilerNode.getPositionOfLineAndCharacter(diag.line - 1, diag.column - 1);
   const node = sf.getDescendantAtPos(pos);
@@ -188,11 +207,16 @@ function funderExpressionFor(literal: ObjectLiteralExpression): string | undefin
   }
   // A describe-level `let owner` assigned in a `beforeEach` is a sibling scope the walk above cannot see; a
   // file-wide declaration of a candidate name is the next-honest answer (the suite's one funder).
-  const fileWide = new Set(literal.getSourceFile().getDescendantsOfKind(SyntaxKind.VariableDeclaration).map((d) => d.getName()));
+  const fileWide = new Set(
+    literal
+      .getSourceFile()
+      .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+      .map((d) => d.getName()),
+  );
   return FUNDER_CANDIDATES.find((candidate) => fileWide.has(candidate));
 }
 
-function insertFunderPlans(ctx: CodemodContext, diags: readonly Diagnostic[], report: Report): Plan {
+function insertFunderPlans(ctx: CodemodContext, diags: readonly Diagnostic[], into: Report): Plan {
   const seen = new Set<string>();
   const replacements: { filePath: string; start: number; end: number; text: string; label: string }[] = [];
   for (const diag of diags) {
@@ -219,7 +243,7 @@ function insertFunderPlans(ctx: CodemodContext, diags: readonly Diagnostic[], re
     }
     const literal = enclosingObjectLiteral(at.node);
     if (literal === undefined) {
-      report.unresolvedFunder.push(`${at.sf.getFilePath()}:${diag.getLineNumber() ?? 0} (no object literal at the diagnostic)`);
+      into.unresolvedFunder.push(`${at.sf.getFilePath()}:${diag.getLineNumber() ?? 0} (no object literal at the diagnostic)`);
       continue;
     }
     const key = `${at.sf.getFilePath()}:${literal.getStart()}`;
@@ -229,15 +253,28 @@ function insertFunderPlans(ctx: CodemodContext, diags: readonly Diagnostic[], re
     seen.add(key);
     const expr = fill.value === "funder" ? funderExpressionFor(literal) : fill.value;
     if (expr === undefined) {
-      report.unresolvedFunder.push(`${at.sf.getFilePath()}:${diag.getLineNumber() ?? 0} (${propertyName})`);
+      into.unresolvedFunder.push(`${at.sf.getFilePath()}:${diag.getLineNumber() ?? 0} (${propertyName})`);
       continue;
     }
     const text = literal.getText();
     const multiline = text.includes("\n");
     const inner = text.slice(1, -1);
     const property = expr === propertyName ? propertyName : `${propertyName}: ${expr}`;
-    const newInner = inner.trim() === "" ? ` ${property} ` : multiline ? `${inner.replace(/\s*$/u, "").replace(/,$/u, "")},\n${indentOf(literal)}${property},\n${indentOf(literal).slice(2)}` : `${inner.replace(/\s*$/u, "").replace(/,$/u, "")}, ${property} `;
-    replacements.push({ filePath: at.sf.getFilePath(), start: literal.getStart(), end: literal.getEnd(), text: `{${newInner}}`, label: `${propertyName} ← ${expr}` });
+    let newInner: string;
+    if (inner.trim() === "") {
+      newInner = ` ${property} `;
+    } else if (multiline) {
+      newInner = `${inner.replace(/\s*$/u, "").replace(/,$/u, "")},\n${indentOf(literal)}${property},\n${indentOf(literal).slice(2)}`;
+    } else {
+      newInner = `${inner.replace(/\s*$/u, "").replace(/,$/u, "")}, ${property} `;
+    }
+    replacements.push({
+      filePath: at.sf.getFilePath(),
+      start: literal.getStart(),
+      end: literal.getEnd(),
+      text: `{${newInner}}`,
+      label: `${propertyName} ← ${expr}`,
+    });
   }
   return applyTextReplacements(ctx, replacements, { note: `insert funderUserId at ${replacements.length} literal(s)` });
 }
@@ -258,7 +295,7 @@ function retiredMatches(property: string, receivingType: string): boolean {
   return allowed !== undefined && (allowed.includes("*") || allowed.some((hint) => receivingType.includes(hint)));
 }
 
-function deleteRetiredPlans(ctx: CodemodContext, diags: readonly Diagnostic[], report: Report): Plan {
+function deleteRetiredPlans(ctx: CodemodContext, diags: readonly Diagnostic[], into: Report): Plan {
   const seen = new Set<string>();
   const replacements: { filePath: string; start: number; end: number; text: string; label: string }[] = [];
   for (const diag of diags) {
@@ -278,12 +315,15 @@ function deleteRetiredPlans(ctx: CodemodContext, diags: readonly Diagnostic[], r
     if (at === undefined) {
       continue;
     }
-    const assignment = Node.isPropertyAssignment(at.node) || Node.isShorthandPropertyAssignment(at.node) ? at.node : at.node.getFirstAncestor((a) => Node.isPropertyAssignment(a) || Node.isShorthandPropertyAssignment(a));
+    const assignment =
+      Node.isPropertyAssignment(at.node) || Node.isShorthandPropertyAssignment(at.node)
+        ? at.node
+        : at.node.getFirstAncestor((a) => Node.isPropertyAssignment(a) || Node.isShorthandPropertyAssignment(a));
     if (assignment === undefined || assignment.getName() !== property) {
       continue;
     }
     if (!retiredMatches(property, receivingType)) {
-      report.skippedRetired.push(`${at.sf.getFilePath()}:${diag.getLineNumber() ?? 0} ${property} in ${receivingType.slice(0, 40)}`);
+      into.skippedRetired.push(`${at.sf.getFilePath()}:${diag.getLineNumber() ?? 0} ${property} in ${receivingType.slice(0, RECEIVING_TYPE_PREVIEW_CHARS)}`);
       continue;
     }
     const key = `${at.sf.getFilePath()}:${assignment.getStart()}`;
@@ -311,7 +351,13 @@ function deleteRetiredPlans(ctx: CodemodContext, diags: readonly Diagnostic[], r
       const trailingWs = full.slice(end).match(/^[ \t]*/u);
       end += trailingWs?.[0].length ?? 0;
     }
-    replacements.push({ filePath: at.sf.getFilePath(), start, end, text: after !== null && lead !== null ? (lead[1] ?? "") : "", label: `drop retired ${property}` });
+    replacements.push({
+      filePath: at.sf.getFilePath(),
+      start,
+      end,
+      text: after !== null && lead !== null ? (lead[1] ?? "") : "",
+      label: `drop retired ${property}`,
+    });
   }
   return applyTextReplacements(ctx, replacements, { note: `delete ${replacements.length} retired propert(y/ies)` });
 }
@@ -342,7 +388,13 @@ function castProviderIdPlans(ctx: CodemodContext, diags: readonly Diagnostic[]):
     }
     seen.add(key);
     files.add(at.sf.getFilePath());
-    replacements.push({ filePath: at.sf.getFilePath(), start: literal.getStart(), end: literal.getEnd(), text: `castId<ProviderId>(${literal.getText()})`, label: "castId<ProviderId>" });
+    replacements.push({
+      filePath: at.sf.getFilePath(),
+      start: literal.getStart(),
+      end: literal.getEnd(),
+      text: `castId<ProviderId>(${literal.getText()})`,
+      label: "castId<ProviderId>",
+    });
   }
   const plans: Plan[] = [applyTextReplacements(ctx, replacements, { note: `cast ${replacements.length} ProviderId literal(s)` })];
   for (const file of files) {

@@ -5,11 +5,11 @@
 // generation is a deterministic stub. Reached through `createCompaction(ctx, { emit, quietGenerate, resolveConnection })`.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import type { Resolved } from "@orb/inference";
 import type { Principal } from "@orb/contracts/identity";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
+import type { Resolved } from "@orb/inference";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

@@ -91,6 +91,26 @@ describe("buildRefinery — the queue's actor gets a SMALLER bundle than the ser
 });
 
 describe("buildRefinery — the summarizer binding stays LIVE (a role re-point must reach the sweep)", () => {
+  test("roleClientsFor is threaded verbatim into the workload bundle — a role re-point reaches the sweep on the very next call", () => {
+    const roleClientsFor = vi.fn<RefineryComposeDeps["roleClientsFor"]>();
+    // @orb-waive no-test-fabrication(unknown): the seam stores the character front door and the db and calls neither here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const deps = {
+      db: NO_DB,
+      now: () => 1000,
+      roleClientsFor,
+      character: { snapshot: vi.fn(), update: vi.fn(), get: vi.fn(), duplicate: vi.fn() },
+      resolveUserPresetParams: vi.fn(() => Promise.resolve({})),
+      loadUserSettings: vi.fn(() => Promise.resolve({ prose: {} })),
+    } as unknown as RefineryComposeDeps;
+
+    const { refineryWorkloads } = buildRefinery(deps);
+
+    // The compose seam threads the SAME function object through — never wrapped, memoized or read at
+    // compose time — so a later role re-point (a new `roleClientsFor` binding replacing this reference
+    // upstream) governs the sweep's very next call, exactly like the service half (role-clients.ts: "a
+    // re-pointed binding governs the very next call, no restart, no invalidation hook to forget").
+    expect(refineryWorkloads.roleClientsFor).toBe(roleClientsFor);
+  });
 });
 
 describe("buildRefinery — the prose resolver is caller-scoped and single-homed", () => {

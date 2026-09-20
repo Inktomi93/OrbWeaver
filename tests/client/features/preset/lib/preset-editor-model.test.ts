@@ -9,11 +9,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, parsePromptConfig, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
-import {
-  mergeOnSubmit,
-  seedConfig,
-  validatePresetProse,
-} from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
+import { mergeOnSubmit, seedConfig, validatePresetProse } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A parsed server config with server-only fields set (the fields the params panel never edits). */

@@ -93,11 +93,19 @@ test("revoked_reason is CHECK-bound to CRED_REVOKED_REASONS — an unlisted word
   const ownerId = await seedUser(db, { id: "user_cred_owner" });
   const base = { ownerId, provider: OPENROUTER, ciphertext: "ct", iv: "iv", tag: "tag", metadata: null, label: "default" };
   for (const [idx, reason] of CRED_REVOKED_REASONS.entries()) {
-    await db.insert(userCredentials).values({ ...base, id: castId<UserCredentialId>(`user_credential_r${idx}`), label: `r${idx}`, revokedAt: 1, revokedReason: reason });
+    await db
+      .insert(userCredentials)
+      .values({ ...base, id: castId<UserCredentialId>(`user_credential_r${idx}`), label: `r${idx}`, revokedAt: 1, revokedReason: reason });
   }
   await expect(
     // @orb-waive no-test-fabrication(unknown): the CHECK probe MUST send a word outside the tuple — that is the test. Ends when the column's enum can express its own negative.
-    db.insert(userCredentials).values({ ...base, id: castId<UserCredentialId>("user_credential_bad"), label: "bad", revokedAt: 1, revokedReason: "expired" as unknown as (typeof CRED_REVOKED_REASONS)[number] }),
+    db.insert(userCredentials).values({
+      ...base,
+      id: castId<UserCredentialId>("user_credential_bad"),
+      label: "bad",
+      revokedAt: 1,
+      revokedReason: "expired" as unknown as (typeof CRED_REVOKED_REASONS)[number],
+    }),
   ).rejects.toSatisfy((err: unknown) => isConstraintViolation(err) !== undefined);
 });
 

@@ -6,7 +6,7 @@
 
 import type { MemoryQueryOptions } from "@orb/contracts/search";
 import { ProviderError } from "@orb/inference";
-import type { CharacterId, ChatId, Handle , UserId} from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { SCOPE_INSTRUCTIONS } from "../../../../../packages/server/src/domain/search/substrate/instructions.ts";

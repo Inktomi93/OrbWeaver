@@ -94,7 +94,6 @@ function engineOver(database: Db, runChatTurn: ChatContext["runChatTurn"]): Retu
   return createTurnEngine(ctx, {
     emit: (_event: ChatBusEvent): Promise<void> => Promise.resolve(),
 
-
     holder: "replica-1",
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),

@@ -27,7 +27,6 @@ import type {
 } from "./params.ts";
 import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views.ts";
 
-
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SettingsContext {
   readonly db: Db;

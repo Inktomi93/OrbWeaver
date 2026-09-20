@@ -952,6 +952,9 @@ importers:
       '@orb/default-content':
         specifier: workspace:*
         version: link:../packages/default-content
+      '@orb/inference':
+        specifier: workspace:*
+        version: link:../packages/inference
       '@orb/kit':
         specifier: workspace:*
         version: link:../packages/kit

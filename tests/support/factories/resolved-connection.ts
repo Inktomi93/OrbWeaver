@@ -29,13 +29,20 @@ export const TEST_CONNECTION_ID: UserConnectionId = castId<UserConnectionId>("us
 
 /** FABRICATION-OK brand cast — the ONE sanctioned place outside the domain mint; `ResolvedSecret` is
  *  brand-protected and unforgeable, so every builder routes its fully-typed input through this single cast. */
-export function makeResolvedSecret(kind: ResolvedSecretKind = "none", secret: string | null = null, credentialId: UserCredentialId | null = null): ResolvedSecret {
+export function makeResolvedSecret(
+  kind: ResolvedSecretKind = "none",
+  secret: string | null = null,
+  credentialId: UserCredentialId | null = null,
+): ResolvedSecret {
   // @orb-waive no-test-fabrication(unknown): the ONE sanctioned brand cast (see the JSDoc above) — ResolvedSecret is unforgeable. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { kind, secret, credentialId } as unknown as ResolvedSecret;
 }
 
 /** A brand-protected KEYED `apiKey` secret (the hosted-row shape). */
-export function makeApiKeySecret(secret = "sk-test", credentialId: UserCredentialId | null = castId<UserCredentialId>("user_credential_test0001")): ResolvedSecret {
+export function makeApiKeySecret(
+  secret = "sk-test",
+  credentialId: UserCredentialId | null = castId<UserCredentialId>("user_credential_test0001"),
+): ResolvedSecret {
   return makeResolvedSecret("apiKey", secret, credentialId);
 }
 

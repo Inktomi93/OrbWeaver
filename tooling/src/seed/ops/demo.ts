@@ -18,6 +18,7 @@
 import { rmSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import {
   characterRegexScripts,
   chatBooks,
@@ -48,7 +49,6 @@ import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
 import { DB_LAUNCHED, runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
 import { createServices } from "@orb/server/entry/compose";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import { env } from "@orb/server/foundation/env";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";

@@ -56,6 +56,8 @@ function superviseEgressCleanup(reason: string, operation: () => Promise<unknown
 }
 
 const TRAILING_DOT_RE = /\.$/;
+/** `node:net`'s `isIP` return value for an IPv4 literal (0 = not an IP, 6 = IPv6). */
+const NODE_IP_FAMILY_V4 = 4;
 
 /** Strip the `[...]` an IPv6 authority is spelled with. `new URL("http://[::1]:8080").hostname` KEEPS the
  *  brackets while undici's connector hands the connect wrapper the bare form, so both sides of a host:port
@@ -139,7 +141,7 @@ function classifyAllowlistEntry(entry: string): { readonly kind: "host"; readonl
     if (isInRanges(address, NEVER_ADMISSIBLE_RANGES)) {
       return null;
     }
-    const bits = prefix ?? (isIP(address) === 4 ? "32" : "128");
+    const bits = prefix ?? (isIP(address) === NODE_IP_FAMILY_V4 ? "32" : "128");
     return { kind: "range", range: `${address}/${bits}` };
   }
   return { kind: "host", host: raw };

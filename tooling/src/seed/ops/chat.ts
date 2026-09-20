@@ -16,13 +16,14 @@
 // holds its OWN libSQL/WAL connection snapshot — a second writer's committed rows are NOT guaranteed visible
 // to that live connection, so a seed run WHILE the stack is up may land in the file yet stay invisible until
 // the stack RESTARTS. Either restart after seeding, or point a fresh DATABASE_URL at a scratch file.
+
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
 import { DB_LAUNCHED, runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
 import { createServices } from "@orb/server/entry/compose";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import { env } from "@orb/server/foundation/env";
 import { and, desc, eq } from "drizzle-orm";
 import { print } from "../../_shared/artifacts.ts";

@@ -8,9 +8,9 @@
 
 import type { ProviderId } from "@orb/contracts/inference";
 import { isConstraintViolation } from "@orb/db/kit";
-import { castId } from "@orb/kit/ids";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { CredentialContext } from "../context.ts";
 import { CREDENTIALS_OP_CODES, CredentialsConflictError } from "../contract/errors.ts";
 import type { AddCredentialParams } from "../contract/params.ts";

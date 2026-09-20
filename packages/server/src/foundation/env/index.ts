@@ -691,8 +691,6 @@ export function processEnvSnapshot(): Record<string, string | undefined> {
   return { ...process.env };
 }
 
-
-
 /** The raw inputs the BIND posture resolver reads (the deploy-mode invariant). Same seam shape as
  *  `enginesPostureInput` / `diagnosticsPostureInput`: this file stays the pure `process.env` reader, the
  *  rule lives in `bind.ts`, and `entry/lifecycle` composes + logs. The env parse above has ALREADY refused
@@ -717,9 +715,6 @@ export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
   return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK, fallbackWidened: resolveOwnerFallbackPeers(ownerFallbackPeerInput()).widened };
 }
 
-
-
-
 /** The raw inputs the SESSION-COOKIE TRANSPORT resolver reads (`session-cookie.ts` holds the model, the
  *  cost and the never-auto-detect rule). Same seam shape as `bindPostureInput`: this file stays the pure
  *  `process.env` reader; `infra/auth/modes/cookie-session.ts` turns the verdict into the cookie name +
@@ -734,4 +729,3 @@ export function sessionCookiePostureInput(): SessionCookiePostureInput {
 export function ownerFallbackPeerInput(): OwnerFallbackPeerInput {
   return { authFallback: env.AUTH_FALLBACK, trustedPeers: env.AUTH_FALLBACK_TRUSTED_PEERS };
 }
-

@@ -133,7 +133,9 @@ test("F2 (readonly gate): a turn connection without the mode's writer capability
   h.fakes.busEvents.length = 0;
 
   const readonlyConn = turnConnection({
-    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }) }), // tools ABSENT
+    connection: makeResolved({
+      generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }),
+    }), // tools ABSENT
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyConn);
 
@@ -285,7 +287,9 @@ test("#1493 SETTLE is TOTAL: the F2 readonly game settles immediately — it wil
   h.fakes.busEvents.length = 0;
 
   const readonlyConn = turnConnection({
-    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }) }), // tools ABSENT
+    connection: makeResolved({
+      generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }),
+    }), // tools ABSENT
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyConn);
 
@@ -735,7 +739,9 @@ test("D112 fold guard: a folded game on the LOCAL engine rounds instead — name
   // A local endpoint's declared capability: tools present but UNMEASURED for co-emitted prose, which is the
   // generation floor's `silencesProse: true` (§6.4) — the reason is read off the connection's capability.
   const local = turnConnection({
-    connection: makeResolved({ generation: { tools: { parallel: true, silencesProse: true }, output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"], structured: true } } }),
+    connection: makeResolved({
+      generation: { tools: { parallel: true, silencesProse: true }, output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"], structured: true } },
+    }),
     terminalToolCalls: null, // the gather withheld the mount; the engine attached nothing
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, local);
@@ -757,7 +763,9 @@ test("R1 folded: the readonly gate still wins — a tools-incapable connection f
   // Structured-only capability: folded has no write path ⇒ manual-steering (honest arms), so even a populated
   // terminal channel is not folded — the game is READ-ONLY and the host hand-edits.
   const readonly = turnConnection({
-    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }) }),
+    connection: makeResolved({
+      generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }),
+    }),
     terminalToolCalls: FOLDED_CALLS,
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonly);
