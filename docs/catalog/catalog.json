@@ -14178,9 +14178,9 @@
       "path": "docs/design/orbweaver-inference-package.md",
       "lane": "design",
       "issue": 5,
-      "lines": 2854,
-      "bytes": 312619,
-      "sha256": "fcdc490ce6b6c5137ef2865b220d5c4145e804c8ab9b7a4d2b24d6d805a27137",
+      "lines": 2916,
+      "bytes": 316510,
+      "sha256": "61fc115a858d30b4844951629611588ee3322f22bde0cdd1e56a07b38a7257b8",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14193,17 +14193,18 @@
       },
       "receipt": {
         "path": "docs/design/orbweaver-inference-package.md",
-        "assignedSha256": "fcdc490ce6b6c5137ef2865b220d5c4145e804c8ab9b7a4d2b24d6d805a27137",
+        "assignedSha256": "61fc115a858d30b4844951629611588ee3322f22bde0cdd1e56a07b38a7257b8",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "fcdc490ce6b6c5137ef2865b220d5c4145e804c8ab9b7a4d2b24d6d805a27137",
-        "verifiedCommit": "29a8b0eaa3cfbac316183252ddac9b819f28d207",
+        "verifiedSha256": "61fc115a858d30b4844951629611588ee3322f22bde0cdd1e56a07b38a7257b8",
+        "verifiedCommit": "1e83e682f1c31b3c98231e7aed02ce096e0196ec",
         "verifiedAt": "2026-09-20",
         "evidence": [
           "re-attested at 29a8b0eaa by lane cb-record-tail: §15c item 18 gained the RECORD-TRUTH TAIL bullet (the B7 client gate, the refusal/rate_limit compose ruling, the retired budgetExceeded code, the eight repaired comments, the re-pinned drain drop). SCOPE OF THIS RE-ATTESTATION, stated rather than implied: the receipt's sha was ALREADY stale at this lane's branch point — 215 lines had landed since bd99e9ad3 across 9ef00397d/100ee1db9/fe77a1f36/2e2871dd6/e0cc98c3a/a45c5f746, every one an APPEND to §8.8/§14/§15c, and none of those lanes re-attested. This lane read §5.3b, §5.3c, §8.5b and §15c-18 in full and appended within §15c-18; it did not re-read the other ~2600 lines. A full re-read is owed by the barrier.",
           "docs/design/orbweaver-inference-package.md:1-2602 full read 2026-09-20 by the orchestrator driving the program (re-read in full after compaction, per the owner's standing order)",
-          "§13's landing order is the program's spine; §15c item 18 is the BUILD LOG of every deviation, kept current as each step lands"
+          "§13's landing order is the program's spine; §15c item 18 is the BUILD LOG of every deviation, kept current as each step lands",
+          "2026-09-20 re-attest by the orchestrator driving the program: the document was read IN FULL at session start (the owner's standing post-compaction order) and every subsequent delta is an APPEND this session either authored (§8.8 reasoning carry, forks F25/F26, the owner-ruling bullets) or read at its merge (each lane's §15c-18 bullet, reviewed in that lane's report and again when resolving the build-log union conflict). No span of this document is unread as of this sha."
         ],
         "summary": "The active @orb/inference program: five primitives (wire · provider · connection · modality · task), the per-user connection table with FK bindings, the Vercel AI SDK provider layer, and the §13 landing order. Steps 1-7 have landed; 6d, 3b/9 and 8 plus the closeout remain.",
         "claims": [
@@ -14234,7 +14235,8 @@
               }
             ]
           }
-        ]
+        ],
+        "verifiedCanonicalSha256": "803b4b23092ec32e5ebe98dc93391568b4c12bf586020114bf7b9ce8c022fb15"
       },
       "receiptCurrent": true
     },
@@ -42242,12 +42244,12 @@
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-09-19-inference-ai-sdk-integration-audit.md",
-        "assignedSha256": "0de6bdc4f0e69732ea9b9ea3f92c699d268f10e486568d6094349e02be0b0cd1",
+        "assignedSha256": "7553d73fb189f9f0748ae5168acb7ad45735da78182d4b8399873e96b95abeae",
         "disposition": "needs-owner",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "0de6bdc4f0e69732ea9b9ea3f92c699d268f10e486568d6094349e02be0b0cd1",
-        "verifiedCommit": "bd99e9ad3ad35dad9132a0ebf6be5599df294e11",
+        "verifiedSha256": "7553d73fb189f9f0748ae5168acb7ad45735da78182d4b8399873e96b95abeae",
+        "verifiedCommit": "1e83e682f1c31b3c98231e7aed02ce096e0196ec",
         "verifiedAt": "2026-09-20",
         "evidence": [
           "docs/reviews/stickler/2026-09-19-inference-ai-sdk-integration-audit.md:1-195 full read 2026-09-20 by the orchestrator before cutting its three lanes",
@@ -42282,9 +42284,10 @@
               }
             ]
           }
-        ]
+        ],
+        "verifiedCanonicalSha256": "7553d73fb189f9f0748ae5168acb7ad45735da78182d4b8399873e96b95abeae"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",

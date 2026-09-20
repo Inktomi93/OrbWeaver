@@ -38,6 +38,7 @@ import type {
 } from "@orb/contracts/rpg";
 import type { Db, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
+import type { WireTool } from "@orb/inference";
 import type {
   CharacterHandle,
   CharacterId,
@@ -55,7 +56,6 @@ import type {
   RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
-import type { WireTool } from "@orb/inference";
 import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../chat/index.ts";
 import type {
   AddJournalEntryParams,

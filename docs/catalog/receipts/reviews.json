@@ -7289,12 +7289,12 @@
     },
     {
       "path": "docs/reviews/stickler/2026-09-19-inference-ai-sdk-integration-audit.md",
-      "assignedSha256": "0de6bdc4f0e69732ea9b9ea3f92c699d268f10e486568d6094349e02be0b0cd1",
+      "assignedSha256": "7553d73fb189f9f0748ae5168acb7ad45735da78182d4b8399873e96b95abeae",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "0de6bdc4f0e69732ea9b9ea3f92c699d268f10e486568d6094349e02be0b0cd1",
-      "verifiedCommit": "bd99e9ad3ad35dad9132a0ebf6be5599df294e11",
+      "verifiedSha256": "7553d73fb189f9f0748ae5168acb7ad45735da78182d4b8399873e96b95abeae",
+      "verifiedCommit": "1e83e682f1c31b3c98231e7aed02ce096e0196ec",
       "verifiedAt": "2026-09-20",
       "evidence": [
         "docs/reviews/stickler/2026-09-19-inference-ai-sdk-integration-audit.md:1-195 full read 2026-09-20 by the orchestrator before cutting its three lanes",
@@ -7329,7 +7329,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "7553d73fb189f9f0748ae5168acb7ad45735da78182d4b8399873e96b95abeae"
     },
     {
       "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
