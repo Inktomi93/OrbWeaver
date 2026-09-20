@@ -7,6 +7,7 @@
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, isPluginProviderId, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
 import type { PluginId, UserId } from "@orb/kit/ids";
+import { z } from "zod";
 import { ProviderError } from "../contract/errors.ts";
 import type { ProviderStore } from "../deps.ts";
 
@@ -45,7 +46,10 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
         throw new ProviderError({
           kind: "invalid",
           retryable: false,
-          message: `provider row rejected: ${parsed.error.issues.map((issue) => issue.message).join("; ")}`,
+          // `z.prettifyError` rather than a message-only `issues` join: the bare join named no field at all,
+          // which is the F4 defect verbatim — a plugin or operator registering a row needs the path
+          // (zod-error-issues-home).
+          message: `provider row rejected:\n${z.prettifyError(parsed.error)}`,
         });
       }
       const row = parsed.data;

@@ -44,6 +44,15 @@
 // PARAMETER pattern, `function f({ issues })`) is not a candidate at all — there is no receiver expression
 // to take a type from, so the policy has no identity question to answer and never had. It is the binding's
 // annotated type that would have to be read, which is a different reader and a different arm.
+//
+// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — the package parses zod
+// schemas on its own boot and registration paths, and those refusals reach an operator. NOT FREE, and the
+// findings are the proof the widening was not cosmetic. MEASURED (`pnpm check:structure --check
+// zod-error-issues-home`, whole tree): population 3,315 → 3,427, findings 0 → 2, grants unchanged at 8.
+// Both were the F4 defect verbatim and BOTH ARE FIXED IN THIS COMMIT rather than granted:
+// `capability/sources/rows.ts` flattened `path: message` in a BOOT failure (operator-facing, so the
+// model-facing survivor class does not cover it), and `registry/providers.ts` joined `issue.message` alone —
+// naming no field at all. Both now render `z.prettifyError`.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../_shared/reference-fact.ts";
@@ -132,7 +141,7 @@ export const gate = defineGate({
   severity: "error",
   // `packages/**` only, exactly as legacy scanned. The sanctioned join sites are SCANNED, never scoped out:
   // the only exemption is a cited row, so a moved or renamed home reds instead of carrying its sanction.
-  population: "@packages",
+  population: "@product",
   analysis: "types",
   execution: "entire-population",
   facts: [],

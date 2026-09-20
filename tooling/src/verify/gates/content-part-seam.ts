@@ -48,6 +48,12 @@
 // consumers judged by nothing. Those six became three live rows (`inference-contract-chat`,
 // `inference-backend-kit-history`, `inference-v4-prompt`); four of the old runner subjects no longer exist at
 // all, their backends collapsed into `openai-compat` or deleted with the vLLM fleet.
+//
+// RE-SPELLED 2026-09-20 (lane cb-population-truth, #2488): `{ in: ["@packages", "@inference"] }`
+// → `"@product"`. SET-IDENTICAL — population 3,427 and 6 consumed grants, before and after (`pnpm
+// check:structure --check content-part-seam`, whole tree). This policy was the in-tree PRECEDENT for the
+// #2488 defect: it had already discovered that `@packages` does not mean "the authored product code" and
+// paid for the discovery per-policy, which is the cost `@product` removes.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -86,7 +92,7 @@ export const gate = defineGate({
   // deliberately NOT folded into `@packages` (contract/population.ts — "a policy that needs the package
   // TODAY declares both refs"). It is owed here because the D51 seam's ONLY legitimate consumers, the
   // sealed runner tier, ALL moved into `packages/inference/src/` with the `@orb/inference` extraction.
-  population: { in: ["@packages", "@inference"] },
+  population: "@product",
   analysis: "types",
   execution: "entire-population",
   facts: [],

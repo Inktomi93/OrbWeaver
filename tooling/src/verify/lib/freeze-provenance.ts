@@ -46,7 +46,18 @@ export const TRIPLE: readonly string[] = [CONTENT, RAW, FREEZES];
  *  calls, so no write this policy would have judged leaves the population. The legacy DECLARED LIMIT is
  *  unchanged — `tests/**` was outside `scanRoot` and is outside `@packages`, because scanning tests reds
  *  the family's own proofs. The `-health` half declares this CONSTANT, never its value, so the two writer
- *  sets cannot drift even by a correct-looking copy. */
+ *  sets cannot drift even by a correct-looking copy.
+ *
+ *  RE-DERIVED 2026-09-20 (lane cb-population-truth, #2488), and DELIBERATELY NOT WIDENED to `@product`.
+ *  "BY EXACTLY ONE PACKAGE" above was true when it was written and is not true now: three workspace packages
+ *  now sit outside `@packages` (`showcase-plugins`, `default-content`, `inference`), so the legacy regex
+ *  would match three trees this constant does not. That stays the right answer, for a reason the count was
+ *  never carrying: the SUBJECT is a drizzle write, and `@orb/inference` declares only `@orb/kit` +
+ *  `@orb/contracts` (`packages/inference/package.json`) — it cannot import `@orb/db` at RESOLVE time, so the
+ *  guarded write is unreachable there by package physics one rung ABOVE this gate, not by a population
+ *  choice. `@product` is the set for policies whose subject is any product source; this family's subject is
+ *  narrower, and `@packages` is the honest name for "the roots that can reach the schema". The day a fourth
+ *  package declares `@orb/db`, this constant is the decision site. */
 export const WRITE_POPULATION = "@packages" as const;
 
 /** A declaration's HOME is read off the declaration's OWN path — the house spelling for this question

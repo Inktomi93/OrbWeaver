@@ -60,6 +60,11 @@
 // at population resolution. The construction attempted was a `links` fixture pointing a core-doc member
 // outside the fixture root; its measured outcome is the population-phase refusal pinned in the family
 // test, which is why this is guide §6.1's structurally-unfalsifiable classification rather than a missing row.
+//
+// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — a bare `D<n>` citation is
+// a citation wherever the product writes one, and the TS half was admitting six roots. MEASURED (`pnpm
+// check:structure --check d-citation-integrity`, whole tree): population 3,316 → 3,428, findings 0 → 0 — a
+// SEAL. The docs arm and its resource counts are untouched.
 import { defineGate } from "../contract/policy.ts";
 import type { MarkdownDocument } from "../contract/resource-document.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
@@ -129,7 +134,7 @@ export const gate = defineGate({
   family: "text-citation",
   authority: "hard",
   severity: "error",
-  population: { in: ["@packages", "@showcase"] },
+  population: { in: ["@product", "@showcase"] },
   analysis: "resource",
   execution: "entire-population",
   facts: [],

@@ -13,8 +13,8 @@
 // honest home, and it is the same rung `tests/tooling/package-roster.test.ts` already uses to hold
 // `WORKSPACE_PACKAGES`, `PACKAGE_RESOURCE_PATHS` and Knip against the native workspace.
 //
-// NO SECOND HAND-WRITTEN PACKAGE LIST — that is the whole point, and re-typing the seven packages here
-// would reproduce the defect with an extra copy. The member set comes from `readPolicyWorkspacePackages`,
+// NO SECOND HAND-WRITTEN PACKAGE LIST — that is the whole point, and re-typing the workspace's packages
+// here would reproduce the defect with an extra copy. The member set comes from `readPolicyWorkspacePackages`,
 // which shells `pnpm list -r --depth -1 --json`: pnpm's OWN resolution of the `packages:` globs in
 // `pnpm-workspace.yaml`, cross-checked against the authored manifest inventory. It is the one home for
 // workspace discovery in `tooling/` and it is already the authority `package-roster.test.ts` trusts.
@@ -30,7 +30,7 @@
 // set and the root table as arguments; one arm drives it on the REAL two, and four arms drive it on
 // synthetic inputs that each isolate one direction of the defect.
 import process from "node:process";
-import { POPULATION_ROOTS } from "../../../../tooling/src/verify/contract/population.ts";
+import { POPULATION_ROOTS, POPULATION_SETS } from "../../../../tooling/src/verify/contract/population.ts";
 import { readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -161,4 +161,21 @@ test("a stale exclusion row reds — the tables are two-sided, not a permanent a
 
 test("every exclusion row states a WHY — an omission with no reason is the omission the tables prevent", () => {
   expect([...MEMBERS_WITHOUT_A_ROOT, ...ROOTS_WITHOUT_A_MEMBER].filter(({ why }) => why.trim().length === 0)).toEqual([]);
+});
+
+// THE TWO CLASSIFICATION MAPS MUST AGREE ON DIRECTION (#2488). `AUTHORED_MEMBERSHIP` and `PRODUCT_MEMBERSHIP`
+// are INDEPENDENT tsc-exhaustive maps on purpose — a root's two decisions are each stated rather than one
+// implied by the other, so neither answer can be satisfied while meaning the other. Independence is exactly
+// what can drift, and the one relation that is not a free choice is the direction: `@product` is "the
+// authored code the product is built from", so a product root is necessarily an authored root. The reverse
+// must NOT hold, or `@product` has silently become a second spelling of `@authored` — which would be this
+// row's own defect (one string, two meanings) minted inside the fix for it.
+test("`@product` is a strict subset of `@authored` — the two classification maps cannot disagree on direction (#2488)", () => {
+  const authored = new Set<string>(POPULATION_SETS["@authored"]);
+  const product = new Set<string>(POPULATION_SETS["@product"]);
+
+  // The drive's own positive control: an empty or single-root product set makes the subset vacuously true.
+  expect(POPULATION_SETS["@product"].length).toBeGreaterThan(1);
+  expect(POPULATION_SETS["@product"].filter((root) => !authored.has(root))).toEqual([]);
+  expect(POPULATION_SETS["@authored"].filter((root) => !product.has(root))).toEqual(["@tooling", "@tests", "@scripts"]);
 });
