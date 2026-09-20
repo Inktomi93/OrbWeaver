@@ -4,6 +4,8 @@ import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
 export interface StoreResult {
   readonly outcome: "noop" | "written";
   readonly contentHash: string;
+  /** The concrete space of the row that satisfied this write (provider-stamped for a write). */
+  readonly model: string;
 }
 
 export interface WriteHubScoresResult {

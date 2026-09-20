@@ -26,14 +26,17 @@ import { upsertCompletedSpace } from "../persistence/space-state.ts";
 import { requireTaskModel } from "../substrate/task-model.ts";
 
 export function createPurgeMemoryVectors(ctx: EmbeddingsContext): EmbeddingsService["purgeMemoryVectors"] {
-  return async ({ ownerId }): Promise<PurgeMemoryVectorsResult> => {
+  return async ({ ownerId, completedSpace }): Promise<PurgeMemoryVectorsResult> => {
     const activeModel = await requireTaskModel(ctx, ownerId, "embed");
     if (activeModel === null) {
       return { segments: 0, digests: 0 };
     }
-    await upsertCompletedSpace(ctx.db, { ownerId, scope: "memory", space: activeModel, now: ctx.now() });
-    const segments = await purgeStaleVectors(ctx.db, "chat_segments", ownerId, activeModel);
-    const digests = await purgeStaleVectors(ctx.db, "chat_digests", ownerId, activeModel);
+    if (activeModel !== completedSpace) {
+      throw new Error(`memory embed space changed before purge for owner ${ownerId}`);
+    }
+    await upsertCompletedSpace(ctx.db, { ownerId, scope: "memory", space: completedSpace, now: ctx.now() });
+    const segments = await purgeStaleVectors(ctx.db, "chat_segments", ownerId, completedSpace);
+    const digests = await purgeStaleVectors(ctx.db, "chat_digests", ownerId, completedSpace);
     return { segments, digests };
   };
 }

@@ -9,7 +9,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { EMBED_SPACE_DIMS, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -1074,12 +1074,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // The host's EMBED model tag — the space a chat's digests/segments are written into (§7.5/§10). No binding
   // is the honest `NoConnectionError`: memory's vector build needs a space, and a default would silently write
   // into a space nobody reads.
-  const hostEmbedModel = async (hostUserId: UserId): Promise<string> => {
+  const resolveMemoryEmbedSpace = async (hostUserId: UserId): Promise<{ readonly ownerId: UserId; readonly model: string }> => {
     const resolved = await (await input.roleClientsFor(hostUserId)).resolved("embed");
     if (resolved === null) {
       throw new NoConnectionError("no embed connection is bound for this user — bind one in Connections");
     }
-    return resolved.model;
+    return { ownerId: hostUserId, model: embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability)) };
   };
 
   // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
@@ -1501,16 +1501,17 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     // A chat's digest/segment SPACE is its HOST's (`chatParticipants` role='host' — vector tasks are owner-scoped,
     // §7.5; D18 chats have no owner column, so the host is resolved per write). A hostless/stale room has no
-    // space to write into and the write is a logged no-op — the content-hash self-heal retries next pass.
+    // space to write into, so the builder skips it before reaching this owner-coherence guard.
+    resolveMemoryEmbedSpace,
     embeddingsStore: async (params) => {
       const hostUserId = await resolveChatHostUserId(params.key.chatId);
-      if (hostUserId === null) {
-        return;
+      if (hostUserId !== params.ownerId) {
+        throw new Error(`memory digest owner changed during sweep for chat ${params.key.chatId}`);
       }
-      await input.embeddings.store({
+      const result = await input.embeddings.store({
         kind: "chat-block",
         lens: "digest",
-        ownerId: hostUserId,
+        ownerId: params.ownerId,
         chatId: params.key.chatId,
         scopedCharacterId: params.key.scopedCharacterId,
         isGroup: params.isGroup,
@@ -1521,31 +1522,26 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         keywords: params.keywords,
         speakerCharacterIds: params.speakerCharacterIds,
         contentHash: params.contentHash,
-        model: await hostEmbedModel(hostUserId),
+        model: params.model,
         dim: EMBED_SPACE_DIMS,
       });
+      return { ownerId: params.ownerId, model: result.model };
     },
     // The SEGMENT half is a BATCH op (#172): memory hands over every pending chunk — one chat's on the live
     // path, the whole corpus's on the sweep — and embeddings submits them to the engine as ONE flood. The
     // space tag (`model`/`dim`) is stamped here, the same single home the digest arm above reads.
     embeddingsStoreSegments: async (params) => {
       // One host + one space per chat in the flood (the corpus sweep hands over many chats at once).
-      const byChat = new Map<ChatId, { readonly ownerId: UserId; readonly model: string }>();
       const rows: Parameters<EmbeddingsService["storeSegments"]>[0][number][] = [];
       for (const p of params) {
-        let space = byChat.get(p.chatId);
-        if (space === undefined) {
-          const hostUserId = await resolveChatHostUserId(p.chatId);
-          if (hostUserId === null) {
-            continue;
-          }
-          space = { ownerId: hostUserId, model: await hostEmbedModel(hostUserId) };
-          byChat.set(p.chatId, space);
+        const hostUserId = await resolveChatHostUserId(p.chatId);
+        if (hostUserId !== p.ownerId) {
+          throw new Error(`memory segment owner changed during sweep for chat ${p.chatId}`);
         }
         rows.push({
           kind: "chat-block" as const,
           lens: "segment" as const,
-          ownerId: space.ownerId,
+          ownerId: p.ownerId,
           chatId: p.chatId,
           blockIdx: p.blockIdx,
           chunkIdx: p.chunkIdx,
@@ -1553,13 +1549,23 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           seqEnd: p.seqEnd,
           text: p.text,
           contentHash: p.contentHash,
-          model: space.model,
+          model: p.model,
           dim: EMBED_SPACE_DIMS,
         });
       }
-      if (rows.length > 0) {
-        await input.embeddings.storeSegments(rows);
+      const results = rows.length === 0 ? [] : await input.embeddings.storeSegments(rows);
+      const receipts: { ownerId: UserId; model: string }[] = [];
+      for (const [index, result] of results.entries()) {
+        const row = rows[index];
+        if (row === undefined) {
+          throw new Error("embeddings.storeSegments returned more results than inputs");
+        }
+        receipts.push({ ownerId: row.ownerId, model: result.model });
       }
+      if (receipts.length !== rows.length) {
+        throw new Error("embeddings.storeSegments returned fewer results than inputs");
+      }
+      return receipts;
     },
     // The SHRINK half of the same seam: memory stores every block that exists, then reclaims the ones that
     // stopped existing. Straight pass-through of the two lens arms — the DELETE itself lives in embeddings

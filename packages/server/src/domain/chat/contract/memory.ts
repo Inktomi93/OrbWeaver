@@ -15,6 +15,7 @@ import type { BackfillPassResult, ChatBusEvent, MemoryBackfillResult, MemoryReca
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { MemoryEmbedSpace } from "./context.ts";
 
 /** The raw (partial) memory tuning — the admin-set `AppSettings.memoryDefaults` shape, every field optional.
  *  `resolveCfg` (constants.ts) fills the gaps from `DEFAULTS`. Re-spelled here (not imported from
@@ -309,6 +310,11 @@ export type BackfillPassCounts = BackfillPassResult;
  *  counted here so the workload result surfaces it; #41). A healthy sweep is `failed: 0`; any non-zero
  *  value is a signal to investigate, never a chat silently losing its memory without a trace. */
 export type MemoryBackfillCounts = MemoryBackfillResult;
+
+/** Internal completion evidence consumed by the workload terminal; only checked owner-spaces are listed. */
+export type MemoryBackfillSweepCounts = MemoryBackfillCounts & {
+  readonly completedSpaces: readonly MemoryEmbedSpace[];
+};
 
 /** Resolve a host's effective memory tuning for the PD-41 corpus sweep — the SAME merge the live turn path
  *  applies (`entry/compose/chat.ts resolveMemoryConfig`: `AppSettings.memoryDefaults` ⊕ host

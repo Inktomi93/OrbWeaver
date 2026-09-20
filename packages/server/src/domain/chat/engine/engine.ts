@@ -52,7 +52,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
-import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
+import type { MemoryEmbedSpace, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type {
   MemoryConfig,
@@ -122,6 +122,8 @@ interface EngineDeps {
       readonly config?: MemoryConfig | null | undefined;
       readonly macroNames?: RowMacroNameContext | undefined;
       readonly signal?: AbortSignal | undefined;
+      readonly embedSpace?: MemoryEmbedSpace | undefined;
+      readonly embedOwnerId?: UserId | undefined;
     },
   ) => Promise<MemoryPassCounts>;
   /** Injected memory digest builder, typed to the real signature. */
@@ -134,6 +136,8 @@ interface EngineDeps {
       readonly macroNames?: RowMacroNameContext | undefined;
       readonly witnessing?: readonly WitnessInterval[] | undefined;
       readonly signal?: AbortSignal | undefined;
+      readonly embedSpace?: MemoryEmbedSpace | undefined;
+      readonly embedOwnerId?: UserId | undefined;
     },
   ) => Promise<MemoryPassCounts>;
   /** Injected witnessing-horizon reader (memory's `chat_participants` presence read) — the engine sources a
@@ -1913,6 +1917,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
             funderUserId: prep.triggeredBy,
             config: memoryConfig,
             macroNames,
+            embedOwnerId: prep.runAsUserId,
           });
           const participants = await loadParticipants(ctx.db, prep.chatId);
           const chars = participants.flatMap((r) => {
@@ -1932,6 +1937,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
               funderUserId: prep.triggeredBy,
               config: memoryConfig,
               macroNames,
+              embedOwnerId: prep.runAsUserId,
             });
           }
           // Each seated character's SCOPED bucket is gated by its own join/leave horizons — a member digests
@@ -1949,6 +1955,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
                 funderUserId: prep.triggeredBy,
                 config: memoryConfig,
                 macroNames,
+                embedOwnerId: prep.runAsUserId,
                 witnessing: await deps.loadWitnessHorizons(ctx.db, prep.chatId, charId),
               }),
             ),

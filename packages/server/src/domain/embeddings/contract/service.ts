@@ -110,7 +110,7 @@ export interface EmbeddingsService {
   /** PD-139(b): reclaim the OLD chat-memory embed space — deletes `chat_segments`/`chat_digests` rows whose
    *  `model` differs from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's
    *  guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge. */
-  readonly purgeMemoryVectors: (params: { readonly ownerId: UserId }) => Promise<PurgeMemoryVectorsResult>;
+  readonly purgeMemoryVectors: (params: { readonly ownerId: UserId; readonly completedSpace: string }) => Promise<PurgeMemoryVectorsResult>;
   /** The chat-memory SHRINK seam: delete the digest/segment rows whose BLOCK no longer exists in canon (and,
    *  for digests, the consolidations that folded them). Distinct from {@link purgeMemoryVectors}, which
    *  reclaims a retired embed SPACE — this one reclaims blocks that canon itself dropped. memory calls it at
