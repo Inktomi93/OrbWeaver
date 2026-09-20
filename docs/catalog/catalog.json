@@ -12684,28 +12684,28 @@
       "path": "docs/design/entity-room-member-freshness-bridge.md",
       "lane": "design",
       "issue": 5,
-      "lines": 457,
-      "bytes": 39770,
-      "sha256": "40dbb081a4c051a09d0441f88c512e6fe9d197684fff8d4fcbb7e1fa48e254f3",
+      "lines": 476,
+      "bytes": 42080,
+      "sha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "draft",
-          "updated": "2026-09-13"
+          "updated": "2026-09-20"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/entity-room-member-freshness-bridge.md",
-        "assignedSha256": "e029dc2898eceab7481cc29ab36ccf85d3ee154307f586ffdf83c340bfe2d680",
+        "assignedSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "e029dc2898eceab7481cc29ab36ccf85d3ee154307f586ffdf83c340bfe2d680",
-        "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
-        "verifiedAt": "2026-09-13",
+        "verifiedSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c",
+        "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
+        "verifiedAt": "2026-09-20",
         "evidence": [
           "docs/design/entity-room-member-freshness-bridge.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -12730,9 +12730,10 @@
               }
             ]
           }
-        ]
+        ],
+        "verifiedCanonicalSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c"
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/gate-config-system.md",
@@ -13604,6 +13605,71 @@
           }
         ],
         "summary": "The #866 S3/S4 canvas contract: apply-not-mode Looks in three frequency tiers (shipped cards / Your-themes list / one builder door, builder-only color), the full Personas migration with the pin/active mechanics as the one frozen thing, the rail-foot quick switcher (pin-not-crown, Applies scope, re-attribute) and the kept You sheet; content rows terse with the context pane as the About/Applies/Learn teacher."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/connections/DESIGN.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 347,
+      "bytes": 30656,
+      "sha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/connections/DESIGN.md",
+        "assignedSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043",
+        "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
+        "verifiedAt": "2026-09-20",
+        "evidence": [
+          "docs/design/mocks/connections/DESIGN.md:1-347 read in full 2026-09-20 by lane cb-heal-catalog while clearing the check:doc-catalog stage for #2494. The step-3b drawing set's argument document: what only a render answered (the 486 fit, the five reflows, the four-rule list-in-a-settings-body question), the eight decisions it makes that the inference program's §5.3a left open, the four-arm resolve readout, the §5.3a copy inventory board by board, the six things a static mock structurally cannot answer, and the five corrections it owes §5.3a.",
+          "Spot-verified against the tree at the receipting commit: the coarse-pointer floor §1 says the drawing inherits is the shipped `TOUCH_TARGET_PSEUDO` (packages/ui/src/lib/selection-control.ts:11), and the eight belt keys §7.2 cites for the Extras gloss are `BELT_OWNED_BODY_KEYS` at the exact line the document names.",
+          "ONE citation in §7.1 is stale on today's tree and is recorded here rather than silently repaired: the readout it places at `connections-roles-section.tsx:97` is `packages/client/src/features/credentials/components/connections-roles-section.tsx:222` (the file the document names under `lib/` is a 14-line re-export). The sentence it quotes — `A turn uses {…}.` — is verbatim correct."
+        ],
+        "claims": [
+          {
+            "claim": "The coarse-pointer hit floor §1 says every drawn control inherits is a real shipped mechanism, not a mock assertion: `TOUCH_TARGET_PSEUDO` is the pointer-conditional pseudo every `@orb/ui` selection control composes.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/lib/selection-control.ts:11"
+              }
+            ]
+          },
+          {
+            "claim": "The belt keys §7.2 hands step 9 for the Extras authoring gloss resolve where the document says they do.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/contracts/src/inference/features.ts:108"
+              }
+            ]
+          },
+          {
+            "claim": "The persisted-resolve readout §3 rules into four arms has exactly one client home today, and it renders the steady arm's sentence verbatim — so the four-arm ruling is a widening of a live surface, not a greenfield draw.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/credentials/components/connections-roles-section.tsx:222"
+              }
+            ]
+          }
+        ],
+        "summary": "The argument document behind the three Connections step-3b `--file` mocks (list · editor · model-roles). It records what only a render could answer — the editor fits the 486 settings body by tier collapse rather than squeezing, five things reflow (two of which an earlier revision never drew), a flat user-owned row inside a settings body does not read as a second nav under four rules — and makes eight decisions §5.3a left open, including a four-arm resolve readout, task badges that speak the role labels, `Edit` as the row's own primary rather than a menu item, and a capability rail that says `can't serve` in muted rather than destructive red. It also states six gaps a static drawing cannot close (the width-adaptation mechanism, the disclosure tiers' a11y contract, operable switches, focus order through the fields, any light/high-contrast reading, and that a design-audit over a multi-board mock reports the drawing) and the five corrections it owes the inference program's §5.3a.",
+        "verifiedCanonicalSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043"
       },
       "receiptCurrent": true
     },
@@ -29762,6 +29828,184 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/2026-09-20-inference-reindex-generation-design.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 159,
+      "bytes": 11064,
+      "sha256": "f7e031dbe74c49df5325d388e2eab1909f8fdacfba6f5530df3c35e338288ba0",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/2026-09-20-inference-reindex-generation-design.md",
+        "assignedSha256": "f7e031dbe74c49df5325d388e2eab1909f8fdacfba6f5530df3c35e338288ba0",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "f7e031dbe74c49df5325d388e2eab1909f8fdacfba6f5530df3c35e338288ba0",
+        "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
+        "verifiedAt": "2026-09-20",
+        "evidence": [
+          "docs/reviews/2026-09-20-inference-reindex-generation-design.md:1-159 read in full 2026-09-20 by lane cb-heal-catalog while clearing the check:doc-catalog stage for #2494. The retained-embedding-generations design: the generation tuple and its deterministic key, why the single `embed_space_state` completion value cannot implement Arm A, the durable shape (`embed_generations`, per-scope active/candidate ids, a per-task target epoch, `generation_id` as every vector table's uniqueness key), the write/sweep protocol with its compare-and-set promotion, the read protocol's bounded optimistic retry, seven failure/isolation guarantees, and the red-first proof plan.",
+          "Spot-verified against the tree at the receipting commit: the design is BUILT — `embed_generations` is a real table and `embed_space_state` carries the active-generation index the design's promotion fold reads."
+        ],
+        "claims": [
+          {
+            "claim": "The durable shape this design specifies exists on the tree: `embed_generations` is a real table, so the document is the design of record for shipped structure rather than an unrealised proposal.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/db/src/schema/embeddings.ts:105"
+              }
+            ]
+          },
+          {
+            "claim": "`embed_space_state`'s single completion value was replaced by the generation pointers the design requires — the active-generation index is indexed for the promotion fold.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/db/src/schema/embeddings.ts:568"
+              }
+            ]
+          }
+        ],
+        "summary": "The design of record for keeping the last jointly complete vector corpus queryable while a replacement is built. A generation is an immutable tuple (owner · logical task · actual role · connection id · resolved non-secret encoder configuration · `model[@dtype]`) whose deterministic key — not the space tag — selects vector rows, so two connections advertising the same model and dtype cannot collide. `cards`/`memory`/`documents` jointly promote one `embed` generation and `images` promotes its own; a completed scope records a candidate without changing the active fold, and the final scope promotes and reclaims retired rows in one transaction. A per-task target epoch rejects a stale worker's completion, every vector table keys uniqueness on `generation_id`, and retrieval refuses with the existing `SEARCH_SPACE_REINDEXING` when the recorded connection is gone, unavailable, or fingerprint-drifted.",
+        "verifiedCanonicalSha256": "f7e031dbe74c49df5325d388e2eab1909f8fdacfba6f5530df3c35e338288ba0"
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/2026-09-20-inference-warning-home-cadence-audit.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 148,
+      "bytes": 13194,
+      "sha256": "0218dfb5b74a18b9b92ab6ff527f2d1c85bd8018fb49936e2cc23715171478e8",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/2026-09-20-inference-warning-home-cadence-audit.md",
+        "assignedSha256": "0218dfb5b74a18b9b92ab6ff527f2d1c85bd8018fb49936e2cc23715171478e8",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "0218dfb5b74a18b9b92ab6ff527f2d1c85bd8018fb49936e2cc23715171478e8",
+        "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
+        "verifiedAt": "2026-09-20",
+        "evidence": [
+          "docs/reviews/2026-09-20-inference-warning-home-cadence-audit.md:1-148 read in full 2026-09-20 by lane cb-heal-catalog while clearing the check:doc-catalog stage for #2494. A read-only audit (snapshot `f106f1bf8`) of every inference warning code's assigned home and cadence against the inference program's §5.3a: the required previous-turn-per-connection comparison semantics, a nineteen-row home/cadence table separating **ruled** from **proposed** rows, the current path through emit → translation → bus → toast, the three absent homes, and the implementation boundaries the cadence fix runs into.",
+          "Spot-verified against the tree at the receipting commit: the audit's central mechanical claim holds — `emitCapabilityDropWarnings` filters exactly one code out of the turn stream and emits every other runner warning independently."
+        ],
+        "claims": [
+          {
+            "claim": "The audit's key mechanism claim is true on the tree: the capability-drop emitter filters only `declared_overrides_measured` from the turn stream and emits each remaining warning on its own, which is what makes eleven adjustment warnings eleven durable events and eleven toasts.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/chat/engine/engine.ts:2272"
+              }
+            ]
+          },
+          {
+            "claim": "The seam the audit says a faithful turn-cadence fix must change is the one the engine actually calls — the emitter receives the chat id and the pipeline result, not the resolved connection the cadence rule needs.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/chat/engine/engine.ts:1841"
+              }
+            ]
+          },
+          {
+            "claim": "The infra warning tuple and its detail payload live at the home the audit's Current-path section cites.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/inference/src/contract/resolve.ts:8"
+              }
+            ]
+          }
+        ],
+        "summary": "Evidence, not a work queue: every inference warning code has a server translation or a deliberate turn-stream filter, but several assigned homes are absent and the cadence does not match the inference program. Eleven adjustment warnings can become eleven durable chat events and eleven toasts on a single turn, because the only suppression is whole-warning dedup inside one backend result and across recursion depths — never a comparison with the previous turn on the same connection. Three ruled homes do not exist at all (the capability panel receives no warning state, the connection row has no `declared_overrides_measured` badge, and there is no Extras authoring row for `custom_parameters_ignored{key}`, whose key the server drops); smart-arbitration and background degradation reach the room but implement no session/shared cadence. `image_edit_dropped` is the one infra warning whose operation-scoped home already matches its behaviour.",
+        "verifiedCanonicalSha256": "0218dfb5b74a18b9b92ab6ff527f2d1c85bd8018fb49936e2cc23715171478e8"
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/2026-09-20-typed-options-conditional-spread-census.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 53,
+      "bytes": 6295,
+      "sha256": "82c8dedd545b1dec6c42c7e2cc9dab1499a5c13f05080545b8f3d6fb7279b63d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "complete",
+          "updated": "2026-09-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/2026-09-20-typed-options-conditional-spread-census.md",
+        "assignedSha256": "82c8dedd545b1dec6c42c7e2cc9dab1499a5c13f05080545b8f3d6fb7279b63d",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "82c8dedd545b1dec6c42c7e2cc9dab1499a5c13f05080545b8f3d6fb7279b63d",
+        "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
+        "verifiedAt": "2026-09-20",
+        "evidence": [
+          "docs/reviews/2026-09-20-typed-options-conditional-spread-census.md:1-53 read in full 2026-09-20 by lane cb-heal-catalog while clearing the check:doc-catalog stage for #2494. A closed census of conditional-spread option construction across every tracked `.ts`/`.tsx`: 1,787 occurrences reproduced by two independent methods with planted controls in the same invocations, classified without overlap, four real declared-target omissions found, three repaired with `satisfies Pick<…>` on each nonempty arm, and one (`signal`) deliberately left because no resolver cancellation contract exists to mirror.",
+          "Spot-verified against the tree at the receipting commit: the two repaired chat-domain mirrors are declared where the census says they are — `GatherDatabankOp` and `GeneratePictureOp` both live in the chat domain's own context contract."
+        ],
+        "claims": [
+          {
+            "claim": "Two of the three repaired mirrors are real injected-op contracts in the chat domain's `contract/context.ts`, so the repair changed a declared cross-feature seam rather than a local literal.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/chat/contract/context.ts:1166"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/chat/contract/context.ts:1008"
+              }
+            ]
+          },
+          {
+            "claim": "The behavioural coverage the census leans on for the databank gather's three live values exists as a committed integration spec, so the hardening rode an existing pin rather than inventing one.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/server/domain/chat/substrate/assemble-gather.int.test.ts:1"
+              }
+            ]
+          }
+        ],
+        "summary": "A closed census of `{ ...(cond ? { … } : {}) }`-shaped option construction over every tracked TypeScript and TSX file, run by `ast-grep` and by an independent syntax walk with planted controls in the same invocations (1,787 occurrences; 1,433 typed object literals after excluding JSX prop spreads). The population divides without overlap into 1,233 sites whose every conditional-arm key is already declared, 84 string-indexed contexts, 52 with no contextual target type, eight outside every configured compiler program, and 56 apparent misses — of which exactly four are real declared-target omissions. Three were repaired (`k`/`minScore`/`rerank` on the databank gather op, `size` on the picture op, `terminalTools` on the rpg gather result) with a `satisfies Pick<…>` check on each nonempty arm, preserving omission rather than writing `undefined`; the fourth (`signal`) is left alone because no resolver cancellation contract exists to mirror, and the `playwright-ct.config.ts` custom-reporter seam is fenced as tooling ownership.",
+        "verifiedCanonicalSha256": "82c8dedd545b1dec6c42c7e2cc9dab1499a5c13f05080545b8f3d6fb7279b63d"
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/board-rederive/scout-A-plugin-cap.md",
       "lane": "reviews",
       "issue": 7,
@@ -39186,6 +39430,62 @@
           }
         ],
         "summary": "SHIP. #2450's text-entry floor does what it says on every control this review could reach and makes the most common control in the app more internally consistent: restoring `text-foreground` on `FIELD_CONTROL_BOX` moved field ink onto primary ink in the list panes (+1.2 to +1.9 contrast across all three shipped themes and coarse, every arm PASS), and the iOS focus-zoom floor closed at coarse with nothing moving on a mouse. Two things the commit message gets wrong are recorded: [P1] the MacroTextarea prose editors shrink 15px → 13px on a mouse and their measure leaves the 65-75 band at 81 characters per line, which needs a design decision because nobody has ever seen that surface at its authored size; [P2] `snap --design-audit` reaches NO-VERDICT on every field surface on both pointers, so its `findings=0` must not be quoted as clean. One earlier finding is explicitly RETRACTED as an artefact of the stale dev graph."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-20-connections-pane-step-3b-mocks.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 578,
+      "bytes": 43890,
+      "sha256": "7d860e5382bc5ae1e48c0dbf8a097ca9ab02c83618230dc66b9f005810ff1393",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-20"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-09-20-connections-pane-step-3b-mocks.md",
+        "assignedSha256": "7d860e5382bc5ae1e48c0dbf8a097ca9ab02c83618230dc66b9f005810ff1393",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "7d860e5382bc5ae1e48c0dbf8a097ca9ab02c83618230dc66b9f005810ff1393",
+        "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
+        "verifiedAt": "2026-09-20",
+        "evidence": [
+          "docs/reviews/side-eye/2026-09-20-connections-pane-step-3b-mocks.md:1-578 read in full 2026-09-20 by lane cb-heal-catalog while clearing the check:doc-catalog stage for #2494. Lane cb-mocks-sideeye's driven review of the three Connections step-3b mocks at `782fef299338`: six per-target verdicts, fifteen ranked findings (six P1), an instrument-retraction table naming 48 of 93 design-audit findings as artifacts of how a multi-board mock page is drawn, eight confirmed claims including a swept 490px crossover and a colour-independent status dot, a blunt per-surface taste verdict, an exact ARIA table, six structural coverage gaps, and an 18-row instrument coverage table.",
+          "Spot-verified against the tree at the receipting commit: the review's two load-bearing retraction/caveat receipts hold — the Button primitive really does carry a pointer-conditional hit area (so F2 is about the drawing), and the mock's `--color-border` really is byte-identical to the shipped Hearth token (so the `border-contrast` P1 is an inherited theme property).",
+          "The findings were acted on the same day: `docs/design/mocks/connections/DESIGN.md` §6 records the taken corrections, which is why this row is the review RECORD rather than an open queue."
+        ],
+        "claims": [
+          {
+            "claim": "F2's stated caveat is verifiable rather than rhetorical: the shipped Button primitive carries a pointer-conditional hit area, so 'every control is below the coarse floor' is a claim about the mock's drawn geometry, not about what step 9 would ship.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/primitives/button/variants.ts:16"
+              }
+            ]
+          },
+          {
+            "claim": "The review's `border-contrast` retraction is byte-exact: the mock's border token is the shipped Hearth `--color-border`, so the 1.19:1 reading is an inherited theme property judged in isolation and not a mock defect.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/styles/theme.css:31"
+              }
+            ]
+          }
+        ],
+        "summary": "SHIP WITH FIXES. A driven (not read-only) review of the three Connections step-3b mocks: the render falsifies four of the set's own written claims and three defects would have reached step 9 unnoticed. Fifteen ranked findings — fourteen buttons all named `Override`, every control below the coarse-pointer floor as drawn, four readout grammars where the design declares two, `replace`/`revoke` rendered as inert metadata text, a provider picker whose group headings corrupt the listbox's accessible name, a readout that names a connection in machine words 40px from the same connection in user words, a row with no primary activation, four Essential fields where the spec says three, five reflows where the design says three, teaching copy silently dropped at 486, a `+0` badge, and a capability rail that paints four destructive-red pills on a healthy connection. It also publishes what it did NOT file: 48 of 93 design-audit findings are artifacts of drawing several boards on one page, with the re-measurement receipt that killed each class, and it confirms eight claims including a swept 490px crossover, a colour-independent status dot, 42/42 spec copy strings rendered as real text, and perfect focus on every real control.",
+        "verifiedCanonicalSha256": "7d860e5382bc5ae1e48c0dbf8a097ca9ab02c83618230dc66b9f005810ff1393"
       },
       "receiptCurrent": true
     },

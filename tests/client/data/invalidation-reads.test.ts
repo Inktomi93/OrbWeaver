@@ -24,6 +24,8 @@ import {
   hiddenRevealRead,
   promptPreviewReads,
   ROOM_ENTITY_FILTERS,
+  ROOM_ENTITY_HEAL_FILTERS,
+  roomEntityHealReads,
   runtimeVariablesRead,
 } from "../../../packages/client/src/data/invalidation-reads.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -109,5 +111,44 @@ describe("ROOM_ENTITY_FILTERS — the entity→room bridge's per-kind rows", () 
     const got = paths(ROOM_ENTITY_FILTERS["world-info"](CHAT_ID, trpcProxy()));
     expect(got.some((p) => p.startsWith("worldInfo"))).toBe(false);
     expect(got).toContain("chat.previewContextFit");
+  });
+});
+
+// ── #2494 — the live-only lane's heal, as a DERIVED set ────────────────────────────────────────────────
+// The defect this pins against is not a wrong read, it is a heal that stopped growing: `chatOpened` named
+// `chat.getMemberCard` by hand and stayed that way while `regex` and `databank` joined `ROOM_ENTITY_KINDS`.
+// So what matters here is the SHAPE — a Record over the kind tuple, folded by `roomEntityHealReads` — and
+// the property the map test cannot see: that the fold is exactly the union of the arms, for whatever the
+// tuple holds today.
+describe("ROOM_ENTITY_HEAL_FILTERS — the live-only lane's attach heal (#2494)", () => {
+  test("is TOTAL over ROOM_ENTITY_KINDS — a new kind must state its heal, `[]` with a reason included", () => {
+    expect(Object.keys(ROOM_ENTITY_HEAL_FILTERS).sort()).toEqual([...ROOM_ENTITY_KINDS].sort());
+  });
+
+  test("`roomEntityHealReads` IS the fold of every arm — derived, never a second hand-kept list", () => {
+    const trpc = trpcProxy();
+    expect(paths(roomEntityHealReads(CHAT_ID, trpc))).toEqual(ROOM_ENTITY_KINDS.flatMap((kind) => paths(ROOM_ENTITY_HEAL_FILTERS[kind](CHAT_ID, trpc))));
+  });
+
+  test("covers the room-public reads of every kind that has one — the card and the two racks", () => {
+    const got = paths(roomEntityHealReads(CHAT_ID, trpcProxy()));
+    expect(got.toSorted((left, right) => left.localeCompare(right))).toEqual(["chat.getMemberCard", "databank.listActiveForChat", "regex.listForChat"]);
+  });
+
+  test("heals NO fit/preview read — their staleness bound is one turn (#514 / BOOT-4X)", () => {
+    const got = paths(roomEntityHealReads(CHAT_ID, trpcProxy()));
+    for (const read of ["chat.previewContextFit", "chat.previewAssembly", "chat.getShapeTrace", "chat.previewActionTemplates"]) {
+      expect(got).not.toContain(read);
+    }
+  });
+
+  test("heals NO owner-scoped read — the owner's own devices ride the user bus and its reconnect heal", () => {
+    const got = paths(roomEntityHealReads(CHAT_ID, trpcProxy()));
+    // `regex.listScripts`/`listGlobal`, `databank.list`, `worldInfo.*`, `character.*` — and the HOST-gated
+    // `chat.listEffectiveRegex`, whose only reader is the writer of the very change.
+    for (const read of ["regex.listScripts", "regex.listGlobal", "databank.list", "chat.listEffectiveRegex"]) {
+      expect(got).not.toContain(read);
+    }
+    expect(got.some((p) => p.startsWith("worldInfo") || p.startsWith("character."))).toBe(false);
   });
 });

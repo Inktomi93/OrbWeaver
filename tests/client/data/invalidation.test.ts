@@ -110,6 +110,12 @@ const TRACKED_KEYS = [
   // is `reactionsChanged`, which is what makes the owner's test ("react; the second tab sees it live") true:
   // at `staleTime: Infinity` a member's transcript would otherwise hold the pre-toggle chips forever.
   "reactions",
+  // The two ROOM-PUBLIC racks a co-member reads but never owns: the room's regex rack (`regex.listForChat`,
+  // #1733) and the per-chat document rack (`databank.listActiveForChat`, #2471). Both were untracked while
+  // the live-only lane's attach heal quietly failed to name them (#2494) — a co-member dark through a host's
+  // attach sat on the pre-write rack. Tracking them is what makes `chatOpened`'s row below assertable.
+  "regexForChat",
+  "databankRack",
 ] as const;
 type TrackedKey = (typeof TRACKED_KEYS)[number];
 
@@ -170,17 +176,23 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   // …PLUS the reaction window (B7): `listReactions` carries the room's RESOLVED `reactionsEnabled` verdict,
   // and `chat.setReactionsEnabled` emits THIS catch-all — without the row a host flipping the plane off
   // would leave every member's pills and picker doors standing until someone reacted.
-  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections", "reactions"],
+  // …PLUS the per-chat document rack (#2471): `chatUpdated` is the documented roster/handoff event and the
+  // D85 union is membership-derived, so a seat joining/leaving credits or withdraws its documents — and
+  // `chat.setChatDocumentVisibility` emits this same catch-all.
+  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections", "reactions", "databankRack"],
   // Room + the prompt preview: a re-anchored persona rewrites `{{user}}` in the next turn's prompt.
   personaSwitched: ["getChat", "previewAssembly", "getShapeTrace"],
   // B6 — NARROW on purpose (the `roomEntityChanged` argument): the pill row is its own read, so exactly one
   // query moves. Widening this to `chatReads` would make every emoji click cancel-and-restart the whole
   // transcript's in-flight fetches for every attached member.
   reactionsChanged: ["reactions"],
-  // The attach/resume signal — the room read, PLUS the member card as the LIVE-ONLY LANE'S HEAL: a
-  // `roomEntityChanged` is never replayed, and `chatOpened` re-fires on every (re)attach, so this is where a
-  // device that was dark through a card edit catches up (bridge §3.4).
-  chatOpened: ["getChat", "getMemberCard"],
+  // The attach/resume signal — the room read, PLUS the LIVE-ONLY LANE'S HEAL, derived over
+  // `ROOM_ENTITY_KINDS` (#2494): a `roomEntityChanged` is never replayed, and `chatOpened` re-fires on every
+  // (re)attach, so this is where a device dark through ANY live-only fan catches up (bridge §3.4). The
+  // member card, the room's regex rack and the per-chat document rack are the three member-visible room
+  // reads whose reader may not be the entity's owner; the whole row is `roomWasDark`-gated, and this room
+  // has never been live in a unit test's page, so the gate answers true here.
+  chatOpened: ["getChat", "getMemberCard", "regexForChat", "databankRack"],
   historyTruncated: ["getChat"],
   // World-info attachment — the WI reads + the room + the prompt preview (assembly POOL changed).
   wiBookAttached: ["worldInfo", "getChat", "previewAssembly", "getShapeTrace"],
@@ -243,6 +255,8 @@ describe("invalidation — the bus half (invalidate)", () => {
         getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
         runtimeVariables: trpc.chat.getRuntimeVariables.queryKey({ chatId: CHAT_ID }),
         reactions: trpc.chat.listReactions.queryKey({ chatId: CHAT_ID }),
+        regexForChat: trpc.regex.listForChat.queryKey({ chatId: CHAT_ID }),
+        databankRack: trpc.databank.listActiveForChat.queryKey({ chatId: CHAT_ID }),
       };
       seedReads(queryClient, Object.values(keys));
 
@@ -828,5 +842,64 @@ describe("invalidation — the per-chat databank rack (#2471)", () => {
     invalidateUser({ type: "databankChanged", documentId: castId<DocumentId>("document_invalidationtest") });
 
     expect(isInvalidated(queryClient, rack)).toBe(true);
+  });
+});
+
+// ── #2494 — the live-only lane's HEAL, and why it takes two principals to see ──────────────────
+// `roomEntityChanged` is fanned without a `chat_events` append, so a device dark through the fan never
+// replays it: the ONLY catch-up is the attach synthesis (`chatOpened`, re-fired on every (re)attach). That
+// heal shipped covering `chat.getMemberCard` alone and then stood still while `regex` (#1733) and `databank`
+// (#2471) joined `ROOM_ENTITY_KINDS` — so a co-member who switched chats while the host attached a script or
+// a document came back to the PRE-WRITE rack and sat on it (staleTime is Infinity; the bus is the only
+// driver).
+//
+// It survived two kinds because a SINGLE-principal test cannot see it. The writer is the entity's OWNER, and
+// an owner's every device rides the user bus (`regexChanged`/`databankChanged`) plus its reconnect gap-heal —
+// so on the writer's own devices these reads are never stale. A CO-MEMBER receives no user-bus event for
+// another human's write at all. Both principals are driven here, and the host arm is the control: it is what
+// a one-device test would have measured, and it is green either way.
+describe("invalidation — the live-only lane's attach heal reaches a CO-MEMBER (#2494)", () => {
+  /** The room-public, member-readable reads a `roomEntityChanged` moves — the ones whose reader may be
+   *  someone other than the entity's owner, and therefore the ones the heal owes. */
+  function roomPublicKeys(trpc: ReturnType<typeof createTrpcProxy>): Record<string, readonly unknown[]> {
+    return {
+      memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
+      regexRack: trpc.regex.listForChat.queryKey({ chatId: CHAT_ID }),
+      databankRack: trpc.databank.listActiveForChat.queryKey({ chatId: CHAT_ID }),
+    };
+  }
+
+  /** Drive ONE device (its own QueryClient = its own principal's cache) through `run`, and report which
+   *  room-public reads that device is STILL sitting stale on. */
+  function staleAfter(run: (seam: ReturnType<typeof setup>) => void): string[] {
+    const seam = setup();
+    const keys = roomPublicKeys(seam.trpc);
+    seedReads(seam.queryClient, Object.values(keys));
+    run(seam);
+    return Object.entries(keys)
+      .filter(([, key]) => !isInvalidated(seam.queryClient, key))
+      .map(([name]) => name)
+      .sort();
+  }
+
+  test("the HOST's own devices are covered by the owner plane — the control a single-principal test measures", () => {
+    const stillStale = staleAfter(({ invalidateUser }) => {
+      invalidateUser({ type: "charactersChanged", characterId: CHARACTER_ID });
+      invalidateUser({ type: "regexChanged" });
+      invalidateUser({ type: "databankChanged", documentId: castId<DocumentId>("document_invalidationheal") });
+    });
+
+    expect(stillStale).toEqual([]);
+  });
+
+  test("a CO-MEMBER dark through the fan catches up on re-attach — EVERY live-only kind, not just the card", () => {
+    // No user-bus event of any kind: the writes were another human's, so this device's own channel stayed
+    // silent. Its only signal is the room re-attach. `roomWasDark` answers true here — this room has never
+    // been live in this page (`liveEpoch` 0), the same verdict a chat-switch-away-and-back produces.
+    const stillStale = staleAfter(({ invalidate }) => {
+      invalidate({ type: "chatOpened", chatId: CHAT_ID });
+    });
+
+    expect(stillStale).toEqual([]);
   });
 });

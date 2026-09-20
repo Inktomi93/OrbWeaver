@@ -1085,13 +1085,13 @@
     },
     {
       "path": "docs/design/entity-room-member-freshness-bridge.md",
-      "assignedSha256": "e029dc2898eceab7481cc29ab36ccf85d3ee154307f586ffdf83c340bfe2d680",
+      "assignedSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "e029dc2898eceab7481cc29ab36ccf85d3ee154307f586ffdf83c340bfe2d680",
-      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c",
+      "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "docs/design/entity-room-member-freshness-bridge.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -1116,7 +1116,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c"
     },
     {
       "path": "docs/design/gate-config-system.md",
@@ -1716,6 +1717,52 @@
       ],
       "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence.",
       "verifiedCanonicalSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba"
+    },
+    {
+      "path": "docs/design/mocks/connections/DESIGN.md",
+      "assignedSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043",
+      "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
+      "verifiedAt": "2026-09-20",
+      "evidence": [
+        "docs/design/mocks/connections/DESIGN.md:1-347 read in full 2026-09-20 by lane cb-heal-catalog while clearing the check:doc-catalog stage for #2494. The step-3b drawing set's argument document: what only a render answered (the 486 fit, the five reflows, the four-rule list-in-a-settings-body question), the eight decisions it makes that the inference program's §5.3a left open, the four-arm resolve readout, the §5.3a copy inventory board by board, the six things a static mock structurally cannot answer, and the five corrections it owes §5.3a.",
+        "Spot-verified against the tree at the receipting commit: the coarse-pointer floor §1 says the drawing inherits is the shipped `TOUCH_TARGET_PSEUDO` (packages/ui/src/lib/selection-control.ts:11), and the eight belt keys §7.2 cites for the Extras gloss are `BELT_OWNED_BODY_KEYS` at the exact line the document names.",
+        "ONE citation in §7.1 is stale on today's tree and is recorded here rather than silently repaired: the readout it places at `connections-roles-section.tsx:97` is `packages/client/src/features/credentials/components/connections-roles-section.tsx:222` (the file the document names under `lib/` is a 14-line re-export). The sentence it quotes — `A turn uses {…}.` — is verbatim correct."
+      ],
+      "claims": [
+        {
+          "claim": "The coarse-pointer hit floor §1 says every drawn control inherits is a real shipped mechanism, not a mock assertion: `TOUCH_TARGET_PSEUDO` is the pointer-conditional pseudo every `@orb/ui` selection control composes.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/lib/selection-control.ts:11"
+            }
+          ]
+        },
+        {
+          "claim": "The belt keys §7.2 hands step 9 for the Extras authoring gloss resolve where the document says they do.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/inference/features.ts:108"
+            }
+          ]
+        },
+        {
+          "claim": "The persisted-resolve readout §3 rules into four arms has exactly one client home today, and it renders the steady arm's sentence verbatim — so the four-arm ruling is a widening of a live surface, not a greenfield draw.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/credentials/components/connections-roles-section.tsx:222"
+            }
+          ]
+        }
+      ],
+      "summary": "The argument document behind the three Connections step-3b `--file` mocks (list · editor · model-roles). It records what only a render could answer — the editor fits the 486 settings body by tier collapse rather than squeezing, five things reflow (two of which an earlier revision never drew), a flat user-owned row inside a settings body does not read as a second nav under four rules — and makes eight decisions §5.3a left open, including a four-arm resolve readout, task badges that speak the role labels, `Edit` as the row's own primary rather than a menu item, and a capability rail that says `can't serve` in muted rather than destructive red. It also states six gaps a static drawing cannot close (the width-adaptation mechanism, the disclosure tiers' a11y contract, operable switches, focus order through the fields, any light/high-contrast reading, and that a design-audit over a multi-board mock reports the drawing) and the five corrections it owes the inference program's §5.3a.",
+      "verifiedCanonicalSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043"
     },
     {
       "path": "docs/design/mocks/regex-section/DESIGN.md",
