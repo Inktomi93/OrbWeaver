@@ -3,11 +3,15 @@ import {
   combineTokenProvenance,
   macroFreezeRecordSchema,
   messageSlotSchema,
+  parseVariantMetadata,
   reattributeScopeSchema,
   TOKEN_PROVENANCES,
   tokenProvenanceSchema,
   toolCallRecordSchema,
   userMacroDrawsSchema,
+  VARIANT_METADATA_REASONING_MS_KEY,
+  VARIANT_METADATA_TOKEN_COUNT_KEY,
+  variantMetadataSchema,
 } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -252,4 +256,51 @@ test("userMacroDrawsSchema refuses a non-string leaf (the draw is always the DRA
   expect(userMacroDrawsSchema.safeParse({ mood: { tone: true } }).success).toBe(false);
   // A flat (one-level) record is the wrong depth — every value must be an input→string sub-record.
   expect(userMacroDrawsSchema.safeParse({ mood: "grim" }).success).toBe(false);
+});
+
+// ── message_variants.metadata: the §5.3c class-3 read seam ────────────────────────────────────────────
+
+test("parseVariantMetadata DEGRADES to {} and never throws — a history read must survive an unmodelled row", () => {
+  // The whole reason the seam is `.catch` and not `.parse`: one old row nobody models must not fail the read
+  // that lists a chat. Every shape a corrupt column can hold resolves to the same empty sidecar.
+  expect(parseVariantMetadata(null)).toEqual({});
+  expect(parseVariantMetadata(undefined)).toEqual({});
+  expect(parseVariantMetadata("not an object")).toEqual({});
+  expect(parseVariantMetadata([1, 2, 3])).toEqual({});
+  expect(parseVariantMetadata({ [VARIANT_METADATA_REASONING_MS_KEY]: "soon" })).toEqual({});
+});
+
+test("parseVariantMetadata keeps the two keys that have named readers and DROPS an unmodelled top-level key", () => {
+  // `reasoning_duration` (the stats rollups' json_extract path) and `token_count` (domain/import's token-usage
+  // backfill) are the two DECLARED keys; anything else at the modeled level is foreign and is stripped, which
+  // is what makes "a reader names a typed field or does not compile" true of the read side too.
+  const parsed = parseVariantMetadata({
+    [VARIANT_METADATA_REASONING_MS_KEY]: 1200,
+    [VARIANT_METADATA_TOKEN_COUNT_KEY]: 42,
+    somethingAForeignToolWrote: "x",
+  });
+  expect(parsed[VARIANT_METADATA_REASONING_MS_KEY]).toBe(1200);
+  expect(parsed[VARIANT_METADATA_TOKEN_COUNT_KEY]).toBe(42);
+  expect(Object.keys(parsed).sort()).toEqual([VARIANT_METADATA_REASONING_MS_KEY, VARIANT_METADATA_TOKEN_COUNT_KEY].sort());
+});
+
+test("the providerMetadata union is CLOSED by provider — an unknown provider is not admitted as a named arm", () => {
+  // §5.3c: a plugin provider lands under the `plugin:<ns>/<id>` arm with an opaque `raw` and NO reader by key;
+  // an arbitrary provider word is NOT an arm, so no reader can ever see a shape nothing in contracts declares.
+  const openrouter = parseVariantMetadata({ providerMetadata: { provider: "openrouter", upstreamCost: 0.12 } });
+  expect(openrouter.providerMetadata).toEqual({ provider: "openrouter", upstreamCost: 0.12 });
+  const plugin = parseVariantMetadata({ providerMetadata: { provider: "plugin:acme/vision", raw: { anything: true } } });
+  expect(plugin.providerMetadata?.provider).toBe("plugin:acme/vision");
+  // An unmodelled provider word fails the union — and because the seam is `.catch({})`, the WHOLE sidecar
+  // degrades rather than half-landing. That is the specified behaviour: a blob we cannot model is no blob.
+  expect(parseVariantMetadata({ providerMetadata: { provider: "some-new-vendor", cost: 1 } })).toEqual({});
+});
+
+test("importResidue is declared-OPAQUE: any JSON rides, and a non-JSON value is refused", () => {
+  // The ST import's doorway (§5.3c class 4). It is `JsonValue`, never `Record<string, unknown>` — storable
+  // and re-parsable by construction, and unreadable by key without an explicit narrow.
+  const residue = { api: "openrouter", bias: "x", nested: { a: [1, "two", null] } };
+  expect(parseVariantMetadata({ importResidue: residue }).importResidue).toEqual(residue);
+  // A function is not JSON; the sidecar degrades rather than persisting something that cannot round-trip.
+  expect(variantMetadataSchema.safeParse({ importResidue: (): number => 1 }).success).toBe(false);
 });

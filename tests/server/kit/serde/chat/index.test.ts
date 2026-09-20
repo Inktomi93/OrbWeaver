@@ -4,6 +4,8 @@
 // header branch/note omission, TXT = active-only + per-message speaker), and the build→parse→build ROUND-TRIP
 // identity (the structural drift guard against the two halves diverging).
 
+import type { VariantMetadata } from "@orb/contracts/chat";
+import type { JsonValue } from "@orb/kit/json";
 import type { ParsedChat, ParsedChatMessage } from "@orb/server/kit/serde/chat";
 import { buildChatJsonl, buildChatTxt, formatStDate, parseChatJsonl, parseStDate } from "@orb/server/kit/serde/chat";
 import { describe } from "vitest";
@@ -25,6 +27,14 @@ function header(over: Record<string, unknown> = {}): string {
 
 function line(over: Record<string, unknown> = {}): string {
   return JSON.stringify({ is_user: false, mes: "hi", send_date: "2025-07-18@12h00m00s", ...over });
+}
+
+/** The variant sidecar's declared-OPAQUE `importResidue` (§5.3c class 4) as a readable record, or
+ *  `undefined`. A test is the ONE place that narrows it by hand — production code must not read it by key,
+ *  which is the property `JsonValue` (never `Record<string, unknown>`) enforces. */
+function residueOf(metadata: VariantMetadata | null | undefined): Record<string, JsonValue> | undefined {
+  const residue = metadata?.importResidue;
+  return typeof residue === "object" && residue !== null && !Array.isArray(residue) ? residue : undefined;
 }
 
 describe("parseStDate", () => {
@@ -125,7 +135,7 @@ describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
     expect(parsed?.messages[0]?.sendDate).toBe(Date.UTC(2025, 10, 3, 13, 43));
   });
 
-  test("§5.1 — a swipe's metadata is the FLAT extra shape, whatever the take's path", () => {
+  test("§5.1 — a swipe's metadata promotes the two read keys and keeps the rest as declared-opaque residue", () => {
     const swiped = line({
       is_user: false,
       mes: "take two",
@@ -143,16 +153,55 @@ describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
     // (domain/stats' rebuild + the live stats-delta twin) can resolve. The nested `{extra:{…}}` shape this
     // stored until 2026-08-08 read NULL for all 12,718 swipe-bearing corpus rows.
     expect(pool.map((v) => v.metadata?.["reasoning_duration"])).toEqual([1200, 900]);
-    expect(pool[0]?.metadata?.["bias"]).toBe("x");
-    // The swipe entry's non-sidecar residue rides along: flattening is not a drop (78,407 corpus send_dates).
-    expect(pool[0]?.metadata?.["send_date"]).toBe("2025-07-18@11h00m00s");
+    // §5.3c class 3: everything ST carried that is NOT one of the two keys with a named reader rides under
+    // `importResidue` — flattening is still not a drop (78,407 corpus send_dates), but a foreign file can no
+    // longer author a key at the MODELED level.
+    expect(residueOf(pool[0]?.metadata)?.["bias"]).toBe("x");
+    expect(residueOf(pool[0]?.metadata)?.["send_date"]).toBe("2025-07-18@11h00m00s");
     // …and the two timings are NOT duplicated into the blob — they are columns, exactly as a single-take
     // row's line-level gen_started/gen_finished are.
-    expect(pool[0]?.metadata?.["gen_started"]).toBeUndefined();
+    expect(residueOf(pool[0]?.metadata)?.["gen_started"]).toBeUndefined();
     expect(pool[0]?.genStarted).not.toBeNull();
-    // A single-take row's blob is unchanged — this IS the canonical shape both paths now write.
+    // A single-take row's blob is the SAME canonical shape both paths write.
     const single = parseChatJsonl(`${header()}\n${line({ extra: { model: "m", reasoning_duration: 42 } })}`, { fileName: "s.jsonl", charDirName: "Aria" });
-    expect(single?.messages[0]?.metadata).toEqual({ model: "m", reasoning_duration: 42 });
+    expect(single?.messages[0]?.metadata).toEqual({ reasoning_duration: 42, importResidue: { model: "m" } });
+  });
+
+  test("§5.3c — a FOREIGN file cannot author a key at the sidecar's MODELED level", () => {
+    // RED-FIRST (§5.3c class 3, the open-bag defect this closes). The retired writer FLATTENED ST's `extra`
+    // straight into `message_variants.metadata`, so a foreign export carrying `extra.providerMetadata` landed
+    // it in the exact slot OUR per-provider sidecar reads — an OpenRouter cost pill would have rendered a
+    // number some other tool wrote, with no writer of ours ever producing it. Asserted through the public
+    // parse output (not the new schema), so it FAILS against the unmodified source: pre-fix,
+    // `metadata.providerMetadata` is the foreign object; post-fix it is `undefined` and the foreign bytes are
+    // intact under the declared-opaque `importResidue`.
+    const foreign = line({
+      is_user: false,
+      mes: "take one",
+      extra: {
+        model: "m",
+        reasoning_duration: 700,
+        providerMetadata: { provider: "openrouter", upstreamCost: 99 },
+      },
+    });
+    const parsed = parseChatJsonl(`${header()}\n${foreign}`, { fileName: "f.jsonl", charDirName: "Aria" });
+    const meta = parsed?.messages[0]?.metadata;
+    expect(meta?.providerMetadata).toBeUndefined();
+    // The measurement is still promoted, and the foreign bytes are still THERE — refusing the masquerade is
+    // not a drop.
+    expect(meta?.reasoning_duration).toBe(700);
+    expect(residueOf(meta)?.["providerMetadata"]).toEqual({ provider: "openrouter", upstreamCost: 99 });
+  });
+
+  test("§5.3c — a non-numeric reasoning_duration stays residue rather than becoming a fake measurement", () => {
+    // The promotion is a PARSE, not a rename: ST's numeric string is accepted (the retired
+    // `Number(metadata[key])` reader coerced it, so refusing it here would be a silent regression), but a
+    // value that is not a number at all cannot be promoted into a slot the rollups sum.
+    const coercible = parseChatJsonl(`${header()}\n${line({ extra: { reasoning_duration: "1200" } })}`, { fileName: "c.jsonl", charDirName: "Aria" });
+    expect(coercible?.messages[0]?.metadata?.reasoning_duration).toBe(1200);
+    const garbage = parseChatJsonl(`${header()}\n${line({ extra: { reasoning_duration: "soon" } })}`, { fileName: "g.jsonl", charDirName: "Aria" });
+    expect(garbage?.messages[0]?.metadata?.reasoning_duration).toBeUndefined();
+    expect(residueOf(garbage?.messages[0]?.metadata)?.["reasoning_duration"]).toBe("soon");
   });
 
   test("§5.6 — chat_metadata.variables parses to a flat string map; non-strings drop; empty ⇒ null", () => {

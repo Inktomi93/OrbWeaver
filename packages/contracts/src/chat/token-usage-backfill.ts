@@ -3,14 +3,16 @@
 
 import type { MessageVariantId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { TokenProvenance } from "./messages.ts";
+import type { TokenProvenance, VariantMetadata } from "./messages.ts";
 
 export interface ImportedTokenUsageCandidate {
   readonly variantId: MessageVariantId;
   readonly ownerId: UserId;
   readonly role: MessageRole;
   readonly content: string;
-  readonly metadata: Record<string, unknown> | null;
+  /** The variant's PARSED sidecar (§5.3c class 3) — read for {@link VARIANT_METADATA_TOKEN_COUNT_KEY} only.
+   *  Closed rather than a bag so `recordedTokenCountFromMetadata` names a typed field or stops compiling. */
+  readonly metadata: VariantMetadata | null;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
   readonly tokenProvenance: TokenProvenance;
