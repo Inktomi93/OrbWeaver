@@ -30,7 +30,13 @@ interface EmbedAssetsDeps {
 }
 
 /** One asset's sweep step: hash + breakdown pre-check (both lenses) → store raw → analyse → store captioned. */
-async function embedOneAsset(ctx: EmbeddingsContext, deps: EmbedAssetsDeps, assetId: AssetId, force: boolean, spaces: Map<UserId, string>): Promise<"embedded" | "skipped"> {
+async function embedOneAsset(
+  ctx: EmbeddingsContext,
+  deps: EmbedAssetsDeps,
+  assetId: AssetId,
+  force: boolean,
+  spaces: Map<UserId, string>,
+): Promise<"embedded" | "skipped"> {
   // ADMISSION FLOOR (recorded skip, read FIRST): an asset already refused by the dimension floor is honored
   // here — no byte load, no caption, no embed — so a re-index does not re-attempt it. `force` still bypasses
   // it (a deliberate re-index of everything), mirroring how `force` bypasses the hash/facet pre-check below.

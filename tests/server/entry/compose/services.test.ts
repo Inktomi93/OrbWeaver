@@ -7,8 +7,8 @@
 import "../../../support/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { DomainEvent } from "@orb/contracts/events";
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, characters as charactersTable, characterTags, chatParticipants, chats, tags, workloads } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, ChatParticipantId, Handle, PersonaId, SessionId, SocketId, UserId } from "@orb/kit/ids";

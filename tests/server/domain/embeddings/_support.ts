@@ -14,7 +14,7 @@
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import { assets, characters, chats, documents } from "@orb/db";
+import { assets, characters, chatParticipants, chats, documents } from "@orb/db";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -22,6 +22,7 @@ import type {
   CharacterId,
   ChatDigestId,
   ChatId,
+  ChatParticipantId,
   ChatSegmentId,
   DocumentChunkId,
   DocumentId,
@@ -333,9 +334,21 @@ export async function seedCharacter(db: Db, ownerId: UserId, overrides: { readon
 }
 
 /** Insert a `chats` row (the producer FK for chat_digests / chat_segments). Returns its branded id. */
-export async function seedChat(db: Db, id = "chat_test"): Promise<ChatId> {
+export async function seedChat(db: Db, id = "chat_test", hostUserId?: UserId): Promise<ChatId> {
   const chatId = castId<ChatId>(id);
   await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  if (hostUserId !== undefined) {
+    // The PRESENT host row — the owner the chat-memory purge scopes on (a chat's vectors belong to its host).
+    await db.insert(chatParticipants).values({
+      id: castId<ChatParticipantId>(`chat_participant_${id}_host`),
+      chatId,
+      kind: "human",
+      userId: hostUserId,
+      role: "host",
+      joinedAt: FROZEN_AT,
+      joinSeq: 0,
+    });
+  }
   return chatId;
 }
 
