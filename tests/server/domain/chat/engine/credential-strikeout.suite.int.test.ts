@@ -330,7 +330,7 @@ describe("the main turn's fault path strikes out the credential it ran under", (
     await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
     const rejected = new ProviderError({ kind: "auth_failed", retryable: false, message: "the upstream rejected the key (401)", apiErrorStatus: 401 });
     // The verb binds its bundle through the funder-keyed `roleClientsFor` seam (@orb/inference §7.5-1b), so
-    // the double is the shared scripted bundle with ONE callable replaced: `requireSpaceModel` must still
+    // the double is the shared scripted bundle with ONE callable replaced: `withActiveQuerySpace` must still
     // answer a space (it runs first) and the rejection must land on the `embed` call itself.
     // @orb-waive no-test-fabrication(unknown): the SearchContext double carries only the fields this path
     // reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.

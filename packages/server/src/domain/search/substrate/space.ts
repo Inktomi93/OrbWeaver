@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import type { EmbeddingConnectionSnapshot } from "#domain/embeddings";
 import { generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contract/errors.ts";
-import type { ActiveQuerySpace, ImageQuerySpace, SearchContext } from "../contract/service.ts";
+import type { ActiveQuerySpace, SearchContext } from "../contract/service.ts";
 import { readActiveGeneration, readGeneration } from "../persistence/active-space.ts";
 
 type SpaceContext = Pick<SearchContext, "db"> & {
@@ -72,7 +72,7 @@ export async function withActiveQuerySpace<T>(
   throw new SearchError(SEARCH_SPACE_REINDEXING, "your embedding index changed twice during this search — retry after re-indexing settles");
 }
 
-export async function requireQuerySpace(ctx: SpaceContext, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<ActiveQuerySpace> {
+async function requireQuerySpace(ctx: SpaceContext, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<ActiveQuerySpace> {
   const read = await readGeneration(ctx.db, ownerId, task);
   if (read.status === "moving") {
     throw new SearchError(SEARCH_SPACE_REINDEXING, "your embedding index is being rebuilt — retry after re-indexing settles");
@@ -100,12 +100,13 @@ export async function requireQuerySpace(ctx: SpaceContext, ownerId: UserId, task
   return { generationId: active.id, fingerprint: active.fingerprint, model: active.space, via: active.via, connection };
 }
 
-/** Compatibility read for callers that only need the settled tag. Query verbs use {@link requireQuerySpace}. */
-export async function requireSpaceModel(ctx: SpaceContext, ownerId: UserId, task: "embed" | "imageEmbed"): Promise<string> {
-  return (await requireQuerySpace(ctx, ownerId, task)).model;
-}
-
-export async function requireImageQuerySpace(ctx: SpaceContext, ownerId: UserId): Promise<ActiveQuerySpace> {
+/** THE JOINT-SPACE RULE's read-side answer (§10-3): WHERE an owner's pictures are, and HOW a query reaches
+ *  them. `via: "imageEmbed"` is the ordinary arm — the query is embedded by the image embedder and both
+ *  lenses are scannable. `via: "embed"` is the captioned-text fallback: the owner has no image-capable
+ *  embedder, so their pictures live in the TEXT space as captions and only `image-captioned` exists there;
+ *  the query must be embedded as text or it lands in a different geometry. `model` is the space tag
+ *  `nearest.ts` filters on in both arms. */
+async function requireImageQuerySpace(ctx: SpaceContext, ownerId: UserId): Promise<ActiveQuerySpace> {
   const read = await readGeneration(ctx.db, ownerId, "imageEmbed");
   if (read.status === "ready") {
     return await requireQuerySpace(ctx, ownerId, "imageEmbed");
@@ -132,9 +133,4 @@ export async function requireImageQuerySpace(ctx: SpaceContext, ownerId: UserId)
     via: "embed",
     connection: embed,
   };
-}
-
-export async function requireImageSpace(ctx: SpaceContext, ownerId: UserId): Promise<ImageQuerySpace> {
-  const space = await requireImageQuerySpace(ctx, ownerId);
-  return { via: space.via, model: space.model };
 }

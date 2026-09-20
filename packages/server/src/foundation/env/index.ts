@@ -364,8 +364,9 @@ const envSchema = z
     // the embedding's model identity — the `(model, dim)` space tag every vector row carries becomes
     // `jinaai/jina-clip-v2@<dtype>` (`infra/providers/backends/local-light/model-cache.ts`'s
     // `localLightEmbedSpaceTag`, the ONE derivation). Flipping this knob therefore makes every stored
-    // local-light vector a stale space, which the purge/re-embed sweeps already act on (`domain/embeddings/
-    // persistence/clear.ts:purgeStaleVectors`) — never a silent mix of two spaces.
+    // local-light vector a stale space, which the re-embed sweeps already act on: the new generation is
+    // written additively and the promotion transaction retires every older one (`domain/embeddings/
+    // persistence/space-state.ts:retiredVectorStatements`) — never a silent mix of two spaces.
     //
     // The vocabulary is the FIVE dtypes jina-clip-v2 actually publishes an ONNX file for, not the whole
     // transformers.js `DataType` union: a knob that admits a dtype with no artifact is a knob that bricks

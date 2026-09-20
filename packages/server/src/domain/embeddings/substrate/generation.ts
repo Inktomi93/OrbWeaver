@@ -1,7 +1,5 @@
 // Immutable encoder generations and the authoritative per-owner migration target.
 
-import type { VectorScope } from "@orb/contracts/embeddings";
-import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -87,8 +85,4 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt
     throw new Error("embedding generation target kept changing while the sweep was starting");
   }
   return { id, task, via, epoch: row.epoch, space, connection };
-}
-
-export function scopesFor(task: GenerationTask): readonly VectorScope[] {
-  return VECTOR_SCOPES_BY_TASK[task];
 }
