@@ -79,6 +79,14 @@ export function canEmbedImages(capability: EmbeddingCapability): boolean {
   return capability.input.includes("image");
 }
 
+/** The served precision a `(model[@dtype])` space tag folds in (`embedSpaceOf`) — the ONE place a resolved
+ *  connection's capability is asked for its dtype axis, so every vector reader derives the identical tag.
+ *  A non-embedding capability cannot reach a vector task's space, so it folds to "no dtype axis" rather than
+ *  guessing a suffix. */
+export function embedDtypeOf(capability: Capability): string | undefined {
+  return capability.kind === "embedding" ? capability.embedding.dtype : undefined;
+}
+
 /** Does a vector model FIT the owner's space? Exact width, or a wider MRL model that truncates. A narrower
  *  model never fits — padding invents coordinates (#1635). */
 export function fitsSpace(capability: EmbeddingCapability, dims: number): boolean {

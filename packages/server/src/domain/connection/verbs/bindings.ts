@@ -17,10 +17,9 @@ import type { ConnectionContext, ConnectionService } from "../contract/service.t
 import type { StoredActor } from "../persistence/bindings.ts";
 import { listBindingsForActor, upsertBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
+import { VECTOR_TASKS } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
 import { toResolvedView } from "../substrate/resolved-view.ts";
-
-const VECTOR_TASKS: ReadonlySet<RoutableTask> = new Set<RoutableTask>(["embed", "imageEmbed"]);
 
 /** The caller's actor, proven: absent ⇒ their own `user` arm; a rule/plugin arm must be theirs. */
 async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: BindingActorInput | undefined): Promise<StoredActor> {
@@ -112,7 +111,7 @@ export function createSetBinding(ctx: ConnectionContext): ConnectionService["set
       },
       ctx.now(),
     );
-    if (actor.actorKind === "user" && VECTOR_TASKS.has(params.task)) {
+    if (actor.actorKind === "user" && VECTOR_TASKS.includes(params.task)) {
       ctx.onEmbedSpaceChanged(userId);
     }
     return written;
@@ -135,7 +134,7 @@ export function createUseForEverything(ctx: ConnectionContext): ConnectionServic
       written.push(await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task, connectionId: row.id }));
     }
     await ctx.audit({ actorUserId: userId, action: "connection.bindAll", entityType: "connection", entityId: row.id, metadata: { tasks } }, ctx.now());
-    if (tasks.some((task) => VECTOR_TASKS.has(task))) {
+    if (tasks.some((task) => VECTOR_TASKS.includes(task))) {
       ctx.onEmbedSpaceChanged(userId);
     }
     return written;
