@@ -59,15 +59,15 @@ function turnRequest(overrides: Partial<AnthropicChatRequest> = {}): AnthropicCh
     secret: fakeApiKeySecret("sk-ant-probe-not-a-real-key"),
   });
   const params: UserIntent = { effort: "high" };
-  return {
+  const base: AnthropicChatRequest = {
     api: "anthropic-messages",
     connection,
     params,
     systemPrompt: { static: "You are a helpful assistant.", dynamic: "" },
     history: [{ role: "user", content: [{ type: "text", text: "What is the weather in Paris?" }] }],
     tools: [{ name: "get_weather", description: "Weather for a city.", parameters: { type: "object", properties: { city: { type: "string" } } } }],
-    ...overrides,
-  } as AnthropicChatRequest;
+  };
+  return { ...base, ...overrides };
 }
 
 function deps(fetchImpl: typeof fetch, lines: LogLine[] = []): Parameters<typeof runAnthropicChatTurn>[1] {
@@ -150,7 +150,7 @@ test("A3/B2: an SDK-dropped sampler knob becomes a warning event and leaves the 
   const recorded: RecordedRequest[] = [];
   const lines: LogLine[] = [];
   const fetchImpl = scriptedSseFetch([anthropicTextStream("ok")], recorded);
-  const req = turnRequest({ params: { effort: "high", temperature: 0.5, frequencyPenalty: 0.5 } as UserIntent, tools: undefined });
+  const req = turnRequest({ params: { effort: "high", temperature: 0.5, frequencyPenalty: 0.5 }, tools: undefined });
   const turn = await runAnthropicChatTurn(req, deps(fetchImpl, lines));
   const codes = turn.events.flatMap((e) => (e.kind === "warning" ? [e.code] : []));
   expect(codes).toContain("sdk_unsupported_setting");
@@ -188,7 +188,7 @@ function fableRequest(mandatory: boolean): AnthropicChatRequest {
     baseUrl: "https://api.anthropic.com",
     secret: fakeApiKeySecret("sk-ant-probe-not-a-real-key"),
   });
-  return turnRequest({ connection, params: { effort: "none" } as UserIntent, tools: undefined });
+  return turnRequest({ connection, params: { effort: "none" }, tools: undefined });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
