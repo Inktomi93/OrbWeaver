@@ -6,10 +6,11 @@
 
 import type { AutomationActionInput, AutomationBusEvent, AutomationTrigger } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import { automationRules, chatParticipants, messages } from "@orb/db";
 import type { AutomationRuleId, ChatId, MessageId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { and, eq, isNull } from "drizzle-orm";
 import { describe } from "vitest";
@@ -149,7 +150,7 @@ function turnStarted(chatId: ChatId): {
   chatId: ChatId;
   intent: "send";
   api: "chat-completions";
-  source: "openrouter";
+  provider: ProviderId;
   model: string;
   speakerCharacterId: null;
   targetMessageId: null;
@@ -159,7 +160,7 @@ function turnStarted(chatId: ChatId): {
     chatId,
     intent: "send",
     api: "chat-completions",
-    source: "openrouter",
+    provider: castId<ProviderId>("openrouter"),
     model: "gpt",
     speakerCharacterId: null,
     targetMessageId: null,

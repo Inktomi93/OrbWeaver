@@ -9,8 +9,8 @@ import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
-import { characterEmbeddings, characterTags, chatParticipants, chats, tags, workloads } from "@orb/db";
-import type { CharacterHandle, ChatParticipantId, Handle, PersonaId, SessionId, SocketId, UserId } from "@orb/kit/ids";
+import { characterEmbeddings, characters as charactersTable, characterTags, chatParticipants, chats, tags, workloads } from "@orb/db";
+import type { AssetId, CharacterHandle, CharacterId, ChatParticipantId, Handle, PersonaId, SessionId, SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -290,6 +290,11 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
   const assetsH = await makeAssetsHarness(db);
   const assets = createAssetsService(assetsH.ctx);
   const store: Mock<EmbeddingsService["store"]> = vi.fn<EmbeddingsService["store"]>(() => Promise.resolve({ outcome: "written", contentHash: "stub-hash" }));
+  const loadCharacterOwner = async (characterId: CharacterId): Promise<UserId | null> => {
+    const rows = await db.select({ ownerId: charactersTable.ownerId }).from(charactersTable).where(eq(charactersTable.id, characterId)).limit(1);
+    return rows[0]?.ownerId ?? null;
+  };
+  const loadAssetOwner = async (assetId: AssetId): Promise<UserId | null> => (await assets.assetCasRefById(assetId))?.ownerId ?? null;
   const indexer = createEmbeddingsIndexer({
     store,
     // The indexer reads/writes its OWN `image_index_skips` table (the admission floor) through db + clock.
@@ -298,7 +303,9 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     loadAssetMime: async (assetId): Promise<string | null> => (await assets.assetCasRefById(assetId))?.mime ?? null,
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
-    roleClients: makeRoleClients(),
+    loadCharacterOwner,
+    loadAssetOwner,
+    roleClientsFor: (): Promise<ReturnType<typeof makeRoleClients>> => Promise.resolve(makeRoleClients()),
     embedDim: EMBED_DIM,
     imageEmbedDim: EMBED_DIM,
   });
@@ -419,7 +426,6 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
 // emit rides the same bus), drain the fire-and-forget dispatch, and assert a card-text embedding row is
 // persisted (ON) / never written (OFF). The tests/e2e default is OFF (vitest env CORPUS_AUTOINDEX=false); the
 // ON case flips it via a stored AppSettings override the boot reload resolves.
-
 
 function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
   return createServices({
@@ -688,9 +694,10 @@ describe("embed-model change reindex trigger (DBK-B(b))", () => {
     const before = await db.select().from(workloads);
     expect(before.filter((r) => r.mode === "bulk" && (r.kind === "index" || r.kind === "databank-reindex"))).toHaveLength(0);
 
-    await result.services.settings.updateUserSettingsSection({
+    await result.services.connection.setBinding({
       principal: principal(owner),
-      input: { section: "routing", patch: { roleDefaults: { embed: { model: "qwen3-embed-v2" } } } },
+      task: "embed",
+      connectionId: null,
     });
 
     // The trigger is supervised detached work; flush the IO queue deterministically.
@@ -710,9 +717,10 @@ describe("embed-model change reindex trigger (DBK-B(b))", () => {
     const errorSpy = vi.spyOn(logger, "error");
 
     await expect(
-      result.services.settings.updateUserSettingsSection({
+      result.services.connection.setBinding({
         principal: principal(owner),
-        input: { section: "routing", patch: { roleDefaults: { embed: { model: "qwen3-embed-v3" } } } },
+        task: "embed",
+        connectionId: null,
       }),
     ).resolves.toBeDefined();
     await drain(() => errorSpy.mock.calls.filter((call) => (call[0] as { spanName?: string }).spanName === "embeddings.modelChangeReindex").length === 2);
