@@ -26,8 +26,7 @@ async function embedOneCard(
   ctx: EmbeddingsContext,
   deps: { readonly store: EmbeddingsService["store"] },
   characterId: CharacterId,
-  force: boolean | undefined,
-  spaces: Map<UserId, string>,
+  sweep: { readonly force: boolean | undefined; readonly spaces: Map<UserId, string> },
 ): Promise<"written" | "skipped"> {
   const text = await ctx.loadCardText(characterId);
   if (text === undefined || text.length === 0) {
@@ -38,7 +37,7 @@ async function embedOneCard(
   if (cardOwnerId === null || embedModel === null) {
     return "skipped";
   }
-  spaces.set(cardOwnerId, embedModel);
+  sweep.spaces.set(cardOwnerId, embedModel);
   const result = await deps.store({
     kind: "card",
     lens: "card-text",
@@ -47,7 +46,7 @@ async function embedOneCard(
     content: text,
     model: embedModel,
     dim: ctx.embedDim,
-    force,
+    force: sweep.force,
   });
   return result.outcome === "written" ? "written" : "skipped";
 }
@@ -62,7 +61,7 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
       if (signal.aborted) {
         break;
       }
-      if ((await embedOneCard(ctx, deps, characterId, force, spaces)) === "written") {
+      if ((await embedOneCard(ctx, deps, characterId, { force, spaces })) === "written") {
         embedded += 1;
       } else {
         skipped += 1;
