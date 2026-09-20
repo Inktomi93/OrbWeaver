@@ -17,7 +17,9 @@ const CT_GROUPS = "tests/support/browser/ct-config-groups.ts";
 
 const MESSAGE =
   "the browser-CT config composition has drifted from the production door: config sections must have the same " +
-  "(anchor, nav.id, contribution id) multiset and config groups must have the same (group key, canonical export) multiset.";
+  "(anchor, nav.id, contribution id) multiset and config groups must have the same (group key, canonical export) multiset. " +
+  "The four files are packages/client/src/compose/config-sections.ts ↔ tests/support/browser/ct-data-providers.tsx and " +
+  "packages/client/src/compose/authed-app.tsx ↔ tests/support/browser/ct-config-groups.ts.";
 const FIX =
   "mirror the production config-section and config-group assemblies exactly; derive a section anchor from `anchor` plus `nav.id`, never from the contribution id.";
 
@@ -164,12 +166,18 @@ export const gate = defineGate({
         );
         if (sectionDiff.length > 0) {
           const anchor = variable(required(CT_SECTIONS), "realSettingsSections");
-          ctx.report.node(anchor, { message: `${MESSAGE} Section differences: ${sectionDiff.join("; ")}.`, fix: FIX });
+          ctx.report.node(anchor, {
+            message: `${MESSAGE} Section differences: ${sectionDiff.join("; ")}. The mirror to repair is tests/support/browser/ct-data-providers.tsx.`,
+            fix: FIX,
+          });
         }
         const groupDiff = differences(groupRows(required(PRODUCTION_GROUPS), "configGroups"), groupRows(required(CT_GROUPS), "REAL_CONFIG_GROUPS"));
         if (groupDiff.length > 0) {
           const anchor = variable(required(CT_GROUPS), "REAL_CONFIG_GROUPS");
-          ctx.report.node(anchor, { message: `${MESSAGE} Group differences: ${groupDiff.join("; ")}.`, fix: FIX });
+          ctx.report.node(anchor, {
+            message: `${MESSAGE} Group differences: ${groupDiff.join("; ")}. The mirror to repair is tests/support/browser/ct-config-groups.ts.`,
+            fix: FIX,
+          });
         }
       },
     };

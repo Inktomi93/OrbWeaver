@@ -27,7 +27,7 @@ test("the production loader dispatches ct-config-mirror-parity", async ({ repoRo
   expect(corpus.gates.some((policy) => policy.id === gate.id)).toBe(true);
 });
 
-test("the checked-in production and CT config compositions have equal multisets", { timeout: 20_000 }, ({ repoRoot }) => {
+test("the checked-in production and CT config compositions have equal multisets", { timeout: scaledBudget(20_000) }, ({ repoRoot }) => {
   const result = runPolicyPass({
     knownPolicies: [gate],
     policies: [gate],
