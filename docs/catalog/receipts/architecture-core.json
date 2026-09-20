@@ -176,12 +176,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "56e15f706f72e4fc103ceed572d8d6f700a708402c6cfba2afeb15150f5e88a4",
+      "assignedSha256": "9686ffe3a9a3ddc392831d80f7f89f40097dac4a3a9cc26ead2bf090c71ec202",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "56e15f706f72e4fc103ceed572d8d6f700a708402c6cfba2afeb15150f5e88a4",
-      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedSha256": "9686ffe3a9a3ddc392831d80f7f89f40097dac4a3a9cc26ead2bf090c71ec202",
+      "verifiedCommit": "e7fbeaac91a04954d0fe69c43f738035ed4a9320",
       "verifiedAt": "2026-09-20",
       "evidence": [
         "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
@@ -350,7 +350,7 @@
         }
       ],
       "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-      "verifiedCanonicalSha256": "56e15f706f72e4fc103ceed572d8d6f700a708402c6cfba2afeb15150f5e88a4"
+      "verifiedCanonicalSha256": "9686ffe3a9a3ddc392831d80f7f89f40097dac4a3a9cc26ead2bf090c71ec202"
     },
     {
       "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
@@ -1029,13 +1029,13 @@
     },
     {
       "path": "docs/architecture/core/Tier-3b-Providers.md",
-      "assignedSha256": "8df663fc88e6fb3c5aa9804f19bd277bfa5554d110d0067c7abc503d7d08f05e",
+      "assignedSha256": "daa849bce09beeaa28f5ebe9702c71587631f9e0ce63f87d8604225d759d94c9",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "8df663fc88e6fb3c5aa9804f19bd277bfa5554d110d0067c7abc503d7d08f05e",
-      "verifiedCommit": "73c2fe6d1f8d90238877a73fb0e6299d14fb1a7d",
-      "verifiedAt": "2026-09-05",
+      "verifiedSha256": "daa849bce09beeaa28f5ebe9702c71587631f9e0ce63f87d8604225d759d94c9",
+      "verifiedCommit": "e7fbeaac91a04954d0fe69c43f738035ed4a9320",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "re-attested after the agent-sdk frames fold (#1605 8946078de real tool_use/tool_result seed blocks; #1607 f8a754555 continue turn = frames + host stub) at 73c2fe6d1",
         "docs/architecture/core/Tier-3b-Providers.md:1 (full read; header/status evaluated)",
@@ -1054,7 +1054,8 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed.",
+      "verifiedCanonicalSha256": "daa849bce09beeaa28f5ebe9702c71587631f9e0ce63f87d8604225d759d94c9"
     },
     {
       "path": "docs/architecture/core/Tier-4-Transport.md",

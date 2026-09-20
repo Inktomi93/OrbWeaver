@@ -7289,12 +7289,12 @@
     },
     {
       "path": "docs/reviews/stickler/2026-09-19-inference-ai-sdk-integration-audit.md",
-      "assignedSha256": "7553d73fb189f9f0748ae5168acb7ad45735da78182d4b8399873e96b95abeae",
+      "assignedSha256": "4fde270d3283c313ae7675ef6d30ad94e0ac339b469a812a39d062e3824bedf4",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "7553d73fb189f9f0748ae5168acb7ad45735da78182d4b8399873e96b95abeae",
-      "verifiedCommit": "1e83e682f1c31b3c98231e7aed02ce096e0196ec",
+      "verifiedSha256": "4fde270d3283c313ae7675ef6d30ad94e0ac339b469a812a39d062e3824bedf4",
+      "verifiedCommit": "e7fbeaac91a04954d0fe69c43f738035ed4a9320",
       "verifiedAt": "2026-09-20",
       "evidence": [
         "docs/reviews/stickler/2026-09-19-inference-ai-sdk-integration-audit.md:1-195 full read 2026-09-20 by the orchestrator before cutting its three lanes",
@@ -7330,7 +7330,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "7553d73fb189f9f0748ae5168acb7ad45735da78182d4b8399873e96b95abeae"
+      "verifiedCanonicalSha256": "4fde270d3283c313ae7675ef6d30ad94e0ac339b469a812a39d062e3824bedf4"
     },
     {
       "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
