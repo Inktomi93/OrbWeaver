@@ -449,7 +449,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         credentials: trpc.credentials.list.queryKey(),
         chatList: trpc.chat.listChats.queryKey(),
         chatGet: trpc.chat.getChat.queryKey({ chatId: CHAT_ID }),
-        connection: trpc.connection.getCatalog.queryKey(),
+        connection: trpc.connection.providersAvailable.queryKey(),
         chatCapability: trpc.connection.resolveChatCapability.queryKey(),
         previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
         previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
@@ -515,7 +515,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       trpc.settings.getUserSettings.queryKey(),
       trpc.credentials.list.queryKey(),
       trpc.chat.listChats.queryKey(),
-      trpc.connection.getCatalog.queryKey(),
+      trpc.connection.providersAvailable.queryKey(),
       trpc.connection.resolveChatCapability.queryKey(),
       trpc.stats.overview.queryKey(),
       // The refinery root joined the heal set the moment `refineryChanged` joined the map — the set is

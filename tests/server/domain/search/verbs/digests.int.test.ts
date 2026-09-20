@@ -5,9 +5,9 @@
 // mode `mixC` rerank reorder, and the empty-candidates short-circuit.
 
 import type { MemoryQueryOptions } from "@orb/contracts/search";
-import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";
+import { ProviderError } from "@orb/inference";
+import type { CharacterId, ChatId, Handle , UserId} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { SCOPE_INSTRUCTIONS } from "../../../../../packages/server/src/domain/search/substrate/instructions.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -18,6 +18,7 @@ import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedUser, vec } fr
 function opts(chat: ChatId, scopedCharacterId: CharacterId, over: Partial<MemoryQueryOptions> = {}): MemoryQueryOptions {
   return {
     scope: { chat },
+    ownerId: castId<UserId>("user_owner"),
     queryText: "anything",
     scopedCharacterId,
     mode: "mixB",

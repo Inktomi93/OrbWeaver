@@ -1,11 +1,12 @@
 import type { BlockKey, MemoryQueryOptions, MemoryRetrievalMode } from "@orb/contracts/search";
 import { MEMORY_RETRIEVAL_MODES, memoryRetrievalModeSchema } from "@orb/contracts/search";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId , UserId} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Sample branded values built at the untyped seam (castId is the sanctioned cast) — no pasted secrets.
 const SAMPLE_CHAT_ID = castId<ChatId>("chat_sample");
+const SAMPLE_OWNER_ID = castId<UserId>("user_owner");
 const SAMPLE_CHARACTER_ID = castId<CharacterId>("character_sample");
 
 // The retrieval-mode axis is EXACTLY the neo `memoryDefaults.mode` members — a drift here would desync
@@ -68,6 +69,7 @@ test("MemoryQueryOptions pins first-class scope.chat + optional candidates:Block
   };
   const opts: MemoryQueryOptions = {
     scope: { chat: SAMPLE_CHAT_ID },
+    ownerId: SAMPLE_OWNER_ID,
     candidates: [candidate],
     mode: "mixC",
     keywordMatch: true,
@@ -86,6 +88,7 @@ test("MemoryQueryOptions pins first-class scope.chat + optional candidates:Block
   // `candidates` is optional — the full-pool scan omits it (the tiered bridge supplies it).
   const fullPool: MemoryQueryOptions = {
     scope: { chat: SAMPLE_CHAT_ID },
+    ownerId: SAMPLE_OWNER_ID,
     mode: "mixA",
     keywordMatch: false,
     minScore: 0,
@@ -100,6 +103,7 @@ test("MemoryQueryOptions pins first-class scope.chat + optional candidates:Block
 test("MemoryQueryOptions carries the egocentric queryText + scopedCharacterId (homed on the contract)", () => {
   const within: MemoryQueryOptions = {
     scope: { chat: SAMPLE_CHAT_ID },
+    ownerId: SAMPLE_OWNER_ID,
     queryText: "Alice: where did we hide the relic?",
     scopedCharacterId: SAMPLE_CHARACTER_ID,
     mode: "mixC",
@@ -114,6 +118,7 @@ test("MemoryQueryOptions carries the egocentric queryText + scopedCharacterId (h
   // Both are optional — an owner-wide / non-embedding scan omits them.
   const ownerWide: MemoryQueryOptions = {
     scope: { chat: SAMPLE_CHAT_ID },
+    ownerId: SAMPLE_OWNER_ID,
     mode: "tiered",
     keywordMatch: false,
     minScore: 0,

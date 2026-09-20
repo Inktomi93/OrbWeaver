@@ -6,7 +6,6 @@
 // credential is a sealed secret with a label: the probes/inspect/fetch-models ops LEFT this domain for the
 // connection router (inference program §5.3), so there is nothing left here to fake but the audit recorder.
 
-import type { CredentialHealth } from "../../../../packages/contracts/src/credentials/index.ts";
 import type { Principal, UserRole } from "../../../../packages/contracts/src/identity/index.ts";
 import { builtinProvider } from "../../../../packages/contracts/src/inference/index.ts";
 import type { Db } from "../../../../packages/db/src/client/index.ts";

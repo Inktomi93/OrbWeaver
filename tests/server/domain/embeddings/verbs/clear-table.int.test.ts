@@ -28,6 +28,7 @@ describe("clearTable", () => {
       content: "card",
       model: EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
     await svc.store({
       kind: "avatar",
@@ -36,6 +37,7 @@ describe("clearTable", () => {
       content: IMG,
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     });
 
     await svc.clearTable({ table: "character_embeddings" });

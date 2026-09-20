@@ -4,11 +4,11 @@
 import type { AssembleContext, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import { CONTENT_CLASS_POLICY, contentSpansToBlocks } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
-import type { Resolved } from "@orb/inference";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, pipelineStepKey, RECEIVE_POST_PROCESS_ORDER, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
+import type { Resolved } from "@orb/inference";
 import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
@@ -25,23 +25,18 @@ import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/
 // verb's previews must price the SAME converted rows this pipeline prices, so the conversion is no longer an
 // engine-private step. The behaviour under test is unchanged — the pipeline still runs it, in the same place.
 import { __spanToWirePartForTest } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
-import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { makeGenerationCapability, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { wireSchema } from "../../../../support/wire-ready.ts";
 
-const CAPABILITY: ModelCapability = makeGenerationCapability({
-  output: { maxTokens: { min: 1, max: 8192 } },
+const CAPABILITY: GenerationCapability = makeGenerationCapability({
+  output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
   context: { window: 200_000 },
+  modalities: ["text"],
 });
 
-const CONNECTION: ResolvedConnection = {
-  api: "chat-completions",
-  model: castId<ModelId>("test-model"),
-  credential: makeResolvedSecret(),
-  capability: CAPABILITY,
-};
+const CONNECTION: Resolved<"chat"> = makeResolved({ api: "chat-completions", model: castId<ModelId>("test-model"), capability: makeCapability(CAPABILITY) });
 
 // The fixture's ONE human — the turn's trigger AND the author of every user row below, which is what a real
 // send produces (`persistUserMessage` stamps `authorUserId: principal.userId` on every user row; the import
@@ -126,7 +121,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
     kind: "send",
     // D17: the engine-derived consent verdict the pipeline stamps onto the built TurnRequest (a self-triggered
     // owner turn here — inert for the vllm CONNECTION, but the field is non-optional on the args).
-    ownerConsented: true,
+
     chatId: castId<ChatId>("chat_a"),
     onDelta: (d: ChatDeltaEvent): void => {
       deltas.push(d);
@@ -347,10 +342,10 @@ describe("runTurnPipeline — request shaping + fit", () => {
     const { args } = baseArgs({
       connection: {
         ...CONNECTION,
-        capability: {
+        capability: makeCapability({
           ...CAPABILITY,
           turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "none", explicitPromptCache: false },
-        },
+        }),
       },
       assembleContext: ctxOf({
         promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" },
@@ -366,7 +361,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("D45: an embedded image ref → text+image parts, resolved via the injected op (vision model)", async () => {
     const vision = {
       ...CONNECTION,
-      capability: makeGenerationCapability({ ...CAPABILITY, input: { vision: true } }),
+      capability: makeCapability(makeGenerationCapability({ ...CAPABILITY, input: ["text", "image"] })),
     };
     const { args } = baseArgs({
       connection: vision,
@@ -423,7 +418,12 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("#317: a video-capable model receives a VIDEO part for a video attachment", async () => {
     const videoCapable = {
       ...CONNECTION,
-      capability: makeGenerationCapability({ input: { vision: true, video: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+      capability: makeGenerationCapability({
+        input: ["text", "image", "video"],
+        output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
+        context: { window: 200_000 },
+        modalities: ["text"],
+      }),
     };
     const { args } = baseArgs({
       connection: videoCapable,
@@ -442,7 +442,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("#317: a vision-only model (no input.video) DROPS the video part + flags videoDropped — never junk on the wire", async () => {
     const visionOnly = {
       ...CONNECTION,
-      capability: makeGenerationCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+      capability: makeCapability(makeGenerationCapability({ input: ["text", "image"], output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 200_000 } })),
     };
     const { args } = baseArgs({
       connection: visionOnly,
@@ -461,7 +461,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("#317: a video-only user row whose part drops keeps the honest `[video: alt]` placeholder", async () => {
     const visionOnly = {
       ...CONNECTION,
-      capability: makeGenerationCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+      capability: makeCapability(makeGenerationCapability({ input: ["text", "image"], output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 200_000 } })),
     };
     const { args } = baseArgs({
       connection: visionOnly,
@@ -493,7 +493,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
     });
     const { args } = baseArgs({
       canon: longCanon,
-      connection: { ...CONNECTION, capability: tiny },
+      connection: { ...CONNECTION, capability: makeCapability(tiny) },
     });
     const result = await runTurnPipeline(args);
     expect(result.droppedCount).toBeGreaterThan(0);
@@ -509,8 +509,8 @@ describe("runTurnPipeline — request shaping + fit", () => {
       id: castId<MessageId>(`message_parity_${i}`),
     });
     const canon = Array.from({ length: 11 }, (_, i) => idRowOf(i)); // 0..10, last (10) is a USER row
-    const mid = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 400 } });
-    const result = await runTurnPipeline(baseArgs({ canon, connection: { ...CONNECTION, capability: mid } }).args);
+    const mid = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 400 }, modalities: ["text"], modalities: ["text"] });
+    const result = await runTurnPipeline(baseArgs({ canon, connection: { ...CONNECTION, capability: makeCapability(mid) } }).args);
     expect(result.droppedCount).toBeGreaterThan(0);
     expect(result.droppedCount).toBeLessThan(11); // real rows survive → the boundary is a real id
     // The stamped boundary is the earliest KEPT id — canon index === droppedCount (drop the first N).
@@ -524,9 +524,9 @@ describe("runTurnPipeline — request shaping + fit", () => {
 // card ends its greeting with `![](https://files.catbox.moe/….png)` and that rode a vision turn as a real
 // image part), narrator/`/imagine` media, a pasted link — is DISPLAY-ONLY: it renders forever, and the wire
 // gets a short marker instead of both the image part AND the raw URL bytes.
-const VISION: ResolvedConnection = {
+const VISION: Resolved<"chat"> = {
   ...CONNECTION,
-  capability: makeGenerationCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+  capability: makeCapability(makeGenerationCapability({ input: ["text", "image"], output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 200_000 } })),
 };
 /** The real Azarael card's greeting image target (external, empty alt) — the bug's exact shape. */
 const CARD_IMAGE_URL = "https://files.catbox.moe/2dxdt9.png";
@@ -724,8 +724,8 @@ describe("runTurnPipeline — <speaker> markers convert to plain attribution in 
 // response length, NOT the window.
 describe("runTurnPipeline — token-budget reserve (single source of truth)", () => {
   // A vLLM-shaped descriptor: the output cap equals the window (the exact condition that caused amnesia).
-  const vllmShape = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 32_768 } }, context: { window: 32_768 } });
-  const vllmConnection: ResolvedConnection = { ...CONNECTION, capability: vllmShape };
+  const vllmShape = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 32_768 } }, context: { window: 32_768 }, modalities: ["text"], modalities: ["text"] });
+  const vllmConnection: Resolved<"chat"> = { ...CONNECTION, capability: makeCapability(vllmShape) };
 
   // A handful of short alternating turns — comfortably inside the window once the reserve is a response
   // length rather than the whole window.
@@ -776,9 +776,9 @@ describe("runTurnPipeline — token-budget reserve (single source of truth)", ()
   test("maxContextTokens lowers the fit ceiling below the window (the soft cap is settable)", async () => {
     // A wide window but a small user context cap → the fit trims to the cap. Uses a real chat with enough
     // rows that a ~200-token ceiling can't hold them all.
-    const wideConnection: ResolvedConnection = {
+    const wideConnection: Resolved<"chat"> = {
       ...CONNECTION,
-      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 1_000_000 } }),
+      capability: makeCapability(makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 1_000_000 } })),
     };
     const chat = Array.from({ length: 12 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} carrying several words to burn some tokens`));
     const uncapped = await runTurnPipeline(baseArgs({ intent: { maxOutputTokens: 100 } satisfies UserIntent, connection: wideConnection, canon: chat }).args);
@@ -925,8 +925,8 @@ describe("runTurnPipeline — history macro resolution", () => {
 // now-absent connection field → fall to the `strict` floor → always merge, failing case 1).
 describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE", () => {
   const twoAssistants = [userRow("u1"), assistantRow("First.", ARIA), assistantRow("Second.", KAI)];
-  const withFloor = (floor: "none" | "merge" | "strict"): ResolvedConnection => {
-    const capability: ModelCapability = {
+  const withFloor = (floor: "none" | "merge" | "strict"): Resolved<"chat"> => {
+    const capability: GenerationCapability = {
       ...CAPABILITY,
       turns: {
         assistantPrefill: false,
@@ -936,7 +936,7 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
         explicitPromptCache: false,
       },
     };
-    return { ...CONNECTION, capability };
+    return { ...CONNECTION, capability: makeCapability(capability) };
   };
   const presetWith = (roleHandling: "none" | "strict"): PromptConfig => ({
     ...DEFAULT_PROMPT_CONFIG,
@@ -1011,7 +1011,7 @@ describe("runTurnPipeline — squashSystemMessages is the PRESET knob, folded at
   });
 });
 
-describe("runTurnPipeline — PD-148: the preset params + customParameters fold into the wire request", () => {
+describe("runTurnPipeline — PD-148: the preset params fold into the wire request", () => {
   const presetParams = (params: UserIntent): PromptConfig => ({ ...DEFAULT_PROMPT_CONFIG, params });
 
   test("preset `params` are the BASE — a preset's sampling knobs reach the wire intent with no per-turn override", async () => {
@@ -1056,23 +1056,13 @@ describe("runTurnPipeline — PD-148: the preset params + customParameters fold 
     expect(result.request.intent.advanced?.squashSystemMessages).toBe(true); // preset sibling survives
   });
 
-  test("the preset's `customParameters` blob reaches the wire request", async () => {
-    const customParameters = { provider: { order: ["deepinfra"] }, mirostat: 2 };
-    const { args } = baseArgs({
-      assembleContext: ctxOf({ promptConfig: { ...DEFAULT_PROMPT_CONFIG, customParameters } }),
-    });
-    const result = await runTurnPipeline(args);
-    expect(result.request.customParameters).toEqual(customParameters);
-  });
-
-  test("a DEFAULT preset with an untouched `params` folds only the materialized maxOutputTokens (no customParameters)", async () => {
+  test("a DEFAULT preset with an untouched `params` folds only the materialized maxOutputTokens", async () => {
     const intent: UserIntent = { temperature: 0.8 };
     const result = await runTurnPipeline(baseArgs({ intent }).args);
     // DEFAULT_PROMPT_CONFIG.params is `{}` and carries no customParameters ⇒ the fold is a no-op EXCEPT the
     // single-source maxOutputTokens materialization (the caller's fields survive verbatim), and the request
     // carries no customParameters field.
     expect(result.request.intent).toEqual({ temperature: 0.8, maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS });
-    expect(result.request.customParameters).toBeUndefined();
   });
 });
 
@@ -1087,10 +1077,10 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
     const { args } = baseArgs({
       connection: {
         ...CONNECTION,
-        capability: {
+        capability: makeCapability({
           ...CAPABILITY,
           turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "none", explicitPromptCache: false },
-        },
+        }),
       },
       assembleContext: ctxOf({
         promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" },
@@ -1121,10 +1111,10 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
     const { args } = baseArgs({
       connection: {
         ...CONNECTION,
-        capability: {
+        capability: makeCapability({
           ...CAPABILITY,
           turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "none", explicitPromptCache: false },
-        },
+        }),
       },
       assembleContext: ctxOf({
         promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" },
@@ -1589,11 +1579,9 @@ describe("runTurnPipeline — RECEIVE <think> demux (D47 #3)", () => {
 // A REAL resolved descriptor for a tool-capable OpenRouter model (§U0 checkpoint: the loop's capability
 // gate keys on the real synthesis output, not a synthetic literal). The OR arm sets `tools.parallel:true`;
 // the loop gate reads only the PRESENCE of `capability.tools`, so the parallel flag is inert here.
-const TOOL_CAPABILITY: ModelCapability = resolveModelCapability("openai/gpt-5", "openrouter", "chat-completions", {
-  orEntry: { contextLength: 200_000, supportedParameters: ["tools"], inputModalities: ["text"] },
-});
+const TOOL_CAPABILITY: GenerationCapability = makeGenerationCapability({ ...CAPABILITY, tools: { parallel: true } });
 
-const TOOL_CONNECTION: ResolvedConnection = { ...CONNECTION, capability: TOOL_CAPABILITY };
+const TOOL_CONNECTION: Resolved<"chat"> = { ...CONNECTION, capability: makeCapability(TOOL_CAPABILITY) };
 
 /** A scripted role returning one chunk-set PER INVOCATION (depth k gets script[k]); captures requests. */
 function scriptedDepths(scripts: readonly (readonly TurnStreamChunk[])[], sink: TurnRequest[]): RunChatTurnOp {
@@ -1792,9 +1780,9 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
 
 // A structured-output payload the request-builder gate either keeps (when supported) or drops (when not).
 const RESPONSE_FORMAT = { name: "narrative", schema: wireSchema({ type: "object", properties: {}, additionalProperties: false }) } as const;
-const STRUCTURED_CONNECTION: ResolvedConnection = {
+const STRUCTURED_CONNECTION: Resolved<"chat"> = {
   ...CONNECTION,
-  capability: makeGenerationCapability({ ...CAPABILITY, output: { ...CAPABILITY.output, structured: true } }),
+  capability: makeCapability(makeGenerationCapability({ ...CAPABILITY, output: { ...CAPABILITY.output, structured: true } })),
 };
 
 describe("runTurnPipeline — the D79 structured-output gate (04 §7)", () => {
@@ -1834,7 +1822,7 @@ describe("runTurnPipeline — the D79 structured-output gate (04 §7)", () => {
 });
 
 describe("runTurnPipeline — the STATEFUL (agent-sdk) tool channel (MCP toolServer)", () => {
-  const agentConnection: ResolvedConnection = { ...TOOL_CONNECTION, api: "agent-sdk" };
+  const agentConnection: Resolved<"chat"> = { ...TOOL_CONNECTION, api: "agent-sdk" };
 
   test("tools mount as the MCP toolServer (no wire tools[]); records ride the onRecord side-channel", async () => {
     const requests: TurnRequest[] = [];
@@ -1909,9 +1897,9 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     const huge = ':::card title="c1"\n<div>'.concat("x".repeat(200_000), "</div>\n:::");
     const canon = [userRow(huge), rowOf("assistant", "the reply that matters"), userRow("and the follow-up"), rowOf("assistant", "the newest beat")];
     // A window that comfortably fits four short turns and could never fit 200KB of html.
-    const capability = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 8192 } });
+    const capability = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 8192 }, modalities: ["text"], modalities: ["text"] });
     const result = await runTurnPipeline(
-      baseArgs({ canon, ...stub0, connection: { ...CONNECTION, capability }, intent: { maxOutputTokens: 128 } satisfies UserIntent }).args,
+      baseArgs({ canon, ...stub0, connection: { ...CONNECTION, capability: makeCapability(capability) }, intent: { maxOutputTokens: 128 } satisfies UserIntent }).args,
     );
     // Nothing was evicted, and the card is on the wire as its stub — the two halves of the same claim.
     expect(result.droppedCount).toBe(0);
@@ -2244,7 +2232,7 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     // The REAL local-engine descriptor, not a synthetic literal: the vLLM arm declares `tools.silencesProse`
     // (measured — `content:null` on 36/36 tool-attached turns), so terminal tools must never reach this wire.
     // It IS tools-capable, which is exactly why the `capability.tools !== undefined` gate alone is not enough.
-    const local = resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions");
+    const local = makeGenerationCapability({ ...CAPABILITY, tools: { parallel: true, silencesProse: true } });
     expect(local.tools).toBeDefined();
     const { args } = baseArgs({
       connection: { ...CONNECTION, capability: local },

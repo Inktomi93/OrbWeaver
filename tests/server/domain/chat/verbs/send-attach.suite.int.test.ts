@@ -110,8 +110,8 @@ function harness(database: Db, names: Readonly<Record<string, string>>): Harness
   };
   const engine = createTurnEngine(ctx, {
     emit,
-    debitBudget: () => Promise.resolve(),
-    resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
     holder: "replica-1",
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),

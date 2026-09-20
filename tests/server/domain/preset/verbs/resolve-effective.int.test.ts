@@ -10,11 +10,11 @@
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, QUALITY_SAMPLING } from "@orb/contracts/preset";
+import { resolveChat } from "@orb/inference";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { EffectivePreset } from "@orb/server/domain/preset";
 import { createPresetService, PresetNotFoundError } from "@orb/server/domain/preset";
-import { resolveChat } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { makeGenerationCapability, makeResolvedView } from "../../../../support/factories/index.ts";
@@ -26,7 +26,7 @@ const PRESET_ID = castId<PresetId>("preset_effective");
 
 /** A model that honors the sampling knobs this suite drives (the shared fixture descriptor advertises an
  *  EMPTY sampling map — that is the capability-drops arm, exercised on its own below). */
-const SAMPLING_CAPABLE: Partial<ModelCapability> = {
+const SAMPLING_CAPABLE: Partial<GenerationCapability> = {
   sampling: {
     temperature: { min: 0, max: 1.2 },
     topP: { min: 0, max: 1 },
@@ -39,9 +39,9 @@ function configWith(params: UserIntent): PromptConfig {
 }
 
 /** Seed one owned preset carrying `params` and resolve it against `capability`. */
-async function resolveWith(params: UserIntent, capability: ModelCapability): Promise<EffectivePreset> {
+async function resolveWith(params: UserIntent, capability: GenerationCapability): Promise<EffectivePreset> {
   const db = await freshDb();
-  const svc = createPresetService(makeHarness(db, { capability: makeResolvedView({ capability }) }).ctx);
+  const svc = createPresetService(makeHarness(db, { capability: makeResolvedView({ capability: makeCapability(capability) }) }).ctx);
   const owner = await seedUser(db);
   await seedPreset(db, { id: PRESET_ID, ownerId: owner, config: configWith(params) });
   return await svc.resolveEffective({ principal: principal(owner), id: PRESET_ID });
@@ -142,7 +142,10 @@ describe("resolveEffective — a knob the model does not have is ABSENT, not cla
   });
 
   test("a model that CAN reason still reports the dial's effort, labelled as the dial's", async () => {
-    const effective = await resolveWith({ quality: "deep" }, makeGenerationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["high"] } }));
+    const effective = await resolveWith(
+      { quality: "deep" },
+      makeGenerationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["high"] } }),
+    );
     expect(effective.knobs.effort).toStrictEqual({ value: "high", provenance: "quality" });
   });
 });

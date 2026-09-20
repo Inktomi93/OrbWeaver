@@ -4,7 +4,6 @@ import {
   ASSEMBLE_POST_PROCESS_ORDER,
   buildPresetFile,
   CONFIG_LIFTS,
-  customParametersSchema,
   DEFAULT_FORMAT_STRINGS,
   DEFAULT_GUIDED_ACTIONS,
   DEFAULT_MARKER_TEMPLATES,
@@ -17,7 +16,6 @@ import {
   guidedActionsSchema,
   HOST_OWNED_CLAUDE_ENV_KEYS,
   importStChatCompletionPreset,
-  isVllmBeltOwnedParameterKey,
   MAX_INJECTION_TEMPLATE_LENGTH,
   NARRATOR_MAIN_PROMPT_TEMPLATE,
   PRESET_SCHEMA_KIND,
@@ -44,12 +42,12 @@ import {
   userIntentSchema,
   userMacroSchema,
   userMacroValuesSchema,
-  VLLM_BELT_OWNED_PARAMETER_KEYS,
 } from "@orb/contracts/preset";
 import { PRESET_PROSE_SLOT_IDS, PROSE_SLOTS } from "@orb/contracts/prose";
 // The cap is read from its ONE home (`@orb/kit/injection`), never re-spelled as a literal here.
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { expect, test } from "../../support/fixtures.ts";
+import { BELT_OWNED_BODY_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 
 // Sample values named so the test isn't littered with bare magic numbers (noMagicNumbers).
 const SAMPLE_TEMPERATURE = 0.7;
@@ -593,25 +591,13 @@ test("a guided action role rejects a value outside the MessageRole axis (D32)", 
 
 // ── Custom parameters (Layer-1 prototype-pollution guard) ───────────────────────────────────────────
 
-test("customParametersSchema strips __proto__ (Zod) and accepts a clean overlay", () => {
-  // `__proto__` as a JSON own-property is silently stripped by Zod core (absent from the output).
-  const parsed = customParametersSchema.parse(JSON.parse('{"transforms":["middle-out"],"__proto__":{"polluted":true}}'));
-  expect(parsed).toEqual({ transforms: ["middle-out"] });
-  expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
-});
-
-test("customParametersSchema rejects a `constructor` key (top level and nested)", () => {
-  expect(customParametersSchema.safeParse({ constructor: { evil: true } }).success).toBe(false);
-  expect(customParametersSchema.safeParse({ nested: { prototype: { evil: true } } }).success).toBe(false);
-});
-
-test("the vLLM belt denylist is EXACTLY the eight keys infra owns (D143a) — both readers ask this one list", () => {
+test("the belt denylist is EXACTLY the eight body keys the wire owns (D143a, re-homed beside EndpointFeatures — §8.1) — both readers ask this one list", () => {
   // The vllm surface drops these before the merge and the preset editor warns on them at authoring time; a
   // member added or removed here silently changes BOTH the wire and what the editor promises.
   // The last two joined with the 2026-08-19 assistant-prefill flip: the surface decides the continuation pair
   // from the capability + the assembled tail, and on the (common) no-prefill arm it emits NEITHER key — so
   // precedence has nothing to win the collision with and a preset value would ride unopposed.
-  expect([...VLLM_BELT_OWNED_PARAMETER_KEYS]).toEqual([
+  expect([...BELT_OWNED_BODY_KEYS]).toEqual([
     "truncate_prompt_tokens",
     "truncation_side",
     "stream",
@@ -621,9 +607,9 @@ test("the vLLM belt denylist is EXACTLY the eight keys infra owns (D143a) — bo
     "continue_final_message",
     "add_generation_prompt",
   ]);
-  expect(VLLM_BELT_OWNED_PARAMETER_KEYS.every((key) => isVllmBeltOwnedParameterKey(key))).toBe(true);
+  expect(BELT_OWNED_BODY_KEYS.every((key) => isBeltOwnedBodyKey(key))).toBe(true);
   // A sampler that RIDES the escape hatch is not belt-owned — the whole point of the list being narrow.
-  expect(isVllmBeltOwnedParameterKey("dry_multiplier")).toBe(false);
+  expect(isBeltOwnedBodyKey("dry_multiplier")).toBe(false);
 });
 
 // ── Serde: parsePresetFile (STRICT) vs parsePromptConfig (LENIENT) ───────────────────────────────

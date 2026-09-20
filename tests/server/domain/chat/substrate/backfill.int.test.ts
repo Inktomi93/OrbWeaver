@@ -49,6 +49,8 @@ async function seedRooms(host: UserId): Promise<{ soloChar: CharacterId; groupCh
   return { soloChar, groupChars: 2 };
 }
 
+const HOST_ID = castId<UserId>("user_host");
+
 describe("backfillMemory — the chat × scope enumeration", () => {
   test("segments visit every chat; digest buckets mirror the engine's scopes (group bucket only >1 character)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
@@ -59,7 +61,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
       mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
     });
 
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, enabledMemory);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, enabledMemory);
 
     // 3 chats swept for segments (solo + group + empty).
     expect(counts.segments).toEqual({ scanned: 3, changed: 0 });
@@ -86,14 +88,14 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, {
-      summarize: fakeSummarize().fn,
+      summarize: fakeSummarize().op,
       embeddingsStore: store.store,
       embeddingsStoreSegments: store.storeSegments,
       mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: "character_group" as CharacterId }),
     });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
 
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
 
     // The group chat (with its synthetic-char FK target present) builds its shared-bucket digests cleanly —
     // no FK throw, so the isolation catch never fires (#41: the row is a minted precondition, not a hope).
@@ -124,10 +126,10 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
+    const ctx = makeChatContext(db, { summarize: sum.op, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 });
 
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
 
     expect(counts.failed).toBe(0);
     // Each solo bucket builds the identical cascade the live per-turn path would — corpus REORDER ≠ different result.
@@ -163,7 +165,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const groupCharId = castId<CharacterId>("character_synthetic_group");
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, {
-      summarize: fakeSummarize().fn,
+      summarize: fakeSummarize().op,
       embeddingsStore: store.store,
       embeddingsStoreSegments: store.storeSegments,
       mintSyntheticGroupCharacter: async ({ ownerId }) => {
@@ -184,7 +186,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
 
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
 
     // No FK throw → no isolation skip: the group chat built cleanly.
     expect(counts.failed).toBe(0);
@@ -217,7 +219,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     });
 
     // The call RESOLVES (the poisoned chat's throw was isolated, not propagated) …
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, enabledMemory);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, enabledMemory);
 
     // … both chats were swept for segments; only the HEALTHY room's digest buckets enumerated (synthetic +
     // 2 seated = 3) — the poisoned room contributed zero digest scans but did NOT abort the healthy one.
@@ -235,7 +237,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const ac = new AbortController();
     ac.abort();
 
-    const counts = await backfillMemory(ctx, { signal: ac.signal }, enabledMemory);
+    const counts = await backfillMemory(ctx, { signal: ac.signal, funderUserId: HOST_ID }, enabledMemory);
     expect(counts).toEqual({
       segments: { scanned: 0, changed: 0 },
       segmentsSkippedOverWindow: 0,
@@ -270,7 +272,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: mint as never });
     const resolve: ResolveBackfillMemoryConfig = (hostUserId) => Promise.resolve(hostUserId === hostOff ? { mode: "off" } : {});
 
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, resolve);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, resolve);
 
     // The disabled host's room is skipped ENTIRELY — no segment scan, no scope enumeration, no synthetic mint.
     // Only the enabled room builds: 1 segment scan + its 3 digest buckets (synthetic group + 2 seated).
@@ -304,7 +306,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const resolve: ResolveBackfillMemoryConfig = (hostUserId) => (hostUserId === hostBad ? Promise.reject(new Error("settings boom")) : Promise.resolve({}));
 
     // Resolves (the resolver throw was isolated), and the healthy room still built its buckets.
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, resolve);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, resolve);
 
     expect(counts.segments.scanned).toBe(1);
     expect(counts.digests.scanned).toBe(3);
@@ -326,10 +328,10 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
+    const ctx = makeChatContext(db, { summarize: sum.op, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, maxTier: 1 });
 
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
 
     expect(counts.failed).toBe(0);
     expect(counts.segmentsSkippedOverWindow).toBe(0); // nothing was too big to chunk
@@ -357,10 +359,10 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
+    const ctx = makeChatContext(db, { summarize: sum.op, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, maxTier: 1 });
 
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
 
     expect(counts.segments.scanned).toBe(3);
     // 3 chats × 2 blocks = 6 chunks, submitted ONCE — a per-chat loop would read [2, 2, 2].
@@ -386,13 +388,13 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const store = fakeEmbeddingsStore(db);
     const spy = vi.spyOn(logger, "error");
     const ctx = makeChatContext(db, {
-      summarize: sum.fn,
+      summarize: sum.op,
       embeddingsStore: store.store,
       embeddingsStoreSegments: () => Promise.reject(new Error("engine down")),
     });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, maxTier: 1 });
 
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
 
     expect(counts.failed).toBe(1);
     expect(counts.segments.changed).toBe(0);
@@ -417,7 +419,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     });
     const spy = vi.spyOn(logger, "error");
 
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, enabledMemory);
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, enabledMemory);
 
     expect(counts.failed).toBe(1);
     const fields = spy.mock.calls.at(-1)?.[0] as Record<string, unknown>;
@@ -444,7 +446,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
       mintSyntheticGroupCharacter: mint as never,
     });
 
-    const counts = await backfillGroupCharacters(ctx, { signal: new AbortController().signal });
+    const counts = await backfillGroupCharacters(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID });
 
     expect(counts).toEqual({ scanned: 1, changed: 1 });
     expect(mint).toHaveBeenCalledTimes(1);
@@ -460,7 +462,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
       mintSyntheticGroupCharacter: mint as never,
     });
 
-    const counts = await backfillGroupCharacters(ctx, { signal: new AbortController().signal });
+    const counts = await backfillGroupCharacters(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID });
 
     expect(counts).toEqual({ scanned: 1, changed: 0 });
     expect(mint).not.toHaveBeenCalled();

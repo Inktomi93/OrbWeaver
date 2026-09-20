@@ -69,9 +69,8 @@ describe("engineBaseUrl — VLLM_ENGINE_HOST relocates the engine host (ports in
       process.env[k] = v;
     }
     vi.resetModules();
-    const fresh = await import("@orb/server/infra/providers/vllm/engine");
-    const freshEnv = await import("@orb/server/foundation/env");
-    return { engineBaseUrl: fresh.engineBaseUrl, env: freshEnv.env };
+    const fresh = await import("@orb/tooling/stack/lib/engine-fleet");
+    return { engineBaseUrl: fresh.engineBaseUrl, env: fresh.fleetEnv };
   }
   // biome-ignore-end lint/style/noProcessEnv: end of the block above
 

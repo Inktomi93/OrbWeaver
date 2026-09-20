@@ -9,7 +9,6 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -18,7 +17,7 @@ import type { ChatService } from "@orb/server/domain/chat";
 import type { PersonaService } from "@orb/server/domain/persona";
 import type { SettingsService } from "@orb/server/domain/settings";
 import { logger } from "@orb/server/foundation/observability";
-import { providerCredentialSecretValues, providerErrorFromHttp } from "@orb/server/infra/providers/backends/kit";
+import { providerErrorFromHttp } from "@orb/inference";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
 import type { Mock } from "vitest";
@@ -43,35 +42,35 @@ describe("authedProcedure", () => {
 describe("adminProcedure (LAYER-1, owner ∪ admin, no db round-trip)", () => {
   test("rejects a plain user with FORBIDDEN", async () => {
     const ctx = makeContext({ auth: principal("user") });
-    await expect(caller(ctx).admin.vllmEngines()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller(ctx).admin.listUsers()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   test("rejects an anonymous caller with UNAUTHORIZED (auth gate fires first)", async () => {
     const ctx = makeContext({ auth: null });
-    await expect(caller(ctx).admin.vllmEngines()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller(ctx).admin.listUsers()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   test("passes an owner through to the verb", async () => {
-    const vllmEngines = vi.fn<AdminService["vllmEngines"]>();
-    const ctx = makeContext({ auth: principal("owner"), services: { admin: { vllmEngines } } });
-    await caller(ctx).admin.vllmEngines();
-    expect(vllmEngines).toHaveBeenCalledTimes(1);
+    const listUsers = vi.fn<AdminService["listUsers"]>();
+    const ctx = makeContext({ auth: principal("owner"), services: { admin: {} } });
+    await caller(ctx).admin.listUsers();
+    expect(listUsers).toHaveBeenCalledTimes(1);
   });
 
   test("passes a delegated admin through to the verb", async () => {
-    const vllmEngines = vi.fn<AdminService["vllmEngines"]>();
-    const ctx = makeContext({ auth: principal("admin"), services: { admin: { vllmEngines } } });
-    await caller(ctx).admin.vllmEngines();
-    expect(vllmEngines).toHaveBeenCalledTimes(1);
+    const listUsers = vi.fn<AdminService["listUsers"]>();
+    const ctx = makeContext({ auth: principal("admin"), services: { admin: {} } });
+    await caller(ctx).admin.listUsers();
+    expect(listUsers).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("a representative router delegates to the injected service verb", () => {
-  test("admin.vllmEngines calls ctx.services.admin.vllmEngines with the Principal (PD-3)", async () => {
-    const vllmEngines = vi.fn<AdminService["vllmEngines"]>();
-    const ctx = makeContext({ auth: principal("admin"), services: { admin: { vllmEngines } } });
-    await caller(ctx).admin.vllmEngines();
-    expect(vllmEngines).toHaveBeenCalledWith({ principal: ctx.auth });
+  test("admin.listUsers calls ctx.services.admin.listUsers with the Principal (PD-3)", async () => {
+    const listUsers = vi.fn<AdminService["listUsers"]>();
+    const ctx = makeContext({ auth: principal("admin"), services: { admin: {} } });
+    await caller(ctx).admin.listUsers();
+    expect(listUsers).toHaveBeenCalledWith({ principal: ctx.auth });
   });
 });
 
@@ -383,14 +382,12 @@ describe("errorFormatter — `stack` never reaches the wire (PROD-LEAK belt)", (
 
   test("a provider-reflected credential is absent from the tRPC/UI wire shape and retained cause graph", () => {
     const secret = "sk-or-reflected-through-trpc-123456";
-    // ResolvedCredential is brand-sealed and so is the scrub set it mints (#1599) — a keyed boundary's set
-    // comes from the credential, never from a hand-built array, in a test exactly as in a runner.
-    // @orb-waive no-test-fabrication(unknown): server-can't-mint — only domain credentials/substrate/mint constructs a credential. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    const credential = { source: "openrouter", apiKey: secret, credentialId: null } as unknown as ResolvedCredential;
+    // The scrub set is the secret VALUE itself (#1599) — a keyed boundary's set comes from the resolved
+    // secret, never from a hand-built array, in a test exactly as in a runner.
     const providerError = providerErrorFromHttp(
       Object.assign(new Error(`upstream rejected ${secret}`), { statusCode: 401, body: `{"error":"${secret}"}` }),
       "openrouter chat",
-      providerCredentialSecretValues(credential),
+      [secret],
     );
     // The formatter only reads `error` for the optional domain reason; the actual client-visible provider
     // bytes are the `shape` produced by tRPC's getErrorShape immediately before this callback.

@@ -16,10 +16,10 @@ import process from "node:process";
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
+import { ProviderError } from "@orb/inference";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { recentTurnOutcomes } from "@orb/server/foundation/observability";
-import { ProviderError } from "@orb/server/infra/providers";
 import { afterAll, beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -93,8 +93,8 @@ function engineOver(database: Db, runChatTurn: ChatContext["runChatTurn"]): Retu
   const ctx = makeChatContext(database, { runChatTurn });
   return createTurnEngine(ctx, {
     emit: (_event: ChatBusEvent): Promise<void> => Promise.resolve(),
-    debitBudget: () => Promise.resolve(),
-    resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
     holder: "replica-1",
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),

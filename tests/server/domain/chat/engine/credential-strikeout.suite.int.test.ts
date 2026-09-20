@@ -19,13 +19,12 @@
 // the strike is a PASSENGER — it can never alter, mask or delay the failure the caller is about to see.
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
-import type { Resolved } from "@orb/inference";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
+import type { Resolved } from "@orb/inference";
+import { ProviderError } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, ModelId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { ProviderError } from "@orb/server/infra/providers";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -69,7 +68,7 @@ type StrikeCall = Parameters<ChatContext["maybeRevokeOnAuthFailed"]>[0];
 
 /** A BYO (`custom_openai`) connection whose credential carries a REAL row id, so "which id was struck" is an
  *  answerable question. `testConnection`'s shared double is keyless (`credentialId: null`) by design. */
-function byoConnection(api: ResolvedConnection["api"] = "chat-completions"): ResolvedConnection {
+function byoConnection(api: Resolved<"chat">["api"] = "chat-completions"): Resolved<"chat"> {
   return {
     ...testConnection("custom_openai", api),
     // @orb-waive no-test-fabrication(unknown): minimal ResolvedCredential double — the engine reads only `.source`/`.credentialId`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
@@ -78,7 +77,7 @@ function byoConnection(api: ResolvedConnection["api"] = "chat-completions"): Res
 }
 
 /** The keyless twin (vllm/local-light/max-pro-sub): no row exists to revoke, so the id is structurally null. */
-function keylessConnection(): ResolvedConnection {
+function keylessConnection(): Resolved<"chat"> {
   return { ...testConnection("vllm"), model: castId<ModelId>("test-model") };
 }
 
@@ -160,8 +159,8 @@ function engineOver(
   });
   return createTurnEngine(ctx, {
     emit: (_event: ChatBusEvent): Promise<void> => Promise.resolve(),
-    debitBudget: () => Promise.resolve(),
-    resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
     holder: "replica-1",
     lockTtlMs: 60_000,
     generateSegments: async () => ({ written: 0, skipped: 0 }),
@@ -342,7 +341,7 @@ describe("the main turn's fault path strikes out the credential it ran under", (
       succeedingTurn,
       stubRunCompaction,
       { recallMemory, loadWitnessHorizons: () => Promise.resolve([{ joinSeq: 1, leftSeq: null }]) },
-      { searchDigests: (query) => digests(query).then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))) },
+      { searchDigests: (query) => digests(query).then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))), ownerId: owner, ownerId: owner },
     );
 
     const prep = scopedRecallPrep();

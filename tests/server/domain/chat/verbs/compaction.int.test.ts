@@ -43,7 +43,7 @@ function principal(userId: UserId): Principal {
 
 const CONNECTION = testConnection("vllm", "agent-sdk");
 const OWNER = castId<UserId>("user_host");
-const resolveConnection = (): Promise<ResolvedConnection> => Promise.resolve(CONNECTION);
+const resolveConnection = (): Promise<Resolved<"chat">> => Promise.resolve(CONNECTION);
 
 /** A deterministic quiet-generation stub that records its params + returns a fixed marker text (or empty). */
 function quietStub(text: string): QuietGenerate {

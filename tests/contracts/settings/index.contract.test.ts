@@ -5,8 +5,6 @@ import {
   APP_SETTINGS_SCHEMA_VERSION,
   appSettingsConfig,
   appSettingsSchema,
-  DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
-  DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
   DEFAULT_BLUR_SURFACES,
   DEFAULT_MAX_IMAGE_BYTES,
   DEFAULT_USER_SETTINGS,
@@ -33,27 +31,9 @@ const SCHEMA_VERSION_V5 = 5;
 const SCHEMA_VERSION_V6 = 6;
 const SCHEMA_VERSION_V7 = 7;
 const SCHEMA_VERSION_V8 = 8;
-const LOCAL_COMPUTE_BUDGET = 50;
 const SAMPLE_SCAN_DEPTH = 12;
 
 // ── D17 owner-box governance toggles (the headline deviation: exist + the right floor defaults) ──
-
-test("D17 toggles exist on AppSettings with the right floor defaults (local ON, max-pro-sub OFF)", () => {
-  expect(DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE).toBe(true);
-  expect(DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB).toBe(false);
-});
-
-test("D17 toggle fields parse (incl. the per-member local-compute COUNT budget)", () => {
-  const override: AppSettings = {
-    allowNonOwnerLocalCompute: false,
-    allowNonOwnerMaxProSub: true,
-    nonOwnerLocalComputeBudget: LOCAL_COMPUTE_BUDGET,
-  };
-  const parsed = parseAppSettings(override);
-  expect(parsed.allowNonOwnerLocalCompute).toBe(false);
-  expect(parsed.allowNonOwnerMaxProSub).toBe(true);
-  expect(parsed.nonOwnerLocalComputeBudget).toBe(LOCAL_COMPUTE_BUDGET);
-});
 
 // ── The `null` = CLEAR sentinel: every AppSettings field admits null ──
 
@@ -67,10 +47,7 @@ test("appSettingsSchema admits null per field (the CLEAR sentinel)", () => {
     memoryDefaults: null,
     memorySummarizer: null,
     rateLimits: null,
-    vllmConcurrency: null,
-    allowNonOwnerLocalCompute: null,
-    nonOwnerLocalComputeBudget: null,
-    allowNonOwnerMaxProSub: null,
+    privateEndpointAllowlist: null,
     maxImageBytes: null,
   };
   expect(appSettingsSchema.parse(cleared)).toEqual(cleared);
@@ -189,8 +166,6 @@ test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVER
   // …as does every sibling SECTION (the carry-forward receipt the #461 class demands).
   expect(parsed.memorySummarizer).toEqual({ maxTokens: 2048, temperature: 0.7 });
   expect(parsed.rateLimits).toEqual({ aiTurn: 60, login: 10 });
-  expect(parsed.engineLaunch).toEqual({ genModel: "qwen3-vl", genPresencePenalty: 1.2 });
-  expect(parsed.vllmConcurrency).toEqual({ embed: 32 });
   expect(parsed.agentSdkConcurrency).toEqual({ summarize: 4 });
   expect(parsed.logLevel).toBe("debug");
   expect(parsed.corpusAutoindex).toBe(true);
@@ -734,7 +709,4 @@ test("AppSettings v2→v3 lift is a no-op passthrough that stamps the version (e
   // section is purely additive, so nothing moves; the version stamp stops the lift chain re-running.
   const storedV2 = { vllmConcurrency: { embed: 8 } };
   const lifted = parseAppSettings({ ...storedV2, schemaVersion: SCHEMA_VERSION_V2 });
-  expect(lifted.vllmConcurrency).toEqual({ embed: 8 });
-  // An absent engineLaunch reads back undefined (the layer resolves it to the env floor downstream).
-  expect(lifted.engineLaunch).toBeUndefined();
 });

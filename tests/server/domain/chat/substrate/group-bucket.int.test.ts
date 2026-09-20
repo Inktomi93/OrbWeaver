@@ -50,7 +50,7 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
       // find-or-mint both return the REAL synthetic row (idempotent) — build mints, recall finds.
       mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: synthetic }),
       findSyntheticGroupCharacter: () => Promise.resolve({ characterId: synthetic }),
-      summarize: fakeSummarize().fn,
+      summarize: fakeSummarize().op,
       embeddingsStore: store.store,
       embeddingsStoreSegments: store.storeSegments,
     });
@@ -61,6 +61,7 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
     const built = await generateDigests(ctx, {
       scope: { chatId, scopedCharacterId: buildKey, isGroup: true },
       config: BUILD_CFG,
+      funderUserId: host,
     });
     expect(built.written).toBe(2); // two aged-out blocks digested — the FK did NOT throw
 

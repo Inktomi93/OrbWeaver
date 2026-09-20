@@ -42,7 +42,7 @@ import type {
 } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../../../../packages/server/src/domain/rpg/tools/apply.ts";
-import { makeGenerationCapability, makeResolvedConnection } from "../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 
 export { expect, test } from "../../../support/fixtures.ts";
@@ -176,7 +176,7 @@ export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnConte
   return {
     kind: "send",
     connection: makeResolved({
-      generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
+      generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, tools: { parallel: true } }),
     }),
     // Default: an empty transcript (the round still fires with an empty beat — the canned fakes ignore prompt
     // content). A §1.3 window-content test overrides `transcript` with real name-stamped rows.

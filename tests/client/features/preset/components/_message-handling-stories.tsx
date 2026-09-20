@@ -20,7 +20,7 @@ const STORY_PRESET = "preset_msghandlingaaa";
 
 /** The Claude shape: `refineCuratedTurns` floors every Claude arm at `strict` (the wire hard-errors on
  *  adjacent same-role rows), so the floor note is TRUE and must render. */
-const STRICT_CAPABILITY: ModelCapability = makeGenerationCapability({
+const STRICT_CAPABILITY: GenerationCapability = makeGenerationCapability({
   turns: {
     assistantPrefill: false,
     midConversationSystem: false,
@@ -32,7 +32,7 @@ const STRICT_CAPABILITY: ModelCapability = makeGenerationCapability({
 });
 
 /** The vLLM shape (`VLLM_TURNS`): no floor at all — the user's pick is the whole answer. */
-const FLOORLESS_CAPABILITY: ModelCapability = makeGenerationCapability({
+const FLOORLESS_CAPABILITY: GenerationCapability = makeGenerationCapability({
   turns: {
     assistantPrefill: false,
     midConversationSystem: true,
@@ -69,7 +69,7 @@ function Harness({
   capability,
   roleHandling,
 }: {
-  readonly capability: ModelCapability | undefined;
+  readonly capability: GenerationCapability | undefined;
   readonly roleHandling: RoleHandling | undefined;
 }): ReactElement {
   const serverValues: PromptConfig = {

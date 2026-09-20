@@ -15,8 +15,8 @@ import { PROVIDER_ADJUSTMENT_KINDS } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { emitCapabilityDropWarnings } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
-import type { ResolvedWarning, WarningCode } from "../../../../../packages/server/src/infra/providers/contract/resolve.ts";
-import { WARNING_CODES } from "../../../../../packages/server/src/infra/providers/contract/resolve.ts";
+import type { ResolvedWarning, WarningCode } from "@orb/inference";
+import { WARNING_CODES } from "@orb/inference";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_warnmap");

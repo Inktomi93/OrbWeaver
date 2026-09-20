@@ -18,6 +18,7 @@ import type {
 } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { MemoryScope } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { seedMessage } from "../_support.ts";
+import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 
 export const MODEL = "test-embed-1024";
 const DIM = 1024;
@@ -131,6 +132,8 @@ export async function seedSegment(
  *  old per-block loop, >1 once a pass batches). `optsSeen` captures the `AppSettings.memorySummarizer` wire. */
 export function fakeSummarize(): {
   fn: (inputs: { systemPrompt: string; userPrompt: string }[], opts?: SummarizeOptions) => Promise<SummarizeResult>;
+  /** The same fake as the funder-keyed `ChatContext.summarize` op (the funder is ignored — one scripted tape). */
+  op: SummarizeOp;
   calls: { systemPrompt: string; userPrompt: string }[];
   optsSeen: (SummarizeOptions | undefined)[];
   batchSizes: number[];
@@ -148,7 +151,8 @@ export function fakeSummarize(): {
     });
     return Promise.resolve({ items, model: MODEL });
   };
-  return { fn, calls, optsSeen, batchSizes };
+  const op: SummarizeOp = (_funderUserId, inputs, opts) => fn([...inputs], opts);
+  return { fn, op, calls, optsSeen, batchSizes };
 }
 
 /** Fakes for the TWO memory vector-write ops that RECORD every call AND actually insert the rows — so a build

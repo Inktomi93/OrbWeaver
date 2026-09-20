@@ -2,9 +2,10 @@
 // probes over a planted `fetch` — no module mocks, and nothing imports the launcher program. The behaviour
 // they hold is the one f9280b4bd added and the deleted `engines-port-health.test.ts` used to cover: an
 // occupied-but-UNPROVEN port is refused before the VRAM budget is read and before anything is spawned.
-import type { WakeBudgetVerdict } from "@orb/server/infra/providers/vllm/engine";
+
 import type { EngineLaunchModels, EngineLaunchProbes, PortHealth } from "@orb/tooling/stack";
 import { classifyEngineBoot, decideEngineLaunch, ENGINE_LAUNCH_IDENTITY_FAILURE, expectedAdoptionModels, probeEngineAdoption } from "@orb/tooling/stack";
+import type { WakeBudgetVerdict } from "@orb/tooling/stack/lib/engine-fleet";
 import { probePortHealth } from "../../../../tooling/src/stack/lib/port-health.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

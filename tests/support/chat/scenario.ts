@@ -22,7 +22,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createActiveTurns } from "../../../packages/server/src/domain/chat/active-turns.ts";
 import type { ActiveTurns } from "../../../packages/server/src/domain/chat/contract/active-turns.ts";

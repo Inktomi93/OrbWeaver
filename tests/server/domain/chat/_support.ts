@@ -5,6 +5,8 @@
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
 import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView } from "@orb/contracts/chat";
+import type { SummarizeResult } from "@orb/contracts/providers";
+import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Capability } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import type { ParticipantRole } from "@orb/contracts/identity";
@@ -28,7 +30,6 @@ import type {
   MessageId,
   MessageReactionId,
   MessageVariantId,
-  ModelId,
   PendingTurnId,
   PersonaId,
   UserId,
@@ -40,6 +41,7 @@ import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
 import type { ClaimChatOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
+import type { SummarizeOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { MemoryRecallResult } from "../../../../packages/server/src/domain/chat/contract/memory.ts";
 import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createChatTeachingContributions } from "../../../../packages/server/src/domain/chat/teaching-contribution.ts";
@@ -436,7 +438,6 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // PROSE-1 — no host override by default, so every assembled/side-gen prompt is the shipped default.
     resolveChatProse: () => Promise.resolve({}),
     resolveChat: notStubbed,
-    resolveCredential: notStubbed,
     maybeRevokeOnAuthFailed: notStubbed,
     getCard: () => Promise.resolve(null),
     // The host-handoff COPY ops (stickler 2026-08-03 §5). Defaults are the NO-OFFER shape — copy nothing, own
@@ -579,6 +580,12 @@ export const TEST_CAPABILITY: Capability = makeCapability();
  *  Byte-identical `connectionOf` in service/turn/engine.int (W1d hoist). */
 export function testConnection(providerId = TEST_PROVIDER_ID, api: Resolved["api"] = "chat-completions"): Resolved<"chat"> {
   return makeResolved({ providerId, api, capability: TEST_CAPABILITY });
+}
+
+/** Lift a `RoleClients["summarize"]`-shaped fake onto the funder-keyed `ChatContext.summarize` op (the funder
+ *  is ignored — a scripted tape answers every principal alike). */
+export function asSummarizeOp(fn: (inputs: readonly SummarizeInput[], opts?: SummarizeOptions) => Promise<SummarizeResult>): SummarizeOp {
+  return (_funderUserId, inputs, opts) => fn(inputs, opts);
 }
 
 /** A scripted role turn that captures each `TurnRequest` into `sink` then yields a fixed `"reply"` text delta +

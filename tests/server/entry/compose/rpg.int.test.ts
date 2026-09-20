@@ -21,8 +21,8 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
-import type { ChatApi, GenerationCapability } from "@orb/contracts/inference";
 import type { Principal } from "@orb/contracts/identity";
+import type { ChatApi, GenerationCapability } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
@@ -33,30 +33,25 @@ import type { StructuredOutputShape } from "@orb/contracts/settings";
 import { DEFAULT_STRUCTURED_OUTPUT_SHAPE } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, messages, messageVariants, presets } from "@orb/db";
+import type { ChatResult } from "@orb/inference";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
-import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/connection";
 import type { RpgTraceEvent, RpgTraceSink } from "@orb/server/domain/rpg";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { logger, recentWireCaptures, recordWireCapture, resetWireCaptures } from "@orb/server/foundation/observability";
-import type { ChatRequest, ChatResult } from "@orb/server/infra/providers";
-import { createVllmChat, toVllmChatRequest } from "@orb/server/infra/providers/vllm";
-import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
+import { logger } from "@orb/server/foundation/observability";
 import { and, eq, isNull } from "drizzle-orm";
 import { vi } from "vitest";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
-import { resolveModelCapability } from "../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { commitSnapshotForVariant, findSnapshotByVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { findTurnToolCallsByVariant } from "../../../../packages/server/src/domain/rpg/persistence/turn-tool-calls.ts";
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
-import { makeGenerationCapability, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { terminalSseLine } from "../../../support/provider-stream.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_compose_1");
@@ -71,9 +66,9 @@ function tc(api: ChatApi, over: Partial<RpgTurnContext> = {}): RpgTurnContext {
     connection: makeResolved({
       api,
       model: castId<ModelId>("fake-chat-model"),
-      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
+      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, tools: { parallel: true } }),
     }),
-    ownerConsented: true,
+
     // Default: an empty transcript (the round fires with an empty beat; the canned fakes ignore prompt
     // content). The §1.3 window/beat tests below pass a real name-stamped transcript.
     transcript: [],
@@ -308,12 +303,9 @@ function buildCannedRpg(app: ServicesResult, db: Db, api: ChatApi, spy: Extracti
  *  arm stays a plain reply builder (both vehicles' pins read these fields). */
 function recordChatTurn(spy: ExtractionSpy, req: Parameters<NonNullable<Parameters<typeof buildRpg>[0]["executor"]["runChatTurn"]>>[0]): void {
   spy.chatTurns.push({
-    model: req.model,
+    model: req.connection.model,
     hasResponseFormat: req.responseFormat !== undefined,
     hasToolServer: "toolServer" in req && req.toolServer !== undefined,
-    // The consent verdict the round threaded onto the request — F1: this is the character turn's ENFORCED
-    // `ownerConsented`, inherited, NOT a force-stamped `true`.
-    ownerConsented: req.ownerConsented === true,
   });
   spy.signals.push(req.signal);
   if (req.responseFormat !== undefined) {
@@ -379,18 +371,8 @@ function buildCannedRpgWithText(args: {
       // The READ-side `trackersReadOnly` pill resolves the ROOM connection via `resolveChat` (the F1 seam — the
       // per-chat-routing verb, not the host's global `resolveRole` default). The state ROUNDS re-resolve NOTHING;
       // they ride the `turnConnection` handed to `onTurnCompleted` below.
-      resolveChat: () =>
-        Promise.resolve(
-          makeResolved({
-            api,
-            model: castId<ModelId>("fake-chat-model"),
-            // Structured AND tools: the READ-side `trackersReadOnly` pill resolves this connection, and a
-            // `folded` game keys on `capability.tools` (the fold's vehicle) — a structured-only fake would make
-            // every folded test readonly and silently prove nothing.
-            capability: capability ?? makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
-          }),
-        ),
-      getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+
+
     },
     executor: {
       // The array/vLLM extraction arm now rides the `structured` role (owner ruling 2026-07-27 — split from
@@ -399,7 +381,7 @@ function buildCannedRpgWithText(args: {
         if (structuredThrows !== undefined) {
           return Promise.reject(structuredThrows);
         }
-        spy.summarizeModels.push(req.model);
+        spy.summarizeModels.push(req.connection.model);
         spy.schemas.push(req.responseFormat.schema);
         spy.strictFlags.push(req.responseFormat.strict);
         spy.vehicles.push(req.responseFormat.vehicle);
@@ -500,7 +482,7 @@ test("CHEAP turn (tool-round arm) — a wire that CAN carry tools rides them, ne
   // The chat arm fired carrying WIRE TOOLS and no responseFormat; the `structured` dispatcher was NOT touched.
   // (With the `reliable` mode deleted, the dispatcher is the host RESYNC's arm only — pinned further below.)
   expect(spy.summarizeModels).toEqual([]);
-  expect(spy.chatTurns).toEqual([{ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false, ownerConsented: true }]);
+  expect(spy.chatTurns).toEqual([{ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false }]);
   expect(spy.wireTools[0]?.map((t) => t.name)).toContain("update_scene");
 
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
@@ -572,96 +554,12 @@ test("CHEAP turn repairs a named existing item's omitted move with one inventory
   ]);
 });
 
-// ── WIRE-SINK: the state round's request is READABLE at /api/_debug/wire/captures?chatId= ────────────────
-// The observability LANDING pin (not a unit): the dedicated tool round is the ONE vehicle that puts the state
-// tools on a request of its OWN (the folded turn rides the character turn's, which is captured), and it used
-// to build that request WITHOUT a `chatId`. The sink fired — the capture just landed ANONYMOUS, so the debug
-// read's only correlation key (chatId) dropped it and a whole debugging campaign saw the character turns and
-// nothing of the round that actually wrote the state. Measured on the live spill before the fix:
-//   `chat-completions | vllm | NO-CHATID | tool_choice:required | [update_scene …]`.
-// So this drives the REAL vllm surface (real `buildBody` + the real `captureWire` sink → the real ring) and
-// asserts through `recentWireCaptures({ chatId })` — the exact function the HTTP route calls. A fake executor
-// cannot prove any of this; only the real surface + the real ring can.
-
-/** A {@link VllmEngineClient} that answers the tool round with a canned openai-compat SSE carrying ONE
- *  `update_scene` call — so the round folds for real and the capture is not a request into a void. */
-function toolRoundEngineClient(): VllmEngineClient {
-  const args = JSON.stringify({ location: "the obsidian tower", recentEvent: "arrived at the tower" });
-  const canned =
-    `data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"update_scene","arguments":${JSON.stringify(args)}}}]}}]}\n` +
-    `${terminalSseLine({ finishReason: "tool_calls", delta: {}, usage: { promptTokens: 3, completionTokens: 1 } })}\n` +
-    "data: [DONE]\n";
-  return {
-    enginePost: (): Promise<never> => Promise.reject(new Error("chat must stream")),
-    engineStream: (): Promise<ReadableStream<Uint8Array>> =>
-      Promise.resolve(
-        new ReadableStream<Uint8Array>({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode(canned));
-            controller.close();
-          },
-        }),
-      ),
-    baseUrl: () => "http://127.0.0.1:0",
-  };
-}
-
-/** The REAL vLLM chat arm behind the composition seam: the surface takes only the history-wire arm
- *  ({@link VllmChatRequest}), so a whole-union `runChatTurn` slot crosses `toVllmChatRequest` — exactly what
- *  `createVllmBackend` does. Wire capture is the real ring sink, as `createServices` wires it. */
-function vllmChatArm(): (req: ChatRequest) => Promise<ChatResult> {
-  const surface = createVllmChat({
-    client: toolRoundEngineClient(),
-    now: () => FROZEN_AT,
-    captureWire: (entry) => recordWireCapture({ ...entry, at: FROZEN_AT }),
-  });
-  return async (req) => await surface(toVllmChatRequest(req));
-}
 
 /** The tool NAMES on a captured openai-compat body (`tools[].function.name`). */
 function capturedToolNames(body: Record<string, unknown>): string[] {
   const tools = (body["tools"] as readonly { function?: { name?: string } }[] | undefined) ?? [];
   return tools.map((t) => t.function?.name ?? "");
 }
-
-test("WIRE-SINK: the dedicated tool round's request lands in the wire ring UNDER ITS chatId (the debug read's key)", async ({ app, db }) => {
-  const { chatId, hostId } = await seedHostGameChat(db, "wire-toolround");
-  resetWireCaptures();
-  const spy = emptySpy();
-  const rpgCompose = buildCannedRpgWithText({
-    app,
-    db,
-    api: "chat-completions",
-    spy,
-    cannedText: "{}",
-    // The REAL surface, wired with the REAL ring sink exactly as `createServices` wires it when capture is on
-    // — including `toVllmChatRequest`, the production api-narrowing seam `createVllmBackend` binds (the surface
-    // itself takes only the history-wire arm).
-    chatArm: vllmChatArm(),
-  });
-
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
-  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
-  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
-
-  // THE LANDING: the host read (`GET /api/_debug/wire/captures?chatId=…` calls exactly this) sees the round.
-  const captures = recentWireCaptures({ chatId });
-  expect(captures).toHaveLength(1);
-  // `.at(0)` (not `[0]`): biome's type service reads an index access on a `WireCapture[]` as non-nullish and
-  // then flags the honest `?? {}` fallback as unreachable, while tsc (noUncheckedIndexedAccess) requires it.
-  const capture = captures.at(0);
-  expect(capture?.backend).toBe("vllm");
-  expect(capture?.api).toBe("chat-completions");
-  // …and what it sees IS the tool round: the state tool set + the `required` forcing, on the real wire body.
-  const body = capture?.body ?? {};
-  expect(capturedToolNames(body)).toContain("update_scene");
-  expect(body["tool_choice"]).toBe("required");
-  // The round genuinely ran through the real surface (the fold landed) — the capture is not of a dead call.
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
-  expect(view.ambient?.location).toBe("the obsidian tower");
-  resetWireCaptures();
-});
 
 test("CHEAP turn (agent-sdk degrade) — a wire with no `tools[]` runs ONE structured CHAT call instead", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "cheap-agent");
@@ -676,7 +574,7 @@ test("CHEAP turn (agent-sdk degrade) — a wire with no `tools[]` runs ONE struc
   // The chat arm fired with a responseFormat + NO tool server (read-only structured emission, firewall intact);
   // the `structured` dispatcher did NOT (the branch, proven — the metered-sub firewall was never touched).
   expect(spy.summarizeModels).toEqual([]);
-  expect(spy.chatTurns).toEqual([{ model: "fake-chat-model", hasResponseFormat: true, hasToolServer: false, ownerConsented: true }]);
+  expect(spy.chatTurns).toEqual([{ model: "fake-chat-model", hasResponseFormat: true, hasToolServer: false }]);
 
   // IDENTICAL state lands via the chat arm (same canned delta, one fold path — the routing changed, not the result).
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
@@ -1002,35 +900,6 @@ test("#36 (vehicle knob): the rpg extraction rail asks for NO vehicle on either 
   expect(asked.filter((v) => v !== undefined && (STRUCTURED_OUTPUT_VEHICLES as readonly string[]).includes(v))).toEqual([]);
 });
 
-// ── F1: the state round rides the NARRATION turn's connection + consent verdict, never a re-resolve ──────
-test("F1 (consent inherited): a state round threads the turn's ownerConsented verdict, NOT a force-stamped true", async ({ app, db }) => {
-  // The blocker: the round used to hard-code `ownerConsented:true`, so a member-triggered turn on a metered sub
-  // could fire a billed round the belt never approved. Now the round inherits the NARRATION turn's enforced
-  // verdict. Drive a turn connection = max-pro-sub + ownerConsented:FALSE (the D17 by-proxy refusal shape) and
-  // assert the round threaded FALSE onto the executor request — the firewall then denies (fail-closed).
-  const { chatId, hostId } = await seedHostGameChat(db, "f1-consent");
-  const spy = emptySpy();
-  const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
-  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A member acts." });
-
-  const subNoConsent = tc("agent-sdk", {
-    connection: makeResolved({
-      api: "agent-sdk",
-      model: castId<ModelId>("fake-chat-model"),
-      credential: makeResolvedSecret(),
-      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
-    }),
-    ownerConsented: false,
-  });
-  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, subNoConsent);
-
-  // The round threaded the INHERITED (false) verdict — not a force-stamped true. (The fake executor records it;
-  // the REAL firewall would `deny` on max-pro-sub + ownerConsented!==true — pinned separately in firewall.test.)
-  expect(spy.chatTurns).toEqual([{ model: "fake-chat-model", hasResponseFormat: true, hasToolServer: false, ownerConsented: false }]);
-});
-
 test("F1 (room connection): the round runs on the TURN's connection (vllm), never a re-resolved global default", async ({ app, db }) => {
   // The wrong-connection half: the round used to `resolveRole({role:'chat'})` (the host's GLOBAL default), so a
   // room on vllm could run its round on the sub. Now the round rides `turnConnection.connection`. Prove it by
@@ -1047,8 +916,7 @@ test("F1 (room connection): the round runs on the TURN's connection (vllm), neve
     connection: makeResolved({
       api: "chat-completions",
       model: castId<ModelId>("threaded-vllm-model"), // NOT the pill's "fake-chat-model"
-      credential: makeResolvedSecret(),
-      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
+      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, tools: { parallel: true } }),
     }),
   });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, vllmTurn);
@@ -1072,7 +940,7 @@ test("F2 (readonly gate): a turn connection with no writer capability fires NO s
     connection: makeResolved({
       api: "chat-completions",
       model: castId<ModelId>("no-tools-model"),
-      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }), // tools ABSENT
+      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } }), // tools ABSENT
     }),
   });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyTurn);
@@ -1400,7 +1268,7 @@ test("F3: the host is resolved by ROLE, not join order (post-handoff: first-join
 // ── D112 (as amended): the FOLD GUARD is wired end-to-end off the resolved CAPABILITY, not a source branch ──
 /** Build an rpg whose ROOM connection resolves with `capability` — the wiring the `resolveStateDelivery` op
  *  reads BOTH delivery verdicts off. The state rounds are unreachable here (the gather is what's under test). */
-function buildRpgWithCapability(app: ServicesResult, db: Db, capability: ModelCapability): ReturnType<typeof buildRpg> {
+function buildRpgWithCapability(app: ServicesResult, db: Db, capability: GenerationCapability): ReturnType<typeof buildRpg> {
   return buildRpg({
     db,
     now: () => FROZEN_AT,
@@ -1408,8 +1276,7 @@ function buildRpgWithCapability(app: ServicesResult, db: Db, capability: ModelCa
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
-      resolveChat: () => Promise.resolve(makeResolved({ api: "chat-completions", model: castId<ModelId>("fake-chat-model"), capability })),
-      getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+
     },
     executor: {
       structured: () => Promise.reject(new Error("unreached — the gather makes no model call")),
@@ -1430,32 +1297,6 @@ function buildRpgWithCapability(app: ServicesResult, db: Db, capability: ModelCa
   });
 }
 
-test("D112 fold guard: a BORN-FOLDED game mounts terminal tools on a hosted wire and NONE on the local engine", async ({ app, db }) => {
-  // The REAL descriptors from the ONE capability factory — the guard must ride the connection domain's declared
-  // truth, never a `credential.source` sniff inside domain/rpg (which D112 bans outright).
-  const hosted = resolveModelCapability("claude-sonnet-5", "openrouter", "chat-completions");
-  const local = resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions");
-
-  const hostedChat = await seedHostGameChat(db, "guard-hosted");
-  const hostedRpg = buildRpgWithCapability(app, db, hosted);
-  await hostedRpg.service.createGame({ principal: hostPrincipal(hostedChat.hostId), chatId: hostedChat.chatId, mode: "lite" });
-  const hostedGather = await hostedRpg.chatOps.gatherTurnContext({ chatId: hostedChat.chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
-  // Unchanged: the hosted wire co-emits (6/6 measured), so the born-folded game still folds.
-  expect(hostedGather?.terminalTools?.length).toBeGreaterThan(0);
-  expect(hostedGather?.tools).toEqual([]);
-
-  const localChat = await seedHostGameChat(db, "guard-local");
-  const localRpg = buildRpgWithCapability(app, db, local);
-  await localRpg.service.createGame({ principal: hostPrincipal(localChat.hostId), chatId: localChat.chatId, mode: "lite" });
-  const localGather = await localRpg.chatOps.gatherTurnContext({ chatId: localChat.chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
-  // Guarded: tools would silence the prose on this wire, so the character turn carries none — the state falls
-  // to the flush's cheap post-commit round (the fallback arm, pinned in the flush suite).
-  expect(localGather?.terminalTools).toBeUndefined();
-  // The game is NOT downgraded to read-only — it keeps its write path and its reminder, exactly as before.
-  expect((await localRpg.service.getGame({ principal: hostPrincipal(localChat.hostId), chatId: localChat.chatId })).trackersReadOnly).toBe(false);
-  expect(localGather?.injections).toHaveLength(1);
-});
-
 // ── FIX 1: a game READ degrades to trackersReadOnly:true when the chat connection is unresolvable, never 500s ──
 /** Build an rpg over the REAL chat wiring + real db, but with a `resolveChat` that THROWS `err` — the
  *  misconfigured-backend repro (a stale routing setting whose (api,source) pair maps to no coherent backend).
@@ -1469,8 +1310,7 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
-      resolveChat: () => Promise.reject(err),
-      getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+
     },
     executor: {
       structured: () => Promise.reject(new Error("unreached — the round never fires on a readonly READ")),
@@ -1492,33 +1332,6 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
     structuredOutputShape: () => DEFAULT_STRUCTURED_OUTPUT_SHAPE,
   });
 }
-
-test("FIX 1: getGame on a game whose chat connection resolves INCOHERENTLY returns trackersReadOnly:true (READ succeeds, no 500)", async ({ app, db }) => {
-  // The exact live repro: a stale dev-stack setting resolves api=agent-sdk × source=vllm — `resolveChat` throws
-  // ConnectionRoutingError. The pill's honest-degrade contract ("an unresolvable connection is readonly by
-  // construction") must hold: the READ returns a readable game marked read-only, never a thrown 500.
-  const { chatId, hostId } = await seedHostGameChat(db, "fix1-incoherent");
-  const rpgCompose = buildRpgWithThrowingResolveChat(app, db, new ConnectionRoutingError("agent-sdk", "vllm"));
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-
-  const game = await rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId });
-  expect(game.trackersReadOnly).toBe(true);
-
-  // The tracker view READ likewise degrades (both reads share the pill) — no throw escapes.
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
-  expect(view.trackersReadOnly).toBe(true);
-});
-
-test("FIX 1: the agent-sdk model-heal failure class ALSO degrades to trackersReadOnly:true (unresolvable by construction)", async ({ app, db }) => {
-  // The sibling connection-resolution failure: an agent-sdk source that reaches the fail-loud model heal.
-  // Same contract — an unresolvable connection is readonly, not a 500.
-  const { chatId, hostId } = await seedHostGameChat(db, "fix1-heal");
-  const rpgCompose = buildRpgWithThrowingResolveChat(app, db, new AgentModelHealError("vllm"));
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-
-  const game = await rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId });
-  expect(game.trackersReadOnly).toBe(true);
-});
 
 test("FIX 1: an UNEXPECTED resolveChat failure still PROPAGATES — the catch never swallows a real bug", async ({ app, db }) => {
   // The boundary the verifier checks: the catch is SPECIFIC to the connection-resolution error classes. A
@@ -1605,7 +1418,7 @@ test("R-OBS composed-real: a folded turn records its mount, its calls, its flush
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "She fords the river." });
 
   // The MOUNT half runs at GATHER — the same entry point the engine drives to attach the terminal tools.
-  await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+  await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: hostId });
   await rpgCompose.chatOps.onTurnCompleted(
     chatId,
     messageId,
@@ -2222,11 +2035,11 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
 
   // The host's opt-out (cheap) mounts NONE — the two-call arm never touches the character turn's wire.
   await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
-  const built = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+  const built = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: hostId });
   expect(built?.terminalTools).toBeUndefined();
 
   await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
-  const folded = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+  const folded = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: hostId });
   // The SAME tools the dedicated round sends, in the same order, incl. the `no_changes` escape. R6: this game
   // defines NO game-subject tracker, so `set_tracker` is OMITTED ENTIRELY (a disabled feature's tool is absent,
   // never an empty husk) — the rest of the round's set is byte-identical.
@@ -2285,7 +2098,12 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
       ],
     },
   });
-  const withTrackers = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+  const withTrackers = await rpgCompose.chatOps.gatherTurnContext({
+    chatId,
+    pendingUserText: undefined,
+    respondsToLatestUserTurn: false,
+    funderUserId: hostId,
+  });
   const setTracker = withTrackers?.terminalTools?.find((t) => t.name === "set_tracker");
   expect((setTracker?.parameters as { properties?: { key?: { enum?: string[] } } }).properties?.key?.enum).toEqual(["alarm"]);
   const partyTool = withTrackers?.terminalTools?.find((t) => t.name === "update_party");
@@ -2318,7 +2136,7 @@ test("PROMPT-CACHE (probe F4): a gained actor + condition leave the FOLDED tools
     TURN,
     foldedTurn([{ name: "update_scene", args: { location: "the rafters", timeOfDay: "night", presentUpsert: [{ name: "Kael" }], recentEvent: "they wait" } }]),
   );
-  const before = await foldCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+  const before = await foldCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: hostId });
 
   // One beat of real play: an NPC walks on stage and someone takes a condition. This is EXACTLY the churn that
   // was re-billing the prefix — `actorRefs` gains Mira and `conditionNames` gains Bleeding.
@@ -2338,7 +2156,7 @@ test("PROMPT-CACHE (probe F4): a gained actor + condition leave the FOLDED tools
   const view = await foldCompose.service.getTrackerView({ principal, chatId });
   expect(view.actors.filter((a) => a.presence).map((a) => a.name)).toContain("Mira");
 
-  const after = await foldCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+  const after = await foldCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: hostId });
   // The enumeration the enums used to carry is STILL delivered — in the depth-0 state block, BELOW the cache
   // breakpoint, where it costs nothing to change. That placement is what makes the schema drop honest.
   const stateBlock = after?.injections[0]?.content ?? "";
@@ -2618,7 +2436,7 @@ test("RESYNC-OR: a provider refusal reaches the HOST as a reason — never a sil
 test("RESYNC-OR: the STRUCTURED degrade still runs (and still reports its refusal) on a tools-less wire", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "resync-structured-degrade");
   const principal = hostPrincipal(hostId);
-  const structuredOnly = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } });
+  const structuredOnly = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } });
   const compose = buildCannedRpgWithText({
     app,
     db,
@@ -2647,7 +2465,7 @@ test("RESYNC: a connection with no write path at all refuses legibly and calls n
     api: "chat-completions",
     spy,
     cannedText: "{}",
-    capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 } } }),
+    capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] } }),
   });
   await compose.service.createGame({ principal, chatId, mode: "lite" });
 
@@ -2681,7 +2499,7 @@ test("RESYNC: the catch-up round sends the per-plane TOOLS (not a monolithic sch
 
   // ONE chat turn, carrying wire tools and NO responseFormat — the monolithic structured payload is gone from
   // this path (that payload is what 400'd on the default hosted model).
-  expect(spy.chatTurns).toEqual([{ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false, ownerConsented: true }]);
+  expect(spy.chatTurns).toEqual([{ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false }]);
   expect(spy.schemas).toEqual([]);
   const roundTools = spy.wireTools.at(0) ?? [];
   expect(roundTools.map((t) => t.name)).toEqual(
@@ -2784,14 +2602,22 @@ test("VER-1b: a REGEN's reminder + delta read the state BEFORE the slot, never t
   const slotC = await driveBeat({ compose, db, chatId, seq: 3, location: "the obsidian tower", beat: "confessed to Niko at the tower" });
 
   // The FRESH-turn arm is UNTOUCHED: the head is correct there — the next beat is written knowing beat 3 happened.
-  const fresh = reminderText(await compose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }));
+  const fresh = reminderText(
+    await compose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: hostId }),
+  );
   expect(fresh).toContain("confessed to Niko at the tower");
   expect(fresh).toContain("the obsidian tower");
   expect(fresh).toContain("CHANGES SINCE LAST BEAT: location → the obsidian tower");
 
   // THE REGEN of slot C: the same gather, told which slot it is re-generating.
   const regen = reminderText(
-    await compose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, regenSlotMessageId: slotC.messageId }),
+    await compose.chatOps.gatherTurnContext({
+      chatId,
+      pendingUserText: undefined,
+      respondsToLatestUserTurn: false,
+      regenSlotMessageId: slotC.messageId,
+      funderUserId: hostId,
+    }),
   );
   // THE DEFECT: variant A's beat + the state it wrote are GONE from what the model is told (pre-fix both were
   // present — the model was handed the confession beat while being asked to write that same moment afresh).
@@ -2816,7 +2642,13 @@ test("VER-1b: the regen read is the SAME state the flush applies onto (read base
   // The reroll: a second variant on slot 2, selected, flushed with ITS OWN beat — the gather that generated it
   // read pre-slot state, and VER-1a's write base applied its writes onto that same pre-slot state.
   const regen = reminderText(
-    await compose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, regenSlotMessageId: slot.messageId }),
+    await compose.chatOps.gatherTurnContext({
+      chatId,
+      pendingUserText: undefined,
+      respondsToLatestUserTurn: false,
+      regenSlotMessageId: slot.messageId,
+      funderUserId: hostId,
+    }),
   );
   expect(regen).toContain("crossed the rope bridge");
   expect(regen).not.toContain("confessed to Niko at the tower");
@@ -2852,7 +2684,13 @@ test("VER-1b: the regen read is mode-INDEPENDENT — one gather, identical remin
     await compose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: mode });
     reminders.push(
       reminderText(
-        await compose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, regenSlotMessageId: slot.messageId }),
+        await compose.chatOps.gatherTurnContext({
+          chatId,
+          pendingUserText: undefined,
+          respondsToLatestUserTurn: false,
+          regenSlotMessageId: slot.messageId,
+          funderUserId: hostId,
+        }),
       ),
     );
   }
@@ -2948,26 +2786,19 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
       // Tools but NO structured output — the populate round's own capability gate must refuse it.
-      resolveChat: () =>
-        Promise.resolve(
-          makeResolved({
-            api: "chat-completions",
-            model: castId<ModelId>("fake-chat-model"),
-            capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 } }, tools: { parallel: true } }),
-          }),
-        ),
-      getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+
+
     },
     executor: {
       structured: (req): Promise<SummarizeResult> => {
-        spy.summarizeModels.push(req.model);
+        spy.summarizeModels.push(req.connection.model);
         return Promise.resolve({
           items: [{ text: "{}", usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
           model: "fake-chat-model",
         } satisfies SummarizeResult);
       },
       runChatTurn: (): Promise<ChatResult> => {
-        spy.chatTurns.push({ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false, ownerConsented: false });
+        spy.chatTurns.push({ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false });
         // @orb-waive no-test-fabrication(unknown): this arm must never fire on this test — a minimal double proves it by staying unused. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         return Promise.resolve({ reply: "" } as unknown as ChatResult);
       },

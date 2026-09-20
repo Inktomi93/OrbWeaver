@@ -161,7 +161,7 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
     extractText,
     extractorVersion,
     fetchUrl,
-    getActiveEmbedSpace: () => ({ model: EMBED_MODEL, dim: EMBED_DIM }),
+    getActiveEmbedSpace: () => Promise.resolve({ model: EMBED_MODEL, dim: EMBED_DIM }),
     getDatabankSettings: () => Promise.resolve(settings),
     enqueueIngest,
     enqueueReindex,

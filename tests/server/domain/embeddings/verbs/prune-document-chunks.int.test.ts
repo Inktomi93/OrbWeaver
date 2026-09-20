@@ -27,6 +27,7 @@ function storeChunks(svc: ReturnType<typeof createEmbeddingsService>, documentId
         model,
         dim: EMBED_DIM,
         fkRefs: { documentId, chunkIdx: i, charStart: i, charEnd: i + 1 },
+        ownerId: owner,
       }),
     ),
   );

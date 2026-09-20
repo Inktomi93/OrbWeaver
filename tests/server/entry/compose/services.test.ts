@@ -20,10 +20,7 @@ import { DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
 import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
-import { env } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
-import { DEFAULT_EMBED_MODEL } from "@orb/server/infra/providers";
-import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import type { SocketListener } from "@orb/server/transport/trpc";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
@@ -79,7 +76,6 @@ test("createServices builds the full graph: every Services key + the boot handle
     casDir: tmpdir(),
     variantDir: tmpdir(),
     sessionSecret: "test-session-secret-at-least-32-chars",
-    vllmDisabled: true,
   });
 
   for (const key of SERVICE_KEYS) {
@@ -95,12 +91,10 @@ test("createServices builds the full graph: every Services key + the boot handle
   expect(result.exportService).toBeDefined();
   expect(result.eventBus).toBeDefined();
   expect(result.workloadContributions).toBeDefined();
-  expect(result.roleClients).toBeDefined();
-  expect(result.bindRoleClients).toBeInstanceOf(Function);
+  expect(result.runtime).toBeDefined();
+  expect(result.roleClientsFor).toBeInstanceOf(Function);
   expect(result.effectiveConfig).toBeDefined();
   expect(result.secretBox).toBeDefined();
-  // vLLM disabled → no engine handle for the lifecycle to supervise.
-  expect(result.vllmEngine).toBeNull();
 });
 
 // W7a — THE ADMIN REVOKE → SOCKET EVICTION WIRE (staleness-and-session-freshness.md §4.4.3). The registry
@@ -120,7 +114,6 @@ test("W7a an admin revoke-all evicts that user's live sockets through the compos
     casDir: tmpdir(),
     variantDir: tmpdir(),
     sessionSecret: "test-session-secret-at-least-32-chars",
-    vllmDisabled: true,
   });
 
   const victim = castId<UserId>("u_victim");
@@ -147,148 +140,6 @@ test("W7a an admin revoke-all evicts that user's live sockets through the compos
   expect(stopped).toEqual(["victim"]);
 });
 
-test("the boot-global RoleClients bundle resolves the derive roles to the vLLM floor model", async () => {
-  const db = await freshDb();
-  const clock = createFrozenClock();
-  // vLLM AVAILABLE (vllmDisabled:false) so the derive-role fallback does NOT fire — empty settings →
-  // roleDefaults default to the local vLLM source, so embed resolves to the env embed model. (No engine
-  // call: binding only RESOLVES each role's model.)
-  const result = await createServices({
-    db,
-    now: clock.now,
-    ownerId: castId<UserId>("u_owner"),
-    secretBoxKey: null,
-    casDir: tmpdir(),
-    variantDir: tmpdir(),
-    sessionSecret: "test-session-secret-at-least-32-chars",
-    vllmDisabled: false,
-  });
-
-  expect(result.roleClients.embedModel).toBe(env.VLLM_EMBED_MODEL);
-  expect(result.roleClients.summarizerModel).toBe(env.VLLM_GEN_MODEL);
-});
-
-test("with vLLM unavailable (no GPU) the boot-global derive bundle falls back to local-light", async () => {
-  const db = await freshDb();
-  const clock = createFrozenClock();
-  // vllmDisabled:true ⇒ vllmAvailable=false ⇒ the derive roles (embed) reroute to local-light (empty model,
-  // self-defaulting to jina); summarize (generation) stays on the vLLM floor model — never local-light.
-  //
-  // THIS CASE USED TO ASSERT `embedModel === ""` (the raw rerouted model id), with the comment "local-light
-  // self-default". That was a defect wearing a pin: `embedModel` is the VECTOR-SPACE tag the `embeddings`
-  // domain stamps on every row and `purgeStaleVectors` compares, and the backend was writing
-  // "jinaai/jina-clip-v2" into those rows while this getter answered "" — so on a GPU-less box every stored
-  // vector sat in a space the box did not believe it was in. Fixed with #2417 (which also folds the
-  // encoder's dtype into the tag, because a re-quantised encoder is a different space); the getter now
-  // resolves the same builtin fallback the backend does.
-  const result = await createServices({
-    db,
-    now: clock.now,
-    ownerId: castId<UserId>("u_owner"),
-    secretBoxKey: null,
-    casDir: tmpdir(),
-    variantDir: tmpdir(),
-    sessionSecret: "test-session-secret-at-least-32-chars",
-    vllmDisabled: true,
-  });
-
-  // The ACTIVE SPACE, not the rerouted wire id: the builtin the backend self-defaults to, plus the dtype it
-  // is loaded at. It must equal what the backend stamps on the rows (pinned side by side in
-  // tests/server/infra/providers/backends/local-light/index.test.ts).
-  expect(result.roleClients.embedModel).toBe("jinaai/jina-clip-v2@q8");
-  expect(result.roleClients.summarizerModel).toBe(env.VLLM_GEN_MODEL);
-});
-
-// SELECTOR HOT-RELOAD (owner dogfood 2026-08-13). HONEST LABEL: this is a FENCE, not the defect proof — it
-// passes against the pre-fix source, because the hop it covers was never the broken one. The DEFECT proof is
-// `role-clients.test.ts`'s re-point suite (6 reds against HEAD), which pins that the `RoleClients` binder
-// re-resolves PER CALL instead of baking four boot-time closures.
-// What this fence is worth: the binder's proof runs on a double, and the chain settings-write → resolveRole →
-// wire is only closed if the hop UNDER the binder is genuinely live. That hop is a "is the settings read
-// cached?" question no double can answer — so it is asserted here, against the REAL settings service, the REAL
-// `loadUserSettings`, and the REAL resolver over a real row, in one process with no restart. If someone ever
-// puts a cache in front of `loadUserSettings`, this reds and the owner's symptom comes back without it.
-test("a REAL settings re-point changes what the REAL resolveRole answers — same process, no restart", async () => {
-  const db = await freshDb();
-  const clock = createFrozenClock();
-  const ownerId = await seedUser(db, { role: "owner" });
-  const result = await createServices({
-    db,
-    now: clock.now,
-    ownerId,
-    secretBoxKey: null,
-    casDir: tmpdir(),
-    variantDir: tmpdir(),
-    sessionSecret: "test-session-secret-at-least-32-chars",
-    vllmDisabled: false,
-  });
-  const owner = principal(ownerId, "owner");
-
-  // Boot: empty settings ⇒ the embed role sits on the local vLLM engine's configured model.
-  expect(result.roleClients.embedModel).toBe(env.VLLM_EMBED_MODEL);
-
-  // The owner moves the embed role in Settings › Connections. `local-light` is the one alternative that needs
-  // no stored credential, so this stays hermetic — the point is the SELECTION changing, not which target.
-  await result.services.settings.updateUserSettingsSection({
-    principal: owner,
-    input: { section: "routing", patch: { roleDefaults: { embed: { source: "local-light" } } } },
-  });
-
-  const after = await result.services.connection.resolveRole({ role: "embed", principal: owner });
-  expect(after.credential.source).toBe("local-light");
-  // The config-derived heal resolves local-light's own configured model, not the stale vLLM pin.
-  expect(after.model).toBe(DEFAULT_EMBED_MODEL);
-});
-
-test("the backend registry sources the resolved vLLM concurrency from AppSettings (PD-14)", async () => {
-  const db = await freshDb();
-  const clock = createFrozenClock();
-  // An admin AppSettings override the boot reload resolves into the effective-config the registry reads.
-  // embed:2 is distinct from the backend's DEFAULT_EMBED_CONCURRENCY (4): observing exactly 2 in-flight embed
-  // requests proves the RESOLVED override (not the deps default) reached the constructed vLLM backend.
-  await writeAppOverride(db, { vllmConcurrency: { embed: 2, summarize: 3 }, schemaVersion: 2 }, clock.now());
-
-  // A recording fake engine client: track the peak simultaneous in-flight embed requests. The setTimeout(0)
-  // yield lets every started worker increment before any resolves, so the peak == the worker count, which the
-  // embed surface caps at min(concurrency, chunks). With chunkSize 1 + 6 inputs the cap is the concurrency.
-  let active = 0;
-  let peak = 0;
-  const vllmClient: VllmEngineClient = {
-    enginePost: async <T>(_engine: unknown, _path: string, body: unknown): Promise<T> => {
-      active += 1;
-      peak = Math.max(peak, active);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      active -= 1;
-      const { input } = body as { input: string[] };
-      // @orb-waive no-test-fabrication(T): `enginePost<T>` is generic over the caller's expected response shape — no real factory can target an unbound T. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      return {
-        data: input.map((_text, i) => ({ index: i, embedding: [1, 2, 3, 4] })),
-        model: "fake",
-      } as T;
-    },
-    engineStream: () => Promise.reject(new Error("embed must not stream")),
-    baseUrl: () => "http://127.0.0.1:0",
-  };
-
-  const result = await createServices({
-    db,
-    now: clock.now,
-    ownerId: castId<UserId>("u_owner"),
-    secretBoxKey: null,
-    casDir: tmpdir(),
-    variantDir: tmpdir(),
-    sessionSecret: "test-session-secret-at-least-32-chars",
-    // vLLM enabled (so the backend is registered) with a fake loopback client + a unit chunk size.
-    vllmDisabled: false,
-    providerSeams: { vllmClient, vllmChunkSize: 1, vllmEmbedDim: 4 },
-  });
-
-  // embed routes to the vLLM floor (empty user settings); 6 inputs @ chunkSize 1 → 6 chunks. The peak
-  // in-flight is min(resolved embed concurrency = 2, 6) === 2 — the override, NOT the default 4.
-  await result.roleClients.embed(["a", "b", "c", "d", "e", "f"]);
-  expect(peak).toBe(2);
-});
-
 test("character.bulkAddCardTag attaches via the real tag wiring (PD-49) — not the inert throw", async () => {
   const db = await freshDb();
   const clock = createFrozenClock();
@@ -300,7 +151,6 @@ test("character.bulkAddCardTag attaches via the real tag wiring (PD-49) — not 
     casDir: tmpdir(),
     variantDir: tmpdir(),
     sessionSecret: "test-session-secret-at-least-32-chars",
-    vllmDisabled: true,
   });
 
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -339,7 +189,6 @@ function buildGraph(db: Db): ReturnType<typeof createServices> {
     casDir: tmpdir(),
     variantDir: tmpdir(),
     sessionSecret: "test-session-secret-at-least-32-chars",
-    vllmDisabled: true,
   });
 }
 
@@ -571,25 +420,6 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
 // persisted (ON) / never written (OFF). The tests/e2e default is OFF (vitest env CORPUS_AUTOINDEX=false); the
 // ON case flips it via a stored AppSettings override the boot reload resolves.
 
-/** A deterministic, offline fake vLLM engine client: every /v1/embeddings returns one full-dim vector per
- *  input so the embed → store chain completes without a GPU or a network. */
-function fakeEmbedClient(): VllmEngineClient {
-  return {
-    enginePost: <T>(_engine: unknown, _path: string, body: unknown): Promise<T> => {
-      const { input } = body as { input: string[] };
-      // @orb-waive no-test-fabrication(T): `enginePost<T>` is generic over the caller's expected response shape — no real factory can target an unbound T. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      return Promise.resolve({
-        data: input.map((_text, i) => ({
-          index: i,
-          embedding: Array.from({ length: env.VLLM_EMBED_DIM }, () => 0.01),
-        })),
-        model: "fake-embed",
-      } as T);
-    },
-    engineStream: () => Promise.reject(new Error("embed must not stream")),
-    baseUrl: () => "http://127.0.0.1:0",
-  };
-}
 
 function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
   return createServices({
@@ -601,8 +431,8 @@ function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
     variantDir: tmpdir(),
     sessionSecret: "test-session-secret-at-least-32-chars",
     // vLLM ENABLED with the fake client → embed routes to vLLM (vllmAvailable=true), not local-light.
-    vllmDisabled: false,
-    providerSeams: { vllmClient: fakeEmbedClient() },
+
+    providerSeams: {},
   });
 }
 
@@ -618,7 +448,6 @@ describe("notifications fan-out (PD-23) — record (durable) → publishNotifica
       casDir: tmpdir(),
       variantDir: tmpdir(),
       sessionSecret: "test-session-secret-at-least-32-chars",
-      vllmDisabled: true,
     });
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     const member = await seedUser(db, { handle: castId<Handle>("member") });
@@ -687,7 +516,6 @@ describe("persona.setActivePersona → chat bus (PD-120)", () => {
       casDir: tmpdir(),
       variantDir: tmpdir(),
       sessionSecret: "test-session-secret-at-least-32-chars",
-      vllmDisabled: true,
     });
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = mintTypeId(ID_PREFIX.chat);
@@ -757,7 +585,6 @@ describe("persona.remove seed re-point (owner invariant)", () => {
       casDir: tmpdir(),
       variantDir: tmpdir(),
       sessionSecret: "test-session-secret-at-least-32-chars",
-      vllmDisabled: true,
     });
   }
 

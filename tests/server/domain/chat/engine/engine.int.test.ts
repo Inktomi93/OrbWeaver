@@ -11,6 +11,7 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, chatLocks, chats, dailyStats, messages, messageVariants, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
+import type { ChatResult } from "@orb/inference";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -18,7 +19,6 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { getLog, initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
-import type { ChatRequest, ChatResult, OrSkinTierModels } from "@orb/server/infra/providers";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -32,8 +32,7 @@ import { createMemoryRecallWarningEpisode } from "../../../../../packages/server
 import type { WitnessInterval } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
-import { warningEvents, withCustomParametersDrop } from "../../../../../packages/server/src/infra/providers/backends/openrouter/runners/chat/shared.ts";
-import { resolveChat } from "../../../../../packages/server/src/infra/providers/resolve-chat.ts";
+import { resolveChat } from "@orb/inference";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
@@ -151,12 +150,8 @@ function harness(
       events.push(event);
       return over.emit?.(event) ?? Promise.resolve();
     },
-    debitBudget,
-    resolveTurnPolicy: (): Promise<{ budget: number | null; allowNonOwnerMaxProSub: boolean }> =>
-      Promise.resolve({
-        budget: over.budget ?? null,
-        allowNonOwnerMaxProSub: over.allowNonOwnerMaxProSub ?? false,
-      }),
+
+
     holder: "replica-1",
     lockTtlMs: over.lockTtlMs ?? 60_000,
     generateSegments: over.generateSegments ?? (async () => ({ written: 0, skipped: 0 })),
@@ -548,32 +543,6 @@ describe("createTurnEngine — happy path", () => {
     expect(history.map((m) => m.seq)).toEqual([1, 2]);
   });
 
-  test("D17: a self-triggered (owner) max-pro-sub turn threads ownerConsented:true onto the built TurnRequest", async () => {
-    // The owner speaking on their own box (triggeredBy === runAsUserId): the consent belt does not throw, and
-    // the engine derives ownerConsented:true and stamps it on the TurnRequest the infra firewall re-verifies —
-    // the field being false is exactly what refused every owner max-pro-sub turn before this belt was wired.
-    const chatId = await seedChat(db, "consent");
-    let captured: TurnRequest | null = null;
-    const capturing: ChatContext["runChatTurn"] = (req) => {
-      captured = req;
-      return OK_TURN(req);
-    };
-    const h = harness(db, { runChatTurn: capturing });
-
-    await h.engine.runTurn(
-      prepOf(chatId, {
-        connection: testConnection("max-pro-sub"),
-        triggeredBy: HOST,
-        runAsUserId: HOST,
-      }),
-    );
-
-    expect(captured).not.toBeNull();
-    // TS's control-flow narrowing can't see the closure mutation above (`captured = req`), so it narrows
-    // `captured` to `null` here regardless of the runtime value the assertion above proved non-null.
-    // @orb-waive no-test-fabrication(unknown): narrowing-limitation cast, not a fabricated shape — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    expect((captured as unknown as TurnRequest).ownerConsented).toBe(true);
-  });
 });
 
 describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta lands rollup rows)", () => {
@@ -597,8 +566,8 @@ describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta land
     });
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
-      debitBudget: vi.fn(() => Promise.resolve()),
-      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "replica-1",
       lockTtlMs: 60_000,
       generateSegments: async () => ({ written: 0, skipped: 0 }),
@@ -706,9 +675,8 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
         events.push(event);
         return Promise.resolve();
       },
-      debitBudget: vi.fn(() => Promise.resolve()),
-      resolveTurnPolicy: (): Promise<{ budget: number | null; allowNonOwnerMaxProSub: boolean }> =>
-        Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "replica-1",
       lockTtlMs: 60_000,
       generateSegments: async () => ({ written: 0, skipped: 0 }),
@@ -2033,45 +2001,14 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     rateLimit: null,
   } as const;
 
-  /** The bridge's leaf: applies the REAL OpenRouter drop belt to whatever `customParameters` the bridge mapped
-   *  onto the `ChatRequest`, exactly as `chat-completions.ts` / `responses.ts` fold it over their warnings.
-   *  (`customParameters` lives on the array-wire arms only — the agent-sdk arm carries none by charter.) */
-  function orLeaf(req: ChatRequest): Promise<ChatResult> {
-    const blob = req.api === "agent-sdk" ? undefined : req.customParameters;
-    return Promise.resolve({ ...orLeafResult, events: warningEvents(withCustomParametersDrop([], blob), FROZEN_AT) });
-  }
-
   /** A model that exposes NO sampling range — the production shape behind `sampling_knob_dropped`.
    *  FABRICATION-OK: `resolveChat` reads only these axes. */
-  const NoSamplingCapability: ModelCapability = {
+  const NoSamplingCapability: GenerationCapability = {
     reasoning: { mode: "none", enabled: false },
     sampling: {},
-    output: { maxTokens: { min: 1, max: 4096 } },
+    output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] },
     context: { window: 200_000 },
   };
-
-  function bridged(): ChatContext["runChatTurn"] {
-    return createRunChatTurnBridge({
-      runChatTurn: orLeaf,
-      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "or/opus", sonnet: "or/sonnet", haiku: "or/haiku" }),
-    });
-  }
-
-  test("a preset customParameters blob on an OpenRouter turn surfaces one custom_parameters_ignored warning", async () => {
-    const chatId = await seedChat(db, "cp-warn");
-    const h = harness(db, { runChatTurn: bridged() });
-
-    await h.engine.runTurn(
-      prepOf(chatId, {
-        assembleContext: { ...ASSEMBLE_CTX, promptConfig: { ...DEFAULT_PROMPT_CONFIG, customParameters: { topK: 40 } } },
-      }),
-    );
-
-    // `String(...)` deliberately: this assertion must COMPILE against the pre-fix source (where the chat
-    // warning vocabulary has no such member) so its RED is a real defect, not a build error.
-    const codes = h.events.filter((e) => e.type === "warning").map((e) => String(e.code));
-    expect(codes).toEqual(["custom_parameters_ignored"]);
-  });
 
   // THE RULING THIS ARM REPLACES (#1440, owner 2026-09-05). Until now this test asserted the OPPOSITE — that
   // `sampling_knob_dropped` must NEVER reach the bus, because `toChatWarningCode` mapped it (and nine
@@ -2087,7 +2024,6 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     const resolved = resolveChat({ temperature: 0.9 }, NoSamplingCapability);
     const knobDropped = createRunChatTurnBridge({
       runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...orLeafResult, events: warningEvents(resolved.warnings, FROZEN_AT) }),
-      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "or/opus", sonnet: "or/sonnet", haiku: "or/haiku" }),
     });
     const h = harness(db, { runChatTurn: knobDropped });
 
@@ -2102,14 +2038,6 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     expect(emitted).toContain('"knob":"temperature"');
   });
 
-  test("no customParameters blob raises nothing (the belt is conditional, never a per-turn toast)", async () => {
-    const chatId = await seedChat(db, "cp-quiet");
-    const h = harness(db, { runChatTurn: bridged() });
-
-    await h.engine.runTurn(prepOf(chatId));
-
-    expect(types(h.events)).not.toContain("warning");
-  });
 });
 
 // ── EMPTYGEN-REASONING: the prose-less RECOVERY pass (owner ruling 2026-08-07 — RECOVER, don't discard) ──
@@ -2127,7 +2055,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
    *  exactly `capability.tools` present + not `silencesProse`. */
   const toolConnection = (): ReturnType<typeof testConnection> => {
     const base = testConnection();
-    // @orb-waive no-test-fabrication(typeof base.capability): `ModelCapability.tools` is a wide resolved cell, the gate reads two fields, TEST_CAPABILITY is built the same way Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    // @orb-waive no-test-fabrication(typeof base.capability): `GenerationCapability.tools` is a wide resolved cell, the gate reads two fields, TEST_CAPABILITY is built the same way Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return { ...base, capability: { ...base.capability, tools: { silencesProse: false } } as typeof base.capability };
   };
 

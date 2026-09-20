@@ -3,8 +3,8 @@
 // `structured` tape, and a `resolved(task)` read that answers a fixed model per task. A caller with no
 // binding is modelled by `resolved` returning `null` for that task (the harness's `unbound` list).
 
-import type { EmbedResult, ImageEmbedInput, ImageEmbedResult, RerankDocument, RerankQuery, RerankResult, SummarizeInput, SummarizeResult } from "@orb/contracts/providers";
-import type { ResolvedTaskView, RoleClientTask, RoleClients, StructuredOptions, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
+import type { ImageEmbedInput, RerankDocument, RerankQuery, ResolvedTaskView, RoleClientTask, RoleClients, StructuredOptions, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { ProviderId } from "@orb/contracts/inference";
 import { EMBEDDING_FLOOR, RERANK_FLOOR } from "@orb/contracts/inference";
 import type { ModelId, UserConnectionId } from "@orb/kit/ids";
@@ -32,12 +32,12 @@ export interface FakeRoleClientControls {
 }
 
 /** A deterministic unit-ish vector for `text` at `dim` (the index seeds the direction so two inputs differ). */
-export function fakeVector(text: string, dim = FAKE_EMBED_DIM, salt = 0): number[] {
+export function fakeVector(text: string, dim = FAKE_EMBED_DIM, salt = 0): Float32Array<ArrayBuffer> {
   let seed = salt;
   for (let i = 0; i < text.length; i += 1) {
     seed = (seed * 31 + text.charCodeAt(i)) % 1_000_003;
   }
-  return Array.from({ length: dim }, (_, i) => ((seed + i * 7919) % 1000) / 1000 - 0.5);
+  return Float32Array.from({ length: dim }, (_, i) => ((seed + i * 7919) % 1000) / 1000 - 0.5);
 }
 
 function unboundError(task: RoleClientTask): Error {

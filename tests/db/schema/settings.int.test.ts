@@ -54,7 +54,6 @@ test("user_settings round-trips; the schema_version COLUMN defaults to current +
   // The column is threaded into the parser as `storedVersion` (the corruption guard).
   const parsed = parseUserSettings(row?.config, row?.schemaVersion);
   expect(parsed.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
-  expect(parsed.routing).toBeDefined();
 });
 
 // The owner-global `RegexScript[]` blob round-trip is GONE with its carrier (D121-E): the owner's script

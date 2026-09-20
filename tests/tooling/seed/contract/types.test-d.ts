@@ -11,7 +11,6 @@ test("every non-deterministic input is injected, never ambient", () => {
   expectTypeOf<RunFullSeedDeps["sessionSecret"]>().toEqualTypeOf<string>();
   expectTypeOf<RunFullSeedDeps["log"]>().toEqualTypeOf<(msg: string) => void>();
   // The GPU fact is an OPTIONAL override: absent ⇒ derive it the way boot does; present ⇒ the test pins it.
-  expectTypeOf<RunFullSeedDeps["vllmDisabled"]>().toEqualTypeOf<boolean | undefined>();
 });
 
 test("the result reports whether it AUGMENTED, so a sentinel skip is not silent", () => {

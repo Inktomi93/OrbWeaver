@@ -7,9 +7,10 @@ import type { ImageBreakdown } from "@orb/contracts/embeddings";
 import { beforeEach, describe } from "vitest";
 import { analyzeAvatarImage } from "../../../../../packages/server/src/domain/embeddings/indexer/caption.ts";
 import { __resetAvatarAnalysisAvailability } from "../../../../../packages/server/src/domain/embeddings/substrate/avatar-analysis-availability.ts";
-import { ProviderError } from "../../../../../packages/server/src/infra/providers/contract/errors.ts";
+import { ProviderError } from "@orb/inference";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeRoleClients, TEST_CAPTION } from "../_support.ts";
+import { FAKE_SUMMARIZE_MODEL } from "../../../../support/factories/role-clients.ts";
 
 const BYTES = new Uint8Array([1, 2, 3]);
 
@@ -44,31 +45,31 @@ describe("analyzeAvatarImage", () => {
     const roleClients = makeRoleClients();
     const result = await analyzeAvatarImage(roleClients, BYTES);
     expect(result.caption).toBe(TEST_CAPTION);
-    expect(result.captionMeta.model).toBe(roleClients.summarizerModel);
+    expect(result.captionMeta.model).toBe(FAKE_SUMMARIZE_MODEL);
     expect(result.captionMeta).toHaveProperty("artStyle");
   });
 
   test("a validated-but-blank caption skips (facetless, empty caption) — never a captioned-but-facetless row", async () => {
     const roleClients = makeRoleClients();
-    roleClients.summarize.mockResolvedValueOnce({
+    roleClients.structured.mockResolvedValueOnce({
       items: [{ text: JSON.stringify({ ...VALID_BREAKDOWN, caption: "   " }), usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
-      model: roleClients.summarizerModel,
+      model: FAKE_SUMMARIZE_MODEL,
     });
     const result = await analyzeAvatarImage(roleClients, BYTES);
-    expect(result).toEqual({ caption: "", captionMeta: { model: roleClients.summarizerModel } });
+    expect(result).toEqual({ caption: "", captionMeta: { model: FAKE_SUMMARIZE_MODEL } });
   });
 
   test("a structured-turn failure (schema validation fails twice) skips to the same facetless shape", async () => {
     const roleClients = makeRoleClients();
-    roleClients.summarize.mockRejectedValue(new Error("backend refused responseFormat"));
+    roleClients.structured.mockRejectedValue(new Error("backend refused responseFormat"));
     const result = await analyzeAvatarImage(roleClients, BYTES);
-    expect(result).toEqual({ caption: "", captionMeta: { model: roleClients.summarizerModel } });
+    expect(result).toEqual({ caption: "", captionMeta: { model: FAKE_SUMMARIZE_MODEL } });
   });
 
   test("resolves the analysis via the summarize role, passing the image bytes through", async () => {
     const roleClients = makeRoleClients();
     await analyzeAvatarImage(roleClients, BYTES);
-    const [call] = roleClients.summarize.mock.calls;
+    const [call] = roleClients.structured.mock.calls;
     expect(call?.[0][0]?.images).toEqual([BYTES]);
   });
 });
@@ -80,8 +81,8 @@ describe("analyzeAvatarImage", () => {
 describe("analyzeAvatarImage — the model-level verdicts are process-scoped", () => {
   test("a backend that does not serve the model is asked ONCE, and every later asset skips without a call", async () => {
     const roleClients = makeRoleClients();
-    roleClients.summarize.mockRejectedValue(
-      new ProviderError({ kind: "model_unavailable", retryable: false, message: "model not found", apiErrorStatus: 404, model: roleClients.summarizerModel }),
+    roleClients.structured.mockRejectedValue(
+      new ProviderError({ kind: "model_unavailable", retryable: false, message: "model not found", apiErrorStatus: 404, model: FAKE_SUMMARIZE_MODEL }),
     );
 
     const first = await analyzeAvatarImage(roleClients, BYTES);
@@ -90,7 +91,7 @@ describe("analyzeAvatarImage — the model-level verdicts are process-scoped", (
 
     expect(roleClients.summarize).toHaveBeenCalledTimes(1);
     for (const result of [first, second, third]) {
-      expect(result).toEqual({ caption: "", captionMeta: { model: roleClients.summarizerModel } });
+      expect(result).toEqual({ caption: "", captionMeta: { model: FAKE_SUMMARIZE_MODEL } });
     }
   });
 
@@ -98,7 +99,7 @@ describe("analyzeAvatarImage — the model-level verdicts are process-scoped", (
     const roleClients = makeRoleClients(false);
     const result = await analyzeAvatarImage(roleClients, BYTES);
     expect(roleClients.summarize).not.toHaveBeenCalled();
-    expect(result).toEqual({ caption: "", captionMeta: { model: roleClients.summarizerModel } });
+    expect(result).toEqual({ caption: "", captionMeta: { model: FAKE_SUMMARIZE_MODEL } });
   });
 
   test("a vision-capable model still runs the analysis for every asset — the latch is not a blanket off-switch", async () => {
@@ -112,7 +113,7 @@ describe("analyzeAvatarImage — the model-level verdicts are process-scoped", (
 
   test("an ORDINARY failure keeps the retry-next-sweep contract — it is about the image, not the model", async () => {
     const roleClients = makeRoleClients();
-    roleClients.summarize.mockRejectedValue(new Error("backend refused responseFormat"));
+    roleClients.structured.mockRejectedValue(new Error("backend refused responseFormat"));
     await analyzeAvatarImage(roleClients, BYTES);
     await analyzeAvatarImage(roleClients, BYTES);
     expect(roleClients.summarize).toHaveBeenCalledTimes(2);

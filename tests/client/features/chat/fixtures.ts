@@ -222,6 +222,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
     genStartedAt: null,
     genFinishedAt: null,
     generationId: null,
+    connectionId: null,
     contextBoundaryMessageId: null,
     ...overrides,
   };

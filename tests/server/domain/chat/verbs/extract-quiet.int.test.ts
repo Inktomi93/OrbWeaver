@@ -8,8 +8,9 @@ import { historyFloor } from "@orb/contracts/chat";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { Db } from "@orb/db";
-import type { ChatId, Handle } from "@orb/kit/ids";
+import type { ChatId, Handle , UserId} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatUserMacroDefs } from "@orb/server/domain/chat";
 import { createExtractQuiet } from "@orb/server/domain/chat";
@@ -28,8 +29,8 @@ function fakeSummarize(
   sink: SummarizeCall[],
   text = "resolved keywords",
   costUsd: number | null = 0.007,
-): (inputs: SummarizeInput[], opts?: SummarizeOptions) => Promise<SummarizeResult> {
-  return (inputs: SummarizeInput[], opts?: SummarizeOptions): Promise<SummarizeResult> => {
+): SummarizeOp {
+  return (_funderUserId, inputs, opts): Promise<SummarizeResult> => {
     sink.push({ inputs, opts });
     return Promise.resolve({ items: [{ text, usage: { tokensIn: null, tokensOut: null, costUsd } }], model: "sum-model" });
   };
@@ -50,6 +51,9 @@ const NO_USER_MACROS = (): Promise<ChatUserMacroDefs> => Promise.resolve({ prese
 function houseStyleDef(body: string): UserMacroSpec {
   return { name: "house_style", description: "the host's standing art direction", args: [], body, strict: false, inputs: [] };
 }
+
+/** The seeded host's id — `seedUser(db, "host")` mints `user_host` (the chat harness's handle → id rule). */
+const HOST_ID = castId<UserId>("user_host");
 
 /** Seed a host + a character + a chat with both seated; returns the chat id. */
 async function seedRoom(db: Db): Promise<ChatId> {
@@ -77,7 +81,7 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
-    const result = await extractQuiet({ chatId, instruction: "Describe {{char}} in the current moment.", historyFloorSeq: historyFloor(0) });
+    const result = await extractQuiet({ chatId, instruction: "Describe {{char}} in the current moment.", historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
 
     expect(calls).toHaveLength(1);
     const item = calls[0]?.inputs[0];
@@ -105,7 +109,7 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
-    await extractQuiet({ chatId, instruction: "Describe {{char}}.", historyFloorSeq: historyFloor(0) });
+    await extractQuiet({ chatId, instruction: "Describe {{char}}.", historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
 
     expect(calls[0]?.inputs[0]?.userPrompt).toContain("just starting");
   });
@@ -125,7 +129,7 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
-    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0) });
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
 
     const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
     expect(userPrompt).toContain("VISIBLE line.");
@@ -149,7 +153,7 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
-    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0) });
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
 
     const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
     expect(userPrompt).toContain('He smiles.  "Nothing."');
@@ -176,7 +180,7 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
-    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(3) });
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(3), funderUserId: HOST_ID });
 
     const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
     expect(userPrompt).toContain("AFTERJOIN line.");
@@ -202,7 +206,7 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: () => Promise.resolve({ preset: [houseStyleDef("in muted watercolour")], game: [] }),
     });
 
-    await extractQuiet({ chatId, instruction: "Describe {{char}}, {{house_style}}.", historyFloorSeq: historyFloor(0) });
+    await extractQuiet({ chatId, instruction: "Describe {{char}}, {{house_style}}.", historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
 
     expect(calls[0]?.inputs[0]?.systemPrompt).toBe("Describe Aria, in muted watercolour.");
   });
@@ -220,7 +224,7 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: () => Promise.resolve({ preset: [houseStyleDef("in muted watercolour")], game: [houseStyleDef("in harsh charcoal")] }),
     });
 
-    await extractQuiet({ chatId, instruction: "{{house_style}}", historyFloorSeq: historyFloor(0) });
+    await extractQuiet({ chatId, instruction: "{{house_style}}", historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
 
     // Specific-over-general (`shadowPresetUserMacros`) — the same rule the turn build and the picks pane apply.
     expect(calls[0]?.inputs[0]?.systemPrompt).toBe("in harsh charcoal");
@@ -239,7 +243,7 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
-    await extractQuiet({ chatId, instruction: "Describe {{char}}, {{house_style}}.", historyFloorSeq: historyFloor(0) });
+    await extractQuiet({ chatId, instruction: "Describe {{char}}, {{house_style}}.", historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
 
     // The builtin still resolves; the undeclared macro is untouched (kit's unknown-macro posture), and the
     // build took the null fast path — no per-call registry allocated for a chat that declared nothing.
@@ -267,7 +271,7 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
-    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0) });
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
 
     const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
     expect(userPrompt).toContain("IN-CHARACTER line.");
@@ -294,7 +298,7 @@ describe("createExtractQuiet", () => {
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
-    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0) });
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
 
     const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
     expect(userPrompt).toContain("REAL-one.");

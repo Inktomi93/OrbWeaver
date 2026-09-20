@@ -17,10 +17,10 @@ export { makePersona, seedPersona } from "./persona.ts";
 export { principal } from "./principal.ts";
 export {
   makeGenerationCapability,
-  makeOpenRouterCredential,
+  makeApiKeySecret,
   makeResolvedView,
-  makeResolvedConnection,
-  makeResolvedCredential,
+  makeResolved,
+  makeResolvedSecret,
 } from "./resolved-connection.ts";
 export type { UserRow } from "./user.ts";
 export { makeUser, seedUser } from "./user.ts";

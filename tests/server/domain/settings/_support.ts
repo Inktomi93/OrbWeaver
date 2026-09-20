@@ -93,7 +93,7 @@ export function makeHarness(
     },
     // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
     emitUserEvent: (): void => undefined,
-    onEmbedModelChanged,
+
     // F-P0-2: default refuses (never hit by non-background tests); addExternalBackground tests inject a stub.
     materializeBackground:
       overrides.materializeBackground ?? ((): ReturnType<MaterializeBackgroundOp> => Promise.resolve({ ok: false, reason: "unreachable" })),

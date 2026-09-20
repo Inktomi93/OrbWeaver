@@ -339,7 +339,7 @@ async function openGame(opts: { carrier: Carrier; trackers?: readonly RpgTracker
   });
   let seq = 0;
   const gather = async (): Promise<RpgGatherResult | null> =>
-    h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+    h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST.userId });
   const reminder = async (): Promise<string> => (await gather())?.injections[0]?.content ?? "";
   return {
     chatId,
@@ -1202,7 +1202,7 @@ test("READ-ONLY delivery: a game whose connection can't write state still READS 
   await expect(
     h.service.patchActor({ principal: HOST, chatId, targetRef: carrier.actorRef, ops: [{ op: "setTracker", key: "mana", value: { value: 5 } }] }),
   ).resolves.toEqual({ ok: true });
-  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST.userId });
   const reminder = out?.injections[0]?.content ?? "";
   // The honest degrade (§4.6): no write path, but the hand-steered values still steer.
   expect(reminder).toContain("Scene: The Crypt");

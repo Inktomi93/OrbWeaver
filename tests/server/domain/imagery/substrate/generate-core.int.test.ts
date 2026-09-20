@@ -14,9 +14,10 @@ import { runGeneration, sumCost } from "../../../../../packages/server/src/domai
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, PNG_BYTES, principal, seedOwner } from "../_support.ts";
+import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
 
 // @orb-waive no-test-fabrication(Parameters<typeof runGeneration>[1]): a minimal runGeneration request double — this file pins the spend/persist tail only, which never reads credential/capability internals. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-const REQ = { credential: {}, model: "img-model", prompt: "test", capability: {} } as Parameters<typeof runGeneration>[1];
+const REQ = { connection: makeResolved({ task: "generateImage", providerId: "openrouter" }), model: "img-model", prompt: "test", capability: {} } as Parameters<typeof runGeneration>[1];
 const PROV = {
   chatId: null,
   mode: "free" as const,

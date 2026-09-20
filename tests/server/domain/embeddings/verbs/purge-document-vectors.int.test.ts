@@ -28,12 +28,12 @@ describe("purgeDocumentVectors (PD-139(c))", () => {
     // the column records what the provider returned, which is the whole point of that fix.
     const fkRefs = { documentId, chunkIdx: 0, charStart: 0, charEnd: 11 };
     embedAs(harness, OLD_MODEL);
-    await svc.store({ kind: "document", lens: "chunk", content: "canon slice", model: OLD_MODEL, dim: EMBED_DIM, fkRefs });
+    await svc.store({ kind: "document", lens: "chunk", content: "canon slice", model: OLD_MODEL, dim: EMBED_DIM, fkRefs, ownerId: owner });
     embedAs(harness, EMBED_MODEL);
-    await svc.store({ kind: "document", lens: "chunk", content: "canon slice", model: EMBED_MODEL, dim: EMBED_DIM, fkRefs });
+    await svc.store({ kind: "document", lens: "chunk", content: "canon slice", model: EMBED_MODEL, dim: EMBED_DIM, fkRefs, ownerId: owner });
     expect(await db.select().from(documentChunks)).toHaveLength(2);
 
-    const { chunks } = await svc.purgeDocumentVectors();
+    const { chunks } = await svc.purgeDocumentVectors({ ownerId: owner });
 
     expect(chunks).toBe(1); // the OLD_MODEL row reclaimed
     const rows = await db.select().from(documentChunks);
@@ -52,9 +52,10 @@ describe("purgeDocumentVectors (PD-139(c))", () => {
       model: EMBED_MODEL,
       dim: EMBED_DIM,
       fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: 1 },
+      ownerId: owner,
     });
 
-    const { chunks } = await svc.purgeDocumentVectors();
+    const { chunks } = await svc.purgeDocumentVectors({ ownerId: owner });
 
     expect(chunks).toBe(0);
     expect(await db.select().from(documentChunks)).toHaveLength(1);

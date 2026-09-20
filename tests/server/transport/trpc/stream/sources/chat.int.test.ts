@@ -28,6 +28,7 @@ import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser } from "../../../../domain/chat/_support.ts";
 import { caller, principal as callerPrincipal, makeContext } from "../../_support.ts";
+import type { ProviderId } from "@orb/contracts/inference";
 
 let db: Db;
 
@@ -121,7 +122,7 @@ describe("the chat room — durable delta replay over a real reads-slice (the #1
       chatId,
       intent: "send",
       api: "chat-completions",
-      source: "openrouter",
+provider: castId<ProviderId>("custom-openai"),
       model: "test-model",
       speakerCharacterId: null,
       targetMessageId: null,
@@ -397,7 +398,7 @@ describe("the chat room — a hidden span open across a MEMBER's reconnect never
       chatId,
       intent: "send",
       api: "chat-completions",
-      source: "openrouter",
+provider: castId<ProviderId>("custom-openai"),
       model: "m",
       speakerCharacterId: null,
       targetMessageId: null,

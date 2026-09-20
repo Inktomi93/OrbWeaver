@@ -28,13 +28,12 @@ describe("layer (floor-merge)", () => {
     expect(layer({ corpusAutoindex: null }).corpusAutoindex).toBe(env.CORPUS_AUTOINDEX);
   });
 
-  test("born-in-DB floors: forbidExternalMedia FORBIDS by default, memory empty, vllm concurrency code floor", () => {
+  test("born-in-DB floors: forbidExternalMedia FORBIDS by default, memory empty", () => {
     const cfg = layer({});
     // D44 §12.3 — external media does NOT auto-load by default (the load is the tracking-pixel/exfil); the
     // no-override default forbids (a per-character/admin override can still opt IN to allow — see below).
     expect(cfg.forbidExternalMedia).toBe(true);
     expect(cfg.memoryDefaults).toEqual({});
-    expect(cfg.vllmConcurrency.embed).toBeGreaterThan(0);
   });
 
   test("forbidExternalMedia default is OVERRIDABLE: an admin `false` opts the deployment IN to allow", () => {
@@ -62,18 +61,6 @@ describe("layer (floor-merge)", () => {
     expect(layer({ allowInteractiveCards: null }).allowInteractiveCards).toBe(false);
     expect(layer({ allowInteractiveCards: true }).allowInteractiveCards).toBe(true);
     expect(layer({ allowInteractiveCards: false }).allowInteractiveCards).toBe(false);
-  });
-
-  test("D17 governance floors: local-compute ON, max-pro-sub OFF, budget null", () => {
-    const cfg = layer({});
-    expect(cfg.allowNonOwnerLocalCompute).toBe(true);
-    expect(cfg.allowNonOwnerMaxProSub).toBe(false);
-    expect(cfg.nonOwnerLocalComputeBudget).toBeNull();
-  });
-
-  test("a governance override wins (owner-flipped)", () => {
-    expect(layer({ allowNonOwnerMaxProSub: true }).allowNonOwnerMaxProSub).toBe(true);
-    expect(layer({ nonOwnerLocalComputeBudget: 7 }).nonOwnerLocalComputeBudget).toBe(7);
   });
 
   test("auth-modes floors (FINAL-Auth-Modes §9): localMultiUser OFF, discreetLogin OFF; overrides win", () => {
@@ -106,27 +93,4 @@ describe("layer (floor-merge)", () => {
     expect(layer({ structuredOutputVehicle: null }).structuredOutputVehicle).toBe(DEFAULT_STRUCTURED_OUTPUT_VEHICLE); // clear → floor
   });
 
-  describe("engineLaunch (#14 LAUNCH tier)", () => {
-    test("no override → the env floor per field", () => {
-      const el = layer({}).engineLaunch;
-      expect(el.genModel).toBe(env.VLLM_GEN_MODEL);
-      expect(el.genMaxModelLen).toBe(env.VLLM_GEN_MAX_MODEL_LEN);
-      expect(el.embedMaxModelLen).toBe(env.VLLM_EMBED_MAX_MODEL_LEN);
-      expect(el.embedGpuUtil).toBe(env.VLLM_EMBED_GPU_UTIL);
-      expect(el.genMaxPixels).toBe(env.VLLM_GEN_MAX_PIXELS);
-      expect(el.genRepetitionPenalty).toBe(env.VLLM_GEN_REPETITION_PENALTY); // #23 — the Qwen loop-fix floor
-    });
-
-    test("an admin override wins per field; unset fields stay on the floor", () => {
-      const el = layer({ engineLaunch: { genMaxModelLen: 65_536, genGpuUtilMulti: 0.35, genRepetitionPenalty: 1.1 } }).engineLaunch;
-      expect(el.genMaxModelLen).toBe(65_536);
-      expect(el.genGpuUtilMulti).toBe(0.35);
-      expect(el.genRepetitionPenalty).toBe(1.1);
-      expect(el.embedMaxModelLen).toBe(env.VLLM_EMBED_MAX_MODEL_LEN); // floor
-    });
-
-    test("a null (CLEAR) engineLaunch section falls entirely to the env floor", () => {
-      expect(layer({ engineLaunch: null }).engineLaunch.genModel).toBe(env.VLLM_GEN_MODEL);
-    });
-  });
 });

@@ -1,7 +1,7 @@
 import type { BlockKey } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
-import type { CharacterId, ChatId, Handle, MessageId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId , UserId} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -23,11 +23,12 @@ const bram = castId<CharacterId>("character_bram");
 const recallText = async (...args: Parameters<typeof recallMemory>): Promise<string> => (await recallMemory(...args)).text;
 
 let db: Db;
+let owner: UserId;
 beforeEach(async () => {
   db = await freshDb();
   // FK parents for the digest `scopedCharacterId` (the synthetic group char for the shared bucket + aria/bram
   // for the scoped buckets — inv 8: a real CharacterId, never the `''` sentinel).
-  const owner = await seedUser(db, castId<Handle>("owner"));
+  owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "group"); // id === GROUP_CHAR
   await seedCharacter(db, owner, "aria");
   await seedCharacter(db, owner, "bram");
@@ -112,9 +113,9 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     await seedTurns(db, chatId, aria, 4); // blockSize 2 → block 0 (seq 1-2), block 1 (seq 3-4)
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 } as const;
     const build = (): ReturnType<typeof makeChatContext> =>
-      makeChatContext(db, { summarize: fakeSummarize().fn, embeddingsStore: fakeEmbeddingsStore(db).store });
+      makeChatContext(db, { summarize: fakeSummarize().op, embeddingsStore: fakeEmbeddingsStore(db).store });
 
-    await generateDigests(build(), { scope: sharedScope(chatId), config: cfg });
+    await generateDigests(build(), { scope: sharedScope(chatId), config: cfg, funderUserId: owner });
     const before = await recallText(makeChatContext(db), { scope: sharedScope(chatId), groupCharacterId: GROUP_CHAR, config: { mode: "mixA" } });
     // Both blocks' digests are recallable — the fake summarizer numbers each call, so block 1's is "scene 2".
     expect(before).toContain("scene 1");
@@ -126,7 +127,7 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
         .set({ excludedFromPrompt: true })
         .where(eq(messages.id, castId<MessageId>(`message_${chatId}_${seq}`)));
     }
-    await generateDigests(build(), { scope: sharedScope(chatId), config: cfg });
+    await generateDigests(build(), { scope: sharedScope(chatId), config: cfg, funderUserId: owner });
 
     const after = await recallText(makeChatContext(db), { scope: sharedScope(chatId), groupCharacterId: GROUP_CHAR, config: { mode: "mixA" } });
     expect(after).toContain("scene 1"); // the surviving block still recalls

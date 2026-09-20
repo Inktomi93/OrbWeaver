@@ -35,7 +35,7 @@ describe("documents", () => {
     await seedDocumentChunk(db, { documentId: docB, chunkIdx: 0, content: "b0", embedding: vec(2, 1) });
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
-    const hits = await svc.documents({ scope: { ownerId: owner }, queryText: "q" });
+    const hits = await svc.documents({ scope: { ownerId: owner }, queryText: "q", ownerId: owner });
 
     expect(hits.map((h) => [h.documentId, h.chunkIdx, h.content])).toEqual([
       [docA, 0, "a0"],
@@ -52,7 +52,7 @@ describe("documents", () => {
     await seedDocumentChunk(db, { documentId: doc, chunkIdx: 1, content: "far", embedding: vec(0, 1) }); // dist 1, similarity 0
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
-    const hits = await svc.documents({ scope: { ownerId: owner }, queryText: "q", minScore: 0.25 });
+    const hits = await svc.documents({ scope: { ownerId: owner }, queryText: "q", minScore: 0.25, ownerId: owner });
 
     expect(hits.map((h) => h.content)).toEqual(["near"]);
   });
@@ -67,7 +67,7 @@ describe("documents", () => {
     await seedDocumentChunk(db, { documentId: docB, chunkIdx: 0, content: "dup", embedding: vec(1), contentHash: "SHARED" });
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
-    const hits = await svc.documents({ scope: { ownerId: owner }, queryText: "q" });
+    const hits = await svc.documents({ scope: { ownerId: owner }, queryText: "q", ownerId: owner });
 
     expect(hits).toHaveLength(1);
     expect(hits[0]?.documentId).toBe(docB);
@@ -84,7 +84,7 @@ describe("documents", () => {
       },
     });
 
-    const hits = await svc.documents({ scope: { ownerId: owner }, queryText: "q" });
+    const hits = await svc.documents({ scope: { ownerId: owner }, queryText: "q", ownerId: owner });
 
     expect(hits).toEqual([]);
     expect(embedCalls).toBe(0);
@@ -120,17 +120,17 @@ describe("documents", () => {
 
     // (a) The chat turn scope resolves the MEMBERSHIP union — alpha's global ∪ the chat-attached ∪
     // beta's ATTACHED global (D85); beta's PRIVATE bank never surfaces.
-    const turnScope = await svc.documents({ scope: { chatId: room }, queryText: "q" });
+    const turnScope = await svc.documents({ scope: { chatId: room }, queryText: "q", ownerId: alpha });
     expect(new Set(turnScope.map((h) => h.documentId))).toEqual(new Set([aGlobal, aChat, bGlobal]));
     expect(turnScope.some((h) => h.documentId === bPrivate)).toBe(false);
 
     // (b) Beta's personal search sees ONLY beta's bank — zero of alpha's, even sharing the room.
-    const betaPersonal = await svc.documents({ scope: { ownerId: beta }, queryText: "q" });
+    const betaPersonal = await svc.documents({ scope: { ownerId: beta }, queryText: "q", ownerId: alpha });
     expect(new Set(betaPersonal.map((h) => h.documentId))).toEqual(new Set([bGlobal, bPrivate]));
     expect(betaPersonal.some((h) => h.documentId === aGlobal || h.documentId === aChat)).toBe(false);
 
     // (c) Alpha's personal search sees alpha's bank — zero of beta's.
-    const alphaPersonal = await svc.documents({ scope: { ownerId: alpha }, queryText: "q" });
+    const alphaPersonal = await svc.documents({ scope: { ownerId: alpha }, queryText: "q", ownerId: alpha });
     expect(new Set(alphaPersonal.map((h) => h.documentId))).toEqual(new Set([aGlobal, aChat]));
     expect(alphaPersonal.some((h) => h.documentId === bGlobal || h.documentId === bPrivate)).toBe(false);
   });

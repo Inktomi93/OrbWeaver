@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import type { CharacterId, Handle } from "@orb/kit/ids";
+import type { CharacterId, Handle , UserId} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import { beforeEach, describe, vi } from "vitest";
@@ -16,9 +16,10 @@ const aria = castId<CharacterId>("character_aria");
 const HUGE_LINE = "she watched the harbour lights blur into the rain. ";
 
 let db: Db;
+let owner: UserId;
 beforeEach(async () => {
   db = await freshDb();
-  const owner = await seedUser(db, castId<Handle>("owner"));
+  owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "aria"); // FK target for messages.characterId
 });
 
@@ -32,6 +33,7 @@ describe("memory/build/segments", () => {
     const counts = await generateSegments(ctx, {
       chatId,
       config: { blockSize: 2, verbatimWindow: 0 },
+      funderUserId: owner,
     });
 
     expect(counts.written).toBe(2);
@@ -59,7 +61,7 @@ describe("memory/build/segments", () => {
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
-    const counts = await generateSegments(ctx, { chatId, config: { blockSize: 2, verbatimWindow: 0 } });
+    const counts = await generateSegments(ctx, { chatId, config: { blockSize: 2, verbatimWindow: 0 }, funderUserId: owner });
 
     expect(counts.skippedOverWindow).toBe(0); // nothing was too big to CHUNK
     // Blocks 0 + 1 are one chunk each; block 2 (the code-dump block) is several.
@@ -90,7 +92,7 @@ describe("memory/build/segments", () => {
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
-    await generateSegments(ctx, { chatId, config: { blockSize: 2, verbatimWindow: 0 } });
+    await generateSegments(ctx, { chatId, config: { blockSize: 2, verbatimWindow: 0 }, funderUserId: owner });
 
     const block0 = store.segments.filter((s) => s.blockIdx === 0);
     expect(block0).toHaveLength(1);
@@ -106,9 +108,9 @@ describe("memory/build/segments", () => {
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
-    const first = await generateSegments(ctx, { chatId, config: { blockSize: 2, verbatimWindow: 0 } });
+    const first = await generateSegments(ctx, { chatId, config: { blockSize: 2, verbatimWindow: 0 }, funderUserId: owner });
     const written = store.segments.length;
-    const second = await generateSegments(ctx, { chatId, config: { blockSize: 2, verbatimWindow: 0 } });
+    const second = await generateSegments(ctx, { chatId, config: { blockSize: 2, verbatimWindow: 0 }, funderUserId: owner });
 
     expect(first.written).toBe(written);
     expect(second.written).toBe(0);
@@ -136,7 +138,7 @@ describe("memory/build/segments", () => {
     const ctx = makeChatContext(db, { embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
     const spy = vi.spyOn(logger, "warn");
 
-    const counts = await generateSegments(ctx, { chatId, config: { blockSize: 24, verbatimWindow: 0 } });
+    const counts = await generateSegments(ctx, { chatId, config: { blockSize: 24, verbatimWindow: 0 }, funderUserId: owner });
 
     expect(counts.skippedOverWindow).toBe(1);
     expect(counts.written).toBe(0);
@@ -151,8 +153,8 @@ describe("memory/build/segments", () => {
     const ctx = makeChatContext(db, { embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
     const cfg = { blockSize: 2, verbatimWindow: 0 } as const;
 
-    await generateSegments(ctx, { chatId, config: cfg });
-    const counts = await generateSegments(ctx, { chatId, config: cfg });
+    await generateSegments(ctx, { chatId, config: cfg, funderUserId: owner });
+    const counts = await generateSegments(ctx, { chatId, config: cfg, funderUserId: owner });
     expect(counts).toEqual({ written: 0, skipped: 2, skippedOverWindow: 0 });
   });
 
@@ -164,7 +166,7 @@ describe("memory/build/segments", () => {
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
 
-    await generateSegments(ctx, { chatId, config: { blockSize: 2, verbatimWindow: 0 } });
+    await generateSegments(ctx, { chatId, config: { blockSize: 2, verbatimWindow: 0 }, funderUserId: owner });
 
     expect(store.segmentBatchSizes).toEqual([3]); // three blocks, ONE call
   });
@@ -174,7 +176,7 @@ describe("memory/build/segments", () => {
     await seedTurns(db, chatId, aria, 4);
     const store = fakeEmbeddingsStore(db);
     const ctx = makeChatContext(db, { embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
-    expect(await generateSegments(ctx, { chatId, config: { mode: "off" } })).toEqual({
+    expect(await generateSegments(ctx, { chatId, config: { mode: "off" }, funderUserId: owner })).toEqual({
       written: 0,
       skipped: 0,
       skippedOverWindow: 0,

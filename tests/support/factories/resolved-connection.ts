@@ -58,8 +58,10 @@ export function makeCapability(generation: GenerationCapability = makeGeneration
   return { kind: "generation", generation };
 }
 
-export interface MakeResolvedOverrides<T extends Task> extends Partial<Omit<Resolved<T>, "task" | "capability">> {
+export interface MakeResolvedOverrides<T extends Task> extends Partial<Omit<Resolved<T>, "task" | "capability" | "providerId">> {
   readonly task?: T | undefined;
+  /** A built-in registry id (the row is looked up; the brand is applied here). */
+  readonly providerId?: string | undefined;
   /** The chat-shaped capability (a shorthand for `capability: { kind: "generation", generation }`). */
   readonly generation?: Partial<GenerationCapability> | undefined;
   readonly capability?: Capability | undefined;
@@ -74,7 +76,7 @@ export function makeResolved<T extends Task = "chat">(overrides: MakeResolvedOve
     throw new Error(`makeResolved: no built-in provider "${providerId}"`);
   }
   const capability = overrides.capability ?? makeCapability(makeGenerationCapability(overrides.generation));
-  const { generation: _generation, capability: _capability, task: _task, ...rest } = overrides;
+  const { generation: _generation, capability: _capability, task: _task, providerId: _providerId, ...rest } = overrides;
   return {
     task,
     ownerId: TEST_OWNER_ID,

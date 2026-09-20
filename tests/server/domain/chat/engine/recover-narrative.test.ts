@@ -6,10 +6,10 @@
 
 import type { AssembleContext, ChatDeltaEvent, MessageView } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
-import type { Resolved } from "@orb/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
+import type { Resolved } from "@orb/inference";
 import type { ChatId, ChatTurnId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -18,7 +18,7 @@ import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/
 import { resolveTurnNarrative } from "../../../../../packages/server/src/domain/chat/engine/recover-narrative.ts";
 import type { ToolCallInput } from "../../../../../packages/server/src/domain/tool-use/contract/params.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { makeGenerationCapability, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability, makeResolvedSecret } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type PipelineArgs = Parameters<typeof runTurnPipeline>[0];
@@ -32,18 +32,15 @@ const FIXTURE_HUMAN = castId<UserId>("user_fixture_human");
 
 /** `tools` PRESENT + `silencesProse` unset ⇒ `coEmitsProseWithTools` is true, which is the capability gate the
  *  terminal channel attaches behind. A model that silences prose could never produce the recoverable shape. */
-const CAPABILITY: ModelCapability = makeGenerationCapability({
+const CAPABILITY: GenerationCapability = makeGenerationCapability({
   output: { maxTokens: { min: 1, max: 8192 } },
   context: { window: 200_000 },
   tools: { parallel: true },
+  modalities: ["text"],
+  modalities: ["text"],
 });
 
-const CONNECTION: ResolvedConnection = {
-  api: "chat-completions",
-  model: castId<ModelId>("test-model"),
-  credential: makeResolvedSecret(),
-  capability: CAPABILITY,
-};
+const CONNECTION: Resolved<"chat"> = makeResolved({ api: "chat-completions", model: castId<ModelId>("test-model"), capability: makeCapability(CAPABILITY) });
 
 const TERMINAL_TOOL: TerminalTool = { name: "rpg_apply_state", description: "record the beat's state changes", parameters: { type: "object" } };
 const TERMINAL_CALL: ToolCallInput = { toolCallId: "call_beat_1", name: "rpg_apply_state", arguments: '{"hp":-2}' };
@@ -121,7 +118,7 @@ function argsOf(over: Partial<PipelineArgs>, passes: readonly (readonly TurnStre
     connection: CONNECTION,
     intent: {} satisfies UserIntent,
     kind: "send",
-    ownerConsented: true,
+
     chatId: CHAT_ID,
     onDelta: (d) => {
       deltas.push(d);

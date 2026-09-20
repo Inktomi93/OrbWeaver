@@ -11,11 +11,11 @@
 // coverage point never re-fires; a failed/empty generation leaves the marker untouched.
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
-import type { Resolved } from "@orb/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
+import type { Resolved } from "@orb/inference";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
@@ -34,6 +34,7 @@ import { createQuietGenerate } from "../../../../../packages/server/src/domain/c
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
+import { generationOf } from "@orb/inference";
 
 const HOST = castId<UserId>("user_host");
 
@@ -62,7 +63,7 @@ function turnWithUsage(economics: { tokensIn?: number; tokensOut?: number; conte
     })();
 }
 
-function prepOf(chatId: ChatId, connection: ResolvedConnection, over: Partial<TurnPrep>): TurnPrep {
+function prepOf(chatId: ChatId, connection: Resolved<"chat">, over: Partial<TurnPrep>): TurnPrep {
   return {
     chatId,
     assembleContext: ASSEMBLE_CTX,
@@ -142,8 +143,8 @@ function buildEngine(turnRunChatTurn: ChatContext["runChatTurn"] = turnWithUsage
   });
   return createTurnEngine(ctx, {
     emit: () => Promise.resolve(),
-    debitBudget: () => Promise.resolve(),
-    resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
     holder: "replica-1",
     lockTtlMs: 60_000,
     generateSegments,
@@ -302,8 +303,8 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     });
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
-      debitBudget: () => Promise.resolve(),
-      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "r1",
       lockTtlMs: 60_000,
       generateSegments,
@@ -326,9 +327,9 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     // never error-and-dead — the no-wall belt fit-trims the seed (drop-oldest → the turn survives) and emits a
     // VISIBLE `context_trimmed_no_summary` warning.
     const tinyWindow = 300; // small enough that ~16 rows of history exceed the WINDOW itself (not just a soft cap)
-    const smallWindowSdk: ResolvedConnection = {
+    const smallWindowSdk: Resolved<"chat"> = {
       ...AGENT_SDK,
-      capability: { ...AGENT_SDK.capability, context: { ...AGENT_SDK.capability.context, window: tinyWindow } },
+      capability: makeCapability({ ...generationOf(AGENT_SDK), context: { ...generationOf(AGENT_SDK).context, window: tinyWindow } }),
     };
     const chatId = await seedChatWithHistory(16); // ~640 tokens ≥ 300 window
     const emitted: ChatBusEvent[] = [];
@@ -347,8 +348,8 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
         emitted.push(e);
         return Promise.resolve();
       },
-      debitBudget: () => Promise.resolve(),
-      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "r1",
       lockTtlMs: 60_000,
       generateSegments,
@@ -420,8 +421,8 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     });
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
-      debitBudget: () => Promise.resolve(),
-      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "r1",
       lockTtlMs: 60_000,
       generateSegments,
@@ -487,8 +488,8 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     });
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
-      debitBudget: () => Promise.resolve(),
-      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "r1",
       lockTtlMs: 60_000,
       generateSegments,
@@ -561,8 +562,8 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     });
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
-      debitBudget: () => Promise.resolve(),
-      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "r1",
       lockTtlMs: 60_000,
       generateSegments,
@@ -611,8 +612,8 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     });
     const engine = createTurnEngine(ctx, {
       emit: () => Promise.resolve(),
-      debitBudget: () => Promise.resolve(),
-      resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
+
+
       holder: "r1",
       lockTtlMs: 60_000,
       generateSegments,

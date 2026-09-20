@@ -346,7 +346,7 @@ test("triggerFactSchema round-trips a full fact (every trigger-type projection)"
     type: "turnAborted",
     bus: "chat",
     chatId: "chat_abc",
-    turn: { intent: "send", api: "", source: "", model: "", speakerCharacterId: null, abortReason: "user_stop", automationDepth: 1 },
+    turn: { intent: "send", api: "", provider: "", model: "", speakerCharacterId: null, abortReason: "user_stop", automationDepth: 1 },
   };
   expect(triggerFactSchema.parse(turn)).toEqual(turn);
 

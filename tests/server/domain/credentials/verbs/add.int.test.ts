@@ -8,9 +8,11 @@ import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
+import type { ProviderId } from "@orb/contracts/inference";
+import { castId } from "@orb/kit/ids";
 
 describe("add", () => {
-  test("first credential in a slot is auto-active; the view carries no secret field", async () => {
+  test("the view carries no secret field", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
@@ -22,27 +24,12 @@ describe("add", () => {
     expect(view).toMatchObject({
       provider: "openrouter",
       label: "default",
-      active: true,
       revokedAt: null,
     });
     expect(view).not.toHaveProperty("ciphertext");
     expect(view).not.toHaveProperty("iv");
     expect(view).not.toHaveProperty("tag");
     expect(view).not.toHaveProperty("apiKey");
-  });
-
-  test("a second credential in the same slot is inactive (the user promotes via setActive)", async () => {
-    const db = await freshDb();
-    const svc = createCredentialsService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1", label: "a" });
-    const second = await svc.add({
-      principal: principal(owner),
-      provider: "openrouter",
-      key: "sk-2",
-      label: "b",
-    });
-    expect(second.active).toBe(false);
   });
 
   test("re-adding the same (provider,label) ROTATES in place (same id, key changes)", async () => {
@@ -60,19 +47,19 @@ describe("add", () => {
       key: "sk-new",
     });
     expect(rotated.id).toBe(first.id);
-    const resolved = await svc.resolve({ principal: principal(owner), source: "openrouter" });
-    expect(resolved).toMatchObject({ apiKey: "sk-new" });
+    const resolved = await svc.resolve({ ownerId: owner, credentialId: rotated.id, providerId: castId<ProviderId>("openrouter") });
+    expect(resolved).toMatchObject({ secret: "sk-new" });
   });
 
-  test("custom_openai metadata is stored (hasMetadata) without leaking the blob in the view", async () => {
+  test("endpoint metadata is stored (hasMetadata) without leaking the blob in the view", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
     const view = await svc.add({
       principal: principal(owner),
-      provider: "custom_openai",
+      provider: "vllm",
       key: "sk-c",
-      metadata: { kind: "custom_openai", baseUrl: "https://x.test/v1" },
+      metadata: { auth: "endpoint" },
     });
     expect(view.hasMetadata).toBe(true);
   });

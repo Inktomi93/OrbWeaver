@@ -1,8 +1,8 @@
 // parseChatMetadata + getGroupConfig/getRoomOverrides — the `chats.metadata` parse seam (the chat design doc Part I
 // §metadata + the "metadata strict/lazy-parse fault isolation" load-bearing rule). The ONE file in the chat
 // contract slice with runtime behavior. Pins: full round-trip (group + roomOverrides + opening +
-// providerRouting), the per-sub-blob fault isolation (a malformed sub-blob does NOT nuke its siblings), the
-// providerRouting LEAF sub-parse (leaves to connection), and the default-applying accessors. Plus a few
+// the per-sub-blob fault isolation (a malformed sub-blob does NOT nuke its siblings), the
+// default-applying accessors. Plus a few
 // compile-time shape pins for representative param/result/view types.
 
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
@@ -16,12 +16,11 @@ import type { ChatSummary } from "../../../../../packages/server/src/domain/chat
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseChatMetadata", () => {
-  test("round-trips a full metadata blob (group + roomOverrides + opening + providerRouting)", () => {
+  test("round-trips a full metadata blob (group + roomOverrides + opening)", () => {
     const raw = {
       group: { output: "per-speaker", policy: "list" },
       roomOverrides: { scenario: "a tavern at dusk", mainPrompt: "stay in character" },
       opening: "greet-all",
-      providerRouting: { order: ["Anthropic"], sort: "price" },
     };
     const parsed = parseChatMetadata(raw);
 
@@ -34,8 +33,6 @@ describe("parseChatMetadata", () => {
       mainPrompt: "stay in character",
     });
     expect(parsed.opening).toBe("greet-all");
-    // providerRouting LEAVES to the connection sub-parse — extracted verbatim.
-    expect(parsed.providerRouting).toEqual({ order: ["Anthropic"], sort: "price" });
   });
 
   test("an empty / absent blob parses to all-absent sub-blobs", () => {
@@ -107,11 +104,6 @@ describe("parseChatMetadata", () => {
     const parsed = parseChatMetadata({ group: { output: "per-speaker", policy: "list", cardscope: "scoped" }, opening: "none" });
     expect(parsed.group).toBeUndefined();
     expect(parsed.opening).toBe("none");
-  });
-
-  test("a corrupt providerRouting sub-blob heals to absent (never throws)", () => {
-    expect(parseChatMetadata({ providerRouting: "nope" }).providerRouting).toBeUndefined();
-    expect(parseChatMetadata({ providerRouting: 42 }).providerRouting).toBeUndefined();
   });
 
   test("BG-C: the background sub-blob round-trips (source-only) and fills field defaults", () => {

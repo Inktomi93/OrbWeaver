@@ -12,7 +12,6 @@ import {
   deleteOwnedCredential,
   fetchOwnedCredential,
   insertSealed,
-  listOwnedCredentials,
   setRevokedById,
   toCredentialView,
 } from "../../../../../packages/server/src/domain/credentials/persistence/queries.ts";

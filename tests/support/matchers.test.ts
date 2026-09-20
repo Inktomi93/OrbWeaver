@@ -4,7 +4,7 @@
 // named "TRPCError" carrying a string `code`) — exactly what the matcher detects at runtime; the REAL
 // tRPC ladder path is proven end-to-end by `fixtures.int.test.ts` (anonCaller → UNAUTHORIZED).
 
-import { ProviderError } from "@orb/server/infra/providers";
+import { ProviderError } from "@orb/inference";
 import { describe } from "vitest";
 import { expect, test } from "./fixtures.ts";
 
