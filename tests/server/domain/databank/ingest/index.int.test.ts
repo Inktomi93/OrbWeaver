@@ -95,9 +95,13 @@ test("ingestDocument derives contiguous chunks whose spans partition the canon, 
   const { h, documentId } = await seedDoc(db, "owner");
 
   const result = await h.ingest.ingestDocument({ documentId, signal: new AbortController().signal });
-  expect(result.documents).toBe(1);
-  expect(result.chunksUpserted).toBeGreaterThan(1); // the canon splits (chunkSize 40 << length)
+  // `failed` FIRST, always: partial failure is DATA here (a throw inside `ingestOne` is recorded, never
+  // rethrown), so a broken harness edge reads as a count of ZERO — indistinguishable from "nothing to do"
+  // unless the error is asserted before the counts. Asserting it last is how a missing FK parent for the
+  // embed generation kept this whole file green-looking while it measured nothing (#2493).
   expect(result.failed).toEqual([]);
+  expect(result.documents).toBe(1);
+  expect(result.chunksUpserted).toBeGreaterThan(1); // the canon splits (chunkSize 200 << length 431)
 
   const rows = await db.select().from(documentChunks).where(eq(documentChunks.documentId, documentId)).orderBy(asc(documentChunks.chunkIdx));
   expect(rows.length).toBe(result.chunksUpserted);
@@ -133,6 +137,7 @@ test("re-ingesting with a bigger chunkSize prunes the stranded tail (store-then-
   // First pass: many small chunks.
   const small = makeDatabankHarness(db, { settings: SMALL_CHUNKS });
   const dense = await small.ingest.ingestDocument({ documentId, signal: new AbortController().signal });
+  expect(dense.failed).toEqual([]); // see the partition test: a swallowed failure reads as a zero count
   expect(dense.chunksUpserted).toBeGreaterThan(2);
 
   // Second pass over the SAME document with a whole-file threshold above the canon length → ONE chunk.
@@ -166,6 +171,7 @@ test("an abort during the first chunk stops the rest of that document and does n
     signal: controller.signal,
   });
 
+  expect(result.failed).toEqual([]); // see the partition test: a swallowed failure reads as a zero count
   expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
   expect(prune).not.toHaveBeenCalled();
   expect(result).toMatchObject({ documents: 1, chunksUpserted: 1, chunksNoop: 0, chunksPruned: 0, failed: [] });
