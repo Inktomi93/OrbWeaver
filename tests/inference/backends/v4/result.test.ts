@@ -114,3 +114,24 @@ test("the fold's three provenance arms: measured carries the record; estimated d
   const unrecorded = toChatResult(drainOf(), ctxOf());
   expect(unrecorded.usage).toMatchObject({ costUsd: null, costDetails: null, costProvenance: "unrecorded" });
 });
+
+// ── §5.3c — THE SIDECAR IS NARROWED AT THE RECORD, NOT CARRIED AS A BAG ─────────────────────────────────
+// RED-FIRST against the unmodified source: these assert the VALUE `ChatResult.providerMetadata` carries, never
+// the new module's API, so they compile and run either way. Pre-fix the fold emitted
+// `{ [ctx.providerId]: <the SDK's whole bag> }` — an open `Record<string, unknown>` no reader could name a
+// field on, and which the read seam's closed union drops on the floor at the first history read.
+test("§5.3c: an OpenRouter turn records the NAMED arm — the upstream vendor and its pre-fee charge", () => {
+  const drain = drainOf({
+    providerMetadata: { openrouter: { provider: "Anthropic", usage: { cost: 0.5, costDetails: { upstreamInferenceCost: 0.4 } } } },
+  });
+  expect(toChatResult(drain, ctxOf()).providerMetadata).toEqual({ provider: "openrouter", upstreamProvider: "Anthropic", upstreamCost: 0.4 });
+});
+
+test("§5.3c: the bag is read under OUR registry id alone — the old `?? openrouter` fallback filed it under the wrong provider", () => {
+  // A connection whose provider is `custom-openai` pointed at an OR-compatible endpoint used to produce
+  // `{ "custom-openai": <OR's bag> }`: a per-provider record asserting facts about a provider that never ran.
+  // The COST still lands (`measuredCostOf` reads OR's key unconditionally — a cost is the same number whoever
+  // routed it); the provenance arm is absent, which is the honest answer.
+  const drain = drainOf({ providerMetadata: { openrouter: { usage: { cost: 0.2 } } } });
+  expect(toChatResult(drain, ctxOf({ providerId: "custom-openai" })).providerMetadata).toBeUndefined();
+});

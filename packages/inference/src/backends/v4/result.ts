@@ -15,6 +15,7 @@ import type { ChatResult } from "../../contract/chat.ts";
 import { normalizeFinishReason } from "../../contract/chat.ts";
 import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
 import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
+import { variantProviderMetadataOf } from "../kit/provider-metadata.ts";
 import type { StreamDrain } from "./stream.ts";
 
 const TOKENS_PER_MTOK = 1_000_000;
@@ -194,7 +195,11 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
   });
   const raw = drain.finish.raw ?? drain.finish.unified;
   const toolCalls = drain.toolCalls.length > 0 ? drain.toolCalls : undefined;
-  const metadata = drain.providerMetadata?.[ctx.providerId] ?? drain.providerMetadata?.["openrouter"];
+  // The vendor's bag under OUR registry id, narrowed to the closed sidecar arm (`backends/kit/provider-metadata`).
+  // Keyed on `ctx.providerId` ALONE — the old `?? providerMetadata["openrouter"]` fallback filed OpenRouter's bag
+  // under whatever id the connection actually carried, which is the one thing a per-provider record may not do.
+  // `measuredCostOf` keeps its own unconditional read of that key: a COST is the same number whoever routed it.
+  const providerMetadata = variantProviderMetadataOf(ctx.providerId, drain.providerMetadata?.[ctx.providerId]);
   return {
     reply: drain.reply,
     ...(toolCalls !== undefined ? { toolCalls } : {}),
@@ -215,7 +220,7 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
     generationId: ctx.generationId,
     appliedEffort: ctx.appliedEffort,
     usage: { ...core, ...costOf(core, ctx) },
-    ...(metadata !== undefined ? { providerMetadata: { [ctx.providerId]: metadata } } : {}),
+    ...(providerMetadata !== undefined ? { providerMetadata } : {}),
     ...(drain.images.length > 0 ? { images: drain.images } : {}),
     events: warningEvents(ctx.warnings, ctx.now),
     rateLimit: ctx.rateLimit,
