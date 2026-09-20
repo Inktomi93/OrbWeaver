@@ -7,8 +7,12 @@
 import type { AccountInfo, ModelInfo, Query } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel } from "@orb/contracts/inference";
 import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/providers";
+import { errorMessage } from "@orb/kit/error-message";
 import type { VerifyAuthRequest } from "../../contract/diagnostics.ts";
+import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
+import { redactSecretsFromText } from "../kit/openai-body.ts";
+import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { linkAbort } from "./runner.ts";
 import { disciplineOptions, observabilityOptions } from "./translate.ts";
@@ -49,22 +53,38 @@ function normalize(info: ModelInfo): AgentSdkModel {
   };
 }
 
-function discoveryError(err: unknown): ProviderError {
-  return err instanceof ProviderError
-    ? err
-    : new ProviderError({
-        kind: "server",
-        retryable: true,
-        message: `agent-sdk model discovery failed: ${err instanceof Error ? err.message : String(err)}`,
-        cause: err,
-      });
+/**
+ * THE THIRD UPSTREAM-PROSE PATH (the other two are `providerErrorFromHttp` and `fetch-json.ts::safeErrorBody`),
+ * and it composes its hygiene exactly like them. The SDK's own message is genuinely worth keeping — it is what
+ * tells an operator the daemon refused, wedged or died — so it is SANITIZED, never stripped.
+ *
+ * ORDER (#1809): the by-value belt reads INTACT text and `sanitizeApiError` mangles what is left. Reversed,
+ * the tag strip / control strip / whitespace collapse / 500-char cap can bite the subscription token in half,
+ * after which neither of its spellings matches and the fragment rides `ProviderError.message` onward. There is
+ * no #1820 over-read hop here because nothing truncates upstream of this: the SDK hands us a whole string.
+ *
+ * The raw thrown object does NOT survive as `cause`, for the reason `providerErrorFromHttp` states: an SDK
+ * error can carry reflected bodies, argv and nested causes as enumerable fields that a later logger
+ * serializes, and this boundary is credential-bearing by construction (the daemon spawns under the user's
+ * token). A `ProviderError` we minted ourselves passes through untouched — its message is our own vocabulary.
+ */
+function discoveryError(err: unknown, secrets: ProviderScrubSet): ProviderError {
+  if (err instanceof ProviderError) {
+    return err;
+  }
+  const safe = sanitizeApiError(redactSecretsFromText(errorMessage(err), secrets));
+  return new ProviderError({ kind: "server", retryable: true, message: `agent-sdk model discovery failed: ${safe}`, cause: new Error(safe) });
 }
 
 export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: AgentSdkDeps, log: AgentSdkLog): Promise<AgentSdkModel[]> {
+  // `transport: null` is a fact about this wire, not a convenience: the agent-sdk spawn authenticates ONLY
+  // through `buildClaudeSdkEnv`'s token env (`index.ts::childEnv`) — there is no HTTP request here to carry a
+  // user-authored auth header or a key-in-body field, which is why `SpawnIdentity` narrows to owner+credential.
+  const secrets = resolvedScrubSet({ credential: connection.credential, transport: null });
   const stream: Query = deps.query({ prompt: heldOpenPrompt(), options: disciplineOptions(deps.childEnv(connection)) });
   try {
     const models = await withTimeout(stream.supportedModels(), deps, DISCOVERY_TIMEOUT_MS, "model discovery").catch((err: unknown) => {
-      throw discoveryError(err);
+      throw discoveryError(err, secrets);
     });
     return models.map(normalize);
   } finally {
