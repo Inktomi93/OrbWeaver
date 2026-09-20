@@ -30,16 +30,18 @@
 import "../../../support/composed-real.ts";
 import process from "node:process";
 import type { Principal } from "@orb/contracts/identity";
+import { providerIdSchema } from "@orb/contracts/inference";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import { rpgGames } from "@orb/db";
-import type { ChatId, Handle, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import { connectionBindings, rpgGames, userConnections } from "@orb/db";
+import type { ChatId, ConnectionBindingId, Handle, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
+import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import { seedPreset } from "../../domain/preset/_support.ts";
@@ -126,6 +128,29 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
   async function seedEditTarget(db: Db, services: Services, scripts: readonly RegexScriptRow[], content: string): Promise<SeededEditTarget> {
     const host = await seedUser(db, castId<Handle>("host"));
     const principal = hostPrincipal(host);
+
+    // §8.5b — `applyRunOnEditRegex` folds the chat's databank gather context, whose `search.documents` call
+    // resolves the host's `embed` binding through the REAL per-funder fold before it even checks whether the
+    // chat has a databank scope to search — a `SearchError`(`SEARCH_NO_SPACE`) otherwise. Since this room
+    // attaches NO documents, `resolveActiveDocumentIds` answers an empty allowlist and the ZERO-embed-calls
+    // short-circuit fires (`domain/search/verbs/documents.ts`) — so seeding the binding alone, no HTTP double
+    // needed, is enough to reach the watchdog this file actually pins.
+    await db.insert(userConnections).values({
+      id: TEST_CONNECTION_ID,
+      ownerId: host,
+      label: "redos test connection",
+      providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
+      model: "test-model",
+    });
+    await db.insert(connectionBindings).values({
+      id: castId<ConnectionBindingId>("connection_binding_redos"),
+      actorKind: "user",
+      userId: host,
+      ruleId: null,
+      pluginId: null,
+      task: "embed",
+      connectionId: TEST_CONNECTION_ID,
+    });
 
     // The heavyweight, faithful seed: write the scripts through the REGEX front door and attach them at the
     // GLOBAL scope (D121-E), so the real `resolveRegexSources` dereferences them at edit time exactly as a
