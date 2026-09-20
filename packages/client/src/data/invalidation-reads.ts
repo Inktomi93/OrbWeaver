@@ -8,6 +8,7 @@
 // chokepoint stays in the map file (gate `no-inline-invalidate-outside-seam`).
 
 import type { RoomEntityKind } from "@orb/contracts/chat";
+import { ROOM_ENTITY_KINDS } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import type { InvalidateQueryFilters } from "@tanstack/react-query";
@@ -172,6 +173,59 @@ export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: Cha
   // ride the user-bus `databankChanged` (the same argument the `world-info` and `regex` rows make).
   databank: (chatId, trpc) => [trpc.databank.listActiveForChat.queryFilter({ chatId }), trpc.chat.previewContextFit.pathFilter()],
 };
+
+/**
+ * THE LIVE-ONLY LANE'S HEAL, per entity kind (bridge §3.4). `roomEntityChanged` is fanned WITHOUT a
+ * `chat_events` append, so it is never replayed: a device dark through a fan learns about it only from the
+ * attach synthesis, and `chatOpened` re-fires on EVERY (re)attach. This table answers, for each kind, "which
+ * read would a MISSED fan have left stale on a device that has no other driver for it".
+ *
+ * IT IS A RECORD OVER `RoomEntityKind`, NOT A HAND-LISTED ROW, and that is the whole point: the heal shipped
+ * covering `character` alone and then sat still while `regex` (#1733) and `databank` (#2471) joined
+ * `ROOM_ENTITY_KINDS` — two kinds whose member-visible room read a dark co-member could never catch up on.
+ * The mapped type is the belt: a sixth kind fails `tsc` HERE until someone states its heal (`[]` with a
+ * reason is a legitimate answer; silence is not). Owner ruling 2026-09-20 — the live-only ECONOMY survives,
+ * the heal it depends on stops covering one kind of five.
+ *
+ * WHAT BELONGS IN AN ARM, and it is a narrower test than `ROOM_ENTITY_FILTERS`' own rows: a read qualifies
+ * only when its reader has NO owner-plane driver. The OWNER's devices ride the user bus (`charactersChanged`
+ * / `regexChanged` / `databankChanged` — and its own reconnect gap-heal, `invalidateAllUserRoots`), so an
+ * owner-scoped read is already covered and would just cost a refetch. The reads below are the room-public,
+ * member-readable ones: a CO-MEMBER receives no user-bus event for another human's write at all, which is
+ * exactly why a single-principal test cannot see this gap.
+ *
+ * DELIBERATELY ABSENT, and this is the standing #514/BOOT-4X ruling, not an omission: the fit/preview family
+ * (`previewContextFit`, `promptPreviewReads`). Every kind's row in `ROOM_ENTITY_FILTERS` carries them, but
+ * their staleness bound is ONE TURN — the next canon terminal refetches them through the durable replay —
+ * and healing them here would re-pay a BOOT-4X-class fetch on every room open. `chat.getChat` is absent for
+ * the same reason it is not duplicated: the heal's caller carries it as its own row.
+ */
+export const ROOM_ENTITY_HEAL_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatId, trpc: Trpc) => readonly InvalidateFilter[] } = {
+  // The D22 member-card dialog — the read this heal was born for, and the one it covered alone until today.
+  // Free when the dialog is shut (`enabled: open` ⇒ no cache entry ⇒ `invalidateQueries` is a no-op).
+  character: (_chatId, trpc) => [trpc.chat.getMemberCard.pathFilter()],
+  // NOTHING of its own. A persona edit moves the seat's member-visible name/avatar, which live in `getChat`
+  // — the row the heal's caller already invalidates whenever the room was dark. The rest of the `persona`
+  // row is the fit/preview family, excluded above.
+  persona: () => [],
+  // NOTHING. The `world-info` row is assembly-derived reads ONLY (excluded above), and every `worldInfo.*`
+  // read is OWNER-scoped — a member holds no cache entry for one, and the owner's devices ride the user-bus
+  // `worldInfoChanged` plus its reconnect heal.
+  "world-info": () => [],
+  // #1733 — the room's regex rack (`regex.listForChat`), room-public and member-readable. NOT
+  // `chat.listEffectiveRegex`: that read is HOST-GATED, and the host is the writer, so their every device
+  // already rides the owner-plane `regexChanged`. NOT `regex.listScripts`/`listGlobal`: owner-scoped.
+  regex: (chatId, trpc) => [trpc.regex.listForChat.queryFilter({ chatId })],
+  // #2471 — the per-chat document rack (`databank.listActiveForChat`), member-gated room-public prompt
+  // context. Same argument, same shape: every other databank read is owner-scoped.
+  databank: (chatId, trpc) => [trpc.databank.listActiveForChat.queryFilter({ chatId })],
+};
+
+/** Every read the live-only lane's heal covers, DERIVED over `ROOM_ENTITY_KINDS` — so the attach synthesis's
+ *  row can never fall behind the kind tuple again (see {@link ROOM_ENTITY_HEAL_FILTERS}). */
+export function roomEntityHealReads(chatId: ChatId, trpc: Trpc): readonly InvalidateFilter[] {
+  return ROOM_ENTITY_KINDS.flatMap((kind) => ROOM_ENTITY_HEAL_FILTERS[kind](chatId, trpc));
+}
 
 // ── THE RPG BUS's event→filter map ──────────────────────────────────────────────────────────────────────
 // It lives HERE, beside `ROOM_ENTITY_FILTERS` (the other per-member dispatch Record) rather than inside

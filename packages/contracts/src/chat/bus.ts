@@ -620,9 +620,11 @@ export type ChatBusEvent =
   //    a lorebook) moved something this room's MEMBER-VISIBLE projections read, so every member re-READS
   //    through the already-clamped verbs. LIVE-ONLY (see LIVE_ONLY_CHAT_EVENT_TYPES): never appended to
   //    `chat_events`, so it is never replayed — the heal for a device that was dark is the attach synthesis
-  //    (`chatOpened`, whose invalidate row covers the bridge's member-card read).
-  //    ID-FREE BY DESIGN: the entity's own id is deliberately absent. The client's filters are PATH-level
-  //    either way (`chat.getMemberCard.pathFilter()`), so an id would buy no narrower targeting and would add
+  //    (`chatOpened`, whose invalidate row is DERIVED over `ROOM_ENTITY_KINDS`: one arm per kind naming the
+  //    member-visible room read a missed fan would strand, `client/src/data/invalidation-reads.ts`'s
+  //    `ROOM_ENTITY_HEAL_FILTERS` — #2494 closed the era when it named the member card and nothing else).
+  //    ID-FREE BY DESIGN: the entity's own id is deliberately absent. The client's filters key on the ROOM
+  //    or on a whole path, never on the entity row, so an id would buy no narrower targeting and would add
   //    a leak surface — a room member would learn the id of an owner-plane row they may not read. `entity`
   //    is the dispatch axis: ONE member with an enum, never three members (design F-C).
   | { type: "roomEntityChanged"; chatId: ChatId; entity: RoomEntityKind };
@@ -697,7 +699,8 @@ export function isChatBusEventType(t: string): t is ChatBusEvent["type"] {
  *
  *  THE THREE MEMBERS JOIN FOR DIFFERENT REASONS, and each is stated so a fourth is classified rather than
  *  guessed: `roomEntityChanged` is live-only as an ECONOMY (a durable row per seated room per card edit buys
- *  nothing — the heal is the attach synthesis); `chatDeleted` is live-only by PHYSICS (its log row cascades
+ *  nothing — the heal is the attach synthesis, and it is DERIVED over `ROOM_ENTITY_KINDS` so it cannot fall
+ *  behind the kinds this economy applies to, #2494); `chatDeleted` is live-only by PHYSICS (its log row cascades
  *  away with the very chat it announces, so it was never replayable at all — design §4 / R1-4a), and being
  *  append-free is precisely what lets its two producers DELETE FIRST and fan only what `RETURNING` proves
  *  gone; `memoryRecall` is live-only by SEMANTICS (#313) — it is an EPHEMERAL per-turn phase feeding the

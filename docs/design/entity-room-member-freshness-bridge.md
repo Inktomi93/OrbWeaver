@@ -174,7 +174,15 @@ The chat room's envelope grows a null-seq arm; nothing else about the transport 
 - **Loss/heal semantics (stated, not accidental):** a live-only event missed while a device is dark is
   NEVER replayed. The heal is the attach synthesis: `chatOpened` re-fires on EVERY (re)attach — reopen,
   reconnect, shed-restart (`sources/chat.ts:189-197`; `use-chat-bus.ts:44-56`) — and its invalidate row
-  is widened to cover the bridge's member-card read (§3.7). Fit/preview staleness after a missed fan is
+  covers the member-visible room read of EVERY live-only kind, derived over `ROOM_ENTITY_KINDS` (§3.7).
+  **#2494, owner ruling 2026-09-20 — the ECONOMY survives, its heal stopped covering one kind of five.**
+  The row shipped hand-listing `getMemberCard`, which is what it owed when `character` was the only kind
+  with a member-visible room read; `regex` (#1733) and `databank` (#2471) then joined the tuple and the
+  heal did not move, so a co-member dark through a host's script/document write came back to the pre-write
+  rack and stayed there. The fix is shape, not a third read: a `Record<RoomEntityKind, …>`
+  (`ROOM_ENTITY_HEAL_FILTERS`) folded by `roomEntityHealReads`, so a sixth kind fails `tsc` until it states
+  its heal (`[]` with a reason is a legitimate arm — `persona` reads through `getChat`, `world-info`'s
+  member-visible reads are assembly-derived only). Fit/preview staleness after a missed fan is
   accepted: the next canon terminal refetches them via the durable replay (`chatCanonReads`,
   `invalidation.ts:69-76`), so the bound is one turn, and widening `chatOpened` with fit reads would
   re-pay a BOOT-4X-class fetch on every room open.
@@ -252,8 +260,14 @@ members are explicit no-op cases there) · `domain-events-coverage` spec · the 
 
 Also: `applyChatBusEvent` gains the arm (invalidate-only, like `chatUpdated` — `apply-chat-bus-event.ts`
 ends in `assertNever`, so this is compile-forced) · `CHAT_BUS_EVENT_TYPES` row (compile-forced) ·
-`chatOpened`'s row (`invalidation.ts:163`) widens with `getMemberCard.pathFilter()` as the
-reconnect/reopen heal for missed live-only fans (§3.4; free when the dialog is closed). The editor's own
+`chatOpened`'s row widens with `roomEntityHealReads()` — the fold of `ROOM_ENTITY_HEAL_FILTERS`, a Record
+over `RoomEntityKind` — as the reconnect/reopen heal for missed live-only fans (§3.4; each arm is free when
+its surface is closed, and the whole row is `roomWasDark`-gated per #514). A kind's heal arm is NARROWER
+than its `ROOM_ENTITY_FILTERS` row by two subtractions, both stated: the fit/preview family (bounded to one
+turn by the durable replay) and every OWNER-scoped read (the owner's devices ride the user bus and its
+reconnect gap-heal). What is left is the room-public, member-readable set — `chat.getMemberCard`,
+`regex.listForChat`, `databank.listActiveForChat` — whose reader may be someone other than the entity's
+owner, which is why only a MULTI-PRINCIPAL pin can see this class of gap. The editor's own
 open-room device receives both the user-bus event and the room event — overlapping path-invalidates are
 idempotent and `collapseFilters` dedupes within each pass; accepted.
 

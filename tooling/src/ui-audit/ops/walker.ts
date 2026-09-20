@@ -53,6 +53,7 @@ import { WALKER_HIT_EXTENT } from "./walker/hit-extent.ts";
 import { WALKER_OBSCURED_REACH } from "./walker/obscured-reach.ts";
 import { WALKER_RESOLVE } from "./walker/resolve.ts";
 import { WALKER_RETURNS } from "./walker/returns.ts";
+import { WALKER_STATE_GLOW } from "./walker/state-glow.ts";
 import { WALKER_STATE_PAINT } from "./walker/state-paint.ts";
 import { WALKER_TARGET_IDENTITY } from "./walker/target-identity.ts";
 
@@ -123,10 +124,14 @@ ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function 
 // own subject with its own committed proof (ops/walker/obscured-reach.ts's header states the #2491 mirror
 // this closed); the composition order is what makes the split free.
 //
-// WALKER_STATE_PAINT sits immediately after WALKER_RESOLVE in BOTH compositions (here and
-// ops/hover.ts): its functions call RESOLVE's `parseRgb`/`resolveBackdrop` and CORE's `describe`
-// (call-time resolution — safe), and its `var` vocabulary (STATE_PAINT_ATTRS, PSEUDOS,
-// STATE_VARIANT_TRANSFORM_RE) must be INITIALIZED before WALKER_CENSUS_DECOR and
-// WALKER_CENSUS_GLOW read it — the exact "var hoists UNDEFINED" ordering rule stated above.
+// WALKER_STATE_PAINT + WALKER_STATE_GLOW sit immediately after WALKER_RESOLVE, IN THAT ORDER, in BOTH
+// compositions (here and ops/hover.ts): their functions call RESOLVE's `parseRgb`/`resolveBackdrop` and
+// CORE's `describe` (call-time resolution — safe), and their `var` vocabulary (STATE_PAINT_ATTRS,
+// STATE_VARIANT_TRANSFORM_RE; PSEUDOS, GLOW_LAYER_INSET_TOLERANCE_PX, ctaGlowResolvedCache) must be
+// INITIALIZED before WALKER_CENSUS_DECOR and WALKER_CENSUS_GLOW read it — the exact "var hoists
+// UNDEFINED" ordering rule stated above. The pair is TWO files because state-paint.ts reached the
+// `tooling-size` cap and the glow vocabulary was its one self-contained third (#2494,
+// docs/architecture/core/Core-Tooling-Law.md §4.3); the composition order makes that split free, as for
+// WALKER_OBSCURED_REACH above.
 export const COLLECT_SAMPLES_JS = `(async () => {
-${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_OBSCURED_REACH}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}})()`;
+${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_STATE_GLOW}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_OBSCURED_REACH}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}})()`;
