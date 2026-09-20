@@ -6,12 +6,10 @@ import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { AboutSection } from "../../../../packages/client/src/features/user-admin/components/about-section.tsx";
 import { AdminApprovalsSection } from "../../../../packages/client/src/features/user-admin/components/admin-approvals-section.tsx";
-import { AdminEnginesSection } from "../../../../packages/client/src/features/user-admin/components/admin-engines-section.tsx";
 import { AdminLinkSsoSection } from "../../../../packages/client/src/features/user-admin/components/admin-link-sso-section.tsx";
 import { AdminCatalogSection, AdminEmbedCardSection } from "../../../../packages/client/src/features/user-admin/components/admin-ops-section.tsx";
 import { AdminUsersSection } from "../../../../packages/client/src/features/user-admin/components/admin-users-section.tsx";
-import { ComputeSection } from "../../../../packages/client/src/features/user-admin/components/compute-section.tsx";
-import { MultiUserSection, SharedAccessSection } from "../../../../packages/client/src/features/user-admin/components/governance-sections.tsx";
+import { MultiUserSection } from "../../../../packages/client/src/features/user-admin/components/governance-sections.tsx";
 import { MediaTrustSection } from "../../../../packages/client/src/features/user-admin/components/media-trust-section.tsx";
 import { MemoryTuningSection } from "../../../../packages/client/src/features/user-admin/components/memory-tuning-section.tsx";
 import { OperationsSection } from "../../../../packages/client/src/features/user-admin/components/operations-section.tsx";
@@ -59,20 +57,6 @@ export function AdminLinkSsoSectionStory(): ReactElement {
       <TooltipProvider>
         <div style={{ height: 900, overflow: "auto", width: 960 }}>
           <AdminLinkSsoSection />
-        </div>
-      </TooltipProvider>
-    </CtDataProviders>
-  );
-}
-
-/** The Engines SECTION (SET-SEAMS stage 3) in isolation — the polled `admin.vllmEngines` read, the restart
- *  verb, and the launch-config editor's `settings.getAppSettings`/`updateAppSettings` are stubbed per-test. */
-export function AdminEnginesSectionStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <TooltipProvider>
-        <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <AdminEnginesSection />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -154,27 +138,13 @@ export function MediaTrustSectionStory(): ReactElement {
   );
 }
 
-/** The Compute SECTION (SET-SEAMS stage 4) in isolation — the vllmConcurrency leaves. */
-export function ComputeSectionStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <TooltipProvider>
-        <div style={{ padding: 16, width: 720 }}>
-          <ComputeSection sectionId="admin-compute" />
-        </div>
-      </TooltipProvider>
-    </CtDataProviders>
-  );
-}
-
-/** The two OWNER-GATED sections (SET-SEAMS stage 4), mounted together as the door renders them (adjacent at
- *  the admin anchor) so one mount proves the shared owner predicate gates BOTH. */
+/** The OWNER-GATED Multi-user section (SET-SEAMS stage 4) — Shared access left with the owner-compute premise
+ *  (inference program F11/F13), so the owner predicate now gates this one row. */
 export function GovernanceSectionsStory(): ReactElement {
   return (
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
-          <SharedAccessSection sectionId="admin-shared-access" />
           <MultiUserSection sectionId="admin-multi-user" />
         </div>
       </TooltipProvider>

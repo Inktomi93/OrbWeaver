@@ -20,6 +20,7 @@
 
 import type { ChatBusEvent, ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -114,7 +115,7 @@ const TURN: ChatBusEvent[] = [
     chatId: CHAT_ID,
     intent: "send",
     api: "chat-completions",
-    source: "openrouter",
+    provider: castId<ProviderId>("openrouter"),
     model: "test-model",
     speakerCharacterId: null,
     targetMessageId: null,
@@ -191,7 +192,7 @@ const TURN_START_ONLY: ChatBusEvent[] = [
     chatId: CHAT_ID,
     intent: "send",
     api: "chat-completions",
-    source: "openrouter",
+    provider: castId<ProviderId>("openrouter"),
     model: "test-model",
     speakerCharacterId: null,
     targetMessageId: null,
@@ -227,7 +228,7 @@ const SWIPE_HEAD: ChatBusEvent[] = [
     chatId: CHAT_ID,
     intent: "swipe",
     api: "chat-completions",
-    source: "openrouter",
+    provider: castId<ProviderId>("openrouter"),
     model: "test-model",
     speakerCharacterId: null,
     targetMessageId: AI_VIEW.id,
@@ -276,7 +277,7 @@ const HEAD_DELTAS: ChatBusEvent[] = [
     chatId: CHAT_ID,
     intent: "send",
     api: "chat-completions",
-    source: "openrouter",
+    provider: castId<ProviderId>("openrouter"),
     model: "test-model",
     speakerCharacterId: null,
     targetMessageId: null,
@@ -298,7 +299,7 @@ const THEMED_STREAM_HEAD: ChatBusEvent[] = [
     chatId: CHAT_ID,
     intent: "send",
     api: "chat-completions",
-    source: "openrouter",
+    provider: castId<ProviderId>("openrouter"),
     model: "test-model",
     speakerCharacterId: THEMED_STREAM_CHARACTER,
     targetMessageId: null,
@@ -710,7 +711,7 @@ const SWIPE_TURN: ChatBusEvent[] = [
     chatId: CHAT_ID,
     intent: "swipe",
     api: "chat-completions",
-    source: "openrouter",
+    provider: castId<ProviderId>("openrouter"),
     model: "test-model",
     speakerCharacterId: null,
     targetMessageId: AI_VIEW.id,
@@ -1356,7 +1357,7 @@ const WARNED_TURN: ChatBusEvent[] = [
     chatId: CHAT_ID,
     intent: "send",
     api: "chat-completions",
-    source: "openrouter",
+    provider: castId<ProviderId>("openrouter"),
     model: "test-model",
     speakerCharacterId: null,
     targetMessageId: null,
