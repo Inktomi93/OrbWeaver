@@ -14249,9 +14249,9 @@
       "path": "docs/design/orbweaver-inference-package.md",
       "lane": "design",
       "issue": 5,
-      "lines": 3141,
-      "bytes": 341334,
-      "sha256": "31f75bdaf9d56e5a006283f5dec5b8813912ab46157db89c3a280a1952629fa1",
+      "lines": 3519,
+      "bytes": 380765,
+      "sha256": "cd2b5c9325c61bfb43e8f3b467b1d4e06c55f8cb861784dc4bc057650fd8a3ba",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14264,12 +14264,12 @@
       },
       "receipt": {
         "path": "docs/design/orbweaver-inference-package.md",
-        "assignedSha256": "31f75bdaf9d56e5a006283f5dec5b8813912ab46157db89c3a280a1952629fa1",
+        "assignedSha256": "cd2b5c9325c61bfb43e8f3b467b1d4e06c55f8cb861784dc4bc057650fd8a3ba",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "31f75bdaf9d56e5a006283f5dec5b8813912ab46157db89c3a280a1952629fa1",
-        "verifiedCommit": "e7fbeaac91a04954d0fe69c43f738035ed4a9320",
+        "verifiedSha256": "cd2b5c9325c61bfb43e8f3b467b1d4e06c55f8cb861784dc4bc057650fd8a3ba",
+        "verifiedCommit": "23df227ffc49898dd1e4fa02289735d0585f55d6",
         "verifiedAt": "2026-09-20",
         "evidence": [
           "re-attested at 29a8b0eaa by lane cb-record-tail: §15c item 18 gained the RECORD-TRUTH TAIL bullet (the B7 client gate, the refusal/rate_limit compose ruling, the retired budgetExceeded code, the eight repaired comments, the re-pinned drain drop). SCOPE OF THIS RE-ATTESTATION, stated rather than implied: the receipt's sha was ALREADY stale at this lane's branch point — 215 lines had landed since bd99e9ad3 across 9ef00397d/100ee1db9/fe77a1f36/2e2871dd6/e0cc98c3a/a45c5f746, every one an APPEND to §8.8/§14/§15c, and none of those lanes re-attested. This lane read §5.3b, §5.3c, §8.5b and §15c-18 in full and appended within §15c-18; it did not re-read the other ~2600 lines. A full re-read is owed by the barrier.",
@@ -14307,7 +14307,7 @@
             ]
           }
         ],
-        "verifiedCanonicalSha256": "31f75bdaf9d56e5a006283f5dec5b8813912ab46157db89c3a280a1952629fa1"
+        "verifiedCanonicalSha256": "cd2b5c9325c61bfb43e8f3b467b1d4e06c55f8cb861784dc4bc057650fd8a3ba"
       },
       "receiptCurrent": true
     },
