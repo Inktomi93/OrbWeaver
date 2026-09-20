@@ -144,7 +144,8 @@ async function runItem(run: BatchRun, log: ProviderLogger, item: SummarizeReques
       tokensOut,
       finishReason: result.finishReason.raw ?? result.finishReason.unified,
     });
-    return { text, usage: { tokensIn, tokensOut, costUsd: measuredCostOf(result.providerMetadata) } };
+    const measured = measuredCostOf(result.providerMetadata, result.usage.raw);
+    return { text, usage: { tokensIn, tokensOut, costUsd: measured === null ? null : measured.costUsd } };
   } catch (err) {
     const prefix = `${label} item ${index} failed`;
     const failure =

@@ -6,12 +6,14 @@
 import type { SharedV4ProviderMetadata, SharedV4Warning } from "@ai-sdk/provider";
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type { ChatUsage, EndpointFeatures, GenerationCapability } from "@orb/contracts/inference";
+import type { ChatUsage, CostDetails, EndpointFeatures, GenerationCapability } from "@orb/contracts/inference";
 import { foldNestedUsage } from "@orb/contracts/inference";
+import type { EffortLevel } from "@orb/contracts/preset";
 import type { ModelId } from "@orb/kit/ids";
+import { z } from "zod";
 import type { ChatResult } from "../../contract/chat.ts";
 import { normalizeFinishReason } from "../../contract/chat.ts";
-import type { ChatEvent } from "../../contract/events.ts";
+import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
 import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
 import type { StreamDrain } from "./stream.ts";
 
@@ -22,12 +24,56 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** The wire-reported cost off the SDK's provider metadata — OpenRouter's usage accounting today; `null` on
- *  every transport that reports none (the `estimated`/`unrecorded` arms follow). */
-export function measuredCostOf(providerMetadata: SharedV4ProviderMetadata | undefined): number | null {
+/** What OpenRouter puts on the V4 `usage.raw` beyond the SDK's typed mapping (measured 2026-09-20,
+ *  `gen-1789884256-ZeulFgkGknjAbAgCKe1S`): the per-phase upstream split and the BYOK bit. Optional throughout —
+ *  a wire that reports none of it is simply not OpenRouter. */
+const openRouterRawUsageSchema = z.object({
+  cost_details: z
+    .object({
+      upstream_inference_prompt_cost: z.number().nullish(),
+      upstream_inference_completions_cost: z.number().nullish(),
+    })
+    .nullish(),
+  is_byok: z.boolean().nullish(),
+});
+
+/** A wire-reported cost WITH its breakdown — what `costProvenance: "measured"` records. */
+export interface MeasuredCost {
+  readonly costUsd: number;
+  readonly costDetails: CostDetails;
+}
+
+/** The wire-reported cost off the SDK's provider metadata — OpenRouter's usage accounting today; `null` on every
+ *  transport that reports none (the `estimated`/`unrecorded` arms follow). On a BYOK connection OR's `cost` is
+ *  the GATEWAY FEE and `costDetails.upstreamInferenceCost` the provider's charge (inference audit A4), so the
+ *  spend is their sum and both ride the record; on a passthrough connection `cost` IS the spend (measured equal
+ *  to the upstream figure on every probe). The prompt/completions split lives on `usage.raw` only. */
+export function measuredCostOf(
+  providerMetadata: SharedV4ProviderMetadata | undefined,
+  rawUsage: Readonly<Record<string, unknown>> | undefined,
+): MeasuredCost | null {
   const usage = providerMetadata?.[OPENROUTER_KEY]?.["usage"];
-  const cost = isRecord(usage) ? usage["cost"] : undefined;
-  return typeof cost === "number" ? cost : null;
+  if (!isRecord(usage)) {
+    return null;
+  }
+  const cost = usage["cost"];
+  if (typeof cost !== "number") {
+    return null;
+  }
+  const details = usage["costDetails"];
+  const upstreamCost = isRecord(details) ? details["upstreamInferenceCost"] : undefined;
+  const raw = openRouterRawUsageSchema.safeParse(rawUsage);
+  const prompt = raw.success ? raw.data.cost_details?.upstream_inference_prompt_cost : undefined;
+  const completions = raw.success ? raw.data.cost_details?.upstream_inference_completions_cost : undefined;
+  const split = {
+    ...(typeof prompt === "number" ? { promptUsd: prompt } : {}),
+    ...(typeof completions === "number" ? { completionUsd: completions } : {}),
+  };
+  if (raw.success && raw.data.is_byok === true && typeof upstreamCost === "number") {
+    const totalUsd = cost + upstreamCost;
+    return { costUsd: totalUsd, costDetails: { totalUsd, ...split, upstreamUsd: upstreamCost, gatewayUsd: cost } };
+  }
+  return { costUsd: cost, costDetails: { totalUsd: cost, ...split } };
 }
 
 // ── the SDK's own warnings (§A3) ───────────────────────────────────────────────────────────────────────
@@ -109,11 +155,15 @@ export interface ResultContext {
   readonly startedAt: number;
   readonly firstDeltaAt: number | undefined;
   readonly now: number;
-  /** The wire-reported cost in USD, when the transport read one (OpenRouter's usage accounting). */
-  readonly measuredCostUsd: number | null;
+  /** The wire-reported cost + breakdown, when the transport read one (OpenRouter's usage accounting). */
+  readonly measuredCost: MeasuredCost | null;
   /** The row's shipped pricing — the `estimated` arm when nothing was measured. */
   readonly pricing: EndpointFeatures["pricing"];
   readonly generationId: string | null;
+  /** What the wire carried for effort (`ChatResult.appliedEffort`) — read off the built options by the transport. */
+  readonly appliedEffort: EffortLevel | null;
+  /** The response's rate-limit headers, parsed by the transport (`backends/kit/rate-limit-headers.ts`). */
+  readonly rateLimit: RateLimitSnapshot | null;
   readonly warnings: readonly ResolvedWarning[];
 }
 
@@ -121,8 +171,8 @@ function costOf(
   core: Omit<ChatUsage, "costUsd" | "costDetails" | "costProvenance">,
   ctx: ResultContext,
 ): Pick<ChatUsage, "costUsd" | "costDetails" | "costProvenance"> {
-  if (ctx.measuredCostUsd !== null) {
-    return { costUsd: ctx.measuredCostUsd, costDetails: null, costProvenance: "measured" };
+  if (ctx.measuredCost !== null) {
+    return { costUsd: ctx.measuredCost.costUsd, costDetails: ctx.measuredCost.costDetails, costProvenance: "measured" };
   }
   if (ctx.pricing !== undefined && core.tokensIn !== null && core.tokensOut !== null) {
     const promptUsd = (core.tokensIn / TOKENS_PER_MTOK) * ctx.pricing.inputPerMTok;
@@ -163,10 +213,11 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
     apiErrorStatus: null,
     numTurns: 1,
     generationId: ctx.generationId,
+    appliedEffort: ctx.appliedEffort,
     usage: { ...core, ...costOf(core, ctx) },
     ...(metadata !== undefined ? { providerMetadata: { [ctx.providerId]: metadata } } : {}),
     ...(drain.images.length > 0 ? { images: drain.images } : {}),
     events: warningEvents(ctx.warnings, ctx.now),
-    rateLimit: null,
+    rateLimit: ctx.rateLimit,
   };
 }

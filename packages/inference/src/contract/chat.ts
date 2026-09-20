@@ -4,7 +4,7 @@
 
 import type { ChatContentPart } from "@orb/contracts/chat";
 import type { ChatUsage, NormalizedFinishReason } from "@orb/contracts/inference";
-import type { UserIntent } from "@orb/contracts/preset";
+import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
@@ -208,8 +208,16 @@ export interface ChatResult {
   /** Non-null when transient API errors occurred but retries recovered the turn. */
   readonly apiErrorStatus: number | null;
   readonly numTurns: number;
-  /** The upstream OpenRouter generation handle (`gen-…`); null on every other transport. */
+  /** The provider's response id for this generation — OpenRouter's `gen-…` (the cost-settlement key), Anthropic's
+   *  `msg_…` (the support handle); null where a wire reports none (agent-sdk). Opaque provenance (§5.3c class 4). */
   readonly generationId?: string | null | undefined;
+  /** The reasoning effort the wire ACTUALLY CARRIED, in the preset's 7-member vocabulary (the `reasoning_effort`
+   *  column's CHECK): `"none"` when the transport spelled thinking OFF, the wire word when it spelled a level,
+   *  `null` when it spelled no effort field at all (a row with `features.effort: "none"`, a budget-mode turn, an
+   *  SDK vocabulary drop, a mandatory-reasoning replay) — the model then reasoned at ITS default, which we do not
+   *  know. The REQUESTED intent stays in `params`; this field is what the record stores (inference audit B1).
+   *  Read back from the options the transport built, never recomputed from the knobs. */
+  readonly appliedEffort: EffortLevel | null;
   readonly usage: ChatUsage;
   /** Wire-opaque facts the normalized core cannot carry (the agent-sdk 5m/1h cache split, warm-spare, the OR
    *  cache receipt) — keyed by provider id at the read seam into `variantMetadataSchema.providerMetadata`. */

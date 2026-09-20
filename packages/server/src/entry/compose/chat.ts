@@ -781,15 +781,21 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       tokensOut: result.usage.tokensOut,
       cacheReadTokens: result.usage.cacheReadTokens,
       cacheWriteTokens: result.usage.cacheWriteTokens,
+      reasoningTokens: result.usage.reasoningTokens,
       contextWindow: result.usage.contextWindow,
       costUsd: result.usage.costUsd,
       costProvenance: result.usage.costProvenance,
+      costDetails: result.usage.costDetails,
+      // The replayable reasoning blocks (A1) — stored on the variant; the assembly reads them back.
+      reasoningParts: result.reasoningParts ?? null,
       maxOutputTokens: result.usage.maxOutputTokens,
       // The provider's per-turn MODEL-CALL count, renamed across the seam (`numTurns` → `modelCalls`)
       // because "turn" already means a CHAT turn on this side. It is what makes `tokensOut` (a sum
       // over the calls) legible against `maxOutputTokens` (a per-call ceiling).
       modelCalls: result.numTurns,
-      reasoningEffort: req.intent.effort ?? null,
+      // The APPLIED effort the wire reported (inference audit B1) — never `req.intent.effort`, which a transport may
+      // have dropped or a mandatory clamp raised; the requested value already rides `params`.
+      reasoningEffort: result.appliedEffort,
       ttftMs: result.ttftMs,
       finishReason: result.finishReason,
       stopReason: result.stopReason,

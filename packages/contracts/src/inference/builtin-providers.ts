@@ -54,6 +54,8 @@ export const BUILTIN_PROVIDER_ROWS = [
     serves: ["chat", "summarize", "structured", "embed", "generateImage"],
     features: {
       effort: "reasoning_effort",
+      // gpt-5.x / o-series reject the SDK's `max_tokens` (measured 2026-09-20, `req_f68c8dc2e4a24908a2e5be64132edbc0`).
+      outputCapField: "max_completion_tokens",
       images: "images-api",
       strictJson: "declared-only",
     },

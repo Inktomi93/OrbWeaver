@@ -2,8 +2,13 @@
 // then the family floor OR-ed in, then the per-kind floor beneath everything. `declared` WINS over a dated
 // measurement WITH a `declared_overrides_measured` warning naming the field: the user's box is the truth
 // about the user's box; a shipped measurement describes OUR probe of SOME deployment. Every arm is a PARTIAL
-// (only the fields it states); nested objects (`reasoning`, `sampling`, `output`, `context`, `turns`) merge
-// one level deep; arrays replace.
+// (only the fields it states); nested objects (`reasoning`, `output`, `context`, `turns`) merge one level deep;
+// arrays replace — and so does `sampling`: it is the STATED SET of knobs a tier vouches for (§8.7 step 2:
+// absent ⇒ not honoured; D68: absence is the fail-closed truth), and a patch grammar cannot express a measured
+// ABSENCE. Founding case (inference audit B3, measured 2026-09-20 `gen-1789884252-n94Ebcm1uMVMG1XhxsbB`):
+// OpenRouter's catalog ADVERTISES `temperature` for anthropic/claude-opus-5 and strips it upstream, so the
+// dated measured `{}` must beat the advertised range — under a one-level merge `{...advertised, ...{}}` never
+// could. The same rule makes a connection's `declared.sampling` the WHOLE list it checkboxes.
 
 import type {
   Capability,
@@ -38,7 +43,8 @@ type GenerationPatch = NonNullable<CapabilityOverride["generation"]>;
  *  `exactOptionalPropertyTypes`; `mergeFlat` skips those. */
 type Patch<T> = { readonly [K in keyof T]?: T[K] | undefined };
 
-const NESTED_GENERATION_KEYS = ["reasoning", "sampling", "output", "context", "turns"] as const;
+/** The blocks that merge one level deep. `sampling` is deliberately NOT here (a stated set replaces — header). */
+const NESTED_GENERATION_KEYS = ["reasoning", "output", "context", "turns"] as const;
 
 function mergeGeneration(base: GenerationCapability, patch: GenerationPatch | Partial<GenerationCapability> | undefined): GenerationCapability {
   if (patch === undefined) {

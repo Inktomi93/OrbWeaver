@@ -134,6 +134,9 @@ function forkVariantValues(args: {
     reasoning: nullReasoning(variant.reasoning),
     preContinueReasoning: nullReasoning(variant.preContinueReasoning),
     lastContinuationReasoning: nullReasoning(variant.lastContinuationReasoning),
+    // The replayable reasoning BLOCKS carry the same thinking prose as `reasoning` (plus opaque signatures), so
+    // they take the same P3 cut: a deception-active source hands a non-host forker none of them.
+    reasoningParts: posture.stripReasoning ? null : variant.reasoningParts,
     // ── HOST-PLANE — served ONLY behind a host gate, so it must not cross the member→host transition ────
     // `promptSnapshot` is the `AssembledPrompt` the turn actually SENT: the wire projection rides hidden spans
     // VERBATIM (member-visibility.ts "WHO SEES WHAT"), so the blob re-materializes every `<lie>` truth the body
@@ -174,8 +177,12 @@ function forkVariantValues(args: {
     tokenProvenance: variant.tokenProvenance,
     cacheReadTokens: variant.cacheReadTokens,
     cacheWriteTokens: variant.cacheWriteTokens,
+    // The reasoning-token count and the cost breakdown are economics figures beside `tokensOut`/`costUsd` — numbers,
+    // no prose, the same member-readable readout (inference audit B5/B8).
+    reasoningTokens: variant.reasoningTokens,
     costUsd: variant.costUsd,
     costProvenance: variant.costProvenance,
+    costDetails: variant.costDetails,
     contextWindow: variant.contextWindow,
     maxOutputTokens: variant.maxOutputTokens,
     ttftMs: variant.ttftMs,
