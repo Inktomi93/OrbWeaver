@@ -1,12 +1,6 @@
 // CT: Settings → Connections → Model roles — one row per ROUTABLE TASK, each a Select over the user's
-// COMPATIBLE connections writing `connection.setBinding`, beside the readout of what a turn resolves TODAY.
-//
-// REWRITTEN at the `@orb/inference` cut-over (2026-09-20). The surface this file used to drive is gone: the
-// autosaved `routing.roleDefaults` blob, the per-role SOURCE picker, the Protocol select, the model cell,
-// the app-default hint and the per-row "drafted vs live" sync chip (`role-slot-row`, `model-picker`,
-// `use-role-source-models`, `use-connections-form` were all deleted). A role is a BINDING to one of the
-// user's own connection rows now, written immediately, and `listBindings` returns one view per routable
-// task carrying what resolves against the PERSISTED read.
+// COMPATIBLE connections writing `connection.setBinding`, beside the persisted readout of what a turn
+// resolves TODAY. `listBindings` returns one view per routable task.
 //
 // THE 2026-08-01 OWNER INCIDENT IS STILL THE POINT OF THIS FILE, and the claim survives the rewrite intact:
 // for two hours the pane showed a full "OpenRouter · Claude Sonnet 5" row under a "Saved" chip while the DB

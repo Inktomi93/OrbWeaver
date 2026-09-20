@@ -15,10 +15,8 @@
 // purge and the purge deletes around THAT recorded space, so "what completed" and "what survived" are one
 // value rather than two independently-resolved ones.
 //
-// THE MARK'S HOME HERE IS A FENCE, NOT A PREFERENCE: the backfill that actually re-embeds these rows lives
-// in `domain/chat`, so the nearest terminal inside embeddings is this verb. Moving the mark onto the
-// backfill's own per-owner terminal is a follow-up; the trust boundary is identical today because both are
-// the same bulk-complete event.
+// THE MARK'S HOME HERE IS THE EMBEDDINGS BOUNDARY: the backfill that re-embeds these rows lives in
+// `domain/chat`, while this verb is the terminal that owns both the completion record and old-space purge.
 
 import type { EmbeddingsContext } from "../context.ts";
 import type { PurgeMemoryVectorsResult } from "../contract/results.ts";

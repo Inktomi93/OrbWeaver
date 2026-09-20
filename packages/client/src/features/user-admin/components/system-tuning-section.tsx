@@ -1,15 +1,10 @@
-// The System-tuning admin SECTION (Phase B ⑩) — the born-in-DB + per-request scalar admin knobs that had no
-// editor: the agent-sdk summarize concurrency (Q6), the prompt-transform deadline, the non-owner compute-budget
-// WINDOW (the cap's sibling), the model-catalog refresh cadence, the image-variant quality, the databank-upload
-// cap (TIGHTEN-only), and the vLLM per-request gen defaults (engineLaunch.genPresencePenalty +
-// engineLaunch.genRepetitionPenalty). Each shows its deployment floor + whether it's an active override; a
-// section-level Reset clears every ⑩ override at once. Reads getAppSettingsWithOverrides for the honest
-// floor-vs-override story; saves the only-moved-fields delta through the admin-gated updateAppSettings path.
+// The System-tuning admin SECTION (Phase B ⑩) — the live scalar admin knobs for agent-sdk summarize
+// concurrency, prompt transforms, model-catalog refresh, image variants, databank uploads and prompt-cache
+// depth. Each shows its deployment floor + whether an override is active; Reset clears the section's
+// overrides at once. Reads getAppSettingsWithOverrides for the floor-vs-override story and saves only the
+// moved fields through the admin-gated updateAppSettings path.
 //
-// A settings-SECTION CONTRIBUTION (§6c) at the `admin` anchor, owned by user-admin (admin-tier config). These
-// all apply LIVE (per request / per batch / per check) — no engine restart, unlike the engineLaunch editor's
-// argv flags (genPresencePenalty + genRepetitionPenalty both ride engineLaunch's schema section but are
-// consumed per-request, so they live here with the live knobs, not in the restart-gated launch editor).
+// A settings-SECTION CONTRIBUTION (§6c) at the `admin` anchor, owned by user-admin (admin-tier config).
 
 import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
 import { IMAGE_VARIANT_QUALITY_MAX, IMAGE_VARIANT_QUALITY_MIN, PROMPT_CACHE_MIN_DEPTH_CEIL, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
@@ -151,8 +146,7 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
   const anyOverridden = KNOBS.some((knob) => knob.overridden(overrides));
   useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
 
-  // Merge every dirty knob's sparse patch into ONE partial (nested engineLaunch/agentSdkConcurrency deep-merge
-  // server-side, so an untouched sibling in the same section survives).
+  // Merge every dirty knob's sparse patch into ONE partial; nested setting groups retain untouched siblings.
   const onSave = (): void => {
     const partial: AppSettings = {};
     for (const knob of dirtyKnobs) {
@@ -160,12 +154,7 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
     }
     save.mutateAsync({ partial }).catch(() => undefined);
   };
-  // Reset clears every ⑩ override to the floor. Flat keys use the top-level `null` (whole-section clear); the
-  // NESTED `genPresencePenalty` must be a LEAF `null`, NOT `undefined` — tRPC rides plain JSON, so a nested
-  // `undefined` is STRIPPED by JSON.stringify → the server sees `engineLaunch: {}` → deepMerge iterates zero
-  // keys → the override survives its own reset. A leaf `null` survives the wire and clears via the recursion
-  // (the merge-clear law: `{}` = no-op, `null` = leaf clear). We must NOT send `engineLaunch: null` — that
-  // would wipe the whole restart-gated launch config this section doesn't own.
+  // Reset clears every override this section owns to the deployment floor.
   const onReset = (): void => {
     save
       .mutateAsync({
@@ -229,9 +218,8 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
   );
 }
 
-/** Deep-merge two sparse AppSettings patches so two knobs targeting the SAME nested object (e.g. two
- *  engineLaunch fields) don't clobber each other before the single mutateAsync. Plain-object values merge; a
- *  scalar/array replaces. Mirrors the server deep-merge shape (client-side, over the sparse patch only). */
+/** Deep-merge sparse AppSettings patches so knobs targeting the same nested object retain their siblings
+ *  before the single mutateAsync. Plain-object values merge; a scalar or array replaces. */
 function deepMergePatch(base: AppSettings, patch: AppSettings): AppSettings {
   const out: Record<string, unknown> = { ...base };
   for (const [key, value] of Object.entries(patch)) {
