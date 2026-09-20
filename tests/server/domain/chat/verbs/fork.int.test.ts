@@ -91,6 +91,8 @@ const FORK_COLUMN_CLASS = {
   reasoning: "member-projected",
   preContinueReasoning: "member-projected",
   lastContinuationReasoning: "member-projected",
+  // The replayable reasoning blocks (audit A1) carry the thinking prose too — the same P3 cut as `reasoning`.
+  reasoningParts: "member-projected",
   // The host-gated variant-wire trio (`loadVariantWire`) + the two HOST-PLANE provenance columns.
   promptSnapshot: "host-plane",
   params: "host-plane",
@@ -110,7 +112,10 @@ const FORK_COLUMN_CLASS = {
   costProvenance: "copied",
   cacheReadTokens: "copied",
   cacheWriteTokens: "copied",
+  // The reasoning-token count and the cost breakdown (inference audit B5/B8) — economics numbers beside the two above.
+  reasoningTokens: "copied",
   costUsd: "copied",
+  costDetails: "copied",
   contextWindow: "copied",
   ttftMs: "copied",
   finishReason: "copied",

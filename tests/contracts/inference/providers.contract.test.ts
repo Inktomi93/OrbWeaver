@@ -102,3 +102,15 @@ test("plugin provider ids are namespaced and the namespace is readable", () => {
   const badWire = providerDefSchema.safeParse({ id: "plugin:acme/x", label: "X", wire: "grpc", auth: "apiKey", apis: [], catalog: "url", metered: true });
   expect(badWire.success).toBe(false);
 });
+
+// H2 (measured 2026-09-20 on gpt-5-mini): OpenAI rejects the SDK's `max_tokens` on its reasoning models
+// (`req_f68c8dc2e4a24908a2e5be64132edbc0`) and takes `max_completion_tokens` on every current chat model, so the
+// built-in row declares the spelling and the body shaper renames (rule 8). No other built-in row declares it.
+test("the openai row declares outputCapField: max_completion_tokens; every other built-in row leaves the SDK's max_tokens", () => {
+  expect(builtinProvider("openai")?.features?.outputCapField).toBe("max_completion_tokens");
+  const others = BUILTIN_PROVIDERS.filter((row) => row.id !== "openai");
+  expect(others.length).toBeGreaterThan(0);
+  for (const row of others) {
+    expect(row.features?.outputCapField, `${row.id} declares an output-cap spelling`).toBeUndefined();
+  }
+});

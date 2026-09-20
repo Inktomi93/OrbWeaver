@@ -31,7 +31,7 @@ import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/ad
 import { advertisedFromOpenAiCompat } from "../capability/sources/advertised/openai-compat.ts";
 import { advertisedFromOpenRouter } from "../capability/sources/advertised/openrouter.ts";
 import { curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
-import { MEASURED_ANTHROPIC } from "../capability/sources/measured/anthropic.ts";
+import { measuredRows } from "../capability/sources/measured/loader.ts";
 import type { Evidence } from "../capability/synthesize.ts";
 import { synthesizeCapability } from "../capability/synthesize.ts";
 import type { EndpointModel } from "../catalog/endpoint.ts";
@@ -180,11 +180,14 @@ export async function resolveTask(ctx: ResolverContext, args: ResolveArgs): Prom
   await warmFor(ctx, provider, connection, credential.secret);
   const model = normalizeModelId(connection.model, provider.wire === "agent-sdk" ? ctx.agentSdkCatalog.get() : null);
   const family = detectModelFamily(model);
+  const rowQuery = { model, providerId: provider.id, wire: provider.wire, api };
   const evidence: Evidence = {
     declared,
-    measured: family === "anthropic" ? MEASURED_ANTHROPIC : [],
+    // Matched per (model × route) like the curated rows — a measurement through OpenRouter never reaches the
+    // direct wire, and one for opus-5 never reaches haiku.
+    measured: measuredRows(rowQuery),
     advertised: advertisedFor(ctx, provider, connection, model),
-    curated: curatedRows({ model, providerId: provider.id, wire: provider.wire, api }),
+    curated: curatedRows(rowQuery),
   };
   const synthesized = synthesizeCapability(kind, family, evidence);
   const capability: Capability = applyEndpointPosture(provider, synthesized.capability, declared?.generation?.input !== undefined);

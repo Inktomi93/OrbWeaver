@@ -41,6 +41,7 @@
 import type {
   AssembledPrompt,
   ChatBusEvent,
+  ChatContentPart,
   ChatDeltaEvent,
   ChatInjection as ChatInjectionWire,
   ChatMetadata,
@@ -66,7 +67,7 @@ import {
 } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
-import type { NormalizedFinishReason } from "@orb/contracts/inference";
+import type { CostDetails, NormalizedFinishReason } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import { EFFORT_LEVELS } from "@orb/contracts/preset";
@@ -435,6 +436,13 @@ export const messageVariants = sqliteTable(
     // context, and a fix for the greeting-swipe gap possible at all.
     macroFreezes: text("macro_freezes", { mode: "json" }).$type<MacroFreezeRecord>(),
     reasoning: text("reasoning"),
+    // The model's reasoning BLOCKS with their per-wire provenance (`ChatContentPart` `reasoning` members: the
+    // Anthropic signature / redacted payload, OpenRouter's `reasoning_details`) — the REPLAY MATERIAL the next leg
+    // of a tool loop hands back so the provider verifies its own prior thinking (inference audit A1; the read
+    // side is `carryReasoning`, §8.8). `reasoning` above stays the rendered TEXT a user reads; this column is
+    // what the wire needs and is NULL when nothing replayable was emitted. Typed JSON, parsed at the read seam
+    // (the converters refuse an unsigned block, so a malformed row degrades to "nothing to replay").
+    reasoningParts: text("reasoning_parts", { mode: "json" }).$type<readonly Extract<ChatContentPart, { type: "reasoning" }>[]>(),
     model: text("model"),
     // ATTRIBUTION (inference program §5.3b): which of the user's connections generated this swipe. SET NULL —
     // a deleted connection never deletes history (`selectedVariantId`'s idiom); null on user-authored rows,
@@ -446,7 +454,10 @@ export const messageVariants = sqliteTable(
     // join. Validated at the producer against the registry, NO CHECK — a plugin provider id is runtime data
     // (§5.3c class 2). The ST import narrows an unparseable source value to `(unknown)`.
     provider: text("provider"),
-    // CHECK on the preset effort tuple (`EFFORT_LEVELS`, 7 members incl. `none`) — §5.3c class 1.
+    // CHECK on the preset effort tuple (`EFFORT_LEVELS`, 7 members incl. `none`) — §5.3c class 1. The
+    // APPLIED effort — what the wire actually carried in our vocabulary (`ChatResult.appliedEffort`), never the
+    // requested intent (that lives in `params`): a transport that spells no effort field, a budget-mode turn or
+    // an SDK vocabulary drop records NULL; a disabled-thinking turn records `none` (inference audit B1).
     reasoningEffort: text("reasoning_effort", { enum: EFFORT_LEVELS }).$type<EffortLevel>(),
     // ── Economics (all nullable — populated when the generation finishes). ──
     tokensIn: integer("tokens_in"),
@@ -454,11 +465,20 @@ export const messageVariants = sqliteTable(
     tokenProvenance: text("token_provenance", { enum: TOKEN_PROVENANCES }).$type<TokenProvenance>().notNull().default("unrecorded"),
     cacheReadTokens: integer("cache_read_tokens"),
     cacheWriteTokens: integer("cache_write_tokens"),
+    // The reasoning share of `tokensOut` where the wire reports it (Anthropic `output_tokens_details.thinking_tokens`,
+    // OpenRouter `completion_tokens_details.reasoning_tokens`, the agent-sdk `thinking_tokens` frame); NULL when
+    // unreported — never a fabricated 0 (inference audit B5).
+    reasoningTokens: integer("reasoning_tokens"),
     costUsd: real("cost_usd"),
     // WHERE `costUsd` came from — the SAME tuple as `token_provenance` (never a second vocabulary): `measured` =
     // the transport's metadata (OR usage cost); `estimated` = catalog pricing × tokens, or the subscription's
     // notional SDK price; `unrecorded` otherwise. Rollups combine it with `combineTokenProvenance`.
     costProvenance: text("cost_provenance", { enum: TOKEN_PROVENANCES }).$type<TokenProvenance>().notNull().default("unrecorded"),
+    // The cost BREAKDOWN behind `costUsd` (§5.3c class 3 — a typed JSON sidecar whose ONE parser is
+    // `costDetailsSchema` at every read seam, never a cast): the inference phase split when a wire reports one or
+    // the estimated arm derives one, and on a BYOK OpenRouter turn the gateway-fee / upstream-charge pair that
+    // makes `costUsd` honest (OR's `cost` alone is the fee there, inference audit A4/B8). NULL when `costUsd` is.
+    costDetails: text("cost_details", { mode: "json" }).$type<CostDetails>(),
     contextWindow: integer("context_window"),
     // The §8 history-budget fit-pass boundary: the earliest message actually included in the assembled
     // history for this generation (null = nothing was dropped / the fit-pass never ran). Powers a client
@@ -499,9 +519,10 @@ export const messageVariants = sqliteTable(
     promptSnapshot: text("prompt_snapshot", { mode: "json" }).$type<AssembledPrompt>(),
     genStartedAt: integer("gen_started_at"),
     genFinishedAt: integer("gen_finished_at"),
-    // The upstream OpenRouter generation handle (`gen-…`) this variant was billed under — the key
-    // `connection.orGenerationCost` settles the per-message cost with (PD-137). Null on a non-OR turn
-    // (agent-sdk / responses api / user-authored row). NOT an orbweaver-branded id (an upstream handle).
+    // The PROVIDER's response id for this generation — OpenRouter's `gen-…` (the key `connection.generationCost`
+    // settles the per-message cost with, PD-137) or Anthropic's `msg_…` (the support handle a request is traced
+    // by; inference audit B7). §5.3c class 4: declared-OPAQUE provenance, never compared, switched on or joined.
+    // Null where the wire reports none (agent-sdk / a user-authored row). NOT an orbweaver-branded id.
     generationId: text("generation_id"),
     // ── Continue-undo state (preContinue* + lastContinuation* + reasoning twins — Tier-1-DB.md §chat). ──
     preContinueContent: text("pre_continue_content"),

@@ -46,6 +46,33 @@ export const anthropicRows = [
   },
   {
     match: {
+      model: "^(anthropic/)?claude[-/].*opus-5",
+    },
+    generation: {
+      reasoning: {
+        mode: "adaptive",
+        enabled: true,
+        effortLevels: ["low", "medium", "high", "xhigh", "max"],
+      },
+      // The SDK's own capability table is the direct wire's truth (it strips before sending): Opus 5 REJECTS
+      // sampling parameters, so the stated set is empty — a preset knob drops with `sampling_knob_dropped`
+      // instead of the record claiming it applied (inference audit B3/H3). `rejectsThinkingDisabledAboveHighEffort`
+      // needs no `mandatory`: our wire sends `effort` only when reasoning is ENABLED (chat.ts), so the
+      // disabled+xhigh combination the SDK lowers is unreachable.
+      sampling: {},
+      context: {
+        window: 200_000,
+        supports1M: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-20",
+      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5943-5953): supportsAdaptiveThinking, supportsXhighEffort, rejectsSamplingParameters: true; no curated row existed before 2026-09-20 (opus-5 resolved as non-reasoning on the direct wire)",
+    },
+  },
+  {
+    match: {
       model: "^(anthropic/)?claude[-/].*opus-4[-.]8",
     },
     generation: {
@@ -54,6 +81,8 @@ export const anthropicRows = [
         enabled: true,
         effortLevels: ["low", "medium", "high", "xhigh", "max"],
       },
+      // Rejects sampling parameters (the SDK table) — the stated set is empty on every wire.
+      sampling: {},
       context: {
         window: 200_000,
         supports1M: true,
@@ -64,8 +93,8 @@ export const anthropicRows = [
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-19",
-      cite: "chat-models.ts Opus 4.8 entry; turns.ts OPUS_48_MIN",
+      dated: "2026-09-20",
+      cite: "chat-models.ts Opus 4.8 entry; turns.ts OPUS_48_MIN; sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true",
     },
   },
   {
@@ -78,14 +107,16 @@ export const anthropicRows = [
         enabled: true,
         effortLevels: ["low", "medium", "high", "xhigh", "max"],
       },
+      // Rejects sampling parameters (the SDK table) — the stated set is empty on every wire.
+      sampling: {},
       turns: {
         cacheMinTokens: 2048,
       },
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-19",
-      cite: "turns.ts OPUS_47_MIN; effort mode = the anthropic family default (resolve-model-capability.ts FAMILY_REASONING)",
+      dated: "2026-09-20",
+      cite: "turns.ts OPUS_47_MIN; effort mode = the anthropic family default (resolve-model-capability.ts FAMILY_REASONING); sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true",
     },
   },
   {
@@ -130,6 +161,21 @@ export const anthropicRows = [
   },
   {
     match: {
+      model: "^(anthropic/)?claude[-/].*sonnet-5",
+    },
+    generation: {
+      // Sonnet 5 alone of the sonnet row above rejects sampling parameters (4.5/4.6 accept them: the SDK table
+      // says `rejectsSamplingParameters: false`, and the direct wire stays D68 fail-closed for them regardless).
+      sampling: {},
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-20",
+      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true for claude-sonnet-5; :5964-5973 false for sonnet-4-6",
+    },
+  },
+  {
+    match: {
       model: "^(anthropic/)?claude[-/].*haiku-4[-.]5",
     },
     generation: {
@@ -162,15 +208,21 @@ export const anthropicRows = [
         mode: "adaptive",
         enabled: true,
         effortLevels: ["low", "medium", "high", "xhigh", "max"],
+        // Thinking CANNOT be disabled on Fable (inference audit A8, measured on both routes): the funnel clamps an
+        // effort `none`/absent intent UP to the lowest level with `reasoning_mandatory_clamp` instead of the
+        // direct wire 400-ing (the OpenRouter replay belt caught it there; the direct wire had no belt).
+        mandatory: true,
       },
+      // Rejects sampling parameters (the SDK table) — the stated set is empty on every wire.
+      sampling: {},
       turns: {
         cacheMinTokens: 512,
       },
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-19",
-      cite: "turns.ts FABLE_MYTHOS_MIN",
+      dated: "2026-09-20",
+      cite: "turns.ts FABLE_MYTHOS_MIN; mandatory = direct claude-fable-5-1 thinking.type: disabled → 400 'not supported for this model' (2026-09-19 req_011CfE8JTmHYvCZudukFufdG; 2026-09-20 rec-probe.mjs anth-fable-disabled req_011CfEBkabcoxXWyouHdYDxY), OpenRouter 'Reasoning is mandatory for this endpoint' (2026-09-19); sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true",
     },
   },
   {

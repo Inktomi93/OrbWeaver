@@ -8,16 +8,34 @@
 // `costProvenance` REUSES `TOKEN_PROVENANCES` (never a second tuple beside `measured`): `measured` = the
 // wire reported a cost; `estimated` = catalog/declared pricing × tokens, AND a subscription's SDK-computed
 // notional price (no invoice exists — a rollup must not sum it with a metered figure); `unrecorded` = neither.
+//
+// `costDetails` is ALSO the read-seam parser for `message_variants.cost_details` (a PARSED JSON sidecar, §5.3c
+// class 3 — `costDetailsSchema` is its one parser, a malformed blob degrades at the reader, never a cast).
+// The per-phase split is OPTIONAL by design: only a wire that REPORTS one (OpenRouter's
+// `usage.raw.cost_details.upstream_inference_{prompt,completions}_cost`, measured 2026-09-20) or the
+// `estimated` arm (per-MTok pricing × tokens) can state it; Anthropic reports a total only. A required split
+// would force a fabricated `0` — or an estimate laundered into a `measured` record — which is the exact class
+// the provenance column exists to prevent. On a BYOK OpenRouter turn `totalUsd = gatewayUsd (OR's fee, its
+// `cost`) + upstreamUsd (the provider's charge)`; on a passthrough turn `totalUsd` is OR's `cost` and the two
+// are absent.
 
 import type { ModelId } from "@orb/kit/ids";
+import { z } from "zod";
 import type { TokenProvenance } from "../chat/messages.ts";
 
-/** Per-phase upstream cost breakdown. */
-export interface CostDetails {
-  readonly totalUsd: number;
-  readonly promptUsd: number;
-  readonly completionUsd: number;
-}
+const usd = z.number().nonnegative();
+
+/** Per-phase / per-party upstream cost breakdown — the ONE parser for `message_variants.cost_details`. */
+export const costDetailsSchema = z.object({
+  totalUsd: usd,
+  /** The inference split, when a wire reports one or the estimated arm derives one. */
+  promptUsd: usd.optional(),
+  completionUsd: usd.optional(),
+  /** BYOK only: what the upstream provider charged and what the gateway charged on top. */
+  upstreamUsd: usd.optional(),
+  gatewayUsd: usd.optional(),
+});
+export type CostDetails = z.infer<typeof costDetailsSchema>;
 
 export interface ChatUsage {
   readonly model: ModelId;

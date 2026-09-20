@@ -334,6 +334,39 @@ test("message_variants economics + JSON params round-trip (numbers, not Dates)",
   expect(parseRecord(v?.params)).toEqual({ temperature: 0.7 });
 });
 
+// B5/B8 (inference audit): the two economics columns every wire normalizes — `reasoning_tokens` (integer) and
+// `cost_details` (typed JSON, `$type<CostDetails>`, parsed at the read seam) — nullable with NO default, so an
+// unreported figure is an honest NULL (not-null-default-defeats-cross-field-refine).
+test("message_variants reasoning_tokens + cost_details round-trip and default NULL", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, { id: "chat_reasoning_econ" });
+  const messageId = castId<MessageId>("message_reasoning_econ");
+  await db.insert(messages).values({ id: messageId, chatId, seq: 1, role: "assistant" });
+  const withFigures = castId<MessageVariantId>("message_variant_reasoning_econ");
+  // The replayable reasoning blocks (audit A1 storage) ride the third new column as typed JSON.
+  const parts = [{ type: "reasoning" as const, text: "think", meta: { anthropic: { signature: "sig" } } }];
+  await db.insert(messageVariants).values({
+    id: withFigures,
+    messageId,
+    idx: 0,
+    content: "x",
+    reasoningTokens: 20,
+    costDetails: { totalUsd: 0.18, upstreamUsd: 0.17, gatewayUsd: 0.01 },
+    reasoningParts: parts,
+  });
+  const bare = castId<MessageVariantId>("message_variant_reasoning_bare");
+  await db.insert(messageVariants).values({ id: bare, messageId, idx: 1, content: "y" });
+
+  const [v] = await db.select().from(messageVariants).where(eq(messageVariants.id, withFigures));
+  expect(v?.reasoningTokens).toBe(20);
+  expect(parseRecord(v?.costDetails)).toEqual({ totalUsd: 0.18, upstreamUsd: 0.17, gatewayUsd: 0.01 });
+  expect(v?.reasoningParts).toEqual(parts);
+  const [b] = await db.select().from(messageVariants).where(eq(messageVariants.id, bare));
+  expect(b?.reasoningTokens).toBeNull();
+  expect(b?.costDetails).toBeNull();
+  expect(b?.reasoningParts).toBeNull();
+});
+
 test("message_variants toolCalls (ToolCallRecord[] json) + apiErrorStatus round-trip (number as number)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, { id: "chat_genrec" });

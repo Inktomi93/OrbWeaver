@@ -125,7 +125,9 @@ async function runChatModalities(req: ImageGenerateRequest, deps: ImagesDeps, ca
   if (images.length === 0) {
     throw new ProviderError({ kind: "server", retryable: true, message: `${call.label}: image generation returned no images` });
   }
-  return { images, model: req.connection.model, usage: { costUsd: measuredCostOf(result.providerMetadata) }, warnings };
+  // An image result carries no V4 `usage.raw` — the BYOK split is a chat-usage fact; the total is what rides.
+  const measured = measuredCostOf(result.providerMetadata, undefined);
+  return { images, model: req.connection.model, usage: { costUsd: measured === null ? null : measured.costUsd }, warnings };
 }
 
 export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, deps: ImagesDeps): Promise<ImageGenerateResult> {

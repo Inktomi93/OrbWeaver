@@ -234,7 +234,13 @@ function variantPayloadOf(
     ...economicsCommon(e),
     contextWindow: e?.contextWindow ?? null,
     maxOutputTokens: e?.maxOutputTokens ?? null,
+    // The APPLIED effort off the runner (compose reads `ChatResult.appliedEffort`), never the requested intent —
+    // that is `params` (inference audit B1). The two economics sidecars every wire normalizes ride beside it (B5/B8).
     reasoningEffort: e?.reasoningEffort ?? null,
+    reasoningTokens: e?.reasoningTokens ?? null,
+    costDetails: e?.costDetails ?? null,
+    // The replayable reasoning blocks (A1) — stored beside `reasoning` (the rendered text), read by the assembly.
+    reasoningParts: e?.reasoningParts ?? null,
     contextBoundaryMessageId: result.contextBoundaryMessageId,
     // The pipeline window the engine measured; the reconcile + live stats mirror both read gf-gs for gen-time.
     genStartedAt,
@@ -1374,8 +1380,10 @@ async function strikeOutOnTurnFault(ctx: ChatContext, prep: TurnPrep, fault: Tur
  * does NOT fabricate the generation numbers (`tokensOut`/`maxOutputTokens`/`modelCalls`/finish reasons) —
  * a faulted turn produced no `final` chunk, so the engine holds none of them, and a zero here would read as
  * a measurement rather than an absence (the "absent data renders absent, never floor-synthesized" rule).
- * `model` + `reasoningEffort` come off `prep` (the REQUESTED route), which is exactly what the success arm
- * records too — compose sources `economics.reasoningEffort` from the same `intent.effort`.
+ * `model` + `reasoningEffort` come off `prep` (the REQUESTED route): a faulted turn applied nothing, so the
+ * requested effort is the only honest fact this RING can carry. The success arm differs on purpose — its
+ * `economics.reasoningEffort` is the APPLIED effort compose reads off `ChatResult.appliedEffort` (inference
+ * audit B1), and the variant ROW records that; the ring is diagnostics, not the record.
  *
  * THROW-SAFE BY CONSTRUCTION (emits-are-total): an observability write must never mask or replace the
  * original error, so the whole body is wrapped. A recorder failure degrades to a warn line and the caller's

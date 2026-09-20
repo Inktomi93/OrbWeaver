@@ -1978,6 +1978,7 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     durationApiMs: null,
     apiErrorStatus: null,
     numTurns: 1,
+    appliedEffort: null,
     usage: {
       model: castId<ModelId>("test-model"),
       tokensIn: 4,
