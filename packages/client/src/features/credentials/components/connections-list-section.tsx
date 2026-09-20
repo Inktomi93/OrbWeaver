@@ -40,6 +40,7 @@ import { useRemoveConnection, useUpdateConnection, useUseForEverything } from ".
 import { boundRoleLabels, connectionRoleLabels, connectionSummary, joinRoleLabels, sweepRoleLabels } from "../lib/connections-model.ts";
 import { CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
+import { ConnectionEditor } from "./connection-editor.tsx";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
@@ -74,6 +75,18 @@ function ConnectionsBody(): ReactElement {
   const { data: bindings } = useSuspenseQuery(trpc.connection.listBindings.queryOptions());
   const { data: credentials } = useSuspenseQuery(trpc.credentials.list.queryOptions());
   const [addOpen, setAddOpen] = useState(false);
+  // THE EDITOR IS A PANE SWAP INSIDE THE SECTION, not a dialog — the mock's band (Back · title · Done) is a
+  // view replacing the list, which is what keeps the four tiers inside the settings body at 486 instead of
+  // inside a modal that has its own width.
+  const [editingId, setEditingId] = useState<ConnectionListItem["id"] | null>(null);
+
+  if (editingId !== null) {
+    return (
+      <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_LIST_SUBCATEGORY.id)}>
+        <ConnectionEditor connectionId={editingId} invalidation={invalidation} onDone={(): void => setEditingId(null)} trpc={trpc} />
+      </Section>
+    );
+  }
 
   return (
     <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_LIST_SUBCATEGORY.id)}>
@@ -103,7 +116,15 @@ function ConnectionsBody(): ReactElement {
       ) : (
         <Stack gap="field">
           {connections.map((connection) => (
-            <ConnectionRow key={connection.id} connection={connection} bindings={bindings} credentials={credentials} trpc={trpc} invalidation={invalidation} />
+            <ConnectionRow
+              key={connection.id}
+              connection={connection}
+              bindings={bindings}
+              credentials={credentials}
+              trpc={trpc}
+              invalidation={invalidation}
+              onEdit={setEditingId}
+            />
           ))}
         </Stack>
       )}
@@ -138,12 +159,14 @@ function ConnectionRow({
   credentials,
   trpc,
   invalidation,
+  onEdit,
 }: {
   readonly connection: ConnectionListItem;
   readonly bindings: readonly BindingView[];
   readonly credentials: readonly CredentialListItem[];
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
+  readonly onEdit: (connectionId: ConnectionListItem["id"]) => void;
 }): ReactElement {
   const deps = { trpc, invalidation };
   const remove = useRemoveConnection(deps);
@@ -168,7 +191,18 @@ function ConnectionRow({
 
   return (
     <Stack gap="tight">
+      {/* THE ROW IS THE EDITOR'S DOOR. `clickable` makes the identity block (leading + title + subtitle) ONE
+          native `<button>` with the actions cluster kept a SIBLING — which is also what keeps this from being
+          the stretched link the mock review caught as a P1 `obscured-target` (an `inset: 0` overlay covers
+          the row's own name and meta, so the thing you point at stops being the thing under the pointer).
+          Its accessible name is the CONNECTION, not "Edit <the connection>": `list-row.tsx:1-10` records the
+          #512 owner ruling that a clickable row's name IS its title, so voice control can say what is on
+          screen, and the primitive offers no aria-label door. DESIGN.md §2.2 says otherwise and is wrong.
+          The badge rail is already OUT of the body (the file header's own decision, `ConnectionBadges`
+          below), which is exactly the landing this door needed. */}
       <ListRow
+        clickable={true}
+        onClick={(): void => onEdit(connection.id)}
         title={name}
         subtitle={subtitle}
         // THE ROW'S NAME OUTRANKS THE SWITCH'S GLOSS BELOW ~480px (measured: at the 486 settings body the
