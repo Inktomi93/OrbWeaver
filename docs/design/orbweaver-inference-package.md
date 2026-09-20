@@ -111,7 +111,7 @@ preserve data. Lanes are green at `pnpm verify`, not "the app works between lane
 `kit ← contracts ← db ← server ← client`, plus sealed `ui` (`kit ← ui ← client`). A below-server
 node-only package has precedent (D160). `packages/client` declares no `@base-ui` dep and has 0 direct imports.
 
-### 2.2 `packages/server/src/infra/providers/` (executor — "it executes; it never selects", `Tier-3b-Providers.md:11`)
+### 2.2 The PURGED providers tier `packages/server/src/infra/providers/` (executor — "it executes; it never selects", `Tier-3b-Providers.md:11`)
 
 | Path | Role |
 | - | - |
@@ -124,7 +124,7 @@ node-only package has precedent (D160). `packages/client` declares no `@base-ui`
 | `backends/kit/` | retry, sanitize, history projection, openai-compat body+stream, error-classify, cache-control (`isAnthropicModel`, a DELIBERATE regex duplicate per Tier-3b esoteric #7), reasoning-budget, image-normalize, abort-flatten, wire-schemas, provider-log |
 | `backends/openrouter/` · `custom-byo/` · `local-light/` | as named |
 | `backends/agent-sdk/` | ~4.0k lines: env firewall with mode-1 (host file OR `CLAUDE_CODE_OAUTH_TOKEN`, `env.ts:343-380`), mode-2 (OR skin), mode-4 dormant; `host-token.ts` refresh (file-arm only, `:88-99`); D8 session store (in-memory, keyed by sessionId); runner; agent-runner; terminal-tools; summarize/structured shapers; verify-auth; catalog |
-| `vllm/engine/` | 3.4k lines TS + templates: `supervisor.ts` 666 (poll/adopt tick + the MANAGER spawn arm), `process-identity.ts` 551, `fleet-control.ts` 443 (hold/stopped markers, `postSleep`/`postWakeAndAwait`/`getIsSleeping`, metrics, capacity, auto-sleep), `build-argv.ts` 441 (THE argv builder), `wake-budget.ts` 215, `wake-gate.ts` 186 (`ensureAwake`; imports reaper + gpu for the spawn-wake path), `client.ts` 180, `spawn-engine.ts` 155, `reaper.ts` 54, `gpu.ts` 35, `engine-url.ts`, `engine-control.ts`, `engine-status.ts`, `gen-window.ts`, the three per-surface clients. Owner ruling 2026-09-19 (#2421/#2423): unset posture = adopt-only ("never waking or spawning", `posture.ts:52`); the MANAGER posture owns spawn + auto-sleep (`compose/services.ts:218`). THE CONTAINER STORY (`Dockerfile:8-12,80-82`, `docker/compose.engines.yaml`, `tooling/src/stack/lib/engines-compose.ts`, commit `c4e2b9024`, owner ruling 2026-09-18 "one engine story"): the image carries NO supervisor and defaults `ENGINES_POSTURE=off`; engines run as peer containers whose `command:` is generated from `buildEngineArgv`, the app runs `adopt-only` against `VLLM_ENGINE_HOST`. The retired GPU all-in-one image was the only thing that spawned inside a container. Consumers the split re-points: `entry/{app,lifecycle}.ts`, `entry/compose/{services,admin}.ts`, `domain/admin/{service,verbs/vllm,contract/service,contract/views}.ts`, `transport/trpc/routers/admin.ts`, `domain/settings/effective-config/layer.ts` + `contracts/settings::engineLaunchSchema :253-286`, client `user-admin/components/{admin-engines-section,compute-section,engine-launch-config}.tsx`, tooling `stack/ops/{engines,engines-ctl}.ts`, `stack/lib/{engines-compose,dev-process-identity}.ts`, `stack/contract/types.ts`, `stack/{engines,stack,dev,multi-user-fixture}.sh`, `seed/lib/fake-vllm.ts`, `snap/ops/stage.ts`, `verify/gates/no-raw-egress.ts`, `verify/lib/reviewed-grants-{depcruise-to-egress,no-to-factory}.ts`, `scripts/probes/rpg-extraction/local-8b-vehicles.ts`, `foundation/env/posture.ts`. |
+| `vllm/engine/` | 3.4k lines TS + templates: `supervisor.ts` 666 (poll/adopt tick + the MANAGER spawn arm), `process-identity.ts` 551, `fleet-control.ts` 443 (hold/stopped markers, `postSleep`/`postWakeAndAwait`/`getIsSleeping`, metrics, capacity, auto-sleep), `build-argv.ts` 441 (THE argv builder), `wake-budget.ts` 215, `wake-gate.ts` 186 (`ensureAwake`; imports reaper + gpu for the spawn-wake path), `client.ts` 180, `spawn-engine.ts` 155, `reaper.ts` 54, `gpu.ts` 35, `engine-url.ts`, `engine-control.ts`, `engine-status.ts`, `gen-window.ts`, the three per-surface clients. Owner ruling 2026-09-19 (#2421/#2423): unset posture = adopt-only ("never waking or spawning", `posture.ts:52`); the MANAGER posture owns spawn + auto-sleep (`compose/services.ts:218`). THE CONTAINER STORY (`Dockerfile:8-12,80-82`, `docker/compose.engines.yaml`, `tooling/src/stack/lib/engines-compose.ts`, commit `c4e2b9024`, owner ruling 2026-09-18 "one engine story"): the image carries NO supervisor and defaults `ENGINES_POSTURE=off`; engines run as peer containers whose `command:` is generated from `buildEngineArgv`, the app runs `adopt-only` against `VLLM_ENGINE_HOST`. The retired GPU all-in-one image was the only thing that spawned inside a container. Consumers the split re-points: `entry/{app,lifecycle}.ts`, `entry/compose/{services,admin}.ts`, `domain/admin/{service,verbs/vllm,contract/service,contract/views}.ts`, `transport/trpc/routers/admin.ts`, `domain/settings/effective-config/layer.ts` + `contracts/settings::engineLaunchSchema :253-286`, client `user-admin/components/{admin-engines-section,compute-section,engine-launch-config}.tsx`, tooling `stack/ops/{engines,engines-ctl}.ts`, `stack/lib/{engines-compose,dev-process-identity}.ts`, `stack/contract/types.ts`, `stack/{engines,stack,dev,multi-user-fixture}.sh`, `seed/lib/fake-vllm.ts`, `snap/ops/stage.ts`, `verify/gates/no-raw-egress.ts`, `verify/lib/reviewed-grants-{depcruise-to-egress,no-to-factory}.ts`, `scripts/probes/rpg-extraction/local-8b-vehicles.ts`, and the now-purged `foundation/env/posture.ts`. |
 | `vllm/surfaces/` | chat (`strictByDefault :321-330`; thinking door `:154-211` bound to the vendored template; prefill pair `:213-281` gated on measured `VLLM_TURNS.assistantPrefill`; D156 belt denylist `:380-433`), embed, image-embed, rerank, summarize(+structured) |
 | `index.ts` | `createBackendRegistry(deps)`, `createProviderExecutor` |
 
@@ -168,7 +168,7 @@ video:true}` by D143(c) permissive ruling and #317, `tools: {parallel:true, sile
 `packages/db/src/schema/credentials.ts:9-12` — ciphertext AAD is `${userId}|${provider}`; a slot move is a GCM
 decrypt failure. `:79` one active row per `(owner_id, provider)`. `:80` SQL CHECK from `CRED_PROVIDERS`.
 `embeddings.ts:22-28,76-86` the `(model, dim)` space tag law; the local-light tag now carries a dtype
-(`jinaai/jina-clip-v2@q8`, #2417, `entry/compose/role-clients.ts:187-204`).
+(`jinaai/jina-clip-v2@q8`, #2417, `entry/compose/role-clients.ts:187-204` — that binder module is purged; it folded into `entry/compose/services.ts`).
 
 **The message rows (re-read 2026-09-19, `db/schema/chat.ts`):**
 
@@ -218,17 +218,19 @@ edit-image.ts:48`, `generate-picture.ts:58`, `backends/openrouter/runners/image/
 
 ### 2.7b Where the OpenRouter agent-sdk skin lives today (deleted, F18)
 
-`backends/agent-sdk/env.ts` `buildClaudeOpenRouterEnv` (+ `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`),
-`domain/connection/verbs/get-or-skin-tier-models.ts` + `substrate/curated-shortlist.ts`, `OrSkinTierModels` on
-`ChatRequest` (`infra/providers/contract/chat.ts`) and on `ConnectionService`, the `agent-sdk × openrouter` arms
-of `deriveRunner` (`dispatch.ts:31-36`), `assertCoherent` (`resolve-role.ts:171`) and `healAgentSdkModel`
-(`:190-192`), the "claude code via openrouter key" row of `vocabulary-map.md:171`.
+Every site below was PURGED by this program; they are recorded as the PRE-state, never as live paths.
+
+- `buildClaudeOpenRouterEnv` + `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` in the agent-sdk `env.ts` — purged.
+- `domain/connection/verbs/get-or-skin-tier-models.ts` + `substrate/curated-shortlist.ts` — purged.
+- `OrSkinTierModels` on `ChatRequest` (`infra/providers/contract/chat.ts`) and on `ConnectionService` — purged.
+- the `agent-sdk × openrouter` arms of `deriveRunner` (`dispatch.ts:31-36`), `assertCoherent` (`resolve-role.ts:171`) and `healAgentSdkModel` (`:190-192`) — purged with those modules.
+- the "claude code via openrouter key" row of `vocabulary-map.md` — purged; the register was rewritten on (provider × api).
 
 ### 2.8 Defects confirmed by the review (fix inside this program)
 
 1. `responses` offered where it cannot run + `local-light` listed as a chat source; `assertCoherent` passes
    both; `deriveRunner` throws; `checkChatAvailability` catches only resolve-time errors → AVAILABLE, then
-   a late failure. Pinned by `tests/server/infra/providers/roles/dispatch.test.ts:59-64` and
+   a late failure. Was pinned by the providers-tier dispatch test (purged with that tier) and
    `tests/client/features/credentials/lib/connections-model.test.ts:318-322`.
 2. **No caller can name `structured`, and one caller bypasses the facade to get it.** `RoleClients`
    (`contracts/role-clients/index.ts:149-186`) exposes `embed`, `rerank`, `imageEmbed`, `summarize` and six
@@ -273,7 +275,7 @@ of `deriveRunner` (`dispatch.ts:31-36`), `assertCoherent` (`resolve-role.ts:171`
 
 Things v1 called defects that are RULINGS (see §14): the vLLM permissive modality cell (D143 c — kept for
 modalities; its turns/reasoning cells are DELETED, F15), the vLLM born default (D142 — RETIRED with the
-owner-engine premise, F2), `structured` riding the summarize binding (2026-07-27, `entry/compose/role-clients.ts:325-328` —
+owner-engine premise, F2), `structured` riding the summarize binding (2026-07-27, the purged `entry/compose/role-clients.ts:325-328` —
 kept, F4), the sub excluded from background roles (2026-08-07, D109(4) — FLIPPED to per-row `allowBackground`,
 F5), D17's "local compute shared + count-budgeted" clause (RETIRED, F11), the rpg extraction bypass (kept on
 stickler F1 alone, §7.5-1a).
@@ -531,7 +533,7 @@ tests/inference/**  mirrors packages/inference/src; tests/contracts/inference/**
 DELETED (not moved):
 
 - `backends/agent-sdk/host-token.ts`; the host `.credentials.json` arm and `mode1IsolatedConfigDir` in `env.ts`;
-  `foundation/env/host-claude.ts` credential DETECTION (keep the executable-resolves check); `CLAUDE_BACKEND`
+  the purged `foundation/env/host-claude.ts` credential DETECTION (its executable-resolves check was kept); `CLAUDE_BACKEND`
   posture (registration becomes "runtime installed"); `mintMaxProSub`'s `requireOwner` (the mint becomes row-backed).
 - `connections-model.ts` `CHAT_APIS_BY_SOURCE`, `chatApisForSource`, `chatApiForSourceChange`, `ROLE_SLOTS.chat.sources`
   (step 1); the other five `ROLE_SLOTS.*.sources` arms — fed by `INFERENCE_SOURCES`/`SUMMARIZE_SOURCES` and the
@@ -542,10 +544,10 @@ DELETED (not moved):
   engine-fleet/`: `build-argv.ts`, launch-config resolution, `templates/`, `spawn-engine.ts`, `reaper.ts`,
   `process-identity.ts`, `gpu.ts`, `wake-budget.ts`, the markers/metrics/capacity/auto-sleep halves of
   `fleet-control.ts`, the supervisor loop + breaker. DELETED: `engine-control.ts`, `engine-status.ts`,
-  `foundation/env/posture.ts` + `ENGINES_POSTURE` and its deprecated inputs (`VLLM_DISABLED`, `STACK_ENGINES`),
+  the purged `foundation/env/posture.ts` + `ENGINES_POSTURE` and its deprecated inputs (`VLLM_DISABLED`, `STACK_ENGINES`),
   `postureManages`, `effectiveVllmDisabled`, `entry/lifecycle.ts` engine start/drain, `entry/app.ts` engine handle,
   `entry/compose/admin.ts` engine wiring + `vllmManages`/`repoRoot`/`superviseDetached` in `compose/services.ts`,
-  `domain/admin/verbs/vllm.ts` + its contract/views/service rows + `transport/trpc/routers/admin.ts` engine
+  the purged `domain/admin/verbs/vllm.ts` + its contract/views/service rows + `transport/trpc/routers/admin.ts` engine
   procedures, `domain/settings/effective-config/layer.ts` `engineLaunch` + `contracts/settings::engineLaunchSchema
   :253-286` (hand-written AppSettings lift; the launch knobs become a tooling config file `tooling/src/stack/
   engine-launch.json` the argv builder reads), the D120 config-section door (`client/src/state/config-section-
@@ -602,7 +604,7 @@ fan-out caps are `features.concurrency`, §8.1b) and lives only in `tooling/src/
 for the owner's dev fleet; `substrate/config-model.ts`'s vllm arm and `isConfigDerivedModelSource("vllm")` go
 (the model is on the connection, never derived from config);
 `infra/network/egress.ts:99-103` `internalBackendHostPorts` (the env-declared loopback allowlist) AND the
-owner-saved-endpoint admission (`egress.ts:91-183` + `domain/credentials/substrate/egress-admission.ts`, a
+owner-saved-endpoint admission (`egress.ts:91-183` + the purged `domain/credentials/substrate/egress-admission.ts`, a
 derivation that publishes the single `users.role='owner'` row's endpoints — a my-box rule: it assumes one
 privileged human whose LAN is the LAN) are BOTH DELETED and replaced by ONE deployment setting,
 `AppSettings.privateEndpointAllowlist: string[]` (hosts and CIDRs; env floor `PRIVATE_ENDPOINT_ALLOWLIST`, DB
@@ -968,7 +970,7 @@ laundered into a shared column. The free-text columns below are authored as `{ e
 
 | Column | Today | After | Home of the tuple / type |
 | - | - | - | - |
-| `message_variants.finish_reason` | free text; every writer types it bare `string \| null` (`canon-write.ts:140`, `engine.ts:241,1222,1389,1424`, `compose/chat.ts:797`, `compose/rpg.ts:1004`) | CHECK on `NORMALIZED_FINISH_REASONS` (`stop \| length \| filter \| tool \| other`) AND the writer chain narrowed to `NormalizedFinishReason \| null` starting at `canon-write.ts:140`, so `tsc` refuses a raw string before the CHECK ever aborts a commit (verify4 M10a; the ST import writes no `finishReason`, so the CHECK is safe on that path) | MOVES from `infra/providers/contract/chat.ts:209` (server — a db CHECK cannot import it) to `@orb/contracts/inference/finish-reasons.ts`; `FINISH_REASON_MAP` (the per-wire raw → normalized fold) stays in the package, extended for the Vercel V4 finish vocabulary |
+| `message_variants.finish_reason` | free text; every writer types it bare `string \| null` (`canon-write.ts:140`, `engine.ts:241,1222,1389,1424`, `compose/chat.ts:797`, `compose/rpg.ts:1004`) | CHECK on `NORMALIZED_FINISH_REASONS` (`stop \| length \| filter \| tool \| other`) AND the writer chain narrowed to `NormalizedFinishReason \| null` starting at `canon-write.ts:140`, so `tsc` refuses a raw string before the CHECK ever aborts a commit (verify4 M10a; the ST import writes no `finishReason`, so the CHECK is safe on that path) | MOVES from the purged `infra/providers/contract/chat.ts:209` (server — a db CHECK cannot import it) to `@orb/contracts/inference/finish-reasons.ts`; `FINISH_REASON_MAP` (the per-wire raw → normalized fold) stays in the package, extended for the Vercel V4 finish vocabulary |
 | `message_variants.stop_reason` | free text | UNCHANGED, provider-OPAQUE by declaration (the raw upstream string — `end_turn`, `max_output_tokens`, …; provenance for the normalized column, `chat.ts:208`) | none — it is not an enum |
 | `message_variants.terminal_reason` | free text | UNCHANGED, provider-opaque (the agent-sdk terminal-channel word / the error class's `terminalReason`, `contract/errors.ts:107`) | none |
 | `message_variants.reasoning_effort` | free text | CHECK on `EFFORT_LEVELS` at `contracts/preset/index.ts:256` (`["none", ...MODEL_EFFORT_LEVELS]`, 7 members, derived from `contracts/connection/index.ts:77`'s 6; `REASONING_MODES` at `:71` is the capability MODE axis, a different tuple). NOTE for §8.0's `wireMeta.effort`: `@ai-sdk/anthropic`'s per-turn effort is `low \| medium \| high \| xhigh \| max` (`anthropic-language-model-options.ts:88`) — `none`/`minimal` are DROPPED with a `effort_dropped` warning before the forward, never clamped silently (verify4 M10b) | contracts/preset |
@@ -1347,7 +1349,7 @@ makes two connections (the OR provider's `providerOptions.openrouter.provider.{o
 quantizations, sort, max_price}` come off `connection.extras`, §8.2). The deletion's coupled sites are ~10 across three packages, not three compose reads
 (ground5 M11): `chats.metadata.providerRouting` + the schema key, `RouteChatAssignment`, the compose reads
 (`compose/chat.ts:1570,1578`; `compose/rpg.ts:1935-1941` `readRoutableChat` + its three call sites `:1529`/`:1691`/`:1964` + the `routableChat` argument on the three `deps.connection.resolveChat` calls `:1532`/`:1694`/`:1973`, verify9 M7), BOTH `ChatRequest` arms
-(`infra/providers/contract/chat.ts:174,183`), the two OR runners' `resolveProviderPreferences`, FOUR doc-comment
+(the purged `infra/providers/contract/chat.ts:174,183`), the two OR runners' `resolveProviderPreferences`, FOUR doc-comment
 precedent cites that would dangle (`contracts/chat/metadata.ts:250,255,261`, `contracts/roster-preset/index.ts:8`
 — re-point them to `databankVisibility` as the foreign-schema precedent), and three test files including a
 TYPE-level pin neither `pnpm check` nor the node suites see: `tests/server/domain/chat/contract/
@@ -1807,7 +1809,7 @@ Change:
    `auth` kind (`apiKey | oauthToken | endpoint`), and its readers (`credentials/substrate/parse-metadata.ts`,
    `test-health.ts:164`, `egress-admission.ts:36`) are coupled sites of step 4. `requireOwner` leaves the mint;
    `mintMaxProSub` is deleted. The HOST-file arm, `host-token.ts`'s refresh of the HOST file,
-   `mode1IsolatedConfigDir`, the credential detection in `foundation/env/host-claude.ts`, the Dockerfile's
+   `mode1IsolatedConfigDir`, the credential detection in the purged `foundation/env/host-claude.ts`, the Dockerfile's
    process-wide `CLAUDE_CONFIG_DIR=/app/data/claude` (`Dockerfile:85`), AND the OpenRouter skin (mode-2, F18:
    `buildClaudeOpenRouterEnv`, `ANTHROPIC_DEFAULT_*_MODEL`, `OrSkinTierModels`, `get-or-skin-tier-models`)
    are deleted. Registration = "the bundled `claude` executable resolves" (`deps.claudeExecutable`).
@@ -2244,7 +2246,7 @@ export interface InferenceDeps {
   snapshotStore: SnapshotStore;
   resolveCredential;                                             // by credentialId off the connection row (§5.3) — `loadActiveCredential` is gone
   bindings: BindingStore;                                        // read `connection_bindings` (the §7.1 fold's input; replaces the resolver's read of `routing.roleDefaults` off the settings blob — the read `verbs/resolve-role.ts` does today)
-  captureWire?; imageToPng?; sessionWriter?; localLightCacheDir?; localLightCache?;   // today's BackendRegistryDeps members (`infra/providers/index.ts:71-102`)
+  captureWire?; imageToPng?; sessionWriter?; localLightCacheDir?; localLightCache?;   // the purged tier's BackendRegistryDeps members (`infra/providers/index.ts:71-102`)
   // no `endpointReachability` port — the package OWNS the probe (`backends/openai-compat/reachability.ts`, §4); an injected one would be a second implementation (verify7 M3)
   agentSdk: { summarizeConcurrency: () => number; query?: SdkQuery; sessionStore?: SessionStore };   // the three live seams `BackendRegistryDeps:72-78` carries today: the KEPT `agentSdkConcurrency.summarize` getter (§4), the SDK `query` test seam, the D8 in-memory store (verify7 M2)
   userRuntimeDir: (ownerId: UserId, tool: "claude") => string;   // infra/storage; `<USER_RUNTIME_DIR>/<ownerId>/claude` (§8.4-2)
@@ -2254,7 +2256,7 @@ export interface InferenceDeps {
   connections: ConnectionStore;                                  // read/write user_connections (port; server wires drizzle)
   sdkFetch?: typeof fetch;                                       // the egress-guarded fetch every `createOpenAICompatible`/`createAnthropic`/`createOpenRouter` receives (§8.0)
   // no posture, no engineLaunch, no engineHost, no repoRoot, no superviseDetached — 9 of the 26 providers foundation sites die with the fleet code
-  // no OR client seam (today's `OpenRouterBackendDeps.getClient`, `infra/providers/index.ts:68`) — the raw SDK is dropped (§8.2); the OR provider is built per connection from `sdkFetch` + the credential
+  // no OR client seam (the purged `OpenRouterBackendDeps.getClient`, `infra/providers/index.ts:68`) — the raw SDK is dropped (§8.2); the OR provider is built per connection from `sdkFetch` + the credential
   concurrency?; random?;
 }
 ```
@@ -2263,7 +2265,7 @@ The 38 foundation edges (26 providers + 12 connection) resolve to this one inter
 edges resolve by moving those modules to `@orb/kit`; the `backends/agent-sdk/log.ts` self-imports are
 re-spelled relative. `domain/connection/workload-contributions.ts` stays in server and wraps
 `runtime.catalogs.refresh` (D117). `entry/compose/services.ts` builds `InferenceDeps` and calls
-`createInferenceRuntime`; `entry/compose/role-clients.ts` becomes `runtime.roleClientsFor`.
+`createInferenceRuntime`; the purged `entry/compose/role-clients.ts` becomes `runtime.roleClientsFor`.
 
 ---
 
@@ -2281,7 +2283,7 @@ re-spelled relative. `domain/connection/workload-contributions.ts` stays in serv
   task through `roleClientsFor`. A dep-cruiser row cannot express a method-level rule (verify6 H8), so this is the enforcer.
 - **Gate-time, the EXTRACTION audit (verify3 F3 — a lane deliverable, not a footnote):** 72 gates scope their
   population to `"@server"` (`/usr/bin/grep -rln '"@server"' tooling/src/verify/gates/*.ts`), among them
-  `no-raw-egress.ts:122` — the ratchet whose whole point is that a NEW file in `infra/providers` doing
+  `no-raw-egress.ts:122` — the ratchet whose whole point is that a NEW file in the (now purged) `infra/providers` doing
   credentialed egress reds until reviewed — and 14 reviewed-grant rows keyed by absolute
   `packages/server/src/infra/providers/**` subjects (`reviewed-grants-depcruise-to-egress.ts:402,410,418,434`,
   `reviewed-grants-assets-to-home.ts:261-306`, `reviewed-grants-no-to-factory.ts:9,17,25`). Moving the code to
@@ -2572,7 +2574,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         `createHostPrincipalResolver` and hands every seam ONE binder: `roleClientsFor(funderUserId)`. The
         seams that used to take `roleClients`/`bindRoleClients`/`embedModel` (assets-character,
         search-discovery, refinery, admin, imagery, databank, chat, automation-plugin) take it instead;
-        `entry/compose/role-clients.ts` + `provider-credential.ts` are deleted. `ServicesResult` surfaces
+        the purged `entry/compose/role-clients.ts` + `provider-credential.ts` are deleted. `ServicesResult` surfaces
         `runtime` + `roleClientsFor`; `vllmEngine`/`localLightPrefetch`/`roleClients`/`bindRoleClients` are gone.
 
       - *`resolveClaudeExecutable()` is SDK MODULE RESOLUTION*: this `@anthropic-ai/claude-agent-sdk` ships no
@@ -2603,14 +2605,14 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         no user enumeration on `sessions`); §8.3's per-row download state is step 9's.
 
       - *Deleted instruments*: the seven `scripts/probes/sdk-*` probes (every one drove the deleted host-file
-        / OR-skin env arms) + their `sdk:*` package scripts, and `scripts/probes/st-goldens/capture-orbweaver.ts`
+        / OR-skin env arms) + their `sdk:*` package scripts, and the purged `scripts/probes/st-goldens/capture-orbweaver.ts`
         (raw `createOpenRouterBackend` + the retired budget/skin seams; the parity protocol is retired). The seed
         tooling's `fake-vllm.ts` is `fake-local-light.ts` — a scripted `LocalLightModelCache` injected via
         `providerSeams.localLight.cache`; the demo's best-effort chat turns log `no-connection` (no scripted
         chat wire any more).
 
       - *The admin `vllm` verbs, `VllmSupervisorPort`, `AdminEngineStatus`, the engine router procedures* are
-        deleted (§4); `domain/connection/verbs/kind.ts` and `toResolvedView` moved to `substrate/` (the
+        deleted (§4); the verbs-tier `kind.ts` and `toResolvedView` moved to `packages/server/src/domain/connection/substrate/` (the
         `domain-no-cross-verb` cruiser rule); the JSON-schema sanitizer has TWO homes today —
         `@orb/kit/json-schema` `scrubWireSchema` (per wire mode) and the agent-sdk `sanitizeAnthropicOutputSchema`
         — not the `backends/kit/clean-json-schema.ts` §4 named; a merge is a follow-up.
@@ -2661,8 +2663,8 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         own ts-morph project, whose glob-built resolution (no vitest globals, looser subpath resolution) hides
         most of the funder/ProviderId sites. It filled `funderUserId`/`hostUserId`/`ownerId`/`modalities` from
         the nearest in-scope funder identifier (with a describe-level `let owner` fallback), deleted retired
-        properties by (name × receiving type) allowlist, cast `ProviderId` literals and repointed the deleted
-        `infra/providers` imports: ~290 edits over ~70 files in four rounds, each round re-measured. Two
+        properties by (name × receiving type) allowlist, cast `ProviderId` literals and repointed the
+        purged `infra/providers` imports: ~290 edits over ~70 files in four rounds, each round re-measured. Two
         lessons paid for: every plan's TRANSFORM runs at the plan boundary, so every diagnostic must be
         resolved to its node BEFORE the first `ctx.plan` (round three aborted on a shifted position); and a
         text insertion into a literal that already ends with a comma must strip it (a `,,` shipped once).
@@ -2673,7 +2675,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         `asSummarizeOp(fn)` lifts a `(inputs, opts)` fake onto the funder-keyed op. DELETED, subjects gone:
         the backend-matrix + memory-recall live e2e, the four-layer wire-capture fidelity harness (it pinned
         the deleted backends' bytes — the re-home under `tests/inference/backends/openai-compat` is owed),
-        the vLLM gen-window parity + admin vllm + `tests/contracts/connection` suites, every
+        the vLLM gen-window parity + admin vllm + the purged `tests/contracts/connection` suites, every
         `customParameters` / consent-belt / budget / `routing`-blob / OR-skin / resolver-heal pin, the
         credentials router inspector test and the six client CT/model specs of the deleted components.
         REWRITTEN: credentials `resolve` (by-id semantics), the client connections model, the local-light
@@ -2860,6 +2862,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         NOT fixed (product-side residue, reported not touched): `CHAT_OP_CODES.budgetExceeded` survives with
         no raiser and carries the orphaned `consent_required` JSDoc above it; `verbs/turn.ts`'s
         `isDrainVerdictDrop` header + `requestTurn`'s four-wall JSDoc still describe the deleted belts.
+
       - *THE RECORD-TRUTH TAIL (2026-09-20, lane cb-record-tail — the follow-ups
         `inference-record-truth-2026-09-20.md` §4 named, plus the residue the chat-reds lane reported above)*.
         **B7's client half:** the per-message cost reveal now gates on the provider's DIALECT, not on
@@ -2897,6 +2900,33 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         `dropped` arm; it is re-pinned on the live path (a HOSTLESS room → `loadRoom`'s `ChatNotFoundError`
         → claim, notify the frozen `triggeredBy` with `reason: "chat-gone"`, row stays deleted), proven by a
         planted control (`isDrainVerdictDrop` forced false → that one test reds, 123/124 still pass).
+
+      - *BUILD LOG, 2026-09-20 (lane cb-barrier-cites — the CITATION tail: every living-doc cite the
+        extraction broke).* The `dangling-ref-citations` (44) and `ledger-symbol-liveness` (15) findings
+        are cleared by RE-DERIVING each target, never by re-prefixing it: paths that MOVED were re-pointed
+        (agent-sdk session/env, `backends/kit/retry.ts`, the fleet templates + `engine-url.ts` to
+        `tooling/src/stack/lib/engine-fleet/`, the extras belt to `backends/openai-compat/body.ts`), and
+        cites whose FACT is gone were rewritten rather than aimed at a lookalike: the consent belt, the D17
+        member budget, the OR agent-sdk skin, the engine supervisor + `ENGINES_POSTURE`, the per-role
+        firewall table, `deriveRunner`/`BACKEND_KEYS`, `CRED_SOURCES`/`CRED_PROVIDERS`, the `source` axis.
+        LEDGER AMENDMENTS landed with the forks that ruled them: D7 (vLLM is a provider row; the fleet is
+        tooling, F1), D8 (moved), D39 (`local-light` is a WIRE, its task policy derived, F7/F14), D109-4
+        (one executor method, no firewall row, and the subscription wire DOES serve `structured`), D112
+        (the `silencesProse` floor is endpoint-keyed, not vendor-keyed), D129(B) (the turns cell is curated
+        data), D135 clause G (the binder folded into `entry/compose/services.ts`), D142 RETIRED (F2), D143
+        (wire-level extras; the vllm turns cell DELETED, F15), D156 RE-HOMED (the custom-BYO
+        passthrough-wins inverse is retired, F21). `vocabulary-map.md`'s connection register — the ONE home
+        for which word names which connection — was REWRITTEN on (provider × api) per F7/F6/F18; it still
+        published the 6-mode `(api × source)` canon and the "claude code via openrouter key" row.
+        **Gate-side debts this surfaced and did NOT fix (they are gate edits, not doc edits):**
+        `providers-runner-seal` seals symbols that no longer exist anywhere, so it passes VACUOUSLY;
+        `warning-code-coverage` still binds `WARNING_CODES` to the deleted server home and WITHHOLDS;
+        `no-raw-egress` is `population: "@server"`, so every credentialed/loopback egress under
+        `packages/inference/src/backends/` is now judged by NOTHING and seven of its eight grants alarm
+        stale; the six `content-part-seam` per-file grants still name deleted files. **Test debt:** the
+        binder's own provenance pin and the agent-sdk idle-timeout fake-timer pin were deleted with their
+        sources and have no successor, and `tests/server/entry/boot/local-light-prefetch-*.suite.int.test.ts`
+        still poll `/api/trpc/admin.vllmEngines`, a procedure that no longer exists.
 19. **A destination file named in a scope sentence owes its own behaviour rows.** §8.1b named
     `{embed,rerank,image-embed}.ts` as the surviving trio and then cited only two of them; the third had a
     different request shape, its own retry site and NO clamp, and no pass caught it until a scout read the file

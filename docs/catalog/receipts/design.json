@@ -825,13 +825,13 @@
     },
     {
       "path": "docs/design/containerize-build-plan.md",
-      "assignedSha256": "81b3c14a652120e27bb8590e05b15f2caf3fe658ce61989e29480fcc8755bdf3",
+      "assignedSha256": "bc8d936cc2246f9bd3ebeb180a85243e6237e8a68cc9a9670624ff7e698cc082",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "81b3c14a652120e27bb8590e05b15f2caf3fe658ce61989e29480fcc8755bdf3",
-      "verifiedCommit": "c6ae3615288f75ef0d8c570b7ab6853f10c7ed3d",
-      "verifiedAt": "2026-09-18",
+      "verifiedSha256": "bc8d936cc2246f9bd3ebeb180a85243e6237e8a68cc9a9670624ff7e698cc082",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "docs/design/containerize-build-plan.md:1 (design; active)",
         "delta re-verify 2026-08-22 (#421, lane oneoff-rehome): re-read in full at the re-home commit; the ONE changed passage is the same §2.2 gpu-image coupled-site bullet — vllm-setup.sh re-homed scripts/dev/ → tooling/src/stack/, so the Dockerfile's separate scripts/dev COPY is gone and the shell rides the existing tooling/src/stack/ COPY (Dockerfile:187-190); engines.sh calls it as a sibling via $HERE (tooling/src/stack/engines.sh:86). Other cites re-derived: engines.sh's TSX line and the VLLM_STORE_ROOT venv check still hold. ONE STALE CLAIM FOUND AND LEFT (out of this lane's scope, reported to the orchestrator): §2.1 says `vllm-setup.sh:37 pins vllm>=0.22,<0.23`; line 37 is still the pin line but reads `vllm>=0.26,<0.27` today, so the dev pin and the image's baked `--torch-backend=cu130` install of 0.22 have diverged — that is a containerize decision, not a cite repoint",
@@ -857,7 +857,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "81b3c14a652120e27bb8590e05b15f2caf3fe658ce61989e29480fcc8755bdf3"
+      "verifiedCanonicalSha256": "bc8d936cc2246f9bd3ebeb180a85243e6237e8a68cc9a9670624ff7e698cc082"
     },
     {
       "path": "docs/design/containerize-prod-image-spec.md",
@@ -1438,13 +1438,13 @@
     },
     {
       "path": "docs/design/interaction-direction-spec.md",
-      "assignedSha256": "0918ffbc5b83fac7112c4524cdfa3e8c8c47a5392f9ecf3b540af9fc21f86042",
+      "assignedSha256": "67e1385b2b1393b3ca94995da75c73f160cf0fab5cad5cf56ade237fbf8f83a0",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "0918ffbc5b83fac7112c4524cdfa3e8c8c47a5392f9ecf3b540af9fc21f86042",
-      "verifiedCommit": "a3c983fe25569ba7fe96ea019a6b9c7eb44021c1",
-      "verifiedAt": "2026-09-05",
+      "verifiedSha256": "67e1385b2b1393b3ca94995da75c73f160cf0fab5cad5cf56ade237fbf8f83a0",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "2026-09-05 primary (#1658 fold a3c983fe2): the summaryCast cite repointed after the cast→characters rename; re-read in full, content unchanged otherwise.",
         "re-attested at ea1b53fd5 (#1036): two citations repaired by the widened dangling-refs — kit/macro/content.ts shorthand; the speaker-segments port into @orb/kit was never built (kit has speaker-label)",
@@ -1472,7 +1472,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "67e1385b2b1393b3ca94995da75c73f160cf0fab5cad5cf56ade237fbf8f83a0"
     },
     {
       "path": "docs/design/lite-plus-guided-substrate-spec.md",
@@ -2032,12 +2033,12 @@
     },
     {
       "path": "docs/design/orbweaver-inference-package.md",
-      "assignedSha256": "61fc115a858d30b4844951629611588ee3322f22bde0cdd1e56a07b38a7257b8",
+      "assignedSha256": "9150ea5edaed6252b5c12f3b14b55eed712fb0f91c51e048613b1b8047080524",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "61fc115a858d30b4844951629611588ee3322f22bde0cdd1e56a07b38a7257b8",
-      "verifiedCommit": "1e83e682f1c31b3c98231e7aed02ce096e0196ec",
+      "verifiedSha256": "9150ea5edaed6252b5c12f3b14b55eed712fb0f91c51e048613b1b8047080524",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
       "verifiedAt": "2026-09-20",
       "evidence": [
         "re-attested at 29a8b0eaa by lane cb-record-tail: §15c item 18 gained the RECORD-TRUTH TAIL bullet (the B7 client gate, the refusal/rate_limit compose ruling, the retired budgetExceeded code, the eight repaired comments, the re-pinned drain drop). SCOPE OF THIS RE-ATTESTATION, stated rather than implied: the receipt's sha was ALREADY stale at this lane's branch point — 215 lines had landed since bd99e9ad3 across 9ef00397d/100ee1db9/fe77a1f36/2e2871dd6/e0cc98c3a/a45c5f746, every one an APPEND to §8.8/§14/§15c, and none of those lanes re-attested. This lane read §5.3b, §5.3c, §8.5b and §15c-18 in full and appended within §15c-18; it did not re-read the other ~2600 lines. A full re-read is owed by the barrier.",
@@ -2075,7 +2076,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "803b4b23092ec32e5ebe98dc93391568b4c12bf586020114bf7b9ce8c022fb15"
+      "verifiedCanonicalSha256": "9150ea5edaed6252b5c12f3b14b55eed712fb0f91c51e048613b1b8047080524"
     },
     {
       "path": "docs/design/pane-standardization-design.md",
@@ -2455,13 +2456,13 @@
     },
     {
       "path": "docs/design/rpg-extraction-one-call-spike.md",
-      "assignedSha256": "cb74f47b23a05297cb83a41c4d992e213049390cc693d269686fe1668125517b",
+      "assignedSha256": "c3bcd9972b6ff2c0752bf0b6d04ea1a527ceb44a2f65efe176dfa20ab64e5108",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "cb74f47b23a05297cb83a41c4d992e213049390cc693d269686fe1668125517b",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "c3bcd9972b6ff2c0752bf0b6d04ea1a527ceb44a2f65efe176dfa20ab64e5108",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "re-attested at ea1b53fd5 (#1036): two citations repaired — @orb/sdk never existed (our wire carries no interleaved-thinking support); the run's v2/ probe subtree was never committed",
         "docs/design/rpg-extraction-one-call-spike.md:1 (design; unheaded)",
@@ -2485,7 +2486,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "cb74f47b23a05297cb83a41c4d992e213049390cc693d269686fe1668125517b"
+      "verifiedCanonicalSha256": "c3bcd9972b6ff2c0752bf0b6d04ea1a527ceb44a2f65efe176dfa20ab64e5108"
     },
     {
       "path": "docs/design/state-paint-census.md",
@@ -2537,13 +2538,13 @@
     },
     {
       "path": "docs/design/streaming-shape-churn.md",
-      "assignedSha256": "04b9e754cc269e77beb1d4fd4b29ef85596f8852dea2025d65fd50e1b55fc629",
+      "assignedSha256": "978df3abd3a2a709952910619fb527839e74c134414f1db29d13b27c188a029d",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "04b9e754cc269e77beb1d4fd4b29ef85596f8852dea2025d65fd50e1b55fc629",
-      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "978df3abd3a2a709952910619fb527839e74c134414f1db29d13b27c188a029d",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "delta re-verify 2026-08-22 (#415, lane srv-data): the ONE changed line is the §7.5 chat-template cite, repointed from scripts/dev/ to packages/server/src/infra/providers/vllm/engine/templates/ — same file, same line numbers, verified against the moved template",
         "docs/design/streaming-shape-churn.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence; 2026-08-21 delta is the §recipe invocation repoint (node scripts/probes/snap.ts -> the pnpm snap front door, #393 P2)",
@@ -2567,7 +2568,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "978df3abd3a2a709952910619fb527839e74c134414f1db29d13b27c188a029d"
     },
     {
       "path": "docs/design/theme-pivot-foreground-contract.md",
@@ -2747,13 +2749,13 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "530f5503606d3d11f8a1684fc983acc41cbd396b56bf493975ff03726d1ae0e2",
+      "assignedSha256": "83869d7af2fc728885a4c34fd8339d8a1dc580b73ccc47acf6f4b7873013b78d",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "530f5503606d3d11f8a1684fc983acc41cbd396b56bf493975ff03726d1ae0e2",
-      "verifiedCommit": "db6bd94beff2fa859204fc96f6901631e44a360c",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "83869d7af2fc728885a4c34fd8339d8a1dc580b73ccc47acf6f4b7873013b78d",
+      "verifiedCommit": "fd3c84456025412565dc40dc16f08194226de8c2",
+      "verifiedAt": "2026-09-20",
       "evidence": [
         "#1774 prose half (cb-rpg-prose): row 155 status + residue updated at the fold commit",
         "#1774 persona+compose halves (cb-roster-tail): row 155 LANDED for all three halves; stale RosterRefIndex/PersonaRosterView targets corrected",
@@ -2817,7 +2819,8 @@
           ]
         }
       ],
-      "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it."
+      "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it.",
+      "verifiedCanonicalSha256": "83869d7af2fc728885a4c34fd8339d8a1dc580b73ccc47acf6f4b7873013b78d"
     },
     {
       "path": "docs/design/work-item-dod.md",

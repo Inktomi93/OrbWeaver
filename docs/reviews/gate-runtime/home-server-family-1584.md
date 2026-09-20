@@ -231,7 +231,7 @@ and each carries its own proof row.
   (`const now = Date.now`), both of which the first cut had declared, and each is now a `mustFlag` row. The
   arm costs one symbol hop across the 43 candidate `now()` sites in the whole 3,367-file population.
 - **`no-raw-random`'s subject is the CALL.** `prng: Math.random` passes the ambient generator as an injected
-  default (live at `entry/compose/automation-plugin.ts`, `infra/providers/backends/kit/retry.ts` and three
+  default (live at `entry/compose/automation-plugin.ts`, the retry seam — `packages/inference/src/backends/kit/retry.ts` since the 2026-09-19 extraction, under the server's providers tier when this was written — and three
   `kit/macro` seams); widening onto those references is a burn-down with its own decision to make.
 - **Both role policies keep the `role` NAME in the subject.** Dropping it widens onto every comparison of a
   role-typed value — `resolvedRole === "owner"` at `domain/sessions/verbs/provision-identity.ts:180,310` is

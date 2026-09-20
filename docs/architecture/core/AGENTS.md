@@ -251,12 +251,12 @@ participants/agents/identity → the pointer subsection below.
 
 | Domain | Origin | Owns |
 | - | - | - |
-| **chat** | keep (slim) | the turn lifecycle, canon, assembly, arbitration. **Stateless-first** — the agent-sdk session cache is backend-internal (`infra/providers/backends/agent-sdk/session/`, D8), NOT a chat concern. `memory` is a subsystem here but *delegates* vectors. |
+| **chat** | keep (slim) | the turn lifecycle, canon, assembly, arbitration. **Stateless-first** — the agent-sdk session cache is backend-internal (`packages/inference/src/backends/agent-sdk/session/`, D8), NOT a chat concern. `memory` is a subsystem here but *delegates* vectors. |
 | **character** | keep | character identity; the card is a flat `characters` row; history = a `character_snapshots` log that gates nothing (D28). |
 | **persona** | keep | personas; pin = anchor (`{{user}}`), active = per-participant. |
 | **preset** | keep | **generation config only** (params/customParameters/sections) — never the connection. |
 | **world-info** | keep | one books/entries store + scope junctions (already correct). |
-| **connection** | **NEW** | api/source/model/providerRouting; the ONE provider-vocab map (runner/family *derived* from source+protocol); `resolveRole(role)` for all 8 roles (chat/embed/rerank/summarize/imageEmbed/generateImage/agent/structured — `PROVIDER_ROLES`, D109-4). Absorbs **models** (the catalog = "what a connection can pick"). |
+| **connection** | **NEW** | the FRONT DOOR over `@orb/inference` — it writes its own three tables (`user_connections`, `connection_bindings`, `provider_rows`) and every other verb is a thin delegation to the runtime (resolve · availability · capabilities · catalogs · diagnostics · providers). Resolution is per TASK, all 8 of them (chat/agent/summarize/structured/generateImage/embed/imageEmbed/rerank — `TASKS`, D109-4), folded over an actor's bindings. Absorbs **models** (the catalog = "what a connection can pick"). |
 | **credentials** | keep (un-invert) | ALL credential logic — resolve + CRUD + metadata. No `_shared` guts. |
 | **tag** | keep (fix) | one tag namespace + per-entity junctions; **proposed = a status**, not a parallel store. Labels only — NOT analytics facets (those are `discovery`). |
 | **embeddings** | **NEW** | the vector substrate: embeds every source + owns the vector store + the event-driven indexer. The ONE write path. |
