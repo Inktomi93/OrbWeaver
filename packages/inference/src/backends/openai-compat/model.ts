@@ -32,6 +32,8 @@ const OR_TITLE_HEADER = "X-OpenRouter-Title";
 export interface TransportDeps {
   readonly fetch: typeof fetch;
   readonly captureWire?: WireCaptureSink | undefined;
+  /** Tap the reply bytes onto the capture entry too (§D2) — the process-tier opt-in, off by default. */
+  readonly captureWireReply?: boolean | undefined;
   readonly app: { readonly name: string; readonly url: string };
 }
 
@@ -90,6 +92,7 @@ function fetchArgs(call: ModelCall, shapeBody: WrapFetchArgs["shapeBody"]): Wrap
             wire: connection.wire,
             providerId: connection.providerId,
             model: connection.model,
+            reply: deps.captureWireReply === true,
           },
         }
       : {}),

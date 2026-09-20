@@ -3,6 +3,11 @@
 // can prove a setting flipped at the FE propagates truthfully into the real wire (FE → assemble → WIRE → DB).
 //
 // GATING IS LOAD-BEARING — this is dev/test-only + prod-safe, mirroring the RPG flight recorder (R-OBS):
+//   • THE REPLY TAP IS A SECOND, INDEPENDENT OPT-IN (`WIRE_CAPTURE_REPLY=on` / the `wireCaptureReply` compose
+//     force flag, audit D2/D3). It adds the provider's literal reply bytes to each REQUEST entry. It is not
+//     folded into `WIRE_CAPTURE` because the request body is the operator's own prompt while the reply is the
+//     model's prose — the exact thing the OUTCOME arm refuses to keep (see METADATA ONLY below). Inert with
+//     capture off: no sink is wired, so no send boundary taps anything.
 //   • OFF by default and in prod. Enabled only via `WIRE_CAPTURE=on` OR the `wireCapture` compose force flag
 //     (the harness / an int test forces it, bypassing the env). When disabled, compose injects NO sink into
 //     the backends, so a send boundary never calls `recordWireCapture` — ZERO overhead + ZERO retained bytes.
@@ -90,6 +95,13 @@ export interface WireCapture {
    *  here, and without them a captured request cannot be correlated with anything the provider logged.
    *  Absent on a transport failure (the request is still recorded) and on the agent-sdk wire (no HTTP). */
   readonly responseHeaders?: Readonly<Record<string, string>> | undefined;
+  /** WHAT CAME BACK'S BODY, as literal wire TEXT — the SSE frame stream or the JSON body, head-capped at the
+   *  send boundary's 64 KiB and secret-scrubbed there by value. Present only with `WIRE_CAPTURE_REPLY=on`
+   *  (or its compose force flag), which is a SEPARATE knob from `WIRE_CAPTURE` for the reason the OUTCOME arm
+   *  keeps no prose at all: this field holds the model's reply, and the operator has to ask for it twice.
+   *  A HEAD cap is the right end — OpenRouter's `debug.echo_upstream_body` payload is the FIRST SSE frame,
+   *  which is the whole reason this field exists (audit D2/D3). Absent on the agent-sdk wire (no HTTP body). */
+  readonly responseBody?: string | undefined;
 }
 
 /** Filter for a host read: by `chatId` and/or `providerId`, newest-first, capped by `limit`. */
@@ -109,6 +121,12 @@ const ring = createBoundedRing<WireCapture>(WIRE_CAPTURE_RING_CAPACITY);
  *  sink into the backends — so with capture off, the sink is absent and the boundaries never write. */
 export function isWireCaptureEnabled(): boolean {
   return env.WIRE_CAPTURE === "on";
+}
+
+/** True iff the env flag enables the REPLY tap. Compose ORs this with its own force flag and hands the
+ *  verdict to the runtime, which is where the tap lives (the send boundary owns the cap and the scrub). */
+export function isWireReplyCaptureEnabled(): boolean {
+  return env.WIRE_CAPTURE_REPLY === "on";
 }
 
 /** Record ONE captured wire body. This is the SINK compose injects into the backends (only when capture is

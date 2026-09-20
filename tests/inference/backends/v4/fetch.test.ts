@@ -3,6 +3,10 @@
 // the attacker's host), the 64 KiB error-body cap, the by-value secret scrub on the wire capture (a
 // `transport.includeBody` key-in-body credential must not reach the ring), and the `responseMap` /
 // `reasoningKeys` reshape that lands a non-OpenAI reply on the SDK's schema BEFORE it parses.
+//
+// Plus the REPLY TAP (audit D2/D3, control 4b): the opt-in tee that puts the provider's literal reply bytes
+// on the SAME capture entry as the request that produced them — off unless asked, scrubbed on the same terms
+// as the request body, and emitted even when the SDK abandons the stream without cancelling it.
 
 import type { Wire } from "@orb/contracts/inference";
 import { resolvedScrubSet } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
@@ -54,7 +58,7 @@ test("the wire capture is secret-scrubbed by value, including a key-in-body cred
     captured.push(entry);
   };
   const fetchImpl = wrap(respond("{}", { status: 200 }), {
-    capture: { sink, chatId: undefined, api: "chat-completions", wire: "openai-compat" satisfies Wire, providerId: "custom-openai", model: "m" },
+    capture: { sink, chatId: undefined, api: "chat-completions", wire: "openai-compat" satisfies Wire, providerId: "custom-openai", model: "m", reply: false },
   });
   await fetchImpl("https://box.local/v1/chat/completions", {
     method: "POST",
@@ -72,7 +76,15 @@ test("the capture carries the RESPONSE headers beside the request body (D1 — w
   };
   const headers = { "request-id": "req_011CfE", "anthropic-ratelimit-requests-remaining": "42" };
   const fetchImpl = wrap(respond("{}", { status: 200, headers }), {
-    capture: { sink, chatId: undefined, api: "anthropic-messages", wire: "anthropic-messages" satisfies Wire, providerId: "anthropic", model: "m" },
+    capture: {
+      sink,
+      chatId: undefined,
+      api: "anthropic-messages",
+      wire: "anthropic-messages" satisfies Wire,
+      providerId: "anthropic",
+      model: "m",
+      reply: false,
+    },
   });
   await fetchImpl("https://api.anthropic.com/v1/messages", { method: "POST", body: JSON.stringify({ model: "m" }) });
   expect(captured).toHaveLength(1);
@@ -88,7 +100,7 @@ test("a transport failure still records the request, with no response headers to
   };
   const boom: typeof fetch = () => Promise.reject(new Error("socket hang up"));
   const fetchImpl = wrap(boom, {
-    capture: { sink, chatId: undefined, api: "chat-completions", wire: "openai-compat" satisfies Wire, providerId: "vllm", model: "m" },
+    capture: { sink, chatId: undefined, api: "chat-completions", wire: "openai-compat" satisfies Wire, providerId: "vllm", model: "m", reply: false },
   });
   await fetchImpl("https://box.local/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m" }) }).catch(() => undefined);
   expect(captured).toHaveLength(1);
@@ -160,4 +172,152 @@ test("an untouched stream passes through by reference when nothing needs reshapi
   const original = new Response("data: {}\n\n", { status: 200, headers: { "content-type": "text/event-stream" } });
   const fetchImpl = wrap(() => Promise.resolve(original));
   expect(await fetchImpl("https://box.local/v1/x", { method: "POST" })).toBe(original);
+});
+
+// ── the reply tap (audit D2/D3) ──────────────────────────────────────────────────────────────────────────
+
+/** OpenRouter's `debug.echo_upstream_body` answer: the FIRST SSE frame, carrying the body OR sent upstream.
+ *  The echo replays our own request — including, on a key-in-body endpoint, our credential. */
+const ECHO_FRAME = `data: ${JSON.stringify({ debug: { echo_upstream_body: { model: "m", api_key: SECRET } } })}\n\n`;
+const TEXT_FRAME = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n';
+const DONE_FRAME = "data: [DONE]\n\n";
+const SSE_BODY = `${ECHO_FRAME}${TEXT_FRAME}${DONE_FRAME}`;
+
+function sseRespond(body: string, headers: Record<string, string> = {}): typeof fetch {
+  return respond(body, { status: 200, headers: { "content-type": "text/event-stream", ...headers } });
+}
+
+function replyCapture(sink: WireCaptureSink, reply: boolean): WrapFetchArgs["capture"] {
+  return { sink, chatId: undefined, api: "chat-completions", wire: "openai-compat" satisfies Wire, providerId: "openrouter", model: "m", reply };
+}
+
+/** The tap emits from a floating read of its OWN tee branch, so the entry lands a turn or two after the
+ *  caller has the Response. Poll rather than guess a tick count. */
+async function settled(entries: readonly unknown[]): Promise<void> {
+  for (let attempt = 0; attempt < 200 && entries.length === 0; attempt += 1) {
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  }
+}
+
+test("the reply tap is OFF unless asked: the entry still carries the request and the headers, never the reply", async () => {
+  const captured: Parameters<WireCaptureSink>[0][] = [];
+  const sink: WireCaptureSink = (entry) => {
+    captured.push(entry);
+  };
+  const fetchImpl = wrap(sseRespond(SSE_BODY, { "x-openrouter-id": "gen-1" }), { capture: replyCapture(sink, false) });
+  const res = await fetchImpl("https://openrouter.ai/api/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m" }) });
+  await res.text();
+  await settled(captured);
+
+  expect(captured).toHaveLength(1);
+  expect(captured[0]?.responseBody).toBeUndefined();
+  expect(captured[0]?.responseHeaders?.["x-openrouter-id"]).toBe("gen-1");
+  expect(captured[0]?.body["model"]).toBe("m");
+});
+
+test("the reply tap ON: ONE entry carries the request body, the response headers AND the literal reply bytes", async () => {
+  const captured: Parameters<WireCaptureSink>[0][] = [];
+  const sink: WireCaptureSink = (entry) => {
+    captured.push(entry);
+  };
+  const fetchImpl = wrap(sseRespond(SSE_BODY, { "x-openrouter-id": "gen-2" }), { capture: replyCapture(sink, true) });
+  const res = await fetchImpl("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    body: JSON.stringify({ model: "m", debug: { echo_upstream_body: true } }),
+  });
+  // The consumer's tee branch is byte-for-byte what the endpoint sent — the tap is an observer, not a filter.
+  expect(await res.text()).toBe(SSE_BODY);
+  await settled(captured);
+
+  // ONE row, not a request row and a correlated reply row: that correlation is the whole D1 argument.
+  expect(captured).toHaveLength(1);
+  expect(captured[0]?.body).toMatchObject({ model: "m", debug: { echo_upstream_body: true } });
+  expect(captured[0]?.responseHeaders?.["x-openrouter-id"]).toBe("gen-2");
+  // D3: the echo is reachable, and it is the FIRST frame — which is why the cap is a HEAD cap.
+  expect(captured[0]?.responseBody).toContain("echo_upstream_body");
+  expect(captured[0]?.responseBody?.startsWith("data: ")).toBe(true);
+});
+
+test("the captured reply is secret-scrubbed by value: an echoed key-in-body credential never reaches the ring", async () => {
+  const captured: Parameters<WireCaptureSink>[0][] = [];
+  const sink: WireCaptureSink = (entry) => {
+    captured.push(entry);
+  };
+  const fetchImpl = wrap(sseRespond(SSE_BODY), { capture: replyCapture(sink, true) });
+  const res = await fetchImpl("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    body: JSON.stringify({ model: "m", api_key: SECRET }),
+  });
+  await res.text();
+  await settled(captured);
+
+  expect(captured).toHaveLength(1);
+  expect(captured[0]?.responseBody).not.toContain(SECRET);
+  expect(captured[0]?.responseBody).toContain("echo_upstream_body");
+  expect(JSON.stringify(captured[0]?.body)).not.toContain(SECRET);
+});
+
+test("a credential straddling the reply cap is still scrubbed — the read over-reads, scrubs, THEN slices (#1820)", async () => {
+  const captured: Parameters<WireCaptureSink>[0][] = [];
+  const sink: WireCaptureSink = (entry) => {
+    captured.push(entry);
+  };
+  // OPAQUE on purpose: `redactSecretsFromText`'s `sk-…`/`Bearer …` SHAPE sweep would catch a fragment of the
+  // file's usual `sk-live-…` literal and hide whether the over-read ran at all. The BY-VALUE guarantee — the
+  // one `secretScrubOverhang` sizes — is the only belt that can reach this token.
+  const opaque = "Zm9vYmFyLXN1cGVyLW9wYXF1ZS1jcmVk";
+  const opaqueSecrets = resolvedScrubSet({ credential: { secret: opaque }, transport: {} });
+  // The credential STRADDLES the 64 KiB cut, 16 of its 32 characters on the near side: a truncate-first
+  // reader keeps half a credential, which is real key material and is the whole of #1820.
+  const lead = "y".repeat(65_536 - 16);
+  const fetchImpl = wrapFetch({
+    fetch: sseRespond(`${lead}${opaque}tail`),
+    secrets: opaqueSecrets,
+    label: "test",
+    responseMap: undefined,
+    reasoningKeys: undefined,
+    capture: replyCapture(sink, true),
+  });
+  const res = await fetchImpl("https://openrouter.ai/api/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m" }) });
+  await res.text();
+  await settled(captured);
+
+  const body = captured[0]?.responseBody;
+  // Assert the capture EXISTS first: an absent `responseBody` trivially contains no secret, which would make
+  // the rest of this test a fence rather than a proof.
+  expect(body?.startsWith("yyyy")).toBe(true);
+  expect(body).not.toContain(opaque);
+  expect(body).not.toContain(opaque.slice(0, 16));
+});
+
+test("a FAILED response records its (capped, scrubbed) error body as the reply, on the same entry", async () => {
+  const captured: Parameters<WireCaptureSink>[0][] = [];
+  const sink: WireCaptureSink = (entry) => {
+    captured.push(entry);
+  };
+  const fetchImpl = wrap(respond(`{"error":{"message":"bad key ${SECRET}"}}`, { status: 401 }), { capture: replyCapture(sink, true) });
+  const res = await fetchImpl("https://openrouter.ai/api/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m" }) });
+  await res.text();
+  await settled(captured);
+
+  expect(captured).toHaveLength(1);
+  expect(captured[0]?.responseBody).toContain("bad key");
+  expect(captured[0]?.responseBody).not.toContain(SECRET);
+});
+
+test("the entry still lands when the consumer ABANDONS the stream — the tap owns its own tee branch", async () => {
+  const captured: Parameters<WireCaptureSink>[0][] = [];
+  const sink: WireCaptureSink = (entry) => {
+    captured.push(entry);
+  };
+  const fetchImpl = wrap(sseRespond(SSE_BODY), { capture: replyCapture(sink, true) });
+  // Never read the returned body: this is `drainStream`'s truncated-turn path, which releases its reader
+  // without cancelling. A pass-through wrapper's flush would never run; an owned branch still finishes.
+  await fetchImpl("https://openrouter.ai/api/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m" }) });
+  await settled(captured);
+
+  expect(captured).toHaveLength(1);
+  expect(captured[0]?.responseBody).toContain("echo_upstream_body");
 });
