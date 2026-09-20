@@ -214,6 +214,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
     tokensIn: null,
     tokensOut: null,
     tokenProvenance,
+    costProvenance: overrides.costProvenance ?? "unrecorded",
     cacheReadTokens: null,
     cacheWriteTokens: null,
     contextWindow: null,

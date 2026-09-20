@@ -54,6 +54,7 @@ const MESSAGE: MessageView = {
   tokensIn: null,
   tokensOut: null,
   tokenProvenance: "unrecorded",
+  costProvenance: "unrecorded",
   cacheReadTokens: null,
   cacheWriteTokens: null,
   contextWindow: null,

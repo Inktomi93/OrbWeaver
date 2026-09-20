@@ -23,12 +23,13 @@ import type {
   UserMacroDraws,
 } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
-import type { NormalizedFinishReason } from "@orb/contracts/inference";
+import type { CostDetails, NormalizedFinishReason } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
+import type { ReasoningContentPart } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -52,11 +53,21 @@ interface CanonVariantInput {
   readonly tokenProvenance?: TokenProvenance | undefined;
   readonly cacheReadTokens?: number | null | undefined;
   readonly cacheWriteTokens?: number | null | undefined;
+  /** The reasoning share of `tokensOut` where the wire reports one (inference audit B5); absent ⇒ NULL. */
+  readonly reasoningTokens?: number | null | undefined;
   readonly costUsd?: number | null | undefined;
   /** §5.3c — the SAME tuple as `tokenProvenance`; absent ⇒ `unrecorded`. */
   readonly costProvenance?: TokenProvenance | null | undefined;
+  /** The breakdown behind `costUsd` (`cost_details`, parsed by `costDetailsSchema` at any read seam — A4/B8);
+   *  absent ⇒ NULL, never an empty record. */
+  readonly costDetails?: CostDetails | null | undefined;
+  /** The model's reasoning blocks WITH per-wire provenance (`reasoning_parts`, audit A1) — the replay material
+   *  the assembly re-materializes onto the assistant row (`carryReasoning`, §8.8). Absent/[] ⇒ NULL: a turn
+   *  whose reasoning carried no provenance has nothing replayable (the converters refuse an unsigned block). */
+  readonly reasoningParts?: readonly ReasoningContentPart[] | null | undefined;
   readonly contextWindow?: number | null | undefined;
-  /** The output cap the backend echoed + the requested reasoning effort. */
+  /** The output cap the backend echoed + the APPLIED reasoning effort (what the wire carried, B1 — the
+   *  requested intent is `params`). */
   readonly maxOutputTokens?: number | null | undefined;
   readonly reasoningEffort?: EffortLevel | null | undefined;
   /** The fit-pass boundary — the earliest message actually included in the assembled history this
@@ -66,8 +77,8 @@ interface CanonVariantInput {
    *  columns (not on the read `MessageView`); absent ⇒ null (a verbatim/greeting seed). */
   readonly genStartedAt?: number | null | undefined;
   readonly genFinishedAt?: number | null | undefined;
-  /** The upstream OpenRouter generation handle (`gen-…`) this variant billed under — the PD-137 cost key.
-   *  Absent/null on a non-OR turn (agent-sdk / responses api / user-authored row). */
+  /** The provider's response id for this generation (OpenRouter `gen-…` — the PD-137 cost key; Anthropic
+   *  `msg_…` — the support handle; B7). Absent/null where the wire reports none (agent-sdk / a user-authored row). */
   readonly generationId?: string | null | undefined;
   readonly ttftMs?: number | null | undefined;
   /** The generation's OPEN metadata sidecar (`message_variants.metadata`) — today exactly one key, the
@@ -155,8 +166,8 @@ interface VariantEconomics {
    *  both read `gf − gs`. A continue re-stamps them to the continuation's window. */
   readonly genStartedAt: number | null;
   readonly genFinishedAt: number | null;
-  /** The upstream OpenRouter generation handle (`gen-…`) — the PD-137 per-message cost key. On both the
-   *  insert columns and the read `MessageView` (one home; the committed view can't drift from the row). */
+  /** The provider's response id (OpenRouter `gen-…` — the PD-137 per-message cost key; Anthropic `msg_…`). On both
+   *  the insert columns and the read `MessageView` (one home; the committed view can't drift from the row). */
   readonly generationId: string | null;
 }
 
@@ -229,6 +240,12 @@ function freezeProvenanceColumns(
  *  property of the writer set rather than a hope about callers. */
 const CLEARED_FREEZE_PROVENANCE = { rawContent: null, macroFreezes: null } as const;
 
+/** `reasoning_parts` is NULL when there is nothing replayable — an empty list would make the column's "has
+ *  replay material" question a lie and costs a row of JSON for nothing (the `metadata` sidecar's posture). */
+function reasoningPartsColumn(parts: readonly ReasoningContentPart[] | null | undefined): readonly ReasoningContentPart[] | null {
+  return parts === null || parts === undefined || parts.length === 0 ? null : parts;
+}
+
 /** Map a variant payload → the `message_variants` insert columns. */
 function variantColumns(args: {
   readonly variantId: MessageVariantId;
@@ -245,6 +262,9 @@ function variantColumns(args: {
     metadata: args.variant.metadata ?? null,
     maxOutputTokens: args.variant.maxOutputTokens ?? null,
     reasoningEffort: args.variant.reasoningEffort ?? null,
+    reasoningTokens: args.variant.reasoningTokens ?? null,
+    costDetails: args.variant.costDetails ?? null,
+    reasoningParts: reasoningPartsColumn(args.variant.reasoningParts),
     params: args.variant.params ?? null,
     promptSnapshot: args.variant.promptSnapshot ?? null,
     variableDelta: args.variant.variableDelta ?? null,
@@ -460,6 +480,15 @@ export function continueVariantStatements(
         .set({
           // A continue re-generates: `variantEconomics` re-stamps the gen window to the continuation's.
           ...variantEconomics(params.variant),
+          // The continuation's `tokensOut`/`costUsd` land above, so the effort it applied, its reasoning share
+          // and its cost breakdown follow — a stale `costDetails` beside a fresh `costUsd` would contradict
+          // itself (B1/B5/B8). `maxOutputTokens` and the `reasoning_duration` sidecar stay insert-only as before.
+          reasoningEffort: params.variant.reasoningEffort ?? null,
+          reasoningTokens: params.variant.reasoningTokens ?? null,
+          costDetails: params.variant.costDetails ?? null,
+          // The continuation's own reasoning blocks replace the base's: only the LAST generation's signed blocks
+          // are replayable on the next leg (the rendered `reasoning` text, by contrast, is COMBINED above).
+          reasoningParts: reasoningPartsColumn(params.variant.reasoningParts),
           params: params.variant.params ?? null,
           promptSnapshot: params.variant.promptSnapshot ?? null,
           // A continue re-runs assembly, so its op-log replaces this variant's delta.

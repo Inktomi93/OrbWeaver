@@ -131,6 +131,7 @@ test("MessageView is the slot joined with its selected variant (content + econom
     tokensIn: 10,
     tokensOut: 20,
     tokenProvenance: "measured",
+    costProvenance: "unrecorded",
     cacheReadTokens: null,
     cacheWriteTokens: null,
     contextWindow: 200_000,

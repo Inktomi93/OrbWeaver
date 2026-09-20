@@ -5,15 +5,28 @@
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
 import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView } from "@orb/contracts/chat";
+import type { ParticipantRole } from "@orb/contracts/identity";
+import type { Capability } from "@orb/contracts/inference";
+import { providerIdSchema } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
-import type { Capability } from "@orb/contracts/inference";
-import type { Resolved } from "@orb/inference";
-import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatEvents, chatParticipants, chatStreamEvents, chats, messages, messageVariants, pendingTurns, personas } from "@orb/db";
+import {
+  assets,
+  characters,
+  chatEvents,
+  chatParticipants,
+  chatStreamEvents,
+  chats,
+  messages,
+  messageVariants,
+  pendingTurns,
+  personas,
+  userConnections,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
+import type { Resolved } from "@orb/inference";
 import type {
   AssetId,
   CharacterHandle,
@@ -32,6 +45,7 @@ import type {
   MessageVariantId,
   PendingTurnId,
   PersonaId,
+  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -40,14 +54,13 @@ import { can } from "@orb/server/domain/admin";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
-import type { ClaimChatOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
-import type { SummarizeOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
+import type { ClaimChatOp, SummarizeOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { MemoryRecallResult } from "../../../../packages/server/src/domain/chat/contract/memory.ts";
 import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createChatTeachingContributions } from "../../../../packages/server/src/domain/chat/teaching-contribution.ts";
 import { dropChatDigestKeys, pruneChatDigests, pruneChatSegments } from "../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
-import { makeCapability, makeResolved, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
+import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 export const FROZEN_AT = FROZEN_AT_MS;
@@ -65,6 +78,25 @@ export async function seedUser(db: Db, handle: Handle): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
   const row = await seedUserRow(db, { id, handle: castId<Handle>(handle) });
   return row.id;
+}
+
+/** Insert the `user_connections` row `testConnection()` resolves to (`TEST_CONNECTION_ID`). A committed
+ *  variant now carries `connection_id` as real ATTRIBUTION (@orb/inference §5.3b), and that column is an FK
+ *  onto this table — so any suite that drives a turn through the REAL compose bridge (which stamps
+ *  `TurnEconomics.connectionId` off the resolved connection) must seed the row or the commit batch fails
+ *  `SQLITE_CONSTRAINT_FOREIGNKEY`. A harness whose `runChatTurn` is a bare scripted generator never sets the
+ *  field and does not need this. */
+export async function seedConnection(db: Db, ownerId: UserId, label = "test connection"): Promise<UserConnectionId> {
+  await db.insert(userConnections).values({
+    id: TEST_CONNECTION_ID,
+    ownerId,
+    label,
+    providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
+    model: "test-model",
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  return TEST_CONNECTION_ID;
 }
 
 /** Insert a flat `characters` row (D28 — no version table); returns its branded id. */

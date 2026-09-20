@@ -22,10 +22,10 @@ import type {
   UserMacroDraws,
 } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
-import type { NormalizedFinishReason } from "@orb/contracts/inference";
+import type { CostDetails, NormalizedFinishReason } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { HistoryRole, Resolved, ResolvedWarning, ToolCallInput, ToolChoice, WireTool } from "@orb/inference";
+import type { HistoryRole, ReasoningContentPart, Resolved, ResolvedWarning, ToolCallInput, ToolChoice, WireTool } from "@orb/inference";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -239,10 +239,20 @@ export interface TurnEconomics {
   readonly tokensOut?: number | null;
   readonly cacheReadTokens?: number | null;
   readonly cacheWriteTokens?: number | null;
+  /** The reasoning share of `tokensOut` where the wire reports one (inference audit B5); absent/null otherwise. */
+  readonly reasoningTokens?: number | null;
   readonly costUsd?: number | null;
   /** `measured | estimated | unrecorded` — the SAME tuple as token provenance (§5.3c); a subscription's SDK
    *  cost is `estimated`, so a rollup never sums it with a metered provider's invoice. */
   readonly costProvenance?: TokenProvenance | null;
+  /** The breakdown behind `costUsd` (the phase split, the BYOK gateway/upstream pair) — persisted as the
+   *  `cost_details` sidecar, parsed by `costDetailsSchema` at any read seam (inference audit A4/B8). */
+  readonly costDetails?: CostDetails | null;
+  /** The model's own reasoning blocks WITH their per-wire provenance (`ChatResult.reasoningParts`, audit A1) —
+   *  persisted as `message_variants.reasoning_parts` so the next leg of a tool loop can replay verified
+   *  reasoning; absent/null on a turn that reasoned nothing replayable. The read side (the assembly's
+   *  re-materialization onto the assistant row) is `carryReasoning`'s (§8.8). */
+  readonly reasoningParts?: readonly ReasoningContentPart[] | null;
   readonly contextWindow?: number | null;
   readonly maxOutputTokens?: number | null;
   /** How many MODEL CALLS the backend made for this ONE chat turn (the provider contract's `numTurns` —

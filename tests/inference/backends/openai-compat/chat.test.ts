@@ -7,6 +7,12 @@
 // Also pinned: H1(b) verbosity rides `extraBody` on the OR route when the capability advertises it (measured
 // 2026-09-19: OR forwards it upstream), and E2 — a provider id with a `-` keys `providerOptions` by its camel
 // form, so the SDK stops pushing a deprecation warning on every single call.
+//
+// The RECORD-TRUTH pins (audit B1 · B6 · B7): what the record says is checked against the BYTES the wire
+// carried. B1: `appliedEffort` is read back off the built options — a row whose `features.effort: "none"` spells
+// no `reasoning_effort` records `null` while the funnel still resolved the ask (the audit's recorded lie); a
+// row that spells it records the word the body carries. B6: the OpenAI-style rate-limit headers on the
+// response become `rateLimit`. B7: the endpoint's own response id is the row's `generationId`.
 
 import type { UserIntent } from "@orb/contracts/preset";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
@@ -122,4 +128,60 @@ test("E2: a hyphenated provider id keys providerOptions by its camel form (no pe
   expect(messages.filter((message) => message.includes("providerOptions key"))).toHaveLength(0);
   // The unmodelled knob still reaches the body — the camel key is what the SDK spreads.
   expect(recorded[0]?.body["repetition_penalty"]).toBe(1.1);
+});
+
+// ── the record-truth pins (audit B1 · B6 · B7) ────────────────────────────────────────────────────────────
+
+/** The OpenAI-style rate-limit family as the direct shim answered it (measured 2026-09-20, `req_f68c8dc2e4a24908a2e5be64132edbc0`). */
+const RATE_HEADERS = {
+  "x-ratelimit-limit-requests": "500",
+  "x-ratelimit-remaining-requests": "499",
+  "x-ratelimit-reset-requests": "120ms",
+  "x-ratelimit-limit-tokens": "500000",
+  "x-ratelimit-remaining-tokens": "499990",
+  "x-ratelimit-reset-tokens": "1ms",
+};
+
+/** An openai-compatible ENDPOINT row (effort mode) whose folded features come from `declaredFeatures`. */
+function endpointRequest(effort: "none" | "reasoning_effort"): OpenAiCompatChatRequest {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "custom-openai",
+    model: "m",
+    capability: generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } }),
+    baseUrl: "https://box.local/v1",
+    secret: fakeApiKeySecret("sk-box-not-a-real-key"),
+    declaredFeatures: { effort },
+  });
+  return orRequest({ connection, params: { effort: "high" } as UserIntent, tools: undefined });
+}
+
+test("B1: a row that spells no reasoning_effort records appliedEffort null — the ask was high, the wire carried nothing", async () => {
+  const recorded: RecordedRequest[] = [];
+  const turn = await runOpenAiCompatChatTurn(endpointRequest("none"), turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)));
+  expect(turn.reply).toBe("ok");
+  expect("reasoning_effort" in (recorded[0]?.body ?? {})).toBe(false);
+  expect(turn.appliedEffort).toBeNull();
+  expect(warningCodes(turn)).toContain("effort_dropped");
+});
+
+test("B1 (positive control): a row that spells reasoning_effort records the word the body carries", async () => {
+  const recorded: RecordedRequest[] = [];
+  const turn = await runOpenAiCompatChatTurn(endpointRequest("reasoning_effort"), turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)));
+  expect(recorded[0]?.body["reasoning_effort"]).toBe("high");
+  expect(turn.appliedEffort).toBe("high");
+});
+
+test("B6 + B7: the response headers become the rate-limit snapshot and the endpoint's response id is the generationId", async () => {
+  const recorded: RecordedRequest[] = [];
+  const turn = await runOpenAiCompatChatTurn(endpointRequest("reasoning_effort"), turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded, RATE_HEADERS)));
+  expect(turn.rateLimit).toMatchObject({ status: "allowed", rateLimitType: "requests", resetsAt: NOW + 120 });
+  expect(turn.rateLimit?.utilization).toBeCloseTo(0.002);
+  expect(turn.generationId).toBe("gen-leg2");
+  expect(turn.usage).toMatchObject({ tokensIn: 10, tokensOut: 5, costProvenance: "unrecorded", costDetails: null });
+  // Below the canary threshold no rate_limit event rides.
+  expect(turn.events.some((event) => event.kind === "rate_limit")).toBe(false);
+  // PLANTED CONTROL: a response without the family leaves the snapshot null.
+  const bare = await runOpenAiCompatChatTurn(endpointRequest("reasoning_effort"), turnDeps(scriptedSseFetch([openAiTextStream("ok")], [])));
+  expect(bare.rateLimit).toBeNull();
 });
