@@ -89,10 +89,11 @@ const OFF_CORPUS_PROBE = "an entirely unrelated subject";
 
 let db: Db;
 let chatId: Awaited<ReturnType<typeof seedChat>>;
+let owner: Awaited<ReturnType<typeof seedUser>>;
 
 beforeEach(async () => {
   db = await freshDb();
-  const owner = await seedUser(db, castId<Handle>("owner"));
+  owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "group");
   chatId = await seedChat(db, "eval");
   for (const block of CORPUS) {
@@ -134,11 +135,14 @@ function contextFor(controls: FakeRoleClientControls): ChatContext {
     // An eval measures what it says it measures or it fails loudly.
     searchDigests: (query: Omit<MemoryQueryOptions, "ownerId">): Promise<readonly ScoredBlock[]> =>
       search
-        .digests(query, {
-          onRerankUnavailable: (): never => {
-            throw new Error("eval: the rerank degraded to vector order — this run would report mixB numbers as mixC");
+        .digests(
+          { ...query, ownerId: owner },
+          {
+            onRerankUnavailable: (): never => {
+              throw new Error("eval: the rerank degraded to vector order — this run would report mixB numbers as mixC");
+            },
           },
-        })
+        )
         .then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
   });
 }

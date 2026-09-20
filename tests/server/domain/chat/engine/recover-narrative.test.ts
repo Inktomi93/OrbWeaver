@@ -18,7 +18,7 @@ import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/
 import { resolveTurnNarrative } from "../../../../../packages/server/src/domain/chat/engine/recover-narrative.ts";
 import type { ToolCallInput } from "../../../../../packages/server/src/domain/tool-use/contract/params.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { makeCapability, makeGenerationCapability, makeResolvedSecret } from "../../../../support/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type PipelineArgs = Parameters<typeof runTurnPipeline>[0];
@@ -33,11 +33,9 @@ const FIXTURE_HUMAN = castId<UserId>("user_fixture_human");
 /** `tools` PRESENT + `silencesProse` unset ⇒ `coEmitsProseWithTools` is true, which is the capability gate the
  *  terminal channel attaches behind. A model that silences prose could never produce the recoverable shape. */
 const CAPABILITY: GenerationCapability = makeGenerationCapability({
-  output: { maxTokens: { min: 1, max: 8192 } },
+  output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
   context: { window: 200_000 },
   tools: { parallel: true },
-  modalities: ["text"],
-  modalities: ["text"],
 });
 
 const CONNECTION: Resolved<"chat"> = makeResolved({ api: "chat-completions", model: castId<ModelId>("test-model"), capability: makeCapability(CAPABILITY) });

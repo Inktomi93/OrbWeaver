@@ -15,10 +15,10 @@ import type {
   EmbeddingsStoreSegmentsOp,
   StoreDigestParams,
   StoreSegmentParams,
+  SummarizeOp,
 } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { MemoryScope } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { seedMessage } from "../_support.ts";
-import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 
 export const MODEL = "test-embed-1024";
 const DIM = 1024;
@@ -207,12 +207,12 @@ export function fakeEmbeddingsStore(db: Db): {
  *  BARE KEYS for the common case and synthesizes descending scores in the given order — a caller that is
  *  ASSERTING on the trace's numbers (#250) passes full {@link ScoredBlock}s instead. */
 export function fakeSearchDigests(result: readonly (BlockKey | ScoredBlock)[]): {
-  fn: (query: MemoryQueryOptions) => Promise<readonly ScoredBlock[]>;
-  calls: MemoryQueryOptions[];
+  fn: (query: Omit<MemoryQueryOptions, "ownerId">) => Promise<readonly ScoredBlock[]>;
+  calls: Omit<MemoryQueryOptions, "ownerId">[];
 } {
-  const calls: MemoryQueryOptions[] = [];
+  const calls: Omit<MemoryQueryOptions, "ownerId">[] = [];
   const scored: readonly ScoredBlock[] = result.map((r, i) => ("blockKey" in r ? r : { blockKey: r, score: -1 + i * 0.1, relevance: 0.9 - i * 0.1 }));
-  const fn = (query: MemoryQueryOptions): Promise<readonly ScoredBlock[]> => {
+  const fn = (query: Omit<MemoryQueryOptions, "ownerId">): Promise<readonly ScoredBlock[]> => {
     calls.push(query);
     return Promise.resolve(scored);
   };
