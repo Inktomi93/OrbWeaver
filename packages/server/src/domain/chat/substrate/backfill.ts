@@ -27,7 +27,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, eq, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
-import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
+import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryEmbedSpace, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
 import {
   collectConsolidationTier,
   logBuild,
@@ -124,7 +124,7 @@ interface PlanSweep {
   segmentsScanned: number;
   digestsScanned: number;
   failed: number;
-  readonly spaces: Map<UserId, string>;
+  readonly spaces: Map<UserId, MemoryEmbedSpace>;
 }
 
 /** The per-chat plan dependencies (bundled to keep `planOneChat` at ≤4 params). */
@@ -136,12 +136,15 @@ interface PlanDeps {
   readonly funderUserId: UserId;
 }
 
-function recordSpace(sweep: PlanSweep, space: { readonly ownerId: UserId; readonly model: string }): void {
+function recordSpace(sweep: PlanSweep, space: MemoryEmbedSpace): void {
   const priorSpace = sweep.spaces.get(space.ownerId);
-  if (priorSpace !== undefined && priorSpace !== space.model) {
+  if (
+    priorSpace !== undefined &&
+    (priorSpace.model !== space.model || priorSpace.generationId !== space.generationId || priorSpace.generationEpoch !== space.generationEpoch)
+  ) {
     throw new Error(`memory embed space changed during planning for owner ${space.ownerId}`);
   }
-  sweep.spaces.set(space.ownerId, space.model);
+  sweep.spaces.set(space.ownerId, space);
 }
 
 /** Plan ONE chat: COLLECT its segment chunks (no embed), then tier-0 COLLECT each of its scope buckets into
@@ -508,7 +511,7 @@ export async function backfillMemory(
     segmentsSkippedOverWindow: segments.skippedOverWindow,
     digests: { scanned: sweep.digestsScanned, changed: committed.changed },
     failed,
-    completedSpaces: failed === 0 && !args.signal.aborted ? [...sweep.spaces].map(([ownerId, model]) => ({ ownerId, model })) : [],
+    completedSpaces: failed === 0 && !args.signal.aborted ? [...sweep.spaces.values()] : [],
   };
 }
 

@@ -3,7 +3,9 @@
 // no principal/guard on any bundle — the vector substrate carries no ownerId.
 
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
-import type { RoleClients } from "@orb/contracts/role-clients";
+import type { Capability, ProviderId } from "@orb/contracts/inference";
+import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
+import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type {
@@ -15,8 +17,10 @@ import type {
   DocumentChunkId,
   DocumentId,
   ImageEmbeddingId,
+  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
+import type { GenerationReceipt, GenerationTask, PinnedGeneration } from "./generation.ts";
 import type {
   ClearTableParams,
   CountDocumentChunksParams,
@@ -41,6 +45,29 @@ import type {
 /** The per-owner bundle resolver the composition root binds over `runtime.roleClientsFor`. */
 export type RoleClientsFor = (ownerId: UserId) => Promise<RoleClients>;
 
+/** One resolved encoder snapshot. It deliberately omits credentials while retaining every non-secret field
+ * that can change geometry; the call closures execute through this exact snapshot. */
+export interface EmbeddingConnectionSnapshot {
+  readonly connectionId: UserConnectionId;
+  readonly providerId: ProviderId;
+  readonly model: string;
+  readonly capability: Capability;
+  readonly api: string;
+  readonly wire: string;
+  readonly baseUrl: string | null;
+  readonly features: unknown;
+  readonly extras: unknown;
+  readonly transport: unknown;
+  readonly embed: (input: string | readonly string[], opts?: { inputType?: "query" | "document"; instruction?: string }) => Promise<EmbedResult>;
+  readonly imageEmbed: (input: ImageEmbedInput) => Promise<ImageEmbedResult>;
+}
+
+export type ResolveEmbeddingConnection = (
+  ownerId: UserId,
+  task: "embed" | "imageEmbed",
+  connectionId?: UserConnectionId | undefined,
+) => Promise<EmbeddingConnectionSnapshot | null>;
+
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;
 
@@ -64,6 +91,7 @@ export interface EmbeddingsContext {
   /** The per-FUNDER role-client bundle (inference program §7.5-2): a vector task is `scope: "owner"`, so the
    *  entity's OWNER funds the embed and DEFINES the space (their `embed`/`imageEmbed` binding). */
   readonly roleClientsFor: RoleClientsFor;
+  readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
   readonly now: () => number;
   readonly newCharacterEmbeddingId: () => CharacterEmbeddingId;
   readonly newImageEmbeddingId: () => ImageEmbeddingId;
@@ -82,6 +110,7 @@ export interface EmbeddingsContext {
 }
 
 export interface EmbeddingsService {
+  readonly resolveGeneration: (ownerId: UserId, task: GenerationTask, via?: GenerationTask) => Promise<PinnedGeneration | null>;
   /** The only vector inserter for the single-item lenses. Hash-gates on `(key, model)` — a matched
    *  `content_hash` is a noop; else embeds, asserts the vector matches the declared space `dim`, and upserts.
    *  Never touches `hub_score`. Verbatim SEGMENTS go through {@link storeSegments} instead. */
@@ -110,7 +139,7 @@ export interface EmbeddingsService {
   /** PD-139(b): reclaim the OLD chat-memory embed space — deletes `chat_segments`/`chat_digests` rows whose
    *  `model` differs from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's
    *  guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge. */
-  readonly purgeMemoryVectors: (params: { readonly ownerId: UserId; readonly completedSpace: string }) => Promise<PurgeMemoryVectorsResult>;
+  readonly purgeMemoryVectors: (params: { readonly ownerId: UserId; readonly generation: GenerationReceipt }) => Promise<PurgeMemoryVectorsResult>;
   /** The chat-memory SHRINK seam: delete the digest/segment rows whose BLOCK no longer exists in canon (and,
    *  for digests, the consolidations that folded them). Distinct from {@link purgeMemoryVectors}, which
    *  reclaims a retired embed SPACE — this one reclaims blocks that canon itself dropped. memory calls it at
@@ -130,7 +159,7 @@ export interface EmbeddingsService {
   /** PD-139(c): reclaim the OLD document embed space — deletes `document_chunks` rows whose `model` differs
    *  from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's guard (the
    *  databank-reindex runner), mirroring `purgeMemoryVectors`. */
-  readonly purgeDocumentVectors: (params: { readonly ownerId: UserId }) => Promise<PurgeDocumentVectorsResult>;
+  readonly purgeDocumentVectors: (params: { readonly ownerId: UserId; readonly generation: GenerationReceipt }) => Promise<PurgeDocumentVectorsResult>;
 }
 
 /** The DI bundle the indexer handlers close over (assembled at `entry/`). */

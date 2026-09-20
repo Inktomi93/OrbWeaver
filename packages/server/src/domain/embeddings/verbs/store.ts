@@ -23,7 +23,7 @@
 // so the corpus sweep can submit one embed flood instead of one awaited embed per block. Same hash gate, same
 // space tripwire, same single write path — a batch shape, because its producer holds a batch of work.
 
-import type { RoleClients } from "@orb/contracts/role-clients";
+import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { EmbeddingsContext } from "../context.ts";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type {
@@ -47,6 +47,7 @@ import {
   upsertDocumentChunk,
   upsertImageEmbedding,
 } from "../persistence/queries.ts";
+import { resolveTargetGeneration } from "../substrate/generation.ts";
 import { contentHash } from "../substrate/hash.ts";
 
 function assertNever(value: never): never {
@@ -73,11 +74,22 @@ function assertSpace(model: string, dim: number, vector: Float32Array): void {
 /** card-text → `character_embeddings` (hash-gated; the staleness gate short-circuits before the embed —
  *  unless `force`, the PD-53 bulk re-index escape hatch that bypasses ONLY the short-circuit). */
 async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Promise<StoreResult> {
-  const hash = contentHash(p.content);
-  if (p.force !== true && (await existingCharacterHash(ctx.db, p.characterId, p.model)) === hash) {
-    return { outcome: "noop", contentHash: hash, model: p.model };
+  const generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
+  if (generation === null) {
+    throw new EmbedFailedError(p.lens, p.model);
   }
-  const embedded = await (await ctx.roleClientsFor(p.ownerId)).embed(p.content);
+  const hash = contentHash(p.content);
+  if (p.force !== true && (await existingCharacterHash(ctx.db, p.characterId, generation.id)) === hash) {
+    return {
+      outcome: "noop",
+      contentHash: hash,
+      model: p.model,
+      generationId: generation.id,
+      generationEpoch: generation.epoch,
+      generationVia: generation.via,
+    };
+  }
+  const embedded = await generation.connection.embed(p.content);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertCharacterEmbedding(ctx.db, {
@@ -86,19 +98,32 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Pr
     embedding: vector,
     contentHash: hash,
     model: embedded.model,
+    generationId: generation.id,
     dim: p.dim,
     now: ctx.now(),
   });
-  return { outcome: "written", contentHash: hash, model: embedded.model };
+  return {
+    outcome: "written",
+    contentHash: hash,
+    model: embedded.model,
+    generationId: generation.id,
+    generationEpoch: generation.epoch,
+    generationVia: generation.via,
+  };
 }
 
 /** Is the stored row for this lens already current for these bytes? The raw lens is a pure hash question; the
  *  captioned lens additionally requires its facet breakdown (see the call site). */
-async function isImageLensCurrent(ctx: EmbeddingsContext, p: ImageRawStoreParams | ImageCaptionedStoreParams, hash: string): Promise<boolean> {
+async function isImageLensCurrent(
+  ctx: EmbeddingsContext,
+  p: ImageRawStoreParams | ImageCaptionedStoreParams,
+  hash: string,
+  generationId: string,
+): Promise<boolean> {
   if (p.lens === "image-raw") {
-    return (await existingImageHash(ctx.db, p.assetId, p.lens, p.model)) === hash;
+    return (await existingImageHash(ctx.db, p.assetId, p.lens, generationId)) === hash;
   }
-  const row = await existingCaptionedRow(ctx.db, p.assetId, p.model);
+  const row = await existingCaptionedRow(ctx.db, p.assetId, generationId);
   return row !== undefined && row.hash === hash && row.hasFacets;
 }
 
@@ -109,22 +134,13 @@ async function isImageLensCurrent(ctx: EmbeddingsContext, p: ImageRawStoreParams
  *  no image-capable embedder — the caption as plain TEXT through the `embed` role, which lands the picture
  *  in their text space instead of dropping it. Both results carry `{vectors, model}`, and the row is
  *  stamped with the PROVIDER's `model` either way (the issue-724 ruling), so the arm never invents a tag. */
-function embedImageLens(
-  rc: RoleClients,
-  p: ImageRawStoreParams | ImageCaptionedStoreParams,
-): Promise<{ readonly vectors: readonly (Float32Array | null)[]; readonly model: string }> {
-  if (p.lens === "image-raw") {
-    return rc.imageEmbed({ kind: "image", input: p.content });
-  }
-  if (p.via === "embed") {
-    return rc.embed(p.caption);
-  }
-  return rc.imageEmbed({ kind: "multimodal", input: { image: p.content, text: p.caption } });
-}
-
 /** image-raw / image-captioned → `image_embeddings` (both lenses coexist per `(asset, model, lens)`;
  *  `force` bypasses the staleness short-circuit — PD-53 bulk re-index). */
 async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | ImageCaptionedStoreParams): Promise<StoreResult> {
+  const generation = await resolveTargetGeneration(ctx, p.ownerId, "imageEmbed", p.lens === "image-raw" ? "imageEmbed" : p.via);
+  if (generation === null) {
+    throw new EmbedFailedError(p.lens, p.model);
+  }
   const hash = contentHash(p.content);
   // THE CAPTIONED LENS IS CURRENT ONLY WHEN IT ALSO CARRIES ITS FACET BREAKDOWN (issue #164). `content_hash`
   // covers the BYTES, and the bytes did not change when the VL breakdown landed on 2026-08-18 — so a
@@ -133,22 +149,42 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
   // sweep's own pre-check in `verbs/embed-assets` uses the identical two-condition test; keeping the rule in
   // both places would be two homes for one currency definition, so this IS that home and the sweep's
   // pre-check is only an early-out that avoids loading bytes.
-  if (p.force !== true && (await isImageLensCurrent(ctx, p, hash))) {
-    return { outcome: "noop", contentHash: hash, model: p.model };
+  if (p.force !== true && (await isImageLensCurrent(ctx, p, hash, generation.id))) {
+    return {
+      outcome: "noop",
+      contentHash: hash,
+      model: p.model,
+      generationId: generation.id,
+      generationEpoch: generation.epoch,
+      generationVia: generation.via,
+    };
   }
   // Skip-don't-write on an empty caption (the summarizer returned nothing): content_hash covers bytes only,
   // so a row written with caption:"" would never regenerate without force. Leave it unwritten so the next
   // indexer run retries it — the raw lens already carries the image-only signal.
   if (p.lens === "image-captioned" && p.caption.trim().length === 0) {
-    return { outcome: "noop", contentHash: hash, model: p.model };
+    return {
+      outcome: "noop",
+      contentHash: hash,
+      model: p.model,
+      generationId: generation.id,
+      generationEpoch: generation.epoch,
+      generationVia: generation.via,
+    };
   }
   // THE JOINT-SPACE DISPATCH (§10-3). The captioned lens has two arms: the joint image+caption vector when
   // the owner HAS an image-capable embedder, and — when they do not — the caption as plain TEXT through the
   // `embed` role, landing the picture in the owner's text space instead of dropping it on the floor. The
   // raw lens has no fallback by construction: nothing but an image embedder can embed pixels, so the
   // indexer never asks for it in the degraded arm.
-  const rc = await ctx.roleClientsFor(p.ownerId);
-  const embedded = await embedImageLens(rc, p);
+  let embedded: EmbedResult | ImageEmbedResult;
+  if (p.lens === "image-raw") {
+    embedded = await generation.connection.imageEmbed({ kind: "image", input: p.content });
+  } else if (p.via === "embed") {
+    embedded = await generation.connection.embed(p.caption);
+  } else {
+    embedded = await generation.connection.imageEmbed({ kind: "multimodal", input: { image: p.content, text: p.caption } });
+  }
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertImageEmbedding(ctx.db, {
@@ -160,27 +196,46 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     embedding: vector,
     contentHash: hash,
     model: embedded.model,
+    generationId: generation.id,
     dim: p.dim,
     now: ctx.now(),
   });
-  return { outcome: "written", contentHash: hash, model: embedded.model };
+  return {
+    outcome: "written",
+    contentHash: hash,
+    model: embedded.model,
+    generationId: generation.id,
+    generationEpoch: generation.epoch,
+    generationVia: generation.via,
+  };
 }
 
 /** digest → `chat_digests` (the distilled lens). `contentHash` is precomputed by memory; the distilled
  *  `text` is the embed input, the stored body, and `{{memory}}`. */
 async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promise<StoreResult> {
+  const generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
+  if (generation === null) {
+    throw new EmbedFailedError(p.lens, p.model);
+  }
   const hash = p.contentHash;
   const existing = await existingDigestHash(ctx.db, {
     chatId: p.chatId,
     scopedCharacterId: p.scopedCharacterId,
     tier: p.tier,
     blockIdx: p.blockIdx,
-    model: p.model,
+    generationId: generation.id,
   });
   if (existing === hash) {
-    return { outcome: "noop", contentHash: hash, model: p.model };
+    return {
+      outcome: "noop",
+      contentHash: hash,
+      model: p.model,
+      generationId: generation.id,
+      generationEpoch: generation.epoch,
+      generationVia: generation.via,
+    };
   }
-  const embedded = await (await ctx.roleClientsFor(p.ownerId)).embed(p.text);
+  const embedded = await generation.connection.embed(p.text);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertChatDigest(ctx.db, {
@@ -196,23 +251,42 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     embedding: vector,
     contentHash: hash,
     model: embedded.model,
+    generationId: generation.id,
     dim: p.dim,
     now: ctx.now(),
     speakerCharacterIds: p.speakerCharacterIds,
   });
   // The persistence seam commits the digest and its complete speaker projection as one atomic batch.
-  return { outcome: "written", contentHash: hash, model: embedded.model };
+  return {
+    outcome: "written",
+    contentHash: hash,
+    model: embedded.model,
+    generationId: generation.id,
+    generationEpoch: generation.epoch,
+    generationVia: generation.via,
+  };
 }
 
 /** chunk → `document_chunks` (the databank RAG lens). Hash-gated on `(documentId, chunkIdx, model)`; `content`
  *  (the kit/chunk slice, incl. any overlap prefix) is the embed input. No `hub_score` write (D20/discovery-
  *  only); the FK to `documents` is the only ownership link. */
 async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): Promise<StoreResult> {
-  const hash = contentHash(p.content);
-  if ((await existingChunkHash(ctx.db, p.fkRefs.documentId, p.fkRefs.chunkIdx, p.model)) === hash) {
-    return { outcome: "noop", contentHash: hash, model: p.model };
+  const generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
+  if (generation === null) {
+    throw new EmbedFailedError(p.lens, p.model);
   }
-  const embedded = await (await ctx.roleClientsFor(p.ownerId)).embed(p.content);
+  const hash = contentHash(p.content);
+  if ((await existingChunkHash(ctx.db, p.fkRefs.documentId, p.fkRefs.chunkIdx, generation.id)) === hash) {
+    return {
+      outcome: "noop",
+      contentHash: hash,
+      model: p.model,
+      generationId: generation.id,
+      generationEpoch: generation.epoch,
+      generationVia: generation.via,
+    };
+  }
+  const embedded = await generation.connection.embed(p.content);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertDocumentChunk(ctx.db, {
@@ -225,10 +299,18 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
     embedding: vector,
     contentHash: hash,
     model: embedded.model,
+    generationId: generation.id,
     dim: p.dim,
     now: ctx.now(),
   });
-  return { outcome: "written", contentHash: hash, model: embedded.model };
+  return {
+    outcome: "written",
+    contentHash: hash,
+    model: embedded.model,
+    generationId: generation.id,
+    generationEpoch: generation.epoch,
+    generationVia: generation.via,
+  };
 }
 
 export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] {

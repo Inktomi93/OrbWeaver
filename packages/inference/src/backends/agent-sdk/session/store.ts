@@ -79,6 +79,7 @@ async function persistInsert(writer: SessionEntryWriter | undefined, log: Infere
   }
   try {
     await writer.insert(entry);
+    // @orb-waive caught-failure-ownership(err): this best-effort persistence failure is owned by the injected warning log; the in-memory session remains authoritative. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if the warning or cache owner disappears.
   } catch (err) {
     log.warn({ err, op: "insert", sdkSessionId: entry.sdkSessionId }, "agent-sdk: session_entries persist failed (best-effort, cache unaffected)");
   }
@@ -92,6 +93,7 @@ async function persistUpdate(writer: SessionEntryWriter | undefined, log: Infere
   }
   try {
     await writer.update(entry);
+    // @orb-waive caught-failure-ownership(err): this best-effort persistence failure is owned by the injected warning log; the in-memory session remains authoritative. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if the warning or cache owner disappears.
   } catch (err) {
     log.warn({ err, op: "update", sdkSessionId: entry.sdkSessionId }, "agent-sdk: session_entries persist failed (best-effort, cache unaffected)");
   }

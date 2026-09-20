@@ -8,6 +8,7 @@
 // gate scopes only `packages/server/src/domain`).
 
 import type { ImageLens } from "@orb/contracts/embeddings";
+import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
@@ -25,8 +26,12 @@ import {
   chats,
   documentChunks,
   documents as documentsTable,
+  embedGenerations,
+  embedGenerationTargets,
+  embedSpaceState,
   globalDocuments,
   imageEmbeddings,
+  users,
 } from "@orb/db";
 import type {
   AssetId,
@@ -41,12 +46,15 @@ import type {
   DocumentId,
   Handle,
   ImageEmbeddingId,
+  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { and, eq, isNull } from "drizzle-orm";
 import { resolveActiveDocumentIds } from "../../../../packages/server/src/domain/databank/persistence/scope.ts";
 import type { SearchContext, SearchService } from "../../../../packages/server/src/domain/search/index.ts";
 import { createSearchService } from "../../../../packages/server/src/domain/search/index.ts";
+import { generationIdOf, vectorSpaceFingerprint } from "../../../../packages/server/src/kit/embedding-generation/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -59,6 +67,99 @@ const VECTOR_DIM = 1024;
 export const EMBED_MODEL = "test-embed-model-1024";
 /** The default IMAGE-embed model the harness scopes the cross-modal `images` scan to. */
 export const IMAGE_EMBED_MODEL = "test-image-embed-model-1024";
+
+async function seedGeneration(db: Db, ownerId: UserId, task: "embed" | "imageEmbed", model: string): Promise<string> {
+  const roleClients = makeSearchRoleClients(task === "embed" ? { embedModel: model } : { imageEmbedModel: model });
+  const resolved = await roleClients.resolved(task);
+  if (resolved === null) {
+    throw new Error(`missing test ${task} connection`);
+  }
+  const connection = {
+    ...resolved,
+    connectionId: castId<UserConnectionId>(`connection_${ownerId}_${task}`),
+    api: "test",
+    wire: "test",
+    baseUrl: null,
+    features: {},
+    extras: null,
+    transport: null,
+    embed: roleClients.embed,
+    imageEmbed: roleClients.imageEmbed,
+  } as const;
+  const id = generationIdOf({ ownerId, task, via: task, connection, space: model });
+  await db
+    .insert(embedGenerations)
+    .values({
+      id,
+      ownerId,
+      task,
+      via: task,
+      connectionId: connection.connectionId,
+      connectionRef: connection.connectionId,
+      fingerprint: vectorSpaceFingerprint(connection),
+      space: model,
+      createdAt: FROZEN_AT,
+    })
+    .onConflictDoNothing();
+  await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1, updatedAt: FROZEN_AT }).onConflictDoNothing();
+  await db
+    .insert(embedSpaceState)
+    .values(
+      VECTOR_SCOPES_BY_TASK[task].map((scope) => ({
+        ownerId,
+        scope,
+        activeGenerationId: id,
+        candidateGenerationId: null,
+        candidateEpoch: null,
+        completedAt: FROZEN_AT,
+      })),
+    )
+    .onConflictDoNothing();
+  return id;
+}
+
+function ownerOf<T extends { ownerId: UserId | null }>(rows: readonly T[], subject: string): UserId {
+  const ownerId = rows[0]?.ownerId;
+  if (ownerId === undefined || ownerId === null) {
+    throw new Error(`missing owner for ${subject}`);
+  }
+  return ownerId;
+}
+
+async function chatOwner(db: Db, chatId: ChatId, model: string): Promise<UserId> {
+  const hosts = await db
+    .select({ ownerId: chatParticipants.userId })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
+  if (hosts[0]?.ownerId !== undefined && hosts[0]?.ownerId !== null) {
+    return hosts[0].ownerId;
+  }
+  const digestOwners = await db
+    .select({ ownerId: characters.ownerId })
+    .from(chatDigests)
+    .innerJoin(characters, eq(chatDigests.scopedCharacterId, characters.id))
+    .where(eq(chatDigests.chatId, chatId))
+    .limit(1);
+  if (digestOwners[0] !== undefined) {
+    return digestOwners[0].ownerId;
+  }
+  const existingUsers = await db.select({ ownerId: users.id }).from(users).limit(1);
+  if (existingUsers[0] !== undefined) {
+    return existingUsers[0].ownerId;
+  }
+  const generations = await db
+    .select({ ownerId: embedGenerations.ownerId })
+    .from(embedGenerations)
+    .where(and(eq(embedGenerations.task, "embed"), eq(embedGenerations.space, model)));
+  if (generations[0] !== undefined) {
+    return generations[0].ownerId;
+  }
+  const seeded = await seedUserRow(db, {
+    id: castId<UserId>("user_search_vector_fixture"),
+    handle: castId<Handle>("search-vector-fixture"),
+  });
+  return seeded.id;
+}
 
 /** Build a 1024-dim vector with the given leading components (the rest zero) — enough for deterministic
  *  cosine ranking (e.g. `vec(1)` vs `vec(0, 1)` are orthogonal; `vec(1)` matches `vec(1)` exactly). */
@@ -149,6 +250,23 @@ export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () =>
   const ctx: SearchContext = {
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
+    resolveEmbeddingConnection: async (ownerId, task) => {
+      const resolved = await roleClients.resolved(task);
+      return resolved === null
+        ? null
+        : {
+            ...resolved,
+            connectionId: castId<UserConnectionId>(`connection_${ownerId}_${task}`),
+            api: "test",
+            wire: "test",
+            baseUrl: null,
+            features: {},
+            extras: null,
+            transport: null,
+            embed: roleClients.embed,
+            imageEmbed: roleClients.imageEmbed,
+          };
+    },
     now,
     resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
   };
@@ -194,6 +312,9 @@ interface SeedDocumentChunkOverrides {
 /** Insert a `document_chunks` row (the databank RAG lens the `documents` verb scans). */
 export async function seedDocumentChunk(db: Db, o: SeedDocumentChunkOverrides): Promise<DocumentChunkId> {
   const id = castId<DocumentChunkId>(o.id ?? `document_chunk_${o.documentId}_${o.chunkIdx}`);
+  const model = o.model ?? EMBED_MODEL;
+  const ownerId = ownerOf(await db.select({ ownerId: documentsTable.ownerId }).from(documentsTable).where(eq(documentsTable.id, o.documentId)), o.documentId);
+  const generationId = await seedGeneration(db, ownerId, "embed", model);
   await db.insert(documentChunks).values({
     id,
     documentId: o.documentId,
@@ -204,7 +325,8 @@ export async function seedDocumentChunk(db: Db, o: SeedDocumentChunkOverrides): 
     embedding: o.embedding,
     contentHash: o.contentHash ?? `chunk_hash_${o.documentId}_${o.chunkIdx}`,
     hubScore: o.hubScore ?? null,
-    model: o.model ?? EMBED_MODEL,
+    model,
+    generationId,
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });
@@ -290,13 +412,20 @@ interface SeedCharacterEmbeddingOverrides {
 /** Insert a `character_embeddings` row (the card-space vector `knn` scans). */
 export async function seedCharacterEmbedding(db: Db, overrides: SeedCharacterEmbeddingOverrides): Promise<CharacterEmbeddingId> {
   const id = castId<CharacterEmbeddingId>(overrides.id ?? `character_embedding_${overrides.characterId}`);
+  const model = overrides.model ?? EMBED_MODEL;
+  const ownerId = ownerOf(
+    await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, overrides.characterId)),
+    overrides.characterId,
+  );
+  const generationId = await seedGeneration(db, ownerId, "embed", model);
   await db.insert(characterEmbeddings).values({
     id,
     characterId: overrides.characterId,
     embedding: overrides.embedding,
     contentHash: overrides.contentHash ?? "embed_content_hash",
     hubScore: overrides.hubScore ?? null,
-    model: overrides.model ?? EMBED_MODEL,
+    model,
+    generationId,
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });
@@ -358,6 +487,9 @@ interface SeedImageEmbeddingOverrides {
 export async function seedImageEmbedding(db: Db, o: SeedImageEmbeddingOverrides): Promise<ImageEmbeddingId> {
   const lens: ImageLens = o.lens ?? "image-captioned";
   const id = castId<ImageEmbeddingId>(o.id ?? `image_embedding_${o.assetId}_${lens}`);
+  const model = o.model ?? IMAGE_EMBED_MODEL;
+  const ownerId = ownerOf(await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, o.assetId)), o.assetId);
+  const generationId = await seedGeneration(db, ownerId, "imageEmbed", model);
   await db.insert(imageEmbeddings).values({
     id,
     assetId: o.assetId,
@@ -366,7 +498,8 @@ export async function seedImageEmbedding(db: Db, o: SeedImageEmbeddingOverrides)
     caption: o.caption ?? null,
     contentHash: o.contentHash ?? `image_hash_${o.assetId}`,
     hubScore: o.hubScore ?? null,
-    model: o.model ?? IMAGE_EMBED_MODEL,
+    model,
+    generationId,
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });
@@ -399,6 +532,9 @@ interface SeedDigestOverrides {
 /** Insert a `chat_digests` row (the distilled lens `digests`/`corpus` scan). */
 export async function seedChatDigest(db: Db, o: SeedDigestOverrides): Promise<ChatDigestId> {
   const id = castId<ChatDigestId>(o.id ?? `chat_digest_${o.chatId}_${o.scopedCharacterId}_${o.tier ?? 0}_${o.blockIdx}`);
+  const model = o.model ?? EMBED_MODEL;
+  const ownerId = ownerOf(await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, o.scopedCharacterId)), o.scopedCharacterId);
+  const generationId = await seedGeneration(db, ownerId, "embed", model);
   await db.insert(chatDigests).values({
     id,
     chatId: o.chatId,
@@ -410,7 +546,8 @@ export async function seedChatDigest(db: Db, o: SeedDigestOverrides): Promise<Ch
     contentHash: o.contentHash ?? `digest_hash_${o.chatId}_${o.blockIdx}`,
     hubScore: o.hubScore ?? null,
     keywords: [...(o.keywords ?? [])],
-    model: o.model ?? EMBED_MODEL,
+    model,
+    generationId,
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });
@@ -435,6 +572,8 @@ interface SeedSegmentOverrides {
 export async function seedChatSegment(db: Db, o: SeedSegmentOverrides): Promise<ChatSegmentId> {
   const chunkIdx = o.chunkIdx ?? 0;
   const id = castId<ChatSegmentId>(o.id ?? `chat_segment_${o.chatId}_${o.blockIdx}_${chunkIdx}`);
+  const model = o.model ?? EMBED_MODEL;
+  const generationId = await seedGeneration(db, await chatOwner(db, o.chatId, model), "embed", model);
   await db.insert(chatSegments).values({
     id,
     chatId: o.chatId,
@@ -446,7 +585,8 @@ export async function seedChatSegment(db: Db, o: SeedSegmentOverrides): Promise<
     embedding: o.embedding,
     contentHash: o.contentHash ?? `segment_hash_${o.chatId}_${o.blockIdx}_${chunkIdx}`,
     hubScore: o.hubScore ?? null,
-    model: o.model ?? EMBED_MODEL,
+    model,
+    generationId,
     dim: VECTOR_DIM,
     createdAt: FROZEN_AT,
   });

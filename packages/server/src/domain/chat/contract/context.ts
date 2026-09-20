@@ -1061,6 +1061,8 @@ export interface StoreSegmentParams {
   readonly lens: "segment";
   readonly ownerId: UserId;
   readonly model: string;
+  readonly generationId: string;
+  readonly generationEpoch: number;
   readonly chatId: ChatId;
   readonly blockIdx: number;
   readonly chunkIdx: number;
@@ -1072,8 +1074,10 @@ export interface StoreSegmentParams {
 
 /** The space the embeddings boundary actually stamped — the RETURN half of the write ops below, distinct from
  *  the {@link MemoryEmbedSpace} a pass PLANNED against (`build/digests.ts assertStoreSpace` compares them).
- *  NOT exported: both readers are in this file, and the shape itself is memory's, homed in `memory.ts`. */
-interface MemoryStoreReceipt extends MemoryEmbedSpace {}
+ *  It stays HERE and not in `memory.ts`: it is the return type of two `ChatContext` ops, and the composition
+ *  root builds the value (`entry/compose/chat.ts memorySegmentReceipts`), so it belongs to the DI bundle's
+ *  vocabulary rather than the subsystem's. */
+export interface MemoryStoreReceipt extends MemoryEmbedSpace {}
 
 /** Resolve the host's current concrete embed space for memory planning. NOT exported: its one reader is
  *  `ChatContext.resolveMemoryEmbedSpace` below; callers take the whole bundle, never this member's type. */

@@ -7,9 +7,10 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
-import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
-import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId } from "@orb/kit/ids";
+import { characters, chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, embedGenerations } from "@orb/db";
+import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { and, eq, isNull } from "drizzle-orm";
 import type {
   EmbeddingsStoreOp,
   EmbeddingsStoreSegmentsOp,
@@ -46,6 +47,32 @@ function dummyVector(): Float32Array {
   return new Float32Array(DIM);
 }
 
+async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Promise<string> {
+  const hosts = await db
+    .select({ ownerId: chatParticipants.userId })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
+  const ownerId = knownOwnerId ?? (hosts[0]?.ownerId as UserId | null | undefined);
+  if (ownerId === undefined || ownerId === null) {
+    throw new Error(`missing host for ${chatId}`);
+  }
+  const id = "test-generation";
+  await db
+    .insert(embedGenerations)
+    .values({
+      id,
+      ownerId,
+      task: "embed",
+      via: "embed",
+      connectionId: null,
+      connectionRef: "test:embed",
+      fingerprint: `test:embed:${MODEL}`,
+      space: MODEL,
+    })
+    .onConflictDoNothing();
+  return id;
+}
+
 /** Seed a `chat_digests` row (+ its `chat_digest_speakers` join) — the facets memory recalls. */
 export async function seedDigest(
   db: Db,
@@ -60,6 +87,7 @@ export async function seedDigest(
     readonly topicAnchor?: string;
     readonly keywords?: string[];
     readonly speakers?: CharacterId[];
+    readonly ownerId?: UserId;
   },
 ): Promise<ChatDigestId> {
   const scoped = opts.scopedCharacterId ?? GROUP_CHAR;
@@ -70,6 +98,9 @@ export async function seedDigest(
   // that sets only anchor/keywords produces the matching `{{memory}}` text (the §2b distilled body). With no
   // keywords it is the bare anchor (mirrors the `facet()` helper the recall tests assert against).
   const text = opts.text ?? (keywords.length > 0 ? `${anchor}\nkeywords: ${keywords.join(", ")}` : anchor);
+  const characterOwners =
+    opts.ownerId === undefined ? await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, scoped)).limit(1) : [];
+  const generationId = await seedGeneration(db, opts.chatId, opts.ownerId ?? characterOwners[0]?.ownerId);
   await db.insert(chatDigests).values({
     id,
     chatId: opts.chatId,
@@ -83,6 +114,7 @@ export async function seedDigest(
     topicAnchor: anchor,
     keywords,
     model: MODEL,
+    generationId,
     dim: DIM,
   });
   const speakers = opts.speakers ?? [];
@@ -104,10 +136,12 @@ export async function seedSegment(
     readonly seqEnd: number;
     readonly text?: string;
     readonly contentHash?: string;
+    readonly ownerId?: UserId;
   },
 ): Promise<ChatSegmentId> {
   const chunkIdx = opts.chunkIdx ?? 0;
   const id = castId<ChatSegmentId>(`chat_segment_${opts.chatId}_${opts.blockIdx}_${chunkIdx}`);
+  const generationId = await seedGeneration(db, opts.chatId, opts.ownerId);
   await db.insert(chatSegments).values({
     id,
     chatId: opts.chatId,
@@ -119,6 +153,7 @@ export async function seedSegment(
     embedding: dummyVector(),
     contentHash: opts.contentHash ?? `seg_${opts.blockIdx}_${chunkIdx}`,
     model: MODEL,
+    generationId,
     dim: DIM,
   });
   return id;
@@ -182,8 +217,9 @@ export function fakeEmbeddingsStore(db: Db): {
       keywords: [...params.keywords],
       isGroup: params.isGroup,
       speakers: [...params.speakerCharacterIds],
+      ownerId: params.ownerId,
     });
-    return { ownerId: params.ownerId, model: params.model };
+    return { ownerId: params.ownerId, model: params.model, generationId: "test-generation", generationEpoch: 1 };
   };
   const storeSegments: EmbeddingsStoreSegmentsOp = async (batch) => {
     segmentBatchSizes.push(batch.length);
@@ -197,9 +233,10 @@ export function fakeEmbeddingsStore(db: Db): {
         seqEnd: params.seqEnd,
         text: params.text,
         contentHash: params.contentHash,
+        ownerId: params.ownerId,
       });
     }
-    return batch.map((params) => ({ ownerId: params.ownerId, model: params.model }));
+    return batch.map((params) => ({ ownerId: params.ownerId, model: params.model, generationId: "test-generation", generationEpoch: 1 }));
   };
   return { store, storeSegments, digests, segments, segmentBatchSizes };
 }

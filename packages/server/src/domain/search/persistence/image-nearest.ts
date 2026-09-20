@@ -25,6 +25,7 @@ interface NearestImagesParams {
   readonly ownerId: UserId;
   readonly queryVector: Float32Array;
   readonly model: string;
+  readonly generationId?: string | undefined;
   readonly lens: ImageLens;
   readonly limit: number;
 }
@@ -41,7 +42,14 @@ export async function nearestImages(db: ReadOnlyDb, params: NearestImagesParams)
     })
     .from(imageEmbeddings)
     .innerJoin(assets, eq(imageEmbeddings.assetId, assets.id))
-    .where(and(eq(assets.ownerId, params.ownerId), eq(imageEmbeddings.model, params.model), eq(imageEmbeddings.lens, params.lens)))
+    .where(
+      and(
+        eq(assets.ownerId, params.ownerId),
+        eq(imageEmbeddings.model, params.model),
+        params.generationId === undefined ? undefined : eq(imageEmbeddings.generationId, params.generationId),
+        eq(imageEmbeddings.lens, params.lens),
+      ),
+    )
     .orderBy(distance)
     .limit(params.limit);
   return rows;
@@ -54,6 +62,7 @@ export async function readSeedAvatarVector(
     readonly ownerId: UserId;
     readonly characterId: CharacterId;
     readonly model: string;
+    readonly generationId?: string | undefined;
     readonly lens: ImageLens;
   },
 ): Promise<Float32Array | null> {
@@ -68,6 +77,7 @@ export async function readSeedAvatarVector(
         eq(characters.ownerId, params.ownerId),
         eq(assets.ownerId, params.ownerId),
         eq(imageEmbeddings.model, params.model),
+        params.generationId === undefined ? undefined : eq(imageEmbeddings.generationId, params.generationId),
         eq(imageEmbeddings.lens, params.lens),
       ),
     )
@@ -87,6 +97,7 @@ interface NearestAvatarCharactersParams {
   readonly ownerId: UserId;
   readonly queryVector: Float32Array;
   readonly model: string;
+  readonly generationId?: string | undefined;
   readonly lens: ImageLens;
   readonly excludeCharacterId: CharacterId;
   readonly limit: number;
@@ -112,6 +123,7 @@ export async function nearestAvatarCharacters(db: ReadOnlyDb, params: NearestAva
         eq(characters.ownerId, params.ownerId),
         eq(characters.synthetic, false),
         eq(imageEmbeddings.model, params.model),
+        params.generationId === undefined ? undefined : eq(imageEmbeddings.generationId, params.generationId),
         eq(imageEmbeddings.lens, params.lens),
         ne(characters.id, params.excludeCharacterId),
       ),

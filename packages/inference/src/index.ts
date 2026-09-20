@@ -7,6 +7,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type {
   AgentSdkModel,
+  Capability,
   EmbeddingCapability,
   GenerationCapability,
   ModelCatalogEntry,
@@ -42,7 +43,7 @@ import type { ProviderOrigin, ProviderRegistry } from "./registry/providers.ts";
 import { createProviderRegistry } from "./registry/providers.ts";
 import { checkAvailability } from "./resolve/availability.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
-import { connectionNotFoundMessage, resolveTask } from "./resolve/resolve-task.ts";
+import { connectionNotFoundMessage, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
 import { createProviderDiagnostics } from "./roles/diagnostics.ts";
 import { createProviderExecutor } from "./roles/executor.ts";
 import type { RoleClientsFor } from "./roles/role-clients.ts";
@@ -83,6 +84,8 @@ const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
 const endpointCatalogKey = (baseUrl: string): string => `catalog:endpoint:${baseUrl}`;
 
 export interface CapabilityRead extends SynthesizedCapability {
+  /** The same evidence fold with this row's declaration omitted. */
+  readonly baseline: Capability;
   /** The tasks this row may serve (`connectionTasks`), so the pane's requirement badges and the Model-roles
    *  slots read one object. */
   readonly tasks: readonly Task[];
@@ -305,8 +308,8 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
             message: `connection "${connection.label}" (${provider.id}, ${kind}) serves no task`,
           });
         }
-        const outcome = await resolveTask(ctx, { task, principal, connectionId });
-        return { capability: outcome.resolved.capability, warnings: outcome.warnings, tasks };
+        const outcome = await resolveTaskWithBaseline(ctx, { task, principal, connectionId });
+        return { capability: outcome.resolved.capability, baseline: outcome.baseline, warnings: outcome.warnings, tasks };
       },
     },
     funnel: {

@@ -77,6 +77,7 @@ async function probe(req: ProbeRequest, fetchImpl: typeof fetch, now: () => numb
   try {
     await listModels(req, fetchImpl);
     return { status: "ok", checkedAt };
+    // @orb-waive caught-failure-ownership(err): credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition.
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(req.connection)));
     return AUTH_FAILURE_RE.test(reason) ? { status: "revoked", checkedAt, reason } : { status: "unreachable", checkedAt, reason };
@@ -103,6 +104,7 @@ export function createAnthropicBackend(deps: AnthropicBackendDeps): ProviderBack
     summarize: (req) => runAnthropicSummarize(req, batchDeps),
     structured: (req) => runAnthropicStructured(req, batchDeps),
     probe: (req) => probe(req, deps.fetch, deps.now),
+    // @orb-waive caught-failure-ownership(listModels): optional model discovery owns refusal as `listed:false`; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.
     listModels: (req) => listModels(req, deps.fetch).catch((): ListModelsResult => ({ listed: false, models: [] })),
   };
 }

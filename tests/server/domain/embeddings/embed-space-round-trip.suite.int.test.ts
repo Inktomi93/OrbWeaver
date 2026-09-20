@@ -91,7 +91,29 @@ async function driveOwnerWithBoundEncoder(db: Db, sources: StoreHarnessSources =
   await harness.svc.setBinding({ principal, task: "embed", connectionId: connection.id });
   const roleClients = (): Promise<RoleClients> => Promise.resolve(harness.runtime.roleClientsFor(principal));
   const store = makeStoreHarness(db, sources);
-  const ctx: EmbeddingsContext = { ...store.ctx, roleClientsFor: roleClients, embedDim: EMBED_SPACE_DIMS, imageEmbedDim: EMBED_SPACE_DIMS };
+  const ctx: EmbeddingsContext = {
+    ...store.ctx,
+    roleClientsFor: roleClients,
+    resolveEmbeddingConnection: async (_ownerId, task) => {
+      const rc = await roleClients();
+      const resolved = await rc.resolved(task);
+      return resolved === null
+        ? null
+        : {
+            ...resolved,
+            api: "test",
+            wire: "test",
+            baseUrl: null,
+            features: {},
+            extras: null,
+            transport: null,
+            embed: rc.embed,
+            imageEmbed: rc.imageEmbed,
+          };
+    },
+    embedDim: EMBED_SPACE_DIMS,
+    imageEmbedDim: EMBED_SPACE_DIMS,
+  };
   return { harness, principal, userId, connectionId: connection.id, svc: createEmbeddingsService(ctx), ctx, roleClients };
 }
 
@@ -99,11 +121,11 @@ async function driveOwnerWithBoundEncoder(db: Db, sources: StoreHarnessSources =
  *  `documents`). Running the REAL verbs is the point: the completion rows only exist because work finished. */
 async function runEmbedSweeps(drive: Drive): Promise<void> {
   await drive.svc.embedCorpus({ force: false, signal: new AbortController().signal, ownerId: drive.userId });
-  const completedSpace = await requireTaskModel(drive.ctx, drive.userId, "embed");
-  if (completedSpace !== null) {
-    await drive.svc.purgeMemoryVectors({ ownerId: drive.userId, completedSpace });
+  const generation = await drive.svc.resolveGeneration(drive.userId, "embed");
+  if (generation !== null) {
+    await drive.svc.purgeMemoryVectors({ ownerId: drive.userId, generation });
+    await drive.svc.purgeDocumentVectors({ ownerId: drive.userId, generation });
   }
-  await drive.svc.purgeDocumentVectors({ ownerId: drive.userId });
 }
 
 describe("the embed space round trip — write tag === read tag (§10-2)", () => {
@@ -129,6 +151,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     // A VECTOR EXISTS FOR THIS OWNER — so an empty read below is about the TAG, not about the corpus.
     const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
     expect(rows).toHaveLength(1);
+    await runEmbedSweeps(drive);
 
     // The READ side derives its own tag from the same resolved connection, through search's substrate.
     const readTag = await requireSpaceModel(drive.ctx, drive.userId, "embed");
@@ -159,9 +182,14 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
 
     // `purgeStaleVectors` deletes every row whose `model != activeModel`. When the write tag and the
     // read tag disagree, THE LIVE ROW IS THE STALE ROW and the owner's corpus is eaten silently.
-    const { chunks } = await drive.svc.purgeDocumentVectors({ ownerId: drive.userId });
+    const generation = await drive.svc.resolveGeneration(drive.userId, "embed");
+    if (generation === null) {
+      throw new Error("expected generation");
+    }
+    const { chunks } = await drive.svc.purgeDocumentVectors({ ownerId: drive.userId, generation });
     expect(chunks).toBe(0);
     expect(await db.select().from(documentChunks)).toHaveLength(1);
+    await runEmbedSweeps(drive);
 
     const readTag = await requireSpaceModel(drive.ctx, drive.userId, "embed");
     const hits = await nearestDocumentChunks(db, {
@@ -241,8 +269,8 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
         ownerId: drive.userId,
       }),
     ).rejects.toMatchObject({ kind: "invalid" });
-    await expect(drive.svc.purgeDocumentVectors({ ownerId: drive.userId })).rejects.toMatchObject({ kind: "invalid" });
-    await expect(requireSpaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ kind: "invalid" });
+    await expect(drive.svc.resolveGeneration(drive.userId, "embed")).rejects.toMatchObject({ kind: "invalid" });
+    await expect(requireSpaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: "search_space_reindexing" });
     expect(await db.select().from(documentChunks)).toHaveLength(1);
   });
 
@@ -316,6 +344,55 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     expect((await nearestCharacters(db, { ownerId: drive.userId, queryVector: queryVector(), model: settled, limit: 5 })).map((h) => h.characterId)).toEqual([
       characterId,
     ]);
+  });
+
+  test("a partial reindex cannot purge the last-complete document corpus before replacement", async () => {
+    const db = await freshDb();
+    const drive = await driveOwnerWithBoundEncoder(db);
+    const documentId = await seedDocument(db, drive.userId, { text: CHUNK_TEXT });
+    const oldTag = await requireTaskModel(drive.ctx, drive.userId, "embed");
+
+    await drive.svc.store({
+      kind: "document",
+      lens: "chunk",
+      content: CHUNK_TEXT,
+      model: oldTag ?? "",
+      dim: EMBED_SPACE_DIMS,
+      fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: CHUNK_TEXT.length },
+      ownerId: drive.userId,
+    });
+    await runEmbedSweeps(drive);
+
+    const second = await drive.harness.svc.create({
+      principal: drive.principal,
+      providerId: LOCAL_LIGHT,
+      model: SECOND_ENCODER,
+      baseUrl: null,
+      credentialId: null,
+      allowBackground: true,
+      declared: { kind: "embedding", embedding: { dims: EMBED_SPACE_DIMS, dtype: SECOND_ENCODER_DTYPE, input: ["text", "image"] } },
+    });
+    await drive.harness.svc.setBinding({ principal: drive.principal, task: "embed", connectionId: second.id });
+
+    // Documents finish independently from cards and memory. The terminal must retain the complete
+    // generation until all three scopes can promote together; it cannot delete first and hope that the
+    // other refill jobs catch up later.
+    const generation = await drive.svc.resolveGeneration(drive.userId, "embed");
+    if (generation === null) {
+      throw new Error("expected generation");
+    }
+    const purged = await drive.svc.purgeDocumentVectors({ ownerId: drive.userId, generation });
+    expect(purged.chunks).toBe(0);
+    expect(await db.select().from(documentChunks)).toHaveLength(1);
+    expect(
+      await nearestDocumentChunks(db, {
+        documentIds: [documentId],
+        queryVector: queryVector(),
+        model: oldTag ?? "",
+        dim: EMBED_SPACE_DIMS,
+        limit: 5,
+      }),
+    ).toHaveLength(1);
   });
 
   test("the derived read tag carries the encoder's curated dtype — the fact the backend stamps", async () => {

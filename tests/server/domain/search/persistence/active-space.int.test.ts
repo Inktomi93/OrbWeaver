@@ -1,56 +1,77 @@
-// persistence/active-space — search's read of `embed_space_state` (§10-5). The module is three lines, and
-// the property worth pinning is the one a re-implementation would get wrong: it is OWNER-SCOPED and returns
-// the rows RAW, leaving the fold to `@orb/contracts/embeddings`.
-//
-// Why that matters enough to pin: this is a CROSS-DOMAIN table read (embeddings owns the table, search may
-// not import it), which is exactly the shape that grows a second, divergent fold. A reader that filtered or
-// pre-folded here would be a second answer to a question that has one — the §10-2 defect class.
-//
-// The principal every receipt is taken as is the named owner; the foreign-owner row in the same db is the
-// control that proves the WHERE clause is doing the work rather than the table being empty.
+// Search reads immutable active generations, scoped by owner and logical task. A generation becomes ready
+// only after every required scope promotes together; an incomplete first build is `moving`, and a principal
+// with no target or completion rows is explicitly `unrecorded`.
 
-import type { Handle } from "@orb/kit/ids";
+import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
+import type { Db } from "@orb/db";
+import { embedGenerations, embedGenerationTargets } from "@orb/db";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { upsertCompletedSpace } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
-import { readCompletedSpaces } from "../../../../../packages/server/src/domain/search/persistence/active-space.ts";
+import type { GenerationReceipt, GenerationTask } from "../../../../../packages/server/src/domain/embeddings/contract/generation.ts";
+import { markGenerationComplete } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
+import { readGeneration } from "../../../../../packages/server/src/domain/search/persistence/active-space.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../../embeddings/_support.ts";
 
 const NOW = 1_700_000_000_000;
 
-test("returns this owner's completion rows and nobody else's", async () => {
+async function seedTarget(db: Db, ownerId: UserId, input: { task: GenerationTask; id: string; space: string }): Promise<GenerationReceipt> {
+  const { task, id, space } = input;
+  await db
+    .insert(embedGenerations)
+    .values({ id, ownerId, task, via: task, connectionId: null, connectionRef: `connection:${id}`, fingerprint: `fingerprint:${id}`, space, createdAt: NOW });
+  await db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1, updatedAt: NOW });
+  return { id, task, via: task, epoch: 1, space };
+}
+
+async function complete(db: Db, ownerId: UserId, generation: GenerationReceipt): Promise<void> {
+  for (const scope of VECTOR_SCOPES_BY_TASK[generation.task]) {
+    await markGenerationComplete(db, { ownerId, scope, generation, now: NOW });
+  }
+}
+
+test("returns this owner's ready generation and nobody else's", async () => {
   const db = await freshDb();
   const mine = await seedUser(db, { handle: castId<Handle>("reader-mine") });
   const theirs = await seedUser(db, { handle: castId<Handle>("reader-theirs") });
-  await upsertCompletedSpace(db, { ownerId: mine, scope: "cards", space: "mine-model", now: NOW });
-  await upsertCompletedSpace(db, { ownerId: theirs, scope: "cards", space: "their-model", now: NOW });
+  const mineGeneration = await seedTarget(db, mine, { task: "embed", id: "generation-mine", space: "mine-model" });
+  const theirGeneration = await seedTarget(db, theirs, { task: "embed", id: "generation-theirs", space: "their-model" });
+  await complete(db, mine, mineGeneration);
+  await complete(db, theirs, theirGeneration);
 
-  expect(await readCompletedSpaces(db, mine)).toEqual([{ scope: "cards", space: "mine-model" }]);
-  // The control: the table is NOT empty, so the single row above is the WHERE clause's doing.
-  expect(await readCompletedSpaces(db, theirs)).toEqual([{ scope: "cards", space: "their-model" }]);
+  expect(await readGeneration(db, mine, "embed")).toEqual({
+    status: "ready",
+    generation: expect.objectContaining({ id: mineGeneration.id, space: "mine-model" }),
+  });
+  expect(await readGeneration(db, theirs, "embed")).toEqual({
+    status: "ready",
+    generation: expect.objectContaining({ id: theirGeneration.id, space: "their-model" }),
+  });
 });
 
-test("returns the rows RAW — every recorded scope, unfolded and unfiltered", async () => {
+test("keeps embed and image generations independent", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: castId<Handle>("reader-raw") });
-  await upsertCompletedSpace(db, { ownerId: owner, scope: "cards", space: "a", now: NOW });
-  await upsertCompletedSpace(db, { ownerId: owner, scope: "documents", space: "b", now: NOW });
-  await upsertCompletedSpace(db, { ownerId: owner, scope: "images", space: "c", now: NOW });
+  const owner = await seedUser(db, { handle: castId<Handle>("reader-tasks") });
+  const text = await seedTarget(db, owner, { task: "embed", id: "generation-text", space: "text-space" });
+  const image = await seedTarget(db, owner, { task: "imageEmbed", id: "generation-image", space: "image-space" });
+  await complete(db, owner, text);
+  await complete(db, owner, image);
 
-  // A reader that folded here — dropped the disagreeing scope, or answered one task — would hide the
-  // `moving` state from the ONE place allowed to decide it (`foldActiveSpace`).
-  expect((await readCompletedSpaces(db, owner)).toSorted((x, y) => x.scope.localeCompare(y.scope))).toEqual([
-    { scope: "cards", space: "a" },
-    { scope: "documents", space: "b" },
-    { scope: "images", space: "c" },
-  ]);
+  expect(await readGeneration(db, owner, "embed")).toEqual({ status: "ready", generation: expect.objectContaining({ id: text.id, space: "text-space" }) });
+  expect(await readGeneration(db, owner, "imageEmbed")).toEqual({
+    status: "ready",
+    generation: expect.objectContaining({ id: image.id, space: "image-space" }),
+  });
 });
 
-test("an owner who has never completed a sweep reads EMPTY, not a default", async () => {
+test("an incomplete first build is moving, while an untouched owner is unrecorded", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: castId<Handle>("reader-virgin") });
-  // Empty is what the fold turns into `unrecorded` — the bootstrap arm. A fabricated default row here
-  // would make a fresh box claim a completed reindex it never ran.
-  expect(await readCompletedSpaces(db, owner)).toEqual([]);
+  const moving = await seedUser(db, { handle: castId<Handle>("reader-moving") });
+  const untouched = await seedUser(db, { handle: castId<Handle>("reader-virgin") });
+  const generation = await seedTarget(db, moving, { task: "embed", id: "generation-moving", space: "moving-space" });
+  await markGenerationComplete(db, { ownerId: moving, scope: "cards", generation, now: NOW });
+
+  expect(await readGeneration(db, moving, "embed")).toEqual({ status: "moving" });
+  expect(await readGeneration(db, untouched, "embed")).toEqual({ status: "unrecorded" });
 });

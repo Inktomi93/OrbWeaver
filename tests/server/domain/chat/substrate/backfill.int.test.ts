@@ -66,7 +66,13 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     const embeddings = createEmbeddingsService(makeStoreHarness(db).ctx);
     const ctx = makeChatContext(db, {
       summarize: fakeSummarize().op,
-      resolveMemoryEmbedSpace: (ownerId) => Promise.resolve({ ownerId, model: EMBED_MODEL }),
+      resolveMemoryEmbedSpace: async (ownerId) => {
+        const generation = await embeddings.resolveGeneration(ownerId, "embed");
+        if (generation === null) {
+          throw new Error("expected test embed generation");
+        }
+        return { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
+      },
       embeddingsStore: async (params) => {
         const result = await embeddings.store({
           kind: "chat-block",
@@ -85,7 +91,10 @@ describe("backfillMemory — the chat × scope enumeration", () => {
           model: EMBED_MODEL,
           dim: EMBED_DIM,
         });
-        return { ownerId: host, model: result.model };
+        if (result.generationId === undefined || result.generationEpoch === undefined) {
+          throw new Error("expected generation receipt");
+        }
+        return { ownerId: host, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
       },
       embeddingsStoreSegments: async (params) => {
         const results = await embeddings.storeSegments(
@@ -104,18 +113,35 @@ describe("backfillMemory — the chat × scope enumeration", () => {
             dim: EMBED_DIM,
           })),
         );
-        return results.map((result) => ({ ownerId: host, model: result.model }));
+        return results.map((result) => {
+          if (result.generationId === undefined || result.generationEpoch === undefined) {
+            throw new Error("expected generation receipt");
+          }
+          return { ownerId: host, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
+        });
       },
     });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
     await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
 
     const oldSpace = "retired-embed-space";
-    await db.update(chatSegments).set({ model: oldSpace }).where(eq(chatSegments.chatId, room));
-    await db.update(chatDigests).set({ model: oldSpace }).where(eq(chatDigests.chatId, room));
+    await db.update(chatDigests).set({ model: oldSpace, generationId: "retired-generation" }).where(eq(chatDigests.chatId, room));
 
-    await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
-    await embeddings.purgeMemoryVectors({ ownerId: host, completedSpace: EMBED_MODEL });
+    const completed = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
+    const receipt = completed.completedSpaces[0];
+    if (receipt === undefined) {
+      throw new Error(`expected completed generation receipt: ${JSON.stringify(completed)}`);
+    }
+    const generation = await embeddings.resolveGeneration(host, "embed");
+    if (generation === null) {
+      throw new Error("expected generation");
+    }
+    await embeddings.embedCorpus({ ownerId: host, force: false, signal: new AbortController().signal });
+    await embeddings.purgeDocumentVectors({ ownerId: host, generation });
+    await embeddings.purgeMemoryVectors({
+      ownerId: host,
+      generation: { id: receipt.generationId, epoch: receipt.generationEpoch, task: "embed", via: "embed", space: receipt.model },
+    });
     expect((await db.select().from(chatSegments)).map((row) => row.model)).toEqual([EMBED_MODEL, EMBED_MODEL]);
     expect((await db.select().from(chatDigests)).map((row) => row.model)).toEqual([EMBED_MODEL, EMBED_MODEL]);
   });
@@ -133,7 +159,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
       embeddingsStore: store.store,
       embeddingsStoreSegments: async (params) => {
         await store.storeSegments(params);
-        return params.map((param) => ({ ownerId: param.ownerId, model: "drifted-space" }));
+        return params.map((param) => ({ ownerId: param.ownerId, model: "drifted-space", generationId: "drifted-generation", generationEpoch: 2 }));
       },
     });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });

@@ -75,6 +75,8 @@ export interface MemoryScope {
 export interface MemoryEmbedSpace {
   readonly ownerId: UserId;
   readonly model: string;
+  readonly generationId: string;
+  readonly generationEpoch: number;
 }
 
 /** One canon message memory reads (slot ⋈ selected variant — D26). The stable speaker identity

@@ -26,6 +26,7 @@ interface NearestDigest {
 interface NearestDigestsParams {
   readonly queryVector: Float32Array;
   readonly model: string;
+  readonly generationId?: string | undefined;
   readonly chatIds?: readonly ChatId[] | undefined;
   readonly ownerId?: UserId | undefined;
   readonly scopedCharacterId?: CharacterId | undefined;
@@ -55,6 +56,7 @@ export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParam
     .where(
       digestScopeCond({
         model: params.model,
+        generationId: params.generationId,
         chatIds: params.chatIds,
         ownerId: params.ownerId,
         scopedCharacterId: params.scopedCharacterId,
@@ -69,12 +71,14 @@ export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParam
 
 /** The owner's materialized chat set, bounding discover's verbatim segment scan (which has no owner column).
  *  groupBy yields the distinct set (ReadOnlyDb has no selectDistinct). */
-export async function ownedChatIds(db: ReadOnlyDb, ownerId: UserId, model: string): Promise<ChatId[]> {
+export async function ownedChatIds(db: ReadOnlyDb, ownerId: UserId, model: string, generationId?: string): Promise<ChatId[]> {
   const rows = await db
     .select({ chatId: chatDigests.chatId })
     .from(chatDigests)
     .innerJoin(characters, eq(chatDigests.scopedCharacterId, characters.id))
-    .where(and(eq(chatDigests.model, model), eq(characters.ownerId, ownerId)))
+    .where(
+      and(eq(chatDigests.model, model), generationId === undefined ? undefined : eq(chatDigests.generationId, generationId), eq(characters.ownerId, ownerId)),
+    )
     .groupBy(chatDigests.chatId);
   return rows.map((r) => r.chatId);
 }
@@ -91,6 +95,7 @@ interface NearestSegment {
 interface NearestSegmentsParams {
   readonly queryVector: Float32Array;
   readonly model: string;
+  readonly generationId?: string | undefined;
   readonly chatIds: readonly ChatId[];
   readonly candidates?: readonly BlockKey[] | undefined;
   readonly limit: number;
@@ -111,6 +116,7 @@ export async function nearestSegments(db: ReadOnlyDb, params: NearestSegmentsPar
     .where(
       segmentScopeCond({
         model: params.model,
+        generationId: params.generationId,
         chatIds: params.chatIds,
         candidates: params.candidates,
       }),

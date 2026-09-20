@@ -87,11 +87,14 @@ export function connectionNotFoundMessage(connectionId: UserConnection["id"]): s
 }
 
 /** Which kind this row's model is — never guessed from the task alone when any evidence states one. */
-function kindOf(ctx: ResolverContext, args: { readonly task: Task; readonly provider: ProviderDef; readonly connection: UserConnection }): ModelKind {
+function kindOf(
+  ctx: ResolverContext,
+  args: { readonly task: Task; readonly provider: ProviderDef; readonly connection: UserConnection; readonly includeDeclared?: boolean },
+): ModelKind {
   const { task, provider, connection } = args;
   const catalogRow = provider.dialect === "openrouter" ? ctx.openRouterCatalog.get()?.find((entry) => entry.id === connection.model) : undefined;
   return (
-    connection.declared?.kind ??
+    (args.includeDeclared === false ? undefined : connection.declared?.kind) ??
     catalogRow?.kind ??
     curatedKind({ model: connection.model, providerId: provider.id, wire: provider.wire }) ??
     taskDef(task).kind
@@ -181,12 +184,16 @@ function withWireRequirement(base: RequirementVerdict, task: Task, provider: Pro
 /** The local-light encoder's deployment dtype is execution truth. An omitted declaration inherits that
  * truth (including a non-default deployment override); an explicit declaration must match or resolution
  * refuses before a writer, reader, or purge can act on a vector-space tag the encoder does not produce. */
-function withLocalLightEmbedDtype(capability: Capability, provider: ProviderDef, connection: UserConnection, configuredDtype: string | undefined): Capability {
+function withLocalLightEmbedDtype(
+  capability: Capability,
+  provider: ProviderDef,
+  declaredDtype: string | undefined,
+  configuredDtype: string | undefined,
+): Capability {
   if (provider.wire !== "local-light" || capability.kind !== "embedding") {
     return capability;
   }
   const servedDtype = resolveEmbedDtype(configuredDtype);
-  const declaredDtype = connection.declared?.embedding?.dtype;
   if (declaredDtype !== undefined && declaredDtype !== servedDtype) {
     throw new ProviderError({
       kind: "invalid",
@@ -197,7 +204,13 @@ function withLocalLightEmbedDtype(capability: Capability, provider: ProviderDef,
   return { ...capability, embedding: { ...capability.embedding, dtype: servedDtype } };
 }
 
-export async function resolveTask(ctx: ResolverContext, args: ResolveArgs): Promise<ResolveOutcome> {
+interface CapabilityResolveOutcome extends ResolveOutcome {
+  readonly baseline: Capability;
+}
+
+async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: false): Promise<ResolveOutcome>;
+async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: true): Promise<CapabilityResolveOutcome>;
+async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: boolean): Promise<ResolveOutcome | CapabilityResolveOutcome> {
   const connection = await connectionFor(ctx, args);
   const provider = ctx.registry.get(connection.providerId);
   if (provider === undefined) {
@@ -205,6 +218,7 @@ export async function resolveTask(ctx: ResolverContext, args: ResolveArgs): Prom
   }
   const declared = connection.declared;
   const kind = kindOf(ctx, { task: args.task, provider, connection });
+  const baselineKind = includeBaseline ? kindOf(ctx, { task: args.task, provider, connection, includeDeclared: false }) : undefined;
   const served = connectionTasks(provider, kind);
   if (!served.includes(args.task)) {
     throw new ProviderError({
@@ -231,9 +245,18 @@ export async function resolveTask(ctx: ResolverContext, args: ResolveArgs): Prom
   const capability = withLocalLightEmbedDtype(
     applyEndpointPosture(provider, synthesized.capability, declared?.generation?.input !== undefined),
     provider,
-    connection,
+    declared?.embedding?.dtype,
     ctx.deps.localLight?.embedDtype,
   );
+  const baseline =
+    baselineKind === undefined
+      ? undefined
+      : withLocalLightEmbedDtype(
+          applyEndpointPosture(provider, synthesizeCapability(baselineKind, family, { ...evidence, declared: undefined }).capability, false),
+          provider,
+          undefined,
+          ctx.deps.localLight?.embedDtype,
+        );
   const features = foldFeatures(provider.features, declared?.features);
   const requirement = withWireRequirement(requirementMet(capability, taskDef(args.task).requires), args.task, provider, features);
   const resolved: Resolved = {
@@ -261,5 +284,15 @@ export async function resolveTask(ctx: ResolverContext, args: ResolveArgs): Prom
       message: `"${args.task}" is a background task and connection "${connection.label}" does not allow background work`,
     });
   }
-  return { resolved, warnings };
+  return baseline === undefined ? { resolved, warnings } : { resolved, warnings, baseline };
+}
+
+export function resolveTask(ctx: ResolverContext, args: ResolveArgs): Promise<ResolveOutcome> {
+  return resolveTaskFold(ctx, args, false);
+}
+
+/** The capability pane's read: normal resolution plus the same loaded evidence folded without the row's
+ * declaration. Kept separate so turn-time resolution does not synthesize an unused baseline. */
+export function resolveTaskWithBaseline(ctx: ResolverContext, args: ResolveArgs): Promise<CapabilityResolveOutcome> {
+  return resolveTaskFold(ctx, args, true);
 }

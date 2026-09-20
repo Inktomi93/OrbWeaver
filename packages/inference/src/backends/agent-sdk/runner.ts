@@ -294,6 +294,7 @@ async function probeContextUsage(query: Query, scheduleTimeout: AgentSdkDeps["sc
   try {
     const res = await Promise.race([query.getContextUsage(), timeout]);
     usage = res !== undefined ? toContextUsage(res) : undefined;
+    // @orb-waive caught-failure-ownership(catch): context fill is an optional bounded diagnostic and `undefined` omits only that sidecar. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if the probe starts governing the turn result.
   } catch {
     // diagnostic miss, not a turn failure
   } finally {

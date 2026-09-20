@@ -35,6 +35,7 @@ import {
   chatHandoffResumptions,
   chatParticipants,
   chatRegexScripts,
+  embedGenerations,
   messages,
   regexScripts,
   worldBooks,
@@ -294,6 +295,17 @@ describe("the accepted offer — the room moves onto the copies", () => {
     const otherChatId = await seedChat(db, "b");
     const mine = castId<ChatDigestId>("chat_digest_mine");
     const theirs = castId<ChatDigestId>("chat_digest_theirs");
+    const generationId = "embed_generation_handoff_copy";
+    await db.insert(embedGenerations).values({
+      id: generationId,
+      ownerId: host,
+      task: "embed",
+      via: "embed",
+      connectionId: null,
+      connectionRef: "test:embed",
+      fingerprint: "test:handoff-copy",
+      space: "m",
+    });
     for (const [id, chat] of [
       [mine, chatId],
       [theirs, otherChatId],
@@ -309,6 +321,7 @@ describe("the accepted offer — the room moves onto the copies", () => {
         topicAnchor: "a",
         keywords: [],
         model: "m",
+        generationId,
         dim: 1,
         embedding: new Float32Array([0]),
       });

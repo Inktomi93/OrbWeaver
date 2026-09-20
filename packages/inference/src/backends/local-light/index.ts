@@ -39,7 +39,10 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
   // Owned fire-and-forget through the injected span so a surprise from a disposal or the prefetch walk is
   // traced rather than silently lost; the promise's own failure is the callee's to own.
   const detach = (name: string, fn: () => Promise<void>): void => {
-    void deps.span(name, fn).catch((err: unknown) => deps.log.warn({ err, name }, "local-light: detached work failed"));
+    // @orb-waive caught-failure-ownership(Promise.resolve): Promise.resolve turns a synchronous span throw into the same rejection path as async work, and the injected warning log names the detached root. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if detach stops owning both failure modes in that log.
+    void Promise.resolve()
+      .then(() => deps.span(name, fn))
+      .catch((err: unknown) => deps.log.warn({ err, name }, "local-light: detached work failed"));
   };
   let cacheRef: LocalLightModelCache | undefined;
   const prefetch = createLocalLightPrefetch({

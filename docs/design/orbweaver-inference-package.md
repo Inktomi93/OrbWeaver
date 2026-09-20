@@ -2500,46 +2500,59 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
    prompt type allows is dropped silently; and `providerOptions` is spread in the MIDDLE of the body, not last.
    When a change says "the SDK handles X", read the converter's switch arms and find the post-convert hook
    (`transformRequestBody`) before deciding a shape is reachable. Paid twice (verify3 F1, verify4 H1/H4).
+
 2. **D58 has two halves.** It BANS binding config to `chats` and SANCTIONS the owning feature carrying an
    association (`rpg_games.gmPresetId` is its own live mechanism). Never cite it as "nothing about generation
    is a property of a room". Paid in two drafts (ground5 c-2/c-3).
+
 3. **Before minting a word, grep for the tree's.** `funderUserId` already meant "the triggering principal
    whose connection pays"; the doc minted `fundedBy` beside it for three revisions (ground5 H5). Same class:
    `summarizerVision` already half-knew the caption lens needs vision; the six per-role getters were the
    tree's answer to "what did this role resolve to" (§2.8-2).
+
 4. **An ellipsis in a denylist is where the collision hides.** Four of eight belt-owned keys sat behind a
    "…", each with a written failure mode, and the doc sold overriding one of them as a feature (ground5 H1).
    Name every member of every tuple you cite.
+
 5. **A NOT NULL column on a table with live rows needs its backfill in the same file**, and "no data lift"
    does not cover it (ground5 H2). Read the writers of the table before adding the column.
+
 6. **Deleting a settings key deletes the triggers that hung off it.** `roleDefaults` carried the PD-139a
    reindex trigger in its update verb; nothing in "the blob is no longer read" re-raises it (ground5 H6).
    For every deleted key: `pnpm ast callers` on its update verb before the delete.
+
 7. **"Chat owner" does not exist** (D18); the candidates are the host (`runAsUserId`) and the caller, and
    `/blob` ownership gating makes the choice visible to users (ground5 H3).
+
 8. **Every negative claim carries a scanned count**, and a `pnpm ast` verb's subject is positional (`ident X`,
    never `ident --x`); an exit 3 is misuse, not a clean. Grep corroborates, never decides.
+
 9. **A `callers X --in <dir>` census inherits the directory as its blind spot, and a facade's callers live one
    tier up.** The `summarize` census run `--in packages/server/src/domain` (16/11) missed two live constrained
    callers in `entry/compose` that the `--in packages/server/src` run (23/16) finds — compose is where injected
    ops are BOUND, not where domains live (verify6 H7, verify8 M5). For an injected op or facade method: widen to
    `packages/server/src` and second-method grep the OPTION name, since the option is what a removal breaks.
+
 10. **A bypass with a comment is a ruling, not a duplicate — and a ruling's REASONS can lapse separately.**
     `rpg.ts:563` skipped the facade for two written reasons; the doc called it duplication for two revisions
     (verify6 H9). Read the header above a bypass before scheduling its deletion — then check each reason against
     what the program deletes: the firewall reason lapses with `ROLE_SOURCE_POLICY`, the F1 reason does not, and
     the bypass survives on the one that stands.
+
 11. **"Never re-spell" applies to enums you are extending, not just ones you are citing.** `cost_provenance`
     minted `reported` beside `token_provenance`'s `measured` on the same table (verify6 M4); the fix was to reuse
     the tuple AND its combinator (`combineTokenProvenance`).
+
 12. **A new drizzle table is never "one barrel edit".** `table-scoping-class` (hard, no waiver) reds
     UNCLASSIFIED without a `TABLE_SCOPING_ROWS` row; a new `ownerId` needs an `OWNERID_CLASSIFICATIONS` row AND
     a bump of that gate's exact `count` literal. `own-tables-only`'s `SCHEMA_OWNERS` is the one NOT needed when
     a same-named domain exists — the fact everyone finds first and then over-generalises (verify7 H1). Derive
     the arrival set from the gates that read `DRIZZLE_SCHEMA_POPULATION`, never from a doc's list.
+
 13. **A census claim is a RUN, never arithmetic over a narrower run.** "16 + 2 = 18" printed with a scanned
     count nobody produced at that scope; the real run was 23/16 (verify7 H2). If the epilogue is quoted, the
     command was executed with those args.
+
 14. **Fixing a count is not re-deriving the set — and re-deriving it inside ONE FILE is not re-deriving it.**
     "five seams, not six" left four `resolveConnection` sites in the same file unnamed (verify7 M1); the fix
     listed those and left `read.ts:447` and `compaction.ts:262` unnamed (verify8 H1); THAT fix then filed the
@@ -2549,17 +2562,21 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
     in `entry/compose/rpg.ts` (verify9 H2). A corrected number owes the list it counts AND the verb that
     produced each row, checked per row against the run's own output lines, from a repo-scoped census run
     once per VERB NAME the seam is reached under.
+
 15. **A receipt must be re-derived when its deliverable grows.** Step 2's receipt ("`callers structured` = 2
     and nothing else") was copied from the pre-sweep tree; after the 13 renames the same command returns 15,
     so the receipt could only pass on unfinished work (verify8 H2). The lens matches by method NAME regardless
     of receiver. Tell: the receipt and the deliverable cite the same command with the same args.
+
 16. **A conditionally-constrained seam is a dispatch, not a rename.** Two of the 13 "constrained" sites carry
     an OPTIONAL `responseFormat`; renaming them routes prose to `structured`. Read the option's TYPE, not just
     its presence at one call (verify8 H3).
+
 17. **"The tree's current wiring" is a claim about the BINDER, not the call sites.** §8.5b listed each side
     call's funder as "the trigger" while one owner-bound `RoleClients` bundle (`services.ts:524`) served all
     of them today; the rows were right about the program and wrong about the tree (verify9 H3). Before calling
     a table "today's wiring", find who BINDS the bundle each row reads from.
+
 18. **BUILD LOG, 2026-09-19 (the package as built — deviations from the text above, each with its reason;
     the code is the doc, this is the delta):**
     - *Data rows are `.ts` modules, not JSON* (owner word: "avoid weak JSON"). `contracts/inference/
@@ -3383,6 +3400,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         prompt converter's media lift), and two `knob-wire-coverage` rows whose subjects the program deleted
         (`EffectiveAppConfig.allowNonOwnerLocalCompute`, `chatMetadataSchema.providerRouting`) — each retired at
         exactly the condition its own `endsWhen` named.
+
 19. **A destination file named in a scope sentence owes its own behaviour rows.** §8.1b named
     `{embed,rerank,image-embed}.ts` as the surviving trio and then cited only two of them; the third had a
     different request shape, its own retry site and NO clamp, and no pass caught it until a scout read the file
@@ -3390,6 +3408,103 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
     backend into "SDK + transport" owes an inventory of the backend's NON-body controls (redirect pin, parse
     refusal, capture scrub, error-body cap, degrade warnings) — the body is the part the SDK replaces; the rest is
     the part a lane forgets.
+
+20. **THE CLOSING DAY, 2026-09-20 — step 9 landed, and the instruments were the story.** Fourteen lanes.
+    What they built is above; what they PAID FOR is here, because most of it is not visible in a diff.
+
+    **THE PATTERN, named after the fourth instance: an invariant held by DATA that nothing asserts.**
+    Every one of these was GREEN and enforcing nothing.
+
+    - `caught-failure-ownership` declares `population: ["@packages", …]`, and `@packages` is an explicit
+      SIX-root list (`tooling/src/verify/contract/population.ts:14-19`). `@inference` is its own root at
+      `:40` — so 113 files carrying the tree's primary credentialed-egress surface were judged by that
+      policy not at all. The symptom was a "stale waiver" alarm; the cause was a coverage hole (#2477).
+    - FOUR dep-cruiser stanzas kept passing after `packages/server/src/infra/providers/` ceased to exist.
+      The credential firewall policed **exactly one module** — proven by re-running the narrow rule against
+      a planted transitive chain. Three of them were what the OLD `Tier-3b-Providers.md` cited as the
+      enforcers for its own invariants.
+    - A D41 silent-degrade guard rested on one curated JSON row, and `declared` outranks curated in the
+      capability fold (§6.2) — so a user's own `declared.sampling` block opened it with no code change.
+    - `MANDATORY_REASONING_RE` recognises one vendor's phrasing; the case is normally prevented by curated
+      data clamping effort first. The backstop for when the data is wrong backs up one vendor (#2483 —
+      and the ANSWER is curated `reasoning.mandatory` rows, not a wider regex: quirks are DATA here).
+
+    **The corollary, paid for separately: a rule resting on a fact that EXPIRES.** §5.3a's requirement-rail
+    exemption for `agent`'s `tools` clause was written as "agent is agent-sdk-only". True today by
+    `WIRE_DEFS` construction, and the owner has said `agent` will probably not stay wire-specific — so the
+    exemption would have outlived its reason silently. It now rests on **agents are not built** (D60).
+
+    **THE CONFORMANCE SUITE (`tests/inference/conformance/`) FOUND THREE LIVE DEFECTS ON ITS FIRST RUNS.**
+    `registry/backends.test.ts` had been the only test iterating implementations, and it compares `serves`
+    against method NAMES — a shape check a backend replacement passes while changing every answer.
+
+    - **#1400 was ALIVE on the openai-compat wire.** `backends/v4/stream.ts`'s `acc.finish === undefined`
+      truncation guard is correct and STRUCTURALLY UNREACHABLE there: `@ai-sdk/openai-compatible@3.0.53`
+      (`dist/index.js:1410`, `:1467-1477`) and `@openrouter/ai-sdk-provider@3.1.0` (`:4583`, `:5386`) both
+      synthesize a `finish` part in `flush()` unconditionally. `@ai-sdk/anthropic@4.0.58` does NOT
+      (`:5886`, inside `message_stop` only) — **which is why that wire failed closed and made the whole
+      class look handled.** A truncated stream committed an empty or partial reply as a successful turn.
+      Confirmed against LIVE OpenRouter bytes: pre-fix `reply:""`, `finishReason:"other"`, null usage
+      (`gen-1789933848-vW5ZhPNf0JHK7zfA6qEi`); the fake had reproduced reality field-for-field.
+    - **Both hosted wires leaked RAW transport errors** — a bare `DOMException` on cancellation — against
+      `contract/errors.ts:1-4`'s "ONE error class" promise, and `compose/chat.ts:938-946` passes the
+      rejection on unnormalized. The OBVIOUS fix (make `retry.ts` throw `mapped`) would have destroyed a
+      live recovery: `drainWithReplay` peels `responseBody`/`cause` off the RAW error. Classify at each
+      runner's OUTERMOST point instead — outside everything that needs the raw error, inside nothing that
+      does. `retry.ts`'s documented `throw raw` is a RULING with a consumer.
+    - **`agent-sdk/translate.ts` discarded every sampler knob with no D41 warning** (above).
+
+    **Applicability is DATA, and a skip must RED.** A conformance cell runs iff `WIRE_DEFS[wire].serves`
+    holds the task and `BACKEND_DEFS[wire].needs(deps)` is satisfied; no behaviour file carries a wire
+    roster. A cell that does not run is skipped WITH ITS REASON IN THE TITLE, and `applicability.suite`
+    reds on any reason but `unserved` — because **a skipped arm reads, in a report, exactly like a passing
+    one.** That pin found a missing `openai-compat`/`embed` driver on its first run.
+
+    **The fake is not the oracle.** A suite whose oracle is its own fixture is the failure mode it exists
+    to prevent, one level up. Validate against live bytes at least once; quote `gen-…` ids.
+
+    **TWO INSTRUMENTS WERE LYING IN WAYS THAT DESTROY CALIBRATION.**
+
+    - `snap --design-audit` produced ~48 false findings in one review and nearly cost a real one. Two
+      independent defects: the obscured census re-centred a candidate whose centre was outside the viewport
+      but NOT one whose in-frame centre the compositor declined to answer (Chrome rounds the hit-test point
+      to the device pixel — measured at 1400x1000, y=999.4 hits and y=999.5 is null), so **one subject
+      straddling the fold withheld the ENTIRE run's verdict**, a lottery any page can draw; and a document
+      laid out narrower than its own content emitted confident P1s about a layout the author never
+      authored (`width: 870px` flex boards render at 382px — `getComputedStyle().width` reports the USED
+      width, so the crush is invisible from the element and only shows as `scrollWidth > clientWidth`).
+      Fixed with a sixth partial-verdict channel that REFUSES with a named cause and the outermost
+      carriers. Horizontal only — a height arm would make almost every audit a NO-VERDICT and teach readers
+      to ignore the line, which is the calibration damage the fix exists to prevent.
+    - `depcruise-grant-liveness`'s backref-BUDGET arm emits a finding with no `(subject, operation)`, which
+      `reviewed-grant` authority requires — so it **withheld the whole policy as an exit-2 tool error**
+      instead of printing its message, burying 12 findings. Dead by construction since it was written.
+
+    **Step 9's own lessons.** The mocks were a DIFF, not a greenfield drawing, because `146f71cd5` had
+    already shipped half of step 9 — and three §5.3a citations died with it (`role-slot-row.tsx` and
+    `preset/components/custom-parameters-editor.tsx` do not exist; `connections-nav.ts`'s two F20-false
+    sentences were already gone). The EXTRAS row editor is therefore BUILT, not moved. §5.3a's "restates
+    the value it replaced" is fully keepable for `features` (client-derivable through `foldFeatures`) and
+    NOT AT ALL for `declared` (`connection.capabilities` returns the FOLDED descriptor only) — the mock's
+    capability source strings were invention, not spec (#2478 carries the `baseline` seam). The width
+    mechanism is `@container`, PROVEN by CT geometry at an identical viewport where a media query could not
+    tell the arms apart. And two defects came from the isolated STAGE and from no test: a control label
+    spelled in pixels made a row's trailing cluster wider than its identity block, and the fix's own pin
+    had to become a RELATIONSHIP (title width >= actions width) rather than a presence check.
+
+    **Two merge-interaction defects no lane could have seen**, both from `8b9721e3e`: a circular dependency
+    (`chat/contract/context.ts` <-> `memory.ts`) and three orphan exports. Every contributing lane was green
+    ALONE. This is the barrier's whole job.
+
+    **And the one that matters most for a cold reader (#2481, P1): `seedLocalLightConnections` has ONE
+    production caller — the boot step, which loops the users that exist AT BOOT.** Every SSO/JIT and
+    admin-created account is seeded by nothing until the server restarts; `embed`/`rerank` resolve
+    `no-connection` and search is silently empty. It needs no seed FAILURE — the verb is never invoked.
+    **THREE places assert the wiring exists**: `entry/boot/seed-local-light.ts:6`, §5.3b above (which names
+    both mint sites and specifies the posture), and `tooling/src/seed/ops/demo.ts:278`. A cold agent
+    checking any one of them would have confirmed it was done. The sibling boot step got this right and
+    shows the shape: `entry/boot/local-light-prefetch.ts:12` states its enumeration limit outright — "the
+    principals it can honestly ask for".
 
 ## 16. Glossary
 

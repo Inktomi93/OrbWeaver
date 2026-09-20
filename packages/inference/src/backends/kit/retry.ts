@@ -122,6 +122,7 @@ export async function runWithPreCommitRetry<T>(
     };
     try {
       return await op(markCommitted);
+      // @orb-waive caught-failure-ownership(raw): the caught value is retained in lastError and either rethrown unchanged or followed by a span-recorded retry. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either terminal propagation path disappears.
     } catch (raw) {
       lastError = raw;
       const mapped = classify(raw);

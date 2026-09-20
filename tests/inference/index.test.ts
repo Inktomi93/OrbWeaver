@@ -244,8 +244,29 @@ test("capabilities.for reads one descriptor + the tasks a row serves, for the ow
   const runtime = await createInferenceRuntime(s.deps);
   const read = await runtime.capabilities.for({ connectionId: ids.rerank, principal: s.alice });
   expect(read.capability.kind).toBe("rerank");
+  expect(read.baseline).toEqual(read.capability);
   expect(read.tasks).toEqual(["rerank"]);
   await expect(runtime.capabilities.for({ connectionId: ids.rerank, principal: s.bob })).rejects.toBeInstanceOf(ProviderError);
+});
+
+test("capabilities.for separates a row's declared override from its evidence baseline", async () => {
+  const s = scene();
+  const row = fakeConnection({
+    ownerId: s.aliceId,
+    providerId: "local-light",
+    model: DEFAULT_EMBED_MODEL,
+    declared: { kind: "embedding", embedding: { dims: 768, dtype: "q8", input: ["text"] } },
+    allowBackground: true,
+  });
+  s.stores.connections.rows.set(row.id, row);
+  const runtime = await createInferenceRuntime(s.deps);
+
+  const read = await runtime.capabilities.for({ connectionId: row.id, principal: s.alice });
+
+  expect(read.capability).toMatchObject({ kind: "embedding", embedding: { dims: 768, dtype: "q8", input: ["text"] } });
+  expect(read.baseline).toMatchObject({ kind: "embedding", embedding: { dims: 1024, dtype: "q8", input: ["text", "image"] } });
+  expect(read.tasks).toEqual(["embed", "imageEmbed"]);
+  expect(read.warnings).toEqual([]);
 });
 
 // The owner belt's whole job, stated as the property an oracle would break: the answer to "read this id" must
