@@ -45,6 +45,7 @@ import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/
 import { gate as biomeGrantLiveness } from "../../../../tooling/src/verify/gates/biome-grant-liveness.ts";
 import { gate as biomeGrantLivenessHealth } from "../../../../tooling/src/verify/gates/biome-grant-liveness-health.ts";
 import { gate as depcruiseGrantLiveness } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
+import { gate as depcruiseGrantLivenessHealth } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness-health.ts";
 import { gate as eslintGrantLiveness } from "../../../../tooling/src/verify/gates/eslint-grant-liveness.ts";
 import { gate as runnerConfigPathLiveness } from "../../../../tooling/src/verify/gates/runner-config-path-liveness.ts";
 import { gate as tsconfigEntryLiveness } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness.ts";
@@ -58,6 +59,7 @@ const policies = [
   biomeGrantLiveness,
   biomeGrantLivenessHealth,
   depcruiseGrantLiveness,
+  depcruiseGrantLivenessHealth,
   eslintGrantLiveness,
   runnerConfigPathLiveness,
   tsconfigEntryLiveness,
@@ -82,6 +84,10 @@ test("the family is one family, and each member's authority is the one its arms 
     // `depcruise-grant-liveness` was the LAST `hard` member carrying its own `ExemptionTable`s; #2176 Phase F
     // migrated its three RATIFIED rows to `lib/reviewed-grants.ts` and moved it to the door its siblings use.
     ["depcruise-grant-liveness", "grant-liveness", "reviewed-grant"],
+    // The IRREDUCIBLE BACKREF BUDGET, carved out of the row above at #2485 for the same reason the two
+    // `-health` siblings exist: its finding has no `(subject, operation)` to offer and must not acquire one
+    // (a grantable budget is a central door to move the number), so it cannot live under `reviewed-grant`.
+    ["depcruise-grant-liveness-health", "grant-liveness", "hard"],
     ["eslint-grant-liveness", "grant-liveness", "reviewed-grant"],
     ["runner-config-path-liveness", "grant-liveness", "hard"],
     ["tsconfig-entry-liveness", "grant-liveness", "reviewed-grant"],

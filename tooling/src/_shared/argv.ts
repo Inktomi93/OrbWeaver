@@ -187,6 +187,19 @@ const GOTO_CONFIG_GRAMMAR = "config:<group>[.<sub>[.<setting>]]";
  *  `settings:` spelling, and it catches a typo the same way — it is the GRAMMAR failing closed, not an alias
  *  table. */
 const GOTO_NAMESPACE_RE = /^[a-z][a-z-]*:/u;
+/** THE WHOLE TARGET GRAMMAR IN ONE HOME (#2482). Both refusals below AND `--goto`'s flag summary
+ *  (`snap/ops/flags-metadata.ts`, which `pnpm snap --help` and the generated flag index both render) read
+ *  this string, so the help cannot document a form the parser refuses. It did: the summary promised "a
+ *  dotted settings address group.sub.setting" — the pre-#2447 `settings:` word, minus its namespace — and a
+ *  lane that followed it got the SECTION arm's "unknown section … expected one of: home, chats, …", read
+ *  that as "you typed it wrong" and went looking for a bug in its own address.
+ *
+ *  THE CODE SPANS ARE LOAD-BEARING, not decoration: the summary's only render is a table cell in the
+ *  generated `.claude/skills/snap-driving/reference/flags.md`, where `[` outside a span is escaped
+ *  (`snap/ops/flags-metadata.ts`'s own note). They cost a terminal refusal two backtick characters, which is
+ *  the cheaper half of the trade — the alternative is a second hand-spelled copy of the grammar, which is
+ *  exactly how the first one rotted. */
+export const GOTO_TARGET_GRAMMAR = `a bare rail section id, \`${GOTO_CONFIG_GRAMMAR}\`, or \`${MODAL_PREFIX}<slot>\``;
 
 /** Parse a `--goto` target string into the nav method + argument. Pure (the same decode snap injects
  *  in-page), so it's unit-testable in Node without a browser. REFUSES an address the grammar cannot spell
@@ -210,8 +223,17 @@ export function parseGotoTarget(target: string): GotoTarget {
   }
   const namespace = GOTO_NAMESPACE_RE.exec(target)?.[0];
   if (namespace !== undefined) {
+    throw new Error(`--goto "${target}" opens the unknown namespace "${namespace}"; the targets are ${GOTO_TARGET_GRAMMAR}`);
+  }
+  // A DOTTED BARE TARGET NAMES THE GATE IT MISSED, NOT A SECTION (#2482). No rail section id contains a dot
+  // (`packages/client/src/state/section-ids.ts`, pinned as text by tests/tooling/_shared/argv.test.ts —
+  // tooling may not import the client package, so the lens reads the tuple's source rather than claiming the
+  // property), so a dotted target is an ADDRESS whose namespace was left off. Falling through to `section`
+  // handed the caller the bridge's section vocabulary — the wrong vocabulary, which reads as "that id does
+  // not exist" and hides that the form itself needs a `config:` head.
+  if (target.includes(".")) {
     throw new Error(
-      `--goto "${target}" opens the unknown namespace "${namespace}"; the targets are ${GOTO_CONFIG_GRAMMAR}, ${MODAL_PREFIX}<slot>, or a bare rail section id`,
+      `--goto "${target}" is a dotted address with no namespace — no rail section id contains a dot, and a config address carries its head: ${GOTO_CONFIG_GRAMMAR}. The targets are ${GOTO_TARGET_GRAMMAR}`,
     );
   }
   return { method: "section", arg: target };

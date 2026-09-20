@@ -3,6 +3,7 @@
 // The browser-driving orchestration (nav bridge eval, watch series, multi-page capture) is live-proven
 // against the running stack, not here — this file's home is tests/tooling/ per core/Spine-Testing.md §2
 // (a test of a scripts/ tool), same as snap-stage.test.ts.
+import { readFileSync } from "node:fs";
 import { parseGotoTarget, parseViewport, splitPageSuffix } from "@orb/tooling/_shared/argv";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -107,6 +108,38 @@ test("parseGotoTarget REFUSES an address the config grammar cannot spell instead
   // `split(".", 2)`, so the probe navigated somewhere ELSE and reported success (the lying-nav class).
   expect(() => parseGotoTarget("config:appearance.sizing.density.extra")).toThrow("config:<group>[.<sub>[.<setting>]]");
   expect(() => parseGotoTarget("config:appearance..density")).toThrow("empty");
+});
+
+test("parseGotoTarget REFUSES a DOTTED bare target by naming the missing namespace, not the section vocabulary (#2482)", () => {
+  // THE MEASURED COST. `pnpm snap --help` promised "a dotted settings address group.sub.setting"; a lane
+  // drove `--goto connections.connections.add-connection`, this parser fell through to the SECTION arm, and
+  // the bridge answered `unknown section "connections.connections.add-connection" — expected one of: home,
+  // chats, …`. That refusal lists the wrong vocabulary, so it reads as "that id does not exist" and the lane
+  // went looking for a bug in its own address instead of learning that the form needs a `config:` head.
+  const dotted = "connections.connections.add-connection";
+  expect(() => parseGotoTarget(dotted)).toThrow("dotted address with no namespace");
+  // The refusal NAMES THE GATE: the grammar it missed, spelled the way the caller must retype it.
+  expect(() => parseGotoTarget(dotted)).toThrow("config:<group>[.<sub>[.<setting>]]");
+  // The same address WITH its namespace is the live form — the arm refuses a shape, never a vocabulary.
+  expect(parseGotoTarget(`config:${dotted}`)).toEqual({ method: "openConfig", arg: "connections", sub: "connections", setting: "add-connection" });
+  // Controls: a bare section id and both live namespaces are untouched by the dot test.
+  expect(parseGotoTarget("chats")).toEqual({ method: "section", arg: "chats" });
+  expect(parseGotoTarget("modal:you")).toEqual({ method: "openModal", arg: "you" });
+});
+
+test("no rail section id contains a dot — the premise the dotted-target refusal rests on (#2482)", () => {
+  // THE LENS FOR A CROSS-PACKAGE PREMISE. `parseGotoTarget` claims a dotted bare target cannot be a section;
+  // the vocabulary that decides it lives in the CLIENT package, which tooling may not import. So the tuple's
+  // source is read as TEXT and the ids are extracted — a section id that ever grew a dot makes this red here
+  // rather than making `--goto <that id>` silently unreachable.
+  const source = readFileSync(new URL("../../../packages/client/src/state/section-ids.ts", import.meta.url), "utf8");
+  const tuple = /export const SECTION_IDS = \[(?<body>[^\]]*)\]/u.exec(source)?.groups?.["body"];
+  expect(tuple, "SECTION_IDS tuple not found — the reader rotted, which is not the same as 'no dotted id'").toBeDefined();
+  const ids = [...(tuple ?? "").matchAll(/"(?<id>[^"]+)"/gu)].map((m) => m.groups?.["id"] ?? "");
+  // A planted positive control in the same invocation: the extractor really does see ids, so an empty
+  // result below can never read as "nothing carries a dot".
+  expect(ids).toContain("chats");
+  expect(ids.filter((id) => id.includes("."))).toEqual([]);
 });
 
 test("parseGotoTarget decodes modal:<slot> to openModal", () => {
