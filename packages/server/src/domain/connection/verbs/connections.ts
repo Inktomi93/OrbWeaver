@@ -114,15 +114,15 @@ async function boundToVectorTask(ctx: ConnectionContext, ownerId: UserId, connec
   return bindings.some((binding) => binding.connectionId === connectionId && VECTOR_TASKS.includes(binding.task));
 }
 
-export function createList(ctx: ConnectionContext): ConnectionService["list"] {
+function createList(ctx: ConnectionContext): ConnectionService["list"] {
   return async (params): Promise<readonly ConnectionView[]> => (await listOwnedConnections(ctx.db, params.principal.userId)).map((row) => toView(ctx, row));
 }
 
-export function createGet(ctx: ConnectionContext): ConnectionService["get"] {
+function createGet(ctx: ConnectionContext): ConnectionService["get"] {
   return async (params): Promise<ConnectionView> => toView(ctx, await requireOwnedRow(ctx, params.principal.userId, params.connectionId));
 }
 
-export function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
+function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
   return async (params: CreateConnectionParams): Promise<ConnectionView> => {
     const ownerId = params.principal.userId;
     const provider = requireProvider(ctx, params.providerId);
@@ -196,7 +196,7 @@ async function validatedPatch(
   };
 }
 
-export function createUpdate(ctx: ConnectionContext): ConnectionService["update"] {
+function createUpdate(ctx: ConnectionContext): ConnectionService["update"] {
   return async (params: UpdateConnectionParams): Promise<ConnectionView> => {
     const ownerId = params.principal.userId;
     const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
@@ -216,7 +216,7 @@ export function createUpdate(ctx: ConnectionContext): ConnectionService["update"
   };
 }
 
-export function createRemove(ctx: ConnectionContext): ConnectionService["remove"] {
+function createRemove(ctx: ConnectionContext): ConnectionService["remove"] {
   return async (params): Promise<void> => {
     const ownerId = params.principal.userId;
     const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
@@ -226,5 +226,19 @@ export function createRemove(ctx: ConnectionContext): ConnectionService["remove"
     if (wasVector) {
       ctx.onEmbedSpaceChanged(ownerId);
     }
+  };
+}
+
+/** The slice of `ConnectionService` this grouped file owns. */
+type ConnectionRowVerbs = Pick<ConnectionService, "list" | "get" | "create" | "update" | "remove">;
+
+/** The `user_connections` verb bundle (`verb-naming`: one factory named for the file). */
+export function createConnections(ctx: ConnectionContext): ConnectionRowVerbs {
+  return {
+    list: createList(ctx),
+    get: createGet(ctx),
+    create: createCreate(ctx),
+    update: createUpdate(ctx),
+    remove: createRemove(ctx),
   };
 }

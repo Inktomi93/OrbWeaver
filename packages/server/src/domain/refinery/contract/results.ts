@@ -24,6 +24,14 @@ export interface RefineryRoundClaim {
   readonly leaseUntil: number;
 }
 
+/** The summarize-slot FACTS one refinery call reads off the owner's bundle (`substrate/summarizer.ts`):
+ *  which model answers and how wide its window is. Read per call, never boot-frozen. */
+export interface SummarizerFacts {
+  readonly model: ModelId;
+  /** The resolved model's context window (tokens); `null` when the capability declares none. */
+  readonly contextTokens: number | null;
+}
+
 /** The full session (the CONTENT surface's state) — summary fields + the anti-drift anchor + config. */
 export interface RefinerySessionView {
   readonly id: RefinerySessionId;

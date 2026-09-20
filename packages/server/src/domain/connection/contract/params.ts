@@ -4,7 +4,16 @@
 // `RoutableTask`, the capability schemas) live in `@orb/contracts/inference`; the verb wrappers live here.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ConnectionApi, ConnectionExtrasDoc, ConnectionTransportDoc, DeclaredCapability, ProviderDef, RoutableTask, Task } from "@orb/contracts/inference";
+import type {
+  BindingActorKind,
+  ConnectionApi,
+  ConnectionExtrasDoc,
+  ConnectionTransportDoc,
+  DeclaredCapability,
+  ProviderDef,
+  RoutableTask,
+  Task,
+} from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import type { BindingActor } from "@orb/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
@@ -57,6 +66,13 @@ export interface UpdateConnectionParams extends ActorParams {
 
 export interface RemoveConnectionParams extends ActorParams {
   readonly connectionId: UserConnectionId;
+}
+
+/** The actor as the STORE spells it: a kind + the id column that kind sets (the persistence-side pair the
+ *  runtime's `BindingStore.lookup` uses; the caller-side shape is `BindingActorInput` below). */
+export interface StoredActor {
+  readonly actorKind: BindingActorKind;
+  readonly actorId: string;
 }
 
 /** The actor a binding belongs to, from the caller's side: absent ⇒ the caller's own `user` bindings. */
