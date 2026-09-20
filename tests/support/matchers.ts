@@ -7,7 +7,7 @@
 // Three matchers today (2 slots free):
 //   • toThrowTRPCError(code) — closes the silent-pass class where `.rejects.toThrow()` (no arg) accepts
 //     ANY rejection (an FK violation, a null deref) and an auth-gate test passes despite the wrong error.
-//   • toThrowProviderError(kind) — the typed provider-failure surface (`ProviderError`, infra/providers'
+//   • toThrowProviderError(kind) — the typed provider-failure surface (`ProviderError`, @orb/inference'
 //     one error class across all seven roles — orbweaver's ChatError descendant). Pins the class AND its
 //     stable `kind` discriminant, replacing message-regex assertions that rot on rewording.
 //   • toExitWith(code) — the tooling exit contract (0 clean · 1 violations · 2 tool-broke · 3 misuse,
@@ -27,7 +27,7 @@
 // inside the matcher body: a kit/ui/client unit test that never asserts a provider failure never loads
 // the server graph. The server types ride in `import type` (erased).
 
-import type { ProviderErrorKind } from "@orb/server/infra/providers";
+import type { ProviderErrorKind } from "@orb/inference";
 import type { classifyDomainError } from "@orb/server/transport/trpc";
 import { expect } from "vitest";
 
@@ -135,7 +135,7 @@ expect.extend({
 
   async toThrowProviderError(received: Promise<unknown> | (() => unknown), kind: ProviderErrorKind): Promise<MatcherResult> {
     // Dynamic on purpose (see the header note) — module-cached after the first use.
-    const { ProviderError } = await import("@orb/server/infra/providers");
+    const { ProviderError } = await import("@orb/inference");
     let resolved: unknown;
     try {
       resolved = await toPromise(received);

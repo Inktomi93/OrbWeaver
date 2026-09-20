@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0c9fca68-d4c9-43fb-93c7-70f556f4257b",
+  "id": "611a16b4-fe74-4ff5-bee8-9c301a0d9ae6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -2171,6 +2171,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -2214,7 +2221,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "message_assets_origin_check": {
+          "name": "message_assets_origin_check",
+          "value": "origin in ('attached', 'illustration', 'inline-reply')"
+        }
+      }
     },
     "message_reactions": {
       "name": "message_reactions",
@@ -2405,6 +2417,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "connection_id": {
+          "name": "connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "provider": {
           "name": "provider",
           "type": "text",
@@ -2461,6 +2480,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "cost_provenance": {
+          "name": "cost_provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unrecorded'"
         },
         "context_window": {
           "name": "context_window",
@@ -2628,6 +2655,11 @@
           "name": "message_variants_context_boundary_idx",
           "columns": ["context_boundary_message_id"],
           "isUnique": false
+        },
+        "message_variants_connection_idx": {
+          "name": "message_variants_connection_idx",
+          "columns": ["connection_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -2638,6 +2670,15 @@
           "columnsFrom": ["message_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "message_variants_connection_id_user_connections_id_fk": {
+          "name": "message_variants_connection_id_user_connections_id_fk",
+          "tableFrom": "message_variants",
+          "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "message_variants_context_boundary_message_id_messages_id_fk": {
@@ -2656,6 +2697,18 @@
         "message_variants_token_provenance_check": {
           "name": "message_variants_token_provenance_check",
           "value": "token_provenance in ('measured', 'estimated', 'unrecorded')"
+        },
+        "message_variants_cost_provenance_check": {
+          "name": "message_variants_cost_provenance_check",
+          "value": "cost_provenance in ('measured', 'estimated', 'unrecorded')"
+        },
+        "message_variants_finish_reason_check": {
+          "name": "message_variants_finish_reason_check",
+          "value": "finish_reason is null or finish_reason in ('stop', 'length', 'filter', 'tool', 'other')"
+        },
+        "message_variants_reasoning_effort_check": {
+          "name": "message_variants_reasoning_effort_check",
+          "value": "reasoning_effort is null or reasoning_effort in ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')"
         }
       }
     },
@@ -2955,6 +3008,472 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "user_connections": {
+      "name": "user_connections",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "credential_id": {
+          "name": "credential_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "base_url": {
+          "name": "base_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "api": {
+          "name": "api",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'auto'"
+        },
+        "declared": {
+          "name": "declared",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "extras": {
+          "name": "extras",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "transport": {
+          "name": "transport",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "model_listed": {
+          "name": "model_listed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "allow_background": {
+          "name": "allow_background",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "user_connections_owner_label_unique": {
+          "name": "user_connections_owner_label_unique",
+          "columns": ["owner_id", "label"],
+          "isUnique": true
+        },
+        "user_connections_credential_idx": {
+          "name": "user_connections_credential_idx",
+          "columns": ["credential_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "user_connections_owner_id_users_id_fk": {
+          "name": "user_connections_owner_id_users_id_fk",
+          "tableFrom": "user_connections",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "user_connections_credential_id_user_credentials_id_fk": {
+          "name": "user_connections_credential_id_user_credentials_id_fk",
+          "tableFrom": "user_connections",
+          "tableTo": "user_credentials",
+          "columnsFrom": ["credential_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "user_connections_api_check": {
+          "name": "user_connections_api_check",
+          "value": "api in ('chat-completions', 'responses', 'agent-sdk', 'anthropic-messages', 'auto')"
+        }
+      }
+    },
+    "connection_bindings": {
+      "name": "connection_bindings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "actor_kind": {
+          "name": "actor_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rule_id": {
+          "name": "rule_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "plugin_id": {
+          "name": "plugin_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "task": {
+          "name": "task",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "connection_id": {
+          "name": "connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "connection_bindings_user_task_unique": {
+          "name": "connection_bindings_user_task_unique",
+          "columns": ["user_id", "task"],
+          "isUnique": true,
+          "where": "\"connection_bindings\".\"actor_kind\" = 'user'"
+        },
+        "connection_bindings_rule_task_unique": {
+          "name": "connection_bindings_rule_task_unique",
+          "columns": ["rule_id", "task"],
+          "isUnique": true,
+          "where": "\"connection_bindings\".\"actor_kind\" = 'automation-rule'"
+        },
+        "connection_bindings_plugin_task_unique": {
+          "name": "connection_bindings_plugin_task_unique",
+          "columns": ["plugin_id", "task"],
+          "isUnique": true,
+          "where": "\"connection_bindings\".\"actor_kind\" = 'plugin-grant'"
+        },
+        "connection_bindings_connection_idx": {
+          "name": "connection_bindings_connection_idx",
+          "columns": ["connection_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "connection_bindings_user_id_users_id_fk": {
+          "name": "connection_bindings_user_id_users_id_fk",
+          "tableFrom": "connection_bindings",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "connection_bindings_rule_id_automation_rules_id_fk": {
+          "name": "connection_bindings_rule_id_automation_rules_id_fk",
+          "tableFrom": "connection_bindings",
+          "tableTo": "automation_rules",
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "connection_bindings_plugin_id_plugins_id_fk": {
+          "name": "connection_bindings_plugin_id_plugins_id_fk",
+          "tableFrom": "connection_bindings",
+          "tableTo": "plugins",
+          "columnsFrom": ["plugin_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "connection_bindings_connection_id_user_connections_id_fk": {
+          "name": "connection_bindings_connection_id_user_connections_id_fk",
+          "tableFrom": "connection_bindings",
+          "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "connection_bindings_actor_kind_check": {
+          "name": "connection_bindings_actor_kind_check",
+          "value": "actor_kind in ('user', 'automation-rule', 'plugin-grant')"
+        },
+        "connection_bindings_task_check": {
+          "name": "connection_bindings_task_check",
+          "value": "task in ('chat', 'summarize', 'generateImage', 'embed', 'imageEmbed', 'rerank')"
+        },
+        "connection_bindings_actor_shape_check": {
+          "name": "connection_bindings_actor_shape_check",
+          "value": "(actor_kind = 'user' and user_id is not null and rule_id is null and plugin_id is null) or (actor_kind = 'automation-rule' and rule_id is not null and user_id is null and plugin_id is null) or (actor_kind = 'plugin-grant' and plugin_id is not null and user_id is null and rule_id is null)"
+        }
+      }
+    },
+    "provider_rows": {
+      "name": "provider_rows",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "wire": {
+          "name": "wire",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dialect": {
+          "name": "dialect",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "auth": {
+          "name": "auth",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "base_url": {
+          "name": "base_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "apis": {
+          "name": "apis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "serves": {
+          "name": "serves",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "catalog": {
+          "name": "catalog",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "metered": {
+          "name": "metered",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "docs_url": {
+          "name": "docs_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "features": {
+          "name": "features",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "origin_kind": {
+          "name": "origin_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "origin_plugin_id": {
+          "name": "origin_plugin_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "origin_user_id": {
+          "name": "origin_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "provider_rows_origin_plugin_idx": {
+          "name": "provider_rows_origin_plugin_idx",
+          "columns": ["origin_plugin_id"],
+          "isUnique": false
+        },
+        "provider_rows_origin_user_idx": {
+          "name": "provider_rows_origin_user_idx",
+          "columns": ["origin_user_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "provider_rows_origin_plugin_id_plugins_id_fk": {
+          "name": "provider_rows_origin_plugin_id_plugins_id_fk",
+          "tableFrom": "provider_rows",
+          "tableTo": "plugins",
+          "columnsFrom": ["origin_plugin_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "provider_rows_origin_user_id_users_id_fk": {
+          "name": "provider_rows_origin_user_id_users_id_fk",
+          "tableFrom": "provider_rows",
+          "tableTo": "users",
+          "columnsFrom": ["origin_user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "provider_rows_wire_check": {
+          "name": "provider_rows_wire_check",
+          "value": "wire in ('openai-compat', 'anthropic-messages', 'agent-sdk', 'local-light')"
+        },
+        "provider_rows_dialect_check": {
+          "name": "provider_rows_dialect_check",
+          "value": "dialect is null or dialect in ('openai-compatible', 'openrouter')"
+        },
+        "provider_rows_auth_check": {
+          "name": "provider_rows_auth_check",
+          "value": "auth in ('apiKey', 'oauthToken', 'endpoint', 'none')"
+        },
+        "provider_rows_catalog_check": {
+          "name": "provider_rows_catalog_check",
+          "value": "catalog in ('url', 'builtin')"
+        },
+        "provider_rows_origin_kind_check": {
+          "name": "provider_rows_origin_kind_check",
+          "value": "origin_kind in ('plugin', 'admin')"
+        },
+        "provider_rows_origin_shape_check": {
+          "name": "provider_rows_origin_shape_check",
+          "value": "(origin_kind = 'plugin' and origin_plugin_id is not null and origin_user_id is null) or (origin_kind = 'admin' and origin_plugin_id is null)"
+        }
+      }
+    },
     "user_credentials": {
       "name": "user_credentials",
       "columns": {
@@ -3058,12 +3577,6 @@
           "name": "user_credentials_owner_idx",
           "columns": ["owner_id"],
           "isUnique": false
-        },
-        "user_credentials_active_unique": {
-          "name": "user_credentials_active_unique",
-          "columns": ["owner_id", "provider"],
-          "isUnique": true,
-          "where": "\"user_credentials\".\"active\" = 1"
         }
       },
       "foreignKeys": {
@@ -3079,12 +3592,7 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {
-        "user_credentials_provider_check": {
-          "name": "user_credentials_provider_check",
-          "value": "provider in ('openrouter', 'anthropic', 'openai', 'custom_openai')"
-        }
-      }
+      "checkConstraints": {}
     },
     "character_documents": {
       "name": "character_documents",
@@ -4845,6 +5353,20 @@
           "notNull": true,
           "autoincrement": false
         },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "connection_id": {
+          "name": "connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "cost_usd": {
           "name": "cost_usd",
           "type": "real",
@@ -4873,6 +5395,11 @@
         "imagery_generations_reuse_idx": {
           "name": "imagery_generations_reuse_idx",
           "columns": ["subject_character_id", "mode", "identity_hash"],
+          "isUnique": false
+        },
+        "imagery_generations_connection_idx": {
+          "name": "imagery_generations_connection_idx",
+          "columns": ["connection_id"],
           "isUnique": false
         },
         "imagery_generations_asset_idx": {
@@ -4910,6 +5437,15 @@
           "tableFrom": "imagery_generations",
           "tableTo": "characters",
           "columnsFrom": ["subject_character_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "imagery_generations_connection_id_user_connections_id_fk": {
+          "name": "imagery_generations_connection_id_user_connections_id_fk",
+          "tableFrom": "imagery_generations",
+          "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
@@ -7437,6 +7973,13 @@
           "autoincrement": false,
           "default": false
         },
+        "connection_id": {
+          "name": "connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -7456,6 +7999,17 @@
           "name": "session_entries_sdk_session_unique",
           "columns": ["sdk_session_id"],
           "isUnique": true
+        },
+        "session_entries_primary_unique": {
+          "name": "session_entries_primary_unique",
+          "columns": ["chat_id", "connection_id"],
+          "isUnique": true,
+          "where": "\"session_entries\".\"is_primary\" = 1"
+        },
+        "session_entries_connection_idx": {
+          "name": "session_entries_connection_idx",
+          "columns": ["connection_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -7464,6 +8018,15 @@
           "tableFrom": "session_entries",
           "tableTo": "chats",
           "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "session_entries_connection_id_user_connections_id_fk": {
+          "name": "session_entries_connection_id_user_connections_id_fk",
+          "tableFrom": "session_entries",
+          "tableTo": "user_connections",
+          "columnsFrom": ["connection_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"

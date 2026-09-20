@@ -84,8 +84,10 @@ import type {
 /** The `hub_score` write seam — the embeddings domain's `writeHubScores` verb, bound at the entry root. */
 type WriteHubScores = EmbeddingsService["writeHubScores"];
 
-/** The bound `summarize` role thunk — discovery's only inference surface (theme naming + distill). */
-export type Summarize = RoleClients["summarize"];
+/** The per-FUNDER role-client bundle — discovery's only inference surface. Distill, compare and ask are
+ *  `structured`; theme naming is `summarize`. The funder is the caller (a per-user pass) or the workload's
+ *  acting user (a bulk pass), never a box owner (inference program §7.5-2). */
+type RoleClientsFor = (funderUserId: UserId) => Promise<RoleClients>;
 
 /** The side-gen sampling ladder's middle rung — a user's default-preset generation params, resolved at the
  *  entry root (the caller of distill/analyze is the card owner). Bound type-only here (discovery never reads
@@ -129,7 +131,9 @@ export type Tier0RangeOp = (tier: number, blockIdx: number) => { readonly startI
 export interface ComputeThemesDeps {
   readonly now: () => number;
   readonly newThemeClusterId: () => ThemeClusterId;
-  readonly summarize: Summarize;
+  readonly roleClientsFor: RoleClientsFor;
+  /** The funder's default-preset params — the `theme_name` posture's middle rung (§7.5-3 arm ii). */
+  readonly resolveUserPresetParams: ResolveUserPresetParams;
   /** Threaded into the tier-k `msgMidAt` backfill `computeThemes` runs after every replace. */
   readonly tier0RangeOf: Tier0RangeOp;
 }
@@ -166,12 +170,9 @@ export interface AnalyzeDeps {
 /** Deps for the standalone `distillCharacters` pass. */
 export interface DistillCharactersDeps {
   readonly now: () => number;
-  readonly summarize: Summarize;
-  /** The summarize role's resolved model tag, read PER CALL — a thunk, never a captured string, because
-   *  `RoleClients.summarizerModel` is a live getter that follows a role re-point
-   *  (`entry/compose/role-clients.ts` header). A distilled summary row stamps the CONFIGURED model, so a
-   *  boot-frozen string would label rows with a model the owner has since moved off. */
-  readonly summarizerModel: () => string;
+  /** A distilled summary row stamps the model `rc.resolved("structured")` reports at call time — read per
+   *  pass, never a boot-frozen string, so a row is labelled with the model that actually wrote it. */
+  readonly roleClientsFor: RoleClientsFor;
   readonly attachCardTagByName: AttachCardTagByName;
   /** The card owner's default-preset params (the side-gen sampling ladder's middle rung). The whole-library
    *  batch has no single owner ⇒ the floor stands; the on-demand single-card pass folds `opts.ownerId`'s. */
@@ -188,10 +189,7 @@ export interface DiscoveryContext {
   readonly now: () => number;
   readonly newDuplicateCharacterPairId: () => DuplicateCharacterPairId;
   readonly newThemeClusterId: () => ThemeClusterId;
-  readonly summarize: Summarize;
-  /** The summarize role's resolved model tag, read PER CALL — same thunk contract as
-   *  `DistillCharactersDeps.summarizerModel` above, which this field is threaded into verbatim. */
-  readonly summarizerModel: () => string;
+  readonly roleClientsFor: RoleClientsFor;
   readonly attachCardTagByName: AttachCardTagByName;
   /** The side-gen sampling ladder's middle rung — the card owner's default-preset params (distill + analyze). */
   readonly resolveUserPresetParams: ResolveUserPresetParams;
@@ -237,7 +235,7 @@ export interface DiscoveryService {
   // ── distill (character summaries + staged tag suggestions) ───────────────
   /** Distill a character's card into `character_summaries` facets and stage its labels as pending tag
    *  suggestions. `opts.characterId` narrows to ONE card; absent = whole-library batch. Idempotent. */
-  readonly distillCharacters: (opts?: DistillCharactersOptions) => Promise<DistillStats>;
+  readonly distillCharacters: (opts: DistillCharactersOptions) => Promise<DistillStats>;
 
   // ── browse (the filterable distilled catalog — CONTENT-only) ───────────────
   /** ONE keyset PAGE of the owner's filterable distilled character catalog, with the boundary for the next
@@ -273,7 +271,7 @@ export interface DiscoveryService {
 
   // ── themes (workload compute + owner-scoped read) ───────────────────────────
   /** Recompute every owner's emergent themes — a full atomic replace of `theme_clusters` (+ assignments). */
-  readonly computeThemes: (opts?: ComputeThemesOptions) => Promise<ThemeComputeStats>;
+  readonly computeThemes: (opts: ComputeThemesOptions) => Promise<ThemeComputeStats>;
   /** The owner's theme clusters at `level` (both levels when omitted), ordered by `clusterIdx`. */
   readonly themes: (userId: UserId, level?: ThemeLevel) => Promise<ThemeRow[]>;
   /** Idempotently stamp `digest_theme_assignments.msgMidAt` for the owner, or every owner when omitted. */

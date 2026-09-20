@@ -11,8 +11,8 @@
 // verb. The two-party host handoff is modelled as two verbs (nominate + accept).
 
 import type { ChatReactionsView, EffectiveRegexView, GroupConfig, MemberCardView, RoomOverrides } from "@orb/contracts/chat";
-import type { ChatSendAvailability } from "@orb/contracts/connection";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
+import type { SendAvailability } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
@@ -172,7 +172,7 @@ export interface ChatService {
    *  honest-refusal gate) — "would the turn's own `resolveChat → deriveRunner → requireBackend` succeed,
    *  WITHOUT firing a turn or an API call?" Engine-agnostic; a configured hosted connection reads available
    *  (never pre-flighted). Member-gated; the composer disables SEND + the guided fire actions on `!available`. */
-  readonly checkSendAvailability: (params: GetChatParams) => Promise<ChatSendAvailability>;
+  readonly checkSendAvailability: (params: GetChatParams) => Promise<SendAvailability>;
   /** Read ONE roster character's card, field-clamped to the room's `memberCardVisibility` (D22 — the host
    *  always sees `full`). Member-gated + roster-scoped: a non-participant OR a `characterId` not seated in
    *  THIS chat is a leak-free NOT_FOUND. Fields above the effective level are NULL server-side (never sent);

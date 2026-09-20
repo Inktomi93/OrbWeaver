@@ -29,6 +29,7 @@ import type { DocumentListFilter, ListDocumentsParams } from "../contract/params
 import type { ListDocumentsResult } from "../contract/results.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import { countOwnedDocuments, listOwnedMeta, toDocumentView } from "../persistence/queries.ts";
+import { activeSpaceModel } from "../substrate/active-space.ts";
 
 // The default page size lives in `@orb/contracts/databank`: a client surface that SUMMARIZES the returned
 // rows has to know the page it was served. The ceiling is the same number — it mirrors
@@ -53,7 +54,7 @@ async function lensFilterOf(ctx: DatabankContext, params: ListDocumentsParams): 
   // The KEY SET is the whole fact this needs — "is this document chunked at all". The op returns counts
   // because its other consumer (the health census) sums them; a second id-only op would be a second read of
   // one table for one question.
-  const chunkedIds = [...(await ctx.chunkCountsByOwner({ ownerId: principal.userId, model: ctx.getActiveEmbedSpace().model })).keys()];
+  const chunkedIds = [...(await ctx.chunkCountsByOwner({ ownerId: principal.userId, model: await activeSpaceModel(ctx, principal.userId) })).keys()];
   return {
     ...(needle === "" ? {} : { search: needle }),
     ...(origin === undefined ? {} : { origin }),
@@ -74,7 +75,7 @@ export function createList(ctx: DatabankContext): DatabankService["list"] {
     // A second, separate COUNT over the SAME filter rather than a derivation from `items`: the band header
     // and the home tile PRINT this number, and "how many rows this page happened to carry" is not it.
     const totalCount = await countOwnedDocuments(ctx.db, principal.userId, filter);
-    const counts = await ctx.countChunks({ documentIds: metas.map((m) => m.id), model: ctx.getActiveEmbedSpace().model });
+    const counts = await ctx.countChunks({ documentIds: metas.map((m) => m.id), model: await activeSpaceModel(ctx, principal.userId) });
     const items = metas.map((meta) => toDocumentView(meta, counts.get(meta.id) ?? 0));
     const last = metas.at(-1);
     // A full page means there MAY be more below it; a short page is the end of the bank.

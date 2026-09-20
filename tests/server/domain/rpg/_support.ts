@@ -28,7 +28,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
-import type { WireTool } from "@orb/server/infra/providers";
+import type { WireTool } from "@orb/inference";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
 import type { HandSnapshotTarget, TurnSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params.ts";
 import type {
@@ -42,7 +42,7 @@ import type {
 } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../../../../packages/server/src/domain/rpg/tools/apply.ts";
-import { makeModelCapability, makeResolvedConnection } from "../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolvedConnection } from "../../../support/factories/resolved-connection.ts";
 import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 
 export { expect, test } from "../../../support/fixtures.ts";
@@ -175,10 +175,9 @@ export function handTarget(opts: { gameId: RpgGameId; chatId: ChatId; key: strin
 export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnContext {
   return {
     kind: "send",
-    connection: makeResolvedConnection({
-      capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
+    connection: makeResolved({
+      generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
     }),
-    ownerConsented: true,
     // Default: an empty transcript (the round still fires with an empty beat — the canned fakes ignore prompt
     // content). A §1.3 window-content test overrides `transcript` with real name-stamped rows.
     transcript: [],

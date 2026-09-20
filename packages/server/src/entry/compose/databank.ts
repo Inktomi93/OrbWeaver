@@ -5,7 +5,10 @@
 // (the same predicates chat's own seam wraps). Owns no business logic — it only threads the already-built infra
 // handles + sibling service front doors onto the `DatabankContext`.
 
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
+import type { RoleClientsWithSignal } from "@orb/inference";
+import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
 import type { DatabankContext, DatabankIngest, DatabankPortabilityContext, DatabankService } from "#domain/databank";
@@ -14,7 +17,6 @@ import type { EmbeddingsService } from "#domain/embeddings";
 import type { SearchService } from "#domain/search";
 import type { SettingsService } from "#domain/settings";
 import type { WorkloadService } from "#domain/workloads";
-import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { EXTRACTOR_VERSION } from "#infra/extraction";
 import { fetchWebDocument } from "#infra/network";
@@ -33,10 +35,9 @@ export interface DatabankComposeDeps {
   readonly loadAssetBytes: (assetId: Parameters<DatabankContext["loadAssetBytes"]>[0]) => Promise<Uint8Array | null>;
   readonly embeddings: Pick<EmbeddingsService, "store" | "pruneDocumentChunks" | "countDocumentChunks" | "countDocumentChunksByOwner">;
   readonly extractText: DatabankContext["extractText"];
-  /** The active embed-space model tag — `roleClients.embedModel` (the same source `getActiveEmbedSpace` read).
-   *  A THUNK: that field is a live getter that follows a role re-point, so capturing the string at compose
-   *  would hand ingest a boot-frozen space tag after the owner moves the embed role. */
-  readonly embedModel: () => string;
+  /** The per-FUNDER role-client binder: a bank's space is its OWNER's `embed` binding (vector tasks are
+   *  owner-scoped, §7.5), read per call so a re-bound connection reaches the next ingest with no restart. */
+  readonly roleClientsFor: (ownerId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
   readonly search: Pick<SearchService, "documents">;
   readonly workloads: Pick<WorkloadService, "start">;
   /** The per-user settings loader — `getDatabankSettings(ownerId)` reads the user's `databank` section
@@ -89,7 +90,10 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     // The DB7 scrapeWeb port: infra/network's `fetchWebDocument` (the ANY_HOST arbitrary-URL class — no host
     // pin, but https + private-range denial run per hop; throws on refusal/non-2xx/cap, the verb maps it).
     fetchUrl: fetchWebDocument,
-    getActiveEmbedSpace: () => ({ model: deps.embedModel(), dim: env.VLLM_EMBED_DIM }),
+    getActiveEmbedSpace: async (ownerId) => {
+      const space = await (await deps.roleClientsFor(ownerId)).resolved("embed");
+      return space === null ? null : { model: space.model, dim: EMBED_SPACE_DIMS };
+    },
     // The OWNER's real databank settings (chunk params ingest uses + retrieval params gather passes to
     // search.documents) — the extracted binding (below), replacing the compose-stub-goes-stale 0-param stub.
     getDatabankSettings: bindGetDatabankSettings(loadUserSettings),

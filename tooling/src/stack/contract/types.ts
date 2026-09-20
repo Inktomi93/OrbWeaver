@@ -2,7 +2,7 @@
 // `scripts/dev/_kit/stack-mode.ts` at the #393 P5 move. Every decision the launcher makes is typed here;
 // the imperative half (spawn/kill/poll/probe) lives in ops/, and the dev half is stack.sh.
 
-import type { EngineLaunchConfig, WakeBudgetVerdict } from "@orb/server/infra/providers/vllm/engine";
+import type { EngineLaunchConfig, WakeBudgetVerdict } from "../lib/engine-fleet/index.ts";
 
 // ── The spawner census ───────────────────────────────────────────────────────────────────────────────
 

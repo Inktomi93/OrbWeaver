@@ -138,6 +138,7 @@ const messageViewSelection = {
   genStartedAt: messageVariants.genStartedAt,
   genFinishedAt: messageVariants.genFinishedAt,
   generationId: messageVariants.generationId,
+  connectionId: messageVariants.connectionId,
   // Raw JSON blob — parsed at the read seam by `toMessageView` (never the drizzle `$type` cast).
   toolCalls: messageVariants.toolCalls,
 } as const;

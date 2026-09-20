@@ -36,6 +36,15 @@ import { DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
  */
 export class DistillFailedError extends DomainUnavailableError {}
 
+/** The funder has NO `summarize` connection bound — distill / compare / ask / theme naming all ride it
+ *  (inference program §7.5-1). The `no-connection` class: a Connections-pane edit fixes it, nothing else. */
+export class DiscoveryNotConfiguredError extends DomainUnavailableError {
+  constructor() {
+    super("No summarize connection is bound — bind one under Connections › Model roles to run library analysis.");
+    this.name = this.constructor.name;
+  }
+}
+
 /**
  * The on-demand card carries no writing at all — no description / personality / scenario / greeting / example
  * dialogue, just a name. Nothing can be distilled from it that the model would not INVENT, so the pass refuses

@@ -11,7 +11,7 @@
 // coverage point never re-fires; a failed/empty generation leaves the marker untouched.
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { Resolved } from "@orb/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";

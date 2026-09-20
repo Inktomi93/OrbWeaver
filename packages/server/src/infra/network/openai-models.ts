@@ -1,8 +1,8 @@
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import { errorMessage } from "@orb/kit/error-message";
+import { redactKnownSecrets } from "@orb/kit/secret-redaction";
 import { z } from "zod";
 import { getLog } from "#foundation/observability";
-import { redactKnownSecrets } from "#kit/secret-redaction";
 import { safeFetch } from "./egress.ts";
 
 // `/models` probe against a USER-CONFIGURED OpenAI-compatible endpoint (configured-endpoint consumer

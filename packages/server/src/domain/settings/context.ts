@@ -41,7 +41,6 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     serializeUserWrite,
     newThemeId: deps.newThemeId,
     emitUserEvent: deps.emitUserEvent,
-    onEmbedModelChanged: deps.onEmbedModelChanged,
     materializeBackground: deps.materializeBackground,
     newBackgroundEntryId: deps.newBackgroundEntryId,
     versionIdentity: deps.versionIdentity,

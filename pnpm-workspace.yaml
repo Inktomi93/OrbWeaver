@@ -25,14 +25,13 @@ allowBuilds:
   lefthook: true
   # sharp (infra/image): native libvips binding install/check — approve so the binary is wired on install.
   sharp: true
-  # onnxruntime-node (infra/providers/backends/local-light): transformers.js's native ONNX runtime —
+  # onnxruntime-node (@orb/inference's local-light backend): transformers.js's native ONNX runtime —
   # postinstall fetches the platform binary (CPU; CUDA EP when present). Approve so local-light can run.
   onnxruntime-node: true
-  # @openrouter/sdk: the OR client's postinstall (setup/codegen) — approve so the backend resolves whole.
-  "@openrouter/sdk": true
   # protobufjs: transitive via onnxruntime-node; its postinstall is non-critical but approved to silence
   # the ignored-build gate (no half-installed state).
   protobufjs: true
+  '@openrouter/sdk': set this to true or false
 
 # Centralized version source of truth. package.json deps reference these via "catalog:".
 # Versions are the latest resolved at scaffold (2026-06) — "use whatever the latest is".
@@ -192,13 +191,27 @@ catalog:
   # egress-firewalled global fetch. ALREADY in the tree as a transitive dep of the agent-sdk; promoted
   # to a direct dep to name the existing surface (installs nothing new).
   "@anthropic-ai/sdk": ^0.106.0
-  # @openrouter/sdk: the openrouter backend (stateless chat.send / responses.send GA + embed/rerank/image).
-  # `^1.1.0` (Responses API went GA in 1.x — the `beta.responses` namespace was removed); the
-  # minimumReleaseAge guard auto-picks the latest >24h-old 1.1.x.
-  "@openrouter/sdk": ^1.1.0
+  # --- @orb/inference — the Vercel AI SDK provider layer (inference program §8.0; F9 settled 2026-09-19) ---
+  # EXACT PINS, deliberately: the two hosted wires are built against provider spec V4
+  # (`LanguageModelV4.doStream` / `EmbeddingModelV4.doEmbed` / `ImageModelV4.doGenerate`) and the
+  # openai-compatible provider's `transformRequestBody` post-convert hook, which is where the dialects do their
+  # body work; the OpenRouter provider FORWARDS per-message `cache_control` as an implementation fact, not a
+  # typed contract. A caret bump can move any of those under us silently, so every bump re-runs the wire-capture
+  # byte pins under `tests/inference/backends/openai-compat/**` before it is trusted. `ai` is the peer
+  # the OpenRouter provider requires (`^7.0.0`); the `@ai-sdk/provider` pin must satisfy every provider
+  # package's own `@ai-sdk/provider` dependency at install (4.0.17 on 2026-09-19).
+  # @openrouter/ai-sdk-provider: 3.0.0, NOT 3.1.0 — 3.1.0 was published 2026-09-19T08:32Z, inside the
+  # minimumReleaseAge window at landing, and forcing past the gate is an owner call (the agent-sdk precedent
+  # above). The program doc's `dist/index.d.ts` line cites were read against 3.1.0; bump when mature and
+  # re-read `imageModel()` + the per-message `cache_control` forwarding before trusting either.
+  ai: 7.0.107
+  "@ai-sdk/provider": 4.0.17
+  "@ai-sdk/openai-compatible": 3.0.53
+  "@ai-sdk/anthropic": 4.0.58
+  "@openrouter/ai-sdk-provider": 3.0.0
   # @huggingface/transformers: the in-process local-light tier (transformers.js/ONNX, CPU+CUDA) — the
   # "any box" embed/rerank/imageEmbed path (D39). Pulls onnxruntime-node (native; allowBuilds-approved).
-  "@huggingface/transformers": ^4.2.0
+  "@huggingface/transformers": ^4.3.0
   # --- infra/extraction (databank DB3 — databank-design/04) ---
   pdfjs-dist: ^6.2.108
   html-to-text: ^10.0.0

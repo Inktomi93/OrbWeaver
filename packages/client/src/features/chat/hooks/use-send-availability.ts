@@ -1,7 +1,7 @@
 // `useSendAvailability` — the composer's honest-refusal pre-send gate (#54). Reads the chat's DETERMINISTIC
 // serveability verdict (`chat.checkSendAvailability`) and resolves it to a disabled-with-reason the Send
 // button + the guided fire actions share. ENGINE-AGNOSTIC: the reason copy adapts to the server's cause
-// (engine-off / engine-down / no-connection / generic), but the gate is one boolean.
+// (no-connection / endpoint-unreachable / runtime-missing / …), but the gate is one boolean.
 //
 // Freshness: the verdict tracks a DETERMINISTIC-but-not-bus-driven fact (an engine being enabled or coming
 // up, a connection being configured). It carries a modest `staleTime` (so it isn't re-fetched on every
@@ -14,7 +14,7 @@
 // `available:false`. A draft's first send is what commits the chat; refusing before we know the verdict
 // would break the happy path on every fresh chat.
 
-import type { ChatSendAvailability } from "@orb/contracts/connection";
+import type { SendAvailability } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
@@ -24,7 +24,7 @@ import { sendUnavailableReason } from "#lib";
  *  that a chat-reopen picks up an engine-enable / key-add. Not a bus-driven fact, so this is its freshness. */
 const AVAILABILITY_STALE_MS = 15_000;
 
-export interface SendAvailability {
+export interface SendGate {
   /** The chat cannot deterministically serve a turn — SEND + the guided fire actions disable. False while the
    *  verdict is unresolved or on a draft (never refuse before we know / before the first send commits). */
   readonly unavailable: boolean;
@@ -33,7 +33,7 @@ export interface SendAvailability {
 }
 
 /** The pre-send serveability gate for `chatId` (null on a draft — never refused). */
-export function useSendAvailability(chatId: ChatId | null): SendAvailability {
+export function useSendAvailability(chatId: ChatId | null): SendGate {
   const trpc = useTRPC();
   const { data } = useQuery({
     ...trpc.chat.checkSendAvailability.queryOptions(chatId === null ? skipToken : { chatId }),
@@ -41,7 +41,7 @@ export function useSendAvailability(chatId: ChatId | null): SendAvailability {
   });
   // Pin the verdict to its contract type — the `skipToken`+spread `useQuery` inference can degrade `data` to
   // `any` in some type-graph states (a real strict-boolean-expressions fragility), so annotate deterministically.
-  const verdict: ChatSendAvailability | null | undefined = data;
+  const verdict: SendAvailability | null | undefined = data;
   // No verdict yet ⇒ never refuse — the gate blocks ONLY on a resolved `available:false`. `!verdict` catches
   // both `undefined` (query in-flight) AND `null` (the tRPC no-data wire shape a CT stub yields).
   if (!verdict || verdict.available) {

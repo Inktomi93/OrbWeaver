@@ -41,6 +41,7 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { usePresetEditorView, useSelectedPresetId, useSelectedPresetSectionId } from "#state";
 import { useReadoutBinding } from "../../hooks/use-readout-binding.ts";
+import { chatCapabilityOf } from "../../lib/chat-capability.ts";
 import { qualityMappingGloss } from "../../lib/effective-knobs.ts";
 import type { PresetEditorView } from "../../lib/preset-nav.ts";
 import { PRESET_EDITOR_VIEWS } from "../../lib/preset-nav.ts";
@@ -117,14 +118,14 @@ function ActiveProfile({
           ERROR OBJECT goes down whole (2026-08-08), because the band discriminates on tRPC's structured
           `data.code` to decide which cause it is entitled to name. `refetch` makes its Retry a real re-read. */}
       <EffectiveProfile
-        contextWindow={capability.data?.capability.context.window}
+        contextWindow={chatCapabilityOf(capability.data)?.context.window}
         effective={effective.data ?? undefined}
         error={effective.error}
         onRetry={(): void => {
           effective.refetch().catch(() => undefined); // The query's error state owns the retry failure.
         }}
       />
-      <CapabilityCard capability={capability.data?.capability} model={effective.data?.model} />
+      <CapabilityCard capability={chatCapabilityOf(capability.data)} model={effective.data?.model} />
     </Stack>
   );
 }
@@ -195,14 +196,14 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
       {view === "params" ? (
         <>
           <EffectiveProfile
-            contextWindow={capability.data?.capability.context.window}
+            contextWindow={chatCapabilityOf(capability.data)?.context.window}
             effective={effective.data ?? undefined}
             error={effective.error}
             onRetry={(): void => {
               effective.refetch().catch(() => undefined); // The query's error state owns the retry failure.
             }}
           />
-          <CapabilityCard capability={capability.data?.capability} model={effective.data?.model} />
+          <CapabilityCard capability={chatCapabilityOf(capability.data)} model={effective.data?.model} />
           <QualityMapping effective={effective.data ?? undefined} quality={config.params.quality} />
         </>
       ) : null}

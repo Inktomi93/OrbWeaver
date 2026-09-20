@@ -9,6 +9,8 @@ import type { UserId } from "@orb/kit/ids";
 /** A corpus sweep's argument bundle: the enumeration scope (`null` = the bulk all-owners pass) + the signal. */
 interface CorpusSweepArgs {
   readonly ownerId: UserId | null;
+  /** WHO FUNDS the sweep's summarize calls — the workload's acting user (`WorkloadRunContext.userId`). */
+  readonly funderUserId: UserId;
   readonly signal: AbortSignal;
 }
 

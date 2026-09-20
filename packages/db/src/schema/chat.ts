@@ -47,6 +47,7 @@ import type {
   DurableChatBusEvent,
   HandoffOffer,
   MacroFreezeRecord,
+  MessageAssetOrigin,
   StandaloneVariableDelta,
   TokenProvenance,
   ToolCallRecord,
@@ -57,6 +58,7 @@ import {
   INVITE_STATUSES,
   JOIN_HISTORY_VISIBILITIES,
   LIVE_ONLY_CHAT_EVENT_TYPES,
+  MESSAGE_ASSET_ORIGINS,
   MESSAGE_KINDS,
   PARTICIPANT_KINDS,
   TOKEN_PROVENANCES,
@@ -64,7 +66,10 @@ import {
 } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
-import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
+import type { NormalizedFinishReason } from "@orb/contracts/inference";
+import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
+import type { EffortLevel, UserIntent, UserMacroValues } from "@orb/contracts/preset";
+import { EFFORT_LEVELS } from "@orb/contracts/preset";
 import type {
   AssetId,
   CharacterId,
@@ -80,6 +85,7 @@ import type {
   MessageVariantId,
   PendingTurnId,
   PersonaId,
+  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -91,6 +97,7 @@ import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "dri
 import { checkList } from "../kit/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
+import { userConnections } from "./connection.ts";
 import { personas } from "./persona.ts";
 import { users } from "./users.ts";
 
@@ -429,8 +436,18 @@ export const messageVariants = sqliteTable(
     macroFreezes: text("macro_freezes", { mode: "json" }).$type<MacroFreezeRecord>(),
     reasoning: text("reasoning"),
     model: text("model"),
+    // ATTRIBUTION (inference program §5.3b): which of the user's connections generated this swipe. SET NULL —
+    // a deleted connection never deletes history (`selectedVariantId`'s idiom); null on user-authored rows,
+    // imports and edits. Routing is a `connection_bindings` row; attribution is HERE and outlives the row.
+    connectionId: text("connection_id")
+      .$type<UserConnectionId>()
+      .references(() => userConnections.id, { onDelete: "set null" }),
+    // The PROVIDER REGISTRY ID (`Resolved.provider.id`), denormalised on purpose so attribution reads need no
+    // join. Validated at the producer against the registry, NO CHECK — a plugin provider id is runtime data
+    // (§5.3c class 2). The ST import narrows an unparseable source value to `(unknown)`.
     provider: text("provider"),
-    reasoningEffort: text("reasoning_effort"),
+    // CHECK on the preset effort tuple (`EFFORT_LEVELS`, 7 members incl. `none`) — §5.3c class 1.
+    reasoningEffort: text("reasoning_effort", { enum: EFFORT_LEVELS }).$type<EffortLevel>(),
     // ── Economics (all nullable — populated when the generation finishes). ──
     tokensIn: integer("tokens_in"),
     tokensOut: integer("tokens_out"),
@@ -438,6 +455,10 @@ export const messageVariants = sqliteTable(
     cacheReadTokens: integer("cache_read_tokens"),
     cacheWriteTokens: integer("cache_write_tokens"),
     costUsd: real("cost_usd"),
+    // WHERE `costUsd` came from — the SAME tuple as `token_provenance` (never a second vocabulary): `measured` =
+    // the transport's metadata (OR usage cost); `estimated` = catalog pricing × tokens, or the subscription's
+    // notional SDK price; `unrecorded` otherwise. Rollups combine it with `combineTokenProvenance`.
+    costProvenance: text("cost_provenance", { enum: TOKEN_PROVENANCES }).$type<TokenProvenance>().notNull().default("unrecorded"),
     contextWindow: integer("context_window"),
     // The §8 history-budget fit-pass boundary: the earliest message actually included in the assembled
     // history for this generation (null = nothing was dropped / the fit-pass never ran). Powers a client
@@ -448,7 +469,9 @@ export const messageVariants = sqliteTable(
       .references(() => messages.id, { onDelete: "set null" }),
     maxOutputTokens: integer("max_output_tokens"),
     ttftMs: integer("ttft_ms"),
-    finishReason: text("finish_reason"),
+    // CHECK on `NORMALIZED_FINISH_REASONS` (`stop|length|filter|tool|other`) — the per-wire raw → normalized
+    // fold happens in the runtime; `stop_reason` below keeps the raw upstream word as provenance.
+    finishReason: text("finish_reason", { enum: NORMALIZED_FINISH_REASONS }).$type<NormalizedFinishReason>(),
     stopReason: text("stop_reason"),
     terminalReason: text("terminal_reason"),
     // The HTTP status of a FAILED generation (diagnostics + the retry-survivor signal alongside
@@ -495,7 +518,12 @@ export const messageVariants = sqliteTable(
     // The context-boundary self-FK: a message delete must find the variants pointing AT it to apply its
     // rule, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
     index("message_variants_context_boundary_idx").on(t.contextBoundaryMessageId),
+    // The SET-NULL parent scan on a connection delete (`fk-columns-indexed` gate).
+    index("message_variants_connection_idx").on(t.connectionId),
     check("message_variants_token_provenance_check", sql.raw(`token_provenance in (${checkList(TOKEN_PROVENANCES)})`)),
+    check("message_variants_cost_provenance_check", sql.raw(`cost_provenance in (${checkList(TOKEN_PROVENANCES)})`)),
+    check("message_variants_finish_reason_check", sql.raw(`finish_reason is null or finish_reason in (${checkList(NORMALIZED_FINISH_REASONS)})`)),
+    check("message_variants_reasoning_effort_check", sql.raw(`reasoning_effort is null or reasoning_effort in (${checkList(EFFORT_LEVELS)})`)),
   ],
 );
 
@@ -524,6 +552,10 @@ export const messageAssets = sqliteTable(
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
+    // WHY the link exists (`MESSAGE_ASSET_ORIGINS`): `attached` (a user upload) · `illustration` (a narrator
+    // `/imagine` post) · `inline-reply` (a picture the model emitted mid-turn — the ONLY origin the wire-history
+    // projection sends back as an assistant image part). NOT NULL, no default — every writer stamps it.
+    origin: text("origin", { enum: MESSAGE_ASSET_ORIGINS }).$type<MessageAssetOrigin>().notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
@@ -532,6 +564,7 @@ export const messageAssets = sqliteTable(
     // The OTHER cascade parent: an asset delete (the only way this link dies — `assetId` is RETAINING in
     // asset-refs.ts) scans every row without this (`fk-columns-indexed` gate).
     index("message_assets_asset_idx").on(t.assetId),
+    check("message_assets_origin_check", sql.raw(`origin in (${checkList(MESSAGE_ASSET_ORIGINS)})`)),
   ],
 );
 

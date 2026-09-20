@@ -14,10 +14,11 @@
 // by a newer .570 one. So the whole knob was removed rather than blessed with a production blend. Ranking here
 // is CSLS relevance and nothing else; recall tuning returns as a fresh, separately-ruled feature or not at all.
 
+import type { Task } from "@orb/contracts/inference";
 import type { EmbedResult } from "@orb/contracts/providers";
+import type { RoleClients } from "@orb/contracts/role-clients";
+import { ProviderError } from "@orb/inference";
 import { getLog } from "#foundation/observability";
-import type { ProviderRole } from "#infra/providers";
-import { ProviderError } from "#infra/providers";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DigestsParams } from "../contract/params.ts";
@@ -29,6 +30,7 @@ import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { blockKeyStr } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
+import { requireSpaceModel } from "../substrate/space.ts";
 
 const MIN_TERM_LEN = 3;
 // SPLIT ON "NOT A LETTER OR DIGIT", NOT ON "NOT ASCII". `[^a-z0-9]+` treated every Cyrillic, Greek, CJK and
@@ -52,8 +54,8 @@ function keywordHit(keywords: readonly string[], terms: ReadonlySet<string>): bo
 
 /** The two side roles this verb spends, spelled from the provider vocabulary (a typo is a tsc error) — the
  *  ROLE is what a failure here has to name, because it is the one thing the caller cannot infer. */
-const EMBED_ROLE: ProviderRole = "embed";
-const RERANK_ROLE: ProviderRole = "rerank";
+const EMBED_ROLE: Task = "embed";
+const RERANK_ROLE: Task = "rerank";
 
 /** OWN the query embed's failure (#1603) — the catch that holds a side-role generation is the only place that
  *  still knows WHICH role produced it.
@@ -71,9 +73,9 @@ const RERANK_ROLE: ProviderRole = "rerank";
  *  classification + provenance field forward, so `kind`/`retryable`/`apiErrorStatus` still read true
  *  downstream. A non-provider failure (a db fault, a bug of ours) is NOT ours to re-frame and passes through
  *  untouched. */
-async function embedQuery(ctx: SearchContext, text: string): Promise<EmbedResult> {
+async function embedQuery(rc: RoleClients, text: string): Promise<EmbedResult> {
   try {
-    return await ctx.roleClients.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.digests.query });
+    return await rc.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.digests.query });
   } catch (err) {
     if (!(err instanceof ProviderError)) {
       throw err;
@@ -86,18 +88,18 @@ async function embedQuery(ctx: SearchContext, text: string): Promise<EmbedResult
 /** mixC's local honest-degrade boundary. `applyRerank` itself stays strict for its other callers; only this
  * digest-recall path has a usable already-retrieved vector result to preserve. */
 async function rerankOrKeep<T extends { readonly id: string; readonly sourceText: string | null }>(env: {
-  readonly ctx: SearchContext;
+  readonly rc: RoleClients;
   readonly params: Pick<DigestsParams, "mode" | "rerankTo">;
   readonly text: string;
   readonly retrieved: T[];
   readonly events: DigestSearchEvents | undefined;
 }): Promise<T[]> {
-  const { ctx, params, text, retrieved, events } = env;
+  const { rc, params, text, retrieved, events } = env;
   if (params.mode !== "mixC") {
     return retrieved;
   }
   try {
-    return await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${text}`, retrieved, ctx.roleClients.rerank, params.rerankTo);
+    return await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${text}`, retrieved, rc.rerank, params.rerankTo);
   } catch (rerankErr) {
     // #405 F2: the CAUSE is logged before the degrade, matching both sibling degrade seams
     // (`compaction_failed` / `memory_build_failed` in chat's engine, which `getLog().warn({ err })` first).
@@ -122,7 +124,9 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
       throw new SearchError(SEARCH_EMPTY_QUERY, "digests requires a queryText to embed + scan");
     }
 
-    const embedded = await embedQuery(ctx, text);
+    const rc = await ctx.roleClientsFor(params.ownerId);
+    const embedModel = await requireSpaceModel(rc, "embed");
+    const embedded = await embedQuery(rc, text);
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -130,7 +134,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
 
     const pool = await nearestDigests(ctx.db, {
       queryVector,
-      model: ctx.roleClients.embedModel,
+      model: embedModel,
       chatIds: [params.scope.chat],
       scopedCharacterId: params.scopedCharacterId,
       candidates: params.candidates,
@@ -170,7 +174,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
     // shape the corpus digest scan uses — #330 P3).
     // Retrieval already completed successfully. A failed rerank keeps that exact vector/CSLS order intact
     // and lets the caller surface the narrower outage through its own user-facing channel.
-    const ordered = await rerankOrKeep({ ctx, params, text, retrieved, events });
+    const ordered = await rerankOrKeep({ rc, params, text, retrieved, events });
 
     // `relevance` is the same `1 − distance` this verb's own minScore floor already compares against — one
     // definition of "how close is this", never a second.

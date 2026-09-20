@@ -21,7 +21,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { readObservedEngineProcess } from "@orb/server/infra/providers/vllm/engine";
+import { readObservedEngineProcess } from "./engine-fleet/index.ts";
 import type { DevStackAdoption, DevStackIdentity, DevStackIdentityVerdict, ObservedStackProcess } from "../contract/types.ts";
 import { pidIsAlive } from "./spawn-lock.ts";
 

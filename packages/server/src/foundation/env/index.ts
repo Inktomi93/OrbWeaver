@@ -5,8 +5,7 @@
 // Every other tier imports `env` and dot-accesses a typed key. This file is the sole place that touches
 // process.env; never written, parsed once, frozen, read down as the floor.
 
-import { accessSync, constants, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
@@ -18,10 +17,6 @@ import { resolveBindPosture } from "./bind.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
 import { resolveOwnerFallbackPeers } from "./fallback-peers.ts";
-import type { HostClaudeInput } from "./host-claude.ts";
-import { CLAUDE_BACKEND_POSTURES, HOST_CLAUDE_OAUTH_TOKEN_ENV, hostClaudeConfigDir, hostClaudeCredentialsPath } from "./host-claude.ts";
-import type { EnginesPosture } from "./posture.ts";
-import { ENGINES_POSTURES } from "./posture.ts";
 import type { SessionCookiePostureInput } from "./session-cookie.ts";
 
 export type { BindPosture, BindPostureInput } from "./bind.ts";
@@ -30,59 +25,33 @@ export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, 
 export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
 export type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./fallback-peers.ts";
 export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
-export type { ClaudeBackendPosture, HostClaudeCredentialSource, HostClaudeInput, HostClaudePosture } from "./host-claude.ts";
-export {
-  CLAUDE_BACKEND_POSTURES,
-  HOST_CLAUDE_CREDENTIAL_SOURCES,
-  HOST_CLAUDE_CREDENTIALS_FILE,
-  HOST_CLAUDE_OAUTH_TOKEN_ENV,
-  hostClaudeConfigDir,
-  hostClaudeCredentialsPath,
-  hostClaudeNotice,
-  hostClaudeWarnings,
-  resolveHostClaudePosture,
-} from "./host-claude.ts";
-export type { EnginesPosture } from "./posture.ts";
-export { ENGINES_POSTURES, effectiveVllmDisabled, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture.ts";
 export type { SessionCookiePosture, SessionCookiePostureInput } from "./session-cookie.ts";
 export { resolveSessionCookiePosture, sessionCookieWarnings } from "./session-cookie.ts";
 
 const DEFAULT_PORT = 8788;
 // vLLM loopback engine ports (must match what the stack supervisor passes).
-const VLLM_EMBED_PORT_DEFAULT = 8701;
-const VLLM_RERANK_PORT_DEFAULT = 8702;
-const VLLM_GEN_PORT_DEFAULT = 8703;
 // The unified text+image embedding space's output dimension (matches every F32_BLOB(1024) vector column).
-const VLLM_EMBED_DIM_DEFAULT = 1024;
-const VLLM_EMBED_CHUNK_DEFAULT = 128;
 // The per-POST embed token ceiling (#187). DERIVED from a live measurement on the box's embed engine
 // (Qwen3-VL-Embedding-2B, max_model_len 8192): ~15.1k prompt-tokens/s aggregate under 4-way concurrency, and
 // 4.4k tok/s end-to-end for the request that queued behind three siblings. At 256k tokens a POST clears in
 // ~60s at that worst-case rate — back inside the latency class the 120s default was written for — while four
 // in flight bound any OTHER caller's queue wait to ~68s (a small POST measured 72.8s behind just two
 // unbounded flood POSTs). Not a throttle: the whole flood still goes out, in schedulable units.
-const VLLM_EMBED_MAX_BATCH_TOKENS_DEFAULT = 262_144;
 // The gen engine's --max-model-len (buildEngineArgv `gen` arm). ONE home for the window so the launcher's
 // serve flag and the resolved ModelCapability.context.window can't drift (parity-tested + engine-self-report
 // outranks it for capability truth). The engine's OWN /v1/models max_model_len wins at runtime.
 // 65_536 on a 262_144-native checkpoint (no rope scaling involved): at gen util 0.6 the KV pool is
 // ~296k tokens, so 64k/request floors concurrency at ~4.5x — the owner-picked depth/parallelism trade
 // (2026-08-18, for dense video analysis; 32k was 9x).
-const VLLM_GEN_MAX_MODEL_LEN_DEFAULT = 65_536;
 // The embed + rerank pooling engines' --max-model-len. ONE home for the 8192 that was hand-copied into the
 // shell script's embed/rerank arms AND the character embed-text char budget AND the local-light capability
 // window. The engines self-report these too (extend-of the gen-window seam); the env is the launch flag +
 // the absence-degrade floor when the engine is warming/disabled.
-const VLLM_EMBED_MAX_MODEL_LEN_DEFAULT = 8192;
-const VLLM_RERANK_MAX_MODEL_LEN_DEFAULT = 8192;
 // Per-engine --gpu-memory-utilization floors. RETUNED 2026-08-13 for the 27B-THINKING swap (W8A8-int8,
 // TP=2): pooling engines squeezed to 0.1 each and moved to --enforce-eager (no CUDA-graph buffers — the
 // graph overshoot is what the 08-10 measurements below caught), rerank re-homed to GPU1 so each card
 // carries exactly ONE pooling tenant beside its gen half. Topology: GPU0 = embed(0.1)+gen(0.8) · GPU1 =
 // gen(0.8)+rerank(0.1) — 0.9/card sum, deliberate. ⚠ UNVERIFIED until the first boot on this config.
-const VLLM_EMBED_GPU_UTIL_DEFAULT = 0.14;
-const VLLM_RERANK_GPU_UTIL_MULTI_DEFAULT = 0.14;
-const VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT = 0.1;
 // GEN HISTORY (keep — each number is paid tuition): 0.28 was the ComfyUI-coexistence floor (1.38x
 // concurrency = ONE in-flight request; ComfyUI left, gen took the VRAM). 0.60 then OOM'd on vLLM 0.26
 // during gen's CUDA-graph capture — died asking 2 MiB with 29 MiB free; measured residency: embed
@@ -92,26 +61,19 @@ const VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT = 0.1;
 // for the int8 weights + usable KV; the 0.9/card sum is bought back by pooling going enforce-eager (kills
 // the graph overshoot arm on the small engines). If first boot OOMs: drop gen 0.8 → 0.75 before touching
 // the pooling floors, and re-measure — that retune IS the verification step.
-const VLLM_GEN_GPU_UTIL_MULTI_DEFAULT = 0.6;
-const VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT = 0.5;
 // --mm-processor-kwargs max_pixels caps: pooling engines (embed/rerank) at the reference 1.84M-px vision
 // regime; the gen VL engine at its 4.2M-px cap. ONE home for the two literals the shell hand-carried.
-const VLLM_POOLING_MAX_PIXELS_DEFAULT = 1_843_200;
-const VLLM_GEN_MAX_PIXELS_DEFAULT = 4_194_304;
 // Gen video sampling density — LAUNCH-TIME ONLY knobs (vLLM 0.26's per-request media/processor kwargs
 // never reach the video sampler; probed live 2026-08-18). fps 4 doubles the Qwen3VL class default
 // (temporal_patch_size 2 → the model sees fps×duration/2 timestamped steps); raise the env for
 // frame-to-frame motion judgment, at ~2× vision tokens per fps step. max_frames caps one clip's
 // token bill so a long video can't fill the whole context window (512 ≈ 2min @ fps 4).
-const VLLM_GEN_VIDEO_FPS_DEFAULT = 4;
-const VLLM_GEN_VIDEO_MAX_FRAMES_DEFAULT = 512;
 // The gen engine's chunked-prefill step budget (--max-num-batched-tokens). 8_192 (vLLM's own
 // chunked-prefill default) — NOT the old 2_096: one max-size image at VLLM_GEN_MAX_PIXELS is ~4_096
 // vision tokens, and vLLM sizes the ENCODER CACHE off this budget, so 2_096 left the encoder window
 // at one-image-at-a-time and multi-image prompts crawled (~90 tok/s prefill measured 2026-08-18 —
 // reads as a hang). 8_192 holds two max-size images resident. Accepted trade: bigger prefill bites
 // share steps with decode, so concurrent streams can get slightly chunkier under load.
-const VLLM_GEN_MAX_BATCHED_TOKENS_DEFAULT = 8192;
 // The gen engine's default repetition_penalty, applied PER REQUEST by the vLLM chat surface when a preset is
 // silent (#23; the per-request move landed 2026-08-14). It was a `--override-generation-config` LAUNCH flag
 // while the sampler-less agent-sdk /v1/messages wire existed — that wire carried no per-request penalty, so a
@@ -121,7 +83,6 @@ const VLLM_GEN_MAX_BATCHED_TOKENS_DEFAULT = 8192;
 // generation_config.json on every call. 1.0 = the Qwen card value = no penalty (a preset value always wins;
 // the loop-guard the prose path actually uses is presence_penalty). ONE home for the literal; env-layered ⊕
 // AppSettings so an admin retune applies to the NEXT REQUEST — no engine restart.
-const VLLM_GEN_REPETITION_PENALTY_DEFAULT = 1.0;
 // The gen engine's default PRESENCE penalty applied per-REQUEST by the vLLM chat surface when a preset is
 // silent (Phase B ⑩ item 7). Env-layered ⊕ AppSettings override so an admin can retune the per-launched-model
 // default. OpenAI range -2..2.
@@ -130,14 +91,9 @@ const VLLM_GEN_REPETITION_PENALTY_DEFAULT = 1.0;
 // presence_penalty 0.0 for both thinking modes. A presence penalty punishes reusing tokens already in
 // context, which is exactly what a chain of thought does — restating constraints and repeating entity names
 // across reasoning steps — so 1.5 pushed a thinking model off its own scratchpad vocabulary.
-const VLLM_GEN_PRESENCE_PENALTY_DEFAULT = 0.0;
 // The agent-sdk backend's max in-flight summarize calls (Phase B ⑩ item 1, Q6). 4 = the former hardcoded
 // SUMMARIZE_CONCURRENCY; env-layered ⊕ AppSettings override. DISTINCT from the vLLM engine's summarize floor.
 const AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT = 4;
-// Whole-request embed timeout (ms): a warming/wedged engine can't hang boot-time embedding forever.
-const VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT = 120_000;
-// Manager-posture auto-sleep idle window (ms): a fully-idle engine is /sleep'd after 10 min (B.5).
-const VLLM_AUTO_SLEEP_IDLE_MS_DEFAULT = 600_000;
 const MIN_SESSION_SECRET_CHARS = 32;
 const MIN_PASSWORD_LENGTH = 8;
 const RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
@@ -418,119 +374,19 @@ const envSchema = z
     // The staged ST profile snapshot the `import-st` workload reads (one subdir per ST user profile, each
     // with characters/chats/settings.json/User Avatars). Unset ⇒ repo-root `.st-data`.
     ST_PROFILE_DIR: z.string().min(1).optional(),
+    // The PER-USER runtime-state root (inference program §8.4-2): `<USER_RUNTIME_DIR>/<ownerId>/claude/` is the
+    // `CLAUDE_CONFIG_DIR` every agent-sdk spawn for that user sets, so the bundled runtime's own writable state
+    // (history, statsig, its settings) lives per user and never in a process-wide dir or `~/.claude`. A root
+    // BESIDE `ASSETS_DIR` (there is no common data-root key). The Docker data volume already holds `/app/data`.
+    USER_RUNTIME_DIR: z.string().min(1).default("./data/users"),
+    // GOVERNANCE (inference program F12): the env FLOOR of `AppSettings.privateEndpointAllowlist` — the
+    // private/loopback hosts and CIDRs an `auth: endpoint` connection may dial, comma-separated. Per DEPLOYMENT,
+    // never per principal. Unset ⇒ born `127.0.0.1,::1` under `AUTH_MODE=single-user` (one human, one box) and
+    // EMPTY on a multi-user install (hosted providers only) — the DB override wins either way.
+    PRIVATE_ENDPOINT_ALLOWLIST: z.string().optional(),
 
-    // The local inference family (embed/rerank/image-embed/summarize/VL gen), supervised loopback engines.
-    // STACK_ENGINES=yes signals the stack leader already spawned them (adopt, don't double-spawn GPU).
-    STACK_ENGINES: z.enum(["yes", "no"]).default("no"),
-    // The host the three engines are REACHED at (engineBaseUrl + the egress internal-backend allowlist).
-    // Default loopback: the bare-metal/all-in-one fleet shares the network namespace. A slim app-only
-    // deployment pointing at an EXTERNAL vLLM (compose sibling / remote box — profile-2/D2,
-    // docs/design/containerize-prod-image-spec.md §3.6) relocates it, typically with
-    // ENGINES_POSTURE=adopt-only. Host-only (no scheme/port): VLLM_*_PORT stays the port authority.
-    VLLM_ENGINE_HOST: z.string().min(1).default("127.0.0.1"),
-    VLLM_EMBED_PORT: z.coerce.number().int().positive().default(VLLM_EMBED_PORT_DEFAULT),
-    VLLM_RERANK_PORT: z.coerce.number().int().positive().default(VLLM_RERANK_PORT_DEFAULT),
-    VLLM_GEN_PORT: z.coerce.number().int().positive().default(VLLM_GEN_PORT_DEFAULT),
-    VLLM_EMBED_MODEL: z.string().min(1).default("Qwen/Qwen3-VL-Embedding-2B"),
-    VLLM_RERANK_MODEL: z.string().min(1).default("Qwen/Qwen3-VL-Reranker-2B"),
-    VLLM_GEN_MODEL: z.string().min(1).default("Qwen/Qwen3-VL-8B-Instruct"),
-    // The gen engine's context window (--max-model-len). The resolved vllm ModelCapability.context.window
-    // reads this so the launcher flag and the fit ceiling share ONE home (text-parity tested vs the script).
-    VLLM_GEN_MAX_MODEL_LEN: z.coerce.number().int().positive().default(VLLM_GEN_MAX_MODEL_LEN_DEFAULT),
-    // The embed/rerank pooling windows (--max-model-len). ONE home for the 8192 that was hand-copied into
-    // the shell + the character embed-text budget + the local-light capability window; the engines
-    // self-report these too and the self-report WINS for capability truth (D68 absence-degrades to here).
-    VLLM_EMBED_MAX_MODEL_LEN: z.coerce.number().int().positive().default(VLLM_EMBED_MAX_MODEL_LEN_DEFAULT),
-    VLLM_RERANK_MAX_MODEL_LEN: z.coerce.number().int().positive().default(VLLM_RERANK_MAX_MODEL_LEN_DEFAULT),
-    // Per-engine --gpu-memory-utilization floors + the two max_pixels caps + the embed request timeout —
-    // the LAUNCH-config env floors an admin AppSettings override can move (layer.ts). Formerly bare literals
-    // in scripts/dev/vllm-engine.sh; now single-homed here so the builder + the launcher share one truth.
-    // RENAME NOTE (2026-07-24 #14): the old shell's `VLLM_GEN_UTIL` co-tenancy knob (one value overriding
-    // the gen util in both GPU modes) is RETIRED — its function split into VLLM_GEN_GPU_UTIL_MULTI/_SINGLE
-    // below (env-default argv is byte-identical to the old shell; a deployment that exported VLLM_GEN_UTIL
-    // must move to the split vars or the admin override).
-    VLLM_EMBED_GPU_UTIL: z.coerce.number().positive().default(VLLM_EMBED_GPU_UTIL_DEFAULT),
-    VLLM_RERANK_GPU_UTIL_MULTI: z.coerce.number().positive().default(VLLM_RERANK_GPU_UTIL_MULTI_DEFAULT),
-    VLLM_RERANK_GPU_UTIL_SINGLE: z.coerce.number().positive().default(VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT),
-    VLLM_GEN_GPU_UTIL_MULTI: z.coerce.number().positive().default(VLLM_GEN_GPU_UTIL_MULTI_DEFAULT),
-    VLLM_GEN_GPU_UTIL_SINGLE: z.coerce.number().positive().default(VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT),
-    VLLM_POOLING_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_POOLING_MAX_PIXELS_DEFAULT),
-    VLLM_GEN_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_GEN_MAX_PIXELS_DEFAULT),
-    VLLM_GEN_VIDEO_FPS: z.coerce.number().positive().default(VLLM_GEN_VIDEO_FPS_DEFAULT),
-    VLLM_GEN_VIDEO_MAX_FRAMES: z.coerce.number().int().positive().default(VLLM_GEN_VIDEO_MAX_FRAMES_DEFAULT),
-    VLLM_GEN_MAX_BATCHED_TOKENS: z.coerce.number().int().positive().default(VLLM_GEN_MAX_BATCHED_TOKENS_DEFAULT),
-    // The gen engine's per-REQUEST repetition-penalty default (#23) — applied by the vLLM chat surface when a
-    // preset is silent. Admin-layerable ⊕ AppSettings override; applies on the next request, no restart.
-    VLLM_GEN_REPETITION_PENALTY: z.coerce.number().positive().default(VLLM_GEN_REPETITION_PENALTY_DEFAULT),
-    // The gen engine's per-REQUEST presence-penalty default (Phase B ⑩ item 7) — applied by the vLLM chat
-    // surface when a preset is silent. Admin-layerable ⊕ AppSettings override; OpenAI presence_penalty range.
-    VLLM_GEN_PRESENCE_PENALTY: z.coerce.number().default(VLLM_GEN_PRESENCE_PENALTY_DEFAULT),
     // The agent-sdk backend's max in-flight summarize calls (Phase B ⑩ item 1, Q6). Admin-layerable ⊕ override.
     AGENT_SDK_SUMMARIZE_CONCURRENCY: z.coerce.number().int().positive().max(AGENT_SDK_CONCURRENCY_MAX).default(AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT),
-    VLLM_EMBED_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT),
-    VLLM_EMBED_DIM: z.coerce.number().int().positive().default(VLLM_EMBED_DIM_DEFAULT),
-    VLLM_EMBED_CHUNK_SIZE: z.coerce.number().int().positive().default(VLLM_EMBED_CHUNK_DEFAULT),
-    // The per-POST TOKEN ceiling for embed batches (#187) — the bound `VLLM_EMBED_CHUNK_SIZE` (an item count)
-    // cannot express. One POST of 128 near-window blocks is ~1M prompt tokens, which outlives any fixed
-    // deadline and head-of-line blocks every other caller on the engine.
-    VLLM_EMBED_MAX_BATCH_TOKENS: z.coerce.number().int().positive().default(VLLM_EMBED_MAX_BATCH_TOKENS_DEFAULT),
-    // DEPLOYMENT facts (binary + cache stores) the engine SPAWNER resolves — all optional, unset ⇒ the
-    // in-repo/venv defaults derived from the shared store root (buildEngineSpawnSpec). VLLM_BIN/VLLM_PY: the
-    // Docker image pins system paths; VLLM_STORE_ROOT overrides the git-common-dir worktree derivation;
-    // HF_HOME/VLLM_CACHE_ROOT relocate the multi-GB caches.
-    VLLM_BIN: z.string().min(1).optional(),
-    VLLM_PY: z.string().min(1).optional(),
-    VLLM_STORE_ROOT: z.string().min(1).optional(),
-    HF_HOME: z.string().min(1).optional(),
-    VLLM_CACHE_ROOT: z.string().min(1).optional(),
-    // Emit `--enable-sleep-mode` on every engine + set VLLM_SERVER_DEV_MODE=1 on the child (unlocks the
-    // loopback /sleep · /wake_up · /is_sleeping endpoints). Default on: force-enables vLLM's cumem allocator
-    // (steady-state inference cost ≈ nil) so an idle GPU can be reclaimed via /sleep. "false" reverts to the
-    // pre-sleep launch (no endpoints, no idle reclaim). LAUNCH-tier (argv-affecting, restart-to-apply) —
-    // resolved into EngineLaunchConfig.sleepMode via engineLaunchEnvFloor (override ?? floor).
-    VLLM_SLEEP_MODE: envBool(true),
-    // The ENGINE-SIDE flight recorder (default off). "true" ⇒ the serve argv gains `--enable-log-requests
-    // --enable-log-outputs --max-log-len 2048`: wire captures show what WE sent, these show what the engine
-    // PARSED (post-chat-template, post-tool-parser) — the tool-call-debugging blind spot. LAUNCH-tier
-    // (argv-affecting, restart-to-apply). Verbose — leave off except when diagnosing a prompt/tool-parse gap.
-    VLLM_DEBUG_REQUESTS: envBool(false),
-    // `--shutdown-timeout N` — a graceful in-flight drain window (seconds) on engine shutdown. 0 (default) =
-    // today's immediate abort; a positive value lets `engines stop` drain first. LAUNCH-tier.
-    VLLM_SHUTDOWN_TIMEOUT_S: z.coerce.number().int().nonnegative().default(0),
-    // The ONE engine topology knob (A.4), replacing the VLLM_DISABLED/STACK_ENGINES combo folklore:
-    //   off            — backend not registered, no supervisor (GPU-less / cloud-only box).
-    //   adopt-only     — supervisor ADOPTS healthy engines, NEVER spawns; engines down → honest fail-fast.
-    //                    Passive consumer (no auto-sleep management; on-demand wake allowed). snap/e2e/alt.
-    //   adopt-or-start — fleet MANAGER: adopts when healthy, triggers the detached spawner when down, owns
-    //                    restart/breaker + the auto-sleep timer. The dev/prod server.
-    // Unset ⇒ `adopt-only` (owner ruling 2026-09-19, #2421 — a boot never wakes or spawns a fleet), unless the
-    // DEPRECATED VLLM_DISABLED/STACK_ENGINES pair says otherwise; either way a visible log line (resolveEnginesPosture).
-    ENGINES_POSTURE: z.enum(ENGINES_POSTURES).optional(),
-    // The ONE host-Claude (agent-sdk / max-pro-sub) topology knob — the same explicit-posture shape as
-    // ENGINES_POSTURE above, for the same reason (`host-claude.ts` holds the model + the 2026-09-18 incident):
-    //   off  — the backend is never registered and the bundled claude runtime never spawns.
-    //   auto — (default) registered when a subscription credential is DETECTED; otherwise absent and quiet.
-    //   on   — registered on the operator's word (detection cannot see a macOS Keychain login); the first
-    //          use runs the SDK's own auth probe.
-    CLAUDE_BACKEND: z.enum(CLAUDE_BACKEND_POSTURES).optional(),
-    // The Claude config dir the bundled runtime reads its login from (and `claude login` writes it to).
-    // Unset ⇒ `homedir()/.claude`. A container sets it into the persisted data volume so a one-time
-    // in-container `claude login` survives a restart. NOT a secret — a path.
-    CLAUDE_CONFIG_DIR: z.string().min(1).optional(),
-    // CLAUDE_CODE_OAUTH_TOKEN and ANTHROPIC_API_KEY are DELIBERATELY NOT PARSED HERE. Two reasons, both
-    // load-bearing: (a) `env` is parsed once at module load and frozen, and a credential can arrive AFTER
-    // boot (a container secret mounted late, `claude setup-token` exported into a restarted shell) — the
-    // #1406 no-latch rule, which is why `hostClaudeInput()` below reads them live from the process
-    // snapshot; (b) keeping a BEARER credential out of the frozen, widely-imported `env` object shrinks the
-    // set of places that could ever echo it. Their one reader is `buildClaudeSdkEnv` (mode-1).
-    // The manager-posture auto-sleep idle window (ms) — an idle engine (running==0 && waiting==0 && success
-    // counters unchanged) is /sleep'd after this. `0` disables. Default 10 min: wake is seconds (cheap to be
-    // wrong toward shorter), but in-chat thinking pauses routinely hit 5 min, so 10 keeps a live session warm
-    // while reclaiming the GPU within a coffee break of walking away. AppSettings-tier override applies.
-    VLLM_AUTO_SLEEP_IDLE_MS: z.coerce.number().int().nonnegative().default(VLLM_AUTO_SLEEP_IDLE_MS_DEFAULT),
-    // DEPRECATED-BY ENGINES_POSTURE (mapped with a visible log by resolveEnginesPosture, then removed):
-    // "true" disables the local engine entirely (a GPU-less/cloud-only box runs without the supervisor).
-    VLLM_DISABLED: envBool(false),
 
     // Cross-chat corpus auto-indexing: embed completed raw-message blocks into the search corpus in the
     // background, post-turn. "false" pauses it to offload the GPU.
@@ -835,69 +691,7 @@ export function processEnvSnapshot(): Record<string, string | undefined> {
   return { ...process.env };
 }
 
-/** The engine LAUNCH-config env floor — the structural slice `resolveEngineLaunchConfig` layers an admin
- *  AppSettings override on top of. ONE place the launch env vars project into the builder's floor shape, so
- *  the supervisor + the standalone dev launcher read the SAME floor. */
-export function engineLaunchEnvFloor(): {
-  readonly VLLM_EMBED_MODEL: string;
-  readonly VLLM_RERANK_MODEL: string;
-  readonly VLLM_GEN_MODEL: string;
-  readonly VLLM_EMBED_MAX_MODEL_LEN: number;
-  readonly VLLM_RERANK_MAX_MODEL_LEN: number;
-  readonly VLLM_GEN_MAX_MODEL_LEN: number;
-  readonly VLLM_EMBED_GPU_UTIL: number;
-  readonly VLLM_RERANK_GPU_UTIL_MULTI: number;
-  readonly VLLM_RERANK_GPU_UTIL_SINGLE: number;
-  readonly VLLM_GEN_GPU_UTIL_MULTI: number;
-  readonly VLLM_GEN_GPU_UTIL_SINGLE: number;
-  readonly VLLM_POOLING_MAX_PIXELS: number;
-  readonly VLLM_GEN_MAX_PIXELS: number;
-  readonly VLLM_GEN_VIDEO_FPS: number;
-  readonly VLLM_GEN_VIDEO_MAX_FRAMES: number;
-  readonly VLLM_GEN_MAX_BATCHED_TOKENS: number;
-  readonly VLLM_GEN_REPETITION_PENALTY: number;
-  readonly VLLM_GEN_PRESENCE_PENALTY: number;
-  readonly VLLM_SLEEP_MODE: boolean;
-  readonly VLLM_DEBUG_REQUESTS: boolean;
-  readonly VLLM_SHUTDOWN_TIMEOUT_S: number;
-  readonly VLLM_EMBED_PORT: number;
-  readonly VLLM_RERANK_PORT: number;
-  readonly VLLM_GEN_PORT: number;
-} {
-  return {
-    VLLM_EMBED_MODEL: env.VLLM_EMBED_MODEL,
-    VLLM_RERANK_MODEL: env.VLLM_RERANK_MODEL,
-    VLLM_GEN_MODEL: env.VLLM_GEN_MODEL,
-    VLLM_EMBED_MAX_MODEL_LEN: env.VLLM_EMBED_MAX_MODEL_LEN,
-    VLLM_RERANK_MAX_MODEL_LEN: env.VLLM_RERANK_MAX_MODEL_LEN,
-    VLLM_GEN_MAX_MODEL_LEN: env.VLLM_GEN_MAX_MODEL_LEN,
-    VLLM_EMBED_GPU_UTIL: env.VLLM_EMBED_GPU_UTIL,
-    VLLM_RERANK_GPU_UTIL_MULTI: env.VLLM_RERANK_GPU_UTIL_MULTI,
-    VLLM_RERANK_GPU_UTIL_SINGLE: env.VLLM_RERANK_GPU_UTIL_SINGLE,
-    VLLM_GEN_GPU_UTIL_MULTI: env.VLLM_GEN_GPU_UTIL_MULTI,
-    VLLM_GEN_GPU_UTIL_SINGLE: env.VLLM_GEN_GPU_UTIL_SINGLE,
-    VLLM_POOLING_MAX_PIXELS: env.VLLM_POOLING_MAX_PIXELS,
-    VLLM_GEN_MAX_PIXELS: env.VLLM_GEN_MAX_PIXELS,
-    VLLM_GEN_VIDEO_FPS: env.VLLM_GEN_VIDEO_FPS,
-    VLLM_GEN_VIDEO_MAX_FRAMES: env.VLLM_GEN_VIDEO_MAX_FRAMES,
-    VLLM_GEN_MAX_BATCHED_TOKENS: env.VLLM_GEN_MAX_BATCHED_TOKENS,
-    VLLM_GEN_REPETITION_PENALTY: env.VLLM_GEN_REPETITION_PENALTY,
-    VLLM_GEN_PRESENCE_PENALTY: env.VLLM_GEN_PRESENCE_PENALTY,
-    VLLM_SLEEP_MODE: env.VLLM_SLEEP_MODE,
-    VLLM_DEBUG_REQUESTS: env.VLLM_DEBUG_REQUESTS,
-    VLLM_SHUTDOWN_TIMEOUT_S: env.VLLM_SHUTDOWN_TIMEOUT_S,
-    VLLM_EMBED_PORT: env.VLLM_EMBED_PORT,
-    VLLM_RERANK_PORT: env.VLLM_RERANK_PORT,
-    VLLM_GEN_PORT: env.VLLM_GEN_PORT,
-  };
-}
 
-/** The raw inputs the posture resolver reads (A.4): the incoming ENGINES_POSTURE knob + the two deprecated
- *  vars it falls back to. Consumers (compose/lifecycle) call resolveEnginesPosture with this + a log so the
- *  deprecation line lands in the boot log; foundation/env stays the pure process.env reader. */
-export function enginesPostureInput(): { readonly posture: EnginesPosture | undefined; readonly vllmDisabled: boolean; readonly stackEngines: "yes" | "no" } {
-  return { posture: env.ENGINES_POSTURE, vllmDisabled: env.VLLM_DISABLED, stackEngines: env.STACK_ENGINES };
-}
 
 /** The raw inputs the BIND posture resolver reads (the deploy-mode invariant). Same seam shape as
  *  `enginesPostureInput` / `diagnosticsPostureInput`: this file stays the pure `process.env` reader, the
@@ -923,49 +717,8 @@ export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
   return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK, fallbackWidened: resolveOwnerFallbackPeers(ownerFallbackPeerInput()).widened };
 }
 
-/** The raw inputs the HOST-CLAUDE posture resolver reads (`host-claude.ts` holds the model, the three arms
- *  and the incident). Same seam shape as `enginesPostureInput`, with ONE addition this file is the right
- *  home for: the credentials-file probe. It is ambient ENVIRONMENT exactly like a variable is — and it has
- *  to be read HERE because two callers (the backend-registration gate at compose and the mode-1 child-env
- *  builder in infra) must agree on the same answer, which a second probe site could not guarantee.
- *
- *  SECRET DISCIPLINE: only WHETHER a credential is set crosses this seam, never a value (the
- *  `diagnosticsPostureInput` rule). The token VALUE has exactly one reader — `buildClaudeSdkEnv` — and it
- *  takes it from `env` directly rather than through a posture nobody can log safely.
- *
- *  Re-read per call, never memoized: a credential can be mounted or created after boot (a container secret
- *  landing late, an operator running `claude login` on a live box) — the #1406 no-latch rule. */
-export function hostClaudeInput(): HostClaudeInput {
-  const configDir = hostClaudeConfigDir(env.CLAUDE_CONFIG_DIR, homedir());
-  const live = processEnvSnapshot();
-  return {
-    posture: env.CLAUDE_BACKEND,
-    anthropicApiKeySet: isSetNonEmpty(live["ANTHROPIC_API_KEY"]),
-    oauthTokenSet: isSetNonEmpty(live[HOST_CLAUDE_OAUTH_TOKEN_ENV]),
-    credentialsFileReadable: isReadableFile(hostClaudeCredentialsPath(configDir)),
-    configDir,
-  };
-}
 
-/** Set AND non-empty. An empty string is honestly "unset" — the entrypoint's `*_FILE` shim exports an empty
- *  value for an empty secret file, and treating that as a credential is how a box registers a backend that
- *  cannot log in. */
-function isSetNonEmpty(value: string | undefined): boolean {
-  return value !== undefined && value.length > 0;
-}
 
-/** Is this path a readable FILE right now? `accessSync(R_OK)` rather than `existsSync`: a credentials file
- *  the app cannot read (wrong uid after a PUID/PGID drop, a bad bind-mount) is not a credential, and calling
- *  it one is how you get the spawn-that-can-only-fail back. Any failure is "no", never a throw. */
-function isReadableFile(path: string): boolean {
-  // @orb-waive caught-failure-ownership(catch): a probe whose ONLY verdict is a boolean — an unreadable/missing/permission-denied credentials file all mean the same thing to every caller ("not detected"), and the false answer FAILS CLOSED (the backend stays unregistered, nothing spawns). Ends if this probe ever gates something that opens rather than closes.
-  try {
-    accessSync(path, constants.R_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /** The raw inputs the SESSION-COOKIE TRANSPORT resolver reads (`session-cookie.ts` holds the model, the
  *  cost and the never-auto-detect rule). Same seam shape as `bindPostureInput`: this file stays the pure
@@ -982,21 +735,3 @@ export function ownerFallbackPeerInput(): OwnerFallbackPeerInput {
   return { authFallback: env.AUTH_FALLBACK, trustedPeers: env.AUTH_FALLBACK_TRUSTED_PEERS };
 }
 
-/** The DEPLOYMENT-fact env slice the engine spawner reads (binary + cache stores). All optional — unset ⇒
- *  the in-repo/venv defaults the spawner derives. Kept beside engineLaunchEnvFloor so the launch (flags) and
- *  deployment (paths) tiers each have ONE projection out of `env`. */
-export function engineDeploymentEnv(): {
-  readonly vllmBin?: string | undefined;
-  readonly vllmPy?: string | undefined;
-  readonly storeRoot?: string | undefined;
-  readonly hfHome?: string | undefined;
-  readonly vllmCacheRoot?: string | undefined;
-} {
-  return {
-    vllmBin: env.VLLM_BIN,
-    vllmPy: env.VLLM_PY,
-    storeRoot: env.VLLM_STORE_ROOT,
-    hfHome: env.HF_HOME,
-    vllmCacheRoot: env.VLLM_CACHE_ROOT,
-  };
-}

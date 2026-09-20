@@ -148,7 +148,7 @@ export function MessageMetadataRow({ message, visibility, backingClass }: Messag
   }
   // PD-137 — the on-demand settled-cost readout (renders its own null-guard for a non-OR row); the paid
   // fetch fires only on the user's reveal click, never here.
-  if (visibility.showGenerationCost && message.generationId !== null) {
+  if (visibility.showGenerationCost && message.generationId !== null && message.connectionId !== null) {
     items.push(
       <Fragment key="gen-cost">
         <MessageCostReadout message={message} />

@@ -102,7 +102,9 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
       const assetRows = mediaRefs.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId: attemptMessageId, assetId }));
       const statements = insertCanonMessageStatements(ctx.db, params);
       ctx.applyStatsDelta(statements, ctx.db, assistantTurnDelta({ ownerId: hostUserId, characterId: group.characterId, economics: { content: body }, now }));
-      statements.push(...insertMessageAssetStatements(ctx.db, { rows: assetRows, now }));
+      // An `/imagine` post is an ASSISTANT row with real `asset:` spans — stamped `illustration` so the
+      // wire-history projection never rides it back as a model-emitted picture (§5.3b/§6.7).
+      statements.push(...insertMessageAssetStatements(ctx.db, { rows: assetRows, origin: "illustration", now }));
       // The only caller is RPG checkpoint restore. Build AFTER ids exist, append LAST: a chat-side failure keeps
       // the RPG row absent, and an RPG-side failure rolls every preceding marker statement back.
       if (options !== undefined && "rpgRestoreStatement" in options) {

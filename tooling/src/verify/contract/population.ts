@@ -31,6 +31,13 @@ export const POPULATION_ROOTS = {
    *  that the `caught-failure-ownership` policy must be able to BIND — an unbindable waiver is a stale-waiver
    *  alarm and an ungoverned package, which is the narrowing the `@showcase` row exists to have prevented. */
   "@default-content": ["packages/default-content/src/"],
+  /** The provider runtime — `infra/providers` extracted BELOW `server` (the inference program, §3.1). Its own
+   *  root for the same §12.4 reason as the two above; unlike them it is CODE the `@server`-scoped policies
+   *  already judged before the move, so it is classified `authored: true` below — leaving it outside
+   *  `@authored` would silently NARROW every policy declaring it over live runtime code, the opposite of the
+   *  measured-widening question the content packages pose. The `@server`-scoped gates that must ALSO see it
+   *  (the `no-raw-egress` ratchet first) are re-pointed in the extraction step (§12), not here. */
+  "@inference": ["packages/inference/src/"],
   "@tooling": ["tooling/src/"],
   "@tests": ["tests/"],
   "@scripts": ["scripts/"],
@@ -90,6 +97,7 @@ const AUTHORED_MEMBERSHIP = {
       "and the widening stays a measured, ruled decision. A policy that needs this package TODAY declares both refs " +
       "(`['@authored', '@default-content']`), which is what `caught-failure-ownership` does",
   },
+  "@inference": { authored: true },
   "@tooling": { authored: true },
   "@tests": { authored: true },
   "@scripts": { authored: true },

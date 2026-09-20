@@ -4,7 +4,7 @@
 // invariants directly: the 3 breakpoint-undefined cases, the offset/clamp/floor math, the neo-quirk →
 // undefined divergence, and the no-if(isGroup) solo-byte-identical contract.
 import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts/chat";
-import type { RoleHandling } from "@orb/contracts/connection";
+import type { RoleHandling } from "@orb/contracts/inference";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { proseOverridesSchema } from "@orb/contracts/prose";

@@ -18,7 +18,7 @@ import type {
   RefinerySelection,
   RefineryStage,
 } from "@orb/contracts/refinery";
-import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { ResponseFormat, RoleClients, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { z } from "zod";
 
@@ -103,6 +103,8 @@ export interface ForgeTurnArgs {
   readonly overrides: ProseOverrides;
   readonly sampleOpts: SummarizeOptions;
   readonly arm: RefineryForgeArm;
+  /** The caller's role-client bundle — every forge call is `structured` on it. */
+  readonly rc: RoleClients;
 }
 
 /** What sizing ONE stage call's output cap needs (`substrate/output-budget`). Homed here for the same

@@ -42,7 +42,7 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
       resume: "idempotent-restart",
       run: async (ctx, _params, report, signal): Promise<MemoryBackfillResult> => {
         report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
-        const counts = await deps.backfillMemory({ ownerId: ctx.ownerId, signal });
+        const counts = await deps.backfillMemory({ ownerId: ctx.ownerId, funderUserId: ctx.userId, signal });
         report({
           message:
             `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)` +
@@ -87,7 +87,7 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
       resume: "idempotent-restart",
       run: async (ctx, _params, report, signal): Promise<BackfillPassResult> => {
         report({ message: "group-character backfill: sweeping group rooms" });
-        const counts = await deps.backfillGroupCharacters({ ownerId: ctx.ownerId, signal });
+        const counts = await deps.backfillGroupCharacters({ ownerId: ctx.ownerId, funderUserId: ctx.userId, signal });
         report({ message: `group-character backfill: ${counts.scanned} group rooms scanned, ${counts.changed} minted` });
         return counts;
       },

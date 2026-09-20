@@ -14,6 +14,7 @@ import type { ScrapeName, ScrapeWrite } from "../contract/params.ts";
 import type { UploadResult } from "../contract/results.ts";
 import type { DatabankContext } from "../contract/service.ts";
 import { findByImportHash, toDocumentView } from "../persistence/queries.ts";
+import { activeSpaceModel } from "../substrate/active-space.ts";
 import { queueIngest } from "./queue-ingest.ts";
 
 const NAME_MAX = 500;
@@ -38,7 +39,7 @@ export async function finalizeScrape(ctx: DatabankContext, write: ScrapeWrite): 
 
   const existing = await findByImportHash(ctx.db, ownerId, importHash);
   if (existing !== undefined) {
-    const counts = await ctx.countChunks({ documentIds: [existing.id], model: ctx.getActiveEmbedSpace().model });
+    const counts = await ctx.countChunks({ documentIds: [existing.id], model: await activeSpaceModel(ctx, ownerId) });
     return { document: toDocumentView(existing, counts.get(existing.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
   }
 

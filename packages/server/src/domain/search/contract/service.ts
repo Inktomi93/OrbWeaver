@@ -56,7 +56,9 @@ export interface DigestSearchEvents {
 /** DI bundle the search verbs close over. Read-only (ReadOnlyDb — a write call is a tsc error). */
 export interface SearchContext {
   readonly db: ReadOnlyDb;
-  readonly roleClients: RoleClients;
+  /** The per-OWNER role-client bundle (inference program §7.5-2): every retrieval embeds the query in the
+   *  OWNER's space (their `embed`/`imageEmbed` binding) and reranks on their `rerank` row. */
+  readonly roleClientsFor: (ownerId: UserId) => Promise<RoleClients>;
   /** Consumed only by the lexical fields/suggest engine's per-owner BM25 index cache (TTL freshness). */
   readonly now: () => number;
   /** The databank scope resolver (DB5) — injected by `domain/databank` at compose; consumed ONLY by the

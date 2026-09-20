@@ -21,7 +21,7 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
-import type { ChatApi, ModelCapability } from "@orb/contracts/connection";
+import type { ChatApi, GenerationCapability } from "@orb/contracts/inference";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
@@ -54,7 +54,7 @@ import { commitSnapshotForVariant, findSnapshotByVariant, writeStagedSnapshot } 
 import { findTurnToolCallsByVariant } from "../../../../packages/server/src/domain/rpg/persistence/turn-tool-calls.ts";
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
-import { makeModelCapability, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { terminalSseLine } from "../../../support/provider-stream.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
@@ -68,10 +68,10 @@ const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_compose_1");
 function tc(api: ChatApi, over: Partial<RpgTurnContext> = {}): RpgTurnContext {
   return {
     kind: "send",
-    connection: makeResolvedConnection({
+    connection: makeResolved({
       api,
       model: castId<ModelId>("fake-chat-model"),
-      capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
+      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
     }),
     ownerConsented: true,
     // Default: an empty transcript (the round fires with an empty beat; the canned fakes ignore prompt
@@ -355,7 +355,7 @@ function buildCannedRpgWithText(args: {
   readonly chatThrows?: Error;
   /** Override the resolved connection's capability — e.g. a STRUCTURED-only wire (no `tools`), which is what
    *  routes the resync down its structured degrade instead of the tool round. */
-  readonly capability?: ReturnType<typeof makeModelCapability>;
+  readonly capability?: ReturnType<typeof makeGenerationCapability>;
   /** The deployment's structured-output wire shape (D126) — the AppSettings knob the real composition root
    *  feeds off `getEffectiveConfig()`. Omitted ⇒ the shipped floor, so every existing pin drives the default. */
   readonly structuredOutputShape?: StructuredOutputShape;
@@ -381,13 +381,13 @@ function buildCannedRpgWithText(args: {
       // they ride the `turnConnection` handed to `onTurnCompleted` below.
       resolveChat: () =>
         Promise.resolve(
-          makeResolvedConnection({
+          makeResolved({
             api,
             model: castId<ModelId>("fake-chat-model"),
             // Structured AND tools: the READ-side `trackersReadOnly` pill resolves this connection, and a
             // `folded` game keys on `capability.tools` (the fold's vehicle) — a structured-only fake would make
             // every folded test readonly and silently prove nothing.
-            capability: capability ?? makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
+            capability: capability ?? makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
           }),
         ),
       getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
@@ -1016,11 +1016,11 @@ test("F1 (consent inherited): a state round threads the turn's ownerConsented ve
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A member acts." });
 
   const subNoConsent = tc("agent-sdk", {
-    connection: makeResolvedConnection({
+    connection: makeResolved({
       api: "agent-sdk",
       model: castId<ModelId>("fake-chat-model"),
-      credential: makeResolvedCredential("max-pro-sub"),
-      capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
+      credential: makeResolvedSecret(),
+      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
     }),
     ownerConsented: false,
   });
@@ -1044,11 +1044,11 @@ test("F1 (room connection): the round runs on the TURN's connection (vllm), neve
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the bridge." });
 
   const vllmTurn = tc("chat-completions", {
-    connection: makeResolvedConnection({
+    connection: makeResolved({
       api: "chat-completions",
       model: castId<ModelId>("threaded-vllm-model"), // NOT the pill's "fake-chat-model"
-      credential: makeResolvedCredential("vllm"),
-      capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
+      credential: makeResolvedSecret(),
+      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
     }),
   });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, vllmTurn);
@@ -1069,10 +1069,10 @@ test("F2 (readonly gate): a turn connection with no writer capability fires NO s
   // A connection that carries NO tools → every surviving mode is readonly (manual-steering). The flush must
   // skip the round entirely (no `structured`/`runChatTurn` call, no failing per-turn spend) and write no snapshot.
   const readonlyTurn = tc("chat-completions", {
-    connection: makeResolvedConnection({
+    connection: makeResolved({
       api: "chat-completions",
       model: castId<ModelId>("no-tools-model"),
-      capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }), // tools ABSENT
+      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }), // tools ABSENT
     }),
   });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyTurn);
@@ -1408,7 +1408,7 @@ function buildRpgWithCapability(app: ServicesResult, db: Db, capability: ModelCa
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
-      resolveChat: () => Promise.resolve(makeResolvedConnection({ api: "chat-completions", model: castId<ModelId>("fake-chat-model"), capability })),
+      resolveChat: () => Promise.resolve(makeResolved({ api: "chat-completions", model: castId<ModelId>("fake-chat-model"), capability })),
       getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
     },
     executor: {
@@ -2618,7 +2618,7 @@ test("RESYNC-OR: a provider refusal reaches the HOST as a reason — never a sil
 test("RESYNC-OR: the STRUCTURED degrade still runs (and still reports its refusal) on a tools-less wire", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "resync-structured-degrade");
   const principal = hostPrincipal(hostId);
-  const structuredOnly = makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } });
+  const structuredOnly = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } });
   const compose = buildCannedRpgWithText({
     app,
     db,
@@ -2647,7 +2647,7 @@ test("RESYNC: a connection with no write path at all refuses legibly and calls n
     api: "chat-completions",
     spy,
     cannedText: "{}",
-    capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } } }),
+    capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 } } }),
   });
   await compose.service.createGame({ principal, chatId, mode: "lite" });
 
@@ -2950,10 +2950,10 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
       // Tools but NO structured output — the populate round's own capability gate must refuse it.
       resolveChat: () =>
         Promise.resolve(
-          makeResolvedConnection({
+          makeResolved({
             api: "chat-completions",
             model: castId<ModelId>("fake-chat-model"),
-            capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } }, tools: { parallel: true } }),
+            capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 } }, tools: { parallel: true } }),
           }),
         ),
       getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),

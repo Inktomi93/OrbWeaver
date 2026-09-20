@@ -4,7 +4,7 @@
 // NOT do — commit no canon (messages / message_variants), emit no bus events, spawn no ghost — plus the reduce
 // shape (final content wins; costUsd rides economics) and failure-honesty (a throwing stream propagates).
 
-import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { Resolved } from "@orb/inference";
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";

@@ -45,66 +45,6 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   ],
 };
 
-export const COMPUTE_SUBCATEGORY: ConfigSubcategory = {
-  id: "compute",
-  label: "Compute",
-  keywords: ["vllm", "gpu", "batch", "inference"],
-  teach: {
-    summary: "Local inference concurrency caps for embedding and summarization engines. Higher values speed up indexing at the cost of GPU pressure.",
-    affects: ["indexing and summarization throughput and GPU load, deployment-wide"],
-  },
-  settings: [
-    {
-      id: "vllm-embed-concurrency",
-      label: "Embedding concurrency",
-      keywords: ["vllm", "embed", "batch", "index"],
-      teach: {
-        summary: "How many embedding requests the local engine runs at once \u2014 higher is faster indexing and more VRAM pressure.",
-        affects: ["indexing throughput and local GPU load"],
-      },
-    },
-    {
-      id: "vllm-summarize-concurrency",
-      label: "Summarize concurrency",
-      keywords: ["vllm", "summarize", "batch", "memory"],
-      teach: { summary: "How many summarize requests the local engine runs at once.", affects: ["memory summarization throughput and local GPU load"] },
-    },
-  ],
-};
-
-export const SHARED_ACCESS_SUBCATEGORY: ConfigSubcategory = {
-  id: "shared-access",
-  label: "Shared access",
-  keywords: ["members", "owner", "governance", "sharing"],
-  teach: {
-    summary: "What member accounts may share: local compute access, per-member compute budgets and hosted subscription pass-through.",
-    affects: ["members' access to shared resources, deployment-wide"],
-  },
-  settings: [
-    {
-      id: "allow-non-owner-local",
-      label: "Members may use shared local compute",
-      keywords: ["local", "vllm", "onnx", "members", "share"],
-      teach: {
-        summary: "Lets member accounts run on the box's local compute (vLLM/ONNX), not just the owner.",
-        affects: ["members' access to shared local engines"],
-      },
-    },
-    {
-      id: "non-owner-local-budget",
-      label: "Per-member local-compute budget",
-      keywords: ["budget", "limit", "count", "quota"],
-      teach: { summary: "A per-member quota on shared local compute.", affects: ["how much local compute each member may use"] },
-    },
-    {
-      id: "allow-non-owner-max-pro-sub",
-      label: "Members may use the hosted subscription",
-      keywords: ["max", "pro", "subscription", "hosted", "claude"],
-      teach: { summary: "Lets member accounts ride the host's hosted subscription.", affects: ["members' access to the hosted subscription"] },
-    },
-  ],
-};
-
 export const MULTI_USER_SUBCATEGORY: ConfigSubcategory = {
   id: "multi-user",
   label: "Multi-user",

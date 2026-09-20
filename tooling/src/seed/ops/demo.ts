@@ -48,15 +48,15 @@ import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
 import { DB_LAUNCHED, runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
 import { createServices } from "@orb/server/entry/compose";
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import { env } from "@orb/server/foundation/env";
-import { detectGpu } from "@orb/server/infra/providers";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import type { Db, RunFullSeedDeps, RunFullSeedResult, SeedDemoDeps } from "../contract/types.ts";
-import { fakeVllmClient } from "../lib/fake-vllm.ts";
+import { fakeLocalLightCache } from "../lib/fake-local-light.ts";
 import {
   DEMO_DOCUMENT_NAME,
   DEMO_DOCUMENT_TEXT,
@@ -130,13 +130,6 @@ async function countRows(db: Db): Promise<Record<string, number>> {
   return Object.fromEntries(pairs);
 }
 
-/** The effective vLLM-availability fact, derived the same way boot does (`entry/lifecycle.ts`): a force-off
- *  env override OR no GPU present — never assume the GPU. `gpuPresent` defaults to the real probe;
- *  injectable so this derivation is testable without exec-ing `nvidia-smi`. */
-export function resolveSeedVllmDisabled(forceDisabled: boolean, gpuPresent: () => boolean = detectGpu): boolean {
-  return forceDisabled || !gpuPresent();
-}
-
 /** Run a best-effort seeded chat turn: on offline-model failure, log the honest limitation and continue —
  *  the greeting transcript is already committed, so a demo db is valid either way. */
 async function tryTurn(run: () => Promise<unknown>, log: (msg: string) => void, label: string): Promise<void> {
@@ -163,15 +156,6 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
     principal: second,
     input: { name: "Companion", description: "A curious co-pilot exploring the Loom alongside you.", starred: true },
   });
-
-  // Point both humans' chat role at the local vLLM gen so the best-effort seeded turns run through the real
-  // chat path against the deterministic fake engine (a write-path smoke). Absent this, a send fail-closes.
-  // model deliberately "" — vllm is a config-derived source and the coherence guard REFUSES a pin
-  // (routing-coherence.ts): the resolver derives the engine's own model live, which is the truth.
-  const chatRoleDefault = { source: "vllm" as const, api: "chat-completions" as const, model: "" };
-  for (const p of [owner, second]) {
-    await services.settings.updateUserSettingsSection({ principal: p, input: { section: "routing", patch: { roleDefaults: { chat: chatRoleDefault } } } });
-  }
 
   // Resolve the boot-seeded default characters by handle.
   const handleToId = new Map<string, CharacterId>();
@@ -289,10 +273,10 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
     casDir: deps.casDir,
     variantDir: deps.variantDir,
     sessionSecret,
-    vllmDisabled: deps.vllmDisabled ?? resolveSeedVllmDisabled(env.VLLM_DISABLED),
-    repoRoot: process.cwd(),
     holder: "seed-demo",
-    providerSeams: { vllmClient: fakeVllmClient(env.VLLM_EMBED_DIM, env.VLLM_GEN_MODEL), vllmEmbedDim: env.VLLM_EMBED_DIM },
+    // The seeded local-light rows embed through the scripted cache (§7.2 seeds them for every user); there is
+    // no chat connection, so the best-effort turns below log `no-connection` and keep the greeting transcript.
+    providerSeams: { localLight: { cache: fakeLocalLightCache(EMBED_SPACE_DIMS) } },
   });
 
   // The idempotent boot seeds (owner cards + avatars, default persona, preset, themes) — safe to re-run.

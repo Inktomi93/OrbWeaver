@@ -8,7 +8,7 @@
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
-import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { ResponseFormat, StructuredOptions } from "@orb/contracts/role-clients";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
@@ -54,7 +54,8 @@ async function compareCharactersDeep(
   const prompt = buildComparePrompt(base);
   // The side-gen sampling ladder: the `analyze` floor (temp 0.3, 400 out — a short grounded answer) ← the
   // caller's default-preset params. The structured-output `responseFormat` is orthogonal and always rides.
-  const sampleOpts: SummarizeOptions = {
+  const rc = await ctx.roleClientsFor(args.userId);
+  const sampleOpts: StructuredOptions = {
     responseFormat: NARRATIVE_RESPONSE_FORMAT,
     ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(args.userId))),
   };
@@ -67,7 +68,7 @@ async function compareCharactersDeep(
   // mid-turn and let the retry drift (the `DistillPass` bundle, 49616a67, is the same invariant where the
   // retry is a separate function).
   const run = async (correction?: string): Promise<string> => {
-    const result = await ctx.summarize([{ systemPrompt: system, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], sampleOpts);
+    const result = await rc.structured([{ systemPrompt: system, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], sampleOpts);
     return result.items[0]?.text ?? "";
   };
   let narrative: ComparisonNarrative;
@@ -114,7 +115,8 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
   const prompt = buildAskPrompt(card.name, question, samples);
   // The side-gen sampling ladder: the `analyze` floor ← the caller's default-preset params (the `askCard`
   // half of the analyze pair — identical posture to the compare narrative). `responseFormat` always rides.
-  const sampleOpts: SummarizeOptions = {
+  const rc = await ctx.roleClientsFor(userId);
+  const sampleOpts: StructuredOptions = {
     responseFormat: ANSWER_RESPONSE_FORMAT,
     ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(userId))),
   };
@@ -122,7 +124,7 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
   // NO RETRY DRIFT — the compare-narrative invariant above, same shape: everything the retry sends is
   // resolved once, outside this closure.
   const run = async (correction?: string): Promise<string> => {
-    const result = await ctx.summarize([{ systemPrompt: system, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], sampleOpts);
+    const result = await rc.structured([{ systemPrompt: system, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], sampleOpts);
     return result.items[0]?.text ?? "";
   };
   let answer: string;

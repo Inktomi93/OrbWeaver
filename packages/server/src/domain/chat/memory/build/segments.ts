@@ -20,7 +20,7 @@
 // SELF-HEAL on the content hash (a swipe/edit at the protected tip never touches a settled segment).
 // DETERMINISM (D46): blockIdx order; injected embed; no clock/random. NO ownerId (D20 — chat FK derives owner).
 
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../../context.ts";
@@ -35,6 +35,8 @@ import { blockHash, EMPTY_MACRO_NAMES, sliceBlocks } from "./substrate/transcrip
  *  structural literal). Segments are chat-wide, so this takes a bare `chatId` (no scope bucket). */
 interface GenerateSegmentsArgs {
   readonly chatId: ChatId;
+  /** WHOSE embed connection the window guard reads (§8.5b) — the trigger live, the workload's principal on backfill. */
+  readonly funderUserId: UserId;
   readonly config?: MemoryConfig | null | undefined;
   readonly macroNames?: RowMacroNameContext | undefined;
   readonly signal?: AbortSignal | undefined;
@@ -78,7 +80,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
 
   const canon = await loadCanonThroughSeq(ctx.db, args.chatId, cutoff);
   const blocks = sliceBlocks(canon, cfg.blockSize);
-  const embedContextTokens = ctx.embedContextTokens();
+  const embedContextTokens = await ctx.embedContextTokens(args.funderUserId);
 
   const pending: StoreSegmentParams[] = [];
   const chunkCounts: { blockIdx: number; chunkCount: number }[] = [];

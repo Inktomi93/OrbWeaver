@@ -18,23 +18,14 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
-import { MULTI_USER_SUBCATEGORY, SHARED_ACCESS_SUBCATEGORY } from "../lib/system-config-nav.ts";
-import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
-
-/** Positive-int per-member budget; below this the schema drops the value (the floor would govern silently). */
-const LOCAL_COMPUTE_BUDGET_MIN = 1;
-const LOCAL_COMPUTE_BUDGET_STEP = 1;
-// An ABSENT per-member budget means the domain floor: no per-member cap at all. That floor has no NUMBER to
-// print beneath the control (the row's `floorValue` is a number since `f88954f8`, so it reads in the same
-// Intl grouping as the field above it), so it rides the `null` arm — "Using the deployment default." — and
-// the hint spells out what that default IS.
+import { MULTI_USER_SUBCATEGORY } from "../lib/system-config-nav.ts";
+import { AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
 /** The ONE box-owner predicate the two governance sections share (see the header). Suspense-read, so the
  *  controls are never briefly enabled for a delegated admin while a probe resolves. */
@@ -42,116 +33,6 @@ function useIsBoxOwner(): boolean {
   const trpc = useTRPC();
   const { data } = useSuspenseQuery(trpc.sessions.me.queryOptions());
   return data.globalRole === "owner";
-}
-
-/** Shared access — the D17 governance trio, owner-only. Its own suspense/error boundary: it reads for
- *  itself, so it must recover for itself. */
-export function SharedAccessSection({ sectionId }: { readonly sectionId: string }): ReactElement {
-  return (
-    // RESERVED (#1098) — the D17 governance trio, settling into three override rows.
-    <QueryBoundary
-      fallback={<SkeletonRows count={3} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="shared access — administrators only" onRetry={retry} />}
-      reserveKey="config.admin.sharedAccess"
-    >
-      <SharedAccessBody sectionId={sectionId} />
-    </QueryBoundary>
-  );
-}
-
-function SharedAccessBody({ sectionId }: { readonly sectionId: string }): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
-  const isOwner = useIsBoxOwner();
-  const save = useUpdateAppOverrides({ trpc, invalidation });
-
-  const resolved = data.resolved;
-  const overrides = data.overrides;
-  const budget = resolved.nonOwnerLocalComputeBudget;
-  const [budgetDraft, setBudgetDraft] = useState<string>(() => (budget === null ? "" : String(budget)));
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
-
-  const localOverridden = isOverridden(overrides.allowNonOwnerLocalCompute);
-  const budgetOverridden = isOverridden(overrides.nonOwnerLocalComputeBudget);
-  const proSubOverridden = isOverridden(overrides.allowNonOwnerMaxProSub);
-  // A non-owner can clear nothing here (every key is owner-gated), so they never see a Reset that would 403.
-  const anyOverridden = isOwner && (localOverridden || budgetOverridden || proSubOverridden);
-
-  // The budget's own delta: a blank draft with a stored override is an explicit CLEAR (back to the
-  // unbounded domain floor) — the one per-field clear this section has, since the whole-section Reset would
-  // also drop the two switches. `null` = nothing to save (blank + no override, or an illegal value).
-  const budgetPatch = ((): AppSettings | null => {
-    const trimmed = budgetDraft.trim();
-    if (trimmed === "") {
-      return budgetOverridden ? { nonOwnerLocalComputeBudget: null } : null;
-    }
-    const n = Number(trimmed);
-    if (!Number.isFinite(n) || n < LOCAL_COMPUTE_BUDGET_MIN) {
-      return null;
-    }
-    const rounded = Math.round(n);
-    return rounded === budget ? null : { nonOwnerLocalComputeBudget: rounded };
-  })();
-
-  const write = (partial: AppSettings): void => {
-    save.mutateAsync({ partial }).catch(() => undefined); // the sticky save.error slot surfaces the failure
-  };
-  const onReset = (): void => {
-    save
-      .mutateAsync({ partial: { allowNonOwnerLocalCompute: null, nonOwnerLocalComputeBudget: null, allowNonOwnerMaxProSub: null } })
-      .then((after) => setBudgetDraft(after.nonOwnerLocalComputeBudget === null ? "" : String(after.nonOwnerLocalComputeBudget)))
-      .catch(() => undefined);
-  };
-
-  return (
-    <Section className="@container" divider={true} heading={SHARED_ACCESS_SUBCATEGORY.label} id={configAnchorId("admin", SHARED_ACCESS_SUBCATEGORY.id)}>
-      <Stack gap="field">
-        <Text voice="gloss">Who may spend this box's shared compute. Only the box owner can change these.</Text>
-        <AdminOverrideSwitch
-          label="Members may use shared local compute"
-          hint="Let non-owner members drive your shared local compute (vLLM + in-process models). Local is shared-by-design."
-          value={resolved.allowNonOwnerLocalCompute}
-          overridden={localOverridden}
-          floorLabel={envFloor(localOverridden, resolved.allowNonOwnerLocalCompute ? "on" : "off")}
-          onSet={(next): void => write({ allowNonOwnerLocalCompute: next })}
-          disabled={!isOwner}
-        />
-        <AdminOverrideField
-          label="Per-member local-compute budget"
-          hint="Per-member turn/request budget for shared local compute, over the window set in System tuning. Empty = the domain floor: unbounded, no per-member cap."
-          value={budgetDraft}
-          onChange={setBudgetDraft}
-          overridden={budgetOverridden}
-          floorValue={envFloor(budgetOverridden, budget)}
-          min={LOCAL_COMPUTE_BUDGET_MIN}
-          step={LOCAL_COMPUTE_BUDGET_STEP}
-          disabled={!isOwner}
-        />
-        <AdminOverrideSwitch
-          label="Members may use the hosted subscription"
-          hint="Let non-owner members drive your hosted max/pro subscription (ban-prone + real money). Off by default."
-          value={resolved.allowNonOwnerMaxProSub}
-          overridden={proSubOverridden}
-          floorLabel={envFloor(proSubOverridden, resolved.allowNonOwnerMaxProSub ? "on" : "off")}
-          onSet={(next): void => write({ allowNonOwnerMaxProSub: next })}
-          disabled={!isOwner}
-        />
-        <AdminOverrideResetRow
-          dirty={isOwner && budgetPatch !== null}
-          anyOverridden={anyOverridden}
-          saving={save.isPending}
-          errored={save.error !== null}
-          onSave={(): void => {
-            if (budgetPatch !== null) {
-              write(budgetPatch);
-            }
-          }}
-          onReset={onReset}
-        />
-      </Stack>
-    </Section>
-  );
 }
 
 /** Multi-user — the local-mode seating switch (owner-only) beside the login-page posture (admin-writable). */

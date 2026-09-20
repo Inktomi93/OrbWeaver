@@ -1,24 +1,22 @@
 // Shared test harness for the credentials domain (NOT a test file — no `.test` suffix, so test-layout
 // ignores it). Builds a real-db `CredentialContext` with: injected determinism (frozen clock + seeded
 // ids), the REAL AES-256-GCM `SecretBox` over a known key (so the AAD round-trip + wrong-AAD failure are
-// exercised for real, not mocked), the REAL `requireOwner` guard (so the owner-gate is the production
-// one), and FAKE recording provider/network ops (probe/probeEndpoint/inspect/fetchModels) — the sanctioned "fake at the
-// edges, inject at the root" doctrine (testing §3). The fakes RECORD their calls so tests assert behavior.
+// exercised for real, not mocked), and a `providerKnown` predicate over the built-in registry — the
+// sanctioned "fake at the edges, inject at the root" doctrine (testing §3). Under connections-as-the-unit a
+// credential is a sealed secret with a label: the probes/inspect/fetch-models ops LEFT this domain for the
+// connection router (inference program §5.3), so there is nothing left here to fake but the audit recorder.
 
-import type { CredentialHealth, ResolvedCredential } from "../../../../packages/contracts/src/credentials/index.ts";
+import type { CredentialHealth } from "../../../../packages/contracts/src/credentials/index.ts";
 import type { Principal, UserRole } from "../../../../packages/contracts/src/identity/index.ts";
-import type { EndpointInspection } from "../../../../packages/contracts/src/providers/index.ts";
+import { builtinProvider } from "../../../../packages/contracts/src/inference/index.ts";
 import type { Db } from "../../../../packages/db/src/client/index.ts";
 import { users } from "../../../../packages/db/src/schema/index.ts";
 import type { Handle, UserCredentialId, UserId } from "../../../../packages/kit/src/ids/index.ts";
 import { castId } from "../../../../packages/kit/src/ids/index.ts";
-import { requireOwner } from "../../../../packages/server/src/domain/admin/index.ts";
 import type { CredentialContext } from "../../../../packages/server/src/domain/credentials/context.ts";
-import type { FetchModelsArgs } from "../../../../packages/server/src/domain/credentials/contract/service.ts";
 import type { CredentialView } from "../../../../packages/server/src/domain/credentials/contract/views.ts";
 import type { CredentialsService } from "../../../../packages/server/src/domain/credentials/index.ts";
 import { createCredentialsService } from "../../../../packages/server/src/domain/credentials/index.ts";
-import { selectOwnerUserId } from "../../../../packages/server/src/domain/sessions/persistence/users.ts";
 import { createSecretBox } from "../../../../packages/server/src/infra/crypto/secrets.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 
@@ -35,10 +33,6 @@ function nextCredentialId(): UserCredentialId {
   return castId<UserCredentialId>(`user_credential_${credentialIdCounter}`);
 }
 
-interface InspectCall {
-  readonly credential: ResolvedCredential;
-  readonly model: string;
-}
 
 /** A recorded `audit` op call (PD-142) — tests assert every credential mutation writes a durable row. */
 interface AuditCall {
@@ -51,18 +45,6 @@ export interface CredentialHarness {
   readonly ctx: CredentialContext;
   /** The recorded `audit` op calls (PD-142 — assert each mutation writes a durable audit row). */
   readonly audits: AuditCall[];
-  /** Credentials handed to the faked `probe` op (testHealth's openrouter arm). */
-  readonly probed: ResolvedCredential[];
-  readonly setProbeResult: (result: CredentialHealth) => void;
-  /** Endpoint coordinates handed to the faked `probeEndpoint` op (testHealth's custom_openai arm). */
-  readonly endpointProbes: FetchModelsArgs[];
-  readonly setEndpointProbeResult: (result: CredentialHealth) => void;
-  /** Args handed to the faked `inspect` op. */
-  readonly inspected: InspectCall[];
-  /** Args handed to the faked `fetchModels` op. */
-  readonly fetched: FetchModelsArgs[];
-  readonly setModels: (models: string[]) => void;
-  readonly setInspectResult: (result: EndpointInspection) => void;
   /** Advance the injected clock (e.g. past the 60s health throttle window). */
   readonly advance: (ms: number) => void;
 }
@@ -97,72 +79,23 @@ export function principal(userId: UserId, role: UserRole = "user"): Principal {
 export function makeHarness(db: Db): CredentialHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const audits: AuditCall[] = [];
-  const probed: ResolvedCredential[] = [];
-  const endpointProbes: FetchModelsArgs[] = [];
-  const inspected: InspectCall[] = [];
-  const fetched: FetchModelsArgs[] = [];
-  let probeResult: CredentialHealth = { status: "ok", checkedAt: FROZEN_AT };
-  let endpointProbeResult: CredentialHealth = { status: "ok", checkedAt: FROZEN_AT };
-  let models: string[] = [];
-  let inspectResult: EndpointInspection = {
-    ok: true,
-    request: { url: "https://example.test/v1/chat/completions", headers: {}, body: "{}" },
-    response: { status: 200, statusText: "OK", bodyPreview: "{}" },
-  };
-
   const ctx: CredentialContext = {
     db,
     now: (): number => clock.now(),
     newCredentialId: (): UserCredentialId => nextCredentialId(),
     box: createSecretBox(TEST_KEY),
-    requireOwner,
+    providerKnown: (providerId: string): boolean => builtinProvider(providerId) !== undefined,
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
       audits.push({ entry, at });
       return Promise.resolve();
     },
-    probe: (credential: ResolvedCredential): Promise<CredentialHealth> => {
-      probed.push(credential);
-      return Promise.resolve(probeResult);
-    },
-    probeEndpoint: (args: FetchModelsArgs): Promise<CredentialHealth> => {
-      endpointProbes.push(args);
-      return Promise.resolve(endpointProbeResult);
-    },
-    inspect: (req: InspectCall): Promise<EndpointInspection> => {
-      inspected.push(req);
-      return Promise.resolve(inspectResult);
-    },
-    fetchModels: (args: FetchModelsArgs): Promise<string[]> => {
-      fetched.push(args);
-      return Promise.resolve(models);
-    },
     // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
     emitUserEvent: (): void => undefined,
-    // The REAL owner resolution (`users.role='owner'`), not a fake: the egress-admission derivation's whole
-    // security property is that its scope is the OWNER ROW rather than the acting principal, and a fake
-    // returning "the seeded user" would assert that property away.
-    ownerUserId: (): Promise<UserId | undefined> => selectOwnerUserId(db),
   };
 
   return {
     ctx,
     audits,
-    probed,
-    setProbeResult: (result: CredentialHealth): void => {
-      probeResult = result;
-    },
-    endpointProbes,
-    setEndpointProbeResult: (result: CredentialHealth): void => {
-      endpointProbeResult = result;
-    },
-    inspected,
-    fetched,
-    setModels: (next: string[]): void => {
-      models = next;
-    },
-    setInspectResult: (result: EndpointInspection): void => {
-      inspectResult = result;
-    },
     advance: (ms: number): void => {
       clock.advance(ms);
     },

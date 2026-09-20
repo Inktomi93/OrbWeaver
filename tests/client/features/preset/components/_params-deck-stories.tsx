@@ -18,14 +18,14 @@ import { useState } from "react";
 import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck.tsx";
 import { validatePresetConfig } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
 import type { ReadFailure } from "../../../../../packages/client/src/features/preset/lib/resolve-failure.ts";
-import { makeModelCapability } from "../../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = "preset_deckstoryaaaa";
 
 // A vLLM-shaped capability: the sampling knobs the deck rows render (incl. `topA`, G1's new row), a seed
 // flag, stop-sequence support, an 8192 output cap and a 32768 window — the two ceilings the OUTPUT rows
 // clamp against. Built through the TYPED factory (schema-parsed, browser-safe) — no fabrication cast.
-const STORY_CAPABILITY = makeModelCapability({
+const STORY_CAPABILITY = makeGenerationCapability({
   sampling: {
     temperature: { min: 0, max: 2 },
     topP: { min: 0, max: 1 },

@@ -104,6 +104,10 @@ const FORK_COLUMN_CLASS = {
   tokensIn: "copied",
   tokensOut: "copied",
   tokenProvenance: "copied",
+  // Attribution (§5.3b): which connection wrote the swipe + where its cost figure came from — an id and a
+  // provenance word beside `provider`/`model`, member-readable on the same readout.
+  connectionId: "copied",
+  costProvenance: "copied",
   cacheReadTokens: "copied",
   cacheWriteTokens: "copied",
   costUsd: "copied",

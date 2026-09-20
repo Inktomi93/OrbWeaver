@@ -7,6 +7,7 @@ import { getLog } from "#foundation/observability";
 import type { EmbeddingsIndexerContext } from "../contract/service.ts";
 import { existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
 import { imageBelowFloor } from "../substrate/image-admission.ts";
+import { requireTaskModel } from "../substrate/task-model.ts";
 import { analyzeAvatarImage } from "./caption.ts";
 
 /** `character.updated` → re-embed the card text (`store(kind='card', lens='card-text')`). Idempotent: the
@@ -23,12 +24,22 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
   if (text === undefined) {
     return;
   }
+  const ownerId = await ctx.loadCharacterOwner(event.characterId);
+  if (ownerId === null) {
+    return;
+  }
+  const embedModel = await requireTaskModel(ctx, ownerId, "embed");
+  if (embedModel === null) {
+    getLog().debug({ characterId: event.characterId, ownerId }, "embeddings indexer: the owner has no embed connection — skipped");
+    return;
+  }
   const result = await ctx.store({
     kind: "card",
     lens: "card-text",
+    ownerId,
     characterId: event.characterId,
     content: text,
-    model: ctx.roleClients.embedModel,
+    model: embedModel,
     dim: ctx.embedDim,
   });
   // A content edit whose projected embed text is nonetheless unchanged short-circuits to `noop`; surface it
@@ -83,10 +94,19 @@ export async function onAssetCreated(ctx: EmbeddingsIndexerContext, event: Asset
     );
     return;
   }
-  const model = ctx.roleClients.imageEmbedModel;
+  const ownerId = await ctx.loadAssetOwner(event.assetId);
+  if (ownerId === null) {
+    return;
+  }
+  const model = await requireTaskModel(ctx, ownerId, "imageEmbed");
+  if (model === null) {
+    getLog().debug({ assetId: event.assetId, ownerId }, "embeddings indexer: the owner has no imageEmbed connection — skipped");
+    return;
+  }
   await ctx.store({
     kind: "avatar",
     lens: "image-raw",
+    ownerId,
     assetId: event.assetId,
     content: bytes,
     model,
@@ -94,10 +114,11 @@ export async function onAssetCreated(ctx: EmbeddingsIndexerContext, event: Asset
   });
   // ONE vision call yields the caption AND the grammar-enforced facet breakdown (issue #164) — the row is
   // born analysed, so the catch-up sweep never has to revisit it.
-  const analysis = await analyzeAvatarImage(ctx.roleClients, bytes);
+  const analysis = await analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes);
   await ctx.store({
     kind: "avatar",
     lens: "image-captioned",
+    ownerId,
     assetId: event.assetId,
     content: bytes,
     caption: analysis.caption,

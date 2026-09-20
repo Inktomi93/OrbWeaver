@@ -7,9 +7,9 @@ import type { ChatAction, ChatMembership, GlobalAction, ParticipantRole, Princip
 import type { InvocationChat } from "@orb/contracts/plugin";
 import type { ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import type { z } from "zod";
-import type { AgentToolServer, AgentToolSpec, ToolCallInput } from "#infra/providers";
+import type { AgentToolServer, AgentToolSpec, ToolCallInput } from "@orb/inference";
 
-export type { ToolCallInput } from "#infra/providers";
+export type { ToolCallInput } from "@orb/inference";
 
 /** The injected agent-sdk tool-server factory — the D47 barrel seam (`infra/providers`). tool-use depends
  *  DOWN on infra and receives the factory injected so tests stub it without an SDK dependency; `project-mcp`

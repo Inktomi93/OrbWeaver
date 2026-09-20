@@ -11,6 +11,7 @@ import type { SearchService } from "../contract/service.ts";
 import { nearestAvatarCharacters, readSeedAvatarVector } from "../persistence/image-nearest.ts";
 import { OWNER_OVERFETCH } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
+import { requireSpaceModel } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 const DEFAULT_ART_LENS: ImageLens = "image-raw";
@@ -18,9 +19,11 @@ const DEFAULT_ART_LENS: ImageLens = "image-raw";
 export function createSimilarArt(ctx: SearchContext): SearchService["similarArt"] {
   return async (params: SimilarArtParams): Promise<SimilarArtHit[]> => {
     const { ownerId, characterId, topN } = params;
+    const rc = await ctx.roleClientsFor(ownerId);
+    const imageEmbedModel = await requireSpaceModel(rc, "imageEmbed");
     requirePositiveTopN(topN, "similarArt");
     const lens = params.lens ?? DEFAULT_ART_LENS;
-    const model = ctx.roleClients.imageEmbedModel;
+    const model = imageEmbedModel;
 
     const seed = await readSeedAvatarVector(ctx.db, { ownerId, characterId, model, lens });
     if (seed === null) {

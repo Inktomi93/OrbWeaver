@@ -20,7 +20,7 @@ export function buildRecallQuery(
   scope: MemoryScope,
   recent: readonly MsgRow[],
   names: ReadonlyMap<CharacterId, string>,
-): MemoryQueryOptions {
+): Omit<MemoryQueryOptions, "ownerId"> {
   const window = recent.slice(Math.max(0, recent.length - cfg.queryWindow));
   return {
     scope: { chat: scope.chatId },

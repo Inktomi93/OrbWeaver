@@ -1,14 +1,19 @@
 // The composition root's KEYSTONE. `createServices` builds the infra handles (SecretBox/CAS/variant cache/image
-// adapter/provider backend-registry), the in-process event bus, and the boot-global owner RoleClients bundle,
-// then delegates each domain cluster to its sibling `entry/compose/*` seam builder (each takes an explicit deps
-// object — the buildChatService precedent). Returns the `Services` bundle transport reads + the boot handles the
-// lifecycle supervises/probes/wires.
+// adapter), the in-process event bus, and the ONE `@orb/inference` runtime (`createInferenceRuntime` over the
+// server-wired ports — inference program §11), then delegates each domain cluster to its sibling
+// `entry/compose/*` seam builder (each takes an explicit deps object — the buildChatService precedent). Returns
+// the `Services` bundle transport reads + the boot handles the lifecycle supervises/probes/wires.
+//
+// THERE IS NO BOOT-GLOBAL ROLE-CLIENTS BUNDLE (§8.5b, verify9 H3): every side call resolves through
+// `roleClientsFor(funderUserId)` — the runtime's per-funder fold over `connection_bindings` — so a member's
+// digest, arbiter or caption spends the MEMBER's rows, never the box owner's. `roleClientsFor` is the one
+// binder every seam receives; it reads the funder's real `Principal` off `users.role` (D135 clause G).
 //
 // Determinism: `now` is an injected param (compose never calls Date.now()); id minters are built from
-// mintTypeId/newId. Compose order: guards → sessions → settings → credentials → connection → roleClients →
+// mintTypeId/newId. Compose order: guards → sessions → settings → runtime → credentials → connection →
 // assets-character → search-discovery → admin → imagery → databank → chat → world-info → automation/plugin →
-// portability/runner. settings' effective-config cache is warmed before the backend-registry (it sources the
-// admin-resolved vllmConcurrency).
+// portability/runner. settings' effective-config cache is warmed before the runtime (it publishes the F12
+// private-endpoint allowlist and sources the agent-sdk fan-out cap).
 //
 // LANDING A NEW DOMAIN IS ONE CHANGE ACROSS SIX SITES — the first two are the only ones `tsc` forces:
 // the `Services` type + its build here, the domain's own `entry/compose/<name>.ts` seam, the tRPC router
@@ -38,13 +43,15 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, LiveOnlyChatEventType } from "@orb/contracts/chat";
-import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
-import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { chatParticipants } from "@orb/db";
+import { automationRules, chatParticipants, plugins, userCredentials } from "@orb/db";
+import { fetchOwned } from "@orb/db/kit";
 import { readSeedDemoChat } from "@orb/default-content";
+import type { InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
+import { createInferenceRuntime, resolveClaudeExecutable } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, PersonaId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
@@ -56,9 +63,8 @@ import { createAutomationTeachingContributions } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
 import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryRecallRecorder } from "#domain/chat";
 import { createDemoChatSeeder, createMemoryRecallRecorder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
-import type { LocalEngineReachability } from "#domain/connection";
-import { createConnectionService } from "#domain/connection";
-import type { CredentialsService } from "#domain/credentials";
+import type { ConnectionContext } from "#domain/connection";
+import { createConnectionPorts, createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
@@ -79,28 +85,18 @@ import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseTeachingContributions } from "#domain/tool-use";
 import type { WorkloadContributions } from "#domain/workloads";
 import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
-import type { EnginesPosture, HostClaudePosture } from "#foundation/env";
-import { env, hostClaudeInput, resolveHostClaudePosture } from "#foundation/env";
+import { APP_NAME, APP_URL } from "#foundation/config";
+import { env, processEnvSnapshot } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
-import { isWireCaptureEnabled, logAudit, recordWireCapture } from "#foundation/observability";
+import { addSpanEvent, getLog, isWireCaptureEnabled, logAudit, recordWireCapture, securityEvent, span } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import { createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createExtractText } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
-import { fetchOpenAiModels, probeOpenAiEndpoint } from "#infra/network";
-import type { BackendRegistryDeps, EngineStatusRecord, LocalLightPrefetchHandle, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
-import {
-  createBackendRegistry,
-  createProviderDiagnostics,
-  createProviderExecutor,
-  DEFAULT_EMBED_MODEL,
-  DEFAULT_IMAGE_EMBED_MODEL,
-  DEFAULT_RERANK_MODEL,
-  fetchEngineMaxModelLen,
-} from "#infra/providers";
-import { createCas, createVariantCache } from "#infra/storage";
+import { endpointAdmission, publishPrivateEndpointAllowlist } from "#infra/network";
+import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/storage";
 import { createChatBus, requireParticipant } from "../../domain/chat/index.ts";
 import type { Services } from "../../transport/trpc/context.ts";
 import { publishChatEvent, publishUserEvent, silenceRoomEntityFan } from "../../transport/trpc/index.ts";
@@ -127,10 +123,8 @@ import { createDomainEventBus } from "./event-bus.ts";
 import { buildImagery } from "./imagery.ts";
 import { minter } from "./minter.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
-import { mapProviderCredentialResolver } from "./provider-credential.ts";
 import { buildRefinery } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
-import { bindRoleClientsForUser, createUnboundRoleClients } from "./role-clients.ts";
 import { buildRosterPreset } from "./roster-preset.ts";
 import type { RpgComposeResult } from "./rpg.ts";
 import { buildRpg } from "./rpg.ts";
@@ -157,46 +151,15 @@ const QUIET_COALESCABLE = {
   memoryRecall: false,
 } as const satisfies Record<LiveOnlyChatEventType, boolean>;
 
-/** Reconstruct the effective engine POSTURE from the two boot facts compose receives (lossless: lifecycle
- *  passes `vllmManages = postureManages(posture)`, i.e. adopt-or-start ⟺ true; `vllmDisabled` ⟺ off). Fed to
- *  the connection send-availability gate (#54), which refuses a DOWN local engine only under `adopt-only`. */
-function derivePosture(vllmDisabled: boolean, vllmManages: boolean): EnginesPosture {
-  if (vllmDisabled) {
-    return "off";
-  }
-  return vllmManages ? "adopt-or-start" : "adopt-only";
-}
-
-/** Map the sealed infra gen-engine lifecycle status → the connection domain's reachability vocab (the raw
- *  `EngineStatusRecord` status tuple never crosses the providers boundary). Exhaustive over the infra tuple:
- *  a new lifecycle status is a tsc error here until it is classified. `undefined` (no tick yet) → unknown. */
-function toReachability(record: EngineStatusRecord | undefined): LocalEngineReachability {
-  if (record === undefined) {
-    return "unknown";
-  }
-  switch (record.status) {
-    case "adopted":
-    case "owned":
-      return "up";
-    case "sleeping":
-    case "sleeping-held":
-      return "asleep";
-    case "starting":
-    case "stack-pending":
-      return "warming";
-    case "down":
-    case "hung":
-    case "foreign":
-    case "failed":
-      return "down";
-  }
-}
+/** The runtime seams a composition root MAY override — the SDK `query` test seam, the D8 session store, a
+ *  prebuilt local-light model cache, a wire-capture sink. Everything else the runtime needs is wired HERE from
+ *  the domains; nothing about a provider, an engine or a posture is a boot dep any more (§4, F1/F2). */
+type InferenceSeams = Partial<Pick<InferenceDeps, "agentSdk" | "localLight" | "captureWire" | "sdkFetch">>;
 
 /**
- * What boot supplies to stand up the whole service graph. `vllmDisabled` is the effective fact
- * (`env.VLLM_DISABLED || !gpuPresent`); compose derives its complement `vllmAvailable` for the connection
- * resolver's derive-role fallback. The vLLM `concurrency` is NOT a boot dep — it is sourced from settings'
- * resolved effective-config inside `createServices`.
+ * What boot supplies to stand up the whole service graph. The env→config→runtime facts (the private-endpoint
+ * allowlist, the agent-sdk fan-out cap, the local-light cache dir) are read from the resolved effective
+ * config + `env` inside `createServices`, never passed in.
  */
 export interface ServicesDeps {
   readonly db: Db;
@@ -214,19 +177,7 @@ export interface ServicesDeps {
   /** The ST profile-directory snapshot `import-st`'s `importAll` reads; absent ⇒ repo-root `.st-data`. */
   readonly stProfileDir?: string;
   readonly sessionSecret: string | null;
-  readonly vllmDisabled: boolean;
-  /** The fleet MANAGER posture (adopt-or-start) — the supervisor triggers spawns + owns auto-sleep; adopt-only
-   *  adopts but never spawns. Absent ⇒ PASSIVE (#2421 — a silence never selects the spawning arm). Derived
-   *  from ENGINES_POSTURE at boot (lifecycle.ts), which always passes it. */
-  readonly vllmManages?: boolean;
-  /** The resolved host-Claude posture (CLAUDE_BACKEND × credential detection — `foundation/env/host-claude.ts`).
-   *  Decides whether the agent-sdk backend is CONSTRUCTED at all, and is carried into the connection domain so
-   *  the surfaces can say "off" and "not set up" as different things. Absent ⇒ resolved here from the
-   *  environment, which is what every test and the dev boot want (a box with no credential composes with the
-   *  backend absent and nothing spawns). */
-  readonly hostClaude?: HostClaudePosture;
-  readonly repoRoot?: string;
-  readonly providerSeams?: Partial<BackendRegistryDeps>;
+  readonly providerSeams?: InferenceSeams;
   /** This replica's stable lock-holder tag — must match the boot reclaim's match key. */
   readonly holder?: string;
   /** Force the rpg flight recorder on (R-OBS), independent of `env.RPG_TRACE` — the drive kit / a trace int test
@@ -263,18 +214,15 @@ export interface ServicesResult {
   /** The databank ingest subsystem — surfaced so the seed script can run ONE document's ingest inline
    *  (the same op the `databank-ingest` contribution drives off the queue). */
   readonly databankIngest: DatabankIngest;
-  readonly roleClients: RoleClientsWithSignal;
-  /** The per-owner `RoleClients` binder, pre-bound to the connection service + the executor. The workloads
-   *  worker's `bindRoleClients` is wired from this; entry never touches the raw executor. */
-  readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClientsWithSignal>;
+  /** The ONE inference runtime (§3.3) — surfaced for the boot's local-light prefetch plan and the composed-real
+   *  int tests; every domain reaches it through its own injected ops, never this handle. */
+  readonly runtime: InferenceRuntime;
+  /** The per-FUNDER `RoleClients` binder (§8.5b): the runtime's binding fold under that user's real Principal.
+   *  The workloads worker binds a pass's role clients from this; entry never touches the raw executor. */
+  readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
-  readonly vllmEngine: VllmEngineHandle | null;
-  /** The local-light BOOT WARM-UP handle (`infra/providers/backends/local-light/prefetch.ts`) — always
-   *  present (the in-process tier is unconditionally registered) and silent until `lifecycle.ts` hands it a
-   *  plan after the listener binds. */
-  readonly localLightPrefetch: LocalLightPrefetchHandle;
   /** The default-card seeder — the one instance both boot and the app first-request hook share, so the
    *  in-process memo + persisted latch hold across both call sites. */
   readonly characterSeeder: DefaultCharacterSeeder;
@@ -318,8 +266,8 @@ export interface ServicesResult {
   readonly chatRpgOps: ChatComposeResult["rpgChatOps"];
 }
 
-/** Construct the full service graph + the boot handles. Async: the boot-global `RoleClients` bundle
- *  resolves each derive-role's connection once before the consumers that require it are built. */
+/** Construct the full service graph + the boot handles. Async: the runtime loads the provider registry's
+ *  runtime rows (`provider_rows`) before any consumer that resolves against it is built. */
 export async function createServices(deps: ServicesDeps): Promise<ServicesResult> {
   const { db, now } = deps;
   const presence = createPresenceRegistry(now);
@@ -330,10 +278,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const eventBus = createDomainEventBus();
 
   const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret });
-  // PD-139(a): a settings write that changes the embed/imageEmbed model must enqueue a bulk purge+reindex.
-  // `workloads` is built far below (the search-discovery seam), so this holder is late-bound after it exists;
-  // the settings op derefs it at request time (a settings write), never during boot. Until then it is an inert
-  // no-op.
+  // PD-139(a) RE-RAISED (§10-4): a connection/binding write that changes an owner's embed or imageEmbed SPACE
+  // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
+  // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
+  // boot. Until then it is an inert no-op.
   let enqueueEmbedReindex: () => void = () => undefined;
   // materializeBackground (side-eye F-P0-2): built after `assets` + `effectiveConfig` exist (the assets-character
   // seam), but settings/character/chat compose BEFORE `assets`, so they deref this late-bound holder at request
@@ -350,7 +298,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     requireOwner,
     newThemeId: minter(ID_PREFIX.theme),
     emitUserEvent: publishUserEvent,
-    onEmbedModelChanged: () => enqueueEmbedReindex(),
     materializeBackground,
     newBackgroundEntryId: () => randomUUID(),
     versionIdentity,
@@ -372,156 +319,131 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
 
   // Warm the resolved-config cache from the stored override so the sync getEffectiveConfig() returns the
-  // floor⊕override config (incl. vllmConcurrency) before the registry reads it.
+  // floor⊕override config before the runtime reads it, then PUBLISH the F12 private-endpoint allowlist onto
+  // the egress guard — the second input every `auth: endpoint` dial is judged against (deployment-wide, no
+  // principal). Re-published on every reload so an admin's Governance edit reaches the next dial.
   const effectiveConfig = createEffectiveConfigWiring(settings);
   await effectiveConfig.reload();
   const resolved = effectiveConfig.getEffectiveConfig();
+  publishPrivateEndpointAllowlist(resolved.privateEndpointAllowlist);
 
-  // Built before the backend registry so the OpenRouter image runners get the real GIF→first-frame-PNG
-  // wire-normalize transform (MA-6) — the sharp adapter, wrapped inside providers so it never leaks in.
+  // Built before the runtime so the hosted image arms get the real GIF→first-frame-PNG wire-normalize
+  // transform (MA-6) — the sharp adapter, wrapped inside the package so it never leaks in.
   const imageAdapter = createImageAdapter();
   // TASK-24: wire the provider wire-capture sink ONLY when capture is enabled (env or the force flag). When
   // off, no sink is injected → the send boundaries never record → zero cost, zero retained bytes, prod-safe.
   const wireCaptureOn = deps.wireCapture === true || isWireCaptureEnabled();
-  // One resolution for this process: the registration gate below and the connection surfaces downstream must
-  // agree, and a second `resolveHostClaudePosture` call could disagree with the first (a credential file can
-  // appear between them).
-  const hostClaude = deps.hostClaude ?? resolveHostClaudePosture(hostClaudeInput());
-  const registry = createBackendRegistry({
-    ...(deps.providerSeams ?? {}),
-    now,
-    hostClaudeDisabled: !hostClaude.registered,
-    // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
-    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }) } : {}),
-    // D8 `session_entries` write path (issue #71) — the sealed agent-sdk backend never touches @orb/db
-    // itself; this is the compose-root op it persists a lineage entry through.
-    sessionWriter: createSessionEntryWriter(db),
-    // ABSOLUTE on purpose: transformers.js hands `env.cacheDir` straight to its FileCache, which path.joins
-    // it per file and lets node's fs resolve the rest — so a cwd-relative value would follow whatever cwd
-    // the process happens to have rather than the data root this knob names. Read off env here (not a
-    // `ServicesDeps` field) so every composition root — boot, the seed tools, tests — gets the data-root
-    // cache without a caller remembering; the lib's own fallback (`node_modules/@huggingface/transformers/
-    // .cache/`) is read-only in the container and erased by every `pnpm install`.
-    localLightCacheDir: resolve(env.LOCAL_LIGHT_CACHE_DIR),
-    vllmDisabled: deps.vllmDisabled,
-    ...(deps.vllmManages !== undefined ? { vllmManages: deps.vllmManages } : {}),
-    vllmConcurrency: {
-      embed: resolved.vllmConcurrency.embed,
-      summarize: resolved.vllmConcurrency.summarize,
-    },
-    // LIVE getter (not the boot snapshot) so an admin retune + engine restart applies the new launch flags.
-    engineLaunch: () => effectiveConfig.getEffectiveConfig().engineLaunch,
-    // LIVE getters (per batch / per request) so an admin retune applies WITHOUT a restart (Q6 / item 7).
-    agentSdkSummarizeConcurrency: () => effectiveConfig.getEffectiveConfig().agentSdkConcurrency.summarize,
-    genPresencePenalty: () => effectiveConfig.getEffectiveConfig().engineLaunch.genPresencePenalty,
-    genRepetitionPenalty: () => effectiveConfig.getEffectiveConfig().engineLaunch.genRepetitionPenalty,
-    imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
-    ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
-  });
-  const executor = createProviderExecutor({ backends: registry.backends });
-  const diagnostics = createProviderDiagnostics({ backends: registry.backends });
   const secretBox = createSecretBox(deps.secretBoxKey);
   const cas = createCas(deps.casDir);
   const variants = createVariantCache(deps.variantDir);
   const extractText = createExtractText();
   const passwordHasher = createPasswordHasher(deps.sessionSecret);
+  const userRuntimeDirs = createUserRuntimeDirs(env.USER_RUNTIME_DIR);
 
+  // The four persistence ports the runtime reads THROUGH (never `@orb/db` itself): connections, bindings,
+  // provider rows and the catalog-snapshot KV — all wired by `domain/connection`'s persistence, which stays
+  // the ONE writer of its three tables (§5.3b producer ownership).
+  const ports = createConnectionPorts({ db, now });
+
+  // The credentials domain composes BEFORE the runtime: the runtime resolves a connection's sealed secret
+  // through it (`resolveCredential` by credentialId — `loadActiveCredential` is gone, §5.3), and reports a
+  // derive-task auth failure back to it (#1800). `providerKnown` is bound to the runtime's registry through a
+  // late-bound holder because the registry exists only once the runtime does — a genuine construction cycle,
+  // closed one line after `createInferenceRuntime` returns.
+  let runtimeHolder: InferenceRuntime | null = null;
+  const runtimeRef = (): InferenceRuntime => {
+    if (runtimeHolder === null) {
+      throw new Error("compose: inference runtime derefed before it was built");
+    }
+    return runtimeHolder;
+  };
   const credentials = createCredentialsService({
     db,
     now,
     newCredentialId: minter(ID_PREFIX.userCredential),
     box: secretBox,
-    requireOwner,
-    probe: (credential): Promise<CredentialHealth> => diagnostics.probe({ credential }),
-    // The custom_openai health arm: infra/network dials the row's own endpoint (host-pinned safeFetch),
-    // stamping `checkedAt` from the composition clock (no-raw-clock).
-    probeEndpoint: (args): Promise<CredentialHealth> => probeOpenAiEndpoint(args, now),
-    inspect: (req): Promise<EndpointInspection> => diagnostics.inspect(req),
-    fetchModels: fetchOpenAiModels,
+    providerKnown: (providerId) => runtimeRef().providers.registry.get(providerId) !== undefined,
     audit,
     emitUserEvent: publishUserEvent,
-    // The SSRF belt's owner-saved endpoint admission is scoped to the OWNER ROW, never to the acting
-    // principal — and only `domain/sessions` may read `users` (`no-direct-users-read`), so the resolution is
-    // injected here rather than derived inside credentials. Read LIVE (not `deps.ownerId`) so a fresh OIDC
-    // box that lazy-mints its owner after boot resolves it on the next credential write.
-    ownerUserId: (): Promise<UserId | undefined> => sessions.getOwnerUserId(),
-  });
-  const resolveProviderCredential = mapProviderCredentialResolver(credentials.resolve);
-  const providerCredentials: CredentialsService = { ...credentials, resolve: resolveProviderCredential };
-  const vllmAvailable = !deps.vllmDisabled;
-  const connection = createConnectionService({
-    db,
-    now,
-    resolveCredential: (params): Promise<ResolvedCredential> => resolveProviderCredential(params),
-    fetchOrCatalog: diagnostics.fetchOrCatalog,
-    fetchAgentSdkModels: diagnostics.fetchAgentSdkModels,
-    // The gen engine self-reports its launched window at /v1/models; when vLLM is disabled there is no
-    // engine to ask, so short-circuit to null and let the resolver use the env-owned window.
-    fetchVllmGenWindow: (req): Promise<number | null> => (vllmAvailable ? fetchEngineMaxModelLen(req.engine, req.signal) : Promise.resolve(null)),
-    loadUserSettings: settings.loadUserSettings,
-    verifyClaudeAuth: (req): Promise<VerifyAuthResult> => diagnostics.verifyAuth(req),
-    accountCredits: (req): Promise<AccountCredits> => diagnostics.accountCredits(req),
-    generationCost: (req): Promise<GenerationCost> => diagnostics.generationCost(req),
-    vllmAvailable,
-    // The send-availability gate (#54) reads the effective posture + the gen engine's live reachability to
-    // refuse a DOWN local engine ONLY under adopt-only (passive; never self-recovers). `vllmManages` absent ⇒
-    // adopt-only (#2421): an undecided posture must not promise that a down engine will be spawned back up.
-    // The reachability is a cheap local supervisor read (no network); null handle (vLLM disabled) ⇒ unknown,
-    // and the posture-`off` arm short-circuits before it is consulted.
-    enginesPosture: derivePosture(deps.vllmDisabled, deps.vllmManages ?? false),
-    // The host-Claude twin of `vllmAvailable` + `enginesPosture`: the verbs need BOTH the boolean (can a
-    // max-pro-sub turn be served at all?) and the posture (did the operator turn it off, or is it merely
-    // not set up?) — the two states get different copy and different fixes.
-    hostClaudeAvailable: hostClaude.registered,
-    claudeBackendPosture: hostClaude.posture,
-    localGenEngineReachability: (): LocalEngineReachability => toReachability(registry.vllmEngine?.status()["gen"]),
-    // A display fact for the Connections picker; the resolver keeps deriving via its own empty-model
-    // pass-through, so this is never stamped.
-    localLightDefaults: {
-      embed: DEFAULT_EMBED_MODEL,
-      imageEmbed: DEFAULT_IMAGE_EMBED_MODEL,
-      rerank: DEFAULT_RERANK_MODEL,
-    },
-    isOwner: (principal) => {
-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — the ONE `requireOwner`/`can()`
-      // kernel's refusal collapses to a boolean verdict; a denied check can never read as owner. Ends if
-      // `requireOwner` grows a distinct infra-error class this boolean must stop swallowing.
-      try {
-        requireOwner(principal);
-        return true;
-      } catch {
-        return false;
-      }
-    },
   });
 
-  // D135 clause G — the binder's `Principal` is READ off `users.role` through the one row→Principal home,
-  // never stamped in the binder. The subject is not always the box owner: `/autobg` binds a bundle for an
-  // automation rule's AUTHOR (`automation-plugin.ts`), and a rule author only needs D18 ROOM host authority.
-  // Bound here rather than reusing `resolveHostPrincipal` (built ~150 lines below, at the chat seam) because
-  // the boot bundle on the next line needs it now; both are the same `createHostPrincipalResolver` closure.
-  const resolveRoleClientPrincipal = createHostPrincipalResolver(sessions);
-  const bindRoleClients = (ownerId: UserId): Promise<RoleClientsWithSignal> =>
-    bindRoleClientsForUser(
-      {
-        connection,
-        executor,
-        resolvePrincipal: resolveRoleClientPrincipal,
-        // A thunk, like `structuredOutputShape` below: an admin flip governs the next structured call.
-        structuredOutputVehicle: () => effectiveConfig.getEffectiveConfig().structuredOutputVehicle,
-        // THE DERIVE-ROLE CREDENTIAL STRIKE-OUT (#1800) — a DIRECT wire, for the same reason the chat
-        // seam's twin is one (`entry/compose/chat.ts`): the binder already carries the provider's own
-        // `ProviderErrorKind` plus the credentialId that call authenticated with, which is exactly
-        // `MaybeRevokeParams`, so an adapter here could only re-derive a fact it was handed — and #1373's
-        // whole defect was an adapter whose re-derived vocabulary the verb could never match.
-        maybeRevokeOnAuthFailed: credentials.maybeRevokeOnAuthFailed,
-      },
-      ownerId,
-    );
-  // OIDC lazy-mint (#1853): when no owner exists at boot the role-clients bundle is a fail-closed stub;
-  // every provider call throws until the first owner-policy OIDC login provisions the row and the
-  // per-call `live()` re-resolution succeeds naturally (role-clients are already hot-reloadable per call).
-  const roleClients = deps.ownerId !== undefined ? await bindRoleClients(deps.ownerId) : createUnboundRoleClients();
+  const claudeExecutable = resolveClaudeExecutable();
+  const runtime = await createInferenceRuntime({
+    ...(deps.providerSeams ?? {}),
+    now,
+    log: getLog(),
+    span: (name, fn, attrs) => span(name, () => fn(), attrs),
+    addSpanEvent,
+    securityEvent: (kind, fields) => securityEvent(kind, { ...fields }),
+    env: {
+      // "The bundled `claude` runtime resolves" IS the agent-sdk wire's registration (§8.4-1); a box without
+      // it reads `runtime-missing` on every `claude-sub` row and builds no backend.
+      ...(claudeExecutable !== null ? { claudeExecutable } : {}),
+      hostEnvAllowlist: (): Readonly<Record<string, string>> =>
+        Object.fromEntries(Object.entries(processEnvSnapshot()).flatMap(([k, v]) => (v === undefined ? [] : [[k, v] as const]))),
+    },
+    app: { name: APP_NAME, url: APP_URL },
+    snapshotStore: ports.snapshotStore,
+    connections: ports.connections,
+    bindings: ports.bindings,
+    providerStore: ports.providerStore,
+    resolveCredential: ({ credentialId, ownerId, providerId }) => credentials.resolve({ ownerId, credentialId, providerId }),
+    // THE DERIVE-ROLE CREDENTIAL STRIKE-OUT (#1800) — a DIRECT wire: the runtime carries the provider's own
+    // `ProviderErrorKind` plus the credentialId the call authenticated with, which is exactly
+    // `MaybeRevokeParams`; an adapter here could only re-derive a fact it was handed (#1373's whole defect).
+    onAuthFailed: credentials.maybeRevokeOnAuthFailed,
+    // A thunk: an admin flip governs the next structured call (D126).
+    structuredOutputVehicle: () => effectiveConfig.getEffectiveConfig().structuredOutputVehicle,
+    // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
+    ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }) } : {}),
+    imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
+    agentSdk: {
+      // LIVE getter (per request) so an admin retune applies WITHOUT a restart (Q6 / item 7).
+      summarizeConcurrency: () => effectiveConfig.getEffectiveConfig().agentSdkConcurrency.summarize,
+      // D8 `session_entries` write path (issue #71) — the sealed backend never touches @orb/db itself.
+      sessionWriter: createSessionEntryWriter(db),
+      ...(deps.providerSeams?.agentSdk ?? {}),
+    },
+    userRuntimeDir: (ownerId, tool) => userRuntimeDirs.dirFor(ownerId, tool),
+    embedSpace: { dims: EMBED_SPACE_DIMS },
+    localLight: {
+      // ABSOLUTE on purpose: transformers.js hands `env.cacheDir` straight to its FileCache, which path.joins
+      // it per file and lets node's fs resolve the rest — so a cwd-relative value would follow whatever cwd
+      // the process happens to have rather than the data root this knob names.
+      cacheDir: resolve(env.LOCAL_LIGHT_CACHE_DIR),
+      embedDtype: env.LOCAL_LIGHT_EMBED_DTYPE,
+      ...(deps.providerSeams?.localLight ?? {}),
+    },
+  });
+  runtimeHolder = runtime;
+  const executor = runtime.executor;
+
+  // The funder's REAL principal by userId (D135 clause G — READ off `users.role` through the one row→Principal
+  // home, never stamped). The binder every seam receives: the runtime's per-funder fold over
+  // `connection_bindings` (§7.1) under that user's own Principal.
+  const resolveFunderPrincipal = createHostPrincipalResolver(sessions);
+  const roleClientsFor = async (funderUserId: UserId): Promise<RoleClientsWithSignal> => runtime.roleClientsFor(await resolveFunderPrincipal(funderUserId));
+
+  // The connection domain — selection's thin front door over the runtime (§3.3). The four ownership /
+  // admission reads it needs are wired here rather than derived inside the domain: a credential row is the
+  // credentials domain's, a rule row automation's, a plugin row plugin's, and the allowlist verdict lives on
+  // the egress guard. Owner-scoped reads by construction (the id AND the owner are the predicate).
+  const connectionCtx: ConnectionContext = {
+    db,
+    now,
+    newConnectionId: minter(ID_PREFIX.userConnection),
+    newBindingId: minter(ID_PREFIX.connectionBinding),
+    runtime,
+    audit,
+    credentialOwned: async (ownerId, credentialId) => (await fetchOwned(db, userCredentials, credentialId, ownerId)) !== undefined,
+    ruleOwnedBy: async (ruleId, userId) => (await fetchOwned(db, automationRules, ruleId, userId)) !== undefined,
+    pluginOwnedBy: async (pluginId, userId) => (await fetchOwned(db, plugins, pluginId, userId)) !== undefined,
+    endpointAdmission,
+    recordProbeOutcome: credentials.recordProbeOutcome,
+    // PD-139(a) re-raised (§10-4) — the late-bound holder above, derefed at request time.
+    onEmbedSpaceChanged: () => enqueueEmbedReindex(),
+  };
+  const connection = createConnectionService(connectionCtx);
 
   // Built before character so character's by-name card-tag attach port wires to the real tag verb.
   const tagCtx: TagContext = {
@@ -616,7 +538,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     emit: eventBus.emit,
     audit,
     tag,
-    roleClients,
+    roleClientsFor,
     materializeBackground,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
     imageVariantQuality: () => effectiveConfig.getEffectiveConfig().imageVariantQuality,
@@ -637,7 +559,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     audit,
-    roleClients,
+    roleClientsFor,
     eventBus,
     attachCardTagByName: tag.attachCardTagByName,
     resolveUserPresetParams,
@@ -663,7 +585,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const { refinery, refineryWorkloads } = buildRefinery({
     db,
     now,
-    roleClients,
+    roleClientsFor,
     character,
     resolveUserPresetParams,
     loadUserSettings: settings.loadUserSettings,
@@ -684,11 +606,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // W7a — an admin revoke ends the streams those sessions opened, not just the cookies. The registry is
     // built above in this same function (transport state, entry-owned clock), so the port wires here.
     sockets: { evictSession: (sessionId) => sockets.evictSession(sessionId), evictUser: (userId) => sockets.evictUser(userId) },
-    vllmEngine: registry.vllmEngine,
-    localLightPrefetch: registry.localLightPrefetch,
     character,
     embeddings,
-    embedModel: () => roleClients.embedModel,
+    roleClientsFor,
     cas,
     imageTransform: imageAdapter.transform,
     exportCardScripts: regexCompose.exportCardScripts,
@@ -706,7 +626,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     executor,
     assets,
     character,
-    roleClients,
+    roleClientsFor,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
     resolveViewerVisibility: (chatId, userId) => resolveViewerVisibility(chatId, userId),
     resolveUserPresetParams,
@@ -729,7 +649,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     loadAssetBytes: assets.loadAssetBytes,
     embeddings,
     extractText,
-    embedModel: () => roleClients.embedModel,
+    roleClientsFor,
     search,
     workloads,
     loadUserSettings: settings.loadUserSettings,
@@ -737,7 +657,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // The host's REAL principal by userId — shared by chat compose and rpg's lite capability resolve (a game turn
   // runs as the host, D19).
-  const resolveHostPrincipal = createHostPrincipalResolver(sessions);
+  const resolveHostPrincipal = resolveFunderPrincipal;
   // FORWARD-REF (rpg-design/05 §4.10): chat's turn hooks call rpg's `ChatRpgOps`, but rpg builds AFTER chat
   // (chat's `rpgChatOps` is rpg's dep). The delegate below forwards to a late-bound holder bound SYNCHRONOUSLY
   // once rpg composes, a few lines down (the agents-delegate precedent) — no request can run before then, so the
@@ -795,9 +715,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveHostPrincipal,
     audit,
     can,
-    roleClients,
+    roleClientsFor,
     connection,
-    credentials: providerCredentials,
+    maybeRevokeOnAuthFailed: credentials.maybeRevokeOnAuthFailed,
     character,
     persona,
     resolvePersonasForParticipants,
@@ -977,7 +897,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveOwnerPrincipal,
     // C5 — the owner-global lane's standing-authority read rides SESSIONS, the one domain that owns `users`.
     sessions,
-    bindRoleClients,
+    roleClientsFor,
     resolveUserPresetParams,
     // #679 U8 seams 15/17 — the two canon-write ops the plugin membrane rides under the installer. databank's
     // own createFromText content-addresses + dedups + enqueues the ingest workload (the indexer).
@@ -1061,17 +981,21 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     databankIngest,
     importWorkloads,
     refineryWorkloads,
+    // The old-space reclaim after a BULK sweep is PER OWNER now (vector tasks are owner-scoped, §7.5; the
+    // per-owner `activeSpace` getter is step 8's) — one purge per corpus owner, the row counts advisory.
     purgeDocumentVectors: async (): Promise<void> => {
-      // The purge's row counts are advisory — the sweep's own counts are the workload result.
-      await embeddings.purgeDocumentVectors();
+      for (const ownerId of await searchDiscovery.listCorpusOwners()) {
+        await embeddings.purgeDocumentVectors({ ownerId });
+      }
     },
     backfillMemory: (args) => chatCompose.backfill.memory(args),
     // The #156 admission gate's read — one hop to the ONE memory-config merge, never a second settings read.
     isMemoryEnabled: chatCompose.isMemoryEnabled,
     backfillGroupCharacters: (args) => chatCompose.backfill.groupCharacters(args),
     purgeMemoryVectors: async (): Promise<void> => {
-      // The purge's row counts are advisory — the sweep's own counts are the workload result.
-      await embeddings.purgeMemoryVectors();
+      for (const ownerId of await searchDiscovery.listCorpusOwners()) {
+        await embeddings.purgeMemoryVectors({ ownerId });
+      }
     },
     loadUserSettings: settings.loadUserSettings,
     // The ONE per-user freshness plane the background passes fan `corpusRecomputed` on at their terminals
@@ -1255,14 +1179,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     eventBus,
     workloadContributions,
     databankIngest,
-
-    roleClients,
-    bindRoleClients,
+    runtime,
+    roleClientsFor,
     audit,
     effectiveConfig,
     secretBox,
-    vllmEngine: registry.vllmEngine,
-    localLightPrefetch: registry.localLightPrefetch,
     characterSeeder,
     personaSeeder,
     demoChatSeeder,

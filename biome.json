@@ -526,8 +526,12 @@
         "packages/server/src/domain/connection/**",
         "packages/server/src/domain/credentials/**",
         "packages/server/src/infra/providers/**",
+        "packages/inference/src/**",
         "packages/contracts/src/connection/**",
+        "packages/contracts/src/inference/**",
         "tests/contracts/connection/**",
+        "tests/contracts/inference/**",
+        "tests/inference/**",
         "tooling/src/model-ab/**",
         "tooling/src/verify/gates/**"
       ],
@@ -618,7 +622,7 @@
       }
     },
     {
-      "includes": ["tooling/src/seed/lib/fake-vllm.ts"],
+      "includes": ["tooling/src/seed/lib/fake-local-light.ts"],
       "linter": {
         "rules": {
           "suspicious": {

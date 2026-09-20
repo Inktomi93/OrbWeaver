@@ -16,8 +16,8 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { z } from "zod";
-import type { EffortLevel as ModelEffortLevel } from "#connection";
-import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#connection";
+import type { EffortLevel as ModelEffortLevel } from "#inference";
+import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema } from "#prose-slot";
 import type { VersionedParseIssue } from "#versioned-config";
@@ -189,6 +189,7 @@ export const SIDE_GEN_KINDS = [
   "refine_rewrite",
   "refine_analyze",
   "schema_forge",
+  "theme_name",
 ] as const satisfies readonly string[];
 export type SideGenKind = (typeof SIDE_GEN_KINDS)[number];
 
@@ -249,6 +250,8 @@ export const SIDE_GEN_POSTURES = {
   // `null`), which measured ~1 500 tokens for a four-field design on 2026-08-09. 768 truncated it —
   // `finish_reason:"length"`, i.e. a failed forge that looked like a bad model.
   schema_forge: { temperature: 0.2, maxOutputTokens: 2048 },
+  // Theme-cluster naming (discovery): a two-to-four-word label for a keyword set — deterministic-ish, tiny.
+  theme_name: { temperature: 0.3, maxOutputTokens: 24 },
 } as const satisfies Record<SideGenKind, SideGenPosture>;
 
 // The user-INTENT effort vocabulary (adds `none` = thinking-disabled) — derived from connection's
@@ -265,6 +268,13 @@ export type ThinkingDisplay = (typeof THINKING_DISPLAYS)[number];
 // managed = OURS, a durable portable LINEAR marker via the chat's own model), never whether it happens.
 export const COMPACTION_MODES = ["auto", "managed"] as const;
 export type CompactionMode = (typeof COMPACTION_MODES)[number];
+
+// What a reply may CARRY (inference program §6.7): `text+image` asks a model whose capability says
+// `output.modalities ∋ image` to answer with interleaved pictures (the funnel emits `modalities` on the wire
+// only then; on a text-only model the knob drops with `sampling_knob_dropped`). GLOBAL like every gen
+// setting (D154) — the per-room desire is a recorded fork (F23), not a knob.
+export const REPLY_MEDIA = ["text", "text+image"] as const;
+export type ReplyMedia = (typeof REPLY_MEDIA)[number];
 
 const TEMPERATURE_MIN = 0;
 const TEMPERATURE_MAX = 2;
@@ -357,6 +367,7 @@ export const userIntentSchema = z.strictObject({
   stop: z.array(z.string()).optional(),
   // Vocab derived from connection's VERBOSITY_LEVELS (never re-spelled).
   verbosity: z.enum(VERBOSITY_LEVELS).optional(),
+  replyMedia: z.enum(REPLY_MEDIA).optional(),
 
   compaction: z
     .object({
@@ -644,63 +655,9 @@ void _greetingTransformsAreExhaustive;
 // `superRefine` here rejects `constructor`/`prototype` (which Zod does NOT strip) at every nested level.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-const FORBIDDEN_KEYS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
-
-export type CustomParameters = Record<string, unknown>;
-
-function rejectForbiddenKeys(obj: Record<string, unknown>, ctx: z.RefinementCtx): void {
-  for (const key of Object.keys(obj)) {
-    if (FORBIDDEN_KEYS.has(key)) {
-      ctx.addIssue({
-        code: "custom",
-        message: `Forbidden key '${key}' — would enable prototype pollution.`,
-        path: [key],
-      });
-    }
-  }
-}
-
-// Recursive lenient JSON validator; the key check rejects FORBIDDEN_KEYS at every level.
-const jsonValueSchema: z.ZodType<unknown> = z.lazy(
-  (): z.ZodType<unknown> =>
-    z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(jsonValueSchema), z.record(z.string(), jsonValueSchema).superRefine(rejectForbiddenKeys)]),
-);
-
-export const customParametersSchema: z.ZodType<CustomParameters> = z.record(z.string(), jsonValueSchema).superRefine(rejectForbiddenKeys);
-
-/** The `customParameters` keys the vLLM infra belt OWNS (D143a): they are DROPPED before the request with a
- *  named warn rather than merged. Homed here, not in the surface that enforces them, because the preset
- *  EDITOR states the same fact at authoring time — a second spelling would let the editor promise a key the
- *  wire refuses.
- *
- *  Why each: `truncate_prompt_tokens` turns an over-window request into an unbounded hang, so the window
- *  guard is client-side; `truncation_side` is a second opinion about a cut the belt owns; the surface
- *  hardcodes `stream` and reads usage off `stream_options`; `model` is the resolved connection's identity
- *  (window math, cost attribution, catalog) and `messages` is the assembled canon history.
- *
- *  `continue_final_message` / `add_generation_prompt` joined the list 2026-08-19 with the assistant-prefill
- *  flip: they are the PAIR the surface sends to continue a delivered trailing-assistant row, decided from the
- *  model's capability AND the assembled array's tail. Precedence alone would not hold them — on the far
- *  commoner arm (no prefill) the modeled body emits NEITHER key, so a preset value would ride unopposed and
- *  either fold the next turn into the previous message or, with both flags true, be refused by vLLM outright.
- *  A user who wants a prefill writes an assistant-role injection at depth 0; the wire mechanics are ours. */
-export const VLLM_BELT_OWNED_PARAMETER_KEYS = [
-  "truncate_prompt_tokens",
-  "truncation_side",
-  "stream",
-  "stream_options",
-  "model",
-  "messages",
-  "continue_final_message",
-  "add_generation_prompt",
-] as const;
-
-const VLLM_BELT_OWNED_PARAMETER_KEY_SET: ReadonlySet<string> = new Set<string>(VLLM_BELT_OWNED_PARAMETER_KEYS);
-
-/** `true` when a `customParameters` key is belt-owned on the vLLM wire (see {@link VLLM_BELT_OWNED_PARAMETER_KEYS}). */
-export function isVllmBeltOwnedParameterKey(key: string): boolean {
-  return VLLM_BELT_OWNED_PARAMETER_KEY_SET.has(key);
-}
+// `customParameters` LEFT THE PRESET (inference program §8.1c): extra body fields are the CONNECTION's `extras`
+// column (where the quirk lives), and the belt-owned keys are `BELT_OWNED_BODY_KEYS` in
+// `@orb/contracts/inference/features.ts` beside the endpoint feature schema. The preset keeps sampling only.
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // PromptConfig — the `presets.config` blob: an ordered (= array index) list of sections + generation
@@ -2195,7 +2152,6 @@ export const promptConfigSchema = z.object({
   // Preset-authored user macros — additive defaulted (a pre-MU blob parses; no
   // version bump needed, the `variables`/`guidedActions` precedent).
   userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),
-  customParameters: customParametersSchema.optional(),
   namesBehavior: z.enum(NAMES_BEHAVIOR).optional(),
   continuePostfix: z.enum(CONTINUE_POSTFIX_TYPES).optional(),
   formatStrings: formatStringsSchema.optional(),

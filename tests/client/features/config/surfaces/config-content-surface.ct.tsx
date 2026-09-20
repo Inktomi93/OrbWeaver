@@ -15,7 +15,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8, zipSync } from "fflate";
 import { readEscapedAbsolutes } from "../../../../support/browser/settings-geometry.ts";
-import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
+import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
 
@@ -147,7 +147,7 @@ const HOST_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "credentials.list": [],
   "workloads.list": [],
   "workloads.listSchedules": [],
-  "connection.resolveChatCapability": makeResolvedChatCapability(),
+  "connection.resolveChatCapability": makeResolvedView(),
   "plugin.list": [],
   "plugin.listDistributed": [],
   "automation.listOwnerRules": [],

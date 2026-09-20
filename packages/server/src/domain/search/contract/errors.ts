@@ -5,6 +5,8 @@
 import { DomainOperationError } from "@orb/kit/errors";
 
 export const SEARCH_EMPTY_QUERY = "empty_query";
+/** The owner has no `embed`/`imageEmbed` connection bound — nothing defines their vector space. */
+export const SEARCH_NO_SPACE = "search_no_space";
 
 /** A chat-memory verb keying to a digest block was called without an egocentric scopedCharacterId; we
  *  throw rather than mint an empty-string sentinel. */

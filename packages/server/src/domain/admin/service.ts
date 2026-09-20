@@ -1,5 +1,5 @@
 // domain/admin — COMPOSITION ROOT. Wires the 11 verbs over the injected `AdminContext`. ZERO logic: it
-// only calls the verb factories and assembles the `AdminService` (the grouped `sessions`/`vllm` factories
+// only calls the verb factories and assembles the `AdminService` (the grouped `sessions` factory
 // each return their slice). The `AdminContext` is built at the entry composition root and passed in.
 
 import type { AdminContext } from "./context.ts";
@@ -12,11 +12,9 @@ import { createResetPassword } from "./verbs/reset-password.ts";
 import { createSessions } from "./verbs/sessions.ts";
 import { createSetEnabled } from "./verbs/set-enabled.ts";
 import { createSetRole } from "./verbs/set-role.ts";
-import { createVllm } from "./verbs/vllm.ts";
 
 export function createAdminService(ctx: AdminContext): AdminService {
   const sessions = createSessions(ctx);
-  const vllm = createVllm(ctx);
   return {
     listUsers: createListUsers(ctx),
     setRole: createSetRole(ctx),
@@ -27,8 +25,6 @@ export function createAdminService(ctx: AdminContext): AdminService {
     listSessions: sessions.listSessions,
     revokeSession: sessions.revokeSession,
     revokeUserSessions: sessions.revokeUserSessions,
-    vllmEngines: vllm.vllmEngines,
-    restartVllmEngine: vllm.restartVllmEngine,
     ...createEmbed(ctx),
   };
 }

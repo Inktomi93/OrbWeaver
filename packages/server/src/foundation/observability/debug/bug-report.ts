@@ -58,8 +58,8 @@ import type { BugReportBuildIdentity, BugReportRecord } from "@orb/kit/bug-repor
 import { BUG_REPORT_DIR, bugReportStem } from "@orb/kit/bug-report";
 import type { EvidenceSlice, EvidenceWindow } from "@orb/kit/evidence-window";
 import { sliceByWindow } from "@orb/kit/evidence-window";
+import { redactKnownSecrets, secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
-import { redactKnownSecrets, secretRedactionLiterals } from "#kit/secret-redaction";
 import { logRing, recentRequests } from "../logger.ts";
 import { recentTraces } from "../tracing.ts";
 import { ERROR_LEVEL, parseLogRingLine, ringLineLevel, ringLineTime } from "./log-ring-read.ts";

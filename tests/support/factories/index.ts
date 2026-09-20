@@ -16,9 +16,9 @@ export type { PersonaRow } from "./persona.ts";
 export { makePersona, seedPersona } from "./persona.ts";
 export { principal } from "./principal.ts";
 export {
-  makeModelCapability,
+  makeGenerationCapability,
   makeOpenRouterCredential,
-  makeResolvedChatCapability,
+  makeResolvedView,
   makeResolvedConnection,
   makeResolvedCredential,
 } from "./resolved-connection.ts";

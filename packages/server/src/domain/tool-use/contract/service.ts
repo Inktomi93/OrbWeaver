@@ -4,7 +4,7 @@
 
 import type { Can } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
-import type { AgentToolServer, WireTool } from "#infra/providers";
+import type { AgentToolServer, WireTool } from "@orb/inference";
 import type { CreateAgentToolServer, PluginToolSpec, ToolCallBatch, ToolDefinition, ToolExecutionContext } from "./params.ts";
 import type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./results.ts";
 

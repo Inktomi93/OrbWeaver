@@ -65,6 +65,13 @@ export const ID_PREFIX = {
   auditLog: "audit_log",
   session: "session",
   userCredential: "user_credential",
+  // A user's CONNECTION row (`user_connections`): provider + credential + model + declared overrides — the
+  // unit every per-task binding references by id (@orb/contracts/inference §5.3). `provider_rows` has NO
+  // TypeID: the registry id (`openrouter`, `plugin:<name>/<id>`) IS its natural key.
+  userConnection: "user_connection",
+  // One actor's (user / automation rule / plugin grant) pick of a connection for ONE routable task
+  // (`connection_bindings`) — an FK junction row, never a JSON id-array (D61-B6).
+  connectionBinding: "connection_binding",
   imageEmbedding: "image_embedding",
   characterStat: "character_stat",
   ownerStat: "owner_stat",
@@ -136,6 +143,10 @@ export type VerifiedUserId = UserId & { readonly [sessionVerified]: true };
 /** The BFF session ROW id (NOT the opaque cookie token — that's `SessionToken`). */
 export type SessionId = TypeIdOf<"session">;
 export type UserCredentialId = TypeIdOf<"user_credential">;
+/** A user's connection row (`user_connections`) — the unit a `ConnectionRef` names and a binding points at. */
+export type UserConnectionId = TypeIdOf<"user_connection">;
+/** One actor→connection pick for one routable task (`connection_bindings`). */
+export type ConnectionBindingId = TypeIdOf<"connection_binding">;
 
 // Identity VALUES — not entity ids, but auth-layer strings that are mixing-prone.
 // `Handle` = user-facing username; `ExternalId` = stable SSO `sub` (NEVER equal to

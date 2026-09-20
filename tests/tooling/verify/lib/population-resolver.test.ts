@@ -14,6 +14,7 @@ test.describe("population vocabulary", () => {
       "@kit": ["packages/kit/src/"],
       "@showcase": ["packages/showcase-plugins/src/"],
       "@default-content": ["packages/default-content/src/"],
+      "@inference": ["packages/inference/src/"],
       "@tooling": ["tooling/src/"],
       "@tests": ["tests/"],
       "@scripts": ["scripts/"],
@@ -22,7 +23,7 @@ test.describe("population vocabulary", () => {
       "@frontend": ["@client", "@ui"],
       "@backend": ["@server", "@db", "@contracts"],
       "@packages": ["@client", "@ui", "@server", "@db", "@contracts", "@kit"],
-      "@authored": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tooling", "@tests", "@scripts"],
+      "@authored": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference", "@tooling", "@tests", "@scripts"],
     });
   });
 });

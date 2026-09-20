@@ -30,6 +30,8 @@ export * from "./audit.ts";
 export * from "./automation.ts";
 export * from "./character.ts";
 export * from "./chat.ts";
+export * from "./connection.ts";
+export * from "./connection-bindings.ts";
 export * from "./credentials.ts";
 export * from "./databank.ts";
 export * from "./discovery.ts";

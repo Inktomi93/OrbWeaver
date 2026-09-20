@@ -5,7 +5,7 @@
 
 import type { DocOrigin, DocumentListCursor, IngestPhase, ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
 interface DatabankActorParams {
   readonly principal: Principal;
@@ -173,6 +173,8 @@ export interface ListActiveForChatParams extends DatabankActorParams {
  *  `EnqueueIngestOp`. */
 export interface DatabankGatherParams {
   readonly chatId: ChatId;
+  /** The room host — the owner of the document space `search.documents` scans (host-only v1). */
+  readonly hostUserId: UserId;
   readonly queryText: string;
   readonly tokenBudget: number;
   /** The retrieval params (the host's `UserSettings.databank.retrieval`, threaded via ForeignInputs) the

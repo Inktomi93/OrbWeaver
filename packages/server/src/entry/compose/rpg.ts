@@ -32,9 +32,9 @@
 // `extractionToStateDelta` path. Two model calls per exchange become one.
 
 import { randomInt } from "node:crypto";
-import type { ChatApi, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
-import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
+import type { ChatApi } from "@orb/contracts/inference";
+import { coEmitsProseWithTools } from "@orb/contracts/inference";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -65,20 +65,18 @@ import {
 } from "@orb/contracts/rpg";
 import type { StructuredOutputShape } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import { chats } from "@orb/db";
+import type { ChatResult, ProviderExecutor, Resolved } from "@orb/inference";
+import { generationOf, NoConnectionError, ProviderError } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
-import { eq } from "drizzle-orm";
 import { can } from "#domain/admin";
 import type { CharacterImportProvenance, CharacterService } from "#domain/character";
 import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "#domain/character";
 import type { ChatService, RpgCardCorpus, RpgTurnTranscriptMessage } from "#domain/chat";
-import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
-import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
 import type {
   ActorRefIndex,
   ImportRpgGame,
@@ -113,7 +111,6 @@ import {
 } from "#domain/rpg";
 import type { ToolUseService } from "#domain/tool-use";
 import { logger } from "#foundation/observability";
-import type { ChatResult, ProviderExecutor } from "#infra/providers";
 import { sha256Hex } from "#kit/content-hash";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
@@ -168,12 +165,10 @@ export interface RpgComposeDeps {
    *  — the hidden-content posture + the D16 canon floor for one human over one chat. rpg's member-facing reads
    *  belt on it (#1528) and never re-derive either half. */
   readonly resolveViewerVisibility: RpgResolveViewerVisibility;
-  /** `resolveChat` resolves the ROOM's connection (per-chat routing overlay, `metadata.providerRouting`) for the
-   *  READ-side `trackersReadOnly` pill — the SAME verb the character turn resolves through (`compose/chat.ts`),
-   *  never the host's global `resolveRole` default (stickler F1). `getOrSkinTierModels` feeds the agent-sdk
-   *  extraction arm's mode-2 tier→slug map. The state ROUNDS re-resolve NOTHING — they ride the character turn's
-   *  already-resolved `input.turnConnection` threaded from the engine. */
-  readonly connection: Pick<ConnectionService, "resolveChat" | "getOrSkinTierModels">;
+  /** `resolve` — the runtime fold, for the READ-side `trackersReadOnly` pill and the two HOST doors (resync /
+   *  populate), each under the ACTING user's own chat binding (§8.4-3). The in-turn state ROUNDS re-resolve
+   *  NOTHING — they ride the character turn's already-resolved `input.turnConnection` threaded from the engine. */
+  readonly connection: Pick<ConnectionService, "resolve">;
   /** The extraction rides the `structured` role on the array/vLLM backends (the one-shot schema-constrained
    *  PRIMITIVE — owner ruling 2026-07-27, split from summarize) AND `runChatTurn` (the SDK outputFormat path)
    *  when the host connection is `agent-sdk` — the metered-sub credential firewall stays intact (D17), the
@@ -501,14 +496,12 @@ function buildExtractionUserPrompt(
  *  firewall excludes the metered sub, intentionally). A READ-ONLY structured emission: NO tools / MCP
  *  server mounted (extraction never mutates through a tool turn). The chat role gates `max-pro-sub` behind
  *  owner consent — the host funds this turn, so consent is the host's (§4.6 / D17). Depends on
- *  `getOrSkinTierModels` because the agent-sdk arm requires the mode-2 tier→slug map even on a sub turn
- *  (the firewall builds the OR skin env only for the OR source, but the request field is non-optional). */
+ */
 /** The resolved per-call inputs both extraction arms consume — the CHARACTER turn's resolved connection + its
  *  enforced consent verdict + the prompts + the ref-constrained response schema (R1). Bundled to keep each arm
- *  under the param-count gate. `conn`/`ownerConsented` come from `input.turnConnection` — never a re-resolve
- *  or a force-stamped `true` (stickler F1). */
+ *  under the param-count gate. `conn` comes from `input.turnConnection` — never a re-resolve (stickler F1). */
 interface ExtractCtx {
-  readonly conn: ResolvedConnection;
+  readonly conn: Resolved<"chat">;
   /** The chat this round belongs to — threaded onto the provider request PURELY as the wire-capture
    *  correlation key (`ChatRequest.chatId` → the `captureWire` sink → `/api/_debug/wire/captures?chatId=`).
    *  A state round that omits it still lands in the ring, but ANONYMOUS: the operator's only filter is the
@@ -516,7 +509,6 @@ interface ExtractCtx {
    *  spill held a `tool_choice:"required"` state round with `chatId: undefined` beside the captured character
    *  turns). REQUIRED, like `signal`, so a new arm cannot forget to answer the question. */
   readonly chatId: ChatId;
-  readonly ownerConsented: boolean;
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly schema: WireReady;
@@ -529,21 +521,13 @@ interface ExtractCtx {
 }
 
 async function extractViaChat(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<string> {
-  const orSkinTierModels = await deps.connection.getOrSkinTierModels();
   const result = await deps.executor.runChatTurn({
     api: "agent-sdk",
     chatId: ctx.chatId,
-    model: ctx.conn.model,
-    credential: ctx.conn.credential,
-    capability: ctx.conn.capability,
+    connection: ctx.conn,
     params: {},
     systemPrompt: { static: ctx.systemPrompt, dynamic: "" },
     prompt: ctx.userPrompt,
-    orSkinTierModels,
-    // The chat-role firewall requires owner consent for a max-pro-sub credential. This is the character turn's
-    // ENFORCED verdict (`resolveOwnerConsented`, engine.ts), inherited — NOT a force-stamped `true`: a
-    // member-triggered turn on a non-consented sub already refused before commit, so no round ever fires.
-    ownerConsented: ctx.ownerConsented,
     responseFormat: extractionResponseFormat(deps, ctx.schema),
     signal: ctx.signal,
   });
@@ -561,13 +545,19 @@ async function extractViaStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Prom
   // chatId key rides the two vehicles whose request shape carries one (`runChatTurn` — the tool round and
   // the agent-sdk degrade above).
   const result = await deps.executor.structured({
-    credential: ctx.conn.credential,
-    model: ctx.conn.model,
+    // The CHARACTER TURN's row re-tagged for the `structured` task (§7.5-1a: never a re-resolve).
+    connection: { ...ctx.conn, task: "structured" },
     inputs: [{ systemPrompt: ctx.systemPrompt, userPrompt: ctx.userPrompt }],
     responseFormat: extractionResponseFormat(deps, ctx.schema),
     signal: ctx.signal,
   });
   return result.items.at(0)?.text ?? "";
+}
+
+/** A resolve that ended in NO row / an unservable row — the pill and the two host doors degrade on it (readonly,
+ *  no round) rather than 500; any other failure is a real fault and rethrows. */
+function isUnresolvable(err: unknown): boolean {
+  return err instanceof NoConnectionError || (err instanceof ProviderError && err.kind === "forbidden");
 }
 
 /** The SEMANTIC self-ref the human player's actor always answers to — a STABLE token independent of the
@@ -775,7 +765,6 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     const ctx: ExtractCtx = {
       conn,
       chatId,
-      ownerConsented: turnConnection.ownerConsented,
       systemPrompt: extractionSystem(inputs),
       userPrompt: buildExtractionUserPrompt(turnConnection.transcript, baseState, config, prose),
       schema,
@@ -856,7 +845,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
 function logExtractionOutcome(args: {
   readonly chatId: ChatId;
   readonly model: string;
-  readonly api: string;
+  readonly api: ChatApi | null;
   /** How many actors the model could legally have targeted — the denominator that makes a write-nothing line
    *  actionable ("nobody to write about" vs "targets existed and it wrote none"). The round arms pass their
    *  per-call `refs.actorRefs.length`; the FOLD passes `reachableActorRefs(base, roster).size`, the same menu
@@ -910,7 +899,7 @@ function logExtractionOutcome(args: {
 function logToolCallLosses(args: {
   readonly chatId: ChatId;
   readonly model: string;
-  readonly api: string;
+  readonly api: ChatApi | null;
   readonly calls: readonly RpgToolCall[];
   readonly vehicle: string;
   /** The caller's event namespace, mirroring `logStrippedKeys`. Omitted ⇒ the IN-TURN namespace, which is what
@@ -957,7 +946,7 @@ function logToolCallLosses(args: {
 function logStrippedKeys(args: {
   readonly chatId: ChatId;
   readonly model: string;
-  readonly api: string;
+  readonly api: ChatApi | null;
   readonly vehicle: string;
   readonly event: string;
   readonly stripped: readonly string[];
@@ -982,7 +971,7 @@ function logStrippedKeys(args: {
  *  already named by `rpg.toolround.failed` (a throw has no usage to report). */
 function logToolRoundUsage(args: {
   readonly chatId: ChatId;
-  readonly api: string;
+  readonly api: ChatApi | null;
   readonly pass: "primary" | "inventory-audit" | "resync";
   readonly result: ChatResult;
 }): void {
@@ -1025,7 +1014,7 @@ function isCancelled(signal: AbortSignal): boolean {
 function logCancelled(args: {
   readonly chatId: ChatId;
   readonly model: string;
-  readonly api: string;
+  readonly api: ChatApi | null;
   readonly vehicle: string;
   readonly preflight: boolean;
 }): void {
@@ -1187,7 +1176,16 @@ function needsInventoryAudit(baseState: RpgSnapshotState, transcript: readonly R
   );
 }
 
-type ToolRoundRequest = Extract<Parameters<ProviderExecutor["runChatTurn"]>[0], { readonly api: "chat-completions" | "responses" }>;
+type ToolRoundRequest = Exclude<Parameters<ProviderExecutor["runChatTurn"]>[0], { readonly api: "agent-sdk" }>;
+
+/** The ARRAY-wire api of a resolved chat row (every wire but the stateful agent-sdk carries `tools[]`). A
+ *  chat-task resolve always carries an api (`null` is the non-chat kinds'), so a miss is a program error. */
+function arrayWireApiOf(conn: Resolved<"chat">): ToolRoundRequest["api"] {
+  if (conn.api === null || conn.api === "agent-sdk") {
+    throw new ProviderError({ kind: "invalid", retryable: false, message: `rpg tool round: connection ${conn.connectionId} has no array-wire api` });
+  }
+  return conn.api;
+}
 
 /** Run the selective inventory pass without making the primary round own a second provider-error branch. */
 async function runInventoryAudit(args: {
@@ -1210,7 +1208,10 @@ async function runInventoryAudit(args: {
     args.deps.trace?.({ phase: "tool", chatId, turnId: args.turnId, vehicle: "cheap inventory audit", calls: recordToolCalls(calls) });
     return calls;
   } catch (err) {
-    logger.warn({ event: "rpg.inventory-audit.failed", chatId, model: args.request.model, api: args.request.api, err }, "rpg inventory audit failed");
+    logger.warn(
+      { event: "rpg.inventory-audit.failed", chatId, model: args.request.connection.model, api: args.request.api, err },
+      "rpg inventory audit failed",
+    );
     return [];
   }
 }
@@ -1254,17 +1255,14 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     ];
     const wireTools = buildToolRoundWireTools(refs, config, prose);
     const request = {
-      api: conn.api,
+      api: arrayWireApiOf(conn),
       chatId,
-      model: conn.model,
-      credential: conn.credential,
-      capability: conn.capability,
+      connection: conn,
       params: {},
       systemPrompt: { static: toolRoundSystem(inputs), dynamic: "" },
       history,
       tools: wireTools,
       toolChoice: { mode: "required" as const },
-      ownerConsented: turnConnection.ownerConsented,
       signal,
     } satisfies ToolRoundRequest;
     let calls: readonly RpgToolCall[];
@@ -1456,7 +1454,7 @@ async function resyncViaToolRound(
   deps: RpgComposeDeps,
   args: {
     readonly chatId: ChatId;
-    readonly conn: ResolvedConnection;
+    readonly conn: Resolved<"chat">;
     /** The resolved connection's api, NARROWED to the array wires — an agent-sdk connection carries no wire
      *  `tools[]` and never reaches this arm (it takes the structured degrade instead). */
     readonly api: Exclude<ChatApi, "agent-sdk">;
@@ -1474,17 +1472,12 @@ async function resyncViaToolRound(
       // Same correlation key as the in-turn round (see `ExtractCtx.chatId`) — a host-clicked resync is exactly
       // the moment an operator is reading the wire ring for that chat.
       chatId,
-      model: conn.model,
-      credential: conn.credential,
-      capability: conn.capability,
+      connection: conn,
       params: {},
       systemPrompt: { static: toolRoundSystem(inputs), dynamic: "" },
       history: [{ role: "user", content: [{ type: "text", text: userPrompt }] }],
       tools: buildToolRoundWireTools(refs, config, prose),
       toolChoice: { mode: "required" },
-      // The host funds + authorizes this call (the consenting human clicked the button) — never an inherited
-      // turn verdict, because no turn is running.
-      ownerConsented: true,
     });
     logToolRoundUsage({ chatId, api: conn.api, pass: "resync", result });
     calls = result.toolCalls ?? [];
@@ -1525,14 +1518,14 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     // precedent). The host principal is minted from the room-host userId the VERB resolved by role, never a
     // caller-supplied id (the injected-op caller-gate class). A misconfigured/incoherent backend REFUSES the
     // resync legibly (never a 500); anything else rethrows (never swallow a real bug).
+    // The TRIGGER's own chat connection (§8.4-3 — the verb is host-only, so the host IS the trigger here).
     const host = await deps.resolveHostPrincipal(hostUserId);
-    const routableChat = await readRoutableChat(deps.db, chatId);
-    let conn: ResolvedConnection;
+    let conn: Resolved<"chat">;
     try {
-      conn = await deps.connection.resolveChat({ principal: host, routableChat });
+      conn = (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">;
     } catch (err) {
-      if (err instanceof ConnectionRoutingError || err instanceof AgentModelHealError) {
-        logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: room connection did not resolve — no rebuild");
+      if (isUnresolvable(err)) {
+        logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: the host's chat connection did not resolve — no rebuild");
         return { ok: false, reason: RESYNC_UNRESOLVABLE_REASON };
       }
       throw err;
@@ -1541,8 +1534,8 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     // so it keys on the capability directly, mirroring the flush's F2 posture: a resync on a manual-steering
     // connection would predictably fail and, on hosted creds, cost real spend). TWO vehicles satisfy it now:
     // wire tools (the catch-up round) or the structured writer (the agent-sdk degrade).
-    const toolWire = conn.api !== "agent-sdk" && hasToolWriter(conn.capability) ? conn.api : null;
-    if (toolWire === null && !hasStructuredWriter(conn.capability)) {
+    const toolWire = conn.api !== "agent-sdk" && hasToolWriter(generationOf(conn)) ? conn.api : null;
+    if (toolWire === null && !hasStructuredWriter(generationOf(conn))) {
       logger.warn({ event: "rpg.resync.readonly", chatId, model: conn.model, api: conn.api }, "rpg resync: connection has no state writer — no rebuild");
       return { ok: false, reason: RESYNC_READONLY_REASON };
     }
@@ -1569,7 +1562,7 @@ async function resyncViaStructured(
   deps: RpgComposeDeps,
   args: {
     readonly chatId: ChatId;
-    readonly conn: ResolvedConnection;
+    readonly conn: Resolved<"chat">;
     readonly baseState: RpgSnapshotState;
     readonly inputs: PromptInputs;
     readonly userPrompt: string;
@@ -1580,10 +1573,6 @@ async function resyncViaStructured(
   const ctx: ExtractCtx = {
     conn,
     chatId,
-    // The host funds + authorizes this call: consent is the HOST's own (the consenting human initiated it),
-    // never a force-stamped inheritance from an unrelated turn. A max-pro-sub firewall still applies — a host
-    // whose own consent belt refuses a metered sub simply refuses the resync.
-    ownerConsented: true,
     systemPrompt: extractionSystem(inputs),
     userPrompt,
     schema: constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs),
@@ -1686,20 +1675,19 @@ async function resolveHostRoundConnection(
   deps: RpgComposeDeps,
   chatId: ChatId,
   hostUserId: UserId,
-): Promise<{ readonly ok: true; readonly conn: ResolvedConnection } | { readonly ok: false; readonly reason: string }> {
+): Promise<{ readonly ok: true; readonly conn: Resolved<"chat"> } | { readonly ok: false; readonly reason: string }> {
   const host = await deps.resolveHostPrincipal(hostUserId);
-  const routableChat = await readRoutableChat(deps.db, chatId);
-  let conn: ResolvedConnection;
+  let conn: Resolved<"chat">;
   try {
-    conn = await deps.connection.resolveChat({ principal: host, routableChat });
+    conn = (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">;
   } catch (err) {
-    if (err instanceof ConnectionRoutingError || err instanceof AgentModelHealError) {
-      logger.warn({ event: "rpg.populate.unresolvable", chatId }, "rpg populate: room connection did not resolve — no round");
+    if (isUnresolvable(err)) {
+      logger.warn({ event: "rpg.populate.unresolvable", chatId }, "rpg populate: the host's chat connection did not resolve — no round");
       return { ok: false, reason: POPULATE_UNRESOLVABLE_REASON };
     }
     throw err;
   }
-  if (!hasStructuredWriter(conn.capability)) {
+  if (!hasStructuredWriter(generationOf(conn))) {
     logger.warn({ event: "rpg.populate.readonly", chatId, model: conn.model, api: conn.api }, "rpg populate: connection has no structured writer — no round");
     return { ok: false, reason: POPULATE_READONLY_REASON };
   }
@@ -1740,8 +1728,6 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
     const ctx: ExtractCtx = {
       conn,
       chatId,
-      // The host funds + authorizes this call (the consenting human clicked the button) — the resync's posture.
-      ownerConsented: true,
       systemPrompt: `${resolveProseText("rpg.populate.systemHeader", prose)}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), refs, prose })}`,
       userPrompt: populateUserPrompt(corpus, targetRef, prose),
       schema: constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), targetRef),
@@ -1929,15 +1915,6 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
   return { service, chatOps: createRpgChatOps(ctx), importGame: createImportRpgGame(ctx) };
 }
 
-/** Read the chat's per-chat routing overlay (`metadata.providerRouting`) as a `RouteChatAssignment` — the SAME
- *  derivation the character turn's `resolveConnection` uses (`compose/chat.ts`). A malformed/absent metadata
- *  degrades to the empty assignment (falls through to the host's role default), never a throw. */
-async function readRoutableChat(db: Db, chatId: ChatId): Promise<RouteChatAssignment> {
-  const rows = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId)).limit(1);
-  const meta = parseChatMetadata(rows.at(0)?.metadata ?? null);
-  return meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
-}
-
 /** Build the honest-arms `resolveStateDelivery` op (§4.6 — the READ-side CP pill + the D112 fold guard): resolve
  *  the ROOM's chat connection capability ONCE (via `resolveChat` — the SAME per-chat-routing verb a turn resolves
  *  through, NOT the host's global `resolveRole` default, stickler F1) and read BOTH delivery verdicts off it:
@@ -1951,36 +1928,30 @@ async function readRoutableChat(db: Db, chatId: ChatId): Promise<RouteChatAssign
 function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveStateDelivery"] {
   // Nothing resolved ⇒ no model write path AND no fold — the fail-closed verdict every degraded arm returns.
   const closed = { trackersReadOnly: true, foldGuarded: true, canPopulate: false };
-  return async (chatId) => {
+  return async (chatId, viewerUserId) => {
     const game = await findGameByChat(deps.db, chatId);
     if (game === undefined) {
       return closed; // no game — the verb caller resolves game-ness itself; a defensive readonly is harmless
     }
-    const hostUserId = await deps.rpgChatOps.resolveHostUserId(chatId);
-    if (hostUserId === null) {
-      return closed;
-    }
-    const host = await deps.resolveHostPrincipal(hostUserId);
-    const routableChat = await readRoutableChat(deps.db, chatId);
-    // An unresolvable/incoherent chat connection (a stale routing setting whose (api,source) pair maps to no
-    // backend) is READONLY BY CONSTRUCTION — the same contract as the missing-game/missing-host arms above.
-    // `resolveChat` THROWS the connection-resolution error classes on that (routing-incoherent + the agent-sdk
-    // model-heal fail-loud); catch THOSE specifically so a misconfigured backend degrades a game READ to
-    // read-only trackers instead of 500ing the panel. Anything else (a DB fault, a transient catalog gap) is a
-    // genuine failure and RETHROWS — the catch never swallows a real bug.
-    let conn: ResolvedConnection;
+    // The VIEWER's own chat connection (§8.4-3(b), verify9 H2): under `funderUserId` the round runs on the
+    // triggering member's row, so the pill must resolve under the same member or the D112 fold-guard verdict
+    // and the round diverge. A `no-connection` / requirement refusal is READONLY BY CONSTRUCTION — the same
+    // contract as the missing-game/missing-host arms above; anything else (a DB fault) RETHROWS.
+    const viewer = await deps.resolveHostPrincipal(viewerUserId);
+    let conn: Resolved<"chat">;
     try {
-      conn = await deps.connection.resolveChat({ principal: host, routableChat });
+      conn = (await deps.connection.resolve({ task: "chat", principal: viewer })).resolved as Resolved<"chat">;
     } catch (err) {
-      if (err instanceof ConnectionRoutingError || err instanceof AgentModelHealError) {
+      if (isUnresolvable(err)) {
         return closed;
       }
       throw err;
     }
+    const capability = generationOf(conn);
     return {
-      trackersReadOnly: deriveTrackersReadOnly(game.config.extractionMode, conn.capability),
-      foldGuarded: !coEmitsProseWithTools(conn.capability),
-      canPopulate: hasStructuredWriter(conn.capability),
+      trackersReadOnly: deriveTrackersReadOnly(game.config.extractionMode, capability),
+      foldGuarded: !coEmitsProseWithTools(capability),
+      canPopulate: hasStructuredWriter(capability),
     };
   };
 }

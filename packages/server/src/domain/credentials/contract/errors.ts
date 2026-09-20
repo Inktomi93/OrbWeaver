@@ -4,7 +4,7 @@
 
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import type { UserCredentialId } from "@orb/kit/ids";
-import { redactKnownSecrets } from "#kit/secret-redaction";
+import { redactKnownSecrets } from "@orb/kit/secret-redaction";
 
 const DECRYPT_GUIDANCE = "Stored credential cannot be decrypted. Restore the matching CREDENTIALS_KEY or replace the saved credential.";
 
@@ -13,6 +13,7 @@ export const CREDENTIALS_OP_CODES = {
   disabled: "credentials_disabled",
   metadataInvalid: "credential_metadata_invalid",
   decryptFailed: "credential_decrypt_failed",
+  providerUnknown: "credential_provider_unknown",
 } as const;
 
 /** Stored ciphertext cannot be opened under this deployment's key/configuration. This is distinct from a

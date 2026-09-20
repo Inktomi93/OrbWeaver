@@ -3,7 +3,7 @@
 // path. Both surviving modes need tools; the structured write path (the resync + the agent-sdk degrade) is
 // keyed by capability alone (`hasStructuredWriter`). NO silent downgrade.
 
-import type { ModelCapability } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import { deriveEffectiveDelivery, deriveTrackersReadOnly, hasStructuredWriter } from "../../../../../packages/server/src/domain/rpg/substrate/readonly-axis.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 

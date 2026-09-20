@@ -26,7 +26,7 @@ import { defaultSnapshotState } from "../../../../../packages/server/src/domain/
 import { buildActorRefIndex, extractionToStateDelta } from "../../../../../packages/server/src/domain/rpg/tools/apply.ts";
 import type { ToolExecutionContext } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
 import { expect, pinExtractionMode, principal, seedLiteGame, seedMessage, test, turnConnection } from "../_support.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_t1");
@@ -132,7 +132,7 @@ test("F2 (readonly gate): a turn connection without the mode's writer capability
   h.fakes.busEvents.length = 0;
 
   const readonlyConn = turnConnection({
-    connection: makeResolvedConnection({ capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }), // tools ABSENT
+    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }), // tools ABSENT
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyConn);
 
@@ -284,7 +284,7 @@ test("#1493 SETTLE is TOTAL: the F2 readonly game settles immediately — it wil
   h.fakes.busEvents.length = 0;
 
   const readonlyConn = turnConnection({
-    connection: makeResolvedConnection({ capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }), // tools ABSENT
+    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }), // tools ABSENT
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyConn);
 
@@ -664,7 +664,7 @@ test("R1 folded FALLBACK: a null terminal channel runs cheap's tool round and NA
   // whose real capability co-emits fine — it simply has no terminal channel — so the reason must stay
   // `no-terminal-channel` and never inherit the local engine's guard vocabulary.
   const agentSdk = turnConnection({
-    connection: makeResolvedConnection({
+    connection: makeResolved({
       api: "agent-sdk",
       capability: resolveModelCapability("claude-sonnet-5", "max-pro-sub", "agent-sdk"),
     }),
@@ -734,7 +734,7 @@ test("D112 fold guard: a folded game on the LOCAL engine rounds instead — name
   // The REAL local-engine capability (the resolver's own vllm arm), so the reason is read off the wire the turn
   // actually ran on — not off a synthetic literal that could drift from what the connection domain declares.
   const local = turnConnection({
-    connection: makeResolvedConnection({ capability: resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions") }),
+    connection: makeResolved({ generation: resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions") }),
     terminalToolCalls: null, // the gather withheld the mount; the engine attached nothing
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, local);
@@ -756,7 +756,7 @@ test("R1 folded: the readonly gate still wins — a tools-incapable connection f
   // Structured-only capability: folded has no write path ⇒ manual-steering (honest arms), so even a populated
   // terminal channel is not folded — the game is READ-ONLY and the host hand-edits.
   const readonly = turnConnection({
-    connection: makeResolvedConnection({ capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }),
+    connection: makeResolved({ generation: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }),
     terminalToolCalls: FOLDED_CALLS,
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonly);

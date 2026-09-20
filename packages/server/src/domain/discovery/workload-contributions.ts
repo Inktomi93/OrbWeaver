@@ -78,7 +78,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
           const settings = await deps.loadUserSettings(ctx.userId);
           const k = params.k ?? settings.workloads.computeThemesK ?? DEFAULT_THEME_K;
           report({ message: `computing ${k} themes` });
-          const stats = await deps.discovery.computeThemes({ k, ownerId: ctx.ownerId });
+          const stats = await deps.discovery.computeThemes({ k, ownerId: ctx.ownerId, funderUserId: ctx.userId });
           // THE INPUT PLANE IS MEMORY DIGESTS, NOT DISTILLED CARDS — and a digest-less run must SAY so
           // (issue #166). It used to return a bare `{scanned: 0, written: 0}`, which the runs console renders
           // as "0 rows · 0 written" under a green Succeeded: a pass that could not run reported as one that
@@ -113,6 +113,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
         try {
           report({ message: "distilling character summaries" });
           const stats = await deps.discovery.distillCharacters({
+            funderUserId: ctx.userId,
             signal,
             ...(ctx.ownerId !== null ? { ownerId: ctx.ownerId } : {}),
             // N-of-M (issue #166 rider 3) — the pass counts the cards, this turns each position into a row.

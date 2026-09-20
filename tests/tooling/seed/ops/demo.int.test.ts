@@ -27,7 +27,7 @@ import {
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNotNull } from "drizzle-orm";
-import { resolveSeedVllmDisabled, runFullSeed } from "../../../../tooling/src/seed/ops/demo.ts";
+import { runFullSeed } from "../../../../tooling/src/seed/ops/demo.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -63,9 +63,6 @@ test("seed:demo populates the marquee demo shapes against a fresh db", async () 
     variantDir,
     force: true,
     log: () => undefined,
-    // Pin the fake vLLM client's arm regardless of the test box's GPU — the assertions below are about
-    // the write path, not about `detectGpu()` (that derivation gets its own case below).
-    vllmDisabled: false,
   });
   expect(result.augmented).toBe(true);
 
@@ -124,9 +121,3 @@ test("seed:demo populates the marquee demo shapes against a fresh db", async () 
   expect(await db.$count(rosterPresetMembers)).toBeGreaterThanOrEqual(3);
 });
 
-test("resolveSeedVllmDisabled: matches the same force-off-OR-no-GPU derivation boot uses", () => {
-  expect(resolveSeedVllmDisabled(false, () => true)).toBe(false);
-  expect(resolveSeedVllmDisabled(false, () => false)).toBe(true);
-  // A force-off env override wins even when a GPU is present.
-  expect(resolveSeedVllmDisabled(true, () => true)).toBe(true);
-});

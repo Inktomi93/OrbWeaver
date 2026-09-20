@@ -55,6 +55,7 @@ export function createGatherRetrieval(ctx: DatabankContext): DatabankService["ga
     // byte-identical to pre-wire (databank-design/05 §3.7).
     const hits = await ctx.searchDocuments({
       scope: { chatId: params.chatId },
+      ownerId: params.hostUserId,
       queryText: params.queryText,
       ...(params.k !== undefined ? { k: params.k } : {}),
       ...(params.minScore !== undefined ? { minScore: params.minScore } : {}),

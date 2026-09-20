@@ -20,13 +20,14 @@
 // tuple-built CHECK gates the SQL; the column never re-spells the union on either side.
 
 import { PROMPT_TEMPLATE_MODES } from "@orb/contracts/imagery";
-import type { AssetId, CharacterId, ChatId, ImageryGenerationId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ImageryGenerationId, UserConnectionId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { checkList } from "../kit/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
+import { userConnections } from "./connection.ts";
 
 // CHECK list derived from the canonical tuple (NOT re-spelled) — a static DDL fragment (no bound params).
 const MODE_CHECK_LIST = checkList(PROMPT_TEMPLATE_MODES);
@@ -61,6 +62,12 @@ export const imageryGenerations = sqliteTable(
     negativePrompt: text("negative_prompt"),
     // The image model that produced it (the gallery's provenance detail).
     model: text("model").notNull(),
+    // The provider registry id + the connection that generated it — the same attribution pair as a chat swipe
+    // (inference program §5.3b/§5.3c); SET NULL so provenance outlives the connection row.
+    provider: text("provider"),
+    connectionId: text("connection_id")
+      .$type<UserConnectionId>()
+      .references(() => userConnections.id, { onDelete: "set null" }),
     // The summed generation cost (extraction + caption + generate). Nullable when any component is unknown.
     costUsd: real("cost_usd"),
     // An edit/reference input was used (reserved — the Phase-7 edit seam). Default false.
@@ -70,6 +77,8 @@ export const imageryGenerations = sqliteTable(
   (t) => [
     // The Phase-7 reuse lookup key (subject + mode + identity); harmless as a plain index in v1.
     index("imagery_generations_reuse_idx").on(t.subjectCharacterId, t.mode, t.identityHash),
+    // The SET-NULL parent scan on a connection delete (`fk-columns-indexed` gate).
+    index("imagery_generations_connection_idx").on(t.connectionId),
     // The two remaining child FKs: an asset delete erases its provenance row and a chat delete drops the
     // room's generations — both scan this table without a LEADING index (`fk-columns-indexed` gate).
     index("imagery_generations_asset_idx").on(t.assetId),

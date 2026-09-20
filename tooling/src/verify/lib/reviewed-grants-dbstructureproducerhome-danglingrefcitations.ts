@@ -21,6 +21,14 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
     endsWhen: "the schema module gains a same-named producer domain, moves under its producer, or packages/db/src/schema/rate-limit.ts is removed.",
   },
   {
+    id: "db-structure-producer-home:connection-bindings",
+    policyId: "db-structure-producer-home",
+    subject: "packages/db/src/schema/connection-bindings.ts",
+    operation: "non-domain-schema-producer",
+    why: "domain/connection produces `connection_bindings` and `provider_rows` (inference program §5.3/§5.9-1); they live apart from `connection.ts` ONLY to break an import cycle (the bindings FK `automation_rules`/`plugins`, whose files import `chat.ts`, which FKs `user_connections`).",
+    endsWhen: "the two tables move back into packages/db/src/schema/connection.ts (the cycle resolved another way) or the file is removed.",
+  },
+  {
     id: "db-structure-producer-home:sdk-session",
     policyId: "db-structure-producer-home",
     subject: "packages/db/src/schema/sdk-session.ts",

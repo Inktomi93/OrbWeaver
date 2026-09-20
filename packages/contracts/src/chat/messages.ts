@@ -4,11 +4,12 @@
 // and the runtime variable-delta wire (D46) parsed at the DB read seam. A swipe APPENDs a variant + flips a
 // pointer (never a content copy); attribution is slot-level (a swipe never changes the voiced speaker).
 
-import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { MacroFreeze, VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
+import type { NormalizedFinishReason } from "../inference/finish-reasons.ts";
 import type { MessageKind } from "./participants.ts";
 import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 
@@ -21,6 +22,16 @@ const SEQ_MIN = 0;
 
 /** Variant-grain token accounting provenance. This is the one canonical vocabulary shared by provider
  * turns, imports, canon, rollups, and rendering: a number without this origin is not honest accounting. */
+/** WHY a `message_assets` link exists (inference program §5.3b): `attached` = a user turn's upload;
+ *  `illustration` = a narrator `/imagine` post (an ASSISTANT row with real `asset:` spans that must NOT ride
+ *  back to the model); `inline-reply` = a picture the model itself emitted mid-turn (§6.7) — the ONLY origin
+ *  the wire-history projection sends back as an assistant image part. `assets.kind` (`attachment` vs
+ *  `generated`) cannot separate the last two; this per-LINK column is the reason it exists. NOT NULL, no
+ *  default — every writer stamps it. */
+export const MESSAGE_ASSET_ORIGINS = ["attached", "illustration", "inline-reply"] as const;
+export type MessageAssetOrigin = (typeof MESSAGE_ASSET_ORIGINS)[number];
+export const messageAssetOriginSchema = z.enum(MESSAGE_ASSET_ORIGINS);
+
 export const TOKEN_PROVENANCES = ["measured", "estimated", "unrecorded"] as const;
 export type TokenProvenance = (typeof TOKEN_PROVENANCES)[number];
 export const tokenProvenanceSchema = z.enum(TOKEN_PROVENANCES);
@@ -52,6 +63,40 @@ export const CHAT_MESSAGE_LIST_MAX_LIMIT = 100;
  *  address it as a JSON PATH inside a `sql` template, where an interpolated value would bind as a
  *  PARAMETER rather than a path literal — those two sites cite this constant in a comment instead. */
 export const VARIANT_METADATA_REASONING_MS_KEY = "reasoning_duration";
+
+/** The per-provider OPAQUE-BY-DECLARATION sidecar a variant carries (§5.3c): a CLOSED union of NAMED shapes —
+ *  a reader like the OpenRouter cost pill names a typed field or does not compile; a plugin provider's payload
+ *  lands under `raw` with NO reader by key. Never `Record<ProviderId, unknown>` (the #164 open-bag class). */
+export const variantProviderMetadataSchema = z.discriminatedUnion("provider", [
+  z.object({
+    provider: z.literal("openrouter"),
+    cache: z.object({ readTokens: z.number().optional(), writeTokens: z.number().optional() }).optional(),
+    /** The OpenRouter `gen-…` handle — an UPSTREAM opaque string, never an orbweaver id (§5.3c class 4). */
+    upstreamGeneration: z.string().optional(),
+    upstreamCost: z.number().optional(),
+  }),
+  z.object({
+    provider: z.literal("claude-sub"),
+    cacheCreation5mTokens: z.number().optional(),
+    cacheCreation1hTokens: z.number().optional(),
+    warmSpareClaimed: z.boolean().optional(),
+    durationApiMs: z.number().optional(),
+    numTurns: z.number().optional(),
+    sdkSessionId: z.string().optional(),
+    servedModel: z.string().optional(),
+  }),
+  z.object({ provider: z.literal("anthropic"), cacheReadTokens: z.number().optional(), cacheWriteTokens: z.number().optional() }),
+  z.object({ provider: z.string().regex(/^plugin:[a-z0-9-]+\/[a-z0-9-]+$/u), raw: z.unknown() }),
+]);
+export type VariantProviderMetadata = z.infer<typeof variantProviderMetadataSchema>;
+
+/** `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
+ *  {@link VARIANT_METADATA_REASONING_MS_KEY} and the provider sidecar. `.catch` → `{}` at the reader. */
+export const variantMetadataSchema = z.object({
+  [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
+  providerMetadata: variantProviderMetadataSchema.optional(),
+});
+export type VariantMetadata = z.infer<typeof variantMetadataSchema>;
 
 /** The `messages` SLOT (D26): identity + attribution + selection ONLY — NO content, NO economics. A swipe
  *  APPENDs a `message_variants` row and `selectVariant` flips `selectedVariantId` (a pointer move, never a
@@ -235,7 +280,9 @@ export interface MessageView {
   reasoning: string | null;
   model: string | null;
   provider: string | null;
-  finishReason: string | null;
+  /** The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`); `stopReason`/`terminalReason` are the raw upstream
+   *  words, OPAQUE provenance never compared or switched on (inference program §5.3c class 4). */
+  finishReason: NormalizedFinishReason | null;
   stopReason: string | null;
   terminalReason: string | null;
   tokensIn: number | null;
@@ -256,10 +303,13 @@ export interface MessageView {
    *  present and ordered) is the generation duration the `showGenerationTimer` chip reads (PD-130). */
   genStartedAt: number | null;
   genFinishedAt: number | null;
-  /** The upstream OpenRouter generation handle (`gen-…`) this shown swipe billed under — the key a quiet
-   *  per-message cost readout settles with via `connection.orGenerationCost` (PD-137). Null on a non-OR
-   *  turn (agent-sdk / user/system row). */
+  /** The upstream generation handle (OpenRouter's `gen-…`) this shown swipe billed under — the key a quiet
+   *  per-message cost readout settles with via `connection.generationCost` (PD-137), resolved against
+   *  `connectionId`. Null where the transport reports none (agent-sdk / endpoint rows / user/system rows). */
   generationId: string | null;
+  /** WHICH of the funder's connection rows generated this swipe (inference program §5.3b) — SET NULL after the
+   *  row is deleted, so attribution outlives the connection. Null on user-authored rows, imports and edits. */
+  connectionId: UserConnectionId | null;
   /** The selected variant's persisted tool exchanges (D48; tool-use-design/03 §3–4), in emission/execution
    *  order — the client's ONLY tool read surface (chips render from this; NEVER body-parse). Empty on every
    *  non-tool turn. Parsed with `toolCallRecordSchema` at the DB read seam (never cast); the wire shape is a

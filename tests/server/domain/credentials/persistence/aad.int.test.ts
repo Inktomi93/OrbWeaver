@@ -7,34 +7,37 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
+import type { ProviderId } from "@orb/contracts/inference";
 import { aadFor } from "../../../../../packages/server/src/domain/credentials/persistence/aad.ts";
 import { createSecretBox } from "../../../../../packages/server/src/infra/crypto/secrets.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const alice = castId<UserId>("user_alice");
+const openrouter = castId<ProviderId>("openrouter");
+const customOpenai = castId<ProviderId>("custom-openai");
 const bob = castId<UserId>("user_bob");
 
 describe("aadFor", () => {
   test("is byte-identical: userId, then a pipe separator, then provider", () => {
-    expect(aadFor(alice, "openrouter")).toBe("user_alice|openrouter");
-    expect(aadFor(alice, "custom_openai")).toBe("user_alice|custom_openai");
+    expect(aadFor(alice, openrouter)).toBe("user_alice|openrouter");
+    expect(aadFor(alice, customOpenai)).toBe("user_alice|custom-openai");
   });
 
   test("round-trips through the SecretBox: decrypt under the same slot yields the plaintext", () => {
     const box = createSecretBox(Buffer.alloc(32, 7));
-    const sealed = box.encrypt("sk-secret", aadFor(alice, "openrouter"));
-    expect(box.decrypt(sealed, aadFor(alice, "openrouter"))).toBe("sk-secret");
+    const sealed = box.encrypt("sk-secret", aadFor(alice, openrouter));
+    expect(box.decrypt(sealed, aadFor(alice, openrouter))).toBe("sk-secret");
   });
 
   test("a different owner's AAD fails the GCM tag (row-lift is impossible without re-encryption)", () => {
     const box = createSecretBox(Buffer.alloc(32, 7));
-    const sealed = box.encrypt("sk-secret", aadFor(alice, "openrouter"));
-    expect(() => box.decrypt(sealed, aadFor(bob, "openrouter"))).toThrow();
+    const sealed = box.encrypt("sk-secret", aadFor(alice, openrouter));
+    expect(() => box.decrypt(sealed, aadFor(bob, openrouter))).toThrow();
   });
 
   test("a different provider's AAD fails the GCM tag (slot move is impossible)", () => {
     const box = createSecretBox(Buffer.alloc(32, 7));
-    const sealed = box.encrypt("sk-secret", aadFor(alice, "openrouter"));
-    expect(() => box.decrypt(sealed, aadFor(alice, "custom_openai"))).toThrow();
+    const sealed = box.encrypt("sk-secret", aadFor(alice, openrouter));
+    expect(() => box.decrypt(sealed, aadFor(alice, customOpenai))).toThrow();
   });
 });

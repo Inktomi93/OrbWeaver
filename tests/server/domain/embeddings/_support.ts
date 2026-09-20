@@ -36,6 +36,7 @@ import type { EmbeddingsContext } from "../../../../packages/server/src/domain/e
 import type { EmbeddingsIndexerContext, EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
+import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
 const FROZEN_AT = FROZEN_AT_MS;
@@ -112,6 +113,7 @@ export interface FakeRoleClients extends RoleClients {
   readonly imageEmbed: Mock<RoleClients["imageEmbed"]>;
   readonly rerank: Mock<RoleClients["rerank"]>;
   readonly summarize: Mock<RoleClients["summarize"]>;
+  readonly structured: Mock<RoleClients["structured"]>;
 }
 
 /** A recording fake `RoleClients` — deterministic vectors at `EMBED_DIM`, a fixed caption from `summarize`. */
@@ -140,20 +142,11 @@ export function makeRoleClients(vision = true): FakeRoleClients {
       model: SUMMARIZER_MODEL,
     }),
   );
-  return {
-    embed,
-    imageEmbed,
-    rerank,
-    summarize,
-    embedModel: EMBED_MODEL,
-    rerankModel: "rerank-test",
-    imageEmbedModel: IMAGE_EMBED_MODEL,
-    summarizerModel: SUMMARIZER_MODEL,
-    summarizerContextTokens: 32_000,
-    // The resolved summarize model's image-input fact (#2422). Default true — the avatar-analysis caller is
-    // the one consumer, and the analysis it exists to exercise needs a model that takes a picture.
-    summarizerVision: vision,
-  };
+  const structured: Mock<RoleClients["structured"]> = vi.fn<RoleClients["structured"]>((inputs, opts) => summarize(inputs, opts));
+  // The caption lens reads `resolved("structured").capability` for the image-input fact (#2422): the scripted
+  // view carries `input: ["text", "image"]` when `vision` is on and text-only otherwise.
+  const base = makeFakeRoleClients({ embed, imageEmbed, rerank, summarize, structured, summarizerVision: vision, summarizerContextTokens: 32_000, embedDim: EMBED_DIM });
+  return { ...base, embed, imageEmbed, rerank, summarize, structured };
 }
 
 export interface StoreHarness {
@@ -209,7 +202,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}): Sto
   );
   const ctx: EmbeddingsContext = {
     db,
-    roleClients,
+    roleClientsFor: () => Promise.resolve(roleClients),
     now: (): number => clock.now(),
     newCharacterEmbeddingId: (): CharacterEmbeddingId => castId<CharacterEmbeddingId>(ids.next("character_embedding")),
     newImageEmbeddingId: (): ImageEmbeddingId => castId<ImageEmbeddingId>(ids.next("image_embedding")),
@@ -270,7 +263,7 @@ export function makeIndexerHarness(
     loadCardText,
     loadAssetMime,
     loadAssetBytes,
-    roleClients,
+    roleClientsFor: () => Promise.resolve(roleClients),
     embedDim: EMBED_DIM,
     imageEmbedDim: EMBED_DIM,
   };

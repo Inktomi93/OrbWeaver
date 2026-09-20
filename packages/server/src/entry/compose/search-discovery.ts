@@ -13,9 +13,11 @@
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { AppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import { personas as personasTable } from "@orb/db";
+import { characters as charactersTable, personas as personasTable } from "@orb/db";
+import type { RoleClientsWithSignal } from "@orb/inference";
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
@@ -42,10 +44,8 @@ import { createStatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadContributions, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { superviseDetached } from "#foundation/observability";
-import type { RoleClientsWithSignal } from "#infra/providers";
 import { requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { DomainEventBus } from "./event-bus.ts";
@@ -69,7 +69,9 @@ export interface SearchDiscoveryComposeDeps {
   readonly db: Db;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  readonly roleClients: RoleClientsWithSignal;
+  /** The per-FUNDER role-client binder (§8.5b): embeddings/search/discovery resolve the entity OWNER's rows
+   *  (vector tasks are owner-scoped, §7.5) and the workload's acting user for the summarize passes. */
+  readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   readonly eventBus: DomainEventBus;
   readonly attachCardTagByName: TagService["attachCardTagByName"];
   /** The card owner's default-preset params (the side-gen sampling ladder's middle rung — distill + analyze). */
@@ -122,11 +124,19 @@ export interface SearchDiscoveryComposeResult {
 }
 
 export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDiscoveryComposeResult {
-  const { db, now, audit, roleClients, eventBus, character, assets, settings } = deps;
+  const { db, now, audit, roleClientsFor, eventBus, character, assets, settings } = deps;
+  // The two OWNER reads the vector substrate needs to pick a space: a card's owner (`characters.ownerId`, a
+  // plain column read — the character front door is Principal-scoped and a sweep has none) and an asset's.
+  const loadCharacterOwner = async (characterId: Parameters<typeof character.loadCardText>[0]): Promise<UserId | null> => {
+    const rows = await db.select({ ownerId: charactersTable.ownerId }).from(charactersTable).where(eq(charactersTable.id, characterId)).limit(1);
+    return rows[0]?.ownerId ?? null;
+  };
+  const loadAssetOwner = async (assetId: Parameters<typeof assets.assetCasRefById>[0]): Promise<UserId | null> =>
+    (await assets.assetCasRefById(assetId))?.ownerId ?? null;
 
   const embeddings = createEmbeddingsService({
     db,
-    roleClients,
+    roleClientsFor,
     now,
     newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding),
     newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding),
@@ -137,8 +147,10 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     listImageAssetIds: assets.listImageAssetIds,
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
-    embedDim: env.VLLM_EMBED_DIM,
-    imageEmbedDim: env.VLLM_EMBED_DIM,
+    loadCharacterOwner,
+    loadAssetOwner,
+    embedDim: EMBED_SPACE_DIMS,
+    imageEmbedDim: EMBED_SPACE_DIMS,
   });
 
   const indexer = createEmbeddingsIndexer({
@@ -151,9 +163,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     // The embeddability gate reads the stored mime by id (reuses the un-principal `assetCasRefById` row lookup).
     loadAssetMime: async (assetId): Promise<string | null> => (await assets.assetCasRefById(assetId))?.mime ?? null,
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
-    roleClients,
-    embedDim: env.VLLM_EMBED_DIM,
-    imageEmbedDim: env.VLLM_EMBED_DIM,
+    loadCharacterOwner,
+    loadAssetOwner,
+    roleClientsFor,
+    embedDim: EMBED_SPACE_DIMS,
+    imageEmbedDim: EMBED_SPACE_DIMS,
   });
   // OFF ⇒ the indexer is built but not subscribed (a clean boot with no embed-on-write). Distinct from
   // memoryDefaults.mode (chat digests) — two separate knobs.
@@ -275,7 +289,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const stats = createStatsService(db, now);
   // `resolveActiveDocumentIds` is databank's ONE scope-union home, injected into search — the
   // documents lens never re-derives which documents a scope may see.
-  const search = createSearchService({ db, roleClients, now, resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope) });
+  const search = createSearchService({ db, roleClientsFor, now, resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope) });
   const discovery = createDiscoveryService({
     db,
     now,
@@ -284,10 +298,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newKeywordCooccurrenceId: minter(ID_PREFIX.keywordCooccurrence),
     newCharacterKeywordProfileId: minter(ID_PREFIX.characterKeywordProfile),
     newDuplicateChatPairId: minter(ID_PREFIX.duplicateChatPair),
-    summarize: roleClients.summarize,
-    // A thunk over the live getter — never the value: reading it here would bake the boot resolution
-    // (`entry/compose/role-clients.ts` header), and a distill row would stamp a stale model tag.
-    summarizerModel: () => roleClients.summarizerModel,
+    roleClientsFor,
     attachCardTagByName: deps.attachCardTagByName,
     resolveUserPresetParams: deps.resolveUserPresetParams,
     // PROSE-1 — the compare / ask / distill system prompts off the CARD OWNER's `UserSettings.prose` (the

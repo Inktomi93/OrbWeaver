@@ -19,7 +19,7 @@
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
-import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { ResponseFormat, RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -32,7 +32,7 @@ import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import { z } from "zod";
 import type { DiscoveryContext } from "../context.ts";
-import { CardNotDistillableError, DistillFailedError } from "../contract/errors.ts";
+import { CardNotDistillableError, DiscoveryNotConfiguredError, DistillFailedError } from "../contract/errors.ts";
 import type { DistillCharactersOptions } from "../contract/params.ts";
 import type { CharacterDistillation, DistillStats } from "../contract/results.ts";
 import type { DiscoveryService, DistillCharactersDeps } from "../contract/service.ts";
@@ -48,8 +48,7 @@ export function createDistill(ctx: DiscoveryContext): DiscoveryService["distillC
       ctx.db,
       {
         now: ctx.now,
-        summarize: ctx.summarize,
-        summarizerModel: ctx.summarizerModel,
+        roleClientsFor: ctx.roleClientsFor,
         attachCardTagByName: ctx.attachCardTagByName,
         resolveUserPresetParams: ctx.resolveUserPresetParams,
         resolveUserProse: ctx.resolveUserProse,
@@ -108,7 +107,8 @@ const DISTILL_RETRY_CONCURRENCY = 8;
 /** The ONE resolution every call of a pass shares: the sampling posture + the resolved system prose. Carried
  *  as a unit so the bounded per-card RETRY provably runs the same pass the batch call did. */
 interface DistillPass {
-  readonly sampleOpts: SummarizeOptions;
+  readonly rc: RoleClients;
+  readonly sampleOpts: StructuredOptions;
   readonly system: string;
 }
 
@@ -125,7 +125,7 @@ interface StagedLabel {
  * whole-library batch. Returns the pass summary. Exported standalone (the `distill-characters` workload runner
  * + the service factory both call it) — the factory thin-wraps it with `ctx`'s injected deps.
  */
-async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: DistillCharactersOptions = {}): Promise<DistillStats> {
+async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: DistillCharactersOptions): Promise<DistillStats> {
   const { signal } = opts;
   // The on-demand arm: this pass is ONE named card the caller is waiting on, so a failure is theirs to see.
   const onDemand = opts.characterId !== undefined;
@@ -165,7 +165,12 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   // so the preset rung applies ONLY to a per-owner narrow (`opts.ownerId`); the batch stays on the floor. The
   // structured-output `responseFormat` is orthogonal to sampling and always rides.
   const presetParams = opts.ownerId !== undefined ? await deps.resolveUserPresetParams(opts.ownerId) : undefined;
-  const sampleOpts: SummarizeOptions = {
+  const rc = await deps.roleClientsFor(opts.funderUserId);
+  const resolved = await rc.resolved("structured");
+  if (resolved === null) {
+    throw new DiscoveryNotConfiguredError();
+  }
+  const sampleOpts: StructuredOptions = {
     responseFormat: DISTILL_RESPONSE_FORMAT,
     ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.distill, presetParams)),
   };
@@ -175,7 +180,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
 
   signal?.throwIfAborted();
   // One batched call fills the role's parallel-slot pipeline; `ready[i]` pairs 1:1 with `result.items[i]`.
-  const result = await deps.summarize(
+  const result = await rc.structured(
     ready.map((t) => ({
       systemPrompt: distillSystem,
       userPrompt: t.text.slice(0, MAX_CARD_CHARS),
@@ -183,9 +188,10 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
     sampleOpts,
   );
 
-  const writes = await buildDistillWrites(deps, ready, result.items, {
+  const writes = await buildDistillWrites(ready, result.items, {
     db,
-    model: deps.summarizerModel(),
+    rc,
+    model: resolved.model,
     now: deps.now(),
     sampleOpts,
     system: distillSystem,
@@ -223,27 +229,27 @@ interface DistillTarget {
  *  structured-turn helper (D79): the batch reply is the first attempt, a per-item retry re-summarizes with the
  *  issues. Split out to keep {@link distillCharacters} under the complexity cap. */
 async function buildDistillWrites(
-  deps: DistillCharactersDeps,
   ready: readonly DistillTarget[],
   items: readonly { readonly text: string }[],
   meta: {
     readonly db: Db;
+    readonly rc: RoleClients;
     readonly model: string;
     readonly now: number;
-    readonly sampleOpts: SummarizeOptions;
+    readonly sampleOpts: StructuredOptions;
     readonly system: string;
     readonly onProgress?: ((done: number, total: number) => void) | undefined;
   },
 ): Promise<{ stmts: BatchStmt[]; stagedLabels: StagedLabel[]; failed: number }> {
   // The RESOLVED PASS — the sampling posture + the resolved system prose, carried together so a retry can
   // never re-resolve either and drift from the batch call.
-  const pass: DistillPass = { sampleOpts: meta.sampleOpts, system: meta.system };
+  const pass: DistillPass = { rc: meta.rc, sampleOpts: meta.sampleOpts, system: meta.system };
   // Parse in bounded waves — the first attempt reuses the already-fetched batch text (free), but a correlated
   // schema failure sends every card to a retry summarize call at once; the wave size is that fan-out's bound.
   const parsed: (CharacterDistillation | null)[] = [];
   for (let i = 0; i < ready.length; i += DISTILL_RETRY_CONCURRENCY) {
     const wave = ready.slice(i, i + DISTILL_RETRY_CONCURRENCY);
-    const waveParsed = await Promise.all(wave.map((target, j) => parseOneDistill(deps, target, items[i + j]?.text ?? "", pass)));
+    const waveParsed = await Promise.all(wave.map((target, j) => parseOneDistill(target, items[i + j]?.text ?? "", pass)));
     parsed.push(...waveParsed);
     // The WAVE is the only real progress tick this pass has: the summarize call is one batched round-trip
     // (nothing to count inside it), and parsing is where the per-card retries actually spend time. Reporting
@@ -282,14 +288,8 @@ async function buildDistillWrites(
  *  counts, and the caller's action is identical (re-run the pass). The one place the distinction WOULD have
  *  mattered is the on-demand single-card path, and that path doesn't read this at all: it sees `failed > 0`
  *  and throws the retryable {@link DistillFailedError}, whose copy covers both causes honestly. */
-async function parseOneDistill(
-  deps: DistillCharactersDeps,
-  target: DistillTarget,
-  batchText: string,
-  pass: DistillPass,
-): Promise<CharacterDistillation | null> {
-  const run = (correction?: string): Promise<string> =>
-    correction === undefined ? Promise.resolve(batchText) : retryDistillOne(deps, target, correction, pass);
+async function parseOneDistill(target: DistillTarget, batchText: string, pass: DistillPass): Promise<CharacterDistillation | null> {
+  const run = (correction?: string): Promise<string> => (correction === undefined ? Promise.resolve(batchText) : retryDistillOne(target, correction, pass));
   // @orb-waive caught-failure-ownership(catch): bookkeeping — the header states the contract:
   // `null` counts THIS card `failed` in the caller's sweep counts so one bad card never aborts the batch;
   // the caller reads `failed > 0` and throws the retryable `DistillFailedError`. Ends if a per-card cause
@@ -305,8 +305,11 @@ async function parseOneDistill(
 /** Re-summarize ONE card with the zod issues appended — the structured-turn helper's bounded retry. Rides the
  *  SAME resolved sampling posture AND the same resolved `system` prose the batch call used, so a retry can't
  *  drift from the first pass. */
-async function retryDistillOne(deps: DistillCharactersDeps, target: DistillTarget, correction: string, pass: DistillPass): Promise<string> {
-  const res = await deps.summarize([{ systemPrompt: pass.system, userPrompt: `${target.text.slice(0, MAX_CARD_CHARS)}\n\n${correction}` }], pass.sampleOpts);
+async function retryDistillOne(target: DistillTarget, correction: string, pass: DistillPass): Promise<string> {
+  const res = await pass.rc.structured(
+    [{ systemPrompt: pass.system, userPrompt: `${target.text.slice(0, MAX_CARD_CHARS)}\n\n${correction}` }],
+    pass.sampleOpts,
+  );
   return res.items[0]?.text ?? "";
 }
 

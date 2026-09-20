@@ -10,7 +10,7 @@
 // strike counter — one rejection is dispositive (a key the provider refuses is dead now), and the schema
 // carries none.
 //
-// `credentialId === null` is the keyless arm (vllm/local-light/max-pro-sub own no row), so those sources
+// `credentialId === null` is the keyless arm (`auth: none` rows own no row), so those sources
 // skip by construction rather than by a caller remembering to check. `ownerId` is the TENANT SCOPE and lands
 // in the WHERE: this is the only revoke path with no Principal to prove ownership from, so a mismatch is
 // refused by the query and REPORTED (`reportOwnerMismatch`) rather than trusted to the caller's discipline.
@@ -22,7 +22,7 @@
 import { errorMessage } from "@orb/kit/error-message";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { getLog, securityEvent } from "#foundation/observability";
-import type { ProviderErrorKind } from "#infra/providers";
+import type { ProviderErrorKind } from "@orb/inference";
 import type { CredentialContext } from "../context.ts";
 import type { MaybeRevokeParams } from "../contract/params.ts";
 import type { CredentialsService } from "../contract/service.ts";

@@ -2,21 +2,8 @@
 // Two floor origins: env-mirrored fields read foundation/env, born-in-DB fields read a code floor only an
 // admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
-import type {
-  AgentSdkConcurrency,
-  AppSettings,
-  EffectiveAppConfig,
-  EngineLaunch,
-  RateLimits,
-  ResolvedAgentSdkConcurrency,
-  ResolvedEngineLaunch,
-  ResolvedRateLimits,
-  ResolvedVllmConcurrency,
-  VllmConcurrency,
-} from "@orb/contracts/settings";
+import type { AgentSdkConcurrency, AppSettings, EffectiveAppConfig, RateLimits, ResolvedAgentSdkConcurrency, ResolvedRateLimits } from "@orb/contracts/settings";
 import {
-  DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
-  DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
   DEFAULT_DISCREET_LOGIN,
   DEFAULT_LOCAL_MULTI_USER,
   DEFAULT_MAX_IMAGE_BYTES,
@@ -36,18 +23,9 @@ const TRUST_HTML_FLOOR = false;
 // has to turn it on deliberately. Leg 1 also shipped an editor saying the rung was inert, so per-character
 // opt-ins already stored were given under a different representation — default-ON would activate them.
 const ALLOW_INTERACTIVE_CARDS_FLOOR = false;
-const VLLM_EMBED_CONCURRENCY_FLOOR = 4;
-// 8 matches the gen engine's KV ceiling (it logs `Maximum concurrency … 7.52x` at max-model-len; ~8.2x at the
-// 0.6 util). 32 overshot what vLLM actually runs (~3-7 concurrent), so the excess just queued in vLLM's waiting
-// list — no throughput gain, only tail latency into the request timeout. Mirrored in the vllm/index.ts fallback.
-const VLLM_SUMMARIZE_CONCURRENCY_FLOOR = 8;
-// null = unbounded (supervisor-limited); an admin override (positive int) caps it.
-const NON_OWNER_LOCAL_COMPUTE_BUDGET_FLOOR: number | null = null;
 const MS_PER_HOUR = 3_600_000;
 const HOURS_PER_DAY = 24;
 const MS_PER_DAY = MS_PER_HOUR * HOURS_PER_DAY;
-// The non-owner local-compute budget WINDOW (item 4) — was hardcoded MEMBER_BUDGET_WINDOW_MS in compose/chat.
-const NON_OWNER_LOCAL_COMPUTE_BUDGET_WINDOW_MS_FLOOR = MS_PER_DAY;
 // The per-transform prompt-transform deadline (item 2) — was the PROMPT_TRANSFORM_DEADLINE_MS const.
 const PROMPT_TRANSFORM_DEADLINE_MS_FLOOR = 250;
 // The model-catalog success-refresh cadence (item 5) — was REFRESH_EVERY_MS in the catalog scheduler.
@@ -70,18 +48,28 @@ function resolveMaxDatabankBytes(o: number | null | undefined): number {
 /** The born-in-DB scalar floors (ms cadences + image quality) — grouped so `layer()` stays under the
  *  cognitive-complexity ceiling; each is a plain `override ?? floor`. */
 function resolveBornInDbScalars(o: AppSettings): {
-  nonOwnerLocalComputeBudgetWindowMs: number;
   promptTransformDeadlineMs: number;
   catalogRefreshIntervalMs: number;
   imageVariantQuality: number;
 } {
   return {
-    nonOwnerLocalComputeBudgetWindowMs: o.nonOwnerLocalComputeBudgetWindowMs ?? NON_OWNER_LOCAL_COMPUTE_BUDGET_WINDOW_MS_FLOOR,
     promptTransformDeadlineMs: o.promptTransformDeadlineMs ?? PROMPT_TRANSFORM_DEADLINE_MS_FLOOR,
     catalogRefreshIntervalMs: o.catalogRefreshIntervalMs ?? CATALOG_REFRESH_INTERVAL_MS_FLOOR,
     imageVariantQuality: o.imageVariantQuality ?? IMAGE_VARIANT_QUALITY_FLOOR,
   };
 }
+
+/** The F12 allowlist's env floor: the operator's `PRIVATE_ENDPOINT_ALLOWLIST` when set; else BORN loopback
+ *  under `AUTH_MODE=single-user` (one human, one box — the threat the allowlist exists for does not exist)
+ *  and EMPTY on every multi-user mode (hosted providers only until an admin admits a host). */
+function privateEndpointAllowlistFloor(): string[] {
+  if (env.PRIVATE_ENDPOINT_ALLOWLIST !== undefined) {
+    return splitCsv(env.PRIVATE_ENDPOINT_ALLOWLIST);
+  }
+  return env.AUTH_MODE === "single-user" ? [...SINGLE_USER_LOOPBACK_ALLOWLIST] : [];
+}
+
+const SINGLE_USER_LOOPBACK_ALLOWLIST = ["127.0.0.1", "::1"] as const;
 
 function splitCsv(raw: string): string[] {
   return raw
@@ -96,36 +84,6 @@ function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits
     publicIp: o?.publicIp ?? env.RATE_LIMIT_PUBLIC_IP,
     authed: o?.authed ?? env.RATE_LIMIT_AUTHED,
     login: o?.login ?? env.RATE_LIMIT_LOGIN,
-  };
-}
-
-function resolveVllmConcurrency(o: VllmConcurrency | null | undefined): ResolvedVllmConcurrency {
-  return {
-    embed: o?.embed ?? VLLM_EMBED_CONCURRENCY_FLOOR,
-    summarize: o?.summarize ?? VLLM_SUMMARIZE_CONCURRENCY_FLOOR,
-  };
-}
-
-// The engine LAUNCH config: admin override ?? the env floor, per field (#14). Same `override ?? floor` shape
-// as the rest of the layer; the env vars are the single-home floor (foundation/env). Ports are NOT here —
-// they are env-only DEPLOYMENT facts the spawner reads directly.
-function resolveEngineLaunch(o: EngineLaunch | null | undefined): ResolvedEngineLaunch {
-  return {
-    embedModel: o?.embedModel ?? env.VLLM_EMBED_MODEL,
-    rerankModel: o?.rerankModel ?? env.VLLM_RERANK_MODEL,
-    genModel: o?.genModel ?? env.VLLM_GEN_MODEL,
-    embedMaxModelLen: o?.embedMaxModelLen ?? env.VLLM_EMBED_MAX_MODEL_LEN,
-    rerankMaxModelLen: o?.rerankMaxModelLen ?? env.VLLM_RERANK_MAX_MODEL_LEN,
-    genMaxModelLen: o?.genMaxModelLen ?? env.VLLM_GEN_MAX_MODEL_LEN,
-    embedGpuUtil: o?.embedGpuUtil ?? env.VLLM_EMBED_GPU_UTIL,
-    rerankGpuUtilMulti: o?.rerankGpuUtilMulti ?? env.VLLM_RERANK_GPU_UTIL_MULTI,
-    rerankGpuUtilSingle: o?.rerankGpuUtilSingle ?? env.VLLM_RERANK_GPU_UTIL_SINGLE,
-    genGpuUtilMulti: o?.genGpuUtilMulti ?? env.VLLM_GEN_GPU_UTIL_MULTI,
-    genGpuUtilSingle: o?.genGpuUtilSingle ?? env.VLLM_GEN_GPU_UTIL_SINGLE,
-    poolingMaxPixels: o?.poolingMaxPixels ?? env.VLLM_POOLING_MAX_PIXELS,
-    genMaxPixels: o?.genMaxPixels ?? env.VLLM_GEN_MAX_PIXELS,
-    genRepetitionPenalty: o?.genRepetitionPenalty ?? env.VLLM_GEN_REPETITION_PENALTY,
-    genPresencePenalty: o?.genPresencePenalty ?? env.VLLM_GEN_PRESENCE_PENALTY,
   };
 }
 
@@ -145,12 +103,8 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     memoryDefaults: overrides.memoryDefaults ?? {},
     memorySummarizer: overrides.memorySummarizer ?? {},
     rateLimits: resolveRateLimits(overrides.rateLimits),
-    vllmConcurrency: resolveVllmConcurrency(overrides.vllmConcurrency),
     agentSdkConcurrency: resolveAgentSdkConcurrency(overrides.agentSdkConcurrency),
-    engineLaunch: resolveEngineLaunch(overrides.engineLaunch),
-    allowNonOwnerLocalCompute: overrides.allowNonOwnerLocalCompute ?? DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
-    nonOwnerLocalComputeBudget: overrides.nonOwnerLocalComputeBudget ?? NON_OWNER_LOCAL_COMPUTE_BUDGET_FLOOR,
-    allowNonOwnerMaxProSub: overrides.allowNonOwnerMaxProSub ?? DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
+    privateEndpointAllowlist: overrides.privateEndpointAllowlist ?? privateEndpointAllowlistFloor(),
     maxImageBytes: overrides.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES,
     maxDatabankBytes: resolveMaxDatabankBytes(overrides.maxDatabankBytes),
     ...resolveBornInDbScalars(overrides),

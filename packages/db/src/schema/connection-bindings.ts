@@ -1,0 +1,137 @@
+// schema/connection-bindings — the OTHER two connection-domain tables (producer: domain/connection):
+// `connection_bindings` (EVERY actor → connection pick, as FK physics — D61-B6: a real junction, never a JSON
+// id-array; replaces the settings blob's `roleDefaults.<task>` leaves) and `provider_rows` (the runtime
+// provider REGISTRY: plugin-shipped / admin-added `ProviderDef` rows beside the built-ins, F9). They live
+// apart from `user_connections` (`connection.ts`) only to break an import cycle: the bindings FK
+// `automation_rules` and `plugins`, whose schema files import `chat.ts`, which FKs `user_connections`.
+//
+// `provider_rows` is REAL COLUMNS for every scalar of `ProviderDef` with JSON only for `features` (a parsed
+// document) and the two closed-tuple arrays `apis`/`serves` — never a KV blob. Its `id` IS the registry id
+// (`plugin:<name>/<id>` for a plugin row, bare for an admin row; a built-in id can never be shadowed — the
+// registry refuses it at `register()`, §5.9-1).
+
+import type { ChatApi, EndpointFeatures, ProviderId, RoutableTask, Task, Wire } from "@orb/contracts/inference";
+import { BINDING_ACTOR_KINDS, CATALOG_STRATEGIES, DIALECTS, PROVIDER_AUTHS, ROUTABLE_TASKS, TASKS, WIRES } from "@orb/contracts/inference";
+import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
+import { sql } from "drizzle-orm";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { checkList } from "../kit/check-list.ts";
+import { automationRules } from "./automation.ts";
+import { userConnections } from "./connection.ts";
+import { plugins } from "./plugin.ts";
+import { users } from "./users.ts";
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// connection_bindings — EVERY actor → connection reference, as FK physics. Exactly one of {userId, ruleId,
+// pluginId} is non-null, matching `actorKind` (the `chat_participants` kind-shape CHECK idiom). The owner of a
+// rule/plugin arm is DERIVED one FK away (`automation_rules.ownerId` / `plugins.ownerId`) — D23 says no
+// doubling, so those arms carry no `userId`. `connectionId` SET NULL: the binding survives a deleted
+// connection as `no-connection`, never a dangling id. THREE partial uniques, one per arm — the tree's
+// NULL-distinctness idiom (`message_reactions`, `workloads`), never a coalesce expression.
+// "A binding may only point at a connection its derived owner holds" is enforced at the ONE writer verb
+// (`domain/connection`) plus a named negative test — a CHECK cannot join.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const connectionBindings = sqliteTable(
+  "connection_bindings",
+  {
+    id: text("id").$type<ConnectionBindingId>().primaryKey(),
+    actorKind: text("actor_kind", { enum: BINDING_ACTOR_KINDS }).notNull(),
+    // Set ONLY on the `user` arm (that user's per-task defaults).
+    userId: text("user_id")
+      .$type<UserId>()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // The `automation-rule` arm: the rule's AUTHOR picked a row for it.
+    ruleId: text("rule_id")
+      .$type<AutomationRuleId>()
+      .references(() => automationRules.id, { onDelete: "cascade" }),
+    // The `plugin-grant` arm: the installing user granted the plugin a row per task.
+    pluginId: text("plugin_id")
+      .$type<PluginId>()
+      .references(() => plugins.id, { onDelete: "cascade" }),
+    // ROUTABLE tasks only — `structured`/`agent` ride their `ridesOn` task for every actor (F16).
+    task: text("task", { enum: ROUTABLE_TASKS as unknown as readonly [RoutableTask, ...RoutableTask[]] })
+      .$type<RoutableTask>()
+      .notNull(),
+    connectionId: text("connection_id")
+      .$type<UserConnectionId>()
+      .references(() => userConnections.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    // One binding per (actor, task) — the fold's indexed lookup; each actor FK LEADS its own partial unique,
+    // so no second index is owed on it (`fk-columns-indexed`).
+    uniqueIndex("connection_bindings_user_task_unique").on(t.userId, t.task).where(sql`${t.actorKind} = 'user'`),
+    uniqueIndex("connection_bindings_rule_task_unique").on(t.ruleId, t.task).where(sql`${t.actorKind} = 'automation-rule'`),
+    uniqueIndex("connection_bindings_plugin_task_unique").on(t.pluginId, t.task).where(sql`${t.actorKind} = 'plugin-grant'`),
+    // The SET-NULL parent scan on a connection delete.
+    index("connection_bindings_connection_idx").on(t.connectionId),
+    check("connection_bindings_actor_kind_check", sql.raw(`actor_kind in (${checkList(BINDING_ACTOR_KINDS)})`)),
+    check("connection_bindings_task_check", sql.raw(`task in (${checkList(ROUTABLE_TASKS)})`)),
+    // The kind-shape CHECK: exactly the arm's id is set, the other two are NULL.
+    check(
+      "connection_bindings_actor_shape_check",
+      sql.raw(
+        "(actor_kind = 'user' and user_id is not null and rule_id is null and plugin_id is null) or " +
+          "(actor_kind = 'automation-rule' and rule_id is not null and user_id is null and plugin_id is null) or " +
+          "(actor_kind = 'plugin-grant' and plugin_id is not null and user_id is null and rule_id is null)",
+      ),
+    ),
+  ],
+);
+
+/** Who put a runtime provider row here — a plugin at activation, or an admin. */
+export const PROVIDER_ROW_ORIGINS = ["plugin", "admin"] as const;
+export type ProviderRowOrigin = (typeof PROVIDER_ROW_ORIGINS)[number];
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// provider_rows — the ProviderStore's table: runtime `ProviderDef` rows. Real columns per scalar; `features`
+// is a parsed document; `apis`/`serves` are JSON arrays validated against the closed tuples on write.
+// `origin_id` is the plugin id (CASCADE — deactivation drops the row through `providers.drop`, an uninstall
+// through the FK) or the admin's user id (the row outlives an admin; `origin_kind` says which).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const providerRows = sqliteTable(
+  "provider_rows",
+  {
+    // The registry id itself (`plugin:<name>/<id>` | a bare admin id) — NOT a TypeID; the natural key.
+    id: text("id").$type<ProviderId>().primaryKey(),
+    label: text("label").notNull(),
+    wire: text("wire", { enum: WIRES }).$type<Wire>().notNull(),
+    dialect: text("dialect", { enum: DIALECTS }),
+    auth: text("auth", { enum: PROVIDER_AUTHS }).notNull(),
+    baseUrl: text("base_url"),
+    apis: text("apis", { mode: "json" }).$type<readonly ChatApi[]>().notNull(),
+    serves: text("serves", { mode: "json" }).$type<readonly Task[]>(),
+    catalog: text("catalog", { enum: CATALOG_STRATEGIES }).notNull(),
+    metered: integer("metered", { mode: "boolean" }).notNull(),
+    docsUrl: text("docs_url"),
+    features: text("features", { mode: "json" }).$type<EndpointFeatures>(),
+    originKind: text("origin_kind", { enum: PROVIDER_ROW_ORIGINS }).notNull(),
+    // The plugin that shipped it (FK, CASCADE) — NULL on an admin row.
+    originPluginId: text("origin_plugin_id")
+      .$type<PluginId>()
+      .references(() => plugins.id, { onDelete: "cascade" }),
+    // The admin who added it — provenance only (SET NULL; the row outlives the admin).
+    originUserId: text("origin_user_id")
+      .$type<UserId>()
+      .references(() => users.id, { onDelete: "set null" }),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    index("provider_rows_origin_plugin_idx").on(t.originPluginId),
+    index("provider_rows_origin_user_idx").on(t.originUserId),
+    check("provider_rows_wire_check", sql.raw(`wire in (${checkList(WIRES)})`)),
+    check("provider_rows_dialect_check", sql.raw(`dialect is null or dialect in (${checkList(DIALECTS)})`)),
+    check("provider_rows_auth_check", sql.raw(`auth in (${checkList(PROVIDER_AUTHS)})`)),
+    check("provider_rows_catalog_check", sql.raw(`catalog in (${checkList(CATALOG_STRATEGIES)})`)),
+    check("provider_rows_origin_kind_check", sql.raw(`origin_kind in (${checkList(PROVIDER_ROW_ORIGINS)})`)),
+    // The origin shape: a plugin row names its plugin, an admin row names its admin.
+    check(
+      "provider_rows_origin_shape_check",
+      sql.raw("(origin_kind = 'plugin' and origin_plugin_id is not null and origin_user_id is null) or (origin_kind = 'admin' and origin_plugin_id is null)"),
+    ),
+  ],
+);
+
+/** The closed task tuple the `serves` document is validated against on write (`TASKS`, not re-spelled). */
+export const PROVIDER_ROW_TASKS: readonly Task[] = TASKS;

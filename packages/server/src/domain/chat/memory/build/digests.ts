@@ -14,7 +14,7 @@
 
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import { DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS, DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY } from "@orb/contracts/settings";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
@@ -32,6 +32,9 @@ import { spanWitnessed } from "./substrate/witnessing.ts";
  *  join/leave horizons) are digested into its bucket. Absent ⇒ the shared (merged/narrator) build. */
 interface GenerateDigestsArgs {
   readonly scope: MemoryScope;
+  /** WHOSE summarize connection the build spends (§8.5b): the turn's trigger on the live path, the workload's
+   *  principal on the corpus backfill. */
+  readonly funderUserId: UserId;
   readonly config?: MemoryConfig | null | undefined;
   readonly macroNames?: RowMacroNameContext | undefined;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
@@ -74,8 +77,8 @@ function summarizerOpts(ctx: ChatContext): SummarizeOptions {
  */
 async function summarizeBatchIsolated(
   ctx: ChatContext,
+  call: { readonly funderUserId: UserId; readonly opts: SummarizeOptions },
   inputs: readonly SummarizeInput[],
-  opts: SummarizeOptions,
   onItemError: (index: number, err: unknown) => void,
 ): Promise<(string | null)[]> {
   if (inputs.length === 0) {
@@ -85,7 +88,7 @@ async function summarizeBatchIsolated(
   // per-item calls (documented above) — the per-item loop below owns and reports each item's own failure
   // via `onItemError`; this outer catch only routes to that fallback, it never drops a failure silently.
   try {
-    const res = await ctx.summarize([...inputs], opts);
+    const res = await ctx.summarize(call.funderUserId, [...inputs], call.opts);
     return inputs.map((_, i) => res.items.at(i)?.text ?? null);
   } catch {
     const out: (string | null)[] = [];
@@ -99,7 +102,7 @@ async function summarizeBatchIsolated(
       // caller's own callback — content-hash self-heal retries the dropped item next pass) and returned as
       // a consumed `null` result, per the batch/isolate contract documented above.
       try {
-        const res = await ctx.summarize([input], opts);
+        const res = await ctx.summarize(call.funderUserId, [input], call.opts);
         out.push(res.items.at(0)?.text ?? null);
       } catch (err) {
         onItemError(i, err);
@@ -148,6 +151,7 @@ interface Tier0Pending {
  *  rather than committing a bucket at a time. `null` for the no-op cases (mode off, no aged-out block). */
 interface DigestPlan {
   readonly scope: MemoryScope;
+  readonly funderUserId: UserId;
   readonly cfg: ReturnType<typeof resolveCfg>;
   readonly existing: ReadonlyMap<string, string>;
   readonly startedAt: number;
@@ -165,7 +169,8 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "mode off" });
     return null;
   }
-  if (ctx.summarizerContextTokens() < SUMMARIZER_CONTEXT_FLOOR) {
+  const summarizerContextTokens = await ctx.summarizerContextTokens(args.funderUserId);
+  if (summarizerContextTokens < SUMMARIZER_CONTEXT_FLOOR) {
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "summarizer context below floor" });
   }
   const macroNames = args.macroNames ?? EMPTY_MACRO_NAMES;
@@ -191,6 +196,7 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
   const collected = await collectTier0(ctx, args, { blocks, existing, macroNames });
   return {
     scope: args.scope,
+    funderUserId: args.funderUserId,
     cfg,
     existing,
     startedAt,
@@ -207,7 +213,12 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
  *  `collectConsolidationTier`/`storeConsolidationTier` seams so it can batch each tier across every bucket. */
 async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: readonly (string | null)[]): Promise<MemoryPassCounts> {
   const stored = await storeTier0(ctx, plan, texts);
-  const consolidated = await consolidateTiers(ctx, plan.scope, { cfg: plan.cfg, existing: plan.existing, signal: plan.signal });
+  const consolidated = await consolidateTiers(ctx, plan.scope, {
+    cfg: plan.cfg,
+    existing: plan.existing,
+    signal: plan.signal,
+    funderUserId: plan.funderUserId,
+  });
   const total: Tier0Counts = {
     written: stored.written + consolidated.written,
     skipped: plan.skipped + consolidated.skipped,
@@ -224,8 +235,8 @@ async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: reado
  *  batch — similar-length sequences pack with less ragged-batch padding waste.
  *  NOT `async` (nor its consolidation twin): it only composes the opts + the error tag and FORWARDS
  *  `summarizeBatchIsolated`'s promise, so an added `await` would just re-wrap it. Every caller awaits. */
-export function summarizeDigestBatch(ctx: ChatContext, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
-  return summarizeBatchIsolated(ctx, inputs, summarizerOpts(ctx), (i, err) =>
+export function summarizeDigestBatch(ctx: ChatContext, funderUserId: UserId, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
+  return summarizeBatchIsolated(ctx, { funderUserId, opts: summarizerOpts(ctx) }, inputs, (i, err) =>
     getLog().error({ err, index: i }, "memory digest: block summarize FAILED (isolated — the block retries next pass)"),
   );
 }
@@ -239,6 +250,7 @@ export async function generateDigests(ctx: ChatContext, args: GenerateDigestsArg
   }
   const texts = await summarizeDigestBatch(
     ctx,
+    plan.funderUserId,
     plan.pending.map((p) => p.input),
   );
   return commitDigestPlan(ctx, plan, texts);
@@ -286,6 +298,7 @@ async function collectTier0(
   // token guard fits against the RESOLVED text (a longer override must shrink the block, not overflow it).
   const systemPrompt = digestSystemPrompt(await ctx.resolveChatProse(chatId));
   const systemPromptTokens = estimateTokens(systemPrompt);
+  const summarizerContextTokens = await ctx.summarizerContextTokens(args.funderUserId);
   const pending: Tier0Pending[] = [];
   for (const block of env.blocks) {
     args.signal?.throwIfAborted();
@@ -295,7 +308,7 @@ async function collectTier0(
       continue;
     }
     const fitted = fitBlockToBudget(block.rows, env.macroNames, {
-      contextTokens: ctx.summarizerContextTokens(),
+      contextTokens: summarizerContextTokens,
       systemPromptTokens,
       outputReserveTokens: outputReserve(ctx),
     });
@@ -435,15 +448,16 @@ async function consolidateTiers(
     readonly cfg: ReturnType<typeof resolveCfg>;
     readonly existing: ReadonlyMap<string, string>;
     readonly signal: AbortSignal | undefined;
+    readonly funderUserId: UserId;
   },
 ): Promise<PassCounts> {
-  const { cfg, existing, signal } = args;
+  const { cfg, existing, signal, funderUserId } = args;
   let written = 0;
   let skipped = 0;
   let skippedEmpty = 0;
   for (let tier = 0; tier < cfg.maxTier; tier += 1) {
     signal?.throwIfAborted();
-    const pass = await consolidateOneTier(ctx, scope, cfg, { tier, existing, signal });
+    const pass = await consolidateOneTier(ctx, scope, cfg, { tier, existing, signal, funderUserId });
     if (pass === null) {
       break; // fewer than fanOut children at this tier → the consolidation ceiling
     }
@@ -461,7 +475,7 @@ async function consolidateOneTier(
   ctx: ChatContext,
   scope: MemoryScope,
   cfg: ReturnType<typeof resolveCfg>,
-  args: { readonly tier: number; readonly existing: ReadonlyMap<string, string>; readonly signal: AbortSignal | undefined },
+  args: { readonly tier: number; readonly existing: ReadonlyMap<string, string>; readonly signal: AbortSignal | undefined; readonly funderUserId: UserId },
 ): Promise<PassCounts | null> {
   const plan = await collectConsolidationTier(ctx, scope, cfg, args);
   if (plan === null) {
@@ -471,8 +485,8 @@ async function consolidateOneTier(
   // so it uses `summarizeConsolidationBatch` (flat index). Same summaries, same opts — only the error tag differs.
   const texts = await summarizeBatchIsolated(
     ctx,
+    { funderUserId: args.funderUserId, opts: summarizerOpts(ctx) },
     plan.pending.map((p) => p.input),
-    summarizerOpts(ctx),
     (i, err) =>
       getLog().error(
         { err, chatId: scope.chatId, scopedCharacterId: scope.scopedCharacterId, tier: plan.parentTier, blockIdx: plan.pending[i]?.parentBlockIdx },
@@ -492,7 +506,7 @@ export async function collectConsolidationTier(
   ctx: ChatContext,
   scope: MemoryScope,
   cfg: ReturnType<typeof resolveCfg>,
-  args: { readonly tier: number; readonly existing: ReadonlyMap<string, string>; readonly signal: AbortSignal | undefined },
+  args: { readonly tier: number; readonly existing: ReadonlyMap<string, string>; readonly signal: AbortSignal | undefined; readonly funderUserId: UserId },
 ): Promise<ConsolidationTierPlan | null> {
   const { tier, existing, signal } = args;
   const children = await loadDigestsForScope(ctx.db, scope.chatId, scope.scopedCharacterId, tier);
@@ -513,7 +527,7 @@ export async function collectConsolidationTier(
   // relations (measured: "Mara married to Alex" when the child tier-0 digest correctly says Sam). The budget
   // is resolved ONCE per tier (the system prompt + output reserve are the same for every parent this pass).
   const consolidationBudget = {
-    contextTokens: ctx.summarizerContextTokens(),
+    contextTokens: await ctx.summarizerContextTokens(args.funderUserId),
     systemPromptTokens: estimateTokens(consolidationSystem),
     outputReserveTokens: outputReserve(ctx),
   } as const;
@@ -556,8 +570,8 @@ export async function collectConsolidationTier(
 /** The consolidation summarize batch (per-item-isolated on failure) — same wire home as `summarizeDigestBatch`
  *  but its own error tag. In the corpus backfill the flat batch loses per-parent context, so the log carries
  *  only the flat index; the content-hash self-heal retries the dropped parent next pass regardless. */
-export function summarizeConsolidationBatch(ctx: ChatContext, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
-  return summarizeBatchIsolated(ctx, inputs, summarizerOpts(ctx), (i, err) =>
+export function summarizeConsolidationBatch(ctx: ChatContext, funderUserId: UserId, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
+  return summarizeBatchIsolated(ctx, { funderUserId, opts: summarizerOpts(ctx) }, inputs, (i, err) =>
     getLog().error({ err, index: i }, "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)"),
   );
 }

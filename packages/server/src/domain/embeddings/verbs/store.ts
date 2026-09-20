@@ -64,7 +64,7 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Pr
   if (p.force !== true && (await existingCharacterHash(ctx.db, p.characterId, p.model)) === hash) {
     return { outcome: "noop", contentHash: hash };
   }
-  const embedded = await ctx.roleClients.embed(p.content);
+  const embedded = await (await ctx.roleClientsFor(p.ownerId)).embed(p.content);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertCharacterEmbedding(ctx.db, {
@@ -113,7 +113,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     p.lens === "image-captioned"
       ? ({ kind: "multimodal", input: { image: p.content, text: p.caption } } as const)
       : ({ kind: "image", input: p.content } as const);
-  const embedded = await ctx.roleClients.imageEmbed(req);
+  const embedded = await (await ctx.roleClientsFor(p.ownerId)).imageEmbed(req);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertImageEmbedding(ctx.db, {
@@ -145,7 +145,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
   if (existing === hash) {
     return { outcome: "noop", contentHash: hash };
   }
-  const embedded = await ctx.roleClients.embed(p.text);
+  const embedded = await (await ctx.roleClientsFor(p.ownerId)).embed(p.text);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertChatDigest(ctx.db, {
@@ -177,7 +177,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
   if ((await existingChunkHash(ctx.db, p.fkRefs.documentId, p.fkRefs.chunkIdx, p.model)) === hash) {
     return { outcome: "noop", contentHash: hash };
   }
-  const embedded = await ctx.roleClients.embed(p.content);
+  const embedded = await (await ctx.roleClientsFor(p.ownerId)).embed(p.content);
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertDocumentChunk(ctx.db, {

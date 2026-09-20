@@ -1,5 +1,5 @@
 // entry/compose/refinery — the refinery seam (R1 — docs/history/design/refinery-r0.md §9.3). Assembles the
-// RefineryContext: db + the injected clock/id determinism seam + the bound `summarize` role thunk + the
+// RefineryContext: db + the injected clock/id determinism seam + the per-funder role-client binder + the
 // caller-scoped prose/preset resolvers (the distill rung, verbatim) + the CHARACTER ops — three
 // persistence factories (card read, signal stamp, and the #1551 snapshot retraction; `characters.*` keeps
 // one writer, F6) and the three service verbs (snapshot + update + the zero-write get) the apply path rides.
@@ -13,9 +13,9 @@
 // so the two are assembled side by side here rather than the queue reaching into the service.
 
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import type { RoleClientsWithSignal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
@@ -29,7 +29,9 @@ import { minter } from "./minter.ts";
 export interface RefineryComposeDeps {
   readonly db: Db;
   readonly now: () => number;
-  readonly roleClients: Pick<RoleClients, "summarize" | "summarizerModel" | "summarizerContextTokens">;
+  /** The per-FUNDER role-client binder (§8.5b) — every refinery pass is `structured` on the card owner's (or
+   *  the sweep's acting user's) own `summarize` binding. */
+  readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   readonly character: CharacterService;
   readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
@@ -51,12 +53,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     newRefinerySessionId: minter(ID_PREFIX.refinerySession),
     newRefineryRunId: minter(ID_PREFIX.refineryRun),
     newRefinerySchemaId: minter(ID_PREFIX.refinerySchema),
-    summarize: deps.roleClients.summarize,
-    // Thunks over the live getters, never the values: `roleClients.summarizerModel` /
-    // `summarizerContextTokens` follow a role re-point per call, and reading them HERE would re-freeze at
-    // compose exactly what `role-clients.ts` stopped freezing.
-    summarizerModel: () => deps.roleClients.summarizerModel,
-    summarizerContextTokens: () => deps.roleClients.summarizerContextTokens,
+    roleClientsFor: deps.roleClientsFor,
     resolveUserPresetParams: deps.resolveUserPresetParams,
     resolveUserProse,
     emitUserEvent: publishUserEvent,
@@ -71,8 +68,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
   return {
     refinery,
     refineryWorkloads: {
-      summarize: deps.roleClients.summarize,
-      summarizerContextTokens: () => deps.roleClients.summarizerContextTokens,
+      roleClientsFor: deps.roleClientsFor,
       resolveUserPresetParams: deps.resolveUserPresetParams,
       resolveUserProse,
       listRefineryScoreTargets: createListRefineryScoreTargets({ db: deps.db }),

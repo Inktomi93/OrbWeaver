@@ -77,6 +77,7 @@ const SRV = "^packages/server/src/";
 const CLIENT_TRPC = `${CLIENT}data/trpc\\.ts$`;
 const SERVER_ROOT = `${SRV}index\\.ts$`;
 const SHOWCASE = "^packages/showcase-plugins/";
+const INFERENCE = "^packages/inference/src/";
 const DEFAULT_CONTENT = "^packages/default-content/";
 const TEST_FILES = `(?:${TEST_KIND_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
@@ -111,7 +112,7 @@ module.exports = {
       from: { path: KIT },
       // NOTE: conditions WITHIN a single `to` are AND'd by dep-cruiser, so node:* (a separate concern)
       // gets its OWN rule below — combining `path` + `dependencyTypes:["core"]` here would match nothing.
-      to: { path: [CONTRACTS, DB, "^packages/server/", CLIENT] },
+      to: { path: [CONTRACTS, DB, INFERENCE, "^packages/server/", CLIENT] },
     },
     {
       name: "kit-no-node-builtins",
@@ -124,10 +125,10 @@ module.exports = {
     {
       name: "contracts-cake",
       comment:
-        "@orb/contracts (the wire: cross-boundary types + zod) deps only @orb/kit. It must never import @orb/db, @orb/server, or @orb/client. (Core-0-Architecture-and-Structure.md §2 cake.)",
+        "@orb/contracts (the wire: cross-boundary types + zod) deps only @orb/kit. It must never import @orb/db, @orb/inference, @orb/server, or @orb/client. (Core-0-Architecture-and-Structure.md §2 cake.)",
       severity: "error",
       from: { path: CONTRACTS },
-      to: { path: [DB, "^packages/server/", CLIENT] },
+      to: { path: [DB, INFERENCE, "^packages/server/", CLIENT] },
     },
     {
       name: "bus-contract-no-credentials",
@@ -140,10 +141,26 @@ module.exports = {
     {
       name: "db-cake",
       comment:
-        "@orb/db (drizzle schema + libSQL) deps only kit + contracts. A db→server or db→client import is impossible by the cake; the OTel wrapper is INJECTED into createDb, never imported. (Tier-1-DB.md.)",
+        "@orb/db (drizzle schema + libSQL) deps only kit + contracts. A db→inference, db→server or db→client import is impossible by the cake; the OTel wrapper is INJECTED into createDb, never imported. (Tier-1-DB.md.)",
       severity: "error",
       from: { path: DB },
-      to: { path: ["^packages/server/", CLIENT] },
+      to: { path: [INFERENCE, "^packages/server/", CLIENT] },
+    },
+    {
+      name: "inference-cake",
+      comment:
+        "@orb/inference is the provider RUNTIME (executor · one backend per wire · funnel · capability synthesis — docs/design/orbweaver-inference-package.md §3.1): kit ← contracts ← db ← inference ← server. It may reach @orb/kit + @orb/contracts and the provider SDKs; NEVER @orb/db (snapshot/connection/binding persistence are PORTS the server wires), @orb/server, @orb/client or @orb/ui. The package.json dependency list is the resolve-time physics; this is the tier-3 backstop that names the direction.",
+      severity: "error",
+      from: { path: INFERENCE },
+      to: { path: [DB, "^packages/server/", CLIENT, UI] },
+    },
+    {
+      name: "browser-no-inference",
+      comment:
+        "The browser packages must never import @orb/inference: it is NODE-ONLY (the agent-sdk subprocess, the ONNX runtime, undici-guarded fetch) and the client renders the picker from the ISOMORPHIC vocabulary in @orb/contracts/inference instead.",
+      severity: "error",
+      from: { path: [CLIENT, UI] },
+      to: { path: INFERENCE },
     },
     {
       name: "default-content-cake",

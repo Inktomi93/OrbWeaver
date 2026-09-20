@@ -376,5 +376,7 @@ export async function seedMessageAsset(db: Db, messageId: MessageId, assetId: As
     id: castId<MessageAssetId>(id ?? `message_asset_${messageId}_${assetId}`),
     messageId,
     assetId,
+    // A seeded chat attachment is a user upload — the origin every send-verb link carries.
+    origin: "attached",
   });
 }

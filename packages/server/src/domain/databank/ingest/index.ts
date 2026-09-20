@@ -29,6 +29,7 @@ import { documents } from "@orb/db";
 import { chunkText } from "@orb/kit/chunk";
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
+import { DatabankNoEmbedSpaceError } from "../contract/errors.ts";
 import type { DatabankContext, DatabankIngest } from "../contract/service.ts";
 import { listAllDocumentIds, listOwnedDocumentIds, loadDocument } from "../persistence/queries.ts";
 
@@ -94,7 +95,10 @@ class IngestAccumulator {
  *  records it as data); returns the per-document counts on success. */
 async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: AbortSignal): Promise<DocCounts> {
   const settings = await ctx.getDatabankSettings(doc.ownerId);
-  const space = ctx.getActiveEmbedSpace();
+  const space = await ctx.getActiveEmbedSpace(doc.ownerId);
+  if (space === null) {
+    throw new DatabankNoEmbedSpaceError();
+  }
   const chunks = chunkText(doc.extractedText, settings.chunk);
   let chunksUpserted = 0;
   let chunksNoop = 0;
@@ -105,6 +109,7 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: Abor
     const stored = await ctx.embeddingsStore({
       kind: "document",
       lens: "chunk",
+      ownerId: doc.ownerId,
       content: chunk.content,
       model: space.model,
       dim: space.dim,

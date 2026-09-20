@@ -1,6 +1,6 @@
 // SHAPE shaper: squashSameRole (the chat design doc Part II §3 rule 6 — Anthropic adjacent-same-role defense) +
 // clampRoleHandling (D66-C, W6 — the SHAPE floor-clamp: effective = stricter of the model floor + user knob).
-import type { RoleHandling } from "@orb/contracts/connection";
+import type { RoleHandling } from "@orb/contracts/inference";
 import { describe } from "vitest";
 import { clampRoleHandling, squashSameRole } from "../../../../../packages/server/src/domain/chat/assembly/role-squash.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

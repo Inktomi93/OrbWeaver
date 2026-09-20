@@ -38,6 +38,9 @@ import type {
   WriteHubScoresResult,
 } from "./results.ts";
 
+/** The per-owner bundle resolver the composition root binds over `runtime.roleClientsFor`. */
+export type RoleClientsFor = (ownerId: UserId) => Promise<RoleClients>;
+
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;
 
@@ -58,7 +61,9 @@ export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly As
 /** The DI bundle the embeddings verbs close over (assembled at `entry/`, surfaced via `context.ts`). */
 export interface EmbeddingsContext {
   readonly db: Db;
-  readonly roleClients: RoleClients;
+  /** The per-FUNDER role-client bundle (inference program §7.5-2): a vector task is `scope: "owner"`, so the
+   *  entity's OWNER funds the embed and DEFINES the space (their `embed`/`imageEmbed` binding). */
+  readonly roleClientsFor: RoleClientsFor;
   readonly now: () => number;
   readonly newCharacterEmbeddingId: () => CharacterEmbeddingId;
   readonly newImageEmbeddingId: () => ImageEmbeddingId;
@@ -69,6 +74,9 @@ export interface EmbeddingsContext {
   readonly loadCardText: LoadCardText;
   readonly listImageAssetIds: ListImageAssetIds;
   readonly loadAssetBytes: LoadAssetBytes;
+  /** The entity OWNER by id (the sweeps' funder read; the indexer context carries the same pair). */
+  readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
+  readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
   readonly embedDim: number;
   readonly imageEmbedDim: number;
 }
@@ -102,7 +110,7 @@ export interface EmbeddingsService {
   /** PD-139(b): reclaim the OLD chat-memory embed space — deletes `chat_segments`/`chat_digests` rows whose
    *  `model` differs from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's
    *  guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge. */
-  readonly purgeMemoryVectors: () => Promise<PurgeMemoryVectorsResult>;
+  readonly purgeMemoryVectors: (params: { readonly ownerId: UserId }) => Promise<PurgeMemoryVectorsResult>;
   /** The chat-memory SHRINK seam: delete the digest/segment rows whose BLOCK no longer exists in canon (and,
    *  for digests, the consolidations that folded them). Distinct from {@link purgeMemoryVectors}, which
    *  reclaims a retired embed SPACE — this one reclaims blocks that canon itself dropped. memory calls it at
@@ -122,7 +130,7 @@ export interface EmbeddingsService {
   /** PD-139(c): reclaim the OLD document embed space — deletes `document_chunks` rows whose `model` differs
    *  from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's guard (the
    *  databank-reindex runner), mirroring `purgeMemoryVectors`. */
-  readonly purgeDocumentVectors: () => Promise<PurgeDocumentVectorsResult>;
+  readonly purgeDocumentVectors: (params: { readonly ownerId: UserId }) => Promise<PurgeDocumentVectorsResult>;
 }
 
 /** The DI bundle the indexer handlers close over (assembled at `entry/`). */
@@ -137,7 +145,11 @@ export interface EmbeddingsIndexerContext {
   readonly loadCardText: LoadCardText;
   readonly loadAssetMime: LoadAssetMime;
   readonly loadAssetBytes: LoadAssetBytes;
-  readonly roleClients: RoleClients;
+  /** The entity OWNER by id — the funder of the row's embed (the events carry no owner). Trusted re-readers,
+   *  like `loadCardText`. */
+  readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
+  readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
+  readonly roleClientsFor: RoleClientsFor;
   readonly embedDim: number;
   readonly imageEmbedDim: number;
 }

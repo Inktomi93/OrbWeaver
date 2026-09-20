@@ -3,7 +3,8 @@
 
 import type { AssembleContext, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import { CONTENT_CLASS_POLICY, contentSpansToBlocks } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
+import type { Resolved } from "@orb/inference";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, pipelineStepKey, RECEIVE_POST_PROCESS_ORDER, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
@@ -26,11 +27,11 @@ import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/
 import { __spanToWirePartForTest } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
-import { makeModelCapability, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { wireSchema } from "../../../../support/wire-ready.ts";
 
-const CAPABILITY: ModelCapability = makeModelCapability({
+const CAPABILITY: ModelCapability = makeGenerationCapability({
   output: { maxTokens: { min: 1, max: 8192 } },
   context: { window: 200_000 },
 });
@@ -38,7 +39,7 @@ const CAPABILITY: ModelCapability = makeModelCapability({
 const CONNECTION: ResolvedConnection = {
   api: "chat-completions",
   model: castId<ModelId>("test-model"),
-  credential: makeResolvedCredential(),
+  credential: makeResolvedSecret(),
   capability: CAPABILITY,
 };
 
@@ -365,7 +366,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("D45: an embedded image ref → text+image parts, resolved via the injected op (vision model)", async () => {
     const vision = {
       ...CONNECTION,
-      capability: makeModelCapability({ ...CAPABILITY, input: { vision: true } }),
+      capability: makeGenerationCapability({ ...CAPABILITY, input: { vision: true } }),
     };
     const { args } = baseArgs({
       connection: vision,
@@ -422,7 +423,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("#317: a video-capable model receives a VIDEO part for a video attachment", async () => {
     const videoCapable = {
       ...CONNECTION,
-      capability: makeModelCapability({ input: { vision: true, video: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+      capability: makeGenerationCapability({ input: { vision: true, video: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
     };
     const { args } = baseArgs({
       connection: videoCapable,
@@ -441,7 +442,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("#317: a vision-only model (no input.video) DROPS the video part + flags videoDropped — never junk on the wire", async () => {
     const visionOnly = {
       ...CONNECTION,
-      capability: makeModelCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+      capability: makeGenerationCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
     };
     const { args } = baseArgs({
       connection: visionOnly,
@@ -460,7 +461,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("#317: a video-only user row whose part drops keeps the honest `[video: alt]` placeholder", async () => {
     const visionOnly = {
       ...CONNECTION,
-      capability: makeModelCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+      capability: makeGenerationCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
     };
     const { args } = baseArgs({
       connection: visionOnly,
@@ -486,7 +487,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("the §8 fit drops oldest turns under a tiny window (keeps the newest)", async () => {
     // Alternate roles so squash doesn't collapse the history into one turn (then the fit has rows to drop).
     const longCanon = Array.from({ length: 12 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} with several words to spend tokens here`));
-    const tiny = makeModelCapability({
+    const tiny = makeGenerationCapability({
       ...CAPABILITY,
       context: { window: 80 },
     });
@@ -508,7 +509,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
       id: castId<MessageId>(`message_parity_${i}`),
     });
     const canon = Array.from({ length: 11 }, (_, i) => idRowOf(i)); // 0..10, last (10) is a USER row
-    const mid = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 400 } });
+    const mid = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 400 } });
     const result = await runTurnPipeline(baseArgs({ canon, connection: { ...CONNECTION, capability: mid } }).args);
     expect(result.droppedCount).toBeGreaterThan(0);
     expect(result.droppedCount).toBeLessThan(11); // real rows survive → the boundary is a real id
@@ -525,7 +526,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
 // gets a short marker instead of both the image part AND the raw URL bytes.
 const VISION: ResolvedConnection = {
   ...CONNECTION,
-  capability: makeModelCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+  capability: makeGenerationCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
 };
 /** The real Azarael card's greeting image target (external, empty alt) — the bug's exact shape. */
 const CARD_IMAGE_URL = "https://files.catbox.moe/2dxdt9.png";
@@ -723,7 +724,7 @@ describe("runTurnPipeline — <speaker> markers convert to plain attribution in 
 // response length, NOT the window.
 describe("runTurnPipeline — token-budget reserve (single source of truth)", () => {
   // A vLLM-shaped descriptor: the output cap equals the window (the exact condition that caused amnesia).
-  const vllmShape = makeModelCapability({ output: { maxTokens: { min: 1, max: 32_768 } }, context: { window: 32_768 } });
+  const vllmShape = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 32_768 } }, context: { window: 32_768 } });
   const vllmConnection: ResolvedConnection = { ...CONNECTION, capability: vllmShape };
 
   // A handful of short alternating turns — comfortably inside the window once the reserve is a response
@@ -777,7 +778,7 @@ describe("runTurnPipeline — token-budget reserve (single source of truth)", ()
     // rows that a ~200-token ceiling can't hold them all.
     const wideConnection: ResolvedConnection = {
       ...CONNECTION,
-      capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 1_000_000 } }),
+      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 1_000_000 } }),
     };
     const chat = Array.from({ length: 12 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} carrying several words to burn some tokens`));
     const uncapped = await runTurnPipeline(baseArgs({ intent: { maxOutputTokens: 100 } satisfies UserIntent, connection: wideConnection, canon: chat }).args);
@@ -1793,7 +1794,7 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
 const RESPONSE_FORMAT = { name: "narrative", schema: wireSchema({ type: "object", properties: {}, additionalProperties: false }) } as const;
 const STRUCTURED_CONNECTION: ResolvedConnection = {
   ...CONNECTION,
-  capability: makeModelCapability({ ...CAPABILITY, output: { ...CAPABILITY.output, structured: true } }),
+  capability: makeGenerationCapability({ ...CAPABILITY, output: { ...CAPABILITY.output, structured: true } }),
 };
 
 describe("runTurnPipeline — the D79 structured-output gate (04 §7)", () => {
@@ -1908,7 +1909,7 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     const huge = ':::card title="c1"\n<div>'.concat("x".repeat(200_000), "</div>\n:::");
     const canon = [userRow(huge), rowOf("assistant", "the reply that matters"), userRow("and the follow-up"), rowOf("assistant", "the newest beat")];
     // A window that comfortably fits four short turns and could never fit 200KB of html.
-    const capability = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 8192 } });
+    const capability = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 8192 } });
     const result = await runTurnPipeline(
       baseArgs({ canon, ...stub0, connection: { ...CONNECTION, capability }, intent: { maxOutputTokens: 128 } satisfies UserIntent }).args,
     );

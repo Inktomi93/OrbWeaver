@@ -77,7 +77,7 @@ async function embedAll(inputs: readonly string[], inputType: "query" | "documen
   const executor = createProviderExecutor({ backends });
   // The deployment's OWN resolved embed model (the `backend-matrix.live` precedent for reading `orbEnv`) —
   // never a hardcoded id, so the floor is measured against whatever the box actually serves.
-  return await executor.embed({ credential: makeResolvedCredential("vllm"), model: castId<ModelId>(orbEnv.VLLM_EMBED_MODEL), input: [...inputs], inputType });
+  return await executor.embed({ credential: makeResolvedSecret(), model: castId<ModelId>(orbEnv.VLLM_EMBED_MODEL), input: [...inputs], inputType });
 }
 
 describe("memory recall@k — LIVE embed floor (#251)", () => {

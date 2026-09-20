@@ -8,7 +8,7 @@
 // The agent-sdk does NOT surface a provider tool-call id to a wrapped handler (it owns the loop), so the
 // projection synthesizes a stable per-server ordinal id; nothing downstream reads it beyond the record.
 
-import type { AgentToolResult, AgentToolServer, AgentToolSpec } from "#infra/providers";
+import type { AgentToolResult, AgentToolServer, AgentToolSpec } from "@orb/inference";
 import type { CreateAgentToolServer, ToolCallBatch, ToolCallInput, ToolExecutionContext } from "../contract/params.ts";
 import type { ResolvedToolSet, ToolCallRecord } from "../contract/results.ts";
 

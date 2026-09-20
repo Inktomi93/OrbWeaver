@@ -4,8 +4,8 @@
 // declares a floor that CONSTRAINS anything) and squash system notes (a Switch bound to
 // `params.advanced.squashSystemMessages`).
 
-import type { ModelCapability, RoleHandling } from "@orb/contracts/connection";
-import { ROLE_HANDLING } from "@orb/contracts/connection";
+import type { GenerationCapability, RoleHandling } from "@orb/contracts/inference";
+import { ROLE_HANDLING } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Field, FieldLayout } from "@orb/ui/field";
@@ -74,7 +74,13 @@ function floorConstrains(floor: RoleHandling | undefined): floor is RoleHandling
   return floor !== undefined && ROLE_HANDLING_RANK[floor] > ROLE_HANDLING_RANK[UNCONSTRAINED_FLOOR];
 }
 
-export function MessageHandlingSection({ form, capability }: { readonly form: AssemblyForm; readonly capability: ModelCapability | undefined }): ReactElement {
+export function MessageHandlingSection({
+  form,
+  capability,
+}: {
+  readonly form: AssemblyForm;
+  readonly capability: GenerationCapability | undefined;
+}): ReactElement {
   const floor = capability?.turns?.roleHandlingFloor;
 
   // NO ORPHANED LEDE (side-eye F-33): "Two independent collapses happen between your rack and the wire"

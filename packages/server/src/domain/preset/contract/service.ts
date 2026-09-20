@@ -3,7 +3,7 @@
 // CAPABILITY read (`resolveEffective`): the type is declared here, the runtime op is wired at the composition
 // root, so preset never imports `connection` (the sideways-import ban, AGENTS §2).
 
-import type { ResolvedChatCapability } from "@orb/contracts/connection";
+import type { ResolvedConnectionView } from "@orb/contracts/inference";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -27,7 +27,7 @@ import type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } fr
 /** The injected chat-role capability read — `connection.resolveChatCapability` at the composition root. Takes
  *  the acting Principal and NOTHING else (no caller-supplied user id or role), so the injected op can only
  *  ever answer for the caller's own connection. */
-export type ResolveChatCapabilityOp = (params: { readonly principal: Principal }) => Promise<ResolvedChatCapability>;
+export type ResolveChatCapabilityOp = (params: { readonly principal: Principal }) => Promise<ResolvedConnectionView>;
 
 /**
  * The injected BACKWARD-BINDINGS read (#279) — "where is this preset bound from outside the library".

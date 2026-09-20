@@ -14,7 +14,6 @@ import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import process from "node:process";
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
-import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { BugReportRecord } from "@orb/kit/bug-report";
@@ -255,14 +254,6 @@ export interface SocketInspector {
   liveSocketCount: (userId?: UserId) => number;
 }
 
-/** The vLLM fleet contention read (#24) — structural-injection so foundation accepts infra's /metrics scrape
- *  without importing it (the `RpgTraceInspector` precedent; infra sits ABOVE foundation in the tier list).
- *  Returns `object` so no infra type crosses the boundary. This exists because engine contention is invisible
- *  from the app: a queued or preempted backlog looks identical to a slow model from every log we keep. */
-export interface VllmMetricsInspector {
-  snapshot: () => Promise<object>;
-}
-
 /** Gate config. Tests construct the middleware directly; production wires it via `registerDebugRoutes`. */
 export interface DebugAuthOptions {
   expectedToken: string | undefined;
@@ -282,8 +273,6 @@ export interface DebugRoutesOptions {
   memoryRecall?: MemoryRecallInspector;
   /** The live multiplexed-socket counter (SSE-1). Absent ⇒ the /stream/sockets route is not registered. */
   sockets?: SocketInspector;
-  /** The vLLM fleet contention scrape (#24). Absent ⇒ the /vllm/metrics route is not registered (vLLM off). */
-  vllmMetrics?: VllmMetricsInspector;
   /** The resolved deployment config getter. Absent ⇒ `/config/app` still serves the RAW settings rows, and the
    *  render-policy probes report the stored tri-states with a `null` resolved verdict rather than guessing a
    *  floor — an absent answer beats a wrong one on the surface whose whole job is removing that inference. */
@@ -347,17 +336,7 @@ export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | unde
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
 export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {}): void {
-  const {
-    db,
-    assets,
-    rpgTrace,
-    memoryRecall,
-    sockets,
-    vllmMetrics,
-    effectiveConfig,
-    wireCaptureEnabled = isWireCaptureEnabled,
-    auth = env.DEBUG_TOKEN,
-  } = options;
+  const { db, assets, rpgTrace, memoryRecall, sockets, effectiveConfig, wireCaptureEnabled = isWireCaptureEnabled, auth = env.DEBUG_TOKEN } = options;
   app.use("/api/_debug/*", createDebugAuthMiddleware(auth));
 
   app.get("/api/_debug/info", (c) => {
@@ -377,7 +356,6 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       memory: process.memoryUsage(),
       providers: {
         openrouter: { configured: env.OPENROUTER_API_KEY !== undefined },
-        defaultModels: { chat: DEFAULT_CHAT_MODEL_ID, openrouter: DEFAULT_OR_CHAT_MODEL_ID },
       },
       diagnostics: { ...diagnostics, warnings: diagnosticsPostureWarnings(diagnostics) },
     });
@@ -452,13 +430,6 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       const userId = c.req.query("userId");
       return c.json({ liveSockets: sockets.liveSocketCount(userId === undefined ? undefined : castId<UserId>(userId)) });
     });
-  }
-
-  // The vLLM fleet contention read (#24): per-engine running / capacity-queued / preemptions / KV headroom.
-  // A `warnings` array is served BESIDE the raw gauges rather than instead of them — the numbers are what a
-  // reader diffs across a run, the warning is what makes an unhealthy one legible without knowing vLLM.
-  if (vllmMetrics !== undefined) {
-    app.get("/api/_debug/vllm/metrics", async (c) => c.json(await vllmMetrics.snapshot()));
   }
 
   app.get("/api/_debug/errors", (c) => c.json({ errors: collectErrors(toDebugLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) }));

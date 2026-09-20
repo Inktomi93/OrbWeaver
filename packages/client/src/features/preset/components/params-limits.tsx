@@ -21,7 +21,7 @@
 // the KnobGrids (their own track set), the stop-sequence `Fieldset` (a group, not a row), the compaction
 // gloss and the vertical `Summary instructions` textarea.
 
-import type { ModelCapability, Verbosity } from "@orb/contracts/connection";
+import type { GenerationCapability, Verbosity } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -39,7 +39,6 @@ import type { AppFormInstance } from "#forms/editor";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
-import { CustomParametersEditor } from "./custom-parameters-editor.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { StopSequences } from "./stop-sequences.tsx";
 
@@ -47,7 +46,7 @@ type AppForm = AppFormInstance<PromptConfig>;
 
 export interface ParamsLimitsProps {
   readonly form: AppForm;
-  readonly capability: ModelCapability | undefined;
+  readonly capability: GenerationCapability | undefined;
   readonly effective: EffectiveProfileRow | undefined;
 }
 
@@ -77,7 +76,7 @@ function OutputCluster({
   effective,
 }: {
   readonly form: AppForm;
-  readonly capability: ModelCapability;
+  readonly capability: GenerationCapability;
   readonly effective: EffectiveProfileRow | undefined;
 }): ReactElement {
   const outputMax = capability.output.maxTokens.max;
@@ -299,7 +298,6 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
               </form.Subscribe>
             </SettingTrackRow>
           </SettingRowGroup>
-          <CustomParametersEditor form={form} />
           <Text voice="gloss">
             `advanced.claudeEnv` is deliberately editor-less — it is a config-tier escape hatch for the agent-sdk process environment, not a generation knob.
           </Text>

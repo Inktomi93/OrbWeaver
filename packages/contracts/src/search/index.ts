@@ -3,7 +3,7 @@
 // inference. The one genuinely cross-boundary shape is `MemoryQueryOptions`: `memory.recall` constructs
 // it and threads it across the domain seam into `search.digests`/`search.corpus`.
 
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 
 // The chat-scoped retrieval-mode axis: off | mixA (all tier-0, chronological) | mixB (+vector retrieve)
@@ -53,6 +53,9 @@ export interface ScoredBlock {
 export interface MemoryQueryOptions {
   /** First-class chat-scope — the scan is restricted to this one chat. */
   scope: { chat: ChatId };
+  /** The chat HOST — the owner of the digest space this scan reads (vector tasks are owner-scoped: the
+   *  entity owner's `embed`/`rerank` bindings define the space and fund the query, inference program §7.5). */
+  ownerId: UserId;
   /** The recent-window retrieval query text: `memory` assembles the egocentric (name-prefixed) query
    *  pre-call; `search` embeds + scans it (mixB/mixC). Absent for the non-embedding modes. */
   queryText?: string | undefined;

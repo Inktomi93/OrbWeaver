@@ -1,11 +1,14 @@
-// PD-137 — the per-message settled-cost affordance. `connection.orGenerationCost` is a PAID upstream
-// OpenRouter call, so it is NEVER fired on load: this renders a quiet click-to-reveal trigger, and only a
+// PD-137 — the per-message settled-cost affordance. `connection.generationCost` is a PAID upstream
+// call (OpenRouter's `GET /generation`), resolved against the connection row that generated the swipe, so it
+// is NEVER fired on load: this renders a quiet click-to-reveal trigger, and only a
 // user click builds the query key (via `useGatedQuery`'s skipToken gate). The settled cost is immutable, so
 // it caches forever (staleTime Infinity). The revealed datum is quiet micro-mono-muted text (north-star P5),
-// NOT a pill — matching the sibling gen-duration readout. Renders nothing without a `generationId` (a non-OR
-// or user/system row has none).
+// NOT a pill — matching the sibling gen-duration readout. Renders nothing without a `generationId` AND a
+// `connectionId` (a user/system row has neither; a deleted connection's swipe keeps its handle but has no
+// row to settle it against).
 
 import type { MessageView } from "@orb/contracts/chat";
+import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Coins, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
@@ -34,14 +37,14 @@ function costLabel(isError: boolean, totalCost: number | undefined): string {
 export function MessageCostReadout({ message }: { readonly message: MessageView }): ReactElement | null {
   const trpc = useTRPC();
   const [revealed, setRevealed] = useState(false);
-  const { generationId } = message;
-  // The key is built ONLY once revealed AND a handle exists — until then `useGatedQuery` skips the fetch.
-  const gateKey = revealed && generationId !== null ? generationId : undefined;
-  const query = useGatedQuery(gateKey, (id: string) =>
-    trpc.connection.orGenerationCost.queryOptions({ generationId: id }, { staleTime: Number.POSITIVE_INFINITY }),
+  const { generationId, connectionId } = message;
+  // The key is built ONLY once revealed AND both halves exist — until then `useGatedQuery` skips the fetch.
+  const gateKey = revealed && generationId !== null && connectionId !== null ? { generationId, connectionId } : undefined;
+  const query = useGatedQuery(gateKey, (key: { readonly generationId: string; readonly connectionId: UserConnectionId }) =>
+    trpc.connection.generationCost.queryOptions(key, { staleTime: Number.POSITIVE_INFINITY }),
   );
 
-  if (generationId === null) {
+  if (generationId === null || connectionId === null) {
     return null;
   }
 

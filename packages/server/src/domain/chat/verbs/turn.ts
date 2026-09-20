@@ -19,7 +19,6 @@ import type {
   UserMacroDraws,
 } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
@@ -30,7 +29,7 @@ import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { getLog, withRequestSpan } from "#foundation/observability";
-import type { WireTool } from "#infra/providers";
+import type { Resolved, WireTool } from "@orb/inference";
 import type { ChatContext } from "../context.ts";
 import type { ActiveTurns } from "../contract/active-turns.ts";
 import type { ArbiterCandidate, AutoModeResult, SpeakerCandidate } from "../contract/arbitration.ts";
@@ -120,7 +119,7 @@ interface TurnDeps {
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   readonly prng: () => number;
   readonly delay: (ms: number) => Promise<void>;
-  readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
+  readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
   /** The foreign half of the assemble ctx (preset/persona/settings), resolved at the composition root. The
    *  chat-internal half is gathered by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
@@ -404,7 +403,7 @@ function sharedTurnPrepFields(env: {
    *  multi-line argument literal an unpacked signature forces is itself a duplicated block, which is this
    *  same clone one level up. `resolveTurnIdentityVia`'s result and the deferred-drain `row` both satisfy it. */
   readonly identity: { readonly triggeredBy: UserId; readonly runAsUserId: UserId };
-  readonly connection: ResolvedConnection;
+  readonly connection: Resolved<"chat">;
   readonly intent: UserIntent | undefined;
   readonly toolRecurseLimit: number | undefined;
 }): SharedTurnPrepFields {
@@ -571,6 +570,8 @@ async function buildTurnContext(
   args: {
     readonly chatId: ChatId;
     readonly runAsUserId: UserId;
+    /** The turn's FUNDER (whose connection it runs on) — the rpg gather's delivery verdict reads it. */
+    readonly funderUserId: UserId;
     readonly model: string;
     readonly kind: TurnKind;
     readonly characterIds: readonly CharacterId[];
@@ -647,6 +648,7 @@ async function buildTurnContext(
     ctx.rpg !== null
       ? await ctx.rpg.gatherTurnContext({
           chatId: args.chatId,
+          funderUserId: args.funderUserId,
           pendingUserText: args.pendingUserText,
           respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
           steerIdentity: teachIdentity,
@@ -788,6 +790,7 @@ async function persistUserMessage(
           messageId: params.messageId,
           assetId,
         })),
+        origin: "attached",
         now,
       }),
     );
@@ -832,6 +835,8 @@ async function arbitrate(
   deps: TurnDeps,
   args: {
     readonly chatId: ChatId;
+    /** The round's trigger — whose `summarize` connection the smart arbiter spends (§8.5b). */
+    readonly funderUserId: UserId;
     readonly group: GroupConfig;
     readonly candidates: readonly ArbiterCandidate[];
     readonly speakerCandidates: readonly SpeakerCandidate[];
@@ -862,7 +867,7 @@ async function arbitrate(
     // preset params can now widen/tune it. Mapped to the summarize seam's `{temperature, maxTokens}`.
     const arbiterSampling = toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveChatPresetParams(args.chatId)));
     const smart = await smartArbitrateVia({
-      summarize: ctx.summarize,
+      summarize: (inputs, opts) => ctx.summarize(args.funderUserId, inputs, opts),
       candidates: args.candidates,
       speakerCandidates: args.speakerCandidates,
       recentHistory: args.recentHistory,
@@ -967,6 +972,7 @@ async function runChain(
       // half is the room's candidate lists — a builder for them would hide exactly the arguments that differ.
       const arbitration = await arbitrate(ctx, deps, {
         chatId: args.base.chatId,
+        funderUserId: args.base.triggeredBy,
         group: args.group,
         candidates: args.room.candidates,
         speakerCandidates: args.room.speakerCandidates,
@@ -1057,6 +1063,7 @@ async function runAiRound(
   const facts = await canonFacts(ctx, args.base.chatId);
   const arbitration = await arbitrate(ctx, deps, {
     chatId: args.base.chatId,
+    funderUserId: args.base.triggeredBy,
     group: args.group,
     candidates: args.room.candidates,
     speakerCandidates: args.room.speakerCandidates,
@@ -1432,7 +1439,7 @@ interface CommittedUserTurn {
   readonly membership: Awaited<ReturnType<typeof requireParticipant>>;
   readonly room: Room;
   readonly identity: ReturnType<typeof resolveTurnIdentityVia>;
-  readonly connection: ResolvedConnection;
+  readonly connection: Resolved<"chat">;
   readonly group: GroupConfig;
   readonly userView: MessageView;
   readonly built: BuiltTurnContext;
@@ -1475,10 +1482,7 @@ async function commitUserTurn(
     principalUserId: principal.userId,
     hostUserId: room.hostUserId,
   });
-  const connection = await deps.resolveConnection({
-    runAsUserId: identity.runAsUserId,
-    chatId,
-  });
+  const connection = await deps.resolveConnection({ funderUserId: identity.triggeredBy, chatId });
   const group = membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
 
   // Built with the pending user text in the WI haystack before the user row commits; the engine reloads
@@ -1490,6 +1494,7 @@ async function commitUserTurn(
     {
       chatId,
       runAsUserId: identity.runAsUserId,
+      funderUserId: identity.triggeredBy,
       model: connection.model,
       kind: "send",
       characterIds: room.characterIds,
@@ -1654,12 +1659,13 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     // — open the client's slot NOW, before the connection resolve + the multi-second context build. Ordered
     // AFTER the NOT_FOUND throw above so a bad character id never opens a slot at all.
     const { connection, built } = await withAcceptedSlot(deps, { chatId, kind: "force", speakerCharacterId: characterId, targetMessageId: null }, async () => {
-      const resolved = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
+      const resolved = await deps.resolveConnection({ funderUserId: identity.triggeredBy, chatId });
       return {
         connection: resolved,
         built: await buildTurnContext(ctx, deps, {
           chatId,
           runAsUserId: identity.runAsUserId,
+          funderUserId: identity.triggeredBy,
           model: resolved.model,
           kind: "force",
           characterIds: room.characterIds,
@@ -1737,7 +1743,7 @@ function createAbort(ctx: ChatContext, deps: TurnDeps): ChatService["abort"] {
 interface TurnBase {
   readonly room: Room;
   readonly identity: { readonly triggeredBy: UserId; readonly runAsUserId: UserId };
-  readonly connection: ResolvedConnection;
+  readonly connection: Resolved<"chat">;
   readonly assembleContext: AssembleContext;
   readonly memoryConfig: MemoryConfig | null | undefined;
   /** The round-level recall inputs for the engine's per-speaker witnessed re-run (D6); threaded onto each
@@ -1807,7 +1813,7 @@ async function resolveTurnBase(
     principalUserId: principal.userId,
     hostUserId: room.hostUserId,
   });
-  const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
+  const connection = await deps.resolveConnection({ funderUserId: identity.triggeredBy, chatId });
   const {
     assembleContext,
     memoryConfig,
@@ -1823,6 +1829,7 @@ async function resolveTurnBase(
   } = await buildTurnContext(ctx, deps, {
     chatId,
     runAsUserId: identity.runAsUserId,
+    funderUserId: identity.triggeredBy,
     model: connection.model,
     kind: args.kind,
     characterIds: room.characterIds,
@@ -2396,7 +2403,7 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
  *  member's owed reply waits for the next drain edge), and a transient fault (provider outage) is a retry.
  *  Drains fire only at boot + host-return edges, so a re-queued row can't hot-loop. */
 function isDrainVerdictDrop(err: unknown): boolean {
-  return err instanceof ChatNotFoundError || (err instanceof ChatOperationError && err.code === CHAT_OP_CODES.consentRequired);
+  return err instanceof ChatNotFoundError;
 }
 
 /** Reconstruct + run ONE deferred AI round from a durable `pending_turns` row — no principal, no new user
@@ -2414,14 +2421,13 @@ async function runDeferredRound(
     throw new ChatNotFoundError(row.chatId);
   }
   const room = await loadRoom(ctx, row.chatId); // hostless/gone → ChatNotFoundError (a drop)
-  const connection = await deps.resolveConnection({
-    runAsUserId: row.runAsUserId,
-    chatId: row.chatId,
-  });
+  // The deferred row's "change key" is `triggered_by` — the FUNDER whose connection the drained turn spends.
+  const connection = await deps.resolveConnection({ funderUserId: row.triggeredBy, chatId: row.chatId });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
   const built = await buildTurnContext(ctx, deps, {
     chatId: row.chatId,
     runAsUserId: row.runAsUserId,
+    funderUserId: row.triggeredBy,
     model: connection.model,
     kind: "send",
     characterIds: room.characterIds,
@@ -2560,7 +2566,7 @@ function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService
 interface RequestTurnResolved {
   readonly chat: NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
   readonly room: Room;
-  readonly connection: ResolvedConnection;
+  readonly connection: Resolved<"chat">;
   readonly identity: { readonly triggeredBy: UserId; readonly runAsUserId: UserId };
 }
 
@@ -2589,10 +2595,10 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
   if ((await loadPresentRole(ctx.db, chatId, funderUserId)) === null) {
     throw new ChatNotFoundError(chatId);
   }
-  // The identity triple: runAsUserId = the host box (funds), triggeredBy = the funder (attribution/abort/the
-  // D17 by-proxy subject). WALL 3 (budget) + WALL 4 (consent) enforce on this triple inside `engine.runTurn`.
+  // The identity triple: runAsUserId = the host (the ASSEMBLY scope), triggeredBy = the funder (whose
+  // CONNECTION the turn runs on, §8.4-3; attribution/abort).
   const identity = { triggeredBy: funderUserId, runAsUserId: room.hostUserId };
-  const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
+  const connection = await deps.resolveConnection({ funderUserId: identity.triggeredBy, chatId });
   return { chat, room, connection, identity };
 }
 
@@ -2606,6 +2612,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
     const built = await buildTurnContext(ctx, deps, {
       chatId,
       runAsUserId: identity.runAsUserId,
+      funderUserId: identity.triggeredBy,
       model: connection.model,
       kind: "auto",
       characterIds: room.characterIds,

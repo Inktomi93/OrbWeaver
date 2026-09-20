@@ -64,16 +64,6 @@ const KNOBS: readonly KnobDescriptor[] = [
     patch: (v) => ({ promptTransformDeadlineMs: v }),
   },
   {
-    id: "nonOwnerLocalComputeBudgetWindowMs",
-    label: "Non-owner compute-budget window (ms)",
-    hint: "The fixed window the per-member local-compute count budget resets on (the budget cap's sibling).",
-    step: 3_600_000,
-    min: 1,
-    read: (r) => r.nonOwnerLocalComputeBudgetWindowMs,
-    overridden: (o) => isOverridden(o.nonOwnerLocalComputeBudgetWindowMs),
-    patch: (v) => ({ nonOwnerLocalComputeBudgetWindowMs: v }),
-  },
-  {
     id: "catalogRefreshIntervalMs",
     label: "Model-catalog refresh cadence (ms)",
     hint: "How often a successful model-catalog snapshot refresh is re-enqueued (a failure retries within the hour).",
@@ -114,27 +104,6 @@ const KNOBS: readonly KnobDescriptor[] = [
     read: (r) => r.promptCacheMinDepth,
     overridden: (o) => isOverridden(o.promptCacheMinDepth),
     patch: (v) => ({ promptCacheMinDepth: v }),
-  },
-  {
-    id: "genPresencePenalty",
-    label: "vLLM presence-penalty default",
-    hint: "The per-request presence_penalty the vLLM chat surface applies when a preset is silent (any served model, incl. role/side-gen). A preset that sets its own value still wins.",
-    step: 0.1,
-    min: -2,
-    max: 2,
-    read: (r) => r.engineLaunch.genPresencePenalty,
-    overridden: (o) => isOverridden(o.engineLaunch?.genPresencePenalty),
-    patch: (v) => ({ engineLaunch: { genPresencePenalty: v } }),
-  },
-  {
-    id: "genRepetitionPenalty",
-    label: "Gen repetition penalty",
-    hint: "Sent as repetition_penalty on every gen request whose preset doesn't set one — applies immediately, no restart. 1 = off. Its hot twin, presence-penalty, sits above.",
-    step: 0.01,
-    min: 0.01,
-    read: (r) => r.engineLaunch.genRepetitionPenalty,
-    overridden: (o) => isOverridden(o.engineLaunch?.genRepetitionPenalty),
-    patch: (v) => ({ engineLaunch: { genRepetitionPenalty: v } }),
   },
 ];
 
@@ -203,12 +172,10 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
         partial: {
           agentSdkConcurrency: null,
           promptTransformDeadlineMs: null,
-          nonOwnerLocalComputeBudgetWindowMs: null,
           catalogRefreshIntervalMs: null,
           imageVariantQuality: null,
           maxDatabankBytes: null,
           promptCacheMinDepth: null,
-          engineLaunch: { genPresencePenalty: null, genRepetitionPenalty: null },
         },
       })
       // Re-sync the local draft to the RESOLVED floor the reset returned so each input VALUE flips to its

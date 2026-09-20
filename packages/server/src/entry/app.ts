@@ -26,7 +26,6 @@ import { observability, observabilityErrorHandler, registerDebugRoutes, security
 import { versionIdentity } from "#foundation/version";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
-import { fleetCapacitySnapshot } from "#infra/providers";
 import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc/index.ts";
 import { appRouter, createContext } from "../transport/trpc/index.ts";
 import type { AuthSeam } from "./auth/index.ts";
@@ -436,11 +435,6 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // #250: the memory-recall ring. Same spread shape as rpgTrace, but the recorder is unconditional in
     // production compose — the `undefined` arm only fires for a hand-built app (a route/gate test).
     ...(deps.memoryRecall === undefined ? {} : { memoryRecall: deps.memoryRecall }),
-    // #24: the vLLM contention scrape. Registered UNCONDITIONALLY — unlike rpgTrace there is no recorder to
-    // exist or not, and on an engine-less box every engine reports `null` (unreachable), which is the honest
-    // answer rather than a 404 the caller has to tell apart from a typo. Gating it would mean threading the
-    // resolved engines posture down here purely to withhold a truthful reading.
-    vllmMetrics: { snapshot: fleetCapacitySnapshot },
     // #412: the recorder-state publisher. Spread like rpgTrace so an absent dep leaves the route on its env
     // fallback rather than pinning it to a `false` this app never actually decided.
     ...(deps.wireCapture === undefined ? {} : { wireCaptureEnabled: (): boolean => deps.wireCapture === true }),

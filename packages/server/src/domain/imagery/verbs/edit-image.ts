@@ -7,6 +7,7 @@
 // `mode:"free"`, never reuse-gated — edits are moment art, doc 03 §4.4). Never posts (the caller's job).
 
 import type { Principal } from "@orb/contracts/identity";
+import { acceptsImageEdit } from "@orb/contracts/inference";
 import type { AssetId } from "@orb/kit/ids";
 import { ImageEditUnsupportedError, ImageryNotConfiguredError } from "../contract/errors.ts";
 import type { EditImageParams, EditImageSource } from "../contract/params.ts";
@@ -45,14 +46,14 @@ export function createEditImage(ctx: ImageryContext): ImageryService["editImage"
     const imageBytes = await resolveSourceBytes(ctx, p.caller, p.source);
     const resolution = await resolveOrThrow(ctx, p.caller);
     // The capability gate — the asymmetric posture: an explicit edit on a non-edit model THROWS.
-    if (resolution.capability.input?.imageEdit !== true) {
+    if (!acceptsImageEdit(resolution.capability)) {
       throw new ImageEditUnsupportedError(`imagery: model "${resolution.connection.model}" cannot edit images (input.imageEdit is not set)`);
     }
 
     const outcome = await runGeneration(
       ctx,
       {
-        credential: resolution.connection.credential,
+        connection: resolution.connection,
         model: resolution.connection.model,
         owner: p.caller.userId,
         prompt: p.instruction,

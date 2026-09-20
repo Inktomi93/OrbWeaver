@@ -17,8 +17,8 @@
 import { userInfo } from "node:os";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { engineLaunchEnvFloor, processEnvSnapshot } from "@orb/server/foundation/env";
-import type { EngineStopOutcome, EngineUtilFractions, GpuVram } from "@orb/server/infra/providers/vllm/engine";
+import { engineLaunchEnvFloor, processEnvSnapshot } from "../lib/engine-fleet/index.ts";
+import type { EngineStopOutcome, EngineUtilFractions, GpuVram } from "../lib/engine-fleet/index.ts";
 import {
   clearHold,
   countGpus,
@@ -37,7 +37,7 @@ import {
   VLLM_ENGINES,
   writeHold,
   writeStopped,
-} from "@orb/server/infra/providers/vllm/engine";
+} from "../lib/engine-fleet/index.ts";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { runTool, UsageError } from "../../_shared/run-tool.ts";
 

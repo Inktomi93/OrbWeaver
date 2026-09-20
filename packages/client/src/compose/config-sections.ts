@@ -26,7 +26,7 @@ import {
   proseSettingsSection,
 } from "#features/chat";
 import { appearanceLooksSection } from "#features/config";
-import { connectionsHostClaudeSection, connectionsKeysSection, connectionsRolesSection } from "#features/credentials";
+import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "#features/credentials";
 import { personaListSection, personaNotificationsSection, personaThisChatSection } from "#features/persona";
 import { pluginDistributeSection, pluginsInstalledSection, pluginsInstallSection } from "#features/plugin";
 import {
@@ -34,16 +34,13 @@ import {
   adminApprovalsSection,
   adminCatalogSection,
   adminEmbeddingsSection,
-  adminEnginesSection,
   adminLinkSsoSection,
   adminUsersSection,
-  computeSection,
   mediaTrustSection,
   memoryTuningSection,
   multiUserSection,
   operationsSection,
   rateLimitsSection,
-  sharedAccessSection,
   structuredOutputSection,
   systemTuningSection,
 } from "#features/user-admin";
@@ -63,10 +60,10 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
   // backup ← the two halves of the portability system, export ahead of import (§6.8).
   backupExportSection,
   backupImportSection,
-  // connections ← roles first (what a turn resolves), then the owner-only host-Claude probe, then the key
-  // library the roles resolve their credential from (§6.8; the pre-decomposition surface order).
+  // connections ← the user's connection rows first (the unit every role references), then Model roles
+  // (what a turn resolves), then the saved-key reuse view (inference program §5.3a).
+  connectionsListSection,
   connectionsRolesSection,
-  connectionsHostClaudeSection,
   connectionsKeysSection,
   // automation ← C5's owner-global rule list + picker, then the owner ceiling (§6.8).
   automationLibraryRulesSection,
@@ -85,8 +82,6 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
   // admin ← the former SYSTEM pane's five sections lead (SET-SEAMS stage 4 / §10 Q2 merged `system` INTO
   // `admin`, "system's sections becoming the first group"), in their pre-merge pane order …
   mediaTrustSection,
-  computeSection,
-  sharedAccessSection,
   multiUserSection,
   operationsSection,
   // … then the DECOMPOSED admin pane (SET-SEAMS stage 3) in its pre-split order (users · engines · model
@@ -97,7 +92,6 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
   adminApprovalsSection,
   // B5 — the db-surgery-free "Link SSO identity" migration surface, right after Approvals.
   adminLinkSsoSection,
-  adminEnginesSection,
   adminCatalogSection,
   adminEmbeddingsSection,
   memoryTuningSection,

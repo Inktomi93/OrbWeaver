@@ -8,16 +8,18 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
-import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
+import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { composeProse } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
+import { characterPersonas, chatParticipants, personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
+import type { AgentSeedBlock, AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, Resolved, RoleClientsWithSignal } from "@orb/inference";
+import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, createAgentToolServer, NoConnectionError, ProviderError } from "@orb/inference";
 import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -69,10 +71,8 @@ import {
   createSetRpgPointer,
   getGroupConfig,
   getRoomOverrides,
-  parseChatMetadata,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
-import type { CredentialsService } from "#domain/credentials";
 import type { EmbeddingsService } from "#domain/embeddings";
 import { createHandoffRestampStatements } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
@@ -89,13 +89,9 @@ import type { SettingsService } from "#domain/settings";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
-import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, recordMemoryLog } from "#foundation/observability";
-import type { AgentSeedBlock, AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
-import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
 import { createRegexApplyReplace, createRegexTest } from "#kit/regex";
-import { createMemberBudget } from "../../transport/rate-limit.ts";
 import { publishNotification } from "../../transport/trpc/index.ts";
 import { createReactToolDefinition } from "./chat-tools.ts";
 import { createChatChangedEmitter } from "./emit-chat-changed.ts";
@@ -499,9 +495,12 @@ export interface ChatComposeInput {
   readonly can: Can;
   /** D121-E: the regex domain's four-scope resolve op (the host-tier sources a turn assembles against). */
   readonly resolveRegexSources: ResolveRegexSources;
-  readonly roleClients: RoleClientsWithSignal;
-  readonly connection: ConnectionService;
-  readonly credentials: CredentialsService;
+  /** The per-FUNDER role-client binder (§8.5b): every chat-side side call — arbiter, digests, extract-quiet —
+   *  spends the TRIGGER's rows; the vector writes and reads use the room HOST's (vector tasks are owner-scoped). */
+  readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
+  readonly connection: Pick<ConnectionService, "resolve" | "availability">;
+  /** The post-generation credential STRIKE-OUT (#1373) — the credentials domain's verb, wired DIRECT. */
+  readonly maybeRevokeOnAuthFailed: ChatContext["maybeRevokeOnAuthFailed"];
   readonly character: CharacterService;
   readonly persona: PersonaService;
   /** The persona domain's PRINCIPAL-LESS participants op (`domain/persona/contract/ops.ts`) — the ONE room-plane
@@ -523,6 +522,7 @@ export interface ChatComposeInput {
   /** The databank `{{databank}}`-slot GATHER op (DB6) — OPTIONAL; absent wires `ChatContext.gatherDatabank`
    *  to undefined (byte-identical no-op). Bridged from `databank.gatherRetrieval` at the composition root. */
   readonly gatherDatabank?: ChatContext["gatherDatabank"];
+  /** The compose-tier executor FENCE (§7.5-1a): chat receives exactly the bound `runChatTurn`. */
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
   /** The deployment's Anthropic prompt-cache depth FLOOR, read per turn off the resolved AppSettings tier
    *  (`EffectiveAppConfig.promptCacheMinDepth`, Settings › Admin › System tuning). A thunk, not a value, so an
@@ -617,8 +617,8 @@ export interface ChatComposeResult {
   readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
   /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
-    readonly memory: (args: { signal: AbortSignal; ownerId?: UserId | null }) => ReturnType<typeof backfillMemory>;
-    readonly groupCharacters: (args: { signal: AbortSignal; ownerId?: UserId | null }) => ReturnType<typeof backfillGroupCharacters>;
+    readonly memory: (args: { signal: AbortSignal; ownerId?: UserId | null; funderUserId: UserId }) => ReturnType<typeof backfillMemory>;
+    readonly groupCharacters: (args: { signal: AbortSignal; ownerId?: UserId | null; funderUserId: UserId }) => ReturnType<typeof backfillGroupCharacters>;
   };
 }
 
@@ -692,11 +692,7 @@ function warningChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
  *  delivers mid-conversation system authority through the dynamic-context hook channel rather than as history
  *  rows. The shape is ONE (#1607): chatId + seed frames + a prompt, which is the trailing user run when there is
  *  one and the host-authored continuation stub when there is not. */
-function agentSdkChatRequest(args: {
-  readonly req: TurnRequest;
-  readonly orSkinTierModels: NonNullable<Awaited<ReturnType<ConnectionService["getOrSkinTierModels"]>>>;
-  readonly onDelta: (delta: ChatDeltaEvent) => void;
-}): ChatRequest {
+function agentSdkChatRequest(args: { readonly req: TurnRequest; readonly onDelta: (delta: ChatDeltaEvent) => void }): ChatRequest {
   const { req, onDelta } = args;
   const extract = extractTrailingSystemRows(req.history);
   const split = splitAgentHistory(extract.rows);
@@ -706,15 +702,13 @@ function agentSdkChatRequest(args: {
       : [req.prompt.dynamic, extract.systemText].filter((s) => s.trim().length > 0).join(AGENT_PROMPT_TAIL_JOINER);
   return {
     api: "agent-sdk",
-    model: req.connection.model,
-    credential: req.connection.credential,
-    capability: req.connection.capability,
+    // The WHOLE resolved connection rides the request (§8.4-3): provider row, credential, folded features,
+    // extras and capability — the runtime picks the wire off it; nothing here re-derives a routing fact.
+    connection: req.connection,
     params: req.intent,
     // `dynamic` carries the extracted trailing system injections — they ride the resolved
     // dynamic-context channel (the hook on a midConversationSystem model) as real system authority.
     systemPrompt: { static: req.prompt.static, dynamic },
-    orSkinTierModels: args.orSkinTierModels,
-    ownerConsented: req.ownerConsented,
     // The stateful tool + structured-output channels (the array wires spread tools/responseFormat
     // on their own arm below): the MCP server mounts the domain's resolved set; responseFormat
     // rides the SDK's own outputFormat (json_schema) — never silently dropped.
@@ -732,38 +726,33 @@ function agentSdkChatRequest(args: {
   };
 }
 
-/** The ARRAY-WIRE arm of the turn mapping (chat-completions / responses): the transcript travels as real
- *  history rows and the preset's passthrough channels ride the request as-is. */
+/** The ARRAY-WIRE arm of the turn mapping (chat-completions / responses / anthropic-messages): the transcript
+ *  travels as real history rows and the preset's passthrough channels ride the request as-is. The three apis
+ *  share one shape (`HistoryChatRequest`); the discriminant is the connection's own `api`. */
 function arrayWireChatRequest(args: {
   readonly req: TurnRequest;
+  readonly api: "chat-completions" | "responses" | "anthropic-messages";
   readonly onDelta: (delta: ChatDeltaEvent) => void;
   readonly promptCacheMinDepth: number;
 }): ChatRequest {
   const { req, onDelta } = args;
   return {
-    api: req.connection.api as "chat-completions" | "responses",
-    model: req.connection.model,
-    credential: req.connection.credential,
-    capability: req.connection.capability,
+    api: args.api,
+    connection: req.connection,
     params: req.intent,
     systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
-    ownerConsented: req.ownerConsented,
     // Carried so the wire-capture sink keys the recorded body by chat (the debug endpoint's `chatId`
     // filter); the agent-sdk arm sets it on the seeded spread above.
     chatId: req.chatId,
-    // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
-    history: req.history as any,
+    history: req.history,
     // The cache breakpoint DEPTH (role switches from the end — `backends/kit/cache-control.ts` owns
     // the axis). SHAPE computes the turn's MINIMUM SAFE depth and returns nothing at all when the
     // stable prefix is disrupted; the admin knob is a FLOOR layered on top, so it can only push the
     // breakpoint DEEPER (more of the tail kept volatile), never shallower — a shallower breakpoint
     // pins bytes that change every turn, which is a guaranteed wasted cache write, not a preference.
     // SHAPE's abort therefore stays absolute: no safe depth ⇒ no breakpoint, whatever the knob says.
-    historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd === null ? undefined : Math.max(req.cacheBreakpointFromEnd, args.promptCacheMinDepth),
-    // The preset's provider-passthrough blob (PD-148) rides the shared chat-completions/responses arm,
-    // but is BYOK-ONLY at the wire: only the custom-byo runner honors it. OpenRouter drops it (its knobs
-    // are the modeled sampling surface — the anti-sprawl design); the agent-sdk arm carries none by charter.
-    ...(req.customParameters !== undefined ? { customParameters: req.customParameters } : {}),
+    cacheBreakpointDepth: req.cacheBreakpointFromEnd === null ? undefined : Math.max(req.cacheBreakpointFromEnd, args.promptCacheMinDepth),
+    // Endpoint body extras ride the CONNECTION (`connection.extras`, §8.1c) — the preset carries none.
     ...(req.tools !== undefined ? { tools: req.tools } : {}),
     ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
     ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
@@ -780,13 +769,17 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       content: result.reply,
       reasoning: result.reasoning || null,
       model: req.connection.model,
-      provider: req.connection.credential.source,
+      // ATTRIBUTION (§5.3b): the provider REGISTRY id and the connection row that generated this swipe —
+      // denormalised on purpose so a read outlives an edited or deleted connection.
+      provider: req.connection.provider.id,
+      connectionId: req.connection.connectionId,
       tokensIn: result.usage.tokensIn,
       tokensOut: result.usage.tokensOut,
       cacheReadTokens: result.usage.cacheReadTokens,
       cacheWriteTokens: result.usage.cacheWriteTokens,
       contextWindow: result.usage.contextWindow,
       costUsd: result.usage.costUsd,
+      costProvenance: result.usage.costProvenance,
       maxOutputTokens: result.usage.maxOutputTokens,
       // The provider's per-turn MODEL-CALL count, renamed across the seam (`numTurns` → `modelCalls`)
       // because "turn" already means a CHAT turn on this side. It is what makes `tokensOut` (a sum
@@ -866,7 +859,6 @@ function createChunkPump<T>(): {
  *  fidelity harness drives THIS real mapping (injecting only the leaf infra surface), not a facsimile. */
 export function createRunChatTurnBridge(deps: {
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
-  readonly getOrSkinTierModels: ConnectionService["getOrSkinTierModels"];
   /** The deployment's prompt-cache depth FLOOR (`AppSettings.promptCacheMinDepth`, Settings › Admin › System
    *  tuning) — read PER TURN so an admin flip governs the next request with no restart (the D126 thunk
    *  precedent). Optional: absent reads as the born-in-DB floor 0, which is `Math.max`'s identity, so a
@@ -879,14 +871,18 @@ export function createRunChatTurnBridge(deps: {
       pump.push({ kind: delta.kind, text: delta.text });
     };
 
-    // The OR-skin tier→slug map the mode-2 firewall needs, derived from connection's live catalogs
-    // (never throws — cold catalog degrades to a curated shortlist). Absent ⇒ the agent-sdk arm cannot be
-    // built and the request falls through to the array wire, exactly as before.
-    const orSkinTierModels = req.connection.api === "agent-sdk" ? await deps.getOrSkinTierModels() : undefined;
+    // The wire SHAPE is the connection's own `api` (validated ∈ the provider's `apis` on write and at resolve,
+    // §7.3): the stateful agent-sdk seed+prompt split, or one of the three history-array wires.
+    const api = req.connection.api;
+    if (api === null) {
+      // A chat task resolved to a row with no chat api (an embedding-kind connection bound to `chat`) — the
+      // resolver's `requirementMet` refuses this upstream; here it is an invariant, not a branch.
+      throw new ProviderError({ kind: "invalid", retryable: false, message: `connection ${req.connection.connectionId} carries no chat api` });
+    }
     const chatReq =
-      req.connection.api === "agent-sdk" && orSkinTierModels !== undefined
-        ? agentSdkChatRequest({ req, orSkinTierModels, onDelta })
-        : arrayWireChatRequest({ req, onDelta, promptCacheMinDepth: deps.promptCacheMinDepth?.() ?? 0 });
+      api === "agent-sdk"
+        ? agentSdkChatRequest({ req, onDelta })
+        : arrayWireChatRequest({ req, api, onDelta, promptCacheMinDepth: deps.promptCacheMinDepth?.() ?? 0 });
 
     // @orb-waive caught-failure-ownership(runChatTurn): propagated — the rejection reaches
     // `pump.fail(err)` in the `.catch` below, which the consuming `yield* pump.drain()` surfaces to the
@@ -928,11 +924,37 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // owner's own privileged turn, so this read is injected rather than faked.
   const realHostPrincipal = input.resolveHostPrincipal;
 
-  const resolveChatVia = async (userId: UserId, routable: RouteChatAssignment): Promise<ResolvedConnection> =>
-    input.connection.resolveChat({
-      principal: await realHostPrincipal(userId),
-      routableChat: routable,
+  // THE FUNDER'S connection (§8.4-3): `funderUserId` selects the WHOLE connection — provider, model, credential,
+  // declared capability — through the runtime's user-binding fold. There is no per-chat routing overlay
+  // (`chats.metadata.providerRouting` was deleted with `RouteChatAssignment`, §7.1: a routing preference is a
+  // property of the connection you picked, never of the room).
+  const resolveChatFor = async (funderUserId: UserId, signal?: AbortSignal): Promise<Resolved<"chat">> => {
+    const { resolved } = await input.connection.resolve({
+      task: "chat",
+      principal: await realHostPrincipal(funderUserId),
+      ...(signal === undefined ? {} : { signal }),
     });
+    return resolved as Resolved<"chat">;
+  };
+  // The funder's role-client bundle, with the two summarize-slot FACTS memory reads off it (§7.5-1b): the
+  // model's window sizes the digest token guard; the embed model's input cap bounds a segment. A funder with
+  // no binding for the task is `NoConnectionError` — the honest refusal, never a default window.
+  const summarizeWindowFor = async (funderUserId: UserId): Promise<number> => {
+    const resolved = await (await input.roleClientsFor(funderUserId)).resolved("summarize");
+    const window = resolved?.capability.kind === "generation" ? resolved.capability.generation.context.window : null;
+    if (window === null) {
+      throw new NoConnectionError("no summarize connection is bound for this user — bind one in Connections");
+    }
+    return window;
+  };
+  const embedWindowFor = async (funderUserId: UserId): Promise<number> => {
+    const resolved = await (await input.roleClientsFor(funderUserId)).resolved("embed");
+    const window = resolved?.capability.kind === "embedding" ? resolved.capability.embedding.maxInputTokens : null;
+    if (window === null) {
+      throw new NoConnectionError("no embed connection is bound for this user — bind one in Connections");
+    }
+    return window;
+  };
 
   // The host's active preset config, given its already-loaded default preset id. A stale/unowned/missing id
   // degrades to the system default. Shared by resolveForeignInputs + resolvePromptVariables so resolution
@@ -1000,6 +1022,17 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
       .limit(1);
     return hostRows.at(0)?.userId ?? null;
+  };
+
+  // The host's EMBED model tag — the space a chat's digests/segments are written into (§7.5/§10). No binding
+  // is the honest `NoConnectionError`: memory's vector build needs a space, and a default would silently write
+  // into a space nobody reads.
+  const hostEmbedModel = async (hostUserId: UserId): Promise<string> => {
+    const resolved = await (await input.roleClientsFor(hostUserId)).resolved("embed");
+    if (resolved === null) {
+      throw new NoConnectionError("no embed connection is bound for this user — bind one in Connections");
+    }
+    return resolved.model;
   };
 
   // The chat's active preset's ChoiceBlock variables, resolved under the chat's host. Hostless/stale room
@@ -1117,18 +1150,15 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // (`substrate/regex-tier`), the regex domain owns the STORAGE — one seam, no blob copies.
     resolveRegexSources: input.resolveRegexSources,
     tools: input.toolUse === undefined ? null : buildChatToolOps(input.toolUse, input.resolveHostPrincipal),
-    // Bridges the chat role's streaming AsyncIterable onto infra's Promise+onDelta shape — the extracted
-    // domain→infra turn bridge (createRunChatTurnBridge), injecting the leaf infra runChatTurn + OR-skin map.
+    // Bridges the chat role's streaming AsyncIterable onto the runtime's Promise+onDelta shape — the extracted
+    // domain→runtime turn bridge (createRunChatTurnBridge), injecting the leaf `runChatTurn` (the §7.5-1a fence).
     runChatTurn: createRunChatTurnBridge({
       runChatTurn: input.runChatTurn,
-      getOrSkinTierModels: () => input.connection.getOrSkinTierModels(),
       ...(input.promptCacheMinDepth === undefined ? {} : { promptCacheMinDepth: input.promptCacheMinDepth }),
     }),
     resolveChatPresetParams,
     resolveChatProse,
-    resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
-
-    resolveCredential: async ({ runAsUserId, source }) => input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
+    resolveChat: (params) => resolveChatFor(params.funderUserId, params.signal),
     // THE POST-GENERATION CREDENTIAL STRIKE-OUT (#1373) — a DIRECT wire, deliberately not an adapter. The
     // adapter that used to sit here was the whole defect: it re-derived the classification from the HTTP
     // status (`401 → "unauthorized"`, `403 → "forbidden"`) against a verb that gates on `auth_failed`, so the
@@ -1137,7 +1167,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // carries the provider's own `ProviderErrorKind` plus the credentialId the generation authenticated with,
     // which is exactly `MaybeRevokeParams`; anything else this seam could do would be re-deriving a fact it
     // was handed. A shape drift on either side is now a `tsc` error rather than a silent no-op.
-    maybeRevokeOnAuthFailed: input.credentials.maybeRevokeOnAuthFailed,
+    maybeRevokeOnAuthFailed: input.maybeRevokeOnAuthFailed,
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
     // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5; the regex arm is #1739) — the four OWNING-domain write
     // factories the accepted property offer executes. Each lives in the domain that owns its tables and is
@@ -1314,12 +1344,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     bumpStatsCanonVersion: (batch, opDb, ownerId) => {
       bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId);
     },
-    summarize: input.roleClients.summarize,
-    // A thunk over the live getter — never the value: reading it here would bake the boot resolution.
-    summarizerContextTokens: () => input.roleClients.summarizerContextTokens,
-    // The embed engine's launch window (`--max-model-len`) — the SAME single home the vLLM embed surface's
-    // belt clamp reads, so the segment build's skip boundary and the wire's last-resort cut can't disagree.
-    embedContextTokens: () => env.VLLM_EMBED_MAX_MODEL_LEN,
+    // Every summarize call names its FUNDER (§8.5b): the arbiter and extract-quiet spend the round's trigger,
+    // the digests the trigger under `allowBackground` — never a box owner's bundle.
+    summarize: async (funderUserId, ...args) => (await input.roleClientsFor(funderUserId)).summarize(...args),
+    summarizerContextTokens: summarizeWindowFor,
+    // The embed model's input cap off the resolved EMBEDDING capability (was the vLLM launch window) — the
+    // SAME fact the transport's belt clamp reads, so the segment build's skip boundary and the wire's
+    // last-resort cut can't disagree.
+    embedContextTokens: embedWindowFor,
     memorySummarizer: input.settings.getEffectiveConfig().memorySummarizer,
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).
@@ -1419,10 +1451,18 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         warnings: picture.warnings.map((w) => ({ code: w.code, detail: w.detail })),
       };
     },
+    // A chat's digest/segment SPACE is its HOST's (`chatParticipants` role='host' — vector tasks are owner-scoped,
+    // §7.5; D18 chats have no owner column, so the host is resolved per write). A hostless/stale room has no
+    // space to write into and the write is a logged no-op — the content-hash self-heal retries next pass.
     embeddingsStore: async (params) => {
+      const hostUserId = await resolveChatHostUserId(params.key.chatId);
+      if (hostUserId === null) {
+        return;
+      }
       await input.embeddings.store({
         kind: "chat-block",
         lens: "digest",
+        ownerId: hostUserId,
         chatId: params.key.chatId,
         scopedCharacterId: params.key.scopedCharacterId,
         isGroup: params.isGroup,
@@ -1433,18 +1473,31 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         keywords: params.keywords,
         speakerCharacterIds: params.speakerCharacterIds,
         contentHash: params.contentHash,
-        model: input.roleClients.embedModel,
-        dim: env.VLLM_EMBED_DIM,
+        model: await hostEmbedModel(hostUserId),
+        dim: EMBED_SPACE_DIMS,
       });
     },
     // The SEGMENT half is a BATCH op (#172): memory hands over every pending chunk — one chat's on the live
     // path, the whole corpus's on the sweep — and embeddings submits them to the engine as ONE flood. The
     // space tag (`model`/`dim`) is stamped here, the same single home the digest arm above reads.
     embeddingsStoreSegments: async (params) => {
-      await input.embeddings.storeSegments(
-        params.map((p) => ({
+      // One host + one space per chat in the flood (the corpus sweep hands over many chats at once).
+      const byChat = new Map<ChatId, { readonly ownerId: UserId; readonly model: string }>();
+      const rows: Parameters<EmbeddingsService["storeSegments"]>[0][number][] = [];
+      for (const p of params) {
+        let space = byChat.get(p.chatId);
+        if (space === undefined) {
+          const hostUserId = await resolveChatHostUserId(p.chatId);
+          if (hostUserId === null) {
+            continue;
+          }
+          space = { ownerId: hostUserId, model: await hostEmbedModel(hostUserId) };
+          byChat.set(p.chatId, space);
+        }
+        rows.push({
           kind: "chat-block" as const,
           lens: "segment" as const,
+          ownerId: space.ownerId,
           chatId: p.chatId,
           blockIdx: p.blockIdx,
           chunkIdx: p.chunkIdx,
@@ -1452,10 +1505,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           seqEnd: p.seqEnd,
           text: p.text,
           contentHash: p.contentHash,
-          model: input.roleClients.embedModel,
-          dim: env.VLLM_EMBED_DIM,
-        })),
-      );
+          model: space.model,
+          dim: EMBED_SPACE_DIMS,
+        });
+      }
+      if (rows.length > 0) {
+        await input.embeddings.storeSegments(rows);
+      }
     },
     // The SHRINK half of the same seam: memory stores every block that exists, then reclaims the ones that
     // stopped existing. Straight pass-through of the two lens arms — the DELETE itself lives in embeddings
@@ -1492,10 +1548,17 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // The scored projection: identity + BOTH ranking numbers, and deliberately NOT the hit's `text` (memory
     // resolves its own digest bodies from the pool it already loaded — the seam carries what recall must
     // EXPLAIN, never a second copy of the content).
-    searchDigests: (query, onRerankUnavailable) =>
-      input.search
-        .digests(query, onRerankUnavailable === undefined ? undefined : { onRerankUnavailable })
-        .then((hits) => hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }))),
+    // The digest SPACE is the host's (their `embed`/`rerank` bindings wrote it — vector tasks are owner-scoped,
+    // inference program §7.5); `MemoryQueryOptions` carries no owner by D20, so the host is resolved from the
+    // chat FK here, exactly as `searchCorpus` below does. Hostless room ⇒ nothing to recall (leak-free).
+    searchDigests: async (query, onRerankUnavailable) => {
+      const hostUserId = await resolveChatHostUserId(query.scope.chat);
+      if (hostUserId === null) {
+        return [];
+      }
+      const hits = await input.search.digests({ ...query, ownerId: hostUserId }, onRerankUnavailable === undefined ? undefined : { onRerankUnavailable });
+      return hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }));
+    },
     // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is
     // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority; every roster character
     // is host-owned per PD-21, so the host's corpus IS this room's corpus). Hostless/stale room ⇒ empty
@@ -1552,10 +1615,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     pluginMacros: input.pluginMacros ?? null,
   };
 
-  // The budget WINDOW is a live admin knob (nonOwnerLocalComputeBudgetWindowMs) — read per debit so a retune
-  // applies without a restart, matching the per-debit-live cap (item 4).
-  const memberBudget = createMemberBudget(db, { windowMs: () => input.settings.getEffectiveConfig().nonOwnerLocalComputeBudgetWindowMs, now });
-
   const chatDeps: ChatServiceDeps = {
     emit: emitChatEvent,
     emitChecked: input.emitChatEventChecked,
@@ -1564,20 +1623,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     activeTurns: createActiveTurns(),
     prng: () => Math.random(),
     delay: sleep,
-    resolveConnection: async ({ runAsUserId, chatId }) => {
-      const rows = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId)).limit(1);
-      const meta = parseChatMetadata(rows.at(0)?.metadata ?? null);
-      const routable: RouteChatAssignment = meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
-      return resolveChatVia(runAsUserId, routable);
-    },
-    // The honest-refusal pre-send gate (#54): read the SAME chat-row routing overlay `resolveConnection` reads,
-    // then ask the connection domain the deterministic serveability question (no turn, no API call).
-    checkSendAvailability: async ({ runAsUserId, chatId }) => {
-      const rows = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId)).limit(1);
-      const meta = parseChatMetadata(rows.at(0)?.metadata ?? null);
-      const routable: RouteChatAssignment = meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
-      return input.connection.checkChatAvailability({ principal: await realHostPrincipal(runAsUserId), routableChat: routable });
-    },
+    // THE TURN'S OWN RESOLVE and the #54 pre-send gate, both keyed on the FUNDER (§8.4-3): the composer says
+    // AVAILABLE against the member's own connection and the turn spends that same connection — a host-keyed
+    // gate here was exactly the failure verify8 H1 named.
+    resolveConnection: ({ funderUserId }) => resolveChatFor(funderUserId),
+    checkSendAvailability: async ({ funderUserId }) => input.connection.availability({ task: "chat", principal: await realHostPrincipal(funderUserId) }),
     resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, presentHumanUserIds, trigger, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
 
@@ -1652,14 +1702,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         databankRetrieval: us.databank.retrieval,
         databankSlotTokenBudget: us.databank.slotTokenBudget,
       };
-    },
-    debitBudget: memberBudget.debit,
-    resolveTurnPolicy: () => {
-      const cfg = input.settings.getEffectiveConfig();
-      return Promise.resolve({
-        budget: cfg.nonOwnerLocalComputeBudget,
-        allowNonOwnerMaxProSub: cfg.allowNonOwnerMaxProSub,
-      });
     },
     holder: input.holder,
     lockTtlMs: CHAT_LOCK_TTL_MS,

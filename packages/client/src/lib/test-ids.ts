@@ -49,17 +49,11 @@ export const TEST_IDS = {
   adminSessionsDialog: "admin-sessions-dialog",
   adminResetPasswordDialog: "admin-reset-password-dialog",
   adminResetPasswordSubmit: "admin-reset-password-submit",
-  adminEnginesSection: "admin-engines-section",
   // The About section (owner ask 2026-09-18) — the build identity a bug report quotes, its copy affordance,
   // and the manual update check's verdict slot.
   aboutSection: "about-section",
   aboutVersionLine: "about-version-line",
   aboutUpdateVerdict: "about-update-verdict",
-  engineLaunchConfig: "engine-launch-config",
-  engineLaunchSave: "engine-launch-save",
-  engineLaunchPendingRestart: "engine-launch-pending-restart",
-  endpointInspectorDialog: "endpoint-inspector-dialog",
-  endpointInspectorStatus: "endpoint-inspector-status",
   // The Saved-keys row revoke controls. `credentialMarkRevoked` = the destructive user-facing revoke
   // action (confirm-gated → credentials.markRevokedByUser); `credentialClearRevoked` = the recover
   // affordance shown on a revoked row (→ credentials.clearRevoked).

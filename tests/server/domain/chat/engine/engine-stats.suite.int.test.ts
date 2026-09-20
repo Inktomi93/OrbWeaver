@@ -11,7 +11,7 @@
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { Resolved } from "@orb/inference";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -396,7 +396,7 @@ describe("engine stats — provider-reported OpenRouter cost reaches model_stats
   }> {
     const openRouterConnection: ResolvedConnection = {
       ...CONNECTION,
-      credential: makeOpenRouterCredential(),
+      credential: makeApiKeySecret("sk-or-test"),
     };
     const bridge = createRunChatTurnBridge({
       runChatTurn: () =>

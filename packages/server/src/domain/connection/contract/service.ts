@@ -1,168 +1,124 @@
 // domain/connection/contract/service — the typed API surface: ConnectionContext (the DI bundle) +
-// ConnectionService (selection, not execution). Every cross-feature/infra dep arrives as an injected op,
-// wired at the composition root; connection sideways-imports no sibling runtime.
+// ConnectionService. Under the inference program (§3.3) this domain is THE FRONT DOOR over `@orb/inference`:
+// resolution EXECUTES in the runtime, and every verb here is either a thin delegation (resolve · availability ·
+// capabilities · catalogs · diagnostics · providers) or the writer of this domain's three tables
+// (`user_connections`, `connection_bindings`, `provider_rows` — producer-owned, `own-tables-only`). Every
+// cross-feature dep arrives as an injected op, wired at the composition root; connection sideways-imports no
+// sibling runtime.
 
-import type {
-  AgentSdkModel,
-  ChatSendAvailability,
-  CredentialSource,
-  ModelCatalogEntry,
-  ResolvedChatCapability,
-  ResolvedConnection,
-} from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
-import type { AccountCredits, GenerationCost, HostClaudeAuthReport, VerifyAuthResult } from "@orb/contracts/providers";
-import type { UserSettings } from "@orb/contracts/settings";
+import type { ConnectionBinding, ModelCatalogEntry, ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
+import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
-import type { ClaudeBackendPosture, EnginesPosture } from "#foundation/env";
+import type { InferenceRuntime, ProviderRegistry, ResolveOutcome } from "@orb/inference";
+import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { AuditEntry } from "#foundation/observability";
 import type {
-  CheckChatAvailabilityParams,
-  GetCatalogParams,
-  GetGenerationCostParams,
-  GetModelsForSourceParams,
-  GetOrCreditsParams,
+  CatalogModelsParams,
+  ConnectionDiagnosticParams,
+  CreateConnectionParams,
+  DropProviderParams,
+  GenerationCostParams,
+  GetConnectionParams,
+  ListBindingsParams,
+  ListConnectionsParams,
+  ListEndpointModelsParams,
+  ProvidersAvailableParams,
   RefreshCatalogParams,
+  RegisterProviderParams,
+  RemoveConnectionParams,
   ResolveChatCapabilityParams,
-  ResolveChatParams,
-  ResolveRoleParams,
-  TestClaudeAuthParams,
+  ResolveTaskParams,
+  SetBindingParams,
+  UpdateConnectionParams,
+  UseForEverythingParams,
 } from "./params.ts";
-import type { AgentSdkCatalogSnapshot, CatalogSnapshot, OrSkinTierModels, SourceModelsResult } from "./results.ts";
+import type {
+  BindingView,
+  CatalogRefreshOutcome,
+  ConnectionCapabilityView,
+  ConnectionView,
+  CredentialHealth,
+  EndpointModelsResult,
+  ProviderAvailability,
+} from "./results.ts";
 
-/** credentials.resolve — resolve the brand-protected credential for a `{principal, source}`. */
-type ResolveCredentialOp = (params: { readonly principal: Principal; readonly source: CredentialSource }) => Promise<ResolvedCredential>;
-
-/** infra/providers.fetchOrCatalog — the live OpenRouter `/models` fetch (keyless, no credential). */
-type FetchOrCatalogOp = (req: { readonly signal?: AbortSignal | undefined }) => Promise<ModelCatalogEntry[]>;
-
-/** infra/providers.fetchAgentSdkModels — the live agent-sdk `supportedModels()` discovery. */
-type FetchAgentSdkModelsOp = (req: { readonly signal?: AbortSignal | undefined }) => Promise<AgentSdkModel[]>;
-
-/** The vLLM engine axis as the CONNECTION domain consumes it (window self-report keying). Homed here —
- *  the substrate cache + resolve-role derive from this tuple; infra's launch-side VLLM_ENGINES is the
- *  spawn axis (same members, different layer — the domain never imports infra for a type). */
-const VLLM_WINDOW_ENGINES = ["embed", "rerank", "gen"] as const;
-export type VllmWindowEngine = (typeof VLLM_WINDOW_ENGINES)[number];
-
-/** infra/providers.fetchVllmGenWindow — the gen engine's self-reported context window (loopback
- *  `/v1/models` → `max_model_len`). `null` when the engine is unreachable/warming — the resolver then
- *  falls back to the env-owned window. Takes the engine (gen for the fit ceiling; embed/rerank for the
- *  pooling window the local-light capability + parity consume). */
-type FetchVllmGenWindowOp = (req: { readonly engine: VllmWindowEngine; readonly signal?: AbortSignal | undefined }) => Promise<number | null>;
-
-/** settings.loadUserSettings — the parsed per-user UserSettings; connection is a consumer, not an owner. */
-type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
-
-/** infra/providers.verifyAuth — the host-Claude auth-verify diagnostic (which credential the spawned
- *  runtime used). The credential is the owner-gated `max-pro-sub` mint this domain resolves first. */
-type VerifyClaudeAuthOp = (req: { readonly credential: ResolvedCredential; readonly model: string }) => Promise<VerifyAuthResult>;
-
-/** infra/providers.accountCredits — the OpenRouter credit-balance read. */
-type AccountCreditsOp = (req: { readonly credential: ResolvedCredential; readonly signal?: AbortSignal | undefined }) => Promise<AccountCredits>;
-
-/** infra/providers.generationCost — the settled upstream cost of one generation, read with the billing key. */
-type GenerationCostOp = (req: {
-  readonly credential: ResolvedCredential;
-  readonly generationId: string;
-  readonly signal?: AbortSignal | undefined;
-}) => Promise<GenerationCost>;
-
-/** The LOCAL vLLM gen engine's live reachability, in a DOMAIN-SAFE vocab (the infra `EngineStatusRecord`
- *  status tuple never crosses the providers boundary). `up` = serving now; `asleep` = slept but wakes on the
- *  turn; `warming` = spawned/starting or stack-pending (coming up, don't refuse); `down` = not running and not
- *  coming up on its own (down/hung/foreign/failed); `unknown` = no supervisor telemetry yet / vLLM disabled
- *  (never refuse on missing telemetry). Compose maps the sealed infra status → this. */
-const LOCAL_ENGINE_REACHABILITIES = ["up", "asleep", "warming", "down", "unknown"] as const;
-export type LocalEngineReachability = (typeof LOCAL_ENGINE_REACHABILITIES)[number];
-
-/** infra/providers vLLM supervisor → the chat GEN engine's live reachability. A pure local read (no network),
- *  wired at the composition root; `unknown` when there is no supervisor (vLLM disabled) or no tick yet. */
-type LocalGenEngineReachabilityOp = () => LocalEngineReachability;
+/** The F12 admission verdict for an endpoint `baseUrl` at WRITE time (the fetch guard re-judges at connect):
+ *  `public` = not a private address (the SSRF guard judges it as any host); `admitted` = private and on the
+ *  deployment allowlist; `refused` = private and NOT admitted (the pane's inline "Admit `<host>`" affordance);
+ *  `invalid` = not an http(s) URL. */
+export type EndpointAdmission = "public" | "admitted" | "refused" | "invalid";
 
 /** The DI bundle the connection verbs close over (wired at the entry composition root). */
 export interface ConnectionContext {
   readonly db: Db;
   readonly now: () => number;
-  readonly resolveCredential: ResolveCredentialOp;
-
-  readonly fetchOrCatalog: FetchOrCatalogOp;
-  readonly fetchAgentSdkModels: FetchAgentSdkModelsOp;
-  readonly fetchVllmGenWindow: FetchVllmGenWindowOp;
-  readonly loadUserSettings: LoadUserSettingsOp;
-
-  readonly verifyClaudeAuth: VerifyClaudeAuthOp;
-  readonly accountCredits: AccountCreditsOp;
-  readonly generationCost: GenerationCostOp;
-  /** The boot GPU/vLLM-availability fact. When `false`, `resolveRole` reroutes derive roles (embed/
-   *  rerank/imageEmbed) that resolved to `vllm` onto the in-process `local-light` tier. */
-  readonly vllmAvailable: boolean;
-  /** The effective engine POSTURE (foundation). The send-availability gate (#54) refuses a DOWN local engine
-   *  ONLY under `adopt-only` (a passive consumer that never spawns); under `adopt-or-start` the fleet manager
-   *  spawns on the turn, so a down engine is still AVAILABLE (cold-slow, not doomed). `off` = disabled. */
-  readonly enginesPosture: EnginesPosture;
-  /** Is the host-Claude (max-pro-sub) backend WIRED for this boot? `false` ⇒ the agent-sdk backend was never
-   *  constructed, so no discovery call, no verify turn and no chat turn on that source can be served — and
-   *  nothing may try, because trying is what forks the bundled runtime. The twin of `vllmAvailable`. */
-  readonly hostClaudeAvailable: boolean;
-  /** WHY it is unavailable, when it is: `off` = the operator said so (CLAUDE_BACKEND=off); `auto`/`on` with
-   *  `hostClaudeAvailable:false` = no credential was detected. Two different user-facing answers with two
-   *  different fixes, which is why the boolean alone is not enough (`foundation/env/host-claude.ts`). */
-  readonly claudeBackendPosture: ClaudeBackendPosture;
-  /** The chat GEN engine's live reachability (domain-safe vocab), read by the send-availability gate to refuse
-   *  a DOWN local engine under adopt-only. Cheap local read; `unknown` ⇒ never refuse. */
-  readonly localGenEngineReachability: LocalGenEngineReachabilityOp;
-  /** Owner-ness of the acting principal. Read by `getModelsForSource` to gate the owner-only `max-pro-sub`
-   *  picker arm. NO role DEFAULT consults it: since #196 the born chat default is local vLLM for every
-   *  principal role (`resolveRole` used to fork here and hand the owner the metered sub). */
-  readonly isOwner: (principal: Principal) => boolean;
-  /** The local-light builtin model trio (embed/imageEmbed/rerank), injected at the composition root. A
-   *  display fact for `getModelsForSource`, never a stamped value. */
-  readonly localLightDefaults: {
-    readonly embed: string;
-    readonly imageEmbed: string;
-    readonly rerank: string;
-  };
+  readonly newConnectionId: () => UserConnectionId;
+  readonly newBindingId: () => ConnectionBindingId;
+  /** THE runtime (`createInferenceRuntime`) — resolution, catalogs, diagnostics and the registry execute there. */
+  readonly runtime: InferenceRuntime;
+  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /** Does the caller hold this credential row? Bound to the credentials domain (only it reads its table). */
+  readonly credentialOwned: (ownerId: UserId, credentialId: UserCredentialId) => Promise<boolean>;
+  /** Is this rule the caller's (its author)? Bound to the automation domain. */
+  readonly ruleOwnedBy: (ruleId: AutomationRuleId, userId: UserId) => Promise<boolean>;
+  /** Is this plugin the caller's (its installer)? Bound to the plugin domain. */
+  readonly pluginOwnedBy: (pluginId: PluginId, userId: UserId) => Promise<boolean>;
+  /** The F12 write-time admission read (infra/network, over the published allowlist). */
+  readonly endpointAdmission: (baseUrl: string) => EndpointAdmission;
+  /** The ROW half of a probe (credentials domain): revoke / strike / clear + the throttle window. */
+  readonly recordProbeOutcome: (args: {
+    readonly principal: Principal;
+    readonly credentialId: UserCredentialId;
+    readonly result: CredentialHealth;
+    readonly localEndpoint: boolean;
+  }) => Promise<CredentialHealth>;
+  /** PD-139a re-raised (§10-4): the caller's embed / imageEmbed space MAY have changed — the settings-blob
+   *  trigger this replaces enqueued the purge+reindex; the composition root binds the same op here. */
+  readonly onEmbedSpaceChanged: (ownerId: UserId) => void;
 }
 
-/** The connection surface — selection, not execution. None carry `runner`/`family` (sealed in infra). */
+/** The connection surface — selection's FRONT DOOR, never execution. Nothing here carries a secret. */
 export interface ConnectionService {
-  readonly resolveRole: (params: ResolveRoleParams) => Promise<ResolvedConnection>;
-  readonly resolveChat: (params: ResolveChatParams) => Promise<ResolvedConnection>;
-  /** The caller's OWN resolved chat connection — the `(api, source, model)` a turn would run as PLUS its
-   *  `ModelCapability` — resolved END-TO-END in one hop. The client params-panel + rpg lite gate read the
-   *  descriptor; the Connections pane reads the identity to NAME the fallback a never-saved row resolves to
-   *  (a vLLM-default chat resolves the same here as at the engine). Collapses the former selection→descriptor
-   *  round-trip (it superseded the standalone `getModelCapability` verb, deleted 2026-07-31 — AU-5). */
-  readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ResolvedChatCapability>;
-  /** The deterministic pre-send serveability verdict for a chat's OWN resolved connection (#54) — "would
-   *  `resolveChat → deriveRunner → requireBackend` succeed WITHOUT firing a turn/API call?" Mirrors the turn's
-   *  selection + coherence + credential-presence + engine-presence and NEVER pre-flights a hosted api. */
-  readonly checkChatAvailability: (params: CheckChatAvailabilityParams) => Promise<ChatSendAvailability>;
-  /** Derive the mode-2 (OR-Anthropic skin) tier→OpenRouter-slug map from the two live catalogs this domain
-   *  holds. Never throws — a cold catalog degrades to the curated shortlist. */
-  readonly getOrSkinTierModels: () => Promise<OrSkinTierModels>;
-  /** The read-only Connections role-slot picker facade — zero outbound fetch, safe as a query. */
-  readonly getModelsForSource: (params: GetModelsForSourceParams) => Promise<SourceModelsResult>;
+  // ── delegations to the runtime (the turn path, the composer's pre-send gate, the pane's readouts)
+  readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome>;
+  readonly availability: (params: ResolveTaskParams) => Promise<SendAvailability>;
+  /** The caller's OWN chat connection end-to-end, credential-free (`ResolvedConnectionView`). */
+  readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ResolvedConnectionView>;
+  readonly capabilities: (params: GetConnectionParams) => Promise<ConnectionCapabilityView>;
 
-  readonly getCatalog: (params: GetCatalogParams) => Promise<CatalogSnapshot>;
-  readonly refreshCatalog: (params: RefreshCatalogParams) => Promise<CatalogSnapshot>;
-  /** The agent-sdk daemon's family→version catalog, separate from the OR catalog verbs above. */
-  readonly getAgentSdkCatalog: (params: GetCatalogParams) => Promise<AgentSdkCatalogSnapshot>;
-  readonly refreshAgentSdkCatalog: (params: RefreshCatalogParams) => Promise<AgentSdkCatalogSnapshot>;
-  /** The max-pro-sub health check: resolve the owner-gated credential, then run a tiny SDK verify turn —
-   *  UNLESS the backend is absent on this deployment, in which case the report says so and no turn runs
-   *  (a probe is what would fork the bundled runtime). */
-  readonly testClaudeAuth: (params: TestClaudeAuthParams) => Promise<HostClaudeAuthReport>;
-  /** The caller's OpenRouter credit balance. No/revoked key → `DomainNoCredentialError`, never a fabricated zero. */
-  readonly getOrCredits: (params: GetOrCreditsParams) => Promise<AccountCredits>;
-  /** The settled cost of one OpenRouter generation, read with the caller's billing key. */
-  readonly getGenerationCost: (params: GetGenerationCostParams) => Promise<GenerationCost>;
+  // ── the user's rows
+  readonly list: (params: ListConnectionsParams) => Promise<readonly ConnectionView[]>;
+  readonly get: (params: GetConnectionParams) => Promise<ConnectionView>;
+  readonly create: (params: CreateConnectionParams) => Promise<ConnectionView>;
+  readonly update: (params: UpdateConnectionParams) => Promise<ConnectionView>;
+  readonly remove: (params: RemoveConnectionParams) => Promise<void>;
+
+  // ── Model roles (`connection_bindings`)
+  readonly listBindings: (params: ListBindingsParams) => Promise<readonly BindingView[]>;
+  readonly setBinding: (params: SetBindingParams) => Promise<ConnectionBinding>;
+  readonly useForEverything: (params: UseForEverythingParams) => Promise<readonly ConnectionBinding[]>;
+
+  // ── catalogs
+  readonly catalogModels: (params: CatalogModelsParams) => Promise<readonly ModelCatalogEntry[]>;
+  readonly listEndpointModels: (params: ListEndpointModelsParams) => Promise<EndpointModelsResult>;
+  readonly refreshCatalog: (params: RefreshCatalogParams) => Promise<CatalogRefreshOutcome>;
+
+  // ── diagnostics (every one against ONE of the caller's rows)
+  readonly probe: (params: ConnectionDiagnosticParams) => Promise<CredentialHealth>;
+  readonly accountCredits: (params: ConnectionDiagnosticParams) => Promise<AccountCredits>;
+  readonly generationCost: (params: GenerationCostParams) => Promise<GenerationCost>;
+  readonly verifyAuth: (params: ConnectionDiagnosticParams) => Promise<VerifyAuthResult>;
+  readonly inspectEndpoint: (params: ConnectionDiagnosticParams) => Promise<EndpointInspection>;
+
+  // ── providers (the registry: built-ins ∪ `provider_rows`)
+  readonly providersAvailable: (params: ProvidersAvailableParams) => Promise<readonly ProviderAvailability[]>;
+  readonly registerProvider: (params: RegisterProviderParams) => Promise<void>;
+  readonly dropProvider: (params: DropProviderParams) => Promise<void>;
+  readonly registry: ProviderRegistry;
 }
 
-/** What the domain's `WorkloadContribution` factory needs from the composition root
- *  (`refresh-model-catalog`) — this domain's own catalog verbs, nothing cross-feature. */
+/** What the domain's `WorkloadContribution` factory needs from the composition root (`refresh-model-catalog`). */
 export interface ConnectionWorkloadDeps {
-  readonly connection: Pick<ConnectionService, "refreshCatalog" | "refreshAgentSdkCatalog">;
+  readonly connection: Pick<ConnectionService, "refreshCatalog">;
 }

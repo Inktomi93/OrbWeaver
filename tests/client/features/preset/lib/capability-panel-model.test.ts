@@ -6,7 +6,7 @@
 // quality dial exposes DISPLAY COPY only (its effort mapping lives server-side in the funnel, not here).
 // These are exactly the invariants that keep the panel descriptor-driven rather than a hardcoded knob stack.
 
-import type { ModelCapability, Range } from "@orb/contracts/connection";
+import type { GenerationCapability, Range } from "@orb/contracts/inference";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";
 import {
   QUALITY_OPTIONS,

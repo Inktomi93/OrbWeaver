@@ -21,8 +21,6 @@
 import type { RefineryRewritePayload, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS, REFINERY_STAGES } from "@orb/contracts/refinery";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { ModelId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { RefineryContext } from "../context.ts";
 import type { StagePrompts } from "../contract/prompts.ts";
@@ -32,6 +30,7 @@ import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persisten
 import { outputEstimateOf, resolveStageSampling, stageSubjectOf } from "../substrate/output-budget.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
 import { resolveStageResolution } from "../substrate/stage-resolution.ts";
+import { summarizerFactsOf } from "../substrate/summarizer.ts";
 
 function inputEstimateOf(prompts: StagePrompts): number {
   return estimateTokens(`${prompts.system}\n${prompts.user}`);
@@ -94,7 +93,8 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
     // The working overlay mirrors the engine's (cleared entries shrink it, exactly as a run would see).
     const working = rewritePayload.fields.length === 0 ? session.originalCard : overlayRewrite(session.originalCard, rewritePayload);
 
-    const model = castId<ModelId>(ctx.summarizerModel());
+    const facts = await summarizerFactsOf(await ctx.roleClientsFor(ownerId));
+    const model = facts.model;
     const resolutions = await Promise.all(REFINERY_STAGES.map((stage) => resolveStageResolution(ctx, { ownerId, stage, session })));
     const stages: StagePreflight[] = REFINERY_STAGES.map((stage, i) => {
       const resolution = resolutions[i] ?? { kind: "fixed" as const };
@@ -103,7 +103,7 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
       // The SAME expression the engine evaluates for this stage (substrate/output-budget) — so this readout
       // reports the budget the next run will request, never a floor the run is free to ignore.
       const subject = stageSubjectOf(stage, session);
-      const sampling = resolveStageSampling({ subject, presetParams, contextTokens: ctx.summarizerContextTokens(), inputEstimate });
+      const sampling = resolveStageSampling({ subject, presetParams, contextTokens: facts.contextTokens, inputEstimate });
       return {
         stage,
         model,
@@ -113,7 +113,7 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
         outputEstimate: outputEstimateOf(subject),
       };
     });
-    return { contextTokens: ctx.summarizerContextTokens(), stages } satisfies PreflightResult;
+    return { contextTokens: facts.contextTokens, stages } satisfies PreflightResult;
   };
 }
 

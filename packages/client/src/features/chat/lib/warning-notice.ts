@@ -70,6 +70,11 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
         description: "The conversation got too long to summarize, so the oldest messages were dropped from context to keep going.",
         title: "Older messages were dropped from context",
       };
+    case "background_task_degraded":
+      return {
+        description: "Your connection doesn't allow background work, so summaries, captions and memory skipped this turn. Your reply is unaffected.",
+        title: "Background tasks were skipped",
+      };
     case "smart_arbitration_degraded":
       return {
         description: "The turn-arbiter model wasn't available, so who speaks next was picked automatically.",
@@ -106,6 +111,13 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
       return {
         description: samplingDropDescription(knob),
         title: knob === undefined ? "A generation setting wasn't used for this reply" : `${KNOB_LABELS[knob]} wasn't used for this reply`,
+      };
+    }
+    case "sampling_knob_conflict": {
+      const knob = warning.knob;
+      return {
+        description: "This model rejects that setting together with another one you set, so the other one was kept.",
+        title: knob === undefined ? "A generation setting wasn't used for this reply" : `${KNOB_LABELS[knob]} conflicted with another setting`,
       };
     }
     case "effort_dropped":
@@ -171,6 +183,8 @@ function samplingDropDescription(knob: AdjustedKnob | undefined): string {
       return "This model reasons by effort level and has no thinking-budget setting — set the effort dial instead.";
     case "quality":
       return "That quality level isn't one this app knows, so your own settings were used instead.";
+    case "replyMedia":
+      return "This model writes text only, so it couldn't add pictures to its reply.";
     case "temperature":
     case "topP":
     case "topK":
@@ -206,6 +220,7 @@ const KNOB_LABELS: Record<AdjustedKnob, string> = {
   presencePenalty: "Presence penalty",
   quality: "Quality",
   repetitionPenalty: "Repetition penalty",
+  replyMedia: "Reply pictures",
   seed: "Seed",
   stop: "Stop sequences",
   temperature: "Temperature",

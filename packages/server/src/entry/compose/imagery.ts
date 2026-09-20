@@ -17,6 +17,8 @@ import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/se
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
+import type { ProviderExecutor, Resolved, RoleClientsWithSignal } from "@orb/inference";
+import { generationOf } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -33,7 +35,6 @@ import { createImageryService, imageryToolDefinitions } from "#domain/imagery";
 import { applyStatsDelta } from "#domain/stats";
 import type { ToolUseService } from "#domain/tool-use";
 import { fetchImageBytes } from "#infra/network";
-import type { ProviderExecutor, RoleClientsWithSignal } from "#infra/providers";
 import { minter } from "./minter.ts";
 
 /** The infra `WarningCode` members that are imagery's concern (mapped onto `ImageryWarning` at the generateImage
@@ -50,11 +51,14 @@ function isImageryWarningCode(code: string): code is ImageryWarning["code"] {
 export interface ImageryComposeDeps {
   readonly db: Db;
   readonly now: () => number;
-  readonly connection: Pick<ConnectionService, "resolveRole">;
+  readonly connection: Pick<ConnectionService, "resolve">;
+  /** The compose-tier executor FENCE (§7.5-1a): imagery may reach exactly `generateImage`. */
   readonly executor: Pick<ProviderExecutor, "generateImage">;
   readonly assets: Pick<AssetsService, "store" | "readOwnedAssetBytes">;
   readonly character: Pick<CharacterService, "getCard" | "get">;
-  readonly roleClients: Pick<RoleClientsWithSignal, "summarize">;
+  /** The per-FUNDER role-client binder (§8.5b): the caption + extract-quiet side calls spend the caller's /
+   *  the trigger's own `summarize` row. */
+  readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "summarize">>;
   /** The caller's default-preset generation params (the side-gen sampling ladder's middle rung — caption). */
   readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
   /** The chat host's default-preset params (the side-gen ladder's middle rung — extract-quiet is chat-scoped). */
@@ -74,7 +78,7 @@ export interface ImageryComposeDeps {
 }
 
 export function buildImagery(deps: ImageryComposeDeps): ImageryService {
-  const { db, now, connection, executor, assets, character, roleClients } = deps;
+  const { db, now, connection, executor, assets, character, roleClientsFor } = deps;
 
   // The synthetic host principal for the extraction shaper's card reads (the chat.ts hostPrincipal precedent —
   // role-irrelevant getCard reads under the room host's ownership).
@@ -86,8 +90,8 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     now,
     newGenerationId: minter(ID_PREFIX.imageryGeneration),
     resolveGenerateImage: async (caller) => {
-      const conn = await connection.resolveRole({ role: "generateImage", principal: caller });
-      return { connection: conn, capability: conn.capability };
+      const { resolved } = await connection.resolve({ task: "generateImage", principal: caller });
+      return { connection: resolved as Resolved<"generateImage">, capability: generationOf(resolved) };
     },
     generateImage: async (req) => {
       const result = await executor.generateImage(req);
@@ -117,7 +121,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     extractQuiet: (() => {
       const base = createExtractQuiet({
         db,
-        summarize: roleClients.summarize,
+        summarize: async (funderUserId, ...args) => (await roleClientsFor(funderUserId)).summarize(...args),
         getCard: ({ ownerId, characterId }) => character.getCard({ principal: imageryCardPrincipal(ownerId), characterId }),
         resolveChatPresetParams: deps.resolveChatPresetParams,
         // IMGMAC — the user-macro plane the mode templates resolve against (late-bound: chat + rpg compose
@@ -134,7 +138,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
         if (visibility === null) {
           throw new DomainNotFoundError("chat", rest.chatId);
         }
-        return base({ ...rest, historyFloorSeq: visibility.historyFloorSeq });
+        return base({ ...rest, funderUserId: caller.userId, historyFloorSeq: visibility.historyFloorSeq });
       };
     })(),
     // The ONE vision caption op (D45/D47-6): the multimodal template + the avatar bytes over the summarize
@@ -144,10 +148,8 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
       // caller's default-preset params. A user with no preset params gets the floor; a user WITH preset
       // params overrides it through the ladder.
       const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.caption, await deps.resolveUserPresetParams(caller.userId));
-      const res = await roleClients.summarize(
-        [{ systemPrompt: instruction, userPrompt: "Describe the attached image.", images: [bytes] }],
-        toSummarizeOptions(posture),
-      );
+      const rc = await roleClientsFor(caller.userId);
+      const res = await rc.summarize([{ systemPrompt: instruction, userPrompt: "Describe the attached image.", images: [bytes] }], toSummarizeOptions(posture));
       const item = res.items[0];
       return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
     },

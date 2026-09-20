@@ -16,13 +16,13 @@
 // hand-edits every plane, and those hand values STILL steer via the gather injection (not inert). A caller warns
 // on this verdict; the derivation itself is silent truth.
 
-import type { ModelCapability } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import type { RpgEffectiveDelivery, RpgExtractionMode } from "@orb/contracts/rpg";
 
 /** The per-mode WRITER-capability predicate. A mapped Record, not a switch — a new `RpgExtractionMode` member
  *  without a row is a tsc error (§5.5 string-union dispatch discipline), so the honest-arms verdict can never
  *  silently inherit another mode's answer. */
-const HAS_WRITE_PATH: Readonly<Record<RpgExtractionMode, (capability: ModelCapability) => boolean>> = {
+const HAS_WRITE_PATH: Readonly<Record<RpgExtractionMode, (capability: GenerationCapability) => boolean>> = {
   cheap: (capability) => hasToolWriter(capability),
   folded: (capability) => hasToolWriter(capability),
 };
@@ -31,14 +31,14 @@ const HAS_WRITE_PATH: Readonly<Record<RpgExtractionMode, (capability: ModelCapab
  *  and the host `resyncFromStory` catch-up round's first choice as well: a multi-call tool
  *  round asks for one SMALL schema per plane instead of one 46-optional monolith, which is what the hosted
  *  grammar walls are made of. Same fail-closed contract as the rest of this module. */
-export function hasToolWriter(capability: ModelCapability | null): boolean {
+export function hasToolWriter(capability: GenerationCapability | null): boolean {
   return capability !== null && capability.tools !== undefined;
 }
 
 /** Derive `trackersReadOnly` (= manual-steering: no model write path) from the resolved mode + capability. A
  *  `null` capability (the host connection couldn't be resolved) is readonly by construction — never assume a
  *  write path exists. */
-export function deriveTrackersReadOnly(mode: RpgExtractionMode, capability: ModelCapability | null): boolean {
+export function deriveTrackersReadOnly(mode: RpgExtractionMode, capability: GenerationCapability | null): boolean {
   return capability === null || !HAS_WRITE_PATH[mode](capability);
 }
 
@@ -72,6 +72,6 @@ export function deriveEffectiveDelivery(
  *  per-turn delivery mode and therefore key on capability alone, not on the host's knob: the host `resyncFromStory`
  *  rebuild, and the agent-sdk degrade a tool-vehicle mode falls into when the wire carries no `tools[]`. Same
  *  fail-closed contract as `deriveTrackersReadOnly` — an unresolved capability has no write path. */
-export function hasStructuredWriter(capability: ModelCapability | null): boolean {
+export function hasStructuredWriter(capability: GenerationCapability | null): boolean {
   return capability !== null && capability.output.structured === true;
 }

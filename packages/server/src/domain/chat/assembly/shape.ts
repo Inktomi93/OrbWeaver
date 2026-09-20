@@ -15,7 +15,7 @@ import type {
   ShapeTraceRow,
 } from "@orb/contracts/chat";
 import { MESSAGE_KIND_POLICY } from "@orb/contracts/chat";
-import type { RoleHandling } from "@orb/contracts/connection";
+import type { RoleHandling } from "@orb/contracts/inference";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";

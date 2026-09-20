@@ -97,10 +97,14 @@ const config = {
       // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises
       // the installed module and its exact-version compatibility fence.
       ignoreDependencies: ["chrome-devtools-mcp"],
+      // The dev engine fleet (`stack/lib/engine-fleet/`, yeeted from the server with the inference program)
+      // invokes host executables, not npm binaries.
+      ignoreBinaries: ["nvidia-smi", "ss"],
     },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/db": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
+    "packages/inference": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     // @orb/showcase-plugins: the TS surface is one reader module; `bundles/**` is guest .js + content that
     // no import graph reaches by construction (the QuickJS realm has no module loader), so the project glob
     // stays scoped to src/ rather than accusing nine shipped bundles of being dead files.
@@ -124,8 +128,6 @@ const config = {
     "packages/server": {
       // Entry auto-detected from package.json exports (`./*` → src/*/index.ts, covers src/entry/index.ts).
       project: ["src/**/*.ts!"],
-      // Runtime engine controls invoke host executables, not npm binaries.
-      ignoreBinaries: ["nvidia-smi", "ss"],
     },
     "packages/client": {
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.

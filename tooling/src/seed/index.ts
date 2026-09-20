@@ -2,7 +2,7 @@
 // (domain services / the canon bulk-import seam / the real HTTP surface), never raw inserts: a successful
 // seed run is therefore also a smoke test of the write paths it exercises.
 export type { ChatArgs, DemoArgs, MultiUserConfig, RunFullSeedDeps, RunFullSeedResult } from "./contract/types.ts";
-export { fakeEmbedding, fakeVllmClient, inertVllmClient } from "./lib/fake-vllm.ts";
+export { fakeEmbedding, fakeLocalLightCache } from "./lib/fake-local-light.ts";
 export { SECOND_HUMAN_HANDLE } from "./lib/fixture.ts";
 export { buildTranscript, parseChatArgs, parseDemoArgs, transcriptFilename } from "./lib/transcript.ts";
 

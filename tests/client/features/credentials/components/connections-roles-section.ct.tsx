@@ -15,7 +15,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
+import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import type { TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ConnectionsSettingsHostedStory, ConnectionsSettingsStory } from "../_ct-stories.tsx";
@@ -66,7 +66,7 @@ interface SettingsStub {
 /** The unconfigured chat default as the SERVER resolves it (resolve-role.ts: chat-completions × local vLLM
  *  for EVERY principal role since #196 — the sub is reached only by picking it) — what the never-saved chat
  *  row names. `resolveFails` scripts the no-chat-connection rejection. */
-const RESOLVED_CHAT = makeResolvedChatCapability({ api: "chat-completions", source: "vllm", model: castId<ModelId>(VLLM_MODEL) });
+const RESOLVED_CHAT = makeResolvedView({ api: "chat-completions", source: "vllm", model: castId<ModelId>(VLLM_MODEL) });
 
 async function stubSettings(page: Page, roleDefaults: Record<string, unknown>, opts: { readonly resolveFails?: boolean } = {}): Promise<SettingsStub> {
   let stored = roleDefaults;

@@ -8,7 +8,6 @@ import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
 import { dirname, join } from "node:path";
-import process from "node:process";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
 import type { Principal } from "@orb/contracts/identity";
@@ -28,20 +27,12 @@ import {
   bindPostureWarnings,
   diagnosticsPostureInput,
   diagnosticsPostureWarnings,
-  effectiveVllmDisabled,
-  enginesPostureInput,
   env,
-  hostClaudeInput,
-  hostClaudeNotice,
-  hostClaudeWarnings,
   ownerFallbackCredentialInput,
   ownerFallbackPeerInput,
   ownerFallbackPeerWarnings,
-  postureManages,
   resolveBindPosture,
   resolveDiagnosticsPosture,
-  resolveEnginesPosture,
-  resolveHostClaudePosture,
   resolveOwnerFallbackCredential,
   resolveOwnerFallbackPeers,
   resolveSessionCookiePosture,
@@ -61,7 +52,6 @@ import {
 } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
-import { detectGpu } from "#infra/providers";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler.ts";
 import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler.ts";
@@ -90,6 +80,7 @@ import {
   seedDefaultPreset,
   seedDemoChats,
   seedExamplePlugins,
+  seedLocalLightOnBoot,
   seedOwner,
   seedThemes,
 } from "./boot/index.ts";
@@ -304,7 +295,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let stopWorker: OwnedWorkloadsWorker | null = null;
   let stopBuddyObserver: (() => void) | null = null;
   let stopAutomationWatcher: (() => void) | null = null;
-  let drainVllm: (() => void) | null = null;
   let stopLocalLightPrefetch: (() => void) | null = null;
   let booted = false;
 
@@ -354,6 +344,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // unrecognised blob to NO_HANDOFF_OFFER rather than failing, so an un-migrated row silently drops a
     // departing host's recorded consent. Idempotent — a no-op on every boot after the first.
     await migrateHandoffOfferVocabOnBoot({ db });
+
+    // The local-light convenience seed (inference program §7.2) — every account starts with a working vector
+    // floor as two ORDINARY connection rows; idempotent, never a boot abort.
+    await seedLocalLightOnBoot({ db, now: () => Date.now() });
 
     // #1737 DATA migration, in the same window and for the same reason: the `home:"preset"` prose slot
     // `chat.group.castMember` became `chat.group.characterHeading`, and `proseOverridesSchema` STRIPS an
@@ -439,32 +433,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ownerId = seededId;
     }
 
-    // The one GPU/vLLM-availability fact: probe the host once, then resolve the ENGINES_POSTURE (A.4). The
-    // deprecated VLLM_DISABLED/STACK_ENGINES pair maps to a posture with a VISIBLE log. `off` ⇒ disabled;
-    // the local-GPU requirement is MANAGER-scoped (effectiveVllmDisabled): adopt-or-start spawns on THIS
-    // host and needs its GPU, while adopt-only may consume a REMOTE fleet (VLLM_ENGINE_HOST) GPU-less.
-    // Two log seams, two severities: a retired knob is a WARN to migrate, an unset knob is an INFO line
-    // naming the sanctioned default (adopt-only, #2421) — a safe default must not read as a warning.
-    const gpuPresent = detectGpu();
-    const posture = resolveEnginesPosture(enginesPostureInput(), {
-      deprecation: (msg) => log.warn({ deprecation: true }, `boot: ${msg}`),
-      defaulted: (msg) => log.info({ posture: "default" }, `boot: ${msg}`),
-    });
-    const vllmDisabled = effectiveVllmDisabled(posture, gpuPresent);
-    log.info({ gpuPresent, posture, vllmDisabled }, "boot: gpu-detect → engines posture → effective vLLM availability");
-
-    // The HOST-CLAUDE POSTURE (foundation/env/host-claude.ts holds the model + the 2026-09-18 incident):
-    // CLAUDE_BACKEND × credential detection decides whether the agent-sdk backend is registered at all. The
-    // notice is ALWAYS logged — "the Claude backend silently isn't there" is the state that produced the
-    // incident, so it has to be readable in the boot log — and it names the credential SOURCE, never a value
-    // (the `diagnostics.ts` rule). Resolved HERE and handed down, so the registration gate and every
-    // connection surface answer from one resolution.
-    const hostClaude = resolveHostClaudePosture(hostClaudeInput());
-    log.info({ hostClaude }, `boot: ${hostClaudeNotice(hostClaude)}`);
-    for (const warning of hostClaudeWarnings(hostClaude)) {
-      log.warn({ hostClaude: hostClaude.posture }, `boot: ${warning}`);
-    }
-
     // The DIAGNOSTICS POSTURE report (foundation/env/diagnostics.ts holds the model): one line stating who
     // can reach the box, who can open /api/_debug, and what the recorders are holding — then a WARN per
     // exposure that needs closing, each naming the knob that closes it. A healthy posture logs the info
@@ -489,10 +457,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ...(env.IMPORT_STAGING_DIR !== undefined ? { importStagingDir: env.IMPORT_STAGING_DIR } : {}),
       ...(env.ST_PROFILE_DIR !== undefined ? { stProfileDir: env.ST_PROFILE_DIR } : {}),
       sessionSecret: env.SESSION_SECRET ?? null,
-      vllmDisabled,
-      vllmManages: postureManages(posture),
-      hostClaude,
-      repoRoot: process.cwd(),
       holder,
       ...(options.providerSeams === undefined ? {} : { providerSeams: options.providerSeams }),
     });
@@ -502,28 +466,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       log.error("boot: SecretBox decrypt-probe FAILED — healthz will report credentials_key_mismatch");
     }
 
-    // Re-open the SSRF egress belt for the OWNER's saved connection endpoints (Ollama/KoboldCpp/LM Studio/
-    // TabbyAPI on loopback or the LAN). `installEgressFirewall()` runs as the FIRST boot step — before the db
-    // exists — so its owner-saved set is empty until this line; without it every restart would re-break a
-    // saved LAN/loopback connection until the owner's next credential write. Logs the admitted COUNT only.
-    await built.services.credentials.refreshEgressAdmission();
-
-    // Boot-seed the in-memory OR catalog mirror from the persisted snapshot so a restart preserves catalog
-    // warmth (getCatalog's read warms or-model-cache as a side-effect). Without this the mirror is cold
-    // until the next refresh — which the daily-cadence scheduler won't run for up to a day — and every OR
-    // model resolves with EMPTY supportedParameters, silently dropping its advertised structured/tools
-    // capability. A never-refreshed account reads the empty snapshot (no-op warm); harmless.
-    await built.services.connection.getCatalog({});
-
-    // Same boot-seed for the SEPARATE agent-sdk daemon catalog mirror (getCatalog above is OR-only — the two
-    // caches never co-mingle). getAgentSdkCatalog's read warms agent-sdk-model-cache as a side-effect. Without
-    // this the mirror is cold until the next daily refresh, so a restart degrades max-pro-sub / OR-skin models
-    // to the conservative no-reasoning profile (resolveAgentSdkAlias returns undefined on a null cache).
-    await built.services.connection.getAgentSdkCatalog({});
-
-    // Owner-INDEPENDENT boot seeds: these need only the db and never touch a user row.
+    // Owner-INDEPENDENT boot seeds: these need only the db and never touch a user row. The local-light seed
+    // (§7.2: the two convenience rows + their `user` bindings for EVERY existing user, idempotent) rides here
+    // because a user row may predate the connection table on this pre-launch box.
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
+    await seedLocalLightOnBoot({ db, now });
 
     // Owner-DEPENDENT boot seeds: guarded behind ownerId so a fresh OIDC box (no owner yet) can still boot.
     // In OIDC mode without an owner, these are deferred: per-user seeds (characters, persona, demo chats,
@@ -583,9 +531,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       .then((report) => log.info(report, "boot: drained deferred turns (pending_turns reclaim)"))
       .catch((err: unknown) => log.error({ err }, "boot: deferred-turn drain failed"));
 
-    if (built.vllmEngine !== null) {
-      drainVllm = built.vllmEngine.start();
-    }
     stopScheduler = startCatalogRefreshScheduler({
       service: built.services.workloads,
       ownerId: ownerId ?? null,
@@ -815,16 +760,16 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // first request hostage to a download on a box that is otherwise ready to serve. Fire-and-forget past
     // this point: the plan read is a resolver call that can be slow (it may warm a catalog), the walk is a
     // multi-minute download, and NEITHER may extend boot. An owner-less box (a fresh OIDC deploy) has no
-    // principal to resolve roles as and simply keeps the lazy path until someone logs in.
+    // principal to resolve tasks as and simply keeps the lazy path until someone logs in.
     if (bootOwner !== undefined) {
       const principal = bootOwner;
       superviseDetached(`local-light-prefetch:${randomUUID()}`, "local-light.prefetch.plan", { enabled: env.LOCAL_LIGHT_PREFETCH }, async () => {
         const targets = await planLocalLightPrefetch({
-          resolveRole: built.services.connection.resolveRole,
-          principal,
+          resolve: built.runtime.resolve,
+          principals: [principal],
           enabled: env.LOCAL_LIGHT_PREFETCH === "on",
         });
-        stopLocalLightPrefetch = built.localLightPrefetch.start(targets);
+        stopLocalLightPrefetch = built.runtime.localLight.prefetch.start(targets);
       });
     }
   }
@@ -880,10 +825,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       stopAutomationWatcher = null;
     }
     setChatOpenTap(null);
-    if (drainVllm !== null) {
-      drainVllm();
-      drainVllm = null;
-    }
     // Stops the WALK before its next slot; an ONNX load already in flight has no interrupt and settles into
     // a registry nobody reads again (`local-light/prefetch.ts`). Null when this boot planned nothing.
     if (stopLocalLightPrefetch !== null) {

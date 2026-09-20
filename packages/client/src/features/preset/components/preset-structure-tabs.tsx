@@ -31,7 +31,7 @@
 // The center's Compose|Preview toggle is GONE with the toolbar's mode arm — the assembled preview lives
 // whole in the CONTEXT readout (§16 row 29), and the zone budget went with it (§7's Prompt panel).
 
-import type { ModelCapability } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import type { MarkerType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_CONTINUE_POSTFIX, DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -62,7 +62,7 @@ interface PresetStructureTabsProps {
   /** Reveal the CONTEXT readout (the mobile/overlay half of the select echo) — Prompt tab only. */
   readonly onRevealSection?: (() => void) | undefined;
   /** The chat-role model's capability (the Collapsing floor line) — Delivery tab only, may be unset. */
-  readonly capability?: ModelCapability | undefined;
+  readonly capability?: GenerationCapability | undefined;
 }
 
 /** Render one structural tab's fields (direct-bound to the nested `PromptConfig`). */
@@ -85,7 +85,7 @@ export function PresetStructureTabs({ form, tab, presetId, onRevealSection, capa
  *  MERGED — the same job the regex lanes and the post-process steps do, one view over. §5.3 homed them
  *  under Prompt as "how sections speak"; the owner sort wins (the counterpoint is recorded in the spec,
  *  not argued). They stay ONE open kicker cluster each, never a closed disclosure (F6). */
-function DeliveryTab({ form, capability }: { readonly form: AppForm; readonly capability?: ModelCapability | undefined }): ReactElement {
+function DeliveryTab({ form, capability }: { readonly form: AppForm; readonly capability?: GenerationCapability | undefined }): ReactElement {
   return (
     <Stack gap="section">
       <Section kicker="Delivery">

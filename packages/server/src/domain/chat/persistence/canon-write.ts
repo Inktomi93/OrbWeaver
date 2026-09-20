@@ -14,6 +14,7 @@
 import type {
   AssembledPrompt,
   MacroFreezeRecord,
+  MessageAssetOrigin,
   MessageKind,
   MessageView,
   TokenProvenance,
@@ -22,12 +23,13 @@ import type {
   UserMacroDraws,
 } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
-import type { UserIntent } from "@orb/contracts/preset";
+import type { NormalizedFinishReason } from "@orb/contracts/inference";
+import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/kit";
-import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
@@ -41,6 +43,9 @@ interface CanonVariantInput {
   readonly reasoning?: string | null | undefined;
   readonly model?: string | null | undefined;
   readonly provider?: string | null | undefined;
+  /** ATTRIBUTION (§5.3b): the connection row that generated this swipe (SET NULL on delete); null on a
+   *  user-authored row, an import or an edit. */
+  readonly connectionId?: UserConnectionId | null | undefined;
   readonly tokensIn?: number | null | undefined;
   readonly tokensOut?: number | null | undefined;
   /** Explicit for imports; provider usage defaults to measured whenever either token column is present. */
@@ -48,10 +53,12 @@ interface CanonVariantInput {
   readonly cacheReadTokens?: number | null | undefined;
   readonly cacheWriteTokens?: number | null | undefined;
   readonly costUsd?: number | null | undefined;
+  /** §5.3c — the SAME tuple as `tokenProvenance`; absent ⇒ `unrecorded`. */
+  readonly costProvenance?: TokenProvenance | null | undefined;
   readonly contextWindow?: number | null | undefined;
   /** The output cap the backend echoed + the requested reasoning effort. */
   readonly maxOutputTokens?: number | null | undefined;
-  readonly reasoningEffort?: string | null | undefined;
+  readonly reasoningEffort?: EffortLevel | null | undefined;
   /** The fit-pass boundary — the earliest message actually included in the assembled history this
    *  generation. Null ⇒ nothing was dropped / the fit-pass never ran. */
   readonly contextBoundaryMessageId?: MessageId | null | undefined;
@@ -69,7 +76,9 @@ interface CanonVariantInput {
    *  `VariantEconomics`: the read `MessageView` does not carry it — it is a stats-plane fact, not a rendered
    *  one — and the ST import writes the same column through its own path. */
   readonly metadata?: Record<string, unknown> | null | undefined;
-  readonly finishReason?: string | null | undefined;
+  // The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`, CHECK-enforced) — the per-wire raw → normalized fold
+  // happens in the runtime; `stopReason` keeps the raw upstream word as provenance.
+  readonly finishReason?: NormalizedFinishReason | null | undefined;
   readonly stopReason?: string | null | undefined;
   readonly terminalReason?: string | null | undefined;
   readonly params?: UserIntent | null | undefined;
@@ -128,16 +137,18 @@ interface VariantEconomics {
   readonly reasoning: string | null;
   readonly model: string | null;
   readonly provider: string | null;
+  readonly connectionId: UserConnectionId | null;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
   readonly tokenProvenance: TokenProvenance;
+  readonly costProvenance: TokenProvenance;
   readonly cacheReadTokens: number | null;
   readonly cacheWriteTokens: number | null;
   readonly costUsd: number | null;
   readonly contextWindow: number | null;
   readonly contextBoundaryMessageId: MessageId | null;
   readonly ttftMs: number | null;
-  readonly finishReason: string | null;
+  readonly finishReason: NormalizedFinishReason | null;
   readonly stopReason: string | null;
   readonly terminalReason: string | null;
   /** Gen-window bounds (epoch-ms) — the stats gen-time axis and (PD-130) the `showGenerationTimer` chip
@@ -159,12 +170,14 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
     reasoning: v.reasoning ?? null,
     model: v.model ?? null,
     provider: v.provider ?? null,
+    connectionId: v.connectionId ?? null,
     tokensIn,
     tokensOut,
     tokenProvenance: v.tokenProvenance ?? (tokensIn !== null || tokensOut !== null ? "measured" : "unrecorded"),
     cacheReadTokens: v.cacheReadTokens ?? null,
     cacheWriteTokens: v.cacheWriteTokens ?? null,
     costUsd: v.costUsd ?? null,
+    costProvenance: v.costProvenance ?? "unrecorded",
     contextWindow: v.contextWindow ?? null,
     contextBoundaryMessageId: v.contextBoundaryMessageId ?? null,
     ttftMs: v.ttftMs ?? null,
@@ -296,6 +309,8 @@ export function insertMessageAssetStatements(
       readonly messageId: MessageId;
       readonly assetId: AssetId;
     }[];
+    /** WHY the links exist (`MESSAGE_ASSET_ORIGINS`) — one origin per call; each writer names its own. */
+    readonly origin: MessageAssetOrigin;
     readonly now: number;
   },
 ): BatchStmt[] {
@@ -305,6 +320,7 @@ export function insertMessageAssetStatements(
         id: r.id,
         messageId: r.messageId,
         assetId: r.assetId,
+        origin: params.origin,
         createdAt: params.now,
       }),
     ),

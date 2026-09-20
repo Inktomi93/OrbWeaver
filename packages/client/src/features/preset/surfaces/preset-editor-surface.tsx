@@ -36,7 +36,7 @@
 // mirror. A plain `useQuery`: the read fails when no chat connection resolves (the same condition that
 // hides the model-fed clusters), and that degrades to un-ghosted rows rather than an error boundary.
 
-import type { ModelCapability } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
@@ -60,6 +60,7 @@ import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog.
 import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
 import { useResetPreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
+import { chatCapabilityOf } from "../lib/chat-capability.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { presetDraftStore } from "../lib/preset-draft-store.ts";
 import { seedConfig, validatePresetConfig } from "../lib/preset-editor-model.ts";
@@ -158,7 +159,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   const capabilityQuery = useQuery(trpc.connection.resolveChatCapability.queryOptions());
   // The read carries the resolved `(api, source, model)` alongside the descriptor (the Connections pane names
   // the fallback from it); this panel gates on the descriptor only.
-  const capability = capabilityQuery.data?.capability;
+  const capability = chatCapabilityOf(capabilityQuery.data);
 
   // The EFFECTIVE profile — the generation funnel projected for this preset against the caller's own chat
   // model (§4.3). It is what every ghosted knob renders, and it rides the freshness map (`presetsChanged`
@@ -246,7 +247,7 @@ interface PresetEditorBodyProps {
   readonly onActivate: () => void;
   /** Commit a new name (#483) — the header owns the door + its dialog; this is the write. */
   readonly onRename: (name: string) => void;
-  readonly capability: ModelCapability | undefined;
+  readonly capability: GenerationCapability | undefined;
   /** The capability read's thrown error object, `null` while it is still PENDING (§F-02). */
   readonly capabilityError: ReadFailure | null;
   readonly effective: EffectiveProfileRow | undefined;

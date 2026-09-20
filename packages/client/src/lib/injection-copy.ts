@@ -2,7 +2,7 @@
 // `isAssistantPrefill` (`@orb/kit/injection`) consumer editors (character-advanced-tab, room-overrides-
 // form, persona-editor) and had already drifted ("pick depth ≥ 1" vs "Use depth ≥ 1").
 
-import type { ChatUnavailableCause } from "@orb/contracts/connection";
+import type { UnavailableCause } from "@orb/contracts/inference";
 import type { ChatControlMode } from "./contribution-contracts.ts";
 
 export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a response prefill — unsupported across providers. Use depth ≥ 1, or role system/user.";
@@ -174,22 +174,23 @@ export const STEER_CUE_IMPERSONATE = "Uses your typed text as drafting direction
 // The copy adapts to the CAUSE (the gate is ONE engine-agnostic check); each names the ACTIONABLE unlock,
 // never a bare "unavailable". Full sentences (composed alone, not after an em-dash) with a trailing period.
 
-const SEND_UNAVAILABLE_REASON: Record<ChatUnavailableCause, string> = {
-  // A local inference engine is disabled/absent — enable it (or switch the chat to a hosted connection).
-  "engine-off": "Local engine is off — enable it to send.",
-  // A registered local engine is DEAD and won't self-recover (down under adopt-only) — start it.
-  "engine-down": "Local engine is down — start it to send.",
-  // The host-Claude (Claude subscription) backend is not registered on this deployment — off by knob, or no
-  // credential detected. Both fixes live on the same pane, which is where the two are told apart.
-  "host-claude": "Claude subscription isn't set up on this server — set it up in Settings → Connections to send.",
-  // No working connection (no credential row / no configured connection / broken routing).
-  "no-connection": "This chat has no working connection — configure one to send.",
-  // The generic fallback: the resolved backend isn't serveable and no specific cause fits.
-  unavailable: "No engine connected.",
+const SEND_UNAVAILABLE_REASON: Record<UnavailableCause, string> = {
+  // No chat connection is bound for YOU (the funder) — the Connections pane is the call to action (§7.2).
+  "no-connection": "You have no chat connection yet — add one in Settings → Connections to send.",
+  // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
+  "endpoint-unreachable": "Can't reach your model's server — it may be down.",
+  // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).
+  "runtime-missing": "The Claude subscription runtime isn't installed on this server — pick another connection to send.",
+  // The bound row has `allowBackground` off and the task runs unattended (§5.3a).
+  "background-refused": "Your connection doesn't allow background work — enable it in Settings → Connections.",
+  // The bound row's model cannot meet the task's requirement (a text-only model bound to chat with images, …).
+  "requirement-unmet": "Your connection's model can't serve this chat — pick another in Settings → Connections.",
+  // The generic fallback: the resolved wire isn't built on this deployment and no specific cause fits.
+  unavailable: "That connection isn't available on this server.",
 };
 
 /** The composer disabled-reason for an unavailable cause — the single home the Send button + the guided fire
- *  actions read, so the copy can't drift between the two surfaces. Exhaustive over `ChatUnavailableCause`. */
-export function sendUnavailableReason(cause: ChatUnavailableCause): string {
+ *  actions read, so the copy can't drift between the two surfaces. Exhaustive over `UnavailableCause`. */
+export function sendUnavailableReason(cause: UnavailableCause): string {
   return SEND_UNAVAILABLE_REASON[cause];
 }

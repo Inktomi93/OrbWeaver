@@ -21,14 +21,6 @@ export interface ChatArgs {
   readonly force: boolean;
 }
 
-// The text-embed surface posts `{ input: string[] }`; the image-embed surface posts `{ messages: […] }`
-// (one conversation per call). The fake handles both — one deterministic vector per requested item.
-export interface EmbeddingsBody {
-  readonly input?: readonly string[];
-  readonly messages?: unknown;
-  readonly model?: string;
-  readonly dimensions?: number;
-}
 
 export interface RunFullSeedDeps {
   readonly db: Db;
@@ -42,10 +34,6 @@ export interface RunFullSeedDeps {
   readonly log: (msg: string) => void;
   /** Fail-loud preflight for assets this demo promises. Runs before the first database mutation. */
   readonly validateRequiredAssets?: (() => Promise<void>) | undefined;
-  /** Override the effective vLLM-availability fact (tests pin `false` to keep routing through the
-   *  deterministic fake client regardless of the box's GPU). Omitted ⇒ derive it the same way boot does
-   *  (`entry/lifecycle.ts`): a force-off env override OR no GPU present. */
-  readonly vllmDisabled?: boolean;
 }
 
 export interface RunFullSeedResult {

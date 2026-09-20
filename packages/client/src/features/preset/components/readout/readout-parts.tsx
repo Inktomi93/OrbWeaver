@@ -10,7 +10,7 @@
 // interactions the whole readout carries are the sanctioned SELECTION echoes, and those live on the
 // panels that own a list.
 
-import type { ModelCapability } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
@@ -196,13 +196,13 @@ function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; 
 
 /** WHY a knob is absent, and what the window costs you — the two questions the deck itself cannot answer
  *  (an absent knob renders as nothing, which is correct doctrine and mute). The MODEL name comes from the
- *  effective read, not the descriptor: `ModelCapability` is keyed by `(model, backend)` and deliberately
+ *  effective read, not the descriptor: `GenerationCapability` is keyed by `(model, backend)` and deliberately
  *  names neither. */
 export function CapabilityCard({
   capability,
   model,
 }: {
-  readonly capability: ModelCapability | undefined;
+  readonly capability: GenerationCapability | undefined;
   readonly model: string | undefined;
 }): ReactElement | null {
   if (capability === undefined) {

@@ -4,7 +4,8 @@
 // seeded ids (no wall clock, no unseeded typeids).
 
 import type { RefineryAnalyzePayload, RefineryRewritePayload, RefineryScorePayload } from "@orb/contracts/refinery";
-import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { SummarizeResult } from "@orb/contracts/providers";
+import type { RoleClients, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { CharacterHandle, CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
@@ -20,6 +21,7 @@ import {
 import type { RefineryContext, RefineryService, RefineryWorkloadDeps } from "@orb/server/domain/refinery";
 import { createRefineryService } from "@orb/server/domain/refinery";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { FAKE_SUMMARIZE_MODEL, makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 import { makeHarness as makeCharacterHarness, principal } from "../character/_support.ts";
 
@@ -53,7 +55,7 @@ export interface RefineryHarness {
   readonly advance: (ms: number) => void;
 }
 
-export const TEST_SUMMARIZER_MODEL = "test-summarizer";
+export const TEST_SUMMARIZER_MODEL = FAKE_SUMMARIZE_MODEL;
 
 export function makeRefineryHarness(db: Db): RefineryHarness {
   const charHarness = makeCharacterHarness(db);
@@ -63,7 +65,7 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
   const replies: string[] = [];
   const summarizeCalls: SummarizeCall[] = [];
   const userEvents: UserEventCall[] = [];
-  const summarize: RefineryContext["summarize"] = (inputs: SummarizeInput[], opts?: SummarizeOptions) => {
+  const summarize = (inputs: readonly SummarizeInput[], opts?: SummarizeOptions): Promise<SummarizeResult> => {
     const items = inputs.map((input) => {
       summarizeCalls.push({ system: input.systemPrompt, user: input.userPrompt, opts });
       const text = replies.shift();
@@ -74,15 +76,17 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
     });
     return Promise.resolve({ items, model: TEST_SUMMARIZER_MODEL });
   };
+  // ONE scripted bundle: `summarize` and `structured` share the tape (the forge/stage/score verbs name
+  // `structured`; the prose passes name `summarize`), and `resolved(task)` answers the fixed summarizer model.
+  const roleClients = makeFakeRoleClients({ summarize, structured: summarize, summarizerContextTokens: 8192 });
+  const roleClientsFor = (): Promise<RoleClients> => Promise.resolve(roleClients);
   const ctx: RefineryContext = {
     db,
     now: (): number => clock.now(),
     newRefinerySessionId: (): RefinerySessionId => castId<RefinerySessionId>(ids.next("refinery_session")),
     newRefineryRunId: (): RefineryRunId => castId<RefineryRunId>(ids.next("refinery_run")),
     newRefinerySchemaId: (): RefinerySchemaId => castId<RefinerySchemaId>(ids.next("refinery_schema")),
-    summarize,
-    summarizerModel: () => TEST_SUMMARIZER_MODEL,
-    summarizerContextTokens: () => 8192,
+    roleClientsFor,
     resolveUserPresetParams: () => Promise.resolve({}),
     resolveUserProse: () => Promise.resolve({}),
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
@@ -116,8 +120,7 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
  *  suite and the contribution suite provably drive one bundle, exactly like compose builds one. */
 export function refineryWorkloadDepsOf(db: Db, h: RefineryHarness): RefineryWorkloadDeps {
   return {
-    summarize: h.ctx.summarize,
-    summarizerContextTokens: h.ctx.summarizerContextTokens,
+    roleClientsFor: h.ctx.roleClientsFor,
     resolveUserPresetParams: h.ctx.resolveUserPresetParams,
     resolveUserProse: h.ctx.resolveUserProse,
     listRefineryScoreTargets: createListRefineryScoreTargets({ db }),

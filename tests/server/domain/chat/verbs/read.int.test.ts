@@ -7,7 +7,8 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatListCursor, MemberCardVisibility } from "@orb/contracts/chat";
 import { characterRegexTierKey } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { GenerationCapability } from "@orb/contracts/inference";
+import type { Resolved } from "@orb/inference";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
@@ -47,7 +48,7 @@ import { createParticipants, setParticipantActivePersona } from "../../../../../
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
+import { makeGenerationCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import {
   addVariant,
@@ -1469,8 +1470,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "the older turn" });
     await seedMessage(db, chatId, 2, { role: "assistant", content: "a reply worth some tokens" });
 
-    const capability = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 8192 } });
-    const { previewAssembly } = createRead(makeChatContext(db), makeDeps({ resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability })) }));
+    const capability = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 8192 } });
+    const { previewAssembly } = createRead(makeChatContext(db), makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ capability })) }));
     const { budget, prompt } = await previewAssembly({ principal: principal(me), chatId });
 
     expect(budget.sources.reduce((sum, s) => sum + s.tokens, 0)).toBe(budget.totalTokens);
@@ -1674,10 +1675,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const chatId = await seedRoom("ceiling", me);
 
     // A small-context local model: the ceiling tracks IT, not any blanket default.
-    const small = makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } }, context: { window: 40_960 } });
+    const small = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 } }, context: { window: 40_960 } });
     const { previewAssembly } = createRead(
       makeChatContext(db),
-      makeDeps({ resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability: small })) }),
+      makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: small })) }),
     );
     const known = await previewAssembly({ principal: principal(me), chatId });
     expect(known.budget.ceilingTokens).toBe(40_960);
@@ -1685,10 +1686,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     // The SAME window, but the capability marks it a guess (cold catalog): the number still drives the fit,
     // and the wire flags it so the surface says "unknown".
-    const guessed = makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } }, context: { window: 200_000, windowEstimated: true } });
+    const guessed = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 } }, context: { window: 200_000, windowEstimated: true } });
     const { previewAssembly: previewGuessed } = createRead(
       makeChatContext(db),
-      makeDeps({ resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability: guessed })) }),
+      makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: guessed })) }),
     );
     const unknown = await previewGuessed({ principal: principal(me), chatId });
     expect(unknown.budget.ceilingTokens).toBe(200_000);
@@ -1700,11 +1701,11 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // is what actually bounds the context and the user declared it — the ratio is honest again.
     const me = await seedUser(db, castId<Handle>("cap_host"));
     const chatId = await seedRoom("cap", me);
-    const guessed = makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } }, context: { window: 200_000, windowEstimated: true } });
+    const guessed = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 } }, context: { window: 200_000, windowEstimated: true } });
     const { previewAssembly } = createRead(
       makeChatContext(db),
       makeDeps({
-        resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability: guessed })),
+        resolveConnection: () => Promise.resolve(makeResolved({ generation: guessed })),
         resolveForeignInputs: () =>
           Promise.resolve({
             promptConfig: { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, maxContextTokens: 16_000 } },
@@ -2655,12 +2656,12 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
   // continuation nudge appended, window smaller than reserve+system) gets its own test below — the fit's
   // irreducible tail anchors on the newest ID-BEARING turn, so the boundary is nameable even there (the
   // original null-boundary "dodge" here was the bug the live cutoff spec caught, 2026-07-24).
-  const midCapability = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 400 } });
+  const midCapability = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 400 } });
 
   function makeFitDeps(capability: ModelCapability): Parameters<typeof createRead>[1] {
     return {
       loadParticipantViews,
-      resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability })),
+      resolveConnection: () => Promise.resolve(makeResolved({ capability })),
       checkSendAvailability: () => Promise.resolve({ available: true }),
       resolveForeignInputs: () =>
         Promise.resolve({
@@ -2714,7 +2715,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
         seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `turn ${i + 1} with several words to spend a few tokens` }),
       ),
     );
-    const tiny = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200 } });
+    const tiny = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
     const fit = await previewContextFit({ principal: principal(host), chatId });
@@ -2732,7 +2733,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     await Promise.all(
       Array.from({ length: 4 }, (_, i) => seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `short turn ${i + 1}` })),
     );
-    const wide = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 1_000_000 } });
+    const wide = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 1_000_000 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(wide));
     const fit = await previewContextFit({ principal: principal(host), chatId });
@@ -2755,7 +2756,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
       Array.from({ length: 4 }, (_, i) => seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `short turn ${i + 1}` })),
     );
     await stampMarker(chatId, 2);
-    const wide = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 1_000_000 } });
+    const wide = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 1_000_000 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(wide));
     const fit = await previewContextFit({ principal: principal(host), chatId });
@@ -2776,7 +2777,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
       ),
     );
     await stampMarker(chatId, 2);
-    const tiny = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 260 } });
+    const tiny = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 260 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
     const fit = await previewContextFit({ principal: principal(host), chatId });
@@ -2797,7 +2798,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
         seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `turn ${i + 1} with several words to spend a few tokens` }),
       ),
     );
-    const tiny = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 260 } });
+    const tiny = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 260 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
     const fit = await previewContextFit({ principal: principal(host), chatId });
@@ -2814,7 +2815,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
   // multi-KB bodies the provider never receives — reporting rows as out of context that the very next turn
   // keeps, and drawing the transcript divider above them. Both arms below FIT UNDER THE WIRE COST and blow
   // the window under the raw one, so each fails on the pre-fix read and passes on the converted one.
-  const wideEnoughForStubs = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 6000 } });
+  const wideEnoughForStubs = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 6000 } });
 
   /** A `ctx.rpg` that contributes ONLY the M2 wire knob — a game chat whose `cardKeepLastX: 0` stubs every
    *  STORED card on the wire (rpg's own shipped default). */
@@ -2879,7 +2880,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
       }),
     );
 
-    const tight = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 2800 } });
+    const tight = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 2800 } });
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tight));
     const fit = await previewContextFit({ principal: principal(host), chatId });
 
@@ -3227,7 +3228,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
       loadParticipantViews,
       // getMemberCard never resolves a connection (a card DISPLAY is not a turn) — a real factory keeps the
       // dep type-honest without the double-cast the `no-test-fabrication` gate forbids.
-      resolveConnection: () => Promise.resolve(makeResolvedConnection()),
+      resolveConnection: () => Promise.resolve(makeResolved()),
       checkSendAvailability: () => Promise.resolve({ available: true }),
       resolveForeignInputs: () =>
         Promise.resolve({
@@ -3305,7 +3306,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     });
     const deps: Parameters<typeof createRead>[1] = {
       loadParticipantViews,
-      resolveConnection: () => Promise.resolve(makeResolvedConnection()),
+      resolveConnection: () => Promise.resolve(makeResolved()),
       checkSendAvailability: () => Promise.resolve({ available: true }),
       resolveForeignInputs: (args) => {
         presentHumanUserIds = args.presentHumanUserIds;

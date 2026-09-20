@@ -1,27 +1,20 @@
-// domain/chat/engine/turn-identity — the turn-identity triple + the max-pro-sub-by-proxy refusal. Pure: no
-// db, no clock, no I/O.
+// domain/chat/engine/turn-identity — the turn-identity triple. Pure: no db, no clock, no I/O.
 //
-// The triple: the CALLER (Principal.userId, membership/CSRF only — never reaches credential resolution);
-// `triggeredBy` (the human responsible for spend/abort/attribution — the caller for a direct send, the
-// chain-starter for auto-mode); `runAsUserId` (the host whose box funds the turn — the only id that reaches
-// credential/routing resolution).
-//
-// The by-proxy refusal (fail-closed, default OFF): a non-owner-triggered max-pro-sub (hosted creds) turn is
-// refused unless explicit owner consent.
+// The triple: the CALLER (Principal.userId, membership/CSRF only — never reaches connection resolution);
+// `triggeredBy` (the FUNDER — the human whose CONNECTION the turn runs on, and who owns abort/attribution:
+// the caller for a direct send, the chain-starter for auto-mode; inference program §8.4-3, D19 amended);
+// `runAsUserId` (the room HOST — the ASSEMBLY scope: books, cards, preset, prose, settings, the tool
+// execution principal, D152). There is no by-proxy spend any more, so there is no consent belt: a funder
+// with no chat connection reads `no-connection` at send, never the host's bill.
 
-import type { CredentialSource } from "@orb/contracts/connection";
 import type { UserId } from "@orb/kit/ids";
-import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 
 interface TurnIdentity {
-  /** The responsible human — budget/abort/attribution (the caller for a send; the chain-starter for auto). */
+  /** The FUNDER — whose connection the turn runs on; abort/attribution (the caller for a send; the chain-starter for auto). */
   readonly triggeredBy: UserId;
-  /** The host whose box funds the turn — the only id that reaches credential/routing/settings resolution. */
+  /** The room host — the ASSEMBLY scope (books/cards/preset/prose/settings), never the connection. */
   readonly runAsUserId: UserId;
 }
-
-/** The hosted-credential source the by-proxy belt guards (the owner-only resource class). */
-const MAX_PRO_SUB: CredentialSource = "max-pro-sub";
 
 /** Resolve the identity triple from the ids the verb holds. Pure. `runAsUserId` is always the host (never
  *  the caller); `triggeredBy` is the caller unless an auto-mode chain-starter is supplied. */
@@ -34,24 +27,4 @@ export function resolveTurnIdentity(params: {
     triggeredBy: params.triggeredBy ?? params.principalUserId,
     runAsUserId: params.hostUserId,
   };
-}
-
-/** By-proxy = the host funds the turn but someone else triggered it. A max-pro-sub credential is
- *  unconstructable except for the box's one global owner, so a non-proxy hosted turn is owner-initiated. */
-function isByProxy(identity: TurnIdentity): boolean {
-  return identity.triggeredBy !== identity.runAsUserId;
-}
-
-/** Throws `ChatOperationError('consent_required')` when a hosted-credential (max-pro-sub) turn is triggered
- *  by someone other than the funding host and the owner has not consented. Fail-closed: no consent ⇒ refuse. */
-export function assertMaxProSubConsent(params: { readonly source: CredentialSource; readonly identity: TurnIdentity; readonly ownerConsent: boolean }): void {
-  if (params.source === MAX_PRO_SUB && isByProxy(params.identity) && !params.ownerConsent) {
-    throw new ChatOperationError(CHAT_OP_CODES.consentRequired, "a non-owner-triggered max-pro-sub turn requires explicit owner consent");
-  }
-}
-
-/** Derive the owner-consent value the infra firewall re-verifies at dispatch. Called AFTER
- *  {@link assertMaxProSubConsent}, so a by-proxy non-consented hosted turn has already thrown. */
-export function resolveOwnerConsented(params: { readonly identity: TurnIdentity; readonly ownerConsent: boolean }): boolean {
-  return !isByProxy(params.identity) || params.ownerConsent;
 }

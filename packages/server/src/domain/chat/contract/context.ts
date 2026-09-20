@@ -18,10 +18,9 @@ import type {
   TurnAbortReason,
   TurnInitiator,
 } from "@orb/contracts/chat";
-import type { ChatSendAvailability, CredentialSource, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
-import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Can, ChatMembership, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -32,6 +31,7 @@ import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stat
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
+import type { ProviderErrorKind, Resolved, RoleClientsWithSignal, ToolCallInput, WireTool } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type {
   AssetId,
@@ -61,7 +61,6 @@ import type { RegexReplacer } from "@orb/kit/regex";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
-import type { ProviderErrorKind, RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
@@ -140,15 +139,9 @@ export interface ChatToolOps {
   readonly toAgentToolServer: (set: ChatToolSet, frame: ChatToolExecFrame, onRecord: (record: ToolCallRecord) => void) => Promise<unknown>;
 }
 
-/** Resolve `{api, model, credential, capability}` for a turn under the frozen `runAsUserId` (never the caller). */
-type ResolveChatConnectionOp = (params: {
-  readonly runAsUserId: UserId;
-  readonly routable: RouteChatAssignment;
-  readonly signal?: AbortSignal | undefined;
-}) => Promise<ResolvedConnection>;
-
-/** The brand-protected credential for a `{runAsUserId, source}` (the side-LLM/summarizer path). */
-type ResolveCredentialOp = (params: { readonly runAsUserId: UserId; readonly source: CredentialSource }) => Promise<ResolvedCredential>;
+/** Resolve the FUNDER's chat connection for a turn (inference program §8.4-3): the triggering principal's own
+ *  `chat` binding — never the host's, never the caller's membership id. A chat binds no connection (F20). */
+type ResolveChatConnectionOp = (params: { readonly funderUserId: UserId; readonly signal?: AbortSignal | undefined }) => Promise<Resolved<"chat">>;
 
 /** The post-generation credential STRIKE-OUT (#1373) — best-effort, never throws into the generation path.
  *
@@ -294,7 +287,7 @@ type BumpStatsCanonVersionOp = BumpStatsCanonVersion<unknown, Db>;
  *  `RoleClients["summarize"]` (`RoleClientsWithSignal`): chat is the one caller that already owns a
  *  cancellation — the turn's active-turn `AbortSignal` — and a side-LLM call that cannot be cancelled hangs
  *  the whole turn when the box accepts the socket and never answers. */
-export type SummarizeOp = RoleClientsWithSignal["summarize"];
+export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClientsWithSignal["summarize"]>) => ReturnType<RoleClientsWithSignal["summarize"]>;
 
 /** The side-gen sampling ladder's middle rung for a chat-scoped side-gen call — the chat host's default-preset
  *  generation params. Resolved at the entry root (chat never reads the preset domain); a hostless/stale room
@@ -321,6 +314,8 @@ type ReadReactionDefaultsOp = (userId: UserId) => Promise<Pick<ChatBehaviorInput
  *  cards resolve under the chat HOST's ownership, and imagery already gated the caller's chat membership. */
 export interface ExtractQuietParams {
   readonly chatId: ChatId;
+  /** The CALLER — whose summarize connection the extraction spends (§8.5b: the human who triggered the image). */
+  readonly funderUserId: UserId;
   /** The mode template with its char/user macros unresolved — chat resolves them. */
   readonly instruction: string;
   /** Focuses the char macro on one character in a group chat; absent ⇒ the roster's primary character. */
@@ -374,7 +369,7 @@ export interface ExtractQuietDeps {
  *  The Principal-less standalone-factory precedent (`ExtractQuiet`) — never a `ChatService` verb, never tRPC. */
 export interface QuietGenerateParams {
   readonly chatId: ChatId;
-  readonly connection: ResolvedConnection;
+  readonly connection: Resolved<"chat">;
   readonly systemPrompt: string;
   readonly userText: string;
   /** Optional generation tuning (temperature / maxOutputTokens); absent ⇒ the op's bounded defaults. */
@@ -685,10 +680,7 @@ export interface RpgTurnContext {
   readonly kind: TurnKind;
   /** The character turn's effective `{api, model, credential, capability}` — the agent-speaker's own or the
    *  round connection; the state round runs on THIS, never a re-resolve. */
-  readonly connection: ResolvedConnection;
-  /** The engine's enforced owner-consent verdict for this turn (`resolveOwnerConsented`, engine.ts) — the state
-   *  round inherits it rather than force-stamping `true`; a metered-sub round is by-proxy-safe by construction. */
-  readonly ownerConsented: boolean;
+  readonly connection: Resolved<"chat">;
   /** The selected-lineage canon UP TO AND INCLUDING the committed reply, oldest→newest, name-stamped — the FULL
    *  loaded canon; the CONSUMER slices to its window (the knob is rpg config, not chat's business). Projected by
    *  the ENGINE (`fireRpgTurnCompleted`) from `canonAll ∪ {the committed reply}`. */
@@ -941,6 +933,8 @@ export interface HandoffHealArgs {
  *  ignore): the preview path never regenerates a slot, and identity binding is threaded only when resolved. */
 export interface GatherTurnContextArgs {
   readonly chatId: ChatId;
+  /** The turn's FUNDER — whose chat connection the rpg delivery verdict (fold guard / write path) reads (§8.4-3). */
+  readonly funderUserId: UserId;
   /** Full's dice-feed input — lite's gather ignores it (rpg-design/05 §6; see `gatherTurnContext`'s doc). */
   readonly pendingUserText: string | undefined;
   /** Full's dice-feed input — lite's gather ignores it (rpg-design/05 §6; see `gatherTurnContext`'s doc). */
@@ -1121,10 +1115,12 @@ type EmbeddingsPruneBlocksOp = (params: PruneDigestBlocksParams | PruneSegmentBl
 /** memory's chat-scoped recall. Returns the ranked blocks WITH their retrieval numbers; memory resolves the
  *  identities back to digest text and reports the numbers in its recall trace (#250 — a bare key list left
  *  "why did THIS block surface" unanswerable at the only seam that knows). */
-type SearchDigestsOp = (query: MemoryQueryOptions, onRerankUnavailable?: (() => void) | undefined) => Promise<readonly ScoredBlock[]>;
+/** `ownerId` is OMITTED on purpose: `MemoryScope` carries no owner (D20), so the compose binding resolves the
+ *  chat HOST — whose `embed`/`rerank` bindings define the digest space — from the chat FK before calling search. */
+type SearchDigestsOp = (query: Omit<MemoryQueryOptions, "ownerId">, onRerankUnavailable?: (() => void) | undefined) => Promise<readonly ScoredBlock[]>;
 
 /** The cross-chat corpus/digest+segment scan; host-only scope is enforced by the caller. */
-type SearchCorpusOp = (query: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
+type SearchCorpusOp = (query: Omit<MemoryQueryOptions, "ownerId">) => Promise<readonly BlockKey[]>;
 
 /** The databank `{{databank}}`-slot GATHER op (DB6, databank-design/07 §1). OPTIONAL: absent ⇒ GATHER skips
  *  the branch entirely and the slot resolves empty, byte-identical to a non-databank deploy (the null-op pin).
@@ -1132,6 +1128,8 @@ type SearchCorpusOp = (query: MemoryQueryOptions) => Promise<readonly BlockKey[]
  *  (the slot value); databank's provenance/token fields never cross into chat. */
 type GatherDatabankOp = (args: {
   readonly chatId: ChatId;
+  /** The room HOST — the document space is theirs (host-only v1), so their `embed`/`rerank` bindings serve it. */
+  readonly hostUserId: UserId;
   readonly queryText: string;
   readonly tokenBudget: number;
 }) => Promise<{ readonly text: string } | null>;
@@ -1291,7 +1289,6 @@ export interface ChatContext {
   /** Null means tool-use isn't wired — byte-identical no-op. */
   readonly tools: ChatToolOps | null;
   readonly resolveChat: ResolveChatConnectionOp;
-  readonly resolveCredential: ResolveCredentialOp;
   readonly maybeRevokeOnAuthFailed: MaybeRevokeOnAuthFailedOp;
   readonly getCard: GetCardOp;
   /** HOST HANDOFF, the accepted offer's card arm: copy the DEPARTING host's seated cards into the NOMINEE's
@@ -1338,18 +1335,14 @@ export interface ChatContext {
   /** Version-only rebuild fence for canon writes that have no exact incremental rollup delta. */
   readonly bumpStatsCanonVersion: BumpStatsCanonVersionOp;
   readonly summarize: SummarizeOp;
-  /** The summarizer model's resolved context window (tokens) — the memory build's token-guard fits each
-   *  summarizer call to the user's actual context. A THUNK, never a captured number, because
-   *  `RoleClients.summarizerContextTokens` is a live getter over the latest per-call role resolution
-   *  (`entry/compose/role-clients.ts` header): capturing it at compose would re-freeze at boot exactly what
-   *  that binder stopped freezing, and the guard would size every digest to the model the server started on. */
-  readonly summarizerContextTokens: () => number;
-  /** The EMBED model's context window (tokens) — the segment build's window guard. A verbatim block that
-   *  cannot fit is SKIPPED AND RECORDED, never truncated: a segment is memory-feeding content, and a vector
-   *  built from the first 8k tokens of a 200k-token block is a lying embedding (owner ruling, #165 — "if we
-   *  are skimping out on messages that's a no go since this feeds the memory system"). A thunk for the same
-   *  reason as {@link summarizerContextTokens}: the resolution is per-call, never frozen at boot. */
-  readonly embedContextTokens: () => number;
+  /** The FUNDER's summarize model's context window (tokens) — the memory build's token-guard fits each
+   *  summarizer call to the actual context. Resolved PER CALL through `roleClientsFor(funder).resolved("summarize")`
+   *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder with no summarize
+   *  binding reads the floor. */
+  readonly summarizerContextTokens: (funderUserId: UserId) => Promise<number>;
+  /** The FUNDER's EMBED model's window (tokens) — the segment build's window guard. A verbatim block that
+   *  cannot fit is SKIPPED AND RECORDED, never truncated (#165). Same per-call resolution as above. */
+  readonly embedContextTokens: (funderUserId: UserId) => Promise<number>;
   /** The admin-resolved memory-summarizer sampling (`AppSettings.memorySummarizer`) — the memory build passes
    *  `{maxTokens, temperature}` onto every `summarize` call AND mirrors `maxTokens` into the token-guard's
    *  output reserve (one home, so the fit and the request can't diverge). Both fields absent ⇒ the summarizer
@@ -1412,13 +1405,6 @@ export interface ChatContext {
 /** Resolve a user's temporary-chat reap TTL in HOURS (`UserSettings.chat.tempChatTtlHours`). */
 type ResolveTempChatTtlHoursOp = (userId: UserId) => Promise<number>;
 
-/** The injected per-member count budget debit. `budget === null` means unbounded (a no-op debit). */
-export type DebitBudgetOp = (triggeredBy: UserId, budget: number | null) => Promise<void>;
-
-/** The per-turn host policy resolved under the frozen `runAsUserId`: the budget cap + the max-pro-sub
- *  owner-consent flag. */
-export type ResolveTurnPolicyOp = (runAsUserId: UserId) => Promise<{ readonly budget: number | null; readonly allowNonOwnerMaxProSub: boolean }>;
-
 /** What `createChatService` receives from the entry root: collaborators not on {@link ChatContext} and not
  *  built inside the composition root. */
 export interface ChatServiceDeps {
@@ -1443,14 +1429,13 @@ export interface ChatServiceDeps {
   readonly prng: () => number;
   /** The inter-turn delay for the auto-mode chain. */
   readonly delay: (ms: number) => Promise<void>;
-  readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
-  /** The deterministic pre-send serveability verdict for the chat's own resolved connection (#54) — the
-   *  honest-refusal gate the composer disables SEND on. Reads the SAME chat-row routing overlay
-   *  `resolveConnection` reads; fires no turn or API call. Wired at the entry composition root. */
-  readonly checkSendAvailability: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ChatSendAvailability>;
+  /** The FUNDER's chat connection for a turn in this room (§8.4-3) — `funderUserId` is the triggering
+   *  principal (`triggeredBy`), never the host; the room binds nothing (F20), so `chatId` is provenance only. */
+  readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
+  /** The deterministic pre-send serveability verdict for the FUNDER's own chat connection (#54) — the
+   *  honest-refusal gate the composer disables SEND on. Fires no turn or API call. Wired at the composition root. */
+  readonly checkSendAvailability: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<SendAvailability>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
-  readonly debitBudget: DebitBudgetOp;
-  readonly resolveTurnPolicy: ResolveTurnPolicyOp;
   /** The lock holder tag (this replica/turn id) for stale-takeover + holder-scoped release. */
   readonly holder: string;
   /** The per-chat lock TTL (ms), sized for one turn. */

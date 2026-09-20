@@ -67,8 +67,8 @@ import { env } from "#foundation/env";
 const WIRE_CAPTURE_RING_CAPACITY = 256;
 
 /** One captured provider request. `body` is the backend's OWN wire shape (see the file header) — an opaque
- *  JSON object, never normalized across backends. `api` is the protocol axis; `backend` the sealed runner key
- *  (a plain string — foundation imports nothing UP from infra; the value is provenance only). */
+ *  JSON object, never normalized across wires. `api` is the protocol axis; `wire` + `providerId` the runtime's
+ *  own two provenance axes (plain strings — foundation imports nothing UP from the package). */
 export interface WireCapture {
   /** The chat this send belongs to — the harness's correlation key (it opens unique-title chats). Absent on
    *  a chatless probe turn. */
@@ -78,7 +78,8 @@ export interface WireCapture {
    *  schema-constrained-generation role — the rpg structured extraction / the split-out structured surface; both
    *  vLLM + OR capture their per-item bodies under the summarize/structured tag matching the role served). */
   readonly api: string;
-  readonly backend: string;
+  readonly wire: string;
+  readonly providerId: string;
   /** The resolved model string on the request (provenance cross-check against the DB canon `model` stamp). */
   readonly model: string;
   readonly at: number;
@@ -86,10 +87,10 @@ export interface WireCapture {
   readonly body: Record<string, unknown>;
 }
 
-/** Filter for a host read: by `chatId` and/or `backend`, newest-first, capped by `limit`. */
+/** Filter for a host read: by `chatId` and/or `providerId`, newest-first, capped by `limit`. */
 export interface WireCaptureFilter {
   readonly chatId?: ChatId | undefined;
-  readonly backend?: string | undefined;
+  readonly providerId?: string | undefined;
   readonly limit?: number | undefined;
 }
 
@@ -126,7 +127,7 @@ export function recentWireCaptures(filter: WireCaptureFilter = {}): WireCapture[
     if (filter.chatId !== undefined && capture.chatId !== filter.chatId) {
       continue;
     }
-    if (filter.backend !== undefined && capture.backend !== filter.backend) {
+    if (filter.providerId !== undefined && capture.providerId !== filter.providerId) {
       continue;
     }
     out.push(capture);

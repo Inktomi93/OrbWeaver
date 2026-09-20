@@ -27,6 +27,7 @@ export const discoveryRouter = t.router({
     ctx.services.discovery.distillCharacters({
       characterId: input.characterId,
       ownerId: ctx.auth.userId,
+      funderUserId: ctx.auth.userId,
     }),
   ),
 

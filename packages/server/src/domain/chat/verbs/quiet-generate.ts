@@ -81,9 +81,6 @@ export function createQuietGenerate(deps: QuietGenerateDeps): QuietGenerate {
       history: quietHistory(params.userText),
       intent: quietIntent(params.intent, chatParams),
       kind: "generate",
-      // No non-owner max-pro-sub consent is asserted here: the caller (the engine turn) already ran the belt
-      // for this chat's connection this turn; a quiet generation reuses that same connection.
-      ownerConsented: false,
       cacheBreakpointFromEnd: null,
       ...(params.signal !== undefined ? { signal: params.signal } : {}),
     });

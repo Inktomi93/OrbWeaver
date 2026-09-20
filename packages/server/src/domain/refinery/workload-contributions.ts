@@ -37,7 +37,7 @@ export function createRefineryWorkloadContributions(deps: RefineryWorkloadDeps):
       resume: "idempotent-restart",
       run: async (ctx, params, report, signal): Promise<RefineryScoreSweepResult> => {
         const rescoreAll = params.rescoreAll ?? false;
-        const result = await scoreSweep({ ownerId: ctx.ownerId, rescoreAll, report, signal });
+        const result = await scoreSweep({ ownerId: ctx.ownerId, funderUserId: ctx.userId, rescoreAll, report, signal });
         report({ message: sweepProgressMessage(result, rescoreAll) });
         return result;
       },

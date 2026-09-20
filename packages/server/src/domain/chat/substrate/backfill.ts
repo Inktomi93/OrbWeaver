@@ -130,6 +130,9 @@ interface PlanSweep {
 interface PlanDeps {
   readonly signal: AbortSignal;
   readonly resolveMemoryConfig: ResolveBackfillMemoryConfig;
+  /** The WORKLOAD's principal — whose summarize/embed connections the whole sweep spends (§8.5b; the
+   *  corpus batch is flat across chats, so one funder per sweep, never per room). */
+  readonly funderUserId: UserId;
 }
 
 /** Plan ONE chat: COLLECT its segment chunks (no embed), then tier-0 COLLECT each of its scope buckets into
@@ -144,7 +147,7 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
   // COLLECT only — the chunking, the hash gate and the shrink prune happen here; the embeds do not. Every
   // chat's pending chunks pool into one corpus-wide flood (PHASE 1b), which is what the owner batching ruling
   // asks for: batch by phase, never one awaited embed per block interleaved with db reads.
-  sweep.segments.push(await collectSegments(ctx, { chatId, config, macroNames, signal: deps.signal }));
+  sweep.segments.push(await collectSegments(ctx, { chatId, funderUserId: deps.funderUserId, config, macroNames, signal: deps.signal }));
   sweep.segmentsScanned += 1;
   const characterIdSet = new Set<CharacterId>(characterIds);
   for (const scope of await scopesFor(ctx, chatId, characterIds, hostUserId)) {
@@ -152,7 +155,14 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
       break;
     }
     const witnessing = characterIdSet.has(scope.scopedCharacterId) ? await loadWitnessHorizons(ctx.db, chatId, scope.scopedCharacterId) : undefined;
-    const plan = await planDigests(ctx, { scope, config, macroNames, signal: deps.signal, ...(witnessing !== undefined ? { witnessing } : {}) });
+    const plan = await planDigests(ctx, {
+      scope,
+      funderUserId: deps.funderUserId,
+      config,
+      macroNames,
+      signal: deps.signal,
+      ...(witnessing !== undefined ? { witnessing } : {}),
+    });
     sweep.digestsScanned += 1; // each (chat × scope) bucket is one scanned unit, planned or a no-op
     if (plan !== null) {
       sweep.plans.push(plan);
@@ -165,11 +175,11 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
  *  throwing, so a throw landing in the catch is a genuine unexpected fault). */
 async function planAllBuckets(
   ctx: ChatContext,
-  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null },
+  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null; readonly funderUserId: UserId },
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<PlanSweep> {
   const sweep: PlanSweep = { plans: [], segments: [], segmentsScanned: 0, digestsScanned: 0, failed: 0 };
-  const deps: PlanDeps = { signal: args.signal, resolveMemoryConfig };
+  const deps: PlanDeps = { signal: args.signal, resolveMemoryConfig, funderUserId: args.funderUserId };
   for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
     if (args.signal.aborted) {
       break; // cooperative abort between chats — every completed unit is durable + idempotent
@@ -208,7 +218,7 @@ function orderedInputs(flat: readonly { readonly input: SummarizeInput }[], orde
  *  pack into vLLM's continuous batches with less ragged-batch padding; feeding all at once keeps the batcher
  *  saturated instead of ramping a tiny batch per bucket). Returns each plan's texts, index-aligned to its
  *  pending order (the summarize surface's own per-item isolation still contains a poison block). */
-async function summarizeAllPending(ctx: ChatContext, plans: readonly DigestPlan[]): Promise<(string | null)[][]> {
+async function summarizeAllPending(ctx: ChatContext, funderUserId: UserId, plans: readonly DigestPlan[]): Promise<(string | null)[][]> {
   const flat: { readonly planIdx: number; readonly input: SummarizeInput }[] = [];
   for (let pi = 0; pi < plans.length; pi += 1) {
     for (const item of plans[pi]?.pending ?? []) {
@@ -216,7 +226,7 @@ async function summarizeAllPending(ctx: ChatContext, plans: readonly DigestPlan[
     }
   }
   const order = flat.map((_, i) => i).sort((a, b) => inputLen(flat[a]?.input) - inputLen(flat[b]?.input));
-  const sortedTexts = await summarizeDigestBatch(ctx, orderedInputs(flat, order));
+  const sortedTexts = await summarizeDigestBatch(ctx, funderUserId, orderedInputs(flat, order));
   const flatTexts: (string | null)[] = new Array(flat.length).fill(null);
   order.forEach((origIdx, k) => {
     flatTexts[origIdx] = sortedTexts[k] ?? null;
@@ -243,6 +253,7 @@ interface CommitState {
   readonly plans: readonly DigestPlan[];
   readonly perPlan: PlanCommit[];
   readonly signal: AbortSignal;
+  readonly funderUserId: UserId;
 }
 
 /** One bucket's collected tier-k consolidation work, derived by inference (no-inline-types). */
@@ -302,7 +313,12 @@ async function collectTierAcrossBuckets(ctx: ChatContext, state: CommitState, ti
       continue;
     }
     try {
-      const cons = await collectConsolidationTier(ctx, plan.scope, plan.cfg, { tier, existing: plan.existing, signal: state.signal });
+      const cons = await collectConsolidationTier(ctx, plan.scope, plan.cfg, {
+        tier,
+        existing: plan.existing,
+        signal: state.signal,
+        funderUserId: state.funderUserId,
+      });
       if (cons === null) {
         continue; // this bucket's consolidation ceiling
       }
@@ -331,7 +347,7 @@ async function summarizeAndStoreTier(ctx: ChatContext, collected: readonly Colle
     }
   });
   const order = flat.map((_, i) => i).sort((a, b) => inputLen(flat[a]?.input) - inputLen(flat[b]?.input));
-  const sortedTexts = await summarizeConsolidationBatch(ctx, orderedInputs(flat, order));
+  const sortedTexts = await summarizeConsolidationBatch(ctx, state.funderUserId, orderedInputs(flat, order));
   const flatTexts: (string | null)[] = new Array(flat.length).fill(null);
   order.forEach((origIdx, k) => {
     flatTexts[origIdx] = sortedTexts[k] ?? null;
@@ -401,9 +417,14 @@ async function commitAllPlans(
   ctx: ChatContext,
   plans: readonly DigestPlan[],
   perPlanTexts: readonly (string | null)[][],
-  signal: AbortSignal,
+  run: { readonly signal: AbortSignal; readonly funderUserId: UserId },
 ): Promise<{ changed: number; failed: number }> {
-  const state: CommitState = { plans, perPlan: plans.map(() => ({ written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 })), signal };
+  const state: CommitState = {
+    plans,
+    perPlan: plans.map(() => ({ written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 })),
+    signal: run.signal,
+    funderUserId: run.funderUserId,
+  };
   let failed = await storeAllTier0(ctx, state, perPlanTexts);
   failed += await consolidateAllTiers(ctx, state);
   let changed = 0;
@@ -444,13 +465,13 @@ async function commitAllPlans(
  */
 export async function backfillMemory(
   ctx: ChatContext,
-  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null },
+  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null; readonly funderUserId: UserId },
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<MemoryBackfillCounts> {
   const sweep = await planAllBuckets(ctx, args, resolveMemoryConfig);
   const segments = await storeAllSegments(ctx, sweep.segments);
-  const perPlanTexts = await summarizeAllPending(ctx, sweep.plans);
-  const committed = await commitAllPlans(ctx, sweep.plans, perPlanTexts, args.signal);
+  const perPlanTexts = await summarizeAllPending(ctx, args.funderUserId, sweep.plans);
+  const committed = await commitAllPlans(ctx, sweep.plans, perPlanTexts, { signal: args.signal, funderUserId: args.funderUserId });
   return {
     segments: { scanned: sweep.segmentsScanned, changed: segments.written },
     segmentsSkippedOverWindow: segments.skippedOverWindow,
@@ -511,7 +532,7 @@ function inputLen(input: SummarizeInput | undefined): number {
  */
 export async function backfillGroupCharacters(
   ctx: ChatContext,
-  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null },
+  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null; readonly funderUserId: UserId },
 ): Promise<BackfillPassCounts> {
   const counts = { scanned: 0, changed: 0 };
   for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {

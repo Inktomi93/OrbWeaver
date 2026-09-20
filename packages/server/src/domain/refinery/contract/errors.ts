@@ -69,6 +69,19 @@ export class RefineryRoundInFlightError extends DomainOperationError {
  * (→ SERVICE_UNAVAILABLE); NEVER a fallback write (security pass §4.7 — a double failure is a typed
  * error, not a degraded run row). The `DistillFailedError` twin.
  */
+/**
+ * The caller has NO `summarize` connection bound (`RoleClients.resolved("structured") === null`) — refinery's
+ * every pass is schema-constrained and rides that binding (inference program §7.5-1). Not the model's
+ * fault and not transient in the retry sense (→ SERVICE_UNAVAILABLE, the `no-connection` class): the fix
+ * is a Connections-pane edit, which is what the message says.
+ */
+export class RefineryNotConfiguredError extends DomainUnavailableError {
+  constructor() {
+    super("No summarize connection is bound — bind one under Connections › Model roles to run the refinery.");
+    this.name = this.constructor.name;
+  }
+}
+
 export class RefineryRunFailedError extends DomainUnavailableError {
   constructor(message: string, options?: ErrorOptions) {
     super(message);

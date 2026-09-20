@@ -24,6 +24,7 @@ import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
 import { blockKeyStr, collapseSegmentChunks } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
+import { requireSpaceModel } from "../substrate/space.ts";
 
 export function createSegments(ctx: SearchContext): SearchService["segments"] {
   return async (params: SegmentsParams): Promise<SegmentSearchHit[]> => {
@@ -35,11 +36,13 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
       throw new SearchError(SEARCH_SCOPE_REQUIRED, "segments requires an egocentric scopedCharacterId to key the verbatim-lens result");
     }
     const text = params.queryText;
+    const rc = await ctx.roleClientsFor(params.ownerId);
+    const embedModel = await requireSpaceModel(rc, "embed");
     if (text === undefined || text.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "segments requires a queryText to embed + scan");
     }
 
-    const embedded = await ctx.roleClients.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.segments.query });
+    const embedded = await rc.embed(text, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.segments.query });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -47,7 +50,7 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
 
     const pool = await nearestSegments(ctx.db, {
       queryVector,
-      model: ctx.roleClients.embedModel,
+      model: embedModel,
       chatIds: [params.scope.chat],
       candidates: params.candidates,
       limit: params.candidates === undefined ? SCOPED_POOL_K : params.candidates.length,
@@ -87,9 +90,7 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
     // the head of the CSLS-ranked pool, and in mixC cap the reranked result to rerankTo.
     const retrieved = ranked.slice(0, params.retrieveK);
     const ordered =
-      params.mode === "mixC"
-        ? await applyRerank(`${SCOPE_INSTRUCTIONS.segments.rerank}\n${text}`, retrieved, ctx.roleClients.rerank, params.rerankTo)
-        : retrieved;
+      params.mode === "mixC" ? await applyRerank(`${SCOPE_INSTRUCTIONS.segments.rerank}\n${text}`, retrieved, rc.rerank, params.rerankTo) : retrieved;
 
     return ordered.map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
   };

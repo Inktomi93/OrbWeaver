@@ -18,6 +18,7 @@ import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
 import { collapseByContentHash } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 import { applyRerank } from "../substrate/rerank.ts";
+import { requireSpaceModel } from "../substrate/space.ts";
 
 interface DocumentCandidate {
   /** The rerank runner keys on `id`; the chunk id is unique so it doubles as the candidate id. */
@@ -70,6 +71,8 @@ function restoreReadingOrder(ranked: readonly DocumentCandidate[]): DocumentChun
 export function createDocuments(ctx: SearchContext): SearchService["documents"] {
   return async (params: DocumentSearchParams): Promise<DocumentChunkHit[]> => {
     const queryText = params.queryText;
+    const rc = await ctx.roleClientsFor(params.ownerId);
+    const embedModel = await requireSpaceModel(rc, "embed");
     if (queryText.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "documents requires a queryText to embed + scan");
     }
@@ -86,7 +89,7 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
     }
 
     // 2. embed the query in the chunks' space.
-    const embedded = await ctx.roleClients.embed(queryText, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.documents.query });
+    const embedded = await rc.embed(queryText, { inputType: "query", instruction: SCOPE_INSTRUCTIONS.documents.query });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -96,7 +99,7 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
     const pool = await nearestDocumentChunks(ctx.db, {
       documentIds: allowlist,
       queryVector,
-      model: ctx.roleClients.embedModel,
+      model: embedModel,
       dim: queryVector.length,
       limit: Math.min(k * OWNER_OVERFETCH, SCOPED_POOL_K),
     });
@@ -129,9 +132,7 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
 
     // 6. optional cross-encoder rerank (default OFF, databank-design/05 §3.5).
     const reordered =
-      params.rerank === true
-        ? await applyRerank(`${SCOPE_INSTRUCTIONS.documents.rerank}\n${queryText}`, ranked, ctx.roleClients.rerank, ranked.length)
-        : ranked;
+      params.rerank === true ? await applyRerank(`${SCOPE_INSTRUCTIONS.documents.rerank}\n${queryText}`, ranked, rc.rerank, ranked.length) : ranked;
 
     // 7. collapse duplicate chunks (after rank, before k-cap) → 8. k-cap → 9. reading-order restore.
     const collapsed = collapseByContentHash(reordered);

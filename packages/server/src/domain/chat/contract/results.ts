@@ -14,19 +14,20 @@ import type {
   ParticipantView,
   ReactionEmoji,
   SpeakerRef,
+  TokenProvenance,
   TurnAbortReason,
   TurnInitiator,
   TurnIntent,
   UserMacroDraws,
 } from "@orb/contracts/chat";
-import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ChatMembership } from "@orb/contracts/identity";
-import type { CustomParameters, UserIntent } from "@orb/contracts/preset";
+import type { NormalizedFinishReason } from "@orb/contracts/inference";
+import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { HistoryRole, Resolved, ResolvedWarning, ToolCallInput, ToolChoice, WireTool } from "@orb/inference";
+import type { CharacterId, ChatId, MessageId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { HistoryRole, ResolvedWarning, ToolCallInput, ToolChoice, WireTool } from "#infra/providers";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { ReactAsCharacterParams, RequestTurnParams } from "./params.ts";
 import type { ChatDetail, ChatVariables } from "./views.ts";
@@ -127,7 +128,7 @@ export interface TurnMessage {
  * request at the boundary.
  */
 export interface TurnRequest {
-  readonly connection: ResolvedConnection;
+  readonly connection: Resolved<"chat">;
   /** The chat this turn belongs to — the stateful backend keys its resume cache by it. */
   readonly chatId: ChatId;
   /** The static (cache-stable) system prefix + the per-turn dynamic suffix. */
@@ -135,14 +136,7 @@ export interface TurnRequest {
   /** The SHAPE-shaped history (egocentric-scoped, spliced, squashed, name-stamped). */
   readonly history: readonly TurnMessage[];
   readonly intent: UserIntent;
-  /** The preset's BYOK provider-passthrough blob (PD-148) — applied ONLY by the custom-byo backend (folded onto
-   *  its wire body, preset-wins). It does NOT reach the OpenRouter wire (OR's knobs are the modeled sampling
-   *  surface; a non-empty blob on OR is dropped-and-loud). Absent when the preset carries none. */
-  readonly customParameters?: CustomParameters | undefined;
   readonly kind: TurnKind;
-  /** The owner-consent value the infra credential firewall re-verifies, already enforced by the engine's
-   *  in-lock belt. */
-  readonly ownerConsented: boolean;
   /** The rolling-pair cache breakpoint offset from the tail; null means no safe boundary this round. */
   readonly cacheBreakpointFromEnd: number | null;
   /** Absent (never []) on a tool-less turn, so the request stays byte-identical to pre-tools. */
@@ -236,12 +230,18 @@ export interface TurnEconomics {
   readonly content: string;
   readonly reasoning?: string | null;
   readonly model?: string | null;
+  /** ATTRIBUTION (§5.3b): the provider REGISTRY id and the connection row that generated this swipe — both
+   *  denormalised onto the variant so a read outlives an edited or deleted connection. */
   readonly provider?: string | null;
+  readonly connectionId?: UserConnectionId | null;
   readonly tokensIn?: number | null;
   readonly tokensOut?: number | null;
   readonly cacheReadTokens?: number | null;
   readonly cacheWriteTokens?: number | null;
   readonly costUsd?: number | null;
+  /** `measured | estimated | unrecorded` — the SAME tuple as token provenance (§5.3c); a subscription's SDK
+   *  cost is `estimated`, so a rollup never sums it with a metered provider's invoice. */
+  readonly costProvenance?: TokenProvenance | null;
   readonly contextWindow?: number | null;
   readonly maxOutputTokens?: number | null;
   /** How many MODEL CALLS the backend made for this ONE chat turn (the provider contract's `numTurns` —
@@ -254,9 +254,11 @@ export interface TurnEconomics {
    *  backend ignoring the output cap (`docs/design/streaming-shape-churn.md` §7.5). Consumed by the
    *  wire-outcome debug ring; absent/null on a runner that reports none. */
   readonly modelCalls?: number | null;
-  readonly reasoningEffort?: string | null;
+  readonly reasoningEffort?: EffortLevel | null;
   readonly ttftMs?: number | null;
-  readonly finishReason?: string | null;
+  /** The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`) — every wire folds onto it; the two below are the raw
+   *  upstream words kept as OPAQUE provenance (never compared, switched on or joined — §5.3c class 4). */
+  readonly finishReason?: NormalizedFinishReason | null;
   readonly stopReason?: string | null;
   readonly terminalReason?: string | null;
   /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the PD-137 cost key,
@@ -275,9 +277,9 @@ export interface TurnPrep {
   /** The room this turn runs in — keys the lock, the canon persist, and every bus event. */
   readonly chatId: ChatId;
   readonly assembleContext: AssembleContext;
-  readonly connection: ResolvedConnection;
-  /** `triggeredBy` is the responsible human; `runAsUserId` is the host whose box funds the turn. The
-   *  caller (Principal.userId) never reaches this path. */
+  readonly connection: Resolved<"chat">;
+  /** `triggeredBy` is the FUNDER (whose connection the turn runs on); `runAsUserId` is the host whose
+   *  books/cards/preset the turn assembles from (§8.4-3). The caller (Principal.userId) never reaches this path. */
   readonly triggeredBy: UserId;
   readonly runAsUserId: UserId;
   /** The turn's origin (the cascade guard's non-human-initiator seam). Absent ⇒

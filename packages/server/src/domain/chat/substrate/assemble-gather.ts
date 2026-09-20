@@ -72,6 +72,7 @@ async function gatherDatabank(
   ctx: ChatContext,
   args: {
     readonly chatId: ChatId;
+    readonly hostUserId: UserId;
     readonly pendingUserText: string | undefined;
     readonly eligibleContent: readonly string[];
     /** The host's databank settings (DB6), from ForeignInputs — retrieval params + the slot budget. */
@@ -88,6 +89,7 @@ async function gatherDatabank(
   const retrieval = args.foreign.databankRetrieval;
   const result = await ctx.gatherDatabank({
     chatId: args.chatId,
+    hostUserId: args.hostUserId,
     queryText,
     tokenBudget: args.foreign.databankSlotTokenBudget ?? DATABANK_SLOT_TOKEN_BUDGET,
     ...(retrieval !== undefined ? { k: retrieval.k, minScore: retrieval.minScore, rerank: retrieval.rerank } : {}),
@@ -396,7 +398,7 @@ export async function gatherAssembleContext(
       },
       out,
     ),
-    gatherDatabank(ctx, { chatId, pendingUserText: args.pendingUserText, eligibleContent: eligible.map((m) => m.content), foreign }),
+    gatherDatabank(ctx, { chatId, hostUserId: runAsUserId, pendingUserText: args.pendingUserText, eligibleContent: eligible.map((m) => m.content), foreign }),
   ]);
 
   // The host-tier regex union (global ∪ preset ∪ character ∪ room), deterministically ordered/deduped. D121-E:
