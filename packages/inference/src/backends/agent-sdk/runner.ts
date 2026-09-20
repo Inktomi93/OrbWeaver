@@ -25,6 +25,7 @@ import { ProviderError } from "../../contract/errors.ts";
 import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import { resolveDynamicContext } from "../../funnel/resolve-chat.ts";
+import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { toSdkOutputFormat } from "./output-schema.ts";
 import type { SeededSessionDecision, SessionCache } from "./session/index.ts";
@@ -502,6 +503,20 @@ class TurnAccumulator {
   finish(contextUsage?: ContextUsage): ChatResult {
     this.logTurn(true, contextUsage);
     const structuredReply = this.ctx.expectStructured === true && this.structuredOutput !== undefined ? JSON.stringify(this.structuredOutput) : undefined;
+    // The subscription's own receipts, narrowed to the closed per-provider sidecar the variant stores
+    // (`backends/kit/provider-metadata.ts`). `modelUsage` and `apiKeySource` stay OUT of the record on purpose:
+    // the first is a per-model breakdown the stats plane already rolls up from the variant rows themselves, the
+    // second is a turn-LOG canary (sub vs key) with no meaning on a stored generation.
+    const providerMetadata = agentSdkVariantMetadata(this.ctx.providerId, {
+      cacheCreation5mTokens: this.meta.cacheCreation5mTokens,
+      cacheCreation1hTokens: this.meta.cacheCreation1hTokens,
+      webSearchRequests: this.meta.webSearchRequests,
+      warmSpareClaimed: this.meta.warmSpareClaimed,
+      sdkSessionId: this.meta.sdkSessionId,
+      servedModel: this.meta.servedModel,
+      durationApiMs: this.durationApiMs,
+      numTurns: this.numTurns,
+    });
     return {
       reply: structuredReply ?? this.reply.trim(),
       ...(this.ctx.captureTerminalTools === true ? { toolCalls: this.terminalToolCalls } : {}),
@@ -518,7 +533,7 @@ class TurnAccumulator {
       appliedEffort: this.ctx.appliedEffort,
       ...(contextUsage !== undefined ? { contextUsage } : {}),
       usage: this.buildUsage(),
-      providerMetadata: { [this.ctx.providerId]: { ...this.meta } },
+      ...(providerMetadata !== undefined ? { providerMetadata } : {}),
       events: this.events,
       rateLimit: this.rateLimit,
     };

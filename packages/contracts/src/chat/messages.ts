@@ -133,32 +133,72 @@ export const VARIANT_METADATA_REASONING_MS_KEY = "reasoning_duration";
 export const VARIANT_METADATA_TOKEN_COUNT_KEY = "token_count";
 
 /** The FIRST-PARTY arms of the per-provider sidecar: one NAMED shape per provider we ourselves write, keyed
- *  on a `provider` LITERAL so zod dispatches in one lookup and `tsc` narrows a reader to exactly one arm. */
+ *  on a `provider` LITERAL so zod dispatches in one lookup and `tsc` narrows a reader to exactly one arm.
+ *
+ *  WHAT MAY LIVE IN AN ARM — the admission rule, because a sidecar with no rule becomes the open bag again
+ *  wearing types: ONLY a fact the NORMALIZED core cannot carry (§5.3c's own sentence). A field whose value
+ *  the same `message_variants` row already stores in a COLUMN is not provenance, it is a second home for one
+ *  number, and the two drift. That rule retired three fields when the producing fold landed
+ *  (`backends/kit/provider-metadata.ts`): OpenRouter's `cache` receipt (every V4 wire folds
+ *  `prompt_tokens_details.cached_tokens` into `usage.inputTokens.cacheRead` → `cache_read_tokens`), its
+ *  `upstreamGeneration` (that is `generation_id`, its own column), and the anthropic arm's
+ *  `cacheReadTokens`/`cacheWriteTokens` (`cache_read_tokens`/`cache_write_tokens`). Anthropic's REAL
+ *  unnormalizable fact is the ephemeral cache-creation TTL split, which is why its arm now carries the same
+ *  two fields the subscription arm does — one vocabulary for one concept.
+ *
+ *  Every arm below has a live producer; an arm nobody writes is the "contract landed, wiring didn't" shape
+ *  this sidecar exists to end. */
 const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
   z.object({
     provider: z.literal("openrouter"),
-    cache: z.object({ readTokens: z.number().optional(), writeTokens: z.number().optional() }).optional(),
-    /** The OpenRouter `gen-…` handle — an UPSTREAM opaque string, never an orbweaver id (§5.3c class 4). */
-    upstreamGeneration: z.string().optional(),
+    /** WHICH UPSTREAM actually served the generation ("Anthropic", "DeepInfra", …) — OpenRouter's own
+     *  `providerMetadata.openrouter.provider`. NOT our discriminator under another name: `provider` on this
+     *  arm (and `message_variants.provider`) is the orbweaver REGISTRY id, always `openrouter` for a routed
+     *  turn, so without this field the vendor that actually billed is unrecoverable from the record. */
+    upstreamProvider: z.string().optional(),
+    /** `usage.costDetails.upstreamInferenceCost` — what the upstream charged before OpenRouter's own fee. It
+     *  reaches `cost_details.upstreamUsd` ONLY on a BYOK turn (where the split is the spend); on a
+     *  passthrough turn the column records OR's total and this is the only record of the upstream figure. */
     upstreamCost: z.number().optional(),
   }),
   z.object({
     provider: z.literal("claude-sub"),
+    /** The ephemeral cache-creation split by TTL (`usage.cache_creation.ephemeral_{5m,1h}_input_tokens`).
+     *  `cache_write_tokens` is their SUM — the split itself has no normalized home. */
     cacheCreation5mTokens: z.number().optional(),
     cacheCreation1hTokens: z.number().optional(),
+    /** Server-side web-search calls the SDK billed for this turn — dropped from `ChatUsage` by §5.3c
+     *  precisely because it is Anthropic-shaped, and landed here instead of nowhere. */
+    webSearchRequests: z.number().optional(),
     warmSpareClaimed: z.boolean().optional(),
     durationApiMs: z.number().optional(),
     numTurns: z.number().optional(),
     sdkSessionId: z.string().optional(),
     servedModel: z.string().optional(),
   }),
-  z.object({ provider: z.literal("anthropic"), cacheReadTokens: z.number().optional(), cacheWriteTokens: z.number().optional() }),
+  z.object({
+    provider: z.literal("anthropic"),
+    /** The same TTL split as the subscription arm, off `providerMetadata.anthropic.usage` (the RAW
+     *  snake-cased Anthropic usage the SDK passes through as a loose object). */
+    cacheCreation5mTokens: z.number().optional(),
+    cacheCreation1hTokens: z.number().optional(),
+  }),
 ]);
 
 /** A PLUGIN provider's arm. Its `provider` is a PATTERN (`plugin:<namespace>/<id>`), not a literal — plugin
  *  ids are runtime data, so the set is unenumerable by construction. `raw` is `JsonValue` per §5.3c: storable
- *  and re-parsable, with NO reader by key (the `ReasoningPartMeta.openrouter.reasoningDetails` posture). */
-const pluginProviderMetadataSchema = z.object({ provider: z.string().regex(/^plugin:[a-z0-9-]+\/[a-z0-9-]+$/u), raw: jsonValueSchema });
+ *  and re-parsable, with NO reader by key (the `ReasoningPartMeta.openrouter.reasoningDetails` posture).
+ *
+ *  A TEMPLATE LITERAL, never `z.string().regex(…)`, and the difference is the union's whole promise: a bare
+ *  `string` here ABSORBS every named arm's literal, so `meta.provider === "claude-sub"` narrowed to
+ *  `claude-sub | plugin` and reading the subscription's own field off it did not compile. The inferred
+ *  template type (`plugin:` + string) excludes the three named ids, so a reader narrows by the discriminator
+ *  and lands on exactly one arm. The regex still runs — `templateLiteral` composes its parts' patterns, so
+ *  `plugin:BAD`, `plugin:a/b/c` and a bare vendor name are all refused at the seam (probed 2026-09-20). */
+const pluginProviderMetadataSchema = z.object({
+  provider: z.templateLiteral(["plugin:", z.string().regex(/^[a-z0-9-]+\/[a-z0-9-]+$/u)]),
+  raw: jsonValueSchema,
+});
 
 /** The per-provider OPAQUE-BY-DECLARATION sidecar a variant carries (§5.3c): a CLOSED union of NAMED shapes —
  *  a reader like the OpenRouter cost pill names a typed field or does not compile; a plugin provider's payload

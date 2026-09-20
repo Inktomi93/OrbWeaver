@@ -10,7 +10,7 @@
 // `maxContextTokens` was dropped on the live path (F6). If any of those regress, `toEqual` drifts.
 
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
-import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
+import { parseVariantMetadata, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -500,5 +500,64 @@ describe("engine stats — the live turn stamps the reasoning window (#184)", ()
     await reconcileStats(db, { ownerId: HOST, now: createFrozenClock(FROZEN_AT + 5000).now });
     const reconciled = await snapshotRollups(db, HOST);
     expect(reconciled.owner).toMatchObject({ reasoningMs: reasoningWindowMs });
+  });
+
+  // THE SECOND HALF OF THE SAME SIDECAR (§5.3c). The per-provider record had both ends built and neither
+  // connected: the backends accumulated the vendor bag into `ChatResult.providerMetadata`, the closed union sat
+  // in contracts with zero importers, and the engine wrote a sidecar that could only ever hold one key — so the
+  // subscription's warm-spare receipt and session lineage, and OpenRouter's upstream charge, were measured once
+  // per turn and dropped. RED-FIRST against the unmodified source: the assertion is on the PERSISTED ROW read
+  // back through the contract's own parser, so it runs either way and pre-fix reports `{ reasoning_duration }`
+  // with the provider arm missing.
+  test("a turn whose runner reported per-provider provenance persists it BESIDE the reasoning window, under one parsed sidecar", async () => {
+    let t = FROZEN_AT;
+    const providerMetadata = { provider: "claude-sub", warmSpareClaimed: true, sdkSessionId: "sess-9", cacheCreation1hTokens: 4096 } as const;
+    const receiptTurn: RunChatTurn = () =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.resolve();
+        yield { kind: "reasoning", text: "thinking" };
+        t += reasoningWindowMs;
+        yield { kind: "text", text: "a cached reply" };
+        yield {
+          kind: "final",
+          economics: {
+            content: "a cached reply",
+            reasoning: "thinking",
+            tokensIn: 10,
+            tokensOut: 20,
+            contextWindow: 1000,
+            model: "claude-opus-5",
+            provider: "claude-sub",
+            providerMetadata,
+          },
+        };
+      })();
+
+    const ctx = makeChatContext(db, { now: () => t, runChatTurn: receiptTurn as never, applyStatsDelta: (): void => undefined });
+    const engine = createTurnEngine(ctx, {
+      emit: (): Promise<void> => Promise.resolve(),
+      holder: "replica-1",
+      lockTtlMs: 60_000,
+      generateSegments: async () => ({ written: 0, skipped: 0 }),
+      generateDigests: async () => ({ written: 0, skipped: 0 }),
+      loadWitnessHorizons,
+      recallMemory,
+      runCompaction: stubRunCompaction,
+    });
+
+    await engine.runTurn(prepOf(chatId, { kind: "send", speakerCharacterId: charId }));
+
+    const variant = (await db.select().from(messageVariants))[0];
+    // Through `parseVariantMetadata`, never the drizzle `$type` cast: a blob the contract's own parser refuses
+    // is a silent data drop at the next history read, which is the failure this whole class-3 seam exists to stop.
+    const parsed = parseVariantMetadata(variant?.metadata);
+    expect(parsed, "both producers of this column must land in ONE parsed sidecar").toEqual({
+      [VARIANT_METADATA_REASONING_MS_KEY]: reasoningWindowMs,
+      providerMetadata,
+    });
+    // Read through the DISCRIMINATOR — the point of the closed union over the bag it replaced: `warmSpareClaimed`
+    // is only reachable after the `provider` narrow, and reaching for it on any other arm does not compile.
+    const arm = parsed.providerMetadata;
+    expect(arm !== undefined && arm.provider === "claude-sub" && arm.warmSpareClaimed).toBe(true);
   });
 });

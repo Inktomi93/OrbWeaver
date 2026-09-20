@@ -234,11 +234,23 @@ async function readCommittedView(ctx: ChatContext, messageId: MessageId): Promis
  * (the import), which is why `owner_stats.reasoning_ms` was pure archaeology: every turn this app generated
  * itself counted 0ms.
  *
- * Null (not `{}`) when the turn never reasoned: an empty blob would make the column's "has a sidecar"
- * question a lie and costs a row of JSON for nothing.
+ * THE SECOND KEY is the per-provider sidecar the runtime narrowed (`TurnEconomics.providerMetadata`). Its
+ * two halves had both been built and neither was connected: the backends accumulated the vendor bag and the
+ * closed union sat in contracts with no importer, so the ephemeral cache-creation split, the warm-spare
+ * receipt and OpenRouter's upstream charge were collected once per turn and dropped. This is the join.
+ *
+ * Null (not `{}`) when the turn recorded NEITHER: an empty blob would make the column's "has a sidecar"
+ * question a lie and costs a row of JSON for nothing. Takes the whole pipeline result rather than its parts
+ * because the variant row and the live stats-mirror row MUST persist the IDENTICAL blob — they are
+ * reconciled against each other, and two call sites assembling it separately is how they drift.
  */
-function liveVariantMetadata(reasoningMs: number | null): VariantMetadata | null {
-  return reasoningMs === null ? null : { [VARIANT_METADATA_REASONING_MS_KEY]: reasoningMs };
+function liveVariantMetadata(result: Awaited<ReturnType<typeof runTurnPipeline>>): VariantMetadata | null {
+  const providerMetadata = result.economics?.providerMetadata;
+  const sidecar: VariantMetadata = {
+    ...(result.reasoningMs === null ? {} : { [VARIANT_METADATA_REASONING_MS_KEY]: result.reasoningMs }),
+    ...(providerMetadata === null || providerMetadata === undefined ? {} : { providerMetadata }),
+  };
+  return Object.keys(sidecar).length === 0 ? null : sidecar;
 }
 
 /** Builds the variant payload (content + reasoning + economics + per-swipe snapshot) — every persist mode
@@ -253,8 +265,9 @@ function variantPayloadOf(
   return {
     content: result.content,
     reasoning: result.reasoning,
-    // The measured reasoning window (#184) — the live producer the three stats readers were missing.
-    metadata: liveVariantMetadata(result.reasoningMs),
+    // The measured reasoning window (#184 — the live producer the three stats readers were missing) and the
+    // runtime's per-provider sidecar (§5.3c), in ONE parsed blob.
+    metadata: liveVariantMetadata(result),
     ...economicsCommon(e),
     contextWindow: e?.contextWindow ?? null,
     maxOutputTokens: e?.maxOutputTokens ?? null,
@@ -324,9 +337,9 @@ function generatedRowEconomics(
     genFinishedAt,
     model: e?.model ?? null,
     provider: e?.provider ?? null,
-    // The SAME blob the variant row persists (#184): the live stats mirror folds `reasoning_duration` exactly
-    // as `reconcileStats` re-derives it from the written row, so the two can never disagree about this turn.
-    metadata: liveVariantMetadata(result.reasoningMs),
+    // The SAME blob the variant row persists (#184 + §5.3c): the live stats mirror folds `reasoning_duration`
+    // exactly as `reconcileStats` re-derives it from the written row, so the two can never disagree.
+    metadata: liveVariantMetadata(result),
   };
 }
 

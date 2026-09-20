@@ -2,7 +2,7 @@
 // the runtime handed it and calls the executor; it never sees sessions, seed frames, child env or transport
 // spelling. Discriminated on `api` (the protocol axis) — never on a wire or a provider id.
 
-import type { ChatContentPart } from "@orb/contracts/chat";
+import type { ChatContentPart, VariantProviderMetadata } from "@orb/contracts/chat";
 import type { ChatUsage, NormalizedFinishReason } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -226,9 +226,18 @@ export interface ChatResult {
    *  Read back from the options the transport built, never recomputed from the knobs. */
   readonly appliedEffort: EffortLevel | null;
   readonly usage: ChatUsage;
-  /** Wire-opaque facts the normalized core cannot carry (the agent-sdk 5m/1h cache split, warm-spare, the OR
-   *  cache receipt) — keyed by provider id at the read seam into `variantMetadataSchema.providerMetadata`. */
-  readonly providerMetadata?: Readonly<Record<string, unknown>> | undefined;
+  /** Wire-opaque facts the normalized core cannot carry (the 5m/1h cache-creation split, warm-spare, the
+   *  OpenRouter upstream vendor + its pre-fee charge) — ALREADY NARROWED to the closed per-provider union
+   *  `message_variants.metadata.providerMetadata` stores (§5.3c class 3).
+   *
+   *  WHY THE NARROW HAPPENS HERE AND NOT AT THE CONSUMER: the SDK's bag is `Record<string, unknown>` keyed
+   *  by the vendor's own name, and only the BACKEND knows which keys that vendor spells. Typing this field
+   *  as the bag would push per-provider shape knowledge up into the server's compose seam — the exact
+   *  inversion `Tier-3b-Providers` forbids in the other direction — and would leave an open bag crossing a
+   *  package boundary with a closed union sitting one hop away (the #164 defect this record exists to end).
+   *  So the untyped bag never leaves `backends/**`: `backends/kit/provider-metadata.ts` is its ONE reader,
+   *  and what crosses this contract is a value a reader narrows by `provider` or does not compile. */
+  readonly providerMetadata?: VariantProviderMetadata | undefined;
   /** Inline reply pictures (§6.7) — a chat model whose `output.modalities ∋ image` answered with them. */
   readonly images?: readonly GeneratedImage[] | undefined;
   readonly contextUsage?: ContextUsage | undefined;

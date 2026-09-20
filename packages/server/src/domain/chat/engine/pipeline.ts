@@ -1133,7 +1133,10 @@ function toolExchangeMessages(depthText: string, batch: readonly ToolCallRecord[
 }
 
 /** Folds one depth's economics into the turn aggregate: counts/costs sum (absent stays absent), ttftMs is
- *  the first depth's, terminal reasons/model/window are the last depth's. */
+ *  the first depth's, terminal reasons/model/window are the last depth's. The per-provider sidecar rides the
+ *  `...next` spread with that last group ON PURPOSE: it is one call's RECEIPT (a session id, a warm-spare
+ *  flag, the vendor that served it), not an accumulating count, and the legs of a tool loop may not even
+ *  share a provider — summing across arms of a discriminated union would invent a turn that never ran. */
 function aggregateEconomics(acc: TurnEconomics | null, next: TurnEconomics | null): TurnEconomics | null {
   if (acc === null) {
     return next;
