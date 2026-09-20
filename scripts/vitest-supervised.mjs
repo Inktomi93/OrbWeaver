@@ -128,6 +128,25 @@ const CONFIG_RE = /^--config=(.+)$/u;
 const RESULT_LINE_RE = /^\s*[✓×❯↓]\s+\|[^|]*\|\s+(\S+)/u;
 const COMPLETED_TAIL = 8;
 const MAX_ATTEMPTS = 2;
+/** THE SECOND NON-VERDICT SHAPE (#2472). A WEDGE is not the only way vitest fails to produce a verdict: a
+ *  worker fork can DIE — SIGKILL, a heap abort, an OOM reap — and vitest then FINALIZES NORMALLY and exits
+ *  1, the same number a real `expect` failure exits with. Measured 2026-09-20 with a spec that SIGKILLs its
+ *  own fork: exit 1, the lines below on stderr, and NO json report written at all, so nothing downstream
+ *  can tell the two apart. That made `tests:instrument-affected` record `ok:false, exitCode:1` — "your
+ *  tests failed" — over a harness that died, which is the exact reading the owner ruling forbids ("a
+ *  checker OOM / kill / timeout is exit-2 class; THE RUN IS NOT A VERDICT").
+ *
+ *  The #1490 ruling in the header is not reversed, it is EXTENDED: its mechanism (a run that never
+ *  finalized is a TOOL ERROR, never a number) was keyed on the one non-verdict shape known then. The input
+ *  changed — there is a second one, and it needs no watchdog because vitest announces it. These patterns
+ *  are the pool's OWN framing, matched on the stream `absorb()` already reads for the watchdog; each
+ *  carries the sentence the refusal prints, so the exit says WHAT died and not merely that something did. */
+const NON_VERDICT_PATTERNS = [
+  { re: /\[vitest-pool\]:/u, what: "the vitest worker pool raised an unhandled error" },
+  { re: /Worker exited unexpectedly/u, what: "a vitest worker fork exited without reporting its files" },
+  { re: /JavaScript heap out of memory/u, what: "a vitest process aborted on a JavaScript heap OOM" },
+  { re: /ERR_IPC_CHANNEL_CLOSED/u, what: "a vitest worker's IPC channel closed mid-run" },
+];
 /** CPU jiffies (10 ms each) the process tree must burn between ticks to count as ALIVE. A wedged tree sits
  *  in `ep_poll` at exactly 0; any real work is orders of magnitude above this. */
 const CPU_PROGRESS_JIFFIES = 5;
@@ -438,6 +457,24 @@ function vitestBin() {
   return resolveUnder(process.env["ORB_VITEST_BIN"] ?? "node_modules/vitest/vitest.mjs");
 }
 
+/** The spec operands a caller NAMED that never printed a result line (#2472). "Not a verdict" must never
+ *  degrade to "no information": when a fork dies, the reader needs the files that went down with it, not
+ *  just the fact that something did. Only positional operands can be enumerated — a whole-project run
+ *  names no files, and this correctly answers `[]` there rather than inventing a set. `completed` holds the
+ *  paths the default reporter printed, which are repo-relative exactly like the operands. */
+function unreportedSpecs(args, completed) {
+  // The operand block is the run of non-flag arguments IMMEDIATELY after the `run` subcommand, and nothing
+  // else. Anything looser mistakes a flag's VALUE for a file (`--project tooling`, `--config <path>`) and
+  // names a spec that never existed, which is a worse lie than the one being fixed. Under-claiming is safe:
+  // it degrades to the honest "the file set was not enumerated by operand" line.
+  const start = args.indexOf("run") + 1;
+  const operands = [];
+  for (let i = start; i > 0 && i < args.length && !args[i].startsWith("-"); i += 1) {
+    operands.push(args[i]);
+  }
+  return operands.filter((operand) => ![...completed].some((done) => done === operand || done.endsWith(operand) || operand.endsWith(done)));
+}
+
 let activeChild = null;
 
 /** SIGKILL a child's whole process group (negative pid). Best-effort — the group may already be gone. */
@@ -451,8 +488,10 @@ function killGroup(child) {
   }
 }
 
-/** Run ONE vitest process to completion or to a wedge. Resolves `{ wedged, code }` — `code` is the child's
- *  own exit code on a natural exit, or the report-derived verdict on a wedge. Never throws. */
+/** Run ONE vitest process to completion or to a wedge. Resolves `{ wedged, code, nonVerdict }` — `code` is
+ *  the child's own exit code on a natural exit, or the report-derived verdict on a wedge; `nonVerdict` is
+ *  the sentence naming what DIED when this attempt produced no verdict at all (#2472), else null. Never
+ *  throws. */
 function runOnce({ args, reportFile, label, attempt, previousFiles }) {
   const limit = hangLimitMs();
   // Freshness guarantee: a STALE report must never be read as this attempt's verdict.
@@ -473,6 +512,10 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
   let lastOutput = Date.now();
   let lastProgress = Date.now();
   let carry = "";
+  // The FIRST non-verdict sentence this attempt printed, or null. First rather than last on purpose: the
+  // pool's own framing line comes before the stack that repeats it, and one crash is already enough to
+  // disqualify the run's number.
+  let nonVerdict = null;
   function absorb(chunk) {
     lastOutput = Date.now();
     lastProgress = lastOutput;
@@ -483,6 +526,9 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
       const m = line.match(RESULT_LINE_RE);
       if (m) {
         completed.add(m[1]);
+      }
+      if (nonVerdict === null) {
+        nonVerdict = NON_VERDICT_PATTERNS.find((pattern) => pattern.re.test(line))?.what ?? null;
       }
     }
   }
@@ -536,15 +582,25 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
         writeWedgeDump({ label, attempt, pid: child.pid, completed, previousFiles, reportFile, sinceOutput, sinceProgress, startedAt });
       }
       killGroup(child);
-      finish({ wedged: true, code: verdictFromReport(reportFile) });
+      finish({ wedged: true, code: verdictFromReport(reportFile), nonVerdict });
     }, tickMs).unref();
 
     child.on("error", (err) => {
       log(`${label}: failed to spawn vitest: ${err.message}`);
-      finish({ wedged: false, code: 1 });
+      finish({ wedged: false, code: 1, nonVerdict: `vitest could not be spawned at all (${err.message})` });
     });
-    // A signal-terminated child (not by us — the wedge path settles first) is a failure, never a silent pass.
-    child.on("exit", (code, signal) => finish({ wedged: false, code: signal ? 1 : (code ?? 1) }));
+    // A signal-terminated child (not by us — the wedge path settles first) is a failure, never a silent
+    // pass — and since #2472 it is not a VERDICT either. A vitest the kernel killed (SIGKILL from an OOM
+    // reap, SIGABRT from a heap abort, SIGSEGV) never finalized, which is the owner's exit-2 class in its
+    // purest form: "exit 134/137, a heap abort, or a wall-clock kill … means THE RUN IS NOT A VERDICT".
+    child.on("exit", (code, signal) =>
+      finish({
+        wedged: false,
+        code: signal ? 1 : (code ?? 1),
+        nonVerdict: signal ? `the vitest process itself was terminated by ${signal} before it finalized` : nonVerdict,
+        unreported: unreportedSpecs(args, completed),
+      }),
+    );
   });
 }
 
@@ -581,14 +637,34 @@ async function runShard({ args, reportFile, label }) {
   // wedged and then RE-RAN to a natural exit has a real verdict — vitest finalized on attempt 2 — while a
   // shard whose final attempt was killed has only a report we read off the floor. The caller's exit code
   // keys on `wedged`; the count stays for the evidence line.
-  return { label, code: result.code, wedged: result.wedged, wedges, reportFile, loadSuspect: loadSuspectFromReport(reportFile) };
+  // `nonVerdict` is the LAST attempt's, for the same reason `wedged` is: a shard that crashed a fork and
+  // then RE-RAN to a clean finalize has a real verdict on the attempt that counts (#2472).
+  return {
+    label,
+    code: result.code,
+    wedged: result.wedged,
+    wedges,
+    reportFile,
+    nonVerdict: result.nonVerdict ?? null,
+    unreported: result.unreported ?? [],
+    loadSuspect: loadSuspectFromReport(reportFile),
+  };
 }
 
 /** Fold the shard reports into the ONE `--outputFile.json` contract the rest of the repo reads. Numeric
  *  `num*` counters sum, `testResults` concatenate, and `success` is true only when every shard's own
  *  verdict is 0 — so the merged file satisfies the SAME predicate a single run's report does. */
 function foldShardInto(merged, shard) {
-  merged.orbShards.push({ project: shard.label, exitCode: shard.code, wedges: shard.wedges, loadSuspect: shard.loadSuspect });
+  merged.orbShards.push({
+    project: shard.label,
+    exitCode: shard.code,
+    wedges: shard.wedges,
+    // The #2472 evidence lands in the ARTIFACT too, not only on stderr: a reader parsing the report must be
+    // able to tell a dead harness from a red without having kept the scrollback.
+    nonVerdict: shard.nonVerdict,
+    unreported: shard.unreported,
+    loadSuspect: shard.loadSuspect,
+  });
   let report;
   try {
     report = JSON.parse(readFileSync(shard.reportFile, "utf-8"));
@@ -617,9 +693,17 @@ function foldShardInto(merged, shard) {
  *  `process.exit(shard.code)` shipped a 0 — so `pnpm verify --push`, which keys on the exit code, read a
  *  killed run as green. The containment MECHANISM is unchanged (kill · dump · consult the report · one
  *  re-run); only the number is honest now. A shard that wedged and then RE-RAN to a natural exit is still
- *  0/1: that attempt finalized, which is exactly what the re-run is for. */
+ *  0/1: that attempt finalized, which is exactly what the re-run is for.
+ *
+ *  #2472 EXTENDS THAT RULING WITHOUT REVERSING IT. The wedge was the only non-verdict shape this function
+ *  knew, because it was the only one that needed a watchdog to notice. A DEAD WORKER FORK needs none —
+ *  vitest announces it, finalizes normally, and exits 1, the same number a real `expect` failure exits
+ *  with. Same mechanism ("a run that never finalized is not a number"), new input. A shard that crashed a
+ *  fork AND has genuine reds is still 2: the files that went down with the fork never reported, so what
+ *  survives is a partial observation, not a verdict — `announceNonVerdicts` prints both halves so
+ *  "not a verdict" never degrades into "no information". */
 function exitCodeFor(shards) {
-  if (shards.some((s) => s.wedged)) {
+  if (shards.some((s) => s.wedged || s.nonVerdict !== null)) {
     return EXIT_TOOL_ERROR;
   }
   return shards.every((s) => s.code === 0) ? 0 : 1;
@@ -628,7 +712,8 @@ function exitCodeFor(shards) {
 function mergeReports(shards, out) {
   // `success` obeys the same rule as the exit code: a run whose final attempt was killed is not a pass,
   // whatever the report the corpse left behind says (#1490).
-  const merged = { success: shards.every((s) => s.code === 0 && !s.wedged), testResults: [], orbShards: [] };
+  // …and a shard whose fork died is not a pass either, for the same reason: some files never reported (#2472).
+  const merged = { success: shards.every((s) => s.code === 0 && !s.wedged && s.nonVerdict === null), testResults: [], orbShards: [] };
   for (const shard of shards) {
     foldShardInto(merged, shard);
   }
@@ -667,6 +752,60 @@ function announceWedges(shards) {
       `EXIT ${EXIT_TOOL_ERROR} (TOOL ERROR, not a verdict): ${unfinished.map((s) => s.label).join(", ")} — the LAST attempt was killed, so vitest never finalized. Re-run on a quiet tree.`,
     );
   }
+}
+
+/** Stamp the non-verdict into the report vitest itself wrote (#2472). The UNSHARDED path has no merge step
+ *  — vitest writes the caller's report file directly — and its report is actively misleading after a fork
+ *  death: measured 2026-09-20, a spec whose fork was SIGKILLed lands in `testResults` as `passed`, because
+ *  nothing ever reported a failure for it. `success` and `orbShards` are the two keys every downstream
+ *  reader already consults, so the correction goes THERE rather than into a second vocabulary. A report
+ *  that cannot be read or written is not escalated: the exit code is already 2 and already correct. */
+function stampNonVerdict(reportFile, shard) {
+  if (shard.nonVerdict === null) {
+    return;
+  }
+  try {
+    const report = JSON.parse(readFileSync(reportFile, "utf-8"));
+    report.success = false;
+    report.orbShards = [
+      {
+        project: shard.label,
+        exitCode: shard.code,
+        wedges: shard.wedges,
+        nonVerdict: shard.nonVerdict,
+        unreported: shard.unreported,
+        loadSuspect: shard.loadSuspect,
+      },
+    ];
+    writeFileSync(reportFile, JSON.stringify(report));
+  } catch {
+    /* no report, or an unwritable one — stderr and the exit code carry the refusal. */
+  }
+}
+
+/** SHOUT EVERY NON-VERDICT (#2472) — a dead fork, a signal-killed vitest, a failed spawn. The refusal is
+ *  deliberately three sentences and not one word: it names WHAT died, WHICH named spec operands never
+ *  printed a result line, and — the part that must never be dropped — that whatever DID fail underneath is
+ *  still in the report. "This is not a verdict" is a statement about completeness, never a reason to throw
+ *  away the partial observation; a reader needs the crash AND the reds under it to know what to re-run. */
+function announceNonVerdicts(shards) {
+  const hit = shards.filter((s) => s.nonVerdict !== null && !s.wedged);
+  if (hit.length === 0) {
+    return;
+  }
+  log(`EXIT ${EXIT_TOOL_ERROR} (TOOL ERROR, not a verdict) — the harness died, this run did not fail:`);
+  for (const shard of hit) {
+    log(`  · ${shard.label}: ${shard.nonVerdict}.`);
+    log(
+      shard.unreported.length > 0
+        ? `    never reported (${shard.unreported.length}): ${shard.unreported.join(", ")}`
+        : "    no spec operands were named, so the files that went down cannot be enumerated — compare the report's testResults against the intended set.",
+    );
+  }
+  log(
+    `vitest exited ${hit.map((s) => String(s.code)).join("/")} here, which is the SAME number a real assertion failure exits with — that is the lie #2472 closes. ` +
+      "Any failure that DID report is still in the report and is still real; re-run on a quiet tree to get a verdict on the rest.",
+  );
 }
 
 /** Shout the #1616 load-suspect arms. Silence here is a claim that every measured rate was a verdict. */
@@ -715,7 +854,9 @@ async function main() {
   if (projects.length < 2 || !projects.every(exactProjectSelector)) {
     const args = [...executionArgs, ...projects.flatMap((p) => ["--project", p]), `--outputFile.json=${mergedFile}`];
     const shard = await runShard({ args, reportFile: mergedFile, label: projects.length === 1 ? projects[0] : "filtered" });
+    stampNonVerdict(mergedFile, shard);
     announceWedges([shard]);
+    announceNonVerdicts([shard]);
     announceLoadSuspect([shard]);
     publish(alias, false);
     process.exit(exitCodeFor([shard]));
@@ -733,6 +874,7 @@ async function main() {
   mergeReports(shards, mergedFile);
   publish(alias, true);
   announceWedges(shards);
+  announceNonVerdicts(shards);
   announceLoadSuspect(shards);
   for (const shard of shards) {
     log(`shard ${shard.label}: exit ${shard.code}${shard.wedges > 0 ? ` (after ${shard.wedges} wedge kill(s))` : ""}`);
