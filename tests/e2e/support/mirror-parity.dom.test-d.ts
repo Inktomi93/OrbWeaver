@@ -35,6 +35,7 @@
 // are listed at the bottom — that list is the honest scope statement, not an oversight.
 
 import type { ContextFitPreview as ContractContextFitPreview, GroupConfig, GuidedSteer, MessageView, ParticipantView, ShapeTrace } from "@orb/contracts/chat";
+import type { ConnectionBinding, ResolvedConnectionView, RoutableTask, UnavailableCause, UserConnection } from "@orb/contracts/inference";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import type {
   RpgActorIdentity,
@@ -66,14 +67,17 @@ import type {
   CanonMessage,
   CompactionIntent,
   ConfigView,
+  ConnectionRow,
   ContextFitPreview,
   GameView,
   GroupConfigView,
   GuidedSteerInput,
   JournalEntry,
+  NewConnection,
   RevealView,
   RosterSeat,
   ShapeTraceView,
+  TaskBinding,
   TrackerActor,
   TrackerView,
   UserSettings,
@@ -391,8 +395,10 @@ type NonSectionKeys = "schemaVersion";
 type SettingsBlobKeys = UserSettingsSection | NonSectionKeys;
 
 test("the settings mirrors project the ONE UserSettings config blob", () => {
-  // Two readers, two projections of the SAME blob: `getUserSettings` reads routing + seeds, the #16
-  // render-truth spec's reader reads appearance + theme (the add-only support rule). Each skip list is
+  // Two readers, two projections of the SAME blob: `getUserSettings` reads seeds (it read `routing` too until
+  // that section left the tuple with the inference program — a model pick is a `connection_bindings` row now,
+  // pinned below, not a settings leaf), the #16 render-truth spec's reader reads appearance + theme (the
+  // add-only support rule). Each skip list is
   // "the declared blob keys minus the ones THIS reader projects" — so a new SECTION is out of scope by
   // construction (correct: a reader projects what its specs assert), while a key that appears in the blob
   // WITHOUT joining the tuple, or a renamed section the mirror still spells, reds.
@@ -406,6 +412,43 @@ test("the settings mirrors project the ONE UserSettings config blob", () => {
   expectTypeOf<ContractUserSettings["appearance"]["backgroundImageKind"]>().toExtend<AppearanceThemeSettings["config"]["appearance"]["backgroundImageKind"]>();
   expectTypeOf<ContractUserSettings["appearance"]["backgroundAssetHash"]>().toExtend<AppearanceThemeSettings["config"]["appearance"]["backgroundAssetHash"]>();
   expectTypeOf<ContractUserSettings["theme"]["selectedThemeId"]>().toExtend<AppearanceThemeSettings["config"]["theme"]["selectedThemeId"]>();
+});
+
+test("the connection + Model-roles mirrors track `@orb/contracts/inference`", () => {
+  // The harness authors ONE connection (globalSetup's local engine; the local mode's fixture provider) and
+  // re-points ONE binding, so each mirror carries the handful of fields a spec matches or asserts on. The
+  // skip lists are therefore long BY DESIGN — what matters is that a RENAMED or RETYPED field reds, which is
+  // exactly what `phantom: never` + the value axis below do.
+  pin<Subset<Exclude<keyof UserConnection, keyof ConnectionRow>>>(keys<ConnectionRow, UserConnection>());
+  expectTypeOf<UserConnection["id"]>().toExtend<ConnectionRow["id"]>();
+  expectTypeOf<UserConnection["label"]>().toExtend<ConnectionRow["label"]>();
+  expectTypeOf<UserConnection["providerId"]>().toExtend<ConnectionRow["providerId"]>();
+  expectTypeOf<UserConnection["model"]>().toExtend<ConnectionRow["model"]>();
+
+  // The INPUT half — what `connection.create` is SENT. `Total` normalizes the two flags the mirror leaves
+  // optional and the contract states outright; the key axis is what catches a writable field being renamed.
+  pin<Subset<Exclude<keyof UserConnection, keyof NewConnection>>>(keys<NewConnection, UserConnection>());
+  expectTypeOf<Total<UserConnection>["baseUrl"]>().toExtend<Total<NewConnection>["baseUrl"]>();
+  expectTypeOf<Total<UserConnection>["credentialId"]>().toExtend<Total<NewConnection>["credentialId"]>();
+  expectTypeOf<Total<UserConnection>["modelListed"]>().toExtend<Total<NewConnection>["modelListed"]>();
+  expectTypeOf<Total<UserConnection>["allowBackground"]>().toExtend<Total<NewConnection>["allowBackground"]>();
+
+  // `TaskBinding.binding` mirrors the ROW (`ConnectionBinding`) and `.resolved` the persisted-resolve view.
+  // The ENVELOPE around them (`BindingView` — `{ task, binding, resolved, unavailableCause }`) is a
+  // `domain/connection` result shape with no `@orb/contracts` home, so it is listed as unpinnable below.
+  type MirrorBindingRow = NonNullable<TaskBinding["binding"]>;
+  type MirrorResolved = NonNullable<TaskBinding["resolved"]>;
+  pin<Subset<Exclude<keyof ConnectionBinding, "connectionId">>>(keys<MirrorBindingRow, ConnectionBinding>());
+  expectTypeOf<ConnectionBinding["connectionId"]>().toExtend<MirrorBindingRow["connectionId"]>();
+  pin<Subset<Exclude<keyof ResolvedConnectionView, keyof MirrorResolved>>>(keys<MirrorResolved, ResolvedConnectionView>());
+  expectTypeOf<ResolvedConnectionView["connectionId"]>().toExtend<MirrorResolved["connectionId"]>();
+  expectTypeOf<ResolvedConnectionView["providerId"]>().toExtend<MirrorResolved["providerId"]>();
+  expectTypeOf<ResolvedConnectionView["api"]>().toExtend<MirrorResolved["api"]>();
+  expectTypeOf<ResolvedConnectionView["model"]>().toExtend<MirrorResolved["model"]>();
+  // `task` / `unavailableCause` are deliberately widened to `string` (the `no-inline-union-redecl` posture),
+  // so the homed unions must stay ASSIGNABLE to them — a member turned non-string reds here.
+  expectTypeOf<RoutableTask>().toExtend<TaskBinding["task"]>();
+  expectTypeOf<UnavailableCause>().toExtend<NonNullable<TaskBinding["unavailableCause"]>>();
 });
 
 // ── UNPINNABLE HERE (no `@orb/contracts` home — the honest scope statement) ───────────────────────────

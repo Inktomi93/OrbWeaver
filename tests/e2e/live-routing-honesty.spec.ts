@@ -1,8 +1,10 @@
-// E2E SPEND-GUARD (@live): the settings-are-what's-USED proof — the regression test that goes RED before
-// credits burn if someone breaks the local-routing pin. Two halves, one turn:
-//   1. STORED — settings.getUserSettings().config.routing.roleDefaults.chat is the local pin globalSetup
-//      wrote ({ api: "chat-completions", source: "vllm" } — the D109 local wire; agent-sdk × vllm retired).
-//      Guards against the seed silently drifting.
+// E2E SPEND-GUARD (@live): the config-is-what's-USED proof — the regression test that goes RED before
+// credits burn if someone breaks the local-model pin. Two halves, one turn:
+//   1. STORED — the `chat` Model-roles row (connection.listBindings) is bound to the local-engine connection
+//      globalSetup authored, and RESOLVES to it: provider `vllm` on the `chat-completions` api. Guards
+//      against the seed silently drifting. This read is strictly stronger than the settings blob it
+//      replaces: `resolved` is the PERSISTED-read resolve the pane renders (§5.3a), so a stored pin the
+//      resolver would refuse shows up here as `unavailableCause` rather than as a green leaf.
 //   2. USED — drive one real turn and prove it rode the LOCAL engine, not a hosted one: the gen engine log
 //      (.cache/stack/vllm-gen.log) gains a message-POST during the turn, AND the new assistant canon row's
 //      `model` is the local leaf alias "Qwen3-VL-8B-Instruct". Stored-config alone is not proof (a broken
@@ -21,7 +23,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
-import { getUserSettings, listCanon, listCharacters, startChat } from "./support/trpc.ts";
+import { getChatBindingRow, listCanon, listCharacters, localEngineConnection, startChat } from "./support/trpc.ts";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
 const GEN_POST_MARKER = "POST /v1/chat/completions";
@@ -32,16 +34,19 @@ async function genPostCount(): Promise<number> {
   return text.split("\n").filter((l) => l.includes(GEN_POST_MARKER)).length;
 }
 
-test("routing pin is what's stored AND what the turn actually rides (local vLLM)", {
+test("the chat Model role is what's stored AND what the turn actually rides (local vLLM)", {
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(180_000);
 
-  // ── 1. STORED — the pin globalSetup wrote is present (the seed hasn't drifted). ──
-  const settings = await getUserSettings();
-  const chatRoute = settings.config.routing?.roleDefaults?.chat;
-  expect(chatRoute?.api).toBe("chat-completions");
-  expect(chatRoute?.source).toBe("vllm");
+  // ── 1. STORED — the pin globalSetup wrote is present (the seed hasn't drifted). The binding names the
+  // row; the persisted resolve says the row still answers as the local openai-compat wire. ──
+  const engine = await localEngineConnection();
+  const chatRole = await getChatBindingRow();
+  expect(chatRole.binding?.connectionId ?? null).toBe(engine.id);
+  expect(chatRole.unavailableCause).toBeNull();
+  expect(chatRole.resolved?.providerId).toBe("vllm");
+  expect(chatRole.resolved?.api).toBe("chat-completions");
 
   // ── 2. USED — a real turn rides the local engine. ── Self-seed a fresh chat so the canon read below is
   // unambiguous (its generated assistant row is the one we just drove).

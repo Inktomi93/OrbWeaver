@@ -3,7 +3,8 @@
 // a probe result: the arms that matter (refuse / allow) must be provable WITHOUT booting three stacks.
 //
 // The incident this pins: the single-user project sat on the dev ports with no isolated DATABASE_URL, so
-// globalSetup's unconditional `pinRouting` rewrote the operator's REAL `routing.roleDefaults`.
+// globalSetup's unconditional model-routing pin (`pinChatConnection` today, a `routing.roleDefaults`
+// settings patch back then) rewrote the operator's REAL configuration.
 
 import { describe, expect, test } from "vitest";
 import { LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER } from "./modes.ts";

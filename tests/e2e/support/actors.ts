@@ -26,6 +26,10 @@
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
+// TYPE-ONLY: `trpc.ts`'s client is bound to the single-user origin, while an actor carries its own cookie
+// jar — importing the create-input SHAPE keeps the literal in `configureCustomProvider` under that file's
+// mirror pin without borrowing its client.
+import type { NewConnection } from "./trpc.ts";
 
 // Every actor constructor takes the stack's `baseUrl` explicitly — the spec passes Playwright's per-project
 // `baseURL` fixture (its vite origin), so an actor ALWAYS targets the same stack as the project, with no
@@ -224,28 +228,36 @@ export async function addMemberToChat(host: ActorClient, member: ActorClient, ch
 
 // ── CUSTOM PROVIDER — point the chat role at a BYO OpenAI-compatible endpoint (the fixture provider) ───────
 
-/** The `credentials.add` return (subset) — the minted credential id `setActive` targets. */
-interface AddedCredential {
+/** The `connection.create` return (subset) — the row id the `chat` binding points at. */
+interface CreatedConnection {
   readonly id: string;
 }
 
-/** Wire the chat role at a `custom_openai` (BYO OpenAI-compatible) endpoint — the REAL product seam a user
- *  uses to point orbweaver at any OpenAI-compatible server. The HOST/owner: adds a `custom_openai` credential
- *  carrying the `baseUrl`, activates it, then pins `routing.roleDefaults.chat` to it. After this a real
- *  `chat.send` turn streams from that endpoint through the custom-byo backend. Used to drive the harness
- *  fixture provider (a scripted deterministic stream) — NOT a product backdoor; the endpoint is external and
- *  the app only knows it as a user-configured BYO connection. `model` is a bare label (the custom-byo runner
- *  reads capabilities, not a baked model). */
+/**
+ * Point the HOST's `chat` Model role at a BYO OpenAI-compatible endpoint — the REAL product seam a user uses
+ * to aim orbweaver at any OpenAI-compatible server. Used to drive the harness fixture provider (a scripted
+ * deterministic stream); NOT a product backdoor, because the endpoint is external and the app only ever knows
+ * it as a user-authored connection row.
+ *
+ * ONE ROW, NO CREDENTIAL. The `custom-openai` provider is `auth: endpoint`, so the URL lives on the
+ * CONNECTION (`user_connections.baseUrl`) and the key is optional — the fixture provider takes none, and
+ * `connectionFields.credentialId` is nullable, so minting a `user_credentials` row nothing would resolve
+ * would be dead state, not fidelity. (The pre-inference shape stored `baseUrl`/`model` in the credential's
+ * `metadata` and called `credentials.setActive`; both are gone — a credential is now a sealed secret with a
+ * label, and WHICH key resolves is the connection's decision, so there is no `active` axis to set.)
+ *
+ * `modelListed: false` because nothing dialled the endpoint's `/v1/models` for this id — `model` is a bare
+ * label here, exactly as before (the openai-compat runner reads capabilities, not a baked model).
+ */
 export async function configureCustomProvider(host: ActorClient, baseUrl: string, model: string): Promise<void> {
-  const credential = await host.mutation<AddedCredential>("credentials.add", {
-    provider: "custom_openai",
-    label: "e2e-fixture-provider",
-    key: "e2e-fixture-key",
-    metadata: { kind: "custom_openai", baseUrl, model, contextWindow: 8192 },
-  });
-  await host.mutation("credentials.setActive", { credentialId: credential.id });
-  await host.mutation("settings.updateUserSettingsSection", {
-    section: "routing",
-    patch: { roleDefaults: { chat: { api: "chat-completions", source: "custom_openai", model } } },
-  });
+  const input: NewConnection = {
+    label: `e2e-fixture-provider-${model}`,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl,
+    model,
+    modelListed: false,
+  };
+  const connection = await host.mutation<CreatedConnection>("connection.create", input);
+  await host.mutation("connection.setBinding", { task: "chat", connectionId: connection.id });
 }

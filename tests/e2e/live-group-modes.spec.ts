@@ -17,8 +17,8 @@
 //   • autoMode    — the chain adds exactly `autoModeMaxTurns` rows on top of the round, then STOPS
 //
 // SPEND: local vLLM only, ~30 short turns at a 32-token output ceiling (`GROUP_TURN_MAX_OUTPUT_TOKENS`).
-// The routing pin is swapped to the STATELESS openai-compat wire (`chat-completions` × `vllm`) and
-// RESTORED in a finally — the agent-sdk arm rejects the per-send `maxOutputTokens` intent
+// The `chat` Model role is bound to the harness's local-engine connection (the STATELESS openai-compat wire)
+// and RESTORED in a finally — the agent-sdk arm rejects the per-send `maxOutputTokens` intent
 // (`result success-subtype flagged is_error`), which would burn unbounded tokens per speaker. Nothing here
 // touches a hosted credential.
 //
@@ -30,29 +30,26 @@
 // `opening: "none"` — an empty canon means round 1 has NO last speaker, which is what makes the
 // "everyone speaks" arms deterministic. Characters (and with them their chats) are removed in a finally.
 
-import type { CharacterHandle, CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import type { ChatRoute, RosterSeat } from "./support/trpc.ts";
+import type { RosterSeat } from "./support/trpc.ts";
 import {
   assistantTurns,
   characterSeats,
   countMessageVariants,
   deleteChat,
   forceCharacterTurn,
-  getChatRoute,
   mintFreshCharacter,
+  pinChatToLocalEngine,
   removeCharacter,
+  restoreChatBinding,
   sendGroupTurn,
-  setChatRoute,
   setSeatKnobs,
   speakerSequence,
   startGroupChat,
   swipeMessage,
 } from "./support/trpc.ts";
-
-/** The stateless openai-compat local wire — the arm that honors the per-send `maxOutputTokens` ceiling. */
-const STATELESS_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
 
 /** The spec-owned cast: unique handles (idempotent re-mint) + unique display names (so `@mention`
  *  resolution can only match the intended member). */
@@ -99,7 +96,9 @@ async function teardown(room: Room): Promise<void> {
 }
 
 test.describe("group modes on the live local stack", () => {
-  let originalRoute: ChatRoute | undefined;
+  /** The `chat` Model role as it stood before this file ran (restored in afterAll — the rows are the
+   *  single-user owner's and serial specs share them). */
+  let priorChatBinding: { readonly connectionId: UserConnectionId } | null = null;
   /** Null ⇒ local turns work on this stack; a string ⇒ the unavailable reason every arm reports to the runner. */
   let bail: string | null = null;
 
@@ -110,11 +109,11 @@ test.describe("group modes on the live local stack", () => {
   // the arms below never swallow their own errors.
   test.beforeAll(async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    originalRoute = await getChatRoute();
     const probeCast = await mintCast(1);
     const probe = await startGroupChat({ characterIds: probeCast, title: `e2e-modes-probe-${Date.now()}` });
     try {
-      await setChatRoute(STATELESS_ROUTE);
+      // The stateless openai-compat local wire — the arm that honors the per-send `maxOutputTokens` ceiling.
+      priorChatBinding = await pinChatToLocalEngine();
       await sendGroupTurn(probe.id, "Say hello.");
     } catch (err) {
       bail = err instanceof Error ? err.message : String(err);
@@ -125,9 +124,7 @@ test.describe("group modes on the live local stack", () => {
   });
 
   test.afterAll(async () => {
-    if (originalRoute !== undefined) {
-      await setChatRoute(originalRoute).catch(() => null);
-    }
+    await restoreChatBinding(priorChatBinding);
   });
 
   function skipWhenBackendUnavailable(): void {

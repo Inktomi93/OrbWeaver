@@ -15,8 +15,8 @@
 // `intent` the UI composer can't inject (the context-cutoff spec's small `maxContextTokens` ceiling).
 
 import process from "node:process";
-import type { CharacterHandle, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
-import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, SINGLE_USER } from "./modes.ts";
+import type { CharacterHandle, CharacterId, ChatId, MessageId, PersonaId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
 
 // The vite front door (the specs' baseURL). Every consumer of this module is a single-user-project spec, so
 // this is always SINGLE_USER.baseUrl — the actor clients target their stack via the spec's per-project
@@ -137,19 +137,16 @@ export async function listCanon(chatId: ChatId): Promise<readonly CanonMessage[]
   return page.messages;
 }
 
-/** The single-user's resolved settings (`config` holds routing/chat/seeds/… tiers). */
+/** The single-user's resolved settings (`config` holds the chat/seeds/appearance/… tiers). There is no
+ *  `routing` tier any more: a per-task model pick is a `connection_bindings` ROW, read through
+ *  `listBindings` below, never a settings leaf (inference program §7.1). */
 export interface UserSettings {
   readonly config: {
-    readonly routing?: {
-      readonly roleDefaults?: {
-        readonly chat?: { readonly api?: string; readonly source?: string };
-      };
-    };
     readonly seeds: { readonly defaultPresetId?: string | null };
   };
 }
 
-/** Read the current user settings — the ground truth for "what routing is ACTUALLY configured". */
+/** Read the current user settings — the ground truth for "what the seeds tier ACTUALLY holds". */
 export function getUserSettings(): Promise<UserSettings> {
   return trpcQuery<UserSettings>("settings.getUserSettings", {});
 }
@@ -311,24 +308,125 @@ export function getShapeTrace(chatId: ChatId): Promise<ShapeTraceView> {
   return trpcQuery<ShapeTraceView>("chat.getShapeTrace", { chatId });
 }
 
-/** The routing roleDefaults.chat pin (api × source) — the harness swaps it to exercise a specific WIRE
- *  (agent-sdk vs the openai-compat stateless path) and RESTORES it in a finally. */
-export interface ChatRoute {
-  readonly api: string;
-  readonly source: string;
+// ── CONNECTIONS + MODEL ROLES — the harness's half of the inference program's two tables ───────────────
+//
+// WHAT REPLACED WHAT: `settings.updateUserSettingsSection({ section: "routing" })` is GONE — `routing` is not
+// a `USER_SETTINGS_SECTIONS` member any more. A per-task model pick is now a `connection_bindings` row
+// (actor × routable task → connection) pointing at a `user_connections` row (§3.2/§7.1), so "swap the chat
+// route" became "re-point the `chat` binding at another connection", and "an incoherent route that cannot
+// generate" became "no `chat` binding at all" (`no-connection`, §7.2 — there are no defaults to fall back to).
+//
+// VOCABULARY: `binding` is a SCHEMA word (§5.3a) — fine in harness code talking to the router, never in
+// anything a user reads. The pane calls these rows "Model roles".
+//
+// The harness's own connection is authored ONCE by `global-setup.ts::pinChatConnection` and found by label
+// (`E2E_LOCAL_ENGINE_LABEL`); a spec that wants a different pick sets the binding and RESTORES the prior one
+// in a finally, because the rows are the single-user owner's and are shared across serial specs.
+
+/** One of the caller's `user_connections` rows — the subset of the pane's `ConnectionView` a spec matches a
+ *  row by. Pinned against `UserConnection` in `./mirror-parity.dom.test-d.ts`. */
+export interface ConnectionRow {
+  readonly id: UserConnectionId;
+  readonly label: string;
+  /** A provider-registry id (`vllm`, `custom-openai`, `claude-sub`, `local-light` — HYPHENATED, §3.2). */
+  readonly providerId: string;
+  readonly model: string;
 }
 
-/** Set the routing.roleDefaults.chat pin over the API (patches the `routing` settings section). RESTORE the
- *  original in a finally — this is the shared single-user settings row, so cleanup is mandatory. */
-export function setChatRoute(route: ChatRoute): Promise<unknown> {
-  return updateSettingsSection("routing", { roleDefaults: { chat: route } });
+/** What `connection.create` is sent — the writable fields the harness sets, a subset of the router's
+ *  `connectionFields`. `credentialId`/`baseUrl` are REQUIRED-nullable there (not optional), so they are
+ *  spelled here too: an `auth: endpoint` row needs the URL and may have no key at all.
+ *
+ *  Declared HERE, used from `global-setup.ts` (the local engine) and `actors.ts` (the fixture provider) —
+ *  both talk to a DIFFERENT client than this module's `BASE_URL` one (a mode origin / an actor's cookie
+ *  jar), so they import the TYPE rather than a sender. That keeps both literals under this file's one
+ *  mirror pin instead of leaving the create input the only unpinned thing the harness writes. */
+export interface NewConnection {
+  readonly label: string;
+  readonly providerId: string;
+  readonly credentialId: UserCredentialId | null;
+  readonly baseUrl: string | null;
+  readonly model: string;
+  /** `false` = the id was typed, not taken from the endpoint's list (§7.4's honest fallback). */
+  readonly modelListed?: boolean;
+  /** Required before a `spend: "background"` task (`summarize`, the vector tasks) may be bound (F5). */
+  readonly allowBackground?: boolean;
 }
 
-/** Read the current routing.roleDefaults.chat pin (to snapshot before a harness swap). */
-export async function getChatRoute(): Promise<ChatRoute | undefined> {
-  const settings = await getUserSettings();
-  const chat = settings.config.routing?.roleDefaults?.chat;
-  return chat?.api !== undefined && chat.source !== undefined ? { api: chat.api, source: chat.source } : undefined;
+/** Every connection row the caller owns (`connection.list`). */
+export function listConnections(): Promise<readonly ConnectionRow[]> {
+  return trpcQuery<readonly ConnectionRow[]>("connection.list", undefined);
+}
+
+/** One Model-roles row (`connection.listBindings` — one per ROUTABLE task, bound or not). `resolved` is what
+ *  a turn would ride RIGHT NOW against the PERSISTED read; `unavailableCause` is why it would not (§5.3a).
+ *  `task` / `providerId` / `api` / `unavailableCause` stay `string`: the homed unions (`RoutableTask`,
+ *  `ChatApi`, `UnavailableCause`) must not be re-spelled here (`no-inline-union-redecl`), and specs compare
+ *  them to literals. */
+export interface TaskBinding {
+  readonly task: string;
+  readonly binding: { readonly connectionId: UserConnectionId | null } | null;
+  readonly resolved: { readonly connectionId: UserConnectionId; readonly providerId: string; readonly api: string | null; readonly model: string } | null;
+  readonly unavailableCause: string | null;
+}
+
+/** The caller's own (`user` actor) Model-roles readout. */
+export function listBindings(): Promise<readonly TaskBinding[]> {
+  return trpcQuery<readonly TaskBinding[]>("connection.listBindings", undefined);
+}
+
+/** The `chat` Model-roles row, always present (a slot with no binding reads `binding: null`). */
+export async function getChatBindingRow(): Promise<TaskBinding> {
+  const row = (await listBindings()).find((binding) => binding.task === "chat");
+  if (row === undefined) {
+    throw new Error("e2e: connection.listBindings returned no `chat` slot — ROUTABLE_TASKS no longer lists it?");
+  }
+  return row;
+}
+
+/** Snapshot the `chat` pick before a harness swap: the bound connection, or `null` when the slot is unset
+ *  (or its row was deleted — the binding survives with a null id rather than dangling). */
+export async function getChatBinding(): Promise<{ readonly connectionId: UserConnectionId } | null> {
+  const connectionId = (await getChatBindingRow()).binding?.connectionId ?? null;
+  return connectionId === null ? null : { connectionId };
+}
+
+/** Point the `chat` Model role at a connection, or CLEAR it. `null` is the product's one way to have no chat
+ *  write path (`no-connection`) now that the retired incoherent `(api, source)` pair no longer exists. */
+export function setChatBinding(connectionId: UserConnectionId | null): Promise<unknown> {
+  return trpcMutation("connection.setBinding", { task: "chat", connectionId });
+}
+
+/** Restore a snapshot taken by {@link getChatBinding} — a no-op-safe finally step (an unset slot restores to
+ *  unset). Swallows its own failure like every other harness restore: a teardown must not mask the verdict. */
+export function restoreChatBinding(prior: { readonly connectionId: UserConnectionId } | null): Promise<unknown> {
+  return setChatBinding(prior === null ? null : prior.connectionId).catch(() => null);
+}
+
+/** The harness's local-engine connection (`global-setup.ts::pinChatConnection` minted it). Throws NAMING the
+ *  seed rather than returning undefined: every caller needs the row, and "globalSetup did not run against
+ *  this origin" is the only way it can be missing. */
+export async function localEngineConnection(): Promise<ConnectionRow> {
+  const row = (await listConnections()).find((connection) => connection.label === E2E_LOCAL_ENGINE_LABEL);
+  if (row === undefined) {
+    throw new Error(`e2e: no connection labelled "${E2E_LOCAL_ENGINE_LABEL}" at ${BASE_URL} — globalSetup's pinChatConnection did not seed this stack`);
+  }
+  return row;
+}
+
+/** Bind `chat` to the local engine and hand back the PRIOR pick for the finally. The specs that used to pin
+ *  `{ api: "chat-completions", source: "vllm" }` do exactly this: it is the same wire, named by its row. */
+export async function pinChatToLocalEngine(): Promise<{ readonly connectionId: UserConnectionId } | null> {
+  const prior = await getChatBinding();
+  await setChatBinding((await localEngineConnection()).id);
+  return prior;
+}
+
+/** The caller's Claude-subscription connection, if they have one. `undefined` is a legitimate state the
+ *  harness cannot fix: a `claude-sub` row carries a token pasted from `claude setup-token` on the operator's
+ *  own machine (§5.3a), which no CI run may fabricate — the agent-sdk specs SKIP on it. */
+export async function claudeSubConnection(): Promise<ConnectionRow | undefined> {
+  return (await listConnections()).find((connection) => connection.providerId === "claude-sub");
 }
 
 /** The active preset's id + config (resolved via the settings seed default). The harness edits its config to

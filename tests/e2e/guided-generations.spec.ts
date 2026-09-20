@@ -41,34 +41,29 @@
 // swipe/continue/rewrite target (a tail assistant reply) is seeded by ONE UI-driven Guided response per
 // leg. Characters (and with them their chats) are removed in a finally.
 
-import type { CharacterHandle, ChatId, MessageId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
-import type { ChatRoute } from "./support/trpc.ts";
 import {
   assembledPromptText,
   canonMessage,
   characterSeats,
   deleteChat,
   firstVariantId,
-  getChatRoute,
   listCanon,
   mintFreshCharacter,
+  pinChatToLocalEngine,
   previewAssembly,
   removeCharacter,
+  restoreChatBinding,
   selectVariant,
-  setChatRoute,
   startChat,
   startGroupChat,
   swipeMessage,
   tailAssistant,
 } from "./support/trpc.ts";
-
-/** The stateless openai-compat local wire — the arm that keeps a UI-fired turn bounded (the group-modes
- *  precedent). A guided icon fires without an output-ceiling intent, so this pin is what caps the spend. */
-const STATELESS_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
 
 /** A greeting long enough that a CONTINUE's appended content is a legible delta. */
 const SOLO = { handle: castId<CharacterHandle>("e2e-guided-solo"), name: "Guidedspec Solo", greeting: "The lantern flickered in the dark hall." } as const;
@@ -151,7 +146,9 @@ async function pollAssistantCount(chatId: ChatId, n: number): Promise<void> {
 }
 
 test.describe("guided generations on the live local stack", () => {
-  let originalRoute: ChatRoute | undefined;
+  /** The `chat` Model role as it stood before this file ran (restored in afterAll — the rows are the
+   *  single-user owner's and serial specs share them). */
+  let priorChatBinding: { readonly connectionId: UserConnectionId } | null = null;
   /** Null ⇒ local turns work; a string ⇒ the unavailable reason every arm reports to the runner. */
   let bail: string | null = null;
 
@@ -161,8 +158,9 @@ test.describe("guided generations on the live local stack", () => {
   // Recording it here keeps a REAL guided failure red (the arms never swallow their own errors).
   test.beforeAll(async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    originalRoute = await getChatRoute();
-    await setChatRoute(STATELESS_ROUTE);
+    // The stateless openai-compat local wire — the arm that keeps a UI-fired turn bounded (the group-modes
+    // precedent). A guided icon fires without an output-ceiling intent, so this pin is what caps the spend.
+    priorChatBinding = await pinChatToLocalEngine();
     const probeCharId = await mintFreshCharacter(castId<CharacterHandle>("e2e-guided-probe"), "Guidedspec Probe", "Probe greeting.");
     // A DEFAULT-opening solo chat seeds the greeting as the assistant tail (no model turn); swiping it is
     // the cheapest REAL generation — the faithful backend-availability probe (the group-modes precedent).
@@ -183,9 +181,7 @@ test.describe("guided generations on the live local stack", () => {
   });
 
   test.afterAll(async () => {
-    if (originalRoute !== undefined) {
-      await setChatRoute(originalRoute).catch(() => null);
-    }
+    await restoreChatBinding(priorChatBinding);
   });
 
   function skipWhenBackendUnavailable(): void {
