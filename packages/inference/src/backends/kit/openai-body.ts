@@ -1,30 +1,14 @@
 // backends/kit/openai-body — the OpenAI-compatible REQUEST-body helpers for the bodies OUR code still builds
-// after the SDK cut-over: the plain-fetch rerank/embed/image-embed POSTs, `transformRequestBody`'s
-// include/exclude pass, and the raw `response_format`/`tools` spellings the structured task hands a
-// non-SDK body. The snake_case wire names are deliberate — an arbitrary OpenAI-compatible server (vLLM /
-// LM Studio / Ollama / a BYO endpoint) rejects camelCase. Pure data shaping — no transport. The secret
-// scrub helpers live here too because the wire capture and the "Test endpoint" inspector scrub SERIALIZED
-// bodies (`@orb/kit/secret-redaction` owns the both-spellings rule).
+// after the SDK cut-over: the plain-fetch rerank/embed/image-embed POSTs and `transformRequestBody`'s
+// include/exclude pass. Pure data shaping — no transport. The secret scrub helpers live here too because the
+// wire capture and the "Test endpoint" inspector scrub SERIALIZED bodies (`@orb/kit/secret-redaction` owns
+// the both-spellings rule).
+//
+// The hand-rolled RAW builders that used to live here — the sampler slice and the `tools`/`tool_choice`/
+// `response_format` spellings — were deleted 2026-09-20 with their last consumers: the SDK writes those
+// fields now, and `backends/openai-compat/body.ts` edits the converted object afterwards (§8.1).
 
 import { redactKnownSecrets, secretRedactionLiterals, secretSafeRedactionMarker } from "@orb/kit/secret-redaction";
-import type { ResponseFormat, ToolChoice, WireTool } from "../../contract/chat.ts";
-
-/** The provider-agnostic sampler knobs a runner hands in (camelCase) — each emitted to the wire only when
- *  set. Mirrors the relevant `UserIntent` knobs without coupling to that contract. */
-export interface OpenAiSamplingInput {
-  readonly temperature?: number | undefined;
-  readonly topP?: number | undefined;
-  readonly topK?: number | undefined;
-  readonly frequencyPenalty?: number | undefined;
-  readonly presencePenalty?: number | undefined;
-  readonly repetitionPenalty?: number | undefined;
-  readonly minP?: number | undefined;
-  readonly topA?: number | undefined;
-  readonly seed?: number | undefined;
-  readonly logitBias?: Readonly<Record<string, number>> | undefined;
-  readonly stop?: readonly string[] | undefined;
-  readonly maxTokens?: number | undefined;
-}
 
 // Header-name patterns that mark a secret during redaction.
 const SECRET_HEADER_RE = /authorization|api[-_]?key|token|secret/i;
@@ -38,74 +22,6 @@ const SECRET_HEADER_RE = /authorization|api[-_]?key|token|secret/i;
 // Single bounded class, no nesting → ReDoS-safe.
 const BEARER_TOKEN_RE = /Bearer\s+[\w.\-+/=]+/gi;
 const SK_KEY_RE = /sk-[A-Za-z0-9_-]{16,}/g;
-
-/**
- * Build the OpenAI sampler slice in WIRE (snake_case) form. Each field is emitted ONLY when set on the
- * input (an unset knob is absent, never `null`/`0`). `max_tokens` (not `max_completion_tokens`) for the
- * broadest server compatibility; a user can override the name via their endpoint's body transforms.
- */
-export function buildOpenAiSamplingFields(input: OpenAiSamplingInput): Record<string, unknown> {
-  return {
-    ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
-    ...(input.topP !== undefined ? { top_p: input.topP } : {}),
-    ...(input.topK !== undefined ? { top_k: input.topK } : {}),
-    ...(input.frequencyPenalty !== undefined ? { frequency_penalty: input.frequencyPenalty } : {}),
-    ...(input.presencePenalty !== undefined ? { presence_penalty: input.presencePenalty } : {}),
-    ...(input.repetitionPenalty !== undefined ? { repetition_penalty: input.repetitionPenalty } : {}),
-    ...(input.minP !== undefined ? { min_p: input.minP } : {}),
-    ...(input.topA !== undefined ? { top_a: input.topA } : {}),
-    ...(input.seed !== undefined ? { seed: input.seed } : {}),
-    ...(input.logitBias !== undefined ? { logit_bias: input.logitBias } : {}),
-    ...(input.stop !== undefined ? { stop: input.stop } : {}),
-    ...(input.maxTokens !== undefined ? { max_tokens: input.maxTokens } : {}),
-  };
-}
-
-// ── The D48 raw-wire builders (tool-use-design/02 §4 / 04 §3 — custom-byo + vLLM share these) ──────
-// Absence discipline is the CALLER's: a runner spreads these in only when the request field is set, so a
-// tool-less/format-less body stays byte-identical to pre-D48.
-
-/** WireTool[] → raw `tools` (`{type:"function", function:{…}}` — snake wire, identical key names). */
-export function rawWireTools(tools: readonly WireTool[]): Record<string, unknown>[] {
-  return tools.map((tool) => ({
-    type: "function",
-    function: { name: tool.name, description: tool.description, parameters: tool.parameters },
-  }));
-}
-
-/** The contract `ToolChoice` → raw `tool_choice` (string modes; the named form is the function object). */
-export function rawToolChoice(choice: ToolChoice): unknown {
-  if (choice.mode === "tool") {
-    return { type: "function", function: { name: choice.name } };
-  }
-  return choice.mode;
-}
-
-/**
- * The contract `ResponseFormat` → raw `response_format` (`json_schema` dialect — the neo vLLM runner's exact
- * shape; the projection rule upstream already produced a clean schema).
- *
- * STRICTFMT — `strict` rides ONLY when the CALLER set it. A translator never defaults a caller's optional wire
- * knob, and this one is a 400 landmine: the live probe matrix pinned in `backends/openrouter/index.ts`
- * (2026-08-02) measured OpenAI-family endpoints 400ing on `strict:true` ("'required' is required to be
- * supplied") and serving 200 non-strict, on this exact field. Unclearable by "just emit `required`": our
- * schemas are projected by the ONE rule (`@orb/kit/json-schema`) from zod payloads that are
- * OPTIONAL-BY-CONSTRUCTION (omit = keep), and OpenAI strict demands every property be required. `custom-byo`
- * points at an ARBITRARY OpenAI-compatible server (an OpenAI-family proxy included), so it must not carry an
- * invented `strict`. vLLM — where guided decoding is the ENFORCING wire and strict is the point (the xgrammar
- * populate lever) — PINS `strict: true` explicitly at its own call site (`vllm/surfaces/chat.ts`).
- */
-export function rawResponseFormat(format: ResponseFormat): Record<string, unknown> {
-  return {
-    type: "json_schema",
-    json_schema: {
-      name: format.name,
-      schema: format.schema,
-      ...(format.strict !== undefined ? { strict: format.strict } : {}),
-      ...(format.description !== undefined ? { description: format.description } : {}),
-    },
-  };
-}
 
 /** Mask secrets in a header map before it is surfaced (observability span / inspector preview).
  *  `Authorization` + any header whose NAME hints at a key/token/secret is replaced; values are never

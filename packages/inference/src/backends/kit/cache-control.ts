@@ -57,12 +57,6 @@ export function anthropicCacheDirective(ttl: string, log?: ProviderLogger): Anth
 const SHIPPED_CACHE_TTL: CacheTtl = "1h";
 export const ANTHROPIC_CACHE_1H: AnthropicCacheDirective = anthropicCacheDirective(SHIPPED_CACHE_TTL);
 
-export interface CacheControlTextBlock {
-  readonly type: "text";
-  readonly text: string;
-  readonly cacheControl: AnthropicCacheDirective;
-}
-
 // Matches the bare Anthropic id and the OpenRouter `anthropic/claude-…` form ONLY — a third-party fork
 // (`some-org/claude-fork`) must never receive Anthropic-only cache_control. Mirrors connection's
 // `detectModelFamily` anchor; both must keep this exact shape.
@@ -85,10 +79,6 @@ export function effectiveProviderRouting<T extends OpenRouterRouting>(model: str
     return userRouting;
   }
   return isAnthropicModel(model) ? { order: [ANTHROPIC_PROVIDER_NAME], allow_fallbacks: false } : undefined;
-}
-
-export function cacheControlBlock(text: string): CacheControlTextBlock {
-  return { type: "text", text, cacheControl: ANTHROPIC_CACHE_1H };
 }
 
 // ── The breakpoint DEPTH axis ────────────────────────────────────────────────────────────────────────────

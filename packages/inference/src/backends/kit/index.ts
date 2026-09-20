@@ -10,36 +10,24 @@ export { flattenAbortSignal, foldAbortInto } from "./abort-flatten.ts";
 export type { AnthImageBlock, AnthImageMediaType } from "./anth-image-block.ts";
 export { ANTH_IMAGE_MEDIA_TYPES, toAnthImageBlock } from "./anth-image-block.ts";
 export { effortWordOf } from "./applied-effort.ts";
-export type { AnthropicCacheDirective, CacheBreakpointPlacement, CacheBreakpointRow, CacheControlTextBlock, OpenRouterRouting } from "./cache-control.ts";
+export type { AnthropicCacheDirective, CacheBreakpointPlacement, CacheBreakpointRow, OpenRouterRouting } from "./cache-control.ts";
 export {
   ANTHROPIC_CACHE_1H,
   anthropicCacheDirective,
   CACHE_TTLS,
-  cacheControlBlock,
   computeCacheBreakpointPlacements,
   effectiveProviderRouting,
   isAnthropicModel,
 } from "./cache-control.ts";
-export { decodeEmbeddingVector, decodeEmbeddingVectors } from "./embedding-decode.ts";
+export { decodeEmbeddingVector } from "./embedding-decode.ts";
 export type { ErrorClassification, HttpErrorDiagnostic } from "./error-classify.ts";
 export { classifyHttpStatus, classifyTransportName, extractHttpErrorDiagnostic, providerErrorFromHttp } from "./error-classify.ts";
-export { chatHistoryOpenAiContent, chatHistoryText } from "./history.ts";
+export { chatHistoryText } from "./history.ts";
 export type { IdleAbort } from "./idle-timeout.ts";
 export { IDLE_TIMEOUT_MS, turnAbortSignal } from "./idle-timeout.ts";
 export type { ImageToPng, NormalizedImageBytes, NormalizeImageBytes } from "./image-normalize.ts";
 export { createImageNormalizer, passthroughImageNormalizer } from "./image-normalize.ts";
-export type { OpenAiSamplingInput } from "./openai-body.ts";
-export {
-  applyIncludeExclude,
-  buildOpenAiSamplingFields,
-  rawResponseFormat,
-  rawToolChoice,
-  rawWireTools,
-  redactHeaders,
-  redactSecretsFromText,
-  secretHeaderValues,
-  secretScrubOverhang,
-} from "./openai-body.ts";
+export { applyIncludeExclude, redactHeaders, redactSecretsFromText, secretHeaderValues, secretScrubOverhang } from "./openai-body.ts";
 export type {
   ProviderCacheLog,
   ProviderCapabilityDrop,
