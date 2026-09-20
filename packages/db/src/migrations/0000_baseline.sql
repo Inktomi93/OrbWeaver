@@ -374,6 +374,7 @@ CREATE TABLE `message_variants` (
 	`raw_content` text,
 	`macro_freezes` text,
 	`reasoning` text,
+	`reasoning_parts` text,
 	`model` text,
 	`connection_id` text,
 	`provider` text,
@@ -383,8 +384,10 @@ CREATE TABLE `message_variants` (
 	`token_provenance` text DEFAULT 'unrecorded' NOT NULL,
 	`cache_read_tokens` integer,
 	`cache_write_tokens` integer,
+	`reasoning_tokens` integer,
 	`cost_usd` real,
 	`cost_provenance` text DEFAULT 'unrecorded' NOT NULL,
+	`cost_details` text,
 	`context_window` integer,
 	`context_boundary_message_id` text,
 	`max_output_tokens` integer,
@@ -545,14 +548,14 @@ CREATE TABLE `user_credentials` (
 	`ciphertext` text NOT NULL,
 	`iv` text NOT NULL,
 	`tag` text NOT NULL,
-	`active` integer DEFAULT true NOT NULL,
 	`revoked_at` integer,
 	`revoked_reason` text,
 	`metadata` text,
 	`label` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "user_credentials_revoked_reason_check" CHECK(revoked_reason is null or revoked_reason in ('auth_failed', 'unreachable', 'user'))
 );
 --> statement-breakpoint
 CREATE INDEX `user_credentials_owner_idx` ON `user_credentials` (`owner_id`);--> statement-breakpoint
@@ -1301,7 +1304,7 @@ CREATE INDEX `themes_owner_idx` ON `themes` (`owner_id`);--> statement-breakpoin
 CREATE UNIQUE INDEX `themes_owner_name_uq` ON `themes` (`owner_id`,`name`);--> statement-breakpoint
 CREATE TABLE `user_settings` (
 	`user_id` text PRIMARY KEY NOT NULL,
-	`schema_version` integer DEFAULT 8 NOT NULL,
+	`schema_version` integer DEFAULT 9 NOT NULL,
 	`config` text NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
