@@ -50,7 +50,8 @@ function revokes(kind: ProviderErrorKind): boolean {
 describe("maybeRevokeOnAuthFailed", () => {
   test("auth_failed + a BYO credentialId revokes that credential AND records WHY", async () => {
     const db = await freshDb();
-    const { svc, cred, owner } = await seedCredential(db, makeHarness(db));
+    const h = makeHarness(db);
+    const { svc, cred, owner } = await seedCredential(db, h);
 
     await svc.maybeRevokeOnAuthFailed({
       ownerId: owner,
@@ -63,6 +64,13 @@ describe("maybeRevokeOnAuthFailed", () => {
     // chip — and it is written in the SAME statement as the stamp, never a second write that can lag.
     expect(rows[0]).toMatchObject({ revokedReason: "auth_failed" });
     expect(rows[0]?.revokedAt).not.toBeNull();
+    const audit = h.audits.find((entry) => entry.entry.action === "credential.markRevoked");
+    expect(audit?.entry).toMatchObject({
+      actorUserId: null,
+      entityType: "credential",
+      entityId: cred.id,
+      metadata: { reason: "401 from upstream", path: "auth_failed" },
+    });
   });
 
   // EXHAUSTIVE over the provider union, one case per member — the arm that stops a future kind from joining a
@@ -70,7 +78,8 @@ describe("maybeRevokeOnAuthFailed", () => {
   for (const kind of PROVIDER_ERROR_KINDS) {
     test(`\`${kind}\` ${revokes(kind) ? "REVOKES" : "is a no-op"}`, async () => {
       const db = await freshDb();
-      const { svc, cred, owner } = await seedCredential(db, makeHarness(db));
+      const h = makeHarness(db);
+      const { svc, cred, owner } = await seedCredential(db, h);
 
       await svc.maybeRevokeOnAuthFailed({ ownerId: owner, credentialId: cred.id, errorKind: kind, errorMessage: `a ${kind} failure` });
 
@@ -78,8 +87,24 @@ describe("maybeRevokeOnAuthFailed", () => {
       // Both columns move together or neither does: a live credential must never acquire a reason.
       expect(rows[0]).toMatchObject({ revokedReason: revokes(kind) ? "auth_failed" : null });
       expect(rows[0]?.revokedAt === null).toBe(!revokes(kind));
+      expect(h.audits.some((entry) => entry.entry.action === "credential.markRevoked")).toBe(revokes(kind));
     });
   }
+
+  test("a rejecting audit sink stays a passenger after the credential was revoked", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const { cred, owner } = await seedCredential(db, h);
+    const svc = createCredentialsService({ ...h.ctx, audit: (): Promise<void> => Promise.reject(new Error("audit sink unavailable")) });
+
+    await expect(
+      svc.maybeRevokeOnAuthFailed({ ownerId: owner, credentialId: cred.id, errorKind: "auth_failed", errorMessage: "401 from upstream" }),
+    ).resolves.toBeUndefined();
+
+    const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
+    expect(rows[0]).toMatchObject({ revokedReason: "auth_failed" });
+    expect(rows[0]?.revokedAt).not.toBeNull();
+  });
 
   test("a FOREIGN credentialId under this owner revokes NOTHING (the write is owner-scoped, not id-only)", async () => {
     // THE HOLE THIS CLOSES (`injected-op-caller-param`): the op is the domain boundary, so the boundary has
@@ -121,11 +146,13 @@ describe("maybeRevokeOnAuthFailed", () => {
     // WHICH id. The refusal itself is the durable record; the row is untouched above.
     const refusal = h.audits.find((a) => a.entry.action === "credential.revokeOwnerMismatch");
     expect(refusal?.entry).toMatchObject({ actorUserId: null, entityId: bobsKey.id });
+    expect(h.audits.some((entry) => entry.entry.action === "credential.markRevoked")).toBe(false);
   });
 
   test("a null credentialId (keyless source) is a no-op (no row to revoke)", async () => {
     const db = await freshDb();
-    const svc = createCredentialsService(makeHarness(db).ctx);
+    const h = makeHarness(db);
+    const svc = createCredentialsService(h.ctx);
     // No throw, nothing to assert beyond "does not crash" — keyless host/vllm/local-light have no row.
     await expect(
       svc.maybeRevokeOnAuthFailed({
@@ -135,6 +162,7 @@ describe("maybeRevokeOnAuthFailed", () => {
         errorMessage: "401",
       }),
     ).resolves.toBeUndefined();
+    expect(h.audits).toHaveLength(0);
   });
 
   test("a keyless auth failure cannot reach a LIVE row (the null id is the whole guard)", async () => {
