@@ -53,7 +53,7 @@ export interface RetryOptions {
  * AND a clock is injected, wait until it; otherwise exponential backoff (`base * 2^(attempt-1)`) with
  * ±20% jitter, capped at `maxMs`.
  */
-export function computeBackoffMs(attempt: number, err: ProviderError, opts: RetryOptions = {}): number {
+function computeBackoffMs(attempt: number, err: ProviderError, opts: RetryOptions = {}): number {
   const baseMs = opts.baseMs ?? DEFAULT_BASE_MS;
   const maxMs = opts.maxMs ?? DEFAULT_MAX_MS;
   if (err.kind === "rate_limit" && err.resetsAt !== undefined && opts.now !== undefined) {

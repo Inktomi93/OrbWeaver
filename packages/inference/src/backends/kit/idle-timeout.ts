@@ -15,7 +15,7 @@ import { foldAbortInto } from "./abort-flatten.ts";
 /** Max time a streaming HTTP call may go WITHOUT a received chunk before the socket is treated as stalled
  *  and aborted. NOT a whole-turn deadline: a healthy long stream resets the window on every chunk. Long
  *  enough to ride out slow first-token latency; short enough that a wedged socket can't pin a slot forever. */
-export const IDLE_TIMEOUT_MS = 180_000;
+const IDLE_TIMEOUT_MS = 180_000;
 
 /** The composed idle-abort handle a runner threads through its stream loop. */
 export interface IdleAbort {

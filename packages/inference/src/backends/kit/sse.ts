@@ -13,9 +13,9 @@ function truncateSsePayload(payload: string): string {
   return payload.length > SSE_ERROR_PAYLOAD_PREVIEW ? `${payload.slice(0, SSE_ERROR_PAYLOAD_PREVIEW)}…` : payload;
 }
 
-export type SseLine = { readonly kind: "data"; readonly value: unknown } | { readonly kind: "done" | "skip" };
+type SseLine = { readonly kind: "data"; readonly value: unknown } | { readonly kind: "done" | "skip" };
 
-export function parseSseLine(line: string): SseLine {
+function parseSseLine(line: string): SseLine {
   if (!line.startsWith(SSE_DATA_PREFIX)) {
     return { kind: "skip" };
   }

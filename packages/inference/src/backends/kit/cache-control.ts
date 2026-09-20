@@ -23,7 +23,7 @@ const EPHEMERAL = "ephemeral";
 // is NOT an upstream error — OpenRouter answers 200 and silently drops the WHOLE `cache_control` block
 // (measured `ttl:"9z"` → cacheWrite 0, cacheRead 0, ~10x the cost of a cached turn, no signal anywhere;
 // docs/history/design/openrouter-provider-findings.md §3). Nothing else stands between a typo and a silent 10x bill.
-export const CACHE_TTLS = ["5m", "1h"] as const;
+const CACHE_TTLS = ["5m", "1h"] as const;
 // Module-local by design: infra is not a type home (`no-inline-types`), and no consumer outside this file
 // needs to NAME the union — the exported tuple + the directive interface carry it.
 type CacheTtl = (typeof CACHE_TTLS)[number];
@@ -37,7 +37,7 @@ export interface AnthropicCacheDirective {
 // The ONE seam a ttl becomes a wire directive by. An off-allowlist value is STRIPPED (leaving the bare
 // ephemeral directive — the always-accepted 5m default) and logged loud rather than shipped: upstream gives
 // no signal at all, so this warning IS the signal (D41 no-silent-degrade).
-export function anthropicCacheDirective(ttl: string, log?: ProviderLogger): AnthropicCacheDirective {
+function anthropicCacheDirective(ttl: string, log?: ProviderLogger): AnthropicCacheDirective {
   const allowed = CACHE_TTLS.find((candidate) => candidate === ttl);
   if (allowed !== undefined) {
     return { type: EPHEMERAL, ttl: allowed };

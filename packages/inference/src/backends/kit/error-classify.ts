@@ -90,7 +90,7 @@ export function classifyHttpStatus(status: number | undefined): ErrorClassificat
  * with no code). Universal patterns every undici/node-fetch runner sees. `null` when nothing matches so the
  * caller can decide on the `unknown` floor.
  */
-export function classifyTransportName(name: string, message: string): ErrorClassification | null {
+function classifyTransportName(name: string, message: string): ErrorClassification | null {
   // ABORT WINS, and it is tested FIRST (belt to `abort-flatten.ts`'s braces): an error NAMED an abort is a
   // cancellation whatever its message says, so it can never be retried. Order matters — the transient regex
   // reads the MESSAGE too, and an abort whose message contains "connection"/"timeout" (the whole

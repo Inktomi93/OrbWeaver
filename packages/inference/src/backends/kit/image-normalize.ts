@@ -17,7 +17,7 @@ const JPEG_MIME = "image/jpeg";
 const WEBP_MIME = "image/webp";
 
 /** Normalized outbound image bytes + the mime to LABEL them with on the wire. */
-export interface NormalizedImageBytes {
+interface NormalizedImageBytes {
   readonly bytes: Uint8Array;
   readonly mediaType: string;
 }

@@ -5,8 +5,8 @@
 
 import type { InferenceLog } from "../../deps.ts";
 
-export const PROVIDER_LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
-export type ProviderLogLevel = (typeof PROVIDER_LOG_LEVELS)[number];
+const PROVIDER_LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
+type ProviderLogLevel = (typeof PROVIDER_LOG_LEVELS)[number];
 
 /** Per-turn usage sub-object on a `provider.turn` line. All optional so a turn that never reached a result
  *  frame still logs a coherent line. */
@@ -20,7 +20,7 @@ export interface ProviderTurnUsage {
 }
 
 /** The cache-rot signal: a collapsed hitRatio with a spiked cacheWriteTokens is the re-bill, in one grep. */
-export interface ProviderCacheLog {
+interface ProviderCacheLog {
   readonly turnId: string;
   readonly cacheReadTokens: number;
   readonly cacheWriteTokens: number;
@@ -30,20 +30,20 @@ export interface ProviderCacheLog {
   readonly minCacheTokens: number;
 }
 
-export interface ProviderSamplingDrop {
+interface ProviderSamplingDrop {
   readonly knob: string;
   readonly reason: string;
 }
 
 /** Which sampling knobs survived the funnel: requested vs applied vs dropped-with-reason. */
-export interface ProviderSamplingLog {
+interface ProviderSamplingLog {
   readonly turnId: string;
   readonly requested: Record<string, unknown>;
   readonly applied: Record<string, unknown>;
   readonly dropped: readonly ProviderSamplingDrop[];
 }
 
-export interface ProviderCapabilityDrop {
+interface ProviderCapabilityDrop {
   readonly code: string;
   readonly message: string;
 }
@@ -61,7 +61,7 @@ export interface ProviderCapabilityLog {
 
 /** The per-ITEM batch turn for the `summarize` + `structured` tasks, TAGGED BY task (owner ruling
  *  2026-07-27) so a diagnosis of an rpg extraction never greps "summarize". Metadata only. */
-export interface ProviderSummarizeItemLog {
+interface ProviderSummarizeItemLog {
   readonly task: "summarize" | "structured";
   readonly model: string;
   readonly index: number;
