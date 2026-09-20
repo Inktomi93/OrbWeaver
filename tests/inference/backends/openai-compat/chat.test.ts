@@ -259,6 +259,57 @@ test("C3: a MALFORMED plugin block is dropped whole, loudly — never sent half-
   expect(events).toContain("custom_parameters_ignored");
 });
 
+// ── D3: OpenRouter's request DEBUG block ────────────────────────────────────────────────────────────────
+// `debug.echo_upstream_body` is the only way to see what a ROUTED provider actually received — OR answers
+// with the upstream body as the FIRST SSE frame. It was unreachable: the transport models two extras keys
+// and drops the rest, so a user could declare it and it would never be sent. The SDK's `includeRawChunks` is
+// NOT the door (it only re-surfaces already-parsed chunks as `raw` PARTS); the capture's own reply tap is
+// (`backends/v4/fetch.ts` control 4b, which records why the raw part was refused).
+
+test("D3: `extras.debug` rides the OR body, and nothing is sent when it is not declared", async () => {
+  const withDebug = await sentBody(orRequest({ tools: undefined, connection: extrasConnection({ debug: { echo_upstream_body: true } }) }));
+  expect(withDebug["debug"]).toMatchObject({ echo_upstream_body: true });
+
+  const without = await sentBody(orRequest({ tools: undefined, connection: extrasConnection({}) }));
+  expect(without["debug"]).toBeUndefined();
+});
+
+test("D3: a MALFORMED debug block is dropped whole, loudly — never sent half-valid", async () => {
+  const messages: string[] = [];
+  const recorded: RecordedRequest[] = [];
+  const req = orRequest({
+    tools: undefined,
+    connection: extrasConnection({ debug: { echo_upstream_body: "yes please" } }),
+    onEvent: (event) => {
+      if (event.kind === "warning") {
+        messages.push(event.message);
+      }
+    },
+  });
+  await runOpenAiCompatChatTurn(req, turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)));
+
+  expect(recorded[0]?.body["debug"]).toBeUndefined();
+  // The READER'S refusal, not the belt's generic drop: an `extras` key the transport takes must never be
+  // reported as "ignored: the openrouter transport takes only …" — see `body.ts`'s modelled-key list.
+  expect(messages).toContain("extras.debug ignored: not a valid openrouter debug block");
+});
+
+test("a modelled extras door does not ALSO report itself ignored (the belt's list and the readers agree)", async () => {
+  const messages: string[] = [];
+  const req = orRequest({
+    tools: undefined,
+    connection: extrasConnection({ debug: { echo_upstream_body: true }, plugins: [{ id: "moderation" }], web_search_options: { max_results: 2 } }),
+    onEvent: (event) => {
+      if (event.kind === "warning") {
+        messages.push(event.message);
+      }
+    },
+  });
+  await runOpenAiCompatChatTurn(req, turnDeps(scriptedSseFetch([openAiTextStream("ok")], [])));
+
+  expect(messages.filter((message) => message.includes("the openrouter transport takes only"))).toEqual([]);
+});
+
 // ── E1/§15c: the wire-capture BYTE-EQUALITY pin, one per DIALECT — a caret bump of `@ai-sdk/openai-
 // compatible` or `@openrouter/ai-sdk-provider` that reshapes ANY field of the converted request fails
 // here, where every other pin in this file only checks the fields it names.

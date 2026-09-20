@@ -79,8 +79,8 @@ export interface OwnerFallbackCredentialInput {
  *   • `single-user` in production, where `AUTH_FALLBACK=owner` is forced (deny is boot-fatal there): behind a
  *     same-host proxy every external request is a loopback peer, and the prod image spec leans on
  *     "/api/_debug is not exposed regardless" as a belt (containerize-prod-image-spec.md §3.1/§4). The debug
- *     surface holds more than the app does — RAW PROVIDER REQUEST BODIES with WIRE_CAPTURE=on — so that belt
- *     stays. The operator of a prod box has `DEBUG_TOKEN`.
+ *     surface holds more than the app does — RAW PROVIDER REQUEST BODIES with WIRE_CAPTURE=on, and the
+ *     literal provider REPLY bytes beside them with WIRE_CAPTURE_REPLY=on — so that belt stays. The operator of a prod box has `DEBUG_TOKEN`.
  *   • a prod BREAK-GLASS session: an operator who edited the launch environment to open the recovery door
  *     holds the token too, and that door is the one the proxy laundering rides.
  *
@@ -91,8 +91,8 @@ export interface OwnerFallbackCredentialInput {
  * A WIDENED PEER SET RETRACTS THE CREDENTIAL (`AUTH_FALLBACK_TRUSTED_PEERS`, `fallback-peers.ts`). The whole
  * argument above rests on "loopback peer MEANS the human at this machine" on a dev box — the sentence the
  * knob deliberately falsifies. The app-level widening is the deployer's to accept; this door is not, because
- * it holds more than the app does (principal-blind whole-db reads, and RAW PROVIDER REQUEST BODIES with
- * `WIRE_CAPTURE=on`). An operator who widened the fallback still opens it with `x-debug-token`.
+ * it holds more than the app does (principal-blind whole-db reads, RAW PROVIDER REQUEST BODIES with
+ * `WIRE_CAPTURE=on`, and the provider's literal REPLY bytes with `WIRE_CAPTURE_REPLY=on`). An operator who widened the fallback still opens it with `x-debug-token`.
  */
 export function resolveOwnerFallbackCredential(input: OwnerFallbackCredentialInput): boolean {
   return input.authFallback === "owner" && input.nodeEnv !== "production" && !input.fallbackWidened;
