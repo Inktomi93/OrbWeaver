@@ -4,18 +4,11 @@
 // domain's verbs (`own-tables-only`); the ports are the runtime's READ side plus the registry's row persistence.
 
 import type { Db } from "@orb/db";
-import type { BindingStore, ConnectionStore, ProviderStore, SnapshotStore } from "@orb/inference";
+import type { ConnectionPorts } from "../contract/service.ts";
 import { lookupBinding } from "./bindings.ts";
 import { createSnapshotStore } from "./catalog-snapshot.ts";
 import { fetchConnectionById, listOwnedConnections } from "./connections.ts";
 import { deleteProviderRow, listProviderRows, putProviderRow } from "./provider-rows.ts";
-
-export interface ConnectionPorts {
-  readonly connections: ConnectionStore;
-  readonly bindings: BindingStore;
-  readonly providerStore: ProviderStore;
-  readonly snapshotStore: SnapshotStore;
-}
 
 export function createConnectionPorts(deps: { readonly db: Db; readonly now: () => number }): ConnectionPorts {
   const { db, now } = deps;

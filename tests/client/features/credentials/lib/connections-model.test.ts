@@ -10,6 +10,7 @@ import { castId } from "@orb/kit/ids";
 import {
   bindRefusal,
   CHAT_API_LABELS,
+  connectionRoleLabels,
   connectionSummary,
   persistedRoleLabel,
   providerPickerItems,
@@ -42,6 +43,17 @@ test("the Utility row names all three consumers and every row carries a descript
   for (const row of ROLE_ROWS_ORDERED) {
     expect(row.description.length).toBeGreaterThan(0);
   }
+});
+
+test("connection tasks fold to their six user-facing Model roles without leaking non-routable task names", () => {
+  expect(connectionRoleLabels(["chat", "agent", "summarize", "structured", "generateImage", "embed", "imageEmbed", "rerank"])).toEqual([
+    "Chat",
+    "Utility model",
+    "Image generation",
+    "Text embedding",
+    "Image embedding",
+    "Rerank",
+  ]);
 });
 
 test("the picker groups by the row's auth — Hosted (key) · Your own server (URL) · Subscription · Built-in — in that order", () => {

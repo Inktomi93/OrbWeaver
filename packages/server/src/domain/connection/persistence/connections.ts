@@ -40,6 +40,7 @@ export async function fetchOwnedConnection(db: Db, ownerId: UserId, connectionId
 
 /** The runtime's `ConnectionStore.get` — BY ID, owner-agnostic: the resolver compares `ownerId` itself and
  *  refuses (and records) a binding that names a stranger's row. */
+// @orb-waive owner-scoped-reads(userConnections): THE POST-FETCH ARM, deliberately one frame up. This is the runtime's `ConnectionStore.get` port, and BOTH consumers compare the owner themselves and collapse a foreign row to the SAME leak-free not-found: `resolve/resolve-task.ts#connectionFor` (`connection.ownerId !== funder` → a `connection_owner_mismatch` securityEvent + the identical `NoConnectionError` text) and `inference/index.ts#ownedConnection` (`requireOwned`). An ownerId in this WHERE would DESTROY the mismatch detection — a binding pointing at a stranger's row would read as "absent" and raise no security event. Ends if a caller ever reaches this without an owner comparison of its own.
 export async function fetchConnectionById(db: Db, connectionId: UserConnectionId): Promise<UserConnection | null> {
   const rows = await db.select().from(userConnections).where(eq(userConnections.id, connectionId)).limit(1);
   const row = rows[0];

@@ -72,6 +72,7 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
     addSpanEvent: deps.addSpanEvent,
     fetch: deps.sdkFetch,
     captureWire: deps.captureWire,
+    captureWireReply: deps.captureWireReply,
     imageToPng: deps.imageToPng,
   };
   const openAiCompat = createOpenAiCompatBackend({ ...shared, app: deps.app, embedSpaceDims: deps.embedSpace.dims });

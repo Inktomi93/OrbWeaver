@@ -88,7 +88,16 @@ import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#d
 import { APP_NAME, APP_URL } from "#foundation/config";
 import { env, processEnvSnapshot } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
-import { addSpanEvent, getLog, isWireCaptureEnabled, logAudit, recordWireCapture, securityEvent, span } from "#foundation/observability";
+import {
+  addSpanEvent,
+  getLog,
+  isWireCaptureEnabled,
+  isWireReplyCaptureEnabled,
+  logAudit,
+  recordWireCapture,
+  securityEvent,
+  span,
+} from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import { createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
@@ -197,6 +206,9 @@ export interface ServicesDeps {
    *  `true`. Absent ⇒ `isWireCaptureEnabled()` (env) decides. When neither is on, NO sink is wired into the
    *  backends (zero cost, zero retained bytes). */
   readonly wireCapture?: boolean;
+  /** Audit D2/D3: force the REPLY tap on, independent of `env.WIRE_CAPTURE_REPLY`. Absent ⇒
+   *  `isWireReplyCaptureEnabled()` (env) decides. Inert unless the request sink is wired at all. */
+  readonly wireCaptureReply?: boolean;
 }
 
 /** What the composition root hands back: the transport `Services` bundle + the boot handles the lifecycle
@@ -343,6 +355,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // TASK-24: wire the provider wire-capture sink ONLY when capture is enabled (env or the force flag). When
   // off, no sink is injected → the send boundaries never record → zero cost, zero retained bytes, prod-safe.
   const wireCaptureOn = deps.wireCapture === true || isWireCaptureEnabled();
+  const wireReplyCaptureOn = wireCaptureOn && (deps.wireCaptureReply === true || isWireReplyCaptureEnabled());
   const secretBox = createSecretBox(deps.secretBoxKey);
   const cas = createCas(deps.casDir);
   const variants = createVariantCache(deps.variantDir);
@@ -406,6 +419,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     structuredOutputVehicle: () => effectiveConfig.getEffectiveConfig().structuredOutputVehicle,
     // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
     ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }) } : {}),
+    // The reply tap lives at the SEND BOUNDARY (it owns the 64 KiB cap and the by-value scrub); compose only
+    // carries the verdict. A second opt-in on purpose — see the recorder's header.
+    captureWireReply: wireReplyCaptureOn,
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     agentSdk: {
       // LIVE getter (per request) so an admin retune applies WITHOUT a restart (Q6 / item 7).

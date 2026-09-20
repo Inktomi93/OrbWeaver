@@ -145,7 +145,7 @@ The pre-build "cheap wins vs big lifts" prioritization + the pre-Phase-5 "now wi
 
 - Scripting/automation/variables/macro/STscript: D46; designs staged (`../proposed/automation-design/`).
 - Ownership categories + the no-global-tier + image/asset decisions: ledger D18 / D20 / D21 / D23.
-- Sealed backends + adding a source (the D39 template) + roles firewall: `Tier-3b-Providers.md`, D39.
+- Sealed backends + adding a provider or a wire: `Tier-3b-Providers.md`, D39. (There is no roles firewall — the axis it policed was retired with the `@orb/inference` extraction.)
 - Reserved columns/roles: D37 (`toolCalls`), D39 (`generateImage`), D41 (reasoning/warnings).
 - Background image = appearance settings (not a theme token): D63.
 - Constitution + the cake + gates: `Core-0-Architecture-and-Structure.md`.

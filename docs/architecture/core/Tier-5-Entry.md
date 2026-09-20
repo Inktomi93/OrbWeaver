@@ -36,12 +36,13 @@ packages/server/src/entry/
 │                             down is NOT here — avatars + demo-chat transcripts ship as
 │                             `@orb/default-content`, plugin bundles as `@orb/showcase-plugins` (D160)
 ├── compose/                  THE COMPOSITION ROOT (non-auth wiring; no logic)
-│   ├── services.ts           constructs every domain service with its Context; the injection graph
+│   ├── services.ts           constructs every domain service with its Context; the injection graph —
+│   │                         incl. `roleClientsFor(funderUserId)`, the runtime's PER-CALL fold over
+│   │                         connection_bindings (Tier-3b §"The composition seam"; no boot-time binding)
 │   ├── chat.ts               the chat domain's slice of the graph
 │   ├── workload-contributions.ts  spreads every domain's WorkloadContribution factory into ONE exhaustive
 │   │                         registry (D117 — the former runner-env.ts hub is DELETED; D4 superseded)
 │   ├── event-bus.ts          the in-process typed event bus + subscriptions (embeddings indexer, …)
-│   ├── role-clients.ts       bindRoleClientsForUser — per-role connection.resolveRole (Tier-3b §"boot binder")
 │   ├── effective-config.ts   wires settings' getEffectiveConfig sync getter + the boot reload
 │   ├── room-reach.ts / emit-chat-changed.ts   cross-feature event-emit wiring (room-reach = the entity→room
 │   │                         reach table: a DomainEvent → a live-only roomEntityChanged per reached room)

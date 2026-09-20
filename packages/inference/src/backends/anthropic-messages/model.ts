@@ -20,6 +20,8 @@ export const ANTHROPIC_KEY = "anthropic";
 export interface AnthropicTransportDeps {
   readonly fetch: typeof fetch;
   readonly captureWire?: WireCaptureSink | undefined;
+  /** Tap the reply bytes onto the capture entry too (§D2) — the process-tier opt-in, off by default. */
+  readonly captureWireReply?: boolean | undefined;
 }
 
 export interface AnthropicCall {
@@ -58,6 +60,7 @@ export function anthropicModelFor(call: AnthropicCall): LanguageModelV4 {
               wire: connection.wire,
               providerId: connection.providerId,
               model: connection.model,
+              reply: deps.captureWireReply === true,
             },
           }
         : {}),

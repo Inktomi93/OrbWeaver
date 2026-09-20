@@ -40,8 +40,16 @@ const IMAGE_URL_TYPE = "image_url";
 const VIDEO_URL_TYPE = "video_url";
 const TEXT_TYPE = "text";
 
-/** The keys the `openrouter` transport MODELS off `extras` — everything else is dropped loudly. */
-const OPENROUTER_EXTRAS_KEYS = ["provider", "models"] as const;
+/** The keys the `openrouter` transport MODELS off `extras` — everything else is dropped loudly.
+ *
+ *  EVERY entry here is read, VALIDATED and placed by `openai-compat/chat.ts` (`openRouterExtras`,
+ *  `mergePlugins`, `webSearchOptions`, `debugOptions`), which is why none of them is merged from here: the
+ *  raw user value would overwrite the validated copy the chat surface already put on the body. The list's
+ *  only job is deciding whether a key gets the "ignored" WARNING — and a key this transport DOES send must
+ *  not claim it was dropped. `plugins`/`web_search_options` were missing when their doors landed (audit C3),
+ *  so a user who declared either got a `settings_adjusted` notice about a field that rode the wire
+ *  perfectly; `debug` (D3) would have inherited it. A new extras door adds its key HERE in the same commit. */
+const OPENROUTER_EXTRAS_KEYS = ["provider", "models", "plugins", "web_search_options", "debug"] as const;
 
 export interface ShapeArgs {
   readonly plan: WirePlan | null;
@@ -70,8 +78,8 @@ function mergeExtras(body: Record<string, unknown>, args: ShapeArgs): Record<str
   const modelled = args.dialect === "openrouter" ? new Set<string>(OPENROUTER_EXTRAS_KEYS) : null;
   for (const [key, value] of Object.entries(args.extras)) {
     if (modelled !== null) {
-      // The two modelled keys were already read off `extras` by the chat surface (routing + fallback chain);
-      // every other key has no home on this transport.
+      // Every modelled key was already read, validated and placed by the chat surface; every other key has
+      // no home on this transport. Either way nothing merges from here — see the list's own note.
       if (!modelled.has(key)) {
         args.warnings.push({
           code: "custom_parameters_ignored",

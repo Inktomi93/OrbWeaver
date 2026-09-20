@@ -29,7 +29,7 @@ const LABEL_MAX_CHARS = 120;
  *  FIELD-WISE patch (ground5 M6: never a GET→whole-blob PUT). */
 const connectionFields = z.object({
   label: z.string().min(1).max(LABEL_MAX_CHARS).optional(),
-  providerId: z.string().min(1),
+  providerId: providerIdSchema,
   credentialId: brandedId<UserCredentialId>().nullable(),
   baseUrl: z.string().min(1).nullable(),
   model: z.string(),
@@ -111,7 +111,7 @@ export const connectionRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.connection.listEndpointModels({ principal: ctx.auth, ...input })),
 
   refreshCatalog: adminProcedure
-    .input(z.object({ providerId: z.string().min(1) }))
+    .input(z.object({ providerId: providerIdSchema }))
     .mutation(({ ctx, input, signal }) => ctx.services.connection.refreshCatalog({ providerId: input.providerId, signal })),
 
   // ── diagnostics (each against ONE of the caller's rows)

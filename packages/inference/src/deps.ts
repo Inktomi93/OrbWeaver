@@ -96,6 +96,10 @@ export interface InferenceDeps {
   readonly bindings: BindingStore;
   readonly providerStore: ProviderStore;
   readonly captureWire?: WireCaptureSink | undefined;
+  /** §D2/§D3: also tap the literal RESPONSE bytes onto each capture entry. Independently gated and off by
+   *  default — the request capture is the operator's own prompt, while the reply is the model's prose, which
+   *  the recorder's outcome arm deliberately never keeps. Inert without `captureWire`. */
+  readonly captureWireReply?: boolean | undefined;
   /** Raw PNG transform (MA-6: GIF → first-frame PNG on the hosted wires); absent ⇒ label-only passthrough. */
   readonly imageToPng?: ((bytes: Uint8Array) => Promise<Uint8Array>) | undefined;
   readonly agentSdk: {

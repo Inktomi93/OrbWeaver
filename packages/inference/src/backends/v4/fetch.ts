@@ -3,13 +3,33 @@
 //   1. HOST-PIN (#25): `redirect: "manual"`, and ANY 3xx / opaqueredirect is a hard NON-retryable error, never
 //      followed — Node's default follow re-sends `Authorization: Bearer …` to whatever host `Location` names.
 //   3. Error bodies are read capped at 64 KiB with `reader.cancel()` past it, then handed to the SDK as a
-//      re-framed `Response` so its own failed-response handler classifies the (scrubbed) text.
+//      re-framed `Response` so its own failed-response handler classifies the (scrubbed) text. The read
+//      OVER-reads by `secretScrubOverhang` and scrubs before it slices (#1820) — see `scrubToLimit`.
 //   4. Wire-capture bodies are SECRET-SCRUBBED BY VALUE before the ring (`transport.includeBody` can carry
 //      key-in-body auth), and the entry is emitted AFTER the attempt so the RESPONSE HEADERS ride with it
 //      (§D1: Anthropic's `request-id` + rate-limit budget, OpenRouter's `x-openrouter-*` routing trail).
 //      Here rather than at the `doStream` result because the bytes this file holds are the FINAL ones —
 //      after `transformRequestBody` AND after our own `shapeBody` — while the SDK result's `request.body`
 //      is an earlier copy that predates the shaping.
+//   4b. THE REPLY TAP (§D2/§D3), opt-in (`capture.reply`): the response body is TEE'd, our branch drained to
+//      the SAME 64 KiB cap with the SAME `reader.cancel()` discipline as control 3 (one number, one reason),
+//      and the entry emitted when that drain ends — so the request body, the response headers AND the literal
+//      reply text ride ONE ring row. A HEAD cap is the right end to keep: OpenRouter puts its
+//      `debug.echo_upstream_body` payload in the FIRST SSE frame.
+//
+//      REJECTED ALTERNATIVE, recorded so nobody re-derives it from the audit: the SDK's `includeRawChunks` +
+//      the V4 `raw` stream part (the audit's own D2/D3 fix text, "the reducer forwards `raw` parts to the
+//      capture sink"). MEASURED against the installed provider dist 3.0.0: `includeRawChunks` only decides
+//      whether the OR provider re-emits each ALREADY-PARSED chunk as a `{type:"raw", rawValue}` part
+//      (`dist/index.js:3941-3942`); it changes neither the request nor the SSE bytes. And
+//      `debug.echo_upstream_body` is a REQUEST BODY field whose payload "will be returned as the first chunk
+//      in the stream" (`dist/index.d.ts:174-185`) — i.e. it rides the ordinary SSE. So `includeRawChunks` is
+//      what the SDK needs to SURFACE the echo as a part, NOT what our capture needs to SEE it: D2 and D3 are
+//      one toggle at the SDK part layer only, and this transport sits underneath it. The raw part is also
+//      strictly weaker evidence — post-parse JSON, one payload per chunk (so either a second entry shape or a
+//      fully deferred emit), and reachable only from a `doStream` call site, while this tap is the literal
+//      wire, at one site, for every surface (chat, embed, image, diagnostics) on both hosted wires. It rests
+//      on exactly the argument control 4 already makes for the request side.
 //   • `transport.responseMap` + `features.reasoningKeys`: each SSE chunk / the JSON body is reshaped through
 //     the user's dot paths BEFORE the SDK parses it (today's `reshapeChunk`), so a non-OpenAI reply still
 //     lands on the SDK's chunk schema. Only when a map or key list is set — the untouched stream passes
@@ -23,7 +43,7 @@ import type { WireCaptureSink } from "../../contract/backend.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ResponseMap } from "../../contract/resolved.ts";
-import { redactSecretsFromText } from "../kit/openai-body.ts";
+import { redactSecretsFromText, secretScrubOverhang } from "../kit/openai-body.ts";
 import { encodeSseData, parseOpenAiSse, SSE_DONE_LINE } from "../kit/sse.ts";
 
 const ERROR_BODY_LIMIT = 65_536;
@@ -52,6 +72,10 @@ export interface WrapFetchArgs {
         readonly wire: Wire;
         readonly providerId: string;
         readonly model: string;
+        /** Tap the RESPONSE BODY too (§D2/§D3). Off by default and independently gated: the request capture
+         *  is the operator's prompt, while the reply is the model's prose, which the recorder's outcome arm
+         *  deliberately never keeps. A caller that does not ask gets today's request-and-headers entry. */
+        readonly reply: boolean;
       }
     | undefined;
 }
@@ -64,13 +88,23 @@ function isRedirect(res: Response): boolean {
   return res.type === "opaqueredirect" || (res.status >= REDIRECT_MIN && res.status <= REDIRECT_MAX);
 }
 
-async function readCapped(res: Response): Promise<string> {
-  if (res.body === null) {
-    return "";
-  }
-  const reader = res.body.getReader();
+/** What a capped read produced. `tearDown` is the abort / socket reset that ended it early — carried rather
+ *  than thrown because the two callers want OPPOSITE things from it: the error-body path rethrows (a
+ *  truncated error body must never reach the SDK's classifier dressed as a complete one), while the reply tap
+ *  keeps the partial bytes (the reply of a turn that DIED is the one an operator went looking for, and its
+ *  read runs on a floating promise where a throw would have nowhere to land). */
+interface CappedRead {
+  readonly text: string;
+  readonly tearDown: { readonly error: unknown } | null;
+}
+
+/** Read one stream to `limit` UTF-16 code units, cancelling the source past it rather than draining it.
+ *  `limit` is the DISPLAY cap PLUS `secretScrubOverhang` — see `scrubToLimit`. */
+async function readCappedStream(body: ReadableStream<Uint8Array>, limit: number): Promise<CappedRead> {
+  const reader = body.getReader();
   const decoder = new TextDecoder();
   let out = "";
+  let tearDown: { readonly error: unknown } | null = null;
   try {
     for (;;) {
       const chunk = await reader.read();
@@ -79,15 +113,42 @@ async function readCapped(res: Response): Promise<string> {
         break;
       }
       out += decoder.decode(chunk.value, { stream: true });
-      if (out.length >= ERROR_BODY_LIMIT) {
+      if (out.length >= limit) {
         await reader.cancel();
         break;
       }
     }
+  } catch (error) {
+    tearDown = { error };
   } finally {
     reader.releaseLock();
   }
-  return out.slice(0, ERROR_BODY_LIMIT);
+  return { text: out.slice(0, limit), tearDown };
+}
+
+/** SCRUB BEFORE YOU MANGLE (#1820): a reader that truncates FIRST and scrubs SECOND cannot be saved by any
+ *  later belt — a credential straddling the cut matches neither spelling, and its surviving PREFIX is real
+ *  key material. So every read here OVER-reads by `secretScrubOverhang`, scrubs the WHOLE buffer, and only
+ *  then slices to the display cap. Both byte directions of this file go through this one pair; `fetch-json`
+ *  already obeyed it, this file did not until the reply tap gave it a second reader. */
+function overreadLimit(secrets: ProviderScrubSet): number {
+  return ERROR_BODY_LIMIT + secretScrubOverhang(secrets);
+}
+
+function scrubToLimit(text: string, secrets: ProviderScrubSet): string {
+  return redactSecretsFromText(text, secrets).slice(0, ERROR_BODY_LIMIT);
+}
+
+/** The over-read, UNSCRUBBED error body. Every caller pairs it with `scrubToLimit`. */
+async function readCapped(res: Response, secrets: ProviderScrubSet): Promise<string> {
+  if (res.body === null) {
+    return "";
+  }
+  const read = await readCappedStream(res.body, overreadLimit(secrets));
+  if (read.tearDown !== null) {
+    throw read.tearDown.error;
+  }
+  return read.text;
 }
 
 // ── responseMap ─────────────────────────────────────────────────────────────────────────────────────────
@@ -315,7 +376,7 @@ function capturedHeaders(headers: Headers, secrets: ProviderScrubSet): Record<st
  *  the same ring entry (§D1) — a request row whose response is a separate row cannot be correlated, and the
  *  bytes here are the FINAL ones (post-`transformRequestBody`, post-`shapeBody`), which is strictly more
  *  faithful than the SDK result's own `request.body`. A failed attempt still records, with no headers. */
-function emitCapture(args: WrapFetchArgs, body: Record<string, unknown> | null, headers: Headers | undefined): void {
+function emitCapture(args: WrapFetchArgs, body: Record<string, unknown> | null, headers: Headers | undefined, reply: string | undefined): void {
   if (args.capture === undefined || body === null) {
     return;
   }
@@ -327,7 +388,61 @@ function emitCapture(args: WrapFetchArgs, body: Record<string, unknown> | null, 
     model: args.capture.model,
     body,
     ...(headers !== undefined ? { responseHeaders: capturedHeaders(headers, args.secrets) } : {}),
+    // Scrubbed HERE, on the same terms as the body and the headers: a provider that echoes a request back
+    // (OpenRouter's `debug.echo_upstream_body` is exactly that) hands us our own key-in-body credential, and
+    // OR's own redaction is the provider's belt, not ours.
+    ...(reply !== undefined ? { responseBody: scrubToLimit(reply, args.secrets) } : {}),
   });
+}
+
+function capturesReply(args: WrapFetchArgs): boolean {
+  return args.capture?.reply === true;
+}
+
+/** Control 4b: hand the SDK one tee branch and drain the other ourselves, then emit the ONE entry the whole
+ *  send produced. Owning a branch rather than wrapping the consumer's is what makes the deferral safe — a
+ *  reader the SDK RELEASES without cancelling (`drainStream`'s `finally`, on the truncated-turn throw) would
+ *  never run a pass-through's flush, and the entry of a turn that broke is the one worth having. */
+function tapReply(res: Response, args: WrapFetchArgs, body: Record<string, unknown> | null): Response {
+  if (res.body === null) {
+    emitCapture(args, body, res.headers, undefined);
+    return res;
+  }
+  const [downstream, ours] = res.body.tee();
+  const emit = (reply: string): void => {
+    emitCapture(args, body, res.headers, reply);
+  };
+  void readCappedStream(ours, overreadLimit(args.secrets)).then(
+    (read) => {
+      emit(read.text);
+    },
+    // Unreachable by construction — `readCappedStream` CARRIES its tear-down in `CappedRead` rather than
+    // throwing. The arm is here because that guarantee is internal to this file while the floating read is
+    // the only thing standing between a send and its ring row: it emits, it never swallows.
+    () => {
+      emit("");
+    },
+  );
+  return new Response(downstream, { status: res.status, statusText: res.statusText, headers: res.headers });
+}
+
+function redirectRefused(args: WrapFetchArgs, res: Response): ProviderError {
+  return new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: `${args.label}: the endpoint answered ${res.status} with a redirect, which is never followed (host pin)`,
+    apiErrorStatus: res.status,
+  });
+}
+
+/** Control 3: capped + scrubbed, then re-framed so the SDK's failed-response handler reads a bounded body.
+ *  The capture rides the SAME text — on a failure the error body IS the reply, and it is already in hand. */
+async function failedResponse(args: WrapFetchArgs, res: Response, body: Record<string, unknown> | null): Promise<Response> {
+  const raw = await readCapped(res, args.secrets);
+  // The entry takes the RAW over-read text: `emitCapture` runs the same scrub-then-slice pair, and handing it
+  // the already-sliced copy would re-introduce the truncate-first order the pair exists to avoid.
+  emitCapture(args, body, res.headers, capturesReply(args) ? raw : undefined);
+  return new Response(scrubToLimit(raw, args.secrets), { status: res.status, statusText: res.statusText, headers: res.headers });
 }
 
 /** The wrapped `fetch`: host-pinned, error-body-capped, response-reshaped, wire-captured. */
@@ -338,23 +453,23 @@ export function wrapFetch(args: WrapFetchArgs): typeof fetch {
     try {
       res = await args.fetch(input, prepared.init);
     } catch (err) {
-      emitCapture(args, prepared.capturedBody, undefined);
+      emitCapture(args, prepared.capturedBody, undefined, undefined);
       throw err;
     }
-    emitCapture(args, prepared.capturedBody, res.headers);
     if (isRedirect(res)) {
-      throw new ProviderError({
-        kind: "invalid",
-        retryable: false,
-        message: `${args.label}: the endpoint answered ${res.status} with a redirect, which is never followed (host pin)`,
-        apiErrorStatus: res.status,
-      });
+      // A redirect's body is never read, so there is nothing to defer for: emit now, exactly as before.
+      emitCapture(args, prepared.capturedBody, res.headers, undefined);
+      throw redirectRefused(args, res);
     }
     if (!res.ok) {
-      // Capped + scrubbed, then re-framed so the SDK's failed-response handler reads a bounded body.
-      const text = redactSecretsFromText(await readCapped(res), args.secrets);
-      return new Response(text, { status: res.status, statusText: res.statusText, headers: res.headers });
+      return await failedResponse(args, res, prepared.capturedBody);
     }
-    return needsReshape(args) ? await reshapedResponse(res, args) : res;
+    // Tapped BEFORE any reshaping: the capture's whole claim is that it holds the literal wire, and
+    // `reshapedResponse` re-spells a non-OpenAI reply onto the SDK's schema.
+    const tapped = capturesReply(args) ? tapReply(res, args, prepared.capturedBody) : res;
+    if (!capturesReply(args)) {
+      emitCapture(args, prepared.capturedBody, res.headers, undefined);
+    }
+    return needsReshape(args) ? await reshapedResponse(tapped, args) : tapped;
   };
 }

@@ -304,10 +304,11 @@ roles/regex/world-info/labels/derived-data/economics/cards) + the domain map abo
 
 ### Connection ↔ providers boundary
 
-**→ [`Tier-3b-Providers.md`](Tier-3b-Providers.md)** (execution; `runner`/`family`/`protocol` sealed
-inside infra; `resolveChat`; stateful-vs-stateless backends) + the `domain/connection` code (selection +
-the capability descriptor). The tell that it's right: `providers` imports zero domains, and
-`runner`/`family` never appear in `domain/**`.
+**→ [`Tier-3b-Providers.md`](Tier-3b-Providers.md)** (the `@orb/inference` package: the wire/provider/
+task axes, resolution, execution, the capability fold) + the `domain/connection` code (the DOOR: the
+three tables + the principal gate + the credential-free projection; every read verb delegates). The tell
+that it's right: `@orb/inference` declares no `@orb/db`/`@orb/server` dep and its exports map has exactly
+one entry, so no domain can reach a backend or the wire→backend map.
 
 Live open work is tracked in `Core-Audits-and-Debt.md` (the PD registry) + `../proposed/`; no
 domain-map judgment call is open here.

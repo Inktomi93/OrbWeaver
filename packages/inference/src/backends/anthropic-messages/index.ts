@@ -36,6 +36,7 @@ export interface AnthropicBackendDeps {
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly fetch: typeof fetch;
   readonly captureWire?: InferenceDeps["captureWire"];
+  readonly captureWireReply?: InferenceDeps["captureWireReply"];
   readonly imageToPng?: InferenceDeps["imageToPng"];
 }
 
@@ -84,7 +85,11 @@ async function probe(req: ProbeRequest, fetchImpl: typeof fetch, now: () => numb
 
 export function createAnthropicBackend(deps: AnthropicBackendDeps): ProviderBackend {
   const normalize: NormalizeImageBytes = deps.imageToPng !== undefined ? createImageNormalizer(deps.imageToPng) : passthroughImageNormalizer;
-  const transport: AnthropicTransportDeps = { fetch: deps.fetch, ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}) };
+  const transport: AnthropicTransportDeps = {
+    fetch: deps.fetch,
+    ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
+    ...(deps.captureWireReply !== undefined ? { captureWireReply: deps.captureWireReply } : {}),
+  };
   const chatDeps = { now: deps.now, random: deps.random, log: deps.log, addSpanEvent: deps.addSpanEvent, transport };
   const batchDeps = { now: deps.now, log: deps.log, transport, normalize };
   return {

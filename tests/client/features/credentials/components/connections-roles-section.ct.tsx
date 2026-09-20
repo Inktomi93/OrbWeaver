@@ -11,6 +11,7 @@
 // Drives the PRODUCTION path: the real contributed sections through the config host's own resolver, with
 // every read and the write stubbed at the network (routeTrpc).
 
+import { TASKS } from "@orb/contracts/inference";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // The row labels + render order are read from their ONE home rather than re-typed — a re-spelled literal is
@@ -145,6 +146,22 @@ test("every routable task gets a row, in the pane's own render order", async ({ 
   await expect(page.getByText("Summaries, structured extraction and image captions.", { exact: false })).toBeVisible();
 });
 
+test("a connection row speaks in Model roles and carries the exact bulk/background actions", async ({ mount, page }) => {
+  await stubPane(page, { connections: [connectionRow({ tasks: TASKS })] });
+  await mount(<ConnectionsSettingsStory />);
+
+  const section = page.locator("#config-anchor-connections-connections");
+  await expect(section.getByText("OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5", { exact: true })).toBeVisible();
+  for (const label of ROLE_ROWS_ORDERED.map((row) => row.label)) {
+    await expect(section.getByText(label, { exact: true })).toBeVisible();
+  }
+  await expect(section.getByText("agent", { exact: true })).toHaveCount(0);
+  await expect(section.getByText("structured", { exact: true })).toHaveCount(0);
+  await expect(section.getByRole("button", { name: "Use this connection for everything it can serve" })).toBeVisible();
+  await expect(section.getByText("Allow background work on this connection", { exact: true })).toBeVisible();
+  await expect(section.getByRole("switch", { name: "Allow background work on this connection: OpenRouter · Claude Sonnet 5" })).toBeChecked();
+});
+
 // A slot only ever offers what it can actually use: `connection.tasks` is the compatibility fact, and a row
 // offered for a task it cannot serve is a binding that resolves to nothing on the first turn.
 test("a row offers only the connections that can serve ITS task, plus the unset item", async ({ mount, page }) => {
@@ -193,8 +210,11 @@ test("picking a connection writes EXACTLY that task's binding", async ({ mount, 
   await expect
     .poll(() => recorder.lastInput("connection.setBinding"), { intervals: [20, 50, 100] })
     .toEqual({ task: "embed", connectionId: EMBED_CONNECTION_ID });
+  // SETTLE on the rendered arm first: the row is non-interactive while its write is in flight, so waiting for
+  // it to come back enabled reads the recorder after the surface has finished rather than mid-transition.
+  await expect(roleSelect(page, "Text embedding")).toBeEnabled();
   // One row's pick is one write — a slot that patched its neighbours would be the roleDefaults blob again.
-  expect(recorder.count("connection.setBinding")).toBe(1);
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
 // THE 2026-08-01 INCIDENT, re-pointed at the surface that replaced it. That pane rendered FORM state, so an
