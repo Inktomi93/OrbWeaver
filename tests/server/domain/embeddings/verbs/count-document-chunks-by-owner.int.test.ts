@@ -4,14 +4,14 @@
 // vector table has no ownerId, so the scope derives through the join to `documents`), the space tag scopes
 // (a retired model's rows are not live chunks), and an un-chunked document is absent rather than zero.
 
-import type { DocumentId, Handle } from "@orb/kit/ids";
+import type { DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
-async function storeChunk(svc: ReturnType<typeof createEmbeddingsService>, documentId: DocumentId, chunkIdx: number): Promise<void> {
+async function storeChunk(svc: ReturnType<typeof createEmbeddingsService>, documentId: DocumentId, chunkIdx: number, ownerId: UserId): Promise<void> {
   await svc.store({
     kind: "document",
     lens: "chunk",
@@ -20,7 +20,7 @@ async function storeChunk(svc: ReturnType<typeof createEmbeddingsService>, docum
     dim: EMBED_DIM,
     // biome-ignore lint/suspicious/noExplicitAny: the branded DocumentId is produced by seedDocument; the test passes it straight back through the store arm.
     fkRefs: { documentId: documentId as any, chunkIdx, charStart: chunkIdx * 10, charEnd: chunkIdx * 10 + 10 },
-    ownerId: owner,
+    ownerId,
   });
 }
 
@@ -34,10 +34,10 @@ test("counts every chunk in the OWNER's bank, never another owner's, and scopes 
   const alsoMine = await seedDocument(db, owner, { id: "document_also", text: "b" });
   const bare = await seedDocument(db, owner, { id: "document_bare", text: "c" });
   const theirs = await seedDocument(db, other, { id: "document_theirs", text: "d" });
-  await storeChunk(svc, mine, 0);
-  await storeChunk(svc, mine, 1);
-  await storeChunk(svc, alsoMine, 0);
-  await storeChunk(svc, theirs, 0);
+  await storeChunk(svc, mine, 0, owner);
+  await storeChunk(svc, mine, 1, owner);
+  await storeChunk(svc, alsoMine, 0, owner);
+  await storeChunk(svc, theirs, 0, other);
 
   const counts = await svc.countDocumentChunksByOwner({ ownerId: owner, model: EMBED_MODEL });
   expect(counts.get(mine)).toBe(2);

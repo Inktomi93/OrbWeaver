@@ -115,26 +115,26 @@ describe("compute-themes", () => {
   test("uses the per-run k and projects digestsAssigned/clustersWritten", async () => {
     const { discovery, contributions } = build();
     const result = await contributions[0].run(ctx, { k: 5 }, vi.fn(), sig());
-    expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, k: 5 });
+    expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, funderUserId: OWNER_ID, k: 5 });
     expect(result).toEqual({ scanned: 10, written: 5 });
   });
 
   test("falls back to the domain floor k when neither a param nor the user knob is set", async () => {
     const { discovery, contributions } = build();
     await contributions[0].run(ctx, {}, vi.fn(), sig());
-    expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, k: 12 });
+    expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, funderUserId: OWNER_ID, k: 12 });
   });
 
   test("uses the user's computeThemesK knob when no per-run k is supplied (PD-75)", async () => {
     const { discovery, contributions } = build(withKnobs({ computeThemesK: 7 }));
     await contributions[0].run(ctx, {}, vi.fn(), sig());
-    expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, k: 7 });
+    expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, funderUserId: OWNER_ID, k: 7 });
   });
 
   test("a per-run k overrides the user's computeThemesK knob", async () => {
     const { discovery, contributions } = build(withKnobs({ computeThemesK: 7 }));
     await contributions[0].run(ctx, { k: 3 }, vi.fn(), sig());
-    expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, k: 3 });
+    expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, funderUserId: OWNER_ID, k: 3 });
   });
 
   // ── issue #166: a zero-input run STATES its reason instead of reporting a green nothing ────────────
