@@ -6,12 +6,16 @@
 
 import process from "node:process";
 import { z } from "zod";
+import { ENGINE_PORTS } from "../../../_shared/ports.ts";
 import type { EngineLaunchEnvFloor } from "./build-argv.ts";
 import type { EngineDeploymentEnv } from "./spawn-engine.ts";
 
-const VLLM_EMBED_PORT_DEFAULT = 8701;
-const VLLM_RERANK_PORT_DEFAULT = 8702;
-const VLLM_GEN_PORT_DEFAULT = 8703;
+// The three fleet ports are ROWS in the ONE registry (`_shared/ports.ts` `ENGINE_PORTS`, policy
+// `tooling-port-registry`), read by name rather than re-spelled here. They were literals while this file
+// lived in the server schema, which the registry could not reach (an upward import); the fleet yeet moved
+// it into `tooling/`, so the second spelling is now just drift waiting to happen — and `ENGINE_PORTS` is
+// what `stack status` already names an owner from.
+
 // The gen engine's --max-model-len (buildEngineArgv `gen` arm). 65_536 on a 262_144-native checkpoint: at
 // gen util 0.6 the KV pool is ~296k tokens, so 64k/request floors concurrency at ~4.5x (owner, 2026-08-18).
 const VLLM_GEN_MAX_MODEL_LEN_DEFAULT = 65_536;
@@ -49,9 +53,9 @@ const fleetEnvSchema = z.object({
   // The host the three engines are REACHED at. Default loopback: the bare-metal fleet shares the network
   // namespace; the generated engine-container overlay sets it to the gen service name.
   VLLM_ENGINE_HOST: z.string().min(1).default("127.0.0.1"),
-  VLLM_EMBED_PORT: z.coerce.number().int().positive().default(VLLM_EMBED_PORT_DEFAULT),
-  VLLM_RERANK_PORT: z.coerce.number().int().positive().default(VLLM_RERANK_PORT_DEFAULT),
-  VLLM_GEN_PORT: z.coerce.number().int().positive().default(VLLM_GEN_PORT_DEFAULT),
+  VLLM_EMBED_PORT: z.coerce.number().int().positive().default(ENGINE_PORTS.embed),
+  VLLM_RERANK_PORT: z.coerce.number().int().positive().default(ENGINE_PORTS.rerank),
+  VLLM_GEN_PORT: z.coerce.number().int().positive().default(ENGINE_PORTS.generate),
   VLLM_EMBED_MODEL: z.string().min(1).default("Qwen/Qwen3-VL-Embedding-2B"),
   VLLM_RERANK_MODEL: z.string().min(1).default("Qwen/Qwen3-VL-Reranker-2B"),
   VLLM_GEN_MODEL: z.string().min(1).default("Qwen/Qwen3-VL-8B-Instruct"),

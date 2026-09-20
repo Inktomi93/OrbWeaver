@@ -14,7 +14,7 @@
 // orphan reconcile (supervisor reaper) MUST run FIRST wherever both apply — a dead engine's own EngineCore
 // still holding VRAM must be reaped as ours, never NAMED as a "foreign tenant" in a refusal.
 
-import { execFile } from "node:child_process";
+import { spawnNiced } from "../../../_shared/proc.ts";
 import type { VLLM_ENGINES } from "./engines.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
@@ -145,10 +145,18 @@ const QUERY_APPS_ARGS = ["--query-compute-apps=pid,process_name,used_memory,gpu_
 const GPU_CSV_COLS = 3;
 const APPS_CSV_COLS = 4;
 
-function runNvidiaSmi(args: readonly string[]): Promise<string> {
-  return new Promise((resolve) => {
-    execFile("nvidia-smi", args, { encoding: "utf8" }, (err, stdout) => resolve(err ? "" : stdout));
-  });
+/** One nvidia-smi query through the ONE subprocess door (policy `tooling-child-process-door`): the fleet
+ *  moved into `tooling/` with the #2 yeet, so its probes ride the homelab's nice -19 floor like every other
+ *  tool spawn. `nice` EXECS the target, so a box with no driver is the child's own non-zero exit rather
+ *  than a spawn error — which is why "" on anything but a clean exit is the whole failure handling here. */
+async function runNvidiaSmi(args: readonly string[]): Promise<string> {
+  // @orb-waive caught-failure-ownership(catch): a failed nvidia-smi query yields "" (no facts), and the caller REFUSES the wake on missing facts rather than assuming headroom — a local hardware probe, no auth/credential/network. Ends if a GPU fact ever gates a security decision.
+  try {
+    const res = await spawnNiced("nvidia-smi", args);
+    return res.code === 0 ? res.stdout : "";
+  } catch {
+    return "";
+  }
 }
 
 /** Parse `index,memory.total,memory.free` CSV rows (MiB, nounits) into per-GPU totals/free bytes. */

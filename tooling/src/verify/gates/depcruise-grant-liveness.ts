@@ -74,7 +74,12 @@ const BACKREF_RE = /\$\d/u;
  *  an uncommitted shrink leaves a budget nobody can trust (#973 — never a silent counter). */
 // The helper-world rule adds one paired capture to permit same-world edges while refusing upward ones.
 // dependency-cruiser-worlds.int.test.ts proves that distinction, including transitive and type-only edges.
-const BACKREF_BUDGET = 16;
+// 16 → 14, 2026-09-20 (the `@orb/inference` extraction): the fleet yeet took `vllm-surface-isolation`'s
+// `surfaces/$1` with the rule the program deleted, and re-pointing `infra-strategy-isolation` onto
+// `packages/inference/src/backends/` collapsed its paired `infra/$1/([^/]+)/` + `infra/$1/$2/` into a
+// single `backends/$1/` — the group axis is gone, so only the strategy capture survives. This is the
+// SHRINK direction the arm's own message names, committed here rather than left as a budget nobody trusts.
+const BACKREF_BUDGET = 14;
 
 /** The BUDGET arm's own real-tree anchor — a fact about the REAL config set, so it is judged only where the
  *  enforcement ledger lives. A resource proof carries its own rows and would (correctly for itself, wrongly

@@ -3,7 +3,8 @@
 // owner by following one FK to an owned entity, so a new stamp on an unclassified table is a doubling.
 //
 // OWNERID_CLASSIFICATIONS IS AUTHORITATIVE DATA, NOT A GRANT (exception-authority-census: "28 schema
-// ownership classifications"). It is the ruling itself — which tables the ledger decided OWN rather than
+// ownership classifications" — a DATED quotation of that census, not a live count; the table is 29 rows as
+// of 2026-09-20 and the only number that polices itself is the stale arm's `count` below). It is the ruling itself — which tables the ledger decided OWN rather than
 // derive — so it stays in the module as typed rows with a `why`, and the policy is HARD: the escape is
 // re-deciding D23, never a comment at the stamp.
 //
@@ -202,8 +203,8 @@ export const gate = defineGate({
         "packages/db/src/schema/chat.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n',
       },
-      expect: { count: 28, messageIncludes: "classifies nothing" },
-      why: "THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling. `count` is `Object.keys(OWNERID_CLASSIFICATIONS).length` (28, derived by planting `count: 99`), and it is EXACT on purpose: without it the row passed on ONE stale finding as readily as on all of them, so a stale sweep that silently shrank to a single row would still have looked green (#1968/#2001). It moves with the table, which is the coupling this arm is FOR.",
+      expect: { count: 29, messageIncludes: "classifies nothing" },
+      why: 'THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling. `count` is `Object.keys(OWNERID_CLASSIFICATIONS).length` — 29 since `embed_space_state` landed (`0d126b195`, the joint-space embeddings work) WITHOUT bumping this literal, which is exactly the drift the coupling is for and which sat undetected because this suite is `--full`-only and `pnpm check:structure` is structurally blind to it. RE-DERIVED 2026-09-20 by three independent methods that agree: `Object.keys()` through the real export, an ast-grep structural read of the object literal, and the arm\'s own refusal under a planted `count: 30` ("expected effective finding count=30 but got 29"). It is EXACT on purpose: without it the row passed on ONE stale finding as readily as on all of them, so a stale sweep that silently shrank to a single row would still have looked green (#1968/#2001). It moves with the table, which is the coupling this arm is FOR.',
     },
   ],
   mustPass: [

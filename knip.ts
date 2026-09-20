@@ -97,9 +97,6 @@ const config = {
       // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises
       // the installed module and its exact-version compatibility fence.
       ignoreDependencies: ["chrome-devtools-mcp"],
-      // The dev engine fleet (`stack/lib/engine-fleet/`, yeeted from the server with the inference program)
-      // invokes host executables, not npm binaries.
-      ignoreBinaries: ["nvidia-smi", "ss"],
     },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },

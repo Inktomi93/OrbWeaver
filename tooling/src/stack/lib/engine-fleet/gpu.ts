@@ -1,10 +1,13 @@
 // The ONE GPU-presence probe — supervisor + boot seam both read this; no second `nvidia-smi` anywhere.
 // Execs `nvidia-smi -L` once; success ⇒ GPU present. Never throws.
 
-import { execFileSync } from "node:child_process";
+import { execNicedSync } from "../../../_shared/proc.ts";
 
+// Through the ONE subprocess door (policy `tooling-child-process-door`): the fleet moved into `tooling/`
+// with the inference extraction and its probes ride the homelab's nice -19 floor like every other tool
+// spawn. `execNicedSync` THROWS on a non-zero exit, the same signal `execFileSync` gave — no driver, no GPU.
 const probeNvidiaSmi = (): void => {
-  execFileSync("nvidia-smi", ["-L"], { stdio: "ignore" });
+  execNicedSync("nvidia-smi", ["-L"]);
 };
 
 /** Detect a usable NVIDIA GPU. Success ⇒ true; ANY failure ⇒ false. `exec` defaults to the real call. */
@@ -19,7 +22,7 @@ export function detectGpu(exec: () => void = probeNvidiaSmi): boolean {
 }
 
 // `nvidia-smi -L` lists one line per GPU; the count is the line count (the shell's `nvidia-smi -L | wc -l`).
-const listNvidiaSmi = (): string => execFileSync("nvidia-smi", ["-L"], { encoding: "utf8" });
+const listNvidiaSmi = (): string => execNicedSync("nvidia-smi", ["-L"]);
 
 /** Count usable NVIDIA GPUs — drives TP + the gpu-util split (2-card ⇒ TP=2, rerank on GPU1). 0 on any
  *  failure (no GPU / no driver). `exec` defaults to the real `nvidia-smi -L`. */
