@@ -1309,6 +1309,88 @@
       ]
     },
     {
+      "path": "docs/design/inference-record-truth-2026-09-20.md",
+      "assignedSha256": "da89da790c5884a2f70d83993df9ab429ff861f30145da04b254cd6ccecbba2c",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "da89da790c5884a2f70d83993df9ab429ff861f30145da04b254cd6ccecbba2c",
+      "verifiedCommit": "e0cc98c3a417aefc659b777146c2ba05fabccd5b",
+      "verifiedAt": "2026-09-20",
+      "evidence": [
+        "docs/design/inference-record-truth-2026-09-20.md:1-137 full read 2026-09-20 by lane cb-record-tail before building the follow-up tail the file's §4 names",
+        "git log --oneline -1 -- docs/design/inference-record-truth-2026-09-20.md: e0cc98c3a fix(inference): record truth — applied effort, cost details + reasoning tokens, rate limits, response ids, measured OR cells",
+        "§0's premise table is the live half: four of the audit's own rows were KILLED against the tree before any edit, and §4 carries the deferrals — the B7 client gate and the refusal/rate_limit compose seam, both closed by lane cb-record-tail",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "The build record for the inference record-truth lane (stickler audit rows A4 · A5 · A6 · A8 · B1 · B3 · B5-B8 · H1a · H2 · H3): the premises re-derived against the tree (four audit rows killed), the 2026-09-20 wire measurements with their request ids, the chosen architecture per row with its rejected arms, the coupled-site inventory, the fork/deferral list, and the test plan. Written before the edits; the code is the doc from here on.",
+      "claims": [
+        {
+          "claim": "The anthropic wire emits the EXISTING `refusal` ChatEvent member off the normalized finish reason — never off `stop_details` presence (§2.11).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/backends/anthropic-messages/refusal.ts:25"
+            }
+          ]
+        },
+        {
+          "claim": "Cost provenance is a RECORD, not a number: `measuredCostOf` returns the total plus the BYOK gateway/upstream split where the wire reports one (§2.5).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/backends/v4/result.ts:51"
+            }
+          ]
+        },
+        {
+          "claim": "`sampling` is a stated SET, not a patch: the capability fold's one-level merge covers reasoning/output/context/turns only, so a measured empty set can subtract (§2.1).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/capability/synthesize.ts:47"
+            }
+          ]
+        },
+        {
+          "claim": "The measured tier is a row loader with `match` semantics rather than a family-keyed constant handed out wholesale (§2.2).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/capability/sources/measured/loader.ts:21"
+            }
+          ]
+        },
+        {
+          "claim": "`ChatResult.appliedEffort` is REQUIRED, so every wire states what it actually carried instead of the seam inferring the requested value (§2.8).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/contract/chat.ts:220"
+            }
+          ]
+        },
+        {
+          "claim": "Rate-limit headers are parsed by ONE kit function over the two observed header families (§2.6).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/inference/src/backends/kit/rate-limit-headers.ts:158"
+            }
+          ]
+        },
+        {
+          "claim": "The B5/B8 record columns landed on `message_variants` as nullable, default-free additions (§2.10).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/chat.ts:471"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/integer-line-boxes.md",
       "assignedSha256": "dd87039e1d745bfbac472d7aee74aa4923f6f905a5460f214d8834673b9e4d9e",
       "disposition": "current",
@@ -1436,28 +1518,6 @@
       "verifiedAt": null,
       "evidence": [],
       "summary": ""
-    },
-    {
-      "path": "docs/design/mocks/README.md",
-      "assignedSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
-      "evidence": [
-        "re-attested at ffd7d9a33 by the orchestrator: the regex-section/ row added (#1742 canvas source; five boards × two themes; updated 2026-09-05).",
-        "re-attested at 626a06121 by the orchestrator: the config-collections/ row added (#1725 canvas source; build.mjs → canvas.html; eleven boards × two themes).",
-        "docs/design/mocks/README.md:1 (design; unheaded)",
-        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "docs/design/mocks/README.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-        "docs/design/mocks/README.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
-        "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f — config-revamp row appended"
-      ],
-      "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence.",
-      "verifiedCanonicalSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba"
     },
     {
       "path": "docs/design/mocks/characters-landing/DESIGN.md",
@@ -1633,6 +1693,28 @@
         }
       ],
       "summary": "Context bracket mock (#860): the context panel as ONE head+foot chrome for chats, game rooms and characters — the canvas source (build.mjs → seven .dc.html + canvas.json), true-size default-state renders, the ruling, the slot table, the rulings that survive with a changed input, and the coupled sites for the build lane."
+    },
+    {
+      "path": "docs/design/mocks/README.md",
+      "assignedSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba",
+      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
+      "verifiedAt": "2026-09-19",
+      "evidence": [
+        "re-attested at ffd7d9a33 by the orchestrator: the regex-section/ row added (#1742 canvas source; five boards × two themes; updated 2026-09-05).",
+        "re-attested at 626a06121 by the orchestrator: the config-collections/ row added (#1725 canvas source; build.mjs → canvas.html; eleven boards × two themes).",
+        "docs/design/mocks/README.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/design/mocks/README.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
+        "docs/design/mocks/README.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
+        "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f — config-revamp row appended"
+      ],
+      "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence.",
+      "verifiedCanonicalSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba"
     },
     {
       "path": "docs/design/mocks/regex-section/DESIGN.md",
@@ -1950,14 +2032,15 @@
     },
     {
       "path": "docs/design/orbweaver-inference-package.md",
-      "assignedSha256": "ef3f613ab833c1cc300e75d1227a00916be0dd40aeee3bcbb64ac1fbcd7addef",
+      "assignedSha256": "fcdc490ce6b6c5137ef2865b220d5c4145e804c8ab9b7a4d2b24d6d805a27137",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "ef3f613ab833c1cc300e75d1227a00916be0dd40aeee3bcbb64ac1fbcd7addef",
-      "verifiedCommit": "bd99e9ad3ad35dad9132a0ebf6be5599df294e11",
+      "verifiedSha256": "fcdc490ce6b6c5137ef2865b220d5c4145e804c8ab9b7a4d2b24d6d805a27137",
+      "verifiedCommit": "29a8b0eaa3cfbac316183252ddac9b819f28d207",
       "verifiedAt": "2026-09-20",
       "evidence": [
+        "re-attested at 29a8b0eaa by lane cb-record-tail: §15c item 18 gained the RECORD-TRUTH TAIL bullet (the B7 client gate, the refusal/rate_limit compose ruling, the retired budgetExceeded code, the eight repaired comments, the re-pinned drain drop). SCOPE OF THIS RE-ATTESTATION, stated rather than implied: the receipt's sha was ALREADY stale at this lane's branch point — 215 lines had landed since bd99e9ad3 across 9ef00397d/100ee1db9/fe77a1f36/2e2871dd6/e0cc98c3a/a45c5f746, every one an APPEND to §8.8/§14/§15c, and none of those lanes re-attested. This lane read §5.3b, §5.3c, §8.5b and §15c-18 in full and appended within §15c-18; it did not re-read the other ~2600 lines. A full re-read is owed by the barrier.",
         "docs/design/orbweaver-inference-package.md:1-2602 full read 2026-09-20 by the orchestrator driving the program (re-read in full after compaction, per the owner's standing order)",
         "§13's landing order is the program's spine; §15c item 18 is the BUILD LOG of every deviation, kept current as each step lands"
       ],

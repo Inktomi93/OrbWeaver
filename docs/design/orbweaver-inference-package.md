@@ -2860,6 +2860,43 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         NOT fixed (product-side residue, reported not touched): `CHAT_OP_CODES.budgetExceeded` survives with
         no raiser and carries the orphaned `consent_required` JSDoc above it; `verbs/turn.ts`'s
         `isDrainVerdictDrop` header + `requestTurn`'s four-wall JSDoc still describe the deleted belts.
+      - *THE RECORD-TRUTH TAIL (2026-09-20, lane cb-record-tail — the follow-ups
+        `inference-record-truth-2026-09-20.md` §4 named, plus the residue the chat-reds lane reported above)*.
+        **B7's client half:** the per-message cost reveal now gates on the provider's DIALECT, not on
+        `generationId`'s presence — `canRevealGenerationCost` in `message-cost-readout.tsx`, read by the
+        readout AND by the metadata row that hands it a slot. Once the column became the provider's response
+        id on every hosted wire, an Anthropic swipe carried a `msg_…` there and offered a button whose only
+        possible outcome was `requireOpenRouter`'s typed refusal. A non-builtin provider id resolves no
+        dialect and is HIDDEN (the client has no synchronous registry for plugin/admin rows; hiding a working
+        button beats spending a paid call that refuses). This also repaired three CTs that had been RED since
+        `connectionId` joined the gate — the story never set one, so the subject rendered nothing — and a
+        stale `connection.orGenerationCost` proc name in the same file.
+        **The compose seam:** `warningChunks` forwarded `warning` only, so the `refusal` ChatEvent (the
+        anthropic wire's, and the agent-sdk's since it was written) died there. It now crosses as its OWN
+        `TurnStreamChunk` kind — not a `ResolvedWarning`, because `WARNING_CODES` is the resolve/wire DROP
+        vocabulary and a refusal is the model's verdict, not a degrade of our settings — collected across
+        recursion depths by the pipeline and emitted as the new `provider_refused` chat warning.
+        PAYLOAD-FREE and that is a constraint, not a preference: a `warning` bus member may carry only enum
+        literals and plain scalars (the bus-payload allowlist + the `index.test-d.ts` anchor pins), and
+        `category`/`explanation`/`fallbackModel` are raw provider strings — they stay on `ChatResult.events`
+        for the wire-outcome ring. **`rate_limit` was REFUSED at the same seam, with reasons:** it is an
+        operator signal about account headroom on a turn that SUCCEEDED, its payload is raw provider strings,
+        and it already has a home (the `provider.rate_limit` log line). Telling every member of a room that
+        the host is at 80% of a rate limit mid-story is noise, not honesty; the same reasoning covers
+        `compaction`/`api_retry`/`status`/`auth_status`/`model_downgrade`/`permission_leak`, and the bridge's
+        header now states the ruling so the next lane does not re-derive it.
+        **The residue:** `CHAT_OP_CODES.budgetExceeded` DELETED (no raiser anywhere on the tree, and the
+        orphaned `consent_required` JSDoc above it went with it — `ChatOpCode` is a derived union with no
+        client spelling of `budget_exceeded`); the eight drifted comments repaired to describe what the code
+        does now (`turn.ts`'s drain-verdict header, its drain-one header, the re-queue comment + log line,
+        `requestTurn`'s wall list, `contract/params.ts`, `contract/context.ts` ×2,
+        `automation/contract/ops.ts`, `rpg/contract/service.ts`); and `drainOne`'s
+        `err instanceof ChatNotFoundError ? "chat-gone" : "consent"` ternary, whose else arm the same fork
+        made unreachable, collapsed to the literal (the notification contract keeps both reasons).
+        **Coverage:** deleting the consent drop-pin had removed the ONLY test of the deferred-turn drain's
+        `dropped` arm; it is re-pinned on the live path (a HOSTLESS room → `loadRoom`'s `ChatNotFoundError`
+        → claim, notify the frozen `triggeredBy` with `reason: "chat-gone"`, row stays deleted), proven by a
+        planted control (`isDrainVerdictDrop` forced false → that one test reds, 123/124 still pass).
 19. **A destination file named in a scope sentence owes its own behaviour rows.** §8.1b named
     `{embed,rerank,image-embed}.ts` as the surviving trio and then cited only two of them; the third had a
     different request shape, its own retry site and NO clamp, and no pass caught it until a scout read the file

@@ -5,6 +5,8 @@
 // empty, and a datum-present/toggle-off case must stay empty. Timestamps live in the name row (a sibling
 // component), so they never appear here even when `showTimestamps` is on.
 
+import type { UserConnectionId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
 import { MessageMetadataRowStory } from "../_ct-stories.tsx";
@@ -121,6 +123,30 @@ test("time-to-first-token stays hidden with the timer toggle off", async ({ moun
 
 // THE OUTCOME NOTICE WAS KILLED (#1876, owner ruling). The "cut off — length cap" badge and its
 // supporting derivation were removed entirely. The two CTs that pinned it are deleted with the feature.
+
+// THE COST SLOT'S OWN TWO-FACTOR GATE (inference audit B7). The row must ask the readout's predicate, not
+// "is there a generationId": the id is now the provider's response id on EVERY hosted wire, so an id-keyed
+// row gate pushes an item whose child renders null — which is a `·` separator with nothing after it.
+test("the cost slot is gated on the provider's dialect: an anthropic swipe with a msg_… id adds no datum", async ({ mount }) => {
+  const component = await mount(
+    <MessageMetadataRowStory
+      visibility={{ ...ALL_OFF, showGenerationCost: true }}
+      message={{ connectionId: castId<UserConnectionId>("uconn_ct_row"), generationId: "msg_011CfEBkq13YCxSrpf1a13Do", provider: "anthropic" }}
+    />,
+  );
+  await expect(component.locator('[data-slot="message-metadata-cost-trigger"]')).toHaveCount(0);
+  await expect(component.locator(ROW)).toHaveCount(0);
+});
+
+test("the same row on an openrouter connection DOES get the cost trigger", async ({ mount }) => {
+  const component = await mount(
+    <MessageMetadataRowStory
+      visibility={{ ...ALL_OFF, showGenerationCost: true }}
+      message={{ connectionId: castId<UserConnectionId>("uconn_ct_row"), generationId: "gen-1789884256-ZeulFgkGknjAbAgCKe1S", provider: "openrouter" }}
+    />,
+  );
+  await expect(component.locator('[data-slot="message-metadata-cost-trigger"]')).toBeVisible();
+});
 
 test("timestamps never render here even when showTimestamps is on (they live in the name row)", async ({ mount }) => {
   const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showTimestamps: true }} />);

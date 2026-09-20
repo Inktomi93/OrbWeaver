@@ -100,7 +100,7 @@ import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
 import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
-import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserConnectionId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
@@ -3139,11 +3139,20 @@ export function MessageMetadataRowStory({
   );
 }
 
-/** `MessageCostReadout` in isolation — the PD-137 paid-fetch gate. The story sets a `generationId` so the
- *  row renders (a null-id row returns null); the `.ct.tsx` routes (or withholds) `connection.orGenerationCost`
- *  to drive the reveal → loading → settled / error labels, and asserts the fetch fires ONLY after the click. */
-export function MessageCostReadoutStory({ generationId = "gen_ct_1" }: { readonly generationId?: string | null }): ReactElement {
-  const view = makeMessageView({ generationId });
+/** `MessageCostReadout` in isolation — the PD-137 paid-fetch gate. The story supplies the WHOLE settleable
+ *  triple (`generationId` + `connectionId` + an openrouter-dialect `provider`), because the readout renders
+ *  nothing unless all three hold; the `.ct.tsx` routes (or withholds) `connection.generationCost` to drive the
+ *  reveal → loading → settled / error labels, and asserts the fetch fires ONLY after the click. `provider` is
+ *  the story's dial for the inference-audit-B7 gate: an anthropic swipe carries a `msg_…` id and must offer
+ *  NO affordance (the diagnostic is OpenRouter-only). */
+export function MessageCostReadoutStory({
+  generationId = "gen_ct_1",
+  provider = "openrouter",
+}: {
+  readonly generationId?: string | null;
+  readonly provider?: string | null;
+}): ReactElement {
+  const view = makeMessageView({ connectionId: castId<UserConnectionId>("uconn_ct_1"), generationId, provider });
   return (
     <CtDataProviders>
       <MessageCostReadout message={view} />

@@ -548,12 +548,49 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     expect(chunks).toEqual([]);
   });
 
+  // `rate_limit` is the DELIBERATE non-crosser (the bridge header states the ruling): an operator signal
+  // about account headroom, on a turn that SUCCEEDED, with a raw-string payload the chat bus may not carry.
   test("non-warning runner events (rate_limit, model_downgrade) never become chunks", async () => {
     const chunks = await chunksFor([
       { kind: "rate_limit", at: 1000, status: "ok", rateLimitType: undefined, resetsAt: undefined, utilization: undefined, isUsingOverage: undefined },
       { kind: "model_downgrade", at: 1000, requested: "a", billed: ["b"] },
     ]);
     expect(chunks.map((c) => c.kind)).toEqual(["final"]);
+  });
+
+  /** A provider refusal as both hosted wires and the agent-sdk raise it. */
+  const refusalEvent = (retried: boolean): ChatEvent => ({
+    kind: "refusal",
+    at: 1000,
+    model: "claude-opus-5",
+    category: "harmful_content",
+    explanation: "declined",
+    retried,
+    fallbackModel: retried ? "claude-haiku-4.5" : null,
+  });
+
+  // The refusal used to die at this seam: `outOfBandChunks` forwarded `warning` only, so the anthropic wire's
+  // refusal (and the agent-sdk's, emitted since the runner was written) never reached the room.
+  test("a runner REFUSAL rides as its own chunk, BEFORE the terminal `final`", async () => {
+    const chunks = await chunksFor([refusalEvent(false)]);
+    expect(chunks.map((c) => c.kind)).toEqual(["refusal", "final"]);
+  });
+
+  // PAYLOAD-FREE by construction: `category`/`explanation`/`model`/`fallbackModel` are raw provider strings
+  // the bus-payload allowlist refuses, so the chunk carries the FACT and nothing else.
+  test("the refusal chunk carries no provider prose — only the kind", async () => {
+    const chunks = await chunksFor([refusalEvent(true)]);
+    expect(chunks[0]).toEqual({ kind: "refusal" });
+  });
+
+  test("two refusals in one result collapse to ONE chunk (one turn, one notice)", async () => {
+    const chunks = await chunksFor([refusalEvent(false), refusalEvent(true)]);
+    expect(chunks.filter((c) => c.kind === "refusal")).toHaveLength(1);
+  });
+
+  test("a refusal rides BESIDE the turn's warnings, never instead of them", async () => {
+    const chunks = await chunksFor([warningEvent("custom_parameters_ignored"), refusalEvent(false)]);
+    expect(chunks.map((c) => c.kind)).toEqual(["warning", "refusal", "final"]);
   });
 
   // ── The prompt-cache depth FLOOR (AppSettings.promptCacheMinDepth, findings §5) ────────────────────────

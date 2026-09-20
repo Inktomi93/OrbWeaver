@@ -138,6 +138,14 @@ export const PLAIN_CHAT_WARNING_CODES = [
   // (`entry/compose/imagery.ts` narrows, `chat/verbs/generate-image.ts` re-maps). Spelled IDENTICALLY in both
   // tuples so the map is a MATCH, never a re-spell. Dropped-and-loud (D41), never silently swallowed.
   "custom_parameters_ignored",
+  // THE PROVIDER DECLINED THIS REPLY — the wire came back with a content-filter finish rather than prose
+  // (Anthropic's `stop_details` refusal, the agent-sdk's own refusal channel). Degraded-and-loud (D41):
+  // without it a refusal reads to the author as an empty or truncated reply with no reason given.
+  // CODE-ALONE by necessity, not by preference: the provider's `category`/`explanation`/`fallbackModel` are
+  // raw upstream strings, and a `warning` bus member may carry only enum literals and plain scalars (the
+  // bus-payload allowlist + the `index.test-d.ts` anchor pins). That detail stays where it already lives —
+  // the infra `refusal` ChatEvent and the wire-outcome ring — and this is the user's half.
+  "provider_refused",
 ] as const;
 export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
 
