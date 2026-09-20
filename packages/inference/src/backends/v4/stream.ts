@@ -7,6 +7,7 @@
 // empty success. An `error` part is re-thrown for the caller's classifier.
 
 import type {
+  JSONObject,
   LanguageModelV4File,
   LanguageModelV4FinishReason,
   LanguageModelV4StreamPart,
@@ -14,16 +15,26 @@ import type {
   SharedV4ProviderMetadata,
   SharedV4Warning,
 } from "@ai-sdk/provider";
-import type { ToolCallInput } from "../../contract/chat.ts";
+import type { JsonValue } from "@orb/kit/json";
+import { jsonValueSchema } from "@orb/kit/json";
+import type { ReasoningContentPart, ToolCallInput } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { GeneratedImage } from "../../contract/roles.ts";
 
 const BASE64 = "base64";
 const IMAGE_PREFIX = "image/";
+const ANTHROPIC_KEY = "anthropic";
+const OPENROUTER_KEY = "openrouter";
+const SIGNATURE_KEY = "signature";
+const REDACTED_DATA_KEY = "redactedData";
+const REASONING_DETAILS_KEY = "reasoning_details";
 
 export interface StreamDrain {
   readonly reply: string;
   readonly reasoning: string;
+  /** One entry per reasoning BLOCK the provider opened, in stream order, carrying that block's text and the
+   *  wire-opaque provenance the next leg must replay (§A1). Empty when the wire surfaced no reasoning. */
+  readonly reasoningParts: readonly ReasoningContentPart[];
   readonly toolCalls: readonly ToolCallInput[];
   readonly images: readonly GeneratedImage[];
   readonly finish: LanguageModelV4FinishReason;
@@ -41,9 +52,22 @@ export interface DrainCallbacks {
   readonly label: string;
 }
 
+/** One reasoning block under construction: its text so far and whichever wire provenance has arrived. The
+ *  provenance and the text arrive on DIFFERENT parts and in wire-specific order — Anthropic puts the
+ *  `signature` on a trailing zero-length `reasoning-delta` and the `redactedData` on `reasoning-start`;
+ *  OpenRouter puts the whole accumulated `reasoning_details` list on `reasoning-end`. Keying by the SDK's
+ *  part `id` is what lets a turn with several blocks keep each one's provenance with its own text. */
+interface ReasoningAcc {
+  text: string;
+  signature: string | undefined;
+  redactedData: string | undefined;
+  reasoningDetails: readonly JsonValue[] | undefined;
+}
+
 interface Accumulator {
   reply: string;
   reasoning: string;
+  readonly reasoningParts: Map<string, ReasoningAcc>;
   readonly toolCalls: ToolCallInput[];
   readonly images: GeneratedImage[];
   readonly warnings: SharedV4Warning[];
@@ -65,13 +89,65 @@ export function generatedImageOf(file: Pick<LanguageModelV4File, "mediaType" | "
   return { url: undefined, base64: typeof bytes === "string" ? bytes : Buffer.from(bytes).toString(BASE64), mediaType: file.mediaType };
 }
 
+function stringAt(bag: JSONObject | undefined, key: string): string | undefined {
+  const value = bag?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+/** The provider's own JSON list, kept VERBATIM. PARSED across the seam rather than cast: the SDK's
+ *  `JSONValue` admits `undefined`-valued object properties and ours does not, so `jsonValueSchema` is what
+ *  makes the two shapes one — the same parse-on-read idiom the JSON columns use, at the only cost of a
+ *  handful of small objects per turn. */
+function jsonArrayAt(bag: JSONObject | undefined, key: string): readonly JsonValue[] | undefined {
+  const parsed = jsonValueSchema.safeParse(bag?.[key]);
+  return parsed.success && Array.isArray(parsed.data) ? parsed.data : undefined;
+}
+
+/** Fold one reasoning part's `providerMetadata` into its block. Each field is LAST-WRITE-WINS on purpose:
+ *  the wires deliver provenance incrementally (a signature arrives after its text; OpenRouter re-sends the
+ *  whole accumulated details list), so the newest value is always the complete one. */
+function applyReasoningMeta(block: ReasoningAcc, metadata: SharedV4ProviderMetadata | undefined): void {
+  const anthropic = metadata?.[ANTHROPIC_KEY];
+  block.signature = stringAt(anthropic, SIGNATURE_KEY) ?? block.signature;
+  block.redactedData = stringAt(anthropic, REDACTED_DATA_KEY) ?? block.redactedData;
+  block.reasoningDetails = jsonArrayAt(metadata?.[OPENROUTER_KEY], REASONING_DETAILS_KEY) ?? block.reasoningDetails;
+}
+
+function reasoningBlock(acc: Accumulator, id: string): ReasoningAcc {
+  const found = acc.reasoningParts.get(id);
+  if (found !== undefined) {
+    return found;
+  }
+  const fresh: ReasoningAcc = { text: "", signature: undefined, redactedData: undefined, reasoningDetails: undefined };
+  acc.reasoningParts.set(id, fresh);
+  return fresh;
+}
+
+/** The three reasoning parts, all of which may carry provenance (`reasoning-start` for Anthropic's redacted
+ *  payload, `reasoning-delta` for its signature, `reasoning-end` for OpenRouter's `reasoning_details`). */
+function applyReasoningPart(acc: Accumulator, part: LanguageModelV4StreamPart, callbacks: DrainCallbacks): void {
+  if (part.type === "reasoning-start" || part.type === "reasoning-end") {
+    applyReasoningMeta(reasoningBlock(acc, part.id), part.providerMetadata);
+    return;
+  }
+  if (part.type !== "reasoning-delta") {
+    return;
+  }
+  const block = reasoningBlock(acc, part.id);
+  block.text += part.delta;
+  applyReasoningMeta(block, part.providerMetadata);
+  acc.reasoning += part.delta;
+  if (part.delta !== "") {
+    callbacks.onReasoning?.(part.delta);
+  }
+}
+
 function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, callbacks: DrainCallbacks): void {
   if (part.type === "text-delta") {
     acc.reply += part.delta;
     callbacks.onText?.(part.delta);
-  } else if (part.type === "reasoning-delta") {
-    acc.reasoning += part.delta;
-    callbacks.onReasoning?.(part.delta);
+  } else if (part.type === "reasoning-start" || part.type === "reasoning-delta" || part.type === "reasoning-end") {
+    applyReasoningPart(acc, part, callbacks);
   } else if (part.type === "tool-call") {
     acc.toolCalls.push({ toolCallId: part.toolCallId, name: part.toolName, arguments: part.input });
   } else if (part.type === "file") {
@@ -99,10 +175,33 @@ function applyControlPart(acc: Accumulator, part: LanguageModelV4StreamPart, lab
   }
 }
 
+/** The accumulated blocks → the replayable parts, in the order the provider opened them. A block with NO
+ *  provenance at all is dropped: replaying bare thinking text is what every converter refuses (the anthropic
+ *  one warns and discards it, the OR one strips an unsigned entry), so carrying it would only manufacture a
+ *  part that cannot ride. `text` may still be empty — a redacted block is provenance without prose. */
+function reasoningPartsOf(acc: Accumulator): readonly ReasoningContentPart[] {
+  const out: ReasoningContentPart[] = [];
+  for (const block of acc.reasoningParts.values()) {
+    const anthropic = {
+      ...(block.signature !== undefined ? { signature: block.signature } : {}),
+      ...(block.redactedData !== undefined ? { redactedData: block.redactedData } : {}),
+    };
+    const meta = {
+      ...(Object.keys(anthropic).length > 0 ? { anthropic } : {}),
+      ...(block.reasoningDetails !== undefined ? { openrouter: { reasoningDetails: block.reasoningDetails } } : {}),
+    };
+    if (Object.keys(meta).length > 0) {
+      out.push({ type: "reasoning", text: block.text, meta });
+    }
+  }
+  return out;
+}
+
 export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPart>, callbacks: DrainCallbacks): Promise<StreamDrain> {
   const acc: Accumulator = {
     reply: "",
     reasoning: "",
+    reasoningParts: new Map(),
     toolCalls: [],
     images: [],
     warnings: [],
@@ -131,6 +230,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
   return {
     reply: acc.reply,
     reasoning: acc.reasoning,
+    reasoningParts: reasoningPartsOf(acc),
     toolCalls: acc.toolCalls,
     images: acc.images,
     finish: acc.finish,

@@ -13,8 +13,8 @@
 // mid-conversation channel, cache-safe — the static prefix stays cacheable). A capability-kept mid-history
 // `system` row is delivered as a real system message (legal V4 vocabulary), never coerced to `user`.
 
-import type { LanguageModelV4FilePart, LanguageModelV4Message, LanguageModelV4Prompt, SharedV4ProviderOptions } from "@ai-sdk/provider";
-import type { ChatContentPart } from "@orb/contracts/chat";
+import type { JSONObject, LanguageModelV4FilePart, LanguageModelV4Message, LanguageModelV4Prompt, SharedV4ProviderOptions } from "@ai-sdk/provider";
+import type { ChatContentPart, ReasoningPartMeta } from "@orb/contracts/chat";
 import type { ChatHistoryMessage, HistoryRole } from "../../contract/chat.ts";
 import type { DynamicContextChannel } from "../../contract/resolve.ts";
 import { chatHistoryText } from "../kit/history.ts";
@@ -23,6 +23,12 @@ const PROMPT_JOINER = "\n\n";
 const DATA_URL_RE = /^data:(?<mime>[^;,]+);base64,(?<data>.*)$/su;
 const IMAGE_MEDIA = "image";
 const VIDEO_MEDIA = "video";
+/** The two converters' own `providerOptions` keys for a replayed reasoning part (§A1). Spelled here rather
+ *  than imported from either transport: this file is the shared prompt builder and must not depend on a
+ *  wire module (the dependency runs the other way). */
+const ANTHROPIC_OPTIONS_KEY = "anthropic";
+const OPENROUTER_OPTIONS_KEY = "openrouter";
+const REASONING_DETAILS_KEY = "reasoning_details";
 
 /** One outbound media part the converter can carry on a USER row, or that `body.ts` must re-attach on an
  *  ASSISTANT row: the resolved URL/data-URI the chat domain produced, tagged by kind. */
@@ -117,6 +123,26 @@ function userMessage(row: ChatHistoryMessage, options: SharedV4ProviderOptions |
   return { role: "user", content: parts, ...(options !== undefined ? { providerOptions: options } : {}) };
 }
 
+/** A reasoning part's per-wire provenance → the PART-LEVEL `providerOptions` each converter reads:
+ *  `anthropic` takes `signature`/`redactedData` (one of the two, else it drops the block with a warning);
+ *  `openrouter` takes the `reasoning_details` list back under its snake_case wire name, which its converter
+ *  finds through the part when the message carries none. Both keys ride together when both are known — a
+ *  converter reads only its own and ignores the rest. */
+function reasoningOptions(meta: ReasoningPartMeta | undefined): SharedV4ProviderOptions | undefined {
+  if (meta === undefined) {
+    return;
+  }
+  const anthropic: JSONObject = {
+    ...(meta.anthropic?.signature !== undefined ? { signature: meta.anthropic.signature } : {}),
+    ...(meta.anthropic?.redactedData !== undefined ? { redactedData: meta.anthropic.redactedData } : {}),
+  };
+  const options: SharedV4ProviderOptions = {
+    ...(Object.keys(anthropic).length > 0 ? { [ANTHROPIC_OPTIONS_KEY]: anthropic } : {}),
+    ...(meta.openrouter !== undefined ? { [OPENROUTER_OPTIONS_KEY]: { [REASONING_DETAILS_KEY]: [...meta.openrouter.reasoningDetails] } } : {}),
+  };
+  return Object.keys(options).length > 0 ? options : undefined;
+}
+
 function assistantMessage(row: ChatHistoryMessage, options: SharedV4ProviderOptions | undefined): LanguageModelV4Message | null {
   const parts: Extract<LanguageModelV4Message, { role: "assistant" }>["content"] = [];
   let hasSubstance = false;
@@ -124,6 +150,11 @@ function assistantMessage(row: ChatHistoryMessage, options: SharedV4ProviderOpti
     if (part.type === "text") {
       parts.push({ type: "text", text: part.text });
       hasSubstance ||= part.text.trim().length > 0;
+    } else if (part.type === "reasoning") {
+      // Deliberately NOT substance: a row carrying only replayed thinking is not a turn, and sending one
+      // alone would be a thinking block with nothing it justifies.
+      const reasoningMeta = reasoningOptions(part.meta);
+      parts.push({ type: "reasoning", text: part.text, ...(reasoningMeta !== undefined ? { providerOptions: reasoningMeta } : {}) });
     } else if (part.type === "tool-call") {
       parts.push({ type: "tool-call", toolCallId: part.toolCallId, toolName: part.name, input: toolInput(part.arguments) });
       hasSubstance = true;

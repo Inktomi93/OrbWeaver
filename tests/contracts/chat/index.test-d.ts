@@ -185,8 +185,11 @@ test("InviteView has no token field at the type level (no redeem-token leak)", (
 // ── ChatContentPart — the D48 exhaustive-member pin (tool-use-design/02 §1) ───────────────────────────
 // A translator maps parts by `type`; this pin makes ADDING a member a visible red HERE (update the
 // literal union below + audit every translator's dispatch — the D45 image-parts landing discipline).
-test("ChatContentPart is exactly text|image|video|tool-call|tool-result; tool parts carry the wire join", () => {
-  expectTypeOf<ChatContentPart["type"]>().toEqualTypeOf<"text" | "image" | "video" | "tool-call" | "tool-result">();
+test("ChatContentPart is exactly text|image|video|reasoning|tool-call|tool-result; tool parts carry the wire join", () => {
+  expectTypeOf<ChatContentPart["type"]>().toEqualTypeOf<"text" | "image" | "video" | "reasoning" | "tool-call" | "tool-result">();
+  // The replay member (audit A1): its TEXT may be empty (a redacted thinking block is provenance only), and
+  // what makes it replayable is the per-wire `meta` — so a part that lost its meta is a part that cannot ride.
+  expectTypeOf<Extract<ChatContentPart, { type: "reasoning" }>["text"]>().toEqualTypeOf<string>();
   // The two media members carry the same resolved-URL shape (#317 — a translator maps them symmetrically).
   expectTypeOf<Extract<ChatContentPart, { type: "video" }>["url"]>().toEqualTypeOf<string>();
   // The exchange join: both tool members carry toolCallId; neither leaks a parsed-arguments object.
