@@ -13,6 +13,7 @@ import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
 import { scrubWireSchema } from "@orb/kit/json-schema";
 import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
@@ -34,6 +35,7 @@ import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-he
 import type { AddSpanEvent } from "../kit/retry.ts";
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../kit/sanitize.ts";
+import { emitTurnSpanEvents } from "../kit/turn-span.ts";
 import { functionTools, jsonResponseFormat, samplingExtras, standardSampling, toolChoiceOf, wireEffortOf } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
@@ -189,13 +191,84 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, knobs: ResolvedChat
     options: {
       ...standardSampling(knobs.sampling, knobs.maxOutputTokens),
       ...(effort !== undefined ? { reasoning: effort } : {}),
-      ...(req.tools !== undefined ? { tools: functionTools(req.tools) } : {}),
+      ...(req.tools !== undefined ? { tools: functionTools(req.tools, { strictJson: connection.features.strictJson, warnings }) } : {}),
       ...(req.toolChoice !== undefined ? { toolChoice: toolChoiceOf(req.toolChoice) } : {}),
       ...(req.responseFormat !== undefined ? { responseFormat: jsonResponseFormat(req.responseFormat, req.responseFormat.schema) } : {}),
       providerOptions,
     },
     extraBody: {},
   };
+}
+
+/** THE OPENROUTER PLUGIN UNION (audit C3), validated against the 3.0.0 dist's own shape
+ *  (`OpenRouterChatSettings.plugins`, `index.d.ts:98-131`) — five ids, each with its own fields. Spelled here
+ *  because this file is the ONE reader of `extras` on this transport; a malformed entry drops loudly and is
+ *  never sent. `response-healing` is the reason this door is worth opening: it is OpenRouter's server-side
+ *  repair for the malformed JSON our non-streaming structured task otherwise has to re-ask for. */
+const openRouterPluginSchema = z.discriminatedUnion("id", [
+  z.object({ id: z.literal("web"), max_results: z.number().int().positive().optional(), search_prompt: z.string().optional(), engine: z.string().optional() }),
+  z.object({ id: z.literal("file-parser"), max_files: z.number().int().positive().optional(), pdf: z.object({ engine: z.string().optional() }).optional() }),
+  z.object({ id: z.literal("moderation") }),
+  z.object({ id: z.literal("response-healing") }),
+  z.object({ id: z.literal("auto-router"), allowed_models: z.array(z.string()).optional() }),
+]);
+
+/** OR's built-in web-search options (`web_search_options`, `index.d.ts:134-153`) — a sibling of the `web`
+ *  plugin, not a duplicate of it: the plugin ADDS search to a model that has none, these options configure a
+ *  model whose own search is native. */
+const openRouterWebSearchSchema = z.object({
+  max_results: z.number().int().positive().optional(),
+  search_prompt: z.string().optional(),
+  engine: z.string().optional(),
+});
+
+/** THE PLUGIN MERGE (audit C3): the turn-owned context-compression entry FIRST, then the user's declared
+ *  plugins. Order is the precedence, and compression leads on purpose — it is the one plugin whose value
+ *  this layer decides (off `params.providerContextCompression`), so a user entry re-declaring
+ *  `context-compression` must not silently take the turn's decision away. Such an entry is dropped with the
+ *  belt's own `custom_parameters_ignored` code: MODELLED WINS (D143(b)/D156), exactly as on the body. */
+function mergePlugins(compression: JSONObject, extras: Resolved["extras"], warnings: ResolvedWarning[]): readonly JSONObject[] {
+  const declared = extras?.["plugins"];
+  if (declared === undefined) {
+    return [compression];
+  }
+  // The turn-owned entry is stripped BEFORE the union parse, not after: `context-compression` is deliberately
+  // absent from the modelled union, so leaving a user's copy in would fail the WHOLE block with a generic
+  // "not a plugin list" message instead of naming the one entry this layer owns.
+  const list: readonly JsonValue[] = Array.isArray(declared) ? declared : [];
+  const isOwn = (entry: JsonValue): boolean =>
+    entry !== null && typeof entry === "object" && !Array.isArray(entry) && entry["id"] === CONTEXT_COMPRESSION_PLUGIN;
+  if (list.some(isOwn)) {
+    warnings.push({
+      code: "custom_parameters_ignored",
+      key: "plugins",
+      message: `extras.plugins entry "${CONTEXT_COMPRESSION_PLUGIN}" ignored: the turn owns context compression (the preset's providerContextCompression knob)`,
+    });
+  }
+  const parsed = z.array(openRouterPluginSchema).safeParse(Array.isArray(declared) ? list.filter((entry) => !isOwn(entry)) : declared);
+  if (!parsed.success) {
+    warnings.push({ code: "custom_parameters_ignored", key: "plugins", message: "extras.plugins ignored: not a list of openrouter plugin entries" });
+    return [compression];
+  }
+  return [compression, ...(parsed.data as readonly JSONObject[])];
+}
+
+/** `web_search_options` off `extras`, validated; a malformed block drops loudly and is never sent. */
+function webSearchOptions(extras: Resolved["extras"], warnings: ResolvedWarning[]): JSONObject | undefined {
+  const declared = extras?.["web_search_options"];
+  if (declared === undefined) {
+    return;
+  }
+  const parsed = openRouterWebSearchSchema.safeParse(declared);
+  if (!parsed.success) {
+    warnings.push({
+      code: "custom_parameters_ignored",
+      key: "web_search_options",
+      message: "extras.web_search_options ignored: not a valid openrouter web-search block",
+    });
+    return;
+  }
+  return parsed.data as JSONObject;
 }
 
 /** The two extras keys the openrouter transport MODELS (`provider` routing prefs, `models` fallback chain),
@@ -233,6 +306,7 @@ function openRouterExtras(
 function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs, warnings: ResolvedWarning[], includeReasoning: boolean): TurnShape {
   const { connection } = req;
   const { routing, models } = openRouterExtras(connection, warnings);
+  const search = webSearchOptions(connection.extras, warnings);
   const parallel = req.params.advanced?.parallelToolCalls;
   const compression =
     req.params.providerContextCompression === true
@@ -247,7 +321,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
   return {
     options: {
       ...standardSampling(knobs.sampling, knobs.maxOutputTokens),
-      ...(req.tools !== undefined ? { tools: functionTools(req.tools) } : {}),
+      ...(req.tools !== undefined ? { tools: functionTools(req.tools, { strictJson: connection.features.strictJson, warnings }) } : {}),
       ...(req.toolChoice !== undefined ? { toolChoice: toolChoiceOf(req.toolChoice) } : {}),
       ...(req.responseFormat !== undefined
         ? { responseFormat: jsonResponseFormat(req.responseFormat, scrubWireSchema(req.responseFormat.schema, "hosted-common").schema) }
@@ -258,7 +332,12 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
       ...samplingExtras(knobs.sampling),
       ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}),
       ...(routing !== undefined ? { provider: routing } : {}),
-      plugins: [compression],
+      // C3: the turn-owned compression entry MERGED with the user's declared plugins (validated against the
+      // provider dist's own five-id union); `web_search_options` is the sibling knob for a model whose
+      // search is native. Both ride `extraBody` beside `provider` because that is where this transport
+      // already puts every OR body field the SDK models at the MODEL level — one home, one merge order.
+      plugins: mergePlugins(compression, connection.extras, warnings),
+      ...(search !== undefined ? { web_search_options: search } : {}),
     },
     openRouterChat: {
       ...(req.tools !== undefined && parallel !== undefined ? { parallelToolCalls: parallel } : {}),
@@ -458,6 +537,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           warnings,
           extraBody: shape.extraBody,
           openRouterChat: shape.openRouterChat,
+          ...(req.reasoningTags !== undefined ? { reasoningTags: req.reasoningTags } : {}),
         };
         return streamOnce({
           call,
@@ -505,6 +585,20 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     log.emit(attempt.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...attempt.rateLimit });
   }
   emitReceipts({ log, req, generation, knobs, turn, written: cache.written, warnings });
+  // D4: the turn's timeline, same three events as the direct wire (the trace must read the same on both).
+  emitTurnSpanEvents({
+    addSpanEvent: deps.addSpanEvent,
+    turnId: knobs.turnId,
+    model: connection.model,
+    startedAt,
+    firstDeltaAt,
+    turn,
+    cache: {
+      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length,
+      readTokens: turn.usage.cacheReadTokens,
+      writeTokens: turn.usage.cacheWriteTokens,
+    },
+  });
   for (const event of turn.events) {
     req.onEvent?.(event);
   }

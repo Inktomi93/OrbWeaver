@@ -185,3 +185,83 @@ test("B6 + B7: the response headers become the rate-limit snapshot and the endpo
   const bare = await runOpenAiCompatChatTurn(endpointRequest("reasoning_effort"), turnDeps(scriptedSseFetch([openAiTextStream("ok")], [])));
   expect(bare.rateLimit).toBeNull();
 });
+
+// ── C3: the OpenRouter plugin list is a MERGE, not a hard-coded single entry ─────────────────────────────
+// The transport owns context-compression (off the preset's `providerContextCompression`); the user owns
+// everything else OR models. Before this the whole `plugins` array was one hard-coded entry, so
+// `response-healing` — the server-side answer to the malformed JSON our non-streaming structured task has to
+// re-ask for — was unreachable no matter what the connection declared.
+
+const extrasConnection = (extras: Record<string, unknown>): OpenAiCompatChatRequest["connection"] =>
+  ({
+    ...fakeResolved({
+      task: "chat",
+      providerId: "openrouter",
+      model: "anthropic/claude-opus-4-5",
+      capability: generationCapability(),
+      secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+    }),
+    extras,
+  }) as OpenAiCompatChatRequest["connection"];
+
+async function sentBody(req: OpenAiCompatChatRequest): Promise<Record<string, unknown>> {
+  const recorded: RecordedRequest[] = [];
+  await runOpenAiCompatChatTurn(req, turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)));
+  return recorded[0]?.body ?? {};
+}
+
+test("C3: a user's declared plugins merge AFTER the turn-owned compression entry", async () => {
+  const body = await sentBody(
+    orRequest({
+      tools: undefined,
+      connection: extrasConnection({ plugins: [{ id: "response-healing" }, { id: "web", max_results: 3 }] }),
+    }),
+  );
+
+  // Order IS the precedence: compression leads because it is the one entry this layer decides.
+  expect(body["plugins"]).toMatchObject([{ id: "context-compression" }, { id: "response-healing" }, { id: "web", max_results: 3 }]);
+});
+
+test("C3: a user entry re-declaring `context-compression` is dropped loudly — MODELLED WINS", async () => {
+  const events: string[] = [];
+  const recorded: RecordedRequest[] = [];
+  const req = orRequest({
+    tools: undefined,
+    connection: extrasConnection({ plugins: [{ id: "context-compression", enabled: true }, { id: "moderation" }] }),
+    onEvent: (event) => {
+      if (event.kind === "warning") {
+        events.push(event.code);
+      }
+    },
+  });
+  await runOpenAiCompatChatTurn(req, turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)));
+
+  expect(recorded[0]?.body["plugins"]).toMatchObject([{ id: "context-compression", enabled: false }, { id: "moderation" }]);
+  expect(events).toContain("custom_parameters_ignored");
+});
+
+test("C3: a MALFORMED plugin block is dropped whole, loudly — never sent half-valid", async () => {
+  const events: string[] = [];
+  const recorded: RecordedRequest[] = [];
+  const req = orRequest({
+    tools: undefined,
+    connection: extrasConnection({ plugins: [{ id: "not-a-real-plugin" }] }),
+    onEvent: (event) => {
+      if (event.kind === "warning") {
+        events.push(event.code);
+      }
+    },
+  });
+  await runOpenAiCompatChatTurn(req, turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)));
+
+  expect(recorded[0]?.body["plugins"]).toMatchObject([{ id: "context-compression" }]);
+  expect(events).toContain("custom_parameters_ignored");
+});
+
+test("C3: `web_search_options` rides when declared, and the body carries nothing when it is not", async () => {
+  const withOptions = await sentBody(orRequest({ tools: undefined, connection: extrasConnection({ web_search_options: { max_results: 5, engine: "exa" } }) }));
+  expect(withOptions["web_search_options"]).toMatchObject({ max_results: 5, engine: "exa" });
+
+  const without = await sentBody(orRequest({ tools: undefined }));
+  expect(without["web_search_options"]).toBeUndefined();
+});

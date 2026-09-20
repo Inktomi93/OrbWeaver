@@ -263,6 +263,9 @@ test("CanonMessage mirrors MessageView (the canon rows every honesty spec reads)
       | "cacheWriteTokens"
       | "contextWindow"
       | "costUsd"
+      // WHERE `costUsd` came from. The e2e honesty specs read the NUMBER, not its provenance; a spec that
+      // starts asserting `measured` vs `estimated` adds it to `CanonMessage` and this entry goes away.
+      | "costProvenance"
       | "ttftMs"
       | "genStartedAt"
       | "genFinishedAt"
@@ -353,6 +356,9 @@ test("ActivePresetConfig mirrors PromptConfig (the FE-layer round-trip read)", (
   pin<
     Subset<
       | "advanced"
+      // The §8.8 reasoning-CARRY rung. The FE-layer round-trip read exposes the knobs a spec drives; no e2e
+      // spec drives the carry (its behaviour is pinned at the funnel, the convert seam and the wire bytes).
+      | "carryReasoning"
       | "compaction"
       | "effort"
       | "frequencyPenalty"

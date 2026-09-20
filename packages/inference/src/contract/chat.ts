@@ -51,6 +51,18 @@ export interface WireTool {
   readonly name: string;
   readonly description: string;
   readonly parameters: Record<string, unknown>;
+  /** STRICT tool-input mode (audit C1): the provider constrains generation so the input ALWAYS validates,
+   *  at the cost of a narrower supported schema subset. CALLER-SET, and only ever an override — what the
+   *  ENDPOINT can do is `features.strictJson` (`default-on` ⇒ strict unless this says otherwise ·
+   *  `declared-only` ⇒ strict only where this says so · `never` ⇒ the row has no strict mode and the ask
+   *  drops loudly). Distinct from the RESPONSE-FORMAT strictness the same feature key gates: OpenAI models
+   *  the two independently (`LanguageModelV4FunctionTool.strict` vs `response_format.json_schema.strict`),
+   *  and every `strict` on this tree before now was the response-format one. */
+  readonly strict?: boolean | undefined;
+  /** Worked INPUT examples the provider shows the model alongside the schema (`input_examples` on the
+   *  Anthropic wire; the openai-compatible converter has no slot and drops them). A registry tool whose
+   *  arguments are easy to get subtly wrong is what this is for. */
+  readonly inputExamples?: readonly Record<string, unknown>[] | undefined;
 }
 
 export type ToolChoice =
@@ -110,6 +122,11 @@ interface HistoryChatRequest extends ChatRequestCommon {
    *  the backend's placer turns it into the `d`/`d+2` breakpoint pair when the capability says
    *  `explicitPromptCache`. Absent ⇒ only the static system block (and any `wireMeta.cacheBreakpoint`) caches. */
   readonly cacheBreakpointDepth?: number | undefined;
+  /** The preset's inline-reasoning tag pair (`reasoningParse`), present only when the user has AUTO-PARSE
+   *  ON. The openai-compat transport turns an XML-shaped pair into `extractReasoningMiddleware` so the split
+   *  happens at STREAM time (the F-table "Adopt" row); every other shape, and every other wire, leaves the
+   *  engine's post-hoc split to do it. Absent ⇒ no inline split is wanted at all. */
+  readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
 }
 
 /**

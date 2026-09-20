@@ -760,6 +760,9 @@ function arrayWireChatRequest(args: {
     ...(req.tools !== undefined ? { tools: req.tools } : {}),
     ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
     ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
+    // The preset's inline-reasoning tags (the F-table "Adopt" row) — only the openai-compat transport reads
+    // them, and only when the row declares no native reasoning delta field.
+    ...(req.reasoningTags !== undefined ? { reasoningTags: req.reasoningTags } : {}),
     onDelta,
     signal: req.signal,
   };

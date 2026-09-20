@@ -93,7 +93,8 @@ test("the cost row KEEPS the canon identity — the id the fit turns into a cont
 
 const SIGNED: ChatReasoningPart = { type: "reasoning", text: "she is lying about the map", meta: { anthropic: { signature: "SIG-9" } } };
 
-const carried = (id: string): ReadonlyMap<MessageId, readonly ChatReasoningPart[]> => new Map([[castId<MessageId>(id), [SIGNED] as readonly ChatReasoningPart[]]]);
+const carried = (id: string): ReadonlyMap<MessageId, readonly ChatReasoningPart[]> =>
+  new Map([[castId<MessageId>(id), [SIGNED] as readonly ChatReasoningPart[]]]);
 
 test("the stored thinking rides FIRST on its assistant row — ahead of every body part", async () => {
   const converted = await buildWireHistory({ ...env, canon: [canonRow("message_1", "assistant")], reasoningByMessage: carried("message_1") }, [
