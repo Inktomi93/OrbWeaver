@@ -63,7 +63,7 @@ import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
-import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
+import type { MemoryEmbedSpace, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
 
 /** The node:vm ReDoS watchdog wrapping a host-side regex `text.replace` in a per-call timeout, so a
@@ -1070,17 +1070,14 @@ export interface StoreSegmentParams {
   readonly contentHash: string;
 }
 
-/** The owner + concrete vector-space tag one memory pass resolved before reading its hash gates. */
-export interface MemoryEmbedSpace {
-  readonly ownerId: UserId;
-  readonly model: string;
-}
+/** The space the embeddings boundary actually stamped — the RETURN half of the write ops below, distinct from
+ *  the {@link MemoryEmbedSpace} a pass PLANNED against (`build/digests.ts assertStoreSpace` compares them).
+ *  NOT exported: both readers are in this file, and the shape itself is memory's, homed in `memory.ts`. */
+interface MemoryStoreReceipt extends MemoryEmbedSpace {}
 
-/** The space the embeddings boundary actually stamped. */
-export interface MemoryStoreReceipt extends MemoryEmbedSpace {}
-
-/** Resolve the host's current concrete embed space for memory planning. */
-export type ResolveMemoryEmbedSpaceOp = (ownerId: UserId) => Promise<MemoryEmbedSpace>;
+/** Resolve the host's current concrete embed space for memory planning. NOT exported: its one reader is
+ *  `ChatContext.resolveMemoryEmbedSpace` below; callers take the whole bundle, never this member's type. */
+type ResolveMemoryEmbedSpaceOp = (ownerId: UserId) => Promise<MemoryEmbedSpace>;
 
 /** memory's digest vector write — the one write path.
  *

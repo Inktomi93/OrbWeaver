@@ -5,8 +5,7 @@
 
 import type { BackfillPassResult } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
-import type { MemoryEmbedSpace } from "./context.ts";
-import type { MemoryBackfillSweepCounts } from "./memory.ts";
+import type { MemoryBackfillSweepCounts, MemoryEmbedSpace } from "./memory.ts";
 
 /** A corpus sweep's argument bundle: the enumeration scope (`null` = the bulk all-owners pass) + the signal. */
 interface CorpusSweepArgs {
