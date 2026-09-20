@@ -1,5 +1,8 @@
-// CT: `<CredentialKeyRow>` — the Remove confirm (M5 migration onto ConfirmDialog). Proves the confirm
-// gates the remove mutation (cancel fires nothing; confirm fires `credentials.remove` with the row's id).
+// CT: `<CredentialKeyRow>` — the Saved-keys row's TWO NAMED ACTIONS PER STATE (§5.3a) and the confirms that
+// gate them. An ACTIVE row is Replace + Revoke; a REVOKED row is Clear revoked + Remove. Every one of those
+// four carries its SUBJECT in its accessible name (`Revoke the OpenRouter "prod key" key`), because in a
+// list of keys a bare verb names nothing — the 2026-09-20 review found 18 bare `Override`/`Reset` on the
+// mock and that is the class this row must not join.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
@@ -14,29 +17,66 @@ import {
   UserRevokedCredentialKeyRowStory,
 } from "../_ct-stories.tsx";
 
-test("remove is confirm-gated: cancel fires nothing, confirm fires credentials.remove", async ({ mount, page }) => {
+// REMOVE LIVES ON THE REVOKED ROW. §5.3a gives the row two named actions and the ACTIVE pair is Replace +
+// Revoke; deleting `remove` outright would have taken the only door to deleting a key's ciphertext, so it
+// moved to the state where deleting a dead key is the thing you actually want. The confirm names the REUSE
+// COUNT, because a key is shared across connections.
+test("remove is confirm-gated on a revoked row: cancel fires nothing, confirm fires credentials.remove", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "credentials.remove": () => ({ ok: true }),
   });
 
-  await mount(<CredentialKeyRowStory />);
+  await mount(<RevokedCredentialKeyRowStory />);
 
-  await page.getByRole("button", { name: "Remove the prod key key" }).click();
+  await page.getByRole("button", { name: 'Remove the OpenRouter "prod key" key' }).click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('Remove "prod key"?');
+  await expect(dialog).toContainText('Remove the OpenRouter "prod key" key?');
+  await expect(dialog).toContainText("No connection uses this key yet");
 
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
   await expect.poll(() => trpc.count("credentials.remove")).toBe(0);
 
-  await page.getByRole("button", { name: "Remove the prod key key" }).click();
+  await page.getByRole("button", { name: 'Remove the OpenRouter "prod key" key' }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
   await expect.poll(() => trpc.count("credentials.remove"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  await expect.poll(() => (trpc.lastInput("credentials.remove") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0001");
+  await expect.poll(() => (trpc.lastInput("credentials.remove") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0003");
 });
 
-test("mark-revoked is confirm-gated: cancel fires nothing, confirm fires credentials.markRevokedByUser", async ({ mount, page }) => {
+// REPLACE NEEDS NO NEW SERVER VERB: `credentials.add` already rotates the existing `(owner, provider, label)`
+// row in place. So the pin is that the prompt sends the row's OWN provider AND label — a replacement that
+// minted a second labelled row would leave every connection on the old key and still look like it worked.
+test("replace rotates THIS row: credentials.add with the row's own provider and label, plus the new secret", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "credentials.add": () => ({
+      id: "user_credential_ctstory0004",
+      provider: "openrouter",
+      label: "shared key",
+      hasMetadata: false,
+      revokedAt: null,
+      revokedReason: null,
+      createdAt: 0,
+      updatedAt: 0,
+    }),
+  });
+
+  await mount(<ReusedCredentialKeyRowStory />);
+
+  await page.getByRole("button", { name: 'Replace the OpenRouter "shared key" key' }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  // The consequence a user needs BEFORE pasting: the key is shared, so the replacement is shared too.
+  await expect(dialog).toContainText("1 connection uses this key");
+
+  await dialog.getByRole("textbox", { name: 'New OpenRouter "shared key" key' }).fill("sk-replacement");
+  await dialog.getByRole("button", { name: "Replace" }).click();
+
+  await expect.poll(() => trpc.count("credentials.add"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.lastInput("credentials.add")).toEqual({ provider: "openrouter", label: "shared key", key: "sk-replacement" });
+});
+
+test("revoke is confirm-gated: cancel fires nothing, confirm fires credentials.markRevokedByUser", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "credentials.markRevokedByUser": () => null,
   });
@@ -46,7 +86,7 @@ test("mark-revoked is confirm-gated: cancel fires nothing, confirm fires credent
   await page.getByTestId(testId("credentialMarkRevoked")).click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('Mark "prod key" revoked?');
+  await expect(dialog).toContainText('Revoke the OpenRouter "prod key" key?');
 
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
@@ -54,7 +94,7 @@ test("mark-revoked is confirm-gated: cancel fires nothing, confirm fires credent
   expect(trpc.count("credentials.markRevokedByUser")).toBe(0);
 
   await page.getByTestId(testId("credentialMarkRevoked")).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Mark revoked" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Revoke" }).click();
   await expect.poll(() => trpc.count("credentials.markRevokedByUser"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the matching count was polled to its target above, so lastInput is the settled last call.
   expect((trpc.lastInput("credentials.markRevokedByUser") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0001");
@@ -69,13 +109,16 @@ test("mark-revoked is confirm-gated: cancel fires nothing, confirm fires credent
 test("the row names its provider and how many connections reuse the key", async ({ mount, page }) => {
   await mount(<CustomCredentialKeyRowStory />);
 
-  await expect(page.getByText("custom-openai · used by 0 connections")).toBeVisible();
+  // The PROVIDER moved into the row's TITLE, where it is half the row's identity and half the name of every
+  // action on it; the meta line is the COUNT alone (§5.3a's "used by 3 connections").
+  await expect(page.getByText('Your own server "my endpoint"', { exact: true })).toBeVisible();
+  await expect(page.getByText("used by 0 connections", { exact: true })).toBeVisible();
 });
 
 test("the reuse count reads as a SENTENCE at one — a key used by 1 connection never says '1 connections'", async ({ mount, page }) => {
   await mount(<ReusedCredentialKeyRowStory />);
 
-  await expect(page.getByText("openrouter · used by 1 connection")).toBeVisible();
+  await expect(page.getByText("used by 1 connection", { exact: true })).toBeVisible();
 });
 
 // Stated POSITIVELY so a re-add is caught: these three affordances are gone from the ROW on purpose, and a
@@ -89,7 +132,9 @@ test("the row offers no Test, no Set active and no Add — a key is minted from 
   // …and the affordances that STAYED are still there, so the assertions above are a claim about the row's
   // contents rather than about a row that failed to render at all.
   await expect(page.getByTestId(testId("credentialMarkRevoked"))).toBeVisible();
-  await expect(page.getByRole("button", { name: "Remove the prod key key" })).toBeVisible();
+  await expect(page.getByRole("button", { name: 'Replace the OpenRouter "prod key" key' })).toBeVisible();
+  // …and REMOVE is not on an ACTIVE row: its pair is Replace + Revoke, and Remove is the revoked pair's.
+  await expect(page.getByRole("button", { name: /^Remove the/u })).toHaveCount(0);
 });
 
 // #1373 — WHY the key is revoked, not just THAT it is. The bare Revoked chip could not tell a key the

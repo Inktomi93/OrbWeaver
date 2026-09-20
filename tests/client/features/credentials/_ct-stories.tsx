@@ -43,6 +43,7 @@ function CredentialKeyRowInner(): ReactElement {
         updatedAt: 0,
       }}
       usedBy={0}
+      providerLabel="OpenRouter"
       invalidation={invalidation}
       trpc={trpc}
     />
@@ -78,6 +79,7 @@ function ReusedCredentialKeyRowInner(): ReactElement {
         updatedAt: 0,
       }}
       usedBy={1}
+      providerLabel="OpenRouter"
       invalidation={invalidation}
       trpc={trpc}
     />
@@ -111,6 +113,7 @@ function CustomCredentialKeyRowInner(): ReactElement {
         updatedAt: 0,
       }}
       usedBy={0}
+      providerLabel="Your own server"
       invalidation={invalidation}
       trpc={trpc}
     />
@@ -128,7 +131,7 @@ export function CustomCredentialKeyRowStory(): ReactElement {
 }
 
 /** A REVOKED `<CredentialKeyRow>` (revokedAt set) — the row that carries the "Clear revoked" recover
- *  affordance instead of "Mark revoked"/"Set active". `reason` is the #1373 half: the row must be able to
+ *  pair (Clear revoked + Remove) instead of the active pair (Replace + Revoke). `reason` is the #1373 half: the row must be able to
  *  say WHICH of the three causes revoked it, so every member gets a mountable arm rather than one story
  *  standing in for a whole vocabulary. `credentials.clearRevoked` is stubbed per-test via routeTrpc.
  *  `reason: null` is the honest unknown (a writer that bypassed `setRevokedById`) — chip, no cause. */
@@ -148,6 +151,7 @@ function RevokedCredentialKeyRowInner({ reason }: { readonly reason: CredRevoked
         updatedAt: 0,
       }}
       usedBy={0}
+      providerLabel="OpenRouter"
       invalidation={invalidation}
       trpc={trpc}
     />
@@ -250,4 +254,30 @@ export function ConnectionsSettingsHostedStory(): ReactElement {
       </div>
     </CtDataProviders>
   );
+}
+
+/** The pane at the SETTINGS BODY's two measured widths (inference program §13 step 3b): 870 with the
+ *  context panel closed, 486 with it open. The mocks decided the two END STATES and `CtConfigGroupBody` is
+ *  the production resolver, so these are the honest narrow/wide arms — a story sized wide is how a
+ *  `shrink-0` cluster ships looking fine and lands clipped. A FIXED width with `overflow: visible`: a
+ *  content-sized root agrees with the bug. */
+function connectionsPaneAtWidth(width: number): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 900, overflow: "visible", width }}>
+        <ConnectionsPaneInner />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** 870px — the settings body with the context panel CLOSED. */
+export function ConnectionsPaneWideStory(): ReactElement {
+  return connectionsPaneAtWidth(870);
+}
+
+/** 486px — the settings body with the context panel OPEN, i.e. the width where a user is comparing this
+ *  pane against a room. No copy is cut here: a row gloss WRAPS, and the F20 sentence is never dropped. */
+export function ConnectionsPaneNarrowStory(): ReactElement {
+  return connectionsPaneAtWidth(486);
 }
