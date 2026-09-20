@@ -227,7 +227,7 @@ export function debugPostureText(posture: DebugPosture, tokenPath: string): stri
     case "open":
       return "⚠ reachable with NO credential — expected 401/404 since AUTHFIX-2; investigate the debug gate";
     case "off":
-      return "off (DEBUG_TOKEN unset and no admin session — /api/_debug/* 404s)";
+      return "off (DEBUG_TOKEN unset and no owner session — /api/_debug/* 404s)";
     case "unknown":
       return "unknown (no live instance answering)";
   }
