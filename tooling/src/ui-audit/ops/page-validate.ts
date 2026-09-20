@@ -49,6 +49,7 @@ const RAW_SAMPLE_SHAPE: Record<keyof RawSamples, SeamKind> = {
   clippedOverflows: "array",
   cohortAnatomies: "array?",
   controlAspects: "array?",
+  documentFrame: "object",
   edgeFlushCards: "array",
   emptyStates: "array?",
   fontCensus: "object",

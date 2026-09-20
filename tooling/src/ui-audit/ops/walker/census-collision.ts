@@ -180,8 +180,43 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     } catch (e) {
       el.scrollIntoView(true);
     }
-    var rect = el.getBoundingClientRect();
-    return pointInFrame(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }
+  // ASK ONE CANDIDATE'S CENTRE WHERE IT CURRENTLY SITS, and return either the compositor's answer or the
+  // NAMED reason it could not be asked. Extracted from the loop below so the reveal can be retried
+  // against the identical question rather than against a second, subtly different copy of it.
+  //
+  // THE REVEAL IS OWED TO BOTH UNASKABLE REASONS, AND IT USED TO BE OWED TO ONLY ONE (lane
+  // cb-audit-viewport, 2026-09-20). The off-frame branch re-centred and re-asked; the null-hit branch
+  // did not, so a subject whose centre landed on the viewport's LAST PIXEL ROW withheld its verdict and,
+  // because any withheld member withholds the whole tool verdict, poisoned the entire run.
+  //
+  // MEASURED, and it is a lottery rather than a property of the page: \`snap --file
+  // docs/design/mocks/connections/editor.html --design-audit --viewport 1400x1000\` exited 2 with
+  // \`unaskable=1\` naming \`span.fk centre=143,1000 rect=57,991..229,1009 hit-test-null\` — an 18px box
+  // straddling the fold of a 1000px viewport — while the SAME file at \`--viewport 1400x2400\` exited 0
+  // with \`unaskable=0\`. Nothing about the drawing changed; the taller viewport simply put a different
+  // element on the fold. \`pointInFrame\` admits y=999.6 (it tests \`< innerHeight\`) and the compositor
+  // still answers null there, which is exactly the gap between "outside the frame" and "unanswerable
+  // where it is standing".
+  //
+  // UNASKABLE IS STILL UNASKABLE (#797 survives — its INPUT changed): a second null AFTER the reveal is
+  // withheld exactly as before. A target the user must scroll to is reachable; a target that is covered
+  // is covered wherever you scroll it. This only stops counting "we asked in the wrong place" as
+  // "we asked and got nothing".
+  function askObscuredCentre(el) {
+    var askRect = el.getBoundingClientRect();
+    var askX = askRect.left + askRect.width / 2;
+    var askY = askRect.top + askRect.height / 2;
+    var answer = { reason: "centre-outside-frame", hit: null, rect: askRect, cx: askX, cy: askY };
+    if (!pointInFrame(askX, askY)) return answer;
+    if (ownsPoint(el, askX, askY)) {
+      answer.reason = "owned";
+      return answer;
+    }
+    var askHit = document.elementFromPoint(askX, askY);
+    answer.reason = askHit === null ? "hit-test-null" : "";
+    answer.hit = askHit;
+    return answer;
   }
   for (var ob = 0; ob < allEls.length; ob += 1) {
     var obel = allEls[ob];
@@ -198,43 +233,32 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     var obRect = obel.getBoundingClientRect();
     if (Math.min(obRect.width, obRect.height) <= 2) continue;
     if (!inVisualViewport(obRect)) continue;
-    var obcx = obRect.left + obRect.width / 2;
-    var obcy = obRect.top + obRect.height / 2;
     obscuredCandidates += 1;
-    // A partially visible subject is OFFERED, so first ask its real scroller to put the subject's own
-    // centre in the compositor frame. This is the obscured census's equivalent of the earlier offered-
-    // control reveal; measuring the off-frame centre as null made bottom-edge navigation and appearance
-    // tiles poison a whole matrix cell even though one ordinary scroll made the question answerable.
-    if (!pointInFrame(obcx, obcy)) {
-      if (recenterObscuredCandidate(obel)) {
-        obscuredRecentred += 1;
-        obRect = obel.getBoundingClientRect();
-        obcx = obRect.left + obRect.width / 2;
-        obcy = obRect.top + obRect.height / 2;
-      }
+    // A partially visible subject is OFFERED, so ask its real scroller to put the subject's own centre
+    // in the compositor frame. This is the obscured census's equivalent of the earlier offered-control
+    // reveal; measuring the off-frame centre as null made bottom-edge navigation and appearance tiles
+    // poison a whole matrix cell even though one ordinary scroll made the question answerable. ONE
+    // reveal, EITHER unaskable reason — see askObscuredCentre's header for the fold lottery this closes.
+    var obAsk = askObscuredCentre(obel);
+    if (obAsk.reason === "centre-outside-frame" || obAsk.reason === "hit-test-null") {
+      recenterObscuredCandidate(obel);
+      obAsk = askObscuredCentre(obel);
+      if (obAsk.reason !== "centre-outside-frame" && obAsk.reason !== "hit-test-null") obscuredRecentred += 1;
     }
-    // UNASKABLE, NOT UN-OBSCURED (#797): a centre that remains off the edge after the legitimate reveal
-    // answers null, and null is not evidence. Counted, never silently dropped.
-    if (!pointInFrame(obcx, obcy)) {
+    obRect = obAsk.rect;
+    // UNASKABLE, NOT UN-OBSCURED (#797): a centre that remains unanswerable after the legitimate reveal
+    // answers null, and null is not evidence. Counted and NAMED, never silently dropped.
+    if (obAsk.reason === "centre-outside-frame" || obAsk.reason === "hit-test-null") {
       obscuredUnaskable += 1;
       obscuredUnaskableSubjects.push({
-        selector: describe(obel), reason: "centre-outside-frame", centre: { x: obcx, y: obcy },
+        selector: describe(obel), reason: obAsk.reason, centre: { x: obAsk.cx, y: obAsk.cy },
         rect: { left: obRect.left, top: obRect.top, right: obRect.right, bottom: obRect.bottom },
         interactive: obInteractive, text: obText.slice(0, 40),
       });
       continue;
     }
-    if (ownsPoint(obel, obcx, obcy)) continue;
-    var obHit = document.elementFromPoint(obcx, obcy);
-    if (obHit === null) {
-      obscuredUnaskable += 1;
-      obscuredUnaskableSubjects.push({
-        selector: describe(obel), reason: "hit-test-null", centre: { x: obcx, y: obcy },
-        rect: { left: obRect.left, top: obRect.top, right: obRect.right, bottom: obRect.bottom },
-        interactive: obInteractive, text: obText.slice(0, 40),
-      });
-      continue;
-    }
+    if (obAsk.reason === "owned") continue;
+    var obHit = obAsk.hit;
     if (isDevChrome(obHit)) continue;
     // Ancestor/descendant paint is not a collision — a parent owning the point is the composite case
     // ownsPoint already adjudicates, and a child owning it is the element working normally.
