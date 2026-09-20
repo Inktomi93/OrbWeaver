@@ -24,7 +24,8 @@ const MS_PER: Readonly<Record<"ms" | "s" | "m" | "h", number>> = { ms: 1, s: 100
 const STATUS_ALLOWED = "allowed";
 const STATUS_WARNING = "allowed_warning";
 
-/** The utilization at which a hosted wire raises its `rate_limit` canary. */
+/** The utilization at which a hosted wire raises its `rate_limit` canary.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const RATE_LIMIT_WARN_UTILIZATION = 0.8;
 
 /** The overage fields are the agent-sdk runtime's alone — no header states them. */
@@ -47,7 +48,8 @@ function asCount(value: string): number | undefined {
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
-/** A Go-style duration (`6m0s`, `120ms`, `1.5s`) → milliseconds; anything else is undefined. */
+/** A Go-style duration (`6m0s`, `120ms`, `1.5s`) → milliseconds; anything else is undefined.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export function parseGoDuration(text: string): number | undefined {
   const trimmed = text.trim();
   if (!DURATION_WHOLE_RE.test(trimmed)) {

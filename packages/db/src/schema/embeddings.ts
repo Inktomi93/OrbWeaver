@@ -25,8 +25,9 @@
 //     (character/image/document_chunks always did; chat_segments/chat_digests were fixed to match — they
 //     used to OMIT model and overwrite the old space in place, an inconsistency with the orphaning
 //     character/image tables). So a model change is uniformly PURGE + REINDEX: the new space is written
-//     additively (no overwrite, no inconsistent orphan), then the stale old-space rows are purged
-//     (`embeddings/persistence purgeStaleVectors`, folded into the bulk `index` reindex) — never stranded.
+//     additively (no overwrite, no inconsistent orphan), then the rows of every non-active generation are
+//     retired inside the promotion transaction (`embeddings/persistence/space-state.ts`
+//     `retiredVectorStatements`) — never stranded.
 //
 // `image_embeddings.lens` DERIVES the canonical `IMAGE_LENSES` tuple from `@orb/contracts/embeddings`
 // (D34 — promoted out of the server tier so db can derive; db deps are kit + contracts + drizzle only).
@@ -307,7 +308,7 @@ export const chatDigests = sqliteTable(
     // The idempotent-upsert key — the scope bucket PLUS `model` (PD-104): every one of the 5 vector
     // producers keys its upsert ON `model`, so a `(model, dim)` change writes a NEW space additively
     // (never an in-place overwrite of the old space, never an inconsistent orphan). The old space is
-    // reclaimed by the purge+reindex path (`purgeStaleVectors` in the bulk `index` reindex). Dropping
+    // retired by the promotion transaction (`space-state.ts` `retiredVectorStatements`). Dropping
     // scopedCharacterId would bleed a scoped bucket's rows into the shared (group-as-character) bucket.
     uniqueIndex("chat_digests_scope_unique").on(t.chatId, t.scopedCharacterId, t.tier, t.blockIdx, t.generationId),
     index("chat_digests_chat_idx").on(t.chatId),
@@ -550,8 +551,8 @@ export const embedSpaceState = sqliteTable(
     // Which half of the corpus — derives VECTOR_SCOPES (D34, as `image_embeddings.lens` derives
     // IMAGE_LENSES). The `enum` option is type-only; the CHECK below is the SQL-level guard.
     scope: text("scope", { enum: VECTOR_SCOPES }).notNull(),
-    // The `(model[@dtype])` space tag (`embedSpaceOf`) the last COMPLETED sweep of this scope wrote — the
-    // exact string `nearest.ts` filters on and `purgeStaleVectors` compares against.
+    // The generation the last COMPLETED sweep of this scope promoted — the row `active-space.ts` folds into
+    // the read tag `nearest.ts` filters on, and the survivor `retiredVectorStatements` deletes around.
     activeGenerationId: text("active_generation_id")
       .$type<EmbedGenerationId>()
       .references(() => embedGenerations.id, { onDelete: "set null" }),

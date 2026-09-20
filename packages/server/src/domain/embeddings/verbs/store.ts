@@ -11,7 +11,7 @@
 // WHAT THAT RULING ASSUMES, and what §10-2 had to repair: the caller's `p.model` and the provider's answer
 // are the SAME derivation. They were not — the read side spelled the bare model id while every backend
 // stamps `embedSpaceOf(model, dtype)` — so the corpus was written into one space and searched in another,
-// silently (empty results forever, and `purgeStaleVectors` reclaiming the live rows). That is fixed at the
+// silently (empty results forever, and the old-space reclaim taking the live rows). That is fixed at the
 // DERIVATION (`@orb/contracts/inference` `embedSpaceOf`, the one home both sides now call), not by a
 // write-time refusal here: refusing would reverse 724's ruling on exactly the race it was minted for.
 //
