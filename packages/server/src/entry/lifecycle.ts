@@ -62,6 +62,7 @@ import { createApp } from "./app.ts";
 import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
   backfillPluginProvenanceOnBoot,
+  createLocalLightUserSeed,
   DB_LAUNCHED,
   healLegacyBackgroundPinsOnBoot,
   migrateHandoffOfferVocabOnBoot,
@@ -345,10 +346,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // departing host's recorded consent. Idempotent — a no-op on every boot after the first.
     await migrateHandoffOfferVocabOnBoot({ db });
 
-    // The local-light convenience seed (inference program §7.2) — every account starts with a working vector
-    // floor as two ORDINARY connection rows; idempotent, never a boot abort.
-    await seedLocalLightOnBoot({ db, now: () => Date.now() });
-
     // #1737 DATA migration, in the same window and for the same reason: the `home:"preset"` prose slot
     // `chat.group.castMember` became `chat.group.characterHeading`, and `proseOverridesSchema` STRIPS an
     // unknown slot id at the parse seam — so an un-migrated `presets.config` silently loses the host's
@@ -385,6 +382,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       db,
       now,
       sessionSecret: env.SESSION_SECRET ?? null,
+      // #2481 — the owner row is MINTED here (`seedOwner` → `ensureUser`), so this transient service needs
+      // the per-user seed too: on a fresh install the sweep below would otherwise be the only thing that
+      // ever seeds the owner, and it runs once per process.
+      seedUserConnections: createLocalLightUserSeed({ db, now }),
     });
 
     // OIDC LAZY-MINT (#1853): in OIDC mode the owner identity comes from the IdP, not from env config.
@@ -466,9 +467,11 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       log.error("boot: SecretBox decrypt-probe FAILED — healthz will report credentials_key_mismatch");
     }
 
-    // Owner-INDEPENDENT boot seeds: these need only the db and never touch a user row. The local-light seed
-    // (§7.2: the two convenience rows + their `user` bindings for EVERY existing user, idempotent) rides here
-    // because a user row may predate the connection table on this pre-launch box.
+    // Owner-INDEPENDENT boot seeds: these need only the db and never touch a user row. The local-light SWEEP
+    // (§7.2: the two convenience rows + their `user` bindings for every account that EXISTS NOW, idempotent)
+    // rides here because a user row may predate the connection table on this pre-launch box. It is half the
+    // story — accounts minted after this point are seeded by the per-user op wired into the minting verbs
+    // (#2481), not by a later boot.
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
     await seedLocalLightOnBoot({ db, now });

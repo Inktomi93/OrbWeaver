@@ -195,6 +195,9 @@ async function insertNew(
   if (settled === undefined) {
     return await refuseLostInsertRace(ctx, identity);
   }
+  // #2481 — the new account's local-light vector floor, AFTER the row has settled (§5.3b). Below the two
+  // refusal paths on purpose: a DENIED login and a lost insert race have no row of their own to seed.
+  await ctx.seedUserConnections(settled.id);
   getLog().info(
     { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups), role: settled.role, enabled: settled.enabled },
     settled.enabled

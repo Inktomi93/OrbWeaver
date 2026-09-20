@@ -47,7 +47,16 @@ import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
-import { DB_LAUNCHED, runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
+import {
+  createLocalLightUserSeed,
+  DB_LAUNCHED,
+  runBootMigrations,
+  seedDefaultCharacters,
+  seedDefaultPersona,
+  seedDefaultPreset,
+  seedOwner,
+  seedThemes,
+} from "@orb/server/entry/boot";
 import { createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { print } from "../../_shared/artifacts.ts";
@@ -257,7 +266,9 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   await Promise.resolve(deps.validateRequiredAssets?.());
 
   const handles = ownerHandles();
-  const bootSessions = createSessionsService({ db, now, sessionSecret });
+  // #2481 — the owner is minted through `ensureUser` below, and this seeder never runs the boot sweep,
+  // so the per-user seed is the only thing that gives the seeded owner its local-light vector floor.
+  const bootSessions = createSessionsService({ db, now, sessionSecret, seedUserConnections: createLocalLightUserSeed({ db, now }) });
   const ownerIds = await seedOwner({ db, sessions: bootSessions, ownerHandles: handles, now });
   const ownerId = ownerIds[0];
   if (ownerId === undefined) {
@@ -274,7 +285,8 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
     variantDir: deps.variantDir,
     sessionSecret,
     holder: "seed-demo",
-    // The seeded local-light rows embed through the scripted cache (§7.2 seeds them for every user); there is
+    // The seeded local-light rows embed through the scripted cache (the owner's rows come from the per-user
+    // seed wired into `bootSessions` above — #2481; this seeder runs no boot sweep); there is
     // no chat connection, so the best-effort turns below log `no-connection` and keep the greeting transcript.
     providerSeams: { localLight: { cache: fakeLocalLightCache(EMBED_SPACE_DIMS) } },
   });
