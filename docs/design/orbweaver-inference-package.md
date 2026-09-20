@@ -2265,7 +2265,7 @@ export interface InferenceDeps {
   openaiCompat?: { fetch?; chunkSize?; concurrencyFloors: { embed; summarize } };   // everything else rides the connection + provider row
   providerStore: ProviderStore;                                  // list/put/delete runtime provider rows (`provider_rows`; port; server wires drizzle) — F9
   connections: ConnectionStore;                                  // read/write user_connections (port; server wires drizzle)
-  sdkFetch?: typeof fetch;                                       // the egress-guarded fetch every `createOpenAICompatible`/`createAnthropic`/`createOpenRouter` receives (§8.0)
+  sdkFetch: typeof fetch;                                        // REQUIRED — the transport every `createOpenAICompatible`/`createAnthropic`/`createOpenRouter` and every catalog read issues on (§8.0). No ambient fallback: the root injects it
   // no posture, no engineLaunch, no engineHost, no repoRoot, no superviseDetached — 9 of the 26 providers foundation sites die with the fleet code
   // no OR client seam (the purged `OpenRouterBackendDeps.getClient`, `infra/providers/index.ts:68`) — the raw SDK is dropped (§8.2); the OR provider is built per connection from `sdkFetch` + the credential
   concurrency?; random?;
@@ -2277,6 +2277,26 @@ edges resolve by moving those modules to `@orb/kit`; the `backends/agent-sdk/log
 re-spelled relative. `domain/connection/workload-contributions.ts` stays in server and wraps
 `runtime.catalogs.refresh` (D117). `entry/compose/services.ts` builds `InferenceDeps` and calls
 `createInferenceRuntime`; the purged `entry/compose/role-clients.ts` becomes `runtime.roleClientsFor`.
+
+**`sdkFetch` IS REQUIRED, AND THE SSRF BELT IS NOT IT.** An earlier draft of this section called `sdkFetch`
+"the egress-guarded fetch every provider receives", which sent at least one reader looking for the guard in
+the wrong layer. The tree: `sdkFetch` is the provider TRANSPORT and nothing more. It carries no guard of its
+own, and the SSRF belt over provider egress is the boot-installed global undici dispatcher
+(`packages/server/src/infra/network/egress.ts` `installEgressFirewall` → `setGlobalDispatcher`, installed from
+`packages/server/src/entry/lifecycle.ts`, `EGRESS_FIREWALL` defaulting true), whose DNS-lookup override closes
+the rebinding TOCTOU; a user-influenced URL never rides this transport at all, it goes through `safeFetch`,
+which runs its own resolve→validate→pin independent of that toggle.
+
+The field is REQUIRED so that statement stays true. While it was optional, `createInferenceRuntime` and
+`buildBackends` each resolved `deps.sdkFetch ?? globalThis.fetch`, production never injected it, and an
+ambient fallback inside a package below `@server` is an egress door no `@server`-population gate can see.
+`entry/compose/services.ts` now reads the ambient transport ONCE and injects it — the
+`no-raw-clock:entry-lifecycle` shape, licensed by its own reviewed grant `no-raw-egress:entry-compose-transport`
+— and `ServicesDeps.providerSeams.sdkFetch` overrides it. That is also the determinism fix: the runtime
+resolves the transport synchronously during `createServices`, so a `vi.spyOn(globalThis, "fetch")` installed
+in a test body was always too late, and the shared `app` fixture (`tests/support/fixtures.ts`) now defaults its
+`providerFetch` to a REFUSING fake so an unscripted provider call fails loudly instead of reaching whatever is
+listening on the box.
 
 ---
 
@@ -2972,6 +2992,12 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         DOC-VS-TREE divergence and a test-determinism hazard, NOT an SSRF hole. The clean fix is to make
         `sdkFetch` REQUIRED and inject it at the composition root (the `no-raw-clock:entry-lifecycle`
         precedent); until then every composed-real test is one missing seam away from live inference.
+        *LANDED, 2026-09-20 (lane cb-sdk-fetch).* `sdkFetch` is required, the two `?? globalThis.fetch`
+        fallbacks are gone, the root injects the ambient transport under the reviewed grant
+        `no-raw-egress:entry-compose-transport`, and the shared `app` fixture defaults `providerFetch` to a
+        refusing fake. The type change surfaced exactly ONE construction site — the composition root; both
+        test harnesses (`tests/inference/_support.ts`, `tests/server/domain/connection/_support.ts`) already
+        passed one. §11 above is corrected accordingly.
         (3) The two boot suites polled `admin.vllmEngines`, deleted with the admin Engines surface. The
         tRPC-round-trip half now polls the pre-existing PUBLIC `health` procedure (`router.ts:44`) and the
         download-in-flight half reads the injected cache double's own `preloads` record — the literal

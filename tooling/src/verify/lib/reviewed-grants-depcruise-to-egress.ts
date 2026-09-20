@@ -393,29 +393,19 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
       "the time engine moves out of this module or stops defaulting to the ambient clock; the row is then consumed zero times and reds at its dead subject.",
   },
   {
-    id: "no-raw-egress:inference-runtime-sdk-fetch-default",
-    policyId: "no-raw-egress",
-    subject: "packages/inference/src/index.ts",
-    operation: "raw-fetch",
-    why: "the ambient DEFAULT of the runtime's injected `sdkFetch` port (`deps.sdkFetch ?? globalThis.fetch` in `createInferenceRuntime`), handed to the catalog readers. Same class and same shape as the `agent-sdk-host-token` row it replaces — the reference sits in a `??` DEFAULT position, not at a call site. THE BELT IS THE GLOBAL DISPATCHER, NOT `safeFetch`, and that is deliberate: `@orb/inference` is node-only and declares only `@orb/kit` + `@orb/contracts`, so importing `infra/network` would be an upward import (constitution §2) — and it does not need to, because `installEgressFirewall()` swaps undici's GLOBAL dispatcher at boot (`entry/lifecycle.ts:330`, unconditional; `EGRESS_FIREWALL` is `envBool(true)` at `foundation/env/index.ts:448`), gating every outbound `fetch` in the process through a DNS-lookup override for hostname targets and a connector pre-check for IP literals. `infra/network/egress.ts:8-16` names this class by name — 'the global dispatcher stays the defense-in-depth backstop for non-safeFetch egress (PROVIDER CALLS, OIDC)' — and `:36-39` records that the rebinding TOCTOU stays closed because the decision keys on the ORIGINAL caller-supplied host:port. THE RESIDUAL, stated rather than hidden: that backstop is a TOGGLE (a no-op under `EGRESS_FIREWALL=false`) where `safeFetch` is self-enforcing, so these two sites are defense-in-depth-guarded, not guard-independent.",
-    endsWhen:
-      "the composition root always injects `sdkFetch` and the `?? globalThis.fetch` default is deleted, at which point this row is consumed zero times and reds. That is the honest fix and it is small: `packages/server/src/entry/compose/services.ts` already constructs every other seam the runtime receives, and a root that injects the api is the same shape as `no-raw-clock:entry-lifecycle`. It leaves ONE grant at the composition root instead of two inside the package, and it is the precondition for ever putting a guarded fetch on this path.",
-  },
-  {
-    id: "no-raw-egress:inference-backend-registry-sdk-fetch-default",
-    policyId: "no-raw-egress",
-    subject: "packages/inference/src/registry/backends.ts",
-    operation: "raw-fetch",
-    why: "the SECOND spelling of the same ambient default (`fetchOf(deps)` = `deps.sdkFetch ?? globalThis.fetch`), handed to every constructed backend as its `fetch` transport port — so this is the live hosted-wire transport, gated by the same boot-installed global dispatcher the sibling row cites. It is its own row rather than a directory permission BECAUSE there are two: one `infra/providers`-style zone would have licensed both and any third, which is the failure the zone-to-row conversion fixed. A DIVERGENCE WORTH KNOWING, since it is what makes a reader look for the belt in the wrong place: `orbweaver-inference-package.md` §11 calls `sdkFetch` 'the egress-guarded fetch every provider instance receives', but `InferenceSeams` at `entry/compose/services.ts:157` makes it a TEST-ONLY override and the production `createInferenceRuntime` call at `:371` passes none — the doc points at a seam that is not wired while the actual belt is one layer down.",
-    endsWhen:
-      "the same fix as the sibling row: `sdkFetch` becomes a required `InferenceDeps` field and `fetchOf` returns it unconditionally. Both rows go stale together, which is why they are written as a pair.",
-  },
-  {
     id: "no-raw-egress:egress-hop",
     policyId: "no-raw-egress",
     subject: "packages/server/src/infra/network/egress.ts",
     operation: "raw-fetch",
     why: "`safeFetch`'s own home: `fetchHop` IS the guarded request every other server call is routed through. The guard cannot be built without the one raw fetch it wraps, and the scheme pin, host allowlist, resolve→validate→pin and deadline all run around this exact line.",
     endsWhen: "the guard stops issuing the request itself (a lower transport primitive takes over), at which point this row is consumed zero times and reds.",
+  },
+  {
+    id: "no-raw-egress:entry-compose-transport",
+    policyId: "no-raw-egress",
+    subject: "packages/server/src/entry/compose/services.ts",
+    operation: "raw-fetch",
+    why: "the composition root READS the ambient transport it INJECTS into the inference runtime (`InferenceDeps.sdkFetch`, a REQUIRED field) — the `no-raw-clock:entry-lifecycle` shape: a root that cannot read the ambient api cannot mint the one every tier below receives injected. This reference performs no egress itself and is never a user-influenced URL; provider calls are backstopped by the boot-installed global undici dispatcher (`packages/server/src/infra/network/egress.ts`), and user-influenced URLs go through `safeFetch` on a different path entirely. The row EXISTS so the fallback does not: while `sdkFetch` was optional, every runtime and backend resolved `?? globalThis.fetch` on its own, which is an ambient read this policy could not see AT THE TIME (its population was `@server` alone, and the inference package sits outside it; the policy has since been widened to `@inference` too) and which let a composed-real test reach a real inference engine.",
+    endsWhen: "the transport arrives from a platform seam the root RECEIVES rather than reads here; the row is then consumed zero times and reds.",
   },
 ];

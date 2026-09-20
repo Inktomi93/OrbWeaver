@@ -51,10 +51,6 @@ export interface BuiltBackends {
   readonly skipped: ReadonlyMap<Wire, string>;
 }
 
-function fetchOf(deps: InferenceDeps): typeof fetch {
-  return deps.sdkFetch ?? globalThis.fetch;
-}
-
 export function buildBackends(deps: InferenceDeps): BuiltBackends {
   const skipped = new Map<Wire, string>();
   for (const wire of WIRES) {
@@ -69,7 +65,7 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
     random: deps.random,
     log: deps.log,
     addSpanEvent: deps.addSpanEvent,
-    fetch: fetchOf(deps),
+    fetch: deps.sdkFetch,
     captureWire: deps.captureWire,
     imageToPng: deps.imageToPng,
   };
