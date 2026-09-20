@@ -3,6 +3,7 @@
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel, ReasoningDisplayMode, ReasoningMode, Verbosity } from "@orb/contracts/inference";
+import type { CarryReasoning } from "@orb/contracts/preset";
 
 /** One code per distinct drop site a resolver/transport actually emits; clamps are silent. Every member has a
  *  NAMED client home (§5.3a): the ambient capability panel, the aggregated per-turn notice, the Extras row,
@@ -110,6 +111,11 @@ export interface ResolvedChatKnobs {
   /** Additive to the request-scoped requestId — disambiguates several provider turns inside one request. */
   readonly turnId: string;
   readonly reasoning: ResolvedReasoning;
+  /** How much of the model's OWN prior thinking rides back on this turn (§8.8), after the capability gate and
+   *  the reasoning-enabled coherence rule. The wire does not spell it — `v4/prompt.ts` already emits whatever
+   *  reasoning parts the delivered history carries — so this is the ASSEMBLY's instruction, resolved here so
+   *  the policy has one home. The chat engine reads the same answer through `resolveCarryReasoning`. */
+  readonly carryReasoning: CarryReasoning;
   readonly sampling: ResolvedSampling;
   readonly dynamicContextChannel: DynamicContextChannel;
   readonly maxOutputTokens?: number | undefined;

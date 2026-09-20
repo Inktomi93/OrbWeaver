@@ -10,10 +10,9 @@
 //     TYPE-LEVEL UNREPRESENTABLE (no member declares a field to carry one).
 
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
-import type { JsonValue } from "@orb/kit/json";
 import type { ChatApi, EffortLevel, ProviderId } from "#inference";
 import type { WiBusEvent } from "#world-info";
-import type { MessageView } from "./messages.ts";
+import type { ChatReasoningPart, MessageView } from "./messages.ts";
 import type { ReactionEmoji } from "./reactions.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -37,22 +36,6 @@ export type ChatDeltaEvent = { chatId: ChatId; kind: "text"; text: string } | { 
  *  non-video model never receives video parts (`input.video`, `video_dropped` — the #317 twin). This is
  *  the ONE home (D45 "the cross-boundary message DTOs in `@orb/contracts/chat` carry the same"); the infra
  *  `ChatHistoryMessage` imports it. Distinct from the D44 RENDER `MessageContentBlock` (display ⇆ client). */
-/** The PER-WIRE opaque provenance a `reasoning` part carries so the next leg of a tool loop can hand the
- *  model back its own verified thinking. CLOSED by wire, never an open bag: each arm is exactly what that
- *  provider's SDK reads off a replayed reasoning part, spelled in the provider's own vocabulary.
- *
- *  • `anthropic` — `signature` on a normal thinking block, `redactedData` on a redacted one
- *    (`@ai-sdk/anthropic` emits them on `reasoning-delta` / `reasoning-start` respectively and requires one
- *    of the two back, else it drops the block with a warning).
- *  • `openrouter` — the whole `reasoning_details` list verbatim. It is provider-shaped JSON (Anthropic
- *    signatures, Gemini thought signatures, OpenAI encrypted reasoning) that OUR layer never interprets: the
- *    OR provider re-validates it and strips entries whose signature is missing, so round-tripping the exact
- *    bytes is the whole contract. `JsonValue` (not `unknown`) keeps it serializable and re-parsable. */
-export interface ReasoningPartMeta {
-  readonly anthropic?: { readonly signature?: string | undefined; readonly redactedData?: string | undefined } | undefined;
-  readonly openrouter?: { readonly reasoningDetails: readonly JsonValue[] } | undefined;
-}
-
 export type ChatContentPart =
   | { readonly type: "text"; readonly text: string }
   /* The model's own THINKING, kept so a tool loop can replay it (audit A1). Content, not display: the
@@ -60,7 +43,7 @@ export type ChatContentPart =
    * hosted provider verifies its prior reasoning by an opaque signature and a loop that drops it hands the
    * model an amnesiac transcript (and, on the arms that enforce verification, a 400). `text` may be EMPTY:
    * a redacted thinking block is signature-only. */
-  | { readonly type: "reasoning"; readonly text: string; readonly meta?: ReasoningPartMeta | undefined }
+  | ChatReasoningPart
   | { readonly type: "image"; readonly url: string }
   /* The #317 video sibling of the image part — same resolve seam, same attachment-only rule, gated by
    * `ModelCapability.input.video` instead of `input.vision`. The MEDIA KIND is a fact of the stored asset
@@ -239,6 +222,10 @@ export const ADJUSTED_KNOBS = [
   "thinkingBudgetTokens",
   // The reply-pictures ask (`text+image`), dropped on a model whose capability produces text only.
   "replyMedia",
+  // The reasoning-CARRY rung (§8.8), dropped when the model accepts no replayed thinking back
+  // (`capability.reasoning.replay: "none"`) or when reasoning is OFF for this turn — a carry knob on a
+  // non-reasoning turn has nothing to carry.
+  "carryReasoning",
 ] as const;
 export type AdjustedKnob = (typeof ADJUSTED_KNOBS)[number];
 

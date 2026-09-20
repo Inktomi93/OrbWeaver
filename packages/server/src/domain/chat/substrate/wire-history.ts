@@ -22,7 +22,8 @@
 // `engine/` → `substrate/` is the legal downward edge; nothing here imports `engine/` or `assembly/` beyond
 // the `assembly-access.ts` DI seam this directory already owns.
 
-import type { ChatContentPart, MessageView } from "@orb/contracts/chat";
+import type { ChatContentPart, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
+import type { CarryReasoning } from "@orb/contracts/preset";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
 import { cardWireStub, tokenizeContent } from "@orb/kit/content";
 import type { MessageId } from "@orb/kit/ids";
@@ -264,13 +265,38 @@ interface WireRow {
   readonly videoDropped: boolean;
 }
 
+/** THE `conversation` CARRY MATERIALIZATION (§8.8) — a prior turn's own thinking put back on its assistant
+ *  row, in the order the provider streamed it, AHEAD of everything else the row carries.
+ *
+ *  ORDER IS NOT COSMETIC: Anthropic requires the `thinking` block at the head of an assistant turn, and the
+ *  wire converters emit parts in array order, so a signed block behind the prose is not the turn the model
+ *  signed. (A persisted row carries no tool-call part today — the recorded exchange is materialized only by
+ *  the in-turn loop — so "ahead of the tool-call part" is satisfied by construction here and explicitly by
+ *  `toolExchangeMessages` there.)
+ *
+ *  ONLY ASSISTANT ROWS, and only rows that already carry something: a row whose body converted to nothing is
+ *  about to be dropped (`dropEmptyWireRows`), and prepending thinking to it would resurrect a row the model
+ *  never wrote as an assistant turn made of pure thinking — which every converter refuses. */
+function carryReasoningParts(parts: readonly ChatContentPart[], stored: readonly ChatReasoningPart[] | undefined): readonly ChatContentPart[] {
+  if (stored === undefined || stored.length === 0 || isEmptyPartList(parts)) {
+    return parts;
+  }
+  return [...stored, ...parts];
+}
+
 /** The wire text a row costs the model — the concatenation of its TEXT parts, and nothing else (#1434).
  *  A resolved image/video part carries a URL or a data payload the token estimator cannot price and the
  *  provider does not charge as prompt text, so it contributes ZERO here; what it replaced (a multi-KB
  *  `![alt](orb://…)` blob, or a card body collapsed to `[card: Title]`) is gone by construction because
- *  this reads the CONVERTED parts, not the shaped body. */
+ *  this reads the CONVERTED parts, not the shaped body.
+ *
+ *  A REPLAYED `reasoning` part (§8.8) DOES count: unlike a media URL its prose is real prompt bytes the
+ *  provider bills, so a `conversation` carry that the fit priced at zero would silently overflow the window
+ *  it was fitted to. Its opaque provenance (an Anthropic signature, an encrypted-reasoning blob) is not
+ *  priceable from here and is not estimated — absence over a fabricated number, the same posture as the
+ *  economics fields. */
 function wireCostText(parts: readonly ChatContentPart[]): string {
-  return parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("");
+  return parts.flatMap((p) => (p.type === "text" || p.type === "reasoning" ? [p.text] : [])).join("");
 }
 
 /** The REQUEST-step history build: tokenize each shaped row ONCE, resolve the keep-last-X card window over
@@ -303,8 +329,13 @@ export async function buildWireHistory(
     /** The M2 keep-last-X card window. ABSENT ≠ ZERO — see {@link resolveFullCards}; contributed only by an
      *  rpg game's gather, so a chat with no game passes `undefined` (no window) on BOTH paths. */
     readonly cardKeepLastX: number | undefined;
-    /** The loaded canon — read ONLY for the assistant-authored set below. */
+    /** The loaded canon — read for the assistant-authored set below, AND (under `carryReasoning:
+     *  "conversation"`) for each assistant row's persisted replayable thinking. */
     readonly canon: readonly MessageView[];
+    /** §8.8's RESOLVED carry rung (`resolveCarryReasoning`, the ONE policy home — never re-derived here).
+     *  `conversation` is the only rung this seam acts on: `tool-chain` carries inside the ACTIVE chain, which
+     *  is the engine's in-turn loop and never reaches the persisted history. */
+    readonly carryReasoning: CarryReasoning;
   },
   shapedHistory: readonly ShapedHistoryRow[],
 ): Promise<WireRow[]> {
@@ -320,10 +351,19 @@ export async function buildWireHistory(
   // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
   // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
   const assistantMessageIds = new Set(env.canon.filter((m) => m.role === "assistant").map((m) => m.id));
+  // The §8.8 `conversation` source: each canon row's persisted replayable thinking, keyed by slot id. Built
+  // ONLY on that rung — the map is the whole cost of the feature on every other turn, and it is zero.
+  const storedReasoning =
+    env.carryReasoning === "conversation"
+      ? new Map(env.canon.flatMap((m) => (m.reasoningParts === undefined || m.reasoningParts.length === 0 ? [] : [[m.id, m.reasoningParts] as const])))
+      : new Map<MessageId, readonly ChatReasoningPart[]>();
   return await Promise.all(
     tokenized.map(async ({ h, spans }): Promise<WireRow> => {
       const userAuthored = h.messageId === undefined || !assistantMessageIds.has(h.messageId);
-      const { parts, imageDropped, videoDropped } = await toContentParts(spans, partsEnv, { role: h.role, userAuthored });
+      const { parts: bodyParts, imageDropped, videoDropped } = await toContentParts(spans, partsEnv, { role: h.role, userAuthored });
+      // A SHAPE fold may have re-roled a character's assistant line to `user` (`scopeToSpeaker`); its thinking
+      // must not ride back on a row the wire will deliver as the user speaking.
+      const parts = h.role === "assistant" && h.messageId !== undefined ? carryReasoningParts(bodyParts, storedReasoning.get(h.messageId)) : bodyParts;
       const row: TurnMessage = h.name === undefined ? { role: h.role, content: parts } : { role: h.role, content: parts, name: h.name };
       const costRow: ShapedHistoryRow = {
         role: h.role,
@@ -339,7 +379,12 @@ export async function buildWireHistory(
 /** A converted row that carries NOTHING for the provider: one empty text part, which is what
  *  `toContentParts` emits when every span was `wire:"drop"`ped and no media drop left a placeholder. */
 function isEmptyWireRow(wire: WireRow): boolean {
-  const parts = wire.row.content;
+  return isEmptyPartList(wire.row.content);
+}
+
+/** The part-list half of {@link isEmptyWireRow}, so the §8.8 carry can ask the same question BEFORE the row
+ *  exists (it must not resurrect a would-be-dropped row as a turn made of pure thinking). */
+function isEmptyPartList(parts: readonly ChatContentPart[]): boolean {
   return parts.length === 1 && parts[0]?.type === "text" && parts[0].text.length === 0;
 }
 

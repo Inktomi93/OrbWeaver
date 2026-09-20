@@ -7,8 +7,8 @@ import type { Modality } from "../modalities.ts";
 import type { CapabilityRequirement } from "../tasks.ts";
 import type { Capability } from "./capability.ts";
 import type { EmbeddingCapability } from "./embedding.ts";
-import type { GenerationCapability, RoleHandling } from "./generation.ts";
-import { CACHE_MIN_FLOOR, TURNS_FLOOR } from "./generation.ts";
+import type { GenerationCapability, ReasoningReplayMode, RoleHandling } from "./generation.ts";
+import { CACHE_MIN_FLOOR, REASONING_REPLAY_FLOOR, TURNS_FLOOR } from "./generation.ts";
 import type { RerankCapability } from "./rerank.ts";
 
 /** Does this generation model accept/produce a modality on the named side? */
@@ -54,6 +54,13 @@ export function acceptsHistorySystemRows(capability: GenerationCapability): bool
  *  ANDs it with "no tools ride this turn", the transport with "the array actually ends on an assistant row". */
 export function acceptsAssistantPrefill(capability: GenerationCapability): boolean {
   return capability.turns?.assistantPrefill === true;
+}
+
+/** WHAT MAY RIDE BACK when the carry knob replays this model's own prior thinking (§8.8). The ONE spelling
+ *  of the question; absent ⇒ the fail-closed `none` rung, so an unmeasured wire is never handed a signed
+ *  block it might reject. */
+export function reasoningReplayOf(capability: GenerationCapability): ReasoningReplayMode {
+  return capability.reasoning.replay ?? REASONING_REPLAY_FLOOR;
 }
 
 export function acceptsMidConversationSystem(capability: GenerationCapability): boolean {

@@ -69,7 +69,10 @@ export { curatedKind } from "./capability/sources/curated/loader.ts";
 export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
 export type { BindingActor, BindingStore, ConnectionStore, InferenceDeps, InferenceLog, ProviderStore, SnapshotStore, SpanFn } from "./deps.ts";
-export { resolveChat } from "./funnel/resolve-chat.ts";
+// `resolveCarryReasoning` is exported BESIDE the whole funnel because the chat engine needs exactly one of
+// its answers BEFORE the first wire call: the `conversation` rung materializes prior thinking at the
+// history-build seam, which runs upstream of `resolveChat`. One policy home, two readers (§8.8).
+export { resolveCarryReasoning, resolveChat } from "./funnel/resolve-chat.ts";
 export type { ProviderOrigin, ProviderRegistry } from "./registry/providers.ts";
 export type { ResolveArgs, ResolveOutcome } from "./resolve/resolve-task.ts";
 export { NoConnectionError } from "./resolve/resolve-task.ts";

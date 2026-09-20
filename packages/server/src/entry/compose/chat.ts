@@ -796,6 +796,10 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       terminalReason: result.terminalReason,
       generationId: result.generationId ?? null,
       ...(result.toolCalls !== undefined ? { toolCalls: result.toolCalls } : {}),
+      // §8.8: the depth's replayable thinking, carried across the seam so the engine's tool loop can hand it
+      // back on the next leg. The wire produced them honestly (never gated on the carry knob) — WHETHER they
+      // ride back is the pipeline's decision, off the one funnel answer.
+      ...(result.reasoningParts !== undefined ? { reasoningParts: result.reasoningParts } : {}),
     },
   };
 }

@@ -101,7 +101,6 @@ export type {
   PromptTransformPoint,
   PromptTransformResult,
   ProviderAdjustmentKind,
-  ReasoningPartMeta,
   RoomEntityKind,
   TurnAbortedOpCode,
   TurnAbortReason,
@@ -148,10 +147,12 @@ export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {
+  ChatReasoningPart,
   MacroFreezeRecord,
   MessageAssetOrigin,
   MessageSlot,
   MessageView,
+  ReasoningPartMeta,
   ReattributeScope,
   StandaloneVariableDelta,
   TokenProvenance,

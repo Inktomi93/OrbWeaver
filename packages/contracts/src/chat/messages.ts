@@ -6,6 +6,7 @@
 
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
 import type { MacroFreeze, VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
@@ -51,6 +52,37 @@ export function combineTokenProvenance(left: TokenProvenance, right: TokenProven
  *  ask is refused as BAD_REQUEST. The same 100 the domain DoS backstop (`read.ts` `Math.min`, for internal
  *  callers) references, homed HERE so the wire ceiling and the backstop never drift. */
 export const CHAT_MESSAGE_LIST_MAX_LIMIT = 100;
+
+/** The PER-WIRE opaque provenance a `reasoning` part carries so the next leg of a tool loop — or a
+ *  `carryReasoning: "conversation"` replay of a prior turn (§8.8) — can hand the model back its own verified
+ *  thinking. CLOSED by wire, never an open bag: each arm is exactly what that provider's SDK reads off a
+ *  replayed reasoning part, spelled in the provider's own vocabulary.
+ *
+ *  • `anthropic` — `signature` on a normal thinking block, `redactedData` on a redacted one
+ *    (`@ai-sdk/anthropic` emits them on `reasoning-delta` / `reasoning-start` respectively and requires one
+ *    of the two back, else it drops the block with a warning).
+ *  • `openrouter` — the whole `reasoning_details` list verbatim. It is provider-shaped JSON (Anthropic
+ *    signatures, Gemini thought signatures, OpenAI encrypted reasoning) that OUR layer never interprets: the
+ *    OR provider re-validates it and strips entries whose signature is missing, so round-tripping the exact
+ *    bytes is the whole contract. `JsonValue` (not `unknown`) keeps it serializable and re-parsable.
+ *
+ *  HOMED HERE, not in `bus.ts`, because `MessageView` below carries the parts for the `conversation` rung and
+ *  the import may only run bus → messages (bus already reads `MessageView`; the reverse is a cycle three
+ *  gates refuse). `bus.ts` imports {@link ChatReasoningPart} as the `ChatContentPart` reasoning arm, so there
+ *  is still exactly ONE spelling of the shape. */
+export interface ReasoningPartMeta {
+  readonly anthropic?: { readonly signature?: string | undefined; readonly redactedData?: string | undefined } | undefined;
+  readonly openrouter?: { readonly reasoningDetails: readonly JsonValue[] } | undefined;
+}
+
+/** The model's own THINKING as one content part — the `reasoning` arm of `ChatContentPart` (which references
+ *  this type rather than re-spelling it). Content, not display: the rendered reasoning a user reads is the
+ *  variant's `reasoning` string. `text` may be EMPTY — a redacted thinking block is provenance only. */
+export interface ChatReasoningPart {
+  readonly type: "reasoning";
+  readonly text: string;
+  readonly meta?: ReasoningPartMeta | undefined;
+}
 
 /** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's REASONING TIME in ms.
  *
@@ -278,6 +310,16 @@ export interface MessageView {
   hasContinuation: boolean;
   content: string;
   reasoning: string | null;
+  /** The model's own thinking as REPLAYABLE parts, in stream order, each carrying the wire's opaque
+   *  provenance (§8.8 / audit A1). Distinct from `reasoning`, which is the RENDERED prose a reader sees:
+   *  these exist only so the assembly can materialize a prior turn's verified thinking back onto its
+   *  assistant row under `carryReasoning: "conversation"`. NOT A RENDER SURFACE — a client must never draw
+   *  them (an Anthropic signature / an OpenAI encrypted-reasoning blob is not prose). Absent on every row
+   *  whose wire surfaced no per-part provenance, and on every user/system/imported row.
+   *
+   *  THE WRITE HALF IS THE RECORD LANE'S (the durable home on `message_variants` + the canon-write that
+   *  stamps it); this field is the READ contract the assembly materializes from. */
+  reasoningParts?: readonly ChatReasoningPart[] | undefined;
   model: string | null;
   provider: string | null;
   /** The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`); `stopReason`/`terminalReason` are the raw upstream
