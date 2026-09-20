@@ -91,6 +91,7 @@ async function runWithStrikeOut<T>(args: {
   } catch (err) {
     const failure = providerFailureOf(err);
     if (failure !== null && deps.onAuthFailed !== undefined) {
+      // @orb-waive caught-failure-ownership(Promise.resolve): strike-out is a passenger side effect; its failure is warning-logged and the provider's original error is rethrown. Precedent: packages/server/src/entry/import/run-profile-import.ts accepts the same passenger-side-effect failure while preserving the primary owner. Ends if either owner changes.
       await Promise.resolve(
         deps.onAuthFailed({ ownerId: args.ownerId, credentialId: conn.credential.credentialId, errorKind: failure.kind, errorMessage: failure.message }),
       ).catch((strikeErr: unknown) => {

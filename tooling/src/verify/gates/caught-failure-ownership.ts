@@ -133,7 +133,7 @@ export const gate = defineGate({
   family: "caught-failure-ownership",
   authority: "ordinary",
   severity: "error",
-  population: ["@packages", "@showcase", "@default-content", "@tooling"],
+  population: ["@packages", "@showcase", "@default-content", "@inference", "@tooling"],
   analysis: "types",
   execution: "selected-files",
   facts: [],

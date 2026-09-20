@@ -83,6 +83,7 @@ async function probeMcpHealth(query: Query, deps: AgentSdkDeps, log: AgentSdkLog
   let statuses: readonly McpServerStatus[] | undefined;
   try {
     statuses = await Promise.race([query.mcpServerStatus(), timeout]);
+    // @orb-waive caught-failure-ownership(catch): this optional control-channel diagnostic degrades to `undefined`; the turn result remains authoritative. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if MCP health becomes required for correctness.
   } catch {
     // diagnostic miss, not a turn failure
   } finally {

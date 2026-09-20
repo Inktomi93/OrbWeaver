@@ -235,6 +235,7 @@ function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value: T) => 
       return;
     }
     entry.disposed = true;
+    // @orb-waive caught-failure-ownership(entry.promise): terminal cleanup after eviction; a load rejection has no value, while every concrete dispose callback is a no-op or delegates to the sync-safe, warning-owned detach root. Precedent: the gate mustPass fixture packages/server/src/infra/probe/cleanup.ts proves the same terminal cleanup absorber. Ends if a dispose callback can throw outside detach or cleanup gains an acknowledgement contract.
     void entry.promise.then(dispose).catch(() => undefined);
   };
   const getEntry = (id: string): MemoEntry<T> => {
@@ -246,6 +247,7 @@ function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value: T) => 
     const entry: MemoEntry<T> = { promise: created, refs: 0, evictionPending: false, disposed: false };
     entries.set(id, entry);
     // The memo caches the RESOLVED model, never a rejection: a rejected entry evicts itself once settled.
+    // @orb-waive caught-failure-ownership(created): the rejection arm deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes.
     void created.catch(() => {
       if (entries.get(id) === entry) {
         entries.delete(id);
