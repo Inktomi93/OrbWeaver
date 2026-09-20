@@ -30,9 +30,16 @@ test("needsRaw routes to its own arm, carrying the transpiled partial as the raw
   const owner = await seedUser(db, { id: "user_forge_raw" });
   const h = makeRefineryHarness(db);
   h.queueReply(designReply({ needsRaw: true, needsRawReason: "a recursive tree structure" }));
-  const call = await resolveForgeCall(h.ctx);
+  const call = await resolveForgeCall(h.ctx, owner);
   const result = asArm(
-    await runForgeTurn(h.ctx, { stage: "score", arm: "single", userPrompt: "score a recursive tree", overrides: call.overrides, sampleOpts: call.sampleOpts }),
+    await runForgeTurn({
+      stage: "score",
+      arm: "single",
+      userPrompt: "score a recursive tree",
+      overrides: call.overrides,
+      sampleOpts: call.sampleOpts,
+      rc: call.rc,
+    }),
     "needs-raw",
   );
   expect(result.message).toContain("a recursive tree structure");
@@ -44,9 +51,9 @@ test("a design the model returned with ZERO fields is a `failed` arm, never a si
   const owner = await seedUser(db, { id: "user_forge_empty" });
   const h = makeRefineryHarness(db);
   h.queueReply(designReply({ fields: [] }));
-  const call = await resolveForgeCall(h.ctx);
+  const call = await resolveForgeCall(h.ctx, owner);
   const result = asArm(
-    await runForgeTurn(h.ctx, { stage: "score", arm: "single", userPrompt: "anything", overrides: call.overrides, sampleOpts: call.sampleOpts }),
+    await runForgeTurn({ stage: "score", arm: "single", userPrompt: "anything", overrides: call.overrides, sampleOpts: call.sampleOpts, rc: call.rc }),
     "failed",
   );
   expect(result.raw).toBeNull();
@@ -57,9 +64,9 @@ test("a design that fails the schema belt (a name outside the identifier grammar
   const owner = await seedUser(db, { id: "user_forge_belt" });
   const h = makeRefineryHarness(db);
   h.queueReply(designReply({ name: "not a valid identifier!!!" }));
-  const call = await resolveForgeCall(h.ctx);
+  const call = await resolveForgeCall(h.ctx, owner);
   const result = asArm(
-    await runForgeTurn(h.ctx, { stage: "score", arm: "single", userPrompt: "anything", overrides: call.overrides, sampleOpts: call.sampleOpts }),
+    await runForgeTurn({ stage: "score", arm: "single", userPrompt: "anything", overrides: call.overrides, sampleOpts: call.sampleOpts, rc: call.rc }),
     "failed",
   );
   expect(result.raw).not.toBeNull();

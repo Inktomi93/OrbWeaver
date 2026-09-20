@@ -4,13 +4,12 @@
 // row (the backfill pre-check reads exactly that shape as "work remaining").
 
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
+import { ProviderError } from "@orb/inference";
 import { beforeEach, describe } from "vitest";
 import { analyzeAvatarImage } from "../../../../../packages/server/src/domain/embeddings/indexer/caption.ts";
 import { __resetAvatarAnalysisAvailability } from "../../../../../packages/server/src/domain/embeddings/substrate/avatar-analysis-availability.ts";
-import { ProviderError } from "@orb/inference";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeRoleClients, TEST_CAPTION } from "../_support.ts";
-import { FAKE_SUMMARIZE_MODEL } from "../../../../support/factories/role-clients.ts";
+import { makeRoleClients, SUMMARIZER_MODEL, TEST_CAPTION } from "../_support.ts";
 
 const BYTES = new Uint8Array([1, 2, 3]);
 
@@ -45,7 +44,7 @@ describe("analyzeAvatarImage", () => {
     const roleClients = makeRoleClients();
     const result = await analyzeAvatarImage(roleClients, BYTES);
     expect(result.caption).toBe(TEST_CAPTION);
-    expect(result.captionMeta.model).toBe(FAKE_SUMMARIZE_MODEL);
+    expect(result.captionMeta.model).toBe(SUMMARIZER_MODEL);
     expect(result.captionMeta).toHaveProperty("artStyle");
   });
 
@@ -53,17 +52,17 @@ describe("analyzeAvatarImage", () => {
     const roleClients = makeRoleClients();
     roleClients.structured.mockResolvedValueOnce({
       items: [{ text: JSON.stringify({ ...VALID_BREAKDOWN, caption: "   " }), usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
-      model: FAKE_SUMMARIZE_MODEL,
+      model: SUMMARIZER_MODEL,
     });
     const result = await analyzeAvatarImage(roleClients, BYTES);
-    expect(result).toEqual({ caption: "", captionMeta: { model: FAKE_SUMMARIZE_MODEL } });
+    expect(result).toEqual({ caption: "", captionMeta: { model: SUMMARIZER_MODEL } });
   });
 
   test("a structured-turn failure (schema validation fails twice) skips to the same facetless shape", async () => {
     const roleClients = makeRoleClients();
     roleClients.structured.mockRejectedValue(new Error("backend refused responseFormat"));
     const result = await analyzeAvatarImage(roleClients, BYTES);
-    expect(result).toEqual({ caption: "", captionMeta: { model: FAKE_SUMMARIZE_MODEL } });
+    expect(result).toEqual({ caption: "", captionMeta: { model: SUMMARIZER_MODEL } });
   });
 
   test("resolves the analysis via the summarize role, passing the image bytes through", async () => {
@@ -82,31 +81,31 @@ describe("analyzeAvatarImage — the model-level verdicts are process-scoped", (
   test("a backend that does not serve the model is asked ONCE, and every later asset skips without a call", async () => {
     const roleClients = makeRoleClients();
     roleClients.structured.mockRejectedValue(
-      new ProviderError({ kind: "model_unavailable", retryable: false, message: "model not found", apiErrorStatus: 404, model: FAKE_SUMMARIZE_MODEL }),
+      new ProviderError({ kind: "model_unavailable", retryable: false, message: "model not found", apiErrorStatus: 404, model: SUMMARIZER_MODEL }),
     );
 
     const first = await analyzeAvatarImage(roleClients, BYTES);
     const second = await analyzeAvatarImage(roleClients, BYTES);
     const third = await analyzeAvatarImage(roleClients, BYTES);
 
-    expect(roleClients.summarize).toHaveBeenCalledTimes(1);
+    expect(roleClients.structured).toHaveBeenCalledTimes(1);
     for (const result of [first, second, third]) {
-      expect(result).toEqual({ caption: "", captionMeta: { model: FAKE_SUMMARIZE_MODEL } });
+      expect(result).toEqual({ caption: "", captionMeta: { model: SUMMARIZER_MODEL } });
     }
   });
 
   test("a summarize model that declares no image input never reaches the provider at all", async () => {
     const roleClients = makeRoleClients(false);
     const result = await analyzeAvatarImage(roleClients, BYTES);
-    expect(roleClients.summarize).not.toHaveBeenCalled();
-    expect(result).toEqual({ caption: "", captionMeta: { model: FAKE_SUMMARIZE_MODEL } });
+    expect(roleClients.structured).not.toHaveBeenCalled();
+    expect(result).toEqual({ caption: "", captionMeta: { model: SUMMARIZER_MODEL } });
   });
 
   test("a vision-capable model still runs the analysis for every asset — the latch is not a blanket off-switch", async () => {
     const roleClients = makeRoleClients();
     const first = await analyzeAvatarImage(roleClients, BYTES);
     const second = await analyzeAvatarImage(roleClients, BYTES);
-    expect(roleClients.summarize).toHaveBeenCalledTimes(2);
+    expect(roleClients.structured).toHaveBeenCalledTimes(2);
     expect(first.caption).toBe(TEST_CAPTION);
     expect(second.caption).toBe(TEST_CAPTION);
   });
@@ -116,6 +115,6 @@ describe("analyzeAvatarImage — the model-level verdicts are process-scoped", (
     roleClients.structured.mockRejectedValue(new Error("backend refused responseFormat"));
     await analyzeAvatarImage(roleClients, BYTES);
     await analyzeAvatarImage(roleClients, BYTES);
-    expect(roleClients.summarize).toHaveBeenCalledTimes(2);
+    expect(roleClients.structured).toHaveBeenCalledTimes(2);
   });
 });

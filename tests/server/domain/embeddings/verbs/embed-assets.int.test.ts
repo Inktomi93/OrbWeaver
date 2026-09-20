@@ -47,13 +47,14 @@ async function seedAdmissionMix(db: Awaited<ReturnType<typeof freshDb>>): Promis
 }
 
 async function seedOneAsset(db: Awaited<ReturnType<typeof freshDb>>): Promise<{
+  owner: UserId;
   assetId: AssetId;
   ids: readonly AssetId[];
   bytes: ReadonlyMap<AssetId, Uint8Array>;
 }> {
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const assetId = await seedAsset(db, owner);
-  return { assetId, ids: [assetId], bytes: new Map([[assetId, IMG]]) };
+  return { owner, assetId, ids: [assetId], bytes: new Map([[assetId, IMG]]) };
 }
 
 describe("embedAssets — the bulk image sweep", () => {
@@ -170,7 +171,7 @@ describe("embedAssets — the bulk image sweep", () => {
       content: IMG,
       model: IMAGE_EMBED_MODEL,
       dim: EMBED_DIM,
-      ownerId: owner,
+      ownerId: seeded.owner,
     });
 
     const result = await svc.embedAssets({ ownerId: null, force: false, signal: signal() });

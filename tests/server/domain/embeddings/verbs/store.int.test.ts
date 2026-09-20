@@ -98,6 +98,7 @@ describe("store — card-text (character_embeddings)", () => {
       content: CARD_TEXT,
       model: EMBED_MODEL,
       dim: EMBED_DIM,
+      ownerId: owner,
     } as const;
 
     const first = await svc.store(params);
@@ -532,6 +533,7 @@ describe("store — chunk (document_chunks, the 5th arm — databank-design/05 �
       model: EMBED_MODEL,
       dim: EMBED_DIM,
       fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: 43 },
+      ownerId: owner,
     } as const;
 
     const first = await svc.store(params);
