@@ -107,6 +107,7 @@ function toToolInput(raw: string): Record<string, unknown> | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
+    // @orb-waive caught-failure-ownership(catch): malformed model-emitted arguments become `null`, which toSdkBlock maps to an empty object so the tool pair remains wire-valid. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null loses that owner.
   } catch {
     return null;
   }

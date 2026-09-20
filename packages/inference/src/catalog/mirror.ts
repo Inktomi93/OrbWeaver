@@ -78,6 +78,7 @@ export function createMirror<T>(args: {
       await deps.snapshotStore.write(key, JSON.stringify({ fetchedAt: at, value }));
       deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "fetch" });
       return value;
+      // @orb-waive caught-failure-ownership(err): the catalog mirror records failed span state plus a structured warning, then returns null for the marked-estimated fallback. Precedent: packages/server/src/entry/boot/local-light-prefetch.ts accepts the same warning plus degraded fallback. Ends if any of those owners disappears.
     } catch (err) {
       deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "failed" });
       deps.warn({ cache: key, err }, "inference: catalog cold-warm failed — capability degrades to the marked-estimated fallback");
