@@ -152,8 +152,17 @@ const QUIET_COALESCABLE = {
 } as const satisfies Record<LiveOnlyChatEventType, boolean>;
 
 /** The runtime seams a composition root MAY override — the SDK `query` test seam, the D8 session store, a
- *  prebuilt local-light model cache, a wire-capture sink. Everything else the runtime needs is wired HERE from
- *  the domains; nothing about a provider, an engine or a posture is a boot dep any more (§4, F1/F2). */
+ *  prebuilt local-light model cache, a wire-capture sink, and the provider TRANSPORT. Everything else the
+ *  runtime needs is wired HERE from the domains; nothing about a provider, an engine or a posture is a boot
+ *  dep any more (§4, F1/F2).
+ *
+ *  `sdkFetch` is the one seam that is REQUIRED on `InferenceDeps` and therefore always supplied below: a
+ *  caller that does not override it gets the deployment's real transport, a caller that does gets its fake
+ *  from the runtime's FIRST call onward. That ordering is the whole reason the field is required —
+ *  `buildBackends` resolves the transport ONCE, synchronously, inside `createInferenceRuntime`, so a
+ *  `vi.spyOn(globalThis, "fetch")` installed after `createServices` has already returned can never reach it.
+ *  While the field was optional with an ambient fallback, a composed-real test that forgot the seam reached
+ *  a real listening inference engine on the box and asserted against its real answer. */
 type InferenceSeams = Partial<Pick<InferenceDeps, "agentSdk" | "localLight" | "captureWire" | "sdkFetch">>;
 
 /**
@@ -406,6 +415,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
     userRuntimeDir: (ownerId, tool) => userRuntimeDirs.dirFor(ownerId, tool),
     embedSpace: { dims: EMBED_SPACE_DIMS },
+    // THE PROVIDER TRANSPORT, read from the ambient api HERE and nowhere else (reviewed grant
+    // `no-raw-egress:entry-compose-transport`): the root reads the platform's `fetch` once so every tier
+    // below receives it INJECTED rather than reaching for the global — the `no-raw-clock:entry-lifecycle`
+    // shape, where a root that cannot read the ambient api cannot mint the one it injects.
+    // THE SSRF BELT IS NOT THIS REFERENCE. Provider egress is backstopped by the boot-installed global
+    // undici dispatcher (`infra/network/egress.ts` `installEgressFirewall` → `setGlobalDispatcher`, wired at
+    // `entry/lifecycle.ts`, with `EGRESS_FIREWALL` defaulting on), whose DNS-lookup override closes the
+    // rebinding TOCTOU. A user-influenced URL never rides this transport at all: it goes through `safeFetch`,
+    // which runs its own resolve→validate→pin independent of that toggle.
+    sdkFetch: deps.providerSeams?.sdkFetch ?? globalThis.fetch,
     localLight: {
       // ABSOLUTE on purpose: transformers.js hands `env.cacheDir` straight to its FileCache, which path.joins
       // it per file and lets node's fs resolve the rest — so a cwd-relative value would follow whatever cwd

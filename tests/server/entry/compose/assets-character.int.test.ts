@@ -215,11 +215,13 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
   // completion needs a seeded binding — a `NoConnectionError` otherwise. A post-compose instance-spy
   // (`app.roleClientsFor(owner)`, then spy its `summarize`) no longer intercepts anything: `roleClientsFor`
   // mints a FRESH bundle on every call (§7.5-1b). A `globalThis.fetch` spy fails the same way one level
-  // lower — `buildBackends` resolves `deps.sdkFetch ?? globalThis.fetch` ONCE, inside `createServices` (the
-  // shared `app` fixture's OWN setup, which runs before this test's body), so the captured reference is the
-  // pre-spy one (proven live: an unmocked run reached the box's real :8703 vLLM engine and got its real
-  // "model does not exist" answer). So THIS test builds its OWN composed graph — still the real seam,
-  // `createServices` end to end — with the fake fetch wired in from the start via `providerSeams.sdkFetch`.
+  // lower — `buildBackends` resolves `deps.sdkFetch` ONCE, inside `createServices` (the shared `app`
+  // fixture's OWN setup, which runs before this test's body), so the captured reference is the pre-spy one.
+  // Proven live while that field still carried an ambient fallback: an unmocked run reached the box's real
+  // :8703 vLLM engine and got its real "model does not exist" answer. The field is REQUIRED now and the
+  // shared fixture defaults it to a refusing fake, so the same mistake fails loudly instead. THIS test needs
+  // a SCRIPTED wire, so it builds its OWN composed graph — still the real seam, `createServices` end to end
+  // — with the fake wired in from the start via `providerSeams.sdkFetch`.
   test("a genuinely stale/unowned default preset id still degrades to the contract default template", async () => {
     const db = await freshDb();
     const clock = createFrozenClock();
