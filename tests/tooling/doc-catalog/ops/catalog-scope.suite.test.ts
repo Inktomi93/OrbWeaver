@@ -11,8 +11,8 @@
 //   · the whole form REFUSES while the catalog's inputs are dirty, and PROCEEDS when they are clean or
 //     when the caller says `--barrier`.
 
-import type { Doc, Frontmatter, LaneConfig, Receipt, ReceiptEntry } from "../../../../tooling/src/doc-catalog/index.ts";
-import { catalogInputDirt, scopedCatalog } from "../../../../tooling/src/doc-catalog/index.ts";
+import type { Doc, Frontmatter, Lane, LaneConfig, Receipt, ReceiptEntry } from "../../../../tooling/src/doc-catalog/index.ts";
+import { catalogInputDirt, expectedCatalog, scopedCatalog } from "../../../../tooling/src/doc-catalog/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const HASH_LENGTH = 64;
@@ -173,6 +173,34 @@ test("the base's ROW ORDER survives, even when it is not the order a fresh sort 
   expect(scoped.refusals).toEqual([]);
   // THEIRS first, because that is the order the base carried — not the order a sort would pick.
   expect(rowsOf(scoped.contents as string).map(({ path }) => path)).toEqual([THEIRS, MINE]);
+});
+
+// #2473: the SAME ruling, one case later. Existing rows keep the base's order (above) — but a row the base
+// has never seen was PUSHED ONTO THE END, and `check:doc-catalog` compares the file against
+// `expectedCatalog` over `documents()`, which is `git ls-files -- docs` SORTED. So `doc-catalog:write
+// --paths <a new doc>` wrote a catalog its own checker called stale in the very next command, and the only
+// green door left was `--barrier` — the whole-tree regenerator this door exists to keep lanes away from.
+// The assertion is deliberately byte-for-byte against `expectedCatalog`, because BYTES are what
+// `catalogIsStale` compares: a position pin alone could pass while the file still failed the checker.
+test("a row the base has never seen lands where the WHOLE form would put it, byte for byte (#2473)", () => {
+  const added = "docs/architecture/core/Added.md";
+  // Tracked order puts the new path FIRST, so appending is maximally distinguishable from placing.
+  const tree = [doc(added, NEW_HASH), doc(MINE, OLD_HASH), doc(THEIRS, OTHER_HASH)];
+  const assignments = new Map([...ASSIGNMENTS, [added, CONFIG.lanes[0] as Lane]]);
+  const receipts = [receipt("core", 1, [entry(added, NEW_HASH), entry(MINE, OLD_HASH)]), receipt("design", 2, [entry(THEIRS, OTHER_HASH)])];
+  const scoped = scopedCatalog({ base: committedBase(), named: [added], docs: tree, receipts, config: CONFIG, assignments });
+  expect(scoped.refusals).toEqual([]);
+  expect(rowsOf(scoped.contents as string).map(({ path }) => path)).toEqual([added, MINE, THEIRS]);
+  expect(scoped.contents).toBe(expectedCatalog(tree, assignments, receipts));
+
+  // THE OTHER DIRECTION, so "it agreed" cannot mean "it re-sorted everything": with the base REVERSED the
+  // scoped write still refuses to move `MINE`/`THEIRS`, and the new row goes where the tree says relative
+  // to the rows that survive — which is no longer the whole form's order, and must not be forced to be.
+  const base = JSON.parse(committedBase()) as { documents: unknown[] };
+  const reversed = JSON.stringify({ ...base, documents: [...base.documents].reverse() });
+  const onReversed = scopedCatalog({ base: reversed, named: [added], docs: tree, receipts, config: CONFIG, assignments });
+  expect(onReversed.refusals).toEqual([]);
+  expect(rowsOf(onReversed.contents as string).map(({ path }) => path)).toEqual([added, THEIRS, MINE]);
 });
 
 test("a named document that has LEFT the tree drops its row instead of preserving a lie", () => {
