@@ -4,8 +4,9 @@
 
 import { existsSync } from "node:fs";
 import { warn as toolWarn } from "../../../_shared/log.ts";
-import type { ObservedEngineProcess } from "./process-identity.ts";
-import { engineIdentityFilePath, readEngineIdentityFile, readObservedEngineProcess, verifyEngineLaunchIdentity } from "./process-identity.ts";
+import type { ObservedEngineProcess } from "./proc-observe.ts";
+import { readObservedEngineProcess } from "./proc-observe.ts";
+import { engineIdentityFilePath, readEngineIdentityFile, verifyEngineLaunchIdentity } from "./process-identity.ts";
 
 /** Inspect only recorded leaders. Missing or changed leaders are operator-visible and never authorize survivor cleanup. */
 export function reapOrphanedFamily(

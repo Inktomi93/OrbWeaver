@@ -264,6 +264,14 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     endsWhen: "the first tests/**/*.cts source lands.",
   },
   {
+    id: "tsconfig-entry-liveness:tests-mts",
+    policyId: "tsconfig-entry-liveness",
+    subject: "tests/**/*.mts",
+    operation: "tsconfig-glob-entry",
+    why: "the `.mts` half of the SAME pre-declaration its `tests-cts` sibling above carries, and the only one of the five dialect rows that was never written: the Node world root declares every authored dialect under tests/ before the first file of that dialect exists, so a future authored file cannot be silently unowned by any program. Minted 2026-09-20 from a live finding rather than from a sweep — `scripts-cts`, `scripts-mts`, `scripts-tsx` and `tests-cts` were all reviewed together and this row was simply missed, which is why the entry read as a dead include while its four identical siblings read as permissions.",
+    endsWhen: "the first tests/**/*.mts source lands — the glob acquires a member, the finding disappears and this row is consumed zero times.",
+  },
+  {
     id: "two-class-role-authority:admin-guard-can-seam",
     policyId: "two-class-role-authority",
     subject: "packages/server/src/domain/admin/guard.ts",

@@ -27,6 +27,7 @@ import {
   writeEngineLaunchIdentities,
 } from "@orb/tooling/stack/lib/engine-fleet";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../../_load-budget.ts";
 
 const FILE_MODE_MODULUS = 0o1000;
 const MANUAL_CLEANUP_RE = /manual cleanup|relaunch/u;
@@ -281,8 +282,11 @@ const OTHER_MARKER = "00000000-0000-4000-8000-000000000000";
 const MARKED: EngineLaunchIdentity = { ...IDENTITY, launchMarker: MARKER };
 /** The recorded leader is GONE — the whole premise of an adoption question. */
 const NO_LEADER = { readProcess: (): ObservedEngineProcess | null => null };
-/** A real-process arm on a loaded box needs more than vitest's 5s default (the SHELL_ARM_TIMEOUT_MS class). */
-const LIVE_GROUP_ARM_TIMEOUT_MS = 30_000;
+/** A real-process arm on a loaded box needs more than vitest's 5s default (the SHELL_ARM_TIMEOUT_MS class),
+ *  and the ceiling is DERIVED through the one load budget rather than typed (policy `tooling-clock-budget`):
+ *  30s is a statement about a quiet box, and a spawn-and-settle arm that times out under homelab contention
+ *  is a false RED about the box, not about launch ownership. A quiet box gets the base byte-identical. */
+const LIVE_GROUP_ARM_TIMEOUT_MS = scaledBudget(30_000);
 const GROUP_SETTLE_POLL_MS = 50;
 const GROUP_SETTLE_TRIES = 200;
 

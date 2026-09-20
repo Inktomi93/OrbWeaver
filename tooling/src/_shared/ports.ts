@@ -35,6 +35,13 @@
 //     env-overridable DEFAULTS there (`VITE_PORT`, `VITE_API_TARGET`), not hardcodes; the fallbacks must
 //     match DEV_PORTS above. That file carries the pointer back to this one.
 
+/** The protocol's own ceiling — the largest number a TCP port can BE, not a port anything binds. It lives
+ *  here because this is the one home for port FACTS: a validator that re-spells 65535 at its own call site
+ *  is the same hand-picked-number class as a re-spelled 8701, and `tooling-port-registry` reads a
+ *  port-named position regardless of whether the value is allocatable. Deliberately NOT a `RESERVED_PORTS`
+ *  row: nothing owns it, so the disjointness pin must never see it. */
+export const MAX_TCP_PORT = 65_535;
+
 /** A server/vite pair — the shape every stack in this repo binds. */
 export interface PortPair {
   readonly server: number;

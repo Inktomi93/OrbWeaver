@@ -2,7 +2,7 @@
 #
 # GENERATED — DO NOT HAND-EDIT. Regenerate with `pnpm engines compose` (writes this file); a stale copy
 # is a RED row in tests/tooling/stack/lib/engines-compose.test.ts. The serve flags come from the ONE argv
-# builder the bare-metal fleet uses (packages/server/src/infra/providers/vllm/engine/build-argv.ts), so
+# builder the bare-metal fleet uses (tooling/src/stack/lib/engine-fleet/build-argv.ts), so
 # these containers and `pnpm engines` can never run different flags. The generator, and the reasons for
 # every departure from the bare-metal spawn, are tooling/src/stack/lib/engines-compose.ts.
 #
@@ -81,7 +81,7 @@ services:
       VLLM_SERVER_DEV_MODE: "1"
     volumes:
       - vllm-models:/models
-      - ./packages/server/src/infra/providers/vllm/engine/templates:/app/packages/server/src/infra/providers/vllm/engine/templates:ro
+      - ./tooling/src/stack/lib/engine-fleet/templates:/app/tooling/src/stack/lib/engine-fleet/templates:ro
     expose:
       - "8701"
       - "8702"
@@ -136,7 +136,7 @@ services:
       VLLM_SERVER_DEV_MODE: "1"
     volumes:
       - vllm-models:/models
-      - ./packages/server/src/infra/providers/vllm/engine/templates:/app/packages/server/src/infra/providers/vllm/engine/templates:ro
+      - ./tooling/src/stack/lib/engine-fleet/templates:/app/tooling/src/stack/lib/engine-fleet/templates:ro
     network_mode: "service:vllm-gen"
     depends_on:
       vllm-gen:
@@ -193,7 +193,7 @@ services:
       VLLM_SERVER_DEV_MODE: "1"
     volumes:
       - vllm-models:/models
-      - ./packages/server/src/infra/providers/vllm/engine/templates:/app/packages/server/src/infra/providers/vllm/engine/templates:ro
+      - ./tooling/src/stack/lib/engine-fleet/templates:/app/tooling/src/stack/lib/engine-fleet/templates:ro
     network_mode: "service:vllm-gen"
     depends_on:
       vllm-gen:

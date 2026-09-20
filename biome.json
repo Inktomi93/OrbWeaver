@@ -525,11 +525,8 @@
         "packages/server/src/domain/export/**",
         "packages/server/src/domain/connection/**",
         "packages/server/src/domain/credentials/**",
-        "packages/server/src/infra/providers/**",
         "packages/inference/src/**",
-        "packages/contracts/src/connection/**",
         "packages/contracts/src/inference/**",
-        "tests/contracts/connection/**",
         "tests/contracts/inference/**",
         "tests/inference/**",
         "tooling/src/model-ab/**",
@@ -736,7 +733,6 @@
       "includes": [
         "packages/server/src/infra/image/index.ts",
         "tests/server/infra/image/index.int.test.ts",
-        "tests/server/infra/providers/backends/local-light/image-embed.int.test.ts",
         "tooling/src/snap/ops/arms/contrast.ts",
         "tooling/src/ui-audit/ops/pixels.ts"
       ],
@@ -782,11 +778,6 @@
         "tests/server/entry/import/run-profile-dir-import.test.ts",
         "tests/server/entry/import/st-chat-fidelity.suite.int.test.ts",
         "tests/server/foundation/env/index.test.ts",
-        "tests/server/infra/providers/backends/agent-sdk/summarize.test.ts",
-        "tests/server/infra/providers/backends/agent-sdk/terminal-tools.test.ts",
-        "tests/server/infra/providers/backends/agent-sdk/verify-auth.test.ts",
-        "tests/server/infra/providers/backends/custom-byo/runners/chat.test.ts",
-        "tests/server/infra/providers/vllm/engine/build-argv.test.ts",
         "tests/server/kit/serde/card/index.test.ts",
         "tests/server/kit/serde/chat/index.test.ts"
       ],
@@ -812,42 +803,6 @@
                     },
                     "match": "_*(.+?)_*",
                     "formats": ["camelCase", "snake_case", "CONSTANT_CASE"]
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": [
-        "tests/server/infra/providers/backends/agent-sdk/agent-runner.test.ts",
-        "tests/server/infra/providers/backends/agent-sdk/runner.test.ts",
-        "tests/server/infra/providers/backends/kit/openai-compat/body.test.ts"
-      ],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": {
-              "level": "error",
-              "options": {
-                "strictCase": false,
-                "requireAscii": true,
-                "conventions": [
-                  {
-                    "selector": {
-                      "kind": "objectLiteralProperty"
-                    },
-                    "match": "_*(.+?)_*",
-                    "formats": ["camelCase", "PascalCase", "snake_case"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeProperty"
-                    },
-                    "match": "_*(.+?)_*",
-                    "formats": ["camelCase", "PascalCase", "snake_case"]
                   }
                 ]
               }

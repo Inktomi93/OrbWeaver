@@ -1,8 +1,13 @@
-// infra/providers/contract/engine-ownership — the TYPE HOME for the vLLM engine LAUNCH-OWNERSHIP vocabulary
-// (#1756). The values and the I/O live in `vllm/engine/process-identity.ts`; these two shapes are here for
-// the same reason `ProviderScrubSet` is (see errors.ts): this file is the providers type home, and both are
-// consumed ACROSS a package boundary — `@orb/tooling/stack`'s `engines-ctl` reads them to print what it
-// verified before it signals.
+// stack's engine LAUNCH-OWNERSHIP vocabulary (#1756) — the TYPE HOME for the two shapes the negative-PGID
+// authorization is spelled in. The values and the I/O live in `lib/engine-fleet/process-identity.ts`.
+//
+// WHY IT IS HERE AND NOT BESIDE THE I/O. These shapes were `packages/server/src/infra/providers/contract/`
+// residents until the fleet moved wholesale into `tooling/`; the move landed them in `lib/engine-fleet/`,
+// which is not a type home in any package — `no-inline-types` admits `**/contract/**`, the tooling
+// plumbing floor and the package type homes, and a tool's `contract/` slot is the five-slot template's
+// answer for exactly this (Core-Tooling-Law.md §2.5). A SEPARATE contract module rather than a section of
+// `contract/types.ts`: that file imports `lib/engine-fleet/index.ts`, so homing these there would close a
+// module cycle back through `process-identity.ts`. This module imports nothing and can never close one.
 //
 // Both are aliases rather than interfaces on purpose: one is a phantom brand and the other is a closed
 // discriminated union, and neither can be spelled as an interface.
