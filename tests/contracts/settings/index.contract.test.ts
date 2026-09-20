@@ -31,6 +31,7 @@ const SCHEMA_VERSION_V5 = 5;
 const SCHEMA_VERSION_V6 = 6;
 const SCHEMA_VERSION_V7 = 7;
 const SCHEMA_VERSION_V8 = 8;
+const SCHEMA_VERSION_V9 = 9;
 const SAMPLE_SCAN_DEPTH = 12;
 
 // ── D17 owner-box governance toggles (the headline deviation: exist + the right floor defaults) ──
@@ -131,8 +132,6 @@ test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVER
     },
     memorySummarizer: { maxTokens: 2048, temperature: 0.7 },
     rateLimits: { aiTurn: 60, login: 10 },
-    engineLaunch: { genModel: "qwen3-vl", genPresencePenalty: 1.2 },
-    vllmConcurrency: { embed: 32 },
     agentSdkConcurrency: { summarize: 4 },
     logLevel: "debug",
     corpusAutoindex: true,
@@ -142,7 +141,6 @@ test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVER
     structuredOutputShape: "strict-compatible",
     structuredOutputVehicle: "forced-tool",
     promptCacheMinDepth: 4,
-    allowNonOwnerLocalCompute: false,
     localMultiUser: true,
   };
   const parsed = parseAppSettings(storedV7);
@@ -175,7 +173,6 @@ test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVER
   expect(parsed.structuredOutputShape).toBe("strict-compatible");
   expect(parsed.structuredOutputVehicle).toBe("forced-tool");
   expect(parsed.promptCacheMinDepth).toBe(4);
-  expect(parsed.allowNonOwnerLocalCompute).toBe(false);
   expect(parsed.localMultiUser).toBe(true);
 });
 
@@ -218,51 +215,11 @@ test("AppSettings v1→v2 lift strips the dropped memorySummarizer.source", () =
   expect(parsed.memorySummarizer).toEqual({ maxTokens: 256 });
 });
 
-// ── storedVersion (the DB column) BEATS the in-blob probe (the corruption guard) ──
-
-test("UserSettings v1→v2 lift folds defaultApi/Source/Model into routing.roleDefaults.chat", () => {
-  const storedV1 = {
-    schemaVersion: SCHEMA_VERSION_V1,
-    defaultApi: "chat-completions",
-    defaultSource: "openrouter",
-    defaultModel: "some-model",
-  };
-  const parsed = parseUserSettings(storedV1);
-  expect(parsed.routing.roleDefaults.chat).toEqual({
-    api: "chat-completions",
-    source: "openrouter",
-    model: "some-model",
-  });
-});
-
-test("storedVersion beats the in-blob probe: a v2 blob with no in-blob version does NOT re-run the v1 lift", () => {
-  // A v2-shaped blob (already namespaced) with NO in-blob schemaVersion. Without the column override it
-  // would probe as v1 and the flat-grab-bag lift would run, corrupting the already-migrated shape.
-  const v2Blob = {
-    routing: { roleDefaults: { chat: { source: "openrouter" } } },
-    worldInfo: { scanDepth: SAMPLE_SCAN_DEPTH },
-  };
-  const parsed = parseUserSettings(v2Blob, SCHEMA_VERSION_V2);
-  expect(parsed.worldInfo.scanDepth).toBe(SAMPLE_SCAN_DEPTH);
-  expect(parsed.routing.roleDefaults.chat?.source).toBe("openrouter");
-});
-
-// ── Per-role source subsets mirror the providers firewall (D39 — local-light is routable) ──
-
-test("embed/rerank/imageEmbed roleDefaults accept the three inference sources incl. local-light (D39)", () => {
-  for (const role of ["embed", "rerank", "imageEmbed"] as const) {
-    for (const source of ["openrouter", "vllm", "local-light"] as const) {
-      const parsed = parseUserSettings({ routing: { roleDefaults: { [role]: { source } } } }, SCHEMA_VERSION_V2);
-      expect(parsed.routing.roleDefaults[role]?.source).toBe(source);
-    }
-  }
-});
-
-test("summarize roleDefault rejects local-light (chat-less tier) — heals to no preference", () => {
-  // The subset omits local-light; an invalid stored source drops via the optional arm (no throw).
-  const parsed = parseUserSettings({ routing: { roleDefaults: { summarize: { source: "local-light" } } } }, SCHEMA_VERSION_V2);
-  expect(parsed.routing.roleDefaults.summarize?.source).toBeUndefined();
-});
+// NOTE (test-tree cut-over, @orb/inference program §5.3/§5.3c): the `routing.roleDefaults` section and its
+// v1→v2 lift LEFT the user-settings blob at v8→v9 (packages/contracts/src/settings/index.ts) — the four
+// tests formerly here (the v1→v2 fold into `routing.roleDefaults.chat`, the storedVersion-beats-in-blob-probe
+// pin over a `routing` blob, the per-role inference-source subset pin, and the summarize local-light-reject
+// pin) pinned a section that no longer exists and were deleted rather than ported.
 
 // ── groupDefaults carries the D22 memberCardVisibility default 'sheet' ──
 
@@ -577,7 +534,7 @@ test("v4→(v5→v6→v7) lift is a no-op passthrough — databank + imagery + p
   // sections read back as their prefault defaults (byte-identical — the additive-section precedent). Others survive.
   const storedV4 = { worldInfo: { scanDepth: 12 } };
   const lifted = parseUserSettings(storedV4, SCHEMA_VERSION_V4);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V8);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V9);
   expect(lifted.worldInfo.scanDepth).toBe(12); // an existing override survives the lift
   expect(lifted.databank.retrieval).toEqual({ k: 5, minScore: 0.25, rerank: false });
   expect(lifted.databank.slotTokenBudget).toBe(4096);
@@ -590,7 +547,7 @@ test("v4→(v5→v6→v7) lift is a no-op passthrough — databank + imagery + p
 test("v5→v6 lift adds the imagery section — a v5 blob with no imagery key reads back the empty override set", () => {
   const storedV5 = { chat: { enterSends: false } };
   const lifted = parseUserSettings(storedV5, SCHEMA_VERSION_V5);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V8);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V9);
   expect(lifted.chat.enterSends).toBe(false); // an existing override survives
   expect(lifted.imagery).toEqual({ templates: {}, captions: {} });
 });
@@ -598,7 +555,7 @@ test("v5→v6 lift adds the imagery section — a v5 blob with no imagery key re
 test("v6→v7 lift adds the prose section — a v6 blob with no prose key reads back the empty override set", () => {
   const storedV6 = { imagery: { templates: { character: "mine" } } };
   const lifted = parseUserSettings(storedV6, SCHEMA_VERSION_V6);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V8);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V9);
   expect(lifted.imagery.templates.character).toBe("mine"); // an existing override survives
   expect(lifted.prose).toEqual({});
 });
@@ -617,7 +574,7 @@ test("a stored prose override round-trips, and a RETIRED slot id is stripped ins
 
 test("the pinned schema versions: AppSettings v8 (memoryDefaults.recencyBias REMOVED, #321), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
   expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
-  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
+  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V9);
 });
 
 // The AppSettings v6→v7 lift. `structuredOutputVehicle` is purely additive AND its floor (`auto`) resolves
@@ -704,9 +661,5 @@ test("both settings tiers refuse to call a newer-than-current blob intact (#1364
   expect(userSettingsConfig.parseOutcome(structuredClone(userSettingsConfig.default), USER_SETTINGS_SCHEMA_VERSION).intact).toBe(true);
 });
 
-test("AppSettings v2→v3 lift is a no-op passthrough that stamps the version (engineLaunch is additive)", () => {
-  // A v2 row with an existing override (vllmConcurrency) lifts to v3 untouched — the new engineLaunch
-  // section is purely additive, so nothing moves; the version stamp stops the lift chain re-running.
-  const storedV2 = { vllmConcurrency: { embed: 8 } };
-  const lifted = parseAppSettings({ ...storedV2, schemaVersion: SCHEMA_VERSION_V2 });
-});
+// NOTE (test-tree cut-over, @orb/inference program): the v2→v3 `engineLaunch`/`vllmConcurrency` no-op-lift
+// pin formerly here tested fields the inference cut-over deleted from AppSettings; removed rather than ported.
