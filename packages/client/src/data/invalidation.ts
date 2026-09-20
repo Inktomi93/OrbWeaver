@@ -25,6 +25,7 @@ import {
   ROOM_ENTITY_FILTERS,
   RPG_BUS_FILTERS,
   reactionsRead,
+  roomEntityHealReads,
   roomWasDark,
   runtimeVariablesRead,
 } from "./invalidation-reads.ts";
@@ -109,22 +110,31 @@ const BUS_FILTERS: BusFilterMap = {
   // so its `listChats` row was a pure second wire fetch of the list the fan had already refetched.
   chatCreated: nothing,
   chatDeleted: (e, trpc) => [...chatReads(trpc), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
-  // Widened with `getMemberCard` as the LIVE-ONLY LANE'S HEAL (the entity→room bridge §3.4/§3.7): a
-  // `roomEntityChanged` is never replayed, so a device that was dark through a card edit learns about it on
-  // its next attach — and `chatOpened` re-fires on EVERY (re)attach (reopen, reconnect, shed-restart), which
-  // is exactly the moment that gap closes. Free when the dialog is shut: the read is `enabled: open`, so
-  // there is no cache entry and `invalidateQueries` is a no-op. Deliberately NOT widened with the fit/preview
-  // reads — those would re-pay a BOOT-4X-class fetch on every room open, and their staleness bound is one
-  // turn (the next canon terminal refetches them through the durable replay).
+  // THE LIVE-ONLY LANE'S HEAL (the entity→room bridge §3.4/§3.7). A `roomEntityChanged` is never replayed,
+  // so a device that was dark through a fan learns about it on its next attach — and `chatOpened` re-fires
+  // on EVERY (re)attach (reopen, reconnect, shed-restart), which is exactly the moment that gap closes.
   //
-  // THE HEAL SURVIVES; ITS INPUT NARROWED (#514). The `getChat` row is now gated on `roomWasDark` — the
-  // heal fires on every attach that could have MISSED something, and never on a room's FIRST attach in a
-  // page load, where the read it would refetch was issued by that same open. That first-attach refetch was
-  // the third hop of the measured chat-open waterfall: `getChat` landed with the canon at ~60ms and this
-  // event re-fetched it 24ms later, at ~300ms of round-trip, for a row nothing could have changed. It is
-  // the SAME argument BOOT-4X already made for the reconnect gap-heal, at room granularity — which is why
-  // the answer comes from the room registry's own live-edge ledger rather than a second clock here.
-  chatOpened: (e, trpc) => [...(roomWasDark(e.chatId) ? [trpc.chat.getChat.queryFilter({ chatId: e.chatId })] : []), trpc.chat.getMemberCard.pathFilter()],
+  // THE HEAL IS DERIVED OVER `ROOM_ENTITY_KINDS`, NEVER HAND-LISTED (#2494, owner ruling 2026-09-20). It
+  // shipped naming `getMemberCard` and nothing else, and then stood still while `regex` (#1733) and
+  // `databank` (#2471) joined the kind tuple — two member-visible room reads a dark co-member could never
+  // catch up on. `roomEntityHealReads` folds `ROOM_ENTITY_HEAL_FILTERS`, whose mapped type makes a sixth
+  // kind fail tsc until it states its heal. The live-only ECONOMY survives unchanged; what changed is that
+  // the heal it depends on now covers every kind that has a member-visible room read. Each arm's reads are
+  // free when their surface is shut — `invalidateQueries` is a no-op for a key with no cache entry.
+  // Deliberately NOT widened with the fit/preview reads: those would re-pay a BOOT-4X-class fetch on every
+  // room open, and their staleness bound is one turn (the next canon terminal refetches them through the
+  // durable replay).
+  //
+  // THE HEAL SURVIVES; ITS INPUT NARROWED (#514). The whole row is gated on `roomWasDark` — it fires on
+  // every attach that could have MISSED something, and never on a room's FIRST attach in a page load, where
+  // the reads it would refetch were issued by that same open. That first-attach refetch was the third hop
+  // of the measured chat-open waterfall: `getChat` landed with the canon at ~60ms and this event re-fetched
+  // it 24ms later, at ~300ms of round-trip, for a row nothing could have changed. It is the SAME argument
+  // BOOT-4X already made for the reconnect gap-heal, at room granularity — which is why the answer comes
+  // from the room registry's own live-edge ledger rather than a second clock here. #2494 brought the
+  // member-card read under that same gate: it had stayed ungated from before #514, and a first attach
+  // cannot have missed a fan either (the dialog is not even open in that commit).
+  chatOpened: (e, trpc) => (roomWasDark(e.chatId) ? [trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...roomEntityHealReads(e.chatId, trpc)] : []),
   historyTruncated: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
   // The roster/group/override/membership catch-all ("refetch the chat detail"). `getGroupConfig` rides
   // here EXPLICITLY: it is the Group tab's OWN read of the `chats.metadata.group` sub-blob and does not
