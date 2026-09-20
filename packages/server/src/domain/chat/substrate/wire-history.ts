@@ -99,7 +99,7 @@ type InlineReplyAssets = ReadonlyMap<MessageId, ReadonlySet<AssetId>>;
 
 /** The `InlineReplyAssets` a history with no assistant-row `asset:` span needs — nobody is asked, nothing
  *  is loaded, and the predicate answers `false` for every assistant row. */
-const NO_INLINE_REPLY_ASSETS: InlineReplyAssets = new Map<MessageId, ReadonlySet<AssetId>>();
+const NO_INLINE_REPLY_ASSETS: InlineReplyAssets = new Map<MessageId, ReadonlySet<AssetId>>([]);
 
 /** One dropped attachment: its alt text + which media kind the drop was (drives the per-kind warning
  *  flags and the honest placeholder label). */

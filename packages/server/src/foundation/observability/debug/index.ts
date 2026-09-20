@@ -48,6 +48,7 @@ export {
 } from "./routes.ts";
 export {
   isWireCaptureEnabled,
+  isWireReplyCaptureEnabled,
   recentTurnOutcomes,
   recentWireCaptures,
   recordTurnOutcome,

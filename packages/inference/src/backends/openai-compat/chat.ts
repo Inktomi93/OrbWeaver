@@ -213,6 +213,15 @@ const openRouterPluginSchema = z.discriminatedUnion("id", [
   z.object({ id: z.literal("auto-router"), allowed_models: z.array(z.string()).optional() }),
 ]);
 
+/** OR's request DEBUG block (`debug`, `index.d.ts:174-185`) — the audit's D3 door. `echo_upstream_body`
+ *  makes OpenRouter return, as the FIRST SSE frame, the body it actually sent upstream after routing and
+ *  caching: the only way to see what a routed provider received rather than what we asked OR for. It is a
+ *  REQUEST BODY field and its payload rides the ordinary stream, so the wire capture's own reply tap
+ *  (`WIRE_CAPTURE_REPLY`, `backends/v4/fetch.ts` control 4b) is what surfaces it — the SDK's
+ *  `includeRawChunks` is NOT involved, and deliberately not taken (that file's header records why).
+ *  Streaming-only per the dist's own note; a non-streaming call simply gets nothing back. */
+const openRouterDebugSchema = z.object({ echo_upstream_body: z.boolean().optional() });
+
 /** OR's built-in web-search options (`web_search_options`, `index.d.ts:134-153`) — a sibling of the `web`
  *  plugin, not a duplicate of it: the plugin ADDS search to a model that has none, these options configure a
  *  model whose own search is native. */
@@ -271,6 +280,20 @@ function webSearchOptions(extras: Resolved["extras"], warnings: ResolvedWarning[
   return parsed.data as JSONObject;
 }
 
+/** `debug` off `extras`, validated; a malformed block drops loudly and is never sent (D3). */
+function debugOptions(extras: Resolved["extras"], warnings: ResolvedWarning[]): JSONObject | undefined {
+  const declared = extras?.["debug"];
+  if (declared === undefined) {
+    return;
+  }
+  const parsed = openRouterDebugSchema.safeParse(declared);
+  if (!parsed.success) {
+    warnings.push({ code: "custom_parameters_ignored", key: "debug", message: "extras.debug ignored: not a valid openrouter debug block" });
+    return;
+  }
+  return parsed.data as JSONObject;
+}
+
 /** The two extras keys the openrouter transport MODELS (`provider` routing prefs, `models` fallback chain),
  *  validated here — a malformed block is dropped loudly, never sent. The Anthropic pin folds in when the
  *  user set no routing (`effectiveProviderRouting`). */
@@ -307,6 +330,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
   const { connection } = req;
   const { routing, models } = openRouterExtras(connection, warnings);
   const search = webSearchOptions(connection.extras, warnings);
+  const debug = debugOptions(connection.extras, warnings);
   const parallel = req.params.advanced?.parallelToolCalls;
   const compression =
     req.params.providerContextCompression === true
@@ -338,6 +362,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
       // already puts every OR body field the SDK models at the MODEL level — one home, one merge order.
       plugins: mergePlugins(compression, connection.extras, warnings),
       ...(search !== undefined ? { web_search_options: search } : {}),
+      ...(debug !== undefined ? { debug } : {}),
     },
     openRouterChat: {
       ...(req.tools !== undefined && parallel !== undefined ? { parallelToolCalls: parallel } : {}),

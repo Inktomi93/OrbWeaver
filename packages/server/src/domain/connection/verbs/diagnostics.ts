@@ -47,7 +47,7 @@ function isLocalEndpoint(baseUrl: string | null): boolean {
   return host === LOCALHOST_ALIAS || isPrivateOrLoopback(host);
 }
 
-export function createProbe(ctx: ConnectionContext): ConnectionService["probe"] {
+function createProbe(ctx: ConnectionContext): ConnectionService["probe"] {
   return async (params): Promise<CredentialHealth> => {
     const resolved = await resolveRow(ctx, params.principal, params.connectionId);
     const result = await ctx.runtime.diagnostics.probe({ connection: resolved, ...(params.signal !== undefined ? { signal: params.signal } : {}) });
@@ -59,7 +59,7 @@ export function createProbe(ctx: ConnectionContext): ConnectionService["probe"] 
   };
 }
 
-export function createAccountCredits(ctx: ConnectionContext): ConnectionService["accountCredits"] {
+function createAccountCredits(ctx: ConnectionContext): ConnectionService["accountCredits"] {
   return async (params): Promise<AccountCredits> =>
     ctx.runtime.diagnostics.accountCredits({
       connection: await resolveRow(ctx, params.principal, params.connectionId),
@@ -67,7 +67,7 @@ export function createAccountCredits(ctx: ConnectionContext): ConnectionService[
     });
 }
 
-export function createGenerationCost(ctx: ConnectionContext): ConnectionService["generationCost"] {
+function createGenerationCost(ctx: ConnectionContext): ConnectionService["generationCost"] {
   return async (params): Promise<GenerationCost> =>
     ctx.runtime.diagnostics.generationCost({
       connection: await resolveRow(ctx, params.principal, params.connectionId),
@@ -76,7 +76,7 @@ export function createGenerationCost(ctx: ConnectionContext): ConnectionService[
     });
 }
 
-export function createVerifyAuth(ctx: ConnectionContext): ConnectionService["verifyAuth"] {
+function createVerifyAuth(ctx: ConnectionContext): ConnectionService["verifyAuth"] {
   return async (params): Promise<VerifyAuthResult> =>
     ctx.runtime.diagnostics.verifyAuth({
       connection: await resolveRow(ctx, params.principal, params.connectionId),
@@ -84,10 +84,24 @@ export function createVerifyAuth(ctx: ConnectionContext): ConnectionService["ver
     });
 }
 
-export function createInspectEndpoint(ctx: ConnectionContext): ConnectionService["inspectEndpoint"] {
+function createInspectEndpoint(ctx: ConnectionContext): ConnectionService["inspectEndpoint"] {
   return async (params): Promise<EndpointInspection> =>
     ctx.runtime.diagnostics.inspect({
       connection: await resolveRow(ctx, params.principal, params.connectionId),
       ...(params.signal !== undefined ? { signal: params.signal } : {}),
     });
+}
+
+/** The slice of `ConnectionService` this grouped file owns. */
+type DiagnosticVerbs = Pick<ConnectionService, "probe" | "accountCredits" | "generationCost" | "verifyAuth" | "inspectEndpoint">;
+
+/** The diagnostics verb bundle (`verb-naming`: one factory named for the file). */
+export function createDiagnostics(ctx: ConnectionContext): DiagnosticVerbs {
+  return {
+    probe: createProbe(ctx),
+    accountCredits: createAccountCredits(ctx),
+    generationCost: createGenerationCost(ctx),
+    verifyAuth: createVerifyAuth(ctx),
+    inspectEndpoint: createInspectEndpoint(ctx),
+  };
 }

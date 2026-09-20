@@ -41,10 +41,10 @@
 import type {
   AssembledPrompt,
   ChatBusEvent,
-  ChatContentPart,
   ChatDeltaEvent,
   ChatInjection as ChatInjectionWire,
   ChatMetadata,
+  ChatReasoningPart,
   DurableChatBusEvent,
   HandoffOffer,
   MacroFreezeRecord,
@@ -437,13 +437,13 @@ export const messageVariants = sqliteTable(
     // context, and a fix for the greeting-swipe gap possible at all.
     macroFreezes: text("macro_freezes", { mode: "json" }).$type<MacroFreezeRecord>(),
     reasoning: text("reasoning"),
-    // The model's reasoning BLOCKS with their per-wire provenance (`ChatContentPart` `reasoning` members: the
+    // The model's reasoning BLOCKS with their per-wire provenance (`ChatReasoningPart` — the `reasoning` arm of `ChatContentPart`: the
     // Anthropic signature / redacted payload, OpenRouter's `reasoning_details`) — the REPLAY MATERIAL the next leg
     // of a tool loop hands back so the provider verifies its own prior thinking (inference audit A1; the read
     // side is `carryReasoning`, §8.8). `reasoning` above stays the rendered TEXT a user reads; this column is
     // what the wire needs and is NULL when nothing replayable was emitted. Typed JSON, parsed at the read seam
     // (the converters refuse an unsigned block, so a malformed row degrades to "nothing to replay").
-    reasoningParts: text("reasoning_parts", { mode: "json" }).$type<readonly Extract<ChatContentPart, { type: "reasoning" }>[]>(),
+    reasoningParts: text("reasoning_parts", { mode: "json" }).$type<readonly ChatReasoningPart[]>(),
     model: text("model"),
     // ATTRIBUTION (inference program §5.3b): which of the user's connections generated this swipe. SET NULL —
     // a deleted connection never deletes history (`selectedVariantId`'s idiom); null on user-authored rows,

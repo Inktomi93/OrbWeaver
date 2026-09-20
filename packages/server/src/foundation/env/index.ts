@@ -306,6 +306,14 @@ const envSchema = z
     // zero retained bytes. `on` wires the sink; the per-process ring is read host-only at
     // /api/_debug/wire/captures (the drive kit / an int test forces it on via the `wireCapture` compose dep).
     WIRE_CAPTURE: z.enum(["on", "off"]).default("off"),
+    // §D2/§D3 REPLY TAP: also record the literal RESPONSE bytes (head-capped, secret-scrubbed) on each capture
+    // entry — the only way to read OpenRouter's `debug.echo_upstream_body` first frame, or to tell a
+    // prose-less turn from a provider that returned nothing. A SEPARATE knob rather than a third value of
+    // `WIRE_CAPTURE` on purpose: the request body is the operator's own prompt, while the reply is the MODEL'S
+    // PROSE, which the outcome recorder deliberately never keeps ("METADATA ONLY … never the reply text",
+    // `observability/debug/wire-capture.ts`) — so it must be independently off, never implied by the request
+    // capture. Inert without `WIRE_CAPTURE=on` (no sink ⇒ no send boundary calls the recorder at all).
+    WIRE_CAPTURE_REPLY: z.enum(["on", "off"]).default("off"),
     // The E2E-HARNESS SELF-STAMP. `on` is set ONLY by the Playwright webServer env (tests/e2e/support/modes.ts)
     // when the harness boots a stack it owns; it makes `/healthz` report `harness:true` so the e2e globalSetup
     // can PROVE the origin it is about to seed is a throwaway harness stack and not the operator's dev stack

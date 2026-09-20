@@ -32,6 +32,7 @@ export interface OpenAiCompatBackendDeps {
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly fetch: typeof fetch;
   readonly captureWire?: InferenceDeps["captureWire"];
+  readonly captureWireReply?: InferenceDeps["captureWireReply"];
   readonly app: InferenceDeps["app"];
   readonly imageToPng?: InferenceDeps["imageToPng"];
   readonly embedSpaceDims: number;
@@ -45,7 +46,12 @@ export interface OpenAiCompatBackend {
 
 export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAiCompatBackend {
   const normalize: NormalizeImageBytes = deps.imageToPng !== undefined ? createImageNormalizer(deps.imageToPng) : passthroughImageNormalizer;
-  const transport: TransportDeps = { fetch: deps.fetch, app: deps.app, ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}) };
+  const transport: TransportDeps = {
+    fetch: deps.fetch,
+    app: deps.app,
+    ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
+    ...(deps.captureWireReply !== undefined ? { captureWireReply: deps.captureWireReply } : {}),
+  };
   const chatDeps = { now: deps.now, random: deps.random, log: deps.log, addSpanEvent: deps.addSpanEvent, transport };
   const batchDeps = { now: deps.now, log: deps.log, transport, normalize };
   const diagnostics = { fetch: deps.fetch, now: deps.now };

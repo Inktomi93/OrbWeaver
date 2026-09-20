@@ -41,6 +41,7 @@ function SavedKeysSection(): ReactElement {
       </Text>
 
       {credentials.length === 0 ? (
+        // @orb-waive empty-state-has-action(EmptyState): the next step is not this section's to offer — a key is never created here, only revoked/removed. Adding one runs through the SIBLING subsection's "Add connection" dialog (`connections-list-section.tsx`, whose own empty state carries that CTA), which owns the dialog's open state locally; the description names that route. ENDS WHEN keys become independently creatable, or the add-connection dialog gains a cross-section opener.
         <EmptyState icon={<Icon icon={KeyRound} size="lg" />} title="No keys yet" description="A key is saved when you add a connection that needs one." />
       ) : (
         <Stack gap="field">

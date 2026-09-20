@@ -12,6 +12,7 @@ export {
   __setEgressResolverForTest,
   ANY_HOST,
   EgressBlockedError,
+  ENDPOINT_ADMISSIONS,
   endpointAdmission,
   fetchImageBytes,
   fetchPluginBundle,

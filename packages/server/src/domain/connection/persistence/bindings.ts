@@ -2,20 +2,15 @@
 // `(actorKind, actorId)` pair the runtime's `BindingStore.lookup` uses; each arm's partial unique makes the
 // upsert's conflict target — the tree's NULL-distinctness idiom, never a coalesce expression.
 
-import type { BindingActorKind, ConnectionBinding, RoutableTask } from "@orb/contracts/inference";
+import type { ConnectionBinding, RoutableTask } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { connectionBindings } from "@orb/db";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
+import type { StoredActor } from "../contract/params.ts";
 
 type BindingRow = typeof connectionBindings.$inferSelect;
-
-/** The actor as the STORE spells it: a kind + the id column that kind sets. */
-export interface StoredActor {
-  readonly actorKind: BindingActorKind;
-  readonly actorId: string;
-}
 
 function toBinding(row: BindingRow): ConnectionBinding {
   return {

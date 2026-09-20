@@ -1,11 +1,9 @@
-// The two OWNER-GATED admin SECTIONS (SET-SEAMS stage 4) — Shared access (who may drive the box's shared
-// local compute and the hosted subscription, plus the per-member compute budget) and Multi-user (whether
-// additional humans may be seated locally, plus the discreet-login posture).
+// The OWNER-GATED controls in the Multi-user admin SECTION (SET-SEAMS stage 4): whether additional humans
+// may be seated locally and which private-network destinations authenticated endpoints may reach, beside
+// the admin-writable discreet-login posture.
 //
-// ONE MODULE, ONE PREDICATE, deliberately (§4: the D17 owner-box governance fields "must land in ONE section
-// together, so the owner-only disabled state is one predicate in one place"). They stay TWO sections so the
-// nav rows, anchors and search leaves survive the move byte-identical (§7.1/§7.2), and share the
-// module-private `useIsBoxOwner()` — a second copy of the gate is a parallel truth that drifts.
+// ONE MODULE, ONE PREDICATE, deliberately (§4: the D17 owner-box governance fields share one owner test).
+// A second copy of the gate is a parallel truth that drifts.
 //
 // The gate is UX honesty over a SERVER floor, never the enforcement: `updateAppSettings` calls
 // `requireOwner` whenever a patch names one of these keys (key-presence, even an explicit `null` clear), so
@@ -14,10 +12,13 @@
 // is not).
 
 import type { AppSettings } from "@orb/contracts/settings";
+import { Field } from "@orb/ui/field";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { Textarea } from "@orb/ui/textarea";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
@@ -27,7 +28,9 @@ import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.t
 import { MULTI_USER_SUBCATEGORY } from "../lib/system-config-nav.ts";
 import { AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
-/** The ONE box-owner predicate the two governance sections share (see the header). Suspense-read, so the
+const ALLOWLIST_PLACEHOLDER = "127.0.0.1:8703\n192.168.1.0/24\nollama.lan:11434";
+
+/** The ONE box-owner predicate the governance controls share (see the header). Suspense-read, so the
  *  controls are never briefly enabled for a delegated admin while a probe resolves. */
 function useIsBoxOwner(): boolean {
   const trpc = useTRPC();
@@ -40,7 +43,7 @@ export function MultiUserSection({ sectionId }: { readonly sectionId: string }):
   return (
     // RESERVED (#1098) — the seating switch plus the login-page posture — a small but fixed knob stack.
     <QueryBoundary
-      fallback={<SkeletonRows count={3} />}
+      fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="multi-user — administrators only" onRetry={retry} />}
       reserveKey="config.admin.multiUser"
     >
@@ -62,13 +65,33 @@ function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElem
 
   const multiUserOverridden = isOverridden(overrides.localMultiUser);
   const discreetOverridden = isOverridden(overrides.discreetLogin);
+  const allowlistOverridden = isOverridden(overrides.privateEndpointAllowlist);
+  const [allowlistDraft, setAllowlistDraft] = useState(() => resolved.privateEndpointAllowlist.join("\n"));
+  const allowlistEntries = allowlistDraft
+    .split("\n")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  const allowlistDirty = !sameEntries(allowlistEntries, resolved.privateEndpointAllowlist);
+  const allowlistFloor = envFloor(allowlistOverridden, resolved.privateEndpointAllowlist);
   // Only the keys THIS viewer may clear count toward the Reset affordance (a delegated admin may clear the
-  // login posture but not the seating switch), and the Reset patch names exactly those keys.
-  const clearable: AppSettings = isOwner ? { localMultiUser: null, discreetLogin: null } : { discreetLogin: null };
-  const anyOverridden = (isOwner && multiUserOverridden) || discreetOverridden;
+  // login posture but not the owner-gated controls), and the Reset patch names exactly those keys.
+  const clearable: AppSettings = isOwner ? { localMultiUser: null, discreetLogin: null, privateEndpointAllowlist: null } : { discreetLogin: null };
+  const anyOverridden = (isOwner && (multiUserOverridden || allowlistOverridden)) || discreetOverridden;
 
   const write = (partial: AppSettings): void => {
     save.mutateAsync({ partial }).catch(() => undefined); // the sticky save.error slot surfaces the failure
+  };
+  const saveAllowlist = (): void => {
+    save
+      .mutateAsync({ partial: { privateEndpointAllowlist: allowlistEntries } })
+      .then((resolvedAfter) => setAllowlistDraft(resolvedAfter.privateEndpointAllowlist.join("\n")))
+      .catch(() => undefined);
+  };
+  const reset = (): void => {
+    save
+      .mutateAsync({ partial: clearable })
+      .then((resolvedAfter) => setAllowlistDraft(resolvedAfter.privateEndpointAllowlist.join("\n")))
+      .catch(() => undefined);
   };
 
   return (
@@ -92,8 +115,31 @@ function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElem
           floorLabel={envFloor(discreetOverridden, resolved.discreetLogin ? "on" : "off")}
           onSet={(next): void => write({ discreetLogin: next })}
         />
-        <AdminOverrideResetRow anyOverridden={anyOverridden} saving={save.isPending} errored={save.error !== null} onReset={(): void => write(clearable)} />
+        <Field
+          label="Allowed private endpoints"
+          description={
+            allowlistFloor === null
+              ? "Overridden. Reset to fall back to this deployment's default."
+              : `Using the deployment default: ${String(allowlistFloor.length)} ${allowlistFloor.length === 1 ? "entry" : "entries"}.`
+          }
+          hint="One per line: a host, CIDR range, or host:port. CIDR ranges do not support ports. Owner-only."
+          disabled={!isOwner}
+        >
+          <Textarea rows={3} maxRows={8} value={allowlistDraft} onValueChange={setAllowlistDraft} placeholder={ALLOWLIST_PLACEHOLDER} />
+        </Field>
+        <AdminOverrideResetRow
+          dirty={isOwner && allowlistDirty}
+          anyOverridden={anyOverridden}
+          saving={save.isPending}
+          errored={save.error !== null}
+          onSave={saveAllowlist}
+          onReset={reset}
+        />
       </Stack>
     </Section>
   );
+}
+
+function sameEntries(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((entry, index) => entry === right[index]);
 }

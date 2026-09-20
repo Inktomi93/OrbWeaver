@@ -77,6 +77,13 @@ export type WireCaptureSink = (entry: {
    *  request cannot be correlated with anything the provider logged. Absent when the transport never
    *  produced a response (a socket failure still records the request that caused it). */
   readonly responseHeaders?: Readonly<Record<string, string>> | undefined;
+  /** WHAT CAME BACK'S BODY (§D2/§D3), as literal wire TEXT — the SSE frame stream or the JSON body, head-capped
+   *  and secret-scrubbed by value exactly like `body`. Rides the SAME entry as the request that produced it,
+   *  so one ring row is one send. Present ONLY when the send boundary was asked for it (the reply tap is
+   *  opt-in and independently off — a process-tier decision, never implied by the request capture), and absent
+   *  on the agent-sdk wire, which has no observable HTTP body at all. This is where OpenRouter's
+   *  `debug.echo_upstream_body` first frame lands. */
+  readonly responseBody?: string | undefined;
 }) => void;
 
 /** The registry the runtime builds: one entry per wire whose `needs` were present at construction. A task

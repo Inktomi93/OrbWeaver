@@ -4,14 +4,8 @@
 // boot-frozen string: a run stamped with a model the owner has since moved off would be false provenance.
 
 import type { RoleClients } from "@orb/contracts/role-clients";
-import type { ModelId } from "@orb/kit/ids";
 import { RefineryNotConfiguredError } from "../contract/errors.ts";
-
-export interface SummarizerFacts {
-  readonly model: ModelId;
-  /** The resolved model's context window (tokens); `null` when the capability declares none. */
-  readonly contextTokens: number | null;
-}
+import type { SummarizerFacts } from "../contract/results.ts";
 
 export async function summarizerFactsOf(rc: RoleClients): Promise<SummarizerFacts> {
   const resolved = await rc.resolved("structured");
