@@ -228,7 +228,7 @@ interface PluginTriggerFactPayload {
     | {
         readonly intent: string;
         readonly api: string;
-        readonly source: string;
+        readonly provider: string;
         readonly model: string;
         readonly speakerCharacterId: string | null;
         readonly abortReason?: string | undefined;

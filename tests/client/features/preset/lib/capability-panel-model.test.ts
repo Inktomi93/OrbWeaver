@@ -27,11 +27,10 @@ function capability(overrides: Partial<GenerationCapability> = {}): GenerationCa
   return {
     reasoning: { mode: "none", enabled: false },
     sampling: {},
-    output: { maxTokens: R(1, 4096) },
+    input: ["text"],
+    output: { maxTokens: R(1, 4096), modalities: ["text"] },
     context: { window: 200_000 },
     ...overrides,
-    modalities: ["text"],
-    modalities: ["text"],
   };
 }
 

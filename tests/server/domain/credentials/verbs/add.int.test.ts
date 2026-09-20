@@ -1,15 +1,15 @@
 // verb: add — seal + store/rotate. Asserts first-in-slot auto-active, later-in-slot inactive, rotation in
 // place (clears revocation), the secret-free view, the conflict path, and the disabled-box guard.
 
+import type { ProviderId } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
+import { castId } from "@orb/kit/ids";
 import { createCredentialsService } from "@orb/server/domain/credentials";
 import { createSecretBox } from "@orb/server/infra/crypto";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
-import type { ProviderId } from "@orb/contracts/inference";
-import { castId } from "@orb/kit/ids";
 
 describe("add", () => {
   test("the view carries no secret field", async () => {
