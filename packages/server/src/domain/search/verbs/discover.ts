@@ -122,7 +122,7 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
   return async (params: DiscoverParams): Promise<DiscoverCharacter[]> => {
     const { ownerId, queryText, topN } = params;
     const rc = await ctx.roleClientsFor(ownerId);
-    const embedModel = await requireSpaceModel(rc, "embed");
+    const embedModel = await requireSpaceModel(ctx, ownerId, "embed");
     if (queryText.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "discover requires a queryText to embed + scan");
     }

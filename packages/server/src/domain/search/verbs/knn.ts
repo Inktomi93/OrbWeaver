@@ -19,7 +19,7 @@ export function createKnn(ctx: SearchContext): SearchService["knn"] {
   return async (params: KnnParams): Promise<SearchHit[]> => {
     const { ownerId, query, topN } = params;
     const rc = await ctx.roleClientsFor(ownerId);
-    const embedModel = await requireSpaceModel(rc, "embed");
+    const embedModel = await requireSpaceModel(ctx, ownerId, "embed");
     // The same two refusals `discover`/`digests` make, in the verb `findCharacters` delegates its whole
     // retrieval to. A blank query is not a scan with no results — the embedder is asked for a vector for
     // nothing, and whatever it returns ranks the corpus by noise.

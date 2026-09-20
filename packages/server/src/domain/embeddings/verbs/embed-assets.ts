@@ -7,9 +7,14 @@
 // into `store`. Cooperative abort between assets; an embed failure propagates.
 //
 // PD-104 — the REINDEX half of purge+reindex for the image space (mirrors embed-corpus). After a complete
-// BULK sweep re-embeds every asset (both lenses) into the box's active `(model, dim)` image space, it
-// PURGES `image_embeddings` rows in any OTHER space. BULK-ONLY (ownerId === null); skipped on abort so the
-// space is never left with a gap. A no-op unless the box image-embed model changed.
+// BULK sweep re-embeds every asset into the owner's active image `(model, dim)` space, it RECORDS the
+// completion (`embed_space_state`, scope `images` — §10-5) and then PURGES `image_embeddings` rows in any
+// OTHER space. BULK-ONLY (ownerId === null); skipped on abort so the space is never left with a gap.
+//
+// §10-3 — WHICH space an owner's images go into is the JOINT-SPACE RULE's answer, not a bare `imageEmbed`
+// resolve. An owner with no image-capable embedder gets the CAPTIONED-TEXT arm: the raw lens is skipped
+// (nothing can embed pixels for them) and the caption is embedded as text into their `embed` space, so the
+// picture is still findable. Before this an unbound `imageEmbed` dropped every asset behind a debug line.
 
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context.ts";
@@ -20,9 +25,11 @@ import type { AvatarAnalysis, BulkEmbedResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 import { purgeStaleVectors } from "../persistence/clear.ts";
 import { existingCaptionedRow, existingImageHash, existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
+import { upsertCompletedSpace } from "../persistence/space-state.ts";
 import { contentHash } from "../substrate/hash.ts";
 import { imageBelowFloor } from "../substrate/image-admission.ts";
-import { requireTaskModel } from "../substrate/task-model.ts";
+import { reportImageSpaceDegrade } from "../substrate/image-space-degrade.ts";
+import { resolveImageSpace } from "../substrate/task-model.ts";
 
 interface EmbedAssetsDeps {
   readonly store: EmbeddingsService["store"];
@@ -55,15 +62,25 @@ async function embedOneAsset(
     return "skipped";
   }
   const ownerId = await ctx.loadAssetOwner(assetId);
-  const model = ownerId === null ? null : await requireTaskModel(ctx, ownerId, "imageEmbed");
-  if (ownerId === null || model === null) {
-    return "skipped"; // no owner / no imageEmbed binding — nothing funds the embed (§7.5-2)
+  // THE JOINT-SPACE RULE (§10-3), identical to the on-write handler's: the owner's images go into their
+  // image space when they have an image-capable embedder, else into their TEXT space by the caption alone.
+  // Only an owner with no vector connection at all is skipped — an unbound `imageEmbed` used to lose every
+  // picture here silently.
+  const space = ownerId === null ? null : await resolveImageSpace(ctx, ownerId);
+  if (ownerId === null || space === null) {
+    return "skipped"; // no owner / no vector connection at all — nothing funds the embed (§7.5-2)
+  }
+  const model = space.model;
+  if (space.via === "embed") {
+    reportImageSpaceDegrade(ownerId, model, space.degraded);
   }
   sweep.spaces.set(ownerId, model);
   // Both lenses share the bytes' hash — pre-check them so a current asset skips before the expensive
   // analysis call ever runs.
   const hash = contentHash(bytes);
-  const rawCurrent = (await existingImageHash(ctx.db, assetId, "image-raw", model)) === hash;
+  // The raw lens does not exist in the captioned-text arm (nothing there can embed pixels), so it is
+  // vacuously current — never a reason to re-run the expensive analysis, and never a store call.
+  const rawCurrent = space.via === "embed" || (await existingImageHash(ctx.db, assetId, "image-raw", model)) === hash;
   // THE CAPTIONED LENS NEEDS TWO CONDITIONS, not one (issue #164). Every row written before 2026-08-18 has a
   // matching bytes hash and a `caption_meta` of `{model}` — no facet breakdown at all — so a hash-only
   // pre-check declares the whole pre-existing corpus current and the facet columns stay empty forever. The
@@ -75,16 +92,19 @@ async function embedOneAsset(
   if (!force && rawCurrent && captionedCurrent) {
     return "skipped";
   }
-  const raw = await deps.store({
-    kind: "avatar",
-    lens: "image-raw",
-    ownerId,
-    assetId,
-    content: bytes,
-    model,
-    dim: ctx.imageEmbedDim,
-    force,
-  });
+  const raw =
+    space.via === "embed"
+      ? ({ outcome: "noop" } as const)
+      : await deps.store({
+          kind: "avatar",
+          lens: "image-raw",
+          ownerId,
+          assetId,
+          content: bytes,
+          model,
+          dim: ctx.imageEmbedDim,
+          force,
+        });
   const analysis = await deps.analyze(ownerId, bytes);
   const captionedWrite = await deps.store({
     kind: "avatar",
@@ -94,6 +114,7 @@ async function embedOneAsset(
     content: bytes,
     caption: analysis.caption,
     captionMeta: analysis.captionMeta,
+    via: space.via,
     model,
     dim: ctx.imageEmbedDim,
     force,
@@ -128,6 +149,10 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps)
     // abort. A no-op for an owner whose imageEmbed binding did not change since the last index.
     if (!signal.aborted) {
       for (const [spaceOwnerId, model] of spaces) {
+        // THE COMPLETION MARK (§10-5), recorded BEFORE the purge and only on a complete, non-aborted sweep:
+        // this owner's image corpus is now entirely in `model`. It is what makes the read side's
+        // `activeSpace` a statement about work that happened, and what the purge below deletes AROUND.
+        await upsertCompletedSpace(ctx.db, { ownerId: spaceOwnerId, scope: "images", space: model, now: ctx.now() });
         await purgeStaleVectors(ctx.db, "image_embeddings", spaceOwnerId, model);
       }
     }

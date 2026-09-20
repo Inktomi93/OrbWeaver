@@ -37,7 +37,7 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
     }
     const text = params.queryText;
     const rc = await ctx.roleClientsFor(params.ownerId);
-    const embedModel = await requireSpaceModel(rc, "embed");
+    const embedModel = await requireSpaceModel(ctx, params.ownerId, "embed");
     if (text === undefined || text.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "segments requires a queryText to embed + scan");
     }

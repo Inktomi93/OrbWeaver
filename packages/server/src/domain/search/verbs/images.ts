@@ -17,23 +17,29 @@ import type { ImageSearchHit } from "../contract/results.ts";
 import type { SearchService } from "../contract/service.ts";
 import { resolveAvatarOwners } from "../persistence/display.ts";
 import { nearestImages } from "../persistence/image-nearest.ts";
-import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
+import { CAPTION_LENS, OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
 import { relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
 import { applyRerank } from "../substrate/rerank.ts";
-import { requireSpaceModel } from "../substrate/space.ts";
+import { requireImageSpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createImages(ctx: SearchContext): SearchService["images"] {
   return async (params: ImagesParams): Promise<ImageSearchHit[]> => {
-    const { ownerId, query, topN, lens } = params;
+    const { ownerId, query, topN } = params;
     const rc = await ctx.roleClientsFor(ownerId);
-    const imageEmbedModel = await requireSpaceModel(rc, "imageEmbed");
+    // THE JOINT-SPACE RULE ON THE READ SIDE (§10-3). An owner with an image-capable embedder searches their
+    // image space with an image-embedded query, across whichever lens was asked for. An owner WITHOUT one
+    // has their pictures in the text space as captions: the query must be embedded as TEXT and the only
+    // lens that exists there is `image-captioned`, so the ask is overridden rather than answered with an
+    // empty scan of rows that were never written.
+    const space = await requireImageSpace(ctx, ownerId);
+    const lens = space.via === "embed" ? CAPTION_LENS : params.lens;
     requirePositiveTopN(topN, "images");
     if (query.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "images requires a query text to embed + scan");
     }
 
-    const embedded = await rc.imageEmbed({ kind: "text", input: query });
+    const embedded = space.via === "embed" ? await rc.embed(query, { inputType: "query" }) : await rc.imageEmbed({ kind: "text", input: query });
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "the query embedded to no vector — nothing to scan");
@@ -42,7 +48,7 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
     const pool = await nearestImages(ctx.db, {
       ownerId,
       queryVector,
-      model: imageEmbedModel,
+      model: space.model,
       lens,
       limit: OWNER_OVERFETCH * topN,
     });

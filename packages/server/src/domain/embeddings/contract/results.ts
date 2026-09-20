@@ -73,3 +73,20 @@ export interface PruneDocumentChunksResult {
 export interface PurgeDocumentVectorsResult {
   readonly chunks: number;
 }
+
+/** WHY an owner's images fell back to the captioned-text lens (§10-3): either no `imageEmbed` connection is
+ *  bound at all, or the bound one resolves to a model that declares no `image` input. Two causes, one
+ *  behaviour, and both are said out loud — the pre-#10-3 indexer logged a debug line and dropped the image. */
+export type ImageSpaceDegrade = "no-image-embed-connection" | "image-embed-model-takes-no-image-input";
+
+/** WHERE an owner's pictures are embedded, and WHICH role op embeds into that space — the joint-space rule's
+ *  answer (`substrate/task-model.ts::resolveImageSpace`).
+ *
+ *  `via: "imageEmbed"` is the full lens pair (`image-raw` pixels + `image-captioned` joint vector).
+ *  `via: "embed"` is the CAPTIONED-TEXT fallback: the bytes cannot be embedded at all, so only the caption
+ *  lands, as TEXT, in the owner's `embed` space — findable by an ordinary text query, which is the whole
+ *  point of the fallback. `model` is the space tag either way, so the write side and `nearest.ts` filter on
+ *  one string. */
+export type ImageSpace =
+  | { readonly via: "imageEmbed"; readonly model: string }
+  | { readonly via: "embed"; readonly model: string; readonly degraded: ImageSpaceDegrade };
