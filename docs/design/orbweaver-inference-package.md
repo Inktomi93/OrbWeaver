@@ -2549,19 +2549,23 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         `databank/substrate/active-space.ts`. A caller with no binding is the domain's own `no-connection`
         class — `RefineryNotConfiguredError`, `DiscoveryNotConfiguredError`, `DatabankNoEmbedSpaceError`,
         `SEARCH_NO_SPACE` — never a default model.
+
       - *`theme_name` joined `SIDE_GEN_POSTURES`* (`{ temperature: 0.3, maxOutputTokens: 24 }`): the one caller
         that passed no options (§7.5-3, verify9 M5) now folds the funder's preset beneath it.
+
       - *Vector tasks are OWNER-scoped, and the owner is the ENTITY's* (a card's, an asset's, a document's, a
         chat's HOST): `MemoryQueryOptions.ownerId`, `DocumentSearchParams.ownerId` and
         `DatabankGatherParams.hostUserId` are new contract fields; `MemoryScope` stays owner-free (D20), so the
         compose seam resolves the chat host from `chat_participants` for every digest/segment write and read
         (`searchDigests`/`searchCorpus`/`embeddingsStore`/`embeddingsStoreSegments`). A hostless room writes
         and reads nothing (leak-free). Under the old box-wide embedder this question never existed.
+
       - *Every workload's funder is `WorkloadRunContext.userId`* (the row's owner, or the synthetic `system` id
         on a scheduler row). A scheduler BULK pass therefore runs summarize-class work under a principal with
         no bindings and lands `no-connection` — honest, and the reason a bulk refinery/discovery/memory pass
         wants an acting human. `funderUserId` is threaded through `ScoreSweepOptions`, `ComputeThemesOptions`,
         `DistillCharactersOptions` and chat's `CorpusSweepArgs`.
+
       - *The composition root* (`entry/compose/services.ts`) builds `createInferenceRuntime` over
         `createConnectionPorts({ db, now })` (the four ports, `domain/connection` stays the writer), publishes
         the F12 allowlist from the resolved config, resolves the funder Principal through
@@ -2570,38 +2574,47 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         search-discovery, refinery, admin, imagery, databank, chat, automation-plugin) take it instead;
         `entry/compose/role-clients.ts` + `provider-credential.ts` are deleted. `ServicesResult` surfaces
         `runtime` + `roleClientsFor`; `vllmEngine`/`localLightPrefetch`/`roleClients`/`bindRoleClients` are gone.
+
       - *`resolveClaudeExecutable()` is SDK MODULE RESOLUTION*: this `@anthropic-ai/claude-agent-sdk` ships no
         `cli.js` on disk (`extractFromBunfs`), so "the runtime resolves" = the SDK entry resolves; `null` ⇒
         the wire is unbuilt (`runtime-missing`). Returns `null`, not `undefined`, because biome's
         `noUselessUndefined` autofix deletes a `return undefined` and tsc's `noImplicitReturns` then reds it.
+
       - *`ChatRequest` carries `connection: Resolved<"chat">`* (provider row, credential, folded features,
         extras, capability); the compose bridge dispatches on the connection's own `api` over FOUR arms
         (agent-sdk seed+prompt, chat-completions / responses / anthropic-messages history) and refuses a
         `null` api as an invariant. `TurnEconomics` gained `connectionId` + `costProvenance`, threaded through
         `EconomicsCommon` and `canon-write`'s `VariantEconomics` onto the new variant columns; `provider` is
         the registry id.
+
       - *The member budget belt + `resolveTurnPolicy` are gone from `ChatServiceDeps`* (F11/F13);
         `resolveConnection`/`checkSendAvailability` are funder-keyed; `summarizerContextTokens`/
         `embedContextTokens` read the funder's resolved capability (a `NoConnectionError` when unbound).
+
       - *`WireCapture.backend` → `wire` + `providerId`* (foundation) and the debug filter follows; the
         `/api/_debug/vllm/metrics` route + `VllmMetricsInspector` are deleted with the fleet.
+
       - *Databank's embed space is per owner and ASYNC* (`getActiveEmbedSpace(ownerId)`); a count read on an
         owner with no binding uses `NO_EMBED_SPACE_MODEL` (`""`, a tag no chunk carries) and answers zero.
         The PD-139(b)/(c) old-space purges after a BULK sweep run PER CORPUS OWNER at compose
         (`listCorpusOwners`) until step 8's `activeSpace` getter lands.
+
       - *The local-light prefetch plan reads the BOX OWNER's bindings only* (`principals: [owner]` — there is
         no user enumeration on `sessions`); §8.3's per-row download state is step 9's.
+
       - *Deleted instruments*: the seven `scripts/probes/sdk-*` probes (every one drove the deleted host-file
         / OR-skin env arms) + their `sdk:*` package scripts, and `scripts/probes/st-goldens/capture-orbweaver.ts`
         (raw `createOpenRouterBackend` + the retired budget/skin seams; the parity protocol is retired). The seed
         tooling's `fake-vllm.ts` is `fake-local-light.ts` — a scripted `LocalLightModelCache` injected via
         `providerSeams.localLight.cache`; the demo's best-effort chat turns log `no-connection` (no scripted
         chat wire any more).
+
       - *The admin `vllm` verbs, `VllmSupervisorPort`, `AdminEngineStatus`, the engine router procedures* are
         deleted (§4); `domain/connection/verbs/kind.ts` and `toResolvedView` moved to `substrate/` (the
         `domain-no-cross-verb` cruiser rule); the JSON-schema sanitizer has TWO homes today —
         `@orb/kit/json-schema` `scrubWireSchema` (per wire mode) and the agent-sdk `sanitizeAnthropicOutputSchema`
         — not the `backends/kit/clean-json-schema.ts` §4 named; a merge is a follow-up.
+
       - *The CLIENT COMPILE PASS (the pre-step-9 minimum, landed 2026-09-20)*: `packages/client` typechecks
         clean against the new contracts; what it is and is not. DELETED: the admin Engines / Compute /
         Shared-access sections (+ their nav rows, `useRestartEngine`/`useUpdateAppSettings`, the engine
@@ -2641,6 +2654,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
           `@orb/inference`); `@openrouter/sdk` leaves the catalog + `allowBuilds` (§8.2's three sites); the
           knip `nvidia-smi`/`ss` binaries row moved from the server to tooling with the fleet;
           `tests/support/matchers.ts` imports `ProviderError` from `@orb/inference`.
+
       - *THE TEST-TREE CUT-OVER (2026-09-20, WIP at `dd39b45bd`; four worktree lanes finishing the ~127-error
         residual)*. What worked: a DIAGNOSTIC-DRIVEN codemod (`scripts/codemods/inference-test-cutover.ts`)
         run off a `tsc -p tsconfig.json --noEmit --pretty false` LOG by line/column — NOT off the codemod kit's
@@ -2665,6 +2679,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         REWRITTEN: credentials `resolve` (by-id semantics), the client connections model, the local-light
         prefetch planner, the db-schema + contracts credentials suites. `MessageView.connectionId` and the
         `listBindings` one-view-per-routable-task change rode this pass.
+
       - *OWNER RULINGS 2026-09-20 (posed after the three audit lanes were cut, folded here + into the audit)*:
         (1) **A1 re-rated P1 → P2 and re-worded** — its 400 symptom was refuted by four live probes; the
         replay defect was real and shipped. A stickler row's SYMPTOM is as re-derivable as its mechanism,
@@ -2677,8 +2692,10 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         AND un-gate our own generation (fork F25, its own lane, PD-140 in scope with it).
         (4) **C7 Message Batches DROPPED permanently** (fork F26) — recorded as decided, not deleted, so
         the SDK docs do not re-open it.
+
       - *Still open on this landing*: step 9 proper (above), the runtime (vitest/CT) verdict on the rewritten
         tree, the D-ledger amendments, and the vocabulary-map edit.
+
       - *REASONING IS A CONTENT PART NOW* (2026-09-20, audit A1/H4): `ChatContentPart` gained
         `{ type:"reasoning", text, meta }` where `meta` is a CLOSED per-wire object in contracts
         (`ReasoningPartMeta`: `anthropic.{signature,redactedData}` · `openrouter.reasoningDetails`), the V4
@@ -2692,6 +2709,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         entry), so carrying it would manufacture a part that cannot ride. The SDK's `JSONValue` admits
         `undefined`-valued properties and ours does not, so the OR details list crosses the seam through
         `jsonValueSchema` (parse-on-read), never a cast. PERSISTENCE of `reasoningParts` is the record lane's.
+
       - *A1's 400 DID NOT REPRODUCE, and the fix landed anyway* (live probes 2026-09-20, `ANTHROPIC_PROBE_KEY`
         / `OPENROUTER_PROBE_KEY`). A thinking+tool loop whose second leg OMITS the thinking block answered
         **200** on every arm probed: `claude-opus-4-5` + `thinking.enabled` (req_011CfEBGcgbeHUCTihPoc661),
@@ -2703,6 +2721,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         replayed leg CONTINUES THINKING (req_011CfEBJoxZy8KZifA8xi4Br returns a fresh signed thinking block)
         while the amnesiac leg does not. Treat A1 as "the model loses its verified reasoning every tool hop",
         not "the turn 400s".
+
       - *A7 IS REFUTED — the anthropic transport gets NO assistant-image `shapeBody`* (live probe 2026-09-20).
         The audit is right that the header's stated reason was false (`wrapFetch.shapeBody` IS a post-convert
         hook), but the FIX would ship a guaranteed 400: `messages.1.content: 'image' blocks are not permitted
@@ -2712,12 +2731,14 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         away: the anthropic converter GROUPS consecutive same-role rows into ONE wire message
         (`groupIntoBlocks`, dist `index.js:3585`) and hoists the leading system block out of `messages[]`, so
         the openai-compat `reattachRows` plan-index walk is not transferable to this wire in any case.
+
       - *D1 landed in `wrapFetch`, not at the `doStream` result.* The `init.body` that wrapper parses IS the
         post-`transformRequestBody` payload AND is downstream of our own `shapeBody`, so it is strictly more
         faithful than the SDK result's `request.body`; and the wrapper holds the `Response`, so
         `responseHeaders` rides the SAME ring entry rather than a second correlated row. The capture moved
         from before the send to after the attempt; a transport failure still records the request with no
         headers to claim.
+
       - *The three new `WARNING_CODES` do not all MATCH a chat kind.* `sdk_unsupported_tool` → the existing
         `tools_unsupported`; `sdk_unsupported_setting` → the existing `sampling_knob_dropped` adjustment (same
         user sentence, `knob` riding through); `sdk_compatibility` needed a NEW
@@ -2728,14 +2749,17 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         code reaches the bus" census expected an event for `declared_overrides_measured`, which
         `emitCapabilityDropWarnings` has always filtered by the §5.3a ruling — an inherited red, now an
         explicit "must stay off the turn stream" assertion.
+
       - *B4's display default lives in the FUNNEL* (`resolveChat`), not in the anthropic transport: the funnel
         is the one place reasoning policy is decided ("the policy already ran in the funnel"), and the default
         is inert on the OR route because that transport spells no display at all. `reasoningRedacted` now
         derives ONLY from a real `redactedData` part.
+
       - *E2's camel `providerOptions` key is only OBSERVABLE once A3 lands* — the SDK's deprecation is a
         `deprecated` warning nobody read. Its pin is therefore a defect proof only in that order, verified by
         reverting the key with A3 in place (the turn then carries `the provider reports "providerOptions key
         'custom-openai'" as deprecated: Use 'customOpenai' instead.`).
+
       - *BUILD LOG, 2026-09-20 (lane cb-audit-record — the RECORD-TRUTH rows of the AI-SDK integration audit;
         design, receipts and rejected arms in `../design/inference-record-truth-2026-09-20.md`)*: (1) `sampling`
         is a REPLACE key in the fold — a stated SET, never a patch: an empty measured `{}` could not subtract an
@@ -2774,6 +2798,44 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
         replayable; a continue REPLACES them with the continuation's, only the last generation's signed blocks
         replay; fork class `member-projected`, the P3 cut `reasoning` takes). The funnel knob, the converter
         carry and `wire-history.ts`'s re-materialization ahead of the tool-call part are the doors lane's.
+
+      - *BUILD LOG, 2026-09-20 (lane cb-audit-doors — §8.8 reasoning CARRY, both rungs, plus the audit's C/D
+        doors)*: (1) the `conversation` rung reads its stored parts through a DEDICATED query
+        (`loadCanonReasoningParts`) and an injected, LAZY `loadReasoningParts` op, NOT a `MessageView` column.
+        A column was tried first and refused for two reasons, both measured: `MessageView` crosses the tRPC
+        boundary, so every client would receive KBs of provider-opaque signatures on every history read and the
+        deception-game strip would grow a second arm to keep them from a non-host member; and tRPC's output
+        inference DROPS an array's `readonly` when the element carries an optional property, so
+        `reasoningParts` on the view broke the client's own cache writer under `exactOptionalPropertyTypes`
+        (`toolCalls` survives because every field of `ToolCallRecord` is required). The read fires only on the
+        `conversation` rung, so every other turn performs none. (2) `ReasoningPartMeta` + a NAMED
+        `ChatReasoningPart` MOVED `chat/bus.ts` → `chat/messages.ts`, and `ChatContentPart`'s reasoning arm now
+        references the named type: `messages.ts` owns the column's parse seam and the import may only run
+        bus → messages (bus already reads `MessageView`; three gates refuse the cycle). (3) `wireCostText` now
+        prices a replayed reasoning part's PROSE — it is real prompt bytes, unlike a media URL, and a carry the
+        fit valued at zero overflows the window it was fitted to; the opaque provenance is not estimated.
+        (4) The carry policy has ONE home (`resolveCarryReasoning`) with TWO readers: the funnel folds its drop
+        warning onto the turn, and the chat engine calls it with a throwaway sink because it must know the rung
+        BEFORE the first wire call (the `conversation` materialization happens at the history-build seam). The
+        mandatory-effort clamp is therefore re-derived there and its warning deliberately discarded — one
+        decision, one notice. (5) C2's allowlist REFUSES `mcpServers`, `container` and `toolStreaming` with a
+        stated reason (all three make the PROVIDER act — an egress decision, a provider-side tool executor
+        against D152, and a stream kind our reducer discards); `metadata.userId` is a SHA-256 digest of the
+        connection owner under a fixed non-secret domain string, never the raw TypeID. (6) C3's `plugins` merge
+        strips a user's `context-compression` entry BEFORE the union parse, because that id is deliberately
+        absent from the modelled union and leaving it in would fail the whole block with a generic message.
+        (7) The F-table "Adopt" row landed with TWO fences: `extractReasoningMiddleware` applies only where
+        `features.reasoningKeys` is absent AND the preset's tag pair is XML-shaped — the middleware builds
+        `<name>`/`</name>` itself, so a user's `[thinking]` pair is inexpressible and is left to the engine's
+        post-hoc split, which is a boundary and not a gap. (8) **D2/D3 REFUSED, with the receipt**: the audit's
+        fix shape is "the reducer forwards `raw` parts to the capture sink", and the sink cannot take them —
+        `emitCapture` fires in `wrapFetch` immediately after the response headers arrive, BEFORE the body
+        streams, so a post-stream payload has no entry to ride. Landing it needs a `WireCaptureSink` redesign
+        (a second entry shape, or a deferred emit) whose live reader is the `/api/_debug/wire/captures`
+        surface, outside this lane. Also worth re-deriving before that ticket: OR's `debug.echo_upstream_body`
+        rides the ordinary SSE once the body flag is set, so `includeRawChunks` is what the SDK needs to
+        SURFACE it as a part, not what our capture needs to SEE it.\*
+
       - *THE CHAT-DOMAIN RUNTIME REDS (2026-09-20, lane cb-chat-reds — `tests/server/domain/chat`, 13 failures
         → 0 / 2382 passing)*. Five pins DELETED, subjects gone: the engine's four belt-refusal pins
         (`budget exhausted → budget_exceeded` ×2 and `max-pro-sub … without consent → consent_required` ×2,

@@ -41,12 +41,14 @@ import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-he
 import type { AddSpanEvent } from "../kit/retry.ts";
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
+import { emitTurnSpanEvents } from "../kit/turn-span.ts";
 import { functionTools, jsonResponseFormat, standardSampling, toolChoiceOf } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
+import { anthropicExtras } from "./extras.ts";
 import type { AnthropicCall, AnthropicTransportDeps } from "./model.ts";
 import { ANTHROPIC_KEY, anthropicModelFor } from "./model.ts";
 import { refusalEventOf } from "./refusal.ts";
@@ -115,14 +117,20 @@ function rowOptionsFor(generation: GenerationCapability, warnings: ResolvedWarni
 interface CacheWriteReceipt {
   readonly historyDepths: readonly number[];
   readonly systemBlocks: number;
+  /** The TOOL-LIST breakpoint (audit C4): 1 when a `cacheControl` rode the last tool, else 0. Counted in the
+   *  receipt's `breakpointsPlaced` because a breakpoint nobody counts is a cache write nobody can audit —
+   *  Anthropic's per-request breakpoint budget is small and the receipt is how an operator sees it spent. */
+  readonly toolBlocks: number;
 }
 
-function placeCache(
-  plan: WirePlan,
-  req: AnthropicChatRequest,
-  generation: GenerationCapability,
-  log: ProviderLogger,
-): { readonly patches: Map<number, Record<string, unknown>>; readonly written: CacheWriteReceipt } {
+function placeCache(args: {
+  readonly plan: WirePlan;
+  readonly req: AnthropicChatRequest;
+  readonly generation: GenerationCapability;
+  readonly log: ProviderLogger;
+  readonly toolBlocks: number;
+}): { readonly patches: Map<number, Record<string, unknown>>; readonly written: CacheWriteReceipt } {
+  const { plan, req, generation, log, toolBlocks } = args;
   const patches = new Map<number, Record<string, unknown>>();
   const staticText = req.systemPrompt.static.trim();
   let systemBlocks = 0;
@@ -145,7 +153,7 @@ function placeCache(
       historyDepths.push(depth);
     }
   }
-  return { patches, written: { historyDepths, systemBlocks } };
+  return { patches, written: { historyDepths, systemBlocks, toolBlocks } };
 }
 
 /** The `thinking` block per the resolved reasoning MODE — the policy already ran in the funnel. */
@@ -160,10 +168,19 @@ function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
   return { type: "adaptive", ...display };
 }
 
+/** THE TOOL-LIST CACHE BREAKPOINT (audit C4). The tool list is a large, stable prefix that changes far less
+ *  often than the history does, and Anthropic caches everything up to a breakpoint — so one `cacheControl` on
+ *  the LAST tool caches the whole list. Placed only when the model's capability says explicit prompt caching
+ *  is worth the write; `undefined` leaves every tool's provider options absent, byte-identical to before. */
+function toolCacheOptions(generation: GenerationCapability, explicit: boolean): SharedV4ProviderOptions | undefined {
+  return explicit && generation.turns?.explicitPromptCache === true ? { [ANTHROPIC_KEY]: { cacheControl: { ...ANTHROPIC_CACHE_1H } } } : undefined;
+}
+
 function anthropicOptions(
   req: AnthropicChatRequest,
   knobs: ResolvedChatKnobs,
   warnings: ResolvedWarning[],
+  toolCache: SharedV4ProviderOptions | undefined,
 ): Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal"> {
   const effort = knobs.reasoning.enabled ? sdkEffortOf(knobs.reasoning.effort, warnings, "turn") : undefined;
   if (knobs.verbosity !== undefined) {
@@ -171,6 +188,9 @@ function anthropicOptions(
   }
   const parallel = req.params.advanced?.parallelToolCalls;
   const anthropic: JSONObject = {
+    // C2: the allowlisted `extras` slice FIRST, so nothing a connection declares can displace a modelled
+    // knob below it (D143(b)/D156 — modelled wins; the allowlist itself excludes every modelled key).
+    ...anthropicExtras(req.connection, warnings),
     sendReasoning: true,
     structuredOutputMode: "auto",
     thinking: thinkingOf(knobs.reasoning),
@@ -179,7 +199,9 @@ function anthropicOptions(
   };
   return {
     ...standardSampling(knobs.sampling, knobs.maxOutputTokens),
-    ...(req.tools !== undefined ? { tools: functionTools(req.tools) } : {}),
+    ...(req.tools !== undefined
+      ? { tools: functionTools(req.tools, { strictJson: req.connection.features.strictJson, warnings, cacheLastTool: toolCache }) }
+      : {}),
     ...(req.toolChoice !== undefined ? { toolChoice: toolChoiceOf(req.toolChoice) } : {}),
     ...(req.responseFormat !== undefined
       ? { responseFormat: jsonResponseFormat(req.responseFormat, scrubWireSchema(req.responseFormat.schema, "anthropic-format").schema) }
@@ -201,13 +223,6 @@ function refusePrefill(plan: WirePlan, generation: GenerationCapability, label: 
       retryable: false,
       message: `${label}: the delivered history ends on an assistant row, and this model does not accept assistant message prefill`,
     });
-  }
-}
-
-/** A hosted row has no body hook: every `extras` key is dropped, loudly. */
-function dropExtras(connection: Resolved, warnings: ResolvedWarning[]): void {
-  for (const key of Object.keys(connection.extras ?? {})) {
-    warnings.push({ code: "custom_parameters_ignored", key, message: `extras key "${key}" ignored: the anthropic wire takes no extra body fields` });
   }
 }
 
@@ -285,7 +300,7 @@ function emitReceipts(args: {
     turnId: knobs.turnId,
     cacheReadTokens: turn.usage.cacheReadTokens,
     cacheWriteTokens: turn.usage.cacheWriteTokens,
-    breakpointsPlaced: written.systemBlocks + written.historyDepths.length,
+    breakpointsPlaced: written.systemBlocks + written.historyDepths.length + written.toolBlocks,
     breakpointOffsets: written.historyDepths,
     hitRatio: total > 0 ? turn.usage.cacheReadTokens / total : 0,
     minCacheTokens: cacheMinTokensOf(generation),
@@ -312,7 +327,6 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const generation = requireGeneration(connection, label);
   const knobs = resolveChat(req.params, generation);
   const warnings: ResolvedWarning[] = [...knobs.warnings];
-  dropExtras(connection, warnings);
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
   let firstDeltaAt: number | undefined;
@@ -334,9 +348,12 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
       message: "a prior reply picture was not re-sent: the Anthropic Messages wire does not permit image blocks inside an assistant turn",
     });
   }
-  const cache = placeCache(plan, req, generation, log);
+  // C4: the tool list is its own cacheable prefix. Decided BEFORE `placeCache` so the receipt can count the
+  // breakpoint the option builder is about to place (Anthropic's per-request breakpoint budget is small).
+  const toolCache = toolCacheOptions(generation, req.tools !== undefined && req.tools.length > 0);
+  const cache = placeCache({ plan, req, generation, log, toolBlocks: toolCache === undefined ? 0 : 1 });
   const prompt = withMessageOptions(plan.prompt, ANTHROPIC_KEY, cache.patches);
-  const options = anthropicOptions(req, knobs, warnings);
+  const options = anthropicOptions(req, knobs, warnings, toolCache);
   const call: AnthropicCall = { connection, deps: deps.transport, label, api: req.api, chatId: req.chatId };
   const drain = await runWithPreCommitRetry(
     (markCommitted) =>
@@ -391,6 +408,21 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     log.emit(response.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...response.rateLimit });
   }
   emitReceipts({ log, req, generation, knobs, turn, written: cache.written, warnings });
+  // D4: the turn's own timeline. The receipts above are the LOG surface; these three are the TRACE surface,
+  // and they answer the questions a span's duration alone cannot (first-delta split, stop reason, cache hit).
+  emitTurnSpanEvents({
+    addSpanEvent: deps.addSpanEvent,
+    turnId: knobs.turnId,
+    model: connection.model,
+    startedAt,
+    firstDeltaAt,
+    turn,
+    cache: {
+      breakpointsPlaced: cache.written.systemBlocks + cache.written.historyDepths.length + cache.written.toolBlocks,
+      readTokens: turn.usage.cacheReadTokens,
+      writeTokens: turn.usage.cacheWriteTokens,
+    },
+  });
   for (const event of turn.events) {
     req.onEvent?.(event);
   }

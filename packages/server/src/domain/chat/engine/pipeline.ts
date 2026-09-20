@@ -692,6 +692,11 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     intent: effectiveIntent,
     kind: args.kind,
     cacheBreakpointFromEnd,
+    // The F-table "Adopt" row: the preset's tag pair rides ONLY when the user asked for auto-parse, so a
+    // preset with the feature off changes nothing on any wire.
+    ...(ctx.promptConfig.reasoningParse?.autoParse === true
+      ? { reasoningTags: { prefix: ctx.promptConfig.reasoningParse.prefix, suffix: ctx.promptConfig.reasoningParse.suffix } }
+      : {}),
     signal: args.signal,
   };
 

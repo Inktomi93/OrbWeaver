@@ -328,8 +328,8 @@ export async function buildWireHistory(
     /** The M2 keep-last-X card window. ABSENT ≠ ZERO — see {@link resolveFullCards}; contributed only by an
      *  rpg game's gather, so a chat with no game passes `undefined` (no window) on BOTH paths. */
     readonly cardKeepLastX: number | undefined;
-    /** The loaded canon — read for the assistant-authored set below, AND (under `carryReasoning:
-     *  "conversation"`) for each assistant row's persisted replayable thinking. */
+    /** The loaded canon — read ONLY for the assistant-authored set below (the §8.8 carry's own source is
+     *  `reasoningByMessage`, not this list). */
     readonly canon: readonly MessageView[];
     /** §8.8's `conversation` CARRY SOURCE: each canon slot's persisted replayable thinking, keyed by slot id.
      *  Supplied ONLY on that rung (the caller resolves it through `resolveCarryReasoning`, the one policy

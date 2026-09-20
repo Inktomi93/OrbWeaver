@@ -112,7 +112,8 @@ function argsOf(over: Partial<PipelineArgs>, passes: readonly (readonly TurnStre
     runChatTurn,
     resolveImageUrl: (ref) => Promise.resolve({ url: ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url, media: "image" as const }),
     // §8.8: the `conversation` carry source. THROWS if reached — this harness runs the `off` rung.
-    loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => Promise.reject(new Error("loadReasoningParts must not be reached")),
+    loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> =>
+      Promise.reject(new Error("loadReasoningParts must not be reached")),
     assembleContext: ctxOf(),
     canon: [userRow("the party opens the door")],
     connection: CONNECTION,

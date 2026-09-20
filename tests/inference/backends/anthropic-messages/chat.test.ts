@@ -303,3 +303,69 @@ test("PLANTED CONTROL: the same row WITHOUT the carry sends prose only — no th
   const blocks = assistantRowOf(recorded[0] as RecordedRequest)["content"];
   expect(blocks).toMatchObject([{ type: "text", text: "The map is genuine." }]);
 });
+
+// ── the TOOL doors, against the real converter (audit C1 + C4) ───────────────────────────────────────────
+// §15c-1: a spec type permitting a shape is not a converter emitting it. `LanguageModelV4FunctionTool` has
+// carried `strict`, `inputExamples` and per-tool `providerOptions` all along; what these pin is that the
+// 4.0.58 Anthropic converter turns ours into `strict` / `input_examples` / `cache_control` on the WIRE.
+
+function toolsOf(recorded: RecordedRequest | undefined): readonly Record<string, unknown>[] {
+  const tools = recorded?.body["tools"];
+  return Array.isArray(tools) ? (tools as readonly Record<string, unknown>[]) : [];
+}
+
+test("C4: `cacheControl` rides the LAST tool alone, and the cache receipt counts that breakpoint", async () => {
+  const recorded: RecordedRequest[] = [];
+  const lines: LogLine[] = [];
+  const req = turnRequest({
+    tools: [
+      { name: "tick_clock", description: "d", parameters: { type: "object" } },
+      { name: "roll_dice", description: "d", parameters: { type: "object" } },
+    ],
+  });
+  await runAnthropicChatTurn(req, deps(scriptedSseFetch([anthropicTextStream("ok")], recorded), lines));
+
+  const tools = toolsOf(recorded[0]);
+  expect(tools).toHaveLength(2);
+  // The tool list is one cacheable prefix: Anthropic caches UP TO a breakpoint, so the marker belongs on the
+  // last entry and on nothing else. A marker per tool would spend the whole per-request breakpoint budget.
+  expect(tools[0]?.["cache_control"]).toBeUndefined();
+  expect(tools[1]?.["cache_control"]).toMatchObject({ type: "ephemeral", ttl: "1h" });
+  // A breakpoint the receipt does not count is a cache write nobody can audit.
+  const cache = lines.find((line) => line.fields["event"] === "provider.cache");
+  expect(cache?.fields["breakpointsPlaced"]).toBe(2); // the static system block + the tool list
+});
+
+test("C4 control: a tool-less turn places no tool breakpoint and the count drops back", async () => {
+  const lines: LogLine[] = [];
+  await runAnthropicChatTurn(turnRequest({ tools: undefined }), deps(scriptedSseFetch([anthropicTextStream("ok")], []), lines));
+
+  expect(lines.find((line) => line.fields["event"] === "provider.cache")?.fields["breakpointsPlaced"]).toBe(1);
+});
+
+test("C1: a tool's `strict` and `inputExamples` reach the wire as `strict` / `input_examples`", async () => {
+  const recorded: RecordedRequest[] = [];
+  const req = turnRequest({
+    tools: [{ name: "tick_clock", description: "d", parameters: { type: "object" }, strict: true, inputExamples: [{ minutes: 30 }] }],
+  });
+  await runAnthropicChatTurn(req, deps(scriptedSseFetch([anthropicTextStream("ok")], recorded)));
+
+  expect(toolsOf(recorded[0])[0]).toMatchObject({ name: "tick_clock", strict: true, input_examples: [{ minutes: 30 }] });
+});
+
+// ── D4: the turn's span events ───────────────────────────────────────────────────────────────────────────
+test("D4: the turn emits first-delta, finish and cache events — the three a span's duration cannot answer", async () => {
+  const events: { name: string; attrs: Record<string, string | number | boolean> }[] = [];
+  const addSpanEvent = (name: string, attrs: Readonly<Record<string, string | number | boolean>>): void => {
+    events.push({ name, attrs: { ...attrs } });
+  };
+  const base = deps(scriptedSseFetch([anthropicTextStream("ok")], []));
+  await runAnthropicChatTurn(turnRequest({ tools: undefined }), { ...base, addSpanEvent });
+
+  const names = events.map((e) => e.name);
+  expect(names).toContain("provider.first_delta");
+  expect(names).toContain("provider.finish");
+  expect(names).toContain("provider.cache");
+  // The finish carries the NORMALIZED member (anything may branch on it) beside the raw upstream word.
+  expect(events.find((e) => e.name === "provider.finish")?.attrs).toMatchObject({ finishReason: "stop", stopReason: "end_turn" });
+});

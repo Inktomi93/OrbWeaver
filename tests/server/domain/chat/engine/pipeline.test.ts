@@ -115,7 +115,8 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
     resolveImageUrl: (ref) => Promise.resolve({ url: ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url, media: "image" as const }),
     // §8.8: the `conversation` carry source. Default EMPTY and THROWS if reached — every test below runs
     // the `off`/`tool-chain` rungs, where the pipeline must not perform this read at all.
-    loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => Promise.reject(new Error("loadReasoningParts must not be reached")),
+    loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> =>
+      Promise.reject(new Error("loadReasoningParts must not be reached")),
     assembleContext: ctxOf(),
     canon: [userRow("u1")],
     connection: CONNECTION,
@@ -1807,14 +1808,14 @@ const STRUCTURED_CONNECTION: Resolved<"chat"> = {
 describe("runTurnPipeline — §8.8 reasoning CARRY across a tool chain", () => {
   // A model that reasons AND round-trips its own signed thinking — the only shape where the carry knob has
   // anything to do. `replay: "signed"` is the capability cell; `effort` is what turns reasoning ON.
-  const CARRY_CAPABILITY: GenerationCapability = makeGenerationCapability({
+  const carryCapability: GenerationCapability = makeGenerationCapability({
     ...CAPABILITY,
     tools: { parallel: true },
     reasoning: { mode: "adaptive", enabled: true, effortLevels: ["low", "medium", "high"], replay: "signed" },
   });
-  const CARRY_CONNECTION: Resolved<"chat"> = { ...CONNECTION, capability: makeCapability(CARRY_CAPABILITY) };
+  const carryConnection: Resolved<"chat"> = { ...CONNECTION, capability: makeCapability(carryCapability) };
 
-  const SIGNED: ChatReasoningPart = { type: "reasoning", text: "I should tick the clock.", meta: { anthropic: { signature: "SIG-1" } } };
+  const signedPart: ChatReasoningPart = { type: "reasoning", text: "I should tick the clock.", meta: { anthropic: { signature: "SIG-1" } } };
 
   /** Leg 1 emits a signed thinking block + a tool call; leg 2 answers. The parts ride the FINAL chunk, which
    *  is how a real wire hands them over (`ChatResult.reasoningParts` → `finalTurnChunk`). */
@@ -1828,7 +1829,7 @@ describe("runTurnPipeline — §8.8 reasoning CARRY across a tool chain", () => 
               content: "Let me check. ",
               finishReason: "tool",
               toolCalls: [{ toolCallId: "c1", name: "tick_clock", arguments: "{}" }],
-              reasoningParts: [SIGNED],
+              reasoningParts: [signedPart],
             },
           },
         ],
@@ -1839,7 +1840,7 @@ describe("runTurnPipeline — §8.8 reasoning CARRY across a tool chain", () => 
 
   const carryArgs = (carryReasoning: UserIntent["carryReasoning"], requests: TurnRequest[]): PipelineArgs =>
     baseArgs({
-      connection: CARRY_CONNECTION,
+      connection: carryConnection,
       tools: fakeToolOps([]),
       attachedToolNames: ["tick_clock"],
       intent: { effort: "high", ...(carryReasoning === undefined ? {} : { carryReasoning }) } satisfies UserIntent,
@@ -1861,7 +1862,7 @@ describe("runTurnPipeline — §8.8 reasoning CARRY across a tool chain", () => 
     // ORDER IS THE PIN: Anthropic requires the thinking block at the head of an assistant turn, and the
     // converter emits parts in array order — a signature behind the tool_use is not the turn the model signed.
     expect(row?.content.map((part) => part.type)).toEqual(["reasoning", "text", "tool-call"]);
-    expect(row?.content[0]).toEqual(SIGNED);
+    expect(row?.content[0]).toEqual(signedPart);
   });
 
   test("`off` (the default): the same loop hands leg 2 NO thinking — the model sees an amnesiac chain", async () => {
@@ -1877,7 +1878,7 @@ describe("runTurnPipeline — §8.8 reasoning CARRY across a tool chain", () => 
     // Same capability, but `effort: "none"` turns reasoning off for the turn — so there is nothing to carry
     // and the rung collapses, exactly as §8.8 states (the funnel raises the drop warning on the wire side).
     const { args } = baseArgs({
-      connection: CARRY_CONNECTION,
+      connection: carryConnection,
       tools: fakeToolOps([]),
       attachedToolNames: ["tick_clock"],
       intent: { effort: "none", carryReasoning: "tool-chain" } satisfies UserIntent,

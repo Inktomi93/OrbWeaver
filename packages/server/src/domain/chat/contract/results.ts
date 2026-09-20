@@ -139,6 +139,11 @@ export interface TurnRequest {
   readonly kind: TurnKind;
   /** The rolling-pair cache breakpoint offset from the tail; null means no safe boundary this round. */
   readonly cacheBreakpointFromEnd: number | null;
+  /** The preset's inline-reasoning tag pair, present only when `reasoningParse.autoParse` is ON. The
+   *  openai-compat transport uses it to split `<think>` at STREAM time; the engine's own post-hoc split
+   *  (`applyReceiveTransforms`) stays for every shape and wire the middleware cannot express, and no-ops
+   *  when the wire already produced a reasoning channel. */
+  readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
   /** Absent (never []) on a tool-less turn, so the request stays byte-identical to pre-tools. */
   readonly tools?: readonly WireTool[] | undefined;
   readonly toolChoice?: ToolChoice | undefined;

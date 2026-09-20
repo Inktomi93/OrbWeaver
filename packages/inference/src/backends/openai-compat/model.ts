@@ -9,6 +9,7 @@ import type { EmbeddingModelV4, ImageModelV4, LanguageModelV4 } from "@ai-sdk/pr
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { Dialect } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
+import { wrapLanguageModel } from "ai";
 import type { WireCaptureSink } from "../../contract/backend.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
@@ -20,6 +21,8 @@ import { wrapFetch } from "../v4/fetch.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import type { ShapeArgs } from "./body.ts";
 import { shapeOutboundBody } from "./body.ts";
+import type { ReasoningTags } from "./think-tags.ts";
+import { thinkTagMiddleware } from "./think-tags.ts";
 
 const OR_REFERER_HEADER = "HTTP-Referer";
 const OR_TITLE_HEADER = "X-OpenRouter-Title";
@@ -47,6 +50,8 @@ export interface ModelCall {
   readonly extraBody?: Readonly<Record<string, unknown>> | undefined;
   /** The openrouter chat settings the SDK models at the MODEL level (ignored on the other transport). */
   readonly openRouterChat?: { readonly strict?: boolean | undefined; readonly parallelToolCalls?: boolean | undefined } | undefined;
+  /** The preset's inline-reasoning tag pair; drives the `extractReasoningMiddleware` wrap (see `think-tags.ts`). */
+  readonly reasoningTags?: ReasoningTags | undefined;
 }
 
 function dialectOf(call: ModelCall): Dialect {
@@ -164,7 +169,12 @@ const TRANSPORTS: Record<Dialect, Transport> = {
 };
 
 export function languageModelFor(call: ModelCall): LanguageModelV4 {
-  return TRANSPORTS[dialectOf(call)].language(call);
+  const model = TRANSPORTS[dialectOf(call)].language(call);
+  // The F-table "Adopt" row: a server with NO native reasoning field and an XML-shaped preset tag pair gets
+  // the SDK's stream-time splitter. Empty list ⇒ the bare model, so every other row is byte-identical and
+  // pays no wrapper (`wrapLanguageModel` with no middleware would still be a layer on every turn).
+  const middleware = thinkTagMiddleware({ reasoningKeys: call.connection.features.reasoningKeys, tags: call.reasoningTags });
+  return middleware.length === 0 ? model : wrapLanguageModel({ model, middleware });
 }
 
 export function embeddingModelFor(call: ModelCall): EmbeddingModelV4 {
