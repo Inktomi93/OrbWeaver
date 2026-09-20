@@ -9,6 +9,7 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
+import { providerErrorFromHttp } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -17,7 +18,6 @@ import type { ChatService } from "@orb/server/domain/chat";
 import type { PersonaService } from "@orb/server/domain/persona";
 import type { SettingsService } from "@orb/server/domain/settings";
 import { logger } from "@orb/server/foundation/observability";
-import { providerErrorFromHttp } from "@orb/inference";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
 import type { Mock } from "vitest";
@@ -52,14 +52,14 @@ describe("adminProcedure (LAYER-1, owner ∪ admin, no db round-trip)", () => {
 
   test("passes an owner through to the verb", async () => {
     const listUsers = vi.fn<AdminService["listUsers"]>();
-    const ctx = makeContext({ auth: principal("owner"), services: { admin: {} } });
+    const ctx = makeContext({ auth: principal("owner"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
     expect(listUsers).toHaveBeenCalledTimes(1);
   });
 
   test("passes a delegated admin through to the verb", async () => {
     const listUsers = vi.fn<AdminService["listUsers"]>();
-    const ctx = makeContext({ auth: principal("admin"), services: { admin: {} } });
+    const ctx = makeContext({ auth: principal("admin"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
     expect(listUsers).toHaveBeenCalledTimes(1);
   });
@@ -68,7 +68,7 @@ describe("adminProcedure (LAYER-1, owner ∪ admin, no db round-trip)", () => {
 describe("a representative router delegates to the injected service verb", () => {
   test("admin.listUsers calls ctx.services.admin.listUsers with the Principal (PD-3)", async () => {
     const listUsers = vi.fn<AdminService["listUsers"]>();
-    const ctx = makeContext({ auth: principal("admin"), services: { admin: {} } });
+    const ctx = makeContext({ auth: principal("admin"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
     expect(listUsers).toHaveBeenCalledWith({ principal: ctx.auth });
   });
