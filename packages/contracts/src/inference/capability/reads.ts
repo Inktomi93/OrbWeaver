@@ -79,6 +79,16 @@ export function canEmbedImages(capability: EmbeddingCapability): boolean {
   return capability.input.includes("image");
 }
 
+/** THE JOINT-SPACE RULE'S READ (§10-3): may this resolved capability produce IMAGE vectors at all?
+ *  `null` (the task has no connection bound), a non-embedding kind, or an embedder that does not take an
+ *  `image` input all answer `false` — and `false` is not an error, it is the signal to fall back to the
+ *  CAPTIONED-TEXT lens in the `embed` space. `embed` and `imageEmbed` are one model or `imageEmbed` falls
+ *  to the caption (§6.7); this is the one spelling of that question, so the indexer's write arm and
+ *  search's read arm cannot disagree about which space an owner's pictures live in. */
+export function servesImageVectors(capability: Capability | null): boolean {
+  return capability !== null && capability.kind === "embedding" && canEmbedImages(capability.embedding);
+}
+
 /** The served precision a `(model[@dtype])` space tag folds in (`embedSpaceOf`) — the ONE place a resolved
  *  connection's capability is asked for its dtype axis, so every vector reader derives the identical tag.
  *  A non-embedding capability cannot reach a vector task's space, so it folds to "no dtype axis" rather than

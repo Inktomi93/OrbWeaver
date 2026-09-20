@@ -125,7 +125,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
     }
 
     const rc = await ctx.roleClientsFor(params.ownerId);
-    const embedModel = await requireSpaceModel(rc, "embed");
+    const embedModel = await requireSpaceModel(ctx, params.ownerId, "embed");
     const embedded = await embedQuery(rc, text);
     const queryVector = embedded.vectors[0];
     if (queryVector === null || queryVector === undefined) {

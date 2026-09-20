@@ -29,6 +29,62 @@ export const IMAGE_SKIP_REASONS = ["below-dimension-floor"] as const;
 
 export type ImageSkipReason = (typeof IMAGE_SKIP_REASONS)[number];
 
+/** The four INDEPENDENTLY-SWEPT halves of an owner's vector corpus — the granularity at which "the reindex
+ *  finished" is a true statement (inference program §10-5, the `activeSpace` getter).
+ *
+ *  It is four and not two because a `(model[@dtype])` space change fires FOUR separate sweeps, each with its
+ *  own workload, its own abort and its own failure mode: `cards` (`embeddings.embedCorpus`), `memory` (chat's
+ *  memory backfill), `documents` (the `databank-reindex` chunk-embed pass) and `images`
+ *  (`embeddings.embedAssets`). Three of them write the `embed` space and one writes `imageEmbed`, so a
+ *  per-TASK completion flag would have to claim "the embed space is complete" while a third of it is still in
+ *  the old geometry. `embed_space_state` therefore keys one row per `(owner, scope)` and
+ *  {@link VECTOR_SCOPES_BY_TASK} folds them back up.
+ *
+ *  Promoted here — not into a server-tier `contract/` — for the D34 reason `IMAGE_LENSES` is here:
+ *  `@orb/db` derives the `embed_space_state.scope` `{ enum }` + CHECK from this tuple and cannot import a
+ *  domain. A fifth vector surface is a tsc error at {@link VECTOR_SCOPES_BY_TASK} until it names its task. */
+export const VECTOR_SCOPES = ["cards", "memory", "documents", "images"] as const;
+
+export type VectorScope = (typeof VECTOR_SCOPES)[number];
+
+/** Which scopes make up each vector task's space. The fold the `activeSpace` getter runs: a task's space is
+ *  COMPLETE only when every one of its scopes has recorded the same tag, because a retrieval over `embed`
+ *  scans cards, memory AND document chunks in one geometry. */
+export const VECTOR_SCOPES_BY_TASK: Readonly<Record<"embed" | "imageEmbed", readonly VectorScope[]>> = {
+  embed: ["cards", "memory", "documents"],
+  imageEmbed: ["images"],
+};
+
+/** One `embed_space_state` row, as both readers select it. */
+export interface CompletedSpaceRow {
+  readonly scope: VectorScope;
+  readonly space: string;
+}
+
+/** WHERE a task's corpus actually IS, folded from its scopes' completion rows (§10-5).
+ *
+ *  THREE STATES, and collapsing any two of them is a defect:
+ *   • `unrecorded` — some scope of this task has never completed a sweep (a virgin box, or a corpus that
+ *     predates the state table). Everything that exists was written in the live space, so the live space is
+ *     the only answer there is and a reader serves it.
+ *   • `complete` — every scope agrees. Equal to the live space in the steady state.
+ *   • `moving` — the scopes DISAGREE: a reindex is in flight and part of the corpus has already moved.
+ *     Indistinguishable from `unrecorded` if both are spelled `null`, which would make a reader serve the
+ *     live space mid-move — exactly the scan that returns confidently-ranked garbage. */
+export type ActiveSpace = { readonly kind: "unrecorded" } | { readonly kind: "complete"; readonly space: string } | { readonly kind: "moving" };
+
+/** THE `activeSpace` FOLD (§10-5). Deriving it here, beside the tuple, is what stops a second reader from
+ *  folding it a second way; it lives in contracts because the table's WRITER (`domain/embeddings`) and its
+ *  READER (`domain/search`) may not import each other. */
+export function foldActiveSpace(task: keyof typeof VECTOR_SCOPES_BY_TASK, rows: readonly CompletedSpaceRow[]): ActiveSpace {
+  const spaces = VECTOR_SCOPES_BY_TASK[task].map((scope) => rows.find((row) => row.scope === scope)?.space);
+  const first = spaces[0];
+  if (spaces.some((space) => space === undefined) || first === undefined) {
+    return { kind: "unrecorded" };
+  }
+  return spaces.every((space) => space === first) ? { kind: "complete", space: first } : { kind: "moving" };
+}
+
 // ── The VL image breakdown (`image_embeddings.caption_meta`) ──────────────────────────────────────────
 //
 // WHY THIS LIVES IN CONTRACTS AND NOT IN EITHER DOMAIN. `caption_meta` is a domain↔domain wire column:

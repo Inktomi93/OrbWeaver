@@ -118,8 +118,14 @@ export interface FakeRoleClients extends RoleClients {
   readonly structured: Mock<RoleClients["structured"]>;
 }
 
+/** The §10-3 joint-space ARM this fake's owner is in — the two ways an owner loses the image lens, plus the
+ *  ordinary one. `no-binding` leaves the `imageEmbed` slot empty; `no-image-input` fills it with a model
+ *  that declares text only, which a bare "is it bound?" check cannot tell apart from the joint arm. */
+const FAKE_IMAGE_ARMS = ["joint", "no-binding", "no-image-input"] as const;
+export type FakeImageArm = (typeof FAKE_IMAGE_ARMS)[number];
+
 /** A recording fake `RoleClients` — deterministic vectors at `EMBED_DIM`, a fixed caption from `summarize`. */
-export function makeRoleClients(vision = true): FakeRoleClients {
+export function makeRoleClients(vision = true, imageArm: FakeImageArm = "joint"): FakeRoleClients {
   // ONE vector per input, index-aligned — the real contract's shape, and load-bearing since the segment write
   // path batches (#172): a fake that always returned a single vector would fail every item past the first.
   const embed: Mock<RoleClients["embed"]> = vi.fn<RoleClients["embed"]>((input) =>
@@ -154,6 +160,8 @@ export function makeRoleClients(vision = true): FakeRoleClients {
     summarize,
     structured,
     summarizerVision: vision,
+    ...(imageArm === "no-binding" ? { unbound: ["imageEmbed"] as const } : {}),
+    ...(imageArm === "no-image-input" ? { imageEmbedVision: false } : {}),
     summarizerContextTokens: 32_000,
     embedDim: EMBED_DIM,
     embedModel: EMBED_MODEL,
@@ -215,10 +223,10 @@ export function embedAs(harness: StoreHarness, model: string): void {
 
 /** Build an `EmbeddingsContext` over a real db with deterministic clock/ids + a recording fake bundle.
  *  `sources` feeds the bulk-pass enumeration/canon-read fakes (recording `vi.fn`s, overridable per test). */
-export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}): StoreHarness {
+export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imageArm: FakeImageArm = "joint"): StoreHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();
-  const roleClients = makeRoleClients();
+  const roleClients = makeRoleClients(true, imageArm);
   const listCharacterIds: Mock<EmbeddingsContext["listCharacterIds"]> = vi.fn<EmbeddingsContext["listCharacterIds"]>(() =>
     Promise.resolve(sources.characterIds ?? []),
   );

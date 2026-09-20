@@ -92,6 +92,12 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     fetchUrl: fetchWebDocument,
     // `model` is the SPACE TAG (`embedSpaceOf`), never the bare row column: every count read here is
     // compared against `document_chunks.model`, which carries the dtype the backend stamped (§10-2).
+    //
+    // DELIBERATELY THE LIVE SPACE, NOT §10-5's `activeSpace`. The retrieval readers follow the last COMPLETE
+    // space because a scan in the wrong geometry is worse than no scan; this is a PROGRESS read — "how many
+    // of this bank's chunks are embedded where they need to be". Counting against the last-complete space
+    // would report a bank as fully embedded while a reindex is still moving it, which is the one answer the
+    // databank surface must not give. During a transition "0 of N" is the truth and the progress signal.
     getActiveEmbedSpace: async (ownerId) => {
       const space = await (await deps.roleClientsFor(ownerId)).resolved("embed");
       return space === null ? null : { model: embedSpaceOf(space.model, embedDtypeOf(space.capability)), dim: EMBED_SPACE_DIMS };
