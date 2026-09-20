@@ -222,6 +222,12 @@ export type TurnStreamChunk =
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "reasoning"; readonly text: string }
   | ({ readonly kind: "warning" } & ResolvedWarning)
+  // THE PROVIDER DECLINED. Its own arm rather than a `ResolvedWarning`, because `WARNING_CODES` is the
+  // resolve/wire DROP vocabulary — "we asked for X and the provider did Y instead" — and a refusal is not a
+  // degrade of our settings but the model's verdict on the request. Payload-free: the refusal's `category` /
+  // `explanation` / `fallbackModel` are raw upstream strings the chat bus may not carry (`bus.ts`
+  // `provider_refused`), and they already ride the infra `refusal` event into the wire-outcome ring.
+  | { readonly kind: "refusal" }
   | { readonly kind: "final"; readonly economics: TurnEconomics };
 
 /** The post-generation economics a role turn reports, folded onto the variant. All optional: a runner that
