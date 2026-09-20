@@ -78,6 +78,8 @@ const ALLOWED_KEYS = Object.keys(ANTHROPIC_EXTRAS_SCHEMAS) as readonly Anthropic
  *  brute-force, and we are not trying to stop one. What we are stopping is the raw id leaving the box. */
 const USER_ID_DIGEST_DOMAIN = "orbweaver:anthropic-metadata-user-id:v1";
 
+/** The salted digest itself — the ONLY value that leaves the box for `metadata.userId`.
+ *  @public Test-anchored module surface; focused tests pin its shape and its stability. */
 export function anthropicUserIdDigest(ownerId: UserId): string {
   return createHash("sha256").update(`${USER_ID_DIGEST_DOMAIN}:${ownerId}`).digest("hex");
 }

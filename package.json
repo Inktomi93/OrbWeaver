@@ -156,7 +156,6 @@
     "tailwindcss": "catalog:",
     "ts-morph": "catalog:",
     "ts7": "npm:typescript@7.0.2",
-    "tsx": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "undici": "catalog:",

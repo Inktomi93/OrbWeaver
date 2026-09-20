@@ -31,7 +31,6 @@ export const capabilityMatchSchema = z
     api: chatApiSchema.optional(),
   })
   .refine((match) => (match.model === undefined) !== (match.ids === undefined), { message: "a match names `model` (a regex) or `ids`, not both" });
-export type CapabilityMatch = z.infer<typeof capabilityMatchSchema>;
 
 /** A DATED, CITED provenance line: which tier this row is evidence at, when, and where the reader can look. */
 export const capabilityEvidenceSchema = z.object({

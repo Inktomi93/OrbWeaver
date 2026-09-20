@@ -19,29 +19,24 @@ import { z } from "zod";
  *  `none` = the server has no continuation arm. Honoured only when the capability says
  *  `turns.assistantPrefill`. */
 export const PREFILL_MODES = ["continue-final-message", "deliver", "none"] as const;
-export type PrefillMode = (typeof PREFILL_MODES)[number];
 
 /** When `response_format: { type: "json_schema", strict }` rides. `default-on` = vLLM guided decoding
  *  (today's `strictByDefault`); `declared-only` = only when the caller's `ResponseFormat.strict` says so;
  *  `never`. */
 export const STRICT_JSON_MODES = ["default-on", "declared-only", "never"] as const;
-export type StrictJsonMode = (typeof STRICT_JSON_MODES)[number];
 
 /** How a generic effort level is spelled on this server's wire, if at all. */
 export const EFFORT_SPELLINGS = ["reasoning_effort", "none"] as const;
-export type EffortSpelling = (typeof EFFORT_SPELLINGS)[number];
 
 /** Which image-generation arm the server exposes: the images API (`imageModel(id)` against
  *  `/v1/images/generations` + `/edits`) or chat-with-image-output (`modalities: ["text","image"]`). */
 export const IMAGE_ARMS = ["images-api", "chat-modalities"] as const;
-export type ImageArm = (typeof IMAGE_ARMS)[number];
 
 /** How the output cap is spelled on this server's chat-completions body. The SDK writes `max_tokens`;
  *  OpenAI's reasoning models 400 on it (`unsupported_parameter … Use 'max_completion_tokens'`, measured
  *  2026-09-20 on gpt-5-mini) and every current OpenAI chat model takes the new word, so the `openai` row
  *  declares it and the body shaper renames. Absent ⇒ the SDK's spelling stands. */
 export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as const;
-export type OutputCapField = (typeof OUTPUT_CAP_FIELDS)[number];
 
 export const endpointFeaturesSchema = z.object({
   prefill: z.enum(PREFILL_MODES).optional(),

@@ -47,6 +47,7 @@ export type ProviderAuth = (typeof PROVIDER_AUTHS)[number];
  *  nothing; `builtin` = the in-process runtime's bundled list. There is no "user types an id" strategy —
  *  typing is `url`'s fallback and the pane says so. */
 export const CATALOG_STRATEGIES = ["url", "builtin"] as const;
+/** @public twin: CATALOG_STRATEGIES — the type face of the tuple `db` spells the column enum from. */
 export type CatalogStrategy = (typeof CATALOG_STRATEGIES)[number];
 
 interface RowIssue {
