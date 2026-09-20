@@ -6,6 +6,15 @@
 // `@orb/contracts/search`, and the corpus-sweep RESULTS at the bottom of this file, which DERIVE
 // `@orb/contracts/chat`); they live in `chat/contract/` only to satisfy the one-type-home gate.
 //
+// IMPORT DIRECTION — THIS FILE IS A LEAF, AND THAT IS THE RULE, NOT AN ACCIDENT. `context.ts` (the chat
+// domain's contract hub) imports FROM here; this file imports NOTHING from a sibling in `contract/`. The one
+// time a type was declared in `context.ts` and pulled back here (`MemoryEmbedSpace`, #2475) it closed three
+// `no-circular` rings at once — `context.ts` → {`memory.ts`, `results.ts` → `memory.ts`, `foreign.ts` →
+// `memory.ts`} → `context.ts` (#2484). `import type` does NOT exempt an edge from dependency-cruiser. So: a
+// memory-subsystem SHAPE is declared HERE and `context.ts` imports it downward; only the INJECTED-OP types
+// over that shape (`ResolveMemoryEmbedSpaceOp`, `EmbeddingsStoreOp`) stay in `context.ts`, because an op is a
+// `ChatContext` member and the DI bundle is what `context.ts` owns.
+//
 // NO `ownerId` anywhere (D20 — the substrate derives owner via the chat FK, never a stamp); the scope key is
 // `scopedCharacterId`, ALWAYS a real `CharacterId` (inv 8 — solo's seated character / the synthetic group-as-character
 // `__group__${chatId}` for solo/merged/narrator / a per-witnessing seated character under scoped; NO `''` sentinel,
@@ -15,7 +24,6 @@ import type { BackfillPassResult, ChatBusEvent, MemoryBackfillResult, MemoryReca
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { MemoryEmbedSpace } from "./context.ts";
 
 /** The raw (partial) memory tuning — the admin-set `AppSettings.memoryDefaults` shape, every field optional.
  *  `resolveCfg` (constants.ts) fills the gaps from `DEFAULTS`. Re-spelled here (not imported from
@@ -59,6 +67,16 @@ export interface MemoryScope {
   readonly chatId: ChatId;
   readonly scopedCharacterId: CharacterId;
   readonly isGroup: boolean;
+}
+
+/** The owner + concrete vector-space tag one memory pass resolved before reading its hash gates. The SPACE is
+ *  a memory-subsystem shape, so it is declared here (the file header's leaf rule) and `context.ts` imports it
+ *  to type the injected ops that resolve/stamp it — never the reverse. */
+export interface MemoryEmbedSpace {
+  readonly ownerId: UserId;
+  readonly model: string;
+  readonly generationId: string;
+  readonly generationEpoch: number;
 }
 
 /** One canon message memory reads (slot ⋈ selected variant — D26). The stable speaker identity
@@ -308,8 +326,11 @@ export type BackfillPassCounts = BackfillPassResult;
  *  scope buckets). `failed` = chats whose build threw an UNEXPECTED error and were isolated-and-skipped
  *  (the sweep survives one bad chat, but the failure is NOT silent — it is logged at `error` level AND
  *  counted here so the workload result surfaces it; #41). A healthy sweep is `failed: 0`; any non-zero
- *  value is a signal to investigate, never a chat silently losing its memory without a trace. */
-export type MemoryBackfillCounts = MemoryBackfillResult;
+ *  value is a signal to investigate, never a chat silently losing its memory without a trace. NOT exported:
+ *  its only reader is {@link MemoryBackfillSweepCounts} below, and the sweep's callers take THAT. Kept as a
+ *  named alias rather than inlined because it IS the cite-or-derive receipt the `ast respell` lens reads — a
+ *  bare alias naming the contracts symbol is the derive, so this must never become a hand-spelled twin. */
+type MemoryBackfillCounts = MemoryBackfillResult;
 
 /** Internal completion evidence consumed by the workload terminal; only checked owner-spaces are listed. */
 export type MemoryBackfillSweepCounts = MemoryBackfillCounts & {

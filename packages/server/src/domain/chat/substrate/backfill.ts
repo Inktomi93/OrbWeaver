@@ -27,8 +27,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, eq, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
-import type { MemoryEmbedSpace } from "../contract/context.ts";
-import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
+import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryEmbedSpace, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
 import {
   collectConsolidationTier,
   logBuild,

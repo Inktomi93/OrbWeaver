@@ -35,7 +35,6 @@ export type {
   GetPendingUserText,
   HandoffCardCopy,
   HandoffHealArgs,
-  MemoryEmbedSpace,
   MemoryStoreReceipt,
   PostNarratorMessage,
   PostNarratorMessageDeps,
@@ -62,7 +61,14 @@ export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract
 // to bind prompt-config `{{user}}`, so the union has to reach entry.
 export type { TurnTrigger } from "./contract/foreign.ts";
 export type { BulkImportChats, ChatImportContext } from "./contract/import.ts";
-export type { MemoryConfig, MemoryRecallFilter, MemoryRecallRecord, MemoryRecallRecorder, ResolveBackfillMemoryConfig } from "./contract/memory.ts";
+export type {
+  MemoryConfig,
+  MemoryEmbedSpace,
+  MemoryRecallFilter,
+  MemoryRecallRecord,
+  MemoryRecallRecorder,
+  ResolveBackfillMemoryConfig,
+} from "./contract/memory.ts";
 export {
   getGroupConfig,
   getRoomOverrides,
